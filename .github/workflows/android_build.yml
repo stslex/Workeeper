@@ -43,51 +43,14 @@ jobs:
           echo "storePassword=$KEYSTORE_STORE_PASSWORD" >> keystore.properties
           echo "keyPassword=$KEYSTORE_KEY_PASSWORD" >> keystore.properties
 
-      - name: Cache GradleCache
-        uses: actions/cache@v4
-        with:
-          path: ~/.gradle/caches
-          key: ${{ runner.os }}-gradleCache-${{ hashFiles('**/*.gradle*') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-gradleCache-${{ hashFiles('**/*.gradle*') }}
-            ${{ runner.os }}-gradle-gradleCache-
-            ${{ runner.os }}-gradle-
-            ${{ runner.os }}-
-
-      - name: Cache Gradle Wrapper
-        uses: actions/cache@v4
-        with:
-          path: ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-gradleWrapper-${{ hashFiles('**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-gradle-gradleWrapper-${{ hashFiles('**/gradle-wrapper.properties') }}
-            ${{ runner.os }}-gradle-gradleWrapper-
-            ${{ runner.os }}-gradle-
-            ${{ runner.os }}-
-
-      - name: Cache Gradle
-        uses: actions/cache@v4
-        with:
-          path: gradle
-          key: ${{ runner.os }}-gradle-gradle-${{ hashFiles('gradle/wrapper/gradle-wrapper.properties', 'gradle/libs.versions.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-gradle-${{ hashFiles('gradle/wrapper/gradle-wrapper.properties', 'gradle/libs.versions.toml') }}
-            ${{ runner.os }}-gradle-gradle-
-            ${{ runner.os }}-gradle-
-            ${{ runner.os }}-
-
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
       - name: Build with Gradle
-        run: ./gradlew build  --full-stacktrace
+        run: ./gradlew build -x test --full-stacktrace
 
       - name: Junit tests with Gradle
         run: ./gradlew testDebugUnitTest --full-stacktrace
-
-      - name: Cache Gradle
-        run: |
-          cat **/build/test-results/**/*.xml
 
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
