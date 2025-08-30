@@ -8,7 +8,7 @@ minSdk = "28"
 targetSdk = "36"
 compileSdk = "36"
 versionName = "1.0"
-versionCode = "0"
+versionCode = "1"
 
 ktx = "1.17.0"
 material = "1.12.0"
@@ -35,6 +35,7 @@ androidxJunit = "1.3.0"
 espresso = "3.7.0"
 robolectric = "4.16"
 androidxTest = "1.7.0"
+kermit = "2.0.8"
 
 room = "2.7.2"
 ksp = "2.2.10-2.0.2"
@@ -44,6 +45,12 @@ serialization = "1.9.0"
 paging = "3.3.6"
 slf4j = "2.0.17"
 coroutineTest = "1.10.2"
+
+# decompose dependencies
+decompose = "3.3.0"
+essenty = "2.5.0"
+parcelize = "0.2.4"
+runtime = "1.9.0"
 [libraries]
 android-desugarJdkLibs = { module = "com.android.tools:desugar_jdk_libs", version.ref = "androidDesugarJdkLibs" }
 android-gradlePlugin = { module = "com.android.tools.build:gradle", version.ref = "androidGradlePlugin" }
@@ -64,6 +71,7 @@ material = { group = "com.google.android.material", name = "material", version.r
 lifecycle-viewModel = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-ktx", version.ref = "lifecycle" }
 lifecycle-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 coroutines = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
+
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
 
 androidx-compose-activity = { group = "androidx.activity", name = "activity-compose", version.ref = "composeActivity" }
@@ -73,6 +81,8 @@ androidx-compose-ui = { group = "androidx.compose.ui", name = "ui" }
 androidx-compose-animation = { group = "androidx.compose.animation", name = "animation" }
 androidx-compose-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
 androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation" }
+androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime", version.ref = "runtime" }
+
 androidx-compose-navigation = { group = "androidx.navigation", name = "navigation-compose", version.ref = "composeNavigation" }
 
 androidx-compose-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
@@ -99,6 +109,7 @@ ktor-client-serialization = { group = "io.ktor", name = "ktor-client-serializati
 ktor-client-logging = { group = "io.ktor", name = "ktor-client-logging", version.ref = "ktor" }
 ktor-serialization-kotlinx-json = { group = "io.ktor", name = "ktor-serialization-kotlinx-json", version.ref = "ktor" }
 brotli = { module = "org.brotli:dec", version = "0.1.2" }
+kermit = { group = "co.touchlab", name = "kermit", version.ref = "kermit" }
 
 okhttp3-core = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp3" }
 okhttp3-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp3" }
@@ -129,6 +140,12 @@ koin-ksp = { group = "io.insert-koin", name = "koin-ksp-compiler", version.ref =
 
 coroutine-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutineTest" }
 
+decompose = { module = "com.arkivanov.decompose:decompose", version.ref = "decompose" }
+decompose-extensions = { module = "com.arkivanov.decompose:extensions-compose", version.ref = "decompose" }
+essenty-lifecycle = { module = "com.arkivanov.essenty:lifecycle", version.ref = "essenty" }
+essenty-stateKeeper = { module = "com.arkivanov.essenty:state-keeper", version.ref = "essenty" }
+essenty-backHandler = { module = "com.arkivanov.essenty:back-handler", version.ref = "essenty" }
+
 [plugins]
 kotlin = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
@@ -139,10 +156,11 @@ ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 room = { id = "androidx.room", version.ref = "room" }
 vkompose = { id = "com.vk.vkompose", version.ref = "vkompose" }
 
-convention-application = { id = "workeaper.android.application", version = "1.0" }
-convention-androidLibrary = { id = "workeaper.android.library", version = "1.0" }
-convention-composeLibrary = { id = "workeaper.android.library.compose", version = "1.0" }
-convention-roomLibrary = { id = "workeaper.room.library", version = "1.0" }
+convention-application = { id = "workeeper.android.application", version = "1.0" }
+convention-androidLibrary = { id = "workeeper.android.androidLibrary", version = "1.0" }
+convention-composeLibrary = { id = "workeeper.android.composeLibrary", version = "1.0" }
+convention-roomLibrary = { id = "workeeper.room.library", version = "1.0" }
+convention-navigation = { id = "workeeper.navigation.library", version = "1.0" }
 
 [bundles]
 lifecycle = [
@@ -169,6 +187,7 @@ compose = [
     "androidx-compose-foundation",
     "androidx-compose-paging",
     "androidx-compose-animation",
+    "androidx-compose-runtime",
     "coil-compose"
 ]
 

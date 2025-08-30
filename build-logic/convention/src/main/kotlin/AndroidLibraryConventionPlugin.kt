@@ -1,6 +1,9 @@
+import AppExt.findPluginId
 import AppExt.findVersionInt
 import AppExt.libs
 import com.android.build.gradle.LibraryExtension
+import io.github.stslex.workeeper.configureKotlinAndroid
+import io.github.stslex.workeeper.configureKsp
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.VersionCatalogsExtension
@@ -8,19 +11,19 @@ import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.dependencies
 import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.kotlin
-import io.github.stslex.workeaper.configureKotlinAndroid
 
 class AndroidLibraryConventionPlugin : Plugin<Project> {
 
     override fun apply(target: Project) {
         with(target) {
-            with(pluginManager) {
-                apply("com.android.library")
-                apply("org.jetbrains.kotlin.android")
-                apply("com.google.devtools.ksp")
+            pluginManager.apply {
+                apply(libs.findPluginId("library"))
+                apply(libs.findPluginId("kotlin"))
+                apply(libs.findPluginId("ksp"))
             }
 
             extensions.configure<LibraryExtension> {
+                configureKsp()
                 configureKotlinAndroid(this)
                 defaultConfig.apply {
                     targetSdk = libs.findVersionInt("targetSdk")
