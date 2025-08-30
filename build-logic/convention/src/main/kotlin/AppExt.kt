@@ -6,7 +6,7 @@ import org.gradle.kotlin.dsl.getByType
 
 object AppExt {
 
-    const val APP_PREFIX = "io.github.stslex.workeaper"
+    const val APP_PREFIX = "io.github.stslex.workeeper"
 
     /**
      * Get the version catalog for the project
@@ -36,6 +36,17 @@ object AppExt {
         dependencies {
             alias.forEach {
                 add("implementation", libs.findLibrary(it).get())
+            }
+        }
+    }
+
+    /**
+     * Find the library by alias
+     */
+    fun Project.api(vararg alias: String) {
+        dependencies {
+            alias.forEach {
+                add("api", libs.findLibrary(it).get())
             }
         }
     }

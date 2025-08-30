@@ -1,4 +1,4 @@
-package io.github.stslex.workeaper
+package io.github.stslex.workeeper
 
 import AppExt.androidTestImplementation
 import AppExt.androidTestImplementationPlatform

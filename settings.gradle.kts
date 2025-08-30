@@ -22,7 +22,11 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Workeapear"
+rootProject.name = "Workeeper"
 include(":app")
 
+include(":core:core")
 
+include(":core:ui:kit")
+include(":core:ui:navigation")
+include(":core:ui:mvi")
