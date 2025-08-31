@@ -4,7 +4,7 @@ import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.kotlin.dsl.dependencies
 import org.gradle.kotlin.dsl.getByType
 
-object AppExt {
+internal object AppExt {
 
     const val APP_PREFIX = "io.github.stslex.workeeper"
 

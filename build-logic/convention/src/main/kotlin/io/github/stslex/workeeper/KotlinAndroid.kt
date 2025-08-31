@@ -127,7 +127,8 @@ private fun Project.configureKotlin() {
             allWarningsAsErrors.set(warningsAsErrors?.toBoolean() ?: false)
             freeCompilerArgs.addAll(
                 "-opt-in=kotlin.RequiresOptIn",
-                "-opt-in=kotlin.uuid.ExperimentalUuidApi"
+                "-opt-in=kotlin.uuid.ExperimentalUuidApi",
+                "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
             )
         }
     }

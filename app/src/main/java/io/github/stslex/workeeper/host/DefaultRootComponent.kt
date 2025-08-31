@@ -10,7 +10,7 @@ import com.arkivanov.decompose.router.stack.pop
 import com.arkivanov.decompose.value.Value
 import io.github.stslex.workeeper.core.ui.navigation.Config
 import io.github.stslex.workeeper.core.ui.navigation.Router
-import io.github.stslex.workeeper.home.HomeComponent
+import io.github.stslex.workeeper.feature.home.ui.mvi.handler.HomeComponent
 import io.github.stslex.workeeper.host.RootComponent.Child
 
 class DefaultRootComponent(

@@ -1,6 +1,6 @@
 [versions]
 androidDesugarJdkLibs = "2.1.5"
-kotlin = "2.2.10"
+kotlin = "2.2.0"
 androidGradlePlugin = "8.12.2"
 androidTools = "31.12.2"
 
@@ -40,7 +40,7 @@ kermit = "2.0.8"
 robolectricExt = "0.9.0"
 
 room = "2.7.2"
-ksp = "2.2.10-2.0.2"
+ksp = "2.2.0-2.0.2"
 vkompose = "0.7.1"
 serialization = "1.9.0"
 paging = "3.3.6"
@@ -52,6 +52,7 @@ decompose = "3.3.0"
 essenty = "2.5.0"
 parcelize = "0.2.4"
 runtime = "1.9.0"
+junitJupiter = "5.13.4"
 [libraries]
 android-desugarJdkLibs = { module = "com.android.tools:desugar_jdk_libs", version.ref = "androidDesugarJdkLibs" }
 android-gradlePlugin = { module = "com.android.tools.build:gradle", version.ref = "androidGradlePlugin" }
@@ -95,6 +96,7 @@ coil-ktor = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref = "coi
 
 androidx-compose-paging = { group = "androidx.paging", name = "paging-compose", version.ref = "paging" }
 androidx-paging-runtime = { group = "androidx.paging", name = "paging-runtime-ktx", version.ref = "paging" }
+androidx-paging-testing = { group = "androidx.paging", name = "paging-testing", version.ref = "paging" }
 
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
 
@@ -135,6 +137,7 @@ androidx-room-testing = { group = "androidx.room", name = "room-testing", versio
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
 koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
 koin-androidx-compose = { module = "io.insert-koin:koin-androidx-compose", version.ref = "koin" }
+koin-compose-viewmodel = { module = "io.insert-koin:koin-compose-viewmodel", version.ref = "koin" }
 koin-annotations = { group = "io.insert-koin", name = "koin-annotations", version.ref = "koinKsp" }
 
 koin-test-core = { module = "io.insert-koin:koin-test", version.ref = "koin" }
@@ -149,6 +152,7 @@ decompose-extensions = { module = "com.arkivanov.decompose:extensions-compose", 
 essenty-lifecycle = { module = "com.arkivanov.essenty:lifecycle", version.ref = "essenty" }
 essenty-stateKeeper = { module = "com.arkivanov.essenty:state-keeper", version.ref = "essenty" }
 essenty-backHandler = { module = "com.arkivanov.essenty:back-handler", version.ref = "essenty" }
+jupiter-junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter", version.ref = "junitJupiter" }
 
 [plugins]
 kotlin = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
