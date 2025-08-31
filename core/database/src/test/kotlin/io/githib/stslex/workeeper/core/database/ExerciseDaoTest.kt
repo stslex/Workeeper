@@ -12,14 +12,18 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
+import java.util.UUID
 import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
 
 @ExtendWith(RobolectricExtension::class)
 @Config(application = BaseDatabaseTest.TestApplication::class)
 internal class ExerciseDaoTest : BaseDatabaseTest() {
 
     private val dao: ExerciseDao get() = database.exerciseDao
+
+    private val exerciseEntities: List<ExerciseEntity> by lazy {
+        Array(10) { createTestExercise(it) }.toList()
+    }
 
     @BeforeEach
     override fun initDb() {
@@ -32,25 +36,38 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
     }
 
     @Test
-    fun getAll() = runTest {
+    fun `get all items with full database`() = runTest {
         dao.create(exerciseEntities)
         val pagingSource = dao.getAll()
         val loadResult = pagingSource.load(
             PagingSource.LoadParams.Refresh(
                 key = null,
-                loadSize = exerciseEntities.size,
+                loadSize = exerciseEntities.size + 10,
                 placeholdersEnabled = false
             )
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertTrue(actual.orEmpty().isNotEmpty())
-        assertEquals(actual?.size, exerciseEntities.size)
+        assertEquals(exerciseEntities.size, actual?.size)
+    }
 
+    @Test
+    fun `get all items with empty database`() = runTest {
+        val pagingSource = dao.getAll()
+        val loadResult = pagingSource.load(
+            PagingSource.LoadParams.Refresh(
+                key = null,
+                loadSize = exerciseEntities.size + 10,
+                placeholdersEnabled = false
+            )
+        )
+        val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
+        assertEquals(0, actual?.size)
     }
 
     @OptIn(ExperimentalUuidApi::class)
     @Test
-    fun getItem() = runTest {
+    fun `create one item and get it`() = runTest {
         val expectedExercise = exerciseEntities.first()
         dao.create(expectedExercise)
         val compareExercise = dao.getExercise(expectedExercise.uuid)
@@ -58,50 +75,46 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
     }
 
     @Test
-    fun insertSingleItem() = runTest {
-        val exerciseSize = dao.getAll().load(
-            PagingSource.LoadParams.Refresh(
-                key = null,
-                loadSize = exerciseEntities.size,
-                placeholdersEnabled = false
-            )
-        ).let {
-            (it as? PagingSource.LoadResult.Page)?.data
-        }?.size
-        val expectedExercise = exerciseEntities.first()
-        dao.create(expectedExercise)
-        val exerciseSizeAssert = exerciseSize?.plus(1)
+    fun `get item form empty db`() = runTest {
+        val compareExercise = dao.getExercise(UUID.randomUUID())
+        assertEquals(null, compareExercise)
+    }
 
-        val exercisesNewSize = dao.getAll().load(
-            PagingSource.LoadParams.Refresh(
-                key = null,
-                loadSize = exerciseEntities.size,
-                placeholdersEnabled = false
-            )
-        ).let {
-            (it as? PagingSource.LoadResult.Page)?.data
+    @Test
+    fun `insert single item`() = runTest {
+        val expectedItem = exerciseEntities.first()
+        dao.create(expectedItem)
+        val actual = dao.getExercise(expectedItem.uuid)
+        assertEquals(expectedItem, actual)
+    }
+
+    @Test
+    fun `insert multiple items`() = runTest {
+        val expectedItems = exerciseEntities
+        dao.create(expectedItems)
+        val actual = expectedItems.map {
+            dao.getExercise(it.uuid)
         }
-        assertEquals(exerciseSizeAssert, exercisesNewSize?.size)
+        assertEquals(expectedItems, actual)
     }
 
-    private val exerciseEntities: List<ExerciseEntity> by lazy {
-        listOf(testExercise, testExercise, testExercise, testExercise)
+    @Test
+    fun `clear all items`() = runTest {
+        val expectedItem = createTestExercise()
+        dao.create(exerciseEntities)
+        dao.clear()
+        val actual = dao.getExercise(expectedItem.uuid)
+        assertEquals(null, actual)
     }
 
-    @OptIn(ExperimentalUuidApi::class)
-    private val List<ExerciseEntity>.containsCurrentItem: Boolean
-        get() = contains(testExercise.copy(uuid = last().uuid))
-
-    @OptIn(ExperimentalUuidApi::class)
-    private val testExercise: ExerciseEntity by lazy {
-        ExerciseEntity(
-            uuid = Uuid.random(),
-            name = "test",
-            sets = 2,
-            reps = 3,
-            weight = 4,
-            timestamp = 123,
-        )
-    }
+    private fun createTestExercise(
+        index: Int = 0
+    ): ExerciseEntity = ExerciseEntity(
+        name = "test",
+        sets = index.inc(),
+        reps = index.plus(2),
+        weight = index.plus(3),
+        timestamp = index.plus(123).toLong(),
+    )
 
 }

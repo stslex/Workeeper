@@ -3,15 +3,13 @@ package io.github.stslex.workeeper.core.database.exercise
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
+import java.util.UUID
 
-@OptIn(ExperimentalUuidApi::class)
 @Entity(tableName = "exercises_table")
-data class ExerciseEntity(
-    @PrimaryKey
+data class ExerciseEntity constructor(
+    @PrimaryKey(autoGenerate = false)
     @ColumnInfo(name = "uuid")
-    val uuid: Uuid,
+    val uuid: UUID = UUID.randomUUID(),
     @ColumnInfo(name = "name")
     val name: String,
     @ColumnInfo(name = "sets")

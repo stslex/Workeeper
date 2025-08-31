@@ -1,5 +1,4 @@
 import AppExt.androidTestApi
-import AppExt.annotationProcessor
 import AppExt.findPluginId
 import AppExt.implementation
 import AppExt.implementationBundle
@@ -34,10 +33,10 @@ class RoomLibraryConventionPlugin : Plugin<Project> {
 
             dependencies {
                 implementationBundle("room")
-                annotationProcessor("androidx-room-compiler")
+
+                ksp("androidx-room-compiler")
                 implementation("androidx-paging-runtime")
                 androidTestApi("androidx-room-testing")
-                ksp("androidx-room-compiler")
             }
         }
     }
