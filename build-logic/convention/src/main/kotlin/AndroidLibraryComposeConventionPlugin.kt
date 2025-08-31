@@ -8,8 +8,6 @@ import io.github.stslex.workeeper.configureKsp
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.configure
-import org.gradle.kotlin.dsl.dependencies
-import org.gradle.kotlin.dsl.kotlin
 
 class AndroidLibraryComposeConventionPlugin : Plugin<Project> {
 
@@ -42,16 +40,6 @@ class AndroidLibraryComposeConventionPlugin : Plugin<Project> {
                         }
                     }
                 }
-            }
-
-            configurations.configureEach {
-                resolutionStrategy {
-                    force(libs.findLibrary("junit").get())
-                }
-            }
-            dependencies {
-                add("androidTestImplementation", kotlin("test"))
-                add("testImplementation", kotlin("test"))
             }
         }
     }

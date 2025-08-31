@@ -8,6 +8,7 @@ plugins {
     alias(libs.plugins.room) apply false
     alias(libs.plugins.vkompose) apply false
     alias(libs.plugins.composeCompiler) apply false
+    alias(libs.plugins.robolectric.junit5) apply false
 }
 
 buildscript {

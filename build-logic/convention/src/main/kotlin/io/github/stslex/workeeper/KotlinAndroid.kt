@@ -2,13 +2,17 @@ package io.github.stslex.workeeper
 
 import AppExt.APP_PREFIX
 import AppExt.androidTestImplementationBundle
+import AppExt.androidTestImplementationPlatform
 import AppExt.coreLibraryDesugaring
+import AppExt.findPluginId
 import AppExt.findVersionInt
 import AppExt.implementation
 import AppExt.implementationBundle
 import AppExt.ksp
 import AppExt.libs
 import AppExt.testImplementationBundle
+import AppExt.testImplementationPlatform
+import AppExt.testRuntimeOnly
 import com.android.build.api.dsl.ApplicationExtension
 import com.android.build.api.dsl.CommonExtension
 import com.android.build.api.dsl.DefaultConfig
@@ -17,6 +21,7 @@ import com.android.build.gradle.internal.cxx.configure.gradleLocalProperties
 import com.google.devtools.ksp.gradle.KspExtension
 import org.gradle.api.JavaVersion
 import org.gradle.api.Project
+import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.dependencies
 import org.gradle.kotlin.dsl.provideDelegate
@@ -40,6 +45,10 @@ private fun Project.configureKotlinAndroid(
     commonExtension: CommonExtension<*, *, *, *, *, *>,
     isApp: Boolean
 ): Unit = with(commonExtension) {
+
+    pluginManager.apply {
+        apply(libs.findPluginId("robolectric-junit5"))
+    }
 
     compileSdk = libs.findVersionInt("compileSdk")
 
@@ -66,8 +75,8 @@ private fun Project.configureKotlinAndroid(
     compileOptions {
         // Up to Java 11 APIs are available through desugaring
         // https://developer.android.com/studio/write/java11-minimal-support-table
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
         isCoreLibraryDesugaringEnabled = true
     }
 
@@ -79,12 +88,28 @@ private fun Project.configureKotlinAndroid(
 
     dependencies {
         coreLibraryDesugaring("android-desugarJdkLibs")
-        implementation("androidx-core-ktx", "kotlinx-collections-immutable", "coroutines")
-        androidTestImplementationBundle("android-test")
-        implementationBundle("koin")
+
+        testImplementationPlatform("junit-bom")
+        androidTestImplementationPlatform("junit-bom")
+        testRuntimeOnly("junit-launcher")
         testImplementationBundle("test")
+        androidTestImplementationBundle("android-test")
+
+        implementation("androidx-core-ktx", "kotlinx-collections-immutable", "coroutines")
+
+        implementationBundle("koin")
         ksp("koin-ksp")
     }
+
+    tasks.withType<Test>().configureEach {
+        useJUnitPlatform()
+        testLogging {
+            events("passed", "skipped", "failed")
+        }
+    }
+
+
+    testOptions { unitTests.isIncludeAndroidResources = true }
 }
 
 /**
@@ -95,12 +120,16 @@ private fun Project.configureKotlin() {
     tasks.withType<KotlinCompile>().configureEach {
         compilerOptions {
             // Set JVM target to 11
-            jvmTarget.set(JvmTarget.JVM_17)
+            jvmTarget.set(JvmTarget.JVM_21)
             // Treat all Kotlin warnings as errors (disabled by default)
             // Override by setting warningsAsErrors=true in your ~/.gradle/gradle.properties
             val warningsAsErrors: String? by project
             allWarningsAsErrors.set(warningsAsErrors?.toBoolean() ?: false)
-            freeCompilerArgs.add("-opt-in=kotlin.RequiresOptIn")
+            freeCompilerArgs.addAll(
+                "-opt-in=kotlin.RequiresOptIn",
+                "-opt-in=kotlin.uuid.ExperimentalUuidApi",
+                "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
+            )
         }
     }
 }

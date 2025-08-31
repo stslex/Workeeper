@@ -4,7 +4,7 @@ import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.kotlin.dsl.dependencies
 import org.gradle.kotlin.dsl.getByType
 
-object AppExt {
+internal object AppExt {
 
     const val APP_PREFIX = "io.github.stslex.workeeper"
 
@@ -95,6 +95,17 @@ object AppExt {
     /**
      * Find the library by alias
      */
+    fun Project.androidTestApi(vararg alias: String) {
+        dependencies {
+            alias.forEach {
+                add("androidTestApi", libs.findLibrary(it).get())
+            }
+        }
+    }
+
+    /**
+     * Find the library by alias
+     */
     fun Project.androidTestImplementationBundle(vararg alias: String) {
         dependencies {
             alias.forEach {
@@ -108,6 +119,17 @@ object AppExt {
             alias.forEach {
                 add(
                     "androidTestImplementation",
+                    dependencies.platform(libs.findLibrary(it).get())
+                )
+            }
+        }
+    }
+
+    fun Project.testImplementationPlatform(vararg alias: String) {
+        dependencies {
+            alias.forEach {
+                add(
+                    "testImplementation",
                     dependencies.platform(libs.findLibrary(it).get())
                 )
             }
@@ -146,4 +168,27 @@ object AppExt {
             }
         }
     }
+
+    /**
+     * Find the bundle by alias
+     */
+    fun Project.annotationProcessor(vararg alias: String) {
+        dependencies {
+            alias.forEach {
+                add("annotationProcessor", libs.findLibrary(it).get())
+            }
+        }
+    }
+
+    /**
+     * Find the bundle by alias
+     */
+    fun Project.testRuntimeOnly(vararg alias: String) {
+        dependencies {
+            alias.forEach {
+                add("testRuntimeOnly", libs.findLibrary(it).get())
+            }
+        }
+    }
+
 }

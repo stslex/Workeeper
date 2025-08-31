@@ -25,7 +25,12 @@ internal fun Project.configureAndroidCompose(
         debugImplementation("androidx-compose-tooling")
         androidTestImplementation("androidx-compose-ui-test-junit4")
         implementationBundle("accompanist", "compose", "lifecycle")
-        implementation("appcompat", "material", "koin-androidx-compose")
+        implementation(
+            "appcompat",
+            "material",
+            "koin-androidx-compose",
+            "koin-compose-viewmodel",
+        )
         debugImplementation("androidx-compose-manifest")
     }
 

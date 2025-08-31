@@ -1,6 +1,6 @@
 [versions]
 androidDesugarJdkLibs = "2.1.5"
-kotlin = "2.2.10"
+kotlin = "2.2.0"
 androidGradlePlugin = "8.12.2"
 androidTools = "31.12.2"
 
@@ -30,16 +30,17 @@ koinKsp = "2.1.0"
 ktor = "3.2.3"
 okhttp3 = "5.1.0"
 
-junit = "4.13.2"
+mockk = "1.14.5"
+junit = "5.13.4"
 androidxJunit = "1.3.0"
 espresso = "3.7.0"
 robolectric = "4.16"
 androidxTest = "1.7.0"
 kermit = "2.0.8"
+robolectricExt = "0.9.0"
 
 room = "2.7.2"
-ksp = "2.2.10-2.0.2"
-mockito = "5.19.0"
+ksp = "2.2.0-2.0.2"
 vkompose = "0.7.1"
 serialization = "1.9.0"
 paging = "3.3.6"
@@ -51,6 +52,7 @@ decompose = "3.3.0"
 essenty = "2.5.0"
 parcelize = "0.2.4"
 runtime = "1.9.0"
+junitJupiter = "5.13.4"
 [libraries]
 android-desugarJdkLibs = { module = "com.android.tools:desugar_jdk_libs", version.ref = "androidDesugarJdkLibs" }
 android-gradlePlugin = { module = "com.android.tools.build:gradle", version.ref = "androidGradlePlugin" }
@@ -94,6 +96,7 @@ coil-ktor = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref = "coi
 
 androidx-compose-paging = { group = "androidx.paging", name = "paging-compose", version.ref = "paging" }
 androidx-paging-runtime = { group = "androidx.paging", name = "paging-runtime-ktx", version.ref = "paging" }
+androidx-paging-testing = { group = "androidx.paging", name = "paging-testing", version.ref = "paging" }
 
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
 
@@ -115,8 +118,11 @@ okhttp3-core = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = 
 okhttp3-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp3" }
 slf4j-simple = { group = "org.slf4j", name = "slf4j-simple", version.ref = "slf4j" }
 
-junit = { group = "junit", name = "junit", version.ref = "junit" }
-mockito = { group = "org.mockito", name = "mockito-core", version.ref = "mockito" }
+junit-bom = { group = "org.junit", name = "junit-bom", version.ref = "junit" }
+junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter" }
+junit-launcher = { group = "org.junit.platform", name = "junit-platform-launcher" }
+mockk-android = { group = "io.mockk", name = "mockk-android", version.ref = "mockk" }
+mockk-agent = { group = "io.mockk", name = "mockk-agent", version.ref = "mockk" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxJunit" }
 androidx-espresso = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
@@ -131,6 +137,7 @@ androidx-room-testing = { group = "androidx.room", name = "room-testing", versio
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
 koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
 koin-androidx-compose = { module = "io.insert-koin:koin-androidx-compose", version.ref = "koin" }
+koin-compose-viewmodel = { module = "io.insert-koin:koin-compose-viewmodel", version.ref = "koin" }
 koin-annotations = { group = "io.insert-koin", name = "koin-annotations", version.ref = "koinKsp" }
 
 koin-test-core = { module = "io.insert-koin:koin-test", version.ref = "koin" }
@@ -145,6 +152,7 @@ decompose-extensions = { module = "com.arkivanov.decompose:extensions-compose", 
 essenty-lifecycle = { module = "com.arkivanov.essenty:lifecycle", version.ref = "essenty" }
 essenty-stateKeeper = { module = "com.arkivanov.essenty:state-keeper", version.ref = "essenty" }
 essenty-backHandler = { module = "com.arkivanov.essenty:back-handler", version.ref = "essenty" }
+jupiter-junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter", version.ref = "junitJupiter" }
 
 [plugins]
 kotlin = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
@@ -155,6 +163,7 @@ library = { id = "com.android.library", version.ref = "androidGradlePlugin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 room = { id = "androidx.room", version.ref = "room" }
 vkompose = { id = "com.vk.vkompose", version.ref = "vkompose" }
+robolectric-junit5 = { id = "tech.apter.junit5.jupiter.robolectric-extension-gradle-plugin", version.ref = "robolectricExt" }
 
 convention-application = { id = "workeeper.android.application", version = "1.0" }
 convention-androidLibrary = { id = "workeeper.android.androidLibrary", version = "1.0" }
@@ -210,19 +219,20 @@ okhttp = [
 ]
 
 android-test = [
-    "junit",
+    "junit-jupiter",
     "androidx-junit",
     "androidx-espresso"
 ]
 
 test = [
-    "mockito",
-    "junit",
+    "mockk-android",
+    "mockk-agent",
+    "junit-jupiter",
     "robolectric",
     "androidx-test",
+    "coroutine-test",
     "koin-test-core",
     "koin-test-junit",
-    "coroutine-test"
 ]
 
 room = [

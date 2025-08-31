@@ -1,9 +1,9 @@
 package io.github.stslex.workeeper.core.core.result
 
-import io.github.stslex.workeeper.core.core.result.ResultUtils.fold
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScope
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.core.model.AppError
+import io.github.stslex.workeeper.core.core.result.ResultUtils.fold
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 

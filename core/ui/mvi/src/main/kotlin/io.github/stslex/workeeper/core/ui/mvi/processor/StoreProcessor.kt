@@ -67,7 +67,7 @@ inline fun <S : State,
     val effectsProcessor = remember { EffectsProcessor(store) }
     val state = remember { store.state }.collectAsState()
     return remember {
-        StoreProcessorImpl<S, A, E, TStoreImpl>(
+        StoreProcessorImpl(
             actionProcessor = actionProcessor,
             eventProcessor = effectsProcessor,
             state = state,

@@ -6,11 +6,7 @@ import io.github.stslex.workeeper.configureKotlinAndroid
 import io.github.stslex.workeeper.configureKsp
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.kotlin.dsl.configure
-import org.gradle.kotlin.dsl.dependencies
-import org.gradle.kotlin.dsl.getByType
-import org.gradle.kotlin.dsl.kotlin
 
 class AndroidLibraryConventionPlugin : Plugin<Project> {
 
@@ -39,17 +35,6 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
                         }
                     }
                 }
-            }
-
-            val libs = extensions.getByType<VersionCatalogsExtension>().named("libs")
-            configurations.configureEach {
-                resolutionStrategy {
-                    force(libs.findLibrary("junit").get())
-                }
-            }
-            dependencies {
-                add("androidTestImplementation", kotlin("test"))
-                add("testImplementation", kotlin("test"))
             }
         }
     }
