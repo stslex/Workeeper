@@ -1,3 +1,9 @@
+import AppExt.androidTestApi
+import AppExt.annotationProcessor
+import AppExt.findPluginId
+import AppExt.implementation
+import AppExt.implementationBundle
+import AppExt.ksp
 import AppExt.libs
 import androidx.room.gradle.RoomExtension
 import io.github.stslex.workeeper.configureKsp
@@ -11,10 +17,12 @@ class RoomLibraryConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) {
         with(target) {
             pluginManager.apply {
-                apply("androidx.room")
+                apply(libs.findPluginId("room"))
             }
 
-            configureKsp { arg("room.generateKotlin", "true") }
+            configureKsp {
+                arg("room.generateKotlin", "true")
+            }
 
 
             extensions.configure<RoomExtension> {
@@ -25,11 +33,11 @@ class RoomLibraryConventionPlugin : Plugin<Project> {
             }
 
             dependencies {
-                "implementation"(libs.findBundle("room").get())
-                "annotationProcessor"(libs.findLibrary("androidx-room-compiler").get())
-                "implementation"(libs.findLibrary("androidx-paging-runtime").get())
-                "androidTestApi"(libs.findLibrary("androidx-room-testing").get())
-                "ksp"(libs.findLibrary("androidx-room-compiler").get())
+                implementationBundle("room")
+                annotationProcessor("androidx-room-compiler")
+                implementation("androidx-paging-runtime")
+                androidTestApi("androidx-room-testing")
+                ksp("androidx-room-compiler")
             }
         }
     }

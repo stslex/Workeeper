@@ -2,13 +2,17 @@ package io.github.stslex.workeeper
 
 import AppExt.APP_PREFIX
 import AppExt.androidTestImplementationBundle
+import AppExt.androidTestImplementationPlatform
 import AppExt.coreLibraryDesugaring
+import AppExt.findPluginId
 import AppExt.findVersionInt
 import AppExt.implementation
 import AppExt.implementationBundle
 import AppExt.ksp
 import AppExt.libs
 import AppExt.testImplementationBundle
+import AppExt.testImplementationPlatform
+import AppExt.testRuntimeOnly
 import com.android.build.api.dsl.ApplicationExtension
 import com.android.build.api.dsl.CommonExtension
 import com.android.build.api.dsl.DefaultConfig
@@ -17,6 +21,7 @@ import com.android.build.gradle.internal.cxx.configure.gradleLocalProperties
 import com.google.devtools.ksp.gradle.KspExtension
 import org.gradle.api.JavaVersion
 import org.gradle.api.Project
+import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.dependencies
 import org.gradle.kotlin.dsl.provideDelegate
@@ -40,6 +45,10 @@ private fun Project.configureKotlinAndroid(
     commonExtension: CommonExtension<*, *, *, *, *, *>,
     isApp: Boolean
 ): Unit = with(commonExtension) {
+    
+    pluginManager.apply {
+        apply(libs.findPluginId("robolectric-junit5"))
+    }
 
     compileSdk = libs.findVersionInt("compileSdk")
 
@@ -79,12 +88,28 @@ private fun Project.configureKotlinAndroid(
 
     dependencies {
         coreLibraryDesugaring("android-desugarJdkLibs")
-        implementation("androidx-core-ktx", "kotlinx-collections-immutable", "coroutines")
-        androidTestImplementationBundle("android-test")
-        implementationBundle("koin")
+
+        testImplementationPlatform("junit-bom")
+        androidTestImplementationPlatform("junit-bom")
+        testRuntimeOnly("junit-launcher")
         testImplementationBundle("test")
+        androidTestImplementationBundle("android-test")
+
+        implementation("androidx-core-ktx", "kotlinx-collections-immutable", "coroutines")
+
+        implementationBundle("koin")
         ksp("koin-ksp")
     }
+
+    tasks.withType<Test>().configureEach {
+        useJUnitPlatform()
+        testLogging {
+            events("passed", "skipped", "failed")
+        }
+    }
+
+
+    testOptions { unitTests.isIncludeAndroidResources = true }
 }
 
 /**

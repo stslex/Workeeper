@@ -9,5 +9,6 @@ dependencies {
     implementation(project(":core:ui:kit"))
     implementation(project(":core:ui:navigation"))
     implementation(project(":core:ui:mvi"))
+    implementation(project(":core:database"))
 
 }

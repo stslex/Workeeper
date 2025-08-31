@@ -30,16 +30,17 @@ koinKsp = "2.1.0"
 ktor = "3.2.3"
 okhttp3 = "5.1.0"
 
-junit = "4.13.2"
+mockk = "1.14.5"
+junit = "5.13.4"
 androidxJunit = "1.3.0"
 espresso = "3.7.0"
 robolectric = "4.16"
 androidxTest = "1.7.0"
 kermit = "2.0.8"
+robolectricExt = "0.9.0"
 
 room = "2.7.2"
 ksp = "2.2.10-2.0.2"
-mockito = "5.19.0"
 vkompose = "0.7.1"
 serialization = "1.9.0"
 paging = "3.3.6"
@@ -115,8 +116,11 @@ okhttp3-core = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = 
 okhttp3-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp3" }
 slf4j-simple = { group = "org.slf4j", name = "slf4j-simple", version.ref = "slf4j" }
 
-junit = { group = "junit", name = "junit", version.ref = "junit" }
-mockito = { group = "org.mockito", name = "mockito-core", version.ref = "mockito" }
+junit-bom = { group = "org.junit", name = "junit-bom", version.ref = "junit" }
+junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter" }
+junit-launcher = { group = "org.junit.platform", name = "junit-platform-launcher" }
+mockk-android = { group = "io.mockk", name = "mockk-android", version.ref = "mockk" }
+mockk-agent = { group = "io.mockk", name = "mockk-agent", version.ref = "mockk" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxJunit" }
 androidx-espresso = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
@@ -155,6 +159,7 @@ library = { id = "com.android.library", version.ref = "androidGradlePlugin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 room = { id = "androidx.room", version.ref = "room" }
 vkompose = { id = "com.vk.vkompose", version.ref = "vkompose" }
+robolectric-junit5 = { id = "tech.apter.junit5.jupiter.robolectric-extension-gradle-plugin", version.ref = "robolectricExt" }
 
 convention-application = { id = "workeeper.android.application", version = "1.0" }
 convention-androidLibrary = { id = "workeeper.android.androidLibrary", version = "1.0" }
@@ -210,19 +215,20 @@ okhttp = [
 ]
 
 android-test = [
-    "junit",
+    "junit-jupiter",
     "androidx-junit",
     "androidx-espresso"
 ]
 
 test = [
-    "mockito",
-    "junit",
+    "mockk-android",
+    "mockk-agent",
+    "junit-jupiter",
     "robolectric",
     "androidx-test",
+    "coroutine-test",
     "koin-test-core",
     "koin-test-junit",
-    "coroutine-test"
 ]
 
 room = [
