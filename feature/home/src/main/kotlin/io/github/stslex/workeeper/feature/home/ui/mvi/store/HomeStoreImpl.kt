@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.feature.home.ui.mvi.store
 import io.github.stslex.workeeper.core.core.coroutine.dispatcher.AppDispatcher
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 import io.github.stslex.workeeper.feature.home.di.HomeScope
+import io.github.stslex.workeeper.feature.home.ui.mvi.handler.ClickHandler
 import io.github.stslex.workeeper.feature.home.ui.mvi.handler.HomeComponent
 import io.github.stslex.workeeper.feature.home.ui.mvi.handler.PagingHandler
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeStore.Action
@@ -21,7 +22,8 @@ import org.koin.core.annotation.Scoped
 class HomeStoreImpl(
     @InjectedParam component: HomeComponent,
     pagingHandler: PagingHandler,
-    appDispatcher: AppDispatcher
+    clickHandler: ClickHandler,
+    appDispatcher: AppDispatcher,
 ) : HomeHandlerStore, BaseStore<State, Action, Event, HomeHandlerStore>(
     name = "HOME",
     initialState = State(
@@ -32,6 +34,7 @@ class HomeStoreImpl(
         when (action) {
             is Action.Paging -> pagingHandler
             is Action.Navigation -> component
+            is Action.Click.ButtonAddClick -> clickHandler
         }
     }
 )

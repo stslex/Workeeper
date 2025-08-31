@@ -21,7 +21,13 @@ interface HomeStore : Store<State, Action, Event> {
             data object Init : Paging
         }
 
+        sealed interface Click : Action {
+
+            data object ButtonAddClick : Click
+        }
+
         sealed interface Navigation : Action, Store.Action.Navigation
+
     }
 
     sealed interface Event : Store.Event
