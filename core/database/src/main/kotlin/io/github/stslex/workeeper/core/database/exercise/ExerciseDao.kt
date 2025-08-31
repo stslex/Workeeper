@@ -6,7 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
-import java.util.UUID
+import kotlin.uuid.Uuid
 
 @Dao
 interface ExerciseDao {
@@ -15,7 +15,7 @@ interface ExerciseDao {
     fun getAll(): PagingSource<Int, ExerciseEntity>
 
     @Query("SELECT * FROM exercises_table WHERE uuid = :uuid LIMIT 1")
-    suspend fun getExercise(uuid: UUID): ExerciseEntity?
+    suspend fun getExercise(uuid: Uuid): ExerciseEntity?
 
     @Update
     suspend fun update(exercise: ExerciseEntity)

@@ -45,7 +45,7 @@ private fun Project.configureKotlinAndroid(
     commonExtension: CommonExtension<*, *, *, *, *, *>,
     isApp: Boolean
 ): Unit = with(commonExtension) {
-    
+
     pluginManager.apply {
         apply(libs.findPluginId("robolectric-junit5"))
     }
@@ -125,7 +125,10 @@ private fun Project.configureKotlin() {
             // Override by setting warningsAsErrors=true in your ~/.gradle/gradle.properties
             val warningsAsErrors: String? by project
             allWarningsAsErrors.set(warningsAsErrors?.toBoolean() ?: false)
-            freeCompilerArgs.add("-opt-in=kotlin.RequiresOptIn")
+            freeCompilerArgs.addAll(
+                "-opt-in=kotlin.RequiresOptIn",
+                "-opt-in=kotlin.uuid.ExperimentalUuidApi"
+            )
         }
     }
 }

@@ -12,8 +12,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
-import java.util.UUID
 import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 @ExtendWith(RobolectricExtension::class)
 @Config(application = BaseDatabaseTest.TestApplication::class)
@@ -76,7 +76,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
 
     @Test
     fun `get item form empty db`() = runTest {
-        val compareExercise = dao.getExercise(UUID.randomUUID())
+        val compareExercise = dao.getExercise(Uuid.random())
         assertEquals(null, compareExercise)
     }
 
