@@ -26,7 +26,10 @@ interface HomeStore : Store<State, Action, Event> {
             data object ButtonAddClick : Click
         }
 
-        sealed interface Navigation : Action, Store.Action.Navigation
+        sealed interface Navigation : Action, Store.Action.Navigation {
+
+            data object CreateExerciseDialog : Navigation
+        }
 
     }
 

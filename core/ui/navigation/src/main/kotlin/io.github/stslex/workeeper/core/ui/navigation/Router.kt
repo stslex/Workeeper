@@ -6,6 +6,9 @@ interface Router : ComponentContext {
 
     fun navTo(config: Config)
 
+    fun navTo(config: DialogConfig)
+
     fun popBack()
 
 }
+

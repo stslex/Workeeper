@@ -20,6 +20,6 @@ class ClickHandler : Handler<Action.Click, HomeHandlerStore> {
     }
 
     private fun HomeHandlerStore.processClickAdd() {
-
+        consume(Action.Navigation.CreateExerciseDialog)
     }
 }
