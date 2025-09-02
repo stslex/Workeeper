@@ -6,7 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.arkivanov.decompose.defaultComponentContext
-import io.github.stslex.workeeper.host.DefaultRootComponent
+import io.github.stslex.workeeper.navigation.DefaultRootComponent
 import io.github.stslex.workeeper.core.ui.kit.utils.ActivityHolderProducer
 
 import org.koin.android.ext.android.getKoin

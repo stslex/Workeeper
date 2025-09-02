@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.feature.home.data.model
+package io.github.stslex.workeeper.core.exercise.data.model
 
 import io.github.stslex.workeeper.core.database.exercise.ExerciseEntity
 import kotlin.uuid.Uuid

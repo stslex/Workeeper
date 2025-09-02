@@ -10,8 +10,9 @@ import androidx.compose.ui.Modifier
 import com.arkivanov.decompose.extensions.compose.stack.Children
 import com.arkivanov.decompose.extensions.compose.stack.animation.stackAnimation
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
-import io.github.stslex.workeeper.feature.home.ui.CreateNewExerciseDialog
+import io.github.stslex.workeeper.dialog.create_exercise.ui.CreateNewExerciseDialog
 import io.github.stslex.workeeper.feature.home.ui.HomeScreen
+import io.github.stslex.workeeper.navigation.RootComponent
 
 @Composable
 internal fun AppNavigationHost(

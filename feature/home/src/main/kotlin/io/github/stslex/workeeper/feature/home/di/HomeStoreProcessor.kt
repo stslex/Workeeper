@@ -8,8 +8,6 @@ import io.github.stslex.workeeper.feature.home.ui.mvi.handler.HomeComponent
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeStore.Action
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeStore.Event
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeStore.State
-import org.koin.core.module.Module
-import org.koin.ksp.generated.module
 
 internal typealias HomeStoreProcessor = StoreProcessor<State, Action, Event>
 
@@ -22,8 +20,6 @@ internal typealias HomeStoreProcessor = StoreProcessor<State, Action, Event>
 internal object HomeFeature : Feature<HomeStoreProcessor, HomeComponent>(
     scopeClass = HomeScope::class
 ) {
-
-    override val module: Module by lazy { ModuleFeatureHome().module }
 
     @Composable
     override fun processor(

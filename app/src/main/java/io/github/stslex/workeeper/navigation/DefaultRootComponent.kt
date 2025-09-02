@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.host
+package io.github.stslex.workeeper.navigation
 
 import com.arkivanov.decompose.ComponentContext
 import com.arkivanov.decompose.DelicateDecomposeApi
@@ -17,10 +17,10 @@ import io.github.stslex.workeeper.core.ui.navigation.Config
 import io.github.stslex.workeeper.core.ui.navigation.DialogConfig
 import io.github.stslex.workeeper.core.ui.navigation.DialogRouter
 import io.github.stslex.workeeper.core.ui.navigation.Router
-import io.github.stslex.workeeper.feature.home.ui.CreateDialogComponent
+import io.github.stslex.workeeper.dialog.create_exercise.ui.mvi.CreateDialogComponent
 import io.github.stslex.workeeper.feature.home.ui.mvi.handler.HomeComponent
-import io.github.stslex.workeeper.host.RootComponent.Child
-import io.github.stslex.workeeper.host.RootComponent.DialogChild
+import io.github.stslex.workeeper.navigation.RootComponent.Child
+import io.github.stslex.workeeper.navigation.RootComponent.DialogChild
 
 class DefaultRootComponent(
     componentContext: ComponentContext
@@ -75,33 +75,36 @@ class DefaultRootComponent(
         dialogNavigation.activate(config)
     }
 
-    private fun popBack() {
-        navigation.pop()
-    }
-
     private val ComponentContext.dialogRouter: DialogRouter get() = DialogRouterImpl(this)
 
     private val ComponentContext.router: Router get() = RouterImpl(this)
 
-    private inner class RouterImpl(context: ComponentContext) : Router, BaseRouter(context, { navigation.pop() })
+    private inner class RouterImpl(
+        context: ComponentContext
+    ) : Router, BaseRouter(context) {
 
-    private inner class DialogRouterImpl(context: ComponentContext) : DialogRouter, BaseRouter(context, { dialogNavigation.dismiss() })
+        override fun popBack() {
+            navigation.pop()
+        }
+    }
 
-    private open inner class BaseRouter(
+    private inner class DialogRouterImpl(context: ComponentContext) : DialogRouter, BaseRouter(context) {
+
+        override fun popBack() {
+            dialogNavigation.dismiss()
+        }
+    }
+
+    private abstract inner class BaseRouter(
         context: ComponentContext,
-        private val popBackAction: () -> Unit
     ) : Router, ComponentContext by context {
 
-        final override fun navTo(config: Config) {
+        override fun navTo(config: Config) {
             navigateTo(config)
         }
 
-        final override fun navTo(config: DialogConfig) {
+        override fun navTo(config: DialogConfig) {
             navigateTo(config)
-        }
-
-        final override fun popBack() {
-            popBackAction()
         }
     }
 }

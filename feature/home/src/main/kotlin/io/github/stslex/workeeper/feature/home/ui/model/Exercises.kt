@@ -1,7 +1,7 @@
 package io.github.stslex.workeeper.feature.home.ui.model
 
 import androidx.compose.runtime.Stable
-import io.github.stslex.workeeper.feature.home.data.model.ExerciseDataModel
+import io.github.stslex.workeeper.core.exercise.data.model.ExerciseDataModel
 
 @Stable
 data class ExerciseUiModel(

@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.feature.home.data
+package io.github.stslex.workeeper.core.exercise
 
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
@@ -6,7 +6,9 @@ import androidx.paging.testing.asSnapshot
 import io.github.stslex.workeeper.core.core.coroutine.dispatcher.AppDispatcher
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
 import io.github.stslex.workeeper.core.database.exercise.ExerciseEntity
-import io.github.stslex.workeeper.feature.home.data.model.ExerciseDataModel
+import io.github.stslex.workeeper.core.exercise.data.ExerciseRepository
+import io.github.stslex.workeeper.core.exercise.data.ExerciseRepositoryImpl
+import io.github.stslex.workeeper.core.exercise.data.model.ExerciseDataModel
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -48,7 +50,6 @@ internal class ExerciseRepositoryTest {
             createDomain(0, uuid1),
             createDomain(1, uuid2)
         )
-
 
         every { dao.getAll() } returns TestPagingSource(expectedEntites)
 

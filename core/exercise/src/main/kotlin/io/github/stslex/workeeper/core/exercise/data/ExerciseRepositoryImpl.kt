@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.feature.home.data
+package io.github.stslex.workeeper.core.exercise.data
 
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
@@ -6,15 +6,15 @@ import androidx.paging.PagingData
 import androidx.paging.map
 import io.github.stslex.workeeper.core.core.coroutine.dispatcher.AppDispatcher
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
-import io.github.stslex.workeeper.feature.home.data.model.ExerciseDataModel
-import io.github.stslex.workeeper.feature.home.data.model.toData
+import io.github.stslex.workeeper.core.exercise.data.model.ExerciseDataModel
+import io.github.stslex.workeeper.core.exercise.data.model.toData
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import org.koin.core.annotation.Single
 
 @Single
-class ExerciseRepositoryImpl(
+internal class ExerciseRepositoryImpl(
     private val dao: ExerciseDao,
     appDispatcher: AppDispatcher
 ) : ExerciseRepository {
