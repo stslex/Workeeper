@@ -19,8 +19,8 @@ import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
-import io.github.stslex.workeeper.feature.home.ui.components.HomeActionButton
 import io.github.stslex.workeeper.feature.home.ui.components.ExercisePagingItem
+import io.github.stslex.workeeper.feature.home.ui.components.HomeActionButton
 import io.github.stslex.workeeper.feature.home.ui.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeStore.Action
 import kotlinx.coroutines.flow.flowOf
@@ -56,7 +56,12 @@ fun HomeWidget(
                     key = lazyPagingItems.itemKey { it.uuid }
                 ) { index ->
                     lazyPagingItems[index]?.let { item ->
-                        ExercisePagingItem(item)
+                        ExercisePagingItem(
+                            item = item,
+                            onClick = {
+                                consume(Action.Click.Item(item))
+                            }
+                        )
                     }
                 }
             }
@@ -74,7 +79,7 @@ private fun HomeWidgetPreview() {
                 name = "nameOfExercise$index",
                 sets = index,
                 reps = index,
-                weight = 60 + index,
+                weight = 60.0 + index,
                 timestamp = System.currentTimeMillis()
             )
         }.toList()

@@ -34,7 +34,7 @@ class HomeStoreImpl(
         when (action) {
             is Action.Paging -> pagingHandler
             is Action.Navigation -> component
-            is Action.Click.ButtonAddClick -> clickHandler
+            is Action.Click -> clickHandler
         }
     }
 )

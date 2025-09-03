@@ -26,6 +26,9 @@ interface ExerciseDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun create(exercise: List<ExerciseEntity>)
 
+    @Query("DELETE FROM exercises_table WHERE uuid = :uuid")
+    suspend fun delete(uuid: Uuid)
+
     @Query("DELETE FROM exercises_table")
     suspend fun clear()
 }

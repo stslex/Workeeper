@@ -16,7 +16,7 @@ object Log : AtTenLogger {
         tag: String? = null,
         message: String? = null
     ) {
-        if (BuildConfig.DEBUG) return
+        if (BuildConfig.DEBUG.not()) return
         // todo firebase crashlytics
         Logger.Companion.e(
             tag = tag ?: DEFAULT_TAG,
@@ -29,7 +29,7 @@ object Log : AtTenLogger {
         message: String,
         tag: String? = null,
     ) {
-        if (BuildConfig.DEBUG) return
+        if (BuildConfig.DEBUG.not()) return
         // todo firebase crashlytics
         Logger.Companion.e(
             tag = tag ?: DEFAULT_TAG,
@@ -41,7 +41,7 @@ object Log : AtTenLogger {
         message: String,
         tag: String? = null,
     ) {
-        if (BuildConfig.DEBUG) return
+        if (BuildConfig.DEBUG.not()) return
         Logger.Companion.d(
             tag = tag ?: DEFAULT_TAG,
             messageString = message
@@ -52,7 +52,7 @@ object Log : AtTenLogger {
         message: String,
         tag: String? = null,
     ) {
-        if (BuildConfig.DEBUG) return
+        if (BuildConfig.DEBUG.not()) return
         Logger.Companion.i(
             tag = tag ?: DEFAULT_TAG,
             messageString = message
@@ -63,7 +63,7 @@ object Log : AtTenLogger {
         message: String,
         tag: String? = null,
     ) {
-        if (BuildConfig.DEBUG) return
+        if (BuildConfig.DEBUG.not()) return
         Logger.Companion.v(
             tag = tag ?: DEFAULT_TAG,
             messageString = message

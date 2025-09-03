@@ -17,9 +17,10 @@ import io.github.stslex.workeeper.core.ui.navigation.Config
 import io.github.stslex.workeeper.core.ui.navigation.DialogConfig
 import io.github.stslex.workeeper.core.ui.navigation.DialogRouter
 import io.github.stslex.workeeper.core.ui.navigation.Router
-import io.github.stslex.workeeper.dialog.exercise.ui.mvi.ExerciseDialogComponent
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.ExerciseComponent
 import io.github.stslex.workeeper.feature.home.ui.mvi.handler.HomeComponent
 import io.github.stslex.workeeper.navigation.RootComponent.Child
+import io.github.stslex.workeeper.navigation.RootComponent.Child.Home
 import io.github.stslex.workeeper.navigation.RootComponent.DialogChild
 
 class DefaultRootComponent(
@@ -43,9 +44,7 @@ class DefaultRootComponent(
         serializer = DialogConfig.serializer(),
         handleBackButton = true,
     ) { config, context ->
-        when (config) {
-            DialogConfig.Exercise -> DialogChild.Exercise(ExerciseDialogComponent.create(context.dialogRouter))
-        }
+        TODO("not implemented")
     }
 
     override fun onConfigChanged(block: (Config) -> Unit) = stack.subscribe {
@@ -56,7 +55,8 @@ class DefaultRootComponent(
         config: Config,
         context: ComponentContext
     ): Child = when (config) {
-        is Config.Home -> Child.Home(HomeComponent.create(context.router))
+        is Config.Home -> Home(HomeComponent.create(context.router))
+        is Config.Exercise -> Child.Exercise(ExerciseComponent.create(context.router, config.data))
     }
 
     @OptIn(DelicateDecomposeApi::class)

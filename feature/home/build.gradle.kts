@@ -9,4 +9,6 @@ dependencies {
     implementation(project(":core:ui:mvi"))
     implementation(project(":core:ui:navigation"))
     implementation(project(":core:exercise"))
+
+    implementation(libs.kotlinx.datetime)
 }

@@ -13,6 +13,5 @@ dependencies {
     implementation(project(":core:exercise"))
 
     implementation(project(":feature:home"))
-
-    implementation(project(":dialog:exercise"))
+    implementation(project(":feature:exercise"))
 }

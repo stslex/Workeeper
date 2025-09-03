@@ -1,7 +1,7 @@
 package io.github.stslex.workeeper.feature.home.ui.mvi.handler
 
 import com.arkivanov.decompose.ComponentContext
-import io.github.stslex.workeeper.core.ui.navigation.DialogConfig
+import io.github.stslex.workeeper.core.ui.navigation.Config
 import io.github.stslex.workeeper.core.ui.navigation.Router
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeHandlerStore
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeStore.Action.Navigation
@@ -12,7 +12,8 @@ internal class HomeComponentImpl(
 
     override fun HomeHandlerStore.invoke(action: Navigation) {
         when (action) {
-            Navigation.CreateExerciseDialog -> router.navTo(DialogConfig.Exercise)
+            is Navigation.CreateExerciseDialog -> router.navTo(Config.Exercise(Config.Exercise.Data.New))
+            is Navigation.OpenExercise -> router.navTo(Config.Exercise(action.data))
         }
     }
 

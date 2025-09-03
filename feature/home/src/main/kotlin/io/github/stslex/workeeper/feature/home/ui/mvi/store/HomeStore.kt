@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.feature.home.ui.mvi.store
 import androidx.paging.PagingData
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.core.ui.mvi.Store
+import io.github.stslex.workeeper.core.ui.navigation.Config.Exercise.Data
 import io.github.stslex.workeeper.feature.home.ui.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeStore.Action
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeStore.Event
@@ -24,11 +25,15 @@ interface HomeStore : Store<State, Action, Event> {
         sealed interface Click : Action {
 
             data object ButtonAddClick : Click
+
+            data class Item(val item: ExerciseUiModel) : Click
         }
 
         sealed interface Navigation : Action, Store.Action.Navigation {
 
             data object CreateExerciseDialog : Navigation
+
+            data class OpenExercise(val data: Data.Edit) : Navigation
         }
 
     }

@@ -34,5 +34,4 @@ include(":core:database")
 include(":core:exercise")
 
 include(":feature:home")
-
-include(":dialog:exercise")
+include(":feature:exercise")

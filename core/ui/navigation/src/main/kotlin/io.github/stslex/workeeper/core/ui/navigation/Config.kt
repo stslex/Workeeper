@@ -15,4 +15,23 @@ sealed interface Config {
 
         override val isBackAllow: Boolean = false
     }
+
+    @Serializable
+    data class Exercise(val data: Data) : Config {
+
+        @Serializable
+        sealed interface Data {
+
+            data object New : Data
+
+            data class Edit(
+                val uuid: String,
+                val name: String,
+                val sets: Int,
+                val reps: Int,
+                val weight: Double,
+                val timestamp: Long,
+            ) : Data
+        }
+    }
 }
