@@ -1,40 +1,30 @@
 package io.github.stslex.workeeper.host
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import com.arkivanov.decompose.extensions.compose.stack.Children
-import com.arkivanov.decompose.extensions.compose.stack.animation.stackAnimation
-import com.arkivanov.decompose.extensions.compose.subscribeAsState
-import io.github.stslex.workeeper.feature.exercise.ui.ExerciseFeature
-import io.github.stslex.workeeper.feature.home.ui.HomeScreen
-import io.github.stslex.workeeper.navigation.RootComponent
+import androidx.navigation.compose.NavHost
+import io.github.stslex.workeeper.core.ui.navigation.Screen
+import io.github.stslex.workeeper.feature.exercise.ui.exerciseGraph
+import io.github.stslex.workeeper.feature.exercise.ui.exerciseNewGraph
+import io.github.stslex.workeeper.feature.home.ui.homeGraph
+import io.github.stslex.workeeper.navigation.NavigatorImpl
 
 @Composable
 internal fun AppNavigationHost(
-    rootComponent: RootComponent,
+    navigatorHolder: NavHostControllerHolder,
     modifier: Modifier = Modifier,
 ) {
-    Box(modifier = modifier.fillMaxSize()) {
-        Children(
-            stack = rootComponent.stack,
-            modifier = modifier.fillMaxSize(),
-            animation = stackAnimation(),
-        ) { created ->
-            when (val instance = created.instance) {
-                is RootComponent.Child.Home -> HomeScreen(instance.component)
-                is RootComponent.Child.Exercise -> ExerciseFeature(instance.component)
-            }
-        }
-
-        val dialogSlot by remember { rootComponent.dialogStack }.subscribeAsState()
-
-        dialogSlot.child?.instance?.let { dialogChild ->
-            TODO("not implemented")
-        }
-
+    val navigator = remember(navigatorHolder) {
+        NavigatorImpl(navigatorHolder)
+    }
+    NavHost(
+        modifier = modifier,
+        navController = navigatorHolder.navigator,
+        startDestination = Screen.Home
+    ) {
+        homeGraph(navigator)
+        exerciseGraph(navigator)
+        exerciseNewGraph(navigator)
     }
 }

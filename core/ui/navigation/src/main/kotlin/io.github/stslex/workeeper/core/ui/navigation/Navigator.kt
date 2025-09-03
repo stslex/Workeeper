@@ -3,4 +3,10 @@ package io.github.stslex.workeeper.core.ui.navigation
 import androidx.compose.runtime.Stable
 
 @Stable
-interface DialogComponent : Component
+interface Navigator {
+
+    fun navTo(screen: Screen)
+
+    fun popBack()
+
+}

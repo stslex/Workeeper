@@ -1,19 +1,20 @@
 package io.github.stslex.workeeper.feature.home.ui.mvi.handler
 
-import com.arkivanov.decompose.ComponentContext
-import io.github.stslex.workeeper.core.ui.navigation.Config
-import io.github.stslex.workeeper.core.ui.navigation.Router
+import androidx.compose.runtime.Stable
+import io.github.stslex.workeeper.core.ui.navigation.Navigator
+import io.github.stslex.workeeper.core.ui.navigation.Screen.Exercise
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeHandlerStore
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeStore.Action.Navigation
 
+@Stable
 internal class HomeComponentImpl(
-    private val router: Router,
-) : HomeComponent, ComponentContext by router {
+    private val navigator: Navigator,
+) : HomeComponent {
 
     override fun HomeHandlerStore.invoke(action: Navigation) {
         when (action) {
-            is Navigation.CreateExerciseDialog -> router.navTo(Config.Exercise(Config.Exercise.Data.New))
-            is Navigation.OpenExercise -> router.navTo(Config.Exercise(action.data))
+            is Navigation.CreateExerciseDialog -> navigator.navTo(Exercise.New)
+            is Navigation.OpenExercise -> navigator.navTo(action.data)
         }
     }
 

@@ -49,7 +49,6 @@ slf4j = "2.0.17"
 coroutineTest = "1.10.2"
 
 # decompose dependencies
-decompose = "3.3.0"
 essenty = "2.5.0"
 parcelize = "0.2.4"
 runtime = "1.9.0"
@@ -148,13 +147,6 @@ koin-ksp = { group = "io.insert-koin", name = "koin-ksp-compiler", version.ref =
 
 coroutine-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutineTest" }
 
-decompose = { module = "com.arkivanov.decompose:decompose", version.ref = "decompose" }
-decompose-extensions = { module = "com.arkivanov.decompose:extensions-compose", version.ref = "decompose" }
-essenty-lifecycle = { module = "com.arkivanov.essenty:lifecycle", version.ref = "essenty" }
-essenty-stateKeeper = { module = "com.arkivanov.essenty:state-keeper", version.ref = "essenty" }
-essenty-backHandler = { module = "com.arkivanov.essenty:back-handler", version.ref = "essenty" }
-jupiter-junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter", version.ref = "junitJupiter" }
-
 [plugins]
 kotlin = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
@@ -170,7 +162,6 @@ convention-application = { id = "workeeper.android.application", version = "1.0"
 convention-androidLibrary = { id = "workeeper.android.androidLibrary", version = "1.0" }
 convention-composeLibrary = { id = "workeeper.android.composeLibrary", version = "1.0" }
 convention-roomLibrary = { id = "workeeper.room.library", version = "1.0" }
-convention-navigation = { id = "workeeper.navigation.library", version = "1.0" }
 
 [bundles]
 lifecycle = [

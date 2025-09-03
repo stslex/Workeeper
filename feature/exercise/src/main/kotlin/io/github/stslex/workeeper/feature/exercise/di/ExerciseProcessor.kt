@@ -15,7 +15,7 @@ internal typealias ExerciseProcessor = StoreProcessor<State, Action, Event>
  * ExerciseFeature is a Koin feature module that provides the ExerciseDialogStore processor.
  * It is responsible for managing the state and actions related to the profile feature.
  *
- * @see [io.github.stslex.workeeper.dialog.exercise.ui.mvi.store.ExerciseStore]
+ * @see [io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore]
  * */
 internal object ExerciseFeature : Feature<ExerciseProcessor, ExerciseComponent>(
     scopeClass = ExerciseScope::class

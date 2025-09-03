@@ -2,7 +2,7 @@ package io.github.stslex.workeeper.feature.home.ui.model
 
 import androidx.compose.runtime.Stable
 import io.github.stslex.workeeper.core.exercise.data.model.ExerciseDataModel
-import io.github.stslex.workeeper.core.ui.navigation.Config
+import io.github.stslex.workeeper.core.ui.navigation.Screen
 
 @Stable
 data class ExerciseUiModel(
@@ -23,7 +23,7 @@ fun ExerciseDataModel.toUi() = ExerciseUiModel(
     timestamp = timestamp,
 )
 
-fun ExerciseUiModel.toNavData() = Config.Exercise.Data.Edit(
+fun ExerciseUiModel.toNavData() = Screen.Exercise.Data(
     uuid = uuid,
     name = name,
     sets = sets,

@@ -2,7 +2,7 @@ package io.github.stslex.workeeper.feature.exercise.ui.mvi.store
 
 import androidx.compose.runtime.Stable
 import io.github.stslex.workeeper.core.ui.mvi.Store
-import io.github.stslex.workeeper.core.ui.navigation.Config.Exercise.Data
+import io.github.stslex.workeeper.core.ui.navigation.Screen.Exercise.Data
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.Property
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PropertyType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SnackbarType
@@ -56,7 +56,7 @@ interface ExerciseStore : Store<State, Action, Event> {
             data class Time(val timestamp: Long) : Input
         }
 
-        data class InitDialog(val data: Data) : Action
+        data class InitDialog(val data: Data?) : Action
 
         sealed interface Click : Action {
 

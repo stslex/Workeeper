@@ -12,7 +12,7 @@ import org.koin.core.annotation.Scoped
 @Factory
 @Scope(ExerciseScope::class)
 @Scoped
-internal class InputHandler : Handler<Action.Input, ExerciseHandlerStore> {
+class InputHandler : Handler<Action.Input, ExerciseHandlerStore> {
 
     override fun ExerciseHandlerStore.invoke(action: Action.Input) {
         when (action) {

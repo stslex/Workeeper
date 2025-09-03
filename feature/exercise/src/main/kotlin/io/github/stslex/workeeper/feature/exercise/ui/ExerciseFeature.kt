@@ -8,13 +8,46 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.navigation.NavGraphBuilder
+import androidx.navigation.compose.composable
+import androidx.navigation.toRoute
 import io.github.stslex.workeeper.core.ui.mvi.NavComponentScreen
+import io.github.stslex.workeeper.core.ui.navigation.Navigator
+import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseFeature
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.ExerciseComponent
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SnackbarType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
+
+fun NavGraphBuilder.exerciseGraph(
+    navigator: Navigator,
+    modifier: Modifier = Modifier,
+) {
+    composable<Screen.Exercise.Data> { screen ->
+        ExerciseFeature(
+            modifier = modifier,
+            component = remember {
+                ExerciseComponent.create(navigator, screen.toRoute())
+            }
+        )
+    }
+}
+
+fun NavGraphBuilder.exerciseNewGraph(
+    navigator: Navigator,
+    modifier: Modifier = Modifier,
+) {
+    composable<Screen.Exercise.New> { screen ->
+        ExerciseFeature(
+            modifier = modifier,
+            component = remember {
+                ExerciseComponent.create(navigator, null)
+            }
+        )
+    }
+}
 
 @Composable
 fun ExerciseFeature(
