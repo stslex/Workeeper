@@ -17,7 +17,7 @@ import io.github.stslex.workeeper.core.ui.navigation.Config
 import io.github.stslex.workeeper.core.ui.navigation.DialogConfig
 import io.github.stslex.workeeper.core.ui.navigation.DialogRouter
 import io.github.stslex.workeeper.core.ui.navigation.Router
-import io.github.stslex.workeeper.dialog.create_exercise.ui.mvi.CreateDialogComponent
+import io.github.stslex.workeeper.dialog.exercise.ui.mvi.ExerciseDialogComponent
 import io.github.stslex.workeeper.feature.home.ui.mvi.handler.HomeComponent
 import io.github.stslex.workeeper.navigation.RootComponent.Child
 import io.github.stslex.workeeper.navigation.RootComponent.DialogChild
@@ -44,7 +44,7 @@ class DefaultRootComponent(
         handleBackButton = true,
     ) { config, context ->
         when (config) {
-            DialogConfig.CreateExercise -> DialogChild.ExerciseCreate(CreateDialogComponent.create(context.dialogRouter))
+            DialogConfig.Exercise -> DialogChild.Exercise(ExerciseDialogComponent.create(context.dialogRouter))
         }
     }
 

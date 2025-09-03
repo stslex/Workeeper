@@ -10,7 +10,7 @@ import androidx.compose.ui.Modifier
 import com.arkivanov.decompose.extensions.compose.stack.Children
 import com.arkivanov.decompose.extensions.compose.stack.animation.stackAnimation
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
-import io.github.stslex.workeeper.dialog.create_exercise.ui.CreateNewExerciseDialog
+import io.github.stslex.workeeper.dialog.exercise.ui.ExerciseDialog
 import io.github.stslex.workeeper.feature.home.ui.HomeScreen
 import io.github.stslex.workeeper.navigation.RootComponent
 
@@ -34,7 +34,7 @@ internal fun AppNavigationHost(
 
         dialogSlot.child?.instance?.let { dialogChild ->
             when (dialogChild) {
-                is RootComponent.DialogChild.ExerciseCreate -> CreateNewExerciseDialog(
+                is RootComponent.DialogChild.Exercise -> ExerciseDialog(
                     modifier = Modifier.align(Alignment.Center),
                     component = dialogChild.component
                 )

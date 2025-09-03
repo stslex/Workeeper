@@ -35,4 +35,4 @@ include(":core:exercise")
 
 include(":feature:home")
 
-include(":dialog:create-exercise")
+include(":dialog:exercise")

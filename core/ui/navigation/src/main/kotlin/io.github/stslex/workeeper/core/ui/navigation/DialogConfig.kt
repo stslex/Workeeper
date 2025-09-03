@@ -8,5 +8,5 @@ import kotlinx.serialization.Serializable
 sealed interface DialogConfig {
 
     @Serializable
-    data object CreateExercise : DialogConfig
+    data object Exercise : DialogConfig
 }

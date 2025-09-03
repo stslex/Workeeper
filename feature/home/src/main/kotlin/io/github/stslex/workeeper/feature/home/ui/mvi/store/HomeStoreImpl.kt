@@ -16,9 +16,9 @@ import org.koin.core.annotation.Scope
 import org.koin.core.annotation.Scoped
 
 @KoinViewModel([BaseStore::class])
-@Scope(HomeScope::class)
-@Scoped
+@Scoped([HomeScope::class])
 @Qualifier(HomeScope::class)
+@Scope(HomeScope::class)
 class HomeStoreImpl(
     @InjectedParam component: HomeComponent,
     pagingHandler: PagingHandler,

@@ -12,7 +12,7 @@ internal class HomeComponentImpl(
 
     override fun HomeHandlerStore.invoke(action: Navigation) {
         when (action) {
-            Navigation.CreateExerciseDialog -> router.navTo(DialogConfig.CreateExercise)
+            Navigation.CreateExerciseDialog -> router.navTo(DialogConfig.Exercise)
         }
     }
 

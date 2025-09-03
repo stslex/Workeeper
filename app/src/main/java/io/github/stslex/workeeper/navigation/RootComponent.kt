@@ -6,7 +6,7 @@ import com.arkivanov.decompose.router.stack.ChildStack
 import com.arkivanov.decompose.value.Value
 import io.github.stslex.workeeper.core.ui.navigation.Config
 import io.github.stslex.workeeper.core.ui.navigation.DialogConfig
-import io.github.stslex.workeeper.dialog.create_exercise.ui.mvi.CreateDialogComponent
+import io.github.stslex.workeeper.dialog.exercise.ui.mvi.ExerciseDialogComponent
 import io.github.stslex.workeeper.feature.home.ui.mvi.handler.HomeComponent
 
 interface RootComponent {
@@ -25,7 +25,7 @@ interface RootComponent {
 
     sealed interface DialogChild {
 
-        data class ExerciseCreate(val component: CreateDialogComponent) : DialogChild
+        data class Exercise(val component: ExerciseDialogComponent) : DialogChild
     }
 
 }
