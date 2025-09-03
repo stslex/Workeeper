@@ -2,6 +2,7 @@ package io.github.stslex.workeeper.feature.exercise.ui
 
 import android.content.Context
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -11,7 +12,9 @@ import io.github.stslex.workeeper.core.ui.mvi.NavComponentScreen
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseFeature
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.ExerciseComponent
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SnackbarType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 
 @Composable
 fun ExerciseFeature(
@@ -26,12 +29,19 @@ fun ExerciseFeature(
             SnackbarHostState()
         }
 
+        BackHandler {
+            processor.consume(Action.Navigation.BackWithConfirmation)
+        }
+
         processor.Handle { event ->
             when (event) {
                 ExerciseStore.Event.InvalidParams -> showToast(context)
-                ExerciseStore.Event.SnackbarDelete -> snackbarHostState.showSnackbar(
-                    message = "Delete this note?",
-                    actionLabel = "smth",
+                is ExerciseStore.Event.Snackbar -> snackbarHostState.showSnackbar(
+                    message = when (event.type) {
+                        SnackbarType.DELETE -> "Delete this note?"
+                        SnackbarType.DISMISS -> "Leave without saving?"
+                    },
+                    actionLabel = event.type.value,
                     withDismissAction = true
                 )
             }

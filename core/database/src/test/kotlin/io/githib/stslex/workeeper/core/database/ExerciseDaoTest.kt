@@ -113,7 +113,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
         name = "test",
         sets = index.inc(),
         reps = index.plus(2),
-        weight = index.plus(3),
+        weight = index.plus(3).toDouble(),
         timestamp = index.plus(123).toLong(),
     )
 

@@ -96,7 +96,7 @@ private fun ExerciseItem(
 @Preview(showSystemUi = true, showBackground = false)
 private fun ExercisedColumnPreview() {
     AppTheme {
-        var state by remember { mutableStateOf(State()) }
+        var state by remember { mutableStateOf(State.INITIAL) }
 
         fun processInput(property: Action.Input.Property) {
             state = when (property.type) {

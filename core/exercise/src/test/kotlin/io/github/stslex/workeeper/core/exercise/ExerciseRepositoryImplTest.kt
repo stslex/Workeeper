@@ -80,7 +80,7 @@ internal class ExerciseRepositoryTest {
         name = "test$index",
         sets = index.plus(1),
         reps = index.plus(2),
-        weight = index.plus(3),
+        weight = index.plus(3).toDouble(),
         timestamp = index.plus(123).toLong(),
     )
 
@@ -92,7 +92,7 @@ internal class ExerciseRepositoryTest {
         name = "test$index",
         sets = index.plus(1),
         reps = index.plus(2),
-        weight = index.plus(3),
+        weight = index.plus(3).toDouble(),
         timestamp = index.plus(123).toLong(),
     )
 }

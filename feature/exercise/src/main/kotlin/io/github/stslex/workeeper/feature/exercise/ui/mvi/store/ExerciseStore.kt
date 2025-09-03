@@ -1,24 +1,48 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.store
 
+import androidx.compose.runtime.Stable
 import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.core.ui.navigation.Config.Exercise.Data
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.Property
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PropertyType
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SnackbarType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Event
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
 
 interface ExerciseStore : Store<State, Action, Event> {
 
+    @Stable
     data class State(
-        val uuid: String? = null,
-        val name: Property = Property.new(PropertyType.NAME),
-        val sets: Property = Property.new(PropertyType.SETS),
-        val reps: Property = Property.new(PropertyType.REPS),
-        val weight: Property = Property.new(PropertyType.WEIGHT),
-        val timestamp: Long = System.currentTimeMillis(),
-        val isLoading: Boolean = false,
-    ) : Store.State
+        val uuid: String?,
+        val name: Property,
+        val sets: Property,
+        val reps: Property,
+        val weight: Property,
+        val timestamp: Long,
+        val initialHash: Int,
+    ) : Store.State {
+
+        fun calculateEqualsHash(): Int = uuid.hashCode() +
+                name.value.trim().hashCode() +
+                sets.value.trim().hashCode() +
+                reps.value.trim().hashCode() +
+                weight.value.trim().hashCode() +
+                timestamp.hashCode()
+
+        companion object {
+
+            val INITIAL = State(
+                uuid = null,
+                name = Property.new(PropertyType.NAME),
+                sets = Property.new(PropertyType.SETS),
+                reps = Property.new(PropertyType.REPS),
+                weight = Property.new(PropertyType.WEIGHT),
+                timestamp = 0L,
+                initialHash = 0
+            )
+        }
+    }
 
     sealed interface Action : Store.Action {
 
@@ -48,6 +72,8 @@ interface ExerciseStore : Store<State, Action, Event> {
 
         sealed interface Navigation : Action, Store.Action.Navigation {
 
+            data object BackWithConfirmation : Navigation
+
             data object Back : Navigation
         }
 
@@ -57,6 +83,9 @@ interface ExerciseStore : Store<State, Action, Event> {
 
         data object InvalidParams : Event
 
-        data object SnackbarDelete : Event
+        data class Snackbar(
+            val type: SnackbarType
+        ) : Event
+
     }
 }

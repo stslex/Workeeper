@@ -1,5 +1,6 @@
 package io.github.stslex.workeeper.feature.exercise.ui
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,12 +16,15 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseButtonsRow
 import io.github.stslex.workeeper.feature.exercise.ui.components.ExercisedColumn
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SnackbarType
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SnackbarType.Companion.getAction
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
 
@@ -37,7 +41,10 @@ internal fun ExerciseFeatureWidget(
         snackbarHost = {
             SnackbarHostWidget(
                 onActionClick = {
-                    consume(Action.Click.ConfirmedDelete)
+                    when (it) {
+                        SnackbarType.DELETE -> consume(Action.Click.ConfirmedDelete)
+                        SnackbarType.DISMISS -> consume(Action.Navigation.Back)
+                    }
                 },
                 snackbarHostState = snackbarHostState
             )
@@ -73,7 +80,7 @@ internal fun ExerciseFeatureWidget(
 @Composable
 private fun SnackbarHostWidget(
     snackbarHostState: SnackbarHostState,
-    onActionClick: () -> Unit,
+    onActionClick: (type: SnackbarType) -> Unit,
     modifier: Modifier = Modifier
 ) {
     SnackbarHost(
@@ -83,19 +90,24 @@ private fun SnackbarHostWidget(
             modifier = modifier
                 .padding(AppDimension.Padding.small),
             action = {
+                val action = remember(snackbarHostState.currentSnackbarData?.visuals) {
+                    snackbarHostState.getAction()
+                }
                 TextButton(
-                    onClick = onActionClick,
+                    onClick = { action?.let { onActionClick(it) } },
                     modifier = Modifier.padding(horizontal = AppDimension.Padding.small),
-                    colors = ButtonDefaults.textButtonColors()
-                        .copy(
-                            containerColor = MaterialTheme.colorScheme.errorContainer,
-                            contentColor = MaterialTheme.colorScheme.onErrorContainer
-                        )
                 ) {
-                    Text("Delete")
+                    val text = when (action) {
+                        SnackbarType.DELETE -> "DELETE"
+                        SnackbarType.DISMISS -> "EXIT"
+                        null -> null
+                    }
+                    AnimatedVisibility(text != null) {
+                        text?.let { Text(it) }
+                    }
                 }
             },
-            actionContentColor =MaterialTheme.colorScheme.errorContainer ,
+            actionContentColor = MaterialTheme.colorScheme.errorContainer,
             dismissActionContentColor = MaterialTheme.colorScheme.primaryContainer,
             actionOnNewLine = true,
             dismissAction = {
@@ -105,10 +117,6 @@ private fun SnackbarHostWidget(
                         snackbarHostState.currentSnackbarData?.dismiss()
                     },
                     colors = ButtonDefaults.textButtonColors()
-                        .copy(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
                 ) {
                     Text("Cancel")
                 }
@@ -125,7 +133,7 @@ private fun ExerciseFeatureWidgetPreview() {
     AppTheme {
         ExerciseFeatureWidget(
             consume = {},
-            state = State(),
+            state = State.INITIAL,
             modifier = Modifier,
             snackbarHostState = SnackbarHostState()
         )

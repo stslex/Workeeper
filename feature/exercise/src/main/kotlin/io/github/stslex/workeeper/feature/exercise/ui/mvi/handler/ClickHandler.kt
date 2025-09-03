@@ -5,6 +5,7 @@ import io.github.stslex.workeeper.core.exercise.data.model.ChangeExerciseDataMod
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseScope
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PropertyValid
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SnackbarType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
@@ -23,7 +24,7 @@ internal class ClickHandler(
 
     override fun ExerciseHandlerStore.invoke(action: Action.Click) {
         when (action) {
-            Action.Click.Cancel -> consume(Action.Navigation.Back)
+            Action.Click.Cancel -> consume(Action.Navigation.BackWithConfirmation)
             Action.Click.Save -> processSave()
             Action.Click.Delete -> processDelete()
             Action.Click.ConfirmedDelete -> processConfirmedDelete()
@@ -46,7 +47,7 @@ internal class ClickHandler(
     }
 
     private fun ExerciseHandlerStore.processDelete() {
-        sendEvent(ExerciseStore.Event.SnackbarDelete)
+        sendEvent(ExerciseStore.Event.Snackbar(SnackbarType.DELETE))
     }
 
     private fun ExerciseHandlerStore.processSave() {

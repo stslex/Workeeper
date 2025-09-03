@@ -3,9 +3,9 @@ package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.navigation.Config.Exercise.Data
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseScope
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseHandlerStore
 import org.koin.core.annotation.Factory
 import org.koin.core.annotation.Scope
 import org.koin.core.annotation.Scoped
@@ -17,7 +17,11 @@ internal class InitFeatureHandler : Handler<Action.InitDialog, ExerciseHandlerSt
 
     override fun ExerciseHandlerStore.invoke(action: Action.InitDialog) {
         when (val data = action.data) {
-            Data.New -> updateState { it.copy(isLoading = false) }
+            Data.New -> updateState {
+                it.copy(
+                    initialHash = it.calculateEqualsHash()
+                )
+            }
             is Data.Edit -> updateState { state ->
                 state.setState(data)
             }
@@ -31,7 +35,8 @@ internal class InitFeatureHandler : Handler<Action.InitDialog, ExerciseHandlerSt
         reps = reps.update(data.reps.toString()),
         weight = weight.update(data.weight.toString()),
         timestamp = data.timestamp,
-        isLoading = false
-    )
+    ).apply {
+        copy(initialHash = calculateEqualsHash())
+    }
 
 }

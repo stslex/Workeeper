@@ -29,7 +29,7 @@ internal class ExerciseDialogStoreImpl(
 ) : ExerciseHandlerStore, BaseStore<State, Action, Event, ExerciseHandlerStore>(
     name = "Exercise",
     appDispatcher = dispatcher,
-    initialState = State(),
+    initialState = State.INITIAL,
     handlerCreator = { action ->
         when (action) {
             is Action.Navigation -> component
