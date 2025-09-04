@@ -15,9 +15,7 @@ internal fun AppNavigationHost(
     navigatorHolder: NavHostControllerHolder,
     modifier: Modifier = Modifier,
 ) {
-    val navigator = remember(navigatorHolder) {
-        NavigatorImpl(navigatorHolder)
-    }
+    val navigator = remember(navigatorHolder) { NavigatorImpl(navigatorHolder) }
     NavHost(
         modifier = modifier,
         navController = navigatorHolder.navigator,

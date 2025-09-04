@@ -17,7 +17,9 @@ class InputHandler : Handler<Action.Input, ExerciseHandlerStore> {
     override fun ExerciseHandlerStore.invoke(action: Action.Input) {
         when (action) {
             is Action.Input.Property -> processProperty(action)
-            is Action.Input.Time -> updateState { it.copy(timestamp = action.timestamp) }
+            is Action.Input.Time -> updateState {
+                it.copy(timestamp = action.timestamp)
+            }
         }
     }
 

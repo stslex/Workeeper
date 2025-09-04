@@ -5,6 +5,7 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -61,6 +62,10 @@ fun ExerciseFeature(
         val snackbarHostState = remember {
             SnackbarHostState()
         }
+
+//        LaunchedEffect(Unit) {
+//            processor.consume(Action.InitDialog(component.data))
+//        }
 
         BackHandler {
             processor.consume(Action.Navigation.BackWithConfirmation)

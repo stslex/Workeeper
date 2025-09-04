@@ -2,10 +2,10 @@ package io.github.stslex.workeeper.feature.exercise.ui.mvi.store
 
 import io.github.stslex.workeeper.core.core.coroutine.dispatcher.AppDispatcher
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
+import io.github.stslex.workeeper.core.ui.navigation.Screen.Exercise.Data
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseScope
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.ClickHandler
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.ExerciseComponent
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.InitFeatureHandler
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.InputHandler
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Event
@@ -23,20 +23,35 @@ import org.koin.core.annotation.Scoped
 internal class ExerciseDialogStoreImpl(
     @InjectedParam component: ExerciseComponent,
     clickHandler: ClickHandler,
-    initHandler: InitFeatureHandler,
     inputHandler: InputHandler,
     dispatcher: AppDispatcher
 ) : ExerciseHandlerStore, BaseStore<State, Action, Event, ExerciseHandlerStore>(
     name = "Exercise",
     appDispatcher = dispatcher,
-    initialState = State.INITIAL,
+    initialState = component.data?.mapToState() ?: State.INITIAL.copy(
+        timestamp = System.currentTimeMillis(),
+        initialHash = State.INITIAL.calculateEqualsHash()
+    ),
     handlerCreator = { action ->
         when (action) {
             is Action.Navigation -> component
             is Action.Click -> clickHandler
-            is Action.InitDialog -> initHandler
             is Action.Input -> inputHandler
         }
     },
-    initialActions = listOf(Action.InitDialog(component.data))
 )
+
+private fun Data.mapToState(): State {
+    val state = State.INITIAL.copy(
+        uuid = uuid,
+        name = State.INITIAL.name.update(name),
+        sets = State.INITIAL.sets.update(sets.toString()),
+        reps = State.INITIAL.reps.update(reps.toString()),
+        weight = State.INITIAL.weight.update(weight.toString()),
+        timestamp = timestamp,
+        initialHash = 0
+    )
+    return state.copy(
+        initialHash = state.calculateEqualsHash()
+    )
+}

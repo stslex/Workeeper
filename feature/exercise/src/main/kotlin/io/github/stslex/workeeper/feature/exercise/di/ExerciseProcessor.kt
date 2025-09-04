@@ -21,8 +21,6 @@ internal object ExerciseFeature : Feature<ExerciseProcessor, ExerciseComponent>(
     scopeClass = ExerciseScope::class
 ) {
 
-//    override val loadModule: Module? = ModuleDialogExercise().module
-
     @Composable
     override fun processor(component: ExerciseComponent): ExerciseProcessor = rememberStoreProcessor(
         component = component,
