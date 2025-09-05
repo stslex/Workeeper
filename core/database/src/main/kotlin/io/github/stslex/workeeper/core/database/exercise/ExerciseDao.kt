@@ -29,10 +29,10 @@ interface ExerciseDao {
     @Query("DELETE FROM exercises_table WHERE uuid = :uuid")
     suspend fun delete(uuid: Uuid)
 
-    @Query("SELECT * FROM exercises_table WHERE name LIKE '%' || :query || '%' GROUP BY name ORDER BY timestamp DESC")
+    @Query("SELECT * FROM exercises_table WHERE name LIKE '%' || :query || '%' GROUP BY name ORDER BY MAX(timestamp) DESC LIMIT 10")
     suspend fun searchUnique(query: String): List<ExerciseEntity>
 
-    @Query("SELECT * FROM exercises_table WHERE name LIKE '%' || :query || '%' AND name != :query GROUP BY name ORDER BY timestamp DESC")
+    @Query("SELECT * FROM exercises_table WHERE name LIKE '%' || :query || '%' AND name != :query GROUP BY name ORDER BY MAX(timestamp) DESC LIMIT 10")
     suspend fun searchUniqueExclude(query: String): List<ExerciseEntity>
 
     @Query("DELETE FROM exercises_table")
