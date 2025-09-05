@@ -4,9 +4,9 @@ import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.kotlin.dsl.dependencies
 import org.gradle.kotlin.dsl.getByType
 
-internal object AppExt {
+const val APP_PREFIX = "io.github.stslex.workeeper"
 
-    const val APP_PREFIX = "io.github.stslex.workeeper"
+internal object AppExt {
 
     /**
      * Get the version catalog for the project

@@ -23,7 +23,10 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "Workeeper"
-include(":app")
+
+include(":app:app")
+include(":app:dev")
+include(":app:store")
 
 include(":core:core")
 

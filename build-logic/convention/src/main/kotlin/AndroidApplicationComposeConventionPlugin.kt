@@ -31,10 +31,10 @@ class AndroidApplicationComposeConventionPlugin : Plugin<Project> {
                 configureKotlinAndroid(this)
                 configureAndroidCompose(this)
 
-                namespace = AppExt.APP_PREFIX
+                namespace = APP_PREFIX
 
                 defaultConfig.apply {
-                    applicationId = AppExt.APP_PREFIX
+                    applicationId = APP_PREFIX
                     targetSdk = libs.findVersionInt("targetSdk")
                     versionName = libs.findVersionString("versionName")
                     versionCode = libs.findVersionInt("versionCode")

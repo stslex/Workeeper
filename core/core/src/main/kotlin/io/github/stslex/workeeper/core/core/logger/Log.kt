@@ -8,6 +8,7 @@ import io.github.stslex.workeeper.core.core.logger.Logger as AtTenLogger
 object Log : AtTenLogger {
 
     private const val DEFAULT_TAG = "AtTen"
+    private val isLogAllow: Boolean = BuildConfig.DEBUG
 
     fun tag(tag: String): AtTenLogger = AppLoggerCreator(tag)
 
@@ -16,7 +17,7 @@ object Log : AtTenLogger {
         tag: String? = null,
         message: String? = null
     ) {
-        if (BuildConfig.DEBUG.not()) return
+        if (isLogAllow.not()) return
         // todo firebase crashlytics
         Logger.Companion.e(
             tag = tag ?: DEFAULT_TAG,
@@ -29,7 +30,7 @@ object Log : AtTenLogger {
         message: String,
         tag: String? = null,
     ) {
-        if (BuildConfig.DEBUG.not()) return
+        if (isLogAllow.not()) return
         // todo firebase crashlytics
         Logger.Companion.e(
             tag = tag ?: DEFAULT_TAG,
@@ -41,7 +42,7 @@ object Log : AtTenLogger {
         message: String,
         tag: String? = null,
     ) {
-        if (BuildConfig.DEBUG.not()) return
+        if (isLogAllow.not()) return
         Logger.Companion.d(
             tag = tag ?: DEFAULT_TAG,
             messageString = message
@@ -52,7 +53,7 @@ object Log : AtTenLogger {
         message: String,
         tag: String? = null,
     ) {
-        if (BuildConfig.DEBUG.not()) return
+        if (isLogAllow.not()) return
         Logger.Companion.i(
             tag = tag ?: DEFAULT_TAG,
             messageString = message
@@ -63,7 +64,7 @@ object Log : AtTenLogger {
         message: String,
         tag: String? = null,
     ) {
-        if (BuildConfig.DEBUG.not()) return
+        if (isLogAllow.not()) return
         Logger.Companion.v(
             tag = tag ?: DEFAULT_TAG,
             messageString = message
