@@ -26,8 +26,11 @@ class InputHandler : Handler<Action.Input, ExerciseHandlerStore> {
 
     private fun ExerciseHandlerStore.processProperty(action: Action.Input.Property) {
         when (action.type) {
-            PropertyType.NAME -> updateState {
-                it.copy(name = it.name.update(action.value))
+            PropertyType.NAME -> {
+                updateState {
+                    it.copy(name = it.name.update(action.value))
+                }
+                consume(Action.Common.SearchTitle)
             }
             PropertyType.SETS -> updateState {
                 it.copy(sets = it.sets.update(value = action.value))

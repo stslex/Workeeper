@@ -4,12 +4,15 @@ import androidx.compose.runtime.Stable
 import io.github.stslex.workeeper.core.exercise.data.model.DateProperty
 import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.core.ui.navigation.Screen.Exercise.Data
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.Property
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PropertyType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SnackbarType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Event
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
+import kotlinx.collections.immutable.ImmutableSet
+import kotlinx.collections.immutable.persistentSetOf
 
 interface ExerciseStore : Store<State, Action, Event> {
 
@@ -22,6 +25,8 @@ interface ExerciseStore : Store<State, Action, Event> {
         val weight: Property,
         val dateProperty: DateProperty,
         val isCalendarOpen: Boolean,
+        val isMenuOpen: Boolean,
+        val menuItems: ImmutableSet<ExerciseUiModel>,
         val initialHash: Int,
     ) : Store.State {
 
@@ -53,6 +58,8 @@ interface ExerciseStore : Store<State, Action, Event> {
                 weight = Property.new(PropertyType.WEIGHT),
                 dateProperty = DateProperty(0L, ""),
                 isCalendarOpen = false,
+                isMenuOpen = false,
+                menuItems = persistentSetOf(),
                 initialHash = 0
             )
 
@@ -75,6 +82,12 @@ interface ExerciseStore : Store<State, Action, Event> {
             data class Time(val timestamp: Long) : Input
         }
 
+        sealed interface Common : Action {
+
+            data object SearchTitle : Common
+
+        }
+
         sealed interface Click : Action {
 
             data object Save : Click
@@ -88,6 +101,12 @@ interface ExerciseStore : Store<State, Action, Event> {
             data object PickDate : Click
 
             data object CloseCalendar : Click
+
+            data object OpenMenuVariants : Click
+
+            data object CloseMenuVariants : Click
+
+            data class OnMenuItemClick(val item: ExerciseUiModel) : Click
 
         }
 

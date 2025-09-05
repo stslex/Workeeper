@@ -4,6 +4,7 @@ import io.github.stslex.workeeper.core.core.coroutine.dispatcher.AppDispatcher
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseScope
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.ClickHandler
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.CommonHandler
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.ExerciseComponent
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.InputHandler
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
@@ -23,6 +24,7 @@ internal class ExerciseDialogStoreImpl(
     @InjectedParam component: ExerciseComponent,
     clickHandler: ClickHandler,
     inputHandler: InputHandler,
+    commonHandler: CommonHandler,
     dispatcher: AppDispatcher
 ) : ExerciseHandlerStore, BaseStore<State, Action, Event, ExerciseHandlerStore>(
     name = "Exercise",
@@ -33,6 +35,8 @@ internal class ExerciseDialogStoreImpl(
             is Action.Navigation -> component
             is Action.Click -> clickHandler
             is Action.Input -> inputHandler
+            is Action.Common -> commonHandler
         }
     },
+    initialActions = listOf(Action.Common.SearchTitle)
 )

@@ -13,4 +13,6 @@ interface ExerciseRepository {
 
     suspend fun deleteItem(uuid: String)
 
+    suspend fun searchItems(query: String): List<ExerciseDataModel>
+
 }

@@ -2,6 +2,7 @@ package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
 import io.github.stslex.workeeper.core.exercise.data.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.data.model.ChangeExerciseDataModel
+import io.github.stslex.workeeper.core.exercise.data.model.DateProperty
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseScope
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PropertyValid
@@ -31,6 +32,31 @@ internal class ClickHandler(
             Action.Click.ConfirmedDelete -> processConfirmedDelete()
             Action.Click.PickDate -> processPickDate()
             Action.Click.CloseCalendar -> processCloseCalendar()
+            Action.Click.CloseMenuVariants -> processCloseMenuVariants()
+            is Action.Click.OnMenuItemClick -> processOnMenuItemClick(action)
+            Action.Click.OpenMenuVariants -> processOpenMenuVariants()
+        }
+    }
+
+    private fun ExerciseHandlerStore.processCloseMenuVariants() {
+        updateState { it.copy(isMenuOpen = false) }
+    }
+
+    private fun ExerciseHandlerStore.processOpenMenuVariants() {
+        updateState { it.copy(isMenuOpen = true) }
+    }
+
+    private fun ExerciseHandlerStore.processOnMenuItemClick(action: Action.Click.OnMenuItemClick) {
+        val item = action.item
+        updateState {
+            it.copy(
+                name = it.name.update(value = item.name),
+                sets = it.sets.copy(value = item.sets.toString()),
+                reps = it.reps.copy(value = item.reps.toString()),
+                weight = it.weight.copy(value = item.weight.toString()),
+                dateProperty = DateProperty.new(item.timestamp),
+                isMenuOpen = false
+            )
         }
     }
 

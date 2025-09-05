@@ -18,22 +18,32 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.Property
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PropertyType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PropertyValid
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TextMode
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ExerciseUiModel
+import kotlinx.collections.immutable.ImmutableSet
+import kotlinx.collections.immutable.persistentSetOf
 
 @Composable
 internal fun ExercisedColumn(
     state: State,
     consume: (Action) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier
             .fillMaxWidth()
     ) {
-        ExerciseItem(state.name) {
-            consume(Action.Input.Property(state.name.type, it))
-        }
+        ExerciseItem(
+            item = state.name,
+            isMenuOpen = state.isMenuOpen,
+            menuItems = state.menuItems,
+            onMenuClick = { consume(Action.Click.OpenMenuVariants) },
+            onMenuClose = { consume(Action.Click.CloseMenuVariants) },
+            onMenuItemClick = { consume(Action.Click.OnMenuItemClick(it)) },
+            onValueChange = { consume(Action.Input.Property(state.name.type, it)) }
+        )
         Spacer(Modifier.height(AppDimension.Padding.medium))
         ExerciseItem(state.sets) {
             consume(Action.Input.Property(state.sets.type, it))
@@ -64,7 +74,7 @@ private fun ExerciseDateData(
         label = "Date",
         modifier = modifier,
         isError = false,
-        mode = Mode.DATE,
+        mode = TextMode.DATE,
         onClick = onClick,
         onValueChange = {}
     )
@@ -74,19 +84,34 @@ private fun ExerciseDateData(
 private fun ExerciseItem(
     item: Property,
     modifier: Modifier = Modifier,
+    isMenuOpen: Boolean = false,
+    menuItems: ImmutableSet<ExerciseUiModel> = persistentSetOf(),
+    onMenuClick: () -> Unit = {},
+    onMenuClose: () -> Unit = {},
+    onMenuItemClick: (ExerciseUiModel) -> Unit = {},
     onValueChange: (String) -> Unit,
 ) {
+    val mode = remember(item.type, isMenuOpen) {
+        if (item.type == PropertyType.NAME && isMenuOpen) {
+            TextMode.PICK_RESULT
+        } else if (item.type == PropertyType.NAME) {
+            TextMode.TITLE
+        } else {
+            TextMode.NUMBER
+        }
+
+    }
     ExercisePropertyTextField(
         text = item.value,
         label = item.type.name,
         modifier = modifier,
         isError = item.valid != PropertyValid.VALID,
-        mode = if (item.type == PropertyType.NAME) {
-            Mode.TITLE
-        } else {
-            Mode.NUMBER
-        },
-        onValueChange = onValueChange
+        mode = mode,
+        onValueChange = onValueChange,
+        menuItems = menuItems,
+        onMenuItemClick = onMenuItemClick,
+        onMenuClose = onMenuClose,
+        onMenuClick = onMenuClick
     )
 }
 

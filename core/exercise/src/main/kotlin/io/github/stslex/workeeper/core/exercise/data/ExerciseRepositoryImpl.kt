@@ -44,6 +44,10 @@ internal class ExerciseRepositoryImpl(
         }
     }
 
+    override suspend fun searchItems(query: String): List<ExerciseDataModel> = withContext(appDispatcher.io) {
+        dao.searchUniqueExclude(query).map { it.toData() }
+    }
+
     companion object {
 
         private val pagingConfig = PagingConfig(
