@@ -31,5 +31,7 @@ include(":core:ui:kit")
 include(":core:ui:navigation")
 include(":core:ui:mvi")
 include(":core:database")
+include(":core:exercise")
 
 include(":feature:home")
+include(":feature:exercise")

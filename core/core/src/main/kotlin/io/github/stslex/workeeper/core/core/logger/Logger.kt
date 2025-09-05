@@ -15,4 +15,3 @@ interface Logger {
 
     fun v(message: String)
 }
-

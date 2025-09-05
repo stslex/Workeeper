@@ -40,9 +40,5 @@ gradlePlugin {
             id = libs.plugins.convention.roomLibrary.get().pluginId
             implementationClass = "RoomLibraryConventionPlugin"
         }
-        register("navigationLibrary") {
-            id = libs.plugins.convention.navigation.get().pluginId
-            implementationClass = "NavigationLibraryConventionPlugin"
-        }
     }
 }

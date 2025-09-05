@@ -1,27 +1,43 @@
 package io.github.stslex.workeeper.host
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import com.arkivanov.decompose.extensions.compose.stack.Children
-import com.arkivanov.decompose.extensions.compose.stack.animation.stackAnimation
-import io.github.stslex.workeeper.feature.home.ui.HomeScreen
+import androidx.navigation.compose.NavHost
+import io.github.stslex.workeeper.core.ui.navigation.Screen
+import io.github.stslex.workeeper.feature.exercise.ui.exerciseGraph
+import io.github.stslex.workeeper.feature.exercise.ui.exerciseNewGraph
+import io.github.stslex.workeeper.feature.home.ui.homeGraph
+import io.github.stslex.workeeper.navigation.NavigatorImpl
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 internal fun AppNavigationHost(
-    rootComponent: RootComponent,
+    navigatorHolder: NavHostControllerHolder,
     modifier: Modifier = Modifier,
 ) {
-    Box(modifier = modifier.fillMaxSize()) {
-        Children(
-            stack = rootComponent.stack,
-            modifier = modifier.fillMaxSize(),
-            animation = stackAnimation(),
-        ) { created ->
-            when (val instance = created.instance) {
-                is RootComponent.Child.Home -> HomeScreen(instance.component)
-            }
+    val navigator = remember(navigatorHolder) { NavigatorImpl(navigatorHolder) }
+    SharedTransitionLayout(
+        modifier = modifier
+    ) {
+        NavHost(
+            navController = navigatorHolder.navigator,
+            startDestination = Screen.Home,
+        ) {
+            homeGraph(
+                navigator = navigator,
+                sharedTransitionScope = this@SharedTransitionLayout,
+            )
+            exerciseGraph(
+                navigator = navigator,
+                sharedTransitionScope = this@SharedTransitionLayout,
+            )
+            exerciseNewGraph(
+                navigator = navigator,
+                sharedTransitionScope = this@SharedTransitionLayout,
+            )
         }
     }
 }

@@ -17,7 +17,7 @@ data class ExerciseEntity(
     @ColumnInfo(name = "reps")
     val reps: Int,
     @ColumnInfo(name = "weight")
-    val weight: Int,
+    val weight: Double,
     @ColumnInfo(name = "timestamp")
     val timestamp: Long,
 )

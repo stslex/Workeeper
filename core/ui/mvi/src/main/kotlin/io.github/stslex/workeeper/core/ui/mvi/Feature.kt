@@ -21,14 +21,11 @@ abstract class Feature<TProcessor : StoreProcessor<*, *, *>, TComponent : Compon
     scopeClass: KClass<*>
 ) : KoinScopeComponent {
 
-    abstract val module: Module
+    open val loadModule: Module? get() = null
 
     private val scopeName: String = requireNotNull(scopeClass.qualifiedName) {
         "Scope name is null. Please check the SettingsFeature class."
     }
-
-    open val loadModule: Boolean
-        get() = false
 
     final override val scope: Scope by lazy {
         getKoin().getOrCreateScope(

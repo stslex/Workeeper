@@ -5,12 +5,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import io.github.stslex.workeeper.host.AppNavigationHost
-import io.github.stslex.workeeper.host.RootComponent
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
+import io.github.stslex.workeeper.host.AppNavigationHost
+import io.github.stslex.workeeper.host.NavHostControllerHolder
 
 @Composable
-fun App(rootComponent: RootComponent) {
+fun App(navigatorHolder: NavHostControllerHolder) {
     AppTheme {
         Scaffold(
             modifier = Modifier
@@ -21,7 +21,7 @@ fun App(rootComponent: RootComponent) {
                 modifier = Modifier.padding(
                     bottom = paddingValues.calculateBottomPadding()
                 ),
-                rootComponent = rootComponent
+                navigatorHolder = navigatorHolder
             )
         }
     }

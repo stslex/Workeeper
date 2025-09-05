@@ -99,6 +99,92 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
     }
 
     @Test
+    fun `update exist item`() = runTest {
+        val item = createTestExercise()
+        val expectedNewItem = createTestExercise().copy(
+            uuid = item.uuid
+        )
+        dao.create(item)
+        val createdItem = dao.getExercise(item.uuid)
+        assertEquals(item, createdItem)
+
+        dao.update(expectedNewItem)
+        val createdNewItem = dao.getExercise(item.uuid)
+        assertEquals(expectedNewItem, createdNewItem)
+    }
+
+    @Test
+    fun `delete single item`() = runTest {
+        val item = createTestExercise()
+        dao.create(item)
+        assertEquals(item, dao.getExercise(item.uuid))
+        dao.delete(item.uuid)
+        assertEquals(null, dao.getExercise(item.uuid))
+    }
+
+    @Test
+    fun `search unique results success`() = runTest {
+        val item1 = createTestExercise(0).copy(name = "name_1")
+        val item2 = createTestExercise(1).copy(name = "other_title")
+        val item3 = createTestExercise(2).copy(name = "other_title")
+        val item4 = createTestExercise(3).copy(name = "search_title")
+
+        dao.create(item1)
+        dao.create(item2)
+        dao.create(item3)
+        dao.create(item4)
+
+        val results = dao.searchUnique("title")
+        assertEquals(listOf(item4, item3), results)
+
+        val results2 = dao.searchUnique("other")
+        assertEquals(listOf(item3), results2)
+
+        val results3 = dao.searchUnique("_")
+        assertEquals(listOf(item4, item3, item1), results3)
+
+        val results4 = dao.searchUnique("1")
+        assertEquals(listOf(item1), results4)
+
+        val results5 = dao.searchUnique("name_123")
+        assert(results5.isEmpty())
+
+        val results6 = dao.searchUnique("other_title")
+        assertEquals(listOf(item3), results6)
+    }
+
+    @Test
+    fun `search unique results exclude success`() = runTest {
+        val item1 = createTestExercise(0).copy(name = "name_1")
+        val item2 = createTestExercise(1).copy(name = "other_title")
+        val item3 = createTestExercise(2).copy(name = "other_title")
+        val item4 = createTestExercise(3).copy(name = "search_title")
+
+        dao.create(item1)
+        dao.create(item2)
+        dao.create(item3)
+        dao.create(item4)
+
+        val results = dao.searchUniqueExclude("title")
+        assertEquals(listOf(item4, item3), results)
+
+        val results2 = dao.searchUniqueExclude("other")
+        assertEquals(listOf(item3), results2)
+
+        val results3 = dao.searchUniqueExclude("_")
+        assertEquals(listOf(item4, item3, item1), results3)
+
+        val results4 = dao.searchUniqueExclude("1")
+        assertEquals(listOf(item1), results4)
+
+        val results5 = dao.searchUniqueExclude("name_123")
+        assert(results5.isEmpty())
+
+        val results6 = dao.searchUniqueExclude("other_title")
+        assert(results6.isEmpty())
+    }
+
+    @Test
     fun `clear all items`() = runTest {
         val expectedItem = createTestExercise()
         dao.create(exerciseEntities)
@@ -113,7 +199,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
         name = "test",
         sets = index.inc(),
         reps = index.plus(2),
-        weight = index.plus(3),
+        weight = index.plus(3).toDouble(),
         timestamp = index.plus(123).toLong(),
     )
 

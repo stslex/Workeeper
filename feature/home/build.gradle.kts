@@ -8,7 +8,5 @@ dependencies {
     implementation(project(":core:ui:kit"))
     implementation(project(":core:ui:mvi"))
     implementation(project(":core:ui:navigation"))
-    implementation(project(":core:database"))
-
-    testImplementation(libs.androidx.paging.testing)
+    implementation(project(":core:exercise"))
 }

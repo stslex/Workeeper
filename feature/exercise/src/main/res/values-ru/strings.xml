@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="toast_invalid_params_msg">Некорректные поля ввода</string>
+    <string name="button_confirm_text">Сохранить</string>
+    <string name="button_cancel_text">Отменить</string>
+</resources>

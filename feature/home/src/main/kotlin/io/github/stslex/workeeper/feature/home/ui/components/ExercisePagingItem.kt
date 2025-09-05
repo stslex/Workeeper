@@ -11,6 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import io.github.stslex.workeeper.core.exercise.data.model.DateProperty
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.home.ui.model.ExerciseUiModel
@@ -20,17 +21,19 @@ import kotlin.uuid.Uuid
 @Composable
 internal fun ExercisePagingItem(
     item: ExerciseUiModel,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     OutlinedCard(
         modifier = modifier
+            .padding(AppDimension.Padding.medium)
             .fillMaxWidth()
             .wrapContentHeight(),
-        onClick = { /*todo do smth*/ }
+        onClick = onClick
     ) {
         Column(
             modifier = Modifier
-                .padding(AppDimension.Padding.medium)
+                .padding(AppDimension.Padding.big)
         ) {
             Text(
                 text = item.name,
@@ -49,7 +52,7 @@ internal fun ExercisePagingItem(
                 style = MaterialTheme.typography.bodyLarge
             )
             Text(
-                text = item.timestamp.toString(),
+                text = item.dateProperty.converted,
                 style = MaterialTheme.typography.labelSmall
             )
         }
@@ -65,9 +68,15 @@ private fun ExercisePagingItemPreview() {
             name = "nameOfExercise",
             sets = 12,
             reps = 13,
-            weight = 60,
-            timestamp = System.currentTimeMillis()
+            weight = 60.0,
+            dateProperty = DateProperty(
+                timestamp = System.currentTimeMillis(),
+                converted = "12/05/23"
+            )
         )
-        ExercisePagingItem(item)
+        ExercisePagingItem(
+            item = item,
+            onClick = {}
+        )
     }
 }

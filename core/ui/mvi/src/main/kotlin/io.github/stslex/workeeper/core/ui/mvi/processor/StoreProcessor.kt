@@ -49,10 +49,14 @@ inline fun <S : State,
         E : Event,
         reified TStoreImpl : BaseStore<S, A, E, *>,
         TComponent : Component
-        > KoinScopeComponent.rememberStoreProcessor(component: TComponent): StoreProcessor<S, A, E> {
+        > KoinScopeComponent.rememberStoreProcessor(
+    component: TComponent,
+    key: String? = null
+): StoreProcessor<S, A, E> {
     val store = koinViewModel<TStoreImpl>(
         scope = scope,
         qualifier = scope.scopeQualifier,
+        key = key,
         parameters = {
             parametersOf(component)
         }
