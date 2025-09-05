@@ -1,10 +1,11 @@
 package io.github.stslex.workeeper.feature.exercise.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -17,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
@@ -50,7 +52,6 @@ fun ExercisePropertyTextField(
         }
     }
 
-    println("mode: $mode")
     val trailingIcon: (@Composable () -> Unit)? = {
         PropertyTrailingIcon(
             mode = mode,
@@ -71,7 +72,7 @@ fun ExercisePropertyTextField(
             Text(label)
         },
         keyboardOptions = keyboardOptions,
-        trailingIcon = trailingIcon,
+        trailingIcon = if (mode.isMenuEnable && menuItems.isNotEmpty()) trailingIcon else null,
         colors = if (mode == TextMode.DATE) {
             OutlinedTextFieldDefaults.colors(
                 disabledTextColor = LocalContentColor.current,
@@ -103,7 +104,14 @@ private fun PropertyTrailingIcon(
             onMenuClick()
         }
     ) {
-        Icon(Icons.Outlined.MoreVert, contentDescription = "Выбрать режим ввода")
+        val rotation = animateFloatAsState(
+            targetValue = if (mode.isMenuOpen) 180f else 0f
+        )
+        Icon(
+            modifier = Modifier.rotate(rotation.value),
+            imageVector = Icons.Outlined.KeyboardArrowDown,
+            contentDescription = "Input mode"
+        )
     }
     DropdownMenu(
         expanded = mode.isMenuOpen,
