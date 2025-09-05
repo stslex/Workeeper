@@ -158,7 +158,10 @@ room = { id = "androidx.room", version.ref = "room" }
 vkompose = { id = "com.vk.vkompose", version.ref = "vkompose" }
 robolectric-junit5 = { id = "tech.apter.junit5.jupiter.robolectric-extension-gradle-plugin", version.ref = "robolectricExt" }
 
-convention-application = { id = "workeeper.android.application", version = "1.0" }
+convention-application-common = { id = "workeeper.android.application.common", version = "1.0" }
+convention-application-store = { id = "workeeper.android.application.store", version = "1.0" }
+convention-application-debugPackage = { id = "workeeper.android.application.debugPackage", version = "1.0" }
+
 convention-androidLibrary = { id = "workeeper.android.androidLibrary", version = "1.0" }
 convention-composeLibrary = { id = "workeeper.android.composeLibrary", version = "1.0" }
 convention-roomLibrary = { id = "workeeper.room.library", version = "1.0" }

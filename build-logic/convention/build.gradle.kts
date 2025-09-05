@@ -24,8 +24,16 @@ tasks {
 
 gradlePlugin {
     plugins {
-        register("androidApplicationCompose") {
-            id = libs.plugins.convention.application.get().pluginId
+        register("androidApplicationComposeCommon") {
+            id = libs.plugins.convention.application.common.get().pluginId
+            implementationClass = "AndroidApplicationComposeConventionPlugin"
+        }
+        register("androidApplicationComposeRelease") {
+            id = libs.plugins.convention.application.store.get().pluginId
+            implementationClass = "AndroidApplicationComposeConventionPlugin"
+        }
+        register("androidApplicationComposeDebug") {
+            id = libs.plugins.convention.application.debugPackage.get().pluginId
             implementationClass = "AndroidApplicationComposeConventionPlugin"
         }
         register("androidLibrary") {

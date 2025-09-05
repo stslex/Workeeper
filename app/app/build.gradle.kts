@@ -1,6 +1,5 @@
 plugins {
-    alias(libs.plugins.convention.application)
-    alias(libs.plugins.serialization)
+    alias(libs.plugins.convention.composeLibrary)
 }
 
 dependencies {
