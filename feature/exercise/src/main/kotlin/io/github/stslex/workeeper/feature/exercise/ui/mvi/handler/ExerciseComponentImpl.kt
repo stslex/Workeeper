@@ -22,26 +22,10 @@ internal class ExerciseComponentImpl(
     }
 
     private fun ExerciseHandlerStore.navigationBackWithConfirmation() {
-        val canBack = if (state.value.uuid == null) {
-            allowBackForNewItem()
-        } else {
-            allowBackForEditItem()
-        }
-        if (canBack) {
+        if (state.value.allowBack) {
             consume(Action.Navigation.Back)
         } else {
             sendEvent(ExerciseStore.Event.Snackbar(SnackbarType.DISMISS))
         }
-    }
-
-    private fun ExerciseHandlerStore.allowBackForNewItem(): Boolean {
-        return state.value.name.value.isBlank() &&
-                state.value.weight.value.isBlank() &&
-                state.value.sets.value.isBlank() &&
-                state.value.reps.value.isBlank()
-    }
-
-    private fun ExerciseHandlerStore.allowBackForEditItem(): Boolean {
-        return state.value.calculateEqualsHash() == state.value.initialHash
     }
 }

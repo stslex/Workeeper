@@ -1,11 +1,13 @@
 package io.github.stslex.workeeper.feature.home.ui
 
+import androidx.compose.animation.AnimatedContentScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -26,16 +28,32 @@ import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeStore.Action
 import kotlinx.coroutines.flow.flowOf
 import kotlin.uuid.Uuid
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun HomeWidget(
     lazyPagingItems: LazyPagingItems<ExerciseUiModel>,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedContentScope: AnimatedContentScope,
     consume: (Action) -> Unit,
     lazyState: LazyListState,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        floatingActionButton = { HomeActionButton { consume(Action.Click.ButtonAddClick) } }
+        floatingActionButton = {
+            with(sharedTransitionScope) {
+                HomeActionButton(
+                    modifier = Modifier
+                        .sharedBounds(
+                            sharedContentState = sharedTransitionScope.rememberSharedContentState("createExercise"),
+                            animatedVisibilityScope = animatedContentScope,
+                            resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds()
+                        )
+                ) {
+                    consume(Action.Click.ButtonAddClick)
+                }
+            }
+        }
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -56,12 +74,20 @@ fun HomeWidget(
                     key = lazyPagingItems.itemKey { it.uuid }
                 ) { index ->
                     lazyPagingItems[index]?.let { item ->
-                        ExercisePagingItem(
-                            item = item,
-                            onClick = {
-                                consume(Action.Click.Item(item))
-                            }
-                        )
+                        with(sharedTransitionScope) {
+                            ExercisePagingItem(
+                                modifier = Modifier
+                                    .sharedBounds(
+                                        sharedContentState = sharedTransitionScope.rememberSharedContentState(item.uuid),
+                                        animatedVisibilityScope = animatedContentScope,
+                                        resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds()
+                                    ),
+                                item = item,
+                                onClick = {
+                                    consume(Action.Click.Item(item))
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -69,6 +95,7 @@ fun HomeWidget(
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Preview
 @Composable
 private fun HomeWidgetPreview() {
@@ -84,10 +111,14 @@ private fun HomeWidgetPreview() {
             )
         }.toList()
         val pagingData = remember { flowOf(PagingData.from(items)) }.collectAsLazyPagingItems()
-        HomeWidget(
-            lazyPagingItems = pagingData,
-            consume = {},
-            lazyState = rememberLazyListState(),
-        )
+
+//        HomeWidget(
+//            lazyPagingItems = pagingData,
+//            consume = {},
+//            lazyState = rememberLazyListState(),
+//            sharedTransitionScope = sharedTransitionScope,
+//            animatedContentScope = animatedContentScope
+//        )
+
     }
 }

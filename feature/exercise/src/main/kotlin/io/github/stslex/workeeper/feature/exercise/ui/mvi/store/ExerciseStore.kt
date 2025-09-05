@@ -22,12 +22,23 @@ interface ExerciseStore : Store<State, Action, Event> {
         val initialHash: Int,
     ) : Store.State {
 
-        fun calculateEqualsHash(): Int = uuid.hashCode() +
-                name.value.trim().hashCode() +
-                sets.value.trim().hashCode() +
-                reps.value.trim().hashCode() +
-                weight.value.trim().hashCode() +
-                timestamp.hashCode()
+        val calculateEqualsHash: Int
+            get() = uuid.hashCode() +
+                    name.value.trim().hashCode() +
+                    sets.value.trim().hashCode() +
+                    reps.value.trim().hashCode() +
+                    weight.value.trim().hashCode() +
+                    timestamp.hashCode()
+
+        val allowBack: Boolean
+            get() = if (uuid == null) {
+                name.value.isBlank() &&
+                        weight.value.isBlank() &&
+                        sets.value.isBlank() &&
+                        reps.value.isBlank()
+            } else {
+                calculateEqualsHash == initialHash
+            }
 
         companion object {
 

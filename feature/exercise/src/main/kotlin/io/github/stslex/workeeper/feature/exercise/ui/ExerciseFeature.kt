@@ -3,9 +3,12 @@ package io.github.stslex.workeeper.feature.exercise.ui
 import android.content.Context
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContentScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -22,13 +25,17 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SnackbarType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 fun NavGraphBuilder.exerciseGraph(
+    sharedTransitionScope: SharedTransitionScope,
     navigator: Navigator,
     modifier: Modifier = Modifier,
 ) {
     composable<Screen.Exercise.Data> { screen ->
         ExerciseFeature(
             modifier = modifier,
+            sharedTransitionScope = sharedTransitionScope,
+            animatedContentScope = this,
             component = remember {
                 ExerciseComponent.create(navigator, screen.toRoute())
             }
@@ -36,13 +43,17 @@ fun NavGraphBuilder.exerciseGraph(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 fun NavGraphBuilder.exerciseNewGraph(
+    sharedTransitionScope: SharedTransitionScope,
     navigator: Navigator,
     modifier: Modifier = Modifier,
 ) {
     composable<Screen.Exercise.New> { screen ->
         ExerciseFeature(
             modifier = modifier,
+            sharedTransitionScope = sharedTransitionScope,
+            animatedContentScope = this,
             component = remember {
                 ExerciseComponent.create(navigator, null)
             }
@@ -50,24 +61,24 @@ fun NavGraphBuilder.exerciseNewGraph(
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun ExerciseFeature(
+    sharedTransitionScope: SharedTransitionScope,
+    animatedContentScope: AnimatedContentScope,
     component: ExerciseComponent,
     modifier: Modifier = Modifier,
 ) {
     NavComponentScreen(ExerciseFeature, component) { processor ->
-
         val context = LocalContext.current
 
         val snackbarHostState = remember {
             SnackbarHostState()
         }
 
-//        LaunchedEffect(Unit) {
-//            processor.consume(Action.InitDialog(component.data))
-//        }
+        val backHandlerEnable = remember(processor.state.value) { processor.state.value.allowBack }
 
-        BackHandler {
+        BackHandler(backHandlerEnable.not()) {
             processor.consume(Action.Navigation.BackWithConfirmation)
         }
 
@@ -84,13 +95,19 @@ fun ExerciseFeature(
                 )
             }
         }
-
-        ExerciseFeatureWidget(
-            consume = processor::consume,
-            state = processor.state.value,
-            snackbarHostState = snackbarHostState,
-            modifier = modifier
-        )
+        with(sharedTransitionScope) {
+            ExerciseFeatureWidget(
+                consume = processor::consume,
+                state = processor.state.value,
+                snackbarHostState = snackbarHostState,
+                modifier = modifier
+                    .sharedBounds(
+                        sharedContentState = sharedTransitionScope.rememberSharedContentState(component.data?.uuid ?: "createExercise"),
+                        animatedVisibilityScope = animatedContentScope,
+                        resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds()
+                    )
+            )
+        }
     }
 }
 

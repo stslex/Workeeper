@@ -30,7 +30,7 @@ internal class ExerciseDialogStoreImpl(
     appDispatcher = dispatcher,
     initialState = component.data?.mapToState() ?: State.INITIAL.copy(
         timestamp = System.currentTimeMillis(),
-        initialHash = State.INITIAL.calculateEqualsHash()
+        initialHash = State.INITIAL.calculateEqualsHash
     ),
     handlerCreator = { action ->
         when (action) {
@@ -52,6 +52,6 @@ private fun Data.mapToState(): State {
         initialHash = 0
     )
     return state.copy(
-        initialHash = state.calculateEqualsHash()
+        initialHash = state.calculateEqualsHash
     )
 }

@@ -1,5 +1,8 @@
 package io.github.stslex.workeeper.feature.home.ui
 
+import androidx.compose.animation.AnimatedContentScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -13,21 +16,28 @@ import io.github.stslex.workeeper.core.ui.navigation.navScreen
 import io.github.stslex.workeeper.feature.home.di.HomeFeature
 import io.github.stslex.workeeper.feature.home.ui.mvi.handler.HomeComponent
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 fun NavGraphBuilder.homeGraph(
     navigator: Navigator,
+    sharedTransitionScope: SharedTransitionScope,
     modifier: Modifier = Modifier,
 ) {
     navScreen<Screen.Home> {
         HomeScreen(
             modifier = modifier,
-            component = remember { HomeComponent.create(navigator) }
+            sharedTransitionScope = sharedTransitionScope,
+            component = remember { HomeComponent.create(navigator) },
+            animatedContentScope = this
         )
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun HomeScreen(
     component: HomeComponent,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedContentScope: AnimatedContentScope,
     modifier: Modifier = Modifier
 ) {
     NavComponentScreen(HomeFeature, component) { processor ->
@@ -37,12 +47,13 @@ fun HomeScreen(
         processor.Handle { event -> }
 
         val lazyListState = rememberLazyListState()
-
         HomeWidget(
             modifier = modifier,
             lazyPagingItems = items,
             lazyState = lazyListState,
-            consume = processor::consume
+            consume = processor::consume,
+            sharedTransitionScope = sharedTransitionScope,
+            animatedContentScope = animatedContentScope
         )
     }
 }
