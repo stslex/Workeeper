@@ -20,6 +20,7 @@ import androidx.paging.PagingData
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
+import io.github.stslex.workeeper.core.exercise.data.model.DateProperty
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.home.ui.components.ExercisePagingItem
 import io.github.stslex.workeeper.feature.home.ui.components.HomeActionButton
@@ -107,7 +108,7 @@ private fun HomeWidgetPreview() {
                 sets = index,
                 reps = index,
                 weight = 60.0 + index,
-                timestamp = System.currentTimeMillis()
+                dateProperty = DateProperty.new(System.currentTimeMillis())
             )
         }.toList()
         val pagingData = remember { flowOf(PagingData.from(items)) }.collectAsLazyPagingItems()

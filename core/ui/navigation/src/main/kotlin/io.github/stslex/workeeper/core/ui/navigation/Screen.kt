@@ -32,6 +32,7 @@ sealed interface Screen {
             val reps: Int,
             val weight: Double,
             val timestamp: Long,
+            val converted: String
         ) : Exercise
     }
 

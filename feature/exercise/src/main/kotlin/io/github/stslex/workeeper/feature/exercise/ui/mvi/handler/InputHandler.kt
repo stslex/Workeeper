@@ -1,5 +1,6 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
+import io.github.stslex.workeeper.core.exercise.data.model.DateProperty
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseScope
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PropertyType
@@ -18,7 +19,7 @@ class InputHandler : Handler<Action.Input, ExerciseHandlerStore> {
         when (action) {
             is Action.Input.Property -> processProperty(action)
             is Action.Input.Time -> updateState {
-                it.copy(timestamp = action.timestamp)
+                it.copy(dateProperty = DateProperty.new(action.timestamp))
             }
         }
     }

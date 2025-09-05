@@ -22,6 +22,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseButtonsRow
+import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseDatePickerDialog
 import io.github.stslex.workeeper.feature.exercise.ui.components.ExercisedColumn
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SnackbarType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SnackbarType.Companion.getAction
@@ -73,6 +74,14 @@ internal fun ExerciseFeatureWidget(
                 consume = consume
             )
 
+        }
+
+        if (state.isCalendarOpen) {
+            ExerciseDatePickerDialog(
+                timestamp = state.dateProperty.timestamp,
+                onDismissRequest = { consume(Action.Click.CloseCalendar) },
+                dateChange = { consume(Action.Input.Time(it)) }
+            )
         }
     }
 }

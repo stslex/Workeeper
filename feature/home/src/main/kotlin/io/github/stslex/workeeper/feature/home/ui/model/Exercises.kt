@@ -1,7 +1,9 @@
 package io.github.stslex.workeeper.feature.home.ui.model
 
 import androidx.compose.runtime.Stable
+import io.github.stslex.workeeper.core.exercise.data.model.DateProperty
 import io.github.stslex.workeeper.core.exercise.data.model.ExerciseDataModel
+import io.github.stslex.workeeper.core.exercise.utils.DateTimeUtil
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 
 @Stable
@@ -11,7 +13,7 @@ data class ExerciseUiModel(
     val sets: Int,
     val reps: Int,
     val weight: Double,
-    val timestamp: Long,
+    val dateProperty: DateProperty
 )
 
 fun ExerciseDataModel.toUi() = ExerciseUiModel(
@@ -20,7 +22,10 @@ fun ExerciseDataModel.toUi() = ExerciseUiModel(
     sets = sets,
     reps = reps,
     weight = weight,
-    timestamp = timestamp,
+    dateProperty = DateProperty(
+        timestamp = timestamp,
+        converted = DateTimeUtil.formatMillis(timestamp)
+    ),
 )
 
 fun ExerciseUiModel.toNavData() = Screen.Exercise.Data(
@@ -29,5 +34,6 @@ fun ExerciseUiModel.toNavData() = Screen.Exercise.Data(
     sets = sets,
     reps = reps,
     weight = weight,
-    timestamp = timestamp
+    timestamp = dateProperty.timestamp,
+    converted = dateProperty.converted
 )

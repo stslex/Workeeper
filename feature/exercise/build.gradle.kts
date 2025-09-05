@@ -10,8 +10,4 @@ dependencies {
     implementation(project(":core:ui:navigation"))
 
     implementation(project(":core:exercise"))
-
-    implementation(libs.androidx.compose.ui)
-    implementation(libs.androidx.compose.animation)
-    implementation(libs.androidx.compose.navigation)
 }

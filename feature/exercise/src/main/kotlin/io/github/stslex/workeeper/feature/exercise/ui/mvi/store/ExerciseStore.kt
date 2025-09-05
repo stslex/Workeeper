@@ -1,7 +1,9 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.store
 
 import androidx.compose.runtime.Stable
+import io.github.stslex.workeeper.core.exercise.data.model.DateProperty
 import io.github.stslex.workeeper.core.ui.mvi.Store
+import io.github.stslex.workeeper.core.ui.navigation.Screen.Exercise.Data
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.Property
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PropertyType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SnackbarType
@@ -18,7 +20,8 @@ interface ExerciseStore : Store<State, Action, Event> {
         val sets: Property,
         val reps: Property,
         val weight: Property,
-        val timestamp: Long,
+        val dateProperty: DateProperty,
+        val isCalendarOpen: Boolean,
         val initialHash: Int,
     ) : Store.State {
 
@@ -28,7 +31,7 @@ interface ExerciseStore : Store<State, Action, Event> {
                     sets.value.trim().hashCode() +
                     reps.value.trim().hashCode() +
                     weight.value.trim().hashCode() +
-                    timestamp.hashCode()
+                    dateProperty.converted.hashCode()
 
         val allowBack: Boolean
             get() = if (uuid == null) {
@@ -48,8 +51,14 @@ interface ExerciseStore : Store<State, Action, Event> {
                 sets = Property.new(PropertyType.SETS),
                 reps = Property.new(PropertyType.REPS),
                 weight = Property.new(PropertyType.WEIGHT),
-                timestamp = 0L,
+                dateProperty = DateProperty(0L, ""),
+                isCalendarOpen = false,
                 initialHash = 0
+            )
+
+            fun createInitial(data: Data?): State = data?.mapToState() ?: INITIAL.copy(
+                dateProperty = DateProperty.new(System.currentTimeMillis()),
+                initialHash = INITIAL.calculateEqualsHash
             )
         }
     }
@@ -76,6 +85,10 @@ interface ExerciseStore : Store<State, Action, Event> {
 
             data object ConfirmedDelete : Click
 
+            data object PickDate : Click
+
+            data object CloseCalendar : Click
+
         }
 
         sealed interface Navigation : Action, Store.Action.Navigation {
@@ -95,5 +108,22 @@ interface ExerciseStore : Store<State, Action, Event> {
             val type: SnackbarType
         ) : Event
 
+        data object HapticClick : Event
+
     }
+}
+
+private fun Data.mapToState(): State {
+    val state = State.INITIAL.copy(
+        uuid = uuid,
+        name = State.INITIAL.name.update(name),
+        sets = State.INITIAL.sets.update(sets.toString()),
+        reps = State.INITIAL.reps.update(reps.toString()),
+        weight = State.INITIAL.weight.update(weight.toString()),
+        dateProperty = DateProperty.new(timestamp),
+        initialHash = 0
+    )
+    return state.copy(
+        initialHash = state.calculateEqualsHash
+    )
 }

@@ -11,14 +11,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import io.github.stslex.workeeper.core.exercise.data.model.DateProperty
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.home.ui.model.ExerciseUiModel
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.number
-import kotlinx.datetime.toLocalDateTime
-import kotlin.time.ExperimentalTime
-import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,23 +52,11 @@ internal fun ExercisePagingItem(
                 style = MaterialTheme.typography.bodyLarge
             )
             Text(
-                text = formatMillis(item.timestamp),
+                text = item.dateProperty.converted,
                 style = MaterialTheme.typography.labelSmall
             )
         }
     }
-}
-
-@OptIn(ExperimentalTime::class)
-fun formatMillis(millis: Long): String {
-    val instant = Instant.fromEpochMilliseconds(millis)
-    val dateTime = instant.toLocalDateTime(TimeZone.currentSystemDefault())
-
-    val day = dateTime.date.day.toString().padStart(2, '0')
-    val month = dateTime.date.month.number.toString().padStart(2, '0')
-    val year = (dateTime.date.year % 100).toString().padStart(2, '0')
-
-    return "$day/$month/$year"
 }
 
 @Composable
@@ -85,7 +69,10 @@ private fun ExercisePagingItemPreview() {
             sets = 12,
             reps = 13,
             weight = 60.0,
-            timestamp = System.currentTimeMillis()
+            dateProperty = DateProperty(
+                timestamp = System.currentTimeMillis(),
+                converted = "12/05/23"
+            )
         )
         ExercisePagingItem(
             item = item,

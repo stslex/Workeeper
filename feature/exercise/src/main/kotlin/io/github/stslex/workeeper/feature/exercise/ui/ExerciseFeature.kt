@@ -11,7 +11,9 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
@@ -72,9 +74,8 @@ fun ExerciseFeature(
     NavComponentScreen(ExerciseFeature, component) { processor ->
         val context = LocalContext.current
 
-        val snackbarHostState = remember {
-            SnackbarHostState()
-        }
+        val snackbarHostState = remember { SnackbarHostState() }
+        val hapticFeedback = LocalHapticFeedback.current
 
         val backHandlerEnable = remember(processor.state.value) { processor.state.value.allowBack }
 
@@ -93,6 +94,9 @@ fun ExerciseFeature(
                     actionLabel = event.type.value,
                     withDismissAction = true
                 )
+                ExerciseStore.Event.HapticClick -> {
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.VirtualKey)
+                }
             }
         }
         with(sharedTransitionScope) {

@@ -23,12 +23,23 @@ internal class ClickHandler(
 ) : Handler<Action.Click, ExerciseHandlerStore> {
 
     override fun ExerciseHandlerStore.invoke(action: Action.Click) {
+        sendEvent(ExerciseStore.Event.HapticClick)
         when (action) {
             Action.Click.Cancel -> consume(Action.Navigation.BackWithConfirmation)
             Action.Click.Save -> processSave()
             Action.Click.Delete -> processDelete()
             Action.Click.ConfirmedDelete -> processConfirmedDelete()
+            Action.Click.PickDate -> processPickDate()
+            Action.Click.CloseCalendar -> processCloseCalendar()
         }
+    }
+
+    private fun ExerciseHandlerStore.processCloseCalendar() {
+        updateState { it.copy(isCalendarOpen = false) }
+    }
+
+    private fun ExerciseHandlerStore.processPickDate() {
+        updateState { it.copy(isCalendarOpen = true) }
     }
 
     private fun ExerciseHandlerStore.processConfirmedDelete() {
@@ -82,7 +93,7 @@ internal class ClickHandler(
             sets = state.value.sets.value.toInt(),
             reps = state.value.reps.value.toInt(),
             weight = state.value.weight.value.toDouble(),
-            timestamp = state.value.timestamp,
+            timestamp = state.value.dateProperty.timestamp,
         )
 
         launch(
