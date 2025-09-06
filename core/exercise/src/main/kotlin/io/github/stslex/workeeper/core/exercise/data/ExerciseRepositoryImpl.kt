@@ -48,6 +48,12 @@ internal class ExerciseRepositoryImpl(
         dao.searchUniqueExclude(query).map { it.toData() }
     }
 
+    override suspend fun deleteAllItems(uuids: List<Uuid>) {
+        withContext(appDispatcher.io) {
+            dao.delete(uuids)
+        }
+    }
+
     companion object {
 
         private val pagingConfig = PagingConfig(

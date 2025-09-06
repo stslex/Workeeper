@@ -26,6 +26,7 @@ import io.github.stslex.workeeper.feature.home.ui.components.ExercisePagingItem
 import io.github.stslex.workeeper.feature.home.ui.components.HomeActionButton
 import io.github.stslex.workeeper.feature.home.ui.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeStore.Action
+import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.coroutines.flow.flowOf
 import kotlin.uuid.Uuid
 
@@ -33,6 +34,7 @@ import kotlin.uuid.Uuid
 @Composable
 fun HomeWidget(
     lazyPagingItems: LazyPagingItems<ExerciseUiModel>,
+    selectedItems: ImmutableSet<ExerciseUiModel>,
     sharedTransitionScope: SharedTransitionScope,
     animatedContentScope: AnimatedContentScope,
     consume: (Action) -> Unit,
@@ -49,9 +51,10 @@ fun HomeWidget(
                             sharedContentState = sharedTransitionScope.rememberSharedContentState("createExercise"),
                             animatedVisibilityScope = animatedContentScope,
                             resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds()
-                        )
+                        ),
+                    selectedMode = selectedItems.isNotEmpty()
                 ) {
-                    consume(Action.Click.ButtonAddClick)
+                    consume(Action.Click.FloatButtonClick)
                 }
             }
         }
@@ -84,8 +87,12 @@ fun HomeWidget(
                                         resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds()
                                     ),
                                 item = item,
+                                isSelected = selectedItems.contains(item),
                                 onClick = {
                                     consume(Action.Click.Item(item))
+                                },
+                                onLongClick = {
+                                    consume(Action.Click.LonkClick(item))
                                 }
                             )
                         }

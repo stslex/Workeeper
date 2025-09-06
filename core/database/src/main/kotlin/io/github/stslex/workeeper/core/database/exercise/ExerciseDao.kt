@@ -29,6 +29,9 @@ interface ExerciseDao {
     @Query("DELETE FROM exercises_table WHERE uuid = :uuid")
     suspend fun delete(uuid: Uuid)
 
+    @Query("DELETE FROM exercises_table WHERE uuid IN (:uuid)")
+    suspend fun delete(uuid: List<Uuid>)
+
     @Query("SELECT * FROM exercises_table WHERE name LIKE '%' || :query || '%' GROUP BY name ORDER BY MAX(timestamp) DESC LIMIT 10")
     suspend fun searchUnique(query: String): List<ExerciseEntity>
 

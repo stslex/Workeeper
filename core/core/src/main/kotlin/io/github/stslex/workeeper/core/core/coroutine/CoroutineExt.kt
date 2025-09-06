@@ -10,7 +10,7 @@ val coroutineExceptionHandler = CoroutineExceptionHandler { _, throwable ->
     Log.e(throwable)
 }
 
-suspend fun <T, R> List<T>.asyncMap(
+suspend fun <T, R> Collection<T>.asyncMap(
     transform: suspend (T) -> R
 ): List<R> = coroutineScope {
     map { item -> async { transform(item) } }

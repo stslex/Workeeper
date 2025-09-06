@@ -1,7 +1,9 @@
 package io.github.stslex.workeeper.feature.home.ui.components
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
@@ -11,6 +13,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 
 @Composable
 internal fun HomeActionButton(
+    selectedMode: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
@@ -18,10 +21,17 @@ internal fun HomeActionButton(
         modifier = modifier,
         onClick = onClick,
     ) {
-        Icon(
-            imageVector = Icons.Default.Add,
-            contentDescription = null
-        )
+        AnimatedContent(selectedMode) {
+            Icon(
+                imageVector = if (it) {
+                    Icons.Default.Delete
+                } else {
+                    Icons.Default.Add
+                },
+                contentDescription = null
+            )
+        }
+
     }
 }
 
@@ -29,6 +39,8 @@ internal fun HomeActionButton(
 @Preview
 private fun HomeActionButtonPreview() {
     AppTheme {
-        HomeActionButton { }
+        HomeActionButton(
+            selectedMode = false
+        ) { }
     }
 }

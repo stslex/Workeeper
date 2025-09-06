@@ -1,5 +1,6 @@
 package io.github.stslex.workeeper.feature.home.ui.mvi.store
 
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.paging.PagingData
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.core.ui.mvi.Store
@@ -8,11 +9,14 @@ import io.github.stslex.workeeper.feature.home.ui.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeStore.Action
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeStore.Event
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeStore.State
+import kotlinx.collections.immutable.ImmutableSet
+import kotlinx.collections.immutable.persistentSetOf
 
 interface HomeStore : Store<State, Action, Event> {
 
     data class State(
-        val items: PagingUiState<PagingData<ExerciseUiModel>>
+        val items: PagingUiState<PagingData<ExerciseUiModel>>,
+        val selectedItems: ImmutableSet<ExerciseUiModel> = persistentSetOf(),
     ) : Store.State
 
     sealed interface Action : Store.Action {
@@ -24,9 +28,11 @@ interface HomeStore : Store<State, Action, Event> {
 
         sealed interface Click : Action {
 
-            data object ButtonAddClick : Click
+            data object FloatButtonClick : Click
 
             data class Item(val item: ExerciseUiModel) : Click
+
+            data class LonkClick(val item: ExerciseUiModel) : Click
         }
 
         sealed interface Navigation : Action, Store.Action.Navigation {
@@ -38,6 +44,11 @@ interface HomeStore : Store<State, Action, Event> {
 
     }
 
-    sealed interface Event : Store.Event
+    sealed interface Event : Store.Event {
+
+        data class HapticFeedback(
+            val type: HapticFeedbackType
+        ) : Event
+    }
 
 }

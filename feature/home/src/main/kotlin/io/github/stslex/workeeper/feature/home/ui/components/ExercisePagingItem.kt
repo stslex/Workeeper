@@ -6,12 +6,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.exercise.data.model.DateProperty
+import io.github.stslex.workeeper.core.ui.kit.components.CardWithAnimatedBorder
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.home.ui.model.ExerciseUiModel
@@ -22,14 +22,19 @@ import kotlin.uuid.Uuid
 internal fun ExercisePagingItem(
     item: ExerciseUiModel,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    isSelected: Boolean,
     modifier: Modifier = Modifier
 ) {
-    OutlinedCard(
+    CardWithAnimatedBorder(
         modifier = modifier
             .padding(AppDimension.Padding.medium)
             .fillMaxWidth()
             .wrapContentHeight(),
-        onClick = onClick
+        onClick = onClick,
+        onLongClick = onLongClick,
+        isAnimated = isSelected,
+        borderSize = AppDimension.Border.medium
     ) {
         Column(
             modifier = Modifier
@@ -76,7 +81,9 @@ private fun ExercisePagingItemPreview() {
         )
         ExercisePagingItem(
             item = item,
-            onClick = {}
+            isSelected = true,
+            onClick = {},
+            onLongClick = {}
         )
     }
 }

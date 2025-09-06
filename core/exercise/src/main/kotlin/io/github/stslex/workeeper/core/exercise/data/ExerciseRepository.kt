@@ -4,6 +4,7 @@ import androidx.paging.PagingData
 import io.github.stslex.workeeper.core.exercise.data.model.ChangeExerciseDataModel
 import io.github.stslex.workeeper.core.exercise.data.model.ExerciseDataModel
 import kotlinx.coroutines.flow.Flow
+import kotlin.uuid.Uuid
 
 interface ExerciseRepository {
 
@@ -14,5 +15,7 @@ interface ExerciseRepository {
     suspend fun deleteItem(uuid: String)
 
     suspend fun searchItems(query: String): List<ExerciseDataModel>
+
+    suspend fun deleteAllItems(uuids: List<Uuid>)
 
 }
