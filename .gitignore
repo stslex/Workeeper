@@ -17,5 +17,5 @@ local.properties
 .kotlin
 play_config.*
 keystore.*
-Gemfile.lock
+
 build
