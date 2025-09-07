@@ -77,7 +77,7 @@ internal class ExerciseRepositoryTest {
     fun `delete item`() = runTest(testDispatcher) {
         val uuid = Uuid.random()
 
-        coEvery { dao.delete(any()) } answers {}
+        coEvery { dao.delete(any<Uuid>()) } answers {}
 
         repository.deleteItem(uuid.toString())
         coVerify(exactly = 1) { dao.delete(uuid) }
