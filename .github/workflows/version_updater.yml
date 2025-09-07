@@ -1,0 +1,28 @@
+name: Android Version Update
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy_beta:
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update Version
+        run: bash ./.github/scripts/update_versions.sh
+
+      - name: Commit files
+        run: |
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git commit -a -m "update version"
+
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.PUSH_TOKEN }}
+          branch: ${{ github.ref }}
