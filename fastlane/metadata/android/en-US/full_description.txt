@@ -1,0 +1,17 @@
+Gym Progress Tracker is a simple and convenient app for those who want to systematically improve their workouts. 
+
+📋 Features:
+• Log exercises, sets, reps, and weights.  
+• Review history and analyze progress.  
+• Visualize development with charts and statistics.  
+• Minimalist design – nothing extra, just your workouts.  
+
+🏋️ Who is it for:
+• Athletes who track their performance.  
+• Beginners who want structured training.  
+• Everyone who values discipline and order in the gym.  
+
+💡 All data is stored locally on your device.  
+No registration required, no personal data collected.  
+
+Start your training diary today!
