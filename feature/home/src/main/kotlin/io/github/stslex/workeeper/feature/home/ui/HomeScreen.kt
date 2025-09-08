@@ -59,6 +59,7 @@ private fun HomeScreen(
             lazyPagingItems = items,
             lazyState = lazyListState,
             consume = processor::consume,
+            query = processor.state.value.query,
             sharedTransitionScope = sharedTransitionScope,
             animatedContentScope = animatedContentScope,
             selectedItems = processor.state.value.selectedItems

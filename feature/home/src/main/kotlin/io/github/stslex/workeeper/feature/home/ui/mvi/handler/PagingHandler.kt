@@ -11,6 +11,8 @@ import io.github.stslex.workeeper.feature.home.ui.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.home.ui.model.toUi
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeHandlerStore
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeStore
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import org.koin.core.annotation.Factory
@@ -25,14 +27,24 @@ class PagingHandler(
     private val appDispatcher: AppDispatcher
 ) : Handler<HomeStore.Action.Paging, HomeHandlerStore> {
 
+    private val queryState = MutableStateFlow("")
+
     val processor: PagingUiState<PagingData<ExerciseUiModel>> = PagingUiState {
-        repository.exercises.map { pagingData ->
-            pagingData.map { it.toUi() }
+        queryState.flatMapLatest { query ->
+            repository.getExercises(query).map { pagingData ->
+                pagingData.map { it.toUi() }
+            }
         }
             .flowOn(appDispatcher.io)
     }
 
     override fun HomeHandlerStore.invoke(action: HomeStore.Action.Paging) {
-//        TODO("Not yet implemented")
+        when (action) {
+            HomeStore.Action.Paging.Init -> processInit()
+        }
+    }
+
+    private fun HomeHandlerStore.processInit() {
+        state.map { it.query }.launch { queryState.value = it }
     }
 }

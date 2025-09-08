@@ -17,6 +17,7 @@ interface HomeStore : Store<State, Action, Event> {
     data class State(
         val items: PagingUiState<PagingData<ExerciseUiModel>>,
         val selectedItems: ImmutableSet<ExerciseUiModel> = persistentSetOf(),
+        val query: String = "",
     ) : Store.State
 
     sealed interface Action : Store.Action {
@@ -24,6 +25,11 @@ interface HomeStore : Store<State, Action, Event> {
         sealed interface Paging : Action {
 
             data object Init : Paging
+        }
+
+        sealed interface Input : Action {
+
+            data class SearchQuery(val query: String) : Input
         }
 
         sealed interface Click : Action {

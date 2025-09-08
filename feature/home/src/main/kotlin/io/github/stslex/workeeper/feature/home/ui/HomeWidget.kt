@@ -8,14 +8,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.paging.PagingData
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
@@ -24,6 +22,7 @@ import io.github.stslex.workeeper.core.exercise.data.model.DateProperty
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.home.ui.components.ExercisePagingItem
 import io.github.stslex.workeeper.feature.home.ui.components.HomeActionButton
+import io.github.stslex.workeeper.feature.home.ui.components.SearchWidget
 import io.github.stslex.workeeper.feature.home.ui.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeStore.Action
 import kotlinx.collections.immutable.ImmutableSet
@@ -37,6 +36,7 @@ fun HomeWidget(
     selectedItems: ImmutableSet<ExerciseUiModel>,
     sharedTransitionScope: SharedTransitionScope,
     animatedContentScope: AnimatedContentScope,
+    query: String,
     consume: (Action) -> Unit,
     lazyState: LazyListState,
     modifier: Modifier = Modifier,
@@ -64,10 +64,11 @@ fun HomeWidget(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            Text(
-                modifier = Modifier.align(Alignment.CenterHorizontally),
-                text = "HOME",
-                style = MaterialTheme.typography.labelLarge
+            SearchWidget(
+                modifier = Modifier
+                    .padding(16.dp),
+                query = query,
+                onQueryChange = { consume(Action.Input.SearchQuery(it)) }
             )
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),

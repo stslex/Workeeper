@@ -10,6 +10,8 @@ interface ExerciseRepository {
 
     val exercises: Flow<PagingData<ExerciseDataModel>>
 
+    fun getExercises(query: String): Flow<PagingData<ExerciseDataModel>>
+
     suspend fun saveItem(item: ChangeExerciseDataModel)
 
     suspend fun deleteItem(uuid: String)

@@ -5,6 +5,7 @@ import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 import io.github.stslex.workeeper.feature.home.di.HomeScope
 import io.github.stslex.workeeper.feature.home.ui.mvi.handler.ClickHandler
 import io.github.stslex.workeeper.feature.home.ui.mvi.handler.HomeComponent
+import io.github.stslex.workeeper.feature.home.ui.mvi.handler.InputHandler
 import io.github.stslex.workeeper.feature.home.ui.mvi.handler.PagingHandler
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeStore.Action
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeStore.Event
@@ -23,6 +24,7 @@ class HomeStoreImpl(
     @InjectedParam component: HomeComponent,
     pagingHandler: PagingHandler,
     clickHandler: ClickHandler,
+    inputHandler: InputHandler,
     appDispatcher: AppDispatcher,
 ) : HomeHandlerStore, BaseStore<State, Action, Event, HomeHandlerStore>(
     name = "HOME",
@@ -35,6 +37,8 @@ class HomeStoreImpl(
             is Action.Paging -> pagingHandler
             is Action.Navigation -> component
             is Action.Click -> clickHandler
+            is Action.Input -> inputHandler
         }
-    }
+    },
+    initialActions = listOf(Action.Paging.Init)
 )
