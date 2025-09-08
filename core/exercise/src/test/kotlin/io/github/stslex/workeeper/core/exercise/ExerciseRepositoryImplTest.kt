@@ -63,6 +63,27 @@ internal class ExerciseRepositoryTest {
     }
 
     @Test
+    fun `get all items with query paging`() = runTest(testDispatcher) {
+        val uuid1 = Uuid.random()
+        val uuid2 = Uuid.random()
+        val expectedEntites = listOf(
+            createEntity(0, uuid1),
+            createEntity(1, uuid2),
+        )
+        val expectedDataModels = listOf(
+            createDomain(0, uuid1),
+            createDomain(1, uuid2)
+        )
+
+        every { dao.getAll("some_query") } returns TestPagingSource(expectedEntites)
+
+        val items = repository.getExercises("some_query").asSnapshot()
+        verify(exactly = 1) { dao.getAll("some_query") }
+
+        assertEquals(expectedDataModels, items)
+    }
+
+    @Test
     fun `save item`() = runTest(testDispatcher) {
         val uuid = Uuid.random()
         val domain = createChangeModel(0, uuid)

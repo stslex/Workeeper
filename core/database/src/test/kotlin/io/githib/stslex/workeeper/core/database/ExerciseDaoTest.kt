@@ -52,8 +52,86 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
     }
 
     @Test
+    fun `get all items query with full database and empty query`() = runTest {
+        dao.create(exerciseEntities)
+        val pagingSource = dao.getAll("")
+        val loadResult = pagingSource.load(
+            PagingSource.LoadParams.Refresh(
+                key = null,
+                loadSize = exerciseEntities.size + 10,
+                placeholdersEnabled = false
+            )
+        )
+        val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
+        assertTrue(actual.orEmpty().isNotEmpty())
+        assertEquals(exerciseEntities.size, actual?.size)
+    }
+
+    @Test
+    fun `get all items query with full database and not existed query`() = runTest {
+        dao.create(exerciseEntities)
+        val pagingSource = dao.getAll("not_existed_query")
+        val loadResult = pagingSource.load(
+            PagingSource.LoadParams.Refresh(
+                key = null,
+                loadSize = exerciseEntities.size + 10,
+                placeholdersEnabled = false
+            )
+        )
+        val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
+        assertTrue(actual.orEmpty().isEmpty())
+        assertEquals(0, actual?.size)
+    }
+
+    @Test
+    fun `get all items query with full database and particularly existed query`() = runTest {
+        dao.create(exerciseEntities)
+        val pagingSource = dao.getAll(exerciseEntities.first().name)
+        val loadResult = pagingSource.load(
+            PagingSource.LoadParams.Refresh(
+                key = null,
+                loadSize = exerciseEntities.size + 10,
+                placeholdersEnabled = false
+            )
+        )
+        val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
+        assertTrue(actual.orEmpty().isNotEmpty())
+        assertEquals(1, actual?.size)
+    }
+
+    @Test
+    fun `get all items query with full database and all existed query`() = runTest {
+        dao.create(exerciseEntities)
+        val pagingSource = dao.getAll("test")
+        val loadResult = pagingSource.load(
+            PagingSource.LoadParams.Refresh(
+                key = null,
+                loadSize = exerciseEntities.size + 10,
+                placeholdersEnabled = false
+            )
+        )
+        val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
+        assertTrue(actual.orEmpty().isNotEmpty())
+        assertEquals(exerciseEntities.size, actual?.size)
+    }
+
+    @Test
     fun `get all items with empty database`() = runTest {
         val pagingSource = dao.getAll()
+        val loadResult = pagingSource.load(
+            PagingSource.LoadParams.Refresh(
+                key = null,
+                loadSize = exerciseEntities.size + 10,
+                placeholdersEnabled = false
+            )
+        )
+        val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
+        assertEquals(0, actual?.size)
+    }
+
+    @Test
+    fun `get all items query with empty database`() = runTest {
+        val pagingSource = dao.getAll("")
         val loadResult = pagingSource.load(
             PagingSource.LoadParams.Refresh(
                 key = null,
@@ -196,7 +274,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
     private fun createTestExercise(
         index: Int = 0
     ): ExerciseEntity = ExerciseEntity(
-        name = "test",
+        name = "test_$index",
         sets = index.inc(),
         reps = index.plus(2),
         weight = index.plus(3).toDouble(),
