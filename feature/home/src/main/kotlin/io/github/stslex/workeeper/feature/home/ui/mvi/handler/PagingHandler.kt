@@ -5,7 +5,9 @@ import androidx.paging.PagingData
 import androidx.paging.map
 import io.github.stslex.workeeper.core.core.coroutine.dispatcher.AppDispatcher
 import io.github.stslex.workeeper.core.exercise.data.ExerciseRepository
+import io.github.stslex.workeeper.core.exercise.data.model.DateProperty
 import io.github.stslex.workeeper.core.exercise.data.model.ExerciseDataModel
+import io.github.stslex.workeeper.core.store.store.CommonStore
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.home.di.HomeScope
@@ -18,6 +20,7 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -30,6 +33,7 @@ import org.koin.core.annotation.Scoped
 @Scoped
 class PagingHandler(
     private val repository: ExerciseRepository,
+    private val commonStore: CommonStore,
     private val appDispatcher: AppDispatcher
 ) : Handler<HomeStore.Action.Paging, HomeHandlerStore> {
 
@@ -51,8 +55,30 @@ class PagingHandler(
     }
 
     private fun HomeHandlerStore.processInit() {
+        subscribeToDates()
         subscribeToHomeQuery()
         subscribeToCharts()
+    }
+
+    private fun HomeHandlerStore.subscribeToDates() {
+        commonStore.homeSelectedStartDate
+            .filterNotNull()
+            .launch { timestamp ->
+                updateStateImmediate {
+                    it.copyCharts(
+                        startDate = DateProperty.new(timestamp)
+                    )
+                }
+            }
+        commonStore.homeSelectedEndDate
+            .filterNotNull()
+            .launch { timestamp ->
+                updateStateImmediate {
+                    it.copyCharts(
+                        endDate = DateProperty.new(timestamp)
+                    )
+                }
+            }
     }
 
     private fun HomeHandlerStore.subscribeToCharts() {

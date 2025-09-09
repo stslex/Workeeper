@@ -9,6 +9,7 @@ dependencies {
     implementation(project(":core:ui:mvi"))
     implementation(project(":core:ui:navigation"))
     implementation(project(":core:exercise"))
+    implementation(project(":core:store"))
 
-    implementation ("io.github.ehsannarmani:compose-charts:0.1.11")
+    implementation(libs.composeCharts)
 }

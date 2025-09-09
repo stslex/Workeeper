@@ -1,6 +1,6 @@
 package io.github.stslex.workeeper.feature.home.ui.mvi.handler
 
-import io.github.stslex.workeeper.core.exercise.data.model.DateProperty
+import io.github.stslex.workeeper.core.store.store.CommonStore
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.home.di.HomeScope
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeHandlerStore
@@ -12,7 +12,9 @@ import org.koin.core.annotation.Scoped
 @Factory
 @Scope(HomeScope::class)
 @Scoped
-class InputHandler : Handler<HomeStore.Action.Input, HomeHandlerStore> {
+class InputHandler(
+    private val commonStore: CommonStore
+) : Handler<HomeStore.Action.Input, HomeHandlerStore> {
 
     override fun HomeHandlerStore.invoke(action: HomeStore.Action.Input) {
         when (action) {
@@ -27,10 +29,14 @@ class InputHandler : Handler<HomeStore.Action.Input, HomeHandlerStore> {
     }
 
     private fun HomeHandlerStore.processStartDateChange(action: HomeStore.Action.Input.ChangeStartDate) {
-        updateState { it.copyCharts(startDate = DateProperty.new(action.timestamp)) }
+        launch {
+            commonStore.setHomeSelectedStartDate(action.timestamp)
+        }
     }
 
     private fun HomeHandlerStore.processEndDateChange(action: HomeStore.Action.Input.ChangeEndDate) {
-        updateState { it.copyCharts(endDate = DateProperty.new(action.timestamp)) }
+        launch {
+            commonStore.setHomeSelectedEndDate(action.timestamp)
+        }
     }
 }

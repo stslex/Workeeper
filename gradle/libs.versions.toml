@@ -50,6 +50,8 @@ datetime = "0.7.1"
 paging = "3.3.6"
 slf4j = "2.0.17"
 coroutineTest = "1.10.2"
+datastore = "1.1.7"
+composeCharts = "0.1.11"
 
 # decompose dependencies
 essenty = "2.5.0"
@@ -138,6 +140,9 @@ androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = 
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 androidx-room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
 
+androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
+androidx-datastore-core = { group = "androidx.datastore", name = "datastore-core", version.ref = "datastore" }
+
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
 koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
 koin-androidx-compose = { module = "io.insert-koin:koin-androidx-compose", version.ref = "koin" }
@@ -155,6 +160,8 @@ google-gms = { module = "com.google.gms:google-services", version.ref = "gms" }
 google-firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "fbBom" }
 google-firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics" }
 google-firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashlytics" }
+
+composeCharts = { module = "io.github.ehsannarmani:compose-charts", version.ref = "composeCharts" }
 
 [plugins]
 kotlin = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }

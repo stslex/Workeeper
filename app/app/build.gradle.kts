@@ -10,6 +10,7 @@ dependencies {
     implementation(project(":core:ui:mvi"))
     implementation(project(":core:database"))
     implementation(project(":core:exercise"))
+    implementation(project(":core:store"))
 
     implementation(project(":feature:home"))
     implementation(project(":feature:exercise"))
