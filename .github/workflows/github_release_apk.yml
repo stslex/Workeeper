@@ -86,11 +86,14 @@ jobs:
           name: store-release-apk
           path: ${{ steps.collect_apk.outputs.apk_path }}
 
-      - name: Generate release notes (shared)
-        id: notes
+      - name: Build changelog (mikepenz)
+        id: changelog
+        uses: mikepenz/release-changelog-builder-action@v4
+        with:
+          configuration: .github/changelog-config.json
+          failOnError: false
         env:
-          TAG_PREFIX: release-
-        run: bash ./.github/scripts/generate_changelog.sh
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Derive release tag
         id: tag
@@ -102,7 +105,7 @@ jobs:
             if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
               TAG="${GITHUB_REF#refs/tags/}"
             else
-              TAG="${{ steps.notes.outputs.TAG_NAME }}"
+              TAG=""
             fi
           fi
           TAG=$(echo "$TAG" | tr -d ' \t\n\r')
@@ -119,7 +122,7 @@ jobs:
           target_commitish: ${{ github.sha }}
           draft: false
           prerelease: ${{ contains(steps.tag.outputs.tag, 'alpha') || contains(steps.tag.outputs.tag, 'beta') || contains(steps.tag.outputs.tag, 'rc') }}
-          body_path: ${{ steps.notes.outputs.notes_path }}
+          body: ${{ steps.changelog.outputs.changelog || 'Changelog not available.' }}
           files: |
             ${{ steps.collect_apk.outputs.apk_path }}
         env:

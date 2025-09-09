@@ -1,0 +1,20 @@
+{
+  "$schema": "https://raw.githubusercontent.com/mikepenz/release-changelog-builder-action/v4/schema.json",
+  "commitMode": true,
+  "fetchViaCommits": true,
+  "useGitHubRestApi": true,
+  "maxIssues": 200,
+  "truncateMessagesAt": 140,
+
+  "template": "{{changes}}",
+  "changeTemplate": "- {{#commits}}{{message}}{{/commits}}",
+
+  "transformers": [
+    { "pattern": "^feat(\\([^)]*\\))?!?:\\s*(.*)", "target": "✨ $2" },
+    { "pattern": "^fix(\\([^)]*\\))?!?:\\s*(.*)", "target": "🐛 $2" },
+    { "pattern": "^perf(\\([^)]*\\))?!?:\\s*(.*)", "target": "⚡ $2" },
+    { "pattern": "^(deps|dependencies)(\\([^)]*\\))?!?:\\s*(.*)", "target": "📦 $2" },
+    { "pattern": "^(refactor|docs|build|ci|style|test)(\\([^)]*\\))?!?:\\s*(.*)", "target": "" }
+  ]
+}
+
