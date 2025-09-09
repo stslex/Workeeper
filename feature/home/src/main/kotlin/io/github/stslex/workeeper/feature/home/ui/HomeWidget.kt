@@ -1,108 +1,132 @@
 package io.github.stslex.workeeper.feature.home.ui
 
+import android.annotation.SuppressLint
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.paging.PagingData
-import androidx.paging.compose.LazyPagingItems
-import androidx.paging.compose.collectAsLazyPagingItems
-import androidx.paging.compose.itemKey
 import io.github.stslex.workeeper.core.exercise.data.model.DateProperty
+import io.github.stslex.workeeper.core.exercise.data.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
-import io.github.stslex.workeeper.feature.home.ui.components.ExercisePagingItem
+import io.github.stslex.workeeper.feature.home.ui.components.DatePickerDialog
 import io.github.stslex.workeeper.feature.home.ui.components.HomeActionButton
+import io.github.stslex.workeeper.feature.home.ui.components.HomeToolbarWidget
 import io.github.stslex.workeeper.feature.home.ui.model.ExerciseUiModel
+import io.github.stslex.workeeper.feature.home.ui.model.HomeTabs
+import io.github.stslex.workeeper.feature.home.ui.mvi.handler.calculateSizes
+import io.github.stslex.workeeper.feature.home.ui.mvi.store.CalendarState
+import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeAllState
+import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeChartsState
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeStore.Action
-import kotlinx.collections.immutable.ImmutableSet
+import io.github.stslex.workeeper.feature.home.ui.tabs.AllTabsWidget
+import io.github.stslex.workeeper.feature.home.ui.tabs.ChartsWidget
+import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.coroutines.flow.flowOf
 import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun HomeWidget(
-    lazyPagingItems: LazyPagingItems<ExerciseUiModel>,
-    selectedItems: ImmutableSet<ExerciseUiModel>,
+    homeAllState: HomeAllState,
+    chartsState: HomeChartsState,
     sharedTransitionScope: SharedTransitionScope,
     animatedContentScope: AnimatedContentScope,
     consume: (Action) -> Unit,
     lazyState: LazyListState,
     modifier: Modifier = Modifier,
 ) {
+    val pagerState = rememberPagerState { HomeTabs.entries.size }
     Scaffold(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .systemBarsPadding(),
         floatingActionButton = {
-            with(sharedTransitionScope) {
-                HomeActionButton(
-                    modifier = Modifier
-                        .sharedBounds(
-                            sharedContentState = sharedTransitionScope.rememberSharedContentState("createExercise"),
-                            animatedVisibilityScope = animatedContentScope,
-                            resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds()
-                        ),
-                    selectedMode = selectedItems.isNotEmpty()
-                ) {
-                    consume(Action.Click.FloatButtonClick)
-                }
-            }
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            Text(
-                modifier = Modifier.align(Alignment.CenterHorizontally),
-                text = "HOME",
-                style = MaterialTheme.typography.labelLarge
-            )
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                state = lazyState
-            ) {
-                items(
-                    count = lazyPagingItems.itemCount,
-                    key = lazyPagingItems.itemKey { it.uuid }
-                ) { index ->
-                    lazyPagingItems[index]?.let { item ->
-                        with(sharedTransitionScope) {
-                            ExercisePagingItem(
-                                modifier = Modifier
-                                    .sharedBounds(
-                                        sharedContentState = sharedTransitionScope.rememberSharedContentState(item.uuid),
-                                        animatedVisibilityScope = animatedContentScope,
-                                        resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds()
-                                    ),
-                                item = item,
-                                isSelected = selectedItems.contains(item),
-                                onClick = {
-                                    consume(Action.Click.Item(item))
-                                },
-                                onLongClick = {
-                                    consume(Action.Click.LonkClick(item))
-                                }
-                            )
+            AnimatedContent(pagerState.currentPage) { page ->
+                when (page) {
+                    HomeTabs.ALL.ordinal -> with(sharedTransitionScope) {
+                        HomeActionButton(
+                            modifier = Modifier
+                                .sharedBounds(
+                                    sharedContentState = sharedTransitionScope.rememberSharedContentState("createExercise"),
+                                    animatedVisibilityScope = animatedContentScope,
+                                    resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds()
+                                ),
+                            selectedMode = homeAllState.selectedItems.isNotEmpty()
+                        ) {
+                            consume(Action.Click.FloatButtonClick)
                         }
                     }
                 }
+            }
+
+        },
+        topBar = {
+            HomeToolbarWidget(
+                pagerState = pagerState,
+                onTabClick = {
+                    // Switch to the selected tab
+                }
+            )
+        }
+    ) { paddingValues ->
+        HorizontalPager(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues),
+            state = pagerState
+        ) { pageNumber ->
+            when (pageNumber) {
+                HomeTabs.ALL.ordinal -> {
+                    AllTabsWidget(
+                        state = homeAllState,
+                        sharedTransitionScope = sharedTransitionScope,
+                        animatedContentScope = animatedContentScope,
+                        consume = consume,
+                        lazyState = lazyState
+                    )
+                }
+
+                HomeTabs.CHARTS.ordinal -> {
+                    ChartsWidget(
+                        state = chartsState,
+                        consume = consume
+                    )
+
+                    when (chartsState.calendarState) {
+                        CalendarState.Opened.StartDate -> DatePickerDialog(
+                            timestamp = chartsState.startDate.timestamp,
+                            onDismissRequest = { consume(Action.Click.Calendar.Close) },
+                            dateChange = { consume(Action.Input.ChangeStartDate(it)) }
+                        )
+
+                        CalendarState.Opened.EndDate -> DatePickerDialog(
+                            timestamp = chartsState.endDate.timestamp,
+                            onDismissRequest = { consume(Action.Click.Calendar.Close) },
+                            dateChange = { consume(Action.Input.ChangeEndDate(it)) }
+                        )
+
+                        else -> Unit
+                    }
+                }
+
+                else -> throw IllegalStateException("Pager index out of bound")
             }
         }
     }
 }
 
+@SuppressLint("UnusedContentLambdaTargetStateParameter")
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Preview
 @Composable
@@ -118,15 +142,48 @@ private fun HomeWidgetPreview() {
                 dateProperty = DateProperty.new(System.currentTimeMillis())
             )
         }.toList()
-        val pagingData = remember { flowOf(PagingData.from(items)) }.collectAsLazyPagingItems()
+        val itemsPaging = {
+            flowOf(PagingData.from(items))
+        }
+        val homeAllState = HomeAllState(
+            items = itemsPaging,
+            selectedItems = persistentSetOf(),
+            query = ""
+        )
+        val startDate = System.currentTimeMillis()
+        val singleDay = 24 * 60 * 60 * 1000
+        val endDate = System.currentTimeMillis() - (7L * singleDay) // 7 days default
 
-//        HomeWidget(
-//            lazyPagingItems = pagingData,
-//            consume = {},
-//            lazyState = rememberLazyListState(),
-//            sharedTransitionScope = sharedTransitionScope,
-//            animatedContentScope = animatedContentScope
-//        )
-
+        val name = "Test Exercise"
+        val listOfData = List(7) {
+            ExerciseDataModel(
+                uuid = Uuid.random().toString(),
+                name = name,
+                sets = it,
+                reps = it,
+                weight = it.toDouble(),
+                timestamp = endDate - (it * singleDay)
+            )
+        }
+        val chartsState = HomeChartsState(
+            name = name,
+            startDate = DateProperty.new(startDate),
+            endDate = DateProperty.new(endDate),
+            charts = listOfData.calculateSizes(),
+            calendarState = CalendarState.Closed
+        )
+        AnimatedContent("") {
+            SharedTransitionScope {
+                HomeWidget(
+                    homeAllState = homeAllState,
+                    chartsState = chartsState,
+                    sharedTransitionScope = this,
+                    animatedContentScope = this@AnimatedContent,
+                    consume = {},
+                    lazyState = LazyListState(),
+                    modifier = it
+                )
+            }
+        }
     }
 }

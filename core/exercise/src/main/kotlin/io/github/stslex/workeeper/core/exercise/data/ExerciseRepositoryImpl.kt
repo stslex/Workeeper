@@ -32,6 +32,39 @@ internal class ExerciseRepositoryImpl(
         }
         .flowOn(appDispatcher.io)
 
+    override fun getExercises(query: String): Flow<PagingData<ExerciseDataModel>> = Pager(
+        config = pagingConfig,
+        pagingSourceFactory = { dao.getAll(query) }
+    ).flow
+        .map { pagingData ->
+            pagingData.map { it.toData() }
+        }
+        .flowOn(appDispatcher.io)
+
+    override fun getExercises(
+        name: String,
+        startDate: Long,
+        endDate: Long
+    ): Flow<List<ExerciseDataModel>> = dao.getExercises(
+        name = name,
+        startDate = startDate,
+        endDate = endDate
+    )
+        .map { list -> list.map { it.toData() } }
+        .flowOn(appDispatcher.io)
+
+    override fun getExercisesExactly(
+        name: String,
+        startDate: Long,
+        endDate: Long
+    ): Flow<List<ExerciseDataModel>> = dao.getExercisesExactly(
+        name = name,
+        startDate = startDate,
+        endDate = endDate
+    )
+        .map { list -> list.map { it.toData() } }
+        .flowOn(appDispatcher.io)
+
     override suspend fun saveItem(item: ChangeExerciseDataModel) {
         withContext(appDispatcher.io) {
             dao.create(item.toEntity())

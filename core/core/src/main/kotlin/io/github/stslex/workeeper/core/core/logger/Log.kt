@@ -1,14 +1,13 @@
 package io.github.stslex.workeeper.core.core.logger
 
 import co.touchlab.kermit.Logger
-import io.github.stslex.workeeper.core.core.BuildConfig
-
 import io.github.stslex.workeeper.core.core.logger.Logger as AtTenLogger
 
 object Log : AtTenLogger {
 
     private const val DEFAULT_TAG = "AtTen"
-    private val isLogAllow: Boolean = BuildConfig.DEBUG
+
+    var isLogging: Boolean = true
 
     fun tag(tag: String): AtTenLogger = AppLoggerCreator(tag)
 
@@ -17,24 +16,13 @@ object Log : AtTenLogger {
         tag: String? = null,
         message: String? = null
     ) {
-        if (isLogAllow.not()) return
-        // todo firebase crashlytics
+        val tag = tag ?: DEFAULT_TAG
+        FirebaseCrashlyticsHolder.recordException(throwable, tag)
+        if (isLogging.not()) return
         Logger.Companion.e(
-            tag = tag ?: DEFAULT_TAG,
+            tag = tag,
             throwable = throwable,
             messageString = message ?: throwable.message.orEmpty(),
-        )
-    }
-
-    fun e(
-        message: String,
-        tag: String? = null,
-    ) {
-        if (isLogAllow.not()) return
-        // todo firebase crashlytics
-        Logger.Companion.e(
-            tag = tag ?: DEFAULT_TAG,
-            messageString = message,
         )
     }
 
@@ -42,7 +30,7 @@ object Log : AtTenLogger {
         message: String,
         tag: String? = null,
     ) {
-        if (isLogAllow.not()) return
+        if (isLogging.not()) return
         Logger.Companion.d(
             tag = tag ?: DEFAULT_TAG,
             messageString = message
@@ -53,9 +41,11 @@ object Log : AtTenLogger {
         message: String,
         tag: String? = null,
     ) {
-        if (isLogAllow.not()) return
+        val tag = tag ?: DEFAULT_TAG
+        FirebaseCrashlyticsHolder.log("$tag: $message")
+        if (isLogging.not()) return
         Logger.Companion.i(
-            tag = tag ?: DEFAULT_TAG,
+            tag = tag,
             messageString = message
         )
     }
@@ -64,19 +54,33 @@ object Log : AtTenLogger {
         message: String,
         tag: String? = null,
     ) {
-        if (isLogAllow.not()) return
+        if (isLogging.not()) return
         Logger.Companion.v(
             tag = tag ?: DEFAULT_TAG,
             messageString = message
         )
     }
 
-    override fun e(throwable: Throwable, message: String?) {
-        e(throwable = throwable, tag = DEFAULT_TAG, message = message)
+    fun w(
+        message: String,
+        throwable: Throwable? = null,
+        tag: String? = null,
+    ) {
+        val tag = tag ?: DEFAULT_TAG
+        if (throwable != null) {
+            FirebaseCrashlyticsHolder.recordException(throwable, "$tag: $message")
+        } else {
+            FirebaseCrashlyticsHolder.log("$tag: $message")
+        }
+        if (isLogging.not()) return
+        Logger.Companion.w(
+            tag = tag,
+            messageString = message
+        )
     }
 
-    override fun e(message: String) {
-        e(tag = DEFAULT_TAG, message = message)
+    override fun e(throwable: Throwable, message: String?) {
+        e(throwable = throwable, tag = DEFAULT_TAG, message = message)
     }
 
     override fun d(message: String) {
@@ -89,5 +93,13 @@ object Log : AtTenLogger {
 
     override fun v(message: String) {
         v(message = message, tag = DEFAULT_TAG)
+    }
+
+    override fun w(message: String, throwable: Throwable) {
+        w(message = message, throwable = throwable, tag = DEFAULT_TAG)
+    }
+
+    override fun w(message: String) {
+        w(message = message, throwable = null, tag = DEFAULT_TAG)
     }
 }

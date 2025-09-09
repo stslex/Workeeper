@@ -7,8 +7,8 @@ androidTools = "31.13.0"
 minSdk = "28"
 targetSdk = "36"
 compileSdk = "36"
-versionName = "1.04"
-versionCode = "5"
+versionName = "1.05"
+versionCode = "6"
 
 ktx = "1.17.0"
 material = "1.13.0"
@@ -23,6 +23,7 @@ composeNavigation = "2.9.3"
 accompanist = "0.36.0"
 coil = "3.3.0"
 composeActivity = "1.10.1"
+fbBom = "34.2.0"
 
 koin = "4.1.1"
 koinKsp = "2.1.0"
@@ -38,6 +39,8 @@ robolectric = "4.16"
 androidxTest = "1.7.0"
 kermit = "2.0.8"
 robolectricExt = "0.9.0"
+gms = "4.4.3"
+fbCrashlytics = "3.0.6"
 
 room = "2.7.2"
 ksp = "2.2.10-2.0.2"
@@ -64,6 +67,7 @@ android-tools-common = { group = "com.android.tools", name = "common", version.r
 room-gradlePlugin = { group = "androidx.room", name = "room-gradle-plugin", version.ref = "room" }
 vkompose-gradlePlugin = { group = "com.vk.vkompose", name = "com.vk.vkompose.gradle.plugin", version.ref = "vkompose" }
 composeCompiler-gradlePlugin = { group = "org.jetbrains.compose", name = "compose-gradle-plugin", version.ref = "composeGradle" }
+fbCrashlytics-gradlePlugin = { module = "com.google.firebase:firebase-crashlytics-gradle", version.ref = "fbCrashlytics" }
 
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "ktx" }
 appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
@@ -147,6 +151,11 @@ koin-ksp = { group = "io.insert-koin", name = "koin-ksp-compiler", version.ref =
 
 coroutine-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutineTest" }
 
+google-gms = { module = "com.google.gms:google-services", version.ref = "gms" }
+google-firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "fbBom" }
+google-firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics" }
+google-firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashlytics" }
+
 [plugins]
 kotlin = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
@@ -157,10 +166,12 @@ ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 room = { id = "androidx.room", version.ref = "room" }
 vkompose = { id = "com.vk.vkompose", version.ref = "vkompose" }
 robolectric-junit5 = { id = "tech.apter.junit5.jupiter.robolectric-extension-gradle-plugin", version.ref = "robolectricExt" }
+gms = { id = "com.google.gms.google-services", version.ref = "gms" }
+firebaseCrashlytics = { id = "com.google.firebase.crashlytics", version.ref = "fbCrashlytics" }
 
 convention-application-common = { id = "workeeper.android.application.common", version = "1.0" }
 convention-application-store = { id = "workeeper.android.application.store", version = "1.0" }
-convention-application-debugPackage = { id = "workeeper.android.application.debugPackage", version = "1.0" }
+convention-application-dev = { id = "workeeper.android.application.dev", version = "1.0" }
 
 convention-androidLibrary = { id = "workeeper.android.androidLibrary", version = "1.0" }
 convention-composeLibrary = { id = "workeeper.android.composeLibrary", version = "1.0" }

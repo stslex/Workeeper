@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class AppCoroutineScope(
-    private val scope: CoroutineScope,
+    val scope: CoroutineScope,
     val appDispatcher: AppDispatcher,
 ) {
 

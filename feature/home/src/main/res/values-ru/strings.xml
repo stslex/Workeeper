@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_tab_all">Все</string>
+    <string name="home_tab_charts">Статистика</string>
+
+    <string name="home_action_button_delete_description">удалить элементы</string>
+    <string name="home_action_button_add_description">добавить упражнение</string>
+
+    <string name="home_date_picker_start_text">С: %1$s</string>
+    <string name="home_date_picker_end_text">до: %1$s</string>
+
+    <string name="home_all_search_label">Поиск</string>
+</resources>

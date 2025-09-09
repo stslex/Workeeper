@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import kotlinx.coroutines.flow.Flow
 import kotlin.uuid.Uuid
 
 @Dao
@@ -14,8 +15,25 @@ interface ExerciseDao {
     @Query("SELECT * FROM exercises_table ORDER BY timestamp DESC")
     fun getAll(): PagingSource<Int, ExerciseEntity>
 
+    @Query("SELECT * FROM exercises_table WHERE name LIKE '%' || :query || '%' ORDER BY timestamp DESC")
+    fun getAll(query: String): PagingSource<Int, ExerciseEntity>
+
     @Query("SELECT * FROM exercises_table WHERE uuid = :uuid LIMIT 1")
     suspend fun getExercise(uuid: Uuid): ExerciseEntity?
+
+    @Query("SELECT * FROM exercises_table WHERE name LIKE '%' || :name || '%' AND timestamp BETWEEN :startDate AND :endDate ORDER BY timestamp DESC")
+    fun getExercises(
+        name: String,
+        startDate: Long,
+        endDate: Long
+    ): Flow<List<ExerciseEntity>>
+
+    @Query("SELECT * FROM exercises_table WHERE name = :name AND timestamp BETWEEN :startDate AND :endDate ORDER BY timestamp DESC")
+    fun getExercisesExactly(
+        name: String,
+        startDate: Long,
+        endDate: Long
+    ): Flow<List<ExerciseEntity>>
 
     @Update
     suspend fun update(exercise: ExerciseEntity)

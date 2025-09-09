@@ -1,10 +1,9 @@
-package io.githib.stslex.workeeper.core.database
+package io.github.stslex.workeeper.core.database
 
 import android.app.Application
 import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
-import io.github.stslex.workeeper.core.database.AppDatabase
 
 internal abstract class BaseDatabaseTest {
 

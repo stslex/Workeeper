@@ -3,6 +3,9 @@ name: Android Version Update
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   deploy_beta:
 

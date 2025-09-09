@@ -6,6 +6,7 @@ import io.github.stslex.workeeper.core.exercise.data.ExerciseRepository
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.home.di.HomeScope
 import io.github.stslex.workeeper.feature.home.ui.model.toNavData
+import io.github.stslex.workeeper.feature.home.ui.mvi.store.CalendarState
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeHandlerStore
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeStore
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeStore.Action
@@ -28,14 +29,31 @@ class ClickHandler(
             Action.Click.FloatButtonClick -> processClickFloatingButton()
             is Action.Click.Item -> processClickItem(action)
             is Action.Click.LonkClick -> processLongClick(action)
+            is Action.Click.Calendar -> processClickCalendar(action)
+        }
+    }
+
+    private fun HomeHandlerStore.processClickCalendar(action: Action.Click.Calendar) {
+        sendEvent(HomeStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey))
+
+        val calendarState = when (action) {
+            Action.Click.Calendar.Close -> CalendarState.Closed
+            Action.Click.Calendar.EndDate -> CalendarState.Opened.EndDate
+            Action.Click.Calendar.StartDate -> CalendarState.Opened.StartDate
+        }
+
+        updateState {
+            it.copyCharts(
+                calendarState = calendarState
+            )
         }
     }
 
     private fun HomeHandlerStore.processLongClick(action: Action.Click.LonkClick) {
         sendEvent(HomeStore.Event.HapticFeedback(HapticFeedbackType.LongPress))
-        val newItems = state.value.selectedItems.toMutableSet()
+        val newItems = state.value.allState.selectedItems.toMutableSet()
             .apply {
-                if (state.value.selectedItems.contains(action.item)) {
+                if (state.value.allState.selectedItems.contains(action.item)) {
                     remove(action.item)
                 } else {
                     add(action.item)
@@ -44,7 +62,7 @@ class ClickHandler(
             .toImmutableSet()
 
         updateState {
-            it.copy(
+            it.copyAll(
                 selectedItems = newItems
             )
         }
@@ -52,12 +70,12 @@ class ClickHandler(
 
     private fun HomeHandlerStore.processClickFloatingButton() {
         sendEvent(HomeStore.Event.HapticFeedback(HapticFeedbackType.Confirm))
-        val selectedItems = state.value.selectedItems
+        val selectedItems = state.value.allState.selectedItems
         if (selectedItems.isNotEmpty()) {
             launch(
                 onSuccess = {
                     updateState {
-                        it.copy(selectedItems = persistentSetOf())
+                        it.copyAll(selectedItems = persistentSetOf())
                     }
                 }
             ) {
@@ -72,7 +90,7 @@ class ClickHandler(
 
     private fun HomeHandlerStore.processClickItem(action: Action.Click.Item) {
         sendEvent(HomeStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey))
-        if (state.value.selectedItems.isNotEmpty()) {
+        if (state.value.allState.selectedItems.isNotEmpty()) {
             consume(Action.Click.LonkClick(action.item))
         } else {
             consume(Action.Navigation.OpenExercise(action.item.toNavData()))

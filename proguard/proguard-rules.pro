@@ -1,0 +1,5 @@
+-include koin.pro
+-include firebase-analytics.pro
+-include firebase-crashlytics.pro
+-include gms.pro
+-include kotlinx-serialization.pro

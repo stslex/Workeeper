@@ -1,4 +1,4 @@
-package io.githib.stslex.workeeper.core.database
+package io.github.stslex.workeeper.core.database
 
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach

@@ -1,4 +1,4 @@
-package io.github.stslex.workeaper
+package io.github.stslex.workeeper
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -20,6 +20,6 @@ class ExampleInstrumentedTest {
     fun useAppContext() {
         // Context of the app under test.
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("io.github.stslex.workeaper", appContext.packageName)
+        assertEquals("io.github.stslex.workeeper", appContext.packageName)
     }
 }

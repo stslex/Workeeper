@@ -13,4 +13,9 @@ dependencies {
 
     implementation(project(":feature:home"))
     implementation(project(":feature:exercise"))
+
+
+    implementation(platform(libs.google.firebase.bom))
+    implementation(libs.google.firebase.analytics)
+    implementation(libs.google.firebase.crashlytics)
 }

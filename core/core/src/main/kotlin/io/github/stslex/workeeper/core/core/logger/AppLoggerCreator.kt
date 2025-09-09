@@ -22,13 +22,6 @@ internal class AppLoggerCreator(
         )
     }
 
-    override fun e(message: String) {
-        Log.e(
-            tag = tag,
-            message = message
-        )
-    }
-
     override fun i(message: String) {
         Log.i(
             tag = tag,
@@ -40,6 +33,22 @@ internal class AppLoggerCreator(
         Log.v(
             tag = tag,
             message = message
+        )
+    }
+
+    override fun w(message: String) {
+        Log.w(
+            tag = tag,
+            message = message,
+            throwable = null
+        )
+    }
+
+    override fun w(message: String, throwable: Throwable) {
+        Log.w(
+            tag = tag,
+            message = message,
+            throwable = throwable
         )
     }
 
