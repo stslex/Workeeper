@@ -13,6 +13,7 @@ dependencies {
     compileOnly(libs.android.tools.common)
     compileOnly(libs.vkompose.gradlePlugin)
     compileOnly(libs.composeCompiler.gradlePlugin)
+    compileOnly(libs.fbCrashlytics.gradlePlugin)
 }
 
 tasks {
@@ -32,9 +33,9 @@ gradlePlugin {
             id = libs.plugins.convention.application.store.get().pluginId
             implementationClass = "AndroidApplicationComposeConventionPlugin"
         }
-        register("androidApplicationComposeDebug") {
-            id = libs.plugins.convention.application.debugPackage.get().pluginId
-            implementationClass = "AndroidApplicationComposeConventionPlugin"
+        register("androidDevApplicationCompose") {
+            id = libs.plugins.convention.application.dev.get().pluginId
+            implementationClass = "AndroidDevApplicationComposeConventionPlugin"
         }
         register("androidLibrary") {
             id = libs.plugins.convention.androidLibrary.get().pluginId

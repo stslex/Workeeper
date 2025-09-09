@@ -43,4 +43,20 @@ internal class AppLoggerCreator(
         )
     }
 
+    override fun w(message: String) {
+        Log.w(
+            tag = tag,
+            message = message,
+            throwable = null
+        )
+    }
+
+    override fun w(message: String, throwable: Throwable) {
+        Log.w(
+            tag = tag,
+            message = message,
+            throwable = throwable
+        )
+    }
+
 }

@@ -9,6 +9,8 @@ plugins {
     alias(libs.plugins.vkompose) apply false
     alias(libs.plugins.composeCompiler) apply false
     alias(libs.plugins.robolectric.junit5) apply false
+    alias(libs.plugins.gms) apply false
+    alias(libs.plugins.firebaseCrashlytics) apply false
 }
 
 buildscript {
@@ -16,6 +18,10 @@ buildscript {
     repositories {
         google()
         mavenCentral()
+    }
+
+    dependencies {
+        classpath(libs.google.gms)
     }
 }
 

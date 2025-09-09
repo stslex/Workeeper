@@ -39,7 +39,7 @@ import kotlinx.coroutines.flow.update
  */
 @Immutable
 open class BaseStore<S : State, A : Action, E : Event, HStore : HandlerStore<S, A, E>>(
-    name: String,
+    val name: String,
     initialState: S,
     override val appDispatcher: AppDispatcher,
     private val handlerCreator: HandlerCreator<S, A, E, HStore>,
@@ -55,6 +55,7 @@ open class BaseStore<S : State, A : Action, E : Event, HStore : HandlerStore<S, 
 
     override val scope: AppCoroutineScope = AppCoroutineScope(viewModelScope, appDispatcher)
     override val logger = Log.tag(name)
+    private val analytics: Analytics<A, E> = Analytics(name)
 
     private var _lastAction: A? = null
     override val lastAction: A?
@@ -63,6 +64,7 @@ open class BaseStore<S : State, A : Action, E : Event, HStore : HandlerStore<S, 
     @Suppress("UNCHECKED_CAST")
     override fun consume(action: A) {
         logger.i("consume: $action")
+        analytics.logAction(action)
         if (lastAction != action && action !is Action.RepeatLast) {
             _lastAction = action
         }
@@ -93,6 +95,7 @@ open class BaseStore<S : State, A : Action, E : Event, HStore : HandlerStore<S, 
      * */
     override fun sendEvent(event: E) {
         logger.i("sendEvent: $event")
+        analytics.logEvent(event)
         _event.tryEmit(event).also { isProcess ->
             if (isProcess.not()) {
                 scope.launch { _event.emit(event) }

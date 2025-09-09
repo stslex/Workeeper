@@ -1,6 +1,6 @@
 package io.github.stslex.workeeper
 
-import APP_PREFIX
+import AppExt.APP_PREFIX
 import AppExt.androidTestImplementationBundle
 import AppExt.androidTestImplementationPlatform
 import AppExt.coreLibraryDesugaring

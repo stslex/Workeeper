@@ -3,7 +3,7 @@
     xmlns:android="http://schemas.android.com/apk/res/android">
 
     <application
-        android:name="io.github.stslex.workeeper.WorkeeperApp"
+        android:name="io.github.stslex.workeeper.BaseApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:enableOnBackInvokedCallback="true"

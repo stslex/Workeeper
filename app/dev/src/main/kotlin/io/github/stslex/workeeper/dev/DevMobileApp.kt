@@ -1,5 +1,9 @@
 package io.github.stslex.workeeper.dev
 
-import io.github.stslex.workeeper.WorkeeperApp
+import io.github.stslex.workeeper.BaseApplication
 
-class DevMobileApp : WorkeeperApp()
+class DevMobileApp : BaseApplication() {
+
+    override val isDebugLoggingAllow: Boolean = true
+
+}

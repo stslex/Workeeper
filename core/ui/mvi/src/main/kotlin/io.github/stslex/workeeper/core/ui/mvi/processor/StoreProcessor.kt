@@ -5,6 +5,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
+import io.github.stslex.workeeper.core.core.logger.FirebaseAnalyticsHolder
+import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
+import io.github.stslex.workeeper.core.core.logger.FirebaseEvent
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 import io.github.stslex.workeeper.core.ui.mvi.Store.Action
 import io.github.stslex.workeeper.core.ui.mvi.Store.Event
@@ -62,8 +65,11 @@ inline fun <S : State,
         }
     )
     DisposableEffect(store) {
+        FirebaseCrashlyticsHolder.setScreenName(store.name)
+        FirebaseAnalyticsHolder.log(FirebaseEvent.Screen(store.name))
         store.initialActions.forEach { store.consume(it) }
         onDispose {
+            FirebaseCrashlyticsHolder.clearScreenName()
             store.disposeActions.forEach { store.consume(it) }
         }
     }

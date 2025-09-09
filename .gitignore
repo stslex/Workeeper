@@ -17,5 +17,5 @@ local.properties
 .kotlin
 play_config.*
 keystore.*
-
+google-services.json
 build
