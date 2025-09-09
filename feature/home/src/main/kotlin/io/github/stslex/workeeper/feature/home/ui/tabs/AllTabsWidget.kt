@@ -16,7 +16,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.paging.PagingData
-import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import io.github.stslex.workeeper.core.exercise.data.model.DateProperty
@@ -24,8 +23,8 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.home.ui.components.ExercisePagingItem
 import io.github.stslex.workeeper.feature.home.ui.components.SearchWidget
 import io.github.stslex.workeeper.feature.home.ui.model.ExerciseUiModel
+import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeAllState
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeStore.Action
-import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.coroutines.flow.flowOf
 import kotlin.uuid.Uuid
@@ -33,15 +32,14 @@ import kotlin.uuid.Uuid
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 internal fun AllTabsWidget(
-    lazyPagingItems: LazyPagingItems<ExerciseUiModel>,
-    selectedItems: ImmutableSet<ExerciseUiModel>,
+    state: HomeAllState,
     sharedTransitionScope: SharedTransitionScope,
     animatedContentScope: AnimatedContentScope,
-    query: String,
     consume: (Action) -> Unit,
     lazyState: LazyListState,
     modifier: Modifier = Modifier,
 ) {
+    val items = remember { state.items.invoke() }.collectAsLazyPagingItems()
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -49,7 +47,7 @@ internal fun AllTabsWidget(
         SearchWidget(
             modifier = Modifier
                 .padding(16.dp),
-            query = query,
+            query = state.query,
             onQueryChange = { consume(Action.Input.SearchQuery(it)) }
         )
         LazyColumn(
@@ -57,10 +55,10 @@ internal fun AllTabsWidget(
             state = lazyState
         ) {
             items(
-                count = lazyPagingItems.itemCount,
-                key = lazyPagingItems.itemKey { it.uuid }
+                count = items.itemCount,
+                key = items.itemKey { it.uuid }
             ) { index ->
-                lazyPagingItems[index]?.let { item ->
+                items[index]?.let { item ->
                     with(sharedTransitionScope) {
                         ExercisePagingItem(
                             modifier = Modifier
@@ -70,7 +68,7 @@ internal fun AllTabsWidget(
                                     resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds()
                                 ),
                             item = item,
-                            isSelected = selectedItems.contains(item),
+                            isSelected = state.selectedItems.contains(item),
                             onClick = {
                                 consume(Action.Click.Item(item))
                             },
@@ -101,15 +99,20 @@ private fun AllTabsWidgetPreview() {
                 dateProperty = DateProperty.new(System.currentTimeMillis())
             )
         }.toList()
-        val pagingData = remember { flowOf(PagingData.from(items)) }.collectAsLazyPagingItems()
+        val itemsPaging = {
+            flowOf(PagingData.from(items))
+        }
+        val state = HomeAllState(
+            items = itemsPaging,
+            selectedItems = persistentSetOf(),
+            query = ""
+        )
         AnimatedContent("") {
             SharedTransitionScope {
                 AllTabsWidget(
-                    lazyPagingItems = pagingData,
-                    selectedItems = persistentSetOf(),
+                    state = state,
                     sharedTransitionScope = this,
                     animatedContentScope = this@AnimatedContent,
-                    query = "",
                     consume = {},
                     lazyState = LazyListState(),
                     modifier = it

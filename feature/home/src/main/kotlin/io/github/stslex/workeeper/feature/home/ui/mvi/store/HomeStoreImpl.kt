@@ -28,8 +28,8 @@ class HomeStoreImpl(
     appDispatcher: AppDispatcher,
 ) : HomeHandlerStore, BaseStore<State, Action, Event, HomeHandlerStore>(
     name = "HOME",
-    initialState = State(
-        items = pagingHandler.processor
+    initialState = State.init(
+        allItems = pagingHandler.processor
     ),
     appDispatcher = appDispatcher,
     handlerCreator = { action ->

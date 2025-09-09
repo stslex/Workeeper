@@ -79,6 +79,14 @@ open class BaseStore<S : State, A : Action, E : Event, HStore : HandlerStore<S, 
     }
 
     /**
+     * Updates the state of the screen immediately.
+     * @param update - function that updates the state
+     * */
+    override suspend fun updateStateImmediate(update: (S) -> S) {
+        _state.emit(update(state.value))
+    }
+
+    /**
      * Sends an event to the screen. The event is sent on the default dispatcher of the AppDispatcher.
      * @param event - event to be sent
      * @see AppDispatcher

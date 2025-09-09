@@ -13,22 +13,24 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.paging.PagingData
-import androidx.paging.compose.LazyPagingItems
-import androidx.paging.compose.collectAsLazyPagingItems
 import io.github.stslex.workeeper.core.exercise.data.model.DateProperty
+import io.github.stslex.workeeper.core.exercise.data.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
+import io.github.stslex.workeeper.feature.home.ui.components.DatePickerDialog
 import io.github.stslex.workeeper.feature.home.ui.components.HomeActionButton
 import io.github.stslex.workeeper.feature.home.ui.components.HomeToolbarWidget
 import io.github.stslex.workeeper.feature.home.ui.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.home.ui.model.HomeTabs
+import io.github.stslex.workeeper.feature.home.ui.mvi.handler.calculateSizes
+import io.github.stslex.workeeper.feature.home.ui.mvi.store.CalendarState
+import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeAllState
+import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeChartsState
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeStore.Action
 import io.github.stslex.workeeper.feature.home.ui.tabs.AllTabsWidget
 import io.github.stslex.workeeper.feature.home.ui.tabs.ChartsWidget
-import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.coroutines.flow.flowOf
 import kotlin.uuid.Uuid
@@ -36,11 +38,10 @@ import kotlin.uuid.Uuid
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun HomeWidget(
-    lazyPagingItems: LazyPagingItems<ExerciseUiModel>,
-    selectedItems: ImmutableSet<ExerciseUiModel>,
+    homeAllState: HomeAllState,
+    chartsState: HomeChartsState,
     sharedTransitionScope: SharedTransitionScope,
     animatedContentScope: AnimatedContentScope,
-    query: String,
     consume: (Action) -> Unit,
     lazyState: LazyListState,
     modifier: Modifier = Modifier,
@@ -51,19 +52,24 @@ fun HomeWidget(
             .fillMaxSize()
             .systemBarsPadding(),
         floatingActionButton = {
-            with(sharedTransitionScope) {
-                HomeActionButton(
-                    modifier = Modifier
-                        .sharedBounds(
-                            sharedContentState = sharedTransitionScope.rememberSharedContentState("createExercise"),
-                            animatedVisibilityScope = animatedContentScope,
-                            resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds()
-                        ),
-                    selectedMode = selectedItems.isNotEmpty()
-                ) {
-                    consume(Action.Click.FloatButtonClick)
+            AnimatedContent(pagerState.currentPage) { page ->
+                when (page) {
+                    HomeTabs.ALL.ordinal -> with(sharedTransitionScope) {
+                        HomeActionButton(
+                            modifier = Modifier
+                                .sharedBounds(
+                                    sharedContentState = sharedTransitionScope.rememberSharedContentState("createExercise"),
+                                    animatedVisibilityScope = animatedContentScope,
+                                    resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds()
+                                ),
+                            selectedMode = homeAllState.selectedItems.isNotEmpty()
+                        ) {
+                            consume(Action.Click.FloatButtonClick)
+                        }
+                    }
                 }
             }
+
         },
         topBar = {
             HomeToolbarWidget(
@@ -83,18 +89,35 @@ fun HomeWidget(
             when (pageNumber) {
                 HomeTabs.ALL.ordinal -> {
                     AllTabsWidget(
-                        lazyPagingItems = lazyPagingItems,
-                        selectedItems = selectedItems,
+                        state = homeAllState,
                         sharedTransitionScope = sharedTransitionScope,
                         animatedContentScope = animatedContentScope,
-                        query = query,
                         consume = consume,
                         lazyState = lazyState
                     )
                 }
 
                 HomeTabs.CHARTS.ordinal -> {
-                    ChartsWidget()
+                    ChartsWidget(
+                        state = chartsState,
+                        consume = consume
+                    )
+
+                    when (chartsState.calendarState) {
+                        CalendarState.Opened.StartDate -> DatePickerDialog(
+                            timestamp = chartsState.startDate.timestamp,
+                            onDismissRequest = { consume(Action.Click.Calendar.Close) },
+                            dateChange = { consume(Action.Input.ChangeStartDate(it)) }
+                        )
+
+                        CalendarState.Opened.EndDate -> DatePickerDialog(
+                            timestamp = chartsState.endDate.timestamp,
+                            onDismissRequest = { consume(Action.Click.Calendar.Close) },
+                            dateChange = { consume(Action.Input.ChangeEndDate(it)) }
+                        )
+
+                        else -> Unit
+                    }
                 }
 
                 else -> throw IllegalStateException("Pager index out of bound")
@@ -119,15 +142,43 @@ private fun HomeWidgetPreview() {
                 dateProperty = DateProperty.new(System.currentTimeMillis())
             )
         }.toList()
-        val pagingData = remember { flowOf(PagingData.from(items)) }.collectAsLazyPagingItems()
+        val itemsPaging = {
+            flowOf(PagingData.from(items))
+        }
+        val homeAllState = HomeAllState(
+            items = itemsPaging,
+            selectedItems = persistentSetOf(),
+            query = ""
+        )
+        val startDate = System.currentTimeMillis()
+        val singleDay = 24 * 60 * 60 * 1000
+        val endDate = System.currentTimeMillis() - (7L * singleDay) // 7 days default
+
+        val name = "Test Exercise"
+        val listOfData = List(7) {
+            ExerciseDataModel(
+                uuid = Uuid.random().toString(),
+                name = name,
+                sets = it,
+                reps = it,
+                weight = it.toDouble(),
+                timestamp = endDate - (it * singleDay)
+            )
+        }
+        val chartsState = HomeChartsState(
+            name = name,
+            startDate = DateProperty.new(startDate),
+            endDate = DateProperty.new(endDate),
+            charts = listOfData.calculateSizes(),
+            calendarState = CalendarState.Closed
+        )
         AnimatedContent("") {
             SharedTransitionScope {
                 HomeWidget(
-                    lazyPagingItems = pagingData,
-                    selectedItems = persistentSetOf(),
+                    homeAllState = homeAllState,
+                    chartsState = chartsState,
                     sharedTransitionScope = this,
                     animatedContentScope = this@AnimatedContent,
-                    query = "",
                     consume = {},
                     lazyState = LazyListState(),
                     modifier = it

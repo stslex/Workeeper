@@ -12,6 +12,18 @@ interface ExerciseRepository {
 
     fun getExercises(query: String): Flow<PagingData<ExerciseDataModel>>
 
+    fun getExercises(
+        name: String,
+        startDate: Long,
+        endDate: Long
+    ): Flow<List<ExerciseDataModel>>
+
+    fun getExercisesExactly(
+        name: String,
+        startDate: Long,
+        endDate: Long
+    ): Flow<List<ExerciseDataModel>>
+
     suspend fun saveItem(item: ChangeExerciseDataModel)
 
     suspend fun deleteItem(uuid: String)

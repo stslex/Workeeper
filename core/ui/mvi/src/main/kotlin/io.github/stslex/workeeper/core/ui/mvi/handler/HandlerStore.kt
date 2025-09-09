@@ -37,6 +37,8 @@ interface HandlerStore<S : State, A : Store.Action, E : Event> {
 
     fun updateState(update: (S) -> S)
 
+    suspend fun updateStateImmediate(update: (S) -> S)
+
     /**
      * Launches a coroutine and catches exceptions. The coroutine is launched on the default dispatcher of the AppDispatcher.
      * @param onError - error handler

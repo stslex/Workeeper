@@ -9,7 +9,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.navigation.NavGraphBuilder
-import androidx.paging.compose.collectAsLazyPagingItems
 import io.github.stslex.workeeper.core.ui.mvi.NavComponentScreen
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen
@@ -44,7 +43,6 @@ private fun HomeScreen(
 ) {
     NavComponentScreen(HomeFeature, component) { processor ->
 
-        val items = remember { processor.state.value.items.invoke() }.collectAsLazyPagingItems()
         val haptic = LocalHapticFeedback.current
 
         processor.Handle { event ->
@@ -56,13 +54,12 @@ private fun HomeScreen(
         val lazyListState = rememberLazyListState()
         HomeWidget(
             modifier = modifier,
-            lazyPagingItems = items,
+            homeAllState = processor.state.value.allState,
+            chartsState = processor.state.value.chartsState,
             lazyState = lazyListState,
             consume = processor::consume,
-            query = processor.state.value.query,
             sharedTransitionScope = sharedTransitionScope,
             animatedContentScope = animatedContentScope,
-            selectedItems = processor.state.value.selectedItems
         )
     }
 }
