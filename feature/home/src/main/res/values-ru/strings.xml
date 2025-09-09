@@ -6,8 +6,7 @@
     <string name="home_action_button_delete_description">удалить элементы</string>
     <string name="home_action_button_add_description">добавить упражнение</string>
 
-    <string name="home_date_picker_start_text">С: %1$s</string>
-    <string name="home_date_picker_end_text">до: %1$s</string>
+    <string name="home_tab_charts_date_range">Промежуток поиска:</string>
 
     <string name="home_all_search_label">Поиск</string>
 </resources>
