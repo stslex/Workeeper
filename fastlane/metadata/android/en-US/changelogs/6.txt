@@ -1,8 +1,0 @@
-- Features
-  - integrate Firebase Analytics and Crashlytics; refactor app setup
-  - implement search and filter in Home; add related tests
-  - enhance Home with charts and date picker
-  - implement Home with tabs and charts
-  - add exercise search with query support
-- Tests
-  - add query tests for ExerciseDao and ExerciseRepository

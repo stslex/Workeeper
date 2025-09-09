@@ -2,6 +2,23 @@ name: Android Version Update
 
 on:
   workflow_dispatch:
+    inputs:
+      channel:
+        description: "Release channel (beta or release)"
+        required: false
+        default: "release"
+        type: choice
+        options:
+          - beta
+          - release
+      bump:
+        description: "Bump versionName/Code before tagging"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
 
 permissions:
   contents: write
@@ -14,18 +31,43 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Update Version
+        if: ${{ github.event.inputs.bump == 'true' }}
         run: bash ./.github/scripts/update_versions.sh
+
+      - name: Generate changelog and tag
+        id: changelog
+        env:
+          TAG_PREFIX: ${{ github.event.inputs.channel == 'beta' && 'beta-' || 'release-' }}
+        run: bash ./.github/scripts/generate_changelog.sh
 
       - name: Commit files
         run: |
           git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git commit -a -m "update version"
+          git add .
+          if [ "${{ github.event.inputs.channel }}" = "beta" ]; then
+            git commit -m "release(beta): v${{ steps.changelog.outputs.VERSION_NAME }} (code ${{ steps.changelog.outputs.VERSION_CODE }})" || echo "No changes to commit"
+          else
+            git commit -m "release: v${{ steps.changelog.outputs.VERSION_NAME }} (code ${{ steps.changelog.outputs.VERSION_CODE }})" || echo "No changes to commit"
+          fi
+          # Create an annotated tag for this release
+          TAG_NAME="${{ steps.changelog.outputs.TAG_NAME }}"
+          if [ -n "$TAG_NAME" ]; then
+            # Avoid failure if tag already exists in repo history
+            if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
+              echo "Tag $TAG_NAME already exists; skipping create"
+            else
+              git tag -a "$TAG_NAME" -m "Release $TAG_NAME"
+            fi
+          fi
 
       - name: Push changes
         uses: ad-m/github-push-action@master
         with:
           github_token: ${{ secrets.PUSH_TOKEN }}
           branch: ${{ github.ref }}
+          tags: true

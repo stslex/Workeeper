@@ -4,13 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: "Tag to create the release from (e.g., v1.2.3)"
+        description: "Tag to create the release from (e.g., release-v1.2.3)"
         required: false
         type: string
   push:
     tags:
-      - "v*"
-      - "beta-*"
       - "release-*"
 
 permissions:
@@ -90,7 +88,9 @@ jobs:
 
       - name: Generate release notes (shared)
         id: notes
-        run: ./.github/scripts/generate_changelog.sh
+        env:
+          TAG_PREFIX: release-
+        run: bash ./.github/scripts/generate_changelog.sh
 
       - name: Derive release tag
         id: tag
@@ -105,6 +105,10 @@ jobs:
               TAG="${{ steps.notes.outputs.TAG_NAME }}"
             fi
           fi
+          TAG=$(echo "$TAG" | tr -d ' \t\n\r')
+          if [ -z "$TAG" ]; then
+            TAG="release-${GITHUB_SHA::7}"
+          fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release and upload APK
@@ -112,6 +116,7 @@ jobs:
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: ${{ steps.tag.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           draft: false
           prerelease: ${{ contains(steps.tag.outputs.tag, 'alpha') || contains(steps.tag.outputs.tag, 'beta') || contains(steps.tag.outputs.tag, 'rc') }}
           body_path: ${{ steps.notes.outputs.notes_path }}
