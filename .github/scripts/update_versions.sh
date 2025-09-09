@@ -24,8 +24,8 @@ version_code=$(awk -F '"' '/versionCode = "/{print $2}' "$version_file")
 # Increment versionCode by 1
 ((version_code++))
 
-# Increment versionName by 0.01
-version_name=$(echo "$version_name + 0.01" | bc)
+# Increment versionName by 0.01 with 2-decimal precision
+version_name=$(awk -v v="$version_name" 'BEGIN { printf "%.2f", v + 0.01 }')
 
 # Update the file with the new version information
 sed "s/versionName = \".*\"/versionName = \"$version_name\"/" "$version_file" > "$version_file.tmp"
@@ -35,4 +35,3 @@ sed "s/versionCode = \".*\"/versionCode = \"$version_code\"/" "$version_file" > 
 mv "$version_file.tmp" "$version_file"
 
 echo "Updated versionName to $version_name and versionCode to $version_code in $version_file"
-

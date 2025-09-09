@@ -14,6 +14,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - run: |
           echo "${{ secrets.KEYSTORE }}" > keystore.jks.asc
@@ -26,7 +28,7 @@ jobs:
         id: changelog
         env:
           TAG_PREFIX: beta-
-        run: ./.github/scripts/generate_changelog.sh
+        run: bash ./.github/scripts/generate_changelog.sh
 
       - uses: ruby/setup-ruby@v1
         with:
@@ -87,8 +89,8 @@ jobs:
         run: |
           git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add fastlane/metadata/android
-          git commit -m "release(beta): v${{ steps.changelog.outputs.VERSION_NAME }} (code ${{ steps.changelog.outputs.VERSION_CODE }})"
+          git add .
+          git commit -a -m "release(beta): v${{ steps.changelog.outputs.VERSION_NAME }} (code ${{ steps.changelog.outputs.VERSION_CODE }})" || echo "No changes to commit"
           # Create an annotated tag for this release
           TAG_NAME="${{ steps.changelog.outputs.TAG_NAME }}"
           if [ -n "$TAG_NAME" ]; then
