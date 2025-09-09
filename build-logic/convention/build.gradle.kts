@@ -2,7 +2,7 @@ plugins {
     `kotlin-dsl`
 }
 
-group = "io.github.stslex.workeaper.buildlogic"
+group = "io.github.stslex.workeeper.buildlogic"
 
 dependencies {
     compileOnly(libs.android.gradlePlugin)

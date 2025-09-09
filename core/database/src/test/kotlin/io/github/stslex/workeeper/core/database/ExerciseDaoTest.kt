@@ -1,4 +1,4 @@
-package io.githib.stslex.workeeper.core.database
+package io.github.stslex.workeeper.core.database
 
 import androidx.paging.PagingSource
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
@@ -277,7 +277,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
         assertEquals(listOf(item1), results4)
 
         val results5 = dao.searchUnique("name_123")
-        assert(results5.isEmpty())
+        assertTrue(results5.isEmpty())
 
         val results6 = dao.searchUnique("other_title")
         assertEquals(listOf(item3), results6)
@@ -308,10 +308,10 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
         assertEquals(listOf(item1), results4)
 
         val results5 = dao.searchUniqueExclude("name_123")
-        assert(results5.isEmpty())
+        assertTrue(results5.isEmpty())
 
         val results6 = dao.searchUniqueExclude("other_title")
-        assert(results6.isEmpty())
+        assertTrue(results6.isEmpty())
     }
 
     @Test
