@@ -1,0 +1,5 @@
+release-v1.06 – 2025-09-09
+
+Changes:
+
+- feat: add fastlane metadata to release workflows (a5da73b) — stslex
