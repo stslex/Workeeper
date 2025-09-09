@@ -3,6 +3,7 @@ package io.githib.stslex.workeeper.core.database
 import androidx.paging.PagingSource
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
 import io.github.stslex.workeeper.core.database.exercise.ExerciseEntity
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -113,6 +114,57 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertTrue(actual.orEmpty().isNotEmpty())
         assertEquals(exerciseEntities.size, actual?.size)
+    }
+
+    @Test
+    fun `get all items full database with query from date to date matching all props`() = runTest {
+        dao.create(exerciseEntities)
+        val items = dao.getExercises("test", 0, Long.MAX_VALUE).first().reversed()
+        assertEquals(exerciseEntities, items)
+    }
+
+    @Test
+    fun `get all items full database with query from date to date not matching name`() = runTest {
+        dao.create(exerciseEntities)
+        val items = dao.getExercises("test_not_existed", 0, Long.MAX_VALUE).first().reversed()
+        assertEquals(emptyList<ExerciseEntity>(), items)
+    }
+
+    @Test
+    fun `get all items full database with query from date to date not matching date`() = runTest {
+        dao.create(exerciseEntities)
+        val items = dao.getExercises("test", 0, 1).first().reversed()
+        assertEquals(emptyList<ExerciseEntity>(), items)
+    }
+
+    @Test
+    fun `get all items full database with query from date to date not matching date and name`() = runTest {
+        dao.create(exerciseEntities)
+        val items = dao.getExercises("test_not_existed", 0, 1).first().reversed()
+        assertEquals(emptyList<ExerciseEntity>(), items)
+    }
+
+    @Test
+    fun `get all items full database with exactly query from date to date not matching props`() = runTest {
+        dao.create(exerciseEntities)
+        val items = dao.getExercisesExactly("test", 0, Long.MAX_VALUE).first().reversed()
+        assertEquals(emptyList<ExerciseEntity>(), items)
+    }
+
+    @Test
+    fun `get all items full database with exactly query from date to date matching prop`() = runTest {
+        val firstEntity = exerciseEntities.first()
+        dao.create(exerciseEntities)
+        val items = dao.getExercisesExactly(firstEntity.name, 0, Long.MAX_VALUE).first().reversed()
+        assertEquals(listOf(firstEntity), items)
+    }
+
+    @Test
+    fun `get all items full database with exactly query from date to date not matching date`() = runTest {
+        val firstEntity = exerciseEntities.first()
+        dao.create(exerciseEntities)
+        val items = dao.getExercisesExactly(firstEntity.name, 0, 1).first().reversed()
+        assertEquals(emptyList<ExerciseEntity>(), items)
     }
 
     @Test

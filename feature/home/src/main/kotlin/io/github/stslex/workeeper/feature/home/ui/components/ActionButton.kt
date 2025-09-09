@@ -8,8 +8,10 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
+import io.github.stslex.workeeper.feature.home.R
 
 @Composable
 internal fun HomeActionButton(
@@ -21,14 +23,19 @@ internal fun HomeActionButton(
         modifier = modifier,
         onClick = onClick,
     ) {
-        AnimatedContent(selectedMode) {
+        AnimatedContent(selectedMode) { isSelecting ->
+            val descriptionRes = if (isSelecting) {
+                R.string.home_action_button_delete_description
+            } else {
+                R.string.home_action_button_add_description
+            }
             Icon(
-                imageVector = if (it) {
+                imageVector = if (isSelecting) {
                     Icons.Default.Delete
                 } else {
                     Icons.Default.Add
                 },
-                contentDescription = null
+                contentDescription = stringResource(descriptionRes)
             )
         }
 

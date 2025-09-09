@@ -28,7 +28,7 @@ interface ExerciseDao {
         endDate: Long
     ): Flow<List<ExerciseEntity>>
 
-    @Query("SELECT * FROM exercises_table WHERE name LIKE '%' || :name || '%' AND timestamp BETWEEN :startDate AND :endDate ORDER BY timestamp DESC")
+    @Query("SELECT * FROM exercises_table WHERE name = :name AND timestamp BETWEEN :startDate AND :endDate ORDER BY timestamp DESC")
     fun getExercisesExactly(
         name: String,
         startDate: Long,
