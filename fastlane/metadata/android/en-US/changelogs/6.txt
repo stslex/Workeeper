@@ -6,3 +6,4 @@
   - add exercise search with query support
 - Tests
   - add query tests for ExerciseDao and ExerciseRepository
+  - test github actions workflows
