@@ -26,19 +26,6 @@ object Log : AtTenLogger {
         )
     }
 
-    fun e(
-        message: String,
-        tag: String? = null,
-    ) {
-        val tag = tag ?: DEFAULT_TAG
-        FirebaseCrashlyticsHolder.recordException(UnknownError(message), tag)
-        if (isLogging.not()) return
-        Logger.Companion.e(
-            tag = tag,
-            messageString = message,
-        )
-    }
-
     fun d(
         message: String,
         tag: String? = null,
@@ -94,10 +81,6 @@ object Log : AtTenLogger {
 
     override fun e(throwable: Throwable, message: String?) {
         e(throwable = throwable, tag = DEFAULT_TAG, message = message)
-    }
-
-    override fun e(message: String) {
-        e(tag = DEFAULT_TAG, message = message)
     }
 
     override fun d(message: String) {

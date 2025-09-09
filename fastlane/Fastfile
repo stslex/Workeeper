@@ -8,19 +8,19 @@ platform :android do
 
   desc "Submit a new Beta Build to Crashlytics Beta"
   lane :crashlytics do
-    gradle(task: "clean assembleRelease")
+    gradle(task: "clean :app:store:assembleRelease")
     crashlytics
   end
 
   desc "Deploy a beta version to the Google Play"
   lane :beta do
-    gradle(task: "clean bundle")
+    gradle(task: "clean :app:store:bundle")
     upload_to_play_store(track: 'beta')
   end
 
   desc "Deploy a new version to the Google Play"
   lane :deploy do
-    gradle(task: "clean bundle")
+    gradle(task: "clean :app:store:bundle")
     upload_to_play_store
   end
 end
