@@ -19,3 +19,4 @@ play_config.*
 keystore.*
 google-services.*
 build
+vendor/bundle/
