@@ -5,6 +5,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -15,12 +16,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.paging.LoadState
 import androidx.paging.PagingData
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import io.github.stslex.workeeper.core.exercise.data.model.DateProperty
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.home.ui.components.ExercisePagingItem
+import io.github.stslex.workeeper.feature.home.ui.components.HomeAllEmptyWidget
 import io.github.stslex.workeeper.feature.home.ui.components.SearchWidget
 import io.github.stslex.workeeper.feature.home.ui.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeAllState
@@ -50,34 +53,49 @@ internal fun AllTabsWidget(
             query = state.query,
             onQueryChange = { consume(Action.Input.SearchQuery(it)) }
         )
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            state = lazyState
-        ) {
-            items(
-                count = items.itemCount,
-                key = items.itemKey { it.uuid }
-            ) { index ->
-                items[index]?.let { item ->
-                    with(sharedTransitionScope) {
-                        ExercisePagingItem(
-                            modifier = Modifier
-                                .sharedBounds(
-                                    sharedContentState = sharedTransitionScope.rememberSharedContentState(item.uuid),
-                                    animatedVisibilityScope = animatedContentScope,
-                                    resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds()
-                                ),
-                            item = item,
-                            isSelected = state.selectedItems.contains(item),
-                            onClick = {
-                                consume(Action.Click.Item(item))
-                            },
-                            onLongClick = {
-                                consume(Action.Click.LonkClick(item))
-                            }
-                        )
+        Box {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                state = lazyState
+            ) {
+                items(
+                    count = items.itemCount,
+                    key = items.itemKey { it.uuid }
+                ) { index ->
+                    items[index]?.let { item ->
+                        with(sharedTransitionScope) {
+                            ExercisePagingItem(
+                                modifier = Modifier
+                                    .sharedBounds(
+                                        sharedContentState = sharedTransitionScope.rememberSharedContentState(
+                                            item.uuid
+                                        ),
+                                        animatedVisibilityScope = animatedContentScope,
+                                        resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds()
+                                    ),
+                                item = item,
+                                isSelected = state.selectedItems.contains(item),
+                                onClick = {
+                                    consume(Action.Click.Item(item))
+                                },
+                                onLongClick = {
+                                    consume(Action.Click.LonkClick(item))
+                                }
+                            )
+                        }
                     }
                 }
+            }
+
+            if (
+                items.loadState.refresh is LoadState.NotLoading &&
+                items.loadState.append is LoadState.NotLoading &&
+                items.loadState.prepend is LoadState.NotLoading &&
+                items.itemCount == 0
+            ) {
+                HomeAllEmptyWidget(
+                    query = state.query
+                )
             }
         }
     }

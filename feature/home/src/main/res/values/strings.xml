@@ -3,6 +3,9 @@
     <string name="home_tab_all">ALL</string>
     <string name="home_tab_charts">CHARTS</string>
 
+    <string name="home_tab_all_empty_results">You don\'t have any exercises yet</string>
+    <string name="home_tab_all_not_found_query_results">No results found</string>
+
     <string name="home_action_button_delete_description">delete items</string>
     <string name="home_action_button_add_description">create new exercise</string>
 

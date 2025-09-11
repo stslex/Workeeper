@@ -3,6 +3,9 @@
     <string name="home_tab_all">Все</string>
     <string name="home_tab_charts">Статистика</string>
 
+    <string name="home_tab_all_empty_results">У вас пока нет упражнений</string>
+    <string name="home_tab_all_not_found_query_results">Не найдено упражений</string>
+
     <string name="home_action_button_delete_description">удалить элементы</string>
     <string name="home_action_button_add_description">добавить упражнение</string>
 
