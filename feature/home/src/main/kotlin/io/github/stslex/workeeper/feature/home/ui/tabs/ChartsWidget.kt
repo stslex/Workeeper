@@ -20,6 +20,7 @@ import io.github.stslex.workeeper.core.exercise.data.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.home.ui.components.DatePickersWidget
+import io.github.stslex.workeeper.feature.home.ui.components.HomeAllEmptyWidget
 import io.github.stslex.workeeper.feature.home.ui.mvi.handler.calculateSizes
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.CalendarState
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeChartsState
@@ -89,6 +90,10 @@ internal fun ChartsWidget(
                     textStyle = textStyle
                 ),
             )
+        } else {
+            HomeAllEmptyWidget(
+                query = state.name
+            )
         }
     }
 }
@@ -99,7 +104,8 @@ private fun getRandomColor(index: Int): Color = Color(
     blue = getRandomColorInt(index.inc(), 3),
 )
 
-private fun getRandomColorInt(index: Int, colorIndex: Int): Int = ((0..255).random() * index * colorIndex) % 255
+private fun getRandomColorInt(index: Int, colorIndex: Int): Int =
+    ((0..255).random() * index * colorIndex) % 255
 
 @Composable
 @Preview

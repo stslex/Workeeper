@@ -31,7 +31,7 @@ import kotlinx.coroutines.flow.update
  * @param S The type of the state held by the store.
  * @param A The type of actions that can be consumed by the store.
  * @param E The type of events that can be emitted by the store.
- * @param HStore The type of the handler store, which provides context to action handlers. Must inherit from [io.github.stslex.workeeper.core.ui.mvi.handler.HandlerStore].
+ * @param HStore The type of the handler store, which provides context to action handlers. Must inherit from [HandlerStore].
  * @param name A descriptive name for the store, used for logging.
  * @param initialState The initial state of the store.
  * @param handlerCreator A factory function that creates an [Handler] for a given action.

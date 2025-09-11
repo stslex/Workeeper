@@ -19,3 +19,7 @@ play_config.*
 keystore.*
 google-services.*
 build
+vendor/bundle/
+fastlane/report.xml
+.bundle
+fastlane/README.md

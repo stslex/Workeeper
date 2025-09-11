@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.di
 import io.github.stslex.workeeper.core.core.di.ModuleCore
 import io.github.stslex.workeeper.core.database.ModuleCoreDatabase
 import io.github.stslex.workeeper.core.exercise.di.ModuleCoreExercise
+import io.github.stslex.workeeper.core.store.di.ModuleCoreStore
 import io.github.stslex.workeeper.core.ui.kit.di.ModuleCoreUiUtils
 import io.github.stslex.workeeper.feature.exercise.di.ModuleFeatureExercise
 import io.github.stslex.workeeper.feature.home.di.ModuleFeatureHome
@@ -13,6 +14,7 @@ val appModules = listOf(
     ModuleCoreUiUtils().module,
     ModuleCoreDatabase().module,
     ModuleCoreExercise().module,
+    ModuleCoreStore().module,
     ModuleFeatureExercise().module,
     ModuleFeatureHome().module
 )

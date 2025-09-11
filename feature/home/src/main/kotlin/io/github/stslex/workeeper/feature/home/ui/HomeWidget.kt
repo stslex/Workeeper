@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -45,8 +46,8 @@ fun HomeWidget(
     consume: (Action) -> Unit,
     lazyState: LazyListState,
     modifier: Modifier = Modifier,
+    pagerState: PagerState = rememberPagerState { HomeTabs.entries.size },
 ) {
-    val pagerState = rememberPagerState { HomeTabs.entries.size }
     Scaffold(
         modifier = modifier
             .fillMaxSize()
@@ -172,6 +173,9 @@ private fun HomeWidgetPreview() {
             charts = listOfData.calculateSizes(),
             calendarState = CalendarState.Closed
         )
+        val pagerState = rememberPagerState(
+            initialPage = 1
+        ) { HomeTabs.entries.size }
         AnimatedContent("") {
             SharedTransitionScope {
                 HomeWidget(
@@ -179,6 +183,7 @@ private fun HomeWidgetPreview() {
                     chartsState = chartsState,
                     sharedTransitionScope = this,
                     animatedContentScope = this@AnimatedContent,
+                    pagerState = pagerState,
                     consume = {},
                     lazyState = LazyListState(),
                     modifier = it

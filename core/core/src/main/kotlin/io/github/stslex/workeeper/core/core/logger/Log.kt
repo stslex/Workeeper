@@ -1,15 +1,15 @@
 package io.github.stslex.workeeper.core.core.logger
 
 import co.touchlab.kermit.Logger
-import io.github.stslex.workeeper.core.core.logger.Logger as AtTenLogger
+import io.github.stslex.workeeper.core.core.logger.Logger as AppLogger
 
-object Log : AtTenLogger {
+object Log : AppLogger {
 
     private const val DEFAULT_TAG = "AtTen"
 
     var isLogging: Boolean = true
 
-    fun tag(tag: String): AtTenLogger = AppLoggerCreator(tag)
+    fun tag(tag: String): AppLogger = AppLoggerCreator(tag)
 
     fun e(
         throwable: Throwable,

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://raw.githubusercontent.com/mikepenz/release-changelog-builder-action/v4/schema.json",
+  "commitMode": true,
+  "fetchViaCommits": true,
+  "useGitHubRestApi": true,
+  "maxIssues": 200,
+  "truncateMessagesAt": 160,
+
+  "template": "## 🚀 Release {{toTag}}\n\n{{#if containsBreakingChanges}}### ⚠️ Breaking Changes\n{{#each breakingChanges}}- {{this}}\n{{/each}}\n\n{{/if}}### ✨ What's Changed\n{{changes}}\n\n— Generated from commits between {{fromTag}} and {{toTag}}.",
+
+  "changeTemplate": "- {{#commits}}{{message}}{{/commits}}",
+
+  "transformers": [
+    { "pattern": "^feat(\\([^)]*\\))?!?:\\s*(.*)", "target": "✨ $2" },
+    { "pattern": "^fix(\\([^)]*\\))?!?:\\s*(.*)", "target": "🐛 $2" },
+    { "pattern": "^perf(\\([^)]*\\))?!?:\\s*(.*)", "target": "⚡ $2" },
+    { "pattern": "^refactor(\\([^)]*\\))?!?:\\s*(.*)", "target": "♻️ $2" },
+    { "pattern": "^security(\\([^)]*\\))?!?:\\s*(.*)", "target": "🔒 $2" },
+    { "pattern": "^(deps|dependencies)(\\([^)]*\\))?!?:\\s*(.*)", "target": "📦 $2" },
+    { "pattern": "^docs(\\([^)]*\\))?!?:\\s*(.*)", "target": "📝 $2" },
+    { "pattern": "^(build|ci|chore|style|test)(\\([^)]*\\))?!?:\\s*(.*)", "target": "🔧 $2" }
+  ]
+}

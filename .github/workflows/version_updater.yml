@@ -38,11 +38,39 @@ jobs:
         if: ${{ github.event.inputs.bump == 'true' }}
         run: bash ./.github/scripts/update_versions.sh
 
-      - name: Generate changelog and tag
+      - name: Read version from toml
+        id: version
+        run: |
+          VERSION_NAME=$(awk -F '"' '/versionName = "/{print $2}' gradle/libs.versions.toml)
+          VERSION_CODE=$(awk -F '"' '/versionCode = "/{print $2}' gradle/libs.versions.toml)
+          echo "name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+
+      - name: Build changelog (GitHub Release)
         id: changelog
+        uses: mikepenz/release-changelog-builder-action@v4
+        with:
+          configuration: .github/changelog-config.json
+          failOnError: false
         env:
-          TAG_PREFIX: ${{ github.event.inputs.channel == 'beta' && 'beta-' || 'release-' }}
-        run: bash ./.github/scripts/generate_changelog.sh
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build changelog (Play)
+        id: playlog
+        uses: mikepenz/release-changelog-builder-action@v4
+        with:
+          configuration: .github/changelog-config-play.json
+          failOnError: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare Play Store changelog (en-US)
+        env:
+          VERSION_CODE: ${{ steps.version.outputs.code }}
+        run: |
+          bash ./.github/scripts/prepare_play_changelog.sh <<'EOF'
+          ${{ steps.playlog.outputs.changelog }}
+          EOF
 
       - name: Commit files
         run: |
@@ -50,19 +78,17 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add .
           if [ "${{ github.event.inputs.channel }}" = "beta" ]; then
-            git commit -m "release(beta): v${{ steps.changelog.outputs.VERSION_NAME }} (code ${{ steps.changelog.outputs.VERSION_CODE }})" || echo "No changes to commit"
+            git commit -m "release(beta): v${{ steps.version.outputs.name }} (code ${{ steps.version.outputs.code }})" || echo "No changes to commit"
+            TAG_NAME="beta-v${{ steps.version.outputs.name }}"
           else
-            git commit -m "release: v${{ steps.changelog.outputs.VERSION_NAME }} (code ${{ steps.changelog.outputs.VERSION_CODE }})" || echo "No changes to commit"
+            git commit -m "release: v${{ steps.version.outputs.name }} (code ${{ steps.version.outputs.code }})" || echo "No changes to commit"
+            TAG_NAME="release-v${{ steps.version.outputs.name }}"
           fi
           # Create an annotated tag for this release
-          TAG_NAME="${{ steps.changelog.outputs.TAG_NAME }}"
-          if [ -n "$TAG_NAME" ]; then
-            # Avoid failure if tag already exists in repo history
-            if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
-              echo "Tag $TAG_NAME already exists; skipping create"
-            else
-              git tag -a "$TAG_NAME" -m "Release $TAG_NAME"
-            fi
+          if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
+            echo "Tag $TAG_NAME already exists; skipping create"
+          else
+            git tag -a "$TAG_NAME" -m "Release $TAG_NAME"
           fi
 
       - name: Push changes

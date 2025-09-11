@@ -1,10 +1,15 @@
 package io.github.stslex.workeeper.feature.home.ui.components
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -23,29 +28,42 @@ internal fun DatePickersWidget(
     onEndDateClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Row(
+    Column(
         modifier = modifier
             .fillMaxWidth()
             .padding(AppDimension.Padding.medium)
-            .padding(horizontal = AppDimension.Padding.medium)
     ) {
-        Card(
-            onClick = onStartDateClick
+        Text(text = stringResource(R.string.home_tab_charts_date_range))
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(top = AppDimension.Padding.medium)
         ) {
-
-            Text(
-                modifier = Modifier.padding(AppDimension.Padding.medium),
-                text = stringResource(R.string.home_date_picker_start_text, startDate.converted)
-            )
-        }
-        Spacer(modifier = Modifier.weight(1f))
-        Card(
-            onClick = onEndDateClick
-        ) {
-            Text(
-                modifier = Modifier.padding(AppDimension.Padding.medium),
-                text = stringResource(R.string.home_date_picker_end_text, endDate.converted)
-            )
+            Card(
+                onClick = onStartDateClick,
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondary,
+                    contentColor = MaterialTheme.colorScheme.onSecondary,
+                )
+            ) {
+                Text(
+                    modifier = Modifier.padding(AppDimension.Padding.medium),
+                    text = startDate.converted
+                )
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            Card(
+                onClick = onEndDateClick,
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondary,
+                    contentColor = MaterialTheme.colorScheme.onSecondary,
+                )
+            ) {
+                Text(
+                    modifier = Modifier.padding(AppDimension.Padding.medium),
+                    text = endDate.converted
+                )
+            }
         }
     }
 }
@@ -57,12 +75,18 @@ private fun DatePickersPreview() {
         val singleDay = 24 * 60 * 60 * 1000
         val startDate = System.currentTimeMillis() - (7L * singleDay)
         val endDate = System.currentTimeMillis() // 7 days default
-        DatePickersWidget(
-            startDate = DateProperty.new(startDate),
-            endDate = DateProperty.new(endDate),
-            onStartDateClick = {},
-            onEndDateClick = {},
-            modifier = Modifier
-        )
+        Box(
+            modifier = Modifier.background(
+                MaterialTheme.colorScheme.background
+            )
+        ) {
+            DatePickersWidget(
+                startDate = DateProperty.new(startDate),
+                endDate = DateProperty.new(endDate),
+                onStartDateClick = {},
+                onEndDateClick = {},
+                modifier = Modifier
+            )
+        }
     }
 }

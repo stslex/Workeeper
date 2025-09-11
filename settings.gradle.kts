@@ -35,6 +35,7 @@ include(":core:ui:navigation")
 include(":core:ui:mvi")
 include(":core:database")
 include(":core:exercise")
+include(":core:store")
 
 include(":feature:home")
 include(":feature:exercise")
