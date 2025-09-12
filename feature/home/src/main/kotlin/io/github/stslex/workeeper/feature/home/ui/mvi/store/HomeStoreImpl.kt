@@ -20,7 +20,7 @@ import org.koin.core.annotation.Scoped
 @Scoped([HomeScope::class])
 @Qualifier(HomeScope::class)
 @Scope(HomeScope::class)
-class HomeStoreImpl(
+internal class HomeStoreImpl(
     @InjectedParam component: HomeComponent,
     pagingHandler: PagingHandler,
     clickHandler: ClickHandler,

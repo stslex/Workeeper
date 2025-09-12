@@ -14,17 +14,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
 import io.github.stslex.workeeper.core.exercise.data.model.DateProperty
-import io.github.stslex.workeeper.core.exercise.data.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.home.ui.components.DatePickersWidget
 import io.github.stslex.workeeper.feature.home.ui.components.HomeAllEmptyWidget
-import io.github.stslex.workeeper.feature.home.ui.mvi.handler.calculateSizes
+import io.github.stslex.workeeper.feature.home.ui.model.ExerciseChartPreviewParameterProvider
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.CalendarState
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeChartsState
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeStore.Action
+import io.github.stslex.workeeper.feature.home.ui.mvi.store.SingleChartUiModel
 import ir.ehsannarmani.compose_charts.LineChart
 import ir.ehsannarmani.compose_charts.models.AnimationMode
 import ir.ehsannarmani.compose_charts.models.DrawStyle
@@ -32,7 +33,7 @@ import ir.ehsannarmani.compose_charts.models.HorizontalIndicatorProperties
 import ir.ehsannarmani.compose_charts.models.LabelHelperProperties
 import ir.ehsannarmani.compose_charts.models.LabelProperties
 import ir.ehsannarmani.compose_charts.models.Line
-import kotlin.uuid.Uuid
+import kotlinx.collections.immutable.ImmutableList
 
 @Composable
 internal fun ChartsWidget(
@@ -109,7 +110,10 @@ private fun getRandomColorInt(index: Int, colorIndex: Int): Int =
 
 @Composable
 @Preview
-private fun ChartsWidgetPreview() {
+private fun ChartsWidgetPreview(
+    @PreviewParameter(ExerciseChartPreviewParameterProvider::class)
+    charts: ImmutableList<SingleChartUiModel>
+) {
     AppTheme {
         Box(
             modifier = Modifier.background(MaterialTheme.colorScheme.background)
@@ -119,21 +123,11 @@ private fun ChartsWidgetPreview() {
             val endDate = System.currentTimeMillis() // 7 days default
 
             val name = "Test Exercise"
-            val listOfData = List(7) {
-                ExerciseDataModel(
-                    uuid = Uuid.random().toString(),
-                    name = name,
-                    sets = it,
-                    reps = it,
-                    weight = it.toDouble(),
-                    timestamp = endDate - (it * singleDay)
-                )
-            }
             val chartsState = HomeChartsState(
                 name = name,
                 startDate = DateProperty.new(startDate),
                 endDate = DateProperty.new(endDate),
-                charts = listOfData.calculateSizes(),
+                charts = charts,
                 calendarState = CalendarState.Closed
             )
             ChartsWidget(

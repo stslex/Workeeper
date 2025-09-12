@@ -16,22 +16,24 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.paging.PagingData
 import io.github.stslex.workeeper.core.exercise.data.model.DateProperty
-import io.github.stslex.workeeper.core.exercise.data.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.home.ui.components.DatePickerDialog
 import io.github.stslex.workeeper.feature.home.ui.components.HomeActionButton
 import io.github.stslex.workeeper.feature.home.ui.components.HomeToolbarWidget
+import io.github.stslex.workeeper.feature.home.ui.model.ExerciseChartPreviewParameterProvider
 import io.github.stslex.workeeper.feature.home.ui.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.home.ui.model.HomeTabs
-import io.github.stslex.workeeper.feature.home.ui.mvi.handler.calculateSizes
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.CalendarState
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeAllState
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeChartsState
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeStore.Action
+import io.github.stslex.workeeper.feature.home.ui.mvi.store.SingleChartUiModel
 import io.github.stslex.workeeper.feature.home.ui.tabs.AllTabsWidget
 import io.github.stslex.workeeper.feature.home.ui.tabs.ChartsWidget
+import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.coroutines.flow.flowOf
 import kotlin.uuid.Uuid
@@ -59,7 +61,9 @@ fun HomeWidget(
                         HomeActionButton(
                             modifier = Modifier
                                 .sharedBounds(
-                                    sharedContentState = sharedTransitionScope.rememberSharedContentState("createExercise"),
+                                    sharedContentState = sharedTransitionScope.rememberSharedContentState(
+                                        "createExercise"
+                                    ),
                                     animatedVisibilityScope = animatedContentScope,
                                     resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds()
                                 ),
@@ -131,7 +135,10 @@ fun HomeWidget(
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Preview
 @Composable
-private fun HomeWidgetPreview() {
+private fun HomeWidgetPreview(
+    @PreviewParameter(ExerciseChartPreviewParameterProvider::class)
+    charts: ImmutableList<SingleChartUiModel>
+) {
     AppTheme {
         val items = Array(10) { index ->
             ExerciseUiModel(
@@ -156,21 +163,11 @@ private fun HomeWidgetPreview() {
         val endDate = System.currentTimeMillis() - (7L * singleDay) // 7 days default
 
         val name = "Test Exercise"
-        val listOfData = List(7) {
-            ExerciseDataModel(
-                uuid = Uuid.random().toString(),
-                name = name,
-                sets = it,
-                reps = it,
-                weight = it.toDouble(),
-                timestamp = endDate - (it * singleDay)
-            )
-        }
         val chartsState = HomeChartsState(
             name = name,
             startDate = DateProperty.new(startDate),
             endDate = DateProperty.new(endDate),
-            charts = listOfData.calculateSizes(),
+            charts = charts,
             calendarState = CalendarState.Closed
         )
         val pagerState = rememberPagerState(
