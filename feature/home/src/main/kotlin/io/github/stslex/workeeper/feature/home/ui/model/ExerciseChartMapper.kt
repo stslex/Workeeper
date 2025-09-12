@@ -3,14 +3,14 @@ package io.github.stslex.workeeper.feature.home.ui.model
 import io.github.stslex.workeeper.core.core.result.Mapping
 import io.github.stslex.workeeper.core.exercise.data.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.ui.kit.utils.NumUiUtils
-import io.github.stslex.workeeper.feature.home.di.HomeScope
+import io.github.stslex.workeeper.feature.home.di.HOME_SCOPE_NAME
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.SingleChartUiModel
 import org.koin.core.annotation.Factory
 import org.koin.core.annotation.Scope
 import org.koin.core.annotation.Scoped
 
 @Factory
-@Scope(HomeScope::class)
+@Scope(name = HOME_SCOPE_NAME)
 @Scoped
 internal class ExerciseChartMap(
     private val numUiUtils: NumUiUtils

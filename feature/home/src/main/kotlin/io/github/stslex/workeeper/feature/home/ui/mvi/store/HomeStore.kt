@@ -91,7 +91,7 @@ interface HomeStore : Store<State, Action, Event> {
             }
         }
 
-        sealed interface Navigation : Action, Store.Action.Navigation {
+        sealed interface Navigation : Action {
 
             data object CreateExerciseDialog : Navigation
 

@@ -2,7 +2,7 @@ package io.github.stslex.workeeper.core.store.store
 
 import kotlinx.coroutines.flow.Flow
 
-interface CommonStore {
+interface CommonDataStore {
 
     val homeSelectedStartDate: Flow<Long?>
 

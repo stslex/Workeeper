@@ -8,7 +8,6 @@ import org.koin.core.component.KoinScopeComponent
 import org.koin.core.module.Module
 import org.koin.core.qualifier.qualifier
 import org.koin.core.scope.Scope
-import kotlin.reflect.KClass
 
 /**
  * Feature is a Koin feature module that provides a StoreProcessor.
@@ -18,21 +17,16 @@ import kotlin.reflect.KClass
  * */
 @Immutable
 abstract class Feature<TProcessor : StoreProcessor<*, *, *>, TComponent : Component>(
-    scopeClass: KClass<*>
+    private val scopeName: String
 ) : KoinScopeComponent {
 
     open val loadModule: Module? get() = null
 
-    private val scopeName: String = requireNotNull(scopeClass.qualifiedName) {
-        "Scope name is null. Please check the SettingsFeature class."
-    }
-
-    final override val scope: Scope by lazy {
-        getKoin().getOrCreateScope(
+    final override val scope: Scope
+        get() = getKoin().getOrCreateScope(
             scopeId = scopeName,
             qualifier = qualifier(scopeName)
         )
-    }
 
     @Composable
     abstract fun processor(component: TComponent): TProcessor

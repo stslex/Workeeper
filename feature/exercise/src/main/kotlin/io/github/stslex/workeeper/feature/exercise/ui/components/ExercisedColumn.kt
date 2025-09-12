@@ -15,13 +15,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.exercise.data.model.DateProperty
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.Property
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PropertyType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PropertyValid
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TextMode
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ExerciseUiModel
 import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.persistentSetOf
 
@@ -132,12 +132,15 @@ private fun ExercisedColumnPreview() {
                 PropertyType.NAME -> state.copy(
                     name = state.name.update(property.value)
                 )
+
                 PropertyType.SETS -> state.copy(
                     sets = state.sets.update(property.value)
                 )
+
                 PropertyType.REPS -> state.copy(
                     reps = state.reps.update(property.value)
                 )
+
                 PropertyType.WEIGHT -> state.copy(
                     weight = state.weight.update(property.value)
                 )

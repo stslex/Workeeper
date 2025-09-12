@@ -45,6 +45,7 @@ data class Property(
                 } else {
                     PropertyValid.SHOULD_BE_NUMBER
                 }
+
                 PropertyType.WEIGHT -> if (value.toDoubleOrNull() != null) {
                     PropertyValid.VALID
                 } else {

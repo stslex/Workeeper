@@ -1,16 +1,16 @@
 package io.github.stslex.workeeper.core.store.store
 
-import io.github.stslex.workeeper.core.store.core.BaseStore
-import io.github.stslex.workeeper.core.store.core.StoreProvider
+import io.github.stslex.workeeper.core.store.core.BaseDataStore
+import io.github.stslex.workeeper.core.store.core.DataStoreProvider
 import io.github.stslex.workeeper.core.store.di.CommonStoreQualifier
 import kotlinx.coroutines.flow.Flow
 import org.koin.core.annotation.Single
 
 @Single
-class CommonStoreImpl internal constructor(
+class CommonDataStoreImpl internal constructor(
     @CommonStoreQualifier
-    store: StoreProvider
-) : CommonStore, BaseStore(store) {
+    store: DataStoreProvider
+) : CommonDataStore, BaseDataStore(store) {
 
     override var homeSelectedStartDate: Flow<Long?> = getLong(KEY_HOME_SELECTED_START_DATE)
 

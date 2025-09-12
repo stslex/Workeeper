@@ -5,14 +5,14 @@ import androidx.paging.map
 import io.github.stslex.workeeper.core.core.coroutine.dispatcher.AppDispatcher
 import io.github.stslex.workeeper.core.exercise.data.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.data.model.DateProperty
-import io.github.stslex.workeeper.core.store.store.CommonStore
+import io.github.stslex.workeeper.core.store.store.CommonDataStore
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
-import io.github.stslex.workeeper.feature.home.di.HomeScope
+import io.github.stslex.workeeper.feature.home.di.HOME_SCOPE_NAME
+import io.github.stslex.workeeper.feature.home.di.HomeHandlerStore
 import io.github.stslex.workeeper.feature.home.ui.model.ExerciseChartMap
 import io.github.stslex.workeeper.feature.home.ui.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.home.ui.model.toUi
-import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeHandlerStore
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeStore
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,19 +21,19 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
-import org.koin.core.annotation.Factory
+import org.koin.core.annotation.Named
 import org.koin.core.annotation.Scope
 import org.koin.core.annotation.Scoped
 
-@Factory
-@Scope(HomeScope::class)
-@Scoped
+@Scoped(binds = [PagingHandler::class])
+@Scope(name = HOME_SCOPE_NAME)
 internal class PagingHandler(
     private val repository: ExerciseRepository,
-    private val commonStore: CommonStore,
+    private val commonStore: CommonDataStore,
     private val mapper: ExerciseChartMap,
-    private val appDispatcher: AppDispatcher
-) : Handler<HomeStore.Action.Paging, HomeHandlerStore> {
+    private val dispatcher: AppDispatcher,
+    @Named(HOME_SCOPE_NAME) store: HomeHandlerStore,
+) : Handler<HomeStore.Action.Paging>, HomeHandlerStore by store {
 
     private val queryState = MutableStateFlow("")
 
@@ -43,22 +43,22 @@ internal class PagingHandler(
                 pagingData.map { it.toUi() }
             }
         }
-            .flowOn(appDispatcher.io)
+            .flowOn(dispatcher.io)
     }
 
-    override fun HomeHandlerStore.invoke(action: HomeStore.Action.Paging) {
+    override fun invoke(action: HomeStore.Action.Paging) {
         when (action) {
             HomeStore.Action.Paging.Init -> processInit()
         }
     }
 
-    private fun HomeHandlerStore.processInit() {
+    private fun processInit() {
         subscribeToDates()
         subscribeToHomeQuery()
         subscribeToCharts()
     }
 
-    private fun HomeHandlerStore.subscribeToDates() {
+    private fun subscribeToDates() {
         commonStore.homeSelectedStartDate
             .filterNotNull()
             .launch { timestamp ->
@@ -79,7 +79,7 @@ internal class PagingHandler(
             }
     }
 
-    private fun HomeHandlerStore.subscribeToCharts() {
+    private fun subscribeToCharts() {
         state
             .map {
                 Triple(
@@ -109,7 +109,7 @@ internal class PagingHandler(
             }
     }
 
-    private fun HomeHandlerStore.subscribeToHomeQuery() {
+    private fun subscribeToHomeQuery() {
         state.map { it.allState.query }.launch { queryState.value = it }
     }
 }

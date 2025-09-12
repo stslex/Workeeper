@@ -4,27 +4,27 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.core.coroutine.asyncMap
 import io.github.stslex.workeeper.core.exercise.data.ExerciseRepository
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
-import io.github.stslex.workeeper.feature.home.di.HomeScope
+import io.github.stslex.workeeper.feature.home.di.HOME_SCOPE_NAME
+import io.github.stslex.workeeper.feature.home.di.HomeHandlerStore
 import io.github.stslex.workeeper.feature.home.ui.model.toNavData
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.CalendarState
-import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeHandlerStore
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeStore
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeStore.Action
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableSet
-import org.koin.core.annotation.Factory
+import org.koin.core.annotation.Named
 import org.koin.core.annotation.Scope
 import org.koin.core.annotation.Scoped
 import kotlin.uuid.Uuid
 
-@Factory
-@Scope(HomeScope::class)
-@Scoped
-class ClickHandler(
-    private val repository: ExerciseRepository
-) : Handler<Action.Click, HomeHandlerStore> {
+@Scoped(binds = [ClickHandler::class])
+@Scope(name = HOME_SCOPE_NAME)
+internal class ClickHandler(
+    private val repository: ExerciseRepository,
+    @Named(HOME_SCOPE_NAME) store: HomeHandlerStore,
+) : Handler<Action.Click>, HomeHandlerStore by store {
 
-    override fun HomeHandlerStore.invoke(action: Action.Click) {
+    override fun invoke(action: Action.Click) {
         when (action) {
             Action.Click.FloatButtonClick -> processClickFloatingButton()
             is Action.Click.Item -> processClickItem(action)
@@ -33,7 +33,7 @@ class ClickHandler(
         }
     }
 
-    private fun HomeHandlerStore.processClickCalendar(action: Action.Click.Calendar) {
+    private fun processClickCalendar(action: Action.Click.Calendar) {
         sendEvent(HomeStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey))
 
         val calendarState = when (action) {
@@ -49,7 +49,7 @@ class ClickHandler(
         }
     }
 
-    private fun HomeHandlerStore.processLongClick(action: Action.Click.LonkClick) {
+    private fun processLongClick(action: Action.Click.LonkClick) {
         sendEvent(HomeStore.Event.HapticFeedback(HapticFeedbackType.LongPress))
         val newItems = state.value.allState.selectedItems.toMutableSet()
             .apply {
@@ -68,7 +68,7 @@ class ClickHandler(
         }
     }
 
-    private fun HomeHandlerStore.processClickFloatingButton() {
+    private fun processClickFloatingButton() {
         sendEvent(HomeStore.Event.HapticFeedback(HapticFeedbackType.Confirm))
         val selectedItems = state.value.allState.selectedItems
         if (selectedItems.isNotEmpty()) {
@@ -88,7 +88,7 @@ class ClickHandler(
         }
     }
 
-    private fun HomeHandlerStore.processClickItem(action: Action.Click.Item) {
+    private fun processClickItem(action: Action.Click.Item) {
         sendEvent(HomeStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey))
         if (state.value.allState.selectedItems.isNotEmpty()) {
             consume(Action.Click.LonkClick(action.item))

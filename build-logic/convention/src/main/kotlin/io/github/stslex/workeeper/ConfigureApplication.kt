@@ -7,6 +7,7 @@ import AppExt.findVersionString
 import AppExt.libs
 import AppType
 import com.android.build.api.dsl.ApplicationExtension
+import com.google.devtools.ksp.gradle.KspExtension
 import com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.configure
@@ -27,12 +28,15 @@ fun Project.configureApplication(
         apply(libs.findPluginId("serialization"))
         apply(libs.findPluginId("gms"))
         apply(libs.findPluginId("firebaseCrashlytics"))
+        apply(libs.findPluginId("ksp"))
     }
 
     val appTypePostfix = if (appType.postfix.isNotEmpty()) ".${appType.postfix}" else ""
     val versionNamePostfix = if (appType.postfix.isNotEmpty()) "-${appType.postfix}" else ""
     extensions.configure<ApplicationExtension> {
-        configureKsp()
+        extensions.configure<KspExtension> {
+            arg("KOIN_CONFIG_CHECK", "true")
+        }
         configureKotlinAndroid(this)
         configureAndroidCompose(this)
 
