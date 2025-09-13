@@ -18,8 +18,8 @@ interface ExerciseDao {
     @Query("SELECT * FROM exercises_table WHERE name LIKE '%' || :query || '%' ORDER BY timestamp DESC")
     fun getAll(query: String): PagingSource<Int, ExerciseEntity>
 
-    @Query("SELECT * FROM exercises_table WHERE uuid = :uuid LIMIT 1")
-    suspend fun getExercise(uuid: Uuid): ExerciseEntity?
+    @Query("SELECT * FROM exercises_table WHERE uuid = :uuid")
+    fun getExercise(uuid: Uuid): Flow<ExerciseEntity?>
 
     @Query("SELECT * FROM exercises_table WHERE name LIKE '%' || :name || '%' AND timestamp BETWEEN :startDate AND :endDate ORDER BY timestamp DESC")
     fun getExercises(

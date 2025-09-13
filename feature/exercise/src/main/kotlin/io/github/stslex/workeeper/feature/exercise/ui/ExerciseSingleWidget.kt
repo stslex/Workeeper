@@ -23,6 +23,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseButtonsRow
 import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseDatePickerDialog
+import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseSetsCreateDialog
 import io.github.stslex.workeeper.feature.exercise.ui.components.ExercisedColumn
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SnackbarType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SnackbarType.Companion.getAction
@@ -74,20 +75,25 @@ internal fun ExerciseFeatureWidget(
                 state = state,
                 consume = consume
             )
-
         }
 
-        when (state.dialogState) {
+        when (val dialogState = state.dialogState) {
             DialogState.Closed -> Unit
             DialogState.Calendar -> ExerciseDatePickerDialog(
                 timestamp = state.dateProperty.timestamp,
-                onDismissRequest = { consume(Action.Click.CloseCalendar) },
+                onDismissRequest = { consume(Action.Click.CloseDialog) },
                 dateChange = { consume(Action.Input.Time(it)) }
             )
 
-            is DialogState.Sets -> {
-
-            }
+            is DialogState.Sets -> ExerciseSetsCreateDialog(
+                setsUiModel = dialogState.set,
+                onDismissRequest = { consume(Action.Click.DialogSets.DismissSetsDialog(it)) },
+                onRepsInput = { consume(Action.Input.DialogSets.Reps(it)) },
+                onWeightInput = { consume(Action.Input.DialogSets.Weight(it)) },
+                onDeleteClick = { consume(Action.Click.DialogSets.DeleteButton(it)) },
+                onSaveClick = { consume(Action.Click.DialogSets.SaveButton(it)) },
+                onCancelClick = { consume(Action.Click.DialogSets.CancelButton) },
+            )
         }
     }
 }

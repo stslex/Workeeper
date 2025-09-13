@@ -11,6 +11,7 @@ import io.github.stslex.workeeper.core.ui.mvi.Store.Event
 import io.github.stslex.workeeper.core.ui.mvi.Store.State
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.mvi.handler.HandlerCreator
+import io.github.stslex.workeeper.core.ui.mvi.handler.HandlerStoreEmitter
 import io.github.stslex.workeeper.core.ui.mvi.store.StoreConsumer
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -40,9 +41,10 @@ import kotlinx.coroutines.flow.update
 open class BaseStore<S : State, A : Action, E : Event>(
     val name: String,
     initialState: S,
+    private val storeEmitter: HandlerStoreEmitter<S, A, E>,
     override val appDispatcher: AppDispatcher,
     private val handlerCreator: HandlerCreator<A>,
-    val initialActions: List<A> = emptyList(),
+    private val initialActions: List<A> = emptyList(),
     val disposeActions: List<A> = emptyList()
 ) : ViewModel(), Store<S, A, E>, StoreConsumer<S, A, E> {
 
@@ -59,6 +61,18 @@ open class BaseStore<S : State, A : Action, E : Event>(
     private var _lastAction: A? = null
     override val lastAction: A?
         get() = _lastAction
+
+    fun init() {
+        initialActions.forEach { consume(it) }
+    }
+
+    fun initEmitter() {
+        storeEmitter.setStore(this)
+    }
+
+    fun dispose() {
+        disposeActions.forEach { consume(it) }
+    }
 
     @Suppress("UNCHECKED_CAST")
     override fun consume(action: A) {

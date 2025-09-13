@@ -75,7 +75,14 @@ interface ExerciseStore : Store<State, Action, Event> {
 
             data class Time(val timestamp: Long) : Input
 
-            data class Sets(val set: SetsUiModel) : Input
+            sealed interface DialogSets : Input {
+
+
+                data class Weight(val value: String) : DialogSets
+
+                data class Reps(val value: String) : DialogSets
+
+            }
         }
 
         sealed interface Common : Action {
@@ -98,7 +105,7 @@ interface ExerciseStore : Store<State, Action, Event> {
 
             data object PickDate : Click
 
-            data object CloseCalendar : Click
+            data object CloseDialog : Click
 
             data object OpenMenuVariants : Click
 
@@ -106,8 +113,21 @@ interface ExerciseStore : Store<State, Action, Event> {
 
             data class OnMenuItemClick(val item: ExerciseUiModel) : Click
 
-            data class SetsCreateClick(val sets: SetsUiModel?) : Click
+            sealed interface DialogSets : Click {
 
+                data class OpenEdit(val set: SetsUiModel) : DialogSets
+
+                data object OpenCreate : DialogSets
+
+                data class DismissSetsDialog(val set: SetsUiModel) : DialogSets
+
+                data class DeleteButton(val uuid: String) : DialogSets
+
+                data class SaveButton(val set: SetsUiModel) : DialogSets
+
+                data object CancelButton : DialogSets
+
+            }
         }
 
         sealed interface NavigationMiddleware : Action {

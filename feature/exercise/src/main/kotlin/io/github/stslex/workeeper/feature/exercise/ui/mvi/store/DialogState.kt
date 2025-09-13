@@ -8,5 +8,7 @@ sealed interface DialogState {
 
     data object Calendar : DialogState
 
-    data class Sets(val set: SetsUiModel?) : DialogState
+    data class Sets(
+        val set: SetsUiModel
+    ) : DialogState
 }

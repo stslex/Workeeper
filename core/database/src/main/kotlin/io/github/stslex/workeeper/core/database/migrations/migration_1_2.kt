@@ -4,8 +4,6 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import io.github.stslex.workeeper.core.database.converters.SetsTypeConverter
 import io.github.stslex.workeeper.core.database.converters.StringConverter
-import io.github.stslex.workeeper.core.database.converters.UuidConverter
-import io.github.stslex.workeeper.core.database.exercise.ExerciseEntity
 import io.github.stslex.workeeper.core.database.exercise.model.SetsEntity
 import io.github.stslex.workeeper.core.database.exercise.model.SetsEntityType
 import kotlin.uuid.Uuid
@@ -13,14 +11,38 @@ import kotlin.uuid.Uuid
 val MIGRATION_1_2 = object : Migration(1, 2) {
 
     override fun migrate(db: SupportSQLiteDatabase) {
-        db.execSQL("ALTER TABLE sets_table ADD COLUMN if not exists uuid")
-        db.execSQL("ALTER TABLE sets_table ADD COLUMN if not exists exercise_uuid")
-        db.execSQL("ALTER TABLE sets_table ADD COLUMN if not exists reps")
-        db.execSQL("ALTER TABLE sets_table ADD COLUMN if not exists weight")
-        db.execSQL("ALTER TABLE sets_table ADD COLUMN if not exists type")
+        db.execSQL(
+            """
+            CREATE TABLE exercises_table_new (
+                uuid TEXT PRIMARY KEY NOT NULL,
+                training_uuid TEXT,
+                labels TEXT NOT NULL,
+                sets TEXT NOT NULL,
+                name TEXT NOT NULL,
+                timestamp INTEGER NOT NULL
+            )
+        """
+        )
 
+        db.execSQL(
+            """
+            CREATE TABLE training_table (
+                uuid TEXT PRIMARY KEY NOT NULL,
+                name TEXT NOT NULL,
+                exercises TEXT NOT NULL,
+                labels TEXT NOT NULL,
+                timestamp INTEGER NOT NULL
+            )
+        """
+        )
 
-        val newItems = mutableListOf<ExerciseEntity>()
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS training_labels_table (
+                label TEXT PRIMARY KEY NOT NULL
+            )
+        """
+        )
 
         db.query("SELECT * FROM exercises_table").use { cursor ->
             while (cursor.moveToNext()) {
@@ -30,14 +52,12 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
                 val exerciseWeightIndex = cursor.getColumnIndex("weight")
                 val nameIndex = cursor.getColumnIndex("name")
                 val timestampIndex = cursor.getColumnIndex("timestamp")
-                if (
-                    setsIndex >= 0 &&
-                    exerciseWeightIndex >= 0 &&
-                    exerciseUuidIndex >= 0 &&
-                    exerciseRepsIndex >= 0 &&
-                    nameIndex >= 0 &&
-                    timestampIndex >= 0
+
+                if (setsIndex >= 0 && exerciseWeightIndex >= 0 &&
+                    exerciseUuidIndex >= 0 && exerciseRepsIndex >= 0 &&
+                    nameIndex >= 0 && timestampIndex >= 0
                 ) {
+
                     val sets = cursor.getInt(setsIndex)
                     val exerciseUuid = cursor.getString(exerciseUuidIndex)
                     val exerciseReps = cursor.getInt(exerciseRepsIndex)
@@ -46,51 +66,32 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
                     val timestamp = cursor.getLong(timestampIndex)
 
                     val setsType = SetsEntityType.Companion.defaultType
+                    val setsList = Array(sets) {
+                        SetsEntity(
+                            uuid = Uuid.random(),
+                            reps = exerciseReps,
+                            weight = exerciseWeight,
+                            type = setsType
+                        )
+                    }.toList()
 
-                    val entity = ExerciseEntity(
-                        uuid = Uuid.parse(exerciseUuid),
-                        trainingUuid = null,
-                        labels = emptyList(),
-                        sets = Array(sets) {
-                            SetsEntity(
-                                uuid = Uuid.random(),
-                                reps = exerciseReps,
-                                weight = exerciseWeight,
-                                type = setsType
-                            )
-                        }.toList(),
-                        name = name,
-                        timestamp = timestamp,
+                    db.execSQL(
+                        "INSERT INTO exercises_table_new (uuid, training_uuid, labels, sets, name, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
+                        arrayOf(
+                            exerciseUuid,
+                            null,
+                            StringConverter.listToString(emptyList()),
+                            SetsTypeConverter.toString(setsList),
+                            name,
+                            timestamp
+                        )
                     )
-                    newItems.add(entity)
                 }
             }
-            cursor.close()
         }
 
-        db.execSQL("ALTER TABLE exercises_table DROP COLUMN if exists sets")
-        db.execSQL("ALTER TABLE exercises_table DROP COLUMN if exists reps")
-        db.execSQL("ALTER TABLE exercises_table DROP COLUMN if exists weight")
-
-        db.execSQL("ALTER TABLE exercises_table CREATE COLUMN if not exist sets")
-        db.execSQL("ALTER TABLE exercises_table CREATE COLUMN if not exist training_uuid")
-        db.execSQL("ALTER TABLE exercises_table CREATE COLUMN if not exist labels")
-
-        newItems.forEach {
-            db.execSQL("DELETE FROM exercises_table WHERE uuid = :${it.uuid}")
-            db.execSQL(
-                "INSERT INTO exercises_table (uuid, trainingUuid, labels, sets, name, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
-                arrayOf(
-                    UuidConverter.toString(it.uuid),
-                    UuidConverter.toString(it.trainingUuid),
-                    StringConverter.listToString(it.labels),
-                    SetsTypeConverter.toString(it.sets),
-                    it.name,
-                    it.timestamp
-                )
-            )
-        }
-        super.migrate(db)
+        db.execSQL("DROP TABLE exercises_table")
+        db.execSQL("ALTER TABLE exercises_table_new RENAME TO exercises_table")
     }
 
 }

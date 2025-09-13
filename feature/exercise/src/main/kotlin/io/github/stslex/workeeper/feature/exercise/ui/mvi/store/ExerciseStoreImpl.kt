@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.feature.exercise.ui.mvi.store
 import io.github.stslex.workeeper.core.core.coroutine.dispatcher.AppDispatcher
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 import io.github.stslex.workeeper.feature.exercise.di.EXERCISE_SCOPE_NAME
+import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStoreImpl
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.ClickHandler
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.CommonHandler
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.ExerciseComponent
@@ -13,6 +14,7 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Ev
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
 import org.koin.android.annotation.KoinViewModel
 import org.koin.core.annotation.InjectedParam
+import org.koin.core.annotation.Named
 import org.koin.core.annotation.Qualifier
 import org.koin.core.annotation.Scope
 
@@ -26,10 +28,12 @@ internal class ExerciseStoreImpl(
     commonHandler: CommonHandler,
     navigationHandler: NavigationHandler,
     dispatcher: AppDispatcher,
+    @Named(EXERCISE_SCOPE_NAME) storeEmitter: ExerciseHandlerStoreImpl,
 ) : BaseStore<State, Action, Event>(
     name = "EXERCISE",
     appDispatcher = dispatcher,
     initialState = State.INITIAL,
+    storeEmitter = storeEmitter,
     handlerCreator = { action ->
         when (action) {
             is Action.Navigation -> component

@@ -7,6 +7,7 @@ import io.github.stslex.workeeper.feature.exercise.di.EXERCISE_SCOPE_NAME
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.mappers.ExerciseUiMap
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PropertyValid
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SetsUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SnackbarType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore
@@ -17,6 +18,7 @@ import kotlinx.coroutines.withContext
 import org.koin.core.annotation.Named
 import org.koin.core.annotation.Scope
 import org.koin.core.annotation.Scoped
+import kotlin.uuid.Uuid
 
 @Scoped(binds = [ClickHandler::class])
 @Scope(name = EXERCISE_SCOPE_NAME)
@@ -34,11 +36,76 @@ internal class ClickHandler(
             Action.Click.Delete -> processDelete()
             Action.Click.ConfirmedDelete -> processConfirmedDelete()
             Action.Click.PickDate -> processPickDate()
-            Action.Click.CloseCalendar -> processCloseDialog()
+            Action.Click.CloseDialog -> processCloseDialog()
             Action.Click.CloseMenuVariants -> processCloseMenuVariants()
             is Action.Click.OnMenuItemClick -> processOnMenuItemClick(action)
             Action.Click.OpenMenuVariants -> processOpenMenuVariants()
-            is Action.Click.SetsCreateClick -> processSetsCreateClick(action)
+            is Action.Click.DialogSets -> processDialogSetsActions(action)
+        }
+    }
+
+    private fun processDialogSetsActions(action: Action.Click.DialogSets) {
+        when (action) {
+            Action.Click.DialogSets.CancelButton -> processCloseDialog()
+            is Action.Click.DialogSets.DeleteButton -> processDialogSetsDelete(action)
+            is Action.Click.DialogSets.DismissSetsDialog -> processDialogSetsDismiss(action)
+            is Action.Click.DialogSets.SaveButton -> processDialogSetsSave(action)
+            Action.Click.DialogSets.OpenCreate -> processDialogSetsCreate()
+            is Action.Click.DialogSets.OpenEdit -> processDialogSetsOpen(action)
+        }
+    }
+
+    private fun processDialogSetsCreate() {
+        updateState {
+            it.copy(
+                dialogState = DialogState.Sets(
+                    SetsUiModel.EMPTY.copy(
+                        uuid = Uuid.random().toString()
+                    )
+                )
+            )
+        }
+    }
+
+    private fun processDialogSetsOpen(action: Action.Click.DialogSets.OpenEdit) {
+        updateState {
+            it.copy(dialogState = DialogState.Sets(action.set))
+        }
+    }
+
+    private fun processDialogSetsDismiss(action: Action.Click.DialogSets.DismissSetsDialog) {
+        val isSaveSetValid: Boolean = action.set.weight.validation() == PropertyValid.VALID &&
+                action.set.reps.validation() == PropertyValid.VALID
+        if (isSaveSetValid.not()) {
+            return
+        }
+        consume(Action.Click.DialogSets.SaveButton(action.set))
+    }
+
+    private fun processDialogSetsDelete(action: Action.Click.DialogSets.DeleteButton) {
+        updateState {
+            it.copy(
+                sets = it.sets.filter { set -> set.uuid != action.uuid }.toImmutableList()
+            )
+        }
+    }
+
+    private fun processDialogSetsSave(action: Action.Click.DialogSets.SaveButton) {
+        updateState {
+            var isFound = false
+            val newSets = it.sets.map { set ->
+                if (set.uuid == action.set.uuid) {
+                    isFound = true
+                    action.set
+                } else {
+                    set
+                }
+            }
+            val resultSet = if (isFound) newSets else (newSets + action.set)
+            it.copy(
+                sets = resultSet.toImmutableList(),
+                dialogState = DialogState.Closed
+            )
         }
     }
 
@@ -70,10 +137,6 @@ internal class ClickHandler(
         updateState { it.copy(dialogState = DialogState.Calendar) }
     }
 
-    private fun processSetsCreateClick(action: Action.Click.SetsCreateClick) {
-        updateState { it.copy(dialogState = DialogState.Sets(action.sets)) }
-    }
-
     private fun processConfirmedDelete() {
         val currentUuid = state.value.uuid.takeIf {
             it.isNullOrBlank().not()
@@ -81,7 +144,7 @@ internal class ClickHandler(
         launch(
             onSuccess = {
                 withContext(Dispatchers.Main.immediate) {
-                    consume(Action.Navigation.Back)
+                    consume(Action.NavigationMiddleware.Back)
                 }
             }
         ) {
@@ -95,13 +158,6 @@ internal class ClickHandler(
 
     private fun processSave() {
         val nameValid = state.value.name.validation()
-
-        val repsValid = state.value.sets.map {
-            it.reps.validation()
-        }
-        val weightValid = state.value.sets.map {
-            it.weight.validation()
-        }
 
         var setsValid = true
 
@@ -129,10 +185,6 @@ internal class ClickHandler(
             )
         }
 
-        repsValid.any {
-            it != PropertyValid.VALID
-        }
-
         if (nameValid != PropertyValid.VALID || setsValid.not()) {
             sendEvent(ExerciseStore.Event.InvalidParams)
             return
@@ -141,8 +193,11 @@ internal class ClickHandler(
         launch(
             onSuccess = {
                 withContext(Dispatchers.Main.immediate) {
-                    consume(Action.Navigation.Back)
+                    consume(Action.NavigationMiddleware.Back)
                 }
+            },
+            onError = {
+                logger.e(it)
             }
         ) {
             repository.saveItem(exerciseUiMap(state.value))

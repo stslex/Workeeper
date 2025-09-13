@@ -14,18 +14,8 @@ object SetsTypeConverter {
     fun toData(value: String): SetsEntityType = SetsEntityType.Companion.fromValue(value)
 
     @TypeConverter
-    fun toString(
-        value: List<SetsEntity>?
-    ): String = Json.Default.encodeToString(
-        value.orEmpty().map {
-            Json.encodeToString(it)
-        }
-    )
+    fun toString(value: List<SetsEntity>?): String = Json.encodeToString(value.orEmpty())
 
     @TypeConverter
-    fun fromString(
-        value: String
-    ): List<SetsEntity> = Json.decodeFromString<List<String>>(value).map {
-        Json.Default.decodeFromString(it)
-    }
+    fun fromString(value: String): List<SetsEntity>? = Json.decodeFromString(value)
 }
