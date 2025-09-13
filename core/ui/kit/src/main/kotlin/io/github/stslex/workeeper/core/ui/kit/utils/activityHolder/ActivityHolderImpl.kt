@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.core.ui.kit.utils
+package io.github.stslex.workeeper.core.ui.kit.utils.activityHolder
 
 import android.app.Activity
 import org.koin.core.annotation.Single

@@ -13,8 +13,15 @@
     { "pattern": "^feat(\\([^)]*\\))?!?:\\s*(.*)", "target": "✨ $2" },
     { "pattern": "^fix(\\([^)]*\\))?!?:\\s*(.*)", "target": "🐛 $2" },
     { "pattern": "^perf(\\([^)]*\\))?!?:\\s*(.*)", "target": "⚡ $2" },
-    { "pattern": "^(deps|dependencies)(\\([^)]*\\))?!?:\\s*(.*)", "target": "📦 $2" },
-    { "pattern": "^(refactor|docs|build|ci|style|test)(\\([^)]*\\))?!?:\\s*(.*)", "target": "" }
-  ]
+    { "pattern": "^(deps|dependencies)(\\([^)]*\\))?!?:\\s*(.*)", "target": "📦 $3" },
+    { "pattern": "^security(\\([^)]*\\))?!?:\\s*(.*)", "target": "🔒 $2" },
+    { "pattern": "^refactor(\\([^)]*\\))?!?:\\s*(.*)", "target": "♻️ $2" },
+    { "pattern": "^(docs|build|ci|chore|style|test)(\\([^)]*\\))?!?:\\s*(.*)", "target": "" }
+  ],
+
+  "excludeLabels": ["ignore-for-release"],
+  "includeLabels": [],
+  "sort": "ASC",
+  "excludeMerges": false
 }
 

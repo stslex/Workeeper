@@ -1,8 +1,8 @@
 package io.github.stslex.workeeper.core.store.di
 
 import android.content.Context
-import io.github.stslex.workeeper.core.store.core.StoreProvider
-import io.github.stslex.workeeper.core.store.store.CommonStore
+import io.github.stslex.workeeper.core.store.core.DataStoreProvider
+import io.github.stslex.workeeper.core.store.store.CommonDataStore
 import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Module
 import org.koin.core.annotation.Single
@@ -13,8 +13,8 @@ class ModuleCoreStore {
 
     @Single
     @CommonStoreQualifier
-    internal fun bindStoreProvider(context: Context): StoreProvider = StoreProvider(
+    internal fun bindStoreProvider(context: Context): DataStoreProvider = DataStoreProvider(
         context = context,
-        name = CommonStore.NAME
+        name = CommonDataStore.NAME
     )
 }

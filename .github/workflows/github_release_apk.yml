@@ -86,11 +86,42 @@ jobs:
           name: store-release-apk
           path: ${{ steps.collect_apk.outputs.apk_path }}
 
+      - name: Get previous release tag for changelog
+        id: prev_tag
+        run: |
+          # Get the tag that triggered this workflow or the input tag
+          if [ -n "${{ inputs.tag_name }}" ]; then
+            CURRENT_TAG="${{ inputs.tag_name }}"
+          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            CURRENT_TAG="${GITHUB_REF#refs/tags/}"
+          else
+            CURRENT_TAG=""
+          fi
+
+          # Get previous release tag
+          if [ -n "$CURRENT_TAG" ]; then
+            PREV_TAG=$(git tag -l "release-*" --sort=-version:refname | grep -A1 "^$CURRENT_TAG$" | tail -1 || echo "")
+          else
+            PREV_TAG=$(git describe --tags --abbrev=0 --match="release-*" 2>/dev/null || echo "")
+          fi
+
+          if [ -z "$PREV_TAG" ]; then
+            # If no previous release tag, use first commit
+            PREV_TAG=$(git rev-list --max-parents=0 HEAD)
+          fi
+
+          echo "current_tag=$CURRENT_TAG" >> "$GITHUB_OUTPUT"
+          echo "prev_tag=$PREV_TAG" >> "$GITHUB_OUTPUT"
+          echo "Previous tag: $PREV_TAG"
+          echo "Current tag: $CURRENT_TAG"
+
       - name: Build changelog (mikepenz)
         id: changelog
         uses: mikepenz/release-changelog-builder-action@v4
         with:
           configuration: .github/changelog-config.json
+          fromTag: ${{ steps.prev_tag.outputs.prev_tag }}
+          toTag: ${{ steps.prev_tag.outputs.current_tag || github.sha }}
           failOnError: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

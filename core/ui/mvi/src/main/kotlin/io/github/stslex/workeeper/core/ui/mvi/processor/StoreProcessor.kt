@@ -12,6 +12,7 @@ import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 import io.github.stslex.workeeper.core.ui.mvi.Store.Action
 import io.github.stslex.workeeper.core.ui.mvi.Store.Event
 import io.github.stslex.workeeper.core.ui.mvi.Store.State
+import io.github.stslex.workeeper.core.ui.mvi.handler.HandlerStoreEmitter
 import io.github.stslex.workeeper.core.ui.navigation.Component
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.component.KoinScopeComponent
@@ -47,14 +48,16 @@ interface StoreProcessor<S : State, A : Action, E : Event> {
  * @param TStoreImpl The type of the store implementation.
  */
 @Composable
-inline fun <S : State,
+inline fun <
+        S : State,
         A : Action,
         E : Event,
-        reified TStoreImpl : BaseStore<S, A, E, *>,
+        reified TStoreImpl : BaseStore<S, A, E>,
+        reified BaseHandlerStoreT : HandlerStoreEmitter<S, A, E>,
         TComponent : Component
         > KoinScopeComponent.rememberStoreProcessor(
     component: TComponent,
-    key: String? = null
+    key: String? = null,
 ): StoreProcessor<S, A, E> {
     val store = koinViewModel<TStoreImpl>(
         scope = scope,
@@ -64,11 +67,16 @@ inline fun <S : State,
             parametersOf(component)
         }
     )
+    val storeHandler = scope.get<BaseHandlerStoreT>(
+        qualifier = scope.scopeQualifier,
+    )
     DisposableEffect(store) {
+        storeHandler.setStore(store)
         FirebaseCrashlyticsHolder.setScreenName(store.name)
         FirebaseAnalyticsHolder.log(FirebaseEvent.Screen(store.name))
         store.initialActions.forEach { store.consume(it) }
         onDispose {
+            storeHandler.clearStore()
             FirebaseCrashlyticsHolder.clearScreenName()
             store.disposeActions.forEach { store.consume(it) }
         }

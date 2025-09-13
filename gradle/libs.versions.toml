@@ -7,8 +7,8 @@ androidTools = "31.13.0"
 minSdk = "28"
 targetSdk = "36"
 compileSdk = "36"
-versionName = "1.09"
-versionCode = "10"
+versionName = "1.11"
+versionCode = "12"
 
 ktx = "1.17.0"
 material = "1.13.0"
@@ -147,6 +147,7 @@ koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
 koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
 koin-androidx-compose = { module = "io.insert-koin:koin-androidx-compose", version.ref = "koin" }
 koin-compose-viewmodel = { module = "io.insert-koin:koin-compose-viewmodel", version.ref = "koin" }
+koin-compose = { module = "io.insert-koin:koin-compose", version.ref = "koin" }
 koin-annotations = { group = "io.insert-koin", name = "koin-annotations", version.ref = "koinKsp" }
 
 koin-test-core = { module = "io.insert-koin:koin-test", version.ref = "koin" }

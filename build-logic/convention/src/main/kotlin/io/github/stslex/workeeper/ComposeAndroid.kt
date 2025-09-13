@@ -30,6 +30,7 @@ internal fun Project.configureAndroidCompose(
             "material",
             "koin-androidx-compose",
             "koin-compose-viewmodel",
+            "koin-compose",
         )
         debugImplementation("androidx-compose-manifest")
     }

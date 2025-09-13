@@ -4,29 +4,29 @@ import io.github.stslex.workeeper.core.exercise.data.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.data.model.ChangeExerciseDataModel
 import io.github.stslex.workeeper.core.exercise.data.model.DateProperty
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
-import io.github.stslex.workeeper.feature.exercise.di.ExerciseScope
+import io.github.stslex.workeeper.feature.exercise.di.EXERCISE_SCOPE_NAME
+import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PropertyValid
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SnackbarType
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.koin.core.annotation.Factory
+import org.koin.core.annotation.Named
 import org.koin.core.annotation.Scope
 import org.koin.core.annotation.Scoped
 
-@Factory
-@Scope(ExerciseScope::class)
-@Scoped
+@Scoped(binds = [ClickHandler::class])
+@Scope(name = EXERCISE_SCOPE_NAME)
 internal class ClickHandler(
-    private val repository: ExerciseRepository
-) : Handler<Action.Click, ExerciseHandlerStore> {
+    private val repository: ExerciseRepository,
+    @Named(EXERCISE_SCOPE_NAME) store: ExerciseHandlerStore
+) : Handler<Action.Click>, ExerciseHandlerStore by store {
 
-    override fun ExerciseHandlerStore.invoke(action: Action.Click) {
+    override fun invoke(action: Action.Click) {
         sendEvent(ExerciseStore.Event.HapticClick)
         when (action) {
-            Action.Click.Cancel -> consume(Action.Navigation.BackWithConfirmation)
+            Action.Click.Cancel -> consume(Action.NavigationMiddleware.BackWithConfirmation)
             Action.Click.Save -> processSave()
             Action.Click.Delete -> processDelete()
             Action.Click.ConfirmedDelete -> processConfirmedDelete()
@@ -38,15 +38,15 @@ internal class ClickHandler(
         }
     }
 
-    private fun ExerciseHandlerStore.processCloseMenuVariants() {
+    private fun processCloseMenuVariants() {
         updateState { it.copy(isMenuOpen = false) }
     }
 
-    private fun ExerciseHandlerStore.processOpenMenuVariants() {
+    private fun processOpenMenuVariants() {
         updateState { it.copy(isMenuOpen = true) }
     }
 
-    private fun ExerciseHandlerStore.processOnMenuItemClick(action: Action.Click.OnMenuItemClick) {
+    private fun processOnMenuItemClick(action: Action.Click.OnMenuItemClick) {
         val item = action.item
         updateState {
             it.copy(
@@ -60,15 +60,15 @@ internal class ClickHandler(
         }
     }
 
-    private fun ExerciseHandlerStore.processCloseCalendar() {
+    private fun processCloseCalendar() {
         updateState { it.copy(isCalendarOpen = false) }
     }
 
-    private fun ExerciseHandlerStore.processPickDate() {
+    private fun processPickDate() {
         updateState { it.copy(isCalendarOpen = true) }
     }
 
-    private fun ExerciseHandlerStore.processConfirmedDelete() {
+    private fun processConfirmedDelete() {
         val currentUuid = state.value.uuid.takeIf {
             it.isNullOrBlank().not()
         } ?: return
@@ -83,11 +83,11 @@ internal class ClickHandler(
         }
     }
 
-    private fun ExerciseHandlerStore.processDelete() {
+    private fun processDelete() {
         sendEvent(ExerciseStore.Event.Snackbar(SnackbarType.DELETE))
     }
 
-    private fun ExerciseHandlerStore.processSave() {
+    private fun processSave() {
 
         val nameValid = state.value.name.validation()
         val setsValid = state.value.sets.validation()

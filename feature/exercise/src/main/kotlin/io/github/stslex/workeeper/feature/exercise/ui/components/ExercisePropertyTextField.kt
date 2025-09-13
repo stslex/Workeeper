@@ -1,7 +1,10 @@
 package io.github.stslex.workeeper.feature.exercise.ui.components
 
+import androidx.annotation.StringRes
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -20,9 +23,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
+import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TextMode
 import kotlinx.collections.immutable.ImmutableSet
@@ -31,7 +36,7 @@ import kotlinx.collections.immutable.persistentSetOf
 @Composable
 fun ExercisePropertyTextField(
     text: String,
-    label: String,
+    @StringRes labelRes: Int,
     mode: TextMode,
     modifier: Modifier = Modifier,
     isError: Boolean = false,
@@ -69,7 +74,7 @@ fun ExercisePropertyTextField(
         onValueChange = onValueChange,
         isError = isError,
         label = {
-            Text(label)
+            Text(stringResource(labelRes))
         },
         keyboardOptions = keyboardOptions,
         trailingIcon = if (mode.isMenuEnable && menuItems.isNotEmpty()) trailingIcon else null,
@@ -134,11 +139,15 @@ private fun PropertyTrailingIcon(
 @Preview
 private fun ExercisePropertyTextFieldPreview() {
     AppTheme {
-        ExercisePropertyTextField(
-            text = "Sample Text",
-            label = "Label",
-            onValueChange = {},
-            mode = TextMode.DATE,
-        )
+        Box(
+            modifier = Modifier.background(MaterialTheme.colorScheme.background)
+        ) {
+            ExercisePropertyTextField(
+                text = "Sample Text",
+                labelRes = R.string.feature_exercise_field_label_weight,
+                onValueChange = {},
+                mode = TextMode.DATE,
+            )
+        }
     }
 }

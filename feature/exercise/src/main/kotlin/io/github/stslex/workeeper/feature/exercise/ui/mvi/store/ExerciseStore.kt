@@ -110,9 +110,14 @@ interface ExerciseStore : Store<State, Action, Event> {
 
         }
 
-        sealed interface Navigation : Action, Store.Action.Navigation {
+        sealed interface NavigationMiddleware : Action {
 
-            data object BackWithConfirmation : Navigation
+            data object BackWithConfirmation : NavigationMiddleware
+
+            data object Back : NavigationMiddleware
+        }
+
+        sealed interface Navigation : Action {
 
             data object Back : Navigation
         }

@@ -11,9 +11,10 @@ enum class SnackbarType(
 
     companion object {
 
-        fun SnackbarHostState.getAction(): SnackbarType? = currentSnackbarData?.visuals?.actionLabel?.let {
-            SnackbarType.getAction(it)
-        }
+        fun SnackbarHostState.getAction(): SnackbarType? =
+            currentSnackbarData?.visuals?.actionLabel?.let {
+                SnackbarType.getAction(it)
+            }
 
         fun getAction(
             value: String

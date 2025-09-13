@@ -4,10 +4,9 @@ import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.navigation.Component
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen.Exercise.Data
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 
-interface ExerciseComponent : Component, Handler<Action.Navigation, ExerciseHandlerStore> {
+interface ExerciseComponent : Component, Handler<Action.Navigation> {
 
     val data: Data?
 

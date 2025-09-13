@@ -6,17 +6,17 @@ import io.github.stslex.workeeper.core.core.logger.Log
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-open class BaseStore internal constructor(
-    private val storeProvider: StoreProvider
+open class BaseDataStore internal constructor(
+    private val storeProvider: DataStoreProvider
 ) {
 
     private val logger = Log.tag("Store")
 
-    fun getLong(key: String): Flow<Long?> = storeProvider.store.data.map { prefs -> prefs[longPreferencesKey(key)] }
+    fun getLong(key: String): Flow<Long?> = storeProvider.dataStore.data.map { prefs -> prefs[longPreferencesKey(key)] }
 
     suspend fun updateLong(key: String, value: Long) {
         logger.i("Update key: $key with value: $value")
-        storeProvider.store.edit { prefs ->
+        storeProvider.dataStore.edit { prefs ->
             prefs[longPreferencesKey(key)] = value
         }
     }

@@ -23,3 +23,7 @@ vendor/bundle/
 fastlane/report.xml
 .bundle
 fastlane/README.md
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+.env

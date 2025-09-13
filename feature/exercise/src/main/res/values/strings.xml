@@ -3,4 +3,10 @@
     <string name="toast_invalid_params_msg">Invalid params</string>
     <string name="button_confirm_text">Save</string>
     <string name="button_cancel_text">Cancel</string>
+
+    <string name="feature_exercise_field_label_name">NAME</string>
+    <string name="feature_exercise_field_label_sets">SETS</string>
+    <string name="feature_exercise_field_label_reps">REPS</string>
+    <string name="feature_exercise_field_label_weight">WEIGHT</string>
+    <string name="feature_exercise_field_label_date">Date</string>
 </resources>

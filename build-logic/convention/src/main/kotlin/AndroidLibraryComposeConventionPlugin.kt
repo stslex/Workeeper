@@ -4,7 +4,6 @@ import AppExt.libs
 import com.android.build.gradle.LibraryExtension
 import io.github.stslex.workeeper.configureAndroidCompose
 import io.github.stslex.workeeper.configureKotlinAndroid
-import io.github.stslex.workeeper.configureKsp
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.configure
@@ -19,10 +18,10 @@ class AndroidLibraryComposeConventionPlugin : Plugin<Project> {
                 apply(libs.findPluginId("composeCompiler"))
                 apply(libs.findPluginId("vkompose"))
                 apply(libs.findPluginId("serialization"))
+                apply(libs.findPluginId("ksp"))
             }
 
             extensions.configure<LibraryExtension> {
-                configureKsp()
                 configureKotlinAndroid(this)
                 configureAndroidCompose(this)
 

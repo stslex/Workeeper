@@ -11,7 +11,7 @@ import io.github.stslex.workeeper.core.ui.mvi.Store.Event
 import io.github.stslex.workeeper.core.ui.mvi.Store.State
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.mvi.handler.HandlerCreator
-import io.github.stslex.workeeper.core.ui.mvi.handler.HandlerStore
+import io.github.stslex.workeeper.core.ui.mvi.store.StoreConsumer
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -31,21 +31,20 @@ import kotlinx.coroutines.flow.update
  * @param S The type of the state held by the store.
  * @param A The type of actions that can be consumed by the store.
  * @param E The type of events that can be emitted by the store.
- * @param HStore The type of the handler store, which provides context to action handlers. Must inherit from [HandlerStore].
  * @param name A descriptive name for the store, used for logging.
  * @param initialState The initial state of the store.
  * @param handlerCreator A factory function that creates an [Handler] for a given action.
  * @param initialActions A list of actions to be consumed immediately after the store is initialized. Defaults to an empty list.
  */
 @Immutable
-open class BaseStore<S : State, A : Action, E : Event, HStore : HandlerStore<S, A, E>>(
+open class BaseStore<S : State, A : Action, E : Event>(
     val name: String,
     initialState: S,
     override val appDispatcher: AppDispatcher,
-    private val handlerCreator: HandlerCreator<S, A, E, HStore>,
+    private val handlerCreator: HandlerCreator<A>,
     val initialActions: List<A> = emptyList(),
     val disposeActions: List<A> = emptyList()
-) : ViewModel(), Store<S, A, E>, HandlerStore<S, A, E> {
+) : ViewModel(), Store<S, A, E>, StoreConsumer<S, A, E> {
 
     private val _event: MutableSharedFlow<E> = MutableSharedFlow()
     override val event: SharedFlow<E> = _event.asSharedFlow()
@@ -68,8 +67,8 @@ open class BaseStore<S : State, A : Action, E : Event, HStore : HandlerStore<S, 
         if (lastAction != action && action !is Action.RepeatLast) {
             _lastAction = action
         }
-        val handler = handlerCreator(action) as Handler<A, HStore>
-        handler.invoke(this as HStore, action)
+        val handler = handlerCreator(action) as Handler<A>
+        handler.invoke(action)
     }
 
     /**
@@ -135,13 +134,14 @@ open class BaseStore<S : State, A : Action, E : Event, HStore : HandlerStore<S, 
      * @see Job
      * @see AppDispatcher
      * */
-    override fun <T> Flow<T>.launch(
+    override fun <T> launch(
+        flow: Flow<T>,
         onError: suspend (cause: Throwable) -> Unit,
         workDispatcher: CoroutineDispatcher,
         eachDispatcher: CoroutineDispatcher,
         each: suspend (T) -> Unit
     ): Job = scope.launch(
-        flow = this,
+        flow = flow,
         workDispatcher = workDispatcher,
         eachDispatcher = eachDispatcher,
         onError = onError,

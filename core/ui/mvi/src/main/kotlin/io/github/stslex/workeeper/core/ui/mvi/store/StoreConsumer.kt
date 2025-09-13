@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.core.ui.mvi.handler
+package io.github.stslex.workeeper.core.ui.mvi.store
 
 import io.github.stslex.workeeper.core.core.coroutine.dispatcher.AppDispatcher
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScope
@@ -12,14 +12,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
-/**
- *  A generic interface for managing state, actions, and events within a component or module.  It provides a central point for handling state updates, dispatching actions and events, logging, and launching coroutines.
- *
- *  @param S The type of the state managed by the store. Must implement [State].
- *  @param A The type of actions that can be dispatched to the store. Must implement [Store.Action].
- *  @param E The type of events that the store can emit. Must implement [Event].
- */
-interface HandlerStore<S : State, A : Store.Action, in E : Event> {
+interface StoreConsumer<S : State, A : Store.Action, in E : Event> {
 
     val state: StateFlow<S>
 
@@ -65,7 +58,8 @@ interface HandlerStore<S : State, A : Store.Action, in E : Event> {
      * @see Job
      * @see AppDispatcher
      * */
-    fun <T> Flow<T>.launch(
+    fun <T> launch(
+        flow: Flow<T>,
         onError: suspend (cause: Throwable) -> Unit = {},
         workDispatcher: CoroutineDispatcher = appDispatcher.default,
         eachDispatcher: CoroutineDispatcher = appDispatcher.default,

@@ -11,6 +11,8 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.St
 
 internal typealias ExerciseProcessor = StoreProcessor<State, Action, Event>
 
+internal const val EXERCISE_SCOPE_NAME = "exercise_scope"
+
 /**
  * ExerciseFeature is a Koin feature module that provides the ExerciseDialogStore processor.
  * It is responsible for managing the state and actions related to the profile feature.
@@ -18,11 +20,13 @@ internal typealias ExerciseProcessor = StoreProcessor<State, Action, Event>
  * @see [io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore]
  * */
 internal object ExerciseFeature : Feature<ExerciseProcessor, ExerciseComponent>(
-    scopeClass = ExerciseScope::class
+    scopeName = EXERCISE_SCOPE_NAME
 ) {
 
     @Composable
-    override fun processor(component: ExerciseComponent): ExerciseProcessor = rememberStoreProcessor(
+    override fun processor(
+        component: ExerciseComponent
+    ): ExerciseProcessor = rememberStoreProcessor(
         component = component,
         key = component.data.hashCode().toString()
     )

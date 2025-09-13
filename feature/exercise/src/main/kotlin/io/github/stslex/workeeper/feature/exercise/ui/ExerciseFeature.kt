@@ -80,7 +80,7 @@ fun ExerciseFeature(
         val backHandlerEnable = remember(processor.state.value) { processor.state.value.allowBack }
 
         BackHandler(backHandlerEnable.not()) {
-            processor.consume(Action.Navigation.BackWithConfirmation)
+            processor.consume(Action.NavigationMiddleware.BackWithConfirmation)
         }
 
         processor.Handle { event ->
@@ -94,6 +94,7 @@ fun ExerciseFeature(
                     actionLabel = event.type.value,
                     withDismissAction = true
                 )
+
                 ExerciseStore.Event.HapticClick -> {
                     hapticFeedback.performHapticFeedback(HapticFeedbackType.VirtualKey)
                 }
@@ -106,7 +107,9 @@ fun ExerciseFeature(
                 snackbarHostState = snackbarHostState,
                 modifier = modifier
                     .sharedBounds(
-                        sharedContentState = sharedTransitionScope.rememberSharedContentState(component.data?.uuid ?: "createExercise"),
+                        sharedContentState = sharedTransitionScope.rememberSharedContentState(
+                            component.data?.uuid ?: "createExercise"
+                        ),
                         animatedVisibilityScope = animatedContentScope,
                         resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds()
                     )

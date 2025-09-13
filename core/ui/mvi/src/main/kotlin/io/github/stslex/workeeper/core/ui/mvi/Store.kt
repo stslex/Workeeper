@@ -30,7 +30,6 @@ interface Store<out S : State, in A : Action, out E : Event> {
 
         interface RepeatLast : Action
 
-        interface Navigation : Action
     }
 }
 

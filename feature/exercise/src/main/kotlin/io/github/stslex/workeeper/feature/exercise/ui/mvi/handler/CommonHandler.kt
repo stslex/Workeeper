@@ -2,29 +2,29 @@ package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
 import io.github.stslex.workeeper.core.exercise.data.ExerciseRepository
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
-import io.github.stslex.workeeper.feature.exercise.di.ExerciseScope
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseHandlerStore
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore
+import io.github.stslex.workeeper.feature.exercise.di.EXERCISE_SCOPE_NAME
+import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.toUi
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import kotlinx.collections.immutable.toPersistentSet
-import org.koin.core.annotation.Factory
+import org.koin.core.annotation.Named
 import org.koin.core.annotation.Scope
 import org.koin.core.annotation.Scoped
 
-@Factory
-@Scope(ExerciseScope::class)
-@Scoped
-class CommonHandler(
-    private val repository: ExerciseRepository
-) : Handler<ExerciseStore.Action.Common, ExerciseHandlerStore> {
+@Scoped(binds = [CommonHandler::class])
+@Scope(name = EXERCISE_SCOPE_NAME)
+internal class CommonHandler(
+    private val repository: ExerciseRepository,
+    @Named(EXERCISE_SCOPE_NAME) store: ExerciseHandlerStore
+) : Handler<Action.Common>, ExerciseHandlerStore by store {
 
-    override fun ExerciseHandlerStore.invoke(action: ExerciseStore.Action.Common) {
+    override fun invoke(action: Action.Common) {
         when (action) {
-            ExerciseStore.Action.Common.SearchTitle -> processTitleSearch()
+            Action.Common.SearchTitle -> processTitleSearch()
         }
     }
 
-    private fun ExerciseHandlerStore.processTitleSearch() {
+    private fun processTitleSearch() {
         launch(
             onSuccess = { result ->
                 updateState { state ->

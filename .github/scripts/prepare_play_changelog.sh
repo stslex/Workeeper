@@ -19,7 +19,7 @@ mkdir -p "$OUT_DIR"
 tmp_in=$(mktemp)
 cat > "$tmp_in"
 
-# Keep only bullets for allowed categories (emoji): ✨, 🐛, ⚡, 📦
+# Keep only bullets for allowed categories (emoji): ✨, 🐛, ⚡, 📦, ♻️
 # Normalize list markers to start with '- ' and strip markdown
 mapfile -t lines < <(sed -E \
   -e 's/\r//g' \
@@ -33,9 +33,9 @@ mapfile -t lines < <(sed -E \
 filtered=()
 for l in "${lines[@]}"; do
   # Only keep bullet lines starting with an allowed emoji
-  if [[ "$l" =~ ^-\ (✨|🐛|⚡|📦)\  ]]; then
+  if [[ "$l" =~ ^-\ (✨|🐛|⚡|📦|♻️)\  ]]; then
     # Drop double spaces after emoji to a single space
-    l=$(echo "$l" | sed -E 's/^(-\s*[✨🐛⚡📦])\s+/\1 /')
+    l=$(echo "$l" | sed -E 's/^(-\s*[✨🐛⚡📦♻️])\s+/\1 /')
     # Remove trailing spaces
     l=$(echo "$l" | sed -E 's/[[:space:]]+$//')
     # Enforce max per-item length (120 chars)
@@ -46,8 +46,15 @@ for l in "${lines[@]}"; do
   fi
 done
 
+# Debug: Print what we found
+echo "Debug: Found ${#filtered[@]} changelog items after filtering" >&2
+for item in "${filtered[@]}"; do
+  echo "Debug: $item" >&2
+done
+
 # Fallback if nothing remains
 if (( ${#filtered[@]} == 0 )); then
+  echo "Debug: No filtered items found, using fallback" >&2
   filtered+=("- 🛠 Bug fixes and performance improvements")
 fi
 
