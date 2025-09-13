@@ -188,6 +188,8 @@ internal class ExerciseRepositoryTest {
         name = "test$index",
         sets = Array(index) {
             SetsDataModel(
+                uuid = Uuid.parse("00000000-0000-0000-0000-${String.format("%012d", it + index)}")
+                    .toString(),
                 reps = it + index,
                 weight = it + index.toDouble(),
                 type = SetsDataType.WORK
@@ -206,6 +208,8 @@ internal class ExerciseRepositoryTest {
         name = "test$index",
         sets = Array(index) {
             SetsDataModel(
+                uuid = Uuid.parse("00000000-0000-0000-0000-${String.format("%012d", it + index)}")
+                    .toString(),
                 reps = it + index,
                 weight = it + index.toDouble(),
                 type = SetsDataType.WORK
@@ -221,16 +225,17 @@ internal class ExerciseRepositoryTest {
         uuid: Uuid = Uuid.random()
     ) = ExerciseEntity(
         uuid = uuid,
-        name = "test$index",
+        trainingUuid = null,
+        labels = listOf(index.toString()),
         sets = Array(index) {
             SetsEntity(
+                uuid = Uuid.parse("00000000-0000-0000-0000-${String.format("%012d", it + index)}"),
                 reps = it + index,
                 weight = it + index.toDouble(),
                 type = SetsEntityType.WORK
             )
         }.toList(),
-        labels = listOf(index.toString()),
-        trainingUuid = null,
+        name = "test$index",
         timestamp = index.plus(123).toLong(),
     )
 }

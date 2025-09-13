@@ -205,13 +205,13 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
     fun `create one item and get it`() = runTest {
         val expectedExercise = exerciseEntities.first()
         dao.create(expectedExercise)
-        val compareExercise = dao.getExercise(expectedExercise.uuid)
+        val compareExercise = dao.getExercise(expectedExercise.uuid).first()
         assertEquals(expectedExercise, compareExercise)
     }
 
     @Test
     fun `get item form empty db`() = runTest {
-        val compareExercise = dao.getExercise(Uuid.random())
+        val compareExercise = dao.getExercise(Uuid.random()).first()
         assertEquals(null, compareExercise)
     }
 
@@ -219,7 +219,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
     fun `insert single item`() = runTest {
         val expectedItem = exerciseEntities.first()
         dao.create(expectedItem)
-        val actual = dao.getExercise(expectedItem.uuid)
+        val actual = dao.getExercise(expectedItem.uuid).first()
         assertEquals(expectedItem, actual)
     }
 
@@ -228,7 +228,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
         val expectedItems = exerciseEntities
         dao.create(expectedItems)
         val actual = expectedItems.map {
-            dao.getExercise(it.uuid)
+            dao.getExercise(it.uuid).first()
         }
         assertEquals(expectedItems, actual)
     }
@@ -240,11 +240,11 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
             uuid = item.uuid
         )
         dao.create(item)
-        val createdItem = dao.getExercise(item.uuid)
+        val createdItem = dao.getExercise(item.uuid).first()
         assertEquals(item, createdItem)
 
         dao.update(expectedNewItem)
-        val createdNewItem = dao.getExercise(item.uuid)
+        val createdNewItem = dao.getExercise(item.uuid).first()
         assertEquals(expectedNewItem, createdNewItem)
     }
 
@@ -252,9 +252,9 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
     fun `delete single item`() = runTest {
         val item = createTestExercise()
         dao.create(item)
-        assertEquals(item, dao.getExercise(item.uuid))
+        assertEquals(item, dao.getExercise(item.uuid).first())
         dao.delete(item.uuid)
-        assertEquals(null, dao.getExercise(item.uuid))
+        assertEquals(null, dao.getExercise(item.uuid).first())
     }
 
     @Test
@@ -324,7 +324,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
         val expectedItem = createTestExercise()
         dao.create(exerciseEntities)
         dao.clear()
-        val actual = dao.getExercise(expectedItem.uuid)
+        val actual = dao.getExercise(expectedItem.uuid).first()
         assertEquals(null, actual)
     }
 
