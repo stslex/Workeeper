@@ -140,7 +140,7 @@ jobs:
           fi
           TAG=$(echo "$TAG" | tr -d ' \t\n\r')
           if [ -z "$TAG" ]; then
-            TAG="release-v${{ steps.prev_tag.outputs.current_tag }}"
+            TAG="release-${GITHUB_SHA::7}"
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
