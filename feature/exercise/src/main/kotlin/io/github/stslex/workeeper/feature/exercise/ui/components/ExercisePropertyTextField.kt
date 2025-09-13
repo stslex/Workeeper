@@ -34,7 +34,7 @@ import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.persistentSetOf
 
 @Composable
-fun ExercisePropertyTextField(
+internal fun ExercisePropertyTextField(
     text: String,
     @StringRes labelRes: Int,
     mode: TextMode,

@@ -1,12 +1,9 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
-import io.github.stslex.workeeper.core.exercise.data.exercise.ExerciseRepository
-import io.github.stslex.workeeper.core.exercise.data.model.ChangeExerciseDataModel
-import io.github.stslex.workeeper.core.exercise.data.model.DateProperty
+import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.exercise.di.EXERCISE_SCOPE_NAME
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PropertyValid
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SnackbarType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action

@@ -22,13 +22,13 @@ import androidx.compose.ui.unit.sp
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.exercise.R
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.SetType
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.SetsProperty
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SetUiType
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SetsUiModel
 
 @Composable
 internal fun ExerciseSetsField(
-    property: SetsProperty,
-    onClick: (SetsProperty) -> Unit,
+    property: SetsUiModel,
+    onClick: (SetsUiModel) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val containerColor by animateColorAsState(property.type.color)
@@ -112,11 +112,10 @@ private fun ExerciseSetsFieldPreview() {
             modifier = Modifier.background(MaterialTheme.colorScheme.background)
         ) {
             ExerciseSetsField(
-                property = SetsProperty(
-                    uuid = "set_uuid",
+                property = SetsUiModel(
                     reps = 10,
                     weight = 100.0,
-                    type = SetType.WARM,
+                    type = SetUiType.WARM,
                 ),
                 onClick = {}
             )

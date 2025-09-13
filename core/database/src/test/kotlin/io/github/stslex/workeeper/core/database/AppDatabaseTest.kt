@@ -27,4 +27,16 @@ internal class AppDatabaseTest : BaseDatabaseTest() {
         val labelDao = database.exerciseDao
         assertNotNull(labelDao)
     }
+
+    @Test
+    fun labelsDao() {
+        val labelDao = database.labelsDao
+        assertNotNull(labelDao)
+    }
+
+    @Test
+    fun trainingDao() {
+        val labelDao = database.trainingDao
+        assertNotNull(labelDao)
+    }
 }

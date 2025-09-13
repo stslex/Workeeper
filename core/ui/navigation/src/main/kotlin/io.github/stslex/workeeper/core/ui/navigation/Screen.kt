@@ -27,12 +27,6 @@ sealed interface Screen {
         @Serializable
         data class Data(
             val uuid: String,
-            val name: String,
-            val sets: Int,
-            val reps: Int,
-            val weight: Double,
-            val timestamp: Long,
-            val converted: String
         ) : Exercise
     }
 

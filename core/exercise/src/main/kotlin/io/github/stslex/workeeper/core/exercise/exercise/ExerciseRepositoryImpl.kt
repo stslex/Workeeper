@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.core.exercise.data.exercise
+package io.github.stslex.workeeper.core.exercise.exercise
 
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
@@ -6,10 +6,10 @@ import androidx.paging.PagingData
 import androidx.paging.map
 import io.github.stslex.workeeper.core.core.coroutine.dispatcher.AppDispatcher
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
-import io.github.stslex.workeeper.core.exercise.data.model.ChangeExerciseDataModel
-import io.github.stslex.workeeper.core.exercise.data.model.ExerciseDataModel
-import io.github.stslex.workeeper.core.exercise.data.model.toData
-import io.github.stslex.workeeper.core.exercise.data.model.toEntity
+import io.github.stslex.workeeper.core.exercise.exercise.model.ChangeExerciseDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.toData
+import io.github.stslex.workeeper.core.exercise.exercise.model.toEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map

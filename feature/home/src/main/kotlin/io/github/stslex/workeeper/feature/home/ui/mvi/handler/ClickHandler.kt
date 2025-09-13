@@ -2,7 +2,7 @@ package io.github.stslex.workeeper.feature.home.ui.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.core.coroutine.asyncMap
-import io.github.stslex.workeeper.core.exercise.data.exercise.ExerciseRepository
+import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.home.di.HOME_SCOPE_NAME
 import io.github.stslex.workeeper.feature.home.di.HomeHandlerStore

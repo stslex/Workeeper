@@ -1,12 +1,13 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.store
 
 import androidx.compose.runtime.Stable
-import io.github.stslex.workeeper.core.exercise.data.model.DateProperty
+import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
 import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.core.ui.navigation.Screen.Exercise.Data
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.Property
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PropertyType
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SetsUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SnackbarType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Event
@@ -22,7 +23,7 @@ interface ExerciseStore : Store<State, Action, Event> {
     data class State(
         val uuid: String?,
         val name: Property,
-        val sets: ImmutableList<SetsProperty>,
+        val sets: ImmutableList<SetsUiModel>,
         val dateProperty: DateProperty,
         val isCalendarOpen: Boolean,
         val isMenuOpen: Boolean,

@@ -1,8 +1,8 @@
-package io.github.stslex.workeeper.core.exercise.data.exercise
+package io.github.stslex.workeeper.core.exercise.exercise
 
 import androidx.paging.PagingData
-import io.github.stslex.workeeper.core.exercise.data.model.ChangeExerciseDataModel
-import io.github.stslex.workeeper.core.exercise.data.model.ExerciseDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.ChangeExerciseDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
 import kotlinx.coroutines.flow.Flow
 import kotlin.uuid.Uuid
 

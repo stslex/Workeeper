@@ -1,6 +1,6 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
-import io.github.stslex.workeeper.core.exercise.data.exercise.ExerciseRepository
+import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.exercise.di.EXERCISE_SCOPE_NAME
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
@@ -14,7 +14,7 @@ import org.koin.core.annotation.Scoped
 @Scoped(binds = [CommonHandler::class])
 @Scope(name = EXERCISE_SCOPE_NAME)
 internal class CommonHandler(
-    private val repository: ExerciseRepository,
+    private val exerciseRepository: ExerciseRepository,
     @Named(EXERCISE_SCOPE_NAME) store: ExerciseHandlerStore
 ) : Handler<Action.Common>, ExerciseHandlerStore by store {
 
@@ -29,12 +29,14 @@ internal class CommonHandler(
             onSuccess = { result ->
                 updateState { state ->
                     state.copy(
-                        menuItems = result.map { item -> item.toUi() }.toPersistentSet()
+                        menuItems = result
+                            .map { item -> item.toUi() }
+                            .toPersistentSet()
                     )
                 }
             }
         ) {
-            repository.searchItems(state.value.name.value)
+            exerciseRepository.searchItems(state.value.name.value)
         }
     }
 }

@@ -3,8 +3,8 @@ package io.github.stslex.workeeper.feature.home.ui.mvi.handler
 import androidx.paging.PagingData
 import androidx.paging.map
 import io.github.stslex.workeeper.core.core.coroutine.dispatcher.AppDispatcher
-import io.github.stslex.workeeper.core.exercise.data.exercise.ExerciseRepository
-import io.github.stslex.workeeper.core.exercise.data.model.DateProperty
+import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
+import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
 import io.github.stslex.workeeper.core.store.store.CommonDataStore
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler

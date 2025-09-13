@@ -10,7 +10,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import io.github.stslex.workeeper.core.exercise.data.model.DateProperty
+import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
 import io.github.stslex.workeeper.core.ui.kit.components.CardWithAnimatedBorder
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
@@ -44,18 +44,18 @@ internal fun ExercisePagingItem(
                 text = item.name,
                 style = MaterialTheme.typography.labelLarge
             )
-            Text(
-                text = item.reps.toString(),
-                style = MaterialTheme.typography.bodyLarge
-            )
-            Text(
-                text = item.sets.toString(),
-                style = MaterialTheme.typography.bodyLarge
-            )
-            Text(
-                text = item.weight.toString(),
-                style = MaterialTheme.typography.bodyLarge
-            )
+//            Text(
+//                text = item.reps.toString(),
+//                style = MaterialTheme.typography.bodyLarge
+//            )
+//            Text(
+//                text = item.sets.toString(),
+//                style = MaterialTheme.typography.bodyLarge
+//            )
+//            Text(
+//                text = item.weight.toString(),
+//                style = MaterialTheme.typography.bodyLarge
+//            )
             Text(
                 text = item.dateProperty.converted,
                 style = MaterialTheme.typography.labelSmall
@@ -71,9 +71,6 @@ private fun ExercisePagingItemPreview() {
         val item = ExerciseUiModel(
             uuid = Uuid.random().toString(),
             name = "nameOfExercise",
-            sets = 12,
-            reps = 13,
-            weight = 60.0,
             dateProperty = DateProperty(
                 timestamp = System.currentTimeMillis(),
                 converted = "12/05/23"

@@ -1,10 +1,11 @@
-package io.github.stslex.workeeper.feature.exercise.ui.mvi.store
+package io.github.stslex.workeeper.feature.exercise.ui.mvi.model
 
 import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.Color
+import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
 import io.github.stslex.workeeper.feature.exercise.R
 
-enum class SetType(
+enum class SetUiType(
     @param:StringRes val stringRes: Int,
     val color: Color
 ) {
@@ -23,5 +24,15 @@ enum class SetType(
     DROP(
         stringRes = R.string.feature_exercise_set_type_drop,
         color = Color(0xFF9C7DD0)
-    )
+    );
+
+    companion object {
+
+        internal fun SetsDataType.toUi(): SetUiType = when (this) {
+            SetsDataType.WARM -> WARM
+            SetsDataType.WORK -> WORK
+            SetsDataType.FAIL -> FAIL
+            SetsDataType.DROP -> DROP
+        }
+    }
 }

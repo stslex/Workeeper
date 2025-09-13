@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.core.exercise.data.model
+package io.github.stslex.workeeper.core.exercise.exercise.model
 
 import io.github.stslex.workeeper.core.database.exercise.ExerciseEntity
 import kotlin.uuid.Uuid
@@ -6,26 +6,26 @@ import kotlin.uuid.Uuid
 data class ExerciseDataModel(
     val uuid: String,
     val name: String,
-    val sets: Int,
-    val reps: Int,
-    val weight: Double,
+    val trainingUuid: String?,
+    val sets: List<SetsDataModel>,
+    val labels: List<String>,
     val timestamp: Long,
 )
 
 fun ExerciseEntity.toData(): ExerciseDataModel = ExerciseDataModel(
     uuid = uuid.toString(),
     name = name,
-    sets = sets,
-    reps = reps,
-    weight = weight,
-    timestamp = timestamp
+    trainingUuid = trainingUuid?.toString(),
+    labels = labels,
+    sets = sets.map { it.toData() },
+    timestamp = timestamp,
 )
 
 fun ExerciseDataModel.toEntity(): ExerciseEntity = ExerciseEntity(
     uuid = Uuid.parse(uuid),
     name = name,
-    sets = sets,
-    reps = reps,
-    weight = weight,
+    trainingUuid = trainingUuid?.let { Uuid.parse(it) },
+    sets = sets.map { it.toEntity() },
+    labels = labels,
     timestamp = timestamp
 )

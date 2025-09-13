@@ -1,9 +1,9 @@
-package io.github.stslex.workeeper.core.database.sets
+package io.github.stslex.workeeper.core.database.exercise.model
 
 import kotlinx.serialization.Serializable
 
 @Serializable
-enum class SetsType(
+enum class SetsEntityType(
     val value: String
 ) {
     WARM("warm"),
@@ -16,7 +16,7 @@ enum class SetsType(
         internal val defaultType = WORK
 
 
-        internal fun fromValue(value: String?): SetsType = SetsType.entries
+        internal fun fromValue(value: String?): SetsEntityType = entries
             .firstOrNull { it.value == value }
             ?: defaultType
     }

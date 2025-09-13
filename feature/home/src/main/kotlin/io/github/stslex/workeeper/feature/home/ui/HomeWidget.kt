@@ -18,7 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.paging.PagingData
-import io.github.stslex.workeeper.core.exercise.data.model.DateProperty
+import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.home.ui.components.DatePickerDialog
 import io.github.stslex.workeeper.feature.home.ui.components.HomeActionButton
@@ -144,9 +144,6 @@ private fun HomeWidgetPreview(
             ExerciseUiModel(
                 uuid = Uuid.random().toString(),
                 name = "nameOfExercise$index",
-                sets = index,
-                reps = index,
-                weight = 60.0 + index,
                 dateProperty = DateProperty.new(System.currentTimeMillis())
             )
         }.toList()

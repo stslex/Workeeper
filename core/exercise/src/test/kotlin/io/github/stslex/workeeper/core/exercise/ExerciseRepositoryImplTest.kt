@@ -6,17 +6,20 @@ import androidx.paging.testing.asSnapshot
 import io.github.stslex.workeeper.core.core.coroutine.dispatcher.AppDispatcher
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
 import io.github.stslex.workeeper.core.database.exercise.ExerciseEntity
-import io.github.stslex.workeeper.core.exercise.data.exercise.ExerciseRepository
-import io.github.stslex.workeeper.core.exercise.data.exercise.ExerciseRepositoryImpl
-import io.github.stslex.workeeper.core.exercise.data.model.ChangeExerciseDataModel
-import io.github.stslex.workeeper.core.exercise.data.model.ExerciseDataModel
+import io.github.stslex.workeeper.core.database.exercise.model.SetsEntity
+import io.github.stslex.workeeper.core.database.exercise.model.SetsEntityType
+import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
+import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepositoryImpl
+import io.github.stslex.workeeper.core.exercise.exercise.model.ChangeExerciseDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -167,11 +170,12 @@ internal class ExerciseRepositoryTest {
         private val expectedEntites: List<ExerciseEntity>
     ) : PagingSource<Int, ExerciseEntity>() {
 
-        override suspend fun load(params: LoadParams<Int>): LoadResult<Int, ExerciseEntity> = LoadResult.Page(
-            data = expectedEntites,
-            prevKey = null as Int?,
-            nextKey = null as Int?
-        )
+        override suspend fun load(params: LoadParams<Int>): LoadResult<Int, ExerciseEntity> =
+            LoadResult.Page(
+                data = expectedEntites,
+                prevKey = null as Int?,
+                nextKey = null as Int?
+            )
 
         override fun getRefreshKey(state: PagingState<Int, ExerciseEntity>): Int? = null
     }
@@ -182,9 +186,15 @@ internal class ExerciseRepositoryTest {
     ) = ChangeExerciseDataModel(
         uuid = uuid.toString(),
         name = "test$index",
-        sets = index.plus(1),
-        reps = index.plus(2),
-        weight = index.plus(3).toDouble(),
+        sets = Array(index) {
+            SetsDataModel(
+                reps = it + index,
+                weight = it + index.toDouble(),
+                type = SetsDataType.WORK
+            )
+        }.toList(),
+        labels = listOf(index.toString()),
+        trainingUuid = null,
         timestamp = index.plus(123).toLong(),
     )
 
@@ -194,9 +204,15 @@ internal class ExerciseRepositoryTest {
     ) = ExerciseDataModel(
         uuid = uuid.toString(),
         name = "test$index",
-        sets = index.plus(1),
-        reps = index.plus(2),
-        weight = index.plus(3).toDouble(),
+        sets = Array(index) {
+            SetsDataModel(
+                reps = it + index,
+                weight = it + index.toDouble(),
+                type = SetsDataType.WORK
+            )
+        }.toList(),
+        labels = listOf(index.toString()),
+        trainingUuid = null,
         timestamp = index.plus(123).toLong(),
     )
 
@@ -206,9 +222,15 @@ internal class ExerciseRepositoryTest {
     ) = ExerciseEntity(
         uuid = uuid,
         name = "test$index",
-        sets = index.plus(1),
-        reps = index.plus(2),
-        weight = index.plus(3).toDouble(),
+        sets = Array(index) {
+            SetsEntity(
+                reps = it + index,
+                weight = it + index.toDouble(),
+                type = SetsEntityType.WORK
+            )
+        }.toList(),
+        labels = listOf(index.toString()),
+        trainingUuid = null,
         timestamp = index.plus(123).toLong(),
     )
 }

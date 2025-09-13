@@ -1,7 +1,7 @@
 package io.github.stslex.workeeper.feature.home.ui.mvi.store
 
 import androidx.compose.runtime.Stable
-import io.github.stslex.workeeper.core.exercise.data.model.DateProperty
+import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 

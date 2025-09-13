@@ -2,7 +2,7 @@ package io.github.stslex.workeeper.feature.home.ui.mvi.store
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.paging.PagingData
-import io.github.stslex.workeeper.core.exercise.data.model.DateProperty
+import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.core.ui.navigation.Screen.Exercise.Data

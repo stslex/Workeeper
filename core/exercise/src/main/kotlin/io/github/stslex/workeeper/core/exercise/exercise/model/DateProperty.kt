@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.core.exercise.data.model
+package io.github.stslex.workeeper.core.exercise.exercise.model
 
 import androidx.compose.runtime.Stable
 import io.github.stslex.workeeper.core.exercise.utils.DateTimeUtil
