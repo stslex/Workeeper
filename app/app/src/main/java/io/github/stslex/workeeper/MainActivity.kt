@@ -6,7 +6,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
-import io.github.stslex.workeeper.host.NavHostControllerHolder.Companion.rememberNavHostControllerHolder
 import org.koin.android.ext.android.getKoin
 
 class MainActivity : ComponentActivity() {
@@ -16,12 +15,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
         activityProducer.produce(this)
 
-        setContent {
-            val navigatorHolder = rememberNavHostControllerHolder()
-            App(navigatorHolder)
-        }
+        setContent { App() }
     }
 
     override fun onDestroy() {

@@ -3,4 +3,10 @@
     <string name="toast_invalid_params_msg">Некорректные поля ввода</string>
     <string name="button_confirm_text">Сохранить</string>
     <string name="button_cancel_text">Отменить</string>
+
+    <string name="feature_exercise_field_label_name">НАЗВАНИЕ</string>
+    <string name="feature_exercise_field_label_sets">ПОДХОДЫ</string>
+    <string name="feature_exercise_field_label_reps">ПОВТОРЕНИЯ</string>
+    <string name="feature_exercise_field_label_weight">ВЕС</string>
+    <string name="feature_exercise_field_label_date">Дата</string>
 </resources>

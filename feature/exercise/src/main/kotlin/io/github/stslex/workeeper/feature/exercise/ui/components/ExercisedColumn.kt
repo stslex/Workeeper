@@ -11,10 +11,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.exercise.data.model.DateProperty
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
+import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.Property
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PropertyType
@@ -71,7 +73,7 @@ private fun ExerciseDateData(
 ) {
     ExercisePropertyTextField(
         text = data,
-        label = "Date",
+        labelRes = R.string.feature_exercise_field_label_date,
         modifier = modifier,
         isError = false,
         mode = TextMode.DATE,
@@ -103,7 +105,7 @@ private fun ExerciseItem(
     }
     ExercisePropertyTextField(
         text = item.value,
-        label = item.type.name,
+        labelRes = item.type.stringRes,
         modifier = modifier,
         isError = item.valid != PropertyValid.VALID,
         mode = mode,
