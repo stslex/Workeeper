@@ -26,6 +26,13 @@ enum class SetUiType(
         color = Color(0xFF9C7DD0)
     );
 
+    internal fun toData(): SetsDataType = when (this) {
+        WARM -> SetsDataType.WARM
+        WORK -> SetsDataType.WORK
+        FAIL -> SetsDataType.FAIL
+        DROP -> SetsDataType.DROP
+    }
+
     companion object {
 
         internal fun SetsDataType.toUi(): SetUiType = when (this) {

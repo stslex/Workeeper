@@ -26,6 +26,7 @@ import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseDatePic
 import io.github.stslex.workeeper.feature.exercise.ui.components.ExercisedColumn
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SnackbarType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SnackbarType.Companion.getAction
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
 
@@ -76,12 +77,17 @@ internal fun ExerciseFeatureWidget(
 
         }
 
-        if (state.isCalendarOpen) {
-            ExerciseDatePickerDialog(
+        when (state.dialogState) {
+            DialogState.Closed -> Unit
+            DialogState.Calendar -> ExerciseDatePickerDialog(
                 timestamp = state.dateProperty.timestamp,
                 onDismissRequest = { consume(Action.Click.CloseCalendar) },
                 dateChange = { consume(Action.Input.Time(it)) }
             )
+
+            is DialogState.Sets -> {
+
+            }
         }
     }
 }

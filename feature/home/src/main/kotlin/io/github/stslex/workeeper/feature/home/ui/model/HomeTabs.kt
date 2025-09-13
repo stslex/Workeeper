@@ -8,7 +8,7 @@ internal enum class HomeTabs(
 ) {
 
     ALL(
-        titleRes = R.string.home_tab_all
+        titleRes = R.string.home_tab_exercises
     ),
     CHARTS(
         titleRes = R.string.home_tab_charts

@@ -41,6 +41,12 @@ internal class ExerciseRepositoryImpl(
         }
         .flowOn(appDispatcher.io)
 
+    override suspend fun getExercise(
+        uuid: String
+    ): ExerciseDataModel? = withContext(appDispatcher.io) {
+        dao.getExercise(Uuid.parse(uuid))?.toData()
+    }
+
     override fun getExercises(
         name: String,
         startDate: Long,

@@ -19,7 +19,7 @@ import org.koin.core.annotation.Scope
 @KoinViewModel([BaseStore::class])
 @Qualifier(name = EXERCISE_SCOPE_NAME)
 @Scope(name = EXERCISE_SCOPE_NAME)
-internal class ExerciseDialogStoreImpl(
+internal class ExerciseStoreImpl(
     @InjectedParam component: ExerciseComponent,
     clickHandler: ClickHandler,
     inputHandler: InputHandler,
@@ -29,7 +29,7 @@ internal class ExerciseDialogStoreImpl(
 ) : BaseStore<State, Action, Event>(
     name = "EXERCISE",
     appDispatcher = dispatcher,
-    initialState = State.createInitial(component.data),
+    initialState = State.INITIAL,
     handlerCreator = { action ->
         when (action) {
             is Action.Navigation -> component
@@ -39,5 +39,5 @@ internal class ExerciseDialogStoreImpl(
             is Action.NavigationMiddleware -> navigationHandler
         }
     },
-    initialActions = listOf(Action.Common.SearchTitle)
+    initialActions = listOf(Action.Common.Init(component.data))
 )

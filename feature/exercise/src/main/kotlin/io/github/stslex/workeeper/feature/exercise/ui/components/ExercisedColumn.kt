@@ -1,10 +1,10 @@
 package io.github.stslex.workeeper.feature.exercise.ui.components
 
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,35 +32,42 @@ internal fun ExercisedColumn(
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
+    LazyColumn(
         modifier = modifier
             .fillMaxWidth()
     ) {
-        ExerciseItem(
-            item = state.name,
-            isMenuOpen = state.isMenuOpen,
-            menuItems = state.menuItems,
-            onMenuClick = { consume(Action.Click.OpenMenuVariants) },
-            onMenuClose = { consume(Action.Click.CloseMenuVariants) },
-            onMenuItemClick = { consume(Action.Click.OnMenuItemClick(it)) },
-            onValueChange = { consume(Action.Input.Property(state.name.type, it)) }
-        )
-        Spacer(Modifier.height(AppDimension.Padding.medium))
-//        ExerciseItem(state.sets) {
-//            consume(Action.Input.Property(state.sets.type, it))
-//        }
-//        Spacer(Modifier.height(AppDimension.Padding.medium))
-//        ExerciseItem(state.reps) {
-//            consume(Action.Input.Property(state.reps.type, it))
-//        }
-//        Spacer(Modifier.height(AppDimension.Padding.medium))
-//        ExerciseItem(state.weight) {
-//            consume(Action.Input.Property(state.weight.type, it))
-//        }
-//        Spacer(Modifier.height(AppDimension.Padding.medium))
-//        ExerciseDateData(state.dateProperty.converted) {
-//            consume(Action.Click.PickDate)
-//        }
+        item {
+            ExerciseItem(
+                item = state.name,
+                isMenuOpen = state.isMenuOpen,
+                menuItems = state.menuItems,
+                onMenuClick = { consume(Action.Click.OpenMenuVariants) },
+                onMenuClose = { consume(Action.Click.CloseMenuVariants) },
+                onMenuItemClick = { consume(Action.Click.OnMenuItemClick(it)) },
+                onValueChange = { consume(Action.Input.PropertyName(it)) }
+            )
+        }
+        item { Spacer(Modifier.height(AppDimension.Padding.medium)) }
+
+        state.sets.forEach { set ->
+            item {
+                ExerciseSetsField(
+                    property = set,
+                    onClick = { item ->
+
+                    }
+                )
+            }
+            item { Spacer(Modifier.height(AppDimension.Padding.medium)) }
+        }
+
+        item { Spacer(Modifier.height(AppDimension.Padding.medium)) }
+
+        item {
+            ExerciseDateData(state.dateProperty.converted) {
+                consume(Action.Click.PickDate)
+            }
+        }
     }
 }
 

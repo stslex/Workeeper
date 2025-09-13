@@ -34,7 +34,7 @@ import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-internal fun AllTabsWidget(
+internal fun ExercisesWidget(
     state: HomeAllState,
     sharedTransitionScope: SharedTransitionScope,
     animatedContentScope: AnimatedContentScope,
@@ -124,7 +124,7 @@ private fun AllTabsWidgetPreview() {
         )
         AnimatedContent("") {
             SharedTransitionScope {
-                AllTabsWidget(
+                ExercisesWidget(
                     state = state,
                     sharedTransitionScope = this,
                     animatedContentScope = this@AnimatedContent,

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="home_tab_all">ALL</string>
+    <string name="home_tab_exercises">Exercises</string>
     <string name="home_tab_charts">CHARTS</string>
 
     <string name="home_tab_all_empty_results">You don\'t have any exercises yet</string>

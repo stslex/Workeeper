@@ -53,6 +53,7 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
                         labels = emptyList(),
                         sets = Array(sets) {
                             SetsEntity(
+                                uuid = Uuid.random(),
                                 reps = exerciseReps,
                                 weight = exerciseWeight,
                                 type = setsType

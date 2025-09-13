@@ -25,21 +25,25 @@ interface ExerciseStore : Store<State, Action, Event> {
         val name: Property,
         val sets: ImmutableList<SetsUiModel>,
         val dateProperty: DateProperty,
-        val isCalendarOpen: Boolean,
+        val dialogState: DialogState,
         val isMenuOpen: Boolean,
         val menuItems: ImmutableSet<ExerciseUiModel>,
+        val trainingUuid: String?,
+        val labels: ImmutableList<String>,
         val initialHash: Int,
     ) : Store.State {
 
         val calculateEqualsHash: Int
             get() = uuid.hashCode() +
                     name.value.trim().hashCode() +
-                    sets.hashCode() +
+                    sets.sumOf { it.reps.value.hashCode() + it.weight.value.hashCode() + it.type.ordinal } +
                     dateProperty.converted.hashCode()
 
         val allowBack: Boolean
             get() = if (uuid == null) {
-                name.value.isBlank() && sets.isEmpty()
+                name.value.isBlank() &&
+                        sets.all { it.weight.value.isBlank() && it.reps.value.isBlank() }
+
             } else {
                 calculateEqualsHash == initialHash
             }
@@ -51,17 +55,13 @@ interface ExerciseStore : Store<State, Action, Event> {
                 name = Property.new(PropertyType.NAME),
                 sets = persistentListOf(),
                 dateProperty = DateProperty(0L, ""),
-                isCalendarOpen = false,
+                dialogState = DialogState.Closed,
                 isMenuOpen = false,
                 menuItems = persistentSetOf(),
+                trainingUuid = null,
+                labels = persistentListOf(),
                 initialHash = 0
             )
-
-            fun createInitial(data: Data?): State = INITIAL
-//                data?.mapToState() ?: INITIAL.copy(
-//                dateProperty = DateProperty.new(System.currentTimeMillis()),
-//                initialHash = INITIAL.calculateEqualsHash
-//            )
         }
     }
 
@@ -69,17 +69,20 @@ interface ExerciseStore : Store<State, Action, Event> {
 
         sealed interface Input : Action {
 
-            data class Property(
-                val type: PropertyType,
+            data class PropertyName(
                 val value: String
             ) : Input
 
             data class Time(val timestamp: Long) : Input
+
+            data class Sets(val set: SetsUiModel) : Input
         }
 
         sealed interface Common : Action {
 
-            data object SearchTitle : Common
+            data class Init(
+                val data: Data?
+            ) : Common
 
         }
 
@@ -102,6 +105,8 @@ interface ExerciseStore : Store<State, Action, Event> {
             data object CloseMenuVariants : Click
 
             data class OnMenuItemClick(val item: ExerciseUiModel) : Click
+
+            data class SetsCreateClick(val sets: SetsUiModel?) : Click
 
         }
 
@@ -131,18 +136,3 @@ interface ExerciseStore : Store<State, Action, Event> {
 
     }
 }
-
-//private fun Data.mapToState(): State {
-//    val state = State.INITIAL.copy(
-//        uuid = uuid,
-//        name = State.INITIAL.name.update(name),
-//        sets = State.INITIAL.sets.update(sets.toString()),
-//        reps = State.INITIAL.reps.update(reps.toString()),
-//        weight = State.INITIAL.weight.update(weight.toString()),
-//        dateProperty = DateProperty.new(timestamp),
-//        initialHash = 0
-//    )
-//    return state.copy(
-//        initialHash = state.calculateEqualsHash
-//    )
-//}

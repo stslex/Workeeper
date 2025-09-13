@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="home_tab_all">Все</string>
+    <string name="home_tab_exercises">Занятие</string>
     <string name="home_tab_charts">Статистика</string>
 
     <string name="home_tab_all_empty_results">У вас пока нет упражнений</string>

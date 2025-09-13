@@ -31,7 +31,7 @@ import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeAllState
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeChartsState
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.HomeStore.Action
 import io.github.stslex.workeeper.feature.home.ui.mvi.store.SingleChartUiModel
-import io.github.stslex.workeeper.feature.home.ui.tabs.AllTabsWidget
+import io.github.stslex.workeeper.feature.home.ui.tabs.ExercisesWidget
 import io.github.stslex.workeeper.feature.home.ui.tabs.ChartsWidget
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentSetOf
@@ -93,7 +93,7 @@ fun HomeWidget(
         ) { pageNumber ->
             when (pageNumber) {
                 HomeTabs.ALL.ordinal -> {
-                    AllTabsWidget(
+                    ExercisesWidget(
                         state = homeAllState,
                         sharedTransitionScope = sharedTransitionScope,
                         animatedContentScope = animatedContentScope,
