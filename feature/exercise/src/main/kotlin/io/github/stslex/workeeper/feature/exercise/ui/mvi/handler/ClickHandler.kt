@@ -1,6 +1,6 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
-import io.github.stslex.workeeper.core.exercise.data.ExerciseRepository
+import io.github.stslex.workeeper.core.exercise.data.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.data.model.ChangeExerciseDataModel
 import io.github.stslex.workeeper.core.exercise.data.model.DateProperty
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
@@ -48,16 +48,16 @@ internal class ClickHandler(
 
     private fun processOnMenuItemClick(action: Action.Click.OnMenuItemClick) {
         val item = action.item
-        updateState {
-            it.copy(
-                name = it.name.update(value = item.name),
-                sets = it.sets.copy(value = item.sets.toString()),
-                reps = it.reps.copy(value = item.reps.toString()),
-                weight = it.weight.copy(value = item.weight.toString()),
-                dateProperty = DateProperty.new(item.timestamp),
-                isMenuOpen = false
-            )
-        }
+//        updateState {
+//            it.copy(
+//                name = it.name.update(value = item.name),
+//                sets = it.sets.copy(value = item.sets.toString()),
+//                reps = it.reps.copy(value = item.reps.toString()),
+//                weight = it.weight.copy(value = item.weight.toString()),
+//                dateProperty = DateProperty.new(item.timestamp),
+//                isMenuOpen = false
+//            )
+//        }
     }
 
     private fun processCloseCalendar() {
@@ -89,47 +89,47 @@ internal class ClickHandler(
 
     private fun processSave() {
 
-        val nameValid = state.value.name.validation()
-        val setsValid = state.value.sets.validation()
-        val repsValid = state.value.reps.validation()
-        val weightValid = state.value.weight.validation()
-
-        updateState {
-            it.copy(
-                name = it.name.copy(valid = nameValid),
-                sets = it.sets.copy(valid = setsValid),
-                reps = it.reps.copy(valid = repsValid),
-                weight = it.weight.copy(valid = weightValid),
-            )
-        }
-
-        if (
-            nameValid != PropertyValid.VALID ||
-            setsValid != PropertyValid.VALID ||
-            repsValid != PropertyValid.VALID ||
-            weightValid != PropertyValid.VALID
-        ) {
-            sendEvent(ExerciseStore.Event.InvalidParams)
-            return
-        }
-
-        val item = ChangeExerciseDataModel(
-            uuid = state.value.uuid,
-            name = state.value.name.value,
-            sets = state.value.sets.value.toInt(),
-            reps = state.value.reps.value.toInt(),
-            weight = state.value.weight.value.toDouble(),
-            timestamp = state.value.dateProperty.timestamp,
-        )
-
-        launch(
-            onSuccess = {
-                withContext(Dispatchers.Main.immediate) {
-                    consume(Action.Navigation.Back)
-                }
-            }
-        ) {
-            repository.saveItem(item)
-        }
+//        val nameValid = state.value.name.validation()
+//        val setsValid = state.value.sets.validation()
+//        val repsValid = state.value.reps.validation()
+//        val weightValid = state.value.weight.validation()
+//
+//        updateState {
+//            it.copy(
+//                name = it.name.copy(valid = nameValid),
+//                sets = it.sets.copy(valid = setsValid),
+//                reps = it.reps.copy(valid = repsValid),
+//                weight = it.weight.copy(valid = weightValid),
+//            )
+//        }
+//
+//        if (
+//            nameValid != PropertyValid.VALID ||
+//            setsValid != PropertyValid.VALID ||
+//            repsValid != PropertyValid.VALID ||
+//            weightValid != PropertyValid.VALID
+//        ) {
+//            sendEvent(ExerciseStore.Event.InvalidParams)
+//            return
+//        }
+//
+//        val item = ChangeExerciseDataModel(
+//            uuid = state.value.uuid,
+//            name = state.value.name.value,
+//            sets = state.value.sets.value.toInt(),
+//            reps = state.value.reps.value.toInt(),
+//            weight = state.value.weight.value.toDouble(),
+//            timestamp = state.value.dateProperty.timestamp,
+//        )
+//
+//        launch(
+//            onSuccess = {
+//                withContext(Dispatchers.Main.immediate) {
+//                    consume(Action.Navigation.Back)
+//                }
+//            }
+//        ) {
+//            repository.saveItem(item)
+//        }
     }
 }

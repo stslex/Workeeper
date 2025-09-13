@@ -26,25 +26,25 @@ internal class InputHandler(
     }
 
     private fun processProperty(action: Action.Input.Property) {
-        when (action.type) {
-            PropertyType.NAME -> {
-                updateState {
-                    it.copy(name = it.name.update(action.value))
-                }
-                consume(Action.Common.SearchTitle)
-            }
-
-            PropertyType.SETS -> updateState {
-                it.copy(sets = it.sets.update(value = action.value))
-            }
-
-            PropertyType.REPS -> updateState {
-                it.copy(reps = it.reps.update(value = action.value))
-            }
-
-            PropertyType.WEIGHT -> updateState {
-                it.copy(weight = it.weight.update(value = action.value.replace(",", ".")))
-            }
-        }
+//        when (action.type) {
+//            PropertyType.NAME -> {
+//                updateState {
+//                    it.copy(name = it.name.update(action.value))
+//                }
+//                consume(Action.Common.SearchTitle)
+//            }
+//
+//            PropertyType.SETS -> updateState {
+//                it.copy(sets = it.sets.update(value = action.value))
+//            }
+//
+//            PropertyType.REPS -> updateState {
+//                it.copy(reps = it.reps.update(value = action.value))
+//            }
+//
+//            PropertyType.WEIGHT -> updateState {
+//                it.copy(weight = it.weight.update(value = action.value.replace(",", ".")))
+//            }
+//        }
     }
 }

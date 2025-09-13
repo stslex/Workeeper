@@ -47,21 +47,21 @@ internal fun ExercisedColumn(
             onValueChange = { consume(Action.Input.Property(state.name.type, it)) }
         )
         Spacer(Modifier.height(AppDimension.Padding.medium))
-        ExerciseItem(state.sets) {
-            consume(Action.Input.Property(state.sets.type, it))
-        }
-        Spacer(Modifier.height(AppDimension.Padding.medium))
-        ExerciseItem(state.reps) {
-            consume(Action.Input.Property(state.reps.type, it))
-        }
-        Spacer(Modifier.height(AppDimension.Padding.medium))
-        ExerciseItem(state.weight) {
-            consume(Action.Input.Property(state.weight.type, it))
-        }
-        Spacer(Modifier.height(AppDimension.Padding.medium))
-        ExerciseDateData(state.dateProperty.converted) {
-            consume(Action.Click.PickDate)
-        }
+//        ExerciseItem(state.sets) {
+//            consume(Action.Input.Property(state.sets.type, it))
+//        }
+//        Spacer(Modifier.height(AppDimension.Padding.medium))
+//        ExerciseItem(state.reps) {
+//            consume(Action.Input.Property(state.reps.type, it))
+//        }
+//        Spacer(Modifier.height(AppDimension.Padding.medium))
+//        ExerciseItem(state.weight) {
+//            consume(Action.Input.Property(state.weight.type, it))
+//        }
+//        Spacer(Modifier.height(AppDimension.Padding.medium))
+//        ExerciseDateData(state.dateProperty.converted) {
+//            consume(Action.Click.PickDate)
+//        }
     }
 }
 
@@ -129,33 +129,33 @@ private fun ExercisedColumnPreview() {
             )
         }
 
-        fun processInput(property: Action.Input.Property) {
-            state = when (property.type) {
-                PropertyType.NAME -> state.copy(
-                    name = state.name.update(property.value)
-                )
-
-                PropertyType.SETS -> state.copy(
-                    sets = state.sets.update(property.value)
-                )
-
-                PropertyType.REPS -> state.copy(
-                    reps = state.reps.update(property.value)
-                )
-
-                PropertyType.WEIGHT -> state.copy(
-                    weight = state.weight.update(property.value)
-                )
-            }
-        }
+//        fun processInput(property: Action.Input.Property) {
+//            state = when (property.type) {
+//                PropertyType.NAME -> state.copy(
+//                    name = state.name.update(property.value)
+//                )
+//
+//                PropertyType.SETS -> state.copy(
+//                    sets = state.sets.update(property.value)
+//                )
+//
+//                PropertyType.REPS -> state.copy(
+//                    reps = state.reps.update(property.value)
+//                )
+//
+//                PropertyType.WEIGHT -> state.copy(
+//                    weight = state.weight.update(property.value)
+//                )
+//            }
+//        }
         ExercisedColumn(
             modifier = Modifier.fillMaxHeight(),
             state = state,
             consume = {
-                when (it) {
-                    is Action.Input.Property -> processInput(it)
-                    else -> Unit
-                }
+//                when (it) {
+//                    is Action.Input.Property -> processInput(it)
+//                    else -> Unit
+//                }
             }
         )
     }

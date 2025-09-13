@@ -11,7 +11,9 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SnackbarType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Event
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
+import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableSet
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentSetOf
 
 interface ExerciseStore : Store<State, Action, Event> {
@@ -20,9 +22,7 @@ interface ExerciseStore : Store<State, Action, Event> {
     data class State(
         val uuid: String?,
         val name: Property,
-        val sets: Property,
-        val reps: Property,
-        val weight: Property,
+        val sets: ImmutableList<SetsProperty>,
         val dateProperty: DateProperty,
         val isCalendarOpen: Boolean,
         val isMenuOpen: Boolean,
@@ -33,17 +33,12 @@ interface ExerciseStore : Store<State, Action, Event> {
         val calculateEqualsHash: Int
             get() = uuid.hashCode() +
                     name.value.trim().hashCode() +
-                    sets.value.trim().hashCode() +
-                    reps.value.trim().hashCode() +
-                    weight.value.trim().hashCode() +
+                    sets.hashCode() +
                     dateProperty.converted.hashCode()
 
         val allowBack: Boolean
             get() = if (uuid == null) {
-                name.value.isBlank() &&
-                        weight.value.isBlank() &&
-                        sets.value.isBlank() &&
-                        reps.value.isBlank()
+                name.value.isBlank() && sets.isEmpty()
             } else {
                 calculateEqualsHash == initialHash
             }
@@ -53,9 +48,7 @@ interface ExerciseStore : Store<State, Action, Event> {
             val INITIAL = State(
                 uuid = null,
                 name = Property.new(PropertyType.NAME),
-                sets = Property.new(PropertyType.SETS),
-                reps = Property.new(PropertyType.REPS),
-                weight = Property.new(PropertyType.WEIGHT),
+                sets = persistentListOf(),
                 dateProperty = DateProperty(0L, ""),
                 isCalendarOpen = false,
                 isMenuOpen = false,
@@ -63,10 +56,11 @@ interface ExerciseStore : Store<State, Action, Event> {
                 initialHash = 0
             )
 
-            fun createInitial(data: Data?): State = data?.mapToState() ?: INITIAL.copy(
-                dateProperty = DateProperty.new(System.currentTimeMillis()),
-                initialHash = INITIAL.calculateEqualsHash
-            )
+            fun createInitial(data: Data?): State = INITIAL
+//                data?.mapToState() ?: INITIAL.copy(
+//                dateProperty = DateProperty.new(System.currentTimeMillis()),
+//                initialHash = INITIAL.calculateEqualsHash
+//            )
         }
     }
 
@@ -137,17 +131,17 @@ interface ExerciseStore : Store<State, Action, Event> {
     }
 }
 
-private fun Data.mapToState(): State {
-    val state = State.INITIAL.copy(
-        uuid = uuid,
-        name = State.INITIAL.name.update(name),
-        sets = State.INITIAL.sets.update(sets.toString()),
-        reps = State.INITIAL.reps.update(reps.toString()),
-        weight = State.INITIAL.weight.update(weight.toString()),
-        dateProperty = DateProperty.new(timestamp),
-        initialHash = 0
-    )
-    return state.copy(
-        initialHash = state.calculateEqualsHash
-    )
-}
+//private fun Data.mapToState(): State {
+//    val state = State.INITIAL.copy(
+//        uuid = uuid,
+//        name = State.INITIAL.name.update(name),
+//        sets = State.INITIAL.sets.update(sets.toString()),
+//        reps = State.INITIAL.reps.update(reps.toString()),
+//        weight = State.INITIAL.weight.update(weight.toString()),
+//        dateProperty = DateProperty.new(timestamp),
+//        initialHash = 0
+//    )
+//    return state.copy(
+//        initialHash = state.calculateEqualsHash
+//    )
+//}

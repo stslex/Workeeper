@@ -6,8 +6,8 @@ import androidx.paging.testing.asSnapshot
 import io.github.stslex.workeeper.core.core.coroutine.dispatcher.AppDispatcher
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
 import io.github.stslex.workeeper.core.database.exercise.ExerciseEntity
-import io.github.stslex.workeeper.core.exercise.data.ExerciseRepository
-import io.github.stslex.workeeper.core.exercise.data.ExerciseRepositoryImpl
+import io.github.stslex.workeeper.core.exercise.data.exercise.ExerciseRepository
+import io.github.stslex.workeeper.core.exercise.data.exercise.ExerciseRepositoryImpl
 import io.github.stslex.workeeper.core.exercise.data.model.ChangeExerciseDataModel
 import io.github.stslex.workeeper.core.exercise.data.model.ExerciseDataModel
 import io.mockk.coEvery

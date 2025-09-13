@@ -2,6 +2,7 @@ package io.github.stslex.workeeper.core.database
 
 import androidx.room.Room
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
+import io.github.stslex.workeeper.core.database.sets.SetsDao
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Module
@@ -22,4 +23,7 @@ class ModuleCoreDatabase {
 
     @Single
     fun createExerciseDao(db: AppDatabase): ExerciseDao = db.exerciseDao
+
+    @Single
+    fun createSetsDao(db: AppDatabase): SetsDao = db.setsDao
 }

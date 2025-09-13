@@ -5,8 +5,14 @@
     <string name="button_cancel_text">Отменить</string>
 
     <string name="feature_exercise_field_label_name">НАЗВАНИЕ</string>
-    <string name="feature_exercise_field_label_sets">ПОДХОДЫ</string>
-    <string name="feature_exercise_field_label_reps">ПОВТОРЕНИЯ</string>
-    <string name="feature_exercise_field_label_weight">ВЕС</string>
+    <string name="feature_exercise_field_label_sets">подходы</string>
+    <string name="feature_exercise_field_label_reps">повторения</string>
+    <string name="feature_exercise_field_label_weight">вес</string>
     <string name="feature_exercise_field_label_date">Дата</string>
+    <string name="feature_exercise_field_label_set_type">тип</string>
+
+    <string name="feature_exercise_set_type_warm">разминка</string>
+    <string name="feature_exercise_set_type_work">рабочий</string>
+    <string name="feature_exercise_set_type_fail">отказ</string>
+    <string name="feature_exercise_set_type_drop">дроп-сет</string>
 </resources>

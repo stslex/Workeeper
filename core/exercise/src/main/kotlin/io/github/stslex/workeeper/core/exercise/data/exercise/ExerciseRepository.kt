@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.core.exercise.data
+package io.github.stslex.workeeper.core.exercise.data.exercise
 
 import androidx.paging.PagingData
 import io.github.stslex.workeeper.core.exercise.data.model.ChangeExerciseDataModel

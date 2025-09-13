@@ -1,6 +1,6 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
-import io.github.stslex.workeeper.core.exercise.data.ExerciseRepository
+import io.github.stslex.workeeper.core.exercise.data.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.exercise.di.EXERCISE_SCOPE_NAME
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore

@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.core.exercise.data
+package io.github.stslex.workeeper.core.exercise.data.exercise
 
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
@@ -73,13 +73,14 @@ internal class ExerciseRepositoryImpl(
 
     override suspend fun deleteItem(uuid: String) {
         withContext(appDispatcher.io) {
-            dao.delete(Uuid.parse(uuid))
+            dao.delete(Uuid.Companion.parse(uuid))
         }
     }
 
-    override suspend fun searchItems(query: String): List<ExerciseDataModel> = withContext(appDispatcher.io) {
-        dao.searchUniqueExclude(query).map { it.toData() }
-    }
+    override suspend fun searchItems(query: String): List<ExerciseDataModel> =
+        withContext(appDispatcher.io) {
+            dao.searchUniqueExclude(query).map { it.toData() }
+        }
 
     override suspend fun deleteAllItems(uuids: List<Uuid>) {
         withContext(appDispatcher.io) {
