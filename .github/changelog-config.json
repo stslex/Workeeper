@@ -16,8 +16,13 @@
     { "pattern": "^perf(\\([^)]*\\))?!?:\\s*(.*)", "target": "⚡ $2" },
     { "pattern": "^refactor(\\([^)]*\\))?!?:\\s*(.*)", "target": "♻️ $2" },
     { "pattern": "^security(\\([^)]*\\))?!?:\\s*(.*)", "target": "🔒 $2" },
-    { "pattern": "^(deps|dependencies)(\\([^)]*\\))?!?:\\s*(.*)", "target": "📦 $2" },
+    { "pattern": "^(deps|dependencies)(\\([^)]*\\))?!?:\\s*(.*)", "target": "📦 $3" },
     { "pattern": "^docs(\\([^)]*\\))?!?:\\s*(.*)", "target": "📝 $2" },
-    { "pattern": "^(build|ci|chore|style|test)(\\([^)]*\\))?!?:\\s*(.*)", "target": "🔧 $2" }
-  ]
+    { "pattern": "^(build|ci|chore|style|test)(\\([^)]*\\))?!?:\\s*(.*)", "target": "🔧 $3" }
+  ],
+
+  "excludeLabels": ["ignore-for-release"],
+  "includeLabels": [],
+  "sort": "ASC",
+  "excludeMerges": false
 }

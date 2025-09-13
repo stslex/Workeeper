@@ -32,11 +32,28 @@ jobs:
           echo "name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
           echo "code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
 
+      - name: Get previous release tag
+        id: prev_tag
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 --match="beta-*" 2>/dev/null || echo "")
+          if [ -z "$PREV_TAG" ]; then
+            # If no previous beta tag, try release tags
+            PREV_TAG=$(git describe --tags --abbrev=0 --match="release-*" 2>/dev/null || echo "")
+          fi
+          if [ -z "$PREV_TAG" ]; then
+            # If no previous release tag, use first commit
+            PREV_TAG=$(git rev-list --max-parents=0 HEAD)
+          fi
+          echo "tag=$PREV_TAG" >> "$GITHUB_OUTPUT"
+          echo "Previous tag: $PREV_TAG"
+
       - name: Build changelog (GitHub Release)
         id: changelog
         uses: mikepenz/release-changelog-builder-action@v4
         with:
           configuration: .github/changelog-config.json
+          fromTag: ${{ steps.prev_tag.outputs.tag }}
+          toTag: ${{ github.sha }}
           failOnError: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -46,6 +63,8 @@ jobs:
         uses: mikepenz/release-changelog-builder-action@v4
         with:
           configuration: .github/changelog-config-play.json
+          fromTag: ${{ steps.prev_tag.outputs.tag }}
+          toTag: ${{ github.sha }}
           failOnError: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
