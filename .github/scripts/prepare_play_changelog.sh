@@ -19,7 +19,12 @@ mkdir -p "$OUT_DIR"
 tmp_in=$(mktemp)
 cat > "$tmp_in"
 
-# Keep only bullets for allowed categories (emoji): ✨, 🐛, ⚡, 📦, ♻️
+# Debug: Show what we received
+echo "Debug: Raw input received:" >&2
+cat "$tmp_in" >&2
+echo "Debug: End of raw input" >&2
+
+# Keep only bullets for allowed categories and transform them
 # Normalize list markers to start with '- ' and strip markdown
 mapfile -t lines < <(sed -E \
   -e 's/\r//g' \
@@ -32,18 +37,34 @@ mapfile -t lines < <(sed -E \
 
 filtered=()
 for l in "${lines[@]}"; do
-  # Only keep bullet lines starting with an allowed emoji
-  if [[ "$l" =~ ^-\ (✨|🐛|⚡|📦|♻️)\  ]]; then
-    # Drop double spaces after emoji to a single space
-    l=$(echo "$l" | sed -E 's/^(-\s*[✨🐛⚡📦♻️])\s+/\1 /')
-    # Remove trailing spaces
-    l=$(echo "$l" | sed -E 's/[[:space:]]+$//')
-    # Enforce max per-item length (120 chars)
-    if (( ${#l} > 120 )); then
-      l="${l:0:117}…"
-    fi
-    filtered+=("$l")
+  # Skip empty lines
+  [[ -z "$l" ]] && continue
+
+  # Transform conventional commits to emoji format and filter allowed types
+  if [[ "$l" =~ ^-\ feat.*:\ (.*) ]]; then
+    l="- ✨ ${BASH_REMATCH[1]}"
+  elif [[ "$l" =~ ^-\ fix.*:\ (.*) ]]; then
+    l="- 🐛 ${BASH_REMATCH[1]}"
+  elif [[ "$l" =~ ^-\ perf.*:\ (.*) ]]; then
+    l="- ⚡ ${BASH_REMATCH[1]}"
+  elif [[ "$l" =~ ^-\ refactor.*:\ (.*) ]]; then
+    l="- ♻️ ${BASH_REMATCH[1]}"
+  elif [[ "$l" =~ ^-\ security.*:\ (.*) ]]; then
+    l="- 🔒 ${BASH_REMATCH[1]}"
+  elif [[ "$l" =~ ^-\ (deps|dependencies).*:\ (.*) ]]; then
+    l="- 📦 ${BASH_REMATCH[2]}"
+  else
+    # Skip commits that don't match allowed types
+    continue
   fi
+
+  # Remove trailing spaces
+  l=$(echo "$l" | sed -E 's/[[:space:]]+$//')
+  # Enforce max per-item length (120 chars)
+  if (( ${#l} > 120 )); then
+    l="${l:0:117}…"
+  fi
+  filtered+=("$l")
 done
 
 # Debug: Print what we found
