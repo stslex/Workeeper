@@ -1,10 +1,42 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <lint>
     <!-- Main lint configuration for Workeeper project -->
-    <!-- Common suppressions are defined in lint-rules/src/main/resources/lint-suppressions.xml -->
+    <!-- All lint rules and suppressions are defined in this file -->
 
-    <!-- Include centralized suppressions -->
-    <include file="lint-rules/src/main/resources/lint-suppressions.xml" />
+    <!-- ================================ -->
+    <!-- DESIGN & UI RELATED SUPPRESSIONS -->
+    <!-- ================================ -->
+
+    <!-- Icon and Resource Issues -->
+    <issue id="IconDensities" severity="ignore" />
+    <issue id="IconDuplicates" severity="ignore" />
+    <issue id="IconLocation" severity="ignore" />
+    <issue id="IconMissingDensityFolder" severity="ignore" />
+    <issue id="IconExpectedSize" severity="ignore" />
+    <issue id="IconLauncherShape" severity="ignore" />
+    <issue id="VectorRaster" severity="ignore" />
+
+    <!-- Typography and Text -->
+    <issue id="MissingTranslation" severity="ignore" />
+    <issue id="ExtraTranslation" severity="ignore" />
+    <issue id="TypographyFractions" severity="ignore" />
+    <issue id="TypographyDashes" severity="ignore" />
+    <issue id="Typos" severity="ignore" />
+
+    <!-- Accessibility (can be enabled later for production) -->
+    <issue id="ContentDescription" severity="ignore" />
+    <issue id="LabelFor" severity="ignore" />
+    <issue id="SpeakableTextPresentCheck" severity="ignore" />
+    <issue id="ClickableViewAccessibility" severity="ignore" />
+    <issue id="TouchTargetSizeCheck" severity="ignore" />
+    <issue id="DuplicateClickableBoundsCheck" severity="ignore" />
+    <issue id="KeyboardInaccessibleWidget" severity="ignore" />
+    <issue id="RedundantLabel" severity="ignore" />
+    <issue id="ImageContrastCheck" severity="ignore" />
+
+    <!-- Google Services -->
+    <issue id="GoogleAppIndexingWarning" severity="ignore" />
+    <issue id="HardcodedDebugMode" severity="ignore" />
 
     <!-- Performance related -->
     <issue id="UnusedResources" severity="warning" />
