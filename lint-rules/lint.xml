@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!-- Main lint configuration for Workeeper project -->
+    <!-- Common suppressions are defined in lint-rules/src/main/resources/lint-suppressions.xml -->
+
+    <!-- Include centralized suppressions -->
+    <include file="lint-rules/src/main/resources/lint-suppressions.xml" />
+
+    <!-- Performance related -->
+    <issue id="UnusedResources" severity="warning" />
+    <issue id="UselessParent" severity="warning" />
+    <issue id="MergeRootFrame" severity="warning" />
+    <issue id="InefficientWeight" severity="warning" />
+    <issue id="NestedWeights" severity="warning" />
+    <issue id="DisableBaselineAlignment" severity="warning" />
+    <issue id="TooManyViews" severity="warning" />
+    <issue id="TooDeepLayout" severity="warning" />
+    <issue id="Overdraw" severity="warning" />
+    <issue id="ViewHolder" severity="warning" />
+    <issue id="RecyclerView" severity="warning" />
+    <issue id="Wakelock" severity="warning" />
+
+    <!-- Security related -->
+    <issue id="HardcodedText" severity="ignore" />
+    <issue id="SetTextI18n" severity="ignore" />
+    <issue id="AllowBackup" severity="error" />
+    <issue id="ExportedReceiver" severity="error" />
+    <issue id="ExportedService" severity="error" />
+    <issue id="ExportedActivity" severity="error" />
+    <issue id="ExportedContentProvider" severity="error" />
+    <issue id="PermissionImpliesUnsupportedChromeOsHardware" severity="warning" />
+    <issue id="UnsafeProtectedBroadcastReceiver" severity="error" />
+    <issue id="SecureRandom" severity="error" />
+    <issue id="TrustAllX509TrustManager" severity="error" />
+    <issue id="BadHostnameVerifier" severity="error" />
+    <issue id="SSLCertificateSocketFactoryCreateSocket" severity="error" />
+    <issue id="SSLCertificateSocketFactoryGetInsecure" severity="error" />
+    <issue id="WorldReadableFiles" severity="error" />
+    <issue id="WorldWriteableFiles" severity="error" />
+
+    <!-- Code quality -->
+    <issue id="ObsoleteLayoutParam" severity="error" />
+    <issue id="DuplicateIds" severity="error" />
+    <issue id="UnknownId" severity="error" />
+    <issue id="NotSibling" severity="error" />
+    <issue id="MissingId" severity="warning" />
+    <issue id="UnusedIds" severity="warning" />
+    <issue id="InconsistentArrays" severity="error" />
+    <issue id="DuplicateDefinition" severity="error" />
+    <issue id="StringFormatMatches" severity="error" />
+    <issue id="PluralsCandidate" severity="warning" />
+    <issue id="StringFormatCount" severity="error" />
+    <issue id="StringFormatInvalid" severity="error" />
+
+    <!-- Android specific -->
+    <issue id="NewApi" severity="error" />
+    <issue id="InlinedApi" severity="warning" />
+    <issue id="Override" severity="error" />
+    <issue id="UseSparseArrays" severity="warning" />
+    <issue id="UseValueOf" severity="warning" />
+    <issue id="LogNotTimber" severity="error" />
+    <issue id="TimberArgCount" severity="error" />
+    <issue id="TimberArgTypes" severity="error" />
+    <issue id="TimberTagLength" severity="error" />
+    <issue id="BinaryOperationInTimber" severity="error" />
+    <issue id="LogConditional" severity="warning" />
+
+    <!-- Compose specific -->
+    <issue id="ComposableNaming" severity="error" />
+    <issue id="ComposeLambdaParameterNaming" severity="warning" />
+    <issue id="ComposeParameterOrder" severity="warning" />
+    <issue id="ComposeMutableParameters" severity="error" />
+    <issue id="ComposeUnstableCollections" severity="error" />
+    <issue id="ComposeViewModelInjection" severity="error" />
+    <issue id="ComposeRememberMissing" severity="error" />
+    <issue id="ComposeModifierMissing" severity="warning" />
+    <issue id="ComposeModifierReused" severity="error" />
+    <issue id="ComposeContentEmitterReturningValues" severity="error" />
+    <issue id="ComposeMultipleContentEmitters" severity="error" />
+
+    <!-- MVI Architecture specific (custom rules) -->
+    <issue id="MviStateImmutability" severity="error" />
+    <issue id="MviActionNaming" severity="warning" />
+    <issue id="MviEventNaming" severity="warning" />
+    <issue id="MviHandlerNaming" severity="warning" />
+
+    <!-- Koin DI specific -->
+    <issue id="KoinModuleScope" severity="warning" />
+    <issue id="KoinScopedAnnotation" severity="error" />
+
+    <!-- Room database -->
+    <issue id="RoomDatabaseMigration" severity="error" />
+    <issue id="RoomEntityPrimaryKey" severity="error" />
+    <issue id="RoomRelationQuery" severity="error" />
+    <issue id="RoomTypeConverter" severity="warning" />
+
+    <!-- Coroutines -->
+    <issue id="CoroutineCreationDuringComposition" severity="error" />
+    <issue id="SuspendFunctionOnMainThread" severity="error" />
+    <issue id="GlobalCoroutineUsage" severity="error" />
+
+    <!-- Deprecation -->
+    <issue id="Deprecation" severity="warning" />
+    <issue id="ObsoleteSdkInt" severity="warning" />
+
+    <!-- Ignore rules for test files -->
+    <issue id="SetTextI18n">
+        <ignore path="**/test/**" />
+        <ignore path="**/androidTest/**" />
+    </issue>
+
+    <issue id="HardcodedText">
+        <ignore path="**/test/**" />
+        <ignore path="**/androidTest/**" />
+    </issue>
+</lint>

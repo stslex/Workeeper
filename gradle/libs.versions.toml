@@ -52,6 +52,8 @@ slf4j = "2.0.17"
 coroutineTest = "1.10.2"
 datastore = "1.1.7"
 composeCharts = "0.1.11"
+detekt = "1.23.8"
+embeddable = "2.2.10"
 
 # decompose dependencies
 essenty = "2.5.0"
@@ -78,6 +80,8 @@ material = { group = "com.google.android.material", name = "material", version.r
 lifecycle-viewModel = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-ktx", version.ref = "lifecycle" }
 lifecycle-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 coroutines = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
+
+kotlin-compiler-embeddable = { group = "org.jetbrains.kotlin", name = "kotlin-compiler-embeddable", version.ref = "embeddable" }
 
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
 
@@ -166,6 +170,12 @@ google-firebase-crashlytics = { group = "com.google.firebase", name = "firebase-
 composeCharts = { module = "io.github.ehsannarmani:compose-charts", version.ref = "composeCharts" }
 androidx-junit-ktx = { group = "androidx.test.ext", name = "junit-ktx", version.ref = "junitKtx" }
 
+detekt-gradle = { module = "io.gitlab.arturbosch.detekt:detekt-gradle-plugin", version.ref = "detekt" }
+detekt-formatting = { module = "io.gitlab.arturbosch.detekt:detekt-formatting", version.ref = "detekt" }
+detekt-rules-compose = { module = "io.nlopez.compose.rules:detekt", version = "0.4.15" }
+detekt-api = { module = "io.gitlab.arturbosch.detekt:detekt-api", version.ref = "detekt" }
+detekt-test = { module = "io.gitlab.arturbosch.detekt:detekt-test", version.ref = "detekt" }
+
 [plugins]
 kotlin = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
@@ -178,6 +188,7 @@ vkompose = { id = "com.vk.vkompose", version.ref = "vkompose" }
 robolectric-junit5 = { id = "tech.apter.junit5.jupiter.robolectric-extension-gradle-plugin", version.ref = "robolectricExt" }
 gms = { id = "com.google.gms.google-services", version.ref = "gms" }
 firebaseCrashlytics = { id = "com.google.firebase.crashlytics", version.ref = "fbCrashlytics" }
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 
 convention-application-common = { id = "workeeper.android.application.common", version = "1.0" }
 convention-application-store = { id = "workeeper.android.application.store", version = "1.0" }
@@ -186,6 +197,7 @@ convention-application-dev = { id = "workeeper.android.application.dev", version
 convention-androidLibrary = { id = "workeeper.android.androidLibrary", version = "1.0" }
 convention-composeLibrary = { id = "workeeper.android.composeLibrary", version = "1.0" }
 convention-roomLibrary = { id = "workeeper.room.library", version = "1.0" }
+convention-lint = { id = "workeeper.lint.convention", version = "1.0" }
 
 [bundles]
 lifecycle = [

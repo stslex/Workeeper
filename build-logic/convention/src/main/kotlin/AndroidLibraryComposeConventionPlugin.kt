@@ -19,6 +19,7 @@ class AndroidLibraryComposeConventionPlugin : Plugin<Project> {
                 apply(libs.findPluginId("vkompose"))
                 apply(libs.findPluginId("serialization"))
                 apply(libs.findPluginId("ksp"))
+                apply(libs.findPluginId("convention.lint"))
             }
 
             extensions.configure<LibraryExtension> {

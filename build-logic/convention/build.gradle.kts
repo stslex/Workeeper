@@ -14,6 +14,7 @@ dependencies {
     compileOnly(libs.vkompose.gradlePlugin)
     compileOnly(libs.composeCompiler.gradlePlugin)
     compileOnly(libs.fbCrashlytics.gradlePlugin)
+    compileOnly(libs.detekt.gradle)
 }
 
 tasks {
@@ -48,6 +49,10 @@ gradlePlugin {
         register("roomLibrary") {
             id = libs.plugins.convention.roomLibrary.get().pluginId
             implementationClass = "RoomLibraryConventionPlugin"
+        }
+        register("lintConvention") {
+            id = libs.plugins.convention.lint.get().pluginId
+            implementationClass = "LintConventionPlugin"
         }
     }
 }

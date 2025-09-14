@@ -29,6 +29,7 @@ fun Project.configureApplication(
         apply(libs.findPluginId("gms"))
         apply(libs.findPluginId("firebaseCrashlytics"))
         apply(libs.findPluginId("ksp"))
+        apply(libs.findPluginId("convention.lint"))
     }
 
     val appTypePostfix = if (appType.postfix.isNotEmpty()) ".${appType.postfix}" else ""

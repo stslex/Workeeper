@@ -15,6 +15,7 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
                 apply(libs.findPluginId("library"))
                 apply(libs.findPluginId("kotlin"))
                 apply(libs.findPluginId("ksp"))
+                apply(libs.findPluginId("convention.lint"))
             }
 
             extensions.configure<LibraryExtension> {
