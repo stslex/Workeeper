@@ -8,19 +8,19 @@ import io.github.stslex.workeeper.core.ui.navigation.Screen
 @Stable
 enum class BottomBarItem(
     @param:StringRes val titleRes: Int,
-    val screen: Screen
+    val screen: Screen.BottomBar
 ) {
     CHARTS(
         titleRes = R.string.bottom_bar_label_charts,
-        screen = Screen.Charts
+        screen = Screen.BottomBar.Charts
     ),
     TRAININGS(
         titleRes = R.string.bottom_bar_label_trainings,
-        screen = Screen.AllTrainings
+        screen = Screen.BottomBar.AllTrainings
     ),
     EXERCISES(
         titleRes = R.string.bottom_bar_label_exercises,
-        screen = Screen.AllExercises
+        screen = Screen.BottomBar.AllExercises
     );
 
     companion object {

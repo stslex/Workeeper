@@ -12,20 +12,23 @@ import kotlinx.serialization.Serializable
 @Stable
 sealed interface Screen {
 
-    val isSingleTop: Boolean
-        get() = true
+    val isSingleTop: Boolean get() = false
 
-    @Serializable
-    data object Home : Screen
+    sealed interface BottomBar : Screen {
 
-    @Serializable
-    data object Charts : Screen
+        override val isSingleTop: Boolean
+            get() = true
 
-    @Serializable
-    data object AllExercises : Screen
+        @Serializable
+        data object Charts : BottomBar
 
-    @Serializable
-    data object AllTrainings : Screen
+        @Serializable
+        data object AllExercises : BottomBar
+
+        @Serializable
+        data object AllTrainings : BottomBar
+
+    }
 
     @Serializable
     sealed interface Exercise : Screen {

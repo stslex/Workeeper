@@ -22,7 +22,7 @@ fun NavGraphBuilder.chartsGraph(
     sharedTransitionScope: SharedTransitionScope,
     modifier: Modifier = Modifier
 ) {
-    navScreen<Screen.Charts> {
+    navScreen<Screen.BottomBar.Charts> {
         ChartsScreen(
             modifier = modifier,
             sharedTransitionScope = sharedTransitionScope,

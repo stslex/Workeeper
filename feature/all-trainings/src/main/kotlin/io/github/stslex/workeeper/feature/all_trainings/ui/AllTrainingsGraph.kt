@@ -18,7 +18,7 @@ fun NavGraphBuilder.allTrainingsGraph(
     sharedTransitionScope: SharedTransitionScope,
     modifier: Modifier = Modifier
 ) {
-    navScreen<Screen.AllTrainings> {
+    navScreen<Screen.BottomBar.AllTrainings> {
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center

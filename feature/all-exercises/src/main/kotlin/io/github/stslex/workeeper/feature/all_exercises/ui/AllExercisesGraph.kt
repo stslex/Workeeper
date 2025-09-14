@@ -4,7 +4,6 @@ import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -24,7 +23,7 @@ fun NavGraphBuilder.allExercisesGraph(
     sharedTransitionScope: SharedTransitionScope,
     modifier: Modifier = Modifier
 ) {
-    navScreen<Screen.AllExercises> {
+    navScreen<Screen.BottomBar.AllExercises> {
         ExerciseScreen(
             modifier = modifier,
             sharedTransitionScope = sharedTransitionScope,
