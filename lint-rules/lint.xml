@@ -49,8 +49,8 @@
     <issue id="Wakelock" severity="warning" />
 
     <!-- Security related -->
-    <issue id="HardcodedText" severity="ignore" />
-    <issue id="SetTextI18n" severity="ignore" />
+    <issue id="HardcodedText" severity="error" />
+    <issue id="SetTextI18n" severity="error" />
     <issue id="AllowBackup" severity="error" />
     <issue id="ExportedReceiver" severity="error" />
     <issue id="ExportedService" severity="error" />
@@ -78,8 +78,9 @@
     <issue id="PluralsCandidate" severity="warning" />
     <issue id="StringFormatCount" severity="error" />
     <issue id="StringFormatInvalid" severity="error" />
-    <!--todo check-->
-    <issue id="NonAsciiCharacters" severity="error" />
+    <issue id="GradleDependency" severity="ignore" />
+    <issue id="NewerVersionAvailable" severity="ignore" />
+    <!-- Note: NonAsciiCharacters rule is not available in current lint version -->
 
     <!-- Android specific -->
     <issue id="NewApi" severity="error" />
@@ -88,6 +89,11 @@
     <issue id="UseSparseArrays" severity="warning" />
     <issue id="UseValueOf" severity="warning" />
     <issue id="LogConditional" severity="warning" />
+    <issue id="ObsoleteSdkInt">
+        <ignore path="**/mipmap-**" />
+    </issue>
+    <!--todo refactor png to webp-->
+    <issue id="ConvertToWebp" severity="ignore" />
 
     <!-- Compose specific -->
     <!-- Note: Compose lint rules removed as they are not available in current lint version -->
@@ -105,7 +111,7 @@
     <!-- Note: Coroutine rules are handled by detekt -->
 
     <!-- Deprecation -->
-    <issue id="DeprecatedApi" severity="warning" />
+    <issue id="Deprecated" severity="warning" />
     <issue id="ObsoleteSdkInt" severity="warning" />
 
     <!-- Ignore rules for test files -->

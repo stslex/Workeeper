@@ -6,6 +6,8 @@ object NumUiUtils {
 
     private const val FORMAT_PATTERN = "%.1f"
 
+    class test
+
     fun roundThousand(
         value: Double,
         locale: Locale,

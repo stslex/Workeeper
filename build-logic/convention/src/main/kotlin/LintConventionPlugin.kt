@@ -27,10 +27,10 @@ class LintConventionPlugin : Plugin<Project> {
 
                     // Analysis configuration
                     checkDependencies = true
-                    abortOnError = false
+                    abortOnError = true
                     ignoreWarnings = false
                     checkAllWarnings = true
-                    warningsAsErrors = false
+                    warningsAsErrors = true
                     checkGeneratedSources = false
                     explainIssues = true
                     noLines = false
