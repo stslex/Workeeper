@@ -1,8 +1,8 @@
-package io.github.stslex.workeeper.core.store.store
+package io.github.stslex.workeeper.core.dataStore.store
 
-import io.github.stslex.workeeper.core.store.core.BaseDataStore
-import io.github.stslex.workeeper.core.store.core.DataStoreProvider
-import io.github.stslex.workeeper.core.store.di.CommonStoreQualifier
+import io.github.stslex.workeeper.core.dataStore.core.BaseDataStore
+import io.github.stslex.workeeper.core.dataStore.core.DataStoreProvider
+import io.github.stslex.workeeper.core.dataStore.di.CommonStoreQualifier
 import kotlinx.coroutines.flow.Flow
 import org.koin.core.annotation.Single
 

@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.core.store.core
+package io.github.stslex.workeeper.core.dataStore.core
 
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
@@ -12,7 +12,8 @@ open class BaseDataStore internal constructor(
 
     private val logger = Log.tag("Store")
 
-    fun getLong(key: String): Flow<Long?> = storeProvider.dataStore.data.map { prefs -> prefs[longPreferencesKey(key)] }
+    fun getLong(key: String): Flow<Long?> =
+        storeProvider.dataStore.data.map { prefs -> prefs[longPreferencesKey(key)] }
 
     suspend fun updateLong(key: String, value: Long) {
         logger.i("Update key: $key with value: $value")

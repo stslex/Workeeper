@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.feature.charts.ui
+package io.github.stslex.workeeper.feature.charts.ui.mvi.handler
 
 import io.github.stslex.workeeper.core.ui.navigation.Component
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
@@ -9,7 +9,7 @@ interface ChartsComponent : Component {
 
         fun create(
             navigator: Navigator
-        ): ChartsComponent = ChartsComponentImpl(
+        ): ChartsComponent = NavigationHandler(
             navigator = navigator
         )
 

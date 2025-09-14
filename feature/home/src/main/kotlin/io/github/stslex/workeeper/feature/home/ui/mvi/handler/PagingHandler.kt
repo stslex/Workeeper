@@ -5,7 +5,7 @@ import androidx.paging.map
 import io.github.stslex.workeeper.core.core.coroutine.dispatcher.AppDispatcher
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
-import io.github.stslex.workeeper.core.store.store.CommonDataStore
+import io.github.stslex.workeeper.core.dataStore.store.CommonDataStore
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.home.di.HOME_SCOPE_NAME

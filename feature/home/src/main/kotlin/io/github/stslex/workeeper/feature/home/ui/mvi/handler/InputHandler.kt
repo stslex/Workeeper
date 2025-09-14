@@ -1,6 +1,6 @@
 package io.github.stslex.workeeper.feature.home.ui.mvi.handler
 
-import io.github.stslex.workeeper.core.store.store.CommonDataStore
+import io.github.stslex.workeeper.core.dataStore.store.CommonDataStore
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.home.di.HOME_SCOPE_NAME
 import io.github.stslex.workeeper.feature.home.di.HomeHandlerStore

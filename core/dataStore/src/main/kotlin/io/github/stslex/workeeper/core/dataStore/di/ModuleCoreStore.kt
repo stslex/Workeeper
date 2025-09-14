@@ -1,8 +1,8 @@
-package io.github.stslex.workeeper.core.store.di
+package io.github.stslex.workeeper.core.dataStore.di
 
 import android.content.Context
-import io.github.stslex.workeeper.core.store.core.DataStoreProvider
-import io.github.stslex.workeeper.core.store.store.CommonDataStore
+import io.github.stslex.workeeper.core.dataStore.store.CommonDataStore
+import io.github.stslex.workeeper.core.dataStore.core.DataStoreProvider
 import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Module
 import org.koin.core.annotation.Single
