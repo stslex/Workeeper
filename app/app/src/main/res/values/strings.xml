@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">Workeeper</string>
+
+    <string name="bottom_bar_label_charts">Charts</string>
+    <string name="bottom_bar_label_trainings">Trainings</string>">
+    <string name="bottom_bar_label_exercises">Exercises</string>
 </resources>

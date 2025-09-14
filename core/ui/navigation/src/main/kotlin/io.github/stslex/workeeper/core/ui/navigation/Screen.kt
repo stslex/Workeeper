@@ -19,6 +19,15 @@ sealed interface Screen {
     data object Home : Screen
 
     @Serializable
+    data object Charts : Screen
+
+    @Serializable
+    data object AllExercises : Screen
+
+    @Serializable
+    data object AllTrainings : Screen
+
+    @Serializable
     sealed interface Exercise : Screen {
 
         @Serializable

@@ -8,7 +8,7 @@ import org.koin.core.annotation.Module
 import org.koin.core.annotation.Single
 
 @Module
-@ComponentScan("io.github.stslex.workeeper.core.store")
+@ComponentScan("io.github.stslex.workeeper.core.dataStore")
 class ModuleCoreStore {
 
     @Single
