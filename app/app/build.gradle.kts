@@ -12,12 +12,10 @@ dependencies {
     implementation(project(":core:exercise"))
     implementation(project(":core:dataStore"))
 
-    implementation(project(":feature:home"))
     implementation(project(":feature:exercise"))
     implementation(project(":feature:all-trainings"))
     implementation(project(":feature:charts"))
     implementation(project(":feature:all-exercises"))
-
 
     implementation(platform(libs.google.firebase.bom))
     implementation(libs.google.firebase.analytics)

@@ -37,7 +37,6 @@ include(":core:database")
 include(":core:exercise")
 include(":core:dataStore")
 
-include(":feature:home")
 include(":feature:exercise")
 include(":feature:all-exercises")
 include(":feature:all-trainings")

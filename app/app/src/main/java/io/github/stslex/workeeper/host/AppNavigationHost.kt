@@ -12,7 +12,6 @@ import io.github.stslex.workeeper.feature.all_trainings.ui.allTrainingsGraph
 import io.github.stslex.workeeper.feature.charts.ui.chartsGraph
 import io.github.stslex.workeeper.feature.exercise.ui.exerciseGraph
 import io.github.stslex.workeeper.feature.exercise.ui.exerciseNewGraph
-import io.github.stslex.workeeper.feature.home.ui.homeGraph
 import io.github.stslex.workeeper.navigation.NavigatorImpl
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -29,10 +28,6 @@ internal fun AppNavigationHost(
             navController = navigatorHolder.navigator,
             startDestination = Screen.Charts,
         ) {
-            homeGraph(
-                navigator = navigator,
-                sharedTransitionScope = this@SharedTransitionLayout,
-            )
             exerciseGraph(
                 navigator = navigator,
                 sharedTransitionScope = this@SharedTransitionLayout,
