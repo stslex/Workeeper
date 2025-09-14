@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="feature_all_field_search">Поиск</string>
+
+    <string name="feature_all_action_btn_description_delete">удалить упражнение</string>
+    <string name="feature_all_action_btn_description_create">создать новое упражение</string>
+
+    <string name="feature_all_exercises_empty_results">У вас пока нет упражнений</string>
+    <string name="feature_all_exercises_not_found_results">Не найдено упражений</string>
+</resources>
