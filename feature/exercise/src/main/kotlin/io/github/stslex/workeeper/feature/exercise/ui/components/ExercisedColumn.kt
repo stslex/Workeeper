@@ -1,10 +1,16 @@
 package io.github.stslex.workeeper.feature.exercise.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -13,7 +19,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import io.github.stslex.workeeper.core.exercise.data.model.DateProperty
+import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.exercise.R
@@ -33,34 +39,65 @@ internal fun ExercisedColumn(
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
+    LazyColumn(
+        modifier = modifier.fillMaxSize()
     ) {
-        ExerciseItem(
-            item = state.name,
-            isMenuOpen = state.isMenuOpen,
-            menuItems = state.menuItems,
-            onMenuClick = { consume(Action.Click.OpenMenuVariants) },
-            onMenuClose = { consume(Action.Click.CloseMenuVariants) },
-            onMenuItemClick = { consume(Action.Click.OnMenuItemClick(it)) },
-            onValueChange = { consume(Action.Input.Property(state.name.type, it)) }
-        )
-        Spacer(Modifier.height(AppDimension.Padding.medium))
-        ExerciseItem(state.sets) {
-            consume(Action.Input.Property(state.sets.type, it))
+        item {
+            ExerciseItem(
+                item = state.name,
+                isMenuOpen = state.isMenuOpen,
+                menuItems = state.menuItems,
+                onMenuClick = { consume(Action.Click.OpenMenuVariants) },
+                onMenuClose = { consume(Action.Click.CloseMenuVariants) },
+                onMenuItemClick = { consume(Action.Click.OnMenuItemClick(it)) },
+                onValueChange = { consume(Action.Input.PropertyName(it)) }
+            )
         }
-        Spacer(Modifier.height(AppDimension.Padding.medium))
-        ExerciseItem(state.reps) {
-            consume(Action.Input.Property(state.reps.type, it))
+
+        item { Spacer(Modifier.height(AppDimension.Padding.large)) }
+
+        item {
+            Column {
+                Text(
+                    text = stringResource(R.string.feature_exercise_field_label_sets) + ":",
+                    style = MaterialTheme.typography.headlineLarge
+                )
+                HorizontalDivider(modifier = Modifier.padding(vertical = AppDimension.Padding.big))
+                AnimatedVisibility(state.sets.isEmpty()) {
+                    Text(
+                        modifier = Modifier.padding(vertical = AppDimension.Padding.medium),
+                        text = stringResource(R.string.feature_exercise_field_label_sets_are_empty)
+                    )
+                }
+            }
         }
-        Spacer(Modifier.height(AppDimension.Padding.medium))
-        ExerciseItem(state.weight) {
-            consume(Action.Input.Property(state.weight.type, it))
+
+        state.sets.forEach { set ->
+            item {
+                ExerciseSetsField(
+                    property = set,
+                    onClick = { item -> consume(Action.Click.DialogSets.OpenEdit(item)) }
+                )
+            }
+            item { Spacer(Modifier.height(AppDimension.Padding.medium)) }
         }
-        Spacer(Modifier.height(AppDimension.Padding.medium))
-        ExerciseDateData(state.dateProperty.converted) {
-            consume(Action.Click.PickDate)
+
+        item { Spacer(Modifier.height(AppDimension.Padding.medium)) }
+
+        item {
+            ExerciseSetsCreateWidget(
+                onClick = { consume(Action.Click.DialogSets.OpenCreate) }
+            )
+        }
+
+        item {
+            HorizontalDivider(modifier = Modifier.padding(vertical = AppDimension.Padding.big))
+        }
+
+        item {
+            ExerciseDateData(state.dateProperty.converted) {
+                consume(Action.Click.PickDate)
+            }
         }
     }
 }
@@ -83,7 +120,7 @@ private fun ExerciseDateData(
 }
 
 @Composable
-private fun ExerciseItem(
+internal fun ExerciseItem(
     item: Property,
     modifier: Modifier = Modifier,
     isMenuOpen: Boolean = false,
@@ -129,34 +166,13 @@ private fun ExercisedColumnPreview() {
             )
         }
 
-        fun processInput(property: Action.Input.Property) {
-            state = when (property.type) {
-                PropertyType.NAME -> state.copy(
-                    name = state.name.update(property.value)
-                )
-
-                PropertyType.SETS -> state.copy(
-                    sets = state.sets.update(property.value)
-                )
-
-                PropertyType.REPS -> state.copy(
-                    reps = state.reps.update(property.value)
-                )
-
-                PropertyType.WEIGHT -> state.copy(
-                    weight = state.weight.update(property.value)
-                )
-            }
+        Box {
+            ExercisedColumn(
+                modifier = Modifier
+                    .padding(AppDimension.Padding.big),
+                state = state,
+                consume = {}
+            )
         }
-        ExercisedColumn(
-            modifier = Modifier.fillMaxHeight(),
-            state = state,
-            consume = {
-                when (it) {
-                    is Action.Input.Property -> processInput(it)
-                    else -> Unit
-                }
-            }
-        )
     }
 }

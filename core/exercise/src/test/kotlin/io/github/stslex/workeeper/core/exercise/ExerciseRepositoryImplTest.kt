@@ -6,17 +6,20 @@ import androidx.paging.testing.asSnapshot
 import io.github.stslex.workeeper.core.core.coroutine.dispatcher.AppDispatcher
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
 import io.github.stslex.workeeper.core.database.exercise.ExerciseEntity
-import io.github.stslex.workeeper.core.exercise.data.ExerciseRepository
-import io.github.stslex.workeeper.core.exercise.data.ExerciseRepositoryImpl
-import io.github.stslex.workeeper.core.exercise.data.model.ChangeExerciseDataModel
-import io.github.stslex.workeeper.core.exercise.data.model.ExerciseDataModel
+import io.github.stslex.workeeper.core.database.exercise.model.SetsEntity
+import io.github.stslex.workeeper.core.database.exercise.model.SetsEntityType
+import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
+import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepositoryImpl
+import io.github.stslex.workeeper.core.exercise.exercise.model.ChangeExerciseDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -167,11 +170,12 @@ internal class ExerciseRepositoryTest {
         private val expectedEntites: List<ExerciseEntity>
     ) : PagingSource<Int, ExerciseEntity>() {
 
-        override suspend fun load(params: LoadParams<Int>): LoadResult<Int, ExerciseEntity> = LoadResult.Page(
-            data = expectedEntites,
-            prevKey = null as Int?,
-            nextKey = null as Int?
-        )
+        override suspend fun load(params: LoadParams<Int>): LoadResult<Int, ExerciseEntity> =
+            LoadResult.Page(
+                data = expectedEntites,
+                prevKey = null as Int?,
+                nextKey = null as Int?
+            )
 
         override fun getRefreshKey(state: PagingState<Int, ExerciseEntity>): Int? = null
     }
@@ -182,9 +186,17 @@ internal class ExerciseRepositoryTest {
     ) = ChangeExerciseDataModel(
         uuid = uuid.toString(),
         name = "test$index",
-        sets = index.plus(1),
-        reps = index.plus(2),
-        weight = index.plus(3).toDouble(),
+        sets = Array(index) {
+            SetsDataModel(
+                uuid = Uuid.parse("00000000-0000-0000-0000-${String.format("%012d", it + index)}")
+                    .toString(),
+                reps = it + index,
+                weight = it + index.toDouble(),
+                type = SetsDataType.WORK
+            )
+        }.toList(),
+        labels = listOf(index.toString()),
+        trainingUuid = null,
         timestamp = index.plus(123).toLong(),
     )
 
@@ -194,9 +206,17 @@ internal class ExerciseRepositoryTest {
     ) = ExerciseDataModel(
         uuid = uuid.toString(),
         name = "test$index",
-        sets = index.plus(1),
-        reps = index.plus(2),
-        weight = index.plus(3).toDouble(),
+        sets = Array(index) {
+            SetsDataModel(
+                uuid = Uuid.parse("00000000-0000-0000-0000-${String.format("%012d", it + index)}")
+                    .toString(),
+                reps = it + index,
+                weight = it + index.toDouble(),
+                type = SetsDataType.WORK
+            )
+        }.toList(),
+        labels = listOf(index.toString()),
+        trainingUuid = null,
         timestamp = index.plus(123).toLong(),
     )
 
@@ -205,10 +225,17 @@ internal class ExerciseRepositoryTest {
         uuid: Uuid = Uuid.random()
     ) = ExerciseEntity(
         uuid = uuid,
+        trainingUuid = null,
+        labels = listOf(index.toString()),
+        sets = Array(index) {
+            SetsEntity(
+                uuid = Uuid.parse("00000000-0000-0000-0000-${String.format("%012d", it + index)}"),
+                reps = it + index,
+                weight = it + index.toDouble(),
+                type = SetsEntityType.WORK
+            )
+        }.toList(),
         name = "test$index",
-        sets = index.plus(1),
-        reps = index.plus(2),
-        weight = index.plus(3).toDouble(),
         timestamp = index.plus(123).toLong(),
     )
 }

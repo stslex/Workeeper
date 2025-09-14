@@ -40,7 +40,7 @@ data class Property(
 
             return when (type) {
                 PropertyType.NAME -> PropertyValid.VALID
-                PropertyType.SETS, PropertyType.REPS -> if (value.isDigitsOnly()) {
+                PropertyType.REPS -> if (value.isDigitsOnly()) {
                     PropertyValid.VALID
                 } else {
                     PropertyValid.SHOULD_BE_NUMBER

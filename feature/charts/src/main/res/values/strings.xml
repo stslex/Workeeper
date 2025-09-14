@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="feature_all_charts_label_date_rage">Date range:</string>
+
+    <string name="feature_all_charts_empty_results">You don\'t have any exercises yet</string>
+    <string name="feature_all_charts_not_found_results">No results found</string>
+</resources>

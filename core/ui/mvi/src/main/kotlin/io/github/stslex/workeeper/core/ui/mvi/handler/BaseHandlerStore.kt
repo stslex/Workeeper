@@ -52,6 +52,10 @@ open class BaseHandlerStore<S : State, A : Action, E : Event>() :
         store.updateStateImmediate(update)
     }
 
+    override suspend fun updateStateImmediate(state: S) {
+        store.updateStateImmediate(state)
+    }
+
     override fun <T> launch(
         onError: suspend (Throwable) -> Unit,
         onSuccess: suspend CoroutineScope.(T) -> Unit,

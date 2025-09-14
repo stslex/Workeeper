@@ -56,6 +56,7 @@ private fun Project.configureKotlinAndroid(
         .drop(dropValue)
         .joinToString(".")
         .replace("-", "_")
+
     namespace = if (moduleName.isNotEmpty()) "$APP_PREFIX.$moduleName" else APP_PREFIX
 
     defaultConfig {

@@ -32,6 +32,8 @@ interface StoreConsumer<S : State, A : Store.Action, in E : Event> {
 
     suspend fun updateStateImmediate(update: (S) -> S)
 
+    suspend fun updateStateImmediate(state: S)
+
     /**
      * Launches a coroutine and catches exceptions. The coroutine is launched on the default dispatcher of the AppDispatcher.
      * @param onError - error handler

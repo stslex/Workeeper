@@ -1,5 +1,6 @@
 package io.github.stslex.workeeper.navigation
 
+import android.annotation.SuppressLint
 import androidx.compose.runtime.Stable
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
@@ -11,10 +12,22 @@ class NavigatorImpl(
     private val holder: NavigatorHolder
 ) : Navigator {
 
+    override val navController get() = holder.navigator
+
+    @SuppressLint("RestrictedApi")
     override fun navTo(screen: Screen) {
         logger.d("navTo $screen")
         try {
-            holder.navigator.navigate(screen)
+            val currentRoute = holder.navigator.currentDestination?.route ?: return
+            navController.navigate(screen) {
+                if (screen.isSingleTop) {
+                    popUpTo(currentRoute) {
+                        inclusive = true
+                        saveState = true
+                    }
+                    launchSingleTop = true
+                }
+            }
         } catch (exception: Exception) {
             logger.e(exception, "screen: $screen")
         }
@@ -22,7 +35,7 @@ class NavigatorImpl(
 
     override fun popBack() {
         logger.d("popBack")
-        holder.navigator.popBackStack()
+        navController.popBackStack()
     }
 
     companion object {

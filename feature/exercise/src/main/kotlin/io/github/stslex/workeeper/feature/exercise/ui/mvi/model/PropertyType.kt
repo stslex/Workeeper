@@ -9,9 +9,6 @@ enum class PropertyType(
     NAME(
         stringRes = R.string.feature_exercise_field_label_name
     ),
-    SETS(
-        stringRes = R.string.feature_exercise_field_label_sets
-    ),
     REPS(
         stringRes = R.string.feature_exercise_field_label_reps
     ),

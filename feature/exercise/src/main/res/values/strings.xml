@@ -4,9 +4,18 @@
     <string name="button_confirm_text">Save</string>
     <string name="button_cancel_text">Cancel</string>
 
-    <string name="feature_exercise_field_label_name">NAME</string>
-    <string name="feature_exercise_field_label_sets">SETS</string>
-    <string name="feature_exercise_field_label_reps">REPS</string>
-    <string name="feature_exercise_field_label_weight">WEIGHT</string>
+    <string name="feature_exercise_field_label_name">name</string>
+    <string name="feature_exercise_field_label_sets">Sets</string>
+    <string name="feature_exercise_field_label_reps">reps</string>
+    <string name="feature_exercise_field_label_weight">weight</string>
     <string name="feature_exercise_field_label_date">Date</string>
+    <string name="feature_exercise_field_label_set_type">type</string>
+
+    <string name="feature_exercise_set_type_warm">warm</string>
+    <string name="feature_exercise_set_type_work">work</string>
+    <string name="feature_exercise_set_type_fail">fail</string>
+    <string name="feature_exercise_set_type_drop">drop</string>
+
+    <string name="feature_exercise_field_label_sets_are_empty">There are no sets created yet -> Add new one</string>
+    <string name="feature_exercise_sets_create_button">Add set</string>
 </resources>

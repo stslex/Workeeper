@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="feature_all_field_search">Search</string>
+
+    <string name="feature_all_action_btn_description_delete">delete exercise</string>
+    <string name="feature_all_action_btn_description_create">create new exercise</string>
+
+    <string name="feature_all_exercises_empty_results">You don\'t have any exercises yet</string>
+    <string name="feature_all_exercises_not_found_results">No results found</string>
+</resources>

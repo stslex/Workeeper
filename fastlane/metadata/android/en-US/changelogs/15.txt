@@ -1,0 +1,7 @@
+- ♻️ add animations for bottom app bar
+- ♻️ update dialog state handling in sets deletion process
+- ♻️ remove home feature references from app modules and navigation
+- ✨ update data store package structure and improve handler logic
+- ✨ enhance navigation handling and state management
+- ✨ implement all exercises and trainings components with navigation
+- ♻️ improve tag generation logic in GitHub release workflow

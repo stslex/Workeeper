@@ -46,31 +46,16 @@ jobs:
           echo "name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
           echo "code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
 
-      - name: Build changelog (GitHub Release)
-        id: changelog
-        uses: mikepenz/release-changelog-builder-action@v4
-        with:
-          configuration: .github/changelog-config.json
-          failOnError: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build changelog (Play)
-        id: playlog
-        uses: mikepenz/release-changelog-builder-action@v4
-        with:
-          configuration: .github/changelog-config-play.json
-          failOnError: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Prepare Play Store changelog (en-US)
+      - name: Generate changelogs
         env:
           VERSION_CODE: ${{ steps.version.outputs.code }}
         run: |
-          bash ./.github/scripts/prepare_play_changelog.sh <<'EOF'
-          ${{ steps.playlog.outputs.changelog }}
-          EOF
+          # For version updater, use the last tag as from_tag
+          FROM_TAG=$(git describe --tags --abbrev=0 2>/dev/null || git rev-list --max-parents=0 HEAD)
+          TO_TAG="${{ github.sha }}"
+
+          # Generate Play Store changelog
+          bash ./.github/scripts/generate_changelog.sh "$FROM_TAG" "$TO_TAG" play "$VERSION_CODE"
 
       - name: Commit files
         run: |

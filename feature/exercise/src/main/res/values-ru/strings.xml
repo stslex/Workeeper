@@ -5,8 +5,17 @@
     <string name="button_cancel_text">Отменить</string>
 
     <string name="feature_exercise_field_label_name">НАЗВАНИЕ</string>
-    <string name="feature_exercise_field_label_sets">ПОДХОДЫ</string>
-    <string name="feature_exercise_field_label_reps">ПОВТОРЕНИЯ</string>
-    <string name="feature_exercise_field_label_weight">ВЕС</string>
+    <string name="feature_exercise_field_label_sets">Подходы</string>
+    <string name="feature_exercise_field_label_reps">повторения</string>
+    <string name="feature_exercise_field_label_weight">вес</string>
     <string name="feature_exercise_field_label_date">Дата</string>
+    <string name="feature_exercise_field_label_set_type">тип</string>
+
+    <string name="feature_exercise_set_type_warm">разминка</string>
+    <string name="feature_exercise_set_type_work">рабочий</string>
+    <string name="feature_exercise_set_type_fail">отказ</string>
+    <string name="feature_exercise_set_type_drop">дроп-сет</string>
+
+    <string name="feature_exercise_field_label_sets_are_empty">У данного упражнения нет и одного похода -> добавьте хотя бы один, чтобы создать упражнение</string>
+    <string name="feature_exercise_sets_create_button">Добавить подход</string>
 </resources>

@@ -7,8 +7,8 @@ androidTools = "31.13.0"
 minSdk = "28"
 targetSdk = "36"
 compileSdk = "36"
-versionName = "1.11"
-versionCode = "12"
+versionName = "1.14"
+versionCode = "15"
 
 ktx = "1.17.0"
 material = "1.13.0"
@@ -58,6 +58,7 @@ essenty = "2.5.0"
 parcelize = "0.2.4"
 runtime = "1.9.0"
 junitJupiter = "5.13.4"
+junitKtx = "1.3.0"
 [libraries]
 android-desugarJdkLibs = { module = "com.android.tools:desugar_jdk_libs", version.ref = "androidDesugarJdkLibs" }
 android-gradlePlugin = { module = "com.android.tools.build:gradle", version.ref = "androidGradlePlugin" }
@@ -163,6 +164,7 @@ google-firebase-analytics = { group = "com.google.firebase", name = "firebase-an
 google-firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashlytics" }
 
 composeCharts = { module = "io.github.ehsannarmani:compose-charts", version.ref = "composeCharts" }
+androidx-junit-ktx = { group = "androidx.test.ext", name = "junit-ktx", version.ref = "junitKtx" }
 
 [plugins]
 kotlin = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
