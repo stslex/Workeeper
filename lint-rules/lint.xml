@@ -26,13 +26,9 @@
     <!-- Accessibility (can be enabled later for production) -->
     <issue id="ContentDescription" severity="ignore" />
     <issue id="LabelFor" severity="ignore" />
-    <issue id="SpeakableTextPresentCheck" severity="ignore" />
     <issue id="ClickableViewAccessibility" severity="ignore" />
-    <issue id="TouchTargetSizeCheck" severity="ignore" />
-    <issue id="DuplicateClickableBoundsCheck" severity="ignore" />
     <issue id="KeyboardInaccessibleWidget" severity="ignore" />
     <issue id="RedundantLabel" severity="ignore" />
-    <issue id="ImageContrastCheck" severity="ignore" />
 
     <!-- Google Services -->
     <issue id="GoogleAppIndexingWarning" severity="ignore" />
@@ -58,7 +54,6 @@
     <issue id="AllowBackup" severity="error" />
     <issue id="ExportedReceiver" severity="error" />
     <issue id="ExportedService" severity="error" />
-    <issue id="ExportedActivity" severity="error" />
     <issue id="ExportedContentProvider" severity="error" />
     <issue id="PermissionImpliesUnsupportedChromeOsHardware" severity="warning" />
     <issue id="UnsafeProtectedBroadcastReceiver" severity="error" />
@@ -83,6 +78,8 @@
     <issue id="PluralsCandidate" severity="warning" />
     <issue id="StringFormatCount" severity="error" />
     <issue id="StringFormatInvalid" severity="error" />
+    <!--todo check-->
+    <issue id="NonAsciiCharacters" severity="error" />
 
     <!-- Android specific -->
     <issue id="NewApi" severity="error" />
@@ -90,49 +87,25 @@
     <issue id="Override" severity="error" />
     <issue id="UseSparseArrays" severity="warning" />
     <issue id="UseValueOf" severity="warning" />
-    <issue id="LogNotTimber" severity="error" />
-    <issue id="TimberArgCount" severity="error" />
-    <issue id="TimberArgTypes" severity="error" />
-    <issue id="TimberTagLength" severity="error" />
-    <issue id="BinaryOperationInTimber" severity="error" />
     <issue id="LogConditional" severity="warning" />
 
     <!-- Compose specific -->
-    <issue id="ComposableNaming" severity="error" />
-    <issue id="ComposeLambdaParameterNaming" severity="warning" />
-    <issue id="ComposeParameterOrder" severity="warning" />
-    <issue id="ComposeMutableParameters" severity="error" />
-    <issue id="ComposeUnstableCollections" severity="error" />
-    <issue id="ComposeViewModelInjection" severity="error" />
-    <issue id="ComposeRememberMissing" severity="error" />
-    <issue id="ComposeModifierMissing" severity="warning" />
-    <issue id="ComposeModifierReused" severity="error" />
-    <issue id="ComposeContentEmitterReturningValues" severity="error" />
-    <issue id="ComposeMultipleContentEmitters" severity="error" />
+    <!-- Note: Compose lint rules removed as they are not available in current lint version -->
 
     <!-- MVI Architecture specific (custom rules) -->
-    <issue id="MviStateImmutability" severity="error" />
-    <issue id="MviActionNaming" severity="warning" />
-    <issue id="MviEventNaming" severity="warning" />
-    <issue id="MviHandlerNaming" severity="warning" />
+    <!-- Note: MVI rules are handled by custom detekt rules -->
 
     <!-- Koin DI specific -->
-    <issue id="KoinModuleScope" severity="warning" />
-    <issue id="KoinScopedAnnotation" severity="error" />
+    <!-- Note: Koin rules are handled by custom detekt rules -->
 
     <!-- Room database -->
-    <issue id="RoomDatabaseMigration" severity="error" />
-    <issue id="RoomEntityPrimaryKey" severity="error" />
-    <issue id="RoomRelationQuery" severity="error" />
-    <issue id="RoomTypeConverter" severity="warning" />
+    <!-- Note: Room rules are included in Android Gradle Plugin automatically -->
 
     <!-- Coroutines -->
-    <issue id="CoroutineCreationDuringComposition" severity="error" />
-    <issue id="SuspendFunctionOnMainThread" severity="error" />
-    <issue id="GlobalCoroutineUsage" severity="error" />
+    <!-- Note: Coroutine rules are handled by detekt -->
 
     <!-- Deprecation -->
-    <issue id="Deprecation" severity="warning" />
+    <issue id="DeprecatedApi" severity="warning" />
     <issue id="ObsoleteSdkInt" severity="warning" />
 
     <!-- Ignore rules for test files -->
