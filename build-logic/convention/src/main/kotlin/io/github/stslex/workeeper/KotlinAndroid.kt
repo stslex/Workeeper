@@ -124,6 +124,8 @@ private fun Project.configureKotlin() {
                 "-opt-in=kotlin.RequiresOptIn",
                 "-opt-in=kotlin.uuid.ExperimentalUuidApi",
                 "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
+                "-Xjvm-default=all",
+                "-Xcontext-receivers",
             )
         }
     }
