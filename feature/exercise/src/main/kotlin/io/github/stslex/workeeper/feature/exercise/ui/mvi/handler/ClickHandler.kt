@@ -85,7 +85,8 @@ internal class ClickHandler(
     private fun processDialogSetsDelete(action: Action.Click.DialogSets.DeleteButton) {
         updateState {
             it.copy(
-                sets = it.sets.filter { set -> set.uuid != action.uuid }.toImmutableList()
+                sets = it.sets.filter { set -> set.uuid != action.uuid }.toImmutableList(),
+                dialogState = DialogState.Closed
             )
         }
     }
