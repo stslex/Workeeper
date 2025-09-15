@@ -4,11 +4,9 @@ import io.github.stslex.workeeper.core.core.result.Mapping
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.ui.kit.utils.NumUiUtils
 import io.github.stslex.workeeper.feature.charts.di.CHARTS_SCOPE_NAME
-import org.koin.core.annotation.Factory
 import org.koin.core.annotation.Scope
 import org.koin.core.annotation.Scoped
 
-@Factory
 @Scope(name = CHARTS_SCOPE_NAME)
 @Scoped
 internal class ExerciseChartMap(

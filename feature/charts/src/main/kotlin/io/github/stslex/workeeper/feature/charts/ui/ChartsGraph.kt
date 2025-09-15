@@ -26,7 +26,7 @@ fun NavGraphBuilder.chartsGraph(
         ChartsScreen(
             modifier = modifier,
             sharedTransitionScope = sharedTransitionScope,
-            component = remember { ChartsComponent.create(navigator) },
+            component = remember(navigator) { ChartsComponent.create(navigator) },
             animatedContentScope = this
         )
     }

@@ -27,7 +27,7 @@ fun NavGraphBuilder.allExercisesGraph(
         ExerciseScreen(
             modifier = modifier,
             sharedTransitionScope = sharedTransitionScope,
-            component = remember { AllExercisesComponent.create(navigator) },
+            component = remember(navigator) { AllExercisesComponent.create(navigator) },
             animatedContentScope = this
         )
     }
