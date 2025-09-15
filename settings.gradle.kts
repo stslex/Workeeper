@@ -41,3 +41,5 @@ include(":feature:exercise")
 include(":feature:all-exercises")
 include(":feature:all-trainings")
 include(":feature:charts")
+
+include(":lint-rules")

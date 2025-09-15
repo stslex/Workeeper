@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!-- Main lint configuration for Workeeper project -->
+    <!-- All lint rules and suppressions are defined in this file -->
+
+    <!-- ================================ -->
+    <!-- DESIGN & UI RELATED SUPPRESSIONS -->
+    <!-- ================================ -->
+
+    <!-- Icon and Resource Issues -->
+    <issue id="IconDensities" severity="ignore" />
+    <issue id="IconDuplicates" severity="ignore" />
+    <issue id="IconLocation" severity="ignore" />
+    <issue id="IconMissingDensityFolder" severity="ignore" />
+    <issue id="IconExpectedSize" severity="ignore" />
+    <issue id="IconLauncherShape" severity="ignore" />
+    <issue id="VectorRaster" severity="ignore" />
+
+    <!-- Typography and Text -->
+    <issue id="MissingTranslation" severity="ignore" />
+    <issue id="ExtraTranslation" severity="ignore" />
+    <issue id="TypographyFractions" severity="ignore" />
+    <issue id="TypographyDashes" severity="ignore" />
+    <issue id="Typos" severity="ignore" />
+
+    <!-- Accessibility (can be enabled later for production) -->
+    <issue id="ContentDescription" severity="ignore" />
+    <issue id="LabelFor" severity="ignore" />
+    <issue id="ClickableViewAccessibility" severity="ignore" />
+    <issue id="KeyboardInaccessibleWidget" severity="ignore" />
+    <issue id="RedundantLabel" severity="ignore" />
+
+    <!-- Google Services -->
+    <issue id="GoogleAppIndexingWarning" severity="ignore" />
+    <issue id="HardcodedDebugMode" severity="ignore" />
+
+    <!-- Performance related -->
+    <issue id="UnusedResources" severity="warning" />
+    <issue id="UselessParent" severity="warning" />
+    <issue id="MergeRootFrame" severity="warning" />
+    <issue id="InefficientWeight" severity="warning" />
+    <issue id="NestedWeights" severity="warning" />
+    <issue id="DisableBaselineAlignment" severity="warning" />
+    <issue id="TooManyViews" severity="warning" />
+    <issue id="TooDeepLayout" severity="warning" />
+    <issue id="Overdraw" severity="warning" />
+    <issue id="ViewHolder" severity="warning" />
+    <issue id="RecyclerView" severity="warning" />
+    <issue id="Wakelock" severity="warning" />
+
+    <!-- Security related -->
+    <issue id="HardcodedText" severity="error" />
+    <issue id="SetTextI18n" severity="error" />
+    <issue id="AllowBackup" severity="error" />
+    <issue id="ExportedReceiver" severity="error" />
+    <issue id="ExportedService" severity="error" />
+    <issue id="ExportedContentProvider" severity="error" />
+    <issue id="PermissionImpliesUnsupportedChromeOsHardware" severity="warning" />
+    <issue id="UnsafeProtectedBroadcastReceiver" severity="error" />
+    <issue id="SecureRandom" severity="error" />
+    <issue id="TrustAllX509TrustManager" severity="error" />
+    <issue id="BadHostnameVerifier" severity="error" />
+    <issue id="SSLCertificateSocketFactoryCreateSocket" severity="error" />
+    <issue id="SSLCertificateSocketFactoryGetInsecure" severity="error" />
+    <issue id="WorldReadableFiles" severity="error" />
+    <issue id="WorldWriteableFiles" severity="error" />
+
+    <!-- Code quality -->
+    <issue id="ObsoleteLayoutParam" severity="error" />
+    <issue id="DuplicateIds" severity="error" />
+    <issue id="UnknownId" severity="error" />
+    <issue id="NotSibling" severity="error" />
+    <issue id="MissingId" severity="warning" />
+    <issue id="UnusedIds" severity="warning" />
+    <issue id="InconsistentArrays" severity="error" />
+    <issue id="DuplicateDefinition" severity="error" />
+    <issue id="StringFormatMatches" severity="error" />
+    <issue id="PluralsCandidate" severity="warning" />
+    <issue id="StringFormatCount" severity="error" />
+    <issue id="StringFormatInvalid" severity="error" />
+    <issue id="GradleDependency" severity="ignore" />
+    <issue id="NewerVersionAvailable" severity="ignore" />
+    <!-- Note: NonAsciiCharacters rule is not available in current lint version -->
+
+    <!-- Android specific -->
+    <issue id="NewApi" severity="error" />
+    <issue id="InlinedApi" severity="warning" />
+    <issue id="Override" severity="error" />
+    <issue id="UseSparseArrays" severity="warning" />
+    <issue id="UseValueOf" severity="warning" />
+    <issue id="LogConditional" severity="warning" />
+    <issue id="ObsoleteSdkInt">
+        <ignore path="**/mipmap-**" />
+    </issue>
+    <!--todo refactor png to webp-->
+    <issue id="ConvertToWebp" severity="ignore" />
+
+    <!-- Compose specific -->
+    <!-- Note: Compose lint rules removed as they are not available in current lint version -->
+
+    <!-- MVI Architecture specific (custom rules) -->
+    <!-- Note: MVI rules are handled by custom detekt rules -->
+
+    <!-- Koin DI specific -->
+    <!-- Note: Koin rules are handled by custom detekt rules -->
+
+    <!-- Room database -->
+    <!-- Note: Room rules are included in Android Gradle Plugin automatically -->
+
+    <!-- Coroutines -->
+    <!-- Note: Coroutine rules are handled by detekt -->
+
+    <!-- Deprecation -->
+    <issue id="Deprecated" severity="warning" />
+    <issue id="ObsoleteSdkInt" severity="warning" />
+
+    <!-- Ignore rules for test files -->
+    <issue id="SetTextI18n">
+        <ignore path="**/test/**" />
+        <ignore path="**/androidTest/**" />
+    </issue>
+
+    <issue id="HardcodedText">
+        <ignore path="**/test/**" />
+        <ignore path="**/androidTest/**" />
+    </issue>
+</lint>

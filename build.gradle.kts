@@ -11,6 +11,7 @@ plugins {
     alias(libs.plugins.robolectric.junit5) apply false
     alias(libs.plugins.gms) apply false
     alias(libs.plugins.firebaseCrashlytics) apply false
+    alias(libs.plugins.detekt)
 }
 
 buildscript {

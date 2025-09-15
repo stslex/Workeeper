@@ -75,6 +75,12 @@ jobs:
       - name: Grant Permission to Execute
         run: chmod +x gradlew
 
+      - name: Use CI-optimized Gradle properties
+        run: cp .github/properties/gradle-ci.properties gradle.properties
+
+      - name: Use CI-optimized Convention Gradle properties
+        run: cp .github/properties/gradle-convention-ci.properties build-logic/gradle.properties
+
       - name: Install bundle
         run: |
           bundle config path vendor/bundle

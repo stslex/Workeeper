@@ -1,0 +1,46 @@
+#!/bin/sh
+
+# Pre-commit hook to run linting
+
+# Set JAVA_HOME for the hook environment
+export JAVA_HOME="/var/home/stslex/.jdks/jbrsdk_jcef-21.0.8"
+export PATH="$JAVA_HOME/bin:$PATH"
+
+echo "Running pre-commit checks..."
+
+# Check if we're in a git repository
+if [ ! -d .git ]; then
+    echo "Not in a git repository. Skipping pre-commit checks."
+    exit 0
+fi
+
+# Get list of changed Kotlin files
+KOTLIN_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.kt$' || true)
+
+if [ -z "$KOTLIN_FILES" ]; then
+    echo "No Kotlin files changed. Skipping linting."
+    exit 0
+fi
+
+echo "Changed Kotlin files:"
+echo "$KOTLIN_FILES"
+
+# Run detekt on changed files
+echo "Running detekt..."
+if ! ./gradlew detekt --quiet; then
+    echo "❌ detekt found issues. Please fix them before committing."
+    echo "Run './gradlew detekt' to see the full report."
+    echo "Run './gradlew detektFormat' to auto-fix formatting issues."
+    exit 1
+fi
+
+# Run Android Lint
+echo "Running Android Lint..."
+if ! ./gradlew lintDebug --quiet; then
+    echo "❌ Android Lint found issues. Please fix them before committing."
+    echo "Run './gradlew lintDebug' to see the full report."
+    exit 1
+fi
+
+echo "✅ All linting checks passed!"
+exit 0
