@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Base class for creating a store, which manages the state and events of a screen or feature.
@@ -55,27 +56,40 @@ open class BaseStore<S : State, A : Action, E : Event>(
     override val state: StateFlow<S> = _state.asStateFlow()
 
     override val scope: AppCoroutineScope = AppCoroutineScope(viewModelScope, appDispatcher)
-    override val logger = Log.tag(name)
-    private val analytics: Analytics<A, E> = Analytics(name)
+
+    private val loggerName = "MVI_STORE_$name"
+    override val logger = Log.tag(loggerName)
+    private val analytics: Analytics<A, E> = Analytics(loggerName)
 
     private var _lastAction: A? = null
     override val lastAction: A?
         get() = _lastAction
 
+    private val allowConsumeAction: AtomicBoolean = AtomicBoolean(false)
+
     fun init() {
+        allowConsumeAction.set(true)
         initialActions.forEach { consume(it) }
     }
 
     fun initEmitter() {
+        /*todo: check why emitter sometimes doesn't have store instance
+        *  seems that emitter recreate instance
+        *   it could be problems in StoreProcessor lifecycle creation */
         storeEmitter.setStore(this)
     }
 
     fun dispose() {
         disposeActions.forEach { consume(it) }
+        allowConsumeAction.set(false)
     }
 
     @Suppress("UNCHECKED_CAST")
     override fun consume(action: A) {
+        if (allowConsumeAction.get().not()) {
+            logger.i("consume skipped for $action")
+            return
+        }
         logger.i("consume: $action")
         analytics.logAction(action)
         if (lastAction != action && action !is Action.RepeatLast) {
