@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import org.koin.core.annotation.Single
+import kotlin.uuid.Uuid
 
 @Single
 class TrainingRepositoryImpl(
@@ -36,6 +37,12 @@ class TrainingRepositoryImpl(
     override suspend fun updateTraining(training: TrainingChangeDataModel) {
         withContext(appDispatcher.io) {
             dao.update(training.toEntity())
+        }
+    }
+
+    override suspend fun removeTrainings(uuids: Set<String>) {
+        withContext(appDispatcher.io) {
+            dao.deleteAll(uuids.map { Uuid.parse(it) })
         }
     }
 

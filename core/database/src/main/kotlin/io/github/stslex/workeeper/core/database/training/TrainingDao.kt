@@ -23,6 +23,9 @@ interface TrainingDao {
     @Query("DELETE FROM training_table WHERE uuid = :uuid")
     suspend fun delete(uuid: Uuid)
 
+    @Query("DELETE FROM training_table WHERE uuid in (:uuid)")
+    suspend fun deleteAll(uuid: List<Uuid>)
+
     @Query("DELETE FROM training_table")
     suspend fun clear()
 }

@@ -8,6 +8,8 @@ import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.model.TrainingUiM
 import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store.TrainingStore.Action
 import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store.TrainingStore.Event
 import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store.TrainingStore.State
+import kotlinx.collections.immutable.ImmutableSet
+import kotlinx.collections.immutable.persistentSetOf
 
 internal interface TrainingStore : Store<State, Action, Event> {
 
@@ -15,6 +17,7 @@ internal interface TrainingStore : Store<State, Action, Event> {
     data class State(
         val pagingUiState: PagingUiState<PagingData<TrainingUiModel>>,
         val query: String,
+        val selectedItems: ImmutableSet<String>
     ) : Store.State {
 
         companion object {
@@ -24,6 +27,7 @@ internal interface TrainingStore : Store<State, Action, Event> {
             ): State = State(
                 pagingUiState = pagingUiState,
                 query = "",
+                selectedItems = persistentSetOf(),
             )
         }
     }
@@ -32,7 +36,27 @@ internal interface TrainingStore : Store<State, Action, Event> {
 
         sealed interface Paging : Action
 
-        sealed interface Navigation : Action
+        sealed interface Click : Action {
+
+            data class TrainingItemClick(
+                val itemUuid: String
+            ) : Click
+
+            data class TrainingItemLongClick(
+                val itemUuid: String
+            ) : Click
+
+            data object DeleteButton : Click
+
+            data object CreateButton : Click
+        }
+
+        sealed interface Navigation : Action {
+
+            data class OpenTraining(val uuid: String) : Navigation
+
+            data object CreateTraining : Navigation
+        }
     }
 
     sealed interface Event : Store.Event

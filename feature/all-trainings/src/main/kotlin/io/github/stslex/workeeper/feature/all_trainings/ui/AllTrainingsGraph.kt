@@ -2,14 +2,9 @@ package io.github.stslex.workeeper.feature.all_trainings.ui
 
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Text
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraphBuilder
-import androidx.paging.compose.collectAsLazyPagingItems
 import io.github.stslex.workeeper.core.ui.mvi.NavComponentScreen
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen
@@ -26,15 +21,11 @@ fun NavGraphBuilder.allTrainingsGraph(
     navScreen<Screen.BottomBar.AllTrainings> {
         val component = remember(navigator) { AllTrainingsComponent.create(navigator) }
         NavComponentScreen(TrainingsFeature, component) { processor ->
-//            val lazyPagingItems = remember {
-//                processor.state.value.pagingUiState.invoke()
-//            }.collectAsLazyPagingItems()
-            Box(
-                modifier = modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("There will be all your trainings soon")
-            }
+            AllTrainingsScreen(
+                modifier = modifier,
+                state = processor.state.value,
+                consume = processor::consume
+            )
         }
     }
 }

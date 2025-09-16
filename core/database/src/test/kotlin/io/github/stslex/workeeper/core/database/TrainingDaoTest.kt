@@ -310,6 +310,200 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
     }
 
     @Test
+    fun `deleteAll with empty list should not affect database`() = runTest {
+        testTrainings.forEach { dao.add(it) }
+
+        dao.deleteAll(emptyList())
+
+        val pagingSource = dao.getAll("")
+        val loadResult = pagingSource.load(
+            PagingSource.LoadParams.Refresh(
+                key = null,
+                loadSize = testTrainings.size + 10,
+                placeholdersEnabled = false
+            )
+        )
+        val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
+        assertEquals(testTrainings.size, actual?.size)
+    }
+
+    @Test
+    fun `deleteAll with single uuid`() = runTest {
+        testTrainings.forEach { dao.add(it) }
+        val trainingToDelete = testTrainings[3]
+
+        dao.deleteAll(listOf(trainingToDelete.uuid))
+
+        val pagingSource = dao.getAll("")
+        val loadResult = pagingSource.load(
+            PagingSource.LoadParams.Refresh(
+                key = null,
+                loadSize = testTrainings.size + 10,
+                placeholdersEnabled = false
+            )
+        )
+        val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
+        assertEquals(testTrainings.size - 1, actual?.size)
+        assertTrue(actual.orEmpty().none { it.uuid == trainingToDelete.uuid })
+    }
+
+    @Test
+    fun `deleteAll with multiple uuids`() = runTest {
+        testTrainings.forEach { dao.add(it) }
+        val trainingsToDelete = listOf(testTrainings[1], testTrainings[3], testTrainings[5])
+        val uuidsToDelete = trainingsToDelete.map { it.uuid }
+
+        dao.deleteAll(uuidsToDelete)
+
+        val pagingSource = dao.getAll("")
+        val loadResult = pagingSource.load(
+            PagingSource.LoadParams.Refresh(
+                key = null,
+                loadSize = testTrainings.size + 10,
+                placeholdersEnabled = false
+            )
+        )
+        val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
+        assertEquals(testTrainings.size - 3, actual?.size)
+        assertTrue(actual.orEmpty().none { training ->
+            trainingsToDelete.any { it.uuid == training.uuid }
+        })
+    }
+
+    @Test
+    fun `deleteAll with all uuids should clear database`() = runTest {
+        testTrainings.forEach { dao.add(it) }
+        val allUuids = testTrainings.map { it.uuid }
+
+        dao.deleteAll(allUuids)
+
+        val pagingSource = dao.getAll("")
+        val loadResult = pagingSource.load(
+            PagingSource.LoadParams.Refresh(
+                key = null,
+                loadSize = testTrainings.size + 10,
+                placeholdersEnabled = false
+            )
+        )
+        val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
+        assertEquals(0, actual?.size)
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    @Test
+    fun `deleteAll with non-existing uuids should not affect database`() = runTest {
+        testTrainings.forEach { dao.add(it) }
+        val nonExistingUuids = List(3) { Uuid.random() }
+
+        dao.deleteAll(nonExistingUuids)
+
+        val pagingSource = dao.getAll("")
+        val loadResult = pagingSource.load(
+            PagingSource.LoadParams.Refresh(
+                key = null,
+                loadSize = testTrainings.size + 10,
+                placeholdersEnabled = false
+            )
+        )
+        val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
+        assertEquals(testTrainings.size, actual?.size)
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    @Test
+    fun `deleteAll with mix of existing and non-existing uuids`() = runTest {
+        testTrainings.forEach { dao.add(it) }
+        val existingUuids = listOf(testTrainings[2].uuid, testTrainings[4].uuid)
+        val nonExistingUuids = List(2) { Uuid.random() }
+        val mixedUuids = existingUuids + nonExistingUuids
+
+        dao.deleteAll(mixedUuids)
+
+        val pagingSource = dao.getAll("")
+        val loadResult = pagingSource.load(
+            PagingSource.LoadParams.Refresh(
+                key = null,
+                loadSize = testTrainings.size + 10,
+                placeholdersEnabled = false
+            )
+        )
+        val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
+        assertEquals(testTrainings.size - 2, actual?.size)
+        assertTrue(actual.orEmpty().none { training ->
+            existingUuids.contains(training.uuid)
+        })
+    }
+
+    @Test
+    fun `deleteAll with duplicate uuids in list`() = runTest {
+        testTrainings.forEach { dao.add(it) }
+        val trainingToDelete = testTrainings[2]
+        val uuidsWithDuplicates = listOf(
+            trainingToDelete.uuid,
+            trainingToDelete.uuid,
+            trainingToDelete.uuid
+        )
+
+        dao.deleteAll(uuidsWithDuplicates)
+
+        val pagingSource = dao.getAll("")
+        val loadResult = pagingSource.load(
+            PagingSource.LoadParams.Refresh(
+                key = null,
+                loadSize = testTrainings.size + 10,
+                placeholdersEnabled = false
+            )
+        )
+        val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
+        assertEquals(testTrainings.size - 1, actual?.size)
+        assertTrue(actual.orEmpty().none { it.uuid == trainingToDelete.uuid })
+    }
+
+    @Test
+    fun `deleteAll on empty database should not cause errors`() = runTest {
+        val uuidsToDelete = testTrainings.take(3).map { it.uuid }
+
+        dao.deleteAll(uuidsToDelete)
+
+        val pagingSource = dao.getAll("")
+        val loadResult = pagingSource.load(
+            PagingSource.LoadParams.Refresh(
+                key = null,
+                loadSize = 10,
+                placeholdersEnabled = false
+            )
+        )
+        val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
+        assertEquals(0, actual?.size)
+    }
+
+    @Test
+    fun `deleteAll preserves correct trainings order after deletion`() = runTest {
+        val orderedTrainings = List(5) { index ->
+            createTestTraining(index, timestamp = (5 - index).toLong() * 1000)
+        }
+        orderedTrainings.forEach { dao.add(it) }
+
+        val uuidsToDelete = listOf(orderedTrainings[1].uuid, orderedTrainings[3].uuid)
+
+        dao.deleteAll(uuidsToDelete)
+
+        val pagingSource = dao.getAll("")
+        val loadResult = pagingSource.load(
+            PagingSource.LoadParams.Refresh(
+                key = null,
+                loadSize = 10,
+                placeholdersEnabled = false
+            )
+        )
+        val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
+        assertEquals(3, actual?.size)
+        assertEquals(orderedTrainings[0], actual?.get(0))
+        assertEquals(orderedTrainings[2], actual?.get(1))
+        assertEquals(orderedTrainings[4], actual?.get(2))
+    }
+
+    @Test
     fun `clear all trainings`() = runTest {
         testTrainings.forEach { dao.add(it) }
 
