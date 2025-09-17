@@ -17,6 +17,6 @@ internal class TrainingModelMap : Mapping<TrainingDataModel, TrainingUiModel> {
         name = data.name,
         labels = data.labels.toImmutableList(),
         exerciseUuids = data.exerciseUuids.toImmutableList(),
-        timestamp = DateProperty.new(data.timestamp)
+        date = DateProperty.new(data.timestamp)
     )
 }

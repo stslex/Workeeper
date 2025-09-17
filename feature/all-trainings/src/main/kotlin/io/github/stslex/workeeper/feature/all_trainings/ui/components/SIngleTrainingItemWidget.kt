@@ -58,7 +58,11 @@ internal fun SingleTrainingItemWidget(
     OutlinedCard(
         modifier = modifier
             .fillMaxWidth()
-            .padding(AppDimension.Padding.medium),
+            .padding(AppDimension.Padding.medium)
+            .combinedClickable(
+                onClick = onItemClick,
+                onLongClick = onItemLongClick
+            ),
         colors = CardDefaults.elevatedCardColors(
             containerColor = containerColor,
             contentColor = contentColor
@@ -66,10 +70,6 @@ internal fun SingleTrainingItemWidget(
     ) {
         Column(
             modifier = Modifier
-                .combinedClickable(
-                    onClick = onItemClick,
-                    onLongClick = onItemLongClick
-                )
                 .padding(AppDimension.Padding.medium)
                 .padding(horizontal = AppDimension.Padding.medium)
         ) {

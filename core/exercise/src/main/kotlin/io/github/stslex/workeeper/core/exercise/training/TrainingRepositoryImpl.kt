@@ -19,6 +19,10 @@ class TrainingRepositoryImpl(
     private val appDispatcher: AppDispatcher
 ) : TrainingRepository {
 
+    override fun getAll(): List<TrainingDataModel> {
+        return dao.getAll().map { it.toData() }
+    }
+
     override fun getTrainings(query: String): Flow<PagingData<TrainingDataModel>> = Pager(
         config = pagingConfig,
         pagingSourceFactory = { dao.getAll(query) }
@@ -36,7 +40,7 @@ class TrainingRepositoryImpl(
 
     override suspend fun updateTraining(training: TrainingChangeDataModel) {
         withContext(appDispatcher.io) {
-            dao.update(training.toEntity())
+            dao.add(training.toEntity())
         }
     }
 

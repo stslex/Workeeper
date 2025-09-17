@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.feature.single_training.ui.mvi.store
 import androidx.compose.runtime.Stable
 import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
 import io.github.stslex.workeeper.core.ui.mvi.Store
+import io.github.stslex.workeeper.feature.single_training.ui.model.DialogState
 import io.github.stslex.workeeper.feature.single_training.ui.model.TrainingUiModel
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingStore.Action
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingStore.Event
@@ -13,7 +14,8 @@ internal interface TrainingStore : Store<State, Action, Event> {
 
     @Stable
     data class State(
-        val training: TrainingUiModel
+        val training: TrainingUiModel,
+        val dialogState: DialogState
     ) : Store.State {
 
         companion object {
@@ -24,8 +26,9 @@ internal interface TrainingStore : Store<State, Action, Event> {
                     name = "",
                     labels = persistentListOf(),
                     exerciseUuids = persistentListOf(),
-                    timestamp = DateProperty.new(System.currentTimeMillis())
-                )
+                    date = DateProperty.new(System.currentTimeMillis())
+                ),
+                dialogState = DialogState.Closed
             )
         }
     }
@@ -35,6 +38,30 @@ internal interface TrainingStore : Store<State, Action, Event> {
         sealed interface Common : Action {
 
             data class Init(val uuid: String?) : Common
+        }
+
+        sealed interface Input : Action {
+
+            data class Name(
+                val value: String
+            ) : Input
+
+            data class Date(
+                val timestamp: Long
+            ) : Input
+        }
+
+        sealed interface Click : Action {
+
+            data object Close : Click
+
+            data object Save : Click
+
+            data object Delete : Click
+
+            data object OpenCalendarPicker : Click
+
+            data object CloseCalendarPicker : Click
         }
 
         sealed interface Navigation : Action {

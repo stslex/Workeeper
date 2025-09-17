@@ -1,4 +1,4 @@
-import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -23,11 +23,12 @@ fun App() {
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background),
             bottomBar = {
-                AnimatedContent(
-                    navigatorHolder.bottomBarDestination
-                ) { targetItem ->
+                // todo: refactor home bottom bar to single graph (reduce animation laggy)
+                AnimatedVisibility(
+                    visible = navigatorHolder.bottomBarDestination.value != null,
+                ) {
                     WorkeeperBottomAppBar(
-                        selectedItem = targetItem,
+                        selectedItem = navigatorHolder.bottomBarDestination,
                     ) {
                         navigator.navTo(it.screen)
                     }

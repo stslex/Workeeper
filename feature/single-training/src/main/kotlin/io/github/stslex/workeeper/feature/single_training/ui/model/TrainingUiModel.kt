@@ -10,5 +10,5 @@ internal data class TrainingUiModel(
     val name: String,
     val labels: ImmutableList<String>,
     val exerciseUuids: ImmutableList<String>,
-    val timestamp: DateProperty,
+    val date: DateProperty,
 )

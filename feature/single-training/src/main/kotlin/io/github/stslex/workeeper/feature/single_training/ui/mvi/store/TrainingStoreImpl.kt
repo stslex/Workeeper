@@ -4,7 +4,9 @@ import io.github.stslex.workeeper.core.core.coroutine.dispatcher.AppDispatcher
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 import io.github.stslex.workeeper.feature.single_training.di.TRAINING_SCOPE_NAME
 import io.github.stslex.workeeper.feature.single_training.di.TrainingHandlerStoreImpl
+import io.github.stslex.workeeper.feature.single_training.ui.mvi.handler.ClickHandler
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.handler.CommonHandler
+import io.github.stslex.workeeper.feature.single_training.ui.mvi.handler.InputHandler
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.handler.NavigationHandler
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingStore.Action
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingStore.Event
@@ -21,6 +23,8 @@ import org.koin.core.annotation.Scope
 internal class TrainingStoreImpl(
     @InjectedParam navigationHandler: NavigationHandler,
     commonHandler: CommonHandler,
+    inputHandler: InputHandler,
+    clickHandler: ClickHandler,
     dispatcher: AppDispatcher,
     @Named(TRAINING_SCOPE_NAME) handlerStore: TrainingHandlerStoreImpl
 ) : BaseStore<State, Action, Event>(
@@ -30,6 +34,8 @@ internal class TrainingStoreImpl(
         when (action) {
             is Action.Navigation -> navigationHandler
             is Action.Common -> commonHandler
+            is Action.Input -> inputHandler
+            is Action.Click -> clickHandler
         }
     },
     storeEmitter = handlerStore,
