@@ -16,6 +16,7 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.SingleTrainingItemWidget
+import io.github.stslex.workeeper.feature.all_trainings.ui.components.TrainingFloatingActionButton
 import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.model.TrainingUiModel
 import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store.TrainingStore.Action
 import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store.TrainingStore.State
@@ -35,7 +36,14 @@ internal fun AllTrainingsScreen(
     Scaffold(
         modifier = modifier
             .background(MaterialTheme.colorScheme.background)
-            .fillMaxSize()
+            .fillMaxSize(),
+        floatingActionButton = {
+            TrainingFloatingActionButton(
+                isDeletingMode = state.selectedItems.isNotEmpty()
+            ) {
+                consume(Action.Click.ActionButton)
+            }
+        }
     ) { paddingValues ->
         Box(
             modifier = Modifier.padding(paddingValues)

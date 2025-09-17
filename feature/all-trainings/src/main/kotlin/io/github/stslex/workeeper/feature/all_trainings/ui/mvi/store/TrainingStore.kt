@@ -46,9 +46,7 @@ internal interface TrainingStore : Store<State, Action, Event> {
                 val itemUuid: String
             ) : Click
 
-            data object DeleteButton : Click
-
-            data object CreateButton : Click
+            data object ActionButton : Click
         }
 
         sealed interface Navigation : Action {

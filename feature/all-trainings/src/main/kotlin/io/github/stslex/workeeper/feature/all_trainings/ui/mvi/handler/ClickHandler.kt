@@ -23,25 +23,24 @@ internal class ClickHandler(
         when (action) {
             is Action.Click.TrainingItemClick -> processTrainingItemClick(action)
             is Action.Click.TrainingItemLongClick -> processTrainingItemLongClick(action)
-            Action.Click.CreateButton -> processCreateButtonClick()
-            Action.Click.DeleteButton -> processDeleteButtonClick()
+            Action.Click.ActionButton -> processActionButtonClick()
         }
     }
 
-    private fun processDeleteButtonClick() {
-        launch(
-            onSuccess = {
-                updateStateImmediate {
-                    it.copy(selectedItems = persistentSetOf())
+    private fun processActionButtonClick() {
+        if (state.value.selectedItems.isEmpty()) {
+            consume(Action.Navigation.CreateTraining)
+        } else {
+            launch(
+                onSuccess = {
+                    updateStateImmediate {
+                        it.copy(selectedItems = persistentSetOf())
+                    }
                 }
+            ) {
+                repository.removeTrainings(state.value.selectedItems)
             }
-        ) {
-            repository.removeTrainings(state.value.selectedItems)
         }
-    }
-
-    private fun processCreateButtonClick() {
-        consume(Action.Navigation.CreateTraining)
     }
 
     private fun processTrainingItemClick(action: Action.Click.TrainingItemClick) {
