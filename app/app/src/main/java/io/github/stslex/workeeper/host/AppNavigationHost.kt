@@ -12,6 +12,8 @@ import io.github.stslex.workeeper.feature.all_trainings.ui.allTrainingsGraph
 import io.github.stslex.workeeper.feature.charts.ui.chartsGraph
 import io.github.stslex.workeeper.feature.exercise.ui.exerciseGraph
 import io.github.stslex.workeeper.feature.exercise.ui.exerciseNewGraph
+import io.github.stslex.workeeper.feature.single_training.ui.singleTrainingsCreateGraph
+import io.github.stslex.workeeper.feature.single_training.ui.singleTrainingsEditGraph
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -38,6 +40,16 @@ internal fun AppNavigationHost(
                 navigator = navigator,
                 sharedTransitionScope = this@SharedTransitionLayout,
             )
+
+            singleTrainingsEditGraph(
+                navigator = navigator,
+                sharedTransitionScope = this@SharedTransitionLayout,
+            )
+            singleTrainingsCreateGraph(
+                navigator = navigator,
+                sharedTransitionScope = this@SharedTransitionLayout,
+            )
+
             exerciseGraph(
                 navigator = navigator,
                 sharedTransitionScope = this@SharedTransitionLayout,

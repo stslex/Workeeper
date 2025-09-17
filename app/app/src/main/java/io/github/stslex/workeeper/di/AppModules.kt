@@ -9,6 +9,7 @@ import io.github.stslex.workeeper.feature.all_exercises.di.ModuleFeatureAllExerc
 import io.github.stslex.workeeper.feature.all_trainings.di.ModuleFeatureAllTrainings
 import io.github.stslex.workeeper.feature.charts.di.ModuleFeatureCharts
 import io.github.stslex.workeeper.feature.exercise.di.ModuleFeatureExercise
+import io.github.stslex.workeeper.feature.single_training.di.ModuleFeatureSingleTraining
 import org.koin.ksp.generated.module
 
 val appModules = listOf(
@@ -21,4 +22,5 @@ val appModules = listOf(
     ModuleFeatureAllExercises().module,
     ModuleFeatureCharts().module,
     ModuleFeatureAllTrainings().module,
+    ModuleFeatureSingleTraining().module
 )

@@ -30,6 +30,17 @@ sealed interface Screen {
 
     }
 
+    sealed interface Training : Screen {
+
+        @Serializable
+        data object New : Training
+
+        @Serializable
+        data class Data(
+            val uuid: String,
+        ) : Training
+    }
+
     @Serializable
     sealed interface Exercise : Screen {
 

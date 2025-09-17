@@ -12,4 +12,6 @@ interface TrainingRepository {
     suspend fun updateTraining(training: TrainingChangeDataModel)
 
     suspend fun removeTrainings(uuids: Set<String>)
+
+    suspend fun getTraining(uuid: String): TrainingDataModel
 }

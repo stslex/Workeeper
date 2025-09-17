@@ -17,6 +17,9 @@ interface TrainingDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun add(item: TrainingEntity)
 
+    @Query("SELECT * FROM training_table WHERE uuid = :uuid")
+    suspend fun get(uuid: Uuid): TrainingEntity
+
     @Update(onConflict = OnConflictStrategy.REPLACE)
     suspend fun update(item: TrainingEntity)
 

@@ -46,6 +46,12 @@ class TrainingRepositoryImpl(
         }
     }
 
+    override suspend fun getTraining(
+        uuid: String
+    ): TrainingDataModel = withContext(appDispatcher.io) {
+        dao.get(Uuid.parse(uuid)).toData()
+    }
+
     companion object {
 
         private val pagingConfig = PagingConfig(
