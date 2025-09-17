@@ -1,0 +1,8 @@
+- ✨ implement single training screen with edit and create functionality
+- ✨ implement single training screen structure and navigation
+- ♻️ unify create and delete FAB functionality
+- ♻️ enhance action consumption logic in BaseStore
+- ♻️ add deleteAll method in TrainingDao for batch deletion of trainings
+- ♻️ introduce PagingHandler and TrainingStore for managing training data
+- ♻️ upgrade dependencies for better performance and compatibility
+…
