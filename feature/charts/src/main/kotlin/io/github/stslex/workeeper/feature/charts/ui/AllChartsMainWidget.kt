@@ -5,10 +5,8 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
@@ -33,13 +31,13 @@ internal fun AllChartsMainWidget(
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Scaffold(
+    Box(
         modifier = modifier
-            .fillMaxSize()
-            .systemBarsPadding(),
-    ) { paddingValues ->
+            .fillMaxSize(),
+    ) {
         ChartsWidget(
-            modifier = Modifier.padding(paddingValues),
+            modifier = Modifier
+                .fillMaxSize(),
             state = state,
             consume = consume
         )

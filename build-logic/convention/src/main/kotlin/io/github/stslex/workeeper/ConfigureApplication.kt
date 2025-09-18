@@ -74,7 +74,6 @@ private fun ApplicationExtension.configureProguard(
     buildTypes {
         getByName("release") {
             isMinifyEnabled = true
-
             signingConfig = signingConfigs.getByName("release")
             isDebuggable = false
             isShrinkResources = true

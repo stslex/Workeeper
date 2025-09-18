@@ -23,7 +23,6 @@ fun App() {
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background),
             bottomBar = {
-                // todo: refactor home bottom bar to single graph (reduce animation laggy)
                 AnimatedVisibility(
                     visible = navigatorHolder.bottomBarDestination.value != null,
                 ) {

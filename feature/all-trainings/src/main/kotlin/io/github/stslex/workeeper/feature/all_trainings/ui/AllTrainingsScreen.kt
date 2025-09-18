@@ -6,14 +6,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.paging.PagingData
 import androidx.paging.compose.collectAsLazyPagingItems
 import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
+import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.SingleTrainingItemWidget
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.TrainingFloatingActionButton
@@ -33,37 +34,34 @@ internal fun AllTrainingsScreen(
 
     val items = remember { state.pagingUiState() }.collectAsLazyPagingItems()
 
-    Scaffold(
+    Box(
         modifier = modifier
             .background(MaterialTheme.colorScheme.background)
             .fillMaxSize(),
-        floatingActionButton = {
-            TrainingFloatingActionButton(
-                isDeletingMode = state.selectedItems.isNotEmpty()
-            ) {
-                consume(Action.Click.ActionButton)
-            }
-        }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier.padding(paddingValues)
+    ) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize()
         ) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(
-                    count = items.itemCount
-                ) { index ->
-                    items[index]?.let { item ->
-                        SingleTrainingItemWidget(
-                            item = item,
-                            isSelected = state.selectedItems.contains(item.uuid),
-                            onItemClick = { consume(Action.Click.TrainingItemClick(item.uuid)) },
-                            onItemLongClick = { consume(Action.Click.TrainingItemClick(item.uuid)) }
-                        )
-                    }
+            items(
+                count = items.itemCount
+            ) { index ->
+                items[index]?.let { item ->
+                    SingleTrainingItemWidget(
+                        item = item,
+                        isSelected = state.selectedItems.contains(item.uuid),
+                        onItemClick = { consume(Action.Click.TrainingItemClick(item.uuid)) },
+                        onItemLongClick = { consume(Action.Click.TrainingItemClick(item.uuid)) }
+                    )
                 }
             }
+        }
+        TrainingFloatingActionButton(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(AppDimension.Padding.big),
+            isDeletingMode = state.selectedItems.isNotEmpty()
+        ) {
+            consume(Action.Click.ActionButton)
         }
     }
 }

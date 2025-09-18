@@ -62,14 +62,15 @@ internal fun AllExercisesWidget(
                     items[index]?.let { item ->
                         with(sharedTransitionScope) {
                             ExercisePagingItem(
-                                modifier = Modifier
-                                    .sharedBounds(
-                                        sharedContentState = sharedTransitionScope.rememberSharedContentState(
-                                            item.uuid
-                                        ),
-                                        animatedVisibilityScope = animatedContentScope,
-                                        resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds()
-                                    ),
+                                modifier = Modifier,
+// todo: reduce animation laggy
+//                                    .sharedBounds(
+//                                        sharedContentState = sharedTransitionScope.rememberSharedContentState(
+//                                            item.uuid
+//                                        ),
+//                                        animatedVisibilityScope = animatedContentScope,
+//                                        resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds()
+//                                    ),
                                 item = item,
                                 isSelected = state.selectedItems.contains(item),
                                 onClick = {
