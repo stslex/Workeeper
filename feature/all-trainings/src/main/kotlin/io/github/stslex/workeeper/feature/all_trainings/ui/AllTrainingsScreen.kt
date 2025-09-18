@@ -50,7 +50,7 @@ internal fun AllTrainingsScreen(
                         item = item,
                         isSelected = state.selectedItems.contains(item.uuid),
                         onItemClick = { consume(Action.Click.TrainingItemClick(item.uuid)) },
-                        onItemLongClick = { consume(Action.Click.TrainingItemClick(item.uuid)) }
+                        onItemLongClick = { consume(Action.Click.TrainingItemLongClick(item.uuid)) }
                     )
                 }
             }

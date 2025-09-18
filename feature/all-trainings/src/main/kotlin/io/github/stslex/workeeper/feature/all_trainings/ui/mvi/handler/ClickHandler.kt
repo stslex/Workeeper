@@ -1,9 +1,9 @@
 package io.github.stslex.workeeper.feature.all_trainings.ui.mvi.handler
 
-import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.all_trainings.di.TRAINING_SCOPE_NAME
 import io.github.stslex.workeeper.feature.all_trainings.di.TrainingHandlerStore
+import io.github.stslex.workeeper.feature.all_trainings.domain.AllTrainingsInteractor
 import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store.TrainingStore.Action
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableSet
@@ -15,7 +15,7 @@ import org.koin.core.annotation.Scoped
 @Scoped(binds = [ClickHandler::class])
 @Scope(name = TRAINING_SCOPE_NAME)
 internal class ClickHandler(
-    private val repository: TrainingRepository,
+    private val interactor: AllTrainingsInteractor,
     @Named(TRAINING_SCOPE_NAME) store: TrainingHandlerStore
 ) : Handler<Action.Click>, TrainingHandlerStore by store {
 
@@ -38,7 +38,7 @@ internal class ClickHandler(
                     }
                 }
             ) {
-                repository.removeTrainings(state.value.selectedItems)
+                interactor.deleteAll(state.value.selectedItems.toList())
             }
         }
     }

@@ -4,7 +4,7 @@ import io.github.stslex.workeeper.core.core.utils.CommonExt.parseOrRandom
 import io.github.stslex.workeeper.core.database.exercise.ExerciseEntity
 import kotlin.uuid.Uuid
 
-data class ChangeExerciseDataModel(
+data class ExerciseChangeDataModel(
     val uuid: String? = null,
     val name: String,
     val trainingUuid: String?,
@@ -13,7 +13,7 @@ data class ChangeExerciseDataModel(
     val timestamp: Long,
 )
 
-fun ChangeExerciseDataModel.toEntity(): ExerciseEntity = ExerciseEntity(
+fun ExerciseChangeDataModel.toEntity(): ExerciseEntity = ExerciseEntity(
     uuid = Uuid.parseOrRandom(uuid),
     name = name,
     trainingUuid = trainingUuid?.let { Uuid.parse(it) },

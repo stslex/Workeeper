@@ -1,14 +1,12 @@
 package io.github.stslex.workeeper.feature.single_training.ui.mvi.store
 
 import androidx.compose.runtime.Stable
-import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
 import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.feature.single_training.ui.model.DialogState
 import io.github.stslex.workeeper.feature.single_training.ui.model.TrainingUiModel
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingStore.Action
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingStore.Event
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingStore.State
-import kotlinx.collections.immutable.persistentListOf
 
 internal interface TrainingStore : Store<State, Action, Event> {
 
@@ -21,13 +19,7 @@ internal interface TrainingStore : Store<State, Action, Event> {
         companion object {
 
             val INITIAL = State(
-                training = TrainingUiModel(
-                    uuid = "",
-                    name = "",
-                    labels = persistentListOf(),
-                    exerciseUuids = persistentListOf(),
-                    date = DateProperty.new(System.currentTimeMillis())
-                ),
+                training = TrainingUiModel.INITIAL,
                 dialogState = DialogState.Closed
             )
         }

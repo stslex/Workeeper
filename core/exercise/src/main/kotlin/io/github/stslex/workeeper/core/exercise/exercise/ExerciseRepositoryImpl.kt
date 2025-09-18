@@ -6,7 +6,7 @@ import androidx.paging.PagingData
 import androidx.paging.map
 import io.github.stslex.workeeper.core.core.coroutine.dispatcher.AppDispatcher
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
-import io.github.stslex.workeeper.core.exercise.exercise.model.ChangeExerciseDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.toData
 import io.github.stslex.workeeper.core.exercise.exercise.model.toEntity
@@ -41,13 +41,11 @@ internal class ExerciseRepositoryImpl(
         }
         .flowOn(appDispatcher.io)
 
-    override fun getExercise(
+    override suspend fun getExercise(
         uuid: String
-    ): Flow<ExerciseDataModel?> = dao.getExercise(Uuid.parse(uuid))
-        .map {
-            it?.toData()
-        }
-        .flowOn(appDispatcher.io)
+    ): ExerciseDataModel? = withContext(appDispatcher.io) {
+        dao.getExercise(Uuid.parse(uuid))?.toData()
+    }
 
     override fun getExercises(
         name: String,
@@ -73,7 +71,7 @@ internal class ExerciseRepositoryImpl(
         .map { list -> list.map { it.toData() } }
         .flowOn(appDispatcher.io)
 
-    override suspend fun saveItem(item: ChangeExerciseDataModel) {
+    override suspend fun saveItem(item: ExerciseChangeDataModel) {
         withContext(appDispatcher.io) {
             dao.create(item.toEntity())
         }
@@ -93,6 +91,18 @@ internal class ExerciseRepositoryImpl(
     override suspend fun deleteAllItems(uuids: List<Uuid>) {
         withContext(appDispatcher.io) {
             dao.delete(uuids)
+        }
+    }
+
+    override suspend fun deleteByTrainingUuid(trainingUuid: String) {
+        withContext(appDispatcher.io) {
+            dao.deleteAllByTraining(Uuid.parse(trainingUuid))
+        }
+    }
+
+    override suspend fun deleteByTrainingsUuids(trainingsUuids: List<String>) {
+        withContext(appDispatcher.io) {
+            dao.deleteAllByTrainings(trainingsUuids.map(Uuid::parse))
         }
     }
 

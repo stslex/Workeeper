@@ -10,7 +10,7 @@ import io.github.stslex.workeeper.core.database.exercise.model.SetsEntity
 import io.github.stslex.workeeper.core.database.exercise.model.SetsEntityType
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepositoryImpl
-import io.github.stslex.workeeper.core.exercise.exercise.model.ChangeExerciseDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
@@ -183,7 +183,7 @@ internal class ExerciseRepositoryTest {
     private fun createChangeModel(
         index: Int,
         uuid: Uuid
-    ) = ChangeExerciseDataModel(
+    ) = ExerciseChangeDataModel(
         uuid = uuid.toString(),
         name = "test$index",
         sets = Array(index) {

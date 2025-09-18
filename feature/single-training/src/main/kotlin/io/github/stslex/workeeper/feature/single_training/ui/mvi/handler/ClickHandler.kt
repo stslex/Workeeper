@@ -1,9 +1,9 @@
 package io.github.stslex.workeeper.feature.single_training.ui.mvi.handler
 
-import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.single_training.di.TRAINING_SCOPE_NAME
 import io.github.stslex.workeeper.feature.single_training.di.TrainingHandlerStore
+import io.github.stslex.workeeper.feature.single_training.domain.interactor.SingleTrainingInteractor
 import io.github.stslex.workeeper.feature.single_training.ui.model.DialogState
 import io.github.stslex.workeeper.feature.single_training.ui.model.TrainingChangeMapper
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingStore.Action
@@ -15,7 +15,7 @@ import org.koin.core.annotation.Scoped
 @Scoped(binds = [ClickHandler::class])
 @Scope(name = TRAINING_SCOPE_NAME)
 internal class ClickHandler(
-    private val repository: TrainingRepository,
+    private val interactor: SingleTrainingInteractor,
     private val changeMap: TrainingChangeMapper,
     @Named(TRAINING_SCOPE_NAME) store: TrainingHandlerStore
 ) : Handler<Action.Click>, TrainingHandlerStore by store {
@@ -42,7 +42,7 @@ internal class ClickHandler(
                 }
             }
         ) {
-            repository.removeTrainings(setOf(uuid))
+            interactor.removeTraining(uuid)
         }
     }
 
@@ -71,7 +71,7 @@ internal class ClickHandler(
             },
             onError = { logger.e(it) }
         ) {
-            repository.updateTraining(changeMap(state.value.training))
+            interactor.updateTraining(changeMap(state.value.training))
         }
     }
 }

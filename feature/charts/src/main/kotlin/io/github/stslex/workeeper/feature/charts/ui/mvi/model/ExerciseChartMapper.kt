@@ -1,6 +1,6 @@
 package io.github.stslex.workeeper.feature.charts.ui.mvi.model
 
-import io.github.stslex.workeeper.core.core.result.Mapping
+import io.github.stslex.workeeper.core.core.result.Mapper
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.ui.kit.utils.NumUiUtils
 import io.github.stslex.workeeper.feature.charts.di.CHARTS_SCOPE_NAME
@@ -11,7 +11,7 @@ import org.koin.core.annotation.Scoped
 @Scoped
 internal class ExerciseChartMap(
     private val numUiUtils: NumUiUtils
-) : Mapping<List<ExerciseDataModel>, List<SingleChartUiModel>> {
+) : Mapper<List<ExerciseDataModel>, List<SingleChartUiModel>> {
 
     // todo refactor to use charts correctly
     override operator fun invoke(data: List<ExerciseDataModel>): List<SingleChartUiModel> {

@@ -39,12 +39,14 @@ internal class CommonHandler(
         if (data == null) {
             updateState { getEmptyState() }
         } else {
-            exerciseRepository
-                .getExercise(data.uuid)
-                .launch { item ->
+            launch(
+                onSuccess = { item ->
                     val state = item?.mapToState() ?: getEmptyState()
                     updateStateImmediate(state)
                 }
+            ) {
+                exerciseRepository.getExercise(data.uuid)
+            }
         }
     }
 

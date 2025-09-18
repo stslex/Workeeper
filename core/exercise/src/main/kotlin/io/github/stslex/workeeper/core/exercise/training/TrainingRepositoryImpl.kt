@@ -44,16 +44,20 @@ class TrainingRepositoryImpl(
         }
     }
 
-    override suspend fun removeTrainings(uuids: Set<String>) {
+    override suspend fun removeTraining(uuid: String) {
         withContext(appDispatcher.io) {
-            dao.deleteAll(uuids.map { Uuid.parse(it) })
+            dao.delete(Uuid.parse(uuid))
         }
     }
 
     override suspend fun getTraining(
         uuid: String
-    ): TrainingDataModel = withContext(appDispatcher.io) {
-        dao.get(Uuid.parse(uuid)).toData()
+    ): TrainingDataModel? = withContext(appDispatcher.io) {
+        dao.get(Uuid.parse(uuid))?.toData()
+    }
+
+    override suspend fun removeAll(uuids: List<String>) = withContext(appDispatcher.io) {
+        dao.deleteAll(uuids.map(Uuid::parse))
     }
 
     companion object {

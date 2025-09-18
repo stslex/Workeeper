@@ -42,7 +42,7 @@ object ResultUtils {
         }
 
     fun <T : Any, R : Any> flowRunCatching(
-        mapper: Mapping<T, R>,
+        mapper: Mapper<T, R>,
         block: suspend () -> T
     ): Flow<AppResult<R>> = flowRunCatching { mapper(block()) }
 
@@ -68,7 +68,7 @@ object ResultUtils {
     }
 
     fun <T : Any, R : Any> appRunCatching(
-        mapper: Mapping<T, R>,
+        mapper: Mapper<T, R>,
         block: () -> T
     ): AppResult<R> = appRunCatching { mapper(block()) }
 
@@ -96,7 +96,7 @@ object ResultUtils {
     )
 
     suspend fun <T : Any, R : Any> suspendRunCatching(
-        mapper: Mapping<T, R>,
+        mapper: Mapper<T, R>,
         block: suspend () -> T
     ): AppResult<R> = suspendRunCatching { mapper(block()) }
 

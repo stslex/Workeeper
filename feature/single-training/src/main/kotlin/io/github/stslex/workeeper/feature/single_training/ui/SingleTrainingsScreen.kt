@@ -98,7 +98,7 @@ private fun SingleTrainingsScreenPreview() {
                     uuid = "uuid",
                     name = "special training name",
                     labels = persistentListOf(),
-                    exerciseUuids = persistentListOf(),
+                    exercises = persistentListOf(),
                     date = DateProperty.new(System.currentTimeMillis())
                 ),
                 dialogState = DialogState.Closed
