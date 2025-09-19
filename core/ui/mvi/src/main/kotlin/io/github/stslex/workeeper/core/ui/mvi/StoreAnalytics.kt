@@ -5,7 +5,7 @@ import io.github.stslex.workeeper.core.core.logger.FirebaseEvent
 import io.github.stslex.workeeper.core.ui.mvi.Store.Action
 import io.github.stslex.workeeper.core.ui.mvi.Store.Event
 
-internal class Analytics<A : Action, E : Event>(
+class StoreAnalytics<A : Action, E : Event>(
     val name: String,
 ) {
 

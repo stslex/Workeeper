@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScope
 import io.github.stslex.workeeper.core.core.logger.Log
+import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.ui.mvi.Store.Action
 import io.github.stslex.workeeper.core.ui.mvi.Store.Event
 import io.github.stslex.workeeper.core.ui.mvi.Store.State
@@ -46,7 +47,9 @@ open class BaseStore<S : State, A : Action, E : Event>(
     private val handlerCreator: HandlerCreator<A>,
     private val initialActions: List<A> = emptyList(),
     storeDispatchers: StoreDispatchers,
-    val disposeActions: List<A> = emptyList()
+    val disposeActions: List<A> = emptyList(),
+    val analytics: StoreAnalytics<A, E> = AnalyticsHolder.createStore(name),
+    override val logger: Logger = Log.tag("${STORE_LOGGER_PREFIX}_$name"),
 ) : ViewModel(), Store<S, A, E>, StoreConsumer<S, A, E> {
 
     private val _event: MutableSharedFlow<E> = MutableSharedFlow()
@@ -60,10 +63,6 @@ open class BaseStore<S : State, A : Action, E : Event>(
         defaultDispatcher = storeDispatchers.defaultDispatcher,
         immediateDispatcher = storeDispatchers.mainImmediateDispatcher
     )
-
-    private val loggerName = "MVI_STORE_$name"
-    override val logger = Log.tag(loggerName)
-    private val analytics: Analytics<A, E> = Analytics(loggerName)
 
     private var _lastAction: A? = null
     override val lastAction: A?
@@ -180,5 +179,10 @@ open class BaseStore<S : State, A : Action, E : Event>(
         onError = onError,
         each = each,
     )
+
+    companion object {
+
+        const val STORE_LOGGER_PREFIX = "MVI_STORE"
+    }
 
 }

@@ -1,6 +1,11 @@
 package io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store
 
+import androidx.annotation.VisibleForTesting
+import io.github.stslex.workeeper.core.core.logger.Log
+import io.github.stslex.workeeper.core.core.logger.Logger
+import io.github.stslex.workeeper.core.ui.mvi.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
+import io.github.stslex.workeeper.core.ui.mvi.StoreAnalytics
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.feature.all_exercises.di.EXERCISE_SCOPE_NAME
 import io.github.stslex.workeeper.feature.all_exercises.di.ExerciseHandlerStoreImpl
@@ -20,15 +25,17 @@ import org.koin.core.annotation.Scope
 @KoinViewModel([BaseStore::class])
 @Qualifier(name = EXERCISE_SCOPE_NAME)
 @Scope(name = EXERCISE_SCOPE_NAME)
-internal class HomeStoreImpl(
+internal class AllExercisesStoreImpl(
     @InjectedParam component: NavigationHandler,
     pagingHandler: PagingHandler,
     clickHandler: ClickHandler,
     inputHandler: InputHandler,
     storeDispatchers: StoreDispatchers,
-    @Named(EXERCISE_SCOPE_NAME) storeEmitter: ExerciseHandlerStoreImpl
+    @Named(EXERCISE_SCOPE_NAME) storeEmitter: ExerciseHandlerStoreImpl,
+    analytics: StoreAnalytics<Action, Event> = AnalyticsHolder.createStore(NAME),
+    override val logger: Logger = Log.tag(NAME)
 ) : BaseStore<State, Action, Event>(
-    name = "AllExercises",
+    name = NAME,
     initialState = State.init(
         allItems = pagingHandler.processor
     ),
@@ -42,5 +49,15 @@ internal class HomeStoreImpl(
             is Action.Input -> inputHandler
         }
     },
-    initialActions = listOf(Action.Paging.Init)
-)
+    initialActions = listOf(Action.Paging.Init),
+    logger = logger,
+    analytics = analytics
+) {
+
+
+    companion object {
+
+        @VisibleForTesting
+        private const val NAME = "AllExercises"
+    }
+}
