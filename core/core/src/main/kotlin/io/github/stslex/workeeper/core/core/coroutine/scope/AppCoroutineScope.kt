@@ -1,6 +1,5 @@
 package io.github.stslex.workeeper.core.core.coroutine.scope
 
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.AppDispatcher
 import io.github.stslex.workeeper.core.core.logger.Log
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -17,7 +16,8 @@ import kotlinx.coroutines.withContext
 
 class AppCoroutineScope(
     val scope: CoroutineScope,
-    val appDispatcher: AppDispatcher,
+    val defaultDispatcher: CoroutineDispatcher,
+    val immediateDispatcher: CoroutineDispatcher,
 ) {
 
     private fun exceptionHandler(
@@ -31,20 +31,19 @@ class AppCoroutineScope(
     }
 
     /**
-     * Launches a coroutine and catches exceptions. The coroutine is launched on the default dispatcher of the AppDispatcher.
+     * Launches a coroutine and catches exceptions. The coroutine is launched on the default dispatcher.
      * @param onError - error handler
      * @param onSuccess - success handler
      * @param action - action to be executed
      * @return Job
      * @see Job
-     * @see AppDispatcher
      * */
     fun <T> launch(
         start: CoroutineStart = CoroutineStart.DEFAULT,
         onError: suspend (Throwable) -> Unit = {},
         onSuccess: suspend CoroutineScope.(T) -> Unit = {},
-        workDispatcher: CoroutineDispatcher = appDispatcher.default,
-        eachDispatcher: CoroutineDispatcher = appDispatcher.immediate,
+        workDispatcher: CoroutineDispatcher = defaultDispatcher,
+        eachDispatcher: CoroutineDispatcher = immediateDispatcher,
         exceptionHandler: CoroutineExceptionHandler = exceptionHandler(eachDispatcher, onError),
         action: suspend CoroutineScope.() -> T,
     ): Job = scope.launch(
@@ -66,18 +65,17 @@ class AppCoroutineScope(
     )
 
     /**
-     * Launches a flow and collects it in the screenModelScope. The flow is collected on the default dispatcher. of the AppDispatcher.
+     * Launches a flow and collects it in the screenModelScope. The flow is collected on the default dispatcher.
      * @param onError - error handler
      * @param each - action for each element of the flow
      * @return Job
      * @see Flow
      * @see Job
-     * @see AppDispatcher
      * */
     fun <T> launch(
         flow: Flow<T>,
-        workDispatcher: CoroutineDispatcher = appDispatcher.default,
-        eachDispatcher: CoroutineDispatcher = appDispatcher.immediate,
+        workDispatcher: CoroutineDispatcher = defaultDispatcher,
+        eachDispatcher: CoroutineDispatcher = immediateDispatcher,
         onError: suspend (cause: Throwable) -> Unit = {},
         each: suspend (T) -> Unit,
     ): Job = flow

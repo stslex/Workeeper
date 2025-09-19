@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="feature_single_training_field_name_label">Название тренировки</string>
+    <string name="feature_single_training_field_date_label">Дата</string>
+</resources>

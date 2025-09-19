@@ -3,14 +3,13 @@ package io.github.stslex.workeeper.core.exercise
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
 import androidx.paging.testing.asSnapshot
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.AppDispatcher
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
 import io.github.stslex.workeeper.core.database.exercise.ExerciseEntity
 import io.github.stslex.workeeper.core.database.exercise.model.SetsEntity
 import io.github.stslex.workeeper.core.database.exercise.model.SetsEntityType
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepositoryImpl
-import io.github.stslex.workeeper.core.exercise.exercise.model.ChangeExerciseDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
@@ -37,8 +36,8 @@ internal class ExerciseRepositoryTest {
     private val testDispatcher = UnconfinedTestDispatcher()
     private val dao = mockk<ExerciseDao>()
     private val repository: ExerciseRepository = ExerciseRepositoryImpl(
-        appDispatcher = mockk<AppDispatcher>(relaxed = true) { every { io } returns testDispatcher },
-        dao = dao
+        dao = dao,
+        bgDispatcher = testDispatcher
     )
 
     @BeforeEach
@@ -105,6 +104,7 @@ internal class ExerciseRepositoryTest {
         coEvery { dao.getExercises("name", 100L, 200L) } returns flowOf(expectedEntites)
 
         val items = repository.getExercises("name", 100L, 200L).first()
+        @Suppress("UnusedFlow")
         coVerify(exactly = 1) { dao.getExercises("name", 100L, 200L) }
 
         assertEquals(expectedDataModels, items)
@@ -126,6 +126,7 @@ internal class ExerciseRepositoryTest {
         coEvery { dao.getExercisesExactly("name", 100L, 200L) } returns flowOf(expectedEntites)
 
         val items = repository.getExercisesExactly("name", 100L, 200L).first()
+        @Suppress("UnusedFlow")
         coVerify(exactly = 1) { dao.getExercisesExactly("name", 100L, 200L) }
 
         assertEquals(expectedDataModels, items)
@@ -166,6 +167,60 @@ internal class ExerciseRepositoryTest {
         assertEquals(listOf(domainItem), result)
     }
 
+    @Test
+    fun `get exercise by uuid`() = runTest(testDispatcher) {
+        val uuid = Uuid.random()
+        val entity = createEntity(0, uuid)
+        val domain = createDomain(0, uuid)
+
+        coEvery { dao.getExercise(uuid) } returns entity
+
+        val result = repository.getExercise(uuid.toString())
+        coVerify(exactly = 1) { dao.getExercise(uuid) }
+        assertEquals(domain, result)
+    }
+
+    @Test
+    fun `get exercise by uuid returns null when not found`() = runTest(testDispatcher) {
+        val uuid = Uuid.random()
+
+        coEvery { dao.getExercise(uuid) } returns null
+
+        val result = repository.getExercise(uuid.toString())
+        coVerify(exactly = 1) { dao.getExercise(uuid) }
+        assertEquals(null, result)
+    }
+
+    @Test
+    fun `delete all items`() = runTest(testDispatcher) {
+        val uuids = listOf(Uuid.random(), Uuid.random(), Uuid.random())
+
+        coEvery { dao.delete(uuids) } answers {}
+
+        repository.deleteAllItems(uuids)
+        coVerify(exactly = 1) { dao.delete(uuids) }
+    }
+
+    @Test
+    fun `delete by training uuid`() = runTest(testDispatcher) {
+        val trainingUuid = Uuid.random()
+
+        coEvery { dao.deleteAllByTraining(trainingUuid) } answers {}
+
+        repository.deleteByTrainingUuid(trainingUuid.toString())
+        coVerify(exactly = 1) { dao.deleteAllByTraining(trainingUuid) }
+    }
+
+    @Test
+    fun `delete by trainings uuids`() = runTest(testDispatcher) {
+        val trainingsUuids = listOf(Uuid.random(), Uuid.random())
+
+        coEvery { dao.deleteAllByTrainings(trainingsUuids) } answers {}
+
+        repository.deleteByTrainingsUuids(trainingsUuids.map { it.toString() })
+        coVerify(exactly = 1) { dao.deleteAllByTrainings(trainingsUuids) }
+    }
+
     private class TestPagingSource(
         private val expectedEntites: List<ExerciseEntity>
     ) : PagingSource<Int, ExerciseEntity>() {
@@ -181,9 +236,9 @@ internal class ExerciseRepositoryTest {
     }
 
     private fun createChangeModel(
-        index: Int,
+        @Suppress("SameParameterValue") index: Int,
         uuid: Uuid
-    ) = ChangeExerciseDataModel(
+    ) = ExerciseChangeDataModel(
         uuid = uuid.toString(),
         name = "test$index",
         sets = Array(index) {

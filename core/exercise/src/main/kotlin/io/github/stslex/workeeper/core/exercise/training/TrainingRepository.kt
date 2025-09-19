@@ -10,4 +10,10 @@ interface TrainingRepository {
     suspend fun addTraining(training: TrainingDataModel)
 
     suspend fun updateTraining(training: TrainingChangeDataModel)
+
+    suspend fun removeTraining(uuid: String)
+
+    suspend fun getTraining(uuid: String): TrainingDataModel?
+
+    suspend fun removeAll(uuids: List<String>)
 }

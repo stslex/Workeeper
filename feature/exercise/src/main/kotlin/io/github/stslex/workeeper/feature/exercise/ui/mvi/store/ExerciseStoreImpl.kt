@@ -1,7 +1,12 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.store
 
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.AppDispatcher
+import androidx.annotation.VisibleForTesting
+import io.github.stslex.workeeper.core.core.logger.Log
+import io.github.stslex.workeeper.core.core.logger.Logger
+import io.github.stslex.workeeper.core.ui.mvi.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
+import io.github.stslex.workeeper.core.ui.mvi.StoreAnalytics
+import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.feature.exercise.di.EXERCISE_SCOPE_NAME
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStoreImpl
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.ClickHandler
@@ -27,11 +32,12 @@ internal class ExerciseStoreImpl(
     inputHandler: InputHandler,
     commonHandler: CommonHandler,
     navigationHandler: NavigationHandler,
-    dispatcher: AppDispatcher,
+    storeDispatchers: StoreDispatchers,
     @Named(EXERCISE_SCOPE_NAME) storeEmitter: ExerciseHandlerStoreImpl,
+    analytics: StoreAnalytics<Action, Event> = AnalyticsHolder.createStore(NAME),
+    override val logger: Logger = Log.tag(NAME)
 ) : BaseStore<State, Action, Event>(
-    name = "EXERCISE",
-    appDispatcher = dispatcher,
+    name = NAME,
     initialState = State.INITIAL,
     storeEmitter = storeEmitter,
     handlerCreator = { action ->
@@ -43,5 +49,15 @@ internal class ExerciseStoreImpl(
             is Action.NavigationMiddleware -> navigationHandler
         }
     },
-    initialActions = listOf(Action.Common.Init(component.data))
-)
+    storeDispatchers = storeDispatchers,
+    initialActions = listOf(Action.Common.Init(component.data)),
+    analytics = analytics,
+    logger = logger
+) {
+
+    companion object {
+
+        @VisibleForTesting
+        private const val NAME = "Exercise"
+    }
+}

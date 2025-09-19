@@ -2,7 +2,7 @@ package io.github.stslex.workeeper.feature.all_exercises.ui.mvi.handler
 
 import androidx.paging.PagingData
 import androidx.paging.map
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.AppDispatcher
+import io.github.stslex.workeeper.core.core.coroutine.dispatcher.DefaultDispatcher
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
@@ -11,6 +11,7 @@ import io.github.stslex.workeeper.feature.all_exercises.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.model.toUi
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore.Action
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
@@ -23,7 +24,8 @@ import org.koin.core.annotation.Scoped
 @Scope(name = EXERCISE_SCOPE_NAME)
 internal class PagingHandler(
     private val repository: ExerciseRepository,
-    private val dispatcher: AppDispatcher,
+    @param:DefaultDispatcher
+    private val defaultDispatcher: CoroutineDispatcher,
     @Named(EXERCISE_SCOPE_NAME) store: ExerciseHandlerStore,
 ) : Handler<Action.Paging>, ExerciseHandlerStore by store {
 
@@ -35,7 +37,7 @@ internal class PagingHandler(
                 pagingData.map { it.toUi() }
             }
         }
-            .flowOn(dispatcher.io)
+            .flowOn(defaultDispatcher)
     }
 
     override fun invoke(action: Action.Paging) {

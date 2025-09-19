@@ -9,7 +9,7 @@ object FirebaseCrashlyticsHolder {
     private const val SCREEN_NAME_KEY = "SCREEN_NAME"
     private const val UNRESOLVE_SCREEN_NAME = "UNRESOLVED"
 
-    private val crashlytics = Firebase.crashlytics
+    private val crashlytics by lazy { Firebase.crashlytics }
 
     fun log(message: String) {
         crashlytics.log(message)

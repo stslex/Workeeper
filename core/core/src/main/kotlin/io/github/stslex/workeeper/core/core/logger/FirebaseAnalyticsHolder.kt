@@ -6,7 +6,7 @@ import com.google.firebase.analytics.logEvent
 
 object FirebaseAnalyticsHolder {
 
-    private val analytics = Firebase.analytics
+    private val analytics by lazy { Firebase.analytics }
 
     fun log(event: FirebaseEvent) {
         analytics.logEvent(event.name) {

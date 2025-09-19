@@ -7,17 +7,17 @@ sealed interface AppResult<out T : Any> : AppResultMapper<T> {
 
     data class Success<T : Any>(val data: T) : AppResult<T> {
 
-        override fun <R : Any> map(mapper: Mapping<T, R>): AppResult<R> = Success(mapper(data))
+        override fun <R : Any> map(mapper: Mapper<T, R>): AppResult<R> = Success(mapper(data))
     }
 
     data class Error(val error: AppError) : AppResult<Nothing> {
 
-        override fun <R : Any> map(mapper: Mapping<Nothing, R>): AppResult<R> = Error(error)
+        override fun <R : Any> map(mapper: Mapper<Nothing, R>): AppResult<R> = Error(error)
     }
 
     data object Loading : AppResult<Nothing> {
 
-        override fun <R : Any> map(mapper: Mapping<Nothing, R>): AppResult<R> = Loading
+        override fun <R : Any> map(mapper: Mapper<Nothing, R>): AppResult<R> = Loading
     }
 
     companion object {

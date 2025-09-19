@@ -5,5 +5,6 @@
 
     <application
         android:name=".store.StoreMobileApp"
-        tools:replace="android:name"/>
+        tools:replace="android:name"
+        tools:ignore="MissingApplicationIcon" />
 </manifest>

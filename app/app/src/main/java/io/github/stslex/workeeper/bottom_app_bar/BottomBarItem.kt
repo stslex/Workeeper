@@ -4,6 +4,8 @@ import androidx.annotation.StringRes
 import androidx.compose.runtime.Stable
 import io.github.stslex.workeeper.app.app.R
 import io.github.stslex.workeeper.core.ui.navigation.Screen
+import io.github.stslex.workeeper.core.ui.navigation.Screen.Companion.isCurrentScreen
+import kotlinx.serialization.InternalSerializationApi
 
 @Stable
 enum class BottomBarItem(
@@ -27,11 +29,10 @@ enum class BottomBarItem(
 
         fun Screen?.isAppbar(): Boolean = entries.any { it.screen == this }
 
+        @OptIn(InternalSerializationApi::class)
         fun getByRoute(
             route: String
-        ): BottomBarItem? = entries.find { entry ->
-            route.startsWith(checkNotNull(entry.screen.javaClass.canonicalName))
-        }
+        ): BottomBarItem? = entries.find { entry -> entry.screen.isCurrentScreen(route) }
 
         fun getByScreen(screen: Screen?): BottomBarItem? = entries.find { it.screen == screen }
     }

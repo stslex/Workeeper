@@ -1,6 +1,8 @@
 package io.github.stslex.workeeper.feature.exercise.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -39,24 +40,14 @@ internal fun ExerciseFeatureWidget(
     snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier,
 ) {
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        snackbarHost = {
-            SnackbarHostWidget(
-                onActionClick = {
-                    when (it) {
-                        SnackbarType.DELETE -> consume(Action.Click.ConfirmedDelete)
-                        SnackbarType.DISMISS -> consume(Action.Navigation.Back)
-                    }
-                },
-                snackbarHostState = snackbarHostState
-            )
-        },
-    ) { paddingValues ->
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
                 .padding(AppDimension.Padding.big)
         ) {
 
@@ -95,6 +86,16 @@ internal fun ExerciseFeatureWidget(
                 onCancelClick = { consume(Action.Click.DialogSets.CancelButton) },
             )
         }
+
+        SnackbarHostWidget(
+            onActionClick = {
+                when (it) {
+                    SnackbarType.DELETE -> consume(Action.Click.ConfirmedDelete)
+                    SnackbarType.DISMISS -> consume(Action.Navigation.Back)
+                }
+            },
+            snackbarHostState = snackbarHostState
+        )
     }
 }
 

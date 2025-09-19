@@ -4,5 +4,5 @@ import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Module
 
 @Module
-@ComponentScan("io.github.stslex.workeeper.feature.charts")
+@ComponentScan("io.github.stslex.workeeper.feature.all_trainings")
 class ModuleFeatureAllTrainings

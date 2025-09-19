@@ -2,15 +2,15 @@ package io.github.stslex.workeeper.feature.all_trainings.ui
 
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Text
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraphBuilder
+import io.github.stslex.workeeper.core.ui.mvi.NavComponentScreen
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.core.ui.navigation.navScreen
+import io.github.stslex.workeeper.feature.all_trainings.di.TrainingsFeature
+import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.handler.AllTrainingsComponent
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 fun NavGraphBuilder.allTrainingsGraph(
@@ -19,11 +19,13 @@ fun NavGraphBuilder.allTrainingsGraph(
     modifier: Modifier = Modifier
 ) {
     navScreen<Screen.BottomBar.AllTrainings> {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("There will be all your trainings soon")
+        val component = remember(navigator) { AllTrainingsComponent.create(navigator) }
+        NavComponentScreen(TrainingsFeature, component) { processor ->
+            AllTrainingsScreen(
+                modifier = modifier,
+                state = processor.state.value,
+                consume = processor::consume
+            )
         }
     }
 }

@@ -3,12 +3,13 @@ package io.github.stslex.workeeper.core.ui.mvi
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.AppDispatcher
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScope
 import io.github.stslex.workeeper.core.core.logger.Log
+import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.ui.mvi.Store.Action
 import io.github.stslex.workeeper.core.ui.mvi.Store.Event
 import io.github.stslex.workeeper.core.ui.mvi.Store.State
+import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.mvi.handler.HandlerCreator
 import io.github.stslex.workeeper.core.ui.mvi.handler.HandlerStoreEmitter
@@ -24,6 +25,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Base class for creating a store, which manages the state and events of a screen or feature.
@@ -42,10 +44,12 @@ open class BaseStore<S : State, A : Action, E : Event>(
     val name: String,
     initialState: S,
     private val storeEmitter: HandlerStoreEmitter<S, A, E>,
-    override val appDispatcher: AppDispatcher,
     private val handlerCreator: HandlerCreator<A>,
     private val initialActions: List<A> = emptyList(),
-    val disposeActions: List<A> = emptyList()
+    storeDispatchers: StoreDispatchers,
+    val disposeActions: List<A> = emptyList(),
+    val analytics: StoreAnalytics<A, E> = AnalyticsHolder.createStore(name),
+    override val logger: Logger = Log.tag("${STORE_LOGGER_PREFIX}_$name"),
 ) : ViewModel(), Store<S, A, E>, StoreConsumer<S, A, E> {
 
     private val _event: MutableSharedFlow<E> = MutableSharedFlow()
@@ -54,28 +58,41 @@ open class BaseStore<S : State, A : Action, E : Event>(
     private val _state: MutableStateFlow<S> = MutableStateFlow(initialState)
     override val state: StateFlow<S> = _state.asStateFlow()
 
-    override val scope: AppCoroutineScope = AppCoroutineScope(viewModelScope, appDispatcher)
-    override val logger = Log.tag(name)
-    private val analytics: Analytics<A, E> = Analytics(name)
+    override val scope: AppCoroutineScope = AppCoroutineScope(
+        scope = viewModelScope,
+        defaultDispatcher = storeDispatchers.defaultDispatcher,
+        immediateDispatcher = storeDispatchers.mainImmediateDispatcher
+    )
 
     private var _lastAction: A? = null
     override val lastAction: A?
         get() = _lastAction
 
+    private val allowConsumeAction: AtomicBoolean = AtomicBoolean(false)
+
     fun init() {
+        allowConsumeAction.set(true)
         initialActions.forEach { consume(it) }
     }
 
     fun initEmitter() {
+        /*todo: check why emitter sometimes doesn't have store instance
+        *  seems that emitter recreate instance
+        *   it could be problems in StoreProcessor lifecycle creation */
         storeEmitter.setStore(this)
     }
 
     fun dispose() {
         disposeActions.forEach { consume(it) }
+        allowConsumeAction.set(false)
     }
 
     @Suppress("UNCHECKED_CAST")
     override fun consume(action: A) {
+        if (allowConsumeAction.get().not()) {
+            logger.i("consume skipped for $action")
+            return
+        }
         logger.i("consume: $action")
         analytics.logAction(action)
         if (lastAction != action && action !is Action.RepeatLast) {
@@ -106,9 +123,8 @@ open class BaseStore<S : State, A : Action, E : Event>(
     }
 
     /**
-     * Sends an event to the screen. The event is sent on the default dispatcher of the AppDispatcher.
+     * Sends an event to the screen. The event is sent on the default dispatcher.
      * @param event - event to be sent
-     * @see AppDispatcher
      * */
     override fun sendEvent(event: E) {
         logger.i("sendEvent: $event")
@@ -121,13 +137,12 @@ open class BaseStore<S : State, A : Action, E : Event>(
     }
 
     /**
-     * Launches a coroutine and catches exceptions. The coroutine is launched on the default dispatcher of the AppDispatcher.
+     * Launches a coroutine and catches exceptions. The coroutine is launched on the default dispatcher.
      * @param onError - error handler
      * @param onSuccess - success handler
      * @param action - action to be executed
      * @return Job
      * @see Job
-     * @see AppDispatcher
      * */
     override fun <T> launch(
         onError: suspend (Throwable) -> Unit,
@@ -144,13 +159,12 @@ open class BaseStore<S : State, A : Action, E : Event>(
     )
 
     /**
-     * Launches a flow and collects it in the screenModelScope. The flow is collected on the default dispatcher. of the AppDispatcher.
+     * Launches a flow and collects it in the screenModelScope. The flow is collected on the default dispatcher.
      * @param onError - error handler
      * @param each - action for each element of the flow
      * @return Job
      * @see Flow
      * @see Job
-     * @see AppDispatcher
      * */
     override fun <T> launch(
         flow: Flow<T>,
@@ -165,5 +179,10 @@ open class BaseStore<S : State, A : Action, E : Event>(
         onError = onError,
         each = each,
     )
+
+    companion object {
+
+        const val STORE_LOGGER_PREFIX = "MVI_STORE"
+    }
 
 }

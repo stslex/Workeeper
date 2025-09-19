@@ -4,12 +4,13 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.AppDispatcher
+import io.github.stslex.workeeper.core.core.coroutine.dispatcher.IODispatcher
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
-import io.github.stslex.workeeper.core.exercise.exercise.model.ChangeExerciseDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.toData
 import io.github.stslex.workeeper.core.exercise.exercise.model.toEntity
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -20,7 +21,7 @@ import kotlin.uuid.Uuid
 @Single
 internal class ExerciseRepositoryImpl(
     private val dao: ExerciseDao,
-    private val appDispatcher: AppDispatcher
+    @param:IODispatcher private val bgDispatcher: CoroutineDispatcher
 ) : ExerciseRepository {
 
     override val exercises: Flow<PagingData<ExerciseDataModel>> = Pager(
@@ -30,7 +31,7 @@ internal class ExerciseRepositoryImpl(
         .map { pagingData ->
             pagingData.map { it.toData() }
         }
-        .flowOn(appDispatcher.io)
+        .flowOn(bgDispatcher)
 
     override fun getExercises(query: String): Flow<PagingData<ExerciseDataModel>> = Pager(
         config = pagingConfig,
@@ -39,15 +40,13 @@ internal class ExerciseRepositoryImpl(
         .map { pagingData ->
             pagingData.map { it.toData() }
         }
-        .flowOn(appDispatcher.io)
+        .flowOn(bgDispatcher)
 
-    override fun getExercise(
+    override suspend fun getExercise(
         uuid: String
-    ): Flow<ExerciseDataModel?> = dao.getExercise(Uuid.parse(uuid))
-        .map {
-            it?.toData()
-        }
-        .flowOn(appDispatcher.io)
+    ): ExerciseDataModel? = withContext(bgDispatcher) {
+        dao.getExercise(Uuid.parse(uuid))?.toData()
+    }
 
     override fun getExercises(
         name: String,
@@ -59,7 +58,7 @@ internal class ExerciseRepositoryImpl(
         endDate = endDate
     )
         .map { list -> list.map { it.toData() } }
-        .flowOn(appDispatcher.io)
+        .flowOn(bgDispatcher)
 
     override fun getExercisesExactly(
         name: String,
@@ -71,28 +70,40 @@ internal class ExerciseRepositoryImpl(
         endDate = endDate
     )
         .map { list -> list.map { it.toData() } }
-        .flowOn(appDispatcher.io)
+        .flowOn(bgDispatcher)
 
-    override suspend fun saveItem(item: ChangeExerciseDataModel) {
-        withContext(appDispatcher.io) {
+    override suspend fun saveItem(item: ExerciseChangeDataModel) {
+        withContext(bgDispatcher) {
             dao.create(item.toEntity())
         }
     }
 
     override suspend fun deleteItem(uuid: String) {
-        withContext(appDispatcher.io) {
+        withContext(bgDispatcher) {
             dao.delete(Uuid.Companion.parse(uuid))
         }
     }
 
     override suspend fun searchItems(query: String): List<ExerciseDataModel> =
-        withContext(appDispatcher.io) {
+        withContext(bgDispatcher) {
             dao.searchUniqueExclude(query).map { it.toData() }
         }
 
     override suspend fun deleteAllItems(uuids: List<Uuid>) {
-        withContext(appDispatcher.io) {
+        withContext(bgDispatcher) {
             dao.delete(uuids)
+        }
+    }
+
+    override suspend fun deleteByTrainingUuid(trainingUuid: String) {
+        withContext(bgDispatcher) {
+            dao.deleteAllByTraining(Uuid.parse(trainingUuid))
+        }
+    }
+
+    override suspend fun deleteByTrainingsUuids(trainingsUuids: List<String>) {
+        withContext(bgDispatcher) {
+            dao.deleteAllByTrainings(trainingsUuids.map(Uuid::parse))
         }
     }
 

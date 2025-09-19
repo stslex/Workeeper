@@ -1,7 +1,12 @@
 package io.github.stslex.workeeper.feature.charts.ui.mvi.store
 
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.AppDispatcher
+import androidx.annotation.VisibleForTesting
+import io.github.stslex.workeeper.core.core.logger.Log
+import io.github.stslex.workeeper.core.core.logger.Logger
+import io.github.stslex.workeeper.core.ui.mvi.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
+import io.github.stslex.workeeper.core.ui.mvi.StoreAnalytics
+import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.feature.charts.di.CHARTS_SCOPE_NAME
 import io.github.stslex.workeeper.feature.charts.di.ChartsHandlerStoreImpl
 import io.github.stslex.workeeper.feature.charts.ui.mvi.handler.ClickHandler
@@ -25,13 +30,15 @@ internal class ChartsStoreImpl(
     pagingHandler: PagingHandler,
     clickHandler: ClickHandler,
     inputHandler: InputHandler,
-    appDispatcher: AppDispatcher,
-    @Named(CHARTS_SCOPE_NAME) storeEmitter: ChartsHandlerStoreImpl
+    storeDispatchers: StoreDispatchers,
+    @Named(CHARTS_SCOPE_NAME) storeEmitter: ChartsHandlerStoreImpl,
+    analytics: StoreAnalytics<Action, Event> = AnalyticsHolder.createStore(NAME),
+    override val logger: Logger = Log.tag(NAME)
 ) : BaseStore<State, Action, Event>(
-    name = "HOME",
+    name = NAME,
     initialState = State.INITIAL,
     storeEmitter = storeEmitter,
-    appDispatcher = appDispatcher,
+    storeDispatchers = storeDispatchers,
     handlerCreator = { action ->
         when (action) {
             is Action.Paging -> pagingHandler
@@ -40,5 +47,14 @@ internal class ChartsStoreImpl(
             is Action.Input -> inputHandler
         }
     },
-    initialActions = listOf(Action.Paging.Init)
-)
+    initialActions = listOf(Action.Paging.Init),
+    analytics = analytics,
+    logger = logger
+) {
+
+    companion object {
+
+        @VisibleForTesting
+        private const val NAME = "Charts"
+    }
+}

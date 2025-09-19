@@ -17,11 +17,17 @@ interface TrainingDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun add(item: TrainingEntity)
 
+    @Query("SELECT * FROM training_table WHERE uuid = :uuid")
+    suspend fun get(uuid: Uuid): TrainingEntity?
+
     @Update(onConflict = OnConflictStrategy.REPLACE)
     suspend fun update(item: TrainingEntity)
 
     @Query("DELETE FROM training_table WHERE uuid = :uuid")
     suspend fun delete(uuid: Uuid)
+
+    @Query("DELETE FROM training_table WHERE uuid in (:uuid)")
+    suspend fun deleteAll(uuid: List<Uuid>)
 
     @Query("DELETE FROM training_table")
     suspend fun clear()
