@@ -14,9 +14,6 @@ interface TrainingDao {
     @Query("SELECT * FROM training_table WHERE name LIKE '%' || :query || '%' ORDER BY timestamp DESC")
     fun getAll(query: String): PagingSource<Int, TrainingEntity>
 
-    @Query("SELECT * FROM training_table")
-    fun getAll(): List<TrainingEntity>
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun add(item: TrainingEntity)
 

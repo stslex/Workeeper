@@ -1,7 +1,7 @@
 package io.github.stslex.workeeper.feature.charts.ui.mvi.store
 
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.AppDispatcher
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
+import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.feature.charts.di.CHARTS_SCOPE_NAME
 import io.github.stslex.workeeper.feature.charts.di.ChartsHandlerStoreImpl
 import io.github.stslex.workeeper.feature.charts.ui.mvi.handler.ClickHandler
@@ -25,13 +25,13 @@ internal class ChartsStoreImpl(
     pagingHandler: PagingHandler,
     clickHandler: ClickHandler,
     inputHandler: InputHandler,
-    appDispatcher: AppDispatcher,
+    storeDispatchers: StoreDispatchers,
     @Named(CHARTS_SCOPE_NAME) storeEmitter: ChartsHandlerStoreImpl
 ) : BaseStore<State, Action, Event>(
     name = "HOME",
     initialState = State.INITIAL,
     storeEmitter = storeEmitter,
-    appDispatcher = appDispatcher,
+    storeDispatchers = storeDispatchers,
     handlerCreator = { action ->
         when (action) {
             is Action.Paging -> pagingHandler

@@ -1,7 +1,7 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.store
 
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.AppDispatcher
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
+import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.feature.exercise.di.EXERCISE_SCOPE_NAME
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStoreImpl
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.ClickHandler
@@ -27,11 +27,10 @@ internal class ExerciseStoreImpl(
     inputHandler: InputHandler,
     commonHandler: CommonHandler,
     navigationHandler: NavigationHandler,
-    dispatcher: AppDispatcher,
+    storeDispatchers: StoreDispatchers,
     @Named(EXERCISE_SCOPE_NAME) storeEmitter: ExerciseHandlerStoreImpl,
 ) : BaseStore<State, Action, Event>(
     name = "EXERCISE",
-    appDispatcher = dispatcher,
     initialState = State.INITIAL,
     storeEmitter = storeEmitter,
     handlerCreator = { action ->
@@ -43,5 +42,6 @@ internal class ExerciseStoreImpl(
             is Action.NavigationMiddleware -> navigationHandler
         }
     },
+    storeDispatchers = storeDispatchers,
     initialActions = listOf(Action.Common.Init(component.data))
 )

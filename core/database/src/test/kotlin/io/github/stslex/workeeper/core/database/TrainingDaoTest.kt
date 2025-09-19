@@ -6,6 +6,7 @@ import io.github.stslex.workeeper.core.database.training.TrainingEntity
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -571,6 +572,31 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
     }
 
     @Test
+    fun `get single training by uuid`() = runTest {
+        val training = testTrainings.first()
+        dao.add(training)
+
+        val retrievedTraining = dao.get(training.uuid)
+        assertEquals(training, retrievedTraining)
+    }
+
+    @Test
+    fun `get non-existing training by uuid returns null`() = runTest {
+        val nonExistingUuid = Uuid.random()
+        val retrievedTraining = dao.get(nonExistingUuid)
+        assertNull(retrievedTraining)
+    }
+
+    @Test
+    fun `get training by uuid from multiple trainings`() = runTest {
+        testTrainings.forEach { dao.add(it) }
+        val targetTraining = testTrainings[3]
+
+        val retrievedTraining = dao.get(targetTraining.uuid)
+        assertEquals(targetTraining, retrievedTraining)
+    }
+
+    @Test
     fun `search with partial query`() = runTest {
         val training = createTestTraining(0, name = "Full Body Strength Training")
         dao.add(training)
@@ -653,6 +679,6 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
         name = name ?: "Training_$index",
         exercises = listOf(Uuid.random(), Uuid.random()),
         labels = listOf("Label_$index", "Test"),
-        timestamp = timestamp ?: System.currentTimeMillis() + index * 1000
+        timestamp = timestamp ?: (System.currentTimeMillis() + index * 1000)
     )
 }

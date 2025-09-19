@@ -205,13 +205,14 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
     fun `create one item and get it`() = runTest {
         val expectedExercise = exerciseEntities.first()
         dao.create(expectedExercise)
-        val compareExercise = dao.getExercise(expectedExercise.uuid).first()
+        val compareExercise = dao.getExercise(expectedExercise.uuid)
         assertEquals(expectedExercise, compareExercise)
     }
 
+    @OptIn(ExperimentalUuidApi::class)
     @Test
     fun `get item form empty db`() = runTest {
-        val compareExercise = dao.getExercise(Uuid.random()).first()
+        val compareExercise = dao.getExercise(Uuid.random())
         assertEquals(null, compareExercise)
     }
 
@@ -219,7 +220,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
     fun `insert single item`() = runTest {
         val expectedItem = exerciseEntities.first()
         dao.create(expectedItem)
-        val actual = dao.getExercise(expectedItem.uuid).first()
+        val actual = dao.getExercise(expectedItem.uuid)
         assertEquals(expectedItem, actual)
     }
 
@@ -228,7 +229,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
         val expectedItems = exerciseEntities
         dao.create(expectedItems)
         val actual = expectedItems.map {
-            dao.getExercise(it.uuid).first()
+            dao.getExercise(it.uuid)
         }
         assertEquals(expectedItems, actual)
     }
@@ -240,11 +241,11 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
             uuid = item.uuid
         )
         dao.create(item)
-        val createdItem = dao.getExercise(item.uuid).first()
+        val createdItem = dao.getExercise(item.uuid)
         assertEquals(item, createdItem)
 
         dao.update(expectedNewItem)
-        val createdNewItem = dao.getExercise(item.uuid).first()
+        val createdNewItem = dao.getExercise(item.uuid)
         assertEquals(expectedNewItem, createdNewItem)
     }
 
@@ -252,9 +253,9 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
     fun `delete single item`() = runTest {
         val item = createTestExercise()
         dao.create(item)
-        assertEquals(item, dao.getExercise(item.uuid).first())
+        assertEquals(item, dao.getExercise(item.uuid))
         dao.delete(item.uuid)
-        assertEquals(null, dao.getExercise(item.uuid).first())
+        assertEquals(null, dao.getExercise(item.uuid))
     }
 
     @Test
@@ -320,11 +321,116 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
     }
 
     @Test
+    fun `delete multiple items by uuids`() = runTest {
+        dao.create(exerciseEntities)
+        val uuidsToDelete = exerciseEntities.take(3).map { it.uuid }
+
+        dao.delete(uuidsToDelete)
+
+        val remaining = exerciseEntities.drop(3)
+        remaining.forEach { exercise ->
+            val actual = dao.getExercise(exercise.uuid)
+            assertEquals(exercise, actual)
+        }
+
+        uuidsToDelete.forEach { uuid ->
+            val deleted = dao.getExercise(uuid)
+            assertEquals(null, deleted)
+        }
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    @Test
+    fun `delete all by training uuid`() = runTest {
+        val trainingUuid = Uuid.random()
+        val exercisesWithTraining = Array(3) { index ->
+            createTestExercise(index).copy(trainingUuid = trainingUuid)
+        }.toList()
+        val exercisesWithoutTraining = Array(2) { index ->
+            createTestExercise(index + 3)
+        }.toList()
+
+        dao.create(exercisesWithTraining)
+        dao.create(exercisesWithoutTraining)
+
+        dao.deleteAllByTraining(trainingUuid)
+
+        exercisesWithTraining.forEach { exercise ->
+            val deleted = dao.getExercise(exercise.uuid)
+            assertEquals(null, deleted)
+        }
+
+        exercisesWithoutTraining.forEach { exercise ->
+            val actual = dao.getExercise(exercise.uuid)
+            assertEquals(exercise, actual)
+        }
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    @Test
+    fun `delete all by multiple training uuids`() = runTest {
+        val trainingUuid1 = Uuid.random()
+        val trainingUuid2 = Uuid.random()
+
+        val exercisesWithTraining1 = Array(2) { index ->
+            createTestExercise(index).copy(trainingUuid = trainingUuid1)
+        }.toList()
+        val exercisesWithTraining2 = Array(2) { index ->
+            createTestExercise(index + 2).copy(trainingUuid = trainingUuid2)
+        }.toList()
+        val exercisesWithoutTraining = Array(2) { index ->
+            createTestExercise(index + 4)
+        }.toList()
+
+        dao.create(exercisesWithTraining1)
+        dao.create(exercisesWithTraining2)
+        dao.create(exercisesWithoutTraining)
+
+        dao.deleteAllByTrainings(listOf(trainingUuid1, trainingUuid2))
+
+        (exercisesWithTraining1 + exercisesWithTraining2).forEach { exercise ->
+            val deleted = dao.getExercise(exercise.uuid)
+            assertEquals(null, deleted)
+        }
+
+        exercisesWithoutTraining.forEach { exercise ->
+            val actual = dao.getExercise(exercise.uuid)
+            assertEquals(exercise, actual)
+        }
+    }
+
+    @Test
+    fun `delete all by empty training uuids list`() = runTest {
+        dao.create(exerciseEntities)
+
+        dao.deleteAllByTrainings(emptyList())
+
+        exerciseEntities.forEach { exercise ->
+            val actual = dao.getExercise(exercise.uuid)
+            assertEquals(exercise, actual)
+        }
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    @Test
+    fun `delete all by non-existing training uuid`() = runTest {
+        dao.create(exerciseEntities)
+        val nonExistingTrainingUuid = Uuid.random()
+
+        dao.deleteAllByTraining(nonExistingTrainingUuid)
+
+        exerciseEntities.forEach { exercise ->
+            val actual = dao.getExercise(exercise.uuid)
+            assertEquals(exercise, actual)
+        }
+    }
+
+    @Test
     fun `clear all items`() = runTest {
         val expectedItem = createTestExercise()
         dao.create(exerciseEntities)
         dao.clear()
-        val actual = dao.getExercise(expectedItem.uuid).first()
+        val actual = dao.getExercise(expectedItem.uuid)
         assertEquals(null, actual)
     }
 

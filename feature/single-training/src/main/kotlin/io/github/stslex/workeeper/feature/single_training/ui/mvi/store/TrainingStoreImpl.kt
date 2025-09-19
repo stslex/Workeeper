@@ -1,7 +1,7 @@
 package io.github.stslex.workeeper.feature.single_training.ui.mvi.store
 
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.AppDispatcher
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
+import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.feature.single_training.di.TRAINING_SCOPE_NAME
 import io.github.stslex.workeeper.feature.single_training.di.TrainingHandlerStoreImpl
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.handler.ClickHandler
@@ -25,7 +25,7 @@ internal class TrainingStoreImpl(
     commonHandler: CommonHandler,
     inputHandler: InputHandler,
     clickHandler: ClickHandler,
-    dispatcher: AppDispatcher,
+    storeDispatchers: StoreDispatchers,
     @Named(TRAINING_SCOPE_NAME) handlerStore: TrainingHandlerStoreImpl
 ) : BaseStore<State, Action, Event>(
     name = "SingleTraining",
@@ -39,6 +39,6 @@ internal class TrainingStoreImpl(
         }
     },
     storeEmitter = handlerStore,
-    appDispatcher = dispatcher,
+    storeDispatchers = storeDispatchers,
     initialActions = listOf(Action.Common.Init(navigationHandler.uuid))
 )

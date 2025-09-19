@@ -1,7 +1,7 @@
 package io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store
 
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.AppDispatcher
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
+import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.feature.all_exercises.di.EXERCISE_SCOPE_NAME
 import io.github.stslex.workeeper.feature.all_exercises.di.ExerciseHandlerStoreImpl
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.handler.ClickHandler
@@ -25,7 +25,7 @@ internal class HomeStoreImpl(
     pagingHandler: PagingHandler,
     clickHandler: ClickHandler,
     inputHandler: InputHandler,
-    appDispatcher: AppDispatcher,
+    storeDispatchers: StoreDispatchers,
     @Named(EXERCISE_SCOPE_NAME) storeEmitter: ExerciseHandlerStoreImpl
 ) : BaseStore<State, Action, Event>(
     name = "AllExercises",
@@ -33,7 +33,7 @@ internal class HomeStoreImpl(
         allItems = pagingHandler.processor
     ),
     storeEmitter = storeEmitter,
-    appDispatcher = appDispatcher,
+    storeDispatchers = storeDispatchers,
     handlerCreator = { action ->
         when (action) {
             is Action.Paging -> pagingHandler

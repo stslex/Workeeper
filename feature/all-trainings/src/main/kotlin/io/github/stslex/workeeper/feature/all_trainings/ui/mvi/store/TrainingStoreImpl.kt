@@ -1,7 +1,7 @@
 package io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store
 
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.AppDispatcher
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
+import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.feature.all_trainings.di.TRAINING_SCOPE_NAME
 import io.github.stslex.workeeper.feature.all_trainings.di.TrainingHandlerStoreImpl
 import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.handler.ClickHandler
@@ -23,7 +23,7 @@ internal class TrainingStoreImpl(
     @InjectedParam navigationHandler: NavigationHandler,
     pagingHandler: PagingHandler,
     clickHandler: ClickHandler,
-    dispatcher: AppDispatcher,
+    storeDispatchers: StoreDispatchers,
     @Named(TRAINING_SCOPE_NAME) handlerStore: TrainingHandlerStoreImpl
 ) : BaseStore<State, Action, Event>(
     name = "AllTrainings",
@@ -38,5 +38,5 @@ internal class TrainingStoreImpl(
         }
     },
     storeEmitter = handlerStore,
-    appDispatcher = dispatcher,
+    storeDispatchers = storeDispatchers,
 )

@@ -3,12 +3,12 @@ package io.github.stslex.workeeper.core.ui.mvi
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.AppDispatcher
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScope
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.ui.mvi.Store.Action
 import io.github.stslex.workeeper.core.ui.mvi.Store.Event
 import io.github.stslex.workeeper.core.ui.mvi.Store.State
+import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.mvi.handler.HandlerCreator
 import io.github.stslex.workeeper.core.ui.mvi.handler.HandlerStoreEmitter
@@ -43,9 +43,9 @@ open class BaseStore<S : State, A : Action, E : Event>(
     val name: String,
     initialState: S,
     private val storeEmitter: HandlerStoreEmitter<S, A, E>,
-    override val appDispatcher: AppDispatcher,
     private val handlerCreator: HandlerCreator<A>,
     private val initialActions: List<A> = emptyList(),
+    storeDispatchers: StoreDispatchers,
     val disposeActions: List<A> = emptyList()
 ) : ViewModel(), Store<S, A, E>, StoreConsumer<S, A, E> {
 
@@ -55,7 +55,11 @@ open class BaseStore<S : State, A : Action, E : Event>(
     private val _state: MutableStateFlow<S> = MutableStateFlow(initialState)
     override val state: StateFlow<S> = _state.asStateFlow()
 
-    override val scope: AppCoroutineScope = AppCoroutineScope(viewModelScope, appDispatcher)
+    override val scope: AppCoroutineScope = AppCoroutineScope(
+        scope = viewModelScope,
+        defaultDispatcher = storeDispatchers.defaultDispatcher,
+        immediateDispatcher = storeDispatchers.mainImmediateDispatcher
+    )
 
     private val loggerName = "MVI_STORE_$name"
     override val logger = Log.tag(loggerName)
@@ -120,9 +124,8 @@ open class BaseStore<S : State, A : Action, E : Event>(
     }
 
     /**
-     * Sends an event to the screen. The event is sent on the default dispatcher of the AppDispatcher.
+     * Sends an event to the screen. The event is sent on the default dispatcher.
      * @param event - event to be sent
-     * @see AppDispatcher
      * */
     override fun sendEvent(event: E) {
         logger.i("sendEvent: $event")
@@ -135,13 +138,12 @@ open class BaseStore<S : State, A : Action, E : Event>(
     }
 
     /**
-     * Launches a coroutine and catches exceptions. The coroutine is launched on the default dispatcher of the AppDispatcher.
+     * Launches a coroutine and catches exceptions. The coroutine is launched on the default dispatcher.
      * @param onError - error handler
      * @param onSuccess - success handler
      * @param action - action to be executed
      * @return Job
      * @see Job
-     * @see AppDispatcher
      * */
     override fun <T> launch(
         onError: suspend (Throwable) -> Unit,
@@ -158,13 +160,12 @@ open class BaseStore<S : State, A : Action, E : Event>(
     )
 
     /**
-     * Launches a flow and collects it in the screenModelScope. The flow is collected on the default dispatcher. of the AppDispatcher.
+     * Launches a flow and collects it in the screenModelScope. The flow is collected on the default dispatcher.
      * @param onError - error handler
      * @param each - action for each element of the flow
      * @return Job
      * @see Flow
      * @see Job
-     * @see AppDispatcher
      * */
     override fun <T> launch(
         flow: Flow<T>,

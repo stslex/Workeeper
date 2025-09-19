@@ -1,5 +1,6 @@
 package io.github.stslex.workeeper.feature.single_training.ui.mvi.handler
 
+import io.github.stslex.workeeper.core.core.coroutine.dispatcher.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.single_training.di.TRAINING_SCOPE_NAME
 import io.github.stslex.workeeper.feature.single_training.di.TrainingHandlerStore
@@ -7,6 +8,7 @@ import io.github.stslex.workeeper.feature.single_training.domain.interactor.Sing
 import io.github.stslex.workeeper.feature.single_training.ui.model.DialogState
 import io.github.stslex.workeeper.feature.single_training.ui.model.TrainingChangeMapper
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingStore.Action
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import org.koin.core.annotation.Named
 import org.koin.core.annotation.Scope
@@ -17,6 +19,8 @@ import org.koin.core.annotation.Scoped
 internal class ClickHandler(
     private val interactor: SingleTrainingInteractor,
     private val changeMap: TrainingChangeMapper,
+    @param:MainImmediateDispatcher
+    private val mainDispatcher: CoroutineDispatcher,
     @Named(TRAINING_SCOPE_NAME) store: TrainingHandlerStore
 ) : Handler<Action.Click>, TrainingHandlerStore by store {
 
@@ -37,7 +41,7 @@ internal class ClickHandler(
         }
         launch(
             onSuccess = {
-                withContext(appDispatcher.immediate) {
+                withContext(mainDispatcher) {
                     consume(Action.Navigation.PopBack)
                 }
             }
@@ -65,7 +69,7 @@ internal class ClickHandler(
         }
         launch(
             onSuccess = {
-                withContext(appDispatcher.immediate) {
+                withContext(mainDispatcher) {
                     consume(Action.Navigation.PopBack)
                 }
             },

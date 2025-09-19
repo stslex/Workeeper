@@ -5,8 +5,6 @@ import kotlinx.coroutines.flow.Flow
 
 interface TrainingRepository {
 
-    fun getAll(): List<TrainingDataModel>
-
     fun getTrainings(query: String): Flow<PagingData<TrainingDataModel>>
 
     suspend fun addTraining(training: TrainingDataModel)

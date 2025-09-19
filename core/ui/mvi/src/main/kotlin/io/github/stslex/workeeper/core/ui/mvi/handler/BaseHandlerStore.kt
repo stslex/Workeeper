@@ -1,6 +1,5 @@
 package io.github.stslex.workeeper.core.ui.mvi.handler
 
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.AppDispatcher
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScope
 import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.ui.mvi.Store.Action
@@ -29,9 +28,6 @@ open class BaseHandlerStore<S : State, A : Action, E : Event>() :
 
     override val logger: Logger
         get() = store.logger
-
-    override val appDispatcher: AppDispatcher
-        get() = store.appDispatcher
 
     override val scope: AppCoroutineScope
         get() = store.scope
