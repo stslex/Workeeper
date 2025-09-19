@@ -1,6 +1,11 @@
 package io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store
 
+import androidx.annotation.VisibleForTesting
+import io.github.stslex.workeeper.core.core.logger.Log
+import io.github.stslex.workeeper.core.core.logger.Logger
+import io.github.stslex.workeeper.core.ui.mvi.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
+import io.github.stslex.workeeper.core.ui.mvi.StoreAnalytics
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.feature.all_trainings.di.TRAINING_SCOPE_NAME
 import io.github.stslex.workeeper.feature.all_trainings.di.TrainingHandlerStoreImpl
@@ -24,9 +29,11 @@ internal class TrainingStoreImpl(
     pagingHandler: PagingHandler,
     clickHandler: ClickHandler,
     storeDispatchers: StoreDispatchers,
-    @Named(TRAINING_SCOPE_NAME) handlerStore: TrainingHandlerStoreImpl
+    @Named(TRAINING_SCOPE_NAME) handlerStore: TrainingHandlerStoreImpl,
+    analytics: StoreAnalytics<Action, Event> = AnalyticsHolder.createStore(NAME),
+    override val logger: Logger = Log.tag(NAME)
 ) : BaseStore<State, Action, Event>(
-    name = "AllTrainings",
+    name = NAME,
     initialState = State.init(
         pagingUiState = pagingHandler.pagingUiState
     ),
@@ -39,4 +46,13 @@ internal class TrainingStoreImpl(
     },
     storeEmitter = handlerStore,
     storeDispatchers = storeDispatchers,
-)
+    analytics = analytics,
+    logger = logger
+) {
+
+    companion object {
+
+        @VisibleForTesting
+        private const val NAME = "AllTrainings"
+    }
+}

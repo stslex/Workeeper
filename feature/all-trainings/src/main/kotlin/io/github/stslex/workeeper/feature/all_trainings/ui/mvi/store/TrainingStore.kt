@@ -57,5 +57,8 @@ internal interface TrainingStore : Store<State, Action, Event> {
         }
     }
 
-    sealed interface Event : Store.Event
+    sealed interface Event : Store.Event {
+
+        data object Haptic : Event
+    }
 }
