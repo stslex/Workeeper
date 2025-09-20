@@ -1,5 +1,6 @@
 package io.github.stslex.workeeper.feature.single_training.ui.mvi.handler
 
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScope
 import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
 import io.github.stslex.workeeper.feature.single_training.di.TrainingHandlerStore
@@ -93,10 +94,28 @@ internal class ClickHandlerTest {
     }
 
     @Test
+    fun `create exercise click action triggers navigation to new exercise screen`() {
+        handler.invoke(TrainingStore.Action.Click.CreateExercise)
+
+        verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.ContextClick)) }
+        verify(exactly = 1) { store.consume(TrainingStore.Action.Navigation.CreateExercise) }
+    }
+
+    @Test
+    fun `exercise click action triggers navigation to current exercise screen`() {
+        val exerciseUuid = "expected_uuid"
+        handler.invoke(TrainingStore.Action.Click.ExerciseClick(exerciseUuid))
+
+        verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.ContextClick)) }
+        verify(exactly = 1) { store.consume(TrainingStore.Action.Navigation.OpenExercise(exerciseUuid)) }
+    }
+
+    @Test
     fun `close action triggers pop back navigation`() {
         handler.invoke(TrainingStore.Action.Click.Close)
 
-        verify { store.consume(TrainingStore.Action.Navigation.PopBack) }
+        verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.ContextClick)) }
+        verify(exactly = 1) { store.consume(TrainingStore.Action.Navigation.PopBack) }
     }
 
     @Test
@@ -104,7 +123,9 @@ internal class ClickHandlerTest {
         handler.invoke(TrainingStore.Action.Click.OpenCalendarPicker)
 
         val stateSlot = slot<(TrainingStore.State) -> TrainingStore.State>()
-        verify { store.updateState(capture(stateSlot)) }
+
+        verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.ContextClick)) }
+        verify(exactly = 1) { store.updateState(capture(stateSlot)) }
 
         val newState = stateSlot.captured(stateFlow.value)
         assertEquals(DialogState.Calendar, newState.dialogState)
@@ -117,7 +138,8 @@ internal class ClickHandlerTest {
         handler.invoke(TrainingStore.Action.Click.CloseCalendarPicker)
 
         val stateSlot = slot<(TrainingStore.State) -> TrainingStore.State>()
-        verify { store.updateState(capture(stateSlot)) }
+        verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.ContextClick)) }
+        verify(exactly = 1) { store.updateState(capture(stateSlot)) }
 
         val newState = stateSlot.captured(stateFlow.value)
         assertEquals(DialogState.Closed, newState.dialogState)
@@ -137,8 +159,9 @@ internal class ClickHandlerTest {
 
         testScheduler.advanceUntilIdle()
 
-        coVerify { interactor.updateTraining(changeModel) }
-        verify { store.consume(TrainingStore.Action.Navigation.PopBack) }
+        verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.ContextClick)) }
+        coVerify(exactly = 1) { interactor.updateTraining(changeModel) }
+        verify(exactly = 1) { store.consume(TrainingStore.Action.Navigation.PopBack) }
     }
 
     @Test
@@ -148,6 +171,7 @@ internal class ClickHandlerTest {
 
         handler.invoke(TrainingStore.Action.Click.Save)
 
+        verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.ContextClick)) }
         coVerify(exactly = 0) { interactor.updateTraining(any()) }
         verify(exactly = 0) { store.consume(TrainingStore.Action.Navigation.PopBack) }
     }
@@ -159,6 +183,7 @@ internal class ClickHandlerTest {
 
         handler.invoke(TrainingStore.Action.Click.Save)
 
+        verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.ContextClick)) }
         coVerify(exactly = 0) { interactor.updateTraining(any()) }
         verify(exactly = 0) { store.consume(TrainingStore.Action.Navigation.PopBack) }
     }
@@ -176,8 +201,9 @@ internal class ClickHandlerTest {
 
         testScheduler.advanceUntilIdle()
 
-        coVerify { interactor.removeTraining(trainingUuid) }
-        verify { store.consume(TrainingStore.Action.Navigation.PopBack) }
+        verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.ContextClick)) }
+        coVerify(exactly = 1) { interactor.removeTraining(trainingUuid) }
+        verify(exactly = 1) { store.consume(TrainingStore.Action.Navigation.PopBack) }
     }
 
     @Test
@@ -187,6 +213,7 @@ internal class ClickHandlerTest {
 
         handler.invoke(TrainingStore.Action.Click.Delete)
 
+        verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.ContextClick)) }
         coVerify(exactly = 0) { interactor.removeTraining(any()) }
         verify(exactly = 0) { store.consume(TrainingStore.Action.Navigation.PopBack) }
     }
@@ -198,6 +225,7 @@ internal class ClickHandlerTest {
 
         handler.invoke(TrainingStore.Action.Click.Delete)
 
+        verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.ContextClick)) }
         coVerify(exactly = 0) { interactor.removeTraining(any()) }
         verify(exactly = 0) { store.consume(TrainingStore.Action.Navigation.PopBack) }
     }
