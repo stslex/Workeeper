@@ -53,12 +53,13 @@ class MviEventNamingRule(config: Config = Config.Companion.empty) : Rule(config)
     }
 
     private fun isValidEventName(name: String): Boolean {
-        val validSuffixes = listOf("Success", "Error", "Completed", "Started", "Failed", "Requested")
+        val validSuffixes =
+            listOf("Success", "Error", "Completed", "Started", "Failed", "Requested")
         return validSuffixes.any { name.endsWith(it) } || name.contains("Show") || name.contains("Navigate")
     }
 
     private fun KtClass.isInMviModule(): Boolean {
         return containingKtFile.packageFqName.asString().contains("mvi") ||
-               containingKtFile.virtualFilePath.contains("/mvi/")
+                containingKtFile.virtualFilePath.contains("/mvi/")
     }
 }

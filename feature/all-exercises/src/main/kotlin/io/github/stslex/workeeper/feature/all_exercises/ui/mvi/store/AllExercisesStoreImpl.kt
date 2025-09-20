@@ -49,7 +49,6 @@ internal class AllExercisesStoreImpl(
             is Action.Input -> inputHandler
         }
     },
-    initialActions = listOf(Action.Paging.Init),
     logger = logger,
     analytics = analytics
 ) {

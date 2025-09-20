@@ -1,157 +1,140 @@
 package io.github.stslex.workeeper.feature.all_exercises.ui.mvi.handler
 
+import androidx.paging.LoadState
+import androidx.paging.LoadStates
 import androidx.paging.PagingData
+import androidx.paging.testing.asSnapshot
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
-import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
+import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
+import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.feature.all_exercises.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore
-import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.slot
 import io.mockk.verify
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentSetOf
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 
 internal class PagingHandlerTest {
 
-    private val testDispatcher = UnconfinedTestDispatcher()
+    private val testScheduler = TestCoroutineScheduler()
+    private val testDispatcher = StandardTestDispatcher(testScheduler)
     private val repository = mockk<ExerciseRepository>(relaxed = true)
+
+    private val initialQuery = "initial_query"
+
     private val store = mockk<ExerciseHandlerStore>(relaxed = true)
-    private val pagingUiState = mockk<PagingUiState<PagingData<ExerciseUiModel>>>(relaxed = true)
+    private val handler: PagingHandler = PagingHandler(repository, testDispatcher, store)
 
     private val initialState = ExercisesStore.State(
-        items = pagingUiState,
+        items = handler.processor,
         selectedItems = persistentSetOf(),
-        query = "initial query"
+        query = initialQuery
     )
     private val stateFlow = MutableStateFlow(initialState)
-    private var handler: PagingHandler? = null
 
-    @BeforeEach
-    fun setup() {
-        Dispatchers.setMain(testDispatcher)
+    @Suppress("UnusedFlow")
+    @Test
+    fun `processor transforms data correctly with finite flow`() = runTest(testDispatcher) {
+        val testData = getTestData()
+        val expectedData = getExpectedData()
+
+        every { repository.getExercises(any()) } returns flowOf(getNotLoadingData(testData))
         every { store.state } returns stateFlow
 
-        // Mock repository to return a flow of PagingData
-        coEvery { repository.getExercises(any()) } returns flowOf(PagingData.empty())
+        val result = handler.processor.invoke().asSnapshot()
 
-        handler = PagingHandler(repository, testDispatcher, store)
-
-        // Mock the map function for state
-        every { stateFlow.map(any()) } returns mockk {
-            every { launch(any()) } returns Unit
-        }
+        assertEquals(expectedData, result)
+        verify(exactly = 1) { repository.getExercises(initialQuery) }
     }
 
-    @AfterEach
-    fun tearDown() {
-        Dispatchers.resetMain()
-    }
-
+    @Suppress("UnusedFlow")
     @Test
-    fun `init action processes state query subscription`() {
-        handler?.invoke(ExercisesStore.Action.Paging.Init)
+    fun `processor transforms data correctly with empty pagingData`() = runTest(testDispatcher) {
+        every { repository.getExercises(any()) } returns flowOf(getNotLoadingData(emptyList()))
+        every { store.state } returns stateFlow
 
-        // Verify that state.map was called to set up the query subscription
-        verify(exactly = 1) { stateFlow.map(any()) }
+        val result = handler.processor.invoke().asSnapshot()
+
+        assertEquals(emptyList<ExerciseUiModel>(), result)
+        verify(exactly = 1) { repository.getExercises(initialQuery) }
     }
 
+    @Suppress("UnusedFlow")
     @Test
-    fun `processor creates paging ui state with repository data`() {
-        val processor = handler?.processor
+    fun `processor transforms data correctly on query changes`() = runTest(testDispatcher) {
+        val expectedQuery = "new_expected_query"
+        val expectedData = getExpectedData()
+        every { repository.getExercises(initialQuery) } returns flowOf(getNotLoadingData(emptyList()))
+        every { repository.getExercises(expectedQuery) } returns flowOf(
+            getNotLoadingData(
+                getTestData()
+            )
+        )
+        every { store.state } returns stateFlow
 
-        assertNotNull(processor)
-        // The processor should be initialized and ready to provide data
-        // This verifies the processor was created correctly
+        val processor = handler.processor.invoke()
+        val emptySnapshot = processor.asSnapshot()
+
+        assertEquals(emptyList<ExerciseUiModel>(), emptySnapshot)
+        verify(exactly = 1) { repository.getExercises(initialQuery) }
+
+        stateFlow.update { it.copy(query = expectedQuery) }
+
+        val dataSnapshot = processor.asSnapshot()
+
+        assertEquals(expectedData, dataSnapshot)
+        verify(exactly = 1) { repository.getExercises(expectedQuery) }
     }
 
-    @Test
-    fun `init action handles multiple calls correctly`() {
-        handler?.invoke(ExercisesStore.Action.Paging.Init)
-        handler?.invoke(ExercisesStore.Action.Paging.Init)
-        handler?.invoke(ExercisesStore.Action.Paging.Init)
-
-        // Each call should trigger the same behavior
-        verify(exactly = 3) { stateFlow.map(any()) }
-    }
-
-    @Test
-    fun `processor handles repository flow correctly`() = runTest {
-        val testQuery = "test query"
-
-        // Create a new handler with test query to verify flow behavior
-        val testStateFlow = MutableStateFlow(initialState.copy(query = testQuery))
-        every { store.state } returns testStateFlow
-
-        handler = PagingHandler(repository, testDispatcher, store)
-
-        val processor = handler?.processor
-        assertNotNull(processor)
-
-        // Verify that the repository method would be called with the correct query
-        // when the flow is actually collected (which happens in the UI layer)
-    }
-
-    @Test
-    fun `query state flow starts with empty string`() {
-        val handler = PagingHandler(repository, testDispatcher, store)
-
-        // Verify the handler was created successfully
-        assertNotNull(handler)
-        assertNotNull(handler.processor)
-    }
-
-    @Test
-    fun `processor uses correct dispatcher`() {
-        val handler = PagingHandler(repository, testDispatcher, store)
-
-        // Verify the processor was created with the provided dispatcher
-        assertNotNull(handler.processor)
-    }
-
-    @Test
-    fun `init action with different state queries`() {
-        val queries = listOf("", "test", "another query", "special@chars!")
-
-        queries.forEach { query ->
-            stateFlow.value = stateFlow.value.copy(query = query)
-            handler?.invoke(ExercisesStore.Action.Paging.Init)
-        }
-
-        // Each init call should process the state mapping
-        verify(exactly = queries.size) { stateFlow.map(any()) }
-    }
-
-    @Test
-    fun `state mapping extracts query correctly`() {
-        val stateMapSlot = slot<(ExercisesStore.State) -> String>()
-        every { stateFlow.map(capture(stateMapSlot)) } returns mockk {
-            every { launch(any()) } returns Unit
-        }
-
-        handler?.invoke(ExercisesStore.Action.Paging.Init)
-
-        // Test the captured mapping function
-        val mappingFunction = stateMapSlot.captured
-        val testState = ExercisesStore.State(
-            items = pagingUiState,
-            selectedItems = persistentSetOf(),
-            query = "mapped query"
+    private fun getNotLoadingData(data: List<ExerciseDataModel>): PagingData<ExerciseDataModel> =
+        PagingData.from(
+            data,
+            LoadStates(
+                refresh = LoadState.NotLoading(true),
+                prepend = LoadState.NotLoading(true),
+                append = LoadState.NotLoading(true),
+            )
         )
 
-        assertEquals("mapped query", mappingFunction(testState))
-    }
+    private fun getTestData(): List<ExerciseDataModel> = listOf(
+        ExerciseDataModel(
+            uuid = "ex1",
+            name = "Push ups",
+            sets = persistentListOf(),
+            timestamp = 1000L,
+            trainingUuid = null,
+            labels = persistentListOf()
+        ),
+        ExerciseDataModel(
+            uuid = "ex2",
+            name = "Squats",
+            sets = persistentListOf(),
+            timestamp = 2000L,
+            trainingUuid = null,
+            labels = persistentListOf()
+        )
+    )
+
+    private fun getExpectedData(): List<ExerciseUiModel> = listOf(
+        ExerciseUiModel(
+            uuid = "ex1",
+            name = "Push ups",
+            dateProperty = DateProperty.new(1000L)
+        ),
+        ExerciseUiModel(
+            uuid = "ex2",
+            name = "Squats",
+            dateProperty = DateProperty.new(2000L)
+        )
+    )
 }

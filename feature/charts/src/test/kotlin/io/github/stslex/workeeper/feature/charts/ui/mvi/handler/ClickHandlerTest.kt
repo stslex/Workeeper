@@ -4,25 +4,17 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
 import io.github.stslex.workeeper.feature.charts.di.ChartsHandlerStore
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.CalendarState
+import io.github.stslex.workeeper.feature.charts.ui.mvi.model.SingleChartUiModel
 import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.collections.immutable.persistentListOf
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.setMain
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
 internal class ClickHandlerTest {
-
-    private val testDispatcher = UnconfinedTestDispatcher()
-    private val store = mockk<ChartsHandlerStore>(relaxed = true)
 
     private val initialState = ChartsStore.State(
         name = "",
@@ -33,25 +25,19 @@ internal class ClickHandlerTest {
     )
 
     private val stateFlow = MutableStateFlow(initialState)
-    private val handler = ClickHandler(store)
 
-    @BeforeEach
-    fun setup() {
-        Dispatchers.setMain(testDispatcher)
-        every { store.state } returns stateFlow
+    private val store = mockk<ChartsHandlerStore>(relaxed = true) {
+        every { this@mockk.state } returns stateFlow
 
         // Mock the updateState function to actually update the state
-        every { store.updateState(any()) } answers {
+        every { this@mockk.updateState(any()) } answers {
             val transform = arg<(ChartsStore.State) -> ChartsStore.State>(0)
             val newState = transform(stateFlow.value)
             stateFlow.value = newState
         }
     }
 
-    @AfterEach
-    fun tearDown() {
-        Dispatchers.resetMain()
-    }
+    private val handler = ClickHandler(store)
 
     @Test
     fun `start date calendar click opens start date calendar and sends haptic feedback`() {
@@ -177,7 +163,7 @@ internal class ClickHandlerTest {
 
     @Test
     fun `state transformation preserves exact state values`() {
-        val originalCharts = persistentListOf<io.github.stslex.workeeper.feature.charts.ui.mvi.model.SingleChartUiModel>()
+        val originalCharts = persistentListOf<SingleChartUiModel>()
         val testState = ChartsStore.State(
             name = "Preserved Exercise",
             charts = originalCharts,

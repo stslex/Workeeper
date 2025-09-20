@@ -9,43 +9,29 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.collections.immutable.persistentSetOf
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.setMain
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
 internal class InputHandlerTest {
 
-    private val testDispatcher = UnconfinedTestDispatcher()
-    private val store = mockk<ExerciseHandlerStore>(relaxed = true)
     private val pagingUiState = mockk<PagingUiState<PagingData<ExerciseUiModel>>>(relaxed = true)
 
     private val initialState = ExercisesStore.State.init(pagingUiState)
     private val stateFlow = MutableStateFlow(initialState)
-    private val handler = InputHandler(store)
 
-    @BeforeEach
-    fun setup() {
-        Dispatchers.setMain(testDispatcher)
-        every { store.state } returns stateFlow
+    private val store = mockk<ExerciseHandlerStore>(relaxed = true) {
+        every { this@mockk.state } returns stateFlow
 
         // Mock the updateState function to actually update the state
-        every { store.updateState(any()) } answers {
+        every { this@mockk.updateState(any()) } answers {
             val transform = arg<(ExercisesStore.State) -> ExercisesStore.State>(0)
             val newState = transform(stateFlow.value)
             stateFlow.value = newState
         }
     }
 
-    @AfterEach
-    fun tearDown() {
-        Dispatchers.resetMain()
-    }
+    private val handler = InputHandler(store)
 
     @Test
     fun `search query input action updates query state`() {

@@ -13,11 +13,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 internal class InputHandlerTest {
@@ -25,19 +21,18 @@ internal class InputHandlerTest {
     private val testScheduler = TestCoroutineScheduler()
     private val testDispatcher = UnconfinedTestDispatcher(testScheduler)
     private val commonStore = mockk<CommonDataStore>(relaxed = true)
-    private val store = mockk<ChartsHandlerStore>(relaxed = true)
     private val testScope = TestScope(testDispatcher)
 
-    private val handler = InputHandler(commonStore, store)
-
-    @BeforeEach
-    fun setup() {
-        setMain(testDispatcher)
-        every { store.scope } returns AppCoroutineScope(testScope, testDispatcher, testDispatcher)
+    private val store = mockk<ChartsHandlerStore>(relaxed = true) {
+        every { this@mockk.scope } returns AppCoroutineScope(
+            testScope,
+            testDispatcher,
+            testDispatcher
+        )
 
         // Mock the launch function to actually execute the coroutine
         every {
-            store.launch<Any>(
+            this@mockk.launch<Any>(
                 onError = any(),
                 onSuccess = any(),
                 workDispatcher = any(),
@@ -46,21 +41,12 @@ internal class InputHandlerTest {
             )
         } answers {
             val action = arg<suspend CoroutineScope.() -> Any>(4)
-
-            testScope.launch {
-                try {
-                    action()
-                } catch (_: Exception) {
-                    // Handle error if needed
-                }
-            }
+            testScope.launch { runCatching { action() } }
         }
     }
 
-    @AfterEach
-    fun tearDown() {
-        resetMain()
-    }
+    private val handler = InputHandler(commonStore, store)
+
 
     @Test
     fun `change start date action updates common store start date`() = runTest {

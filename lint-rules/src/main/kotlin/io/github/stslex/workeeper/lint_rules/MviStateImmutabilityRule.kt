@@ -29,7 +29,8 @@ class MviStateImmutabilityRule(config: Config = Config.Companion.empty) : Rule(c
         if (className.endsWith("State") &&
             klass.isInMviModule() &&
             !klass.isData() &&
-            !klass.hasModifier(KtTokens.SEALED_KEYWORD)) {
+            !klass.hasModifier(KtTokens.SEALED_KEYWORD)
+        ) {
 
             report(
                 CodeSmell(
@@ -55,7 +56,8 @@ class MviStateImmutabilityRule(config: Config = Config.Companion.empty) : Rule(c
                 val typeReference = property.typeReference?.text
                 if (typeReference?.contains("MutableList") == true ||
                     typeReference?.contains("MutableSet") == true ||
-                    typeReference?.contains("MutableMap") == true) {
+                    typeReference?.contains("MutableMap") == true
+                ) {
                     report(
                         CodeSmell(
                             issue, Entity.Companion.from(property),
@@ -69,6 +71,6 @@ class MviStateImmutabilityRule(config: Config = Config.Companion.empty) : Rule(c
 
     private fun KtClass.isInMviModule(): Boolean {
         return containingKtFile.packageFqName.asString().contains("mvi") ||
-               containingKtFile.virtualFilePath.contains("/mvi/")
+                containingKtFile.virtualFilePath.contains("/mvi/")
     }
 }

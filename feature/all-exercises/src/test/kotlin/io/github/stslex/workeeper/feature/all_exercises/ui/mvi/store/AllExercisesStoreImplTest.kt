@@ -97,19 +97,6 @@ internal class AllExercisesStoreImplTest {
     }
 
     @Test
-    fun `store dispatches initial paging init action`() = runTest(testDispatcher) {
-        val store = createStore()
-
-        store.init()
-        store.initEmitter()
-        advanceUntilIdle()
-
-        verify { pagingHandler.invoke(Action.Paging.Init) }
-        verify { logger.i("consume: ${Action.Paging.Init}") }
-        verify { analytics.logAction(Action.Paging.Init) }
-    }
-
-    @Test
     fun `navigation actions are handled by component`() = runTest(testDispatcher) {
         val store = createStore()
 
@@ -150,20 +137,6 @@ internal class AllExercisesStoreImplTest {
     }
 
     @Test
-    fun `paging actions are handled by pagingHandler`() = runTest(testDispatcher) {
-        val store = createStore()
-
-        val action = Action.Paging.Init
-
-        store.init()
-        store.initEmitter()
-        store.consume(action)
-        advanceUntilIdle()
-
-        verify { pagingHandler.invoke(action) }
-    }
-
-    @Test
     fun `multiple actions are processed in order`() = runTest(testDispatcher) {
         val store = createStore()
 
@@ -171,7 +144,6 @@ internal class AllExercisesStoreImplTest {
             Action.Input.SearchQuery("q"),
             Action.Click.FloatButtonClick,
             Action.Navigation.CreateExerciseDialog,
-            Action.Paging.Init
         )
 
         store.init()
@@ -182,7 +154,6 @@ internal class AllExercisesStoreImplTest {
         verify { inputHandler.invoke(actions[0] as Action.Input) }
         verify { clickHandler.invoke(actions[1] as Action.Click) }
         verify { component.invoke(actions[2] as Action.Navigation) }
-        verify { pagingHandler.invoke(actions[3] as Action.Paging) }
     }
 
     @Test

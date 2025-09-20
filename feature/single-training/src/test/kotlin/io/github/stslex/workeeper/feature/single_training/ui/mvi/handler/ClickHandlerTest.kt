@@ -18,17 +18,12 @@ import io.mockk.slot
 import io.mockk.verify
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.uuid.Uuid
@@ -39,7 +34,6 @@ internal class ClickHandlerTest {
     private val testDispatcher = UnconfinedTestDispatcher(testScheduler)
     private val interactor = mockk<SingleTrainingInteractor>(relaxed = true)
     private val changeMapper = mockk<TrainingChangeMapper>(relaxed = true)
-    private val store = mockk<TrainingHandlerStore>(relaxed = true)
     private val testScope = TestScope(testDispatcher)
 
     private val initialTraining = TrainingUiModel(
@@ -56,17 +50,14 @@ internal class ClickHandlerTest {
     )
 
     private val stateFlow = MutableStateFlow(initialState)
-    private val handler = ClickHandler(interactor, changeMapper, testDispatcher, store)
 
-    @BeforeEach
-    fun setup() {
-        Dispatchers.setMain(testDispatcher)
-        every { store.state } returns stateFlow
-        every { store.scope } returns AppCoroutineScope(testScope, testDispatcher, testDispatcher)
+    private val store = mockk<TrainingHandlerStore>(relaxed = true) {
+        every { state } returns stateFlow
+        every { scope } returns AppCoroutineScope(testScope, testDispatcher, testDispatcher)
 
         // Mock the launch function to actually execute the coroutine
         every {
-            store.launch<Any>(
+            this@mockk.launch<Any>(
                 onError = any(),
                 onSuccess = any(),
                 workDispatcher = any(),
@@ -77,21 +68,10 @@ internal class ClickHandlerTest {
             val onSuccess = arg<suspend CoroutineScope.(Any) -> Unit>(1)
             val action = arg<suspend CoroutineScope.() -> Any>(4)
 
-            testScope.launch {
-                try {
-                    val result = action()
-                    onSuccess(this, result)
-                } catch (_: Exception) {
-                    // Handle error if needed
-                }
-            }
+            testScope.launch { runCatching { onSuccess(this, action()) } }
         }
     }
-
-    @AfterEach
-    fun tearDown() {
-        Dispatchers.resetMain()
-    }
+    private val handler = ClickHandler(interactor, changeMapper, testDispatcher, store)
 
     @Test
     fun `create exercise click action triggers navigation to new exercise screen`() {
@@ -107,7 +87,13 @@ internal class ClickHandlerTest {
         handler.invoke(TrainingStore.Action.Click.ExerciseClick(exerciseUuid))
 
         verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.ContextClick)) }
-        verify(exactly = 1) { store.consume(TrainingStore.Action.Navigation.OpenExercise(exerciseUuid)) }
+        verify(exactly = 1) {
+            store.consume(
+                TrainingStore.Action.Navigation.OpenExercise(
+                    exerciseUuid
+                )
+            )
+        }
     }
 
     @Test

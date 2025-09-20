@@ -1,15 +1,23 @@
 <?xml version="1.0" ?>
 <SmellBaseline>
-  <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>FinalNewline:Component.kt$io.github.stslex.workeeper.core.ui.navigation.Component.kt</ID>
-    <ID>FinalNewline:NavigatorHolder.kt$io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder.kt</ID>
-    <ID>FinalNewline:Screen.kt$io.github.stslex.workeeper.core.ui.navigation.Screen.kt</ID>
-    <ID>NewLineAtEndOfFile:Component.kt$io.github.stslex.workeeper.core.ui.navigation.Component.kt</ID>
-    <ID>NewLineAtEndOfFile:NavigatorHolder.kt$io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder.kt</ID>
-    <ID>NewLineAtEndOfFile:Screen.kt$io.github.stslex.workeeper.core.ui.navigation.Screen.kt</ID>
-    <ID>NoBlankLineBeforeRbrace:Navigator.kt$Navigator$ </ID>
-    <ID>NoBlankLineBeforeRbrace:Screen.kt$Screen$ </ID>
-    <ID>NoBlankLineBeforeRbrace:Screen.kt$Screen.BottomBar$ </ID>
-  </CurrentIssues>
+    <ManuallySuppressedIssues />
+    <CurrentIssues>
+        <ID>FinalNewline:Component.kt$io.github.stslex.workeeper.core.ui.navigation.Component.kt
+        </ID>
+        <ID>
+            FinalNewline:NavigatorHolder.kt$io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder.kt
+        </ID>
+        <ID>FinalNewline:Screen.kt$io.github.stslex.workeeper.core.ui.navigation.Screen.kt</ID>
+        <ID>
+            NewLineAtEndOfFile:Component.kt$io.github.stslex.workeeper.core.ui.navigation.Component.kt
+        </ID>
+        <ID>
+            NewLineAtEndOfFile:NavigatorHolder.kt$io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder.kt
+        </ID>
+        <ID>NewLineAtEndOfFile:Screen.kt$io.github.stslex.workeeper.core.ui.navigation.Screen.kt
+        </ID>
+        <ID>NoBlankLineBeforeRbrace:Navigator.kt$Navigator$</ID>
+        <ID>NoBlankLineBeforeRbrace:Screen.kt$Screen$</ID>
+        <ID>NoBlankLineBeforeRbrace:Screen.kt$Screen.BottomBar$</ID>
+    </CurrentIssues>
 </SmellBaseline>

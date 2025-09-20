@@ -26,7 +26,9 @@
 
 </div>
 
-**Workeeper** is a modern, modular Android application built with Kotlin and Jetpack Compose. It's designed to help you log and track strength workouts with a clean, intuitive interface and powerful features for monitoring your fitness progress.
+**Workeeper** is a modern, modular Android application built with Kotlin and Jetpack Compose. It's
+designed to help you log and track strength workouts with a clean, intuitive interface and powerful
+features for monitoring your fitness progress.
 
 ## ✨ Key Features
 
@@ -44,7 +46,8 @@ This project showcases modern Android development practices with:
 
 - **🏛️ Modular Architecture**: Clean separation between `app`, `core`, and `feature` modules
 - **🔄 MVI Pattern**: Unidirectional data flow with State, Actions, and Events
-- **⚡ Handler System**: Dedicated action processors (`ClickHandler`, `InputHandler`, `PagingHandler`)
+- **⚡ Handler System**: Dedicated action processors (`ClickHandler`, `InputHandler`,
+  `PagingHandler`)
 - **💉 Dependency Injection**: Koin with annotation processing and feature-scoped modules
 - **🧪 Comprehensive Testing**: Unit tests with JUnit 5, Robolectric, and MockK
 
@@ -87,6 +90,7 @@ This project showcases modern Android development practices with:
 ## 🚀 Getting Started
 
 ### Prerequisites
+
 - Android Studio (latest stable)
 - Java 21 (JDK 21)
 - Android SDK with minimum API 28
@@ -112,6 +116,7 @@ cd Workeeper
 ## 🧪 Testing & Quality
 
 ### Running Tests
+
 ```bash
 # Run all unit tests
 ./gradlew testDebugUnitTest
@@ -124,6 +129,7 @@ cd Workeeper
 ```
 
 ### Code Quality & Linting
+
 ```bash
 # Run detekt (Kotlin static analysis)
 ./gradlew detekt
@@ -139,7 +145,9 @@ cd Workeeper
 ```
 
 ### Custom Architecture Rules
+
 The project includes custom linting rules that enforce:
+
 - MVI pattern compliance (State immutability, Action naming, Handler patterns)
 - Proper Koin dependency injection usage
 - Compose best practices
@@ -148,28 +156,34 @@ The project includes custom linting rules that enforce:
 ## 🔧 Configuration
 
 ### Required Files
+
 - `google-services.json` in both `app/dev/` and `app/store/` directories
 - `keystore.properties` for release builds
 - Environment variables or `local.properties` for build configuration
 
 ### Firebase Setup
-The app uses Firebase for analytics and crash reporting. Ensure you have the proper `google-services.json` files configured for both build variants.
+
+The app uses Firebase for analytics and crash reporting. Ensure you have the proper
+`google-services.json` files configured for both build variants.
 
 ## 📋 Development Guidelines
 
 ### Module Conventions
+
 - **Core modules** (`core/*`): Shared, reusable functionality
 - **Feature modules** (`feature/*`): Self-contained user-facing features
 - **App modules** (`app/*`): Application targets and shared app code
 - Avoid circular dependencies between modules
 
 ### MVI Data Flow
+
 1. **UI** triggers `Actions` (Click, Input, Navigation)
 2. **Handlers** process actions and interact with repositories
 3. **Store** updates `State` and emits one-time `Events`
 4. **UI** recomposes based on new state and handles events
 
 ### Testing Strategy
+
 - **Unit Tests**: Business logic, handlers, repositories (`src/test/`)
 - **Integration Tests**: Database operations, API interactions
 - **UI Tests**: Compose UI components (`src/androidTest/`)
@@ -183,7 +197,9 @@ We welcome contributions! Please read our guidelines:
 - [Code of Conduct](CODE_OF_CONDUCT.md)
 
 ### Commit Convention
+
 Follow [Conventional Commits](https://www.conventionalcommits.org/):
+
 - `feat:` New features
 - `fix:` Bug fixes
 - `refactor:` Code refactoring
@@ -194,6 +210,7 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 ## 📊 CI/CD
 
 GitHub Actions pipeline automatically:
+
 - Builds and tests on every PR
 - Runs static analysis (detekt, lint)
 - Generates APKs for releases
@@ -207,7 +224,8 @@ This project is licensed under the terms of the [LICENSE](LICENSE) file.
 
 ## 🔗 Links
 
-- **📱 [Google Play Store](https://play.google.com/store/apps/details?id=io.github.stslex.workeeper)**
+- **📱 [Google Play Store](https://play.google.com/store/apps/details?id=io.github.stslex.workeeper)
+  **
 - **📦 [GitHub Releases](https://github.com/stslex/Workeeper/releases)**
 - **📋 [Release Notes](RELEASE_NOTES.md)**
 - **🐛 [Report Issues](https://github.com/stslex/Workeeper/issues)**

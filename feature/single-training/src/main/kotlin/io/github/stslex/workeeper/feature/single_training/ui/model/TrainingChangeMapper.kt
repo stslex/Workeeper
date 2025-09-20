@@ -12,10 +12,10 @@ internal class TrainingChangeMapper : Mapper<TrainingUiModel, TrainingDomainChan
 
     override fun invoke(data: TrainingUiModel): TrainingDomainChangeModel =
         TrainingDomainChangeModel(
-        uuid = data.uuid.ifBlank { null },
-        name = data.name,
-        labels = data.labels,
+            uuid = data.uuid.ifBlank { null },
+            name = data.name,
+            labels = data.labels,
             exercisesUuids = data.exercises.map { it.uuid },
-        timestamp = data.date.timestamp
-    )
+            timestamp = data.date.timestamp
+        )
 }

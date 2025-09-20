@@ -8,7 +8,6 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.mappers.ExerciseUiMap
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.Property
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PropertyType
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PropertyValid
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SetUiType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SetsUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SnackbarType
@@ -18,28 +17,21 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.slot
 import io.mockk.verify
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import kotlin.uuid.Uuid
 
 internal class ClickHandlerTest {
 
@@ -47,7 +39,6 @@ internal class ClickHandlerTest {
     private val testDispatcher = UnconfinedTestDispatcher(testScheduler)
     private val repository = mockk<ExerciseRepository>(relaxed = true)
     private val exerciseUiMap = mockk<ExerciseUiMap>(relaxed = true)
-    private val store = mockk<ExerciseHandlerStore>(relaxed = true)
     private val testScope = TestScope(testDispatcher)
 
     private val initialState = ExerciseStore.State(
@@ -64,24 +55,19 @@ internal class ClickHandlerTest {
     )
 
     private val stateFlow = MutableStateFlow(initialState)
-    private val handler = ClickHandler(repository, exerciseUiMap, store)
-
-    @BeforeEach
-    fun setup() {
-        Dispatchers.setMain(testDispatcher)
-        every { store.state } returns stateFlow
-        every { store.scope } returns AppCoroutineScope(testScope, testDispatcher, testDispatcher)
+    private val store = mockk<ExerciseHandlerStore>(relaxed = true) {
+        every { state } returns stateFlow
+        every { scope } returns AppCoroutineScope(testScope, testDispatcher, testDispatcher)
 
         // Mock the updateState function to actually update the state
-        every { store.updateState(any()) } answers {
+        every { updateState(any()) } answers {
             val transform = arg<(ExerciseStore.State) -> ExerciseStore.State>(0)
-            val newState = transform(stateFlow.value)
-            stateFlow.value = newState
-        }
 
+            runCatching { stateFlow.value = transform(stateFlow.value) }
+        }
         // Mock the launch function to actually execute the coroutine
         every {
-            store.launch<Any>(
+            this@mockk.launch<Any>(
                 onError = any(),
                 onSuccess = any(),
                 workDispatcher = any(),
@@ -92,21 +78,10 @@ internal class ClickHandlerTest {
             val onSuccess = arg<suspend CoroutineScope.(Any) -> Unit>(1)
             val action = arg<suspend CoroutineScope.() -> Any>(4)
 
-            testScope.launch {
-                try {
-                    val result = action()
-                    onSuccess(this, result)
-                } catch (_: Exception) {
-                    // Handle error if needed
-                }
-            }
+            testScope.launch { runCatching { onSuccess(this, action()) } }
         }
     }
-
-    @AfterEach
-    fun tearDown() {
-        Dispatchers.resetMain()
-    }
+    private val handler = ClickHandler(repository, exerciseUiMap, store)
 
     @Test
     fun `cancel action triggers back with confirmation navigation`() {
@@ -328,7 +303,9 @@ internal class ClickHandlerTest {
             weight = Property.new(PropertyType.WEIGHT),
             type = SetUiType.WORK
         )
-        stateFlow.value = stateFlow.value.copy(sets = listOf(setToDelete, setToKeep).toImmutableList())
+        stateFlow.value = stateFlow.value.copy(
+            sets = listOf(setToDelete, setToKeep).toImmutableList()
+        )
 
         handler.invoke(ExerciseStore.Action.Click.DialogSets.DeleteButton("delete-me"))
 

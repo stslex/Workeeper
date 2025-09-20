@@ -4,5 +4,9 @@ import kotlin.uuid.Uuid
 
 object CommonExt {
 
-    fun Uuid.Companion.parseOrRandom(uuidString: String?): Uuid = uuidString?.let { Uuid.parse(it) } ?: Uuid.random()
+    fun Uuid.Companion.parseOrRandom(
+        uuidString: String?
+    ): Uuid = uuidString
+        ?.let(Uuid::parse)
+        ?: Uuid.random()
 }

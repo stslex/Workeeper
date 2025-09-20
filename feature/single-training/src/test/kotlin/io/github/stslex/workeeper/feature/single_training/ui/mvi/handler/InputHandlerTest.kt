@@ -10,20 +10,11 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import kotlinx.collections.immutable.persistentListOf
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.setMain
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
 internal class InputHandlerTest {
-
-    private val testDispatcher = UnconfinedTestDispatcher()
-    private val store = mockk<TrainingHandlerStore>(relaxed = true)
 
     private val initialTraining = TrainingUiModel(
         uuid = "test-uuid",
@@ -39,25 +30,19 @@ internal class InputHandlerTest {
     )
 
     private val stateFlow = MutableStateFlow(initialState)
-    private val handler = InputHandler(store)
 
-    @BeforeEach
-    fun setup() {
-        Dispatchers.setMain(testDispatcher)
-        every { store.state } returns stateFlow
+    private val store = mockk<TrainingHandlerStore>(relaxed = true) {
+        every { state } returns stateFlow
 
         // Mock the updateState function to actually update the state
-        every { store.updateState(any()) } answers {
+        every { updateState(any()) } answers {
             val transform = arg<(TrainingStore.State) -> TrainingStore.State>(0)
             val newState = transform(stateFlow.value)
             stateFlow.value = newState
         }
     }
 
-    @AfterEach
-    fun tearDown() {
-        Dispatchers.resetMain()
-    }
+    private val handler = InputHandler(store)
 
     @Test
     fun `name input action updates training name`() {

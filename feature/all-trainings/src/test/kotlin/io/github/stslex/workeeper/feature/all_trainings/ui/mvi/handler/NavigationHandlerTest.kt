@@ -3,22 +3,15 @@ package io.github.stslex.workeeper.feature.all_trainings.ui.mvi.handler
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store.TrainingStore
-import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import kotlin.uuid.Uuid
 
 internal class NavigationHandlerTest {
 
-    private val navigator = mockk<Navigator>()
+    private val navigator = mockk<Navigator>(relaxed = true)
     private val handler = NavigationHandler(navigator)
-
-    @BeforeEach
-    fun setup() {
-        every { navigator.navTo(any()) } returns Unit
-    }
 
     @Test
     fun `navigate to create training`() {

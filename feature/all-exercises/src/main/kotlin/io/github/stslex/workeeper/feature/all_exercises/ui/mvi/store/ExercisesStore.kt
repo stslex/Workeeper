@@ -34,10 +34,7 @@ internal interface ExercisesStore : Store<State, Action, Event> {
 
     sealed interface Action : Store.Action {
 
-        sealed interface Paging : Action {
-
-            data object Init : Paging
-        }
+        sealed interface Paging : Action
 
         sealed interface Input : Action {
 

@@ -24,7 +24,9 @@ lint-rules/
 ## Configuration Files
 
 ### `lint-suppressions.xml`
+
 Main suppressions file organized by categories:
+
 - **Design & UI**: icons, typography, accessibility
 - **Android Framework**: Android-specific issues
 - **Test-specific**: suppressions only for test files
@@ -32,11 +34,13 @@ Main suppressions file organized by categories:
 - **Temporary**: temporary suppressions with justification
 
 ### `detekt.yml` & `lint.xml`
+
 Core configuration files for linting tools, now centralized in lint-rules module.
 
 ## Custom Rules
 
 ### MVI Architecture Rules
+
 1. **MviStateImmutabilityRule** - checks state immutability
 2. **MviActionNamingRule** - action naming conventions
 3. **MviEventNamingRule** - event naming conventions
@@ -50,12 +54,16 @@ Core configuration files for linting tools, now centralized in lint-rules module
 ### Adding New Suppressions
 
 1. **Global suppression** (for entire project):
+
 ```xml
+
 <issue id="NewIssueId" severity="ignore" />
 ```
 
 2. **Pattern-based suppression** (for specific files):
+
 ```xml
+
 <issue id="IssueId">
     <ignore path="**/specific/pattern/**" />
     <ignore regexp=".*SpecificFile\.kt" />
@@ -65,7 +73,9 @@ Core configuration files for linting tools, now centralized in lint-rules module
 ### Temporary Suppressions
 
 All temporary suppressions should include justification:
+
 ```xml
+
 <issue id="TemporaryIssue">
     <ignore path="**/legacy/**" comment="Will be refactored in v2.0" />
 </issue>
@@ -74,6 +84,7 @@ All temporary suppressions should include justification:
 ## Integration
 
 Module is automatically applied via:
+
 - Root `build.gradle.kts`
 - `LintConventionPlugin` in build-logic
 - `settings.gradle.kts` module inclusion
@@ -81,6 +92,7 @@ Module is automatically applied via:
 ## Commands
 
 ### Basic Linting Commands
+
 ```bash
 # Build module
 ./gradlew :lint-rules:build
@@ -93,6 +105,7 @@ Module is automatically applied via:
 ```
 
 ### Baseline Management (Simplified)
+
 ```bash
 # Show baseline files (2 files total)
 ./lint-rules/baseline-manager.sh list
@@ -114,6 +127,7 @@ Module is automatically applied via:
 ## Simplified Structure
 
 The baseline system has been simplified:
+
 - **Single lint baseline**: `lint-baseline.xml` for all modules
 - **Single detekt baseline**: `detekt-baseline.xml` for all modules
 - **No per-module files**: easier to manage and maintain

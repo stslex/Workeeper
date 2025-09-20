@@ -18,15 +18,10 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.uuid.Uuid
@@ -39,12 +34,6 @@ internal class ExerciseRepositoryTest {
         dao = dao,
         bgDispatcher = testDispatcher
     )
-
-    @BeforeEach
-    fun bindMain() = Dispatchers.setMain(testDispatcher)
-
-    @AfterEach
-    fun unbindMain() = Dispatchers.resetMain()
 
     @Test
     fun `get all items paging`() = runTest(testDispatcher) {

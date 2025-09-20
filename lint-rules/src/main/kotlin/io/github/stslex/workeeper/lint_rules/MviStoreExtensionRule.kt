@@ -42,6 +42,6 @@ class MviStoreExtensionRule(config: Config = Config.Companion.empty) : Rule(conf
 
     private fun KtClass.isInMviModule(): Boolean {
         return containingKtFile.packageFqName.asString().contains("mvi") ||
-               containingKtFile.virtualFilePath.contains("/mvi/")
+                containingKtFile.virtualFilePath.contains("/mvi/")
     }
 }
