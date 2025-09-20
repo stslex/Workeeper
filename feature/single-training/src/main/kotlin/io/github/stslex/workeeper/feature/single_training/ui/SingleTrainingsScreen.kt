@@ -94,7 +94,7 @@ internal fun SingleTrainingsScreen(
 
             item {
                 ExerciseCreateWidget(
-                    onClick = { consume(Action.Click.Save) }
+                    onClick = { consume(Action.Click.CreateExercise) }
                 )
             }
 
