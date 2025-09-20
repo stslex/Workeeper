@@ -74,20 +74,35 @@ internal class ExerciseStoreStateTest {
         assertNotEquals(baseHash, base.copy(uuid = "changed-uuid").calculateEqualsHash)
 
         // name value affects hash
-        assertNotEquals(baseHash, base.copy(name = Property.new(PropertyType.NAME, "Other")).calculateEqualsHash)
+        assertNotEquals(
+            baseHash,
+            base.copy(name = Property.new(PropertyType.NAME, "Other")).calculateEqualsHash
+        )
 
         // date affects hash (by converted string)
-        assertNotEquals(baseHash, base.copy(dateProperty = DateProperty(1L, "1970-01-01")).calculateEqualsHash)
+        assertNotEquals(
+            baseHash,
+            base.copy(dateProperty = DateProperty(1L, "1970-01-01")).calculateEqualsHash
+        )
 
         // sets content affects hash
         val changedReps = set1.copy(reps = Property.new(PropertyType.REPS, "11"))
-        assertNotEquals(baseHash, base.copy(sets = persistentListOf(changedReps, set2)).calculateEqualsHash)
+        assertNotEquals(
+            baseHash,
+            base.copy(sets = persistentListOf(changedReps, set2)).calculateEqualsHash
+        )
 
         val changedWeight = set2.copy(weight = Property.new(PropertyType.WEIGHT, "46"))
-        assertNotEquals(baseHash, base.copy(sets = persistentListOf(set1, changedWeight)).calculateEqualsHash)
+        assertNotEquals(
+            baseHash,
+            base.copy(sets = persistentListOf(set1, changedWeight)).calculateEqualsHash
+        )
 
         val changedType = set1.copy(type = SetUiType.DROP)
-        assertNotEquals(baseHash, base.copy(sets = persistentListOf(changedType, set2)).calculateEqualsHash)
+        assertNotEquals(
+            baseHash,
+            base.copy(sets = persistentListOf(changedType, set2)).calculateEqualsHash
+        )
     }
 
     @Test

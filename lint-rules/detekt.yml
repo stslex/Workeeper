@@ -1,7 +1,7 @@
 build:
   maxIssues: 200
   excludeCorrectable: false
-  weights: {}
+  weights: { }
 
 config:
   validation: true
@@ -28,11 +28,11 @@ processors:
 console-reports:
   active: true
   exclude:
-     - 'ProjectStatisticsReport'
-     - 'ComplexityReport'
-     - 'NotificationReport'
-     - 'FindingsReport'
-     - 'FileBasedFindingsReport'
+    - 'ProjectStatisticsReport'
+    - 'ComplexityReport'
+    - 'NotificationReport'
+    - 'FindingsReport'
+    - 'FileBasedFindingsReport'
 
 comments:
   active: true
@@ -69,18 +69,18 @@ complexity:
   LargeClass:
     active: true
     threshold: 600
-    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**']
+    excludes: [ '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**' ]
   LongMethod:
     active: true
     threshold: 60
-    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**']
+    excludes: [ '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**' ]
   LongParameterList:
     active: true
     functionThreshold: 6
     constructorThreshold: 7
     ignoreDefaultParameters: false
     ignoreDataClasses: true
-    ignoreAnnotated: []
+    ignoreAnnotated: [ ]
   MethodOverloading:
     active: false
   NestedBlockDepth:
@@ -218,7 +218,7 @@ naming:
     active: true
     functionPattern: '[a-z][a-zA-Z0-9]*'
     excludeClassPattern: '$^'
-    ignoreAnnotated: ['Composable']
+    ignoreAnnotated: [ 'Composable' ]
   FunctionParameterNaming:
     active: true
     parameterPattern: '[a-z][A-Za-z0-9]*'
@@ -268,10 +268,10 @@ performance:
     active: false
   ForEachOnRange:
     active: true
-    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**']
+    excludes: [ '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**' ]
   SpreadOperator:
     active: true
-    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**']
+    excludes: [ '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**' ]
   UnnecessaryTemporaryInstantiation:
     active: true
 
@@ -383,8 +383,8 @@ style:
     maxJumpCount: 1
   MagicNumber:
     active: true
-    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**']
-    ignoreNumbers: ['-1', '0', '1', '2']
+    excludes: [ '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**' ]
+    ignoreNumbers: [ '-1', '0', '1', '2' ]
     ignoreHashCodeFunction: true
     ignorePropertyDeclaration: false
     ignoreLocalVariableDeclaration: false
@@ -434,7 +434,7 @@ style:
   ReturnCount:
     active: true
     max: 2
-    excludedFunctions: ["equals"]
+    excludedFunctions: [ "equals" ]
     excludeLabeled: false
     excludeReturnFromLambda: true
     excludeGuardClauses: false
@@ -501,8 +501,8 @@ style:
     active: false
   WildcardImport:
     active: true
-    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**']
-    excludeImports: ['java.util.*', 'kotlinx.android.synthetic.*']
+    excludes: [ '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**' ]
+    excludeImports: [ 'java.util.*', 'kotlinx.android.synthetic.*' ]
 
 
 formatting:

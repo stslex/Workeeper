@@ -2,4 +2,8 @@
 <resources>
     <string name="feature_single_training_field_name_label">Название тренировки</string>
     <string name="feature_single_training_field_date_label">Дата</string>
+
+    <string name="feature_single_training_field_exercises_label">Упражнения:</string>
+    <string name="feature_single_training_field_exercise_create_label">Добавить упражнение</string>
+    <string name="feature_single_training_field_exercises_empty_label">У вашей тренировки нет упражений - создайте или добавьте новое</string>
 </resources>

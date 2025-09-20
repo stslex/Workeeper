@@ -1,10 +1,12 @@
 package io.github.stslex.workeeper.feature.all_trainings.ui.mvi.handler
 
+import androidx.paging.LoadState
+import androidx.paging.LoadStates
 import androidx.paging.PagingData
+import androidx.paging.testing.asSnapshot
 import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
 import io.github.stslex.workeeper.core.exercise.training.TrainingDataModel
 import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
-import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.feature.all_trainings.di.TrainingHandlerStore
 import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.model.TrainingUiMapper
 import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.model.TrainingUiModel
@@ -13,142 +15,196 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.collections.immutable.persistentListOf
-import kotlinx.coroutines.Dispatchers
+import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import kotlin.uuid.Uuid
 
 internal class PagingHandlerTest {
 
-    private val testDispatcher = UnconfinedTestDispatcher()
-    private val repository = mockk<TrainingRepository>()
-    private val trainingMapper = mockk<TrainingUiMapper>()
+    private val testScheduler = TestCoroutineScheduler()
+    private val testDispatcher = StandardTestDispatcher(testScheduler)
+    private val repository = mockk<TrainingRepository>(relaxed = true)
+    private val trainingMapper = mockk<TrainingUiMapper>(relaxed = true)
+
+    private val initialQuery = "initial_query"
+
     private val store = mockk<TrainingHandlerStore>(relaxed = true)
-    private val pagingUiState = mockk<PagingUiState<PagingData<TrainingUiModel>>>(relaxed = true)
-    private val stateFlow = MutableStateFlow(
-        TrainingStore.State.init(pagingUiState)
+    private val handler: PagingHandler = PagingHandler(repository, trainingMapper, testDispatcher, store)
+
+    private val initialState = TrainingStore.State(
+        pagingUiState = handler.pagingUiState,
+        query = initialQuery,
+        selectedItems = persistentSetOf()
     )
-    private lateinit var handler: PagingHandler
+    private val stateFlow = MutableStateFlow(initialState)
 
-    @BeforeEach
-    fun setup() {
-        Dispatchers.setMain(testDispatcher)
+    @Suppress("UnusedFlow")
+    @Test
+    fun `pagingUiState transforms data correctly with finite flow`() = runTest(testDispatcher) {
+        val testData = getTestData()
+        val expectedData = getExpectedData()
+
+        every { repository.getTrainings(any()) } returns flowOf(getNotLoadingData(testData))
         every { store.state } returns stateFlow
-        handler = PagingHandler(repository, trainingMapper, testDispatcher, store)
+
+        // Setup mapper to return expected UI models
+        every { trainingMapper.invoke(any()) } answers {
+            val dataModel = it.invocation.args[0] as TrainingDataModel
+            TrainingUiModel(
+                uuid = dataModel.uuid,
+                name = dataModel.name,
+                labels = persistentListOf(),
+                exerciseUuids = persistentListOf(),
+                date = DateProperty.new(dataModel.timestamp)
+            )
+        }
+
+        val result = handler.pagingUiState.invoke().asSnapshot()
+
+        assertEquals(expectedData, result)
+        verify(exactly = 1) { repository.getTrainings(initialQuery) }
     }
 
-    @AfterEach
-    fun tearDown() {
-        Dispatchers.resetMain()
+    @Suppress("UnusedFlow")
+    @Test
+    fun `pagingUiState transforms data correctly with empty pagingData`() = runTest(testDispatcher) {
+        every { repository.getTrainings(any()) } returns flowOf(getNotLoadingData(emptyList()))
+        every { store.state } returns stateFlow
+
+        val result = handler.pagingUiState.invoke().asSnapshot()
+
+        assertEquals(emptyList<TrainingUiModel>(), result)
+        verify(exactly = 1) { repository.getTrainings(initialQuery) }
+    }
+
+    @Suppress("UnusedFlow")
+    @Test
+    fun `pagingUiState transforms data correctly on query changes`() = runTest(testDispatcher) {
+        val expectedQuery = "new_expected_query"
+        val expectedData = getExpectedData()
+        every { repository.getTrainings(initialQuery) } returns flowOf(getNotLoadingData(emptyList()))
+        every { repository.getTrainings(expectedQuery) } returns flowOf(
+            getNotLoadingData(
+                getTestData()
+            )
+        )
+        every { store.state } returns stateFlow
+
+        // Setup mapper to return expected UI models
+        every { trainingMapper.invoke(any()) } answers {
+            val dataModel = it.invocation.args[0] as TrainingDataModel
+            TrainingUiModel(
+                uuid = dataModel.uuid,
+                name = dataModel.name,
+                labels = persistentListOf(),
+                exerciseUuids = persistentListOf(),
+                date = DateProperty.new(dataModel.timestamp)
+            )
+        }
+
+        val pagingUiState = handler.pagingUiState.invoke()
+        val emptySnapshot = pagingUiState.asSnapshot()
+
+        assertEquals(emptyList<TrainingUiModel>(), emptySnapshot)
+        verify(exactly = 1) { repository.getTrainings(initialQuery) }
+
+        stateFlow.update { it.copy(query = expectedQuery) }
+
+        val dataSnapshot = pagingUiState.asSnapshot()
+
+        assertEquals(expectedData, dataSnapshot)
+        verify(exactly = 1) { repository.getTrainings(expectedQuery) }
     }
 
     @Test
-    fun `paging ui state returns trainings for query`() = runTest {
-        val query = "test"
-        val trainingData = TrainingDataModel(
-            uuid = Uuid.random().toString(),
-            name = "Test Training",
-            labels = listOf("Label1"),
-            exerciseUuids = emptyList(),
-            timestamp = 12345L
-        )
-        val trainingUi = TrainingUiModel(
-            uuid = trainingData.uuid,
-            name = trainingData.name,
-            labels = persistentListOf("Label1"),
-            exerciseUuids = persistentListOf(),
-            date = DateProperty.new(12345L)
-        )
+    fun `pagingUiState uses distinctUntilChanged for query optimization`() = runTest(testDispatcher) {
+        every { repository.getTrainings(any()) } returns flowOf(getNotLoadingData(emptyList()))
+        every { store.state } returns stateFlow
 
-        every { repository.getTrainings(any()) } returns flowOf(PagingData.from(listOf(trainingData)))
-        every { trainingMapper.invoke(trainingData) } returns trainingUi
+        val pagingUiState = handler.pagingUiState.invoke()
 
-        // Access the pagingUiState property to trigger initialization
-        val pagingUiState = handler.pagingUiState
-
-        // Start collecting to trigger the lazy flow
-        val job = TestScope(testDispatcher).launch {
-            pagingUiState().collect { }
+        // Multiple updates with the same query should not trigger repository calls
+        repeat(3) {
+            stateFlow.update { it.copy(query = initialQuery) }
         }
 
-        // Change the query to trigger data loading
-        stateFlow.value = stateFlow.value.copy(query = query)
+        pagingUiState.asSnapshot()
 
-        // Allow some time for the flow to be processed
-        testScheduler.runCurrent()
-        testScheduler.advanceUntilIdle()
-
-        // Verify repository is accessed
-        @Suppress("UnusedFlow")
-        verify(atLeast = 1) { repository.getTrainings(any()) }
-
-        job.cancel()
+        // Should only call repository once due to distinctUntilChanged
+        verify(exactly = 1) { repository.getTrainings(initialQuery) }
     }
 
     @Test
-    fun `paging ui state updates when query changes`() = runTest {
-        val query1 = "test1"
-        val query2 = "test2"
-        val trainingData1 = TrainingDataModel(
-            uuid = Uuid.random().toString(),
-            name = "Test Training 1",
-            labels = emptyList(),
-            exerciseUuids = emptyList(),
-            timestamp = 12345L
-        )
-        val trainingData2 = TrainingDataModel(
-            uuid = Uuid.random().toString(),
-            name = "Test Training 2",
-            labels = emptyList(),
-            exerciseUuids = emptyList(),
-            timestamp = 12346L
-        )
-        val trainingUi1 = TrainingUiModel(
-            uuid = trainingData1.uuid,
-            name = trainingData1.name,
-            labels = persistentListOf(),
-            exerciseUuids = persistentListOf(),
-            date = DateProperty.new(12345L)
-        )
-        val trainingUi2 = TrainingUiModel(
-            uuid = trainingData2.uuid,
-            name = trainingData2.name,
-            labels = persistentListOf(),
-            exerciseUuids = persistentListOf(),
-            date = DateProperty.new(12346L)
-        )
+    fun `trainingMapper is called for each data item`() = runTest(testDispatcher) {
+        val testData = getTestData()
+        every { repository.getTrainings(any()) } returns flowOf(getNotLoadingData(testData))
+        every { store.state } returns stateFlow
 
-        every { repository.getTrainings(any()) } returns flowOf(PagingData.from(emptyList()))
-        every { trainingMapper.invoke(trainingData1) } returns trainingUi1
-        every { trainingMapper.invoke(trainingData2) } returns trainingUi2
-
-        // Access the pagingUiState property to trigger initialization
-        val pagingUiState = handler.pagingUiState
-
-        // Collect from the state to trigger the flow
-        val job = TestScope(testDispatcher).launch {
-            pagingUiState().collect { }
+        // Setup mapper to return expected UI models
+        every { trainingMapper.invoke(any()) } answers {
+            val dataModel = it.invocation.args[0] as TrainingDataModel
+            TrainingUiModel(
+                uuid = dataModel.uuid,
+                name = dataModel.name,
+                labels = persistentListOf(),
+                exerciseUuids = persistentListOf(),
+                date = DateProperty.new(dataModel.timestamp)
+            )
         }
 
-        stateFlow.value = stateFlow.value.copy(query = query1)
-        testScheduler.advanceUntilIdle()
+        handler.pagingUiState.invoke().asSnapshot()
 
-        stateFlow.value = stateFlow.value.copy(query = query2)
-        testScheduler.advanceUntilIdle()
-
-        // Just verify that the repository is called
-        @Suppress("UnusedFlow")
-        verify(atLeast = 1) { repository.getTrainings(any()) }
-
-        job.cancel()
+        // Verify mapper was called for each item
+        verify(exactly = testData.size) { trainingMapper.invoke(any()) }
     }
+
+    private fun getNotLoadingData(data: List<TrainingDataModel>): PagingData<TrainingDataModel> =
+        PagingData.from(
+            data,
+            LoadStates(
+                refresh = LoadState.NotLoading(true),
+                prepend = LoadState.NotLoading(true),
+                append = LoadState.NotLoading(true),
+            )
+        )
+
+    private fun getTestData(): List<TrainingDataModel> = listOf(
+        TrainingDataModel(
+            uuid = "t1",
+            name = "Morning Workout",
+            labels = persistentListOf(),
+            exerciseUuids = persistentListOf(),
+            timestamp = 1000L
+        ),
+        TrainingDataModel(
+            uuid = "t2",
+            name = "Evening Training",
+            labels = persistentListOf(),
+            exerciseUuids = persistentListOf(),
+            timestamp = 2000L
+        )
+    )
+
+    private fun getExpectedData(): List<TrainingUiModel> = listOf(
+        TrainingUiModel(
+            uuid = "t1",
+            name = "Morning Workout",
+            labels = persistentListOf(),
+            exerciseUuids = persistentListOf(),
+            date = DateProperty.new(1000L)
+        ),
+        TrainingUiModel(
+            uuid = "t2",
+            name = "Evening Training",
+            labels = persistentListOf(),
+            exerciseUuids = persistentListOf(),
+            date = DateProperty.new(2000L)
+        )
+    )
 }

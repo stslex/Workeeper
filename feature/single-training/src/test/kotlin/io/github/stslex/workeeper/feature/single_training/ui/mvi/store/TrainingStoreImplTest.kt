@@ -270,7 +270,7 @@ internal class TrainingStoreImplTest {
             uuid = "new-uuid",
             name = "New Training",
             labels = persistentListOf("strength", "cardio"),
-            exercises = listOf(
+            exercises = persistentListOf(
                 ExerciseUiModel(
                     uuid = "exercise-1",
                     name = "Push-ups",

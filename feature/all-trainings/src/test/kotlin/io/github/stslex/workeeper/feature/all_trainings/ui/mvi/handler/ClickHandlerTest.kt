@@ -1,9 +1,11 @@
 package io.github.stslex.workeeper.feature.all_trainings.ui.mvi.handler
 
+import androidx.paging.PagingData
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScope
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.feature.all_trainings.di.TrainingHandlerStore
 import io.github.stslex.workeeper.feature.all_trainings.domain.AllTrainingsInteractor
+import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.model.TrainingUiModel
 import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store.TrainingStore
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -14,17 +16,12 @@ import io.mockk.verify
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableSet
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.uuid.Uuid
@@ -34,26 +31,22 @@ internal class ClickHandlerTest {
     private val testScheduler = TestCoroutineScheduler()
     private val testDispatcher = UnconfinedTestDispatcher(testScheduler)
     private val interactor = mockk<AllTrainingsInteractor>()
-    private val store = mockk<TrainingHandlerStore>(relaxed = true)
+
     private val testScope = TestScope(testDispatcher)
-    private val pagingUiState =
-        mockk<PagingUiState<androidx.paging.PagingData<io.github.stslex.workeeper.feature.all_trainings.ui.mvi.model.TrainingUiModel>>>(
-            relaxed = true
-        )
+    private val pagingUiState = mockk<PagingUiState<PagingData<TrainingUiModel>>>(relaxed = true)
     private val stateFlow = MutableStateFlow(
         TrainingStore.State.init(pagingUiState)
     )
-    private val handler = ClickHandler(interactor, store)
 
-    @BeforeEach
-    fun setup() {
-        Dispatchers.setMain(testDispatcher)
-        every { store.state } returns stateFlow
-        every { store.scope } returns AppCoroutineScope(testScope, testDispatcher, testDispatcher)
+    private val appCoroutineScope = AppCoroutineScope(testScope, testDispatcher, testDispatcher)
+
+    private val store = mockk<TrainingHandlerStore>(relaxed = true) {
+        every { this@mockk.state } returns stateFlow
+        every { this@mockk.scope } returns appCoroutineScope
 
         // Mock the launch function to actually execute the coroutine
         every {
-            store.launch<Any>(
+            this@mockk.launch<Any>(
                 onError = any(),
                 onSuccess = any(),
                 workDispatcher = any(),
@@ -64,21 +57,11 @@ internal class ClickHandlerTest {
             val onSuccess = arg<suspend CoroutineScope.(Any) -> Unit>(1)
             val action = arg<suspend CoroutineScope.() -> Any>(4)
 
-            testScope.launch {
-                try {
-                    val result = action()
-                    onSuccess(this, result)
-                } catch (_: Exception) {
-                    // Handle error if needed
-                }
-            }
+            testScope.launch { runCatching { onSuccess(this, action()) } }
         }
     }
 
-    @AfterEach
-    fun tearDown() {
-        Dispatchers.resetMain()
-    }
+    private val handler = ClickHandler(interactor, store)
 
     @Test
     fun `training item click when no items selected navigates to training`() = runTest {
@@ -86,7 +69,13 @@ internal class ClickHandlerTest {
 
         handler.invoke(TrainingStore.Action.Click.TrainingItemClick(trainingUuid))
 
-        verify { store.consume(TrainingStore.Action.Navigation.OpenTraining(trainingUuid)) }
+        verify(exactly = 1) {
+            store.consume(
+                TrainingStore.Action.Navigation.OpenTraining(
+                    trainingUuid
+                )
+            )
+        }
     }
 
     @Test
@@ -106,7 +95,7 @@ internal class ClickHandlerTest {
 
         handler.invoke(TrainingStore.Action.Click.TrainingItemClick(newUuid))
 
-        verify { store.updateState(any()) }
+        verify(exactly = 1) { store.updateState(any()) }
         assertEquals(2, stateFlow.value.selectedItems.size)
     }
 
@@ -127,7 +116,7 @@ internal class ClickHandlerTest {
 
         handler.invoke(TrainingStore.Action.Click.TrainingItemClick(uuid1))
 
-        verify { store.updateState(any()) }
+        verify(exactly = 1) { store.updateState(any()) }
         assertEquals(1, stateFlow.value.selectedItems.size)
         assertEquals(setOf(uuid2), stateFlow.value.selectedItems)
     }
@@ -138,9 +127,7 @@ internal class ClickHandlerTest {
 
         handler.invoke(TrainingStore.Action.Click.TrainingItemLongClick(uuid))
 
-        verify {
-            store.updateState(any())
-        }
+        verify(exactly = 1) { store.updateState(any()) }
     }
 
     @Test
@@ -152,9 +139,7 @@ internal class ClickHandlerTest {
 
         handler.invoke(TrainingStore.Action.Click.TrainingItemLongClick(uuid))
 
-        verify {
-            store.updateState(any())
-        }
+        verify(exactly = 1) { store.updateState(any()) }
     }
 
     @Test
@@ -163,7 +148,7 @@ internal class ClickHandlerTest {
 
         handler.invoke(TrainingStore.Action.Click.ActionButton)
 
-        verify { store.consume(TrainingStore.Action.Navigation.CreateTraining) }
+        verify(exactly = 1) { store.consume(TrainingStore.Action.Navigation.CreateTraining) }
         coVerify(exactly = 0) { interactor.deleteAll(any()) }
     }
 
@@ -181,7 +166,7 @@ internal class ClickHandlerTest {
         // Wait for async execution to complete
         testScheduler.advanceUntilIdle()
 
-        coVerify { interactor.deleteAll(any()) }
+        coVerify(exactly = 1) { interactor.deleteAll(any()) }
         verify(exactly = 0) { store.consume(TrainingStore.Action.Navigation.CreateTraining) }
     }
 }

@@ -5,19 +5,19 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.core.app.ApplicationProvider
 import io.github.stslex.workeeper.core.database.BaseDatabaseTest
-import io.github.stslex.workeeper.core.database.converters.StringConverter
-import io.github.stslex.workeeper.core.database.converters.SetsTypeConverter
 import io.github.stslex.workeeper.core.database.exercise.model.SetsEntity
 import io.github.stslex.workeeper.core.database.exercise.model.SetsEntityType
 import kotlinx.serialization.json.Json
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
-import kotlin.uuid.Uuid
 
 @ExtendWith(RobolectricExtension::class)
 @Config(application = BaseDatabaseTest.TestApplication::class)
@@ -36,7 +36,12 @@ class Migration1To2Test {
                     override fun onCreate(db: SupportSQLiteDatabase) {
                         // No-op for test
                     }
-                    override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) {
+
+                    override fun onUpgrade(
+                        db: SupportSQLiteDatabase,
+                        oldVersion: Int,
+                        newVersion: Int
+                    ) {
                         // No-op for test
                     }
                 })
@@ -194,7 +199,14 @@ class Migration1To2Test {
         exercises.forEach { exercise ->
             testDb.execSQL(
                 "INSERT INTO exercises_table (uuid, name, reps, weight, sets, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
-                arrayOf(exercise.uuid, exercise.name, exercise.reps, exercise.weight, exercise.sets, exercise.timestamp)
+                arrayOf(
+                    exercise.uuid,
+                    exercise.name,
+                    exercise.reps,
+                    exercise.weight,
+                    exercise.sets,
+                    exercise.timestamp
+                )
             )
         }
 
@@ -295,7 +307,9 @@ class Migration1To2Test {
         MIGRATION_1_2.migrate(testDb)
 
         // Verify zero sets exercise
-        val zeroSetsCursor = testDb.query("SELECT * FROM exercises_table WHERE uuid = ?", arrayOf("uuid-zero-sets"))
+        val zeroSetsCursor = testDb.query(
+            "SELECT * FROM exercises_table WHERE uuid = ?", arrayOf("uuid-zero-sets")
+        )
         assertTrue(zeroSetsCursor.moveToFirst())
         val zeroSetsJson = zeroSetsCursor.getString(zeroSetsCursor.getColumnIndexOrThrow("sets"))
         val zeroSets = Json.decodeFromString<List<SetsEntity>>(zeroSetsJson)
@@ -303,9 +317,13 @@ class Migration1To2Test {
         zeroSetsCursor.close()
 
         // Verify negative values exercise
-        val negativeCursor = testDb.query("SELECT * FROM exercises_table WHERE uuid = ?", arrayOf("uuid-negative"))
+        val negativeCursor = testDb.query(
+            "SELECT * FROM exercises_table WHERE uuid = ?", arrayOf("uuid-negative")
+        )
         assertTrue(negativeCursor.moveToFirst())
-        val negativeSetsJson = negativeCursor.getString(negativeCursor.getColumnIndexOrThrow("sets"))
+        val negativeSetsJson = negativeCursor.getString(
+            negativeCursor.getColumnIndexOrThrow("sets")
+        )
         val negativeSets = Json.decodeFromString<List<SetsEntity>>(negativeSetsJson)
         assertEquals(1, negativeSets.size)
         assertEquals(-5, negativeSets[0].reps)
@@ -336,7 +354,9 @@ class Migration1To2Test {
         // Run migration
         MIGRATION_1_2.migrate(testDb)
 
-        val cursor = testDb.query("SELECT sets FROM exercises_table WHERE uuid = ?", arrayOf("test-uuid"))
+        val cursor = testDb.query(
+            "SELECT sets FROM exercises_table WHERE uuid = ?", arrayOf("test-uuid")
+        )
         assertTrue(cursor.moveToFirst())
 
         val setsJson = cursor.getString(0)

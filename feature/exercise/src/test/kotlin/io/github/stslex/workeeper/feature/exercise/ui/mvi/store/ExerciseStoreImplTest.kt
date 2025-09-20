@@ -40,23 +40,25 @@ internal class ExerciseStoreImplTest {
 
     private val testDispatcher = StandardTestDispatcher()
 
-    private val component = mockk<ExerciseComponent>()
-    private val clickHandler = mockk<ClickHandler>()
-    private val inputHandler = mockk<InputHandler>()
-    private val commonHandler = mockk<CommonHandler>()
-    private val navigationHandler = mockk<NavigationHandler>()
-    private val storeEmitter = mockk<ExerciseHandlerStoreImpl>(relaxed = true)
-
-    init {
-        every { component.data } returns null
-        coEvery { component.invoke(any()) } just runs
-        coEvery { clickHandler.invoke(any()) } just runs
-        coEvery { inputHandler.invoke(any()) } just runs
-        coEvery { commonHandler.invoke(any()) } just runs
-        coEvery { navigationHandler.invoke(any()) } just runs
-        every { storeEmitter.state } returns MutableStateFlow(ExerciseStore.State.INITIAL)
+    private val component = mockk<ExerciseComponent> {
+        every { data } returns null
+        coEvery { this@mockk.invoke(any()) } just runs
     }
-
+    private val clickHandler = mockk<ClickHandler> {
+        coEvery { this@mockk.invoke(any()) } just runs
+    }
+    private val inputHandler = mockk<InputHandler> {
+        coEvery { this@mockk.invoke(any()) } just runs
+    }
+    private val commonHandler = mockk<CommonHandler> {
+        coEvery { this@mockk.invoke(any()) } just runs
+    }
+    private val navigationHandler = mockk<NavigationHandler> {
+        coEvery { this@mockk.invoke(any()) } just runs
+    }
+    private val storeEmitter = mockk<ExerciseHandlerStoreImpl>(relaxed = true) {
+        every { state } returns MutableStateFlow(ExerciseStore.State.INITIAL)
+    }
     private val storeDispatchers = StoreDispatchers(
         defaultDispatcher = testDispatcher,
         mainImmediateDispatcher = testDispatcher

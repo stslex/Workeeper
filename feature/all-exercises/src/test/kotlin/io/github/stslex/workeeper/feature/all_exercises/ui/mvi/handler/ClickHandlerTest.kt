@@ -19,17 +19,12 @@ import io.mockk.verify
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableSet
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -40,7 +35,7 @@ internal class ClickHandlerTest {
     private val testScheduler = TestCoroutineScheduler()
     private val testDispatcher = UnconfinedTestDispatcher(testScheduler)
     private val repository = mockk<ExerciseRepository>(relaxed = true)
-    private val store: ExerciseHandlerStore = mockk<ExerciseHandlerStore>(relaxed = true)
+
     private val testScope = TestScope(testDispatcher)
 
     private val pagingUiState = mockk<PagingUiState<PagingData<ExerciseUiModel>>>(relaxed = true)
@@ -52,17 +47,18 @@ internal class ClickHandlerTest {
     )
 
     private val stateFlow = MutableStateFlow(initialState)
-    private val handler = ClickHandler(repository, store)
 
-    @BeforeEach
-    fun setup() {
-        Dispatchers.setMain(testDispatcher)
-        every { store.state } returns stateFlow
-        every { store.scope } returns AppCoroutineScope(testScope, testDispatcher, testDispatcher)
+    private val store: ExerciseHandlerStore = mockk<ExerciseHandlerStore>(relaxed = true) {
+        every { this@mockk.state } returns stateFlow
+        every { this@mockk.scope } returns AppCoroutineScope(
+            testScope,
+            testDispatcher,
+            testDispatcher
+        )
 
         // Mock the launch function to actually execute the coroutine
         every {
-            store.launch<Any>(
+            this@mockk.launch<Any>(
                 onError = any(),
                 onSuccess = any(),
                 workDispatcher = any(),
@@ -73,21 +69,11 @@ internal class ClickHandlerTest {
             val onSuccess = arg<suspend CoroutineScope.(Any) -> Unit>(1)
             val action = arg<suspend CoroutineScope.() -> Any>(4)
 
-            testScope.launch {
-                try {
-                    val result = action()
-                    onSuccess(this, result)
-                } catch (_: Exception) {
-                    // Handle error if needed
-                }
-            }
+            testScope.launch { runCatching { onSuccess(this, action()) } }
         }
     }
 
-    @AfterEach
-    fun tearDown() {
-        Dispatchers.resetMain()
-    }
+    private val handler = ClickHandler(repository, store)
 
     @Test
     fun `float button click with no selected items navigates to create exercise`() {
@@ -122,13 +108,13 @@ internal class ClickHandlerTest {
         handler.invoke(ExercisesStore.Action.Click.FloatButtonClick)
 
         // Verify immediate behavior
-        verify { store.sendEvent(ExercisesStore.Event.HapticFeedback(HapticFeedbackType.Confirm)) }
+        verify(exactly = 1) { store.sendEvent(ExercisesStore.Event.HapticFeedback(HapticFeedbackType.Confirm)) }
 
         // Advance scheduler to let async operations complete
         testScheduler.advanceUntilIdle()
 
         // Verify async operations eventually complete
-        coVerify { repository.deleteAllItems(any()) }
+        coVerify(exactly = 1) { repository.deleteAllItems(any()) }
     }
 
     @Test
@@ -141,7 +127,7 @@ internal class ClickHandlerTest {
 
         handler.invoke(ExercisesStore.Action.Click.Item(exercise))
 
-        verify {
+        verify(exactly = 1) {
             store.consume(
                 ExercisesStore.Action.Navigation.OpenExercise(
                     Screen.Exercise.Data(
@@ -150,7 +136,7 @@ internal class ClickHandlerTest {
                 )
             )
         }
-        verify { store.sendEvent(ExercisesStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey)) }
+        verify(exactly = 1) { store.sendEvent(ExercisesStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey)) }
     }
 
     @Test
@@ -171,8 +157,8 @@ internal class ClickHandlerTest {
 
         handler.invoke(ExercisesStore.Action.Click.Item(exercise2))
 
-        verify { store.consume(ExercisesStore.Action.Click.LonkClick(exercise2)) }
-        verify { store.sendEvent(ExercisesStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey)) }
+        verify(exactly = 1) { store.consume(ExercisesStore.Action.Click.LonkClick(exercise2)) }
+        verify(exactly = 1) { store.sendEvent(ExercisesStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey)) }
     }
 
     @Test
@@ -185,10 +171,10 @@ internal class ClickHandlerTest {
 
         handler.invoke(ExercisesStore.Action.Click.LonkClick(exercise))
 
-        verify { store.sendEvent(ExercisesStore.Event.HapticFeedback(HapticFeedbackType.LongPress)) }
+        verify(exactly = 1) { store.sendEvent(ExercisesStore.Event.HapticFeedback(HapticFeedbackType.LongPress)) }
 
         val stateSlot = slot<(ExercisesStore.State) -> ExercisesStore.State>()
-        verify { store.updateState(capture(stateSlot)) }
+        verify(exactly = 1) { store.updateState(capture(stateSlot)) }
 
         val newState = stateSlot.captured(stateFlow.value)
         assertTrue(newState.selectedItems.contains(exercise))
@@ -215,10 +201,10 @@ internal class ClickHandlerTest {
 
         handler.invoke(ExercisesStore.Action.Click.LonkClick(exercise1))
 
-        verify { store.sendEvent(ExercisesStore.Event.HapticFeedback(HapticFeedbackType.LongPress)) }
+        verify(exactly = 1) { store.sendEvent(ExercisesStore.Event.HapticFeedback(HapticFeedbackType.LongPress)) }
 
         val stateSlot = slot<(ExercisesStore.State) -> ExercisesStore.State>()
-        verify { store.updateState(capture(stateSlot)) }
+        verify(exactly = 1) { store.updateState(capture(stateSlot)) }
 
         val newState = stateSlot.captured(stateFlow.value)
         assertEquals(1, newState.selectedItems.size)

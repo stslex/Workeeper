@@ -4,9 +4,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
@@ -15,6 +17,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.single_training.R
 import io.github.stslex.workeeper.feature.single_training.ui.component.DatePickerDialog
+import io.github.stslex.workeeper.feature.single_training.ui.component.ExerciseCreateWidget
 import io.github.stslex.workeeper.feature.single_training.ui.component.ToolbarRow
 import io.github.stslex.workeeper.feature.single_training.ui.component.TrainingPropertyTextField
 import io.github.stslex.workeeper.feature.single_training.ui.model.DialogState
@@ -57,8 +60,44 @@ internal fun SingleTrainingsScreen(
                 ) {
                     consume(Action.Input.Name(it))
                 }
-
             }
+
+            item {
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = AppDimension.Padding.big)
+                )
+            }
+
+            item {
+                Text("Exercises: ")
+            }
+
+            if (state.training.exercises.isEmpty()) {
+                item {
+                    Text("There is no Exercises now - create or add new one")
+                }
+            } else {
+                items(
+                    count = state.training.exercises.size,
+                    key = {
+                        state.training.exercises[it].uuid
+                    }
+                ) { index ->
+                    val item = state.training.exercises[index]
+                    // todo replace and refactor to new ui
+                    Card(
+                        modifier = Modifier.fillMaxSize(),
+                        onClick = { consume(Action.Click.ExerciseClick(item.uuid)) }
+                    ) { Text(item.name) }
+                }
+            }
+
+            item {
+                ExerciseCreateWidget(
+                    onClick = { consume(Action.Click.CreateExercise) }
+                )
+            }
+
 
             item {
                 HorizontalDivider(

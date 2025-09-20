@@ -12,7 +12,6 @@ import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.model.ExerciseUiM
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.model.toUi
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore.Action
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -29,24 +28,18 @@ internal class PagingHandler(
     @Named(EXERCISE_SCOPE_NAME) store: ExerciseHandlerStore,
 ) : Handler<Action.Paging>, ExerciseHandlerStore by store {
 
-    private val queryState = MutableStateFlow("")
-
     val processor: PagingUiState<PagingData<ExerciseUiModel>> = PagingUiState {
-        queryState.flatMapLatest { query ->
-            repository.getExercises(query).map { pagingData ->
+        state.map {
+            it.query
+        }.flatMapLatest { query ->
+            val result = repository.getExercises(query).map { pagingData ->
                 pagingData.map { it.toUi() }
             }
+            println("result: $result")
+            result
         }
             .flowOn(defaultDispatcher)
     }
 
-    override fun invoke(action: Action.Paging) {
-        when (action) {
-            Action.Paging.Init -> processInit()
-        }
-    }
-
-    private fun processInit() {
-        state.map { it.query }.launch { queryState.value = it }
-    }
+    override fun invoke(action: Action.Paging) = Unit
 }

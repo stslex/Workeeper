@@ -11,13 +11,8 @@ import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingD
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -33,12 +28,6 @@ internal class SingleTrainingInteractorImplTest {
         exerciseRepository = exerciseRepository,
         defaultDispatcher = testDispatcher
     )
-
-    @BeforeEach
-    fun bindMain() = Dispatchers.setMain(testDispatcher)
-
-    @AfterEach
-    fun unbindMain() = Dispatchers.resetMain()
 
     @Test
     fun `get training with exercises`() = runTest(testDispatcher) {

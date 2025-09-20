@@ -46,13 +46,20 @@ interface HandlerStore<S : State, A : Store.Action, in E : Event> {
      * @return Job
      * @see Job
      * */
+    // todo -> refactor for better testing
     fun <T> launch(
         onError: suspend (Throwable) -> Unit = {},
         onSuccess: suspend CoroutineScope.(T) -> Unit = {},
         workDispatcher: CoroutineDispatcher = scope.defaultDispatcher,
         eachDispatcher: CoroutineDispatcher = scope.defaultDispatcher,
         action: suspend CoroutineScope.() -> T,
-    ): Job
+    ): Job = scope.launch(
+        onError = onError,
+        onSuccess = onSuccess,
+        workDispatcher = workDispatcher,
+        eachDispatcher = eachDispatcher,
+        action = action
+    )
 
     /**
      * Launches a flow and collects it in the screenModelScope. The flow is collected on the default dispatcher.
@@ -62,10 +69,17 @@ interface HandlerStore<S : State, A : Store.Action, in E : Event> {
      * @see Flow
      * @see Job
      * */
+    // todo -> refactor for better testing
     fun <T> Flow<T>.launch(
         onError: suspend (cause: Throwable) -> Unit = {},
         workDispatcher: CoroutineDispatcher = scope.defaultDispatcher,
         eachDispatcher: CoroutineDispatcher = scope.defaultDispatcher,
         each: suspend (T) -> Unit
-    ): Job
+    ): Job = scope.launch(
+        flow = this,
+        onError = onError,
+        workDispatcher = workDispatcher,
+        eachDispatcher = eachDispatcher,
+        each = each
+    )
 }
