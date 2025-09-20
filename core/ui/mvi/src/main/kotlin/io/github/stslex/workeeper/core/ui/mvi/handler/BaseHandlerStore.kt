@@ -6,10 +6,6 @@ import io.github.stslex.workeeper.core.ui.mvi.Store.Action
 import io.github.stslex.workeeper.core.ui.mvi.Store.Event
 import io.github.stslex.workeeper.core.ui.mvi.Store.State
 import io.github.stslex.workeeper.core.ui.mvi.store.StoreConsumer
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
 open class BaseHandlerStore<S : State, A : Action, E : Event>() :
@@ -51,33 +47,6 @@ open class BaseHandlerStore<S : State, A : Action, E : Event>() :
     override suspend fun updateStateImmediate(state: S) {
         store.updateStateImmediate(state)
     }
-
-    override fun <T> launch(
-        onError: suspend (Throwable) -> Unit,
-        onSuccess: suspend CoroutineScope.(T) -> Unit,
-        workDispatcher: CoroutineDispatcher,
-        eachDispatcher: CoroutineDispatcher,
-        action: suspend CoroutineScope.() -> T
-    ): Job = store.launch(
-        onError = onError,
-        onSuccess = onSuccess,
-        workDispatcher = workDispatcher,
-        eachDispatcher = eachDispatcher,
-        action = action
-    )
-
-    override fun <T> Flow<T>.launch(
-        onError: suspend (Throwable) -> Unit,
-        workDispatcher: CoroutineDispatcher,
-        eachDispatcher: CoroutineDispatcher,
-        each: suspend (T) -> Unit
-    ): Job = store.launch(
-        flow = this,
-        onError = onError,
-        workDispatcher = workDispatcher,
-        eachDispatcher = eachDispatcher,
-        each = each
-    )
 
     override fun setStore(store: StoreConsumer<S, A, E>) {
         _store = store

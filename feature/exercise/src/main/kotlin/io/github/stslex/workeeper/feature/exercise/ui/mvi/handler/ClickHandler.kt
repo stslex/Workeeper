@@ -1,5 +1,6 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
+import io.github.stslex.workeeper.core.core.coroutine.dispatcher.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
@@ -13,7 +14,7 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import org.koin.core.annotation.Named
 import org.koin.core.annotation.Scope
@@ -25,6 +26,7 @@ import kotlin.uuid.Uuid
 internal class ClickHandler(
     private val repository: ExerciseRepository,
     private val exerciseUiMap: ExerciseUiMap,
+    @param:MainImmediateDispatcher private val mainDispatcher: CoroutineDispatcher,
     @Named(EXERCISE_SCOPE_NAME) store: ExerciseHandlerStore
 ) : Handler<Action.Click>, ExerciseHandlerStore by store {
 
@@ -144,7 +146,7 @@ internal class ClickHandler(
         } ?: return
         launch(
             onSuccess = {
-                withContext(Dispatchers.Main.immediate) {
+                withContext(mainDispatcher) {
                     consume(Action.NavigationMiddleware.Back)
                 }
             }
@@ -193,7 +195,7 @@ internal class ClickHandler(
 
         launch(
             onSuccess = {
-                withContext(Dispatchers.Main.immediate) {
+                withContext(mainDispatcher) {
                     consume(Action.NavigationMiddleware.Back)
                 }
             },

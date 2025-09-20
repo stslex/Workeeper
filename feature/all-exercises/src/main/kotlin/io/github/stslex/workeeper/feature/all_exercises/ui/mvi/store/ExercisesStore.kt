@@ -34,7 +34,11 @@ internal interface ExercisesStore : Store<State, Action, Event> {
 
     sealed interface Action : Store.Action {
 
-        sealed interface Paging : Action
+        sealed interface Paging : Action {
+
+            @Suppress("Unused")
+            data object Init : Paging
+        }
 
         sealed interface Input : Action {
 

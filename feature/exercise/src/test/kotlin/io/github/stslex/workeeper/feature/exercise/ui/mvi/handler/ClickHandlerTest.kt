@@ -81,7 +81,7 @@ internal class ClickHandlerTest {
             testScope.launch { runCatching { onSuccess(this, action()) } }
         }
     }
-    private val handler = ClickHandler(repository, exerciseUiMap, store)
+    private val handler = ClickHandler(repository, exerciseUiMap, testDispatcher, store)
 
     @Test
     fun `cancel action triggers back with confirmation navigation`() {
