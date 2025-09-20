@@ -1,6 +1,7 @@
 package io.github.stslex.workeeper.feature.single_training.ui.mvi.store
 
 import androidx.compose.runtime.Stable
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.feature.single_training.ui.model.DialogState
 import io.github.stslex.workeeper.feature.single_training.ui.model.TrainingUiModel
@@ -54,13 +55,25 @@ internal interface TrainingStore : Store<State, Action, Event> {
             data object OpenCalendarPicker : Click
 
             data object CloseCalendarPicker : Click
+
+            data object CreateExercise : Click
+
+            data class ExerciseClick(val exerciseUuid: String) : Click
+
         }
 
         sealed interface Navigation : Action {
 
             data object PopBack : Navigation
+
+            data object CreateExercise : Navigation
+
+            data class OpenExercise(val exerciseUuid: String) : Navigation
         }
     }
 
-    sealed interface Event : Store.Event
+    sealed interface Event : Store.Event {
+
+        data class Haptic(val hapticFeedbackType: HapticFeedbackType) : Event
+    }
 }

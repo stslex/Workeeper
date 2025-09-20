@@ -10,7 +10,7 @@ internal data class TrainingUiModel(
     val uuid: String,
     val name: String,
     val labels: ImmutableList<String>,
-    val exercises: List<ExerciseUiModel>,
+    val exercises: ImmutableList<ExerciseUiModel>,
     val date: DateProperty,
 ) {
 

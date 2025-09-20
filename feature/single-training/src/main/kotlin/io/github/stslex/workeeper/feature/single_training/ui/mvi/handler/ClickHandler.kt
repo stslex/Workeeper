@@ -1,5 +1,6 @@
 package io.github.stslex.workeeper.feature.single_training.ui.mvi.handler
 
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.core.coroutine.dispatcher.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.single_training.di.TRAINING_SCOPE_NAME
@@ -7,6 +8,7 @@ import io.github.stslex.workeeper.feature.single_training.di.TrainingHandlerStor
 import io.github.stslex.workeeper.feature.single_training.domain.interactor.SingleTrainingInteractor
 import io.github.stslex.workeeper.feature.single_training.ui.model.DialogState
 import io.github.stslex.workeeper.feature.single_training.ui.model.TrainingChangeMapper
+import io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingStore
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingStore.Action
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -25,13 +27,24 @@ internal class ClickHandler(
 ) : Handler<Action.Click>, TrainingHandlerStore by store {
 
     override fun invoke(action: Action.Click) {
+        sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.ContextClick))
         when (action) {
             Action.Click.Close -> processClickClose()
             Action.Click.CloseCalendarPicker -> processCloseCalendar()
             Action.Click.OpenCalendarPicker -> processOpenCalendar()
             Action.Click.Save -> processSave()
             Action.Click.Delete -> processDelete()
+            Action.Click.CreateExercise -> processCreateExercise()
+            is Action.Click.ExerciseClick -> processClickExercise(action)
         }
+    }
+
+    private fun processCreateExercise() {
+        consume(Action.Navigation.CreateExercise)
+    }
+
+    private fun processClickExercise(action: Action.Click.ExerciseClick) {
+        consume(Action.Navigation.OpenExercise(action.exerciseUuid))
     }
 
     private fun processDelete() {
