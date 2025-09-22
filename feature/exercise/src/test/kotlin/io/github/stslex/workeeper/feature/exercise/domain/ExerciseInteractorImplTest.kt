@@ -42,13 +42,13 @@ internal class ExerciseInteractorImplTest {
             trainingUuid = null
         )
 
-        coEvery { exerciseRepository.saveItem(exerciseChangeModel) } returns Unit
-        coEvery { exerciseRepository.getExerciseByName("Test Exercise") } returns savedExercise
+        coEvery { exerciseRepository.saveItem(any()) } returns Unit
+        coEvery { exerciseRepository.getExercise(any()) } returns savedExercise
 
         interactor.saveItem(exerciseChangeModel)
 
-        coVerify(exactly = 1) { exerciseRepository.saveItem(exerciseChangeModel) }
-        coVerify(exactly = 1) { exerciseRepository.getExerciseByName("Test Exercise") }
+        coVerify(exactly = 1) { exerciseRepository.saveItem(any()) }
+        coVerify(exactly = 1) { exerciseRepository.getExercise(any()) }
         coVerify(exactly = 0) { trainingRepository.getTraining(any()) }
         coVerify(exactly = 0) { trainingRepository.updateTraining(any()) }
     }
@@ -81,15 +81,15 @@ internal class ExerciseInteractorImplTest {
                 timestamp = 1234567890L
             )
 
-            coEvery { exerciseRepository.saveItem(exerciseChangeModel) } returns Unit
-            coEvery { exerciseRepository.getExerciseByName("Test Exercise") } returns savedExercise
+            coEvery { exerciseRepository.saveItem(any()) } returns Unit
+            coEvery { exerciseRepository.getExercise(any()) } returns savedExercise
             coEvery { trainingRepository.getTraining(trainingUuid) } returns existingTraining
             coEvery { trainingRepository.updateTraining(expectedUpdatedTraining) } returns Unit
 
             interactor.saveItem(exerciseChangeModel)
 
-            coVerify(exactly = 1) { exerciseRepository.saveItem(exerciseChangeModel) }
-            coVerify(exactly = 1) { exerciseRepository.getExerciseByName("Test Exercise") }
+            coVerify(exactly = 1) { exerciseRepository.saveItem(any()) }
+            coVerify(exactly = 1) { exerciseRepository.getExercise(any()) }
             coVerify(exactly = 1) { trainingRepository.getTraining(trainingUuid) }
             coVerify(exactly = 1) { trainingRepository.updateTraining(expectedUpdatedTraining) }
         }
@@ -115,14 +115,14 @@ internal class ExerciseInteractorImplTest {
                 exerciseUuids = listOf(exerciseUuid) // Exercise already in training
             )
 
-            coEvery { exerciseRepository.saveItem(exerciseChangeModel) } returns Unit
-            coEvery { exerciseRepository.getExerciseByName("Test Exercise") } returns savedExercise
+            coEvery { exerciseRepository.saveItem(any()) } returns Unit
+            coEvery { exerciseRepository.getExercise(any()) } returns savedExercise
             coEvery { trainingRepository.getTraining(trainingUuid) } returns existingTraining
 
             interactor.saveItem(exerciseChangeModel)
 
-            coVerify(exactly = 1) { exerciseRepository.saveItem(exerciseChangeModel) }
-            coVerify(exactly = 1) { exerciseRepository.getExerciseByName("Test Exercise") }
+            coVerify(exactly = 1) { exerciseRepository.saveItem(any()) }
+            coVerify(exactly = 1) { exerciseRepository.getExercise(any()) }
             coVerify(exactly = 1) { trainingRepository.getTraining(trainingUuid) }
             coVerify(exactly = 0) { trainingRepository.updateTraining(any()) }
         }
@@ -143,14 +143,14 @@ internal class ExerciseInteractorImplTest {
                 trainingUuid = trainingUuid
             )
 
-            coEvery { exerciseRepository.saveItem(exerciseChangeModel) } returns Unit
-            coEvery { exerciseRepository.getExerciseByName("Test Exercise") } returns savedExercise
+            coEvery { exerciseRepository.saveItem(any()) } returns Unit
+            coEvery { exerciseRepository.getExercise(any()) } returns savedExercise
             coEvery { trainingRepository.getTraining(trainingUuid) } returns null
 
             interactor.saveItem(exerciseChangeModel)
 
-            coVerify(exactly = 1) { exerciseRepository.saveItem(exerciseChangeModel) }
-            coVerify(exactly = 1) { exerciseRepository.getExerciseByName("Test Exercise") }
+            coVerify(exactly = 1) { exerciseRepository.saveItem(any()) }
+            coVerify(exactly = 1) { exerciseRepository.getExercise(any()) }
             coVerify(exactly = 1) { trainingRepository.getTraining(trainingUuid) }
             coVerify(exactly = 0) { trainingRepository.updateTraining(any()) }
         }
@@ -165,13 +165,13 @@ internal class ExerciseInteractorImplTest {
                 trainingUuid = trainingUuid
             )
 
-            coEvery { exerciseRepository.saveItem(exerciseChangeModel) } returns Unit
-            coEvery { exerciseRepository.getExerciseByName("Test Exercise") } returns null
+            coEvery { exerciseRepository.saveItem(any()) } returns Unit
+            coEvery { exerciseRepository.getExercise(any()) } returns null
 
             interactor.saveItem(exerciseChangeModel)
 
-            coVerify(exactly = 1) { exerciseRepository.saveItem(exerciseChangeModel) }
-            coVerify(exactly = 1) { exerciseRepository.getExerciseByName("Test Exercise") }
+            coVerify(exactly = 1) { exerciseRepository.saveItem(any()) }
+            coVerify(exactly = 1) { exerciseRepository.getExercise(any()) }
             coVerify(exactly = 0) { trainingRepository.getTraining(any()) }
             coVerify(exactly = 0) { trainingRepository.updateTraining(any()) }
         }

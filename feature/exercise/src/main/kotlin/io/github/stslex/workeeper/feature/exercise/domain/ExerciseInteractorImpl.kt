@@ -11,6 +11,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import org.koin.core.annotation.Scope
 import org.koin.core.annotation.Scoped
+import kotlin.uuid.Uuid
 
 
 @Scope(name = EXERCISE_SCOPE_NAME)
@@ -24,8 +25,14 @@ internal class ExerciseInteractorImpl(
 
     override suspend fun saveItem(item: ExerciseChangeDataModel) {
         withContext(dispatcher) {
-            exerciseRepository.saveItem(item)
-            val updatedItem = exerciseRepository.getExerciseByName(item.name)
+            val createdUuid = item.uuid.orEmpty().ifBlank {
+                Uuid.random().toString()
+            }
+            val createdItem = item.copy(
+                uuid = createdUuid
+            )
+            exerciseRepository.saveItem(createdItem)
+            val updatedItem = exerciseRepository.getExercise(createdUuid)
 
             updatedItem
                 ?.trainingUuid
