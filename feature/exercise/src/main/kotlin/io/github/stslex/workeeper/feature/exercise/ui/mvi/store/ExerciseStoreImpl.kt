@@ -1,7 +1,6 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.store
 
 import androidx.annotation.VisibleForTesting
-import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.ui.mvi.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
@@ -35,7 +34,7 @@ internal class ExerciseStoreImpl(
     storeDispatchers: StoreDispatchers,
     @Named(EXERCISE_SCOPE_NAME) storeEmitter: ExerciseHandlerStoreImpl,
     analytics: StoreAnalytics<Action, Event> = AnalyticsHolder.createStore(NAME),
-    override val logger: Logger = Log.tag(NAME)
+    override val logger: Logger = storeLogger(NAME)
 ) : BaseStore<State, Action, Event>(
     name = NAME,
     initialState = State.INITIAL,
@@ -50,7 +49,12 @@ internal class ExerciseStoreImpl(
         }
     },
     storeDispatchers = storeDispatchers,
-    initialActions = listOf(Action.Common.Init(component.data)),
+    initialActions = listOf(
+        Action.Common.Init(
+            uuid = component.uuid,
+            trainingUuid = component.trainingUuid
+        )
+    ),
     analytics = analytics,
     logger = logger
 ) {

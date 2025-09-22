@@ -14,14 +14,16 @@ internal interface TrainingStore : Store<State, Action, Event> {
     @Stable
     data class State(
         val training: TrainingUiModel,
-        val dialogState: DialogState
+        val dialogState: DialogState,
+        val pendingForCreateUuid: String
     ) : Store.State {
 
         companion object {
 
             val INITIAL = State(
                 training = TrainingUiModel.INITIAL,
-                dialogState = DialogState.Closed
+                dialogState = DialogState.Closed,
+                pendingForCreateUuid = ""
             )
         }
     }
@@ -66,9 +68,14 @@ internal interface TrainingStore : Store<State, Action, Event> {
 
             data object PopBack : Navigation
 
-            data object CreateExercise : Navigation
+            data class CreateExercise(
+                val trainingUuid: String
+            ) : Navigation
 
-            data class OpenExercise(val exerciseUuid: String) : Navigation
+            data class OpenExercise(
+                val exerciseUuid: String,
+                val trainingUuid: String
+            ) : Navigation
         }
     }
 

@@ -4,6 +4,7 @@ import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScope
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
+import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.mappers.ExerciseUiMap
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.Property
@@ -38,6 +39,7 @@ internal class ClickHandlerTest {
     private val testScheduler = TestCoroutineScheduler()
     private val testDispatcher = UnconfinedTestDispatcher(testScheduler)
     private val repository = mockk<ExerciseRepository>(relaxed = true)
+    private val interactor = mockk<ExerciseInteractor>(relaxed = true)
     private val exerciseUiMap = mockk<ExerciseUiMap>(relaxed = true)
     private val testScope = TestScope(testDispatcher)
 
@@ -81,7 +83,7 @@ internal class ClickHandlerTest {
             testScope.launch { runCatching { onSuccess(this, action()) } }
         }
     }
-    private val handler = ClickHandler(repository, exerciseUiMap, testDispatcher, store)
+    private val handler = ClickHandler(repository, interactor, exerciseUiMap, testDispatcher, store)
 
     @Test
     fun `cancel action triggers back with confirmation navigation`() {
@@ -105,14 +107,14 @@ internal class ClickHandlerTest {
             sets = listOf(validSet).toImmutableList()
         )
 
-        coEvery { repository.saveItem(any()) } returns Unit
+        coEvery { interactor.saveItem(any()) } returns Unit
 
         handler.invoke(ExerciseStore.Action.Click.Save)
 
         testScheduler.advanceUntilIdle()
 
         verify(exactly = 1) { store.sendEvent(ExerciseStore.Event.HapticClick) }
-        coVerify(exactly = 1) { repository.saveItem(any()) }
+        coVerify(exactly = 1) { interactor.saveItem(any()) }
         verify(exactly = 1) { store.consume(ExerciseStore.Action.NavigationMiddleware.Back) }
     }
 
@@ -125,7 +127,7 @@ internal class ClickHandlerTest {
 
         verify(exactly = 1) { store.sendEvent(ExerciseStore.Event.HapticClick) }
         verify(exactly = 1) { store.sendEvent(ExerciseStore.Event.InvalidParams) }
-        coVerify(exactly = 0) { repository.saveItem(any()) }
+        coVerify(exactly = 0) { interactor.saveItem(any()) }
     }
 
     @Test

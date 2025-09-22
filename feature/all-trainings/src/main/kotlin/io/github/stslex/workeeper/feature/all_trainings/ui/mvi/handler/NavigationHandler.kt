@@ -11,8 +11,8 @@ internal class NavigationHandler(
 
     override fun invoke(action: Action.Navigation) {
         when (action) {
-            Action.Navigation.CreateTraining -> navigator.navTo(Screen.Training.New)
-            is Action.Navigation.OpenTraining -> navigator.navTo(Screen.Training.Data(action.uuid))
+            is Action.Navigation.CreateTraining -> navigator.navTo(Screen.Training(null))
+            is Action.Navigation.OpenTraining -> navigator.navTo(Screen.Training(action.uuid))
         }
     }
 }

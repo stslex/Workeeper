@@ -63,7 +63,7 @@ internal class CommonHandlerTest {
         val searchResults = listOf<ExerciseDataModel>()
         coEvery { exerciseRepository.searchItems(any()) } returns searchResults
 
-        handler.invoke(ExerciseStore.Action.Common.Init(null))
+        handler.invoke(ExerciseStore.Action.Common.Init(uuid = null, trainingUuid = null))
 
         testScheduler.advanceUntilIdle()
 
@@ -82,13 +82,12 @@ internal class CommonHandlerTest {
             trainingUuid = "training-uuid",
             labels = persistentListOf()
         )
-        val screenData = Screen.Exercise.Data(exerciseUuid)
         val searchResults = listOf<ExerciseDataModel>()
 
         coEvery { exerciseRepository.getExercise(exerciseUuid) } returns exerciseData
         coEvery { exerciseRepository.searchItems(any()) } returns searchResults
 
-        handler.invoke(ExerciseStore.Action.Common.Init(screenData))
+        handler.invoke(ExerciseStore.Action.Common.Init(uuid = exerciseUuid, trainingUuid = "training-uuid"))
 
         testScheduler.advanceUntilIdle()
 
@@ -99,13 +98,12 @@ internal class CommonHandlerTest {
     @Test
     fun `init action with valid data but null exercise result sets empty state`() = runTest {
         val exerciseUuid = Uuid.random().toString()
-        val screenData = Screen.Exercise.Data(exerciseUuid)
         val searchResults = listOf<ExerciseDataModel>()
 
         coEvery { exerciseRepository.getExercise(exerciseUuid) } returns null
         coEvery { exerciseRepository.searchItems(any()) } returns searchResults
 
-        handler.invoke(ExerciseStore.Action.Common.Init(screenData))
+        handler.invoke(ExerciseStore.Action.Common.Init(uuid = exerciseUuid, trainingUuid = null))
 
         testScheduler.advanceUntilIdle()
 
@@ -116,12 +114,11 @@ internal class CommonHandlerTest {
     @Test
     fun `init action handles repository error gracefully`() = runTest {
         val exerciseUuid = Uuid.random().toString()
-        val screenData = Screen.Exercise.Data(exerciseUuid)
 
         coEvery { exerciseRepository.getExercise(exerciseUuid) } throws RuntimeException("Network error")
         coEvery { exerciseRepository.searchItems(any()) } returns listOf()
 
-        handler.invoke(ExerciseStore.Action.Common.Init(screenData))
+        handler.invoke(ExerciseStore.Action.Common.Init(uuid = exerciseUuid, trainingUuid = null))
 
         testScheduler.advanceUntilIdle()
 

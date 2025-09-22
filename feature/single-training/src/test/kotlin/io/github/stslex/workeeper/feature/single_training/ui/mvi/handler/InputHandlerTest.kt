@@ -26,7 +26,8 @@ internal class InputHandlerTest {
 
     private val initialState = TrainingStore.State(
         training = initialTraining,
-        dialogState = DialogState.Closed
+        dialogState = DialogState.Closed,
+        pendingForCreateUuid = ""
     )
 
     private val stateFlow = MutableStateFlow(initialState)

@@ -9,6 +9,9 @@ import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingD
 import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingDomainModel
 import io.github.stslex.workeeper.feature.single_training.domain.model.toDomain
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.core.annotation.Scope
@@ -36,6 +39,21 @@ internal class SingleTrainingInteractorImpl(
             )
         }
     }
+
+    override fun subscribeForTraining(
+        uuid: String
+    ): Flow<TrainingDomainModel> = trainingRepository
+        .subscribeForTraining(uuid)
+        .map { training ->
+            training.toDomain(
+                exercises = training.exerciseUuids
+                    .asyncMap { exerciseUuid ->
+                        exerciseRepository.getExercise(exerciseUuid)?.toDomain()
+                    }
+                    .filterNotNull()
+            )
+        }
+        .flowOn(defaultDispatcher)
 
     override suspend fun removeTraining(uuid: String) {
         withContext(defaultDispatcher) {

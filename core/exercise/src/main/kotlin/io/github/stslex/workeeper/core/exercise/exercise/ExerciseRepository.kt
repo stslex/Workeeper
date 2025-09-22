@@ -14,6 +14,8 @@ interface ExerciseRepository {
 
     suspend fun getExercise(uuid: String): ExerciseDataModel?
 
+    suspend fun getExerciseByName(name: String): ExerciseDataModel?
+
     fun getExercises(
         name: String,
         startDate: Long,

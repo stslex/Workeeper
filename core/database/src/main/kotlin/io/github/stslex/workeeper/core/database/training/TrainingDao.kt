@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import kotlinx.coroutines.flow.Flow
 import kotlin.uuid.Uuid
 
 @Dao
@@ -19,6 +20,9 @@ interface TrainingDao {
 
     @Query("SELECT * FROM training_table WHERE uuid = :uuid")
     suspend fun get(uuid: Uuid): TrainingEntity?
+
+    @Query("SELECT * FROM training_table WHERE uuid = :uuid")
+    fun subscribeForTraining(uuid: Uuid): Flow<TrainingEntity?>
 
     @Update(onConflict = OnConflictStrategy.REPLACE)
     suspend fun update(item: TrainingEntity)

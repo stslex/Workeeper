@@ -6,7 +6,6 @@ import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.all_exercises.di.EXERCISE_SCOPE_NAME
 import io.github.stslex.workeeper.feature.all_exercises.di.ExerciseHandlerStore
-import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.model.toNavData
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore.Action
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore.Event
 import kotlinx.collections.immutable.persistentSetOf
@@ -67,7 +66,7 @@ internal class ClickHandler(
         if (state.value.selectedItems.isNotEmpty()) {
             consume(Action.Click.LonkClick(action.item))
         } else {
-            consume(Action.Navigation.OpenExercise(action.item.toNavData()))
+            consume(Action.Navigation.OpenExercise(action.item.uuid))
         }
     }
 }

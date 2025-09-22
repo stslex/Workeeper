@@ -3,7 +3,6 @@ package io.github.stslex.workeeper.feature.exercise.ui.mvi.store
 import androidx.compose.runtime.Stable
 import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
 import io.github.stslex.workeeper.core.ui.mvi.Store
-import io.github.stslex.workeeper.core.ui.navigation.Screen.Exercise.Data
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.Property
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PropertyType
@@ -88,7 +87,8 @@ interface ExerciseStore : Store<State, Action, Event> {
         sealed interface Common : Action {
 
             data class Init(
-                val data: Data?
+                val uuid: String?,
+                val trainingUuid: String?
             ) : Common
 
         }

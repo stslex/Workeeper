@@ -34,28 +34,15 @@ sealed interface Screen {
     }
 
     @Serializable
-    sealed interface Training : Screen {
-
-        @Serializable
-        data object New : Training
-
-        @Serializable
-        data class Data(
-            val uuid: String,
-        ) : Training
-    }
+    data class Training(
+        val uuid: String?
+    ) : Screen
 
     @Serializable
-    sealed interface Exercise : Screen {
-
-        @Serializable
-        data object New : Exercise
-
-        @Serializable
-        data class Data(
-            val uuid: String,
-        ) : Exercise
-    }
+    data class Exercise(
+        val uuid: String?,
+        val trainingUuid: String?
+    ) : Screen
 
     companion object {
 

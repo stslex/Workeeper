@@ -13,8 +13,19 @@ internal class NavigationHandler(
     override fun invoke(action: Action.Navigation) {
         when (action) {
             Action.Navigation.PopBack -> navigator.popBack()
-            Action.Navigation.CreateExercise -> navigator.navTo(Screen.Exercise.New)
-            is Action.Navigation.OpenExercise -> navigator.navTo(Screen.Exercise.Data(action.exerciseUuid))
+            is Action.Navigation.CreateExercise -> navigator.navTo(
+                Screen.Exercise(
+                    uuid = null,
+                    trainingUuid = action.trainingUuid
+                )
+            )
+
+            is Action.Navigation.OpenExercise -> navigator.navTo(
+                Screen.Exercise(
+                    uuid = action.exerciseUuid,
+                    trainingUuid = action.trainingUuid
+                )
+            )
         }
     }
 }

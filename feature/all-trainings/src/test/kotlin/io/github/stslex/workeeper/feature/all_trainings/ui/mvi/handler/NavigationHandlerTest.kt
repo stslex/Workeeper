@@ -17,7 +17,7 @@ internal class NavigationHandlerTest {
     fun `navigate to create training`() {
         handler.invoke(TrainingStore.Action.Navigation.CreateTraining)
 
-        verify(exactly = 1) { navigator.navTo(Screen.Training.New) }
+        verify(exactly = 1) { navigator.navTo(Screen.Training(uuid = null)) }
     }
 
     @Test
@@ -26,7 +26,7 @@ internal class NavigationHandlerTest {
 
         handler.invoke(TrainingStore.Action.Navigation.OpenTraining(uuid))
 
-        verify(exactly = 1) { navigator.navTo(Screen.Training.Data(uuid)) }
+        verify(exactly = 1) { navigator.navTo(Screen.Training(uuid = uuid)) }
     }
 
     @Test
@@ -37,7 +37,7 @@ internal class NavigationHandlerTest {
         handler.invoke(TrainingStore.Action.Navigation.OpenTraining(uuid1))
         handler.invoke(TrainingStore.Action.Navigation.OpenTraining(uuid2))
 
-        verify(exactly = 1) { navigator.navTo(Screen.Training.Data(uuid1)) }
-        verify(exactly = 1) { navigator.navTo(Screen.Training.Data(uuid2)) }
+        verify(exactly = 1) { navigator.navTo(Screen.Training(uuid = uuid1)) }
+        verify(exactly = 1) { navigator.navTo(Screen.Training(uuid = uuid2)) }
     }
 }

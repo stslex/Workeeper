@@ -8,6 +8,7 @@ import io.github.stslex.workeeper.core.core.coroutine.dispatcher.IODispatcher
 import io.github.stslex.workeeper.core.database.training.TrainingDao
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
@@ -53,6 +54,14 @@ class TrainingRepositoryImpl(
     ): TrainingDataModel? = withContext(ioDispatcher) {
         dao.get(Uuid.parse(uuid))?.toData()
     }
+
+    override fun subscribeForTraining(
+        uuid: String
+    ): Flow<TrainingDataModel> = dao
+        .subscribeForTraining(Uuid.parse(uuid))
+        .filterNotNull()
+        .map { it.toData() }
+        .flowOn(ioDispatcher)
 
     override suspend fun removeAll(uuids: List<String>) = withContext(ioDispatcher) {
         dao.deleteAll(uuids.map(Uuid::parse))

@@ -15,6 +15,8 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -116,6 +118,33 @@ internal class TrainingRepositoryImplTest {
 
         val result = repository.getTraining(uuid.toString())
         coVerify(exactly = 1) { dao.get(uuid) }
+        assertEquals(null, result)
+    }
+
+    @Test
+    @Suppress("UnusedFlow")
+    fun `get training flow uuid`() = runTest(testDispatcher) {
+        val uuid = Uuid.random()
+        val entity = createEntity(0, uuid)
+        val dataModel = createDataModel(0, uuid)
+
+        coEvery { dao.subscribeForTraining(uuid) } returns flowOf(entity)
+
+        val result = repository.subscribeForTraining(uuid.toString()).firstOrNull()
+        coVerify(exactly = 1) { dao.subscribeForTraining(uuid) }
+        assertEquals(dataModel, result)
+    }
+
+    @Test
+    @Suppress("UnusedFlow")
+    fun `get training flow by uuid returns null when not found`() = runTest(testDispatcher) {
+        val uuid = Uuid.random()
+
+        coEvery { dao.subscribeForTraining(uuid) } returns flowOf()
+
+        val result = repository.subscribeForTraining(uuid.toString()).firstOrNull()
+
+        coVerify(exactly = 1) { dao.subscribeForTraining(uuid) }
         assertEquals(null, result)
     }
 

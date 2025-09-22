@@ -140,7 +140,8 @@ private fun SingleTrainingsScreenPreview() {
                     exercises = persistentListOf(),
                     date = DateProperty.new(System.currentTimeMillis())
                 ),
-                dialogState = DialogState.Closed
+                dialogState = DialogState.Closed,
+                pendingForCreateUuid = "pendingForCreateUuid",
             ),
             consume = {}
         )

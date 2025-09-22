@@ -49,7 +49,7 @@ open class BaseStore<S : State, A : Action, E : Event>(
     storeDispatchers: StoreDispatchers,
     val disposeActions: List<A> = emptyList(),
     val analytics: StoreAnalytics<A, E> = AnalyticsHolder.createStore(name),
-    override val logger: Logger = Log.tag("${STORE_LOGGER_PREFIX}_$name"),
+    override val logger: Logger = storeLogger(name),
 ) : ViewModel(), Store<S, A, E>, StoreConsumer<S, A, E> {
 
     private val _event: MutableSharedFlow<E> = MutableSharedFlow()
@@ -182,7 +182,9 @@ open class BaseStore<S : State, A : Action, E : Event>(
 
     companion object {
 
-        const val STORE_LOGGER_PREFIX = "MVI_STORE"
+        internal const val STORE_LOGGER_PREFIX = "MVI_STORE"
+
+        fun storeLogger(name: String) = Log.tag("${STORE_LOGGER_PREFIX}_$name")
     }
 
 }

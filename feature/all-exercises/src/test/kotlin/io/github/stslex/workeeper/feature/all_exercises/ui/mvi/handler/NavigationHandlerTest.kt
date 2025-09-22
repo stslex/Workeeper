@@ -17,32 +17,29 @@ internal class NavigationHandlerTest {
     fun `create exercise dialog action navigates to new exercise screen`() {
         handler.invoke(ExercisesStore.Action.Navigation.CreateExerciseDialog)
 
-        verify(exactly = 1) { navigator.navTo(Screen.Exercise.New) }
+        verify(exactly = 1) { navigator.navTo(Screen.Exercise(uuid = null, trainingUuid = null)) }
     }
 
     @Test
     fun `open exercise action navigates to exercise screen with data`() {
         val exerciseUuid = Uuid.random().toString()
-        val exerciseData = Screen.Exercise.Data(exerciseUuid)
 
-        handler.invoke(ExercisesStore.Action.Navigation.OpenExercise(exerciseData))
+        handler.invoke(ExercisesStore.Action.Navigation.OpenExercise(exerciseUuid))
 
-        verify(exactly = 1) { navigator.navTo(exerciseData) }
+        verify(exactly = 1) { navigator.navTo(Screen.Exercise(uuid = exerciseUuid, trainingUuid = null)) }
     }
 
     @Test
     fun `multiple navigation actions work correctly`() {
         val exerciseUuid1 = Uuid.random().toString()
         val exerciseUuid2 = Uuid.random().toString()
-        val exerciseData1 = Screen.Exercise.Data(exerciseUuid1)
-        val exerciseData2 = Screen.Exercise.Data(exerciseUuid2)
 
         handler.invoke(ExercisesStore.Action.Navigation.CreateExerciseDialog)
-        handler.invoke(ExercisesStore.Action.Navigation.OpenExercise(exerciseData1))
-        handler.invoke(ExercisesStore.Action.Navigation.OpenExercise(exerciseData2))
+        handler.invoke(ExercisesStore.Action.Navigation.OpenExercise(exerciseUuid1))
+        handler.invoke(ExercisesStore.Action.Navigation.OpenExercise(exerciseUuid2))
 
-        verify(exactly = 1) { navigator.navTo(Screen.Exercise.New) }
-        verify(exactly = 1) { navigator.navTo(exerciseData1) }
-        verify(exactly = 1) { navigator.navTo(exerciseData2) }
+        verify(exactly = 1) { navigator.navTo(Screen.Exercise(uuid = null, trainingUuid = null)) }
+        verify(exactly = 1) { navigator.navTo(Screen.Exercise(uuid = exerciseUuid1, trainingUuid = null)) }
+        verify(exactly = 1) { navigator.navTo(Screen.Exercise(uuid = exerciseUuid2, trainingUuid = null)) }
     }
 }
