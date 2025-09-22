@@ -4,7 +4,6 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.paging.PagingData
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.core.ui.mvi.Store
-import io.github.stslex.workeeper.core.ui.navigation.Screen.Exercise.Data
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore.Action
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore.Event
@@ -58,7 +57,7 @@ internal interface ExercisesStore : Store<State, Action, Event> {
 
             data object CreateExerciseDialog : Navigation
 
-            data class OpenExercise(val data: Data) : Navigation
+            data class OpenExercise(val uuid: String) : Navigation
         }
 
     }

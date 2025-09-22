@@ -15,6 +15,7 @@ import kotlinx.coroutines.withContext
 import org.koin.core.annotation.Named
 import org.koin.core.annotation.Scope
 import org.koin.core.annotation.Scoped
+import kotlin.uuid.Uuid
 
 @Scoped(binds = [ClickHandler::class])
 @Scope(name = TRAINING_SCOPE_NAME)
@@ -40,18 +41,42 @@ internal class ClickHandler(
     }
 
     private fun processCreateExercise() {
-        consume(Action.Navigation.CreateExercise)
+        val currentTrainingUuid = state.value.training.uuid
+            .ifBlank { state.value.pendingForCreateUuid }
+            .ifBlank {
+                val uuid = Uuid.random().toString()
+                updateState { it.copy(pendingForCreateUuid = uuid) }
+                uuid
+            }
+        consume(
+            Action.Navigation.CreateExercise(currentTrainingUuid)
+        )
     }
 
     private fun processClickExercise(action: Action.Click.ExerciseClick) {
-        consume(Action.Navigation.OpenExercise(action.exerciseUuid))
+        val currentTrainingUuid = state.value.training.uuid
+            .ifBlank { state.value.pendingForCreateUuid }
+            .ifBlank {
+                val uuid = Uuid.random().toString()
+                updateState { it.copy(pendingForCreateUuid = uuid) }
+                uuid
+            }
+        consume(
+            Action.Navigation.OpenExercise(
+                exerciseUuid = action.exerciseUuid,
+                trainingUuid = currentTrainingUuid
+            )
+        )
     }
 
     private fun processDelete() {
-        val uuid = state.value.training.uuid.ifBlank {
-            // todo show error snackbar
-            return
-        }
+        val uuid = state.value.training.uuid
+            .ifBlank { state.value.pendingForCreateUuid }
+            .ifBlank {
+                // todo show error snackbar
+                return
+            }
+
         launch(
             onSuccess = {
                 withContext(mainDispatcher) {
@@ -80,6 +105,8 @@ internal class ClickHandler(
             // todo show error snackbar
             return
         }
+        val uuid = state.value.training.uuid
+            .ifBlank { state.value.pendingForCreateUuid }
         launch(
             onSuccess = {
                 withContext(mainDispatcher) {
@@ -88,7 +115,7 @@ internal class ClickHandler(
             },
             onError = { logger.e(it) }
         ) {
-            interactor.updateTraining(changeMap(state.value.training))
+            interactor.updateTraining(changeMap(state.value.training.copy(uuid = uuid)))
         }
     }
 }

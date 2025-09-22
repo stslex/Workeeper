@@ -1,0 +1,2 @@
+- ♻️ use UUID for exercise identification and update tests
+- ♻️ simplify logging implementation and fix test

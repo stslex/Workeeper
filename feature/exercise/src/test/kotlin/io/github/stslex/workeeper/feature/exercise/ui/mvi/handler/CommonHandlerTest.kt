@@ -1,10 +1,9 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScope
-import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
-import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
+import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore
 import io.mockk.coEvery
 import io.mockk.every
@@ -25,7 +24,7 @@ internal class CommonHandlerTest {
 
     private val testScheduler = TestCoroutineScheduler()
     private val testDispatcher = UnconfinedTestDispatcher(testScheduler)
-    private val exerciseRepository = mockk<ExerciseRepository>(relaxed = true)
+    private val interactor = mockk<ExerciseInteractor>()
     private val testScope = TestScope(testDispatcher)
 
     private val initialState = ExerciseStore.State.INITIAL
@@ -56,14 +55,14 @@ internal class CommonHandlerTest {
             testScope.launch { runCatching { onSuccess(this, action()) } }
         }
     }
-    private val handler = CommonHandler(exerciseRepository, store)
+    private val handler = CommonHandler(interactor, store)
 
     @Test
     fun `init action with null data sets empty state and searches for titles`() = runTest {
         val searchResults = listOf<ExerciseDataModel>()
-        coEvery { exerciseRepository.searchItems(any()) } returns searchResults
+        coEvery { interactor.searchItems(any()) } returns searchResults
 
-        handler.invoke(ExerciseStore.Action.Common.Init(null))
+        handler.invoke(ExerciseStore.Action.Common.Init(uuid = null, trainingUuid = null))
 
         testScheduler.advanceUntilIdle()
 
@@ -82,13 +81,12 @@ internal class CommonHandlerTest {
             trainingUuid = "training-uuid",
             labels = persistentListOf()
         )
-        val screenData = Screen.Exercise.Data(exerciseUuid)
         val searchResults = listOf<ExerciseDataModel>()
 
-        coEvery { exerciseRepository.getExercise(exerciseUuid) } returns exerciseData
-        coEvery { exerciseRepository.searchItems(any()) } returns searchResults
+        coEvery { interactor.getExercise(exerciseUuid) } returns exerciseData
+        coEvery { interactor.searchItems(any()) } returns searchResults
 
-        handler.invoke(ExerciseStore.Action.Common.Init(screenData))
+        handler.invoke(ExerciseStore.Action.Common.Init(uuid = exerciseUuid, trainingUuid = "training-uuid"))
 
         testScheduler.advanceUntilIdle()
 
@@ -99,13 +97,12 @@ internal class CommonHandlerTest {
     @Test
     fun `init action with valid data but null exercise result sets empty state`() = runTest {
         val exerciseUuid = Uuid.random().toString()
-        val screenData = Screen.Exercise.Data(exerciseUuid)
         val searchResults = listOf<ExerciseDataModel>()
 
-        coEvery { exerciseRepository.getExercise(exerciseUuid) } returns null
-        coEvery { exerciseRepository.searchItems(any()) } returns searchResults
+        coEvery { interactor.getExercise(exerciseUuid) } returns null
+        coEvery { interactor.searchItems(any()) } returns searchResults
 
-        handler.invoke(ExerciseStore.Action.Common.Init(screenData))
+        handler.invoke(ExerciseStore.Action.Common.Init(uuid = exerciseUuid, trainingUuid = null))
 
         testScheduler.advanceUntilIdle()
 
@@ -116,12 +113,11 @@ internal class CommonHandlerTest {
     @Test
     fun `init action handles repository error gracefully`() = runTest {
         val exerciseUuid = Uuid.random().toString()
-        val screenData = Screen.Exercise.Data(exerciseUuid)
 
-        coEvery { exerciseRepository.getExercise(exerciseUuid) } throws RuntimeException("Network error")
-        coEvery { exerciseRepository.searchItems(any()) } returns listOf()
+        coEvery { interactor.getExercise(exerciseUuid) } throws RuntimeException("Network error")
+        coEvery { interactor.searchItems(any()) } returns listOf()
 
-        handler.invoke(ExerciseStore.Action.Common.Init(screenData))
+        handler.invoke(ExerciseStore.Action.Common.Init(uuid = exerciseUuid, trainingUuid = null))
 
         testScheduler.advanceUntilIdle()
 

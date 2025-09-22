@@ -129,11 +129,7 @@ internal class ClickHandlerTest {
 
         verify(exactly = 1) {
             store.consume(
-                ExercisesStore.Action.Navigation.OpenExercise(
-                    Screen.Exercise.Data(
-                        exercise.uuid
-                    )
-                )
+                ExercisesStore.Action.Navigation.OpenExercise(exercise.uuid)
             )
         }
         verify(exactly = 1) { store.sendEvent(ExercisesStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey)) }

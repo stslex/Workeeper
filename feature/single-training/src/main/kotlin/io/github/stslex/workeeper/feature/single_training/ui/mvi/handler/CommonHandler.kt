@@ -5,11 +5,11 @@ import io.github.stslex.workeeper.feature.single_training.di.TRAINING_SCOPE_NAME
 import io.github.stslex.workeeper.feature.single_training.di.TrainingHandlerStore
 import io.github.stslex.workeeper.feature.single_training.domain.interactor.SingleTrainingInteractor
 import io.github.stslex.workeeper.feature.single_training.ui.model.TrainingDomainUiModelMapper
-import io.github.stslex.workeeper.feature.single_training.ui.model.TrainingUiModel
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingStore.Action
 import org.koin.core.annotation.Named
 import org.koin.core.annotation.Scope
 import org.koin.core.annotation.Scoped
+import kotlin.uuid.Uuid
 
 @Scoped(binds = [CommonHandler::class])
 @Scope(name = TRAINING_SCOPE_NAME)
@@ -26,18 +26,23 @@ internal class CommonHandler(
     }
 
     private fun initial(action: Action.Common.Init) {
-        val uuid = action.uuid ?: return
-        launch(
-            onSuccess = { item ->
-                updateStateImmediate { state ->
-                    state.copy(
-                        training = item?.let(trainingDomainUiMap::invoke)
-                            ?: TrainingUiModel.INITIAL
-                    )
-                }
+        val uuid = action.uuid
+            .orEmpty()
+            .ifBlank { state.value.pendingForCreateUuid }
+            .ifBlank {
+                val uuid = Uuid.random().toString()
+                updateState { it.copy(pendingForCreateUuid = uuid) }
+                uuid
             }
-        ) {
-            interactor.getTraining(uuid)
+
+        scope.launch(
+            interactor.subscribeForTraining(uuid),
+        ) { item ->
+            updateStateImmediate { state ->
+                state.copy(
+                    training = item.let(trainingDomainUiMap::invoke)
+                )
+            }
         }
     }
 }

@@ -10,10 +10,11 @@ open class BaseDataStore internal constructor(
     private val storeProvider: DataStoreProvider
 ) {
 
-    private val logger = Log.tag("Store")
+    private val logger = Log.tag("DataStore")
 
-    fun getLong(key: String): Flow<Long?> =
-        storeProvider.dataStore.data.map { prefs -> prefs[longPreferencesKey(key)] }
+    fun getLong(key: String): Flow<Long?> = storeProvider.dataStore.data.map { prefs ->
+        prefs[longPreferencesKey(key)]
+    }
 
     suspend fun updateLong(key: String, value: Long) {
         logger.i("Update key: $key with value: $value")

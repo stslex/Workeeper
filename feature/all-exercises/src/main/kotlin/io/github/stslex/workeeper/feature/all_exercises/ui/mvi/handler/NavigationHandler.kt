@@ -13,8 +13,13 @@ internal class NavigationHandler(
 
     override fun invoke(action: Action.Navigation) {
         when (action) {
-            is Action.Navigation.CreateExerciseDialog -> navigator.navTo(Exercise.New)
-            is Action.Navigation.OpenExercise -> navigator.navTo(action.data)
+            is Action.Navigation.CreateExerciseDialog -> navigator.navTo(Exercise(null, null))
+            is Action.Navigation.OpenExercise -> navigator.navTo(
+                Exercise(
+                    uuid = action.uuid,
+                    trainingUuid = null
+                )
+            )
         }
     }
 }

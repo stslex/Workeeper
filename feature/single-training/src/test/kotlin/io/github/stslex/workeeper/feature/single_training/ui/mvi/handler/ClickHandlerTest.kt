@@ -36,9 +36,11 @@ internal class ClickHandlerTest {
     private val changeMapper = mockk<TrainingChangeMapper>(relaxed = true)
     private val testScope = TestScope(testDispatcher)
 
+    private val testTrainingUuid = "test-training-uuid"
+
     private val initialTraining = TrainingUiModel(
-        uuid = "",
-        name = "",
+        uuid = testTrainingUuid,
+        name = "Test Training",
         exercises = persistentListOf(),
         labels = persistentListOf(),
         date = DateProperty.new(System.currentTimeMillis())
@@ -46,6 +48,7 @@ internal class ClickHandlerTest {
 
     private val initialState = TrainingStore.State(
         training = initialTraining,
+        pendingForCreateUuid = "",
         dialogState = DialogState.Closed
     )
 
@@ -78,7 +81,7 @@ internal class ClickHandlerTest {
         handler.invoke(TrainingStore.Action.Click.CreateExercise)
 
         verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.ContextClick)) }
-        verify(exactly = 1) { store.consume(TrainingStore.Action.Navigation.CreateExercise) }
+        verify(exactly = 1) { store.consume(TrainingStore.Action.Navigation.CreateExercise(trainingUuid = testTrainingUuid)) }
     }
 
     @Test
@@ -90,7 +93,8 @@ internal class ClickHandlerTest {
         verify(exactly = 1) {
             store.consume(
                 TrainingStore.Action.Navigation.OpenExercise(
-                    exerciseUuid
+                    exerciseUuid = exerciseUuid,
+                    trainingUuid = testTrainingUuid
                 )
             )
         }

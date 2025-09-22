@@ -3,6 +3,8 @@ package io.github.stslex.workeeper.core.database
 import androidx.paging.PagingSource
 import io.github.stslex.workeeper.core.database.training.TrainingDao
 import io.github.stslex.workeeper.core.database.training.TrainingEntity
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -596,6 +598,31 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
         assertEquals(targetTraining, retrievedTraining)
     }
 
+    @Test
+    fun `get training flow by uuid from multiple trainings`() = runTest {
+        testTrainings.forEach { dao.add(it) }
+        val targetTraining = testTrainings[3]
+
+        val retrievedTraining = dao.subscribeForTraining(targetTraining.uuid).first()
+        assertEquals(targetTraining, retrievedTraining)
+    }
+
+    @Test
+    fun `get non-existing training flow by uuid returns null`() = runTest {
+        val nonExistingUuid = Uuid.random()
+        val retrievedTraining = dao.subscribeForTraining(nonExistingUuid).firstOrNull()
+        assertNull(retrievedTraining)
+    }
+
+    @Test
+    fun `get single training flow by uuid`() = runTest {
+        val training = testTrainings.first()
+        dao.add(training)
+
+        val retrievedTraining = dao.subscribeForTraining(training.uuid).first()
+        assertEquals(training, retrievedTraining)
+    }
+    
     @Test
     fun `search with partial query`() = runTest {
         val training = createTestTraining(0, name = "Full Body Strength Training")

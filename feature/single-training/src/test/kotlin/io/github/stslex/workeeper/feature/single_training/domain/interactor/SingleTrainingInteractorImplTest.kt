@@ -11,6 +11,8 @@ import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingD
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
@@ -99,6 +101,87 @@ internal class SingleTrainingInteractorImplTest {
         coEvery { exerciseRepository.getExercise(exerciseUuid3) } returns null
 
         val result = interactor.getTraining(trainingUuid)
+
+        assertEquals(1, result?.exercises?.size)
+        assertEquals("Exercise 1", result?.exercises?.get(0)?.name)
+    }
+
+    @Test
+    @Suppress("UnusedFlow")
+    fun `get training flow with exercises`() = runTest(testDispatcher) {
+        val trainingUuid = Uuid.random().toString()
+        val exerciseUuid1 = Uuid.random().toString()
+        val exerciseUuid2 = Uuid.random().toString()
+
+        val trainingData = TrainingDataModel(
+            uuid = trainingUuid,
+            name = "Test Training",
+            exerciseUuids = listOf(exerciseUuid1, exerciseUuid2),
+            labels = listOf("Label1", "Label2"),
+            timestamp = 1234567890L
+        )
+
+        val exercise1 = createExerciseDataModel(exerciseUuid1, "Exercise 1")
+        val exercise2 = createExerciseDataModel(exerciseUuid2, "Exercise 2")
+
+        coEvery { trainingRepository.subscribeForTraining(trainingUuid) } returns flowOf(
+            trainingData
+        )
+        coEvery { exerciseRepository.getExercise(exerciseUuid1) } returns exercise1
+        coEvery { exerciseRepository.getExercise(exerciseUuid2) } returns exercise2
+
+        val result = interactor.subscribeForTraining(trainingUuid).firstOrNull()
+
+        coVerify(exactly = 1) { trainingRepository.subscribeForTraining(trainingUuid) }
+        coVerify(exactly = 1) { exerciseRepository.getExercise(exerciseUuid1) }
+        coVerify(exactly = 1) { exerciseRepository.getExercise(exerciseUuid2) }
+
+        assertEquals(trainingUuid, result?.uuid)
+        assertEquals("Test Training", result?.name)
+        assertEquals(2, result?.exercises?.size)
+        assertEquals("Exercise 1", result?.exercises?.get(0)?.name)
+        assertEquals("Exercise 2", result?.exercises?.get(1)?.name)
+        assertEquals(listOf("Label1", "Label2"), result?.labels)
+    }
+
+    @Suppress("UnusedFlow")
+    @Test
+    fun `get training flow when training not found returns null`() = runTest(testDispatcher) {
+        val trainingUuid = Uuid.random().toString()
+
+        coEvery { trainingRepository.subscribeForTraining(trainingUuid) } returns flowOf()
+
+        val result = interactor.subscribeForTraining(trainingUuid).firstOrNull()
+
+        coVerify(exactly = 1) { trainingRepository.subscribeForTraining(trainingUuid) }
+        assertNull(result)
+    }
+
+    @Test
+    fun `get training flow filters null exercises`() = runTest(testDispatcher) {
+        val trainingUuid = Uuid.random().toString()
+        val exerciseUuid1 = Uuid.random().toString()
+        val exerciseUuid2 = Uuid.random().toString()
+        val exerciseUuid3 = Uuid.random().toString()
+
+        val trainingData = TrainingDataModel(
+            uuid = trainingUuid,
+            name = "Test Training",
+            exerciseUuids = listOf(exerciseUuid1, exerciseUuid2, exerciseUuid3),
+            labels = emptyList(),
+            timestamp = 1234567890L
+        )
+
+        val exercise1 = createExerciseDataModel(exerciseUuid1, "Exercise 1")
+
+        coEvery {
+            trainingRepository.subscribeForTraining(trainingUuid)
+        } returns flowOf(trainingData)
+        coEvery { exerciseRepository.getExercise(exerciseUuid1) } returns exercise1
+        coEvery { exerciseRepository.getExercise(exerciseUuid2) } returns null
+        coEvery { exerciseRepository.getExercise(exerciseUuid3) } returns null
+
+        val result = interactor.subscribeForTraining(trainingUuid).firstOrNull()
 
         assertEquals(1, result?.exercises?.size)
         assertEquals("Exercise 1", result?.exercises?.get(0)?.name)

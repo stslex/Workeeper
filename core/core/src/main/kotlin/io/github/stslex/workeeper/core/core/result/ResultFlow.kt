@@ -32,12 +32,14 @@ class ResultFlow<T : Any>(
 
     fun collect(scope: AppCoroutineScope): Job = flow.fold(
         scope = scope,
-        onError = { onError?.invoke(it) ?: Log.tag(TAG).e(it, it.message) },
-        onLoading = { onLoading?.invoke() ?: Log.tag(TAG).i("Loading...") },
-        onSuccess = { onSuccess?.invoke(it) ?: Log.tag(TAG).i("Success: $it") }
+        onError = { onError?.invoke(it) ?: logger.e(it, it.message) },
+        onLoading = { onLoading?.invoke() ?: logger.i("Loading...") },
+        onSuccess = { onSuccess?.invoke(it) ?: logger.i("Success: $it") }
     )
 
     companion object {
+
+        private val logger = Log.tag(TAG)
 
         private const val TAG = "ResultFlow"
     }

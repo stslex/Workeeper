@@ -4,7 +4,6 @@ import androidx.compose.runtime.Stable
 import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.exercise.utils.DateTimeUtil
-import io.github.stslex.workeeper.core.ui.navigation.Screen
 
 @Stable
 data class ExerciseUiModel(
@@ -20,8 +19,4 @@ fun ExerciseDataModel.toUi() = ExerciseUiModel(
         timestamp = timestamp,
         converted = DateTimeUtil.formatMillis(timestamp)
     ),
-)
-
-fun ExerciseUiModel.toNavData() = Screen.Exercise.Data(
-    uuid = uuid,
 )

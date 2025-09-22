@@ -1,11 +1,11 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
 import io.github.stslex.workeeper.core.core.coroutine.dispatcher.MainImmediateDispatcher
-import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.exercise.di.EXERCISE_SCOPE_NAME
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
+import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.mappers.ExerciseUiMap
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PropertyValid
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SetsUiModel
@@ -24,7 +24,7 @@ import kotlin.uuid.Uuid
 @Scoped(binds = [ClickHandler::class])
 @Scope(name = EXERCISE_SCOPE_NAME)
 internal class ClickHandler(
-    private val repository: ExerciseRepository,
+    private val interactor: ExerciseInteractor,
     private val exerciseUiMap: ExerciseUiMap,
     @param:MainImmediateDispatcher private val mainDispatcher: CoroutineDispatcher,
     @Named(EXERCISE_SCOPE_NAME) store: ExerciseHandlerStore
@@ -151,7 +151,7 @@ internal class ClickHandler(
                 }
             }
         ) {
-            repository.deleteItem(currentUuid)
+            interactor.deleteItem(currentUuid)
         }
     }
 
@@ -203,7 +203,7 @@ internal class ClickHandler(
                 logger.e(it)
             }
         ) {
-            repository.saveItem(exerciseUiMap(state.value))
+            interactor.saveItem(exerciseUiMap(state.value))
         }
     }
 }

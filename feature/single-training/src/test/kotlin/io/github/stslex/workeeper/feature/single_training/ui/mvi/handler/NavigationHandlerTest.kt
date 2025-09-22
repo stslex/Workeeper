@@ -25,15 +25,17 @@ internal class NavigationHandlerTest {
     @Test
     fun `exercise navigation action triggers navigator to open current exercise`() {
         val expectedUuid = "expected_uuid"
-        handler.invoke(Action.Navigation.OpenExercise(expectedUuid))
+        val trainingUuid = "training_uuid"
+        handler.invoke(Action.Navigation.OpenExercise(exerciseUuid = expectedUuid, trainingUuid = trainingUuid))
 
-        verify(exactly = 1) { navigator.navTo(Screen.Exercise.Data(expectedUuid)) }
+        verify(exactly = 1) { navigator.navTo(Screen.Exercise(uuid = expectedUuid, trainingUuid = trainingUuid)) }
     }
 
     @Test
     fun `create exercise navigation action triggers navigator to open new exercise screen`() {
-        handler.invoke(Action.Navigation.CreateExercise)
+        val trainingUuid = "training_uuid"
+        handler.invoke(Action.Navigation.CreateExercise(trainingUuid = trainingUuid))
 
-        verify(exactly = 1) { navigator.navTo(Screen.Exercise.New) }
+        verify(exactly = 1) { navigator.navTo(Screen.Exercise(uuid = null, trainingUuid = trainingUuid)) }
     }
 }

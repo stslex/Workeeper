@@ -1,0 +1,7 @@
+- ♻️ use ExerciseInteractor in handlers and update tests
+- ♻️ unify navigation screens and update data handling
+- 🐛 correct create exercise click action
+- ♻️ simplify PagingHandler and update tests
+- ✨ enhance single training screen and add exercise interaction
+- ✨ integrate analytics and logging into MVI stores
+…

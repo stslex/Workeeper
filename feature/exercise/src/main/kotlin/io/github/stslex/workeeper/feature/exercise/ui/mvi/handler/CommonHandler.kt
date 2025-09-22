@@ -1,12 +1,11 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
-import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
-import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.exercise.di.EXERCISE_SCOPE_NAME
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
+import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.toUi
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
@@ -20,7 +19,7 @@ import org.koin.core.annotation.Scoped
 @Scoped(binds = [CommonHandler::class])
 @Scope(name = EXERCISE_SCOPE_NAME)
 internal class CommonHandler(
-    private val exerciseRepository: ExerciseRepository,
+    private val interactor: ExerciseInteractor,
     @Named(EXERCISE_SCOPE_NAME) store: ExerciseHandlerStore
 ) : Handler<Action.Common>, ExerciseHandlerStore by store {
 
@@ -31,29 +30,34 @@ internal class CommonHandler(
     }
 
     private fun processInit(action: Action.Common.Init) {
-        setInitialData(action.data)
+        setInitialData(action)
         processTitleSearch()
     }
 
-    private fun setInitialData(data: Screen.Exercise.Data?) {
-        if (data == null) {
-            updateState { getEmptyState() }
+    private fun setInitialData(action: Action.Common.Init) {
+        val uuid = action.uuid
+        if (uuid == null) {
+            updateState { getEmptyState(action.trainingUuid) }
         } else {
             launch(
                 onSuccess = { item ->
-                    val state = item?.mapToState() ?: getEmptyState()
+                    val state = item?.mapToState() ?: getEmptyState(action.trainingUuid)
                     updateStateImmediate(state)
                 }
             ) {
-                exerciseRepository.getExercise(data.uuid)
+                interactor.getExercise(uuid)
             }
         }
     }
 
-    private fun getEmptyState(): State = INITIAL.copy(
+    private fun getEmptyState(trainingUuid: String?): State = INITIAL.copy(
         dateProperty = DateProperty.new(System.currentTimeMillis()),
-        initialHash = INITIAL.calculateEqualsHash
-    )
+        trainingUuid = trainingUuid,
+    ).let {
+        it.copy(
+            initialHash = it.calculateEqualsHash
+        )
+    }
 
     private fun processTitleSearch() {
         launch(
@@ -67,7 +71,7 @@ internal class CommonHandler(
                 }
             }
         ) {
-            exerciseRepository.searchItems(state.value.name.value)
+            interactor.searchItems(state.value.name.value)
         }
     }
 
@@ -77,6 +81,7 @@ internal class CommonHandler(
             name = INITIAL.name.update(name),
             sets = sets.map { it.toUi() }.toImmutableList(),
             dateProperty = DateProperty.new(timestamp),
+            trainingUuid = trainingUuid,
             initialHash = 0
         )
         return state.copy(

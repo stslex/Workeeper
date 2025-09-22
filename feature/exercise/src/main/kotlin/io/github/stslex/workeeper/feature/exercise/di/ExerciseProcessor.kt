@@ -28,6 +28,6 @@ internal object ExerciseFeature : Feature<ExerciseProcessor, ExerciseComponent>(
         component: ExerciseComponent
     ): ExerciseProcessor = rememberStoreProcessor(
         component = component,
-        key = component.data.hashCode().toString()
+        key = component.hashCode().toString()
     )
 }

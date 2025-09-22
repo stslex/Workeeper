@@ -40,7 +40,8 @@ internal class CommonHandlerTest {
             labels = persistentListOf(),
             date = DateProperty.new(System.currentTimeMillis())
         ),
-        dialogState = DialogState.Closed
+        dialogState = DialogState.Closed,
+        pendingForCreateUuid = ""
     )
 
     private val stateFlow = MutableStateFlow(initialState)
