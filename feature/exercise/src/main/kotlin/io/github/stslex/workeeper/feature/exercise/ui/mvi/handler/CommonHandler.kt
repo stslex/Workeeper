@@ -1,11 +1,11 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
-import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.exercise.di.EXERCISE_SCOPE_NAME
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
+import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.toUi
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
@@ -19,7 +19,7 @@ import org.koin.core.annotation.Scoped
 @Scoped(binds = [CommonHandler::class])
 @Scope(name = EXERCISE_SCOPE_NAME)
 internal class CommonHandler(
-    private val exerciseRepository: ExerciseRepository,
+    private val interactor: ExerciseInteractor,
     @Named(EXERCISE_SCOPE_NAME) store: ExerciseHandlerStore
 ) : Handler<Action.Common>, ExerciseHandlerStore by store {
 
@@ -45,7 +45,7 @@ internal class CommonHandler(
                     updateStateImmediate(state)
                 }
             ) {
-                exerciseRepository.getExercise(uuid)
+                interactor.getExercise(uuid)
             }
         }
     }
@@ -71,7 +71,7 @@ internal class CommonHandler(
                 }
             }
         ) {
-            exerciseRepository.searchItems(state.value.name.value)
+            interactor.searchItems(state.value.name.value)
         }
     }
 

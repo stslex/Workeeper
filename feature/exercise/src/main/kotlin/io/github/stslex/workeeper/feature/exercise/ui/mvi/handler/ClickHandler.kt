@@ -1,7 +1,6 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
 import io.github.stslex.workeeper.core.core.coroutine.dispatcher.MainImmediateDispatcher
-import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.exercise.di.EXERCISE_SCOPE_NAME
@@ -25,7 +24,6 @@ import kotlin.uuid.Uuid
 @Scoped(binds = [ClickHandler::class])
 @Scope(name = EXERCISE_SCOPE_NAME)
 internal class ClickHandler(
-    private val repository: ExerciseRepository,
     private val interactor: ExerciseInteractor,
     private val exerciseUiMap: ExerciseUiMap,
     @param:MainImmediateDispatcher private val mainDispatcher: CoroutineDispatcher,
@@ -153,7 +151,7 @@ internal class ClickHandler(
                 }
             }
         ) {
-            repository.deleteItem(currentUuid)
+            interactor.deleteItem(currentUuid)
         }
     }
 

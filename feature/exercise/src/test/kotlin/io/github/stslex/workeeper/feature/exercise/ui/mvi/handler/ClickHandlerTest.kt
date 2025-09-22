@@ -1,7 +1,6 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScope
-import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
@@ -17,7 +16,9 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
+import io.mockk.runs
 import io.mockk.verify
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentSetOf
@@ -38,8 +39,7 @@ internal class ClickHandlerTest {
 
     private val testScheduler = TestCoroutineScheduler()
     private val testDispatcher = UnconfinedTestDispatcher(testScheduler)
-    private val repository = mockk<ExerciseRepository>(relaxed = true)
-    private val interactor = mockk<ExerciseInteractor>(relaxed = true)
+    private val interactor = mockk<ExerciseInteractor>()
     private val exerciseUiMap = mockk<ExerciseUiMap>(relaxed = true)
     private val testScope = TestScope(testDispatcher)
 
@@ -83,7 +83,7 @@ internal class ClickHandlerTest {
             testScope.launch { runCatching { onSuccess(this, action()) } }
         }
     }
-    private val handler = ClickHandler(repository, interactor, exerciseUiMap, testDispatcher, store)
+    private val handler = ClickHandler(interactor, exerciseUiMap, testDispatcher, store)
 
     @Test
     fun `cancel action triggers back with confirmation navigation`() {
@@ -95,6 +95,7 @@ internal class ClickHandlerTest {
 
     @Test
     fun `save action with valid data saves exercise and navigates back`() = runTest {
+        coEvery { interactor.saveItem(any()) } just runs
         val validName = Property.new(PropertyType.NAME).copy(value = "Valid Exercise")
         val validSet = SetsUiModel(
             uuid = "set-uuid",
@@ -106,8 +107,6 @@ internal class ClickHandlerTest {
             name = validName,
             sets = listOf(validSet).toImmutableList()
         )
-
-        coEvery { interactor.saveItem(any()) } returns Unit
 
         handler.invoke(ExerciseStore.Action.Click.Save)
 
@@ -140,28 +139,29 @@ internal class ClickHandlerTest {
 
     @Test
     fun `confirmed delete action with valid uuid deletes exercise and navigates back`() = runTest {
+        coEvery { interactor.deleteItem(any()) } just runs
+
         val exerciseUuid = "valid-uuid"
         stateFlow.value = stateFlow.value.copy(uuid = exerciseUuid)
-
-        coEvery { repository.deleteItem(exerciseUuid) } returns Unit
 
         handler.invoke(ExerciseStore.Action.Click.ConfirmedDelete)
 
         testScheduler.advanceUntilIdle()
 
         verify(exactly = 1) { store.sendEvent(ExerciseStore.Event.HapticClick) }
-        coVerify(exactly = 1) { repository.deleteItem(exerciseUuid) }
+        coVerify(exactly = 1) { interactor.deleteItem(exerciseUuid) }
         verify(exactly = 1) { store.consume(ExerciseStore.Action.NavigationMiddleware.Back) }
     }
 
     @Test
     fun `confirmed delete action with null uuid does nothing`() {
+        coEvery { interactor.deleteItem(any()) } just runs
         stateFlow.value = stateFlow.value.copy(uuid = null)
 
         handler.invoke(ExerciseStore.Action.Click.ConfirmedDelete)
 
         verify(exactly = 1) { store.sendEvent(ExerciseStore.Event.HapticClick) }
-        coVerify(exactly = 0) { repository.deleteItem(any()) }
+        coVerify(exactly = 0) { interactor.deleteItem(any()) }
     }
 
     @Test

@@ -10,10 +10,13 @@ import io.github.stslex.workeeper.core.exercise.training.TrainingDataModel
 import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.just
 import io.mockk.mockk
+import io.mockk.runs
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
+import kotlin.test.assertEquals
 import kotlin.uuid.Uuid
 
 internal class ExerciseInteractorImplTest {
@@ -23,7 +26,8 @@ internal class ExerciseInteractorImplTest {
     private val trainingRepository = mockk<TrainingRepository>()
     private val interactor: ExerciseInteractor = ExerciseInteractorImpl(
         exerciseRepository = exerciseRepository,
-        trainingRepository = trainingRepository
+        trainingRepository = trainingRepository,
+        dispatcher = testDispatcher
     )
 
     @Test
@@ -171,6 +175,42 @@ internal class ExerciseInteractorImplTest {
             coVerify(exactly = 0) { trainingRepository.getTraining(any()) }
             coVerify(exactly = 0) { trainingRepository.updateTraining(any()) }
         }
+
+    @Test
+    fun `delete item by uuid`() = runTest(testDispatcher) {
+        coEvery { exerciseRepository.deleteItem(any()) } just runs
+        val uuid = "test_uuid"
+        interactor.deleteItem(uuid)
+
+        coVerify(exactly = 1) { exerciseRepository.deleteItem(uuid) }
+    }
+
+
+    @Test
+    fun `get item by uuid`() = runTest(testDispatcher) {
+        val uuid = "test_uuid"
+        val testExercise = createExerciseDataModel("uuid", "test_name", "training_uuid")
+        coEvery { exerciseRepository.getExercise(uuid) } returns testExercise
+        val exercise = interactor.getExercise(uuid)
+
+        coVerify(exactly = 1) { exerciseRepository.getExercise(uuid) }
+        assertEquals(testExercise, exercise)
+    }
+
+    @Test
+    fun `get items by uuid`() = runTest(testDispatcher) {
+        val testQuery = "test_query"
+        val testExercises = Array(10) {
+            createExerciseDataModel("uuid_$it", "testQuery_$it", "training_uuid")
+        }.toList()
+
+        coEvery { exerciseRepository.searchItems(testQuery) } returns testExercises
+
+        val exercises = interactor.searchItems(testQuery)
+
+        coVerify(exactly = 1) { exerciseRepository.getExercise(testQuery) }
+        assertEquals(testExercises, exercises)
+    }
 
     private fun createExerciseChangeDataModel(
         uuid: String? = null,
