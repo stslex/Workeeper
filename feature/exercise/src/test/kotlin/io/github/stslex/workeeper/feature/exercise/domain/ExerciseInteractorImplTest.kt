@@ -208,7 +208,7 @@ internal class ExerciseInteractorImplTest {
 
         val exercises = interactor.searchItems(testQuery)
 
-        coVerify(exactly = 1) { exerciseRepository.getExercise(testQuery) }
+        coVerify(exactly = 1) { exerciseRepository.searchItems(testQuery) }
         assertEquals(testExercises, exercises)
     }
 

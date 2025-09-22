@@ -13,7 +13,7 @@ class KoinLogger(isDebug: Boolean) : Logger(
     }
 ) {
 
-    private val logger = AppLoggerCreator("Koin")
+    private val logger = Log.tag("Koin")
 
     override fun display(level: Level, msg: MESSAGE) {
         when (level) {
