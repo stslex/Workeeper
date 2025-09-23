@@ -13,7 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.paging.PagingData
 import androidx.paging.compose.collectAsLazyPagingItems
-import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder.Companion.update
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.SingleTrainingItemWidget
@@ -82,7 +83,7 @@ internal fun AllTrainingsScreenPreview() {
                 name = "trainingName$index",
                 labels = labels,
                 exerciseUuids = uuids,
-                date = DateProperty.new(System.currentTimeMillis()),
+                date = PropertyHolder.DateProperty().update(System.currentTimeMillis()),
             )
         }.toList()
 

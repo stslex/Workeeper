@@ -72,7 +72,7 @@ internal fun ExerciseFeatureWidget(
         when (val dialogState = state.dialogState) {
             DialogState.Closed -> Unit
             DialogState.Calendar -> ExerciseDatePickerDialog(
-                timestamp = state.dateProperty.timestamp,
+                timestamp = state.dateProperty.value,
                 onDismissRequest = { consume(Action.Click.CloseDialog) },
                 dateChange = { consume(Action.Input.Time(it)) }
             )
@@ -108,10 +108,11 @@ private fun SnackbarHostWidget(
     modifier: Modifier = Modifier
 ) {
     SnackbarHost(
+        modifier = modifier,
         hostState = snackbarHostState
     ) { data ->
         Snackbar(
-            modifier = modifier
+            modifier = Modifier
                 .padding(AppDimension.Padding.small),
             action = {
                 val action = remember(snackbarHostState.currentSnackbarData?.visuals) {

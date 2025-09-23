@@ -1,13 +1,12 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
 import io.github.stslex.workeeper.core.core.coroutine.dispatcher.MainImmediateDispatcher
-import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder.Companion.update
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.exercise.di.EXERCISE_SCOPE_NAME
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.mappers.ExerciseUiMap
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PropertyValid
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SetsUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SnackbarType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
@@ -76,8 +75,7 @@ internal class ClickHandler(
     }
 
     private fun processDialogSetsDismiss(action: Action.Click.DialogSets.DismissSetsDialog) {
-        val isSaveSetValid: Boolean = action.set.weight.validation() == PropertyValid.VALID &&
-                action.set.reps.validation() == PropertyValid.VALID
+        val isSaveSetValid: Boolean = action.set.weight.isValid && action.set.reps.isValid
         if (isSaveSetValid.not()) {
             return
         }
@@ -124,9 +122,9 @@ internal class ClickHandler(
         val item = action.item
         updateState {
             it.copy(
-                name = it.name.update(value = item.name),
-                sets = item.sets,
-                dateProperty = DateProperty.new(item.timestamp),
+                name = it.name.update(item.itemModel.name),
+                sets = item.itemModel.sets,
+                dateProperty = it.dateProperty.update(item.itemModel.timestamp),
                 isMenuOpen = false
             )
         }
@@ -160,35 +158,9 @@ internal class ClickHandler(
     }
 
     private fun processSave() {
-        val nameValid = state.value.name.validation()
+        val setsValid = state.value.sets.all { it.reps.isValid && it.weight.isValid }
 
-        var setsValid = true
-
-        updateState {
-            it.copy(
-                name = it.name.copy(valid = nameValid),
-                sets = it.sets.map { set ->
-                    val repsValidation = set.reps.validation()
-                    val weightValidation = set.weight.validation()
-
-                    if (
-                        repsValidation != PropertyValid.VALID ||
-                        weightValidation != PropertyValid.VALID
-                    ) {
-                        setsValid = false
-                    }
-
-                    val reps = set.reps.copy(valid = repsValidation)
-                    val weight = set.weight.copy(valid = weightValidation)
-                    set.copy(
-                        reps = reps,
-                        weight = weight
-                    )
-                }.toImmutableList()
-            )
-        }
-
-        if (nameValid != PropertyValid.VALID || setsValid.not()) {
+        if (state.value.name.isValid.not() || setsValid.not()) {
             sendEvent(ExerciseStore.Event.InvalidParams)
             return
         }

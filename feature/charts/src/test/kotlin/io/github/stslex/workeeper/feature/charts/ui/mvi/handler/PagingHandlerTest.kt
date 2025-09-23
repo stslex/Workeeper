@@ -3,7 +3,7 @@ package io.github.stslex.workeeper.feature.charts.ui.mvi.handler
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScope
 import io.github.stslex.workeeper.core.dataStore.store.CommonDataStore
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
-import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.feature.charts.di.ChartsHandlerStore
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.CalendarState
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ExerciseChartMap
@@ -35,8 +35,8 @@ internal class PagingHandlerTest {
     private val initialState = ChartsStore.State(
         name = "Test Exercise",
         charts = persistentListOf(),
-        startDate = DateProperty.new(0L),
-        endDate = DateProperty.new(0L),
+        startDate = PropertyHolder.DateProperty(initialValue = 0L),
+        endDate = PropertyHolder.DateProperty(initialValue = 0L),
         calendarState = CalendarState.Closed
     )
     private val stateFlow: MutableStateFlow<ChartsStore.State> = MutableStateFlow(initialState)
@@ -66,6 +66,7 @@ internal class PagingHandlerTest {
         store = store
     )
 
+    @Suppress("UnusedFlow")
     @Test
     fun `init action subscribes to common store date flows and updates state`() = runTest {
         every { commonStore.homeSelectedStartDate } returns flowOf(1500000L)
@@ -87,8 +88,8 @@ internal class PagingHandlerTest {
 
         // Verify repository call and state changes
         coVerify { repository.getExercises("Test Exercise", 1500000L, 2500000L) }
-        assertEquals(DateProperty.new(1500000L), stateFlow.value.startDate)
-        assertEquals(DateProperty.new(2500000L), stateFlow.value.endDate)
+        assertEquals(PropertyHolder.DateProperty(initialValue = 1500000L), stateFlow.value.startDate)
+        assertEquals(PropertyHolder.DateProperty(initialValue = 2500000L), stateFlow.value.endDate)
     }
 
     @Test
@@ -106,11 +107,12 @@ internal class PagingHandlerTest {
             store.updateStateImmediate(any<(ChartsStore.State) -> ChartsStore.State>())
         }
 
-        assertEquals(DateProperty.new(1500000L), stateFlow.value.startDate)
-        assertEquals(DateProperty.new(2500000L), stateFlow.value.endDate)
+        assertEquals(PropertyHolder.DateProperty(initialValue = 1500000L), stateFlow.value.startDate)
+        assertEquals(PropertyHolder.DateProperty(initialValue = 2500000L), stateFlow.value.endDate)
     }
 
     @Test
+    @Suppress("UnusedFlow")
     fun `charts subscription processes repository data through mapper`() = runTest {
         val exerciseData = listOf(
             mockk<io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel> {
@@ -142,6 +144,7 @@ internal class PagingHandlerTest {
     }
 
     @Test
+    @Suppress("UnusedFlow")
     fun `state changes trigger new repository calls with distinctUntilChanged`() = runTest {
         every { commonStore.homeSelectedStartDate } returns flowOf(null)
         every { commonStore.homeSelectedEndDate } returns flowOf(null)
@@ -161,6 +164,7 @@ internal class PagingHandlerTest {
     }
 
     @Test
+    @Suppress("UnusedFlow")
     fun `distinctUntilChanged prevents duplicate repository calls for identical state`() = runTest {
         every { commonStore.homeSelectedStartDate } returns flowOf(null)
         every { commonStore.homeSelectedEndDate } returns flowOf(null)
@@ -181,6 +185,7 @@ internal class PagingHandlerTest {
     }
 
     @Test
+    @Suppress("UnusedFlow")
     fun `repository errors are handled gracefully in charts subscription`() = runTest {
         every { commonStore.homeSelectedStartDate } returns flowOf(null)
         every { commonStore.homeSelectedEndDate } returns flowOf(null)
@@ -210,8 +215,8 @@ internal class PagingHandlerTest {
         testScheduler.advanceUntilIdle()
 
         // Only start date should be updated
-        assertEquals(DateProperty.new(1000000L), stateFlow.value.startDate)
-        assertEquals(DateProperty.new(0L), stateFlow.value.endDate) // Should remain initial value
+        assertEquals(PropertyHolder.DateProperty(initialValue = 1000000L), stateFlow.value.startDate)
+        assertEquals(PropertyHolder.DateProperty(initialValue = 0L), stateFlow.value.endDate) // Should remain initial value
 
         coVerify(exactly = 1) {
             store.updateStateImmediate(any<(ChartsStore.State) -> ChartsStore.State>())
@@ -219,12 +224,13 @@ internal class PagingHandlerTest {
     }
 
     @Test
+    @Suppress("UnusedFlow")
     fun `charts subscription uses current state values for Triple mapping`() = runTest {
         val customState = ChartsStore.State(
             name = "Custom Exercise",
             charts = persistentListOf(),
-            startDate = DateProperty.new(5000000L),
-            endDate = DateProperty.new(6000000L),
+            startDate = PropertyHolder.DateProperty(initialValue = 5000000L),
+            endDate = PropertyHolder.DateProperty(initialValue = 6000000L),
             calendarState = CalendarState.Closed
         )
 
@@ -243,6 +249,7 @@ internal class PagingHandlerTest {
     }
 
     @Test
+    @Suppress("UnusedFlow")
     fun `multiple state properties changes trigger repository calls`() = runTest {
         every { commonStore.homeSelectedStartDate } returns flowOf(null)
         every { commonStore.homeSelectedEndDate } returns flowOf(null)
@@ -255,12 +262,12 @@ internal class PagingHandlerTest {
         // Change multiple properties
         stateFlow.value = initialState.copy(
             name = "New Exercise",
-            startDate = DateProperty.new(1000000L)
+            startDate = PropertyHolder.DateProperty(initialValue = 1000000L)
         )
         testScheduler.advanceUntilIdle()
 
         stateFlow.value = stateFlow.value.copy(
-            endDate = DateProperty.new(2000000L)
+            endDate = PropertyHolder.DateProperty(initialValue = 2000000L)
         )
         testScheduler.advanceUntilIdle()
 

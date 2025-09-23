@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.core.exercise.utils
+package io.github.stslex.workeeper.core.core.utils
 
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.number

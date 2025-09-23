@@ -1,6 +1,6 @@
 package io.github.stslex.workeeper.feature.single_training.ui.mvi.handler
 
-import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder.Companion.update
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.single_training.di.TRAINING_SCOPE_NAME
 import io.github.stslex.workeeper.feature.single_training.di.TrainingHandlerStore
@@ -26,7 +26,7 @@ internal class InputHandler(
         updateState {
             it.copy(
                 training = it.training.copy(
-                    date = DateProperty.new(action.timestamp)
+                    date = it.training.date.update(action.timestamp)
                 )
             )
         }

@@ -15,15 +15,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.charts.R
 
 @Composable
 internal fun DatePickersWidget(
-    startDate: DateProperty,
-    endDate: DateProperty,
+    startDate: PropertyHolder.DateProperty,
+    endDate: PropertyHolder.DateProperty,
     onStartDateClick: () -> Unit,
     onEndDateClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -48,7 +48,7 @@ internal fun DatePickersWidget(
             ) {
                 Text(
                     modifier = Modifier.padding(AppDimension.Padding.medium),
-                    text = startDate.converted
+                    text = startDate.uiValue
                 )
             }
             Spacer(modifier = Modifier.weight(1f))
@@ -61,7 +61,7 @@ internal fun DatePickersWidget(
             ) {
                 Text(
                     modifier = Modifier.padding(AppDimension.Padding.medium),
-                    text = endDate.converted
+                    text = endDate.uiValue
                 )
             }
         }
@@ -81,8 +81,8 @@ private fun DatePickersPreview() {
             )
         ) {
             DatePickersWidget(
-                startDate = DateProperty.new(startDate),
-                endDate = DateProperty.new(endDate),
+                startDate = PropertyHolder.DateProperty(startDate),
+                endDate = PropertyHolder.DateProperty(endDate),
                 onStartDateClick = {},
                 onEndDateClick = {},
                 modifier = Modifier

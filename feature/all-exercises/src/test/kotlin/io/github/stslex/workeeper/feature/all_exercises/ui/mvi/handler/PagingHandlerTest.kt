@@ -5,8 +5,8 @@ import androidx.paging.LoadStates
 import androidx.paging.PagingData
 import androidx.paging.testing.asSnapshot
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
-import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.feature.all_exercises.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore
@@ -129,12 +129,12 @@ internal class PagingHandlerTest {
         ExerciseUiModel(
             uuid = "ex1",
             name = "Push ups",
-            dateProperty = DateProperty.new(1000L)
+            dateProperty = PropertyHolder.DateProperty(initialValue = 1000L)
         ),
         ExerciseUiModel(
             uuid = "ex2",
             name = "Squats",
-            dateProperty = DateProperty.new(2000L)
+            dateProperty = PropertyHolder.DateProperty(initialValue = 2000L)
         )
     )
 }

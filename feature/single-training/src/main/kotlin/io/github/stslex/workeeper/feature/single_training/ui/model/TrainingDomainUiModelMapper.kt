@@ -1,7 +1,8 @@
 package io.github.stslex.workeeper.feature.single_training.ui.model
 
 import io.github.stslex.workeeper.core.core.result.Mapper
-import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder.Companion.update
 import io.github.stslex.workeeper.feature.single_training.di.TRAINING_SCOPE_NAME
 import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingDomainModel
 import kotlinx.collections.immutable.toImmutableList
@@ -21,6 +22,6 @@ internal class TrainingDomainUiModelMapper(
         exercises = data.exercises
             .map { exerciseMapper(it) }
             .toImmutableList(),
-        date = DateProperty.new(data.timestamp)
+        date = PropertyHolder.DateProperty().update(data.timestamp)
     )
 }

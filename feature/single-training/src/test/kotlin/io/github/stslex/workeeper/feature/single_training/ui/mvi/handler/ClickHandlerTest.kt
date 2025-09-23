@@ -2,7 +2,7 @@ package io.github.stslex.workeeper.feature.single_training.ui.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScope
-import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.feature.single_training.di.TrainingHandlerStore
 import io.github.stslex.workeeper.feature.single_training.domain.interactor.SingleTrainingInteractor
 import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingDomainChangeModel
@@ -43,7 +43,7 @@ internal class ClickHandlerTest {
         name = "Test Training",
         exercises = persistentListOf(),
         labels = persistentListOf(),
-        date = DateProperty.new(System.currentTimeMillis())
+        date = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis())
     )
 
     private val initialState = TrainingStore.State(

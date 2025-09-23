@@ -10,8 +10,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
 import io.github.stslex.workeeper.core.ui.kit.components.CardWithAnimatedBorder
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.model.ExerciseUiModel
@@ -57,7 +57,7 @@ internal fun ExercisePagingItem(
 //                style = MaterialTheme.typography.bodyLarge
 //            )
             Text(
-                text = item.dateProperty.converted,
+                text = item.dateProperty.uiValue,
                 style = MaterialTheme.typography.labelSmall
             )
         }
@@ -71,10 +71,7 @@ private fun ExercisePagingItemPreview() {
         val item = ExerciseUiModel(
             uuid = Uuid.random().toString(),
             name = "nameOfExercise",
-            dateProperty = DateProperty(
-                timestamp = System.currentTimeMillis(),
-                converted = "12/05/23"
-            )
+            dateProperty = PropertyHolder.DateProperty()
         )
         ExercisePagingItem(
             item = item,

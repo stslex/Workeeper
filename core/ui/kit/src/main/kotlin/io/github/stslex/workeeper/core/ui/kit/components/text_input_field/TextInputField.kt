@@ -1,10 +1,7 @@
-package io.github.stslex.workeeper.feature.exercise.ui.components
+package io.github.stslex.workeeper.core.ui.kit.components.text_input_field
 
-import androidx.annotation.StringRes
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -25,30 +22,28 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.tooling.preview.Preview
-import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
-import io.github.stslex.workeeper.feature.exercise.R
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ExerciseUiModel
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TextMode
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.MenuItem
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.TextMode
 import kotlinx.collections.immutable.ImmutableSet
-import kotlinx.collections.immutable.persistentSetOf
 
 @Composable
-internal fun ExercisePropertyTextField(
-    text: String,
-    @StringRes labelRes: Int,
-    mode: TextMode,
-    modifier: Modifier = Modifier,
-    isError: Boolean = false,
-    onClick: () -> Unit = {},
-    onMenuClick: () -> Unit = {},
-    onMenuClose: () -> Unit = {},
-    onMenuItemClick: (ExerciseUiModel) -> Unit = {},
-    menuItems: ImmutableSet<ExerciseUiModel> = persistentSetOf(),
+internal fun <TMenuItem : Any> TextInputField(
+    property: PropertyHolder<*>,
+    labelRes: Int,
+    textMode: TextMode,
+    isMenuEnable: Boolean,
+    isMenuOpen: Boolean,
+    onMenuClick: () -> Unit,
+    onMenuClose: () -> Unit,
+    onMenuItemClick: (MenuItem<TMenuItem>) -> Unit,
+    menuItems: ImmutableSet<MenuItem<TMenuItem>>,
+    onClick: () -> Unit,
     onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    val keyboardOptions = remember(mode.isText) {
-        if (mode.isText) {
+    val keyboardOptions = remember(textMode.isText) {
+        if (textMode.isText) {
             KeyboardOptions.Default
         } else {
             KeyboardOptions.Default.copy(
@@ -59,26 +54,26 @@ internal fun ExercisePropertyTextField(
 
     val trailingIcon: (@Composable () -> Unit)? = {
         PropertyTrailingIcon(
-            mode = mode,
+            isMenuOpen = isMenuOpen,
             menuItems = menuItems,
             onMenuClick = onMenuClick,
             onMenuClose = onMenuClose,
-            onMenuItemClick = onMenuItemClick
+            onMenuItemClick = onMenuItemClick,
         )
     }
     OutlinedTextField(
         modifier = modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        value = text,
+        value = property.uiValue,
         onValueChange = onValueChange,
-        isError = isError,
+        isError = property.isValid.not(),
         label = {
             Text(stringResource(labelRes))
         },
         keyboardOptions = keyboardOptions,
-        trailingIcon = if (mode.isMenuEnable && menuItems.isNotEmpty()) trailingIcon else null,
-        colors = if (mode == TextMode.DATE) {
+        trailingIcon = if (isMenuEnable && menuItems.isNotEmpty()) trailingIcon else null,
+        colors = if (textMode == TextMode.DATE) {
             OutlinedTextFieldDefaults.colors(
                 disabledTextColor = LocalContentColor.current,
                 disabledBorderColor = MaterialTheme.colorScheme.outline,
@@ -89,18 +84,18 @@ internal fun ExercisePropertyTextField(
             OutlinedTextFieldDefaults.colors()
         },
         singleLine = true,
-        readOnly = mode == TextMode.DATE,
-        enabled = mode != TextMode.DATE,
+        readOnly = textMode == TextMode.DATE,
+        enabled = textMode != TextMode.DATE,
     )
 }
 
 @Composable
-private fun PropertyTrailingIcon(
-    mode: TextMode,
-    menuItems: ImmutableSet<ExerciseUiModel>,
+private fun <TMenuItem : Any> PropertyTrailingIcon(
+    isMenuOpen: Boolean,
+    menuItems: ImmutableSet<MenuItem<TMenuItem>>,
     onMenuClick: () -> Unit,
     onMenuClose: () -> Unit,
-    onMenuItemClick: (ExerciseUiModel) -> Unit,
+    onMenuItemClick: (MenuItem<TMenuItem>) -> Unit,
 ) {
     val focus = LocalFocusManager.current
     IconButton(
@@ -110,7 +105,7 @@ private fun PropertyTrailingIcon(
         }
     ) {
         val rotation = animateFloatAsState(
-            targetValue = if (mode.isMenuOpen) 180f else 0f
+            targetValue = if (isMenuOpen) 180f else 0f
         )
         Icon(
             modifier = Modifier.rotate(rotation.value),
@@ -119,34 +114,15 @@ private fun PropertyTrailingIcon(
         )
     }
     DropdownMenu(
-        expanded = mode.isMenuOpen,
+        expanded = isMenuOpen,
         onDismissRequest = {
             onMenuClose()
         }
     ) {
         menuItems.forEach { item ->
             DropdownMenuItem(
-                text = { Text(item.name) },
-                onClick = {
-                    onMenuItemClick(item)
-                }
-            )
-        }
-    }
-}
-
-@Composable
-@Preview
-private fun ExercisePropertyTextFieldPreview() {
-    AppTheme {
-        Box(
-            modifier = Modifier.background(MaterialTheme.colorScheme.background)
-        ) {
-            ExercisePropertyTextField(
-                text = "Sample Text",
-                labelRes = R.string.feature_exercise_field_label_weight,
-                onValueChange = {},
-                mode = TextMode.DATE,
+                text = { Text(item.text) },
+                onClick = { onMenuItemClick(item) }
             )
         }
     }

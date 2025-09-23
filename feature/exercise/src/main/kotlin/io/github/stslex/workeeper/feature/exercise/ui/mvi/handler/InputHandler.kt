@@ -1,6 +1,6 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
-import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder.Companion.update
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.exercise.di.EXERCISE_SCOPE_NAME
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
@@ -20,7 +20,7 @@ internal class InputHandler(
         when (action) {
             is Action.Input.PropertyName -> processProperty(action)
             is Action.Input.Time -> updateState {
-                it.copy(dateProperty = DateProperty.new(action.timestamp))
+                it.copy(dateProperty = it.dateProperty.update(action.timestamp))
             }
 
             is Action.Input.DialogSets -> processSets(action)
@@ -36,15 +36,19 @@ internal class InputHandler(
     private fun processSets(action: Action.Input.DialogSets) {
 
         fun DialogState.Sets.getReps() = if (action is Action.Input.DialogSets.Reps) {
-            this.set.reps.update(action.value)
+            action.value.toIntOrNull()
+                ?.let { set.reps.update(it) }
+                ?: set.reps
         } else {
-            this.set.reps
+            set.reps
         }
 
         fun DialogState.Sets.getWeight() = if (action is Action.Input.DialogSets.Weight) {
-            this.set.weight.update(action.value)
+            action.value.toDoubleOrNull()
+                ?.let { set.weight.update(it) }
+                ?: set.weight
         } else {
-            this.set.weight
+            set.weight
         }
 
         updateState { state ->

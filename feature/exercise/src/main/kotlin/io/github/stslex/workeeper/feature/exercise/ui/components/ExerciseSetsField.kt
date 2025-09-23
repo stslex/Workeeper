@@ -19,11 +19,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder.Companion.update
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.exercise.R
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.Property
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PropertyType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SetUiType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SetsUiModel
 
@@ -54,14 +54,14 @@ internal fun ExerciseSetsField(
         ) {
             ExerciseTextField(
                 modifier = Modifier.weight(1f),
-                text = property.reps.value,
+                text = property.reps.uiValue,
                 label = stringResource(R.string.feature_exercise_field_label_reps)
             )
             Spacer(Modifier.width(AppDimension.Padding.small))
             ExerciseTextField(
                 modifier = Modifier
                     .weight(1f),
-                text = property.weight.value,
+                text = property.weight.uiValue,
                 label = stringResource(R.string.feature_exercise_field_label_weight)
             )
             Spacer(Modifier.width(AppDimension.Padding.small))
@@ -116,8 +116,8 @@ private fun ExerciseSetsFieldPreview() {
             ExerciseSetsField(
                 property = SetsUiModel(
                     uuid = "uuid",
-                    reps = Property.new(PropertyType.REPS, 10.toString()),
-                    weight = Property.new(PropertyType.WEIGHT, 14.50.toString()),
+                    reps = PropertyHolder.IntProperty().update(10),
+                    weight = PropertyHolder.DoubleProperty().update(14.50),
                     type = SetUiType.WARM,
                 ),
                 onClick = {}
