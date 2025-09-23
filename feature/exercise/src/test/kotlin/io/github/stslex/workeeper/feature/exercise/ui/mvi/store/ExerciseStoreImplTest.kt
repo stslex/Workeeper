@@ -1,9 +1,10 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.store
 
 import io.github.stslex.workeeper.core.core.logger.Logger
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.MenuItem
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.core.ui.mvi.StoreAnalytics
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
-import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStoreImpl
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.ClickHandler
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.CommonHandler
@@ -130,7 +131,14 @@ internal class ExerciseStoreImplTest {
 
         advanceUntilIdle()
 
-        coVerify { commonHandler.invoke(Action.Common.Init(uuid = "test-uuid", trainingUuid = null)) }
+        coVerify {
+            commonHandler.invoke(
+                Action.Common.Init(
+                    uuid = "test-uuid",
+                    trainingUuid = null
+                )
+            )
+        }
     }
 
     @Test
@@ -233,8 +241,8 @@ internal class ExerciseStoreImplTest {
     fun `store properly delegates dialog sets click actions`() = runTest(testDispatcher) {
         val set = SetsUiModel(
             uuid = Uuid.random().toString(),
-            reps = Property.new(PropertyType.REPS, "10"),
-            weight = Property.new(PropertyType.WEIGHT, "50"),
+            reps = PropertyHolder.IntProperty(initialValue = 10),
+            weight = PropertyHolder.DoubleProperty(initialValue = 50.0),
             type = SetUiType.WORK
         )
         val openEditAction = Action.Click.DialogSets.OpenEdit(set)
@@ -265,11 +273,16 @@ internal class ExerciseStoreImplTest {
     @Test
     fun `store properly handles menu variant click actions`() = runTest(testDispatcher) {
         // Given
-        val menuItem = ExerciseUiModel(
+        val exerciseUiModel = ExerciseUiModel(
             uuid = "menu-item-uuid",
             name = "Test Exercise",
             sets = persistentListOf(),
             timestamp = 100
+        )
+        val menuItem = MenuItem(
+            uuid = "menu-uuid",
+            text = "Test Exercise",
+            itemModel = exerciseUiModel
         )
         val openMenuAction = Action.Click.OpenMenuVariants
         val closeMenuAction = Action.Click.CloseMenuVariants

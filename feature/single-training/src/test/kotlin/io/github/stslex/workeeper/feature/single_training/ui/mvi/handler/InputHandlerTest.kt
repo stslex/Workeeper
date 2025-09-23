@@ -1,5 +1,6 @@
 package io.github.stslex.workeeper.feature.single_training.ui.mvi.handler
 
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.feature.single_training.di.TrainingHandlerStore
 import io.github.stslex.workeeper.feature.single_training.ui.model.DialogState
 import io.github.stslex.workeeper.feature.single_training.ui.model.TrainingUiModel
@@ -20,7 +21,7 @@ internal class InputHandlerTest {
         name = "Initial Training",
         exercises = persistentListOf(),
         labels = persistentListOf(),
-        date = DateProperty.new(1000000L)
+        date = PropertyHolder.DateProperty(initialValue = 1000000L)
     )
 
     private val initialState = TrainingStore.State(
@@ -85,7 +86,7 @@ internal class InputHandlerTest {
         handler.invoke(TrainingStore.Action.Input.Date(newTimestamp))
 
         verify(exactly = 1) { store.updateState(any()) }
-        assertEquals(newTimestamp, stateFlow.value.training.date.timestamp)
+        assertEquals(newTimestamp, stateFlow.value.training.date.value)
         assertEquals(initialTraining.uuid, stateFlow.value.training.uuid)
         assertEquals(initialTraining.name, stateFlow.value.training.name)
         assertEquals(initialTraining.exercises, stateFlow.value.training.exercises)
@@ -99,7 +100,7 @@ internal class InputHandlerTest {
         handler.invoke(TrainingStore.Action.Input.Date(zeroTimestamp))
 
         verify(exactly = 1) { store.updateState(any()) }
-        assertEquals(zeroTimestamp, stateFlow.value.training.date.timestamp)
+        assertEquals(zeroTimestamp, stateFlow.value.training.date.value)
     }
 
     @Test
@@ -109,7 +110,7 @@ internal class InputHandlerTest {
         handler.invoke(TrainingStore.Action.Input.Date(negativeTimestamp))
 
         verify(exactly = 1) { store.updateState(any()) }
-        assertEquals(negativeTimestamp, stateFlow.value.training.date.timestamp)
+        assertEquals(negativeTimestamp, stateFlow.value.training.date.value)
     }
 
     @Test
@@ -122,7 +123,7 @@ internal class InputHandlerTest {
 
         verify(exactly = 2) { store.updateState(any()) }
         assertEquals(newName, stateFlow.value.training.name)
-        assertEquals(newTimestamp, stateFlow.value.training.date.timestamp)
+        assertEquals(newTimestamp, stateFlow.value.training.date.value)
     }
 
     @Test

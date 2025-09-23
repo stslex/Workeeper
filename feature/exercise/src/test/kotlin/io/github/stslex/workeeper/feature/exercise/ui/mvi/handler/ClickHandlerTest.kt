@@ -1,6 +1,8 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScope
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.MenuItem
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.mappers.ExerciseUiMap
@@ -42,9 +44,9 @@ internal class ClickHandlerTest {
 
     private val initialState = ExerciseStore.State(
         uuid = "test-uuid",
-        name = Property.new(PropertyType.NAME).copy(value = "Test Exercise"),
+        name = PropertyHolder.StringProperty(initialValue = "Test Exercise"),
         sets = persistentListOf(),
-        dateProperty = DateProperty.new(1000000L),
+        dateProperty = PropertyHolder.DateProperty(initialValue = 1000000L),
         dialogState = DialogState.Closed,
         isMenuOpen = false,
         menuItems = persistentSetOf(),
@@ -93,11 +95,11 @@ internal class ClickHandlerTest {
     @Test
     fun `save action with valid data saves exercise and navigates back`() = runTest {
         coEvery { interactor.saveItem(any()) } just runs
-        val validName = Property.new(PropertyType.NAME).copy(value = "Valid Exercise")
+        val validName = PropertyHolder.StringProperty(initialValue = "Valid Exercise")
         val validSet = SetsUiModel(
             uuid = "set-uuid",
-            reps = Property.new(PropertyType.REPS).copy(value = "10"),
-            weight = Property.new(PropertyType.WEIGHT).copy(value = "50"),
+            reps = PropertyHolder.IntProperty(initialValue = 10),
+            weight = PropertyHolder.DoubleProperty(initialValue = 50.0),
             type = SetUiType.WORK
         )
         stateFlow.value = stateFlow.value.copy(
@@ -116,7 +118,7 @@ internal class ClickHandlerTest {
 
     @Test
     fun `save action with invalid name sends invalid params event`() {
-        val invalidName = Property.new(PropertyType.NAME).copy(value = "")
+        val invalidName = PropertyHolder.StringProperty(initialValue = "")
         stateFlow.value = stateFlow.value.copy(name = invalidName)
 
         handler.invoke(ExerciseStore.Action.Click.Save)
@@ -203,11 +205,16 @@ internal class ClickHandlerTest {
 
     @Test
     fun `menu item click updates exercise data and closes menu`() {
-        val menuItem = mockk<ExerciseUiModel> {
+        val exerciseUiModel = mockk<ExerciseUiModel> {
             every { name } returns "Menu Exercise"
             every { sets } returns persistentListOf()
             every { timestamp } returns 2000000L
         }
+        val menuItem = MenuItem(
+            uuid = "menu-uuid",
+            text = "Menu Exercise",
+            itemModel = exerciseUiModel
+        )
         stateFlow.value = stateFlow.value.copy(isMenuOpen = true)
 
         handler.invoke(ExerciseStore.Action.Click.OnMenuItemClick(menuItem))
@@ -215,7 +222,7 @@ internal class ClickHandlerTest {
         verify(exactly = 1) { store.sendEvent(ExerciseStore.Event.HapticClick) }
         verify(exactly = 1) { store.updateState(any()) }
         assertEquals("Menu Exercise", stateFlow.value.name.value)
-        assertEquals(2000000L, stateFlow.value.dateProperty.timestamp)
+        assertEquals(2000000L, stateFlow.value.dateProperty.value)
         assertFalse(stateFlow.value.isMenuOpen)
     }
 
@@ -234,8 +241,8 @@ internal class ClickHandlerTest {
     fun `dialog sets open edit action opens sets dialog with provided set`() {
         val existingSet = SetsUiModel(
             uuid = "existing-set",
-            reps = Property.new(PropertyType.REPS),
-            weight = Property.new(PropertyType.WEIGHT),
+            reps = PropertyHolder.IntProperty(),
+            weight = PropertyHolder.DoubleProperty(),
             type = SetUiType.WORK
         )
 
@@ -252,8 +259,8 @@ internal class ClickHandlerTest {
     fun `dialog sets save button adds new set to list`() {
         val newSet = SetsUiModel(
             uuid = "new-set",
-            reps = Property.new(PropertyType.REPS).copy(value = "12"),
-            weight = Property.new(PropertyType.WEIGHT).copy(value = "60"),
+            reps = PropertyHolder.IntProperty(initialValue = 12),
+            weight = PropertyHolder.DoubleProperty(initialValue = 60.0),
             type = SetUiType.WORK
         )
 
@@ -270,12 +277,12 @@ internal class ClickHandlerTest {
     fun `dialog sets save button updates existing set in list`() {
         val existingSet = SetsUiModel(
             uuid = "existing-set",
-            reps = Property.new(PropertyType.REPS).copy(value = "10"),
-            weight = Property.new(PropertyType.WEIGHT).copy(value = "50"),
+            reps = PropertyHolder.IntProperty(initialValue = 10),
+            weight = PropertyHolder.DoubleProperty(initialValue = 50.0),
             type = SetUiType.WORK
         )
         val updatedSet = existingSet.copy(
-            reps = Property.new(PropertyType.REPS).copy(value = "15")
+            reps = PropertyHolder.IntProperty(initialValue = 15)
         )
         stateFlow.value = stateFlow.value.copy(sets = listOf(existingSet).toImmutableList())
 
@@ -284,7 +291,7 @@ internal class ClickHandlerTest {
         verify(exactly = 1) { store.sendEvent(ExerciseStore.Event.HapticClick) }
         verify(exactly = 1) { store.updateState(any()) }
         assertEquals(1, stateFlow.value.sets.size)
-        assertEquals("15", stateFlow.value.sets.first().reps.value)
+        assertEquals(15, stateFlow.value.sets.first().reps.value)
         assertEquals(DialogState.Closed, stateFlow.value.dialogState)
     }
 
@@ -292,14 +299,14 @@ internal class ClickHandlerTest {
     fun `dialog sets delete button removes set from list`() {
         val setToDelete = SetsUiModel(
             uuid = "delete-me",
-            reps = Property.new(PropertyType.REPS),
-            weight = Property.new(PropertyType.WEIGHT),
+            reps = PropertyHolder.IntProperty(),
+            weight = PropertyHolder.DoubleProperty(),
             type = SetUiType.WORK
         )
         val setToKeep = SetsUiModel(
             uuid = "keep-me",
-            reps = Property.new(PropertyType.REPS),
-            weight = Property.new(PropertyType.WEIGHT),
+            reps = PropertyHolder.IntProperty(),
+            weight = PropertyHolder.DoubleProperty(),
             type = SetUiType.WORK
         )
         stateFlow.value = stateFlow.value.copy(

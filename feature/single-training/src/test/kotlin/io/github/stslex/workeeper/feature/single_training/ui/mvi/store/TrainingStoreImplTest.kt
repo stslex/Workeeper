@@ -1,6 +1,7 @@
 package io.github.stslex.workeeper.feature.single_training.ui.mvi.store
 
 import io.github.stslex.workeeper.core.core.logger.Logger
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.core.ui.mvi.StoreAnalytics
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.feature.single_training.di.TrainingHandlerStoreImpl
@@ -257,7 +258,7 @@ internal class TrainingStoreImplTest {
         // Date should be approximately current time
         val delta = 5000L // 5 seconds tolerance
         val currentTime = System.currentTimeMillis()
-        assert(kotlin.math.abs(state.training.date.timestamp - currentTime) < delta) {
+        assert(kotlin.math.abs(state.training.date.value - currentTime) < delta) {
             "Initial date should be approximately current time"
         }
     }
@@ -275,10 +276,10 @@ internal class TrainingStoreImplTest {
                     name = "Push-ups",
                     labels = persistentListOf("bodyweight"),
                     sets = 3,
-                    timestamp = DateProperty.new(System.currentTimeMillis())
+                    timestamp = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis())
                 )
             ),
-            date = DateProperty.new(System.currentTimeMillis() + 86400000) // tomorrow
+            date = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis() + 86400000) // tomorrow
         )
 
         // Verify state is data class with copy functionality

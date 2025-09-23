@@ -1,6 +1,7 @@
 package io.github.stslex.workeeper.feature.charts.ui.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.feature.charts.di.ChartsHandlerStore
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.CalendarState
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.SingleChartUiModel
@@ -18,8 +19,8 @@ internal class ClickHandlerTest {
     private val initialState = ChartsStore.State(
         name = "",
         charts = persistentListOf(),
-        startDate = DateProperty.new(1000000L),
-        endDate = DateProperty.new(2000000L),
+        startDate = PropertyHolder.DateProperty(initialValue = 1000000L),
+        endDate = PropertyHolder.DateProperty(initialValue = 2000000L),
         calendarState = CalendarState.Closed
     )
 
@@ -102,8 +103,8 @@ internal class ClickHandlerTest {
     fun `calendar actions preserve state when transitioning between states`() {
         val testState = initialState.copy(
             name = "Test Exercise",
-            startDate = DateProperty.new(5000000L),
-            endDate = DateProperty.new(6000000L)
+            startDate = PropertyHolder.DateProperty(initialValue = 5000000L),
+            endDate = PropertyHolder.DateProperty(initialValue = 6000000L)
         )
         stateFlow.value = testState
 
@@ -112,8 +113,8 @@ internal class ClickHandlerTest {
 
         assertEquals(CalendarState.Opened.StartDate, stateFlow.value.calendarState)
         assertEquals("Test Exercise", stateFlow.value.name)
-        assertEquals(5000000L, stateFlow.value.startDate.timestamp)
-        assertEquals(6000000L, stateFlow.value.endDate.timestamp)
+        assertEquals(5000000L, stateFlow.value.startDate.value)
+        assertEquals(6000000L, stateFlow.value.endDate.value)
         assertEquals(testState.charts, stateFlow.value.charts)
 
         // Switch to end date calendar
@@ -121,8 +122,8 @@ internal class ClickHandlerTest {
 
         assertEquals(CalendarState.Opened.EndDate, stateFlow.value.calendarState)
         assertEquals("Test Exercise", stateFlow.value.name)
-        assertEquals(5000000L, stateFlow.value.startDate.timestamp)
-        assertEquals(6000000L, stateFlow.value.endDate.timestamp)
+        assertEquals(5000000L, stateFlow.value.startDate.value)
+        assertEquals(6000000L, stateFlow.value.endDate.value)
         assertEquals(testState.charts, stateFlow.value.charts)
     }
 
@@ -166,8 +167,8 @@ internal class ClickHandlerTest {
         val testState = ChartsStore.State(
             name = "Preserved Exercise",
             charts = originalCharts,
-            startDate = DateProperty.new(1234567L),
-            endDate = DateProperty.new(7654321L),
+            startDate = PropertyHolder.DateProperty(initialValue = 1234567L),
+            endDate = PropertyHolder.DateProperty(initialValue = 7654321L),
             calendarState = CalendarState.Closed
         )
         stateFlow.value = testState
@@ -178,7 +179,7 @@ internal class ClickHandlerTest {
         assertEquals(CalendarState.Opened.StartDate, newState.calendarState)
         assertEquals("Preserved Exercise", newState.name)
         assertEquals(originalCharts, newState.charts)
-        assertEquals(1234567L, newState.startDate.timestamp)
-        assertEquals(7654321L, newState.endDate.timestamp)
+        assertEquals(1234567L, newState.startDate.value)
+        assertEquals(7654321L, newState.endDate.value)
     }
 }

@@ -8,10 +8,11 @@ import io.github.stslex.workeeper.core.core.utils.DateTimeUtil
 @Stable
 sealed class PropertyHolder<T : Any>(
     initialValue: T?,
-    defaultValue: T
+    defaultValue: T,
+    private val validate: (T) -> Boolean
 ) {
     private var valueState: MutableState<T> = mutableStateOf(initialValue ?: defaultValue)
-    private val isValidState: MutableState<Boolean> = mutableStateOf(false)
+    private val isValidState: MutableState<Boolean> = mutableStateOf(validate(valueState.value))
 
     var value: T
         get() = valueState.value
@@ -24,60 +25,61 @@ sealed class PropertyHolder<T : Any>(
 
     val uiValue: String get() = toStringMap(value)
 
-    protected abstract val extraValidate: (T) -> Boolean
-
     protected open val toStringMap: (T?) -> String = { it?.toString().orEmpty() }
-
-    fun validate(property: T?): Boolean = property != null && extraValidate(property)
 
     @Stable
     data class StringProperty(
         val initialValue: String? = null,
         val defaultValue: String = "",
-        override val extraValidate: (String) -> Boolean = { true },
+        val validate: (String) -> Boolean = { it.isNotBlank() },
     ) : PropertyHolder<String>(
         initialValue = initialValue,
-        defaultValue = defaultValue
+        defaultValue = defaultValue,
+        validate = validate
     )
 
     @Stable
     data class IntProperty(
         val initialValue: Int? = null,
         val defaultValue: Int = 0,
-        override val extraValidate: (Int) -> Boolean = { true },
+        val validate: (Int) -> Boolean = { it >= 0 },
     ) : PropertyHolder<Int>(
         initialValue = initialValue,
-        defaultValue = defaultValue
+        defaultValue = defaultValue,
+        validate = validate,
     )
 
     @Stable
     data class DoubleProperty(
         val initialValue: Double? = null,
         val defaultValue: Double = 0.0,
-        override val extraValidate: (Double) -> Boolean = { true },
+        val validate: (Double) -> Boolean = { it >= 0.0 },
     ) : PropertyHolder<Double>(
         initialValue = initialValue,
-        defaultValue = defaultValue
+        defaultValue = defaultValue,
+        validate = validate,
     )
 
     @Stable
     data class LongProperty(
         val initialValue: Long? = null,
         val defaultValue: Long = 0L,
-        override val extraValidate: (Long) -> Boolean = { true },
+        val validate: (Long) -> Boolean = { it >= 0L },
     ) : PropertyHolder<Long>(
         initialValue = initialValue,
-        defaultValue = defaultValue
+        defaultValue = defaultValue,
+        validate = validate,
     )
 
     @Stable
     data class DateProperty(
         val initialValue: Long? = null,
-        val defaultValue: Long = System.currentTimeMillis(),
-        override val extraValidate: (Long) -> Boolean = { true },
+        val defaultValue: Long = 0L,
+        val validate: (Long) -> Boolean = { it >= 0L },
     ) : PropertyHolder<Long>(
         initialValue = initialValue,
-        defaultValue = defaultValue
+        defaultValue = defaultValue,
+        validate = validate,
     ) {
 
         override val toStringMap: (Long?) -> String = { timestamp ->

@@ -33,20 +33,20 @@ interface ExerciseStore : Store<State, Action, Event> {
 
         val calculateEqualsHash: Int
             get() = uuid.hashCode() +
-                    name.value.hashCode() +
+                    name.value.trim().hashCode() +
                     sets.sumOf { it.reps.value.hashCode() + it.weight.value.hashCode() + it.type.ordinal } +
                     dateProperty.value.hashCode()
 
         val allowBack: Boolean
             get() = if (uuid == null) {
-                name.value.isBlank() && sets.all { it.weight.uiValue.isBlank() && it.reps.uiValue.isBlank() }
+                name.value.trim().isBlank() && sets.all { it.weight.value == 0.0 && it.reps.value == 0 }
             } else {
                 calculateEqualsHash == initialHash
             }
 
         companion object {
 
-            val INITIAL = State(
+            val INITIAL get() = State(
                 uuid = null,
                 name = PropertyHolder.StringProperty(),
                 sets = persistentListOf(),

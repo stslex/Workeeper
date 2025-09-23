@@ -6,6 +6,7 @@ import androidx.paging.PagingData
 import androidx.paging.testing.asSnapshot
 import io.github.stslex.workeeper.core.exercise.training.TrainingDataModel
 import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.feature.all_trainings.di.TrainingHandlerStore
 import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.model.TrainingUiMapper
 import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.model.TrainingUiModel
@@ -60,7 +61,7 @@ internal class PagingHandlerTest {
                 name = dataModel.name,
                 labels = persistentListOf(),
                 exerciseUuids = persistentListOf(),
-                date = DateProperty.new(dataModel.timestamp)
+                date = PropertyHolder.DateProperty(initialValue = dataModel.timestamp)
             )
         }
 
@@ -103,7 +104,7 @@ internal class PagingHandlerTest {
                 name = dataModel.name,
                 labels = persistentListOf(),
                 exerciseUuids = persistentListOf(),
-                date = DateProperty.new(dataModel.timestamp)
+                date = PropertyHolder.DateProperty(initialValue = dataModel.timestamp)
             )
         }
 
@@ -153,7 +154,7 @@ internal class PagingHandlerTest {
                 name = dataModel.name,
                 labels = persistentListOf(),
                 exerciseUuids = persistentListOf(),
-                date = DateProperty.new(dataModel.timestamp)
+                date = PropertyHolder.DateProperty(initialValue = dataModel.timestamp)
             )
         }
 
@@ -196,14 +197,14 @@ internal class PagingHandlerTest {
             name = "Morning Workout",
             labels = persistentListOf(),
             exerciseUuids = persistentListOf(),
-            date = DateProperty.new(1000L)
+            date = PropertyHolder.DateProperty(initialValue = 1000L)
         ),
         TrainingUiModel(
             uuid = "t2",
             name = "Evening Training",
             labels = persistentListOf(),
             exerciseUuids = persistentListOf(),
-            date = DateProperty.new(2000L)
+            date = PropertyHolder.DateProperty(initialValue = 2000L)
         )
     )
 }

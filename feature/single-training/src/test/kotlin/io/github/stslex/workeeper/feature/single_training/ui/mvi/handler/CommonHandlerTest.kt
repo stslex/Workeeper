@@ -1,6 +1,7 @@
 package io.github.stslex.workeeper.feature.single_training.ui.mvi.handler
 
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScope
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.feature.single_training.di.TrainingHandlerStore
 import io.github.stslex.workeeper.feature.single_training.domain.interactor.SingleTrainingInteractor
 import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingDomainModel
@@ -37,7 +38,7 @@ internal class CommonHandlerTest {
             name = "",
             exercises = persistentListOf(),
             labels = persistentListOf(),
-            date = DateProperty.new(System.currentTimeMillis())
+            date = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis())
         ),
         dialogState = DialogState.Closed,
         pendingForCreateUuid = ""
@@ -87,7 +88,7 @@ internal class CommonHandlerTest {
             name = "Test Training",
             exercises = persistentListOf(),
             labels = persistentListOf(),
-            date = DateProperty.new(System.currentTimeMillis())
+            date = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis())
         )
 
         coEvery { interactor.getTraining(trainingUuid) } returns domainModel

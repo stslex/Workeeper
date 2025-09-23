@@ -4,6 +4,7 @@ import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 
+@Suppress("MagicNumber")
 internal class ExerciseChartPreviewParameterProvider :
     PreviewParameterProvider<ImmutableList<SingleChartUiModel>> {
 

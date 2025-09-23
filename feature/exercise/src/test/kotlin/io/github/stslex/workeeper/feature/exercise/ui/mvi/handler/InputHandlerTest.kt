@@ -1,5 +1,6 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SetUiType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SetsUiModel
@@ -19,9 +20,9 @@ internal class InputHandlerTest {
 
     private val initialState = ExerciseStore.State(
         uuid = "test-uuid",
-        name = Property.new(PropertyType.NAME),
+        name = PropertyHolder.StringProperty(initialValue = ""),
         sets = persistentListOf(),
-        dateProperty = DateProperty.new(1000000L),
+        dateProperty = PropertyHolder.DateProperty(initialValue = 1000000L),
         dialogState = DialogState.Closed,
         isMenuOpen = false,
         menuItems = persistentSetOf(),
@@ -52,7 +53,7 @@ internal class InputHandlerTest {
 
         verify(exactly = 1) { store.updateState(any()) }
         assertEquals(newName, stateFlow.value.name.value)
-        assertEquals(PropertyType.NAME, stateFlow.value.name.type)
+        // Property type is not available in PropertyHolder.StringProperty
     }
 
     @Test
@@ -72,15 +73,15 @@ internal class InputHandlerTest {
         handler.invoke(ExerciseStore.Action.Input.Time(newTimestamp))
 
         verify(exactly = 1) { store.updateState(any()) }
-        assertEquals(newTimestamp, stateFlow.value.dateProperty.timestamp)
+        assertEquals(newTimestamp, stateFlow.value.dateProperty.value)
     }
 
     @Test
     fun `dialog sets reps input updates reps when dialog state is sets`() {
         val testSet = SetsUiModel(
             uuid = "set-uuid",
-            reps = Property.new(PropertyType.REPS),
-            weight = Property.new(PropertyType.WEIGHT),
+            reps = PropertyHolder.IntProperty(),
+            weight = PropertyHolder.DoubleProperty(),
             type = SetUiType.WORK
         )
         val dialogState = DialogState.Sets(testSet)
@@ -99,8 +100,8 @@ internal class InputHandlerTest {
     fun `dialog sets weight input updates weight when dialog state is sets`() {
         val testSet = SetsUiModel(
             uuid = "set-uuid",
-            reps = Property.new(PropertyType.REPS),
-            weight = Property.new(PropertyType.WEIGHT),
+            reps = PropertyHolder.IntProperty(),
+            weight = PropertyHolder.DoubleProperty(),
             type = SetUiType.WORK
         )
         val dialogState = DialogState.Sets(testSet)
@@ -112,7 +113,7 @@ internal class InputHandlerTest {
 
         verify(exactly = 1) { store.updateState(any()) }
         val currentDialogState = stateFlow.value.dialogState as DialogState.Sets
-        assertEquals(newWeight, currentDialogState.set.weight.value)
+        assertEquals(75.5, currentDialogState.set.weight.value)
         assertEquals(testSet.reps.value, currentDialogState.set.reps.value)
     }
 
@@ -130,8 +131,8 @@ internal class InputHandlerTest {
     fun `multiple dialog sets inputs update both reps and weight`() {
         val testSet = SetsUiModel(
             uuid = "set-uuid",
-            reps = Property.new(PropertyType.REPS),
-            weight = Property.new(PropertyType.WEIGHT),
+            reps = PropertyHolder.IntProperty(),
+            weight = PropertyHolder.DoubleProperty(),
             type = SetUiType.WORK
         )
         val dialogState = DialogState.Sets(testSet)
@@ -176,7 +177,7 @@ internal class InputHandlerTest {
         handler.invoke(ExerciseStore.Action.Input.Time(newTimestamp))
 
         assertEquals(newName, stateFlow.value.name.value)
-        assertEquals(newTimestamp, stateFlow.value.dateProperty.timestamp)
+        assertEquals(newTimestamp, stateFlow.value.dateProperty.value)
         assertEquals(initialState.uuid, stateFlow.value.uuid)
         assertEquals(initialState.sets, stateFlow.value.sets)
         assertEquals(initialState.isMenuOpen, stateFlow.value.isMenuOpen)

@@ -2,6 +2,7 @@ package io.github.stslex.workeeper.feature.charts.ui.mvi.store
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.core.logger.Logger
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.core.ui.mvi.StoreAnalytics
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.feature.charts.di.ChartsHandlerStoreImpl
@@ -24,9 +25,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
-import org.junit.jupiter.api.Disabled;
 
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class ChartsStoreImplTest {
@@ -232,8 +233,8 @@ internal class ChartsStoreImplTest {
         assertEquals(CalendarState.Closed, state.calendarState)
 
         // Check dates within tolerance due to timing
-        val actualStartTime = state.startDate.timestamp
-        val actualEndTime = state.endDate.timestamp
+        val actualStartTime = state.startDate.value
+        val actualEndTime = state.endDate.value
 
         assert(kotlin.math.abs(actualStartTime - expectedStartDate) < delta) {
             "Start date should be approximately 7 days ago"
@@ -246,8 +247,8 @@ internal class ChartsStoreImplTest {
     @Test
     fun `state data classes have proper immutable structure`() = runTest {
         val state = ChartsStore.State.INITIAL
-        val startDate = DateProperty.new(System.currentTimeMillis())
-        val endDate = DateProperty.new(System.currentTimeMillis() + 86400000)
+        val startDate = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis())
+        val endDate = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis() + 86400000)
 
         // Verify state is data class with copy functionality
         val newState = state.copy(
