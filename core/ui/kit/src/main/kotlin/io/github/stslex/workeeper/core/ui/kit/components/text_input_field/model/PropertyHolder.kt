@@ -17,11 +17,13 @@ sealed class PropertyHolder<T : Any>(
     var value: T
         get() = valueState.value
         set(value) {
-            isValidState.value = validate(value)
-            valueState.value = value
+            if (valueState.value != value) {
+                isValidState.value = validate(value)
+                valueState.value = value
+            }
         }
 
-    val isValid: Boolean = isValidState.value
+    val isValid: Boolean get() = isValidState.value
 
     val uiValue: String get() = toStringMap(value)
 

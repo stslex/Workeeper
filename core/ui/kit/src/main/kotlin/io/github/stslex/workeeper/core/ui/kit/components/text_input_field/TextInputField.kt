@@ -54,7 +54,6 @@ internal fun <TMenuItem : Any> TextInputField(
 
     val trailingIcon: (@Composable () -> Unit)? = {
         PropertyTrailingIcon(
-            mode = textMode,
             isMenuOpen = isMenuOpen,
             menuItems = menuItems,
             onMenuClick = onMenuClick,
@@ -68,7 +67,7 @@ internal fun <TMenuItem : Any> TextInputField(
             .clickable { onClick() },
         value = property.uiValue,
         onValueChange = onValueChange,
-        isError = property.isValid,
+        isError = property.isValid.not(),
         label = {
             Text(stringResource(labelRes))
         },
@@ -92,7 +91,6 @@ internal fun <TMenuItem : Any> TextInputField(
 
 @Composable
 private fun <TMenuItem : Any> PropertyTrailingIcon(
-    mode: TextMode,
     isMenuOpen: Boolean,
     menuItems: ImmutableSet<MenuItem<TMenuItem>>,
     onMenuClick: () -> Unit,

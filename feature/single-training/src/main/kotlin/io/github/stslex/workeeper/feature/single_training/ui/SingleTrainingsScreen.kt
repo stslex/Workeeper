@@ -121,7 +121,7 @@ internal fun SingleTrainingsScreen(
         when (state.dialogState) {
             DialogState.Closed -> Unit
             DialogState.Calendar -> DatePickerDialog(
-                timestamp = state.training.date.value ?: 0,
+                timestamp = state.training.date.value,
                 dateChange = { consume(Action.Input.Date(it)) },
                 onDismissRequest = { consume(Action.Click.CloseCalendarPicker) }
             )

@@ -39,25 +39,28 @@ interface ExerciseStore : Store<State, Action, Event> {
 
         val allowBack: Boolean
             get() = if (uuid == null) {
-                name.value.trim().isBlank() && sets.all { it.weight.value == 0.0 && it.reps.value == 0 }
+                name.value.trim().isBlank() && sets.all {
+                    it.weight.value == it.weight.defaultValue && it.reps.value == it.reps.defaultValue
+                }
             } else {
                 calculateEqualsHash == initialHash
             }
 
         companion object {
 
-            val INITIAL get() = State(
-                uuid = null,
-                name = PropertyHolder.StringProperty(),
-                sets = persistentListOf(),
-                dateProperty = PropertyHolder.DateProperty(),
-                dialogState = DialogState.Closed,
-                isMenuOpen = false,
-                menuItems = persistentSetOf(),
-                trainingUuid = null,
-                labels = persistentListOf(),
-                initialHash = 0
-            )
+            val INITIAL
+                get() = State(
+                    uuid = null,
+                    name = PropertyHolder.StringProperty(),
+                    sets = persistentListOf(),
+                    dateProperty = PropertyHolder.DateProperty(),
+                    dialogState = DialogState.Closed,
+                    isMenuOpen = false,
+                    menuItems = persistentSetOf(),
+                    trainingUuid = null,
+                    labels = persistentListOf(),
+                    initialHash = 0
+                )
         }
     }
 

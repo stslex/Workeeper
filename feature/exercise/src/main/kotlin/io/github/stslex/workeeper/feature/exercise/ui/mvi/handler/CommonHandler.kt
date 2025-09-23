@@ -81,7 +81,7 @@ internal class CommonHandler(
                 }
             }
         ) {
-            interactor.searchItems(state.value.name.value.orEmpty())
+            interactor.searchItems(state.value.name.value)
         }
     }
 

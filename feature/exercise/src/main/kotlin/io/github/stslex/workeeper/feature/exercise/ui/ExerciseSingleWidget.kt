@@ -72,7 +72,7 @@ internal fun ExerciseFeatureWidget(
         when (val dialogState = state.dialogState) {
             DialogState.Closed -> Unit
             DialogState.Calendar -> ExerciseDatePickerDialog(
-                timestamp = state.dateProperty.value ?: 0,
+                timestamp = state.dateProperty.value,
                 onDismissRequest = { consume(Action.Click.CloseDialog) },
                 dateChange = { consume(Action.Input.Time(it)) }
             )

@@ -35,7 +35,7 @@ internal fun SetsDataModel.toUi() = SetsUiModel(
 
 internal fun SetsUiModel.toData() = SetsDataModel(
     uuid = uuid,
-    reps = reps.value ?: 0,
-    weight = weight.value ?: 0.0,
+    reps = reps.value,
+    weight = weight.value,
     type = type.toData()
 )
