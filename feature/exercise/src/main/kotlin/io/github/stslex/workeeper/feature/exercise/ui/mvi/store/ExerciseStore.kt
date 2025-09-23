@@ -1,11 +1,10 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.store
 
 import androidx.compose.runtime.Stable
-import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.MenuItem
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ExerciseUiModel
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.Property
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PropertyType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SetsUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SnackbarType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
@@ -21,12 +20,12 @@ interface ExerciseStore : Store<State, Action, Event> {
     @Stable
     data class State(
         val uuid: String?,
-        val name: Property,
+        val name: PropertyHolder.StringProperty,
         val sets: ImmutableList<SetsUiModel>,
-        val dateProperty: DateProperty,
+        val dateProperty: PropertyHolder.DateProperty,
         val dialogState: DialogState,
         val isMenuOpen: Boolean,
-        val menuItems: ImmutableSet<ExerciseUiModel>,
+        val menuItems: ImmutableSet<MenuItem<ExerciseUiModel>>,
         val trainingUuid: String?,
         val labels: ImmutableList<String>,
         val initialHash: Int,
@@ -34,15 +33,13 @@ interface ExerciseStore : Store<State, Action, Event> {
 
         val calculateEqualsHash: Int
             get() = uuid.hashCode() +
-                    name.value.trim().hashCode() +
+                    name.value.hashCode() +
                     sets.sumOf { it.reps.value.hashCode() + it.weight.value.hashCode() + it.type.ordinal } +
-                    dateProperty.converted.hashCode()
+                    dateProperty.value.hashCode()
 
         val allowBack: Boolean
             get() = if (uuid == null) {
-                name.value.isBlank() &&
-                        sets.all { it.weight.value.isBlank() && it.reps.value.isBlank() }
-
+                name.value.isBlank() && sets.all { it.weight.uiValue.isBlank() && it.reps.uiValue.isBlank() }
             } else {
                 calculateEqualsHash == initialHash
             }
@@ -51,9 +48,9 @@ interface ExerciseStore : Store<State, Action, Event> {
 
             val INITIAL = State(
                 uuid = null,
-                name = Property.new(PropertyType.NAME),
+                name = PropertyHolder.StringProperty(),
                 sets = persistentListOf(),
-                dateProperty = DateProperty(0L, ""),
+                dateProperty = PropertyHolder.DateProperty(),
                 dialogState = DialogState.Closed,
                 isMenuOpen = false,
                 menuItems = persistentSetOf(),
@@ -111,7 +108,7 @@ interface ExerciseStore : Store<State, Action, Event> {
 
             data object CloseMenuVariants : Click
 
-            data class OnMenuItemClick(val item: ExerciseUiModel) : Click
+            data class OnMenuItemClick(val item: MenuItem<ExerciseUiModel>) : Click
 
             sealed interface DialogSets : Click {
 

@@ -5,7 +5,6 @@ import androidx.paging.LoadStates
 import androidx.paging.PagingData
 import androidx.paging.testing.asSnapshot
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
-import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.feature.all_exercises.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.model.ExerciseUiModel

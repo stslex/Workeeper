@@ -1,7 +1,8 @@
 package io.github.stslex.workeeper.feature.single_training.ui.model
 
 import androidx.compose.runtime.Stable
-import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder.Companion.update
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 
@@ -11,7 +12,7 @@ internal data class TrainingUiModel(
     val name: String,
     val labels: ImmutableList<String>,
     val exercises: ImmutableList<ExerciseUiModel>,
-    val date: DateProperty,
+    val date: PropertyHolder.DateProperty,
 ) {
 
     companion object {
@@ -21,7 +22,7 @@ internal data class TrainingUiModel(
             name = "",
             labels = persistentListOf(),
             exercises = persistentListOf(),
-            date = DateProperty.new(System.currentTimeMillis())
+            date = PropertyHolder.DateProperty().update(System.currentTimeMillis())
         )
     }
 }

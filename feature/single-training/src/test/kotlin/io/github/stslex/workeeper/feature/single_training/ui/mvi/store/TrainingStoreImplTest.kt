@@ -1,7 +1,6 @@
 package io.github.stslex.workeeper.feature.single_training.ui.mvi.store
 
 import io.github.stslex.workeeper.core.core.logger.Logger
-import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
 import io.github.stslex.workeeper.core.ui.mvi.StoreAnalytics
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.feature.single_training.di.TrainingHandlerStoreImpl

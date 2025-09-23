@@ -16,7 +16,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
-import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.CalendarState
@@ -121,8 +121,8 @@ private fun ChartsWidgetPreview(
             val name = "Test Exercise"
             val chartsState = State(
                 name = name,
-                startDate = DateProperty.new(startDate),
-                endDate = DateProperty.new(endDate),
+                startDate = PropertyHolder.DateProperty(startDate),
+                endDate = PropertyHolder.DateProperty(endDate),
                 charts = charts,
                 calendarState = CalendarState.Closed
             )

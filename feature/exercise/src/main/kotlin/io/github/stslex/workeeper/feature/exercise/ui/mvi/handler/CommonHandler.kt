@@ -1,7 +1,9 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
-import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.MenuItem
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder.Companion.update
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.exercise.di.EXERCISE_SCOPE_NAME
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
@@ -37,7 +39,9 @@ internal class CommonHandler(
     private fun setInitialData(action: Action.Common.Init) {
         val uuid = action.uuid
         if (uuid == null) {
-            updateState { getEmptyState(action.trainingUuid) }
+            updateState {
+                getEmptyState(action.trainingUuid)
+            }
         } else {
             launch(
                 onSuccess = { item ->
@@ -51,7 +55,7 @@ internal class CommonHandler(
     }
 
     private fun getEmptyState(trainingUuid: String?): State = INITIAL.copy(
-        dateProperty = DateProperty.new(System.currentTimeMillis()),
+        dateProperty = PropertyHolder.DateProperty(),
         trainingUuid = trainingUuid,
     ).let {
         it.copy(
@@ -65,13 +69,19 @@ internal class CommonHandler(
                 updateState { state ->
                     state.copy(
                         menuItems = result
-                            .map { item -> item.toUi() }
+                            .map { item ->
+                                MenuItem(
+                                    uuid = item.uuid,
+                                    text = item.name,
+                                    itemModel = item.toUi()
+                                )
+                            }
                             .toPersistentSet()
                     )
                 }
             }
         ) {
-            interactor.searchItems(state.value.name.value)
+            interactor.searchItems(state.value.name.value.orEmpty())
         }
     }
 
@@ -80,7 +90,7 @@ internal class CommonHandler(
             uuid = uuid,
             name = INITIAL.name.update(name),
             sets = sets.map { it.toUi() }.toImmutableList(),
-            dateProperty = DateProperty.new(timestamp),
+            dateProperty = INITIAL.dateProperty.update(timestamp),
             trainingUuid = trainingUuid,
             initialHash = 0
         )

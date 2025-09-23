@@ -19,19 +19,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.DateInputField
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder.Companion.update
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.TitleTextInputField
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.exercise.R
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ExerciseUiModel
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.Property
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PropertyType
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PropertyValid
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TextMode
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
-import kotlinx.collections.immutable.ImmutableSet
-import kotlinx.collections.immutable.persistentSetOf
 
 @Composable
 internal fun ExercisedColumn(
@@ -43,10 +39,11 @@ internal fun ExercisedColumn(
         modifier = modifier.fillMaxSize()
     ) {
         item {
-            ExerciseItem(
-                item = state.name,
+            TitleTextInputField(
+                property = state.name,
                 isMenuOpen = state.isMenuOpen,
                 menuItems = state.menuItems,
+                labelRes = R.string.feature_exercise_field_label_name,
                 onMenuClick = { consume(Action.Click.OpenMenuVariants) },
                 onMenuClose = { consume(Action.Click.CloseMenuVariants) },
                 onMenuItemClick = { consume(Action.Click.OnMenuItemClick(it)) },
@@ -95,63 +92,15 @@ internal fun ExercisedColumn(
         }
 
         item {
-            ExerciseDateData(state.dateProperty.converted) {
-                consume(Action.Click.PickDate)
-            }
+            DateInputField(
+                property = state.dateProperty,
+                labelRes = R.string.feature_exercise_field_label_date,
+                onClick = {
+                    consume(Action.Click.PickDate)
+                },
+            )
         }
     }
-}
-
-@Composable
-private fun ExerciseDateData(
-    data: String,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    ExercisePropertyTextField(
-        text = data,
-        labelRes = R.string.feature_exercise_field_label_date,
-        modifier = modifier,
-        isError = false,
-        mode = TextMode.DATE,
-        onClick = onClick,
-        onValueChange = {}
-    )
-}
-
-@Composable
-internal fun ExerciseItem(
-    item: Property,
-    modifier: Modifier = Modifier,
-    isMenuOpen: Boolean = false,
-    menuItems: ImmutableSet<ExerciseUiModel> = persistentSetOf(),
-    onMenuClick: () -> Unit = {},
-    onMenuClose: () -> Unit = {},
-    onMenuItemClick: (ExerciseUiModel) -> Unit = {},
-    onValueChange: (String) -> Unit,
-) {
-    val mode = remember(item.type, isMenuOpen) {
-        if (item.type == PropertyType.NAME && isMenuOpen) {
-            TextMode.PICK_RESULT
-        } else if (item.type == PropertyType.NAME) {
-            TextMode.TITLE
-        } else {
-            TextMode.NUMBER
-        }
-
-    }
-    ExercisePropertyTextField(
-        text = item.value,
-        labelRes = item.type.stringRes,
-        modifier = modifier,
-        isError = item.valid != PropertyValid.VALID,
-        mode = mode,
-        onValueChange = onValueChange,
-        menuItems = menuItems,
-        onMenuItemClick = onMenuItemClick,
-        onMenuClose = onMenuClose,
-        onMenuClick = onMenuClick
-    )
 }
 
 @Composable
@@ -161,7 +110,7 @@ private fun ExercisedColumnPreview() {
         var state by remember {
             mutableStateOf(
                 State.INITIAL.copy(
-                    dateProperty = DateProperty.new(System.currentTimeMillis())
+                    dateProperty = PropertyHolder.DateProperty().update(System.currentTimeMillis())
                 )
             )
         }

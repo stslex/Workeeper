@@ -1,8 +1,5 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.store
 
-import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.Property
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PropertyType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SetUiType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SetsUiModel
 import kotlinx.collections.immutable.persistentListOf

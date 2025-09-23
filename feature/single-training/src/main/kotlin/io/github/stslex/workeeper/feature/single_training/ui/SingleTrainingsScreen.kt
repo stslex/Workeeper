@@ -13,7 +13,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder.Companion.update
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.single_training.R
@@ -55,7 +56,7 @@ internal fun SingleTrainingsScreen(
                     TrainingPropertyTextField(
                         text = state.training.name,
                         labelRes = R.string.feature_single_training_field_name_label,
-                        mode = TextMode.NUMBER,
+                        mode = TextMode.TITLE,
                     ) {
                         consume(Action.Input.Name(it))
                     }
@@ -106,7 +107,7 @@ internal fun SingleTrainingsScreen(
 
                 item {
                     TrainingPropertyTextField(
-                        text = state.training.date.converted,
+                        text = state.training.date.uiValue,
                         labelRes = R.string.feature_single_training_field_date_label,
                         mode = TextMode.DATE,
                         onValueChange = {},
@@ -120,7 +121,7 @@ internal fun SingleTrainingsScreen(
         when (state.dialogState) {
             DialogState.Closed -> Unit
             DialogState.Calendar -> DatePickerDialog(
-                timestamp = state.training.date.timestamp,
+                timestamp = state.training.date.value ?: 0,
                 dateChange = { consume(Action.Input.Date(it)) },
                 onDismissRequest = { consume(Action.Click.CloseCalendarPicker) }
             )
@@ -139,7 +140,7 @@ private fun SingleTrainingsScreenPreview() {
                     name = "special training name",
                     labels = persistentListOf(),
                     exercises = persistentListOf(),
-                    date = DateProperty.new(System.currentTimeMillis())
+                    date = PropertyHolder.DateProperty().update(System.currentTimeMillis())
                 ),
                 dialogState = DialogState.Closed,
                 pendingForCreateUuid = "pendingForCreateUuid",

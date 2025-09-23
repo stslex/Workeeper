@@ -16,7 +16,7 @@ class ExerciseUiMap : Mapper<State, ExerciseChangeDataModel> {
         uuid = data.uuid,
         name = data.name.value,
         sets = data.sets.map { it.toData() },
-        timestamp = data.dateProperty.timestamp,
+        timestamp = data.dateProperty.value,
         trainingUuid = data.trainingUuid,
         labels = data.labels,
     )

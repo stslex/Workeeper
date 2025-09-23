@@ -1,6 +1,5 @@
 package io.github.stslex.workeeper.feature.single_training.ui.mvi.handler
 
-import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
 import io.github.stslex.workeeper.feature.single_training.di.TrainingHandlerStore
 import io.github.stslex.workeeper.feature.single_training.ui.model.DialogState
 import io.github.stslex.workeeper.feature.single_training.ui.model.TrainingUiModel

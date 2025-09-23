@@ -11,8 +11,6 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.ExerciseCompon
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.InputHandler
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.NavigationHandler
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ExerciseUiModel
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.Property
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PropertyType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SetUiType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SetsUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SnackbarType

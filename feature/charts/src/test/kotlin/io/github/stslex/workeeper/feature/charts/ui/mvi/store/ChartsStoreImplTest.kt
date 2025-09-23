@@ -2,7 +2,6 @@ package io.github.stslex.workeeper.feature.charts.ui.mvi.store
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.core.logger.Logger
-import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
 import io.github.stslex.workeeper.core.ui.mvi.StoreAnalytics
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.feature.charts.di.ChartsHandlerStoreImpl

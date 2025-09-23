@@ -11,6 +11,4 @@ dependencies {
 
     implementation(libs.androidx.paging.runtime)
     testImplementation(libs.androidx.paging.testing)
-
-    implementation(libs.kotlinx.datetime)
 }

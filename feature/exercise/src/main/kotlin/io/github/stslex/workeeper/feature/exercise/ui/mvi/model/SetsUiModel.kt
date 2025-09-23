@@ -2,14 +2,16 @@ package io.github.stslex.workeeper.feature.exercise.ui.mvi.model
 
 import androidx.compose.runtime.Stable
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder.Companion.update
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SetUiType.Companion.toUi
 import kotlin.uuid.Uuid
 
 @Stable
 data class SetsUiModel(
     val uuid: String,
-    val reps: Property,
-    val weight: Property,
+    val reps: PropertyHolder.IntProperty,
+    val weight: PropertyHolder.DoubleProperty,
     val type: SetUiType
 ) {
 
@@ -17,8 +19,8 @@ data class SetsUiModel(
 
         internal val EMPTY = SetsUiModel(
             uuid = Uuid.random().toString(),
-            reps = Property.new(PropertyType.REPS),
-            weight = Property.new(PropertyType.WEIGHT),
+            reps = PropertyHolder.IntProperty(),
+            weight = PropertyHolder.DoubleProperty(),
             type = SetUiType.WORK
         )
     }
@@ -26,14 +28,14 @@ data class SetsUiModel(
 
 internal fun SetsDataModel.toUi() = SetsUiModel(
     uuid = uuid,
-    reps = Property.new(PropertyType.REPS, reps.toString()),
-    weight = Property.new(PropertyType.WEIGHT, weight.toString()),
+    reps = PropertyHolder.IntProperty().update(reps),
+    weight = PropertyHolder.DoubleProperty().update(weight),
     type = type.toUi()
 )
 
 internal fun SetsUiModel.toData() = SetsDataModel(
     uuid = uuid,
-    reps = reps.value.toInt(),
-    weight = weight.value.toDouble(),
+    reps = reps.value ?: 0,
+    weight = weight.value ?: 0.0,
     type = type.toData()
 )

@@ -1,8 +1,6 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.Property
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PropertyType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PropertyValid
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SnackbarType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore

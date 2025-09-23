@@ -16,6 +16,6 @@ internal class TrainingChangeMapper : Mapper<TrainingUiModel, TrainingDomainChan
             name = data.name,
             labels = data.labels,
             exercisesUuids = data.exercises.map { it.uuid },
-            timestamp = data.date.timestamp
+            timestamp = data.date.value ?: 0L
         )
 }

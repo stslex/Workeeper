@@ -1,9 +1,6 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
-import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.Property
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PropertyType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SetUiType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SetsUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState

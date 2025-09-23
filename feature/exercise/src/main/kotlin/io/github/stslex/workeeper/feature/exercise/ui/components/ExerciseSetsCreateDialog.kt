@@ -19,8 +19,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.window.Dialog
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.BodyFloatInputField
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.BodyNumberInputField
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
+import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SetsUiModel
 
 @Composable
@@ -46,12 +49,14 @@ internal fun ExerciseSetsCreateDialog(
                 )
                 .padding(AppDimension.Padding.big),
         ) {
-            ExerciseItem(
-                item = setsUiModel.reps,
+            BodyNumberInputField(
+                property = setsUiModel.reps,
+                labelRes = R.string.feature_exercise_field_label_reps,
                 onValueChange = onRepsInput
             )
-            ExerciseItem(
-                item = setsUiModel.weight,
+            BodyFloatInputField(
+                property = setsUiModel.weight,
+                labelRes = R.string.feature_exercise_field_label_weight,
                 onValueChange = onWeightInput
             )
             Row(
@@ -76,7 +81,9 @@ internal fun ExerciseSetsCreateDialog(
                 }
             }
             Spacer(modifier = Modifier.padding(AppDimension.Padding.medium))
-            AnimatedVisibility(setsUiModel.reps.value.isNotBlank() || setsUiModel.weight.value.isNotBlank()) {
+            AnimatedVisibility(
+                setsUiModel.reps.isValid || setsUiModel.weight.isValid
+            ) {
                 FilledTonalButton(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = {

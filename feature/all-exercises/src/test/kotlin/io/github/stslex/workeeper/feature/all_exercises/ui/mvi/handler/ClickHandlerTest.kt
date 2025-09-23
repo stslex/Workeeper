@@ -4,7 +4,6 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.paging.PagingData
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScope
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
-import io.github.stslex.workeeper.core.exercise.exercise.model.DateProperty
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.all_exercises.di.ExerciseHandlerStore
