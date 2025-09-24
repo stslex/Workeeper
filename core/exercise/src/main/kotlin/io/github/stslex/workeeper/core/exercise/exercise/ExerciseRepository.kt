@@ -12,6 +12,8 @@ interface ExerciseRepository {
 
     fun getExercises(query: String): Flow<PagingData<ExerciseDataModel>>
 
+    suspend fun getExercisesByUuid(uuids: List<String>): List<ExerciseDataModel>
+
     suspend fun getExercise(uuid: String): ExerciseDataModel?
 
     suspend fun getExerciseByName(name: String): ExerciseDataModel?

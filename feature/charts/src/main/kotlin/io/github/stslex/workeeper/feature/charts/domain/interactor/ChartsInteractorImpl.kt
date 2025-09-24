@@ -8,7 +8,6 @@ import io.github.stslex.workeeper.feature.charts.di.CHARTS_SCOPE_NAME
 import io.github.stslex.workeeper.feature.charts.domain.model.ChartParams
 import io.github.stslex.workeeper.feature.charts.domain.model.ChartsDomainType
 import io.github.stslex.workeeper.feature.charts.domain.model.ChartsExerciseDomainMapper
-import io.github.stslex.workeeper.feature.charts.domain.model.ChartsTrainingDomainMapper
 import io.github.stslex.workeeper.feature.charts.domain.model.SingleChartDomainModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -20,7 +19,6 @@ import org.koin.core.annotation.Scoped
 internal class ChartsInteractorImpl(
     private val trainingRepository: TrainingRepository,
     private val exerciseRepository: ExerciseRepository,
-    private val chartsTrainingDomainMapper: ChartsTrainingDomainMapper,
     private val chartsExerciseDomainMapper: ChartsExerciseDomainMapper,
     @param:DefaultDispatcher private val dispatcher: CoroutineDispatcher
 ) : ChartsInteractor {
@@ -35,7 +33,21 @@ internal class ChartsInteractorImpl(
                     startDate = params.startDate,
                     endDate = params.endDate
                 )
-                .asyncMap(chartsTrainingDomainMapper::invoke)
+                .asyncMap { training ->
+                    SingleChartDomainModel(
+                        name = training.name,
+                        values = exerciseRepository
+                            .getExercisesByUuid(training.exerciseUuids)
+                            .map {
+                                val size = it.sets.size
+                                if (size > 0) {
+                                    it.sets.sumOf { set -> set.weight } / it.sets.size
+                                } else {
+                                    0.0
+                                }
+                            }
+                    )
+                }
 
             ChartsDomainType.EXERCISE -> exerciseRepository
                 .getExercises(

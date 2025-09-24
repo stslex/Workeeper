@@ -33,6 +33,15 @@ internal class ExerciseRepositoryImpl(
         }
         .flowOn(bgDispatcher)
 
+    override suspend fun getExercisesByUuid(
+        uuids: List<String>
+    ): List<ExerciseDataModel> = withContext(bgDispatcher) {
+        dao
+            .getByUuids(uuids.map(Uuid::parse))
+            .orEmpty()
+            .map { it.toData() }
+    }
+
     override fun getExercises(query: String): Flow<PagingData<ExerciseDataModel>> = Pager(
         config = pagingConfig,
         pagingSourceFactory = { dao.getAll(query) }

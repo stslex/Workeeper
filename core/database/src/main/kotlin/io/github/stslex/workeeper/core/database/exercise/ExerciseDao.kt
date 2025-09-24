@@ -21,6 +21,9 @@ interface ExerciseDao {
     @Query("SELECT * FROM exercises_table WHERE uuid = :uuid")
     suspend fun getExercise(uuid: Uuid): ExerciseEntity?
 
+    @Query("SELECT * FROM exercises_table WHERE uuid IN (:uuids)")
+    suspend fun getByUuids(uuids: List<Uuid>): List<ExerciseEntity>?
+
     @Query("SELECT * FROM exercises_table WHERE name = :name ORDER BY timestamp DESC LIMIT 1")
     suspend fun getExerciseByName(name: String): ExerciseEntity?
 
