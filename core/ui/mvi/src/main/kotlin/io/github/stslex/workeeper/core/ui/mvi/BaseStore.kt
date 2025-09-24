@@ -114,7 +114,7 @@ open class BaseStore<S : State, A : Action, E : Event>(
      * Updates the state of the screen immediately.
      * @param update - function that updates the state
      * */
-    override suspend fun updateStateImmediate(update: (S) -> S) {
+    override suspend fun updateStateImmediate(update: suspend (S) -> S) {
         _state.emit(update(state.value))
     }
 

@@ -4,6 +4,7 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
+import io.github.stslex.workeeper.core.core.coroutine.asyncMap
 import io.github.stslex.workeeper.core.core.coroutine.dispatcher.IODispatcher
 import io.github.stslex.workeeper.core.database.training.TrainingDao
 import kotlinx.coroutines.CoroutineDispatcher
@@ -65,6 +66,18 @@ class TrainingRepositoryImpl(
 
     override suspend fun removeAll(uuids: List<String>) = withContext(ioDispatcher) {
         dao.deleteAll(uuids.map(Uuid::parse))
+    }
+
+    override suspend fun getTrainings(
+        query: String,
+        startDate: Long,
+        endDate: Long
+    ): List<TrainingDataModel> = withContext(ioDispatcher) {
+        dao.getTrainings(
+            name = query,
+            startDate = startDate,
+            endDate = endDate
+        ).asyncMap { it.toData() }
     }
 
     companion object {

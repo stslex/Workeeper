@@ -7,7 +7,6 @@ import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.
 import io.github.stslex.workeeper.feature.charts.di.ChartsHandlerStore
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.CalendarState
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartsType
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ExerciseChartMap
 import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -31,7 +30,7 @@ internal class PagingHandlerTest {
     private val repository: ExerciseRepository = mockk(relaxed = true)
 
     private val commonStore: CommonDataStore = mockk(relaxed = true)
-    private val mapper: ExerciseChartMap = mockk(relaxed = true)
+    private val mapper: ExerciseChartUiMapper = mockk(relaxed = true)
 
     private val initialState = ChartsStore.State(
         name = "Test Exercise",
@@ -64,7 +63,7 @@ internal class PagingHandlerTest {
     private val handler: PagingHandler = PagingHandler(
         repository = repository,
         commonStore = commonStore,
-        mapper = mapper,
+        chartMapper = mapper,
         store = store
     )
 

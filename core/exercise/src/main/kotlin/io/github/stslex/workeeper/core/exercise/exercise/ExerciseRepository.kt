@@ -16,11 +16,7 @@ interface ExerciseRepository {
 
     suspend fun getExerciseByName(name: String): ExerciseDataModel?
 
-    fun getExercises(
-        name: String,
-        startDate: Long,
-        endDate: Long
-    ): Flow<List<ExerciseDataModel>>
+    suspend fun getExercises(name: String, startDate: Long, endDate: Long): List<ExerciseDataModel>
 
     fun getExercisesExactly(
         name: String,

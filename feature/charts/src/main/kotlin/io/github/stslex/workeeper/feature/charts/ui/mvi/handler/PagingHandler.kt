@@ -1,17 +1,18 @@
 package io.github.stslex.workeeper.feature.charts.ui.mvi.handler
 
+import io.github.stslex.workeeper.core.core.coroutine.asyncMap
 import io.github.stslex.workeeper.core.dataStore.store.CommonDataStore
-import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.charts.di.CHARTS_SCOPE_NAME
 import io.github.stslex.workeeper.feature.charts.di.ChartsHandlerStore
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ExerciseChartMap
+import io.github.stslex.workeeper.feature.charts.domain.interactor.ChartsInteractor
+import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartParamsMapper
+import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartResultsMapper
 import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore.Action
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import org.koin.core.annotation.Named
 import org.koin.core.annotation.Scope
@@ -20,9 +21,10 @@ import org.koin.core.annotation.Scoped
 @Scoped(binds = [PagingHandler::class])
 @Scope(name = CHARTS_SCOPE_NAME)
 internal class PagingHandler(
-    private val repository: ExerciseRepository,
+    private val interactor: ChartsInteractor,
     private val commonStore: CommonDataStore,
-    private val mapper: ExerciseChartMap,
+    private val chartParamsMapper: ChartParamsMapper,
+    private val chartResultsMapper: ChartResultsMapper,
     @Named(CHARTS_SCOPE_NAME) store: ChartsHandlerStore,
 ) : Handler<Action.Paging>, ChartsHandlerStore by store {
 
@@ -53,21 +55,19 @@ internal class PagingHandler(
     private fun subscribeToCharts() {
         scope.launch(
             state
-                .map {
-                    Triple(it.startDate, it.endDate, it.name)
-                }
+                .map(chartParamsMapper::invoke)
                 .distinctUntilChanged()
-                .flatMapLatest { triple ->
-                    val (startDate, endDate, name) = triple
-                    repository.getExercises(
-                        name = name,
-                        startDate = startDate.value,
-                        endDate = endDate.value
-                    )
-                }
+                .map { params -> interactor.getChartsData(params) }
         ) { items ->
-            logger.d("Charts items: ${items.size}")
-            updateState { it.copy(charts = mapper(items).toImmutableList()) }
+            logger.d { "Charts items: ${items.size}" }
+
+            updateStateImmediate {
+                it.copy(
+                    charts = items
+                        .asyncMap(chartResultsMapper::invoke)
+                        .toImmutableList()
+                )
+            }
         }
     }
 }

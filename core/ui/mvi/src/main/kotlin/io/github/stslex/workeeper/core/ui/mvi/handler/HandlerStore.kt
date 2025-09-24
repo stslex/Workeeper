@@ -34,7 +34,7 @@ interface HandlerStore<S : State, A : Store.Action, in E : Event> {
 
     fun updateState(update: (S) -> S)
 
-    suspend fun updateStateImmediate(update: (S) -> S)
+    suspend fun updateStateImmediate(update: suspend (S) -> S)
 
     suspend fun updateStateImmediate(state: S)
 
