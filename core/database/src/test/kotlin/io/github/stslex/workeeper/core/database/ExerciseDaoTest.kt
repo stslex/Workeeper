@@ -119,21 +119,21 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
     @Test
     fun `get all items full database with query from date to date matching all props`() = runTest {
         dao.create(exerciseEntities)
-        val items = dao.getExercises("test", 0, Long.MAX_VALUE).first().reversed()
+        val items = dao.getExercises("test", 0, Long.MAX_VALUE).reversed()
         assertEquals(exerciseEntities, items)
     }
 
     @Test
     fun `get all items full database with query from date to date not matching name`() = runTest {
         dao.create(exerciseEntities)
-        val items = dao.getExercises("test_not_existed", 0, Long.MAX_VALUE).first().reversed()
+        val items = dao.getExercises("test_not_existed", 0, Long.MAX_VALUE).reversed()
         assertEquals(emptyList<ExerciseEntity>(), items)
     }
 
     @Test
     fun `get all items full database with query from date to date not matching date`() = runTest {
         dao.create(exerciseEntities)
-        val items = dao.getExercises("test", 0, 1).first().reversed()
+        val items = dao.getExercises("test", 0, 1).reversed()
         assertEquals(emptyList<ExerciseEntity>(), items)
     }
 
@@ -141,7 +141,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
     fun `get all items full database with query from date to date not matching date and name`() =
         runTest {
             dao.create(exerciseEntities)
-            val items = dao.getExercises("test_not_existed", 0, 1).first().reversed()
+            val items = dao.getExercises("test_not_existed", 0, 1).reversed()
             assertEquals(emptyList<ExerciseEntity>(), items)
         }
 
@@ -159,7 +159,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
             val firstEntity = exerciseEntities.first()
             dao.create(exerciseEntities)
             val items =
-                dao.getExercisesExactly(firstEntity.name, 0, Long.MAX_VALUE).first().reversed()
+                dao.getExercisesExactly(firstEntity.name, 0, Long.MAX_VALUE).first()
             assertEquals(listOf(firstEntity), items)
         }
 
@@ -168,7 +168,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
         runTest {
             val firstEntity = exerciseEntities.first()
             dao.create(exerciseEntities)
-            val items = dao.getExercisesExactly(firstEntity.name, 0, 1).first().reversed()
+            val items = dao.getExercisesExactly(firstEntity.name, 0, 1).first()
             assertEquals(emptyList<ExerciseEntity>(), items)
         }
 
@@ -433,6 +433,59 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
         val actual = dao.getExercise(expectedItem.uuid)
         assertEquals(null, actual)
     }
+
+    @Test
+    fun `get by uuids returns matching exercises`() = runTest {
+        dao.create(exerciseEntities)
+        val expectedUuids = exerciseEntities.take(3).map { it.uuid }
+        val expectedExercises = exerciseEntities.take(3)
+
+        val actual = dao.getByUuids(expectedUuids)
+
+        assertEquals(expectedExercises.size, actual?.size)
+        expectedExercises.forEach { expected ->
+            assertTrue(actual?.contains(expected) == true)
+        }
+    }
+
+    @Test
+    fun `get by uuids with empty list returns empty result`() = runTest {
+        dao.create(exerciseEntities)
+
+        val actual = dao.getByUuids(emptyList())
+
+        assertTrue(actual?.isEmpty() == true)
+    }
+
+    @Test
+    fun `get by uuids with non-existing uuids returns empty result`() = runTest {
+        dao.create(exerciseEntities)
+        val nonExistingUuids = listOf(
+            Uuid.random(),
+            Uuid.random(),
+            Uuid.random()
+        )
+
+        val actual = dao.getByUuids(nonExistingUuids)
+
+        assertTrue(actual?.isEmpty() == true)
+    }
+
+    @Test
+    fun `get by uuids with mix of existing and non-existing uuids returns only existing`() =
+        runTest {
+            dao.create(exerciseEntities)
+            val existingUuids = exerciseEntities.take(2).map { it.uuid }
+            val nonExistingUuids = listOf(Uuid.random())
+            val mixedUuids = existingUuids + nonExistingUuids
+
+            val actual = dao.getByUuids(mixedUuids)
+
+            assertEquals(existingUuids.size, actual?.size)
+            existingUuids.forEach { uuid ->
+                assertTrue(actual?.any { it.uuid == uuid } == true)
+            }
+        }
 
     private fun createTestExercise(
         index: Int = 0

@@ -81,7 +81,13 @@ internal class ClickHandlerTest {
         handler.invoke(TrainingStore.Action.Click.CreateExercise)
 
         verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.ContextClick)) }
-        verify(exactly = 1) { store.consume(TrainingStore.Action.Navigation.CreateExercise(trainingUuid = testTrainingUuid)) }
+        verify(exactly = 1) {
+            store.consume(
+                TrainingStore.Action.Navigation.CreateExercise(
+                    trainingUuid = testTrainingUuid
+                )
+            )
+        }
     }
 
     @Test

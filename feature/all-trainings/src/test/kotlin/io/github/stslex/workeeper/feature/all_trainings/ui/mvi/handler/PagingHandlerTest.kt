@@ -35,7 +35,8 @@ internal class PagingHandlerTest {
     private val initialQuery = "initial_query"
 
     private val store = mockk<TrainingHandlerStore>(relaxed = true)
-    private val handler: PagingHandler = PagingHandler(repository, trainingMapper, testDispatcher, store)
+    private val handler: PagingHandler =
+        PagingHandler(repository, trainingMapper, testDispatcher, store)
 
     private val initialState = TrainingStore.State(
         pagingUiState = handler.pagingUiState,
@@ -73,15 +74,16 @@ internal class PagingHandlerTest {
 
     @Suppress("UnusedFlow")
     @Test
-    fun `pagingUiState transforms data correctly with empty pagingData`() = runTest(testDispatcher) {
-        every { repository.getTrainings(any()) } returns flowOf(getNotLoadingData(emptyList()))
-        every { store.state } returns stateFlow
+    fun `pagingUiState transforms data correctly with empty pagingData`() =
+        runTest(testDispatcher) {
+            every { repository.getTrainings(any()) } returns flowOf(getNotLoadingData(emptyList()))
+            every { store.state } returns stateFlow
 
-        val result = handler.pagingUiState.invoke().asSnapshot()
+            val result = handler.pagingUiState.invoke().asSnapshot()
 
-        assertEquals(emptyList<TrainingUiModel>(), result)
-        verify(exactly = 1) { repository.getTrainings(initialQuery) }
-    }
+            assertEquals(emptyList<TrainingUiModel>(), result)
+            verify(exactly = 1) { repository.getTrainings(initialQuery) }
+        }
 
     @Suppress("UnusedFlow")
     @Test
@@ -122,23 +124,25 @@ internal class PagingHandlerTest {
         verify(exactly = 1) { repository.getTrainings(expectedQuery) }
     }
 
+    @Suppress("UnusedFlow")
     @Test
-    fun `pagingUiState uses distinctUntilChanged for query optimization`() = runTest(testDispatcher) {
-        every { repository.getTrainings(any()) } returns flowOf(getNotLoadingData(emptyList()))
-        every { store.state } returns stateFlow
+    fun `pagingUiState uses distinctUntilChanged for query optimization`() =
+        runTest(testDispatcher) {
+            every { repository.getTrainings(any()) } returns flowOf(getNotLoadingData(emptyList()))
+            every { store.state } returns stateFlow
 
-        val pagingUiState = handler.pagingUiState.invoke()
+            val pagingUiState = handler.pagingUiState.invoke()
 
-        // Multiple updates with the same query should not trigger repository calls
-        repeat(3) {
-            stateFlow.update { it.copy(query = initialQuery) }
+            // Multiple updates with the same query should not trigger repository calls
+            repeat(3) {
+                stateFlow.update { it.copy(query = initialQuery) }
+            }
+
+            pagingUiState.asSnapshot()
+
+            // Should only call repository once due to distinctUntilChanged
+            verify(exactly = 1) { repository.getTrainings(initialQuery) }
         }
-
-        pagingUiState.asSnapshot()
-
-        // Should only call repository once due to distinctUntilChanged
-        verify(exactly = 1) { repository.getTrainings(initialQuery) }
-    }
 
     @Test
     fun `trainingMapper is called for each data item`() = runTest(testDispatcher) {

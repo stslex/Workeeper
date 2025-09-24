@@ -622,7 +622,7 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
         val retrievedTraining = dao.subscribeForTraining(training.uuid).first()
         assertEquals(training, retrievedTraining)
     }
-    
+
     @Test
     fun `search with partial query`() = runTest {
         val training = createTestTraining(0, name = "Full Body Strength Training")
@@ -693,6 +693,101 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertEquals(1, actual?.size)
         assertEquals(emptyTraining, actual?.first())
+    }
+
+    @Test
+    fun `get trainings with date range returns matching trainings`() = runTest {
+        val baseTime = 1000000L
+        val trainingsInRange = listOf(
+            createTestTraining(0, name = "Training A", timestamp = baseTime + 100),
+            createTestTraining(1, name = "Training B", timestamp = baseTime + 200),
+            createTestTraining(2, name = "Training C", timestamp = baseTime + 300)
+        )
+        val trainingsOutOfRange = listOf(
+            createTestTraining(3, name = "Training D", timestamp = baseTime - 100),
+            createTestTraining(4, name = "Training E", timestamp = baseTime + 1000)
+        )
+
+        (trainingsInRange + trainingsOutOfRange).forEach { dao.add(it) }
+
+        val result = dao.getTrainings("Training", baseTime, baseTime + 500)
+
+        assertEquals(3, result.size)
+        trainingsInRange.forEach { expected ->
+            assertTrue(result.any { it.uuid == expected.uuid })
+        }
+    }
+
+    @Test
+    fun `get trainings with name filter returns matching trainings`() = runTest {
+        val trainings = listOf(
+            createTestTraining(0, name = "Chest Workout", timestamp = 1000L),
+            createTestTraining(1, name = "Back Workout", timestamp = 2000L),
+            createTestTraining(2, name = "Chest Training", timestamp = 3000L),
+            createTestTraining(3, name = "Leg Day", timestamp = 4000L)
+        )
+
+        trainings.forEach { dao.add(it) }
+
+        val result = dao.getTrainings("Chest", 0, 5000L)
+
+        assertEquals(2, result.size)
+        assertTrue(result.any { it.name == "Chest Workout" })
+        assertTrue(result.any { it.name == "Chest Training" })
+    }
+
+    @Test
+    fun `get trainings with no matches returns empty list`() = runTest {
+        val trainings = listOf(
+            createTestTraining(0, name = "Workout A", timestamp = 1000L),
+            createTestTraining(1, name = "Workout B", timestamp = 2000L)
+        )
+
+        trainings.forEach { dao.add(it) }
+
+        val result = dao.getTrainings("NonExistentName", 0, 5000L)
+
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `get trainings orders by timestamp descending`() = runTest {
+        val trainings = listOf(
+            createTestTraining(0, name = "Training A", timestamp = 1000L),
+            createTestTraining(1, name = "Training B", timestamp = 3000L),
+            createTestTraining(2, name = "Training C", timestamp = 2000L)
+        )
+
+        trainings.forEach { dao.add(it) }
+
+        val result = dao.getTrainings("Training", 0, 5000L)
+
+        assertEquals(3, result.size)
+        assertEquals("Training B", result[0].name) // timestamp 3000L
+        assertEquals("Training C", result[1].name) // timestamp 2000L
+        assertEquals("Training A", result[2].name) // timestamp 1000L
+    }
+
+    @Test
+    fun `get trainings with partial name match works correctly`() = runTest {
+        val trainings = listOf(
+            createTestTraining(0, name = "Upper Body Training", timestamp = 1000L),
+            createTestTraining(1, name = "Full Body Workout", timestamp = 2000L),
+            createTestTraining(2, name = "Lower Body Session", timestamp = 3000L)
+        )
+
+        trainings.forEach { dao.add(it) }
+
+        val result = dao.getTrainings("Body", 0, 5000L)
+
+        assertEquals(3, result.size)
+    }
+
+    @Test
+    fun `get trainings from empty database returns empty list`() = runTest {
+        val result = dao.getTrainings("Any", 0, 5000L)
+
+        assertTrue(result.isEmpty())
     }
 
     @OptIn(ExperimentalUuidApi::class)

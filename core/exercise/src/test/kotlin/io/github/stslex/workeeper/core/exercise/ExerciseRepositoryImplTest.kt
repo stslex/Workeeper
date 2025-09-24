@@ -90,10 +90,9 @@ internal class ExerciseRepositoryTest {
             createDomain(1, uuid2)
         )
 
-        coEvery { dao.getExercises("name", 100L, 200L) } returns flowOf(expectedEntites)
+        coEvery { dao.getExercises("name", 100L, 200L) } returns expectedEntites
 
-        val items = repository.getExercises("name", 100L, 200L).first()
-        @Suppress("UnusedFlow")
+        val items = repository.getExercises("name", 100L, 200L)
         coVerify(exactly = 1) { dao.getExercises("name", 100L, 200L) }
 
         assertEquals(expectedDataModels, items)
