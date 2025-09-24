@@ -65,7 +65,8 @@ internal class ExerciseStoreImplTest {
     )
 
     private val logger = mockk<Logger> {
-        every { i(any()) } just runs
+        every { i(any<String>()) } just runs
+        every { i(any<() -> String>()) } just runs
     }
 
     private val analytics = mockk<StoreAnalytics<Action, Event>> {

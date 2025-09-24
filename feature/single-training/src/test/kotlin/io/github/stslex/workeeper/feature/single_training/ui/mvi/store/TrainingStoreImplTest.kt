@@ -62,7 +62,10 @@ internal class TrainingStoreImplTest {
         mainImmediateDispatcher = testDispatcher
     )
 
-    private val logger = mockk<Logger> { every { i(any()) } just runs }
+    private val logger = mockk<Logger> {
+        every { i(any<String>()) } just runs
+        every { i(any<() -> String>()) } just runs
+    }
 
     private val analytics = mockk<StoreAnalytics<Action, Event>>(relaxed = true)
 
@@ -87,18 +90,19 @@ internal class TrainingStoreImplTest {
     }
 
     @Test
-    fun `store initializes with Common Init action using uuid from navigationHandler`() = runTest {
-        val expectedUuid = "test-uuid"
-        val initAction = Action.Common.Init(expectedUuid)
+    fun `store initializes with Common Init action using uuid from navigationHandler`() =
+        runTest {
+            val expectedUuid = "test-uuid"
+            val initAction = Action.Common.Init(expectedUuid)
 
-        store.init()
-        store.initEmitter()
-        advanceUntilIdle()
+            store.init()
+            store.initEmitter()
+            advanceUntilIdle()
 
-        coVerify(exactly = 1) { commonHandler.invoke(initAction) }
-        verify(exactly = 1) { logger.i("consume: $initAction") }
-        verify(exactly = 1) { analytics.logAction(initAction) }
-    }
+            coVerify(exactly = 1) { commonHandler.invoke(initAction) }
+            verify(exactly = 1) { logger.i("consume: $initAction") }
+            verify(exactly = 1) { analytics.logAction(initAction) }
+        }
 
     @Test
     fun `navigation actions are handled by navigationHandler`() = runTest(testDispatcher) {

@@ -54,7 +54,10 @@ internal class ChartsStoreImplTest {
         mainImmediateDispatcher = testDispatcher
     )
 
-    private val logger = mockk<Logger> { every { i(any()) } just runs }
+    private val logger = mockk<Logger> {
+        every { i(any<String>()) } just runs
+        every { i(any<() -> String>()) } just runs
+    }
 
     private val analytics = mockk<StoreAnalytics<Action, Event>> {
         every { logEvent(any()) } just runs
@@ -248,7 +251,8 @@ internal class ChartsStoreImplTest {
     fun `state data classes have proper immutable structure`() = runTest {
         val state = ChartsStore.State.INITIAL
         val startDate = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis())
-        val endDate = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis() + 86400000)
+        val endDate =
+            PropertyHolder.DateProperty(initialValue = System.currentTimeMillis() + 86400000)
 
         // Verify state is data class with copy functionality
         val newState = state.copy(
