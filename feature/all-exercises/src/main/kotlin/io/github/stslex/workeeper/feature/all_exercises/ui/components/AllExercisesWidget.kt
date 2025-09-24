@@ -62,22 +62,23 @@ internal fun AllExercisesWidget(
                     items[index]?.let { item ->
                         with(sharedTransitionScope) {
                             ExercisePagingItem(
-                                modifier = Modifier,
-// todo: reduce animation laggy
-//                                    .sharedBounds(
-//                                        sharedContentState = sharedTransitionScope.rememberSharedContentState(
-//                                            item.uuid
-//                                        ),
-//                                        animatedVisibilityScope = animatedContentScope,
-//                                        resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds()
-//                                    ),
+                                modifier = Modifier
+                                    .sharedBounds(
+                                        sharedContentState = sharedTransitionScope.rememberSharedContentState(
+                                            item.uuid
+                                        ),
+                                        animatedVisibilityScope = animatedContentScope,
+                                        resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds()
+                                    ),
                                 item = item,
-                                isSelected = state.selectedItems.contains(item),
+                                isSelected = remember(state.selectedItems) {
+                                    state.selectedItems.contains(item.uuid)
+                                },
                                 onClick = {
-                                    consume(Action.Click.Item(item))
+                                    consume(Action.Click.Item(item.uuid))
                                 },
                                 onLongClick = {
-                                    consume(Action.Click.LonkClick(item))
+                                    consume(Action.Click.LonkClick(item.uuid))
                                 }
                             )
                         }

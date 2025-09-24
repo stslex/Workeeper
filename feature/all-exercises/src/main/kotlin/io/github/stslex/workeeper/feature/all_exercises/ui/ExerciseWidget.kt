@@ -56,14 +56,13 @@ internal fun ExerciseWidget(
         with(sharedTransitionScope) {
             HomeActionButton(
                 modifier = Modifier
-// todo: reduce animation laggy
-//                    .sharedBounds(
-//                        sharedContentState = sharedTransitionScope.rememberSharedContentState(
-//                            "createExercise"
-//                        ),
-//                        animatedVisibilityScope = animatedContentScope,
-//                        resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds()
-//                    )
+                    .sharedBounds(
+                        sharedContentState = sharedTransitionScope.rememberSharedContentState(
+                            "createExercise"
+                        ),
+                        animatedVisibilityScope = animatedContentScope,
+                        resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds()
+                    )
                     .align(Alignment.BottomEnd)
                     .padding(AppDimension.Padding.big),
                 selectedMode = state.selectedItems.isNotEmpty()

@@ -15,7 +15,7 @@ internal interface ExercisesStore : Store<State, Action, Event> {
 
     data class State(
         val items: PagingUiState<PagingData<ExerciseUiModel>>,
-        val selectedItems: ImmutableSet<ExerciseUiModel>,
+        val selectedItems: ImmutableSet<String>,
         val query: String,
     ) : Store.State {
 
@@ -48,9 +48,9 @@ internal interface ExercisesStore : Store<State, Action, Event> {
 
             data object FloatButtonClick : Click
 
-            data class Item(val item: ExerciseUiModel) : Click
+            data class Item(val uuid: String) : Click
 
-            data class LonkClick(val item: ExerciseUiModel) : Click
+            data class LonkClick(val uuid: String) : Click
         }
 
         sealed interface Navigation : Action {

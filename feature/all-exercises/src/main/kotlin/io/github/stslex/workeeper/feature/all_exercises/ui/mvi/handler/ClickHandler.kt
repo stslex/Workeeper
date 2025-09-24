@@ -32,17 +32,20 @@ internal class ClickHandler(
 
     private fun processLongClick(action: Action.Click.LonkClick) {
         sendEvent(Event.HapticFeedback(HapticFeedbackType.LongPress))
-        val newItems = state.value.selectedItems.toMutableSet()
-            .apply {
-                if (state.value.selectedItems.contains(action.item)) {
-                    remove(action.item)
-                } else {
-                    add(action.item)
-                }
-            }
-            .toImmutableSet()
-
-        updateState { it.copy(selectedItems = newItems) }
+        val currentItems = state.value.selectedItems.toMutableSet()
+        logger.v {
+            "Current selected items: ${currentItems.joinToString(",") { it }}"
+        }
+        if (currentItems.contains(action.uuid)) {
+            currentItems.remove(action.uuid)
+        } else {
+            currentItems.add(action.uuid)
+        }
+        updateState {
+            it.copy(
+                selectedItems = currentItems.toImmutableSet()
+            )
+        }
     }
 
     private fun processClickFloatingButton() {
@@ -52,9 +55,7 @@ internal class ClickHandler(
             launch(
                 onSuccess = { updateState { it.copy(selectedItems = persistentSetOf()) } }
             ) {
-                repository.deleteAllItems(
-                    selectedItems.asyncMap { Uuid.parse(it.uuid) }
-                )
+                repository.deleteAllItems(selectedItems.asyncMap(Uuid::parse))
             }
         } else {
             consume(Action.Navigation.CreateExerciseDialog)
@@ -62,11 +63,11 @@ internal class ClickHandler(
     }
 
     private fun processClickItem(action: Action.Click.Item) {
-        sendEvent(Event.HapticFeedback(HapticFeedbackType.VirtualKey))
         if (state.value.selectedItems.isNotEmpty()) {
-            consume(Action.Click.LonkClick(action.item))
+            consume(Action.Click.LonkClick(action.uuid))
         } else {
-            consume(Action.Navigation.OpenExercise(action.item.uuid))
+            sendEvent(Event.HapticFeedback(HapticFeedbackType.VirtualKey))
+            consume(Action.Navigation.OpenExercise(action.uuid))
         }
     }
 }
