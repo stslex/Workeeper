@@ -42,43 +42,44 @@ internal fun AllExercisesWidget(
     val items = remember { state.items.invoke() }.collectAsLazyPagingItems()
     Column(
         modifier = modifier
-            .fillMaxSize()
+            .fillMaxSize(),
     ) {
         SearchWidget(
             modifier = Modifier
                 .padding(16.dp),
             query = state.query,
-            onQueryChange = { consume(Action.Input.SearchQuery(it)) }
+            onQueryChange = { consume(Action.Input.SearchQuery(it)) },
         )
         Box {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                state = lazyState
+                state = lazyState,
             ) {
                 items(
                     count = items.itemCount,
-                    key = items.itemKey { it.uuid }
+                    key = items.itemKey { it.uuid },
                 ) { index ->
                     items[index]?.let { item ->
                         with(sharedTransitionScope) {
                             ExercisePagingItem(
-                                modifier = Modifier,
-// todo: reduce animation laggy
-//                                    .sharedBounds(
-//                                        sharedContentState = sharedTransitionScope.rememberSharedContentState(
-//                                            item.uuid
-//                                        ),
-//                                        animatedVisibilityScope = animatedContentScope,
-//                                        resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds()
-//                                    ),
+                                modifier = Modifier
+                                    .sharedBounds(
+                                        sharedContentState = sharedTransitionScope.rememberSharedContentState(
+                                            item.uuid,
+                                        ),
+                                        animatedVisibilityScope = animatedContentScope,
+                                        resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds(),
+                                    ),
                                 item = item,
-                                isSelected = state.selectedItems.contains(item),
+                                isSelected = remember(state.selectedItems) {
+                                    state.selectedItems.contains(item.uuid)
+                                },
                                 onClick = {
-                                    consume(Action.Click.Item(item))
+                                    consume(Action.Click.Item(item.uuid))
                                 },
                                 onLongClick = {
-                                    consume(Action.Click.LonkClick(item))
-                                }
+                                    consume(Action.Click.LonkClick(item.uuid))
+                                },
                             )
                         }
                     }
@@ -107,7 +108,7 @@ private fun AllTabsWidgetPreview() {
             ExerciseUiModel(
                 uuid = Uuid.random().toString(),
                 name = "nameOfExercise$index",
-                dateProperty = PropertyHolder.DateProperty(System.currentTimeMillis())
+                dateProperty = PropertyHolder.DateProperty(System.currentTimeMillis()),
             )
         }.toList()
         val itemsPaging = {
@@ -116,7 +117,7 @@ private fun AllTabsWidgetPreview() {
         val state = State(
             items = itemsPaging,
             selectedItems = persistentSetOf(),
-            query = ""
+            query = "",
         )
         AnimatedContent("") {
             SharedTransitionScope {
@@ -126,7 +127,7 @@ private fun AllTabsWidgetPreview() {
                     animatedContentScope = this@AnimatedContent,
                     consume = {},
                     lazyState = LazyListState(),
-                    modifier = it
+                    modifier = it,
                 )
             }
         }

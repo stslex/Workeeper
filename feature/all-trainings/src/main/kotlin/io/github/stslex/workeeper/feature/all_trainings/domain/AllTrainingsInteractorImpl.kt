@@ -15,7 +15,7 @@ internal class AllTrainingsInteractorImpl(
     private val trainingRepository: TrainingRepository,
     private val exerciseRepository: ExerciseRepository,
     @param:DefaultDispatcher
-    private val defaultDispatcher: CoroutineDispatcher
+    private val defaultDispatcher: CoroutineDispatcher,
 ) : AllTrainingsInteractor {
 
     override suspend fun deleteAll(trainingsUuids: List<String>) {

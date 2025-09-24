@@ -12,7 +12,7 @@ data class SetsUiModel(
     val uuid: String,
     val reps: PropertyHolder.IntProperty,
     val weight: PropertyHolder.DoubleProperty,
-    val type: SetUiType
+    val type: SetUiType,
 ) {
 
     companion object {
@@ -21,7 +21,7 @@ data class SetsUiModel(
             uuid = Uuid.random().toString(),
             reps = PropertyHolder.IntProperty(),
             weight = PropertyHolder.DoubleProperty(),
-            type = SetUiType.WORK
+            type = SetUiType.WORK,
         )
     }
 }
@@ -30,12 +30,12 @@ internal fun SetsDataModel.toUi() = SetsUiModel(
     uuid = uuid,
     reps = PropertyHolder.IntProperty().update(reps),
     weight = PropertyHolder.DoubleProperty().update(weight),
-    type = type.toUi()
+    type = type.toUi(),
 )
 
 internal fun SetsUiModel.toData() = SetsDataModel(
     uuid = uuid,
     reps = reps.value,
     weight = weight.value,
-    type = type.toData()
+    type = type.toData(),
 )

@@ -16,22 +16,21 @@ import io.github.stslex.workeeper.feature.single_training.ui.mvi.handler.SingleT
 fun NavGraphBuilder.singleTrainingsGraph(
     navigator: Navigator,
     sharedTransitionScope: SharedTransitionScope,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     navScreen<Screen.Training> { data ->
         val component = remember(navigator) {
             SingleTrainingComponent.create(
                 navigator = navigator,
-                uuid = data.uuid
+                uuid = data.uuid,
             )
         }
         NavComponentScreen(TrainingFeature, component) { processor ->
             SingleTrainingsScreen(
                 modifier = modifier,
                 state = processor.state.value,
-                consume = processor::consume
+                consume = processor::consume,
             )
         }
     }
 }
-

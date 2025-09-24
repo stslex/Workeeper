@@ -514,7 +514,8 @@ formatting:
   AnnotationSpacing:
     active: false
   ArgumentListWrapping:
-    active: false
+    active: true
+    indentSize: 4
   ChainWrapping:
     active: true
   CommentSpacing:
@@ -530,7 +531,8 @@ formatting:
   ImportOrdering:
     active: true
   Indentation:
-    active: false
+    active: true
+    indentSize: 4
   MaximumLineLength:
     active: true
     maxLineLength: 120
@@ -565,7 +567,8 @@ formatting:
   PackageName:
     active: true
   ParameterListWrapping:
-    active: false
+    active: true
+    indentSize: 4
   SpacingAroundAngleBrackets:
     active: false
   SpacingAroundColon:
@@ -595,13 +598,14 @@ formatting:
   StringTemplate:
     active: true
   TrailingCommaOnCallSite:
-    active: false
+    active: true
   TrailingCommaOnDeclarationSite:
-    active: false
+    active: true
   UnnecessaryParenthesesBeforeTrailingLambda:
     active: false
   Wrapping:
-    active: false
+    active: true
+    indentSize: 4
 
 mvi-architecture:
   active: true

@@ -7,11 +7,11 @@ import io.github.stslex.workeeper.core.ui.mvi.Store
 
 @Immutable
 class StoreProcessorImpl<
-        S : Store.State,
-        A : Store.Action,
-        E : Store.Event,
-        TStore : Store<S, A, E>,
-        >(
+    S : Store.State,
+    A : Store.Action,
+    E : Store.Event,
+    TStore : Store<S, A, E>,
+    >(
     private val actionProcessor: ActionProcessor<A, TStore>,
     private val eventProcessor: EffectsProcessor<E, TStore>,
     override val state: State<S>,

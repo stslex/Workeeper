@@ -7,8 +7,8 @@ androidTools = "31.13.0"
 minSdk = "28"
 targetSdk = "36"
 compileSdk = "36"
-versionName = "1.18"
-versionCode = "19"
+versionName = "1.19"
+versionCode = "20"
 
 ktx = "1.17.0"
 material = "1.13.0"
@@ -82,13 +82,16 @@ coroutines = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-andro
 
 kotlin-compiler-embeddable = { group = "org.jetbrains.kotlin", name = "kotlin-compiler-embeddable", version.ref = "kotlin" }
 
-androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
+androidx-compose-bom = { group = "androidx.compose", name = "compose-bom-alpha", version.ref = "composeBom" }
 
 androidx-compose-activity = { group = "androidx.activity", name = "activity-compose", version.ref = "composeActivity" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
 androidx-compose-material = { group = "androidx.compose.material", name = "material" }
+androidx-compose-material-icons-core = { group = "androidx.compose.material", name = "material-icons-core" }
+androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
 androidx-compose-ui = { group = "androidx.compose.ui", name = "ui" }
 androidx-compose-animation = { group = "androidx.compose.animation", name = "animation" }
+androidx-compose-animationGraphics = { group = "androidx.compose.animation", name = "animation-graphics" }
 androidx-compose-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
 androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation" }
 androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime", version.ref = "runtime" }
@@ -219,10 +222,13 @@ compose = [
     "androidx-compose-activity",
     "androidx-compose-material3",
     "androidx-compose-ui",
+    "androidx-compose-material-icons-core",
+    "androidx-compose-material-icons-extended",
     "androidx-compose-tooling-preview",
     "androidx-compose-foundation",
     "androidx-compose-paging",
     "androidx-compose-animation",
+    "androidx-compose-animationGraphics",
     "androidx-compose-runtime",
     "coil-compose"
 ]

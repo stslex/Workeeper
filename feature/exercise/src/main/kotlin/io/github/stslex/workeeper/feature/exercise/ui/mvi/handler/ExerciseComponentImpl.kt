@@ -6,11 +6,11 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Ac
 internal class ExerciseComponentImpl(
     private val navigator: Navigator,
     override val uuid: String?,
-    override val trainingUuid: String?
+    override val trainingUuid: String?,
 ) : ExerciseComponent {
 
     override fun invoke(
-        action: Action.Navigation
+        action: Action.Navigation,
     ) {
         when (action) {
             Action.Navigation.Back -> navigator.popBack()

@@ -10,11 +10,11 @@ enum class TextMode(
         isMenuEnable = true,
     ),
     NUMBER(
-        isText = false
+        isText = false,
     ),
     DATE,
     PICK_RESULT(
         isMenuEnable = true,
-        isMenuOpen = true
-    );
+        isMenuOpen = true,
+    ),
 }

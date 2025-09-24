@@ -8,19 +8,19 @@ data class SetsDataModel(
     val uuid: String,
     val reps: Int,
     val weight: Double,
-    val type: SetsDataType
+    val type: SetsDataType,
 )
 
 internal fun SetsDataModel.toEntity(): SetsEntity = SetsEntity(
     uuid = Uuid.parse(uuid),
     reps = reps,
     weight = weight,
-    type = type.toEntity()
+    type = type.toEntity(),
 )
 
 internal fun SetsEntity.toData(): SetsDataModel = SetsDataModel(
     uuid = uuid.toString(),
     reps = reps,
     weight = weight,
-    type = type.toData()
+    type = type.toData(),
 )

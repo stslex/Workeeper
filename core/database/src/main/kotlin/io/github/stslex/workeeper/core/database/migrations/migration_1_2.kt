@@ -21,7 +21,7 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
                 name TEXT NOT NULL,
                 timestamp INTEGER NOT NULL
             )
-        """
+        """,
         )
 
         db.execSQL(
@@ -33,7 +33,7 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
                 labels TEXT NOT NULL,
                 timestamp INTEGER NOT NULL
             )
-        """
+        """,
         )
 
         db.execSQL(
@@ -41,7 +41,7 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
             CREATE TABLE IF NOT EXISTS training_labels_table (
                 label TEXT PRIMARY KEY NOT NULL
             )
-        """
+        """,
         )
 
         db.query("SELECT * FROM exercises_table").use { cursor ->
@@ -71,7 +71,7 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
                             uuid = Uuid.random(),
                             reps = exerciseReps,
                             weight = exerciseWeight,
-                            type = setsType
+                            type = setsType,
                         )
                     }.toList()
 
@@ -83,8 +83,8 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
                             StringConverter.listToString(emptyList()),
                             SetsTypeConverter.toString(setsList),
                             name,
-                            timestamp
-                        )
+                            timestamp,
+                        ),
                     )
                 }
             }
@@ -93,5 +93,4 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         db.execSQL("DROP TABLE exercises_table")
         db.execSQL("ALTER TABLE exercises_table_new RENAME TO exercises_table")
     }
-
 }

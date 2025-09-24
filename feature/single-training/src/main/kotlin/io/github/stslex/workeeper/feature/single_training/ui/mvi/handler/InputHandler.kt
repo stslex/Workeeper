@@ -12,7 +12,7 @@ import org.koin.core.annotation.Scoped
 @Scoped(binds = [InputHandler::class])
 @Scope(name = TRAINING_SCOPE_NAME)
 internal class InputHandler(
-    @Named(TRAINING_SCOPE_NAME) store: TrainingHandlerStore
+    @Named(TRAINING_SCOPE_NAME) store: TrainingHandlerStore,
 ) : Handler<Action.Input>, TrainingHandlerStore by store {
 
     override fun invoke(action: Action.Input) {
@@ -26,8 +26,8 @@ internal class InputHandler(
         updateState {
             it.copy(
                 training = it.training.copy(
-                    date = it.training.date.update(action.timestamp)
-                )
+                    date = it.training.date.update(action.timestamp),
+                ),
             )
         }
     }
@@ -36,8 +36,8 @@ internal class InputHandler(
         updateState {
             it.copy(
                 training = it.training.copy(
-                    name = action.value
-                )
+                    name = action.value,
+                ),
             )
         }
     }

@@ -50,18 +50,19 @@ internal class TrainingStoreImplTest {
             TrainingStore.State(
                 pagingUiState = pagingStateMock,
                 query = "",
-                selectedItems = persistentSetOf()
-            )
+                selectedItems = persistentSetOf(),
+            ),
         )
     }
 
     private val storeDispatchers = StoreDispatchers(
         defaultDispatcher = testDispatcher,
-        mainImmediateDispatcher = testDispatcher
+        mainImmediateDispatcher = testDispatcher,
     )
 
     private val logger = mockk<Logger> {
-        every { i(any()) } just runs
+        every { i(any<String>()) } just runs
+        every { i(any<() -> String>()) } just runs
     }
 
     private val analytics = mockk<StoreAnalytics<Action, Event>>(relaxed = true)
@@ -73,7 +74,7 @@ internal class TrainingStoreImplTest {
         storeDispatchers = storeDispatchers,
         handlerStore = handlerStore,
         analytics = analytics,
-        logger = logger
+        logger = logger,
     )
 
     @Test
@@ -105,7 +106,7 @@ internal class TrainingStoreImplTest {
         val actions = listOf(
             Action.Click.ActionButton,
             Action.Click.TrainingItemClick("id1"),
-            Action.Click.TrainingItemLongClick("id2")
+            Action.Click.TrainingItemLongClick("id2"),
         )
 
         store.init()
@@ -136,7 +137,7 @@ internal class TrainingStoreImplTest {
         val actions = listOf(
             Action.Navigation.CreateTraining,
             Action.Click.ActionButton,
-            Action.Navigation.OpenTraining("test-id")
+            Action.Navigation.OpenTraining("test-id"),
         )
 
         store.init()
@@ -156,7 +157,7 @@ internal class TrainingStoreImplTest {
             Action.Click.TrainingItemClick("item-1"),
             Action.Click.TrainingItemClick("item-2"),
             Action.Click.TrainingItemLongClick("item-3"),
-            Action.Click.TrainingItemLongClick("item-4")
+            Action.Click.TrainingItemLongClick("item-4"),
         )
 
         store.init()
@@ -176,7 +177,7 @@ internal class TrainingStoreImplTest {
         val navigationActions = listOf(
             Action.Navigation.CreateTraining,
             Action.Navigation.OpenTraining("training-1"),
-            Action.Navigation.OpenTraining("training-2")
+            Action.Navigation.OpenTraining("training-2"),
         )
 
         store.init()
@@ -239,7 +240,7 @@ internal class TrainingStoreImplTest {
         // Verify state is data class with copy functionality
         val newState = state.copy(
             query = "test query",
-            selectedItems = newSelectedItems
+            selectedItems = newSelectedItems,
         )
 
         assertEquals("test query", newState.query)
@@ -265,7 +266,7 @@ internal class TrainingStoreImplTest {
             storeDispatchers = storeDispatchers,
             handlerStore = handlerStore,
             analytics = analytics,
-            logger = logger
+            logger = logger,
         )
 
         val state = customStore.state.value
@@ -312,5 +313,4 @@ internal class TrainingStoreImplTest {
         coVerify(exactly = 1) { clickHandler.invoke(any()) }
         coVerify(exactly = 1) { navigationHandler.invoke(any()) }
     }
-
 }

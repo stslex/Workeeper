@@ -61,7 +61,7 @@ open class BaseStore<S : State, A : Action, E : Event>(
     override val scope: AppCoroutineScope = AppCoroutineScope(
         scope = viewModelScope,
         defaultDispatcher = storeDispatchers.defaultDispatcher,
-        immediateDispatcher = storeDispatchers.mainImmediateDispatcher
+        immediateDispatcher = storeDispatchers.mainImmediateDispatcher,
     )
 
     private var _lastAction: A? = null
@@ -77,8 +77,8 @@ open class BaseStore<S : State, A : Action, E : Event>(
 
     fun initEmitter() {
         /*todo: check why emitter sometimes doesn't have store instance
-        *  seems that emitter recreate instance
-        *   it could be problems in StoreProcessor lifecycle creation */
+         *  seems that emitter recreate instance
+         *   it could be problems in StoreProcessor lifecycle creation */
         storeEmitter.setStore(this)
     }
 
@@ -114,7 +114,7 @@ open class BaseStore<S : State, A : Action, E : Event>(
      * Updates the state of the screen immediately.
      * @param update - function that updates the state
      * */
-    override suspend fun updateStateImmediate(update: (S) -> S) {
+    override suspend fun updateStateImmediate(update: suspend (S) -> S) {
         _state.emit(update(state.value))
     }
 
@@ -155,7 +155,7 @@ open class BaseStore<S : State, A : Action, E : Event>(
         workDispatcher = workDispatcher,
         eachDispatcher = eachDispatcher,
         onSuccess = onSuccess,
-        action = action
+        action = action,
     )
 
     /**
@@ -171,7 +171,7 @@ open class BaseStore<S : State, A : Action, E : Event>(
         onError: suspend (cause: Throwable) -> Unit,
         workDispatcher: CoroutineDispatcher,
         eachDispatcher: CoroutineDispatcher,
-        each: suspend (T) -> Unit
+        each: suspend (T) -> Unit,
     ): Job = scope.launch(
         flow = flow,
         workDispatcher = workDispatcher,
@@ -186,5 +186,4 @@ open class BaseStore<S : State, A : Action, E : Event>(
 
         fun storeLogger(name: String) = Log.tag("${STORE_LOGGER_PREFIX}_$name")
     }
-
 }

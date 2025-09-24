@@ -40,7 +40,7 @@ open class BaseHandlerStore<S : State, A : Action, E : Event>() :
         store.updateState(update)
     }
 
-    override suspend fun updateStateImmediate(update: (S) -> S) {
+    override suspend fun updateStateImmediate(update: suspend (S) -> S) {
         store.updateStateImmediate(update)
     }
 

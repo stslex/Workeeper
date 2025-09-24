@@ -20,14 +20,14 @@ import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore
 fun NavGraphBuilder.chartsGraph(
     navigator: Navigator,
     sharedTransitionScope: SharedTransitionScope,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     navScreen<Screen.BottomBar.Charts> {
         ChartsScreen(
             modifier = modifier,
             sharedTransitionScope = sharedTransitionScope,
             component = remember(navigator) { ChartsComponent.create(navigator) },
-            animatedContentScope = this
+            animatedContentScope = this,
         )
     }
 }
@@ -38,7 +38,7 @@ private fun ChartsScreen(
     component: ChartsComponent,
     sharedTransitionScope: SharedTransitionScope,
     animatedContentScope: AnimatedContentScope,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     NavComponentScreen(ChartsFeature, component) { processor ->
 

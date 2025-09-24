@@ -12,7 +12,7 @@ import org.koin.core.annotation.KoinExperimentalAPI
 fun <TProcessor : StoreProcessor<*, *, *>, TComponent : Component> NavComponentScreen(
     feature: Feature<TProcessor, TComponent>,
     component: TComponent,
-    content: @Composable (TProcessor) -> Unit
+    content: @Composable (TProcessor) -> Unit,
 ) {
     feature.loadModule?.let {
         rememberKoinModules(unloadModules = true) { listOf(it) }

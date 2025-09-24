@@ -36,7 +36,7 @@ internal fun ExercisedColumn(
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
-        modifier = modifier.fillMaxSize()
+        modifier = modifier.fillMaxSize(),
     ) {
         item {
             TitleTextInputField(
@@ -47,7 +47,7 @@ internal fun ExercisedColumn(
                 onMenuClick = { consume(Action.Click.OpenMenuVariants) },
                 onMenuClose = { consume(Action.Click.CloseMenuVariants) },
                 onMenuItemClick = { consume(Action.Click.OnMenuItemClick(it)) },
-                onValueChange = { consume(Action.Input.PropertyName(it)) }
+                onValueChange = { consume(Action.Input.PropertyName(it)) },
             )
         }
 
@@ -57,13 +57,13 @@ internal fun ExercisedColumn(
             Column {
                 Text(
                     text = stringResource(R.string.feature_exercise_field_label_sets) + ":",
-                    style = MaterialTheme.typography.headlineLarge
+                    style = MaterialTheme.typography.headlineLarge,
                 )
                 HorizontalDivider(modifier = Modifier.padding(vertical = AppDimension.Padding.big))
                 AnimatedVisibility(state.sets.isEmpty()) {
                     Text(
                         modifier = Modifier.padding(vertical = AppDimension.Padding.medium),
-                        text = stringResource(R.string.feature_exercise_field_label_sets_are_empty)
+                        text = stringResource(R.string.feature_exercise_field_label_sets_are_empty),
                     )
                 }
             }
@@ -73,7 +73,7 @@ internal fun ExercisedColumn(
             item {
                 ExerciseSetsField(
                     property = set,
-                    onClick = { item -> consume(Action.Click.DialogSets.OpenEdit(item)) }
+                    onClick = { item -> consume(Action.Click.DialogSets.OpenEdit(item)) },
                 )
             }
             item { Spacer(Modifier.height(AppDimension.Padding.medium)) }
@@ -83,7 +83,7 @@ internal fun ExercisedColumn(
 
         item {
             ExerciseSetsCreateWidget(
-                onClick = { consume(Action.Click.DialogSets.OpenCreate) }
+                onClick = { consume(Action.Click.DialogSets.OpenCreate) },
             )
         }
 
@@ -110,8 +110,8 @@ private fun ExercisedColumnPreview() {
         var state by remember {
             mutableStateOf(
                 State.INITIAL.copy(
-                    dateProperty = PropertyHolder.DateProperty().update(System.currentTimeMillis())
-                )
+                    dateProperty = PropertyHolder.DateProperty().update(System.currentTimeMillis()),
+                ),
             )
         }
 
@@ -120,7 +120,7 @@ private fun ExercisedColumnPreview() {
                 modifier = Modifier
                     .padding(AppDimension.Padding.big),
                 state = state,
-                consume = {}
+                consume = {},
             )
         }
     }

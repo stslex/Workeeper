@@ -33,7 +33,7 @@ import kotlinx.collections.immutable.persistentListOf
 internal fun SingleTrainingsScreen(
     state: State,
     consume: (Action) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Box(
         modifier = modifier
@@ -50,7 +50,7 @@ internal fun SingleTrainingsScreen(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(AppDimension.Padding.large)
+                    .padding(AppDimension.Padding.large),
             ) {
                 item {
                     TrainingPropertyTextField(
@@ -64,7 +64,7 @@ internal fun SingleTrainingsScreen(
 
                 item {
                     HorizontalDivider(
-                        modifier = Modifier.padding(vertical = AppDimension.Padding.big)
+                        modifier = Modifier.padding(vertical = AppDimension.Padding.big),
                     )
                 }
 
@@ -81,27 +81,26 @@ internal fun SingleTrainingsScreen(
                         count = state.training.exercises.size,
                         key = {
                             state.training.exercises[it].uuid
-                        }
+                        },
                     ) { index ->
                         val item = state.training.exercises[index]
                         // todo replace and refactor to new ui
                         Card(
                             modifier = Modifier.fillMaxSize(),
-                            onClick = { consume(Action.Click.ExerciseClick(item.uuid)) }
+                            onClick = { consume(Action.Click.ExerciseClick(item.uuid)) },
                         ) { Text(item.name) }
                     }
                 }
 
                 item {
                     ExerciseCreateWidget(
-                        onClick = { consume(Action.Click.CreateExercise) }
+                        onClick = { consume(Action.Click.CreateExercise) },
                     )
                 }
 
-
                 item {
                     HorizontalDivider(
-                        modifier = Modifier.padding(vertical = AppDimension.Padding.big)
+                        modifier = Modifier.padding(vertical = AppDimension.Padding.big),
                     )
                 }
 
@@ -111,11 +110,10 @@ internal fun SingleTrainingsScreen(
                         labelRes = R.string.feature_single_training_field_date_label,
                         mode = TextMode.DATE,
                         onValueChange = {},
-                        onClick = { consume(Action.Click.OpenCalendarPicker) }
+                        onClick = { consume(Action.Click.OpenCalendarPicker) },
                     )
                 }
             }
-
         }
 
         when (state.dialogState) {
@@ -123,7 +121,7 @@ internal fun SingleTrainingsScreen(
             DialogState.Calendar -> DatePickerDialog(
                 timestamp = state.training.date.value,
                 dateChange = { consume(Action.Input.Date(it)) },
-                onDismissRequest = { consume(Action.Click.CloseCalendarPicker) }
+                onDismissRequest = { consume(Action.Click.CloseCalendarPicker) },
             )
         }
     }
@@ -140,12 +138,12 @@ private fun SingleTrainingsScreenPreview() {
                     name = "special training name",
                     labels = persistentListOf(),
                     exercises = persistentListOf(),
-                    date = PropertyHolder.DateProperty().update(System.currentTimeMillis())
+                    date = PropertyHolder.DateProperty().update(System.currentTimeMillis()),
                 ),
                 dialogState = DialogState.Closed,
                 pendingForCreateUuid = "pendingForCreateUuid",
             ),
-            consume = {}
+            consume = {},
         )
     }
 }

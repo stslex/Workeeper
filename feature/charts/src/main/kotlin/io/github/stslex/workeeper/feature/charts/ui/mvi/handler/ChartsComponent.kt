@@ -8,11 +8,9 @@ interface ChartsComponent : Component {
     companion object {
 
         fun create(
-            navigator: Navigator
+            navigator: Navigator,
         ): ChartsComponent = NavigationHandler(
-            navigator = navigator
+            navigator = navigator,
         )
-
     }
 }
-

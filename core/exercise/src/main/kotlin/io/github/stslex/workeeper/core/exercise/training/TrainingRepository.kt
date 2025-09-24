@@ -18,4 +18,6 @@ interface TrainingRepository {
     fun subscribeForTraining(uuid: String): Flow<TrainingDataModel>
 
     suspend fun removeAll(uuids: List<String>)
+
+    suspend fun getTrainings(query: String, startDate: Long, endDate: Long): List<TrainingDataModel>
 }

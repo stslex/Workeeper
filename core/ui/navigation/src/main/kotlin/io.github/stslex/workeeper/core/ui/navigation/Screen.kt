@@ -35,26 +35,26 @@ sealed interface Screen {
 
     @Serializable
     data class Training(
-        val uuid: String?
+        val uuid: String?,
     ) : Screen
 
     @Serializable
     data class Exercise(
         val uuid: String?,
-        val trainingUuid: String?
+        val trainingUuid: String?,
     ) : Screen
 
     companion object {
 
         @OptIn(InternalSerializationApi::class, ExperimentalSerializationApi::class)
         fun Screen.isCurrentScreen(
-            route: String
+            route: String,
         ): Boolean = this::class.serializer().descriptor.serialName == route
     }
 }
 
 inline fun <reified S : Screen> NavGraphBuilder.navScreen(
-    noinline content: @Composable AnimatedContentScope.(S) -> Unit
+    noinline content: @Composable AnimatedContentScope.(S) -> Unit,
 ) {
     composable<S> { backStackEntry ->
         content(backStackEntry.toRoute())

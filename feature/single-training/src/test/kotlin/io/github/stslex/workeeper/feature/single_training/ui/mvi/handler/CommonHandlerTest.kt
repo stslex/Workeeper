@@ -13,9 +13,7 @@ import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.collections.immutable.persistentListOf
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -38,10 +36,10 @@ internal class CommonHandlerTest {
             name = "",
             exercises = persistentListOf(),
             labels = persistentListOf(),
-            date = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis())
+            date = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
         ),
         dialogState = DialogState.Closed,
-        pendingForCreateUuid = ""
+        pendingForCreateUuid = "",
     )
 
     private val stateFlow = MutableStateFlow(initialState)
@@ -49,25 +47,6 @@ internal class CommonHandlerTest {
     private val store = mockk<TrainingHandlerStore>(relaxed = true) {
         every { state } returns stateFlow
         every { scope } returns AppCoroutineScope(testScope, testDispatcher, testDispatcher)
-
-        // Mock the updateStateImmediate function
-        coEvery { updateStateImmediate(any<(TrainingStore.State) -> TrainingStore.State>()) } returns Unit
-
-        // Mock the launch function to actually execute the coroutine
-        every {
-            this@mockk.launch<Any>(
-                onError = any(),
-                onSuccess = any(),
-                workDispatcher = any(),
-                eachDispatcher = any(),
-                action = any()
-            )
-        } answers {
-            val onSuccess = arg<suspend CoroutineScope.(Any?) -> Unit>(1)
-            val action = arg<suspend CoroutineScope.() -> Any?>(4)
-
-            testScope.launch { runCatching { onSuccess(this, action()) } }
-        }
     }
     private val handler = CommonHandler(interactor, trainingDomainUiMapper, store)
 
@@ -88,7 +67,7 @@ internal class CommonHandlerTest {
             name = "Test Training",
             exercises = persistentListOf(),
             labels = persistentListOf(),
-            date = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis())
+            date = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
         )
 
         coEvery { interactor.getTraining(trainingUuid) } returns domainModel

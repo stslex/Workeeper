@@ -56,13 +56,15 @@ internal class TrainingStoreImplTest {
         every { state } returns MutableStateFlow(TrainingStore.State.INITIAL)
     }
 
-
     private val storeDispatchers = StoreDispatchers(
         defaultDispatcher = testDispatcher,
-        mainImmediateDispatcher = testDispatcher
+        mainImmediateDispatcher = testDispatcher,
     )
 
-    private val logger = mockk<Logger> { every { i(any()) } just runs }
+    private val logger = mockk<Logger> {
+        every { i(any<String>()) } just runs
+        every { i(any<() -> String>()) } just runs
+    }
 
     private val analytics = mockk<StoreAnalytics<Action, Event>>(relaxed = true)
 
@@ -74,7 +76,7 @@ internal class TrainingStoreImplTest {
         storeDispatchers = storeDispatchers,
         handlerStore = handlerStore,
         analytics = analytics,
-        logger = logger
+        logger = logger,
     )
 
     @Test
@@ -87,18 +89,19 @@ internal class TrainingStoreImplTest {
     }
 
     @Test
-    fun `store initializes with Common Init action using uuid from navigationHandler`() = runTest {
-        val expectedUuid = "test-uuid"
-        val initAction = Action.Common.Init(expectedUuid)
+    fun `store initializes with Common Init action using uuid from navigationHandler`() =
+        runTest {
+            val expectedUuid = "test-uuid"
+            val initAction = Action.Common.Init(expectedUuid)
 
-        store.init()
-        store.initEmitter()
-        advanceUntilIdle()
+            store.init()
+            store.initEmitter()
+            advanceUntilIdle()
 
-        coVerify(exactly = 1) { commonHandler.invoke(initAction) }
-        verify(exactly = 1) { logger.i("consume: $initAction") }
-        verify(exactly = 1) { analytics.logAction(initAction) }
-    }
+            coVerify(exactly = 1) { commonHandler.invoke(initAction) }
+            verify(exactly = 1) { logger.i("consume: $initAction") }
+            verify(exactly = 1) { analytics.logAction(initAction) }
+        }
 
     @Test
     fun `navigation actions are handled by navigationHandler`() = runTest(testDispatcher) {
@@ -155,7 +158,7 @@ internal class TrainingStoreImplTest {
             Action.Input.Name("Test Training"),
             Action.Input.Date(timestamp),
             Action.Click.Save,
-            Action.Navigation.PopBack
+            Action.Navigation.PopBack,
         )
 
         store.init()
@@ -176,7 +179,7 @@ internal class TrainingStoreImplTest {
         val timestamp = System.currentTimeMillis()
         val inputActions = listOf(
             Action.Input.Name("Updated Training"),
-            Action.Input.Date(timestamp)
+            Action.Input.Date(timestamp),
         )
 
         store.init()
@@ -198,7 +201,7 @@ internal class TrainingStoreImplTest {
             Action.Click.Save,
             Action.Click.Delete,
             Action.Click.OpenCalendarPicker,
-            Action.Click.CloseCalendarPicker
+            Action.Click.CloseCalendarPicker,
         )
 
         store.init()
@@ -276,16 +279,16 @@ internal class TrainingStoreImplTest {
                     name = "Push-ups",
                     labels = persistentListOf("bodyweight"),
                     sets = 3,
-                    timestamp = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis())
-                )
+                    timestamp = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
+                ),
             ),
-            date = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis() + 86400000) // tomorrow
+            date = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis() + 86400000), // tomorrow
         )
 
         // Verify state is data class with copy functionality
         val newState = state.copy(
             training = newTraining,
-            dialogState = DialogState.Calendar
+            dialogState = DialogState.Calendar,
         )
 
         assertEquals(newTraining, newState.training)
@@ -315,7 +318,7 @@ internal class TrainingStoreImplTest {
             storeDispatchers = storeDispatchers,
             handlerStore = handlerStore,
             analytics = analytics,
-            logger = logger
+            logger = logger,
         )
 
         customStore.init()
@@ -339,7 +342,7 @@ internal class TrainingStoreImplTest {
             storeDispatchers = storeDispatchers,
             handlerStore = handlerStore,
             analytics = analytics,
-            logger = logger
+            logger = logger,
         )
 
         customStore.init()
@@ -364,5 +367,4 @@ internal class TrainingStoreImplTest {
         assert(closedState.dialogState is DialogState.Closed)
         assert(calendarState.dialogState is DialogState.Calendar)
     }
-
 }

@@ -15,14 +15,14 @@ internal interface ExercisesStore : Store<State, Action, Event> {
 
     data class State(
         val items: PagingUiState<PagingData<ExerciseUiModel>>,
-        val selectedItems: ImmutableSet<ExerciseUiModel>,
+        val selectedItems: ImmutableSet<String>,
         val query: String,
     ) : Store.State {
 
         companion object {
 
             internal fun init(
-                allItems: PagingUiState<PagingData<ExerciseUiModel>>
+                allItems: PagingUiState<PagingData<ExerciseUiModel>>,
             ): State = State(
                 items = allItems,
                 selectedItems = persistentSetOf(),
@@ -48,9 +48,9 @@ internal interface ExercisesStore : Store<State, Action, Event> {
 
             data object FloatButtonClick : Click
 
-            data class Item(val item: ExerciseUiModel) : Click
+            data class Item(val uuid: String) : Click
 
-            data class LonkClick(val item: ExerciseUiModel) : Click
+            data class LonkClick(val uuid: String) : Click
         }
 
         sealed interface Navigation : Action {
@@ -59,14 +59,12 @@ internal interface ExercisesStore : Store<State, Action, Event> {
 
             data class OpenExercise(val uuid: String) : Navigation
         }
-
     }
 
     sealed interface Event : Store.Event {
 
         data class HapticFeedback(
-            val type: HapticFeedbackType
+            val type: HapticFeedbackType,
         ) : Event
     }
-
 }

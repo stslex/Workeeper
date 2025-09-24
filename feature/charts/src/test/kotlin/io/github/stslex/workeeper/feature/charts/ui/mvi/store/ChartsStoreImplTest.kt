@@ -51,10 +51,13 @@ internal class ChartsStoreImplTest {
 
     private val storeDispatchers = StoreDispatchers(
         defaultDispatcher = testDispatcher,
-        mainImmediateDispatcher = testDispatcher
+        mainImmediateDispatcher = testDispatcher,
     )
 
-    private val logger = mockk<Logger> { every { i(any()) } just runs }
+    private val logger = mockk<Logger> {
+        every { i(any<String>()) } just runs
+        every { i(any<() -> String>()) } just runs
+    }
 
     private val analytics = mockk<StoreAnalytics<Action, Event>> {
         every { logEvent(any()) } just runs
@@ -69,7 +72,7 @@ internal class ChartsStoreImplTest {
         storeDispatchers = storeDispatchers,
         storeEmitter = storeEmitter,
         analytics = analytics,
-        logger = logger
+        logger = logger,
     )
 
     @Test
@@ -106,7 +109,6 @@ internal class ChartsStoreImplTest {
         coVerify { pagingHandler.invoke(action) }
     }
 
-
     @Test
     fun `click actions are handled by clickHandler`() = runTest(testDispatcher) {
         val action = Action.Click.Calendar.StartDate
@@ -137,7 +139,7 @@ internal class ChartsStoreImplTest {
         val actions = listOf(
             Action.Input.ChangeStartDate(timestamp),
             Action.Click.Calendar.StartDate,
-            Action.Paging.Init
+            Action.Paging.Init,
         )
 
         store.init()
@@ -157,7 +159,7 @@ internal class ChartsStoreImplTest {
         val calendarActions = listOf(
             Action.Click.Calendar.StartDate,
             Action.Click.Calendar.EndDate,
-            Action.Click.Calendar.Close
+            Action.Click.Calendar.Close,
         )
 
         store.init()
@@ -204,7 +206,7 @@ internal class ChartsStoreImplTest {
     fun `store sends different haptic feedback types correctly`() = runTest(testDispatcher) {
         val events = listOf(
             Event.HapticFeedback(HapticFeedbackType.LongPress),
-            Event.HapticFeedback(HapticFeedbackType.TextHandleMove)
+            Event.HapticFeedback(HapticFeedbackType.TextHandleMove),
         )
 
         store.init()
@@ -248,14 +250,15 @@ internal class ChartsStoreImplTest {
     fun `state data classes have proper immutable structure`() = runTest {
         val state = ChartsStore.State.INITIAL
         val startDate = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis())
-        val endDate = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis() + 86400000)
+        val endDate =
+            PropertyHolder.DateProperty(initialValue = System.currentTimeMillis() + 86400000)
 
         // Verify state is data class with copy functionality
         val newState = state.copy(
             name = "Test Charts",
             startDate = startDate,
             endDate = endDate,
-            calendarState = CalendarState.Opened.StartDate
+            calendarState = CalendarState.Opened.StartDate,
         )
 
         assertEquals("Test Charts", newState.name)
@@ -267,5 +270,4 @@ internal class ChartsStoreImplTest {
         assertEquals("", state.name)
         assertEquals(CalendarState.Closed, state.calendarState)
     }
-
 }

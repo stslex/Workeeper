@@ -36,7 +36,7 @@ internal fun TrainingPropertyTextField(
             KeyboardOptions.Default
         } else {
             KeyboardOptions.Default.copy(
-                keyboardType = KeyboardType.Decimal
+                keyboardType = KeyboardType.Decimal,
             )
         }
     }
@@ -57,7 +57,7 @@ internal fun TrainingPropertyTextField(
                 disabledTextColor = LocalContentColor.current,
                 disabledBorderColor = MaterialTheme.colorScheme.outline,
                 disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                disabledContainerColor = MaterialTheme.colorScheme.surface
+                disabledContainerColor = MaterialTheme.colorScheme.surface,
             )
         } else {
             OutlinedTextFieldDefaults.colors()
@@ -73,7 +73,7 @@ internal fun TrainingPropertyTextField(
 private fun TrainingPropertyTextFieldPreview() {
     AppTheme {
         Box(
-            modifier = Modifier.background(MaterialTheme.colorScheme.background)
+            modifier = Modifier.background(MaterialTheme.colorScheme.background),
         ) {
             TrainingPropertyTextField(
                 text = "Sample Text",

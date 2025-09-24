@@ -4,16 +4,30 @@ interface Logger {
 
     fun e(
         throwable: Throwable,
-        message: String? = null
+        message: String? = null,
     )
 
     fun d(message: String)
 
+    fun d(e: Throwable, message: String)
+
+    fun d(e: Throwable, message: () -> String)
+
+    fun d(message: () -> String)
+
     fun i(message: String)
+
+    fun i(message: () -> String)
 
     fun v(message: String)
 
+    fun v(message: () -> String)
+
     fun w(message: String)
 
+    fun w(message: () -> String)
+
     fun w(message: String, throwable: Throwable)
+
+    fun w(throwable: Throwable, message: () -> String)
 }

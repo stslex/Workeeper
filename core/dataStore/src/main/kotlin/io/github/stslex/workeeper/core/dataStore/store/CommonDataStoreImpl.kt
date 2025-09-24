@@ -9,7 +9,7 @@ import org.koin.core.annotation.Single
 @Single
 class CommonDataStoreImpl internal constructor(
     @CommonStoreQualifier
-    store: DataStoreProvider
+    store: DataStoreProvider,
 ) : CommonDataStore, BaseDataStore(store) {
 
     override var homeSelectedStartDate: Flow<Long?> = getLong(KEY_HOME_SELECTED_START_DATE)
@@ -30,4 +30,3 @@ class CommonDataStoreImpl internal constructor(
         private const val KEY_HOME_SELECTED_END_DATE = "home_selected_end_date"
     }
 }
-

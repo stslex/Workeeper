@@ -11,11 +11,10 @@ internal interface SingleTrainingComponent : Component {
 
         fun create(
             navigator: Navigator,
-            uuid: String?
+            uuid: String?,
         ): SingleTrainingComponent = NavigationHandler(
             navigator = navigator,
-            uuid = uuid
+            uuid = uuid,
         )
     }
 }
-

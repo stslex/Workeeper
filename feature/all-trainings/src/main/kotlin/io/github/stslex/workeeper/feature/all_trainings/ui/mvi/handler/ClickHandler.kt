@@ -11,12 +11,11 @@ import org.koin.core.annotation.Named
 import org.koin.core.annotation.Scope
 import org.koin.core.annotation.Scoped
 
-
 @Scoped(binds = [ClickHandler::class])
 @Scope(name = TRAINING_SCOPE_NAME)
 internal class ClickHandler(
     private val interactor: AllTrainingsInteractor,
-    @Named(TRAINING_SCOPE_NAME) store: TrainingHandlerStore
+    @Named(TRAINING_SCOPE_NAME) store: TrainingHandlerStore,
 ) : Handler<Action.Click>, TrainingHandlerStore by store {
 
     override fun invoke(action: Action.Click) {
@@ -36,7 +35,7 @@ internal class ClickHandler(
                     updateStateImmediate {
                         it.copy(selectedItems = persistentSetOf())
                     }
-                }
+                },
             ) {
                 interactor.deleteAll(state.value.selectedItems.toList())
             }
@@ -65,7 +64,7 @@ internal class ClickHandler(
         }
         updateState {
             it.copy(
-                selectedItems = items.toImmutableSet()
+                selectedItems = items.toImmutableSet(),
             )
         }
     }

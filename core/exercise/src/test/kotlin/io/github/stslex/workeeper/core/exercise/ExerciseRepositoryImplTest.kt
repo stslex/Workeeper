@@ -32,7 +32,7 @@ internal class ExerciseRepositoryTest {
     private val dao = mockk<ExerciseDao>()
     private val repository: ExerciseRepository = ExerciseRepositoryImpl(
         dao = dao,
-        bgDispatcher = testDispatcher
+        bgDispatcher = testDispatcher,
     )
 
     @Test
@@ -45,7 +45,7 @@ internal class ExerciseRepositoryTest {
         )
         val expectedDataModels = listOf(
             createDomain(0, uuid1),
-            createDomain(1, uuid2)
+            createDomain(1, uuid2),
         )
 
         every { dao.getAll() } returns TestPagingSource(expectedEntites)
@@ -66,7 +66,7 @@ internal class ExerciseRepositoryTest {
         )
         val expectedDataModels = listOf(
             createDomain(0, uuid1),
-            createDomain(1, uuid2)
+            createDomain(1, uuid2),
         )
 
         every { dao.getAll("some_query") } returns TestPagingSource(expectedEntites)
@@ -87,13 +87,12 @@ internal class ExerciseRepositoryTest {
         )
         val expectedDataModels = listOf(
             createDomain(0, uuid1),
-            createDomain(1, uuid2)
+            createDomain(1, uuid2),
         )
 
-        coEvery { dao.getExercises("name", 100L, 200L) } returns flowOf(expectedEntites)
+        coEvery { dao.getExercises("name", 100L, 200L) } returns expectedEntites
 
-        val items = repository.getExercises("name", 100L, 200L).first()
-        @Suppress("UnusedFlow")
+        val items = repository.getExercises("name", 100L, 200L)
         coVerify(exactly = 1) { dao.getExercises("name", 100L, 200L) }
 
         assertEquals(expectedDataModels, items)
@@ -109,7 +108,7 @@ internal class ExerciseRepositoryTest {
         )
         val expectedDataModels = listOf(
             createDomain(0, uuid1),
-            createDomain(1, uuid2)
+            createDomain(1, uuid2),
         )
 
         coEvery { dao.getExercisesExactly("name", 100L, 200L) } returns flowOf(expectedEntites)
@@ -211,14 +210,14 @@ internal class ExerciseRepositoryTest {
     }
 
     private class TestPagingSource(
-        private val expectedEntites: List<ExerciseEntity>
+        private val expectedEntites: List<ExerciseEntity>,
     ) : PagingSource<Int, ExerciseEntity>() {
 
         override suspend fun load(params: LoadParams<Int>): LoadResult<Int, ExerciseEntity> =
             LoadResult.Page(
                 data = expectedEntites,
                 prevKey = null as Int?,
-                nextKey = null as Int?
+                nextKey = null as Int?,
             )
 
         override fun getRefreshKey(state: PagingState<Int, ExerciseEntity>): Int? = null
@@ -226,7 +225,7 @@ internal class ExerciseRepositoryTest {
 
     private fun createChangeModel(
         @Suppress("SameParameterValue") index: Int,
-        uuid: Uuid
+        uuid: Uuid,
     ) = ExerciseChangeDataModel(
         uuid = uuid.toString(),
         name = "test$index",
@@ -236,7 +235,7 @@ internal class ExerciseRepositoryTest {
                     .toString(),
                 reps = it + index,
                 weight = it + index.toDouble(),
-                type = SetsDataType.WORK
+                type = SetsDataType.WORK,
             )
         }.toList(),
         labels = listOf(index.toString()),
@@ -246,7 +245,7 @@ internal class ExerciseRepositoryTest {
 
     private fun createDomain(
         index: Int,
-        uuid: Uuid
+        uuid: Uuid,
     ) = ExerciseDataModel(
         uuid = uuid.toString(),
         name = "test$index",
@@ -256,7 +255,7 @@ internal class ExerciseRepositoryTest {
                     .toString(),
                 reps = it + index,
                 weight = it + index.toDouble(),
-                type = SetsDataType.WORK
+                type = SetsDataType.WORK,
             )
         }.toList(),
         labels = listOf(index.toString()),
@@ -266,7 +265,7 @@ internal class ExerciseRepositoryTest {
 
     private fun createEntity(
         index: Int = 0,
-        uuid: Uuid = Uuid.random()
+        uuid: Uuid = Uuid.random(),
     ) = ExerciseEntity(
         uuid = uuid,
         trainingUuid = null,
@@ -276,7 +275,7 @@ internal class ExerciseRepositoryTest {
                 uuid = Uuid.parse("00000000-0000-0000-0000-${String.format("%012d", it + index)}"),
                 reps = it + index,
                 weight = it + index.toDouble(),
-                type = SetsEntityType.WORK
+                type = SetsEntityType.WORK,
             )
         }.toList(),
         name = "test$index",

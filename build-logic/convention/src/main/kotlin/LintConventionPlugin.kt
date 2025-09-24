@@ -54,7 +54,7 @@ class LintConventionPlugin : Plugin<Project> {
                     ?.let { detektExt ->
                         detektExt.config.setFrom(rootProject.file("lint-rules/detekt.yml"))
                         detektExt.buildUponDefaultConfig = true
-                        detektExt.autoCorrect = false
+                        detektExt.autoCorrect = true
                         detektExt.allRules = false
 
                         // Single centralized detekt baseline file for all modules

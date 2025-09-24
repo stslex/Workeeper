@@ -42,7 +42,7 @@ internal class ClickHandlerTest {
     private val initialState = ExercisesStore.State(
         items = pagingUiState,
         selectedItems = persistentSetOf(),
-        query = ""
+        query = "",
     )
 
     private val stateFlow = MutableStateFlow(initialState)
@@ -52,7 +52,7 @@ internal class ClickHandlerTest {
         every { this@mockk.scope } returns AppCoroutineScope(
             testScope,
             testDispatcher,
-            testDispatcher
+            testDispatcher,
         )
 
         // Mock the launch function to actually execute the coroutine
@@ -62,7 +62,7 @@ internal class ClickHandlerTest {
                 onSuccess = any(),
                 workDispatcher = any(),
                 eachDispatcher = any(),
-                action = any()
+                action = any(),
             )
         } answers {
             val onSuccess = arg<suspend CoroutineScope.(Any) -> Unit>(1)
@@ -90,16 +90,16 @@ internal class ClickHandlerTest {
         val exercise1 = ExerciseUiModel(
             uuid = exerciseUuid1.toString(),
             name = "Exercise 1",
-            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis())
+            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
         )
 
         val exercise2 = ExerciseUiModel(
             uuid = exerciseUuid2.toString(),
             name = "Exercise 2",
-            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis())
+            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
         )
 
-        val selectedItems = setOf(exercise1, exercise2).toImmutableSet()
+        val selectedItems = setOf(exercise1.uuid, exercise2.uuid).toImmutableSet()
         stateFlow.value = stateFlow.value.copy(selectedItems = selectedItems)
 
         coEvery { repository.deleteAllItems(any()) } returns Unit
@@ -124,11 +124,11 @@ internal class ClickHandlerTest {
             dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
         )
 
-        handler.invoke(ExercisesStore.Action.Click.Item(exercise))
+        handler.invoke(ExercisesStore.Action.Click.Item(exercise.uuid))
 
         verify(exactly = 1) {
             store.consume(
-                ExercisesStore.Action.Navigation.OpenExercise(exercise.uuid)
+                ExercisesStore.Action.Navigation.OpenExercise(exercise.uuid),
             )
         }
         verify(exactly = 1) { store.sendEvent(ExercisesStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey)) }
@@ -139,21 +139,21 @@ internal class ClickHandlerTest {
         val exercise1 = ExerciseUiModel(
             uuid = Uuid.random().toString(),
             name = "Exercise 1",
-            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis())
+            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
         )
 
         val exercise2 = ExerciseUiModel(
             uuid = Uuid.random().toString(),
             name = "Exercise 2",
-            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis())
+            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
         )
 
-        stateFlow.value = stateFlow.value.copy(selectedItems = setOf(exercise1).toImmutableSet())
+        stateFlow.value =
+            stateFlow.value.copy(selectedItems = setOf(exercise1.uuid).toImmutableSet())
 
-        handler.invoke(ExercisesStore.Action.Click.Item(exercise2))
+        handler.invoke(ExercisesStore.Action.Click.Item(exercise2.uuid))
 
-        verify(exactly = 1) { store.consume(ExercisesStore.Action.Click.LonkClick(exercise2)) }
-        verify(exactly = 1) { store.sendEvent(ExercisesStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey)) }
+        verify(exactly = 1) { store.consume(ExercisesStore.Action.Click.LonkClick(exercise2.uuid)) }
     }
 
     @Test
@@ -161,10 +161,10 @@ internal class ClickHandlerTest {
         val exercise = ExerciseUiModel(
             uuid = Uuid.random().toString(),
             name = "Test Exercise",
-            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis())
+            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
         )
 
-        handler.invoke(ExercisesStore.Action.Click.LonkClick(exercise))
+        handler.invoke(ExercisesStore.Action.Click.LonkClick(exercise.uuid))
 
         verify(exactly = 1) { store.sendEvent(ExercisesStore.Event.HapticFeedback(HapticFeedbackType.LongPress)) }
 
@@ -172,7 +172,7 @@ internal class ClickHandlerTest {
         verify(exactly = 1) { store.updateState(capture(stateSlot)) }
 
         val newState = stateSlot.captured(stateFlow.value)
-        assertTrue(newState.selectedItems.contains(exercise))
+        assertTrue(newState.selectedItems.contains(exercise.uuid))
         assertEquals(1, newState.selectedItems.size)
     }
 
@@ -181,20 +181,20 @@ internal class ClickHandlerTest {
         val exercise1 = ExerciseUiModel(
             uuid = Uuid.random().toString(),
             name = "Exercise 1",
-            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis())
+            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
         )
 
         val exercise2 = ExerciseUiModel(
             uuid = Uuid.random().toString(),
             name = "Exercise 2",
-            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis())
+            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
         )
 
         stateFlow.value = stateFlow.value.copy(
-            selectedItems = setOf(exercise1, exercise2).toImmutableSet()
+            selectedItems = setOf(exercise1.uuid, exercise2.uuid).toImmutableSet(),
         )
 
-        handler.invoke(ExercisesStore.Action.Click.LonkClick(exercise1))
+        handler.invoke(ExercisesStore.Action.Click.LonkClick(exercise1.uuid))
 
         verify(exactly = 1) { store.sendEvent(ExercisesStore.Event.HapticFeedback(HapticFeedbackType.LongPress)) }
 
@@ -203,7 +203,7 @@ internal class ClickHandlerTest {
 
         val newState = stateSlot.captured(stateFlow.value)
         assertEquals(1, newState.selectedItems.size)
-        assertTrue(newState.selectedItems.contains(exercise2))
-        assertTrue(!newState.selectedItems.contains(exercise1))
+        assertTrue(newState.selectedItems.contains(exercise2.uuid))
+        assertTrue(!newState.selectedItems.contains(exercise1.uuid))
     }
 }

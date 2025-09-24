@@ -15,7 +15,7 @@ internal interface TrainingStore : Store<State, Action, Event> {
     data class State(
         val training: TrainingUiModel,
         val dialogState: DialogState,
-        val pendingForCreateUuid: String
+        val pendingForCreateUuid: String,
     ) : Store.State {
 
         companion object {
@@ -23,7 +23,7 @@ internal interface TrainingStore : Store<State, Action, Event> {
             val INITIAL = State(
                 training = TrainingUiModel.INITIAL,
                 dialogState = DialogState.Closed,
-                pendingForCreateUuid = ""
+                pendingForCreateUuid = "",
             )
         }
     }
@@ -38,11 +38,11 @@ internal interface TrainingStore : Store<State, Action, Event> {
         sealed interface Input : Action {
 
             data class Name(
-                val value: String
+                val value: String,
             ) : Input
 
             data class Date(
-                val timestamp: Long
+                val timestamp: Long,
             ) : Input
         }
 
@@ -61,7 +61,6 @@ internal interface TrainingStore : Store<State, Action, Event> {
             data object CreateExercise : Click
 
             data class ExerciseClick(val exerciseUuid: String) : Click
-
         }
 
         sealed interface Navigation : Action {
@@ -69,12 +68,12 @@ internal interface TrainingStore : Store<State, Action, Event> {
             data object PopBack : Navigation
 
             data class CreateExercise(
-                val trainingUuid: String
+                val trainingUuid: String,
             ) : Navigation
 
             data class OpenExercise(
                 val exerciseUuid: String,
-                val trainingUuid: String
+                val trainingUuid: String,
             ) : Navigation
         }
     }

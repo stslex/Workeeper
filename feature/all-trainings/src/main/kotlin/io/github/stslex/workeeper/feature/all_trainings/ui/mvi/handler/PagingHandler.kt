@@ -27,7 +27,7 @@ internal class PagingHandler(
     private val trainingMapper: TrainingUiMapper,
     @param:DefaultDispatcher
     private val defaultDispatcher: CoroutineDispatcher,
-    @Named(TRAINING_SCOPE_NAME) private val store: TrainingHandlerStore
+    @Named(TRAINING_SCOPE_NAME) private val store: TrainingHandlerStore,
 ) : Handler<Action.Paging>, TrainingHandlerStore by store {
 
     val pagingUiState: PagingUiState<PagingData<TrainingUiModel>> = PagingUiState {

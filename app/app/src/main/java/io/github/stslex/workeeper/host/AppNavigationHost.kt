@@ -21,7 +21,7 @@ internal fun AppNavigationHost(
     modifier: Modifier = Modifier,
 ) {
     SharedTransitionLayout(
-        modifier = modifier
+        modifier = modifier,
     ) {
         NavHost(
             modifier = Modifier.fillMaxSize(),

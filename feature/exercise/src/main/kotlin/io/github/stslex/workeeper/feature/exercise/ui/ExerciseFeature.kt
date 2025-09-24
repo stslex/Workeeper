@@ -34,7 +34,7 @@ fun NavGraphBuilder.exerciseGraph(
             ExerciseComponent.create(
                 navigator = navigator,
                 uuid = data.uuid,
-                trainingUuid = data.trainingUuid
+                trainingUuid = data.trainingUuid,
             )
         }
         NavComponentScreen(ExerciseFeature, component) { processor ->
@@ -59,7 +59,7 @@ fun NavGraphBuilder.exerciseGraph(
                             SnackbarType.DISMISS -> "Leave without saving?"
                         },
                         actionLabel = event.type.value,
-                        withDismissAction = true
+                        withDismissAction = true,
                     )
 
                     ExerciseStore.Event.HapticClick -> {
@@ -75,11 +75,11 @@ fun NavGraphBuilder.exerciseGraph(
                     modifier = modifier
                         .sharedBounds(
                             sharedContentState = sharedTransitionScope.rememberSharedContentState(
-                                component.uuid ?: "createExercise"
+                                component.uuid ?: "createExercise",
                             ),
                             animatedVisibilityScope = this@navScreen,
-                            resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds()
-                        )
+                            resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds(),
+                        ),
                 )
             }
         }

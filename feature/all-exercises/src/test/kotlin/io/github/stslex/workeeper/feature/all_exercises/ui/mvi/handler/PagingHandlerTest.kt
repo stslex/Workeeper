@@ -38,7 +38,7 @@ internal class PagingHandlerTest {
     private val initialState = ExercisesStore.State(
         items = handler.processor,
         selectedItems = persistentSetOf(),
-        query = initialQuery
+        query = initialQuery,
     )
     private val stateFlow = MutableStateFlow(initialState)
 
@@ -77,8 +77,8 @@ internal class PagingHandlerTest {
         every { repository.getExercises(initialQuery) } returns flowOf(getNotLoadingData(emptyList()))
         every { repository.getExercises(expectedQuery) } returns flowOf(
             getNotLoadingData(
-                getTestData()
-            )
+                getTestData(),
+            ),
         )
         every { store.state } returns stateFlow
 
@@ -103,7 +103,7 @@ internal class PagingHandlerTest {
                 refresh = LoadState.NotLoading(true),
                 prepend = LoadState.NotLoading(true),
                 append = LoadState.NotLoading(true),
-            )
+            ),
         )
 
     private fun getTestData(): List<ExerciseDataModel> = listOf(
@@ -113,7 +113,7 @@ internal class PagingHandlerTest {
             sets = persistentListOf(),
             timestamp = 1000L,
             trainingUuid = null,
-            labels = persistentListOf()
+            labels = persistentListOf(),
         ),
         ExerciseDataModel(
             uuid = "ex2",
@@ -121,20 +121,20 @@ internal class PagingHandlerTest {
             sets = persistentListOf(),
             timestamp = 2000L,
             trainingUuid = null,
-            labels = persistentListOf()
-        )
+            labels = persistentListOf(),
+        ),
     )
 
     private fun getExpectedData(): List<ExerciseUiModel> = listOf(
         ExerciseUiModel(
             uuid = "ex1",
             name = "Push ups",
-            dateProperty = PropertyHolder.DateProperty(initialValue = 1000L)
+            dateProperty = PropertyHolder.DateProperty(initialValue = 1000L),
         ),
         ExerciseUiModel(
             uuid = "ex2",
             name = "Squats",
-            dateProperty = PropertyHolder.DateProperty(initialValue = 2000L)
-        )
+            dateProperty = PropertyHolder.DateProperty(initialValue = 2000L),
+        ),
     )
 }

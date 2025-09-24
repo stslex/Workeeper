@@ -9,9 +9,7 @@ import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.collections.immutable.persistentListOf
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -34,25 +32,16 @@ internal class CommonHandlerTest {
         every { state } returns stateFlow
         every { scope } returns AppCoroutineScope(testScope, testDispatcher, testDispatcher)
 
-        // Mock the updateState and updateStateImmediate functions
-        every { updateState(any()) } returns Unit
-        coEvery { updateStateImmediate(any<(ExerciseStore.State) -> ExerciseStore.State>()) } returns Unit
-        coEvery { updateStateImmediate(any<ExerciseStore.State>()) } returns Unit
+        // Mock the updateState function to actually update the state
+        every { updateState(any()) } answers {
+            val transform = arg<(ExerciseStore.State) -> ExerciseStore.State>(0)
+            runCatching { stateFlow.value = transform(stateFlow.value) }
+        }
 
-        // Mock the launch function to actually execute the coroutine
-        every {
-            this@mockk.launch<Any>(
-                onError = any(),
-                onSuccess = any(),
-                workDispatcher = any(),
-                eachDispatcher = any(),
-                action = any()
-            )
-        } answers {
-            val onSuccess = arg<suspend CoroutineScope.(Any?) -> Unit>(1)
-            val action = arg<suspend CoroutineScope.() -> Any?>(4)
-
-            testScope.launch { runCatching { onSuccess(this, action()) } }
+        // Mock updateStateImmediate to update the state
+        coEvery { updateStateImmediate(any<ExerciseStore.State>()) } answers {
+            val newState = arg<ExerciseStore.State>(0)
+            stateFlow.value = newState
         }
     }
     private val handler = CommonHandler(interactor, store)
@@ -79,14 +68,19 @@ internal class CommonHandlerTest {
             sets = persistentListOf(),
             timestamp = 1500000L,
             trainingUuid = "training-uuid",
-            labels = persistentListOf()
+            labels = persistentListOf(),
         )
         val searchResults = listOf<ExerciseDataModel>()
 
         coEvery { interactor.getExercise(exerciseUuid) } returns exerciseData
         coEvery { interactor.searchItems(any()) } returns searchResults
 
-        handler.invoke(ExerciseStore.Action.Common.Init(uuid = exerciseUuid, trainingUuid = "training-uuid"))
+        handler.invoke(
+            ExerciseStore.Action.Common.Init(
+                uuid = exerciseUuid,
+                trainingUuid = "training-uuid",
+            ),
+        )
 
         testScheduler.advanceUntilIdle()
 

@@ -26,7 +26,14 @@ internal class NavigationHandlerTest {
 
         handler.invoke(ExercisesStore.Action.Navigation.OpenExercise(exerciseUuid))
 
-        verify(exactly = 1) { navigator.navTo(Screen.Exercise(uuid = exerciseUuid, trainingUuid = null)) }
+        verify(exactly = 1) {
+            navigator.navTo(
+                Screen.Exercise(
+                    uuid = exerciseUuid,
+                    trainingUuid = null,
+                ),
+            )
+        }
     }
 
     @Test
@@ -39,7 +46,21 @@ internal class NavigationHandlerTest {
         handler.invoke(ExercisesStore.Action.Navigation.OpenExercise(exerciseUuid2))
 
         verify(exactly = 1) { navigator.navTo(Screen.Exercise(uuid = null, trainingUuid = null)) }
-        verify(exactly = 1) { navigator.navTo(Screen.Exercise(uuid = exerciseUuid1, trainingUuid = null)) }
-        verify(exactly = 1) { navigator.navTo(Screen.Exercise(uuid = exerciseUuid2, trainingUuid = null)) }
+        verify(exactly = 1) {
+            navigator.navTo(
+                Screen.Exercise(
+                    uuid = exerciseUuid1,
+                    trainingUuid = null,
+                ),
+            )
+        }
+        verify(exactly = 1) {
+            navigator.navTo(
+                Screen.Exercise(
+                    uuid = exerciseUuid2,
+                    trainingUuid = null,
+                ),
+            )
+        }
     }
 }

@@ -40,29 +40,29 @@ internal fun ExerciseSetsField(
             .fillMaxWidth(),
         colors = CardDefaults.elevatedCardColors(
             containerColor = containerColor.copy(
-                alpha = 0.5f
+                alpha = 0.5f,
             ),
-            contentColor = containerColor
+            contentColor = containerColor,
         ),
         onClick = {
             onClick(property)
-        }
+        },
     ) {
         Row(
             modifier = Modifier
-                .padding(AppDimension.Padding.medium)
+                .padding(AppDimension.Padding.medium),
         ) {
             ExerciseTextField(
                 modifier = Modifier.weight(1f),
                 text = property.reps.uiValue,
-                label = stringResource(R.string.feature_exercise_field_label_reps)
+                label = stringResource(R.string.feature_exercise_field_label_reps),
             )
             Spacer(Modifier.width(AppDimension.Padding.small))
             ExerciseTextField(
                 modifier = Modifier
                     .weight(1f),
                 text = property.weight.uiValue,
-                label = stringResource(R.string.feature_exercise_field_label_weight)
+                label = stringResource(R.string.feature_exercise_field_label_weight),
             )
             Spacer(Modifier.width(AppDimension.Padding.small))
             ExerciseTextField(
@@ -78,15 +78,15 @@ internal fun ExerciseSetsField(
 private fun ExerciseTextField(
     label: String,
     text: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     ElevatedCard(
-        modifier = modifier
+        modifier = modifier,
     ) {
         Box(
             modifier = Modifier
                 .padding(horizontal = AppDimension.Padding.medium)
-                .fillMaxWidth()
+                .fillMaxWidth(),
         ) {
             Text(
                 modifier = Modifier.align(Alignment.TopStart),
@@ -94,13 +94,13 @@ private fun ExerciseTextField(
                 style = MaterialTheme.typography.labelSmall,
                 fontSize = 9.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(
-                    alpha = 0.6f
-                )
+                    alpha = 0.6f,
+                ),
             )
             Text(
                 modifier = Modifier.align(Alignment.Center),
                 text = text,
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyMedium,
             )
         }
     }
@@ -111,7 +111,7 @@ private fun ExerciseTextField(
 private fun ExerciseSetsFieldPreview() {
     AppTheme {
         Box(
-            modifier = Modifier.background(MaterialTheme.colorScheme.background)
+            modifier = Modifier.background(MaterialTheme.colorScheme.background),
         ) {
             ExerciseSetsField(
                 property = SetsUiModel(
@@ -120,7 +120,7 @@ private fun ExerciseSetsFieldPreview() {
                     weight = PropertyHolder.DoubleProperty().update(14.50),
                     type = SetUiType.WARM,
                 ),
-                onClick = {}
+                onClick = {},
             )
         }
     }

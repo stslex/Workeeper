@@ -26,7 +26,7 @@ internal class ClickHandler(
     private val interactor: ExerciseInteractor,
     private val exerciseUiMap: ExerciseUiMap,
     @param:MainImmediateDispatcher private val mainDispatcher: CoroutineDispatcher,
-    @Named(EXERCISE_SCOPE_NAME) store: ExerciseHandlerStore
+    @Named(EXERCISE_SCOPE_NAME) store: ExerciseHandlerStore,
 ) : Handler<Action.Click>, ExerciseHandlerStore by store {
 
     override fun invoke(action: Action.Click) {
@@ -61,9 +61,9 @@ internal class ClickHandler(
             it.copy(
                 dialogState = DialogState.Sets(
                     SetsUiModel.EMPTY.copy(
-                        uuid = Uuid.random().toString()
-                    )
-                )
+                        uuid = Uuid.random().toString(),
+                    ),
+                ),
             )
         }
     }
@@ -86,7 +86,7 @@ internal class ClickHandler(
         updateState {
             it.copy(
                 sets = it.sets.filter { set -> set.uuid != action.uuid }.toImmutableList(),
-                dialogState = DialogState.Closed
+                dialogState = DialogState.Closed,
             )
         }
     }
@@ -105,7 +105,7 @@ internal class ClickHandler(
             val resultSet = if (isFound) newSets else (newSets + action.set)
             it.copy(
                 sets = resultSet.toImmutableList(),
-                dialogState = DialogState.Closed
+                dialogState = DialogState.Closed,
             )
         }
     }
@@ -125,7 +125,7 @@ internal class ClickHandler(
                 name = it.name.update(item.itemModel.name),
                 sets = item.itemModel.sets,
                 dateProperty = it.dateProperty.update(item.itemModel.timestamp),
-                isMenuOpen = false
+                isMenuOpen = false,
             )
         }
     }
@@ -147,7 +147,7 @@ internal class ClickHandler(
                 withContext(mainDispatcher) {
                     consume(Action.NavigationMiddleware.Back)
                 }
-            }
+            },
         ) {
             interactor.deleteItem(currentUuid)
         }
@@ -173,7 +173,7 @@ internal class ClickHandler(
             },
             onError = {
                 logger.e(it)
-            }
+            },
         ) {
             interactor.saveItem(exerciseUiMap(state.value))
         }

@@ -21,5 +21,4 @@ internal abstract class BaseDatabaseTest {
     }
 
     class TestApplication : Application()
-
 }

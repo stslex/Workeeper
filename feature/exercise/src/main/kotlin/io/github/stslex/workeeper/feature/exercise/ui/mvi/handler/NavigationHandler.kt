@@ -13,7 +13,7 @@ import org.koin.core.annotation.Scoped
 @Scoped(binds = [NavigationHandler::class])
 @Scope(name = EXERCISE_SCOPE_NAME)
 internal class NavigationHandler(
-    @Named(EXERCISE_SCOPE_NAME) store: ExerciseHandlerStore
+    @Named(EXERCISE_SCOPE_NAME) store: ExerciseHandlerStore,
 ) : Handler<Action.NavigationMiddleware>, ExerciseHandlerStore by store {
 
     override fun invoke(action: Action.NavigationMiddleware) {

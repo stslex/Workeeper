@@ -7,9 +7,12 @@ Changes:
 - test: add workflow tests for GitHub Actions (bbe133c) — stslex
 - feat: implement changelog generation and automated GitHub releases (d04f49a) — stslex
 - fix: correct typos in package names and update assertions (8c91802) — stslex
-- integrate Firebase Analytics and Crashlytics, update Proguard rules, and refactor deployment workflows (215eab8) — stslex
-- feat: integrate Firebase Analytics and Crashlytics and refactor application setup (1d0d31d) — stslex
-- feat: implement search and filter functionality in home screen and add corresponding tests (6d19fb1) — stslex
+- integrate Firebase Analytics and Crashlytics, update Proguard rules, and refactor deployment
+  workflows (215eab8) — stslex
+- feat: integrate Firebase Analytics and Crashlytics and refactor application setup (1d0d31d) —
+  stslex
+- feat: implement search and filter functionality in home screen and add corresponding tests (
+  6d19fb1) — stslex
 - feat: enhance Home screen with charts and date picker functionality (774c6fc) — stslex
 - feat: implement Home screen with tabs and charts functionality (8cbb5c9) — stslex
 - test: add query tests for ExerciseDao and ExerciseRepository (f37af66) — stslex
@@ -19,16 +22,23 @@ Changes:
 - fix: specify type for dao.delete in ExerciseRepositoryImplTest (5a00c6c) — stslex
 - add initial release with MVP functionality and setup deployment workflows (c9aad4f) — stslex
 - implement selection mode with haptic feedback and update action button icons (4d1fd26) — stslex
-- refactor project structure and update application identifiers for dev and store variants (95018bb) — stslex
-- update dependency versions for Kotlin, Android Gradle Plugin, and Material components (3192a9f) — stslex
+- refactor project structure and update application identifiers for dev and store variants (
+  95018bb) — stslex
+- update dependency versions for Kotlin, Android Gradle Plugin, and Material components (3192a9f) —
+  stslex
 - bump version to 1.02 and update version code to 3 (82d163b) — stslex
-- update Privacy Policy to clarify data collection practices and add Russian translation (eb73514) — stslex
-- update AndroidManifest and launcher icon for improved back navigation and adaptive icon support (95e97fe) — stslex
+- update Privacy Policy to clarify data collection practices and add Russian translation (eb73514) —
+  stslex
+- update AndroidManifest and launcher icon for improved back navigation and adaptive icon support (
+  95e97fe) — stslex
 - refactor ExerciseDao to improve search queries and add update/delete tests (7b0c2e2) — stslex
-- refactor ExercisePropertyTextField to enhance dropdown menu icon animation and visibility (075c243) — stslex
+- refactor ExercisePropertyTextField to enhance dropdown menu icon animation and visibility (
+  075c243) — stslex
 - add common handler for exercise feature and implement menu item selection (b5b627c) — stslex
-- add date handling with DateProperty and integrate date picker in exercise feature (fca239d) — stslex
-- implement shared transition animations in navigation and update back navigation logic (05c1bca) — stslex
+- add date handling with DateProperty and integrate date picker in exercise feature (fca239d) —
+  stslex
+- implement shared transition animations in navigation and update back navigation logic (05c1bca) —
+  stslex
 - fix nav issues (c4e54f8) — stslex
 - migrate to jepack navigation (8865d14) — stslex
 - add hash validator for changes (f1cec95) — stslex

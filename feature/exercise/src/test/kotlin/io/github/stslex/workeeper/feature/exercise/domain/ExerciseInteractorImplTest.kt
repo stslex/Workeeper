@@ -27,19 +27,19 @@ internal class ExerciseInteractorImplTest {
     private val interactor: ExerciseInteractor = ExerciseInteractorImpl(
         exerciseRepository = exerciseRepository,
         trainingRepository = trainingRepository,
-        dispatcher = testDispatcher
+        dispatcher = testDispatcher,
     )
 
     @Test
     fun `save item with no training uuid saves exercise only`() = runTest(testDispatcher) {
         val exerciseChangeModel = createExerciseChangeDataModel(
             name = "Test Exercise",
-            trainingUuid = null
+            trainingUuid = null,
         )
         val savedExercise = createExerciseDataModel(
             uuid = Uuid.random().toString(),
             name = "Test Exercise",
-            trainingUuid = null
+            trainingUuid = null,
         )
 
         coEvery { exerciseRepository.saveItem(any()) } returns Unit
@@ -61,24 +61,24 @@ internal class ExerciseInteractorImplTest {
 
             val exerciseChangeModel = createExerciseChangeDataModel(
                 name = "Test Exercise",
-                trainingUuid = trainingUuid
+                trainingUuid = trainingUuid,
             )
             val savedExercise = createExerciseDataModel(
                 uuid = exerciseUuid,
                 name = "Test Exercise",
-                trainingUuid = trainingUuid
+                trainingUuid = trainingUuid,
             )
             val existingTraining = createTrainingDataModel(
                 uuid = trainingUuid,
                 name = "Test Training",
-                exerciseUuids = emptyList()
+                exerciseUuids = emptyList(),
             )
             val expectedUpdatedTraining = TrainingChangeDataModel(
                 uuid = trainingUuid,
                 name = "Test Training",
                 exerciseUuids = listOf(exerciseUuid),
                 labels = listOf("Test Label"),
-                timestamp = 1234567890L
+                timestamp = 1234567890L,
             )
 
             coEvery { exerciseRepository.saveItem(any()) } returns Unit
@@ -102,17 +102,17 @@ internal class ExerciseInteractorImplTest {
 
             val exerciseChangeModel = createExerciseChangeDataModel(
                 name = "Test Exercise",
-                trainingUuid = trainingUuid
+                trainingUuid = trainingUuid,
             )
             val savedExercise = createExerciseDataModel(
                 uuid = exerciseUuid,
                 name = "Test Exercise",
-                trainingUuid = trainingUuid
+                trainingUuid = trainingUuid,
             )
             val existingTraining = createTrainingDataModel(
                 uuid = trainingUuid,
                 name = "Test Training",
-                exerciseUuids = listOf(exerciseUuid) // Exercise already in training
+                exerciseUuids = listOf(exerciseUuid), // Exercise already in training
             )
 
             coEvery { exerciseRepository.saveItem(any()) } returns Unit
@@ -135,12 +135,12 @@ internal class ExerciseInteractorImplTest {
 
             val exerciseChangeModel = createExerciseChangeDataModel(
                 name = "Test Exercise",
-                trainingUuid = trainingUuid
+                trainingUuid = trainingUuid,
             )
             val savedExercise = createExerciseDataModel(
                 uuid = exerciseUuid,
                 name = "Test Exercise",
-                trainingUuid = trainingUuid
+                trainingUuid = trainingUuid,
             )
 
             coEvery { exerciseRepository.saveItem(any()) } returns Unit
@@ -162,7 +162,7 @@ internal class ExerciseInteractorImplTest {
 
             val exerciseChangeModel = createExerciseChangeDataModel(
                 name = "Test Exercise",
-                trainingUuid = trainingUuid
+                trainingUuid = trainingUuid,
             )
 
             coEvery { exerciseRepository.saveItem(any()) } returns Unit
@@ -184,7 +184,6 @@ internal class ExerciseInteractorImplTest {
 
         coVerify(exactly = 1) { exerciseRepository.deleteItem(uuid) }
     }
-
 
     @Test
     fun `get item by uuid`() = runTest(testDispatcher) {
@@ -215,7 +214,7 @@ internal class ExerciseInteractorImplTest {
     private fun createExerciseChangeDataModel(
         uuid: String? = null,
         name: String,
-        trainingUuid: String?
+        trainingUuid: String?,
     ) = ExerciseChangeDataModel(
         uuid = uuid,
         name = name,
@@ -225,18 +224,18 @@ internal class ExerciseInteractorImplTest {
                 uuid = Uuid.random().toString(),
                 reps = 10,
                 weight = 50.0,
-                type = SetsDataType.WORK
-            )
+                type = SetsDataType.WORK,
+            ),
         ),
         labels = listOf("Test Label"),
-        timestamp = 1234567890L
+        timestamp = 1234567890L,
     )
 
     @Suppress("SameParameterValue")
     private fun createExerciseDataModel(
         uuid: String,
         name: String,
-        trainingUuid: String?
+        trainingUuid: String?,
     ) = ExerciseDataModel(
         uuid = uuid,
         name = name,
@@ -246,23 +245,23 @@ internal class ExerciseInteractorImplTest {
                 uuid = Uuid.random().toString(),
                 reps = 10,
                 weight = 50.0,
-                type = SetsDataType.WORK
-            )
+                type = SetsDataType.WORK,
+            ),
         ),
         labels = listOf("Test Label"),
-        timestamp = 1234567890L
+        timestamp = 1234567890L,
     )
 
     @Suppress("SameParameterValue")
     private fun createTrainingDataModel(
         uuid: String,
         name: String,
-        exerciseUuids: List<String>
+        exerciseUuids: List<String>,
     ) = TrainingDataModel(
         uuid = uuid,
         name = name,
         exerciseUuids = exerciseUuids,
         labels = listOf("Test Label"),
-        timestamp = 1234567890L
+        timestamp = 1234567890L,
     )
 }

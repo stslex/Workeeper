@@ -43,7 +43,7 @@ internal fun WorkeeperBottomAppBar(
     val hapticFeedback = LocalHapticFeedback.current
     BottomAppBar(
         modifier = modifier,
-        contentPadding = PaddingValues(AppDimension.Padding.medium)
+        contentPadding = PaddingValues(AppDimension.Padding.medium),
     ) {
         BottomBarItem.entries.forEachIndexed { index, bottomBarItem ->
             BottomAppBarItem(
@@ -51,7 +51,7 @@ internal fun WorkeeperBottomAppBar(
                     .fillMaxHeight()
                     .weight(1f),
                 titleRes = bottomBarItem.titleRes,
-                selected = selectedItem.value == bottomBarItem
+                selected = selectedItem.value == bottomBarItem,
             ) {
                 hapticFeedback.performHapticFeedback(HapticFeedbackType.SegmentTick)
                 onItemClick(bottomBarItem)
@@ -75,7 +75,7 @@ private fun BottomAppBarItem(
     @Composable
     fun <T : Any> animationSpec(): AnimationSpec<T> = tween(
         durationMillis = ANIMATION_DURATION_MS,
-        easing = FastOutSlowInEasing
+        easing = FastOutSlowInEasing,
     )
 
     val containerColor by animateColorAsState(
@@ -84,7 +84,7 @@ private fun BottomAppBarItem(
         } else {
             MaterialTheme.colorScheme.surface
         },
-        animationSpec = animationSpec()
+        animationSpec = animationSpec(),
     )
     val contentColor by animateColorAsState(
         targetValue = if (selected) {
@@ -92,25 +92,25 @@ private fun BottomAppBarItem(
         } else {
             MaterialTheme.colorScheme.onSurface
         },
-        animationSpec = animationSpec()
+        animationSpec = animationSpec(),
     )
     val paddingSize by animateDpAsState(
         targetValue = if (selected) 0.dp else AppDimension.Padding.medium,
-        animationSpec = animationSpec()
+        animationSpec = animationSpec(),
     )
     val textSizePercent by animateFloatAsState(
         targetValue = if (selected) 1.0f else 0.9f,
-        animationSpec = animationSpec()
+        animationSpec = animationSpec(),
     )
 
     val elevation by animateDpAsState(
         targetValue = if (selected) 0.dp else AppDimension.Elevation.medium,
-        animationSpec = animationSpec()
+        animationSpec = animationSpec(),
     )
 
     val borderStrokeWidth by animateDpAsState(
         targetValue = if (selected) AppDimension.Border.small else 0.dp,
-        animationSpec = animationSpec()
+        animationSpec = animationSpec(),
     )
 
     val borderStrokeColor by animateColorAsState(
@@ -119,12 +119,12 @@ private fun BottomAppBarItem(
         } else {
             Color.Transparent
         },
-        animationSpec = animationSpec()
+        animationSpec = animationSpec(),
     )
 
     val borderStroke = if (selected) BorderStroke(
         width = borderStrokeWidth,
-        color = borderStrokeColor
+        color = borderStrokeColor,
     ) else {
         null
     }
@@ -134,17 +134,17 @@ private fun BottomAppBarItem(
         onClick = onClick,
         colors = ButtonDefaults.filledTonalButtonColors(
             containerColor = containerColor,
-            contentColor = contentColor
+            contentColor = contentColor,
         ),
         border = borderStroke,
         elevation = ButtonDefaults.filledTonalButtonElevation(
-            defaultElevation = elevation
-        )
+            defaultElevation = elevation,
+        ),
     ) {
         Text(
             text = stringResource(titleRes),
             fontSize = MaterialTheme.typography.labelLarge.fontSize * textSizePercent,
-            maxLines = 1
+            maxLines = 1,
         )
     }
 }
@@ -158,13 +158,13 @@ private fun WorkeeperBottomAppBarPreview() {
         }
 
         Box(
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             WorkeeperBottomAppBar(
                 onItemClick = {
                     selectedItem.value = it
                 },
-                selectedItem = selectedItem
+                selectedItem = selectedItem,
             )
         }
     }

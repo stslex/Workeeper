@@ -35,7 +35,7 @@ internal class ClickHandlerTest {
     private val testScope = TestScope(testDispatcher)
     private val pagingUiState = mockk<PagingUiState<PagingData<TrainingUiModel>>>(relaxed = true)
     private val stateFlow = MutableStateFlow(
-        TrainingStore.State.init(pagingUiState)
+        TrainingStore.State.init(pagingUiState),
     )
 
     private val appCoroutineScope = AppCoroutineScope(testScope, testDispatcher, testDispatcher)
@@ -51,7 +51,7 @@ internal class ClickHandlerTest {
                 onSuccess = any(),
                 workDispatcher = any(),
                 eachDispatcher = any(),
-                action = any()
+                action = any(),
             )
         } answers {
             val onSuccess = arg<suspend CoroutineScope.(Any) -> Unit>(1)
@@ -72,8 +72,8 @@ internal class ClickHandlerTest {
         verify(exactly = 1) {
             store.consume(
                 TrainingStore.Action.Navigation.OpenTraining(
-                    trainingUuid
-                )
+                    trainingUuid,
+                ),
             )
         }
     }
@@ -83,7 +83,7 @@ internal class ClickHandlerTest {
         val existingUuid = Uuid.random().toString()
         val newUuid = Uuid.random().toString()
         stateFlow.value = stateFlow.value.copy(
-            selectedItems = setOf(existingUuid).toImmutableSet()
+            selectedItems = setOf(existingUuid).toImmutableSet(),
         )
 
         val stateSlot = slot<(TrainingStore.State) -> TrainingStore.State>()
@@ -104,7 +104,7 @@ internal class ClickHandlerTest {
         val uuid1 = Uuid.random().toString()
         val uuid2 = Uuid.random().toString()
         stateFlow.value = stateFlow.value.copy(
-            selectedItems = setOf(uuid1, uuid2).toImmutableSet()
+            selectedItems = setOf(uuid1, uuid2).toImmutableSet(),
         )
 
         val stateSlot = slot<(TrainingStore.State) -> TrainingStore.State>()
@@ -134,7 +134,7 @@ internal class ClickHandlerTest {
     fun `training item long click removes item when already selected`() = runTest {
         val uuid = Uuid.random().toString()
         stateFlow.value = stateFlow.value.copy(
-            selectedItems = setOf(uuid).toImmutableSet()
+            selectedItems = setOf(uuid).toImmutableSet(),
         )
 
         handler.invoke(TrainingStore.Action.Click.TrainingItemLongClick(uuid))

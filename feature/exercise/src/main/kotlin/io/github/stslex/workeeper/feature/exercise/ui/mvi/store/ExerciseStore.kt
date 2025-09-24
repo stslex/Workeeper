@@ -33,9 +33,9 @@ interface ExerciseStore : Store<State, Action, Event> {
 
         val calculateEqualsHash: Int
             get() = uuid.hashCode() +
-                    name.value.trim().hashCode() +
-                    sets.sumOf { it.reps.value.hashCode() + it.weight.value.hashCode() + it.type.ordinal } +
-                    dateProperty.value.hashCode()
+                name.value.trim().hashCode() +
+                sets.sumOf { it.reps.value.hashCode() + it.weight.value.hashCode() + it.type.ordinal } +
+                dateProperty.value.hashCode()
 
         val allowBack: Boolean
             get() = if (uuid == null) {
@@ -59,7 +59,7 @@ interface ExerciseStore : Store<State, Action, Event> {
                     menuItems = persistentSetOf(),
                     trainingUuid = null,
                     labels = persistentListOf(),
-                    initialHash = 0
+                    initialHash = 0,
                 )
         }
     }
@@ -69,18 +69,16 @@ interface ExerciseStore : Store<State, Action, Event> {
         sealed interface Input : Action {
 
             data class PropertyName(
-                val value: String
+                val value: String,
             ) : Input
 
             data class Time(val timestamp: Long) : Input
 
             sealed interface DialogSets : Input {
 
-
                 data class Weight(val value: String) : DialogSets
 
                 data class Reps(val value: String) : DialogSets
-
             }
         }
 
@@ -88,9 +86,8 @@ interface ExerciseStore : Store<State, Action, Event> {
 
             data class Init(
                 val uuid: String?,
-                val trainingUuid: String?
+                val trainingUuid: String?,
             ) : Common
-
         }
 
         sealed interface Click : Action {
@@ -126,7 +123,6 @@ interface ExerciseStore : Store<State, Action, Event> {
                 data class SaveButton(val set: SetsUiModel) : DialogSets
 
                 data object CancelButton : DialogSets
-
             }
         }
 
@@ -141,7 +137,6 @@ interface ExerciseStore : Store<State, Action, Event> {
 
             data object Back : Navigation
         }
-
     }
 
     sealed interface Event : Store.Event {
@@ -149,10 +144,9 @@ interface ExerciseStore : Store<State, Action, Event> {
         data object InvalidParams : Event
 
         data class Snackbar(
-            val type: SnackbarType
+            val type: SnackbarType,
         ) : Event
 
         data object HapticClick : Event
-
     }
 }

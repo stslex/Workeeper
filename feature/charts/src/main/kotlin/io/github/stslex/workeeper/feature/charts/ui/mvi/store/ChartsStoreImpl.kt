@@ -32,7 +32,7 @@ internal class ChartsStoreImpl(
     storeDispatchers: StoreDispatchers,
     @Named(CHARTS_SCOPE_NAME) storeEmitter: ChartsHandlerStoreImpl,
     analytics: StoreAnalytics<Action, Event> = AnalyticsHolder.createStore(NAME),
-    override val logger: Logger = storeLogger(NAME)
+    override val logger: Logger = storeLogger(NAME),
 ) : BaseStore<State, Action, Event>(
     name = NAME,
     initialState = State.INITIAL,
@@ -48,7 +48,7 @@ internal class ChartsStoreImpl(
     },
     initialActions = listOf(Action.Paging.Init),
     analytics = analytics,
-    logger = logger
+    logger = logger,
 ) {
 
     companion object {

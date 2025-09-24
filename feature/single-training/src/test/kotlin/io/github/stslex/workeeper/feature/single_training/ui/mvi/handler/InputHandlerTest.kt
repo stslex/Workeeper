@@ -21,13 +21,13 @@ internal class InputHandlerTest {
         name = "Initial Training",
         exercises = persistentListOf(),
         labels = persistentListOf(),
-        date = PropertyHolder.DateProperty(initialValue = 1000000L)
+        date = PropertyHolder.DateProperty(initialValue = 1000000L),
     )
 
     private val initialState = TrainingStore.State(
         training = initialTraining,
         dialogState = DialogState.Closed,
-        pendingForCreateUuid = ""
+        pendingForCreateUuid = "",
     )
 
     private val stateFlow = MutableStateFlow(initialState)

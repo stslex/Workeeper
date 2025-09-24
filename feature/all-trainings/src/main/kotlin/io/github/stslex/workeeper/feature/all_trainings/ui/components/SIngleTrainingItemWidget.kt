@@ -40,21 +40,21 @@ internal fun SingleTrainingItemWidget(
     isSelected: Boolean,
     onItemClick: () -> Unit,
     onItemLongClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val containerColor by animateColorAsState(
         targetValue = if (isSelected) {
             MaterialTheme.colorScheme.tertiaryContainer
         } else {
             MaterialTheme.colorScheme.surface
-        }
+        },
     )
     val contentColor by animateColorAsState(
         targetValue = if (isSelected) {
             MaterialTheme.colorScheme.onTertiaryContainer
         } else {
             MaterialTheme.colorScheme.onSurface
-        }
+        },
     )
     OutlinedCard(
         modifier = modifier
@@ -62,27 +62,27 @@ internal fun SingleTrainingItemWidget(
             .padding(AppDimension.Padding.medium)
             .combinedClickable(
                 onClick = onItemClick,
-                onLongClick = onItemLongClick
+                onLongClick = onItemLongClick,
             ),
         colors = CardDefaults.elevatedCardColors(
             containerColor = containerColor,
-            contentColor = contentColor
-        )
+            contentColor = contentColor,
+        ),
     ) {
         Column(
             modifier = Modifier
                 .padding(AppDimension.Padding.medium)
-                .padding(horizontal = AppDimension.Padding.medium)
+                .padding(horizontal = AppDimension.Padding.medium),
         ) {
             Text(
                 text = item.name,
                 style = MaterialTheme.typography.displayMedium,
                 maxLines = 3,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
             if (item.labels.isNotEmpty()) {
                 HorizontalDivider(
-                    modifier = Modifier.padding(vertical = AppDimension.Padding.medium)
+                    modifier = Modifier.padding(vertical = AppDimension.Padding.medium),
                 )
                 ContextualFlowRow(
                     maxLines = 2,
@@ -92,11 +92,11 @@ internal fun SingleTrainingItemWidget(
                         expandIndicator = {
                             val hidden = abs(totalItemCount - shownItemCount)
                             SingleTrainingLabel(
-                                label = "+$hidden"
+                                label = "+$hidden",
                             )
                         },
-                        collapseIndicator = {}
-                    )
+                        collapseIndicator = {},
+                    ),
                 ) {
                     item.labels.forEachIndexed { index, label ->
                         SingleTrainingLabel(
@@ -105,16 +105,14 @@ internal fun SingleTrainingItemWidget(
                     }
                 }
             }
-
         }
-
     }
 }
 
 @Composable
 private fun SingleTrainingLabel(
     label: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Box(
         modifier = Modifier,
@@ -125,10 +123,10 @@ private fun SingleTrainingLabel(
         ) {
             Text(
                 modifier = Modifier.padding(
-                    horizontal = AppDimension.Padding.medium
+                    horizontal = AppDimension.Padding.medium,
                 ),
                 text = label,
-                style = MaterialTheme.typography.labelSmall
+                style = MaterialTheme.typography.labelSmall,
             )
         }
     }
@@ -141,7 +139,7 @@ private fun SingleTrainingItemWidgetPreview() {
         Box(
             modifier = Modifier
                 .background(MaterialTheme.colorScheme.background)
-                .fillMaxSize()
+                .fillMaxSize(),
         ) {
             var isSelected by remember { mutableStateOf(false) }
             val labels = Array(20) {
@@ -162,7 +160,7 @@ private fun SingleTrainingItemWidgetPreview() {
                 onItemClick = {
                     isSelected = !isSelected
                 },
-                onItemLongClick = {}
+                onItemLongClick = {},
             )
         }
     }

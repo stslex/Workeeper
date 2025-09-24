@@ -14,12 +14,12 @@ import org.koin.core.annotation.Scoped
 internal class TrainingUiMapper : Mapper<TrainingDataModel, TrainingUiModel> {
 
     override fun invoke(
-        data: TrainingDataModel
+        data: TrainingDataModel,
     ): TrainingUiModel = TrainingUiModel(
         uuid = data.uuid,
         name = data.name,
         labels = data.labels.toImmutableList(),
         exerciseUuids = data.exerciseUuids.toImmutableList(),
-        date = PropertyHolder.DateProperty().update(data.timestamp)
+        date = PropertyHolder.DateProperty().update(data.timestamp),
     )
 }

@@ -1,0 +1,8 @@
+- ♻️ clean up code by removing unnecessary newlines and improving formatting
+- ♻️ improve test readability and structure in handler tests
+- ♻️ streamline exercise data retrieval and update chart mapping logic
+- ♻️ update suspend function signatures and introduce chart-related models
+- ♻️ enhance logger mock setup and update selectedItems handling
+- ♻️ modify ClickHandler to use UUID for item actions
+- ♻️ introduce ChartsType for chart selection and update related components
+…

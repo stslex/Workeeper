@@ -24,5 +24,5 @@ val appModules = listOf(
     ModuleFeatureAllExercises().module,
     ModuleFeatureCharts().module,
     ModuleFeatureAllTrainings().module,
-    ModuleFeatureSingleTraining().module
+    ModuleFeatureSingleTraining().module,
 )

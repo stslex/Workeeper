@@ -9,7 +9,7 @@ import io.github.stslex.workeeper.core.ui.navigation.Screen
 
 @Stable
 class NavigatorImpl(
-    private val holder: NavigatorHolder
+    private val holder: NavigatorHolder,
 ) : Navigator {
 
     override val navController get() = holder.navigator

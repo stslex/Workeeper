@@ -47,7 +47,7 @@ internal fun <TMenuItem : Any> TextInputField(
             KeyboardOptions.Default
         } else {
             KeyboardOptions.Default.copy(
-                keyboardType = KeyboardType.Decimal
+                keyboardType = KeyboardType.Decimal,
             )
         }
     }
@@ -78,7 +78,7 @@ internal fun <TMenuItem : Any> TextInputField(
                 disabledTextColor = LocalContentColor.current,
                 disabledBorderColor = MaterialTheme.colorScheme.outline,
                 disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                disabledContainerColor = MaterialTheme.colorScheme.surface
+                disabledContainerColor = MaterialTheme.colorScheme.surface,
             )
         } else {
             OutlinedTextFieldDefaults.colors()
@@ -102,27 +102,27 @@ private fun <TMenuItem : Any> PropertyTrailingIcon(
         onClick = {
             focus.clearFocus(force = true)
             onMenuClick()
-        }
+        },
     ) {
         val rotation = animateFloatAsState(
-            targetValue = if (isMenuOpen) 180f else 0f
+            targetValue = if (isMenuOpen) 180f else 0f,
         )
         Icon(
             modifier = Modifier.rotate(rotation.value),
             imageVector = Icons.Outlined.KeyboardArrowDown,
-            contentDescription = "Input mode"
+            contentDescription = "Input mode",
         )
     }
     DropdownMenu(
         expanded = isMenuOpen,
         onDismissRequest = {
             onMenuClose()
-        }
+        },
     ) {
         menuItems.forEach { item ->
             DropdownMenuItem(
                 text = { Text(item.text) },
-                onClick = { onMenuItemClick(item) }
+                onClick = { onMenuItemClick(item) },
             )
         }
     }

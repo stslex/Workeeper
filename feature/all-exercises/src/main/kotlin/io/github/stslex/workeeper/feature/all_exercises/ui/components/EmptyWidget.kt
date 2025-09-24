@@ -19,16 +19,16 @@ import io.github.stslex.workeeper.feature.all_exercises.R
 @Composable
 internal fun EmptyWidget(
     query: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Box(
         modifier = modifier
             .fillMaxSize()
-            .padding(AppDimension.Padding.big)
+            .padding(AppDimension.Padding.big),
     ) {
         Text(
             modifier = Modifier.align(
-                Alignment.Center
+                Alignment.Center,
             ),
             text = if (query.isEmpty()) {
                 stringResource(R.string.feature_all_exercises_empty_results)
@@ -36,7 +36,7 @@ internal fun EmptyWidget(
                 stringResource(R.string.feature_all_exercises_not_found_results)
             },
             style = MaterialTheme.typography.headlineLarge,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
         )
     }
 }

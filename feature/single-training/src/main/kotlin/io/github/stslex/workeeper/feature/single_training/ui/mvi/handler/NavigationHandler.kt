@@ -7,7 +7,7 @@ import io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingS
 
 internal class NavigationHandler(
     private val navigator: Navigator,
-    override val uuid: String?
+    override val uuid: String?,
 ) : SingleTrainingComponent, Handler<Action.Navigation> {
 
     override fun invoke(action: Action.Navigation) {
@@ -16,15 +16,15 @@ internal class NavigationHandler(
             is Action.Navigation.CreateExercise -> navigator.navTo(
                 Screen.Exercise(
                     uuid = null,
-                    trainingUuid = action.trainingUuid
-                )
+                    trainingUuid = action.trainingUuid,
+                ),
             )
 
             is Action.Navigation.OpenExercise -> navigator.navTo(
                 Screen.Exercise(
                     uuid = action.exerciseUuid,
-                    trainingUuid = action.trainingUuid
-                )
+                    trainingUuid = action.trainingUuid,
+                ),
             )
         }
     }

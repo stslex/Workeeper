@@ -93,9 +93,10 @@ internal class InputHandlerTest {
     fun `search query input preserves other state properties`() {
         // Set some initial selected items
         val selectedExercise = mockk<ExerciseUiModel>()
+        every { selectedExercise.uuid } returns "exercise-uuid-123"
         stateFlow.value = stateFlow.value.copy(
-            selectedItems = persistentSetOf(selectedExercise),
-            query = "initial query"
+            selectedItems = persistentSetOf(selectedExercise.uuid),
+            query = "initial query",
         )
 
         val newQuery = "new search query"
@@ -105,7 +106,7 @@ internal class InputHandlerTest {
         verify(exactly = 1) { store.updateState(any()) }
         assertEquals(newQuery, stateFlow.value.query)
         assertEquals(1, stateFlow.value.selectedItems.size)
-        assertEquals(selectedExercise, stateFlow.value.selectedItems.first())
+        assertEquals(selectedExercise.uuid, stateFlow.value.selectedItems.first())
         assertEquals(initialState.items, stateFlow.value.items)
     }
 

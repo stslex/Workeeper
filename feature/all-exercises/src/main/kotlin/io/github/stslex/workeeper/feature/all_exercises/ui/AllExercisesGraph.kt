@@ -21,18 +21,17 @@ import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesSt
 fun NavGraphBuilder.allExercisesGraph(
     navigator: Navigator,
     sharedTransitionScope: SharedTransitionScope,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     navScreen<Screen.BottomBar.AllExercises> {
         ExerciseScreen(
             modifier = modifier,
             sharedTransitionScope = sharedTransitionScope,
             component = remember(navigator) { AllExercisesComponent.create(navigator) },
-            animatedContentScope = this
+            animatedContentScope = this,
         )
     }
 }
-
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -40,7 +39,7 @@ private fun ExerciseScreen(
     component: AllExercisesComponent,
     sharedTransitionScope: SharedTransitionScope,
     animatedContentScope: AnimatedContentScope,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     NavComponentScreen(ExerciseFeature, component) { processor ->
 

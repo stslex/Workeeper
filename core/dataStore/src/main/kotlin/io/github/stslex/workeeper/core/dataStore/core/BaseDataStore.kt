@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 open class BaseDataStore internal constructor(
-    private val storeProvider: DataStoreProvider
+    private val storeProvider: DataStoreProvider,
 ) {
 
     private val logger = Log.tag("DataStore")

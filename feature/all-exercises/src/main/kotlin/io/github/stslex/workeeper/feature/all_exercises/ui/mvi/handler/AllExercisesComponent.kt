@@ -10,11 +10,9 @@ interface AllExercisesComponent : Component {
     companion object {
 
         fun create(
-            navigator: Navigator
+            navigator: Navigator,
         ): AllExercisesComponent = NavigationHandler(
-            navigator = navigator
+            navigator = navigator,
         )
-
     }
 }
-

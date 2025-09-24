@@ -15,5 +15,5 @@ internal fun ExerciseDataModel.toDomain(): ExerciseDomainModel = ExerciseDomainM
     labels = labels,
     sets = sets.size,
     name = name,
-    timestamp = timestamp
+    timestamp = timestamp,
 )

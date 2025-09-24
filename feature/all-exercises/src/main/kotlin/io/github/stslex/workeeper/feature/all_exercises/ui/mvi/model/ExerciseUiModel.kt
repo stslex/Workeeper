@@ -8,7 +8,7 @@ import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.
 data class ExerciseUiModel(
     val uuid: String,
     val name: String,
-    val dateProperty: PropertyHolder.DateProperty
+    val dateProperty: PropertyHolder.DateProperty,
 )
 
 fun ExerciseDataModel.toUi() = ExerciseUiModel(

@@ -17,13 +17,13 @@ internal interface TrainingStore : Store<State, Action, Event> {
     data class State(
         val pagingUiState: PagingUiState<PagingData<TrainingUiModel>>,
         val query: String,
-        val selectedItems: ImmutableSet<String>
+        val selectedItems: ImmutableSet<String>,
     ) : Store.State {
 
         companion object {
 
             fun init(
-                pagingUiState: PagingUiState<PagingData<TrainingUiModel>>
+                pagingUiState: PagingUiState<PagingData<TrainingUiModel>>,
             ): State = State(
                 pagingUiState = pagingUiState,
                 query = "",
@@ -42,11 +42,11 @@ internal interface TrainingStore : Store<State, Action, Event> {
         sealed interface Click : Action {
 
             data class TrainingItemClick(
-                val itemUuid: String
+                val itemUuid: String,
             ) : Click
 
             data class TrainingItemLongClick(
-                val itemUuid: String
+                val itemUuid: String,
             ) : Click
 
             data object ActionButton : Click

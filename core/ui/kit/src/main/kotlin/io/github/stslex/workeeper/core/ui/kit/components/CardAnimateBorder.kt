@@ -44,7 +44,7 @@ fun CardWithAnimatedBorder(
     borderSize: Dp = 1.dp,
     backgroundColor: Color = MaterialTheme.colorScheme.surface,
     backgroundEnableColor: Color = backgroundColor,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     val infiniteTransition = rememberInfiniteTransition()
     val angle by infiniteTransition.animateFloat(
@@ -52,8 +52,8 @@ fun CardWithAnimatedBorder(
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
             animation = tween(1500, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        )
+            repeatMode = RepeatMode.Restart,
+        ),
     )
 
     val brush = if (borderColors.isNotEmpty()) {
@@ -66,8 +66,8 @@ fun CardWithAnimatedBorder(
                 Color(0xFF35A07F),
                 Color(0xFF35A07F),
                 Color(0xFFFFC766),
-                Color(0xFFFF595A)
-            )
+                Color(0xFFFF595A),
+            ),
         )
     }
 
@@ -82,7 +82,7 @@ fun CardWithAnimatedBorder(
             .clip(RoundedCornerShape(cornerRadius))
             .combinedClickable(
                 onClick = onClick,
-                onLongClick = onLongClick
+                onLongClick = onLongClick,
             ),
         shape = RoundedCornerShape(cornerRadius - borderSize),
         color = backgroundColor,
@@ -98,20 +98,20 @@ fun CardWithAnimatedBorder(
                             drawCircle(
                                 brush = brush,
                                 radius = size.width,
-                                blendMode = BlendMode.SrcIn
+                                blendMode = BlendMode.SrcIn,
                             )
                         }
                     } else if (isEnableBrush) {
                         drawCircle(
                             brush = brush,
                             radius = size.width,
-                            blendMode = BlendMode.SrcIn
+                            blendMode = BlendMode.SrcIn,
                         )
                     } else {
                         drawCircle(
                             color = disableBorderColor,
                             radius = size.width,
-                            center = center
+                            center = center,
                         )
                     }
                     drawContent()
@@ -127,23 +127,23 @@ fun CardWithAnimatedBorder(
                             drawCircle(
                                 brush = brushBackground,
                                 radius = size.width,
-                                center = center
+                                center = center,
                             )
                         } else if (isAnimated) {
                             drawCircle(
                                 color = backgroundEnableColor,
                                 radius = size.width,
-                                center = center
+                                center = center,
                             )
                         } else {
                             drawCircle(
                                 color = backgroundColor,
                                 radius = size.width,
-                                center = center
+                                center = center,
                             )
                         }
                         drawContent()
-                    }
+                    },
             ) {
                 content()
             }

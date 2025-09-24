@@ -20,7 +20,13 @@ internal class ClickHandler(
     override fun invoke(action: Action.Click) {
         when (action) {
             is Action.Click.Calendar -> processClickCalendar(action)
+            is Action.Click.ChangeType -> processTypeChange(action)
         }
+    }
+
+    private fun processTypeChange(action: Action.Click.ChangeType) {
+        sendEvent(Event.HapticFeedback(HapticFeedbackType.ContextClick))
+        updateState { it.copy(type = action.type) }
     }
 
     private fun processClickCalendar(action: Action.Click.Calendar) {

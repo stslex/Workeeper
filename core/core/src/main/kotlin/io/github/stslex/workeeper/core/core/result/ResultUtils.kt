@@ -14,15 +14,15 @@ object ResultUtils {
     private val logger = Log.tag(TAG)
 
     fun <T : Any> Flow<AppResult<T>>.onError(
-        block: (AppError) -> Unit
+        block: (AppError) -> Unit,
     ): ResultFlow<T> = ResultFlow(this).onError(block)
 
     fun <T : Any> Flow<AppResult<T>>.onLoading(
-        block: () -> Unit
+        block: () -> Unit,
     ): ResultFlow<T> = ResultFlow(this).onLoading(block)
 
     fun <T : Any> Flow<AppResult<T>>.onSuccess(
-        block: (T) -> Unit
+        block: (T) -> Unit,
     ): ResultFlow<T> = ResultFlow(this).onSuccess(block)
 
     fun <T : Any> Flow<AppResult<T>>.fold(
@@ -33,7 +33,8 @@ object ResultUtils {
     ): Job = scope
         .launch(
             flow = this,
-            onError = { onError(UnresolveError(it, it.message)) }) { result ->
+            onError = { onError(UnresolveError(it, it.message)) },
+        ) { result ->
             when (result) {
                 is AppResult.Success -> onSuccess(result.data)
                 is AppResult.Error -> onError(result.error)
@@ -43,11 +44,11 @@ object ResultUtils {
 
     fun <T : Any, R : Any> flowRunCatching(
         mapper: Mapper<T, R>,
-        block: suspend () -> T
+        block: suspend () -> T,
     ): Flow<AppResult<R>> = flowRunCatching { mapper(block()) }
 
     fun <T : Any> flowRunCatching(
-        block: suspend () -> T
+        block: suspend () -> T,
     ): Flow<AppResult<T>> = flow {
         val result = runCatching {
             block()
@@ -62,18 +63,18 @@ object ResultUtils {
                 } else {
                     AppResult.Error(UnresolveError(error, error.message))
                 }
-            }
+            },
         )
         emit(result)
     }
 
     fun <T : Any, R : Any> appRunCatching(
         mapper: Mapper<T, R>,
-        block: () -> T
+        block: () -> T,
     ): AppResult<R> = appRunCatching { mapper(block()) }
 
     fun <T : Any> appRunCatching(
-        block: () -> T
+        block: () -> T,
     ): AppResult<T> = runCatching {
         block()
     }.fold(
@@ -88,20 +89,20 @@ object ResultUtils {
                 AppResult.Error(
                     UnresolveError(
                         message = error.message,
-                        cause = error
-                    )
+                        cause = error,
+                    ),
                 )
             }
-        }
+        },
     )
 
     suspend fun <T : Any, R : Any> suspendRunCatching(
         mapper: Mapper<T, R>,
-        block: suspend () -> T
+        block: suspend () -> T,
     ): AppResult<R> = suspendRunCatching { mapper(block()) }
 
     suspend fun <T : Any> suspendRunCatching(
-        block: suspend () -> T
+        block: suspend () -> T,
     ): AppResult<T> = runCatching {
         block()
     }.fold(
@@ -116,11 +117,10 @@ object ResultUtils {
                 AppResult.Error(
                     UnresolveError(
                         message = error.message,
-                        cause = error
-                    )
+                        cause = error,
+                    ),
                 )
             }
-        }
+        },
     )
-
 }

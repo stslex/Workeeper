@@ -13,7 +13,7 @@ import org.koin.core.annotation.Single
 class LabelRepositoryImpl(
     private val dao: TrainingLabelDao,
     @param:IODispatcher
-    private val ioDispatcher: CoroutineDispatcher
+    private val ioDispatcher: CoroutineDispatcher,
 ) : LabelRepository {
 
     override suspend fun getAll(): List<LabelDataModel> = withContext(ioDispatcher) {

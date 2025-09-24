@@ -27,7 +27,7 @@ interface StoreConsumer<S : State, A : Store.Action, in E : Event> {
 
     fun updateState(update: (S) -> S)
 
-    suspend fun updateStateImmediate(update: (S) -> S)
+    suspend fun updateStateImmediate(update: suspend (S) -> S)
 
     suspend fun updateStateImmediate(state: S)
 
@@ -60,6 +60,6 @@ interface StoreConsumer<S : State, A : Store.Action, in E : Event> {
         onError: suspend (cause: Throwable) -> Unit = {},
         workDispatcher: CoroutineDispatcher = scope.defaultDispatcher,
         eachDispatcher: CoroutineDispatcher = scope.defaultDispatcher,
-        each: suspend (T) -> Unit
+        each: suspend (T) -> Unit,
     ): Job
 }

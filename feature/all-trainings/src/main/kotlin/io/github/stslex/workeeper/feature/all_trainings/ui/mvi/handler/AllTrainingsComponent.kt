@@ -8,11 +8,9 @@ internal interface AllTrainingsComponent : Component {
     companion object {
 
         fun create(
-            navigator: Navigator
+            navigator: Navigator,
         ): AllTrainingsComponent = NavigationHandler(
-            navigator = navigator
+            navigator = navigator,
         )
-
     }
 }
-

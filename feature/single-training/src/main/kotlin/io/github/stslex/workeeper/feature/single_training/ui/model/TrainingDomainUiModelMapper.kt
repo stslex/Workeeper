@@ -12,7 +12,7 @@ import org.koin.core.annotation.Scoped
 @Scoped
 @Scope(name = TRAINING_SCOPE_NAME)
 internal class TrainingDomainUiModelMapper(
-    private val exerciseMapper: ExerciseDomainUiMapper
+    private val exerciseMapper: ExerciseDomainUiMapper,
 ) : Mapper<TrainingDomainModel, TrainingUiModel> {
 
     override operator fun invoke(data: TrainingDomainModel): TrainingUiModel = TrainingUiModel(
@@ -22,6 +22,6 @@ internal class TrainingDomainUiModelMapper(
         exercises = data.exercises
             .map { exerciseMapper(it) }
             .toImmutableList(),
-        date = PropertyHolder.DateProperty().update(data.timestamp)
+        date = PropertyHolder.DateProperty().update(data.timestamp),
     )
 }

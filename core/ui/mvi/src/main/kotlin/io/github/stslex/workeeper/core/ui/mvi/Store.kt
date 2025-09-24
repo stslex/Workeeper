@@ -29,7 +29,5 @@ interface Store<out S : State, in A : Action, out E : Event> {
     interface Action {
 
         interface RepeatLast : Action
-
     }
 }
-

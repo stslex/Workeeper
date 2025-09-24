@@ -32,11 +32,11 @@ internal class AllExercisesStoreImpl(
     storeDispatchers: StoreDispatchers,
     @Named(EXERCISE_SCOPE_NAME) storeEmitter: ExerciseHandlerStoreImpl,
     analytics: StoreAnalytics<Action, Event> = AnalyticsHolder.createStore(NAME),
-    override val logger: Logger = storeLogger(NAME)
+    override val logger: Logger = storeLogger(NAME),
 ) : BaseStore<State, Action, Event>(
     name = NAME,
     initialState = State.init(
-        allItems = pagingHandler.processor
+        allItems = pagingHandler.processor,
     ),
     storeEmitter = storeEmitter,
     storeDispatchers = storeDispatchers,
@@ -49,9 +49,8 @@ internal class AllExercisesStoreImpl(
         }
     },
     logger = logger,
-    analytics = analytics
+    analytics = analytics,
 ) {
-
 
     companion object {
 

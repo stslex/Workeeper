@@ -11,5 +11,4 @@ interface Navigator {
     fun navTo(screen: Screen)
 
     fun popBack()
-
 }

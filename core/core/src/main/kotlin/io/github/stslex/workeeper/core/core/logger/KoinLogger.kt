@@ -10,7 +10,7 @@ class KoinLogger(isDebug: Boolean) : Logger(
         Level.DEBUG
     } else {
         Level.WARNING
-    }
+    },
 ) {
 
     private val logger = Log.tag("Koin")

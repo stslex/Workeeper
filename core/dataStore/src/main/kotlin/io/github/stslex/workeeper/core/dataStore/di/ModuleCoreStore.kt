@@ -15,6 +15,6 @@ class ModuleCoreStore {
     @CommonStoreQualifier
     internal fun bindStoreProvider(context: Context): DataStoreProvider = DataStoreProvider(
         context = context,
-        name = CommonDataStore.NAME
+        name = CommonDataStore.NAME,
     )
 }

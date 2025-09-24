@@ -9,7 +9,7 @@ import io.github.stslex.workeeper.core.core.utils.DateTimeUtil
 sealed class PropertyHolder<T : Any>(
     initialValue: T?,
     defaultValue: T,
-    private val validate: (T) -> Boolean
+    private val validate: (T) -> Boolean,
 ) {
     private var valueState: MutableState<T> = mutableStateOf(initialValue ?: defaultValue)
     private val isValidState: MutableState<Boolean> = mutableStateOf(validate(valueState.value))
@@ -37,7 +37,7 @@ sealed class PropertyHolder<T : Any>(
     ) : PropertyHolder<String>(
         initialValue = initialValue,
         defaultValue = defaultValue,
-        validate = validate
+        validate = validate,
     )
 
     @Stable

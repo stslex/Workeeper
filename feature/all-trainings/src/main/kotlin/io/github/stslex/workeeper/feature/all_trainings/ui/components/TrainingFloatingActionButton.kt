@@ -21,7 +21,7 @@ internal fun TrainingFloatingActionButton(
 ) {
     FloatingActionButton(
         modifier = modifier,
-        onClick = onClick
+        onClick = onClick,
     ) {
         Icon(
             imageVector = if (isDeletingMode) {
@@ -29,7 +29,7 @@ internal fun TrainingFloatingActionButton(
             } else {
                 Icons.Default.Add
             },
-            contentDescription = null
+            contentDescription = null,
         )
     }
 }
@@ -39,11 +39,11 @@ internal fun TrainingFloatingActionButton(
 private fun TrainingFloatingActionButtonPreview() {
     AppTheme {
         Box(
-            modifier = Modifier.background(MaterialTheme.colorScheme.background)
+            modifier = Modifier.background(MaterialTheme.colorScheme.background),
         ) {
             TrainingFloatingActionButton(
                 onClick = {},
-                isDeletingMode = true
+                isDeletingMode = true,
             )
         }
     }
