@@ -23,7 +23,7 @@ interface ExerciseRepository {
     fun getExercisesExactly(
         name: String,
         startDate: Long,
-        endDate: Long
+        endDate: Long,
     ): Flow<List<ExerciseDataModel>>
 
     suspend fun saveItem(item: ExerciseChangeDataModel)
@@ -37,5 +37,4 @@ interface ExerciseRepository {
     suspend fun deleteByTrainingUuid(trainingUuid: String)
 
     suspend fun deleteByTrainingsUuids(trainingsUuids: List<String>)
-
 }

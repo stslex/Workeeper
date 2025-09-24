@@ -29,11 +29,11 @@ internal interface ChartsStore : Store<State, Action, Event> {
                 name = "",
                 charts = persistentListOf(),
                 startDate = PropertyHolder.DateProperty(
-                    initialValue = System.currentTimeMillis() - (7L * 24 * 60 * 60 * 1000)
+                    initialValue = System.currentTimeMillis() - (7L * 24 * 60 * 60 * 1000),
                 ), // 7 days default
                 endDate = PropertyHolder.DateProperty(System.currentTimeMillis()),
                 type = ChartsType.TRAINING,
-                calendarState = CalendarState.Closed
+                calendarState = CalendarState.Closed,
             )
         }
     }
@@ -67,14 +67,12 @@ internal interface ChartsStore : Store<State, Action, Event> {
         }
 
         sealed interface Navigation : Action
-
     }
 
     sealed interface Event : Store.Event {
 
         data class HapticFeedback(
-            val type: HapticFeedbackType
+            val type: HapticFeedbackType,
         ) : Event
     }
-
 }

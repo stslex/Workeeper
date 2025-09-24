@@ -27,14 +27,18 @@ interface ExerciseDao {
     @Query("SELECT * FROM exercises_table WHERE name = :name ORDER BY timestamp DESC LIMIT 1")
     suspend fun getExerciseByName(name: String): ExerciseEntity?
 
-    @Query("SELECT * FROM exercises_table WHERE name LIKE '%' || :name || '%' AND timestamp BETWEEN :startDate AND :endDate ORDER BY timestamp DESC")
+    @Query(
+        "SELECT * FROM exercises_table WHERE name LIKE '%' || :name || '%' AND timestamp BETWEEN :startDate AND :endDate ORDER BY timestamp DESC",
+    )
     suspend fun getExercises(name: String, startDate: Long, endDate: Long): List<ExerciseEntity>
 
-    @Query("SELECT * FROM exercises_table WHERE name = :name AND timestamp BETWEEN :startDate AND :endDate ORDER BY timestamp DESC")
+    @Query(
+        "SELECT * FROM exercises_table WHERE name = :name AND timestamp BETWEEN :startDate AND :endDate ORDER BY timestamp DESC",
+    )
     fun getExercisesExactly(
         name: String,
         startDate: Long,
-        endDate: Long
+        endDate: Long,
     ): Flow<List<ExerciseEntity>>
 
     @Update
@@ -58,10 +62,14 @@ interface ExerciseDao {
     @Query("DELETE FROM exercises_table WHERE training_uuid in (:trainingUuid)")
     suspend fun deleteAllByTrainings(trainingUuid: List<Uuid>)
 
-    @Query("SELECT * FROM exercises_table WHERE name LIKE '%' || :query || '%' GROUP BY name ORDER BY MAX(timestamp) DESC LIMIT 10")
+    @Query(
+        "SELECT * FROM exercises_table WHERE name LIKE '%' || :query || '%' GROUP BY name ORDER BY MAX(timestamp) DESC LIMIT 10",
+    )
     suspend fun searchUnique(query: String): List<ExerciseEntity>
 
-    @Query("SELECT * FROM exercises_table WHERE name LIKE '%' || :query || '%' AND name != :query GROUP BY name ORDER BY MAX(timestamp) DESC LIMIT 10")
+    @Query(
+        "SELECT * FROM exercises_table WHERE name LIKE '%' || :query || '%' AND name != :query GROUP BY name ORDER BY MAX(timestamp) DESC LIMIT 10",
+    )
     suspend fun searchUniqueExclude(query: String): List<ExerciseEntity>
 
     @Query("DELETE FROM exercises_table")

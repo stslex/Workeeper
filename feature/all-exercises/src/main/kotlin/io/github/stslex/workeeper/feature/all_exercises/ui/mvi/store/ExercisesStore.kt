@@ -22,7 +22,7 @@ internal interface ExercisesStore : Store<State, Action, Event> {
         companion object {
 
             internal fun init(
-                allItems: PagingUiState<PagingData<ExerciseUiModel>>
+                allItems: PagingUiState<PagingData<ExerciseUiModel>>,
             ): State = State(
                 items = allItems,
                 selectedItems = persistentSetOf(),
@@ -59,14 +59,12 @@ internal interface ExercisesStore : Store<State, Action, Event> {
 
             data class OpenExercise(val uuid: String) : Navigation
         }
-
     }
 
     sealed interface Event : Store.Event {
 
         data class HapticFeedback(
-            val type: HapticFeedbackType
+            val type: HapticFeedbackType,
         ) : Event
     }
-
 }

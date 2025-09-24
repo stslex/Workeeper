@@ -13,14 +13,13 @@ import org.koin.core.annotation.Scope
 import org.koin.core.annotation.Scoped
 import kotlin.uuid.Uuid
 
-
 @Scope(name = EXERCISE_SCOPE_NAME)
 @Scoped
 internal class ExerciseInteractorImpl(
     private val exerciseRepository: ExerciseRepository,
     private val trainingRepository: TrainingRepository,
     @param:DefaultDispatcher
-    private val dispatcher: CoroutineDispatcher
+    private val dispatcher: CoroutineDispatcher,
 ) : ExerciseInteractor {
 
     override suspend fun saveItem(item: ExerciseChangeDataModel) {
@@ -29,7 +28,7 @@ internal class ExerciseInteractorImpl(
                 Uuid.random().toString()
             }
             val createdItem = item.copy(
-                uuid = createdUuid
+                uuid = createdUuid,
             )
             exerciseRepository.saveItem(createdItem)
             val updatedItem = exerciseRepository.getExercise(createdUuid)
@@ -41,8 +40,8 @@ internal class ExerciseInteractorImpl(
                     if (training.exerciseUuids.contains(updatedItem.uuid).not()) {
                         trainingRepository.updateTraining(
                             training = training.copy(
-                                exerciseUuids = training.exerciseUuids + updatedItem.uuid
-                            ).toChangeModel()
+                                exerciseUuids = training.exerciseUuids + updatedItem.uuid,
+                            ).toChangeModel(),
                         )
                     }
                 }

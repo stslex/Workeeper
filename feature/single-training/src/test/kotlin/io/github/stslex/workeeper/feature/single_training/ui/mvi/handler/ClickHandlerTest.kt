@@ -43,13 +43,13 @@ internal class ClickHandlerTest {
         name = "Test Training",
         exercises = persistentListOf(),
         labels = persistentListOf(),
-        date = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis())
+        date = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
     )
 
     private val initialState = TrainingStore.State(
         training = initialTraining,
         pendingForCreateUuid = "",
-        dialogState = DialogState.Closed
+        dialogState = DialogState.Closed,
     )
 
     private val stateFlow = MutableStateFlow(initialState)
@@ -65,7 +65,7 @@ internal class ClickHandlerTest {
                 onSuccess = any(),
                 workDispatcher = any(),
                 eachDispatcher = any(),
-                action = any()
+                action = any(),
             )
         } answers {
             val onSuccess = arg<suspend CoroutineScope.(Any) -> Unit>(1)
@@ -84,8 +84,8 @@ internal class ClickHandlerTest {
         verify(exactly = 1) {
             store.consume(
                 TrainingStore.Action.Navigation.CreateExercise(
-                    trainingUuid = testTrainingUuid
-                )
+                    trainingUuid = testTrainingUuid,
+                ),
             )
         }
     }
@@ -100,8 +100,8 @@ internal class ClickHandlerTest {
             store.consume(
                 TrainingStore.Action.Navigation.OpenExercise(
                     exerciseUuid = exerciseUuid,
-                    trainingUuid = testTrainingUuid
-                )
+                    trainingUuid = testTrainingUuid,
+                ),
             )
         }
     }

@@ -36,10 +36,10 @@ internal class CommonHandlerTest {
             name = "",
             exercises = persistentListOf(),
             labels = persistentListOf(),
-            date = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis())
+            date = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
         ),
         dialogState = DialogState.Closed,
-        pendingForCreateUuid = ""
+        pendingForCreateUuid = "",
     )
 
     private val stateFlow = MutableStateFlow(initialState)
@@ -67,7 +67,7 @@ internal class CommonHandlerTest {
             name = "Test Training",
             exercises = persistentListOf(),
             labels = persistentListOf(),
-            date = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis())
+            date = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
         )
 
         coEvery { interactor.getTraining(trainingUuid) } returns domainModel

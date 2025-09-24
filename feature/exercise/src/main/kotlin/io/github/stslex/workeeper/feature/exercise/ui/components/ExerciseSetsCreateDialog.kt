@@ -35,38 +35,38 @@ internal fun ExerciseSetsCreateDialog(
     onDeleteClick: (String) -> Unit,
     onSaveClick: (SetsUiModel) -> Unit,
     onCancelClick: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Dialog(
-        onDismissRequest = { onDismissRequest(setsUiModel) }
+        onDismissRequest = { onDismissRequest(setsUiModel) },
     ) {
         Column(
             modifier = modifier
                 .wrapContentHeight()
                 .background(
                     color = MaterialTheme.colorScheme.background,
-                    shape = RoundedCornerShape(AppDimension.Radius.large)
+                    shape = RoundedCornerShape(AppDimension.Radius.large),
                 )
                 .padding(AppDimension.Padding.big),
         ) {
             BodyNumberInputField(
                 property = setsUiModel.reps,
                 labelRes = R.string.feature_exercise_field_label_reps,
-                onValueChange = onRepsInput
+                onValueChange = onRepsInput,
             )
             BodyFloatInputField(
                 property = setsUiModel.weight,
                 labelRes = R.string.feature_exercise_field_label_weight,
-                onValueChange = onWeightInput
+                onValueChange = onWeightInput,
             )
             Row(
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 FilledTonalButton(
                     modifier = Modifier.weight(1f),
                     onClick = {
                         onSaveClick(setsUiModel)
-                    }
+                    },
                 ) {
                     Text("Save")
                 }
@@ -75,14 +75,14 @@ internal fun ExerciseSetsCreateDialog(
                     modifier = Modifier.weight(1f),
                     onClick = {
                         onCancelClick(setsUiModel.uuid)
-                    }
+                    },
                 ) {
                     Text("Cancel")
                 }
             }
             Spacer(modifier = Modifier.padding(AppDimension.Padding.medium))
             AnimatedVisibility(
-                setsUiModel.reps.isValid || setsUiModel.weight.isValid
+                setsUiModel.reps.isValid || setsUiModel.weight.isValid,
             ) {
                 FilledTonalButton(
                     modifier = Modifier.fillMaxWidth(),
@@ -90,8 +90,8 @@ internal fun ExerciseSetsCreateDialog(
                         onDeleteClick(setsUiModel.uuid)
                     },
                     colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    )
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                    ),
                 ) {
                     Text("Delete")
                 }
@@ -112,7 +112,7 @@ private fun ExerciseSetsCreateDialogPreview() {
                 onDeleteClick = {},
                 onDismissRequest = {},
                 onSaveClick = {},
-                onCancelClick = {}
+                onCancelClick = {},
             )
         }
     }

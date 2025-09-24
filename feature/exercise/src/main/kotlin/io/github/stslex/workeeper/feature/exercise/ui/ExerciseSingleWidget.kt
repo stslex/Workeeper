@@ -49,14 +49,14 @@ internal fun ExerciseFeatureWidget(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(AppDimension.Padding.big)
+                .padding(AppDimension.Padding.big),
         ) {
 
             ExerciseButtonsRow(
                 isDeleteVisible = state.uuid.isNullOrBlank().not(),
                 onCancelClick = { consume(Action.Click.Cancel) },
                 onConfirmClick = { consume(Action.Click.Save) },
-                onDeleteClick = { consume(Action.Click.Delete) }
+                onDeleteClick = { consume(Action.Click.Delete) },
             )
 
             Spacer(Modifier.height(AppDimension.Padding.big))
@@ -65,7 +65,7 @@ internal fun ExerciseFeatureWidget(
                 modifier = Modifier
                     .padding(vertical = AppDimension.Padding.medium),
                 state = state,
-                consume = consume
+                consume = consume,
             )
         }
 
@@ -74,7 +74,7 @@ internal fun ExerciseFeatureWidget(
             DialogState.Calendar -> ExerciseDatePickerDialog(
                 timestamp = state.dateProperty.value,
                 onDismissRequest = { consume(Action.Click.CloseDialog) },
-                dateChange = { consume(Action.Input.Time(it)) }
+                dateChange = { consume(Action.Input.Time(it)) },
             )
 
             is DialogState.Sets -> ExerciseSetsCreateDialog(
@@ -96,7 +96,7 @@ internal fun ExerciseFeatureWidget(
                     SnackbarType.DISMISS -> consume(Action.Navigation.Back)
                 }
             },
-            snackbarHostState = snackbarHostState
+            snackbarHostState = snackbarHostState,
         )
     }
 }
@@ -105,11 +105,11 @@ internal fun ExerciseFeatureWidget(
 private fun SnackbarHostWidget(
     snackbarHostState: SnackbarHostState,
     onActionClick: (type: SnackbarType) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     SnackbarHost(
         modifier = modifier,
-        hostState = snackbarHostState
+        hostState = snackbarHostState,
     ) { data ->
         Snackbar(
             modifier = Modifier
@@ -141,11 +141,11 @@ private fun SnackbarHostWidget(
                     onClick = {
                         snackbarHostState.currentSnackbarData?.dismiss()
                     },
-                    colors = ButtonDefaults.textButtonColors()
+                    colors = ButtonDefaults.textButtonColors(),
                 ) {
                     Text("Cancel")
                 }
-            }
+            },
         ) {
             Text(data.visuals.message)
         }
@@ -160,7 +160,7 @@ private fun ExerciseFeatureWidgetPreview() {
             consume = {},
             state = State.INITIAL,
             modifier = Modifier,
-            snackbarHostState = SnackbarHostState()
+            snackbarHostState = SnackbarHostState(),
         )
     }
 }

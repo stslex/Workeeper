@@ -30,4 +30,3 @@ class ModuleCore {
     @Single
     fun bindIO(): CoroutineDispatcher = Dispatchers.IO
 }
-

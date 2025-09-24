@@ -34,7 +34,7 @@ internal class ExerciseStoreImpl(
     storeDispatchers: StoreDispatchers,
     @Named(EXERCISE_SCOPE_NAME) storeEmitter: ExerciseHandlerStoreImpl,
     analytics: StoreAnalytics<Action, Event> = AnalyticsHolder.createStore(NAME),
-    override val logger: Logger = storeLogger(NAME)
+    override val logger: Logger = storeLogger(NAME),
 ) : BaseStore<State, Action, Event>(
     name = NAME,
     initialState = State.INITIAL,
@@ -52,11 +52,11 @@ internal class ExerciseStoreImpl(
     initialActions = listOf(
         Action.Common.Init(
             uuid = component.uuid,
-            trainingUuid = component.trainingUuid
-        )
+            trainingUuid = component.trainingUuid,
+        ),
     ),
     analytics = analytics,
-    logger = logger
+    logger = logger,
 ) {
 
     companion object {

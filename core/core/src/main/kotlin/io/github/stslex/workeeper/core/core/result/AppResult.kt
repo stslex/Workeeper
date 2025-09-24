@@ -27,7 +27,7 @@ sealed interface AppResult<out T : Any> : AppResultMapper<T> {
         fun <T : Any> error(error: AppError): AppResult<T> = Error(error)
 
         fun <T : Any> error(
-            error: Throwable
+            error: Throwable,
         ): AppResult<T> = if (error is AppError) {
             error(error)
         } else {
@@ -37,7 +37,7 @@ sealed interface AppResult<out T : Any> : AppResultMapper<T> {
         fun <T : Any> loading(): AppResult<T> = Loading
 
         inline fun <T : Any> AppResult<T>.onError(
-            action: (AppError) -> Unit
+            action: (AppError) -> Unit,
         ): AppResult<T> = apply { (this as? Error)?.let { action(it.error) } }
 
         inline fun <T : Any> AppResult<T>.onLoading(action: () -> Unit): AppResult<T> = apply {
@@ -45,10 +45,9 @@ sealed interface AppResult<out T : Any> : AppResultMapper<T> {
         }
 
         inline fun <T : Any> AppResult<T>.onSuccess(
-            action: (T) -> Unit
+            action: (T) -> Unit,
         ): AppResult<T> = this.apply {
             (this as? Success<T>)?.let { action(it.data) }
         }
-
     }
 }

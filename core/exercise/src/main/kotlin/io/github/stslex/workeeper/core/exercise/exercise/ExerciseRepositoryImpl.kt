@@ -21,12 +21,12 @@ import kotlin.uuid.Uuid
 @Single
 internal class ExerciseRepositoryImpl(
     private val dao: ExerciseDao,
-    @param:IODispatcher private val bgDispatcher: CoroutineDispatcher
+    @param:IODispatcher private val bgDispatcher: CoroutineDispatcher,
 ) : ExerciseRepository {
 
     override val exercises: Flow<PagingData<ExerciseDataModel>> = Pager(
         config = pagingConfig,
-        pagingSourceFactory = dao::getAll
+        pagingSourceFactory = dao::getAll,
     ).flow
         .map { pagingData ->
             pagingData.map { it.toData() }
@@ -34,7 +34,7 @@ internal class ExerciseRepositoryImpl(
         .flowOn(bgDispatcher)
 
     override suspend fun getExercisesByUuid(
-        uuids: List<String>
+        uuids: List<String>,
     ): List<ExerciseDataModel> = withContext(bgDispatcher) {
         dao
             .getByUuids(uuids.map(Uuid::parse))
@@ -44,7 +44,7 @@ internal class ExerciseRepositoryImpl(
 
     override fun getExercises(query: String): Flow<PagingData<ExerciseDataModel>> = Pager(
         config = pagingConfig,
-        pagingSourceFactory = { dao.getAll(query) }
+        pagingSourceFactory = { dao.getAll(query) },
     ).flow
         .map { pagingData ->
             pagingData.map { it.toData() }
@@ -52,13 +52,13 @@ internal class ExerciseRepositoryImpl(
         .flowOn(bgDispatcher)
 
     override suspend fun getExercise(
-        uuid: String
+        uuid: String,
     ): ExerciseDataModel? = withContext(bgDispatcher) {
         dao.getExercise(Uuid.parse(uuid))?.toData()
     }
 
     override suspend fun getExerciseByName(
-        name: String
+        name: String,
     ): ExerciseDataModel? = withContext(bgDispatcher) {
         dao.getExerciseByName(name)?.toData()
     }
@@ -66,23 +66,23 @@ internal class ExerciseRepositoryImpl(
     override suspend fun getExercises(
         name: String,
         startDate: Long,
-        endDate: Long
+        endDate: Long,
     ): List<ExerciseDataModel> = withContext(bgDispatcher) {
         dao.getExercises(
             name = name,
             startDate = startDate,
-            endDate = endDate
+            endDate = endDate,
         ).map { it.toData() }
     }
 
     override fun getExercisesExactly(
         name: String,
         startDate: Long,
-        endDate: Long
+        endDate: Long,
     ): Flow<List<ExerciseDataModel>> = dao.getExercisesExactly(
         name = name,
         startDate = startDate,
-        endDate = endDate
+        endDate = endDate,
     )
         .map { list -> list.map { it.toData() } }
         .flowOn(bgDispatcher)
@@ -124,7 +124,7 @@ internal class ExerciseRepositoryImpl(
 
         private val pagingConfig = PagingConfig(
             pageSize = 10,
-            enablePlaceholders = false
+            enablePlaceholders = false,
         )
     }
 }

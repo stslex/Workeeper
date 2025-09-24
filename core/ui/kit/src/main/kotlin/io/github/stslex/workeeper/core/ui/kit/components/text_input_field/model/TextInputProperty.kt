@@ -28,7 +28,7 @@ fun <TMenuItem : Any> TitleTextInputField(
         menuItems = menuItems,
         onValueChange = onValueChange,
         onMenuItemClick = onMenuItemClick,
-        onClick = {}
+        onClick = {},
     )
 }
 
@@ -99,7 +99,7 @@ fun BodyFloatInputField(
 fun DateInputField(
     property: PropertyHolder.DateProperty,
     labelRes: Int,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     TextInputField<Any>(
         property = property,

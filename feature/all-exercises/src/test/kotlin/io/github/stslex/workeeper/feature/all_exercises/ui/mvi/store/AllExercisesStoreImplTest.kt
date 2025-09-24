@@ -56,14 +56,14 @@ internal class AllExercisesStoreImplTest {
             ExercisesStore.State(
                 items = pagingUiState,
                 selectedItems = persistentSetOf(),
-                query = ""
-            )
+                query = "",
+            ),
         )
     }
 
     private val storeDispatchers = StoreDispatchers(
         defaultDispatcher = testDispatcher,
-        mainImmediateDispatcher = testDispatcher
+        mainImmediateDispatcher = testDispatcher,
     )
 
     private val logger = mockk<Logger> {
@@ -84,7 +84,7 @@ internal class AllExercisesStoreImplTest {
         storeDispatchers = storeDispatchers,
         storeEmitter = storeEmitter,
         logger = logger,
-        analytics = analytics
+        analytics = analytics,
     )
 
     @Test
@@ -171,4 +171,3 @@ internal class AllExercisesStoreImplTest {
         verify { analytics.logEvent(event) }
     }
 }
-

@@ -24,7 +24,7 @@ internal class ClickHandlerTest {
         startDate = PropertyHolder.DateProperty(initialValue = 1000000L),
         endDate = PropertyHolder.DateProperty(initialValue = 2000000L),
         type = ChartsType.TRAINING,
-        calendarState = CalendarState.Closed
+        calendarState = CalendarState.Closed,
     )
 
     private val stateFlow = MutableStateFlow(initialState)
@@ -107,7 +107,7 @@ internal class ClickHandlerTest {
         val testState = initialState.copy(
             name = "Test Exercise",
             startDate = PropertyHolder.DateProperty(initialValue = 5000000L),
-            endDate = PropertyHolder.DateProperty(initialValue = 6000000L)
+            endDate = PropertyHolder.DateProperty(initialValue = 6000000L),
         )
         stateFlow.value = testState
 
@@ -151,7 +151,7 @@ internal class ClickHandlerTest {
         val actions = listOf(
             ChartsStore.Action.Click.Calendar.StartDate,
             ChartsStore.Action.Click.Calendar.EndDate,
-            ChartsStore.Action.Click.Calendar.Close
+            ChartsStore.Action.Click.Calendar.Close,
         )
 
         actions.forEach { action ->
@@ -173,7 +173,7 @@ internal class ClickHandlerTest {
             startDate = PropertyHolder.DateProperty(initialValue = 1234567L),
             endDate = PropertyHolder.DateProperty(initialValue = 7654321L),
             type = ChartsType.TRAINING,
-            calendarState = CalendarState.Closed
+            calendarState = CalendarState.Closed,
         )
         stateFlow.value = testState
 

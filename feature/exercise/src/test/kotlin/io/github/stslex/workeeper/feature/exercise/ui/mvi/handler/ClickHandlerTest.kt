@@ -52,7 +52,7 @@ internal class ClickHandlerTest {
         menuItems = persistentSetOf(),
         trainingUuid = "training-uuid",
         labels = persistentListOf(),
-        initialHash = 0
+        initialHash = 0,
     )
 
     private val stateFlow = MutableStateFlow(initialState)
@@ -73,7 +73,7 @@ internal class ClickHandlerTest {
                 onSuccess = any(),
                 workDispatcher = any(),
                 eachDispatcher = any(),
-                action = any()
+                action = any(),
             )
         } answers {
             val onSuccess = arg<suspend CoroutineScope.(Any) -> Unit>(1)
@@ -100,11 +100,11 @@ internal class ClickHandlerTest {
             uuid = "set-uuid",
             reps = PropertyHolder.IntProperty(initialValue = 10),
             weight = PropertyHolder.DoubleProperty(initialValue = 50.0),
-            type = SetUiType.WORK
+            type = SetUiType.WORK,
         )
         stateFlow.value = stateFlow.value.copy(
             name = validName,
-            sets = listOf(validSet).toImmutableList()
+            sets = listOf(validSet).toImmutableList(),
         )
 
         handler.invoke(ExerciseStore.Action.Click.Save)
@@ -213,7 +213,7 @@ internal class ClickHandlerTest {
         val menuItem = MenuItem(
             uuid = "menu-uuid",
             text = "Menu Exercise",
-            itemModel = exerciseUiModel
+            itemModel = exerciseUiModel,
         )
         stateFlow.value = stateFlow.value.copy(isMenuOpen = true)
 
@@ -243,7 +243,7 @@ internal class ClickHandlerTest {
             uuid = "existing-set",
             reps = PropertyHolder.IntProperty(),
             weight = PropertyHolder.DoubleProperty(),
-            type = SetUiType.WORK
+            type = SetUiType.WORK,
         )
 
         handler.invoke(ExerciseStore.Action.Click.DialogSets.OpenEdit(existingSet))
@@ -261,7 +261,7 @@ internal class ClickHandlerTest {
             uuid = "new-set",
             reps = PropertyHolder.IntProperty(initialValue = 12),
             weight = PropertyHolder.DoubleProperty(initialValue = 60.0),
-            type = SetUiType.WORK
+            type = SetUiType.WORK,
         )
 
         handler.invoke(ExerciseStore.Action.Click.DialogSets.SaveButton(newSet))
@@ -279,10 +279,10 @@ internal class ClickHandlerTest {
             uuid = "existing-set",
             reps = PropertyHolder.IntProperty(initialValue = 10),
             weight = PropertyHolder.DoubleProperty(initialValue = 50.0),
-            type = SetUiType.WORK
+            type = SetUiType.WORK,
         )
         val updatedSet = existingSet.copy(
-            reps = PropertyHolder.IntProperty(initialValue = 15)
+            reps = PropertyHolder.IntProperty(initialValue = 15),
         )
         stateFlow.value = stateFlow.value.copy(sets = listOf(existingSet).toImmutableList())
 
@@ -301,16 +301,16 @@ internal class ClickHandlerTest {
             uuid = "delete-me",
             reps = PropertyHolder.IntProperty(),
             weight = PropertyHolder.DoubleProperty(),
-            type = SetUiType.WORK
+            type = SetUiType.WORK,
         )
         val setToKeep = SetsUiModel(
             uuid = "keep-me",
             reps = PropertyHolder.IntProperty(),
             weight = PropertyHolder.DoubleProperty(),
-            type = SetUiType.WORK
+            type = SetUiType.WORK,
         )
         stateFlow.value = stateFlow.value.copy(
-            sets = listOf(setToDelete, setToKeep).toImmutableList()
+            sets = listOf(setToDelete, setToKeep).toImmutableList(),
         )
 
         handler.invoke(ExerciseStore.Action.Click.DialogSets.DeleteButton("delete-me"))

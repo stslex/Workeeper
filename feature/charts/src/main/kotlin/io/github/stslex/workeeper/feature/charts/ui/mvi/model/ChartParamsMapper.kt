@@ -19,6 +19,6 @@ internal class ChartParamsMapper : Mapper<ChartsStore.State, ChartParams> {
         type = when (data.type) {
             ChartsType.TRAINING -> ChartsDomainType.TRAINING
             ChartsType.EXERCISE -> ChartsDomainType.EXERCISE
-        }
+        },
     )
 }

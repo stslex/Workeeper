@@ -28,7 +28,7 @@ internal class InputHandlerTest {
         menuItems = persistentSetOf(),
         trainingUuid = "training-uuid",
         labels = persistentListOf(),
-        initialHash = 0
+        initialHash = 0,
     )
 
     private val stateFlow = MutableStateFlow(initialState)
@@ -82,7 +82,7 @@ internal class InputHandlerTest {
             uuid = "set-uuid",
             reps = PropertyHolder.IntProperty(),
             weight = PropertyHolder.DoubleProperty(),
-            type = SetUiType.WORK
+            type = SetUiType.WORK,
         )
         val dialogState = DialogState.Sets(testSet)
         stateFlow.value = stateFlow.value.copy(dialogState = dialogState)
@@ -102,7 +102,7 @@ internal class InputHandlerTest {
             uuid = "set-uuid",
             reps = PropertyHolder.IntProperty(),
             weight = PropertyHolder.DoubleProperty(),
-            type = SetUiType.WORK
+            type = SetUiType.WORK,
         )
         val dialogState = DialogState.Sets(testSet)
         stateFlow.value = stateFlow.value.copy(dialogState = dialogState)
@@ -133,7 +133,7 @@ internal class InputHandlerTest {
             uuid = "set-uuid",
             reps = PropertyHolder.IntProperty(),
             weight = PropertyHolder.DoubleProperty(),
-            type = SetUiType.WORK
+            type = SetUiType.WORK,
         )
         val dialogState = DialogState.Sets(testSet)
         stateFlow.value = stateFlow.value.copy(dialogState = dialogState)

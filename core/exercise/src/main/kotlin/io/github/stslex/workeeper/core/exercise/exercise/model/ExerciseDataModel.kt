@@ -27,5 +27,5 @@ fun ExerciseDataModel.toEntity(): ExerciseEntity = ExerciseEntity(
     trainingUuid = trainingUuid?.let(Uuid::parse),
     sets = sets.map { it.toEntity() },
     labels = labels,
-    timestamp = timestamp
+    timestamp = timestamp,
 )

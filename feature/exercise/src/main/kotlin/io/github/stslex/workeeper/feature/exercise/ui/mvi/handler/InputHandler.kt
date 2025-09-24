@@ -13,7 +13,7 @@ import org.koin.core.annotation.Scoped
 @Scoped(binds = [InputHandler::class])
 @Scope(name = EXERCISE_SCOPE_NAME)
 internal class InputHandler(
-    @Named(EXERCISE_SCOPE_NAME) store: ExerciseHandlerStore
+    @Named(EXERCISE_SCOPE_NAME) store: ExerciseHandlerStore,
 ) : Handler<Action.Input>, ExerciseHandlerStore by store {
 
     override fun invoke(action: Action.Input) {
@@ -57,15 +57,15 @@ internal class InputHandler(
                     dialogState.copy(
                         set = dialogState.set.copy(
                             reps = dialogState.getReps(),
-                            weight = dialogState.getWeight()
-                        )
+                            weight = dialogState.getWeight(),
+                        ),
                     )
                 } else {
                     dialogState
                 }
             }
             state.copy(
-                dialogState = dialogState
+                dialogState = dialogState,
             )
         }
     }

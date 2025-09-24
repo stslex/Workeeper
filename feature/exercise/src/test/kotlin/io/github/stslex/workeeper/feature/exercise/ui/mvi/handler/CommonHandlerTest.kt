@@ -68,7 +68,7 @@ internal class CommonHandlerTest {
             sets = persistentListOf(),
             timestamp = 1500000L,
             trainingUuid = "training-uuid",
-            labels = persistentListOf()
+            labels = persistentListOf(),
         )
         val searchResults = listOf<ExerciseDataModel>()
 
@@ -78,8 +78,8 @@ internal class CommonHandlerTest {
         handler.invoke(
             ExerciseStore.Action.Common.Init(
                 uuid = exerciseUuid,
-                trainingUuid = "training-uuid"
-            )
+                trainingUuid = "training-uuid",
+            ),
         )
 
         testScheduler.advanceUntilIdle()

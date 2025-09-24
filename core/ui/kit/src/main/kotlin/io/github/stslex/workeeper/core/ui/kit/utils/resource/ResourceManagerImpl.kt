@@ -8,7 +8,7 @@ import java.util.Locale
 @Single
 internal class ResourceManagerImpl(
     private val fallbackContext: Context,
-    private val activityHolder: ActivityHolder
+    private val activityHolder: ActivityHolder,
 ) : ResourceManager {
 
     private val context: Context

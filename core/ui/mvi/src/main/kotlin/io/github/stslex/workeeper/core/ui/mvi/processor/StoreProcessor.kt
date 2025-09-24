@@ -48,12 +48,12 @@ interface StoreProcessor<S : State, A : Action, E : Event> {
  */
 @Composable
 inline fun <
-        S : State,
-        A : Action,
-        E : Event,
-        reified TStoreImpl : BaseStore<S, A, E>,
-        TComponent : Component
-        > KoinScopeComponent.rememberStoreProcessor(
+    S : State,
+    A : Action,
+    E : Event,
+    reified TStoreImpl : BaseStore<S, A, E>,
+    TComponent : Component,
+    > KoinScopeComponent.rememberStoreProcessor(
     component: TComponent,
     key: String? = null,
 ): StoreProcessor<S, A, E> {
@@ -63,7 +63,7 @@ inline fun <
         key = key,
         parameters = {
             parametersOf(component)
-        }
+        },
     ).apply { initEmitter() }
     DisposableEffect(store) {
         store.initEmitter()

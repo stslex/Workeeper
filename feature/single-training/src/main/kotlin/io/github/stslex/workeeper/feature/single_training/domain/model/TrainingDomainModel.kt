@@ -11,11 +11,11 @@ internal data class TrainingDomainModel(
 )
 
 internal fun TrainingDataModel.toDomain(
-    exercises: List<ExerciseDomainModel>
+    exercises: List<ExerciseDomainModel>,
 ): TrainingDomainModel = TrainingDomainModel(
     uuid = uuid,
     name = name,
     labels = labels,
     exercises = exercises,
-    timestamp = timestamp
+    timestamp = timestamp,
 )

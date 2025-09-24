@@ -5,7 +5,7 @@ import kotlin.uuid.Uuid
 object CommonExt {
 
     fun Uuid.Companion.parseOrRandom(
-        uuidString: String?
+        uuidString: String?,
     ): Uuid = uuidString
         ?.let(Uuid::parse)
         ?: Uuid.random()

@@ -12,7 +12,7 @@ internal class NavigationHandlerTest {
     private val navigator = mockk<Navigator>(relaxed = true)
     private val handler = NavigationHandler(
         navigator = navigator,
-        uuid = null
+        uuid = null,
     )
 
     @Test
@@ -29,16 +29,16 @@ internal class NavigationHandlerTest {
         handler.invoke(
             Action.Navigation.OpenExercise(
                 exerciseUuid = expectedUuid,
-                trainingUuid = trainingUuid
-            )
+                trainingUuid = trainingUuid,
+            ),
         )
 
         verify(exactly = 1) {
             navigator.navTo(
                 Screen.Exercise(
                     uuid = expectedUuid,
-                    trainingUuid = trainingUuid
-                )
+                    trainingUuid = trainingUuid,
+                ),
             )
         }
     }
@@ -52,8 +52,8 @@ internal class NavigationHandlerTest {
             navigator.navTo(
                 Screen.Exercise(
                     uuid = null,
-                    trainingUuid = trainingUuid
-                )
+                    trainingUuid = trainingUuid,
+                ),
             )
         }
     }

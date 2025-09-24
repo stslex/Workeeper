@@ -30,11 +30,11 @@ internal class TrainingStoreImpl(
     storeDispatchers: StoreDispatchers,
     @Named(TRAINING_SCOPE_NAME) handlerStore: TrainingHandlerStoreImpl,
     analytics: StoreAnalytics<Action, Event> = AnalyticsHolder.createStore(NAME),
-    override val logger: Logger = storeLogger(NAME)
+    override val logger: Logger = storeLogger(NAME),
 ) : BaseStore<State, Action, Event>(
     name = NAME,
     initialState = State.init(
-        pagingUiState = pagingHandler.pagingUiState
+        pagingUiState = pagingHandler.pagingUiState,
     ),
     handlerCreator = { action ->
         when (action) {
@@ -46,7 +46,7 @@ internal class TrainingStoreImpl(
     storeEmitter = handlerStore,
     storeDispatchers = storeDispatchers,
     analytics = analytics,
-    logger = logger
+    logger = logger,
 ) {
 
     companion object {

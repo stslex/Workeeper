@@ -10,4 +10,3 @@ interface LabelRepository {
 
     suspend fun add(label: LabelDataModel)
 }
-

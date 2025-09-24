@@ -8,5 +8,4 @@ interface HandlerStoreEmitter<S : Store.State, A : Store.Action, E : Store.Event
     fun setStore(store: StoreConsumer<S, A, E>)
 
     fun clearStore()
-
 }

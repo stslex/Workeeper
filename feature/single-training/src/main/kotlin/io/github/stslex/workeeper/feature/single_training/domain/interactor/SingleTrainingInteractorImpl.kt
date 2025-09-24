@@ -23,11 +23,11 @@ internal class SingleTrainingInteractorImpl(
     private val trainingRepository: TrainingRepository,
     private val exerciseRepository: ExerciseRepository,
     @param:DefaultDispatcher
-    private val defaultDispatcher: CoroutineDispatcher
+    private val defaultDispatcher: CoroutineDispatcher,
 ) : SingleTrainingInteractor {
 
     override suspend fun getTraining(
-        uuid: String
+        uuid: String,
     ): TrainingDomainModel? = withContext(defaultDispatcher) {
         trainingRepository.getTraining(uuid).let { training ->
             training?.toDomain(
@@ -35,13 +35,13 @@ internal class SingleTrainingInteractorImpl(
                     .asyncMap { exerciseUuid ->
                         exerciseRepository.getExercise(exerciseUuid)?.toDomain()
                     }
-                    .filterNotNull()
+                    .filterNotNull(),
             )
         }
     }
 
     override fun subscribeForTraining(
-        uuid: String
+        uuid: String,
     ): Flow<TrainingDomainModel> = trainingRepository
         .subscribeForTraining(uuid)
         .map { training ->
@@ -50,7 +50,7 @@ internal class SingleTrainingInteractorImpl(
                     .asyncMap { exerciseUuid ->
                         exerciseRepository.getExercise(exerciseUuid)?.toDomain()
                     }
-                    .filterNotNull()
+                    .filterNotNull(),
             )
         }
         .flowOn(defaultDispatcher)

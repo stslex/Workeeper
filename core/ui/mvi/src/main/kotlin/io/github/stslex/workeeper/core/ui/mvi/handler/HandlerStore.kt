@@ -58,7 +58,7 @@ interface HandlerStore<S : State, A : Store.Action, in E : Event> {
         onSuccess = onSuccess,
         workDispatcher = workDispatcher,
         eachDispatcher = eachDispatcher,
-        action = action
+        action = action,
     )
 
     /**
@@ -74,12 +74,12 @@ interface HandlerStore<S : State, A : Store.Action, in E : Event> {
         onError: suspend (cause: Throwable) -> Unit = {},
         workDispatcher: CoroutineDispatcher = scope.defaultDispatcher,
         eachDispatcher: CoroutineDispatcher = scope.defaultDispatcher,
-        each: suspend (T) -> Unit
+        each: suspend (T) -> Unit,
     ): Job = scope.launch(
         flow = this,
         onError = onError,
         workDispatcher = workDispatcher,
         eachDispatcher = eachDispatcher,
-        each = each
+        each = each,
     )
 }

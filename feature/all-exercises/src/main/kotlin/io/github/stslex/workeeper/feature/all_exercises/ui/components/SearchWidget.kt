@@ -14,7 +14,7 @@ import io.github.stslex.workeeper.feature.all_exercises.R
 internal fun SearchWidget(
     query: String,
     onQueryChange: (value: String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     TextField(
         modifier = modifier
@@ -24,9 +24,9 @@ internal fun SearchWidget(
         singleLine = true,
         label = {
             Text(
-                text = stringResource(R.string.feature_all_field_search)
+                text = stringResource(R.string.feature_all_field_search),
             )
-        }
+        },
     )
 }
 
@@ -36,7 +36,7 @@ private fun SearchWidgetPreview() {
     AppTheme {
         SearchWidget(
             query = "",
-            onQueryChange = {}
+            onQueryChange = {},
         )
     }
 }

@@ -41,7 +41,7 @@ internal class PagingHandlerTest {
     private val initialState = TrainingStore.State(
         pagingUiState = handler.pagingUiState,
         query = initialQuery,
-        selectedItems = persistentSetOf()
+        selectedItems = persistentSetOf(),
     )
     private val stateFlow = MutableStateFlow(initialState)
 
@@ -62,7 +62,7 @@ internal class PagingHandlerTest {
                 name = dataModel.name,
                 labels = persistentListOf(),
                 exerciseUuids = persistentListOf(),
-                date = PropertyHolder.DateProperty(initialValue = dataModel.timestamp)
+                date = PropertyHolder.DateProperty(initialValue = dataModel.timestamp),
             )
         }
 
@@ -93,8 +93,8 @@ internal class PagingHandlerTest {
         every { repository.getTrainings(initialQuery) } returns flowOf(getNotLoadingData(emptyList()))
         every { repository.getTrainings(expectedQuery) } returns flowOf(
             getNotLoadingData(
-                getTestData()
-            )
+                getTestData(),
+            ),
         )
         every { store.state } returns stateFlow
 
@@ -106,7 +106,7 @@ internal class PagingHandlerTest {
                 name = dataModel.name,
                 labels = persistentListOf(),
                 exerciseUuids = persistentListOf(),
-                date = PropertyHolder.DateProperty(initialValue = dataModel.timestamp)
+                date = PropertyHolder.DateProperty(initialValue = dataModel.timestamp),
             )
         }
 
@@ -158,7 +158,7 @@ internal class PagingHandlerTest {
                 name = dataModel.name,
                 labels = persistentListOf(),
                 exerciseUuids = persistentListOf(),
-                date = PropertyHolder.DateProperty(initialValue = dataModel.timestamp)
+                date = PropertyHolder.DateProperty(initialValue = dataModel.timestamp),
             )
         }
 
@@ -175,7 +175,7 @@ internal class PagingHandlerTest {
                 refresh = LoadState.NotLoading(true),
                 prepend = LoadState.NotLoading(true),
                 append = LoadState.NotLoading(true),
-            )
+            ),
         )
 
     private fun getTestData(): List<TrainingDataModel> = listOf(
@@ -184,15 +184,15 @@ internal class PagingHandlerTest {
             name = "Morning Workout",
             labels = persistentListOf(),
             exerciseUuids = persistentListOf(),
-            timestamp = 1000L
+            timestamp = 1000L,
         ),
         TrainingDataModel(
             uuid = "t2",
             name = "Evening Training",
             labels = persistentListOf(),
             exerciseUuids = persistentListOf(),
-            timestamp = 2000L
-        )
+            timestamp = 2000L,
+        ),
     )
 
     private fun getExpectedData(): List<TrainingUiModel> = listOf(
@@ -201,14 +201,14 @@ internal class PagingHandlerTest {
             name = "Morning Workout",
             labels = persistentListOf(),
             exerciseUuids = persistentListOf(),
-            date = PropertyHolder.DateProperty(initialValue = 1000L)
+            date = PropertyHolder.DateProperty(initialValue = 1000L),
         ),
         TrainingUiModel(
             uuid = "t2",
             name = "Evening Training",
             labels = persistentListOf(),
             exerciseUuids = persistentListOf(),
-            date = PropertyHolder.DateProperty(initialValue = 2000L)
-        )
+            date = PropertyHolder.DateProperty(initialValue = 2000L),
+        ),
     )
 }

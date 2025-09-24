@@ -19,5 +19,5 @@ fun ExerciseChangeDataModel.toEntity(): ExerciseEntity = ExerciseEntity(
     trainingUuid = trainingUuid?.let { Uuid.parse(it) },
     sets = sets.map { it.toEntity() },
     labels = labels,
-    timestamp = timestamp
+    timestamp = timestamp,
 )

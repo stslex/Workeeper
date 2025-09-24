@@ -41,12 +41,12 @@ internal class PagingHandler(
 
     private fun subscribeToDates() {
         scope.launch(
-            commonStore.homeSelectedStartDate.filterNotNull()
+            commonStore.homeSelectedStartDate.filterNotNull(),
         ) { timestamp ->
             updateStateImmediate { it.copy(startDate = PropertyHolder.DateProperty(timestamp)) }
         }
         scope.launch(
-            commonStore.homeSelectedEndDate.filterNotNull()
+            commonStore.homeSelectedEndDate.filterNotNull(),
         ) { timestamp ->
             updateStateImmediate { it.copy(endDate = PropertyHolder.DateProperty(timestamp)) }
         }
@@ -57,7 +57,7 @@ internal class PagingHandler(
             state
                 .map(chartParamsMapper::invoke)
                 .distinctUntilChanged()
-                .map { params -> interactor.getChartsData(params) }
+                .map { params -> interactor.getChartsData(params) },
         ) { items ->
             logger.d { "Charts items: ${items.size}" }
 
@@ -65,7 +65,7 @@ internal class PagingHandler(
                 it.copy(
                     charts = items
                         .asyncMap(chartResultsMapper::invoke)
-                        .toImmutableList()
+                        .toImmutableList(),
                 )
             }
         }

@@ -12,5 +12,4 @@ interface ExerciseInteractor {
     suspend fun getExercise(uuid: String): ExerciseDataModel?
 
     suspend fun searchItems(query: String): List<ExerciseDataModel>
-
 }

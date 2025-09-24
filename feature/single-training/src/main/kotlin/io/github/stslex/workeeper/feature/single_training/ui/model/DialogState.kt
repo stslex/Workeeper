@@ -8,5 +8,4 @@ internal sealed interface DialogState {
     data object Closed : DialogState
 
     data object Calendar : DialogState
-
 }

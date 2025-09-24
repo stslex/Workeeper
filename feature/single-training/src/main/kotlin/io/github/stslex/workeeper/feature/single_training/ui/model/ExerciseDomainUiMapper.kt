@@ -18,6 +18,6 @@ internal class ExerciseDomainUiMapper : Mapper<ExerciseDomainModel, ExerciseUiMo
         labels = data.labels.toImmutableList(),
         sets = data.sets,
         name = data.name,
-        timestamp = PropertyHolder.DateProperty().update(data.timestamp)
+        timestamp = PropertyHolder.DateProperty().update(data.timestamp),
     )
 }

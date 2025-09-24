@@ -33,7 +33,7 @@ internal class TrainingRepositoryImplTest {
     private val dao = mockk<TrainingDao>()
     private val repository: TrainingRepository = TrainingRepositoryImpl(
         dao = dao,
-        ioDispatcher = testDispatcher
+        ioDispatcher = testDispatcher,
     )
 
     @BeforeEach
@@ -52,7 +52,7 @@ internal class TrainingRepositoryImplTest {
         )
         val expectedDataModels = listOf(
             createDataModel(0, uuid1),
-            createDataModel(1, uuid2)
+            createDataModel(1, uuid2),
         )
 
         every { dao.getAll("some_query") } returns TestPagingSource(expectedEntities)
@@ -159,14 +159,14 @@ internal class TrainingRepositoryImplTest {
     }
 
     private class TestPagingSource(
-        private val expectedEntities: List<TrainingEntity>
+        private val expectedEntities: List<TrainingEntity>,
     ) : PagingSource<Int, TrainingEntity>() {
 
         override suspend fun load(params: LoadParams<Int>): LoadResult<Int, TrainingEntity> =
             LoadResult.Page(
                 data = expectedEntities,
                 prevKey = null as Int?,
-                nextKey = null as Int?
+                nextKey = null as Int?,
             )
 
         override fun getRefreshKey(state: PagingState<Int, TrainingEntity>): Int? = null
@@ -174,7 +174,7 @@ internal class TrainingRepositoryImplTest {
 
     private fun createDataModel(
         index: Int,
-        uuid: Uuid
+        uuid: Uuid,
     ): TrainingDataModel {
         val exerciseUuid1 =
             Uuid.parse("00000000-0000-0000-0000-${String.format("%012d", index * 2)}")
@@ -185,13 +185,13 @@ internal class TrainingRepositoryImplTest {
             name = "Training_$index",
             exerciseUuids = listOf(exerciseUuid1.toString(), exerciseUuid2.toString()),
             labels = listOf("Label_$index", "Test"),
-            timestamp = index.plus(123).toLong()
+            timestamp = index.plus(123).toLong(),
         )
     }
 
     private fun createChangeModel(
         @Suppress("SameParameterValue") index: Int,
-        uuid: Uuid
+        uuid: Uuid,
     ): TrainingChangeDataModel {
         val exerciseUuid1 =
             Uuid.parse("00000000-0000-0000-0000-${String.format("%012d", index * 2)}")
@@ -202,13 +202,13 @@ internal class TrainingRepositoryImplTest {
             name = "Training_$index",
             exerciseUuids = listOf(exerciseUuid1.toString(), exerciseUuid2.toString()),
             labels = listOf("Label_$index", "Test"),
-            timestamp = index.plus(123).toLong()
+            timestamp = index.plus(123).toLong(),
         )
     }
 
     private fun createEntity(
         index: Int = 0,
-        uuid: Uuid = Uuid.random()
+        uuid: Uuid = Uuid.random(),
     ): TrainingEntity {
         val exerciseUuid1 =
             Uuid.parse("00000000-0000-0000-0000-${String.format("%012d", index * 2)}")
@@ -219,7 +219,7 @@ internal class TrainingRepositoryImplTest {
             name = "Training_$index",
             exercises = listOf(exerciseUuid1, exerciseUuid2),
             labels = listOf("Label_$index", "Test"),
-            timestamp = index.plus(123).toLong()
+            timestamp = index.plus(123).toLong(),
         )
     }
 }

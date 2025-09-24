@@ -16,15 +16,15 @@ import io.github.stslex.workeeper.feature.single_training.R
 @Composable
 internal fun ExerciseCreateWidget(
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     FilledTonalButton(
         modifier = modifier
             .fillMaxWidth(),
-        onClick = onClick
+        onClick = onClick,
     ) {
         Text(
-            stringResource(R.string.feature_single_training_field_exercise_create_label)
+            stringResource(R.string.feature_single_training_field_exercise_create_label),
         )
     }
 }
@@ -34,10 +34,10 @@ internal fun ExerciseCreateWidget(
 private fun ExerciseCreateWidgetPreview() {
     AppTheme {
         Box(
-            modifier = Modifier.background(MaterialTheme.colorScheme.background)
+            modifier = Modifier.background(MaterialTheme.colorScheme.background),
         ) {
             ExerciseCreateWidget(
-                onClick = {}
+                onClick = {},
             )
         }
     }

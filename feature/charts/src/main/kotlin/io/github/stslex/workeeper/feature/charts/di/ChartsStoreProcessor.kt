@@ -23,6 +23,6 @@ internal object ChartsFeature : Feature<ChartsStoreProcessor, ChartsComponent>(C
 
     @Composable
     override fun processor(
-        component: ChartsComponent
+        component: ChartsComponent,
     ): ChartsStoreProcessor = rememberStoreProcessor(component)
 }

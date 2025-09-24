@@ -8,7 +8,7 @@ import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesSt
 
 @Stable
 internal class NavigationHandler(
-    private val navigator: Navigator
+    private val navigator: Navigator,
 ) : AllExercisesComponent, Handler<Action.Navigation> {
 
     override fun invoke(action: Action.Navigation) {
@@ -17,8 +17,8 @@ internal class NavigationHandler(
             is Action.Navigation.OpenExercise -> navigator.navTo(
                 Exercise(
                     uuid = action.uuid,
-                    trainingUuid = null
-                )
+                    trainingUuid = null,
+                ),
             )
         }
     }

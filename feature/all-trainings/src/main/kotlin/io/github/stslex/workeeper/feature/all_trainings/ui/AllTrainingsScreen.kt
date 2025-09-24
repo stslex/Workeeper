@@ -30,7 +30,7 @@ import kotlinx.coroutines.flow.flowOf
 internal fun AllTrainingsScreen(
     state: State,
     consume: (Action) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
 
     val items = remember { state.pagingUiState() }.collectAsLazyPagingItems()
@@ -41,17 +41,17 @@ internal fun AllTrainingsScreen(
             .fillMaxSize(),
     ) {
         LazyColumn(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
         ) {
             items(
-                count = items.itemCount
+                count = items.itemCount,
             ) { index ->
                 items[index]?.let { item ->
                     SingleTrainingItemWidget(
                         item = item,
                         isSelected = state.selectedItems.contains(item.uuid),
                         onItemClick = { consume(Action.Click.TrainingItemClick(item.uuid)) },
-                        onItemLongClick = { consume(Action.Click.TrainingItemLongClick(item.uuid)) }
+                        onItemLongClick = { consume(Action.Click.TrainingItemLongClick(item.uuid)) },
                     )
                 }
             }
@@ -60,7 +60,7 @@ internal fun AllTrainingsScreen(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(AppDimension.Padding.big),
-            isDeletingMode = state.selectedItems.isNotEmpty()
+            isDeletingMode = state.selectedItems.isNotEmpty(),
         ) {
             consume(Action.Click.ActionButton)
         }
@@ -93,11 +93,11 @@ internal fun AllTrainingsScreenPreview() {
         val state = State(
             pagingUiState = itemsPaging,
             query = "",
-            selectedItems = persistentSetOf("uuid1", "uuid2")
+            selectedItems = persistentSetOf("uuid1", "uuid2"),
         )
         AllTrainingsScreen(
             state = state,
-            consume = {}
+            consume = {},
         )
     }
 }

@@ -9,7 +9,6 @@ import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesSt
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore.Event
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore.State
 
-
 internal typealias ExerciseStoreProcessor = StoreProcessor<State, Action, Event>
 
 internal const val EXERCISE_SCOPE_NAME = "all_exercise_scope"
@@ -21,11 +20,11 @@ internal const val EXERCISE_SCOPE_NAME = "all_exercise_scope"
  * @see [io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore]
  * */
 internal object ExerciseFeature : Feature<ExerciseStoreProcessor, AllExercisesComponent>(
-    EXERCISE_SCOPE_NAME
+    EXERCISE_SCOPE_NAME,
 ) {
 
     @Composable
     override fun processor(
-        component: AllExercisesComponent
+        component: AllExercisesComponent,
     ): ExerciseStoreProcessor = rememberStoreProcessor(component)
 }

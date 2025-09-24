@@ -44,7 +44,7 @@ internal class PagingHandlerTest {
         startDate = PropertyHolder.DateProperty(initialValue = 0L),
         endDate = PropertyHolder.DateProperty(initialValue = 0L),
         type = ChartsType.TRAINING,
-        calendarState = CalendarState.Closed
+        calendarState = CalendarState.Closed,
     )
     private val stateFlow: MutableStateFlow<ChartsStore.State> = MutableStateFlow(initialState)
 
@@ -60,7 +60,7 @@ internal class PagingHandlerTest {
         commonStore = commonStore,
         chartParamsMapper = chartParamsMapper,
         chartResultsMapper = chartResultsMapper,
-        store = store
+        store = store,
     )
 
     @Suppress("UnusedFlow")
@@ -72,7 +72,7 @@ internal class PagingHandlerTest {
             startDate = 1500000L,
             endDate = 2500000L,
             name = "Test Exercise",
-            type = ChartsDomainType.TRAINING
+            type = ChartsDomainType.TRAINING,
         )
         coEvery { interactor.getChartsData(any()) } returns emptyList()
         every { chartResultsMapper.invoke(any()) } returns mockk()
@@ -96,7 +96,7 @@ internal class PagingHandlerTest {
             startDate = 0L,
             endDate = 0L,
             name = "Test Exercise",
-            type = ChartsDomainType.TRAINING
+            type = ChartsDomainType.TRAINING,
         )
         coEvery { interactor.getChartsData(any()) } returns emptyList()
         every { chartResultsMapper.invoke(any()) } returns mockk()
@@ -113,8 +113,8 @@ internal class PagingHandlerTest {
         val domainData = listOf(
             SingleChartDomainModel(
                 name = "Push ups",
-                values = listOf(1.0, 2.0, 3.0)
-            )
+                values = listOf(1.0, 2.0, 3.0),
+            ),
         )
 
         every { commonStore.homeSelectedStartDate } returns flowOf(null)
@@ -123,7 +123,7 @@ internal class PagingHandlerTest {
             startDate = 0L,
             endDate = 0L,
             name = "Test Exercise",
-            type = ChartsDomainType.TRAINING
+            type = ChartsDomainType.TRAINING,
         )
         coEvery { interactor.getChartsData(any()) } returns domainData
         every { chartResultsMapper.invoke(any()) } returns mockk()
@@ -141,7 +141,7 @@ internal class PagingHandlerTest {
         every { commonStore.homeSelectedEndDate } returns flowOf(null)
         every { chartParamsMapper.invoke(any()) } returnsMany listOf(
             ChartParams(0L, 0L, "Test Exercise", ChartsDomainType.TRAINING),
-            ChartParams(0L, 0L, "New Exercise", ChartsDomainType.TRAINING)
+            ChartParams(0L, 0L, "New Exercise", ChartsDomainType.TRAINING),
         )
         coEvery { interactor.getChartsData(any()) } returns emptyList()
         every { chartResultsMapper.invoke(any()) } returns mockk()
@@ -165,7 +165,7 @@ internal class PagingHandlerTest {
             startDate = 0L,
             endDate = 0L,
             name = "Test Exercise",
-            type = ChartsDomainType.TRAINING
+            type = ChartsDomainType.TRAINING,
         )
         coEvery { interactor.getChartsData(any()) } returns emptyList()
         every { chartResultsMapper.invoke(any()) } returns mockk()
@@ -191,7 +191,7 @@ internal class PagingHandlerTest {
             startDate = 0L,
             endDate = 0L,
             name = "Test Exercise",
-            type = ChartsDomainType.TRAINING
+            type = ChartsDomainType.TRAINING,
         )
         coEvery { interactor.getChartsData(any()) } throws RuntimeException("Interactor error")
 
@@ -207,7 +207,7 @@ internal class PagingHandlerTest {
             startDate = 1000000L,
             endDate = 0L,
             name = "Test Exercise",
-            type = ChartsDomainType.TRAINING
+            type = ChartsDomainType.TRAINING,
         )
         coEvery { interactor.getChartsData(any()) } returns emptyList()
         every { chartResultsMapper.invoke(any()) } returns mockk()
@@ -227,7 +227,7 @@ internal class PagingHandlerTest {
             startDate = PropertyHolder.DateProperty(initialValue = 5000000L),
             endDate = PropertyHolder.DateProperty(initialValue = 6000000L),
             type = ChartsType.TRAINING,
-            calendarState = CalendarState.Closed
+            calendarState = CalendarState.Closed,
         )
 
         stateFlow.value = customState
@@ -238,7 +238,7 @@ internal class PagingHandlerTest {
             startDate = 5000000L,
             endDate = 6000000L,
             name = "Custom Exercise",
-            type = ChartsDomainType.TRAINING
+            type = ChartsDomainType.TRAINING,
         )
         coEvery { interactor.getChartsData(any()) } returns emptyList()
         every { chartResultsMapper.invoke(any()) } returns mockk()
@@ -262,7 +262,7 @@ internal class PagingHandlerTest {
             startDate = 1500000L,
             endDate = 0L,
             name = "Test Exercise",
-            type = ChartsDomainType.TRAINING
+            type = ChartsDomainType.TRAINING,
         )
         coEvery { interactor.getChartsData(any()) } returns emptyList()
 
@@ -286,7 +286,7 @@ internal class PagingHandlerTest {
     @Test
     fun `chart results mapper errors are handled gracefully`() = runTest {
         val domainData = listOf(
-            SingleChartDomainModel(name = "Test", values = listOf(1.0, 2.0))
+            SingleChartDomainModel(name = "Test", values = listOf(1.0, 2.0)),
         )
 
         every { commonStore.homeSelectedStartDate } returns flowOf(null)
@@ -295,7 +295,7 @@ internal class PagingHandlerTest {
             startDate = 0L,
             endDate = 0L,
             name = "Test Exercise",
-            type = ChartsDomainType.TRAINING
+            type = ChartsDomainType.TRAINING,
         )
         coEvery { interactor.getChartsData(any()) } returns domainData
         every { chartResultsMapper.invoke(any()) } throws IllegalStateException("Results mapper error")
@@ -312,7 +312,7 @@ internal class PagingHandlerTest {
             startDate = 0L,
             endDate = 0L,
             name = "Test Exercise",
-            type = ChartsDomainType.TRAINING
+            type = ChartsDomainType.TRAINING,
         )
         coEvery { interactor.getChartsData(any()) } throws java.net.SocketTimeoutException("Network timeout")
 
@@ -333,7 +333,7 @@ internal class PagingHandlerTest {
             startDate = 0L,
             endDate = 0L,
             name = "Test Exercise",
-            type = ChartsDomainType.EXERCISE
+            type = ChartsDomainType.EXERCISE,
         )
         coEvery { interactor.getChartsData(any()) } returns emptyList()
         every { chartResultsMapper.invoke(any()) } returns mockk()
@@ -349,7 +349,7 @@ internal class PagingHandlerTest {
         val largeDataSet = (1..10).map { index ->
             SingleChartDomainModel(
                 name = "Exercise_$index",
-                values = (1..5).map { it.toDouble() }
+                values = (1..5).map { it.toDouble() },
             )
         }
 
@@ -359,7 +359,7 @@ internal class PagingHandlerTest {
             startDate = 1500000L,
             endDate = 2500000L,
             name = "Test Exercise",
-            type = ChartsDomainType.TRAINING
+            type = ChartsDomainType.TRAINING,
         )
         coEvery { interactor.getChartsData(any()) } returns largeDataSet
         every { chartResultsMapper.invoke(any()) } returns mockk()
@@ -381,7 +381,7 @@ internal class PagingHandlerTest {
             startDate = 0L,
             endDate = 0L,
             name = "Test Exercise",
-            type = ChartsDomainType.TRAINING
+            type = ChartsDomainType.TRAINING,
         )
         coEvery { interactor.getChartsData(any()) } returns emptyData
         every { chartResultsMapper.invoke(any()) } returns mockk()
@@ -401,7 +401,7 @@ internal class PagingHandlerTest {
             startDate = Long.MIN_VALUE,
             endDate = Long.MAX_VALUE,
             name = "Test Exercise",
-            type = ChartsDomainType.TRAINING
+            type = ChartsDomainType.TRAINING,
         )
         coEvery { interactor.getChartsData(any()) } returns emptyList()
         every { chartResultsMapper.invoke(any()) } returns mockk()
@@ -410,9 +410,11 @@ internal class PagingHandlerTest {
         testScheduler.advanceUntilIdle()
 
         coVerify {
-            interactor.getChartsData(match {
-                it.startDate == Long.MIN_VALUE && it.endDate == Long.MAX_VALUE
-            })
+            interactor.getChartsData(
+                match {
+                    it.startDate == Long.MIN_VALUE && it.endDate == Long.MAX_VALUE
+                },
+            )
         }
     }
 
@@ -424,7 +426,7 @@ internal class PagingHandlerTest {
             startDate = 0L,
             endDate = 0L,
             name = "Test Exercise",
-            type = ChartsDomainType.TRAINING
+            type = ChartsDomainType.TRAINING,
         )
         coEvery { interactor.getChartsData(any()) } returns emptyList()
         every { chartResultsMapper.invoke(any()) } returns mockk()
@@ -433,9 +435,11 @@ internal class PagingHandlerTest {
         testScheduler.advanceUntilIdle()
 
         coVerify {
-            interactor.getChartsData(match {
-                it.startDate == 0L && it.endDate == 0L
-            })
+            interactor.getChartsData(
+                match {
+                    it.startDate == 0L && it.endDate == 0L
+                },
+            )
         }
     }
 
@@ -449,7 +453,7 @@ internal class PagingHandlerTest {
             startDate = 0L,
             endDate = 0L,
             name = "Test Exercise",
-            type = ChartsDomainType.TRAINING
+            type = ChartsDomainType.TRAINING,
         )
         coEvery { interactor.getChartsData(any()) } returns emptyList()
         every { chartResultsMapper.invoke(any()) } returns mockk()
@@ -472,7 +476,7 @@ internal class PagingHandlerTest {
             startDate = 0L,
             endDate = 0L,
             name = "Test Exercise",
-            type = ChartsDomainType.TRAINING
+            type = ChartsDomainType.TRAINING,
         )
         coEvery { interactor.getChartsData(any()) } returns emptyList()
         every { chartResultsMapper.invoke(any()) } returns mockk()
@@ -498,9 +502,9 @@ internal class PagingHandlerTest {
             SingleChartDomainModel(name = "", values = emptyList()),
             SingleChartDomainModel(
                 name = "   ",
-                values = listOf(Double.NaN, Double.POSITIVE_INFINITY)
+                values = listOf(Double.NaN, Double.POSITIVE_INFINITY),
             ),
-            SingleChartDomainModel(name = "Valid", values = listOf(-1.0, 0.0, 1.0))
+            SingleChartDomainModel(name = "Valid", values = listOf(-1.0, 0.0, 1.0)),
         )
 
         every { commonStore.homeSelectedStartDate } returns flowOf(1500000L)
@@ -509,7 +513,7 @@ internal class PagingHandlerTest {
             startDate = 1500000L,
             endDate = 2500000L,
             name = "Test Exercise",
-            type = ChartsDomainType.TRAINING
+            type = ChartsDomainType.TRAINING,
         )
         coEvery { interactor.getChartsData(any()) } returns invalidData
         every { chartResultsMapper.invoke(any()) } returns mockk()
@@ -533,7 +537,7 @@ internal class PagingHandlerTest {
             startDate = 0L,
             endDate = 0L,
             name = longName,
-            type = ChartsDomainType.TRAINING
+            type = ChartsDomainType.TRAINING,
         )
         coEvery { interactor.getChartsData(any()) } returns emptyList()
         every { chartResultsMapper.invoke(any()) } returns mockk()
@@ -556,7 +560,7 @@ internal class PagingHandlerTest {
             startDate = 0L,
             endDate = 0L,
             name = "Test Exercise",
-            type = ChartsDomainType.TRAINING
+            type = ChartsDomainType.TRAINING,
         )
         coEvery { interactor.getChartsData(any()) } returns emptyList()
         every { chartResultsMapper.invoke(any()) } returns mockk()
@@ -581,7 +585,7 @@ internal class PagingHandlerTest {
             startDate = 0L,
             endDate = 0L,
             name = "Test Exercise",
-            type = ChartsDomainType.TRAINING
+            type = ChartsDomainType.TRAINING,
         )
         coEvery { interactor.getChartsData(any()) } returns emptyList()
         every { chartResultsMapper.invoke(any()) } returns mockk()

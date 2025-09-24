@@ -11,13 +11,13 @@ object NumUiUtils {
     fun roundThousand(
         value: Double,
         locale: Locale,
-        pattern: String = FORMAT_PATTERN
+        pattern: String = FORMAT_PATTERN,
     ): Double = if (value >= 1000) {
         (value / 1000.0).let { roundValue ->
             String.format(
                 locale = locale,
                 format = pattern,
-                roundValue
+                roundValue,
             ).toDouble()
         }
     } else {

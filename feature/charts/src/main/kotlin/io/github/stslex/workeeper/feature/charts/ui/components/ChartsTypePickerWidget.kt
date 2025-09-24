@@ -38,7 +38,7 @@ internal fun ChartsTypePickerWidget(
     Row(
         modifier = modifier
             .height(AppDimension.Button.largeHeight),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         ChartsType.entries.forEach { chartsType ->
             ChartsTypeItem(
@@ -46,7 +46,7 @@ internal fun ChartsTypePickerWidget(
                     .weight(1f),
                 item = chartsType,
                 isSelected = chartsType == selectedType,
-                onClick = { onClick(chartsType) }
+                onClick = { onClick(chartsType) },
             )
         }
     }
@@ -57,7 +57,7 @@ internal fun ChartsTypeItem(
     item: ChartsType,
     isSelected: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val backgroundColor by animateColorAsState(
         targetValue = if (isSelected) {
@@ -65,7 +65,7 @@ internal fun ChartsTypeItem(
         } else {
             MaterialTheme.colorScheme.surface
         },
-        animationSpec = tween(300)
+        animationSpec = tween(300),
     )
     val textColor by animateColorAsState(
         targetValue = if (isSelected) {
@@ -73,7 +73,7 @@ internal fun ChartsTypeItem(
         } else {
             MaterialTheme.colorScheme.onSurface
         },
-        animationSpec = tween(300)
+        animationSpec = tween(300),
     )
 
     val textSize by animateFloatAsState(
@@ -82,7 +82,7 @@ internal fun ChartsTypeItem(
         } else {
             18f
         },
-        animationSpec = tween(300)
+        animationSpec = tween(300),
     )
 
     ElevatedCard(
@@ -92,16 +92,16 @@ internal fun ChartsTypeItem(
         onClick = onClick,
         colors = CardDefaults.elevatedCardColors(
             containerColor = backgroundColor,
-            contentColor = textColor
+            contentColor = textColor,
         ),
         elevation = CardDefaults.cardElevation(
-            defaultElevation = AppDimension.Elevation.medium
-        )
+            defaultElevation = AppDimension.Elevation.medium,
+        ),
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = AppDimension.Padding.medium)
+                .padding(horizontal = AppDimension.Padding.medium),
         ) {
             Text(
                 modifier = Modifier
@@ -111,10 +111,9 @@ internal fun ChartsTypeItem(
                 textAlign = TextAlign.Center,
                 style = MaterialTheme.typography.headlineSmall,
                 fontSize = textSize.sp,
-                maxLines = 1
+                maxLines = 1,
             )
         }
-
     }
 }
 
@@ -127,7 +126,7 @@ private fun ChartsTypePickerWidgetPreview() {
             selectedType = selectedType,
             onClick = {
                 selectedType = it
-            }
+            },
         )
     }
 }

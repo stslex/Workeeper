@@ -12,6 +12,6 @@ internal class ChartsTrainingDomainMapper : Mapper<TrainingDataModel, SingleChar
 
     override fun invoke(data: TrainingDataModel): SingleChartDomainModel = SingleChartDomainModel(
         name = data.name,
-        values = listOf(0.0) // todo Placeholder for actual values
+        values = listOf(0.0), // todo Placeholder for actual values
     )
 }

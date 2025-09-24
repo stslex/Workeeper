@@ -4,5 +4,5 @@ internal data class ChartParams(
     val startDate: Long,
     val endDate: Long,
     val name: String,
-    val type: ChartsDomainType
+    val type: ChartsDomainType,
 )

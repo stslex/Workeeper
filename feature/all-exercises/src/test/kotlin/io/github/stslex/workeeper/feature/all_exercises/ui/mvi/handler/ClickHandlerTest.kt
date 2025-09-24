@@ -42,7 +42,7 @@ internal class ClickHandlerTest {
     private val initialState = ExercisesStore.State(
         items = pagingUiState,
         selectedItems = persistentSetOf(),
-        query = ""
+        query = "",
     )
 
     private val stateFlow = MutableStateFlow(initialState)
@@ -52,7 +52,7 @@ internal class ClickHandlerTest {
         every { this@mockk.scope } returns AppCoroutineScope(
             testScope,
             testDispatcher,
-            testDispatcher
+            testDispatcher,
         )
 
         // Mock the launch function to actually execute the coroutine
@@ -62,7 +62,7 @@ internal class ClickHandlerTest {
                 onSuccess = any(),
                 workDispatcher = any(),
                 eachDispatcher = any(),
-                action = any()
+                action = any(),
             )
         } answers {
             val onSuccess = arg<suspend CoroutineScope.(Any) -> Unit>(1)
@@ -90,13 +90,13 @@ internal class ClickHandlerTest {
         val exercise1 = ExerciseUiModel(
             uuid = exerciseUuid1.toString(),
             name = "Exercise 1",
-            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis())
+            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
         )
 
         val exercise2 = ExerciseUiModel(
             uuid = exerciseUuid2.toString(),
             name = "Exercise 2",
-            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis())
+            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
         )
 
         val selectedItems = setOf(exercise1.uuid, exercise2.uuid).toImmutableSet()
@@ -128,7 +128,7 @@ internal class ClickHandlerTest {
 
         verify(exactly = 1) {
             store.consume(
-                ExercisesStore.Action.Navigation.OpenExercise(exercise.uuid)
+                ExercisesStore.Action.Navigation.OpenExercise(exercise.uuid),
             )
         }
         verify(exactly = 1) { store.sendEvent(ExercisesStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey)) }
@@ -139,13 +139,13 @@ internal class ClickHandlerTest {
         val exercise1 = ExerciseUiModel(
             uuid = Uuid.random().toString(),
             name = "Exercise 1",
-            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis())
+            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
         )
 
         val exercise2 = ExerciseUiModel(
             uuid = Uuid.random().toString(),
             name = "Exercise 2",
-            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis())
+            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
         )
 
         stateFlow.value =
@@ -161,7 +161,7 @@ internal class ClickHandlerTest {
         val exercise = ExerciseUiModel(
             uuid = Uuid.random().toString(),
             name = "Test Exercise",
-            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis())
+            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
         )
 
         handler.invoke(ExercisesStore.Action.Click.LonkClick(exercise.uuid))
@@ -181,17 +181,17 @@ internal class ClickHandlerTest {
         val exercise1 = ExerciseUiModel(
             uuid = Uuid.random().toString(),
             name = "Exercise 1",
-            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis())
+            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
         )
 
         val exercise2 = ExerciseUiModel(
             uuid = Uuid.random().toString(),
             name = "Exercise 2",
-            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis())
+            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
         )
 
         stateFlow.value = stateFlow.value.copy(
-            selectedItems = setOf(exercise1.uuid, exercise2.uuid).toImmutableSet()
+            selectedItems = setOf(exercise1.uuid, exercise2.uuid).toImmutableSet(),
         )
 
         handler.invoke(ExercisesStore.Action.Click.LonkClick(exercise1.uuid))

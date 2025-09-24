@@ -32,12 +32,12 @@ fun App() {
                         navigator.navTo(it.screen)
                     }
                 }
-            }
+            },
         ) { paddingValues ->
             AppNavigationHost(
                 modifier = Modifier
                     .padding(paddingValues),
-                navigator = navigator
+                navigator = navigator,
             )
         }
     }

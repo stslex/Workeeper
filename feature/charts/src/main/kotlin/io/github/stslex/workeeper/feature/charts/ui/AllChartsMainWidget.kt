@@ -40,20 +40,20 @@ internal fun AllChartsMainWidget(
             modifier = Modifier
                 .fillMaxSize(),
             state = state,
-            consume = consume
+            consume = consume,
         )
 
         when (state.calendarState) {
             CalendarState.Opened.StartDate -> DatePickerDialog(
                 timestamp = state.startDate.value,
                 onDismissRequest = { consume(Action.Click.Calendar.Close) },
-                dateChange = { consume(Action.Input.ChangeStartDate(it)) }
+                dateChange = { consume(Action.Input.ChangeStartDate(it)) },
             )
 
             CalendarState.Opened.EndDate -> DatePickerDialog(
                 timestamp = state.endDate.value,
                 onDismissRequest = { consume(Action.Click.Calendar.Close) },
-                dateChange = { consume(Action.Input.ChangeEndDate(it)) }
+                dateChange = { consume(Action.Input.ChangeEndDate(it)) },
             )
 
             else -> Unit
@@ -67,7 +67,7 @@ internal fun AllChartsMainWidget(
 @Composable
 private fun HomeWidgetPreview(
     @PreviewParameter(ExerciseChartPreviewParameterProvider::class)
-    charts: ImmutableList<SingleChartUiModel>
+    charts: ImmutableList<SingleChartUiModel>,
 ) {
     AppTheme {
         val startDate = System.currentTimeMillis()
@@ -81,7 +81,7 @@ private fun HomeWidgetPreview(
             endDate = PropertyHolder.DateProperty(endDate),
             charts = charts,
             type = ChartsType.TRAINING,
-            calendarState = CalendarState.Closed
+            calendarState = CalendarState.Closed,
         )
         AnimatedContent("") {
             SharedTransitionScope {
@@ -90,7 +90,7 @@ private fun HomeWidgetPreview(
                     sharedTransitionScope = this,
                     animatedContentScope = this@AnimatedContent,
                     consume = {},
-                    modifier = it
+                    modifier = it,
                 )
             }
         }

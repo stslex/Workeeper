@@ -13,8 +13,8 @@ class StoreAnalytics<A : Action, E : Event>(
         FirebaseAnalyticsHolder.log(
             FirebaseEvent.Store.Action(
                 storeName = name,
-                action = action.toString()
-            )
+                action = action.toString(),
+            ),
         )
     }
 
@@ -22,8 +22,8 @@ class StoreAnalytics<A : Action, E : Event>(
         FirebaseAnalyticsHolder.log(
             FirebaseEvent.Store.Event(
                 storeName = name,
-                event = event.toString()
-            )
+                event = event.toString(),
+            ),
         )
     }
 }

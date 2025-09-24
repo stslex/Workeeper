@@ -38,12 +38,12 @@ fun AppTheme(
         localActivity?.window?.let { window ->
             WindowCompat.getInsetsController(
                 window,
-                window.decorView
+                window.decorView,
             ).isAppearanceLightStatusBars = isDarkTheme.not()
         }
     }
     MaterialTheme(
         colorScheme = colorScheme,
-        content = content
+        content = content,
     )
 }

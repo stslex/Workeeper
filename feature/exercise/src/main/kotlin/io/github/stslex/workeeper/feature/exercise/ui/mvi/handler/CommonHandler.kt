@@ -22,7 +22,7 @@ import org.koin.core.annotation.Scoped
 @Scope(name = EXERCISE_SCOPE_NAME)
 internal class CommonHandler(
     private val interactor: ExerciseInteractor,
-    @Named(EXERCISE_SCOPE_NAME) store: ExerciseHandlerStore
+    @Named(EXERCISE_SCOPE_NAME) store: ExerciseHandlerStore,
 ) : Handler<Action.Common>, ExerciseHandlerStore by store {
 
     override fun invoke(action: Action.Common) {
@@ -47,7 +47,7 @@ internal class CommonHandler(
                 onSuccess = { item ->
                     val state = item?.mapToState() ?: getEmptyState(action.trainingUuid)
                     updateStateImmediate(state)
-                }
+                },
             ) {
                 interactor.getExercise(uuid)
             }
@@ -59,7 +59,7 @@ internal class CommonHandler(
         trainingUuid = trainingUuid,
     ).let {
         it.copy(
-            initialHash = it.calculateEqualsHash
+            initialHash = it.calculateEqualsHash,
         )
     }
 
@@ -73,13 +73,13 @@ internal class CommonHandler(
                                 MenuItem(
                                     uuid = item.uuid,
                                     text = item.name,
-                                    itemModel = item.toUi()
+                                    itemModel = item.toUi(),
                                 )
                             }
-                            .toPersistentSet()
+                            .toPersistentSet(),
                     )
                 }
-            }
+            },
         ) {
             interactor.searchItems(state.value.name.value)
         }
@@ -92,10 +92,10 @@ internal class CommonHandler(
             sets = sets.map { it.toUi() }.toImmutableList(),
             dateProperty = INITIAL.dateProperty.update(timestamp),
             trainingUuid = trainingUuid,
-            initialHash = 0
+            initialHash = 0,
         )
         return state.copy(
-            initialHash = state.calculateEqualsHash
+            initialHash = state.calculateEqualsHash,
         )
     }
 }

@@ -44,8 +44,8 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = exerciseEntities.size + 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertTrue(actual.orEmpty().isNotEmpty())
@@ -60,8 +60,8 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = exerciseEntities.size + 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertTrue(actual.orEmpty().isNotEmpty())
@@ -76,8 +76,8 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = exerciseEntities.size + 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertTrue(actual.orEmpty().isEmpty())
@@ -92,8 +92,8 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = exerciseEntities.size + 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertTrue(actual.orEmpty().isNotEmpty())
@@ -108,8 +108,8 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = exerciseEntities.size + 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertTrue(actual.orEmpty().isNotEmpty())
@@ -179,8 +179,8 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = exerciseEntities.size + 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertEquals(0, actual?.size)
@@ -193,8 +193,8 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = exerciseEntities.size + 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertEquals(0, actual?.size)
@@ -238,7 +238,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
     fun `update exist item`() = runTest {
         val item = createTestExercise()
         val expectedNewItem = createTestExercise().copy(
-            uuid = item.uuid
+            uuid = item.uuid,
         )
         dao.create(item)
         val createdItem = dao.getExercise(item.uuid)
@@ -463,7 +463,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
         val nonExistingUuids = listOf(
             Uuid.random(),
             Uuid.random(),
-            Uuid.random()
+            Uuid.random(),
         )
 
         val actual = dao.getByUuids(nonExistingUuids)
@@ -488,7 +488,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
         }
 
     private fun createTestExercise(
-        index: Int = 0
+        index: Int = 0,
     ): ExerciseEntity = ExerciseEntity(
         name = "test_$index",
         sets = listOf(),
@@ -496,5 +496,4 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
         trainingUuid = null,
         timestamp = index.plus(123).toLong(),
     )
-
 }

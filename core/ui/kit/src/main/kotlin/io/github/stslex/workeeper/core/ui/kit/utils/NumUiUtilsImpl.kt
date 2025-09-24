@@ -6,11 +6,11 @@ import org.koin.core.annotation.Single
 
 @Single
 class NumUiUtilsImpl(
-    private val resourceManager: ResourceManager
+    private val resourceManager: ResourceManager,
 ) : NumUiUtils {
 
     override fun roundThousand(value: Double): Double = roundThousand(
         value = value,
-        locale = resourceManager.locale
+        locale = resourceManager.locale,
     )
 }

@@ -15,12 +15,11 @@ interface ExerciseComponent : Component, Handler<Action.Navigation> {
         fun create(
             navigator: Navigator,
             uuid: String?,
-            trainingUuid: String?
+            trainingUuid: String?,
         ): ExerciseComponent = ExerciseComponentImpl(
             navigator = navigator,
             uuid = uuid,
-            trainingUuid = trainingUuid
+            trainingUuid = trainingUuid,
         )
     }
 }
-

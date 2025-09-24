@@ -7,7 +7,7 @@ import androidx.datastore.preferences.preferencesDataStore
 
 internal class DataStoreProvider(
     context: Context,
-    private val name: String
+    private val name: String,
 ) {
 
     private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = name)

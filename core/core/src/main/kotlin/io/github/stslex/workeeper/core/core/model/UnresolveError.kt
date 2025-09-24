@@ -5,5 +5,5 @@ data class UnresolveError(
     override val message: String? = null,
 ) : AppError(
     message = message,
-    cause = cause
+    cause = cause,
 )

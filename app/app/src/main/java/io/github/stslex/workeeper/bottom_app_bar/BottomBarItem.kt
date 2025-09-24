@@ -10,20 +10,21 @@ import kotlinx.serialization.InternalSerializationApi
 @Stable
 enum class BottomBarItem(
     @param:StringRes val titleRes: Int,
-    val screen: Screen.BottomBar
+    val screen: Screen.BottomBar,
 ) {
     CHARTS(
         titleRes = R.string.bottom_bar_label_charts,
-        screen = Screen.BottomBar.Charts
+        screen = Screen.BottomBar.Charts,
     ),
     TRAININGS(
         titleRes = R.string.bottom_bar_label_trainings,
-        screen = Screen.BottomBar.AllTrainings
+        screen = Screen.BottomBar.AllTrainings,
     ),
     EXERCISES(
         titleRes = R.string.bottom_bar_label_exercises,
-        screen = Screen.BottomBar.AllExercises
-    );
+        screen = Screen.BottomBar.AllExercises,
+    ),
+    ;
 
     companion object {
 
@@ -31,7 +32,7 @@ enum class BottomBarItem(
 
         @OptIn(InternalSerializationApi::class)
         fun getByRoute(
-            route: String
+            route: String,
         ): BottomBarItem? = entries.find { entry -> entry.screen.isCurrentScreen(route) }
 
         fun getByScreen(screen: Screen?): BottomBarItem? = entries.find { it.screen == screen }

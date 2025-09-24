@@ -61,7 +61,7 @@ internal class ExerciseStoreImplTest {
     }
     private val storeDispatchers = StoreDispatchers(
         defaultDispatcher = testDispatcher,
-        mainImmediateDispatcher = testDispatcher
+        mainImmediateDispatcher = testDispatcher,
     )
 
     private val logger = mockk<Logger> {
@@ -83,7 +83,7 @@ internal class ExerciseStoreImplTest {
         storeDispatchers = storeDispatchers,
         storeEmitter = storeEmitter,
         logger = logger,
-        analytics = analytics
+        analytics = analytics,
     )
 
     @Test
@@ -124,7 +124,7 @@ internal class ExerciseStoreImplTest {
             storeDispatchers = storeDispatchers,
             storeEmitter = storeEmitter,
             logger = logger,
-            analytics = analytics
+            analytics = analytics,
         )
 
         testStore.init()
@@ -136,8 +136,8 @@ internal class ExerciseStoreImplTest {
             commonHandler.invoke(
                 Action.Common.Init(
                     uuid = "test-uuid",
-                    trainingUuid = null
-                )
+                    trainingUuid = null,
+                ),
             )
         }
     }
@@ -208,7 +208,7 @@ internal class ExerciseStoreImplTest {
         val actions = listOf(
             Action.Input.PropertyName("Test"),
             Action.Click.Save,
-            Action.Navigation.Back
+            Action.Navigation.Back,
         )
 
         store.init()
@@ -244,7 +244,7 @@ internal class ExerciseStoreImplTest {
             uuid = Uuid.random().toString(),
             reps = PropertyHolder.IntProperty(initialValue = 10),
             weight = PropertyHolder.DoubleProperty(initialValue = 50.0),
-            type = SetUiType.WORK
+            type = SetUiType.WORK,
         )
         val openEditAction = Action.Click.DialogSets.OpenEdit(set)
         val openCreateAction = Action.Click.DialogSets.OpenCreate
@@ -278,12 +278,12 @@ internal class ExerciseStoreImplTest {
             uuid = "menu-item-uuid",
             name = "Test Exercise",
             sets = persistentListOf(),
-            timestamp = 100
+            timestamp = 100,
         )
         val menuItem = MenuItem(
             uuid = "menu-uuid",
             text = "Test Exercise",
-            itemModel = exerciseUiModel
+            itemModel = exerciseUiModel,
         )
         val openMenuAction = Action.Click.OpenMenuVariants
         val closeMenuAction = Action.Click.CloseMenuVariants
@@ -322,7 +322,7 @@ internal class ExerciseStoreImplTest {
             Action.Click.Delete,
             Action.Click.ConfirmedDelete,
             Action.Click.PickDate,
-            Action.Click.CloseDialog
+            Action.Click.CloseDialog,
         )
 
         store.init()
@@ -355,7 +355,7 @@ internal class ExerciseStoreImplTest {
             Event.InvalidParams,
             Event.Snackbar(SnackbarType.DISMISS),
             Event.Snackbar(SnackbarType.DELETE),
-            Event.HapticClick
+            Event.HapticClick,
         )
 
         store.init()
@@ -369,5 +369,4 @@ internal class ExerciseStoreImplTest {
             verify { analytics.logEvent(event) }
         }
     }
-
 }

@@ -43,7 +43,7 @@ internal class ClickHandler(
         }
         updateState {
             it.copy(
-                selectedItems = currentItems.toImmutableSet()
+                selectedItems = currentItems.toImmutableSet(),
             )
         }
     }
@@ -53,7 +53,7 @@ internal class ClickHandler(
         val selectedItems = state.value.selectedItems
         if (selectedItems.isNotEmpty()) {
             launch(
-                onSuccess = { updateState { it.copy(selectedItems = persistentSetOf()) } }
+                onSuccess = { updateState { it.copy(selectedItems = persistentSetOf()) } },
             ) {
                 repository.deleteAllItems(selectedItems.asyncMap(Uuid::parse))
             }

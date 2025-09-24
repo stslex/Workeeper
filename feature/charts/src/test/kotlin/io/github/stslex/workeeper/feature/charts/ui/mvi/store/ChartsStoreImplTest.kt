@@ -51,7 +51,7 @@ internal class ChartsStoreImplTest {
 
     private val storeDispatchers = StoreDispatchers(
         defaultDispatcher = testDispatcher,
-        mainImmediateDispatcher = testDispatcher
+        mainImmediateDispatcher = testDispatcher,
     )
 
     private val logger = mockk<Logger> {
@@ -72,7 +72,7 @@ internal class ChartsStoreImplTest {
         storeDispatchers = storeDispatchers,
         storeEmitter = storeEmitter,
         analytics = analytics,
-        logger = logger
+        logger = logger,
     )
 
     @Test
@@ -109,7 +109,6 @@ internal class ChartsStoreImplTest {
         coVerify { pagingHandler.invoke(action) }
     }
 
-
     @Test
     fun `click actions are handled by clickHandler`() = runTest(testDispatcher) {
         val action = Action.Click.Calendar.StartDate
@@ -140,7 +139,7 @@ internal class ChartsStoreImplTest {
         val actions = listOf(
             Action.Input.ChangeStartDate(timestamp),
             Action.Click.Calendar.StartDate,
-            Action.Paging.Init
+            Action.Paging.Init,
         )
 
         store.init()
@@ -160,7 +159,7 @@ internal class ChartsStoreImplTest {
         val calendarActions = listOf(
             Action.Click.Calendar.StartDate,
             Action.Click.Calendar.EndDate,
-            Action.Click.Calendar.Close
+            Action.Click.Calendar.Close,
         )
 
         store.init()
@@ -207,7 +206,7 @@ internal class ChartsStoreImplTest {
     fun `store sends different haptic feedback types correctly`() = runTest(testDispatcher) {
         val events = listOf(
             Event.HapticFeedback(HapticFeedbackType.LongPress),
-            Event.HapticFeedback(HapticFeedbackType.TextHandleMove)
+            Event.HapticFeedback(HapticFeedbackType.TextHandleMove),
         )
 
         store.init()
@@ -259,7 +258,7 @@ internal class ChartsStoreImplTest {
             name = "Test Charts",
             startDate = startDate,
             endDate = endDate,
-            calendarState = CalendarState.Opened.StartDate
+            calendarState = CalendarState.Opened.StartDate,
         )
 
         assertEquals("Test Charts", newState.name)
@@ -271,5 +270,4 @@ internal class ChartsStoreImplTest {
         assertEquals("", state.name)
         assertEquals(CalendarState.Closed, state.calendarState)
     }
-
 }

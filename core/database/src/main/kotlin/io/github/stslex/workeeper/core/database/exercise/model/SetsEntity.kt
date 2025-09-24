@@ -13,5 +13,5 @@ data class SetsEntity(
     @SerialName("weight")
     val weight: Double,
     @SerialName("type")
-    val type: SetsEntityType
+    val type: SetsEntityType,
 )

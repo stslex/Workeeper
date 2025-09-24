@@ -12,6 +12,6 @@ internal class ChartsExerciseDomainMapper : Mapper<ExerciseDataModel, SingleChar
 
     override fun invoke(data: ExerciseDataModel): SingleChartDomainModel = SingleChartDomainModel(
         name = data.name,
-        values = data.sets.map { it.weight }
+        values = data.sets.map { it.weight },
     )
 }

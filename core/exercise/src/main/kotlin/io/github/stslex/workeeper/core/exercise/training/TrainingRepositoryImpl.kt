@@ -20,12 +20,12 @@ import kotlin.uuid.Uuid
 class TrainingRepositoryImpl(
     private val dao: TrainingDao,
     @param:IODispatcher
-    private val ioDispatcher: CoroutineDispatcher
+    private val ioDispatcher: CoroutineDispatcher,
 ) : TrainingRepository {
 
     override fun getTrainings(query: String): Flow<PagingData<TrainingDataModel>> = Pager(
         config = pagingConfig,
-        pagingSourceFactory = { dao.getAll(query) }
+        pagingSourceFactory = { dao.getAll(query) },
     ).flow
         .map { pagingData ->
             pagingData.map { it.toData() }
@@ -51,13 +51,13 @@ class TrainingRepositoryImpl(
     }
 
     override suspend fun getTraining(
-        uuid: String
+        uuid: String,
     ): TrainingDataModel? = withContext(ioDispatcher) {
         dao.get(Uuid.parse(uuid))?.toData()
     }
 
     override fun subscribeForTraining(
-        uuid: String
+        uuid: String,
     ): Flow<TrainingDataModel> = dao
         .subscribeForTraining(Uuid.parse(uuid))
         .filterNotNull()
@@ -71,12 +71,12 @@ class TrainingRepositoryImpl(
     override suspend fun getTrainings(
         query: String,
         startDate: Long,
-        endDate: Long
+        endDate: Long,
     ): List<TrainingDataModel> = withContext(ioDispatcher) {
         dao.getTrainings(
             name = query,
             startDate = startDate,
-            endDate = endDate
+            endDate = endDate,
         ).asyncMap { it.toData() }
     }
 
@@ -84,7 +84,7 @@ class TrainingRepositoryImpl(
 
         private val pagingConfig = PagingConfig(
             pageSize = 10,
-            enablePlaceholders = false
+            enablePlaceholders = false,
         )
     }
 }

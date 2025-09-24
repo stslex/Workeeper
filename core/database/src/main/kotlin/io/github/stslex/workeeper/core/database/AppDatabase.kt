@@ -32,4 +32,3 @@ abstract class AppDatabase : RoomDatabase() {
         const val NAME = "app.db"
     }
 }
-

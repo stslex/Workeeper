@@ -22,7 +22,7 @@ internal data class TrainingUiModel(
             name = "",
             labels = persistentListOf(),
             exercises = persistentListOf(),
-            date = PropertyHolder.DateProperty().update(System.currentTimeMillis())
+            date = PropertyHolder.DateProperty().update(System.currentTimeMillis()),
         )
     }
 }

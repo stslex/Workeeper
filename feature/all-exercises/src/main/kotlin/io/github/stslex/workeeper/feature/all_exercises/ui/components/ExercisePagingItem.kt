@@ -24,7 +24,7 @@ internal fun ExercisePagingItem(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     isSelected: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     CardWithAnimatedBorder(
         modifier = modifier
@@ -34,15 +34,15 @@ internal fun ExercisePagingItem(
         onClick = onClick,
         onLongClick = onLongClick,
         isAnimated = isSelected,
-        borderSize = AppDimension.Border.medium
+        borderSize = AppDimension.Border.medium,
     ) {
         Column(
             modifier = Modifier
-                .padding(AppDimension.Padding.big)
+                .padding(AppDimension.Padding.big),
         ) {
             Text(
                 text = item.name,
-                style = MaterialTheme.typography.labelLarge
+                style = MaterialTheme.typography.labelLarge,
             )
 //            Text(
 //                text = item.reps.toString(),
@@ -58,7 +58,7 @@ internal fun ExercisePagingItem(
 //            )
             Text(
                 text = item.dateProperty.uiValue,
-                style = MaterialTheme.typography.labelSmall
+                style = MaterialTheme.typography.labelSmall,
             )
         }
     }
@@ -71,13 +71,13 @@ private fun ExercisePagingItemPreview() {
         val item = ExerciseUiModel(
             uuid = Uuid.random().toString(),
             name = "nameOfExercise",
-            dateProperty = PropertyHolder.DateProperty()
+            dateProperty = PropertyHolder.DateProperty(),
         )
         ExercisePagingItem(
             item = item,
             isSelected = true,
             onClick = {},
-            onLongClick = {}
+            onLongClick = {},
         )
     }
 }

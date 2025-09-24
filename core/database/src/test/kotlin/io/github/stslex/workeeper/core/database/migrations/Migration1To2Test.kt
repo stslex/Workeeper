@@ -40,12 +40,12 @@ class Migration1To2Test {
                     override fun onUpgrade(
                         db: SupportSQLiteDatabase,
                         oldVersion: Int,
-                        newVersion: Int
+                        newVersion: Int,
                     ) {
                         // No-op for test
                     }
                 })
-                .build()
+                .build(),
         )
         testDb = openHelper.writableDatabase
     }
@@ -70,7 +70,7 @@ class Migration1To2Test {
                 sets INTEGER NOT NULL,
                 timestamp INTEGER NOT NULL
             )
-            """
+            """,
         )
 
         // Run migration
@@ -128,7 +128,7 @@ class Migration1To2Test {
                 sets INTEGER NOT NULL,
                 timestamp INTEGER NOT NULL
             )
-            """
+            """,
         )
 
         val testUuid = "test-uuid-123"
@@ -140,7 +140,7 @@ class Migration1To2Test {
 
         testDb.execSQL(
             "INSERT INTO exercises_table (uuid, name, reps, weight, sets, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
-            arrayOf(testUuid, testName, testReps, testWeight, testSets, testTimestamp)
+            arrayOf(testUuid, testName, testReps, testWeight, testSets, testTimestamp),
         )
 
         // Run migration
@@ -187,13 +187,13 @@ class Migration1To2Test {
                 sets INTEGER NOT NULL,
                 timestamp INTEGER NOT NULL
             )
-            """
+            """,
         )
 
         val exercises = listOf(
             TestExercise("uuid1", "Bench Press", 8, 100.0, 4, 1640995200000L),
             TestExercise("uuid2", "Squat", 12, 120.5, 3, 1640995300000L),
-            TestExercise("uuid3", "Deadlift", 5, 150.0, 5, 1640995400000L)
+            TestExercise("uuid3", "Deadlift", 5, 150.0, 5, 1640995400000L),
         )
 
         exercises.forEach { exercise ->
@@ -205,8 +205,8 @@ class Migration1To2Test {
                     exercise.reps,
                     exercise.weight,
                     exercise.sets,
-                    exercise.timestamp
-                )
+                    exercise.timestamp,
+                ),
             )
         }
 
@@ -223,7 +223,7 @@ class Migration1To2Test {
         exercises.forEach { originalExercise ->
             val exerciseCursor = testDb.query(
                 "SELECT * FROM exercises_table WHERE uuid = ?",
-                arrayOf(originalExercise.uuid)
+                arrayOf(originalExercise.uuid),
             )
             assertTrue(exerciseCursor.moveToFirst())
 
@@ -253,7 +253,7 @@ class Migration1To2Test {
                 sets INTEGER NOT NULL,
                 timestamp INTEGER NOT NULL
             )
-            """
+            """,
         )
 
         // Run migration
@@ -288,19 +288,19 @@ class Migration1To2Test {
                 sets INTEGER NOT NULL,
                 timestamp INTEGER NOT NULL
             )
-            """
+            """,
         )
 
         // Insert exercise with zero sets (edge case)
         testDb.execSQL(
             "INSERT INTO exercises_table (uuid, name, reps, weight, sets, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
-            arrayOf("uuid-zero-sets", "Test Exercise", 10, 50.0, 0, 1640995200000L)
+            arrayOf("uuid-zero-sets", "Test Exercise", 10, 50.0, 0, 1640995200000L),
         )
 
         // Insert exercise with negative values (edge case)
         testDb.execSQL(
             "INSERT INTO exercises_table (uuid, name, reps, weight, sets, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
-            arrayOf("uuid-negative", "Negative Exercise", -5, -10.0, 1, 1640995200000L)
+            arrayOf("uuid-negative", "Negative Exercise", -5, -10.0, 1, 1640995200000L),
         )
 
         // Run migration
@@ -308,7 +308,8 @@ class Migration1To2Test {
 
         // Verify zero sets exercise
         val zeroSetsCursor = testDb.query(
-            "SELECT * FROM exercises_table WHERE uuid = ?", arrayOf("uuid-zero-sets")
+            "SELECT * FROM exercises_table WHERE uuid = ?",
+            arrayOf("uuid-zero-sets"),
         )
         assertTrue(zeroSetsCursor.moveToFirst())
         val zeroSetsJson = zeroSetsCursor.getString(zeroSetsCursor.getColumnIndexOrThrow("sets"))
@@ -318,11 +319,12 @@ class Migration1To2Test {
 
         // Verify negative values exercise
         val negativeCursor = testDb.query(
-            "SELECT * FROM exercises_table WHERE uuid = ?", arrayOf("uuid-negative")
+            "SELECT * FROM exercises_table WHERE uuid = ?",
+            arrayOf("uuid-negative"),
         )
         assertTrue(negativeCursor.moveToFirst())
         val negativeSetsJson = negativeCursor.getString(
-            negativeCursor.getColumnIndexOrThrow("sets")
+            negativeCursor.getColumnIndexOrThrow("sets"),
         )
         val negativeSets = Json.decodeFromString<List<SetsEntity>>(negativeSetsJson)
         assertEquals(1, negativeSets.size)
@@ -343,19 +345,20 @@ class Migration1To2Test {
                 sets INTEGER NOT NULL,
                 timestamp INTEGER NOT NULL
             )
-            """
+            """,
         )
 
         testDb.execSQL(
             "INSERT INTO exercises_table (uuid, name, reps, weight, sets, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
-            arrayOf("test-uuid", "Test Exercise", 15, 80.5, 2, 1640995200000L)
+            arrayOf("test-uuid", "Test Exercise", 15, 80.5, 2, 1640995200000L),
         )
 
         // Run migration
         MIGRATION_1_2.migrate(testDb)
 
         val cursor = testDb.query(
-            "SELECT sets FROM exercises_table WHERE uuid = ?", arrayOf("test-uuid")
+            "SELECT sets FROM exercises_table WHERE uuid = ?",
+            arrayOf("test-uuid"),
         )
         assertTrue(cursor.moveToFirst())
 
@@ -383,7 +386,6 @@ class Migration1To2Test {
         val reps: Int,
         val weight: Double,
         val sets: Int,
-        val timestamp: Long
+        val timestamp: Long,
     )
-
 }

@@ -17,7 +17,7 @@ import org.koin.core.scope.Scope
  * */
 @Immutable
 abstract class Feature<TProcessor : StoreProcessor<*, *, *>, TComponent : Component>(
-    private val scopeName: String
+    private val scopeName: String,
 ) : KoinScopeComponent {
 
     open val loadModule: Module? get() = null
@@ -25,7 +25,7 @@ abstract class Feature<TProcessor : StoreProcessor<*, *, *>, TComponent : Compon
     final override val scope: Scope
         get() = getKoin().getOrCreateScope(
             scopeId = scopeName,
-            qualifier = qualifier(scopeName)
+            qualifier = qualifier(scopeName),
         )
 
     @Composable

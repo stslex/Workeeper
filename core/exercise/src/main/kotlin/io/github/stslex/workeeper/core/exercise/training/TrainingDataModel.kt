@@ -16,7 +16,7 @@ internal fun TrainingEntity.toData(): TrainingDataModel = TrainingDataModel(
     name = name,
     labels = labels,
     exerciseUuids = exercises.map { it.toString() },
-    timestamp = timestamp
+    timestamp = timestamp,
 )
 
 internal fun TrainingDataModel.toEntity(): TrainingEntity = TrainingEntity(
@@ -24,7 +24,7 @@ internal fun TrainingDataModel.toEntity(): TrainingEntity = TrainingEntity(
     name = name,
     labels = labels,
     exercises = exerciseUuids.map { Uuid.parse(it) },
-    timestamp = timestamp
+    timestamp = timestamp,
 )
 
 fun TrainingDataModel.toChangeModel(): TrainingChangeDataModel = TrainingChangeDataModel(
@@ -32,5 +32,5 @@ fun TrainingDataModel.toChangeModel(): TrainingChangeDataModel = TrainingChangeD
     name = name,
     labels = labels,
     exerciseUuids = exerciseUuids,
-    timestamp = timestamp
+    timestamp = timestamp,
 )

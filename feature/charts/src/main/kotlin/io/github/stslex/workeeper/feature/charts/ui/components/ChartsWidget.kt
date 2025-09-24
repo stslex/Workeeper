@@ -43,14 +43,14 @@ internal fun ChartsWidget(
 ) {
     Column(
         modifier = modifier
-            .fillMaxSize()
+            .fillMaxSize(),
     ) {
         ChartsTypePickerWidget(
             selectedType = state.type,
             onClick = { consume(Action.Click.ChangeType(it)) },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = AppDimension.Padding.large)
+                .padding(vertical = AppDimension.Padding.large),
         )
         DatePickersWidget(
             startDate = state.startDate,
@@ -87,15 +87,15 @@ internal fun ChartsWidget(
                 }),
                 labelProperties = LabelProperties(
                     enabled = true,
-                    textStyle = textStyle
+                    textStyle = textStyle,
                 ),
                 labelHelperProperties = LabelHelperProperties(
                     enabled = true,
-                    textStyle = textStyle
+                    textStyle = textStyle,
                 ),
                 indicatorProperties = HorizontalIndicatorProperties(
                     enabled = true,
-                    textStyle = textStyle
+                    textStyle = textStyle,
                 ),
             )
         } else {
@@ -117,11 +117,11 @@ private fun getRandomColorInt(index: Int, colorIndex: Int): Int =
 @Preview
 private fun ChartsWidgetPreview(
     @PreviewParameter(ExerciseChartPreviewParameterProvider::class)
-    charts: ImmutableList<SingleChartUiModel>
+    charts: ImmutableList<SingleChartUiModel>,
 ) {
     AppTheme {
         Box(
-            modifier = Modifier.background(MaterialTheme.colorScheme.background)
+            modifier = Modifier.background(MaterialTheme.colorScheme.background),
         ) {
             val singleDay = 24 * 60 * 60 * 1000
             val startDate = System.currentTimeMillis() - (7L * singleDay)
@@ -134,11 +134,11 @@ private fun ChartsWidgetPreview(
                 endDate = PropertyHolder.DateProperty(endDate),
                 charts = charts,
                 type = ChartsType.TRAINING,
-                calendarState = CalendarState.Closed
+                calendarState = CalendarState.Closed,
             )
             ChartsWidget(
                 state = chartsState,
-                consume = {}
+                consume = {},
             )
         }
     }

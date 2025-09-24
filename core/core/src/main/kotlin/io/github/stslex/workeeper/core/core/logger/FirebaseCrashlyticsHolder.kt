@@ -17,7 +17,7 @@ object FirebaseCrashlyticsHolder {
 
     fun recordException(
         throwable: Throwable,
-        tag: String
+        tag: String,
     ) {
         crashlytics.recordException(throwable) { key("TAG", tag) }
     }

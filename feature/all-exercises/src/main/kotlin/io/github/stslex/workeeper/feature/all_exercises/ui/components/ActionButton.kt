@@ -35,10 +35,9 @@ internal fun HomeActionButton(
                 } else {
                     Icons.Default.Add
                 },
-                contentDescription = stringResource(descriptionRes)
+                contentDescription = stringResource(descriptionRes),
             )
         }
-
     }
 }
 
@@ -47,7 +46,7 @@ internal fun HomeActionButton(
 private fun HomeActionButtonPreview() {
     AppTheme {
         HomeActionButton(
-            selectedMode = false
+            selectedMode = false,
         ) { }
     }
 }

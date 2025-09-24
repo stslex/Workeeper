@@ -20,14 +20,14 @@ internal const val EXERCISE_SCOPE_NAME = "exercise_scope"
  * @see [io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore]
  * */
 internal object ExerciseFeature : Feature<ExerciseProcessor, ExerciseComponent>(
-    scopeName = EXERCISE_SCOPE_NAME
+    scopeName = EXERCISE_SCOPE_NAME,
 ) {
 
     @Composable
     override fun processor(
-        component: ExerciseComponent
+        component: ExerciseComponent,
     ): ExerciseProcessor = rememberStoreProcessor(
         component = component,
-        key = component.hashCode().toString()
+        key = component.hashCode().toString(),
     )
 }

@@ -46,8 +46,8 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = testTrainings.size + 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertTrue(actual.orEmpty().isNotEmpty())
@@ -62,8 +62,8 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = testTrainings.size + 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertTrue(actual.orEmpty().isNotEmpty())
@@ -79,8 +79,8 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = testTrainings.size + 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertTrue(actual.orEmpty().isNotEmpty())
@@ -96,8 +96,8 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = testTrainings.size + 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertTrue(actual.orEmpty().isEmpty())
@@ -111,8 +111,8 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertEquals(0, actual?.size)
@@ -133,8 +133,8 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertEquals(3, actual?.size)
@@ -153,8 +153,8 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertEquals(1, actual?.size)
@@ -170,8 +170,8 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = testTrainings.size + 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertEquals(testTrainings.size, actual?.size)
@@ -191,8 +191,8 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertEquals(1, actual?.size)
@@ -204,7 +204,7 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
         val originalTraining = testTrainings.first()
         val updatedTraining = originalTraining.copy(
             name = "Updated Training",
-            labels = listOf("Updated Label")
+            labels = listOf("Updated Label"),
         )
 
         dao.add(originalTraining)
@@ -215,8 +215,8 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertEquals(1, actual?.size)
@@ -235,8 +235,8 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertEquals(0, actual?.size)
@@ -252,8 +252,8 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actualBefore = (loadResultBefore as? PagingSource.LoadResult.Page)?.data
         assertEquals(1, actualBefore?.size)
@@ -265,8 +265,8 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actualAfter = (loadResultAfter as? PagingSource.LoadResult.Page)?.data
         assertEquals(0, actualAfter?.size)
@@ -285,8 +285,8 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = testTrainings.size + 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertEquals(initialCount, actual?.size)
@@ -304,8 +304,8 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = testTrainings.size + 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertEquals(testTrainings.size - 1, actual?.size)
@@ -323,8 +323,8 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = testTrainings.size + 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertEquals(testTrainings.size, actual?.size)
@@ -342,8 +342,8 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = testTrainings.size + 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertEquals(testTrainings.size - 1, actual?.size)
@@ -363,14 +363,16 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = testTrainings.size + 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertEquals(testTrainings.size - 3, actual?.size)
-        assertTrue(actual.orEmpty().none { training ->
-            trainingsToDelete.any { it.uuid == training.uuid }
-        })
+        assertTrue(
+            actual.orEmpty().none { training ->
+                trainingsToDelete.any { it.uuid == training.uuid }
+            },
+        )
     }
 
     @Test
@@ -385,8 +387,8 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = testTrainings.size + 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertEquals(0, actual?.size)
@@ -405,8 +407,8 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = testTrainings.size + 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertEquals(testTrainings.size, actual?.size)
@@ -427,14 +429,16 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = testTrainings.size + 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertEquals(testTrainings.size - 2, actual?.size)
-        assertTrue(actual.orEmpty().none { training ->
-            existingUuids.contains(training.uuid)
-        })
+        assertTrue(
+            actual.orEmpty().none { training ->
+                existingUuids.contains(training.uuid)
+            },
+        )
     }
 
     @Test
@@ -444,7 +448,7 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
         val uuidsWithDuplicates = listOf(
             trainingToDelete.uuid,
             trainingToDelete.uuid,
-            trainingToDelete.uuid
+            trainingToDelete.uuid,
         )
 
         dao.deleteAll(uuidsWithDuplicates)
@@ -454,8 +458,8 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = testTrainings.size + 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertEquals(testTrainings.size - 1, actual?.size)
@@ -473,8 +477,8 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertEquals(0, actual?.size)
@@ -496,8 +500,8 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertEquals(3, actual?.size)
@@ -515,8 +519,8 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = testTrainings.size + 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actualBefore = (loadResultBefore as? PagingSource.LoadResult.Page)?.data
         assertEquals(testTrainings.size, actualBefore?.size)
@@ -528,8 +532,8 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actualAfter = (loadResultAfter as? PagingSource.LoadResult.Page)?.data
         assertEquals(0, actualAfter?.size)
@@ -544,8 +548,8 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertEquals(0, actual?.size)
@@ -564,8 +568,8 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
                 PagingSource.LoadParams.Refresh(
                     key = null,
                     loadSize = 10,
-                    placeholdersEnabled = false
-                )
+                    placeholdersEnabled = false,
+                ),
             )
             val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
             assertEquals(1, actual?.size, "Query '$query' should match the training")
@@ -636,8 +640,8 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
                 PagingSource.LoadParams.Refresh(
                     key = null,
                     loadSize = 10,
-                    placeholdersEnabled = false
-                )
+                    placeholdersEnabled = false,
+                ),
             )
             val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
             assertEquals(1, actual?.size, "Query '$query' should match the training")
@@ -652,7 +656,7 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
             name = "Complex Training Session",
             exercises = listOf(Uuid.random(), Uuid.random(), Uuid.random()),
             labels = listOf("Strength", "Upper Body", "Intermediate", "30 min"),
-            timestamp = System.currentTimeMillis()
+            timestamp = System.currentTimeMillis(),
         )
 
         dao.add(complexTraining)
@@ -662,8 +666,8 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertEquals(1, actual?.size)
@@ -677,7 +681,7 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
             name = "Empty Training",
             exercises = emptyList(),
             labels = emptyList(),
-            timestamp = System.currentTimeMillis()
+            timestamp = System.currentTimeMillis(),
         )
 
         dao.add(emptyTraining)
@@ -687,8 +691,8 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
             PagingSource.LoadParams.Refresh(
                 key = null,
                 loadSize = 10,
-                placeholdersEnabled = false
-            )
+                placeholdersEnabled = false,
+            ),
         )
         val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
         assertEquals(1, actual?.size)
@@ -701,11 +705,11 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
         val trainingsInRange = listOf(
             createTestTraining(0, name = "Training A", timestamp = baseTime + 100),
             createTestTraining(1, name = "Training B", timestamp = baseTime + 200),
-            createTestTraining(2, name = "Training C", timestamp = baseTime + 300)
+            createTestTraining(2, name = "Training C", timestamp = baseTime + 300),
         )
         val trainingsOutOfRange = listOf(
             createTestTraining(3, name = "Training D", timestamp = baseTime - 100),
-            createTestTraining(4, name = "Training E", timestamp = baseTime + 1000)
+            createTestTraining(4, name = "Training E", timestamp = baseTime + 1000),
         )
 
         (trainingsInRange + trainingsOutOfRange).forEach { dao.add(it) }
@@ -724,7 +728,7 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
             createTestTraining(0, name = "Chest Workout", timestamp = 1000L),
             createTestTraining(1, name = "Back Workout", timestamp = 2000L),
             createTestTraining(2, name = "Chest Training", timestamp = 3000L),
-            createTestTraining(3, name = "Leg Day", timestamp = 4000L)
+            createTestTraining(3, name = "Leg Day", timestamp = 4000L),
         )
 
         trainings.forEach { dao.add(it) }
@@ -740,7 +744,7 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
     fun `get trainings with no matches returns empty list`() = runTest {
         val trainings = listOf(
             createTestTraining(0, name = "Workout A", timestamp = 1000L),
-            createTestTraining(1, name = "Workout B", timestamp = 2000L)
+            createTestTraining(1, name = "Workout B", timestamp = 2000L),
         )
 
         trainings.forEach { dao.add(it) }
@@ -755,7 +759,7 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
         val trainings = listOf(
             createTestTraining(0, name = "Training A", timestamp = 1000L),
             createTestTraining(1, name = "Training B", timestamp = 3000L),
-            createTestTraining(2, name = "Training C", timestamp = 2000L)
+            createTestTraining(2, name = "Training C", timestamp = 2000L),
         )
 
         trainings.forEach { dao.add(it) }
@@ -773,7 +777,7 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
         val trainings = listOf(
             createTestTraining(0, name = "Upper Body Training", timestamp = 1000L),
             createTestTraining(1, name = "Full Body Workout", timestamp = 2000L),
-            createTestTraining(2, name = "Lower Body Session", timestamp = 3000L)
+            createTestTraining(2, name = "Lower Body Session", timestamp = 3000L),
         )
 
         trainings.forEach { dao.add(it) }
@@ -795,12 +799,12 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
         index: Int = 0,
         uuid: Uuid = Uuid.random(),
         name: String? = null,
-        timestamp: Long? = null
+        timestamp: Long? = null,
     ): TrainingEntity = TrainingEntity(
         uuid = uuid,
         name = name ?: "Training_$index",
         exercises = listOf(Uuid.random(), Uuid.random()),
         labels = listOf("Label_$index", "Test"),
-        timestamp = timestamp ?: (System.currentTimeMillis() + index * 1000)
+        timestamp = timestamp ?: (System.currentTimeMillis() + index * 1000),
     )
 }

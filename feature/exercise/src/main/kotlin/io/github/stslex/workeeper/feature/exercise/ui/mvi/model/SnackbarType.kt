@@ -3,11 +3,12 @@ package io.github.stslex.workeeper.feature.exercise.ui.mvi.model
 import androidx.compose.material3.SnackbarHostState
 
 enum class SnackbarType(
-    val value: String
+    val value: String,
 ) {
 
     DELETE("delete"),
-    DISMISS("dissmiss");
+    DISMISS("dissmiss"),
+    ;
 
     companion object {
 
@@ -17,7 +18,7 @@ enum class SnackbarType(
             }
 
         fun getAction(
-            value: String
+            value: String,
         ): SnackbarType? = SnackbarType.entries.firstOrNull { it.value == value }
     }
 }

@@ -51,28 +51,27 @@ internal fun ExerciseWidget(
             sharedTransitionScope = sharedTransitionScope,
             animatedContentScope = animatedContentScope,
             consume = consume,
-            lazyState = lazyState
+            lazyState = lazyState,
         )
         with(sharedTransitionScope) {
             HomeActionButton(
                 modifier = Modifier
                     .sharedBounds(
                         sharedContentState = sharedTransitionScope.rememberSharedContentState(
-                            "createExercise"
+                            "createExercise",
                         ),
                         animatedVisibilityScope = animatedContentScope,
-                        resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds()
+                        resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds(),
                     )
                     .align(Alignment.BottomEnd)
                     .padding(AppDimension.Padding.big),
-                selectedMode = state.selectedItems.isNotEmpty()
+                selectedMode = state.selectedItems.isNotEmpty(),
             ) {
                 consume(Action.Click.FloatButtonClick)
             }
         }
     }
 }
-
 
 @SuppressLint("UnusedContentLambdaTargetStateParameter")
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -84,7 +83,7 @@ private fun ExerciseWidgetPreview() {
             ExerciseUiModel(
                 uuid = Uuid.random().toString(),
                 name = "nameOfExercise$index",
-                dateProperty = PropertyHolder.DateProperty().update(System.currentTimeMillis())
+                dateProperty = PropertyHolder.DateProperty().update(System.currentTimeMillis()),
             )
         }.toList()
         val itemsPaging = {
@@ -93,7 +92,7 @@ private fun ExerciseWidgetPreview() {
         val state = State(
             items = itemsPaging,
             selectedItems = persistentSetOf(),
-            query = ""
+            query = "",
         )
 
         AnimatedContent("") {
@@ -104,7 +103,7 @@ private fun ExerciseWidgetPreview() {
                     animatedContentScope = this@AnimatedContent,
                     consume = {},
                     lazyState = LazyListState(),
-                    modifier = it
+                    modifier = it,
                 )
             }
         }

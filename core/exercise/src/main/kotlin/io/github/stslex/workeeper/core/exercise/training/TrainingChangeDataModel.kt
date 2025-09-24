@@ -17,5 +17,5 @@ internal fun TrainingChangeDataModel.toEntity(): TrainingEntity = TrainingEntity
     name = name,
     labels = labels,
     exercises = exerciseUuids.map { Uuid.parse(it) },
-    timestamp = timestamp
+    timestamp = timestamp,
 )

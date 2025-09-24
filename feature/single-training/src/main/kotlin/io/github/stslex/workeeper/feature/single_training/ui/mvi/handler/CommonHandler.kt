@@ -16,7 +16,7 @@ import kotlin.uuid.Uuid
 internal class CommonHandler(
     private val interactor: SingleTrainingInteractor,
     private val trainingDomainUiMap: TrainingDomainUiModelMapper,
-    @Named(TRAINING_SCOPE_NAME) store: TrainingHandlerStore
+    @Named(TRAINING_SCOPE_NAME) store: TrainingHandlerStore,
 ) : Handler<Action.Common>, TrainingHandlerStore by store {
 
     override fun invoke(action: Action.Common) {
@@ -40,7 +40,7 @@ internal class CommonHandler(
         ) { item ->
             updateStateImmediate { state ->
                 state.copy(
-                    training = item.let(trainingDomainUiMap::invoke)
+                    training = item.let(trainingDomainUiMap::invoke),
                 )
             }
         }

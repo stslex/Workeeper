@@ -13,6 +13,6 @@ internal class ChartResultsMapper : Mapper<SingleChartDomainModel, SingleChartUi
 
     override fun invoke(data: SingleChartDomainModel): SingleChartUiModel = SingleChartUiModel(
         name = data.name,
-        properties = data.values.toImmutableList()
+        properties = data.values.toImmutableList(),
     )
 }

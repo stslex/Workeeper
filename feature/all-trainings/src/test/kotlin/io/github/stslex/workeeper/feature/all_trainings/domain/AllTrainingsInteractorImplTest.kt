@@ -23,7 +23,7 @@ internal class AllTrainingsInteractorImplTest {
     private val interactor: AllTrainingsInteractor = AllTrainingsInteractorImpl(
         trainingRepository = trainingRepository,
         exerciseRepository = exerciseRepository,
-        defaultDispatcher = testDispatcher
+        defaultDispatcher = testDispatcher,
     )
 
     @BeforeEach
@@ -37,7 +37,7 @@ internal class AllTrainingsInteractorImplTest {
         val trainingsUuids = listOf(
             Uuid.random().toString(),
             Uuid.random().toString(),
-            Uuid.random().toString()
+            Uuid.random().toString(),
         )
 
         coEvery { exerciseRepository.deleteByTrainingsUuids(trainingsUuids) } returns Unit

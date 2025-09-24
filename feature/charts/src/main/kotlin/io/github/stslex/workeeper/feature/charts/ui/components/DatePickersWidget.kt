@@ -26,32 +26,32 @@ internal fun DatePickersWidget(
     endDate: PropertyHolder.DateProperty,
     onStartDateClick: () -> Unit,
     onEndDateClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(AppDimension.Padding.medium)
+            .padding(AppDimension.Padding.medium),
     ) {
         Text(
             text = stringResource(R.string.feature_all_charts_label_date_rage),
-            style = MaterialTheme.typography.labelLarge
+            style = MaterialTheme.typography.labelLarge,
         )
         Row(
             modifier = modifier
                 .fillMaxWidth()
-                .padding(top = AppDimension.Padding.medium)
+                .padding(top = AppDimension.Padding.medium),
         ) {
             OutlinedCard(
                 onClick = onStartDateClick,
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     contentColor = MaterialTheme.colorScheme.onSurface,
-                )
+                ),
             ) {
                 Text(
                     modifier = Modifier.padding(AppDimension.Padding.medium),
-                    text = startDate.uiValue
+                    text = startDate.uiValue,
                 )
             }
             Spacer(modifier = Modifier.weight(1f))
@@ -60,11 +60,11 @@ internal fun DatePickersWidget(
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     contentColor = MaterialTheme.colorScheme.onSurface,
-                )
+                ),
             ) {
                 Text(
                     modifier = Modifier.padding(AppDimension.Padding.medium),
-                    text = endDate.uiValue
+                    text = endDate.uiValue,
                 )
             }
         }
@@ -80,15 +80,15 @@ private fun DatePickersPreview() {
         val endDate = System.currentTimeMillis() // 7 days default
         Box(
             modifier = Modifier.background(
-                MaterialTheme.colorScheme.background
-            )
+                MaterialTheme.colorScheme.background,
+            ),
         ) {
             DatePickersWidget(
                 startDate = PropertyHolder.DateProperty(startDate),
                 endDate = PropertyHolder.DateProperty(endDate),
                 onStartDateClick = {},
                 onEndDateClick = {},
-                modifier = Modifier
+                modifier = Modifier,
             )
         }
     }

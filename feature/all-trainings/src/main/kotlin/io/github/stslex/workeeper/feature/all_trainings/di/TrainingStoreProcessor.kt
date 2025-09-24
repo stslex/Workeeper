@@ -20,11 +20,11 @@ internal const val TRAINING_SCOPE_NAME = "all_trainings_scope"
  * @see [io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store.TrainingStore]
  * */
 internal object TrainingsFeature : Feature<TrainingStoreProcessor, AllTrainingsComponent>(
-    TRAINING_SCOPE_NAME
+    TRAINING_SCOPE_NAME,
 ) {
 
     @Composable
     override fun processor(
-        component: AllTrainingsComponent
+        component: AllTrainingsComponent,
     ): TrainingStoreProcessor = rememberStoreProcessor(component)
 }

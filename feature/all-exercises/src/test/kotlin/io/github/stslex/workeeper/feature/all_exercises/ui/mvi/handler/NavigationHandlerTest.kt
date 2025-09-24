@@ -30,8 +30,8 @@ internal class NavigationHandlerTest {
             navigator.navTo(
                 Screen.Exercise(
                     uuid = exerciseUuid,
-                    trainingUuid = null
-                )
+                    trainingUuid = null,
+                ),
             )
         }
     }
@@ -50,16 +50,16 @@ internal class NavigationHandlerTest {
             navigator.navTo(
                 Screen.Exercise(
                     uuid = exerciseUuid1,
-                    trainingUuid = null
-                )
+                    trainingUuid = null,
+                ),
             )
         }
         verify(exactly = 1) {
             navigator.navTo(
                 Screen.Exercise(
                     uuid = exerciseUuid2,
-                    trainingUuid = null
-                )
+                    trainingUuid = null,
+                ),
             )
         }
     }

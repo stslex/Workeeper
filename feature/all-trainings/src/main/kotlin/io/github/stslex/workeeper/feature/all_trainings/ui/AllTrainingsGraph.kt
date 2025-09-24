@@ -16,7 +16,7 @@ import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.handler.AllTraini
 fun NavGraphBuilder.allTrainingsGraph(
     navigator: Navigator,
     sharedTransitionScope: SharedTransitionScope,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     navScreen<Screen.BottomBar.AllTrainings> {
         val component = remember(navigator) { AllTrainingsComponent.create(navigator) }
@@ -24,7 +24,7 @@ fun NavGraphBuilder.allTrainingsGraph(
             AllTrainingsScreen(
                 modifier = modifier,
                 state = processor.state.value,
-                consume = processor::consume
+                consume = processor::consume,
             )
         }
     }

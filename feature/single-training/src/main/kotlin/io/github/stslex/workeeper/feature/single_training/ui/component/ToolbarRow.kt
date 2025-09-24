@@ -24,7 +24,7 @@ internal fun ToolbarRow(
     onConfirmClick: () -> Unit,
     onCancelClick: () -> Unit,
     onDeleteClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Row(modifier.fillMaxWidth()) {
         ConfirmationButton(Icons.Default.Check, onConfirmClick)
@@ -45,11 +45,11 @@ private fun ConfirmationButton(
 ) {
     OutlinedIconButton(
         modifier = modifier,
-        onClick = onClick
+        onClick = onClick,
     ) {
         Icon(
             imageVector = icon,
-            contentDescription = null
+            contentDescription = null,
         )
     }
 }
@@ -59,13 +59,13 @@ private fun ConfirmationButton(
 private fun ToolbarRowPreview() {
     AppTheme {
         Box(
-            modifier = Modifier.padding(AppDimension.Padding.large + AppDimension.Padding.large)
+            modifier = Modifier.padding(AppDimension.Padding.large + AppDimension.Padding.large),
         ) {
             ToolbarRow(
                 isDeleteVisible = true,
                 onConfirmClick = {},
                 onCancelClick = {},
-                onDeleteClick = {}
+                onDeleteClick = {},
             )
         }
     }

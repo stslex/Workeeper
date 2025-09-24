@@ -19,7 +19,7 @@ class ModuleCoreDatabase {
     fun createAppDataBase(scope: Scope): AppDatabase = Room.databaseBuilder(
         scope.androidContext(),
         AppDatabase::class.java,
-        AppDatabase.NAME
+        AppDatabase.NAME,
     )
         .addMigrations(MIGRATION_1_2)
         .build()

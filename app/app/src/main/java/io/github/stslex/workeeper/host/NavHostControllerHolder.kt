@@ -15,7 +15,7 @@ import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
 @Stable
 class NavHostControllerHolder private constructor(
     override val navigator: NavHostController,
-    val bottomBarDestination: State<BottomBarItem?>
+    val bottomBarDestination: State<BottomBarItem?>,
 ) : NavigatorHolder {
 
     companion object {
@@ -38,7 +38,7 @@ class NavHostControllerHolder private constructor(
             return remember(controller) {
                 NavHostControllerHolder(
                     navigator = controller,
-                    bottomBarDestination = bottomBarDestination
+                    bottomBarDestination = bottomBarDestination,
                 )
             }
         }

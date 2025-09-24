@@ -28,7 +28,7 @@ internal class SingleTrainingInteractorImplTest {
     private val interactor: SingleTrainingInteractor = SingleTrainingInteractorImpl(
         trainingRepository = trainingRepository,
         exerciseRepository = exerciseRepository,
-        defaultDispatcher = testDispatcher
+        defaultDispatcher = testDispatcher,
     )
 
     @Test
@@ -42,7 +42,7 @@ internal class SingleTrainingInteractorImplTest {
             name = "Test Training",
             exerciseUuids = listOf(exerciseUuid1, exerciseUuid2),
             labels = listOf("Label1", "Label2"),
-            timestamp = 1234567890L
+            timestamp = 1234567890L,
         )
 
         val exercise1 = createExerciseDataModel(exerciseUuid1, "Exercise 1")
@@ -90,7 +90,7 @@ internal class SingleTrainingInteractorImplTest {
             name = "Test Training",
             exerciseUuids = listOf(exerciseUuid1, exerciseUuid2, exerciseUuid3),
             labels = emptyList(),
-            timestamp = 1234567890L
+            timestamp = 1234567890L,
         )
 
         val exercise1 = createExerciseDataModel(exerciseUuid1, "Exercise 1")
@@ -118,14 +118,14 @@ internal class SingleTrainingInteractorImplTest {
             name = "Test Training",
             exerciseUuids = listOf(exerciseUuid1, exerciseUuid2),
             labels = listOf("Label1", "Label2"),
-            timestamp = 1234567890L
+            timestamp = 1234567890L,
         )
 
         val exercise1 = createExerciseDataModel(exerciseUuid1, "Exercise 1")
         val exercise2 = createExerciseDataModel(exerciseUuid2, "Exercise 2")
 
         coEvery { trainingRepository.subscribeForTraining(trainingUuid) } returns flowOf(
-            trainingData
+            trainingData,
         )
         coEvery { exerciseRepository.getExercise(exerciseUuid1) } returns exercise1
         coEvery { exerciseRepository.getExercise(exerciseUuid2) } returns exercise2
@@ -169,7 +169,7 @@ internal class SingleTrainingInteractorImplTest {
             name = "Test Training",
             exerciseUuids = listOf(exerciseUuid1, exerciseUuid2, exerciseUuid3),
             labels = emptyList(),
-            timestamp = 1234567890L
+            timestamp = 1234567890L,
         )
 
         val exercise1 = createExerciseDataModel(exerciseUuid1, "Exercise 1")
@@ -212,7 +212,7 @@ internal class SingleTrainingInteractorImplTest {
             name = "Existing Training",
             exerciseUuids = listOf(exerciseUuid1, exerciseUuid2, exerciseUuid3),
             labels = emptyList(),
-            timestamp = 1234567890L
+            timestamp = 1234567890L,
         )
 
         val updatedTraining = TrainingDomainChangeModel(
@@ -220,7 +220,7 @@ internal class SingleTrainingInteractorImplTest {
             name = "Updated Training",
             exercisesUuids = listOf(exerciseUuid1, exerciseUuid3), // exerciseUuid2 removed
             labels = listOf("New Label"),
-            timestamp = 1234567891L
+            timestamp = 1234567891L,
         )
 
         val expectedChangeModel = TrainingChangeDataModel(
@@ -228,7 +228,7 @@ internal class SingleTrainingInteractorImplTest {
             name = "Updated Training",
             exerciseUuids = listOf(exerciseUuid1, exerciseUuid3),
             labels = listOf("New Label"),
-            timestamp = 1234567891L
+            timestamp = 1234567891L,
         )
 
         coEvery { trainingRepository.getTraining(trainingUuid) } returns existingTraining
@@ -251,7 +251,7 @@ internal class SingleTrainingInteractorImplTest {
             name = "New Training",
             exercisesUuids = listOf(exerciseUuid1),
             labels = listOf("Label"),
-            timestamp = 1234567890L
+            timestamp = 1234567890L,
         )
 
         val expectedChangeModel = TrainingChangeDataModel(
@@ -259,7 +259,7 @@ internal class SingleTrainingInteractorImplTest {
             name = "New Training",
             exerciseUuids = listOf(exerciseUuid1),
             labels = listOf("Label"),
-            timestamp = 1234567890L
+            timestamp = 1234567890L,
         )
 
         coEvery { trainingRepository.updateTraining(expectedChangeModel) } returns Unit
@@ -282,7 +282,7 @@ internal class SingleTrainingInteractorImplTest {
             name = "Existing Training",
             exerciseUuids = listOf(exerciseUuid1, exerciseUuid2),
             labels = emptyList(),
-            timestamp = 1234567890L
+            timestamp = 1234567890L,
         )
 
         val updatedTraining = TrainingDomainChangeModel(
@@ -290,7 +290,7 @@ internal class SingleTrainingInteractorImplTest {
             name = "Updated Training",
             exercisesUuids = listOf(exerciseUuid1, exerciseUuid2),
             labels = listOf("New Label"),
-            timestamp = 1234567891L
+            timestamp = 1234567891L,
         )
 
         val expectedChangeModel = TrainingChangeDataModel(
@@ -298,7 +298,7 @@ internal class SingleTrainingInteractorImplTest {
             name = "Updated Training",
             exerciseUuids = listOf(exerciseUuid1, exerciseUuid2),
             labels = listOf("New Label"),
-            timestamp = 1234567891L
+            timestamp = 1234567891L,
         )
 
         coEvery { trainingRepository.getTraining(trainingUuid) } returns existingTraining
@@ -313,7 +313,7 @@ internal class SingleTrainingInteractorImplTest {
 
     private fun createExerciseDataModel(
         uuid: String,
-        name: String
+        name: String,
     ) = ExerciseDataModel(
         uuid = uuid,
         name = name,
@@ -322,12 +322,11 @@ internal class SingleTrainingInteractorImplTest {
                 uuid = Uuid.random().toString(),
                 reps = 10,
                 weight = 50.0,
-                type = SetsDataType.WORK
-            )
+                type = SetsDataType.WORK,
+            ),
         ),
         labels = listOf("Test"),
         trainingUuid = null,
-        timestamp = 1234567890L
+        timestamp = 1234567890L,
     )
-
 }

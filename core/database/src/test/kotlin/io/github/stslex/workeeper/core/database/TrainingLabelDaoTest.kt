@@ -25,7 +25,7 @@ internal class TrainingLabelDaoTest : BaseDatabaseTest() {
             TrainingLabelEntity("Lower Body"),
             TrainingLabelEntity("Cardio"),
             TrainingLabelEntity("Strength"),
-            TrainingLabelEntity("HIIT")
+            TrainingLabelEntity("HIIT"),
         )
     }
 
@@ -133,7 +133,7 @@ internal class TrainingLabelDaoTest : BaseDatabaseTest() {
             TrainingLabelEntity("Core/Abs"),
             TrainingLabelEntity("High-Intensity"),
             TrainingLabelEntity("Full Body (All)"),
-            TrainingLabelEntity("休息日") // Unicode characters
+            TrainingLabelEntity("休息日"), // Unicode characters
         )
 
         specialLabels.forEach { dao.add(it) }

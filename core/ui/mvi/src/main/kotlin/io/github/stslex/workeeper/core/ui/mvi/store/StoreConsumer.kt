@@ -60,6 +60,6 @@ interface StoreConsumer<S : State, A : Store.Action, in E : Event> {
         onError: suspend (cause: Throwable) -> Unit = {},
         workDispatcher: CoroutineDispatcher = scope.defaultDispatcher,
         eachDispatcher: CoroutineDispatcher = scope.defaultDispatcher,
-        each: suspend (T) -> Unit
+        each: suspend (T) -> Unit,
     ): Job
 }

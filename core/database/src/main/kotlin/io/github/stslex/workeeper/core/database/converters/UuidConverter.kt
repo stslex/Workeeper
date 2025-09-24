@@ -29,4 +29,3 @@ internal object UuidConverter {
         .decodeFromString<List<String>>(value)
         .map { Uuid.parse(it) }
 }
-

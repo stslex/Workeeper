@@ -96,7 +96,7 @@ internal class InputHandlerTest {
         every { selectedExercise.uuid } returns "exercise-uuid-123"
         stateFlow.value = stateFlow.value.copy(
             selectedItems = persistentSetOf(selectedExercise.uuid),
-            query = "initial query"
+            query = "initial query",
         )
 
         val newQuery = "new search query"

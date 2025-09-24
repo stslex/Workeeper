@@ -26,7 +26,7 @@ internal class InputHandlerTest {
         every { this@mockk.scope } returns AppCoroutineScope(
             testScope,
             testDispatcher,
-            testDispatcher
+            testDispatcher,
         )
 
         // Mock the launch function to actually execute the coroutine
@@ -36,7 +36,7 @@ internal class InputHandlerTest {
                 onSuccess = any(),
                 workDispatcher = any(),
                 eachDispatcher = any(),
-                action = any()
+                action = any(),
             )
         } answers {
             val action = arg<suspend CoroutineScope.() -> Any>(4)
@@ -45,7 +45,6 @@ internal class InputHandlerTest {
     }
 
     private val handler = InputHandler(commonStore, store)
-
 
     @Test
     fun `change start date action updates common store start date`() = runTest {

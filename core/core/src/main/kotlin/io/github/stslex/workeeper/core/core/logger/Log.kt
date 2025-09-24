@@ -5,12 +5,12 @@ import co.touchlab.kermit.platformLogWriter
 import co.touchlab.kermit.Logger as KLogger
 
 open class Log private constructor(
-    private val tag: String
+    private val tag: String,
 ) : Logger {
 
     private val logger = object : KLogger(
         config = mutableLoggerConfigInit(listOf(platformLogWriter())),
-        tag = tag
+        tag = tag,
     ) {}
 
     override fun e(throwable: Throwable, message: String?) {
@@ -69,7 +69,7 @@ open class Log private constructor(
         if (isLogging.not()) return
         logger.w(
             tag = tag,
-            messageString = message
+            messageString = message,
         )
     }
 
@@ -90,7 +90,7 @@ open class Log private constructor(
         if (isLogging.not()) return
         logger.w(
             tag = tag,
-            messageString = message
+            messageString = message,
         )
     }
 
@@ -100,5 +100,4 @@ open class Log private constructor(
 
         fun tag(tag: String): Logger = Log(tag)
     }
-
 }

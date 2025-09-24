@@ -42,11 +42,11 @@ internal fun ExerciseDatePickerDialog(
             .clip(RoundedCornerShape(AppDimension.Radius.medium)),
         onDismissRequest = onDismissRequest,
         confirmButton = {},
-        dismissButton = {}
+        dismissButton = {},
     ) {
         DatePicker(
             state = datePickerState,
-            showModeToggle = false
+            showModeToggle = false,
         )
     }
 }
@@ -61,7 +61,7 @@ private fun ExerciseTimePreview() {
         ExerciseDatePickerDialog(
             timestamp = time,
             dateChange = { time },
-            onDismissRequest = {}
+            onDismissRequest = {},
         )
     }
 }

@@ -20,42 +20,44 @@ internal class ChartsInteractorImpl(
     private val trainingRepository: TrainingRepository,
     private val exerciseRepository: ExerciseRepository,
     private val chartsExerciseDomainMapper: ChartsExerciseDomainMapper,
-    @param:DefaultDispatcher private val dispatcher: CoroutineDispatcher
+    @param:DefaultDispatcher private val dispatcher: CoroutineDispatcher,
 ) : ChartsInteractor {
 
     override suspend fun getChartsData(
-        params: ChartParams
+        params: ChartParams,
     ): List<SingleChartDomainModel> = withContext(dispatcher) {
         when (params.type) {
-            ChartsDomainType.TRAINING -> trainingRepository
-                .getTrainings(
-                    query = params.name,
-                    startDate = params.startDate,
-                    endDate = params.endDate
-                )
-                .asyncMap { training ->
-                    SingleChartDomainModel(
-                        name = training.name,
-                        values = exerciseRepository
-                            .getExercisesByUuid(training.exerciseUuids)
-                            .map {
-                                val size = it.sets.size
-                                if (size > 0) {
-                                    it.sets.sumOf { set -> set.weight } / it.sets.size
-                                } else {
-                                    0.0
-                                }
-                            }
+            ChartsDomainType.TRAINING ->
+                trainingRepository
+                    .getTrainings(
+                        query = params.name,
+                        startDate = params.startDate,
+                        endDate = params.endDate,
                     )
-                }
+                    .asyncMap { training ->
+                        SingleChartDomainModel(
+                            name = training.name,
+                            values = exerciseRepository
+                                .getExercisesByUuid(training.exerciseUuids)
+                                .map {
+                                    val size = it.sets.size
+                                    if (size > 0) {
+                                        it.sets.sumOf { set -> set.weight } / it.sets.size
+                                    } else {
+                                        0.0
+                                    }
+                                },
+                        )
+                    }
 
-            ChartsDomainType.EXERCISE -> exerciseRepository
-                .getExercises(
-                    name = params.name,
-                    startDate = params.startDate,
-                    endDate = params.endDate
-                )
-                .asyncMap(chartsExerciseDomainMapper::invoke)
+            ChartsDomainType.EXERCISE ->
+                exerciseRepository
+                    .getExercises(
+                        name = params.name,
+                        startDate = params.startDate,
+                        endDate = params.endDate,
+                    )
+                    .asyncMap(chartsExerciseDomainMapper::invoke)
         }
     }
 }

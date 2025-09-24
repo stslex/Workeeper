@@ -8,7 +8,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 
 class ResultFlow<T : Any>(
-    private val flow: Flow<AppResult<T>>
+    private val flow: Flow<AppResult<T>>,
 ) {
 
     private var onError: ((AppError) -> Unit)? = null
@@ -34,7 +34,7 @@ class ResultFlow<T : Any>(
         scope = scope,
         onError = { onError?.invoke(it) ?: logger.e(it, it.message) },
         onLoading = { onLoading?.invoke() ?: logger.i("Loading...") },
-        onSuccess = { onSuccess?.invoke(it) ?: logger.i("Success: $it") }
+        onSuccess = { onSuccess?.invoke(it) ?: logger.i("Success: $it") },
     )
 
     companion object {

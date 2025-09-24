@@ -24,7 +24,7 @@ internal class ClickHandler(
     private val changeMap: TrainingChangeMapper,
     @param:MainImmediateDispatcher
     private val mainDispatcher: CoroutineDispatcher,
-    @Named(TRAINING_SCOPE_NAME) store: TrainingHandlerStore
+    @Named(TRAINING_SCOPE_NAME) store: TrainingHandlerStore,
 ) : Handler<Action.Click>, TrainingHandlerStore by store {
 
     override fun invoke(action: Action.Click) {
@@ -49,7 +49,7 @@ internal class ClickHandler(
                 uuid
             }
         consume(
-            Action.Navigation.CreateExercise(currentTrainingUuid)
+            Action.Navigation.CreateExercise(currentTrainingUuid),
         )
     }
 
@@ -64,8 +64,8 @@ internal class ClickHandler(
         consume(
             Action.Navigation.OpenExercise(
                 exerciseUuid = action.exerciseUuid,
-                trainingUuid = currentTrainingUuid
-            )
+                trainingUuid = currentTrainingUuid,
+            ),
         )
     }
 
@@ -82,7 +82,7 @@ internal class ClickHandler(
                 withContext(mainDispatcher) {
                     consume(Action.Navigation.PopBack)
                 }
-            }
+            },
         ) {
             interactor.removeTraining(uuid)
         }
@@ -113,7 +113,7 @@ internal class ClickHandler(
                     consume(Action.Navigation.PopBack)
                 }
             },
-            onError = { logger.e(it) }
+            onError = { logger.e(it) },
         ) {
             interactor.updateTraining(changeMap(state.value.training.copy(uuid = uuid)))
         }

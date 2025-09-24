@@ -32,7 +32,7 @@ internal class TrainingStoreImpl(
     storeDispatchers: StoreDispatchers,
     @Named(TRAINING_SCOPE_NAME) handlerStore: TrainingHandlerStoreImpl,
     analytics: StoreAnalytics<Action, Event> = AnalyticsHolder.createStore(NAME),
-    override val logger: Logger = storeLogger(NAME)
+    override val logger: Logger = storeLogger(NAME),
 ) : BaseStore<State, Action, Event>(
     name = NAME,
     initialState = State.INITIAL,
@@ -48,7 +48,7 @@ internal class TrainingStoreImpl(
     storeDispatchers = storeDispatchers,
     initialActions = listOf(Action.Common.Init(navigationHandler.uuid)),
     analytics = analytics,
-    logger = logger
+    logger = logger,
 ) {
 
     companion object {
