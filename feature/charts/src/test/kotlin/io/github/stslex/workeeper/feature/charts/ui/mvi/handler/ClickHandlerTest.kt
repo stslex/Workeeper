@@ -4,6 +4,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.feature.charts.di.ChartsHandlerStore
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.CalendarState
+import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartsType
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.SingleChartUiModel
 import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore
 import io.mockk.every
@@ -11,6 +12,7 @@ import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
@@ -21,6 +23,7 @@ internal class ClickHandlerTest {
         charts = persistentListOf(),
         startDate = PropertyHolder.DateProperty(initialValue = 1000000L),
         endDate = PropertyHolder.DateProperty(initialValue = 2000000L),
+        type = ChartsType.TRAINING,
         calendarState = CalendarState.Closed
     )
 
@@ -169,6 +172,7 @@ internal class ClickHandlerTest {
             charts = originalCharts,
             startDate = PropertyHolder.DateProperty(initialValue = 1234567L),
             endDate = PropertyHolder.DateProperty(initialValue = 7654321L),
+            type = ChartsType.TRAINING,
             calendarState = CalendarState.Closed
         )
         stateFlow.value = testState
@@ -181,5 +185,16 @@ internal class ClickHandlerTest {
         assertEquals(originalCharts, newState.charts)
         assertEquals(1234567L, newState.startDate.value)
         assertEquals(7654321L, newState.endDate.value)
+    }
+
+    @Test
+    fun `type change action updates state correctly`() = runTest {
+        val expectedType = ChartsType.EXERCISE
+
+        handler.invoke(ChartsStore.Action.Click.ChangeType(expectedType))
+
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(stateFlow.value.type, expectedType)
     }
 }

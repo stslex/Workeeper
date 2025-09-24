@@ -4,4 +4,7 @@
 
     <string name="feature_all_charts_empty_results">You don&#8217;t have any exercises yet</string>
     <string name="feature_all_charts_not_found_results">No results found</string>
+
+    <string name="feature_all_charts_training_type">Training</string>
+    <string name="feature_all_charts_exercise_type">Exercise</string>
 </resources>

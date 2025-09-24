@@ -4,6 +4,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.CalendarState
+import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartsType
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.SingleChartUiModel
 import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore.Action
 import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore.Event
@@ -18,7 +19,8 @@ internal interface ChartsStore : Store<State, Action, Event> {
         val charts: ImmutableList<SingleChartUiModel>,
         val startDate: PropertyHolder.DateProperty,
         val endDate: PropertyHolder.DateProperty,
-        val calendarState: CalendarState
+        val type: ChartsType,
+        val calendarState: CalendarState,
     ) : Store.State {
 
         companion object {
@@ -30,6 +32,7 @@ internal interface ChartsStore : Store<State, Action, Event> {
                     initialValue = System.currentTimeMillis() - (7L * 24 * 60 * 60 * 1000)
                 ), // 7 days default
                 endDate = PropertyHolder.DateProperty(System.currentTimeMillis()),
+                type = ChartsType.TRAINING,
                 calendarState = CalendarState.Closed
             )
         }
@@ -50,6 +53,8 @@ internal interface ChartsStore : Store<State, Action, Event> {
         }
 
         sealed interface Click : Action {
+
+            data class ChangeType(val type: ChartsType) : Click
 
             sealed interface Calendar : Click {
 

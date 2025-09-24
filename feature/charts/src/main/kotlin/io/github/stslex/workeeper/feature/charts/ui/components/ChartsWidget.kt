@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -20,6 +21,7 @@ import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.CalendarState
+import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartsType
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ExerciseChartPreviewParameterProvider
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.SingleChartUiModel
 import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore.Action
@@ -43,6 +45,13 @@ internal fun ChartsWidget(
         modifier = modifier
             .fillMaxSize()
     ) {
+        ChartsTypePickerWidget(
+            selectedType = state.type,
+            onClick = { consume(Action.Click.ChangeType(it)) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = AppDimension.Padding.large)
+        )
         DatePickersWidget(
             startDate = state.startDate,
             endDate = state.endDate,
@@ -124,6 +133,7 @@ private fun ChartsWidgetPreview(
                 startDate = PropertyHolder.DateProperty(startDate),
                 endDate = PropertyHolder.DateProperty(endDate),
                 charts = charts,
+                type = ChartsType.TRAINING,
                 calendarState = CalendarState.Closed
             )
             ChartsWidget(

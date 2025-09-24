@@ -6,6 +6,7 @@ import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.feature.charts.di.ChartsHandlerStore
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.CalendarState
+import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartsType
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ExerciseChartMap
 import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore
 import io.mockk.coEvery
@@ -37,6 +38,7 @@ internal class PagingHandlerTest {
         charts = persistentListOf(),
         startDate = PropertyHolder.DateProperty(initialValue = 0L),
         endDate = PropertyHolder.DateProperty(initialValue = 0L),
+        type = ChartsType.TRAINING,
         calendarState = CalendarState.Closed
     )
     private val stateFlow: MutableStateFlow<ChartsStore.State> = MutableStateFlow(initialState)
@@ -88,7 +90,10 @@ internal class PagingHandlerTest {
 
         // Verify repository call and state changes
         coVerify { repository.getExercises("Test Exercise", 1500000L, 2500000L) }
-        assertEquals(PropertyHolder.DateProperty(initialValue = 1500000L), stateFlow.value.startDate)
+        assertEquals(
+            PropertyHolder.DateProperty(initialValue = 1500000L),
+            stateFlow.value.startDate
+        )
         assertEquals(PropertyHolder.DateProperty(initialValue = 2500000L), stateFlow.value.endDate)
     }
 
@@ -107,7 +112,10 @@ internal class PagingHandlerTest {
             store.updateStateImmediate(any<(ChartsStore.State) -> ChartsStore.State>())
         }
 
-        assertEquals(PropertyHolder.DateProperty(initialValue = 1500000L), stateFlow.value.startDate)
+        assertEquals(
+            PropertyHolder.DateProperty(initialValue = 1500000L),
+            stateFlow.value.startDate
+        )
         assertEquals(PropertyHolder.DateProperty(initialValue = 2500000L), stateFlow.value.endDate)
     }
 
@@ -189,7 +197,13 @@ internal class PagingHandlerTest {
     fun `repository errors are handled gracefully in charts subscription`() = runTest {
         every { commonStore.homeSelectedStartDate } returns flowOf(null)
         every { commonStore.homeSelectedEndDate } returns flowOf(null)
-        coEvery { repository.getExercises(any(), any(), any()) } throws RuntimeException("Repository error")
+        coEvery {
+            repository.getExercises(
+                any(),
+                any(),
+                any()
+            )
+        } throws RuntimeException("Repository error")
 
         // Should not crash the handler
         var exceptionThrown = false
@@ -215,8 +229,14 @@ internal class PagingHandlerTest {
         testScheduler.advanceUntilIdle()
 
         // Only start date should be updated
-        assertEquals(PropertyHolder.DateProperty(initialValue = 1000000L), stateFlow.value.startDate)
-        assertEquals(PropertyHolder.DateProperty(initialValue = 0L), stateFlow.value.endDate) // Should remain initial value
+        assertEquals(
+            PropertyHolder.DateProperty(initialValue = 1000000L),
+            stateFlow.value.startDate
+        )
+        assertEquals(
+            PropertyHolder.DateProperty(initialValue = 0L),
+            stateFlow.value.endDate
+        ) // Should remain initial value
 
         coVerify(exactly = 1) {
             store.updateStateImmediate(any<(ChartsStore.State) -> ChartsStore.State>())
@@ -231,6 +251,7 @@ internal class PagingHandlerTest {
             charts = persistentListOf(),
             startDate = PropertyHolder.DateProperty(initialValue = 5000000L),
             endDate = PropertyHolder.DateProperty(initialValue = 6000000L),
+            type = ChartsType.TRAINING,
             calendarState = CalendarState.Closed
         )
 

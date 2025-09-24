@@ -22,7 +22,6 @@ internal class InputHandlerTest {
     private val testDispatcher = UnconfinedTestDispatcher(testScheduler)
     private val commonStore = mockk<CommonDataStore>(relaxed = true)
     private val testScope = TestScope(testDispatcher)
-
     private val store = mockk<ChartsHandlerStore>(relaxed = true) {
         every { this@mockk.scope } returns AppCoroutineScope(
             testScope,
