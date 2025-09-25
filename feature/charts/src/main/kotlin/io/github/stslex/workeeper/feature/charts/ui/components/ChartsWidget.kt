@@ -42,15 +42,14 @@ internal fun ChartsWidget(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier
-            .fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
     ) {
         ChartsTypePickerWidget(
             selectedType = state.type,
             onClick = { consume(Action.Click.ChangeType(it)) },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = AppDimension.Padding.large),
+                .padding(bottom = AppDimension.Padding.large),
         )
         DatePickersWidget(
             startDate = state.startDate,

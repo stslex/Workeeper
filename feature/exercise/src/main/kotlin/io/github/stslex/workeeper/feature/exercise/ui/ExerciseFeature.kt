@@ -7,8 +7,10 @@ import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.navigation.NavGraphBuilder
@@ -78,7 +80,10 @@ fun NavGraphBuilder.exerciseGraph(
                                 component.uuid ?: "createExercise",
                             ),
                             animatedVisibilityScope = this@navScreen,
-                            resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds(),
+                            resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(
+                                ContentScale.Inside,
+                                Alignment.Center,
+                            ),
                         ),
                 )
             }

@@ -1,10 +1,8 @@
 package io.github.stslex.workeeper.feature.all_exercises.ui
 
-import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -24,41 +22,27 @@ fun NavGraphBuilder.allExercisesGraph(
     modifier: Modifier = Modifier,
 ) {
     navScreen<Screen.BottomBar.AllExercises> {
-        ExerciseScreen(
-            modifier = modifier,
-            sharedTransitionScope = sharedTransitionScope,
-            component = remember(navigator) { AllExercisesComponent.create(navigator) },
-            animatedContentScope = this,
-        )
-    }
-}
+        val component = remember(navigator) { AllExercisesComponent.create(navigator) }
 
-@OptIn(ExperimentalSharedTransitionApi::class)
-@Composable
-private fun ExerciseScreen(
-    component: AllExercisesComponent,
-    sharedTransitionScope: SharedTransitionScope,
-    animatedContentScope: AnimatedContentScope,
-    modifier: Modifier = Modifier,
-) {
-    NavComponentScreen(ExerciseFeature, component) { processor ->
+        NavComponentScreen(ExerciseFeature, component) { processor ->
 
-        val haptic = LocalHapticFeedback.current
+            val haptic = LocalHapticFeedback.current
 
-        processor.Handle { event ->
-            when (event) {
-                is ExercisesStore.Event.HapticFeedback -> haptic.performHapticFeedback(event.type)
+            processor.Handle { event ->
+                when (event) {
+                    is ExercisesStore.Event.HapticFeedback -> haptic.performHapticFeedback(event.type)
+                }
             }
-        }
 
-        val lazyListState = rememberLazyListState()
-        ExerciseWidget(
-            modifier = modifier,
-            state = processor.state.value,
-            lazyState = lazyListState,
-            consume = processor::consume,
-            sharedTransitionScope = sharedTransitionScope,
-            animatedContentScope = animatedContentScope,
-        )
+            val lazyListState = rememberLazyListState()
+            ExerciseWidget(
+                modifier = modifier,
+                state = processor.state.value,
+                lazyState = lazyListState,
+                consume = processor::consume,
+                sharedTransitionScope = sharedTransitionScope,
+                animatedContentScope = this,
+            )
+        }
     }
 }

@@ -5,15 +5,14 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.paging.PagingData
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
@@ -41,7 +40,6 @@ internal fun ExerciseWidget(
 ) {
     Box(
         modifier = modifier
-            .background(MaterialTheme.colorScheme.background)
             .fillMaxSize(),
     ) {
         AllExercisesWidget(
@@ -61,7 +59,10 @@ internal fun ExerciseWidget(
                             "createExercise",
                         ),
                         animatedVisibilityScope = animatedContentScope,
-                        resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds(),
+                        resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(
+                            ContentScale.Inside,
+                            Alignment.Center,
+                        ),
                     )
                     .align(Alignment.BottomEnd)
                     .padding(AppDimension.Padding.big),
