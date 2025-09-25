@@ -4,5 +4,6 @@ plugins {
 
 dependencies {
     implementation(project(":core:core"))
+
     implementation(libs.androidx.compose.material)
 }

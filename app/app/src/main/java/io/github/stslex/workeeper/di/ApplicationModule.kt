@@ -11,18 +11,23 @@ import io.github.stslex.workeeper.feature.all_trainings.di.ModuleFeatureAllTrain
 import io.github.stslex.workeeper.feature.charts.di.ModuleFeatureCharts
 import io.github.stslex.workeeper.feature.exercise.di.ModuleFeatureExercise
 import io.github.stslex.workeeper.feature.single_training.di.ModuleFeatureSingleTraining
-import org.koin.ksp.generated.module
+import org.koin.core.annotation.ComponentScan
+import org.koin.core.annotation.Module
 
-val appModules = listOf(
-    ModuleCore().module,
-    ModuleCoreUiUtils().module,
-    ModuleCoreDatabase().module,
-    ModuleCoreExercise().module,
-    ModuleCoreStore().module,
-    ModuleCoreMvi().module,
-    ModuleFeatureExercise().module,
-    ModuleFeatureAllExercises().module,
-    ModuleFeatureCharts().module,
-    ModuleFeatureAllTrainings().module,
-    ModuleFeatureSingleTraining().module,
+@Module(
+    includes = [
+        ModuleCore::class,
+        ModuleCoreUiUtils::class,
+        ModuleCoreDatabase::class,
+        ModuleCoreExercise::class,
+        ModuleCoreStore::class,
+        ModuleCoreMvi::class,
+        ModuleFeatureExercise::class,
+        ModuleFeatureAllExercises::class,
+        ModuleFeatureCharts::class,
+        ModuleFeatureAllTrainings::class,
+        ModuleFeatureSingleTraining::class,
+    ],
 )
+@ComponentScan("io.github.stslex.workeeper")
+class ApplicationModule

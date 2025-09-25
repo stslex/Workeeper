@@ -4,9 +4,10 @@ import android.app.Application
 import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
 import io.github.stslex.workeeper.core.core.logger.KoinLogger
 import io.github.stslex.workeeper.core.core.logger.Log
-import io.github.stslex.workeeper.di.appModules
+import io.github.stslex.workeeper.di.ApplicationModule
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
+import org.koin.ksp.generated.module
 
 abstract class BaseApplication : Application() {
 
@@ -19,7 +20,7 @@ abstract class BaseApplication : Application() {
         startKoin {
             logger(KoinLogger(isDebug = isDebugLoggingAllow))
             androidContext(this@BaseApplication)
-            modules(appModules)
+            modules(ApplicationModule().module)
         }
     }
 }

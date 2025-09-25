@@ -158,7 +158,7 @@ koin-compose = { module = "io.insert-koin:koin-compose", version.ref = "koin" }
 koin-annotations = { group = "io.insert-koin", name = "koin-annotations", version.ref = "koinKsp" }
 
 koin-test-core = { module = "io.insert-koin:koin-test", version.ref = "koin" }
-koin-test-junit = { module = "io.insert-koin:koin-test-junit4", version.ref = "koin" }
+koin-test-junit = { module = "io.insert-koin:koin-test-junit5", version.ref = "koin" }
 
 koin-ksp = { group = "io.insert-koin", name = "koin-ksp-compiler", version.ref = "koinKsp" }
 
