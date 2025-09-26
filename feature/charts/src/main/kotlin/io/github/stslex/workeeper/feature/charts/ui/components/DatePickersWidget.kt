@@ -84,8 +84,8 @@ private fun DatePickersPreview() {
             ),
         ) {
             DatePickersWidget(
-                startDate = PropertyHolder.DateProperty(startDate),
-                endDate = PropertyHolder.DateProperty(endDate),
+                startDate = PropertyHolder.DateProperty.now(),
+                endDate = PropertyHolder.DateProperty.now(),
                 onStartDateClick = {},
                 onEndDateClick = {},
                 modifier = Modifier,

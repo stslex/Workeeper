@@ -67,7 +67,7 @@ internal fun <TMenuItem : Any> TextInputField(
             .clickable { onClick() },
         value = property.uiValue,
         onValueChange = onValueChange,
-        isError = property.isValid.not(),
+        isError = property.isError,
         label = {
             Text(stringResource(labelRes))
         },

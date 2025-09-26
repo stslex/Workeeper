@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -37,6 +39,21 @@ internal fun ChartsCanvaWidget(
         alpha = 0.7f,
     )
 
+    val chartsMapped = remember(charts) {
+        charts.mapIndexed { index, item ->
+            SingleChartCanvasModel(
+                name = item.name,
+                color = getRandomColor(index),
+                properties = item.properties.map { property ->
+                    SingleChartCanvasProperty(
+                        xValue = property.timeX,
+                        yValue = property.valueY,
+                    )
+                },
+            )
+        }
+    }
+
     Canvas(
         modifier = modifier
             .fillMaxSize(),
@@ -48,9 +65,8 @@ internal fun ChartsCanvaWidget(
         )
 
         clipPath(path) {
-            charts.forEachIndexed { index, chart ->
+            chartsMapped.forEachIndexed { index, chart ->
                 val points = calculateChartPoints(chart)
-                val color = getRandomColor(index)
                 val path = createSmoothPathSimple(points)
 
                 drawPath(
@@ -70,7 +86,7 @@ internal fun ChartsCanvaWidget(
 
                 drawPath(
                     path = filledPath,
-                    color = color.copy(alpha = 0.1f),
+                    color = chart.color.copy(alpha = 0.1f),
                     style = androidx.compose.ui.graphics.drawscope.Fill,
                 )
             }
@@ -79,20 +95,30 @@ internal fun ChartsCanvaWidget(
 }
 
 private fun DrawScope.calculateChartPoints(
-    chart: SingleChartUiModel,
+    chart: SingleChartCanvasModel,
 ): List<Offset> {
-    val chartSize = chart.properties.size
-    val chartWidth = size.width / (chartSize.dec().takeIf { it > 0 } ?: 1)
-    val maxProperty = chart.properties.maxOrNull() ?: 1f
+    val maxProperty = chart.properties.maxOfOrNull { it.yValue } ?: 1f
     val propertyK = size.height / maxProperty
 
     return chart.properties.mapIndexed { propertyIndex, property ->
         Offset(
-            x = chartWidth * propertyIndex,
-            y = size.height - property * propertyK,
+            x = size.width * property.xValue,
+            y = size.height - property.yValue * propertyK,
         )
     }
 }
+
+@Stable
+private data class SingleChartCanvasModel(
+    val name: String,
+    val color: Color,
+    val properties: List<SingleChartCanvasProperty>,
+)
+
+private data class SingleChartCanvasProperty(
+    val xValue: Float,
+    val yValue: Float,
+)
 
 private fun DrawScope.createBackgroundPath(
     strokeThin: Float,

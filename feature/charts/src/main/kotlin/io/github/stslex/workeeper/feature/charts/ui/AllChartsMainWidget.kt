@@ -75,8 +75,8 @@ private fun HomeWidgetPreview(
         val name = "Test Exercise"
         val chartsState = State(
             name = name,
-            startDate = PropertyHolder.DateProperty(startDate),
-            endDate = PropertyHolder.DateProperty(endDate),
+            startDate = PropertyHolder.DateProperty.new(startDate),
+            endDate = PropertyHolder.DateProperty.new(endDate),
             charts = charts,
             type = ChartsType.TRAINING,
             calendarState = CalendarState.Closed,

@@ -13,26 +13,30 @@ internal class ExerciseChartPreviewParameterProvider :
         SingleChartUiModel(
             name = "Test",
             properties = persistentListOf(
-                1.0f,
-                2.0f,
-                3.0f,
-                4.0f,
-                5.0f,
-                6.0f,
-                7.0f,
-            ),
-        ),
-
-        SingleChartUiModel(
-            name = "Test",
-            properties = persistentListOf(
-                12.0f,
-                2.0f,
-                5.0f,
-                4.0f,
-                1.0f,
-                6.0f,
-                7.0f,
+                SingleChartUiProperty(
+                    timeX = 0.0f,
+                    valueY = 1.0f,
+                ),
+                SingleChartUiProperty(
+                    timeX = 0.2f,
+                    valueY = 2.0f,
+                ),
+                SingleChartUiProperty(
+                    timeX = 0.4f,
+                    valueY = 5.0f,
+                ),
+                SingleChartUiProperty(
+                    timeX = 0.6f,
+                    valueY = 120.0f,
+                ),
+                SingleChartUiProperty(
+                    timeX = 0.8f,
+                    valueY = 3.0f,
+                ),
+                SingleChartUiProperty(
+                    timeX = 1.0f,
+                    valueY = 6.0f,
+                )
             ),
         ),
     ).toSequence()

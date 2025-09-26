@@ -15,7 +15,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
-import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder.Companion.update
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.single_training.R
@@ -140,7 +139,7 @@ private fun SingleTrainingsScreenPreview() {
                     name = "special training name",
                     labels = persistentListOf(),
                     exercises = persistentListOf(),
-                    date = PropertyHolder.DateProperty().update(System.currentTimeMillis()),
+                    date = PropertyHolder.DateProperty.now(),
                 ),
                 dialogState = DialogState.Closed,
                 pendingForCreateUuid = "pendingForCreateUuid",

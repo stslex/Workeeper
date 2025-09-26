@@ -14,7 +14,7 @@ data class ExerciseUiModel(
 fun ExerciseDataModel.toUi() = ExerciseUiModel(
     uuid = uuid,
     name = name,
-    dateProperty = PropertyHolder.DateProperty(
+    dateProperty = PropertyHolder.DateProperty.new(
         initialValue = timestamp,
     ),
 )

@@ -8,6 +8,7 @@ import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
 import io.github.stslex.workeeper.feature.charts.di.CHARTS_SCOPE_NAME
 import io.github.stslex.workeeper.feature.charts.domain.model.ChartParams
 import io.github.stslex.workeeper.feature.charts.domain.model.ChartsDomainType
+import io.github.stslex.workeeper.feature.charts.domain.model.SingleChartDomainItem
 import io.github.stslex.workeeper.feature.charts.domain.model.SingleChartDomainModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -39,13 +40,16 @@ internal class ChartsInteractorImpl(
                             name = name,
                             values = trainings
                                 .asyncMap { training ->
-                                    exerciseRepository
-                                        .getExercisesByUuid(training.exerciseUuids)
-                                        .map { exercise ->
-                                            exercise.sets.maxOfOrNull { it.weight } ?: 0.0
-                                        }
-                                        .let { exercise -> exercise.sumOf { it } safeDiv exercise.size }
-                                        .toFloat()
+                                    SingleChartDomainItem(
+                                        timestamp = training.timestamp,
+                                        value = exerciseRepository
+                                            .getExercisesByUuid(training.exerciseUuids)
+                                            .map { exercise ->
+                                                exercise.sets.maxOfOrNull { it.weight } ?: 0.0
+                                            }
+                                            .let { exercise -> exercise.sumOf { it } safeDiv exercise.size }
+                                            .toFloat()
+                                    )
                                 },
                         )
                     }
@@ -63,7 +67,10 @@ internal class ChartsInteractorImpl(
                             name = name,
                             values = exercises
                                 .map { exercise ->
-                                    exercise.sets.maxOfOrNull { it.weight }?.toFloat() ?: 0f
+                                    SingleChartDomainItem(
+                                        timestamp = exercise.timestamp,
+                                        value = exercise.sets.maxOfOrNull { it.weight }?.toFloat() ?: 0f
+                                    )
                                 },
                         )
                     }

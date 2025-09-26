@@ -33,9 +33,9 @@ interface ExerciseStore : Store<State, Action, Event> {
 
         val calculateEqualsHash: Int
             get() = uuid.hashCode() +
-                name.value.trim().hashCode() +
-                sets.sumOf { it.reps.value.hashCode() + it.weight.value.hashCode() + it.type.ordinal } +
-                dateProperty.value.hashCode()
+                    name.value.trim().hashCode() +
+                    sets.sumOf { it.reps.value.hashCode() + it.weight.value.hashCode() + it.type.ordinal } +
+                    dateProperty.value.hashCode()
 
         val allowBack: Boolean
             get() = if (uuid == null) {
@@ -53,7 +53,7 @@ interface ExerciseStore : Store<State, Action, Event> {
                     uuid = null,
                     name = PropertyHolder.StringProperty(),
                     sets = persistentListOf(),
-                    dateProperty = PropertyHolder.DateProperty(),
+                    dateProperty = PropertyHolder.DateProperty.new(),
                     dialogState = DialogState.Closed,
                     isMenuOpen = false,
                     menuItems = persistentSetOf(),

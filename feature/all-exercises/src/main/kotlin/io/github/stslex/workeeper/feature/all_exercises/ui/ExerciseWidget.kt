@@ -16,7 +16,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.paging.PagingData
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
-import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder.Companion.update
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.all_exercises.ui.components.AllExercisesWidget
@@ -84,7 +83,7 @@ private fun ExerciseWidgetPreview() {
             ExerciseUiModel(
                 uuid = Uuid.random().toString(),
                 name = "nameOfExercise$index",
-                dateProperty = PropertyHolder.DateProperty().update(System.currentTimeMillis()),
+                dateProperty = PropertyHolder.DateProperty.now(),
             )
         }.toList()
         val itemsPaging = {

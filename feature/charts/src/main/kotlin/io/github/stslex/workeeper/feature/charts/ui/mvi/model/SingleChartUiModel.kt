@@ -6,5 +6,5 @@ import kotlinx.collections.immutable.ImmutableList
 @Stable
 internal data class SingleChartUiModel(
     val name: String,
-    val properties: ImmutableList<Float>,
+    val properties: ImmutableList<SingleChartUiProperty>,
 )
