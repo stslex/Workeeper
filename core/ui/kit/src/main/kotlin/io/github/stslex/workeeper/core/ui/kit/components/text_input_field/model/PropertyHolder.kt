@@ -67,7 +67,7 @@ sealed class PropertyHolder<T : Any>(
             ): IntProperty = IntProperty(
                 initialValue = initialValue,
                 defaultValue = defaultValue,
-                validate = validate
+                validate = validate,
             )
         }
     }
@@ -91,7 +91,7 @@ sealed class PropertyHolder<T : Any>(
             ): DoubleProperty = DoubleProperty(
                 initialValue = initialValue,
                 defaultValue = defaultValue,
-                validate = validate
+                validate = validate,
             )
         }
     }
@@ -116,11 +116,10 @@ sealed class PropertyHolder<T : Any>(
             ): LongProperty = LongProperty(
                 initialValue = initialValue,
                 defaultValue = defaultValue,
-                validate = validate
+                validate = validate,
             )
         }
     }
-
 
     @Stable
     class DateProperty private constructor(
@@ -141,7 +140,7 @@ sealed class PropertyHolder<T : Any>(
 
             fun now(): DateProperty = DateProperty(
                 initialValue = System.currentTimeMillis(),
-                defaultValue = System.currentTimeMillis()
+                defaultValue = System.currentTimeMillis(),
             )
 
             fun new(
@@ -151,7 +150,7 @@ sealed class PropertyHolder<T : Any>(
             ): DateProperty = DateProperty(
                 initialValue = initialValue,
                 defaultValue = defaultValue,
-                validate = validate
+                validate = validate,
             )
         }
     }

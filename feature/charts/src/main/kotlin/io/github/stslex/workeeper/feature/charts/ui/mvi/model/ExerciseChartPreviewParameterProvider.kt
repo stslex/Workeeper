@@ -36,7 +36,7 @@ internal class ExerciseChartPreviewParameterProvider :
                 SingleChartUiProperty(
                     timeX = 1.0f,
                     valueY = 6.0f,
-                )
+                ),
             ),
         ),
     ).toSequence()

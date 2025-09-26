@@ -48,7 +48,7 @@ internal class ChartsInteractorImpl(
                                                 exercise.sets.maxOfOrNull { it.weight } ?: 0.0
                                             }
                                             .let { exercise -> exercise.sumOf { it } safeDiv exercise.size }
-                                            .toFloat()
+                                            .toFloat(),
                                     )
                                 },
                         )
@@ -69,7 +69,7 @@ internal class ChartsInteractorImpl(
                                 .map { exercise ->
                                     SingleChartDomainItem(
                                         timestamp = exercise.timestamp,
-                                        value = exercise.sets.maxOfOrNull { it.weight }?.toFloat() ?: 0f
+                                        value = exercise.sets.maxOfOrNull { it.weight }?.toFloat() ?: 0f,
                                     )
                                 },
                         )
