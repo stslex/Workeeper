@@ -90,13 +90,13 @@ internal class ClickHandlerTest {
         val exercise1 = ExerciseUiModel(
             uuid = exerciseUuid1.toString(),
             name = "Exercise 1",
-            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
+            dateProperty = PropertyHolder.DateProperty.new(initialValue = System.currentTimeMillis()),
         )
 
         val exercise2 = ExerciseUiModel(
             uuid = exerciseUuid2.toString(),
             name = "Exercise 2",
-            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
+            dateProperty = PropertyHolder.DateProperty.new(initialValue = System.currentTimeMillis()),
         )
 
         val selectedItems = setOf(exercise1.uuid, exercise2.uuid).toImmutableSet()
@@ -121,7 +121,7 @@ internal class ClickHandlerTest {
         val exercise = ExerciseUiModel(
             uuid = Uuid.random().toString(),
             name = "Test Exercise",
-            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
+            dateProperty = PropertyHolder.DateProperty.new(initialValue = System.currentTimeMillis()),
         )
 
         handler.invoke(ExercisesStore.Action.Click.Item(exercise.uuid))
@@ -139,13 +139,13 @@ internal class ClickHandlerTest {
         val exercise1 = ExerciseUiModel(
             uuid = Uuid.random().toString(),
             name = "Exercise 1",
-            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
+            dateProperty = PropertyHolder.DateProperty.new(initialValue = System.currentTimeMillis()),
         )
 
         val exercise2 = ExerciseUiModel(
             uuid = Uuid.random().toString(),
             name = "Exercise 2",
-            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
+            dateProperty = PropertyHolder.DateProperty.new(initialValue = System.currentTimeMillis()),
         )
 
         stateFlow.value =
@@ -161,7 +161,7 @@ internal class ClickHandlerTest {
         val exercise = ExerciseUiModel(
             uuid = Uuid.random().toString(),
             name = "Test Exercise",
-            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
+            dateProperty = PropertyHolder.DateProperty.new(initialValue = System.currentTimeMillis()),
         )
 
         handler.invoke(ExercisesStore.Action.Click.LonkClick(exercise.uuid))
@@ -181,13 +181,13 @@ internal class ClickHandlerTest {
         val exercise1 = ExerciseUiModel(
             uuid = Uuid.random().toString(),
             name = "Exercise 1",
-            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
+            dateProperty = PropertyHolder.DateProperty.new(initialValue = System.currentTimeMillis()),
         )
 
         val exercise2 = ExerciseUiModel(
             uuid = Uuid.random().toString(),
             name = "Exercise 2",
-            dateProperty = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
+            dateProperty = PropertyHolder.DateProperty.new(initialValue = System.currentTimeMillis()),
         )
 
         stateFlow.value = stateFlow.value.copy(

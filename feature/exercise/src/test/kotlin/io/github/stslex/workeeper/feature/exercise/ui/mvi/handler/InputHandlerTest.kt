@@ -22,7 +22,7 @@ internal class InputHandlerTest {
         uuid = "test-uuid",
         name = PropertyHolder.StringProperty(initialValue = ""),
         sets = persistentListOf(),
-        dateProperty = PropertyHolder.DateProperty(initialValue = 1000000L),
+        dateProperty = PropertyHolder.DateProperty.new(initialValue = 1000000L),
         dialogState = DialogState.Closed,
         isMenuOpen = false,
         menuItems = persistentSetOf(),
@@ -80,8 +80,8 @@ internal class InputHandlerTest {
     fun `dialog sets reps input updates reps when dialog state is sets`() {
         val testSet = SetsUiModel(
             uuid = "set-uuid",
-            reps = PropertyHolder.IntProperty(),
-            weight = PropertyHolder.DoubleProperty(),
+            reps = PropertyHolder.IntProperty.new(),
+            weight = PropertyHolder.DoubleProperty.new(),
             type = SetUiType.WORK,
         )
         val dialogState = DialogState.Sets(testSet)
@@ -100,8 +100,8 @@ internal class InputHandlerTest {
     fun `dialog sets weight input updates weight when dialog state is sets`() {
         val testSet = SetsUiModel(
             uuid = "set-uuid",
-            reps = PropertyHolder.IntProperty(),
-            weight = PropertyHolder.DoubleProperty(),
+            reps = PropertyHolder.IntProperty.new(),
+            weight = PropertyHolder.DoubleProperty.new(),
             type = SetUiType.WORK,
         )
         val dialogState = DialogState.Sets(testSet)
@@ -131,8 +131,8 @@ internal class InputHandlerTest {
     fun `multiple dialog sets inputs update both reps and weight`() {
         val testSet = SetsUiModel(
             uuid = "set-uuid",
-            reps = PropertyHolder.IntProperty(),
-            weight = PropertyHolder.DoubleProperty(),
+            reps = PropertyHolder.IntProperty.new(),
+            weight = PropertyHolder.DoubleProperty.new(),
             type = SetUiType.WORK,
         )
         val dialogState = DialogState.Sets(testSet)

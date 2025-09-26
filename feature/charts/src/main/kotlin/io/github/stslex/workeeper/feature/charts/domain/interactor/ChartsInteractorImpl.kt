@@ -35,7 +35,7 @@ internal class ChartsInteractorImpl(
                         endDate = params.endDate,
                     )
                     .groupBy { it.name }
-                    .map { (name, trainings) ->
+                    .asyncMap { (name, trainings) ->
                         SingleChartDomainModel(
                             name = name,
                             values = trainings
@@ -69,7 +69,8 @@ internal class ChartsInteractorImpl(
                                 .map { exercise ->
                                     SingleChartDomainItem(
                                         timestamp = exercise.timestamp,
-                                        value = exercise.sets.maxOfOrNull { it.weight }?.toFloat() ?: 0f,
+                                        value = exercise.sets.maxOfOrNull { it.weight }?.toFloat()
+                                            ?: 0f,
                                     )
                                 },
                         )

@@ -58,6 +58,21 @@ sealed class PropertyHolder<T : Any>(
         validate = validate,
     ) {
 
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is IntProperty) return false
+            return initialValue == other.initialValue &&
+                defaultValue == other.defaultValue &&
+                value == other.value
+        }
+
+        override fun hashCode(): Int {
+            var result = initialValue?.hashCode() ?: 0
+            result = 31 * result + defaultValue.hashCode()
+            result = 31 * result + value.hashCode()
+            return result
+        }
+
         companion object {
 
             fun new(
@@ -82,6 +97,22 @@ sealed class PropertyHolder<T : Any>(
         defaultValue = defaultValue,
         validate = validate,
     ) {
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is DoubleProperty) return false
+            return initialValue == other.initialValue &&
+                defaultValue == other.defaultValue &&
+                value == other.value
+        }
+
+        override fun hashCode(): Int {
+            var result = initialValue?.hashCode() ?: 0
+            result = 31 * result + defaultValue.hashCode()
+            result = 31 * result + value.hashCode()
+            return result
+        }
+
         companion object {
 
             fun new(
@@ -106,6 +137,21 @@ sealed class PropertyHolder<T : Any>(
         defaultValue = defaultValue,
         validate = validate,
     ) {
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is LongProperty) return false
+            return initialValue == other.initialValue &&
+                defaultValue == other.defaultValue &&
+                value == other.value
+        }
+
+        override fun hashCode(): Int {
+            var result = initialValue?.hashCode() ?: 0
+            result = 31 * result + defaultValue.hashCode()
+            result = 31 * result + value.hashCode()
+            return result
+        }
 
         companion object {
 
@@ -134,6 +180,21 @@ sealed class PropertyHolder<T : Any>(
 
         override val toStringMap: (Long?) -> String = { timestamp ->
             timestamp?.let { DateTimeUtil.formatMillis(it) }.orEmpty()
+        }
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is DateProperty) return false
+            return initialValue == other.initialValue &&
+                defaultValue == other.defaultValue &&
+                value == other.value
+        }
+
+        override fun hashCode(): Int {
+            var result = initialValue?.hashCode() ?: 0
+            result = 31 * result + defaultValue.hashCode()
+            result = 31 * result + value.hashCode()
+            return result
         }
 
         companion object {

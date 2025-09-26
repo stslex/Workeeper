@@ -279,10 +279,10 @@ internal class TrainingStoreImplTest {
                     name = "Push-ups",
                     labels = persistentListOf("bodyweight"),
                     sets = 3,
-                    timestamp = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
+                    timestamp = PropertyHolder.DateProperty.new(initialValue = System.currentTimeMillis()),
                 ),
             ),
-            date = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis() + 86400000), // tomorrow
+            date = PropertyHolder.DateProperty.new(initialValue = System.currentTimeMillis() + 86400000), // tomorrow
         )
 
         // Verify state is data class with copy functionality

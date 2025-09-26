@@ -129,12 +129,12 @@ internal class PagingHandlerTest {
         ExerciseUiModel(
             uuid = "ex1",
             name = "Push ups",
-            dateProperty = PropertyHolder.DateProperty(initialValue = 1000L),
+            dateProperty = PropertyHolder.DateProperty.new(initialValue = 1000L),
         ),
         ExerciseUiModel(
             uuid = "ex2",
             name = "Squats",
-            dateProperty = PropertyHolder.DateProperty(initialValue = 2000L),
+            dateProperty = PropertyHolder.DateProperty.new(initialValue = 2000L),
         ),
     )
 }

@@ -7,6 +7,7 @@ import io.github.stslex.workeeper.feature.charts.di.ChartsHandlerStore
 import io.github.stslex.workeeper.feature.charts.domain.interactor.ChartsInteractor
 import io.github.stslex.workeeper.feature.charts.domain.model.ChartParams
 import io.github.stslex.workeeper.feature.charts.domain.model.ChartsDomainType
+import io.github.stslex.workeeper.feature.charts.domain.model.SingleChartDomainItem
 import io.github.stslex.workeeper.feature.charts.domain.model.SingleChartDomainModel
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.CalendarState
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartParamsMapper
@@ -41,8 +42,8 @@ internal class PagingHandlerTest {
     private val initialState = ChartsStore.State(
         name = "Test Exercise",
         charts = persistentListOf(),
-        startDate = PropertyHolder.DateProperty(initialValue = 0L),
-        endDate = PropertyHolder.DateProperty(initialValue = 0L),
+        startDate = PropertyHolder.DateProperty.new(initialValue = 0L),
+        endDate = PropertyHolder.DateProperty.new(initialValue = 0L),
         type = ChartsType.TRAINING,
         calendarState = CalendarState.Closed,
     )
@@ -113,7 +114,11 @@ internal class PagingHandlerTest {
         val domainData = listOf(
             SingleChartDomainModel(
                 name = "Push ups",
-                values = listOf(1.0f, 2.0f, 3.0f),
+                values = listOf(
+                    SingleChartDomainItem(timestamp = 1000L, value = 1.0f),
+                    SingleChartDomainItem(timestamp = 2000L, value = 2.0f),
+                    SingleChartDomainItem(timestamp = 3000L, value = 3.0f),
+                ),
             ),
         )
 
@@ -224,8 +229,8 @@ internal class PagingHandlerTest {
         val customState = ChartsStore.State(
             name = "Custom Exercise",
             charts = persistentListOf(),
-            startDate = PropertyHolder.DateProperty(initialValue = 5000000L),
-            endDate = PropertyHolder.DateProperty(initialValue = 6000000L),
+            startDate = PropertyHolder.DateProperty.new(initialValue = 5000000L),
+            endDate = PropertyHolder.DateProperty.new(initialValue = 6000000L),
             type = ChartsType.TRAINING,
             calendarState = CalendarState.Closed,
         )
@@ -286,7 +291,13 @@ internal class PagingHandlerTest {
     @Test
     fun `chart results mapper errors are handled gracefully`() = runTest {
         val domainData = listOf(
-            SingleChartDomainModel(name = "Test", values = listOf(1.0f, 2.0f)),
+            SingleChartDomainModel(
+                name = "Test",
+                values = listOf(
+                    SingleChartDomainItem(timestamp = 1000L, value = 1.0f),
+                    SingleChartDomainItem(timestamp = 2000L, value = 2.0f),
+                ),
+            ),
         )
 
         every { commonStore.homeSelectedStartDate } returns flowOf(null)
@@ -349,7 +360,7 @@ internal class PagingHandlerTest {
         val largeDataSet = (1..10).map { index ->
             SingleChartDomainModel(
                 name = "Exercise_$index",
-                values = (1..5).map { it.toFloat() },
+                values = (1..5).map { SingleChartDomainItem(timestamp = it * 1000L, value = it.toFloat()) },
             )
         }
 
@@ -502,9 +513,19 @@ internal class PagingHandlerTest {
             SingleChartDomainModel(name = "", values = emptyList()),
             SingleChartDomainModel(
                 name = "   ",
-                values = listOf(Float.NaN, Float.POSITIVE_INFINITY),
+                values = listOf(
+                    SingleChartDomainItem(timestamp = 1000L, value = Float.NaN),
+                    SingleChartDomainItem(timestamp = 2000L, value = Float.POSITIVE_INFINITY),
+                ),
             ),
-            SingleChartDomainModel(name = "Valid", values = listOf(-1.0f, 0.0f, 1.0f)),
+            SingleChartDomainModel(
+                name = "Valid",
+                values = listOf(
+                    SingleChartDomainItem(timestamp = 1000L, value = -1.0f),
+                    SingleChartDomainItem(timestamp = 2000L, value = 0.0f),
+                    SingleChartDomainItem(timestamp = 3000L, value = 1.0f),
+                ),
+            ),
         )
 
         every { commonStore.homeSelectedStartDate } returns flowOf(1500000L)

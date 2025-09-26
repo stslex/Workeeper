@@ -242,8 +242,8 @@ internal class ExerciseStoreImplTest {
     fun `store properly delegates dialog sets click actions`() = runTest(testDispatcher) {
         val set = SetsUiModel(
             uuid = Uuid.random().toString(),
-            reps = PropertyHolder.IntProperty(initialValue = 10),
-            weight = PropertyHolder.DoubleProperty(initialValue = 50.0),
+            reps = PropertyHolder.IntProperty.new(initialValue = 10),
+            weight = PropertyHolder.DoubleProperty.new(initialValue = 50.0),
             type = SetUiType.WORK,
         )
         val openEditAction = Action.Click.DialogSets.OpenEdit(set)

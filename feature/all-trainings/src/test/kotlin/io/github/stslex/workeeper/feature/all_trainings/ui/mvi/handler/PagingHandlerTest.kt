@@ -62,7 +62,7 @@ internal class PagingHandlerTest {
                 name = dataModel.name,
                 labels = persistentListOf(),
                 exerciseUuids = persistentListOf(),
-                date = PropertyHolder.DateProperty(initialValue = dataModel.timestamp),
+                date = PropertyHolder.DateProperty.new(initialValue = dataModel.timestamp),
             )
         }
 
@@ -106,7 +106,7 @@ internal class PagingHandlerTest {
                 name = dataModel.name,
                 labels = persistentListOf(),
                 exerciseUuids = persistentListOf(),
-                date = PropertyHolder.DateProperty(initialValue = dataModel.timestamp),
+                date = PropertyHolder.DateProperty.new(initialValue = dataModel.timestamp),
             )
         }
 
@@ -158,7 +158,7 @@ internal class PagingHandlerTest {
                 name = dataModel.name,
                 labels = persistentListOf(),
                 exerciseUuids = persistentListOf(),
-                date = PropertyHolder.DateProperty(initialValue = dataModel.timestamp),
+                date = PropertyHolder.DateProperty.new(initialValue = dataModel.timestamp),
             )
         }
 
@@ -201,14 +201,14 @@ internal class PagingHandlerTest {
             name = "Morning Workout",
             labels = persistentListOf(),
             exerciseUuids = persistentListOf(),
-            date = PropertyHolder.DateProperty(initialValue = 1000L),
+            date = PropertyHolder.DateProperty.new(initialValue = 1000L),
         ),
         TrainingUiModel(
             uuid = "t2",
             name = "Evening Training",
             labels = persistentListOf(),
             exerciseUuids = persistentListOf(),
-            date = PropertyHolder.DateProperty(initialValue = 2000L),
+            date = PropertyHolder.DateProperty.new(initialValue = 2000L),
         ),
     )
 }

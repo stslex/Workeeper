@@ -21,8 +21,8 @@ internal class ClickHandlerTest {
     private val initialState = ChartsStore.State(
         name = "",
         charts = persistentListOf(),
-        startDate = PropertyHolder.DateProperty(initialValue = 1000000L),
-        endDate = PropertyHolder.DateProperty(initialValue = 2000000L),
+        startDate = PropertyHolder.DateProperty.new(initialValue = 1000000L),
+        endDate = PropertyHolder.DateProperty.new(initialValue = 2000000L),
         type = ChartsType.TRAINING,
         calendarState = CalendarState.Closed,
     )
@@ -106,8 +106,8 @@ internal class ClickHandlerTest {
     fun `calendar actions preserve state when transitioning between states`() {
         val testState = initialState.copy(
             name = "Test Exercise",
-            startDate = PropertyHolder.DateProperty(initialValue = 5000000L),
-            endDate = PropertyHolder.DateProperty(initialValue = 6000000L),
+            startDate = PropertyHolder.DateProperty.new(initialValue = 5000000L),
+            endDate = PropertyHolder.DateProperty.new(initialValue = 6000000L),
         )
         stateFlow.value = testState
 
@@ -170,8 +170,8 @@ internal class ClickHandlerTest {
         val testState = ChartsStore.State(
             name = "Preserved Exercise",
             charts = originalCharts,
-            startDate = PropertyHolder.DateProperty(initialValue = 1234567L),
-            endDate = PropertyHolder.DateProperty(initialValue = 7654321L),
+            startDate = PropertyHolder.DateProperty.new(initialValue = 1234567L),
+            endDate = PropertyHolder.DateProperty.new(initialValue = 7654321L),
             type = ChartsType.TRAINING,
             calendarState = CalendarState.Closed,
         )

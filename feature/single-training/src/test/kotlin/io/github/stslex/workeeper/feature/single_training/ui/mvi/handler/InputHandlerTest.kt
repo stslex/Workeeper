@@ -21,7 +21,7 @@ internal class InputHandlerTest {
         name = "Initial Training",
         exercises = persistentListOf(),
         labels = persistentListOf(),
-        date = PropertyHolder.DateProperty(initialValue = 1000000L),
+        date = PropertyHolder.DateProperty.new(initialValue = 1000000L),
     )
 
     private val initialState = TrainingStore.State(
