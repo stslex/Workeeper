@@ -16,10 +16,12 @@ object AppDimension {
 
     object Radius {
 
-        val small = 5.dp
-        val medium = 10.dp
-        val large = 15.dp
-        val largest = 20.dp
+        val smallest = 4.dp
+        val small = 8.dp
+        val medium = 16.dp
+        val big = 32.dp
+        val large = 64.dp
+        val largest = 128.dp
     }
 
     object Elevation {

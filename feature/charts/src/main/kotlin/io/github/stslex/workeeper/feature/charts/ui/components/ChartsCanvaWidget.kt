@@ -1,0 +1,174 @@
+package io.github.stslex.workeeper.feature.charts.ui.components
+
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.tooling.preview.Preview
+import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
+import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
+import io.github.stslex.workeeper.core.ui.kit.theme.toPx
+import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ExerciseChartPreviewParameterProvider
+import io.github.stslex.workeeper.feature.charts.ui.mvi.model.SingleChartUiModel
+import kotlinx.collections.immutable.ImmutableList
+
+@Composable
+internal fun ChartsCanvaWidget(
+    charts: ImmutableList<SingleChartUiModel>,
+    modifier: Modifier = Modifier,
+) {
+    val outlineColor = MaterialTheme.colorScheme.outline
+    val outlineThin = AppDimension.Border.medium.toPx
+    val outlineChartThin = AppDimension.Border.small.toPx
+    val radius = AppDimension.Radius.medium.toPx
+
+    val chartColor = MaterialTheme.colorScheme.onSurface.copy(
+        alpha = 0.7f,
+    )
+
+    Canvas(
+        modifier = modifier
+            .fillMaxSize(),
+    ) {
+        val path = createBackgroundPath(
+            strokeThin = outlineThin,
+            strokeColor = outlineColor,
+            radius = radius,
+        )
+
+        clipPath(path) {
+            charts.forEachIndexed { index, chart ->
+                val points = calculateChartPoints(chart)
+                val color = getRandomColor(index)
+                val path = createSmoothPathSimple(points)
+
+                drawPath(
+                    path = path,
+                    color = chartColor,
+                    style = Stroke(
+                        width = outlineChartThin,
+                    ),
+                )
+
+                val filledPath = Path().apply {
+                    addPath(path)
+                    lineTo(points.last().x, size.height)
+                    lineTo(points.first().x, size.height)
+                    close()
+                }
+
+                drawPath(
+                    path = filledPath,
+                    color = color.copy(alpha = 0.1f),
+                    style = androidx.compose.ui.graphics.drawscope.Fill,
+                )
+            }
+        }
+    }
+}
+
+private fun DrawScope.calculateChartPoints(
+    chart: SingleChartUiModel,
+): List<Offset> {
+    val chartSize = chart.properties.size
+    val chartWidth = size.width / (chartSize.dec().takeIf { it > 0 } ?: 1)
+    val maxProperty = chart.properties.maxOrNull() ?: 1f
+    val propertyK = size.height / maxProperty
+
+    return chart.properties.mapIndexed { propertyIndex, property ->
+        Offset(
+            x = chartWidth * propertyIndex,
+            y = size.height - property * propertyK,
+        )
+    }
+}
+
+private fun DrawScope.createBackgroundPath(
+    strokeThin: Float,
+    strokeColor: Color,
+    radius: Float,
+): Path = Path().apply {
+    addRoundRect(
+        roundRect = RoundRect(
+            left = 0f,
+            top = 0f,
+            right = size.width,
+            bottom = size.height,
+            cornerRadius = CornerRadius(radius, radius),
+        ),
+    )
+}.also { path ->
+    drawPath(
+        path = path,
+        color = strokeColor,
+        style = Stroke(
+            width = strokeThin,
+        ),
+    )
+}
+
+private fun createSmoothPathSimple(points: List<Offset>): Path {
+    val path = Path()
+
+    if (points.isEmpty()) return path
+
+    path.moveTo(points[0].x, points[0].y)
+
+    if (points.size < 3) {
+        points.forEach { path.lineTo(it.x, it.y) }
+        return path
+    }
+
+    for (i in 0 until points.size - 1) {
+        val currentPoint = points[i]
+        val nextPoint = points[i + 1]
+
+        val controlX = (currentPoint.x + nextPoint.x) / 2f
+        val controlY = (currentPoint.y + nextPoint.y) / 2f
+
+        path.quadraticTo(
+            x1 = currentPoint.x,
+            y1 = currentPoint.y,
+            x2 = controlX,
+            y2 = controlY,
+        )
+    }
+
+    path.lineTo(points.last().x, points.last().y)
+
+    return path
+}
+
+private fun getRandomColor(index: Int): Color = Color(
+    red = getRandomColorInt(index.inc(), 1),
+    green = getRandomColorInt(index.inc(), 2),
+    blue = getRandomColorInt(index.inc(), 3),
+)
+
+private fun getRandomColorInt(index: Int, colorIndex: Int): Int =
+    ((0..255).random() * index * colorIndex) % 255
+
+@Composable
+@Preview
+private fun ChartsCanvaWidgetPreview() {
+    AppTheme {
+        Box(
+            modifier = Modifier.background(MaterialTheme.colorScheme.background),
+        ) {
+            ChartsCanvaWidget(
+                charts = ExerciseChartPreviewParameterProvider().values.first(),
+            )
+        }
+    }
+}

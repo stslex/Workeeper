@@ -34,7 +34,7 @@ internal fun AppNavigationHost(
         val bottomBarModifier = Modifier
             .fillMaxSize()
             .padding(
-                bottom = BottomAppBarDefaults.windowInsets.getBottom(LocalDensity.current).dp + AppDimension.Padding.medium,
+                bottom = BottomAppBarDefaults.windowInsets.getBottom(LocalDensity.current).dp + AppDimension.Padding.large,
             )
             .systemBarsPadding()
             .background(MaterialTheme.colorScheme.background)

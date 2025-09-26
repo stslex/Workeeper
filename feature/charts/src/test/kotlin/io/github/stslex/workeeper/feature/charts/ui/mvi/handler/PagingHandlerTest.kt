@@ -113,7 +113,7 @@ internal class PagingHandlerTest {
         val domainData = listOf(
             SingleChartDomainModel(
                 name = "Push ups",
-                values = listOf(1.0, 2.0, 3.0),
+                values = listOf(1.0f, 2.0f, 3.0f),
             ),
         )
 
@@ -286,7 +286,7 @@ internal class PagingHandlerTest {
     @Test
     fun `chart results mapper errors are handled gracefully`() = runTest {
         val domainData = listOf(
-            SingleChartDomainModel(name = "Test", values = listOf(1.0, 2.0)),
+            SingleChartDomainModel(name = "Test", values = listOf(1.0f, 2.0f)),
         )
 
         every { commonStore.homeSelectedStartDate } returns flowOf(null)
@@ -349,7 +349,7 @@ internal class PagingHandlerTest {
         val largeDataSet = (1..10).map { index ->
             SingleChartDomainModel(
                 name = "Exercise_$index",
-                values = (1..5).map { it.toDouble() },
+                values = (1..5).map { it.toFloat() },
             )
         }
 
@@ -502,9 +502,9 @@ internal class PagingHandlerTest {
             SingleChartDomainModel(name = "", values = emptyList()),
             SingleChartDomainModel(
                 name = "   ",
-                values = listOf(Double.NaN, Double.POSITIVE_INFINITY),
+                values = listOf(Float.NaN, Float.POSITIVE_INFINITY),
             ),
-            SingleChartDomainModel(name = "Valid", values = listOf(-1.0, 0.0, 1.0)),
+            SingleChartDomainModel(name = "Valid", values = listOf(-1.0f, 0.0f, 1.0f)),
         )
 
         every { commonStore.homeSelectedStartDate } returns flowOf(1500000L)

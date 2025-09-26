@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.zIndex
 import io.github.stslex.workeeper.bottom_app_bar.WorkeeperBottomAppBar
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.host.AppNavigationHost
@@ -23,7 +24,9 @@ fun App() {
                 .background(MaterialTheme.colorScheme.background),
         ) {
             WorkeeperBottomAppBar(
-                modifier = Modifier.align(Alignment.BottomCenter),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .zIndex(1f),
                 selectedItem = navigatorHolder.bottomBarDestination,
             ) {
                 navigator.navTo(it.screen)
