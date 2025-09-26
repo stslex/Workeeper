@@ -1,5 +1,6 @@
 package io.github.stslex.workeeper.feature.all_exercises.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -32,6 +33,12 @@ fun NavGraphBuilder.allExercisesGraph(
                 when (event) {
                     is ExercisesStore.Event.HapticFeedback -> haptic.performHapticFeedback(event.type)
                 }
+            }
+
+            BackHandler(
+                enabled = processor.state.value.selectedItems.isNotEmpty(),
+            ) {
+                processor.consume(ExercisesStore.Action.Click.BackHandler)
             }
 
             val lazyListState = rememberLazyListState()

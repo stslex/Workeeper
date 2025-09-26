@@ -43,14 +43,14 @@ internal fun SingleTrainingItemWidget(
 ) {
     val containerColor by animateColorAsState(
         targetValue = if (isSelected) {
-            MaterialTheme.colorScheme.tertiaryContainer
+            MaterialTheme.colorScheme.primary
         } else {
             MaterialTheme.colorScheme.surface
         },
     )
     val contentColor by animateColorAsState(
         targetValue = if (isSelected) {
-            MaterialTheme.colorScheme.onTertiaryContainer
+            MaterialTheme.colorScheme.onPrimary
         } else {
             MaterialTheme.colorScheme.onSurface
         },
@@ -58,11 +58,11 @@ internal fun SingleTrainingItemWidget(
     OutlinedCard(
         modifier = modifier
             .fillMaxWidth()
-            .padding(AppDimension.Padding.medium)
             .combinedClickable(
                 onClick = onItemClick,
                 onLongClick = onItemLongClick,
-            ),
+            )
+            .padding(AppDimension.Padding.medium),
         colors = CardDefaults.elevatedCardColors(
             containerColor = containerColor,
             contentColor = contentColor,

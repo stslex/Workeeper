@@ -1,6 +1,7 @@
 package io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store
 
 import androidx.compose.runtime.Stable
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.paging.PagingData
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.core.ui.mvi.Store
@@ -50,6 +51,8 @@ internal interface TrainingStore : Store<State, Action, Event> {
             ) : Click
 
             data object ActionButton : Click
+
+            data object BackHandler : Click
         }
 
         sealed interface Navigation : Action {
@@ -62,6 +65,8 @@ internal interface TrainingStore : Store<State, Action, Event> {
 
     sealed interface Event : Store.Event {
 
-        data object Haptic : Event
+        data class Haptic(
+            val type: HapticFeedbackType,
+        ) : Event
     }
 }

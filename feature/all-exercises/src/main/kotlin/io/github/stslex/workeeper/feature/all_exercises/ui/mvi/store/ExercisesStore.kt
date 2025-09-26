@@ -51,6 +51,8 @@ internal interface ExercisesStore : Store<State, Action, Event> {
             data class Item(val uuid: String) : Click
 
             data class LonkClick(val uuid: String) : Click
+
+            data object BackHandler : Click
         }
 
         sealed interface Navigation : Action {
