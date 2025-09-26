@@ -7,8 +7,8 @@ androidTools = "31.13.0"
 minSdk = "28"
 targetSdk = "36"
 compileSdk = "36"
-versionName = "1.19"
-versionCode = "20"
+versionName = "1.21"
+versionCode = "22"
 
 ktx = "1.17.0"
 material = "1.13.0"
@@ -158,7 +158,7 @@ koin-compose = { module = "io.insert-koin:koin-compose", version.ref = "koin" }
 koin-annotations = { group = "io.insert-koin", name = "koin-annotations", version.ref = "koinKsp" }
 
 koin-test-core = { module = "io.insert-koin:koin-test", version.ref = "koin" }
-koin-test-junit = { module = "io.insert-koin:koin-test-junit4", version.ref = "koin" }
+koin-test-junit = { module = "io.insert-koin:koin-test-junit5", version.ref = "koin" }
 
 koin-ksp = { group = "io.insert-koin", name = "koin-ksp-compiler", version.ref = "koinKsp" }
 
@@ -169,7 +169,6 @@ google-firebase-bom = { group = "com.google.firebase", name = "firebase-bom", ve
 google-firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics" }
 google-firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashlytics" }
 
-composeCharts = { module = "io.github.ehsannarmani:compose-charts", version.ref = "composeCharts" }
 androidx-junit-ktx = { group = "androidx.test.ext", name = "junit-ktx", version.ref = "junitKtx" }
 
 detekt-gradle = { module = "io.gitlab.arturbosch.detekt:detekt-gradle-plugin", version.ref = "detekt" }

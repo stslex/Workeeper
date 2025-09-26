@@ -23,4 +23,10 @@ object NumUiUtils {
     } else {
         value
     }
+
+    infix fun Double.safeDiv(divisor: Int): Double = if (divisor == 0) {
+        0.0
+    } else {
+        this / divisor
+    }
 }

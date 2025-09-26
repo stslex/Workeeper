@@ -2,12 +2,12 @@ package io.github.stslex.workeeper.feature.charts.domain.interactor
 
 import io.github.stslex.workeeper.core.core.coroutine.asyncMap
 import io.github.stslex.workeeper.core.core.coroutine.dispatcher.DefaultDispatcher
+import io.github.stslex.workeeper.core.core.utils.NumUiUtils.safeDiv
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
 import io.github.stslex.workeeper.feature.charts.di.CHARTS_SCOPE_NAME
 import io.github.stslex.workeeper.feature.charts.domain.model.ChartParams
 import io.github.stslex.workeeper.feature.charts.domain.model.ChartsDomainType
-import io.github.stslex.workeeper.feature.charts.domain.model.ChartsExerciseDomainMapper
 import io.github.stslex.workeeper.feature.charts.domain.model.SingleChartDomainModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -19,7 +19,6 @@ import org.koin.core.annotation.Scoped
 internal class ChartsInteractorImpl(
     private val trainingRepository: TrainingRepository,
     private val exerciseRepository: ExerciseRepository,
-    private val chartsExerciseDomainMapper: ChartsExerciseDomainMapper,
     @param:DefaultDispatcher private val dispatcher: CoroutineDispatcher,
 ) : ChartsInteractor {
 
@@ -34,18 +33,19 @@ internal class ChartsInteractorImpl(
                         startDate = params.startDate,
                         endDate = params.endDate,
                     )
-                    .asyncMap { training ->
+                    .groupBy { it.name }
+                    .map { (name, trainings) ->
                         SingleChartDomainModel(
-                            name = training.name,
-                            values = exerciseRepository
-                                .getExercisesByUuid(training.exerciseUuids)
-                                .map {
-                                    val size = it.sets.size
-                                    if (size > 0) {
-                                        it.sets.sumOf { set -> set.weight } / it.sets.size
-                                    } else {
-                                        0.0
-                                    }
+                            name = name,
+                            values = trainings
+                                .asyncMap { training ->
+                                    exerciseRepository
+                                        .getExercisesByUuid(training.exerciseUuids)
+                                        .map { exercise ->
+                                            exercise.sets.maxOfOrNull { it.weight } ?: 0.0
+                                        }
+                                        .let { exercise -> exercise.sumOf { it } safeDiv exercise.size }
+                                        .toFloat()
                                 },
                         )
                     }
@@ -57,7 +57,16 @@ internal class ChartsInteractorImpl(
                         startDate = params.startDate,
                         endDate = params.endDate,
                     )
-                    .asyncMap(chartsExerciseDomainMapper::invoke)
+                    .groupBy { it.name }
+                    .map { (name, exercises) ->
+                        SingleChartDomainModel(
+                            name = name,
+                            values = exercises
+                                .map { exercise ->
+                                    exercise.sets.maxOfOrNull { it.weight }?.toFloat() ?: 0f
+                                },
+                        )
+                    }
         }
     }
 }

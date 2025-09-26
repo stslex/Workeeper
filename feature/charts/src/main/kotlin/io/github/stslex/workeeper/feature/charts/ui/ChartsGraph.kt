@@ -1,9 +1,7 @@
 package io.github.stslex.workeeper.feature.charts.ui
 
-import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -23,39 +21,21 @@ fun NavGraphBuilder.chartsGraph(
     modifier: Modifier = Modifier,
 ) {
     navScreen<Screen.BottomBar.Charts> {
-        ChartsScreen(
-            modifier = modifier,
-            sharedTransitionScope = sharedTransitionScope,
-            component = remember(navigator) { ChartsComponent.create(navigator) },
-            animatedContentScope = this,
-        )
-    }
-}
-
-@OptIn(ExperimentalSharedTransitionApi::class)
-@Composable
-private fun ChartsScreen(
-    component: ChartsComponent,
-    sharedTransitionScope: SharedTransitionScope,
-    animatedContentScope: AnimatedContentScope,
-    modifier: Modifier = Modifier,
-) {
-    NavComponentScreen(ChartsFeature, component) { processor ->
-
-        val haptic = LocalHapticFeedback.current
-
-        processor.Handle { event ->
-            when (event) {
-                is ChartsStore.Event.HapticFeedback -> haptic.performHapticFeedback(event.type)
+        val component = remember(navigator) { ChartsComponent.create(navigator) }
+        NavComponentScreen(ChartsFeature, component) { processor ->
+            val haptic = LocalHapticFeedback.current
+            processor.Handle { event ->
+                when (event) {
+                    is ChartsStore.Event.HapticFeedback -> haptic.performHapticFeedback(event.type)
+                }
             }
+            AllChartsMainWidget(
+                modifier = modifier,
+                state = processor.state.value,
+                consume = processor::consume,
+                sharedTransitionScope = sharedTransitionScope,
+                animatedContentScope = this,
+            )
         }
-
-        AllChartsMainWidget(
-            modifier = modifier,
-            state = processor.state.value,
-            consume = processor::consume,
-            sharedTransitionScope = sharedTransitionScope,
-            animatedContentScope = animatedContentScope,
-        )
     }
 }
