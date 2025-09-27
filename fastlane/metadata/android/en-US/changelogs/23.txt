@@ -1,0 +1,5 @@
+- ✨ introduce chart data types and refactor chart domain models
+- ✨ implement back handler to clear selected items and add haptic feedback
+- ♻️ implement asyncMap extension function for better concurrency handling
+- ♻️ improve code formatting and consistency across multiple files
+- ♻️ enhance chart data handling and introduce new chart models
