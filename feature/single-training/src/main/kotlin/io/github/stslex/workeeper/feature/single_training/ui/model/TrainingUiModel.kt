@@ -2,7 +2,6 @@ package io.github.stslex.workeeper.feature.single_training.ui.model
 
 import androidx.compose.runtime.Stable
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
-import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder.Companion.update
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 
@@ -22,7 +21,7 @@ internal data class TrainingUiModel(
             name = "",
             labels = persistentListOf(),
             exercises = persistentListOf(),
-            date = PropertyHolder.DateProperty().update(System.currentTimeMillis()),
+            date = PropertyHolder.DateProperty.now(),
         )
     }
 }

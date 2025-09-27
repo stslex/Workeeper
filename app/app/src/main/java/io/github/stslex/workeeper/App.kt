@@ -1,3 +1,4 @@
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,14 +24,19 @@ fun App() {
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background),
         ) {
-            WorkeeperBottomAppBar(
+            AnimatedVisibility(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .zIndex(1f),
-                selectedItem = navigatorHolder.bottomBarDestination,
+                visible = navigatorHolder.bottomBarDestination.value != null,
             ) {
-                navigator.navTo(it.screen)
+                WorkeeperBottomAppBar(
+                    selectedItem = navigatorHolder.bottomBarDestination,
+                ) {
+                    navigator.navTo(it.screen)
+                }
             }
+
             AppNavigationHost(
                 modifier = Modifier,
                 navigator = navigator,

@@ -1,5 +1,6 @@
 package io.github.stslex.workeeper.feature.all_trainings.ui.mvi.handler
 
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.paging.PagingData
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScope
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
@@ -24,6 +25,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlin.uuid.Uuid
 
 internal class ClickHandlerTest {
@@ -76,6 +78,7 @@ internal class ClickHandlerTest {
                 ),
             )
         }
+        verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.Confirm)) }
     }
 
     @Test
@@ -96,6 +99,7 @@ internal class ClickHandlerTest {
         handler.invoke(TrainingStore.Action.Click.TrainingItemClick(newUuid))
 
         verify(exactly = 1) { store.updateState(any()) }
+        verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.Confirm)) }
         assertEquals(2, stateFlow.value.selectedItems.size)
     }
 
@@ -117,6 +121,7 @@ internal class ClickHandlerTest {
         handler.invoke(TrainingStore.Action.Click.TrainingItemClick(uuid1))
 
         verify(exactly = 1) { store.updateState(any()) }
+        verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.Confirm)) }
         assertEquals(1, stateFlow.value.selectedItems.size)
         assertEquals(setOf(uuid2), stateFlow.value.selectedItems)
     }
@@ -128,6 +133,7 @@ internal class ClickHandlerTest {
         handler.invoke(TrainingStore.Action.Click.TrainingItemLongClick(uuid))
 
         verify(exactly = 1) { store.updateState(any()) }
+        verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.Confirm)) }
     }
 
     @Test
@@ -140,6 +146,7 @@ internal class ClickHandlerTest {
         handler.invoke(TrainingStore.Action.Click.TrainingItemLongClick(uuid))
 
         verify(exactly = 1) { store.updateState(any()) }
+        verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.Confirm)) }
     }
 
     @Test
@@ -149,6 +156,7 @@ internal class ClickHandlerTest {
         handler.invoke(TrainingStore.Action.Click.ActionButton)
 
         verify(exactly = 1) { store.consume(TrainingStore.Action.Navigation.CreateTraining) }
+        verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.Confirm)) }
         coVerify(exactly = 0) { interactor.deleteAll(any()) }
     }
 
@@ -167,6 +175,37 @@ internal class ClickHandlerTest {
         testScheduler.advanceUntilIdle()
 
         coVerify(exactly = 1) { interactor.deleteAll(any()) }
+        verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.Confirm)) }
         verify(exactly = 0) { store.consume(TrainingStore.Action.Navigation.CreateTraining) }
+    }
+
+    @Test
+    fun `back handler clears selection when items are selected`() = runTest {
+        val uuid1 = Uuid.random().toString()
+        val uuid2 = Uuid.random().toString()
+        stateFlow.value = stateFlow.value.copy(
+            selectedItems = setOf(uuid1, uuid2).toImmutableSet(),
+        )
+
+        handler.invoke(TrainingStore.Action.Click.BackHandler)
+
+        verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.Confirm)) }
+
+        val stateSlot = slot<(TrainingStore.State) -> TrainingStore.State>()
+        verify(exactly = 1) { store.updateState(capture(stateSlot)) }
+
+        val newState = stateSlot.captured(stateFlow.value)
+        assertTrue(newState.selectedItems.isEmpty())
+        assertEquals(persistentSetOf<String>(), newState.selectedItems)
+    }
+
+    @Test
+    fun `back handler does nothing when no items are selected`() = runTest {
+        stateFlow.value = stateFlow.value.copy(selectedItems = persistentSetOf())
+
+        handler.invoke(TrainingStore.Action.Click.BackHandler)
+
+        verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.Confirm)) }
+        verify(exactly = 0) { store.updateState(any()) }
     }
 }

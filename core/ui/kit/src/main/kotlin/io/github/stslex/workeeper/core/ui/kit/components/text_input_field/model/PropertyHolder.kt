@@ -13,6 +13,7 @@ sealed class PropertyHolder<T : Any>(
 ) {
     private var valueState: MutableState<T> = mutableStateOf(initialValue ?: defaultValue)
     private val isValidState: MutableState<Boolean> = mutableStateOf(validate(valueState.value))
+    private val isErrorState: MutableState<Boolean> = mutableStateOf(false)
 
     var value: T
         get() = valueState.value
@@ -23,7 +24,13 @@ sealed class PropertyHolder<T : Any>(
             }
         }
 
-    val isValid: Boolean get() = isValidState.value
+    val isValid: Boolean
+        get() {
+            isErrorState.value = !isValidState.value
+            return isValidState.value
+        }
+
+    val isError: Boolean get() = isErrorState.value
 
     val uiValue: String get() = toStringMap(value)
 
@@ -41,7 +48,7 @@ sealed class PropertyHolder<T : Any>(
     )
 
     @Stable
-    data class IntProperty(
+    class IntProperty private constructor(
         val initialValue: Int? = null,
         val defaultValue: Int = 0,
         val validate: (Int) -> Boolean = { it >= 0 },
@@ -49,10 +56,39 @@ sealed class PropertyHolder<T : Any>(
         initialValue = initialValue,
         defaultValue = defaultValue,
         validate = validate,
-    )
+    ) {
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is IntProperty) return false
+            return initialValue == other.initialValue &&
+                defaultValue == other.defaultValue &&
+                value == other.value
+        }
+
+        override fun hashCode(): Int {
+            var result = initialValue?.hashCode() ?: 0
+            result = 31 * result + defaultValue.hashCode()
+            result = 31 * result + value.hashCode()
+            return result
+        }
+
+        companion object {
+
+            fun new(
+                initialValue: Int? = null,
+                defaultValue: Int = 0,
+                validate: (Int) -> Boolean = { it >= 0 },
+            ): IntProperty = IntProperty(
+                initialValue = initialValue,
+                defaultValue = defaultValue,
+                validate = validate,
+            )
+        }
+    }
 
     @Stable
-    data class DoubleProperty(
+    class DoubleProperty private constructor(
         val initialValue: Double? = null,
         val defaultValue: Double = 0.0,
         val validate: (Double) -> Boolean = { it >= 0.0 },
@@ -60,10 +96,39 @@ sealed class PropertyHolder<T : Any>(
         initialValue = initialValue,
         defaultValue = defaultValue,
         validate = validate,
-    )
+    ) {
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is DoubleProperty) return false
+            return initialValue == other.initialValue &&
+                defaultValue == other.defaultValue &&
+                value == other.value
+        }
+
+        override fun hashCode(): Int {
+            var result = initialValue?.hashCode() ?: 0
+            result = 31 * result + defaultValue.hashCode()
+            result = 31 * result + value.hashCode()
+            return result
+        }
+
+        companion object {
+
+            fun new(
+                initialValue: Double? = null,
+                validate: (Double) -> Boolean = { it >= 0.0 },
+                defaultValue: Double = 0.0,
+            ): DoubleProperty = DoubleProperty(
+                initialValue = initialValue,
+                defaultValue = defaultValue,
+                validate = validate,
+            )
+        }
+    }
 
     @Stable
-    data class LongProperty(
+    class LongProperty private constructor(
         val initialValue: Long? = null,
         val defaultValue: Long = 0L,
         val validate: (Long) -> Boolean = { it >= 0L },
@@ -71,10 +136,39 @@ sealed class PropertyHolder<T : Any>(
         initialValue = initialValue,
         defaultValue = defaultValue,
         validate = validate,
-    )
+    ) {
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is LongProperty) return false
+            return initialValue == other.initialValue &&
+                defaultValue == other.defaultValue &&
+                value == other.value
+        }
+
+        override fun hashCode(): Int {
+            var result = initialValue?.hashCode() ?: 0
+            result = 31 * result + defaultValue.hashCode()
+            result = 31 * result + value.hashCode()
+            return result
+        }
+
+        companion object {
+
+            fun new(
+                initialValue: Long? = null,
+                validate: (Long) -> Boolean = { it >= 0L },
+                defaultValue: Long = 0L,
+            ): LongProperty = LongProperty(
+                initialValue = initialValue,
+                defaultValue = defaultValue,
+                validate = validate,
+            )
+        }
+    }
 
     @Stable
-    data class DateProperty(
+    class DateProperty private constructor(
         val initialValue: Long? = null,
         val defaultValue: Long = 0L,
         val validate: (Long) -> Boolean = { it >= 0L },
@@ -86,6 +180,39 @@ sealed class PropertyHolder<T : Any>(
 
         override val toStringMap: (Long?) -> String = { timestamp ->
             timestamp?.let { DateTimeUtil.formatMillis(it) }.orEmpty()
+        }
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is DateProperty) return false
+            return initialValue == other.initialValue &&
+                defaultValue == other.defaultValue &&
+                value == other.value
+        }
+
+        override fun hashCode(): Int {
+            var result = initialValue?.hashCode() ?: 0
+            result = 31 * result + defaultValue.hashCode()
+            result = 31 * result + value.hashCode()
+            return result
+        }
+
+        companion object {
+
+            fun now(): DateProperty = DateProperty(
+                initialValue = System.currentTimeMillis(),
+                defaultValue = System.currentTimeMillis(),
+            )
+
+            fun new(
+                initialValue: Long? = null,
+                validate: (Long) -> Boolean = { it >= 0L },
+                defaultValue: Long = 0L,
+            ): DateProperty = DateProperty(
+                initialValue = initialValue,
+                defaultValue = defaultValue,
+                validate = validate,
+            )
         }
     }
 

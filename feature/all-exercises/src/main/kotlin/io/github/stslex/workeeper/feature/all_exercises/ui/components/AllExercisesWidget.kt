@@ -113,7 +113,7 @@ private fun AllTabsWidgetPreview() {
             ExerciseUiModel(
                 uuid = Uuid.random().toString(),
                 name = "nameOfExercise$index",
-                dateProperty = PropertyHolder.DateProperty(System.currentTimeMillis()),
+                dateProperty = PropertyHolder.DateProperty.now(),
             )
         }.toList()
         val itemsPaging = {

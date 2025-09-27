@@ -46,7 +46,7 @@ internal class ClickHandlerTest {
         uuid = "test-uuid",
         name = PropertyHolder.StringProperty(initialValue = "Test Exercise"),
         sets = persistentListOf(),
-        dateProperty = PropertyHolder.DateProperty(initialValue = 1000000L),
+        dateProperty = PropertyHolder.DateProperty.new(initialValue = 1000000L),
         dialogState = DialogState.Closed,
         isMenuOpen = false,
         menuItems = persistentSetOf(),
@@ -98,8 +98,8 @@ internal class ClickHandlerTest {
         val validName = PropertyHolder.StringProperty(initialValue = "Valid Exercise")
         val validSet = SetsUiModel(
             uuid = "set-uuid",
-            reps = PropertyHolder.IntProperty(initialValue = 10),
-            weight = PropertyHolder.DoubleProperty(initialValue = 50.0),
+            reps = PropertyHolder.IntProperty.new(initialValue = 10),
+            weight = PropertyHolder.DoubleProperty.new(initialValue = 50.0),
             type = SetUiType.WORK,
         )
         stateFlow.value = stateFlow.value.copy(
@@ -241,8 +241,8 @@ internal class ClickHandlerTest {
     fun `dialog sets open edit action opens sets dialog with provided set`() {
         val existingSet = SetsUiModel(
             uuid = "existing-set",
-            reps = PropertyHolder.IntProperty(),
-            weight = PropertyHolder.DoubleProperty(),
+            reps = PropertyHolder.IntProperty.new(),
+            weight = PropertyHolder.DoubleProperty.new(),
             type = SetUiType.WORK,
         )
 
@@ -259,8 +259,8 @@ internal class ClickHandlerTest {
     fun `dialog sets save button adds new set to list`() {
         val newSet = SetsUiModel(
             uuid = "new-set",
-            reps = PropertyHolder.IntProperty(initialValue = 12),
-            weight = PropertyHolder.DoubleProperty(initialValue = 60.0),
+            reps = PropertyHolder.IntProperty.new(initialValue = 12),
+            weight = PropertyHolder.DoubleProperty.new(initialValue = 60.0),
             type = SetUiType.WORK,
         )
 
@@ -277,12 +277,12 @@ internal class ClickHandlerTest {
     fun `dialog sets save button updates existing set in list`() {
         val existingSet = SetsUiModel(
             uuid = "existing-set",
-            reps = PropertyHolder.IntProperty(initialValue = 10),
-            weight = PropertyHolder.DoubleProperty(initialValue = 50.0),
+            reps = PropertyHolder.IntProperty.new(initialValue = 10),
+            weight = PropertyHolder.DoubleProperty.new(initialValue = 50.0),
             type = SetUiType.WORK,
         )
         val updatedSet = existingSet.copy(
-            reps = PropertyHolder.IntProperty(initialValue = 15),
+            reps = PropertyHolder.IntProperty.new(initialValue = 15),
         )
         stateFlow.value = stateFlow.value.copy(sets = listOf(existingSet).toImmutableList())
 
@@ -299,14 +299,14 @@ internal class ClickHandlerTest {
     fun `dialog sets delete button removes set from list`() {
         val setToDelete = SetsUiModel(
             uuid = "delete-me",
-            reps = PropertyHolder.IntProperty(),
-            weight = PropertyHolder.DoubleProperty(),
+            reps = PropertyHolder.IntProperty.new(),
+            weight = PropertyHolder.DoubleProperty.new(),
             type = SetUiType.WORK,
         )
         val setToKeep = SetsUiModel(
             uuid = "keep-me",
-            reps = PropertyHolder.IntProperty(),
-            weight = PropertyHolder.DoubleProperty(),
+            reps = PropertyHolder.IntProperty.new(),
+            weight = PropertyHolder.DoubleProperty.new(),
             type = SetUiType.WORK,
         )
         stateFlow.value = stateFlow.value.copy(

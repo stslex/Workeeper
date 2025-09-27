@@ -1,9 +1,11 @@
 package io.github.stslex.workeeper.feature.all_trainings.ui.mvi.handler
 
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.all_trainings.di.TRAINING_SCOPE_NAME
 import io.github.stslex.workeeper.feature.all_trainings.di.TrainingHandlerStore
 import io.github.stslex.workeeper.feature.all_trainings.domain.AllTrainingsInteractor
+import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store.TrainingStore
 import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store.TrainingStore.Action
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableSet
@@ -19,10 +21,18 @@ internal class ClickHandler(
 ) : Handler<Action.Click>, TrainingHandlerStore by store {
 
     override fun invoke(action: Action.Click) {
+        sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.Confirm))
         when (action) {
             is Action.Click.TrainingItemClick -> processTrainingItemClick(action)
             is Action.Click.TrainingItemLongClick -> processTrainingItemLongClick(action)
             Action.Click.ActionButton -> processActionButtonClick()
+            Action.Click.BackHandler -> processBackHandler()
+        }
+    }
+
+    private fun processBackHandler() {
+        if (state.value.selectedItems.isNotEmpty()) {
+            updateState { it.copy(selectedItems = persistentSetOf()) }
         }
     }
 

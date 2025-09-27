@@ -3,7 +3,6 @@ package io.github.stslex.workeeper.feature.exercise.ui.mvi.model
 import androidx.compose.runtime.Stable
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
-import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder.Companion.update
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SetUiType.Companion.toUi
 import kotlin.uuid.Uuid
 
@@ -19,8 +18,8 @@ data class SetsUiModel(
 
         internal val EMPTY = SetsUiModel(
             uuid = Uuid.random().toString(),
-            reps = PropertyHolder.IntProperty(),
-            weight = PropertyHolder.DoubleProperty(),
+            reps = PropertyHolder.IntProperty.new(),
+            weight = PropertyHolder.DoubleProperty.new(),
             type = SetUiType.WORK,
         )
     }
@@ -28,8 +27,8 @@ data class SetsUiModel(
 
 internal fun SetsDataModel.toUi() = SetsUiModel(
     uuid = uuid,
-    reps = PropertyHolder.IntProperty().update(reps),
-    weight = PropertyHolder.DoubleProperty().update(weight),
+    reps = PropertyHolder.IntProperty.new(reps),
+    weight = PropertyHolder.DoubleProperty.new(weight),
     type = type.toUi(),
 )
 

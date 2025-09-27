@@ -249,9 +249,9 @@ internal class ChartsStoreImplTest {
     @Test
     fun `state data classes have proper immutable structure`() = runTest {
         val state = ChartsStore.State.INITIAL
-        val startDate = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis())
+        val startDate = PropertyHolder.DateProperty.new(initialValue = System.currentTimeMillis())
         val endDate =
-            PropertyHolder.DateProperty(initialValue = System.currentTimeMillis() + 86400000)
+            PropertyHolder.DateProperty.new(initialValue = System.currentTimeMillis() + 86400000)
 
         // Verify state is data class with copy functionality
         val newState = state.copy(

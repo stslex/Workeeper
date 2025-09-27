@@ -28,10 +28,10 @@ internal interface ChartsStore : Store<State, Action, Event> {
             val INITIAL = State(
                 name = "",
                 charts = persistentListOf(),
-                startDate = PropertyHolder.DateProperty(
+                startDate = PropertyHolder.DateProperty.new(
                     initialValue = System.currentTimeMillis() - (7L * 24 * 60 * 60 * 1000),
                 ), // 7 days default
-                endDate = PropertyHolder.DateProperty(System.currentTimeMillis()),
+                endDate = PropertyHolder.DateProperty.new(System.currentTimeMillis()),
                 type = ChartsType.TRAINING,
                 calendarState = CalendarState.Closed,
             )

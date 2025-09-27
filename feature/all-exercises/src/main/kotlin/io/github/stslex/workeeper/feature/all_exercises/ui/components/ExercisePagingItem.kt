@@ -71,7 +71,7 @@ private fun ExercisePagingItemPreview() {
         val item = ExerciseUiModel(
             uuid = Uuid.random().toString(),
             name = "nameOfExercise",
-            dateProperty = PropertyHolder.DateProperty(),
+            dateProperty = PropertyHolder.DateProperty.now(),
         )
         ExercisePagingItem(
             item = item,

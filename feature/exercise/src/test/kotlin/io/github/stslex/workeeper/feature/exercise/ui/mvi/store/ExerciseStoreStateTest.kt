@@ -21,7 +21,7 @@ internal class ExerciseStoreStateTest {
         assertEquals(null, state.uuid)
         assertEquals(PropertyHolder.StringProperty(), state.name)
         assertEquals(persistentListOf(), state.sets)
-        assertEquals(PropertyHolder.DateProperty(), state.dateProperty)
+        assertEquals(PropertyHolder.DateProperty.new(), state.dateProperty)
         assertEquals(DialogState.Closed, state.dialogState)
         assertEquals(false, state.isMenuOpen)
         assertEquals(persistentSetOf(), state.menuItems)
@@ -42,14 +42,14 @@ internal class ExerciseStoreStateTest {
     fun `calculateEqualsHash changes when relevant fields change`() {
         val set1 = SetsUiModel(
             uuid = Uuid.random().toString(),
-            reps = PropertyHolder.IntProperty(initialValue = 10),
-            weight = PropertyHolder.DoubleProperty(initialValue = 50.5),
+            reps = PropertyHolder.IntProperty.new(initialValue = 10),
+            weight = PropertyHolder.DoubleProperty.new(initialValue = 50.5),
             type = SetUiType.WORK,
         )
         val set2 = SetsUiModel(
             uuid = Uuid.random().toString(),
-            reps = PropertyHolder.IntProperty(initialValue = 12),
-            weight = PropertyHolder.DoubleProperty(initialValue = 45.0),
+            reps = PropertyHolder.IntProperty.new(initialValue = 12),
+            weight = PropertyHolder.DoubleProperty.new(initialValue = 45.0),
             type = SetUiType.WARM,
         )
 
@@ -57,7 +57,7 @@ internal class ExerciseStoreStateTest {
             uuid = "test-uuid",
             name = PropertyHolder.StringProperty(initialValue = "Test Exercise"),
             sets = persistentListOf(set1, set2),
-            dateProperty = PropertyHolder.DateProperty(initialValue = 1234567890L),
+            dateProperty = PropertyHolder.DateProperty.new(initialValue = 1234567890L),
             dialogState = DialogState.Closed,
             isMenuOpen = false,
             menuItems = persistentSetOf(),
@@ -80,17 +80,17 @@ internal class ExerciseStoreStateTest {
         // date affects hash (by converted string)
         assertNotEquals(
             baseHash,
-            base.copy(dateProperty = PropertyHolder.DateProperty(initialValue = 1L)).calculateEqualsHash,
+            base.copy(dateProperty = PropertyHolder.DateProperty.new(initialValue = 1L)).calculateEqualsHash,
         )
 
         // sets content affects hash
-        val changedReps = set1.copy(reps = PropertyHolder.IntProperty(initialValue = 11))
+        val changedReps = set1.copy(reps = PropertyHolder.IntProperty.new(initialValue = 11))
         assertNotEquals(
             baseHash,
             base.copy(sets = persistentListOf(changedReps, set2)).calculateEqualsHash,
         )
 
-        val changedWeight = set2.copy(weight = PropertyHolder.DoubleProperty(initialValue = 46.0))
+        val changedWeight = set2.copy(weight = PropertyHolder.DoubleProperty.new(initialValue = 46.0))
         assertNotEquals(
             baseHash,
             base.copy(sets = persistentListOf(set1, changedWeight)).calculateEqualsHash,
@@ -126,8 +126,8 @@ internal class ExerciseStoreStateTest {
             sets = persistentListOf(
                 SetsUiModel(
                     uuid = Uuid.random().toString(),
-                    reps = PropertyHolder.IntProperty(),
-                    weight = PropertyHolder.DoubleProperty(),
+                    reps = PropertyHolder.IntProperty.new(),
+                    weight = PropertyHolder.DoubleProperty.new(),
                     type = SetUiType.WORK,
                 ),
             ),
@@ -159,8 +159,8 @@ internal class ExerciseStoreStateTest {
             sets = persistentListOf(
                 SetsUiModel(
                     uuid = Uuid.random().toString(),
-                    reps = PropertyHolder.IntProperty(initialValue = 10),
-                    weight = PropertyHolder.DoubleProperty(),
+                    reps = PropertyHolder.IntProperty.new(initialValue = 10),
+                    weight = PropertyHolder.DoubleProperty.new(),
                     type = SetUiType.WORK,
                 ),
             ),
@@ -179,8 +179,8 @@ internal class ExerciseStoreStateTest {
             sets = persistentListOf(
                 SetsUiModel(
                     uuid = Uuid.random().toString(),
-                    reps = PropertyHolder.IntProperty(initialValue = 10),
-                    weight = PropertyHolder.DoubleProperty(initialValue = 50.0),
+                    reps = PropertyHolder.IntProperty.new(initialValue = 10),
+                    weight = PropertyHolder.DoubleProperty.new(initialValue = 50.0),
                     type = SetUiType.WORK,
                 ),
             ),
@@ -244,14 +244,14 @@ internal class ExerciseStoreStateTest {
     fun `calculateEqualsHash unchanged when sets order changes`() {
         val set1 = SetsUiModel(
             uuid = "uuid1",
-            reps = PropertyHolder.IntProperty(initialValue = 10),
-            weight = PropertyHolder.DoubleProperty(initialValue = 50.0),
+            reps = PropertyHolder.IntProperty.new(initialValue = 10),
+            weight = PropertyHolder.DoubleProperty.new(initialValue = 50.0),
             type = SetUiType.WORK,
         )
         val set2 = SetsUiModel(
             uuid = "uuid2",
-            reps = PropertyHolder.IntProperty(initialValue = 12),
-            weight = PropertyHolder.DoubleProperty(initialValue = 45.0),
+            reps = PropertyHolder.IntProperty.new(initialValue = 12),
+            weight = PropertyHolder.DoubleProperty.new(initialValue = 45.0),
             type = SetUiType.WARM,
         )
 
@@ -271,8 +271,8 @@ internal class ExerciseStoreStateTest {
     fun `DialogState Sets holds provided set`() {
         val set = SetsUiModel(
             uuid = "set-uuid",
-            reps = PropertyHolder.IntProperty(initialValue = 10),
-            weight = PropertyHolder.DoubleProperty(initialValue = 50.0),
+            reps = PropertyHolder.IntProperty.new(initialValue = 10),
+            weight = PropertyHolder.DoubleProperty.new(initialValue = 50.0),
             type = SetUiType.WORK,
         )
 
@@ -292,8 +292,8 @@ internal class ExerciseStoreStateTest {
             sets = persistentListOf(
                 SetsUiModel(
                     uuid = Uuid.random().toString(),
-                    reps = PropertyHolder.IntProperty(), // Empty for spaces test
-                    weight = PropertyHolder.DoubleProperty(), // Empty for spaces test
+                    reps = PropertyHolder.IntProperty.new(), // Empty for spaces test
+                    weight = PropertyHolder.DoubleProperty.new(), // Empty for spaces test
                     type = SetUiType.WORK,
                 ),
             ),
@@ -309,7 +309,7 @@ internal class ExerciseStoreStateTest {
         val base = ExerciseStore.State.INITIAL.copy(
             uuid = "u",
             name = PropertyHolder.StringProperty(initialValue = "N"),
-            dateProperty = PropertyHolder.DateProperty(initialValue = 1L),
+            dateProperty = PropertyHolder.DateProperty.new(initialValue = 1L),
         )
 
         val hash = base.calculateEqualsHash
@@ -329,7 +329,7 @@ internal class ExerciseStoreStateTest {
         val initial = ExerciseStore.State.INITIAL.copy(
             uuid = "id",
             name = PropertyHolder.StringProperty(initialValue = "X"),
-            dateProperty = PropertyHolder.DateProperty(initialValue = 1L),
+            dateProperty = PropertyHolder.DateProperty.new(initialValue = 1L),
         )
         val withHash = initial.copy(initialHash = initial.calculateEqualsHash)
 

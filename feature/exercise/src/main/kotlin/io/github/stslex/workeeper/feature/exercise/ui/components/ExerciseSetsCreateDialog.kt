@@ -82,7 +82,8 @@ internal fun ExerciseSetsCreateDialog(
             }
             Spacer(modifier = Modifier.padding(AppDimension.Padding.medium))
             AnimatedVisibility(
-                setsUiModel.reps.isValid || setsUiModel.weight.isValid,
+                setsUiModel.reps.isError.not() &&
+                    setsUiModel.weight.isError.not(),
             ) {
                 FilledTonalButton(
                     modifier = Modifier.fillMaxWidth(),

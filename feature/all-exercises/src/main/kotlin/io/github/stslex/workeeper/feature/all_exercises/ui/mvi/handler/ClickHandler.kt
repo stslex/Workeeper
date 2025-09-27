@@ -25,8 +25,15 @@ internal class ClickHandler(
     override fun invoke(action: Action.Click) {
         when (action) {
             Action.Click.FloatButtonClick -> processClickFloatingButton()
+            Action.Click.BackHandler -> processBackHandler()
             is Action.Click.Item -> processClickItem(action)
             is Action.Click.LonkClick -> processLongClick(action)
+        }
+    }
+
+    private fun processBackHandler() {
+        if (state.value.selectedItems.isNotEmpty()) {
+            updateState { it.copy(selectedItems = persistentSetOf()) }
         }
     }
 

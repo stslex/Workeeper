@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -37,6 +39,21 @@ internal fun ChartsCanvaWidget(
         alpha = 0.7f,
     )
 
+    val chartsMapped = remember(charts) {
+        charts.mapIndexed { index, item ->
+            SingleChartCanvasModel(
+                name = item.name,
+                color = getRandomColor(index),
+                properties = item.properties.map { property ->
+                    SingleChartCanvasProperty(
+                        xValue = property.timeX,
+                        yValue = property.valueY,
+                    )
+                },
+            )
+        }
+    }
+
     Canvas(
         modifier = modifier
             .fillMaxSize(),
@@ -48,9 +65,8 @@ internal fun ChartsCanvaWidget(
         )
 
         clipPath(path) {
-            charts.forEachIndexed { index, chart ->
+            chartsMapped.forEachIndexed { index, chart ->
                 val points = calculateChartPoints(chart)
-                val color = getRandomColor(index)
                 val path = createSmoothPathSimple(points)
 
                 drawPath(
@@ -70,7 +86,7 @@ internal fun ChartsCanvaWidget(
 
                 drawPath(
                     path = filledPath,
-                    color = color.copy(alpha = 0.1f),
+                    color = chart.color.copy(alpha = 0.1f),
                     style = androidx.compose.ui.graphics.drawscope.Fill,
                 )
             }
@@ -79,20 +95,41 @@ internal fun ChartsCanvaWidget(
 }
 
 private fun DrawScope.calculateChartPoints(
-    chart: SingleChartUiModel,
+    chart: SingleChartCanvasModel,
 ): List<Offset> {
-    val chartSize = chart.properties.size
-    val chartWidth = size.width / (chartSize.dec().takeIf { it > 0 } ?: 1)
-    val maxProperty = chart.properties.maxOrNull() ?: 1f
+    val maxProperty = chart.properties.maxOfOrNull { it.yValue ?: 0f } ?: 1f
     val propertyK = size.height / maxProperty
 
+    val itemsSize = chart.properties.size
     return chart.properties.mapIndexed { propertyIndex, property ->
+        val yValue = if (
+            property.yValue == null &&
+            (propertyIndex == 0 || propertyIndex == itemsSize.dec())
+        ) {
+            0f
+        } else {
+            property.yValue?.let { yValue ->
+                size.height - yValue * propertyK
+            } ?: Float.NaN
+        }
         Offset(
-            x = chartWidth * propertyIndex,
-            y = size.height - property * propertyK,
+            x = size.width * property.xValue,
+            y = yValue,
         )
     }
 }
+
+@Stable
+private data class SingleChartCanvasModel(
+    val name: String,
+    val color: Color,
+    val properties: List<SingleChartCanvasProperty>,
+)
+
+private data class SingleChartCanvasProperty(
+    val xValue: Float,
+    val yValue: Float?,
+)
 
 private fun DrawScope.createBackgroundPath(
     strokeThin: Float,
@@ -126,13 +163,22 @@ private fun createSmoothPathSimple(points: List<Offset>): Path {
     path.moveTo(points[0].x, points[0].y)
 
     if (points.size < 3) {
-        points.forEach { path.lineTo(it.x, it.y) }
+        points.forEach {
+            path.lineTo(it.x, it.y)
+        }
         return path
     }
 
-    for (i in 0 until points.size - 1) {
-        val currentPoint = points[i]
-        val nextPoint = points[i + 1]
+    val filteredPoints = points.filter { it.isValid() }
+
+    for (i in 0 until filteredPoints.size - 1) {
+        val currentPoint = filteredPoints[i]
+
+        if (currentPoint.y.isNaN()) {
+            continue
+        }
+
+        val nextPoint = filteredPoints[i + 1]
 
         val controlX = (currentPoint.x + nextPoint.x) / 2f
         val controlY = (currentPoint.y + nextPoint.y) / 2f

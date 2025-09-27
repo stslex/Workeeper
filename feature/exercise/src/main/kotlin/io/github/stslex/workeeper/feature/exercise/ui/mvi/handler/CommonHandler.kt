@@ -55,7 +55,7 @@ internal class CommonHandler(
     }
 
     private fun getEmptyState(trainingUuid: String?): State = INITIAL.copy(
-        dateProperty = PropertyHolder.DateProperty(),
+        dateProperty = PropertyHolder.DateProperty.now(),
         trainingUuid = trainingUuid,
     ).let {
         it.copy(

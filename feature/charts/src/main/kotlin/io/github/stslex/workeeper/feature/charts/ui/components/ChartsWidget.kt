@@ -68,15 +68,11 @@ private fun ChartsWidgetPreview(
         Box(
             modifier = Modifier.background(MaterialTheme.colorScheme.background),
         ) {
-            val singleDay = 24 * 60 * 60 * 1000
-            val startDate = System.currentTimeMillis() - (7L * singleDay)
-            val endDate = System.currentTimeMillis() // 7 days default
-
             val name = "Test Exercise"
             val chartsState = State(
                 name = name,
-                startDate = PropertyHolder.DateProperty(startDate),
-                endDate = PropertyHolder.DateProperty(endDate),
+                startDate = PropertyHolder.DateProperty.now(),
+                endDate = PropertyHolder.DateProperty.now(),
                 charts = charts,
                 type = ChartsType.TRAINING,
                 calendarState = CalendarState.Closed,

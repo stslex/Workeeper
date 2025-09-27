@@ -53,7 +53,7 @@ interface ExerciseStore : Store<State, Action, Event> {
                     uuid = null,
                     name = PropertyHolder.StringProperty(),
                     sets = persistentListOf(),
-                    dateProperty = PropertyHolder.DateProperty(),
+                    dateProperty = PropertyHolder.DateProperty.new(),
                     dialogState = DialogState.Closed,
                     isMenuOpen = false,
                     menuItems = persistentSetOf(),

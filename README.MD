@@ -12,6 +12,10 @@
 
 ## 📱 Download Now
 
+Currently, the app is available only
+via [GitHub Releases](https://github.com/stslex/Workeeper/releases)and Google Play Console beta. A
+public release on the Play Store is coming soon!
+
 <p align="center">
   <a href="https://play.google.com/store/apps/details?id=io.github.stslex.workeeper">
     <img src="https://img.shields.io/badge/Google_Play-414141?style=for-the-badge&logo=google-play&logoColor=white" alt="Get it on Google Play" height="60"/>

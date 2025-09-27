@@ -20,7 +20,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
-import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder.Companion.update
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.exercise.R
@@ -116,8 +115,8 @@ private fun ExerciseSetsFieldPreview() {
             ExerciseSetsField(
                 property = SetsUiModel(
                     uuid = "uuid",
-                    reps = PropertyHolder.IntProperty().update(10),
-                    weight = PropertyHolder.DoubleProperty().update(14.50),
+                    reps = PropertyHolder.IntProperty.new(10),
+                    weight = PropertyHolder.DoubleProperty.new(14.50),
                     type = SetUiType.WARM,
                 ),
                 onClick = {},

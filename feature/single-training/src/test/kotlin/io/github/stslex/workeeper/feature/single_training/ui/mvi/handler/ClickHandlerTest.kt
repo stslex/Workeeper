@@ -43,7 +43,7 @@ internal class ClickHandlerTest {
         name = "Test Training",
         exercises = persistentListOf(),
         labels = persistentListOf(),
-        date = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
+        date = PropertyHolder.DateProperty.new(initialValue = System.currentTimeMillis()),
     )
 
     private val initialState = TrainingStore.State(

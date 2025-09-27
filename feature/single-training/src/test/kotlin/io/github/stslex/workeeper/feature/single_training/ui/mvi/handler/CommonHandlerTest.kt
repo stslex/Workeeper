@@ -36,7 +36,7 @@ internal class CommonHandlerTest {
             name = "",
             exercises = persistentListOf(),
             labels = persistentListOf(),
-            date = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
+            date = PropertyHolder.DateProperty.new(initialValue = System.currentTimeMillis()),
         ),
         dialogState = DialogState.Closed,
         pendingForCreateUuid = "",
@@ -67,7 +67,7 @@ internal class CommonHandlerTest {
             name = "Test Training",
             exercises = persistentListOf(),
             labels = persistentListOf(),
-            date = PropertyHolder.DateProperty(initialValue = System.currentTimeMillis()),
+            date = PropertyHolder.DateProperty.new(initialValue = System.currentTimeMillis()),
         )
 
         coEvery { interactor.getTraining(trainingUuid) } returns domainModel

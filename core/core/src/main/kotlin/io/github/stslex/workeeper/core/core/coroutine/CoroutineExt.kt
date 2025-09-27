@@ -15,3 +15,9 @@ suspend fun <T, R> Collection<T>.asyncMap(
 ): List<R> = coroutineScope {
     map { item -> async { transform(item) } }
 }.awaitAll()
+
+suspend fun <K, V, R> Map<K, V>.asyncMap(
+    transform: suspend (Map.Entry<K, V>) -> R,
+): List<R> = coroutineScope {
+    this@asyncMap.map { entry -> async { transform(entry) } }
+}.awaitAll()

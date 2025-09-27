@@ -21,7 +21,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.DateInputField
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
-import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder.Companion.update
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.TitleTextInputField
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
@@ -110,7 +109,7 @@ private fun ExercisedColumnPreview() {
         var state by remember {
             mutableStateOf(
                 State.INITIAL.copy(
-                    dateProperty = PropertyHolder.DateProperty().update(System.currentTimeMillis()),
+                    dateProperty = PropertyHolder.DateProperty.now(),
                 ),
             )
         }

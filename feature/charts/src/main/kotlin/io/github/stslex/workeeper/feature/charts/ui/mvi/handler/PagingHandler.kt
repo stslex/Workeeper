@@ -43,12 +43,12 @@ internal class PagingHandler(
         scope.launch(
             commonStore.homeSelectedStartDate.filterNotNull(),
         ) { timestamp ->
-            updateStateImmediate { it.copy(startDate = PropertyHolder.DateProperty(timestamp)) }
+            updateStateImmediate { it.copy(startDate = PropertyHolder.DateProperty.new(timestamp)) }
         }
         scope.launch(
             commonStore.homeSelectedEndDate.filterNotNull(),
         ) { timestamp ->
-            updateStateImmediate { it.copy(endDate = PropertyHolder.DateProperty(timestamp)) }
+            updateStateImmediate { it.copy(endDate = PropertyHolder.DateProperty.new(timestamp)) }
         }
     }
 
@@ -59,14 +59,16 @@ internal class PagingHandler(
                 .distinctUntilChanged()
                 .map { params -> interactor.getChartsData(params) },
         ) { items ->
-            logger.d { "Charts items: ${items.size}" }
+            logger.d { "Charts items: $items" }
+
+            val mappedItems = items
+                .asyncMap(chartResultsMapper::invoke)
+                .toImmutableList()
+
+            logger.d { "mapped chart items: $mappedItems" }
 
             updateStateImmediate {
-                it.copy(
-                    charts = items
-                        .asyncMap(chartResultsMapper::invoke)
-                        .toImmutableList(),
-                )
+                it.copy(charts = mappedItems)
             }
         }
     }
