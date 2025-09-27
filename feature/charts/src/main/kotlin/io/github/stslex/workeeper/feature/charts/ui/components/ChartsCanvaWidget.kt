@@ -97,13 +97,24 @@ internal fun ChartsCanvaWidget(
 private fun DrawScope.calculateChartPoints(
     chart: SingleChartCanvasModel,
 ): List<Offset> {
-    val maxProperty = chart.properties.maxOfOrNull { it.yValue } ?: 1f
+    val maxProperty = chart.properties.maxOfOrNull { it.yValue ?: 0f } ?: 1f
     val propertyK = size.height / maxProperty
 
+    val itemsSize = chart.properties.size
     return chart.properties.mapIndexed { propertyIndex, property ->
+        val yValue = if (
+            property.yValue == null &&
+            (propertyIndex == 0 || propertyIndex == itemsSize.dec())
+        ) {
+            0f
+        } else {
+            property.yValue?.let { yValue ->
+                size.height - yValue * propertyK
+            } ?: Float.NaN
+        }
         Offset(
             x = size.width * property.xValue,
-            y = size.height - property.yValue * propertyK,
+            y = yValue,
         )
     }
 }
@@ -117,7 +128,7 @@ private data class SingleChartCanvasModel(
 
 private data class SingleChartCanvasProperty(
     val xValue: Float,
-    val yValue: Float,
+    val yValue: Float?,
 )
 
 private fun DrawScope.createBackgroundPath(
@@ -152,13 +163,22 @@ private fun createSmoothPathSimple(points: List<Offset>): Path {
     path.moveTo(points[0].x, points[0].y)
 
     if (points.size < 3) {
-        points.forEach { path.lineTo(it.x, it.y) }
+        points.forEach {
+            path.lineTo(it.x, it.y)
+        }
         return path
     }
 
-    for (i in 0 until points.size - 1) {
-        val currentPoint = points[i]
-        val nextPoint = points[i + 1]
+    val filteredPoints = points.filter { it.isValid() }
+
+    for (i in 0 until filteredPoints.size - 1) {
+        val currentPoint = filteredPoints[i]
+
+        if (currentPoint.y.isNaN()) {
+            continue
+        }
+
+        val nextPoint = filteredPoints[i + 1]
 
         val controlX = (currentPoint.x + nextPoint.x) / 2f
         val controlY = (currentPoint.y + nextPoint.y) / 2f

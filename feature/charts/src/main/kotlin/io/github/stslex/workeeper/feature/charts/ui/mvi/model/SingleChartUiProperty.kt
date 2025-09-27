@@ -5,5 +5,5 @@ import androidx.compose.runtime.Stable
 @Stable
 internal data class SingleChartUiProperty(
     val timeX: Float,
-    val valueY: Float,
+    val valueY: Float?,
 )

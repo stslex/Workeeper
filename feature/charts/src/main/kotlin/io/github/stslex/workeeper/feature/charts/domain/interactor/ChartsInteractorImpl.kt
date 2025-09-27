@@ -1,14 +1,12 @@
 package io.github.stslex.workeeper.feature.charts.domain.interactor
 
-import io.github.stslex.workeeper.core.core.coroutine.asyncMap
 import io.github.stslex.workeeper.core.core.coroutine.dispatcher.DefaultDispatcher
-import io.github.stslex.workeeper.core.core.utils.NumUiUtils.safeDiv
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
 import io.github.stslex.workeeper.feature.charts.di.CHARTS_SCOPE_NAME
+import io.github.stslex.workeeper.feature.charts.domain.calculator.ChartDomainCalculator
 import io.github.stslex.workeeper.feature.charts.domain.model.ChartParams
 import io.github.stslex.workeeper.feature.charts.domain.model.ChartsDomainType
-import io.github.stslex.workeeper.feature.charts.domain.model.SingleChartDomainItem
 import io.github.stslex.workeeper.feature.charts.domain.model.SingleChartDomainModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -20,61 +18,55 @@ import org.koin.core.annotation.Scoped
 internal class ChartsInteractorImpl(
     private val trainingRepository: TrainingRepository,
     private val exerciseRepository: ExerciseRepository,
+    private val chartsCalculator: ChartDomainCalculator,
     @param:DefaultDispatcher private val dispatcher: CoroutineDispatcher,
 ) : ChartsInteractor {
 
     override suspend fun getChartsData(
         params: ChartParams,
-    ): List<SingleChartDomainModel> = withContext(dispatcher) {
-        when (params.type) {
-            ChartsDomainType.TRAINING ->
-                trainingRepository
-                    .getTrainings(
-                        query = params.name,
-                        startDate = params.startDate,
-                        endDate = params.endDate,
-                    )
-                    .groupBy { it.name }
-                    .asyncMap { (name, trainings) ->
-                        SingleChartDomainModel(
-                            name = name,
-                            values = trainings
-                                .asyncMap { training ->
-                                    SingleChartDomainItem(
-                                        timestamp = training.timestamp,
-                                        value = exerciseRepository
-                                            .getExercisesByUuid(training.exerciseUuids)
-                                            .map { exercise ->
-                                                exercise.sets.maxOfOrNull { it.weight } ?: 0.0
-                                            }
-                                            .let { exercise -> exercise.sumOf { it } safeDiv exercise.size }
-                                            .toFloat(),
-                                    )
-                                },
-                        )
-                    }
-
-            ChartsDomainType.EXERCISE ->
-                exerciseRepository
-                    .getExercises(
-                        name = params.name,
-                        startDate = params.startDate,
-                        endDate = params.endDate,
-                    )
-                    .groupBy { it.name }
-                    .map { (name, exercises) ->
-                        SingleChartDomainModel(
-                            name = name,
-                            values = exercises
-                                .map { exercise ->
-                                    SingleChartDomainItem(
-                                        timestamp = exercise.timestamp,
-                                        value = exercise.sets.maxOfOrNull { it.weight }?.toFloat()
-                                            ?: 0f,
-                                    )
-                                },
-                        )
-                    }
+    ): List<SingleChartDomainModel> {
+        chartsCalculator.init(
+            startTimestamp = params.startDate,
+            endTimestamp = params.endDate,
+        )
+        return withContext(dispatcher) {
+            when (params.type) {
+                ChartsDomainType.TRAINING -> getTrainingCharts(params)
+                ChartsDomainType.EXERCISE -> getExerciseCharts(params)
+            }
         }
     }
+
+    private suspend fun getTrainingCharts(
+        params: ChartParams,
+    ): List<SingleChartDomainModel> = trainingRepository
+        .getTrainings(
+            query = params.name,
+            startDate = params.startDate,
+            endDate = params.endDate,
+        )
+        .let {
+            chartsCalculator.mapTrainings(
+                startTimestamp = params.startDate,
+                endTimestamp = params.endDate,
+                trainings = it,
+                getExercises = { uuids -> exerciseRepository.getExercisesByUuid(uuids) },
+            )
+        }
+
+    private suspend fun getExerciseCharts(
+        params: ChartParams,
+    ): List<SingleChartDomainModel> = exerciseRepository
+        .getExercises(
+            name = params.name,
+            startDate = params.startDate,
+            endDate = params.endDate,
+        )
+        .let {
+            chartsCalculator.mapExercises(
+                startTimestamp = params.startDate,
+                endTimestamp = params.endDate,
+                exercises = it,
+            )
+        }
 }
