@@ -1,6 +1,7 @@
 package io.github.stslex.workeeper.feature.all_exercises.ui.components
 
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
@@ -19,6 +20,7 @@ internal fun SearchWidget(
     TextField(
         modifier = modifier
             .fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
         value = query,
         onValueChange = onQueryChange,
         singleLine = true,

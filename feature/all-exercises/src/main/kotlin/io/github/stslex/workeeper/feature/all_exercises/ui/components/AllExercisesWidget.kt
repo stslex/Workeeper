@@ -5,16 +5,23 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.shape.CornerSize
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -23,7 +30,9 @@ import androidx.paging.PagingData
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
+import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
+import io.github.stslex.workeeper.core.ui.kit.utils.createListShapeWithPadding
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore.Action
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore.State
@@ -48,13 +57,29 @@ internal fun AllExercisesWidget(
     ) {
         SearchWidget(
             modifier = Modifier
-                .padding(16.dp),
+                .padding(AppDimension.Padding.big),
             query = state.query,
             onQueryChange = { consume(Action.Input.SearchQuery(it)) },
         )
-        Box {
+        Spacer(Modifier.height(AppDimension.Padding.big))
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    shape = RoundedCornerShape(
+                        topStart = MaterialTheme.shapes.large.topStart,
+                        topEnd = MaterialTheme.shapes.large.topEnd,
+                        bottomEnd = CornerSize(0.dp),
+                        bottomStart = CornerSize(0.dp),
+                    )
+                )
+                .padding(AppDimension.Padding.big)
+        ) {
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(MaterialTheme.shapes.medium),
                 state = lazyState,
             ) {
                 items(
@@ -74,6 +99,15 @@ internal fun AllExercisesWidget(
                                             ContentScale.Inside,
                                             Alignment.Center,
                                         ),
+                                    )
+                                    .then(
+                                        Modifier
+                                            .createListShapeWithPadding(
+                                                shape = MaterialTheme.shapes.medium,
+                                                itemsPadding = AppDimension.Padding.small,
+                                                index = index,
+                                                itemsCount = items.itemCount,
+                                            )
                                     ),
                                 item = item,
                                 isSelected = remember(state.selectedItems) {
@@ -109,7 +143,7 @@ internal fun AllExercisesWidget(
 @Preview
 private fun AllTabsWidgetPreview() {
     AppTheme {
-        val items = Array(10) { index ->
+        val items = Array(5) { index ->
             ExerciseUiModel(
                 uuid = Uuid.random().toString(),
                 name = "nameOfExercise$index",

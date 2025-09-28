@@ -37,7 +37,7 @@ internal fun ChartsTypePickerWidget(
 
     Row(
         modifier = modifier
-            .height(AppDimension.Button.largeHeight),
+            .height(AppDimension.Button.large),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         ChartsType.entries.forEach { chartsType ->
@@ -88,7 +88,7 @@ internal fun ChartsTypeItem(
     ElevatedCard(
         modifier = modifier
             .padding(horizontal = AppDimension.Padding.medium)
-            .height(AppDimension.Button.largeHeight),
+            .height(AppDimension.Button.large),
         onClick = onClick,
         colors = CardDefaults.elevatedCardColors(
             containerColor = backgroundColor,

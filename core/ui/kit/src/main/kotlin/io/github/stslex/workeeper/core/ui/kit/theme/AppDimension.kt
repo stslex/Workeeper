@@ -47,13 +47,9 @@ object AppDimension {
 
     object Button {
 
-        val smallHeight = 12.dp
-        val mediumHeight = 32.dp
-        val bigHeight = 40.dp
-        val largeHeight = 48.dp
-
-        val smallWidth = 100.dp
-        val mediumWidth = 120.dp
-        val largeWidth = 240.dp
+        val small = 12.dp
+        val medium = 36.dp
+        val big = 42.dp
+        val large = 48.dp
     }
 }

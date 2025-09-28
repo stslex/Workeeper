@@ -38,7 +38,7 @@ internal class ClickHandler(
     }
 
     private fun processLongClick(action: Action.Click.LonkClick) {
-        sendEvent(Event.HapticFeedback(HapticFeedbackType.LongPress))
+        sendEvent(Event.HapticFeedback(HapticFeedbackType.VirtualKey))
         val currentItems = state.value.selectedItems.toMutableSet()
         logger.v {
             "Current selected items: ${currentItems.joinToString(",") { it }}"
