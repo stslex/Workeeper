@@ -13,7 +13,7 @@ fun Modifier.createListShapeWithPadding(
     shape: CornerBasedShape,
     itemsPadding: Dp,
     index: Int,
-    itemsCount: Int
+    itemsCount: Int,
 ): Modifier = this
     .clip(
         shape = when {
@@ -33,12 +33,12 @@ fun Modifier.createListShapeWithPadding(
             )
 
             else -> RoundedCornerShape(0.dp)
-        }
+        },
     )
     .padding(
         bottom = if (index == itemsCount.dec()) {
             0.dp
         } else {
             itemsPadding
-        }
+        },
     )

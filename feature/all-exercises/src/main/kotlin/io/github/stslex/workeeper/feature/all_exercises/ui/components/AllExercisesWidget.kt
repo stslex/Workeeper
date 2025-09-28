@@ -72,9 +72,9 @@ internal fun AllExercisesWidget(
                         topEnd = MaterialTheme.shapes.large.topEnd,
                         bottomEnd = CornerSize(0.dp),
                         bottomStart = CornerSize(0.dp),
-                    )
+                    ),
                 )
-                .padding(AppDimension.Padding.big)
+                .padding(AppDimension.Padding.big),
         ) {
             LazyColumn(
                 modifier = Modifier
@@ -107,7 +107,7 @@ internal fun AllExercisesWidget(
                                                 itemsPadding = AppDimension.Padding.small,
                                                 index = index,
                                                 itemsCount = items.itemCount,
-                                            )
+                                            ),
                                     ),
                                 item = item,
                                 isSelected = remember(state.selectedItems) {

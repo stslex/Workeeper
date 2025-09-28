@@ -35,7 +35,7 @@ internal fun ExercisePagingItem(
         } else {
             MaterialTheme.colorScheme.surfaceVariant
         },
-        animationSpec = tween(durationMillis = 600)
+        animationSpec = tween(durationMillis = 600),
     )
     val contentColor = animateColorAsState(
         if (isSelected) {
@@ -43,7 +43,7 @@ internal fun ExercisePagingItem(
         } else {
             MaterialTheme.colorScheme.onSurfaceVariant
         },
-        animationSpec = tween(durationMillis = 600)
+        animationSpec = tween(durationMillis = 600),
     )
     Column(
         modifier = modifier
@@ -59,12 +59,12 @@ internal fun ExercisePagingItem(
         Text(
             text = item.name,
             style = MaterialTheme.typography.titleLarge,
-            color = contentColor.value
+            color = contentColor.value,
         )
         Text(
             text = item.dateProperty.uiValue,
             style = MaterialTheme.typography.labelSmall,
-            color = contentColor.value
+            color = contentColor.value,
         )
     }
 }

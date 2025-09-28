@@ -24,7 +24,7 @@ internal fun HomeActionButton(
         contentIcon = Icons.Outlined.Create,
         contentDescription = stringResource(R.string.feature_all_action_btn_description_create),
         selectedContentIcon = Icons.Outlined.Delete,
-        selectedContentDescription = stringResource(R.string.feature_all_action_btn_description_delete)
+        selectedContentDescription = stringResource(R.string.feature_all_action_btn_description_delete),
     )
 }
 

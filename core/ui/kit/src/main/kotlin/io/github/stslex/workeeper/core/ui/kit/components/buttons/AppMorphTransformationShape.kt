@@ -22,7 +22,7 @@ class AppMorphTransformationShape(
     override fun createOutline(
         size: Size,
         layoutDirection: LayoutDirection,
-        density: Density
+        density: Density,
     ): Outline {
         matrix.scale(size.width / 2f, size.height / 2f)
         matrix.translate(1f, 1f)

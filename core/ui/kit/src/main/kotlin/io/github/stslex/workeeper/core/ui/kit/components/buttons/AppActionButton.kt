@@ -48,8 +48,8 @@ fun AppActionButton(
         RoundedPolygon.rectangle(
             rounding = CornerRounding(
                 radius = 0.35f,
-                smoothing = 1f // Maximum smoothing for smooth edges
-            )
+                smoothing = 1f, // Maximum smoothing for smooth edges
+            ),
         )
     }
 
@@ -58,11 +58,10 @@ fun AppActionButton(
             6,
             rounding = CornerRounding(
                 radius = 0.35f,
-                smoothing = 1f
-            )
+                smoothing = 1f,
+            ),
         )
     }
-
 
     val morph = remember {
         Morph(shapeA, shapeB)
@@ -71,7 +70,7 @@ fun AppActionButton(
     val animatedProgress = animateFloatAsState(
         targetValue = if (selectedMode) 1f else 0f,
         label = "progress",
-        animationSpec = tween(durationMillis = 600)
+        animationSpec = tween(durationMillis = 600),
     )
 
     val containerColor by animateColorAsState(
@@ -80,7 +79,7 @@ fun AppActionButton(
         } else {
             MaterialTheme.colorScheme.primary
         },
-        label = "Container color animation"
+        label = "Container color animation",
     )
 
     val contentColor by animateColorAsState(
@@ -89,7 +88,7 @@ fun AppActionButton(
         } else {
             MaterialTheme.colorScheme.onPrimary
         },
-        label = "Container color animation"
+        label = "Container color animation",
     )
 
     Box(
@@ -102,10 +101,10 @@ fun AppActionButton(
                 onClick = onClick,
             )
             .size(ButtonDefaults.LargeContainerHeight),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         AnimatedContent(
-            targetState = selectedMode
+            targetState = selectedMode,
         ) { isSelecting ->
             Icon(
                 modifier = Modifier.size(ButtonDefaults.MediumIconSize),
@@ -125,7 +124,6 @@ fun AppActionButton(
     }
 }
 
-
 @Preview(device = "spec:width=1080px,height=2340px,dpi=440")
 @Composable
 private fun AppActionButtonPreviewUnSelected() {
@@ -133,13 +131,13 @@ private fun AppActionButtonPreviewUnSelected() {
         Box(
             modifier = Modifier
                 .wrapContentSize()
-                .padding(AppDimension.Padding.large)
+                .padding(AppDimension.Padding.large),
         ) {
             AppActionButton(
                 contentIcon = Icons.Default.Add,
                 selectedContentIcon = Icons.Default.Delete,
                 selectedMode = false,
-                onClick = {}
+                onClick = {},
             )
         }
     }
@@ -152,13 +150,13 @@ private fun AppActionButtonPreviewSelected() {
         Box(
             modifier = Modifier
                 .wrapContentSize()
-                .padding(AppDimension.Padding.large)
+                .padding(AppDimension.Padding.large),
         ) {
             AppActionButton(
                 contentIcon = Icons.Default.Add,
                 selectedContentIcon = Icons.Default.Delete,
                 selectedMode = true,
-                onClick = {}
+                onClick = {},
             )
         }
     }
