@@ -155,6 +155,7 @@ private fun DrawScope.createBackgroundPath(
     )
 }
 
+@Suppress("MagicNumber")
 private fun createSmoothPathSimple(points: List<Offset>): Path {
     val path = Path()
 

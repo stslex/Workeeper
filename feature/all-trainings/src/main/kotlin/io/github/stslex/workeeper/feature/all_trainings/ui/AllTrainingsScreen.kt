@@ -4,6 +4,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -11,11 +14,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.paging.PagingData
 import androidx.paging.compose.collectAsLazyPagingItems
+import io.github.stslex.workeeper.core.ui.kit.components.buttons.AppActionButton
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.SingleTrainingItemWidget
-import io.github.stslex.workeeper.feature.all_trainings.ui.components.TrainingFloatingActionButton
 import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.model.TrainingUiModel
 import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store.TrainingStore.Action
 import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store.TrainingStore.State
@@ -49,14 +52,16 @@ internal fun AllTrainingsScreen(
                 }
             }
         }
-        TrainingFloatingActionButton(
+
+        AppActionButton(
+            onClick = { consume(Action.Click.ActionButton) },
+            contentIcon = Icons.Default.Add,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(AppDimension.Padding.big),
-            isDeletingMode = state.selectedItems.isNotEmpty(),
-        ) {
-            consume(Action.Click.ActionButton)
-        }
+            selectedMode = state.selectedItems.isNotEmpty(),
+            selectedContentIcon = Icons.Default.Delete,
+        )
     }
 }
 

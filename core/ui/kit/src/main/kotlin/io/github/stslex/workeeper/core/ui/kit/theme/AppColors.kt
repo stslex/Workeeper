@@ -2,6 +2,7 @@ package io.github.stslex.workeeper.core.ui.kit.theme
 
 import androidx.compose.ui.graphics.Color
 
+@Suppress("MagicNumber", "unused")
 object AppColors {
 
     val dark = Color(0xFF000000)

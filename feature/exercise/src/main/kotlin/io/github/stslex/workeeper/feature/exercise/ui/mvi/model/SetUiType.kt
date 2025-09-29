@@ -5,6 +5,7 @@ import androidx.compose.ui.graphics.Color
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
 import io.github.stslex.workeeper.feature.exercise.R
 
+@Suppress("MagicNumber")
 enum class SetUiType(
     @param:StringRes val stringRes: Int,
     val color: Color,
