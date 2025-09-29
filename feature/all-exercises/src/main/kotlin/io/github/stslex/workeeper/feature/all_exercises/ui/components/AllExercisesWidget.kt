@@ -19,20 +19,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.paging.LoadState
 import androidx.paging.PagingData
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
+import io.github.stslex.workeeper.core.ui.kit.components.search.SearchPagingWidget
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
+import io.github.stslex.workeeper.core.ui.kit.model.ItemPosition
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
-import io.github.stslex.workeeper.core.ui.kit.utils.createListShapeWithPadding
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore.Action
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore.State
@@ -55,7 +54,7 @@ internal fun AllExercisesWidget(
         modifier = modifier
             .fillMaxSize(),
     ) {
-        SearchWidget(
+        SearchPagingWidget(
             modifier = Modifier
                 .padding(AppDimension.Padding.big),
             query = state.query,
@@ -87,40 +86,21 @@ internal fun AllExercisesWidget(
                     key = items.itemKey { it.uuid },
                 ) { index ->
                     items[index]?.let { item ->
-                        with(sharedTransitionScope) {
-                            ExercisePagingItem(
-                                modifier = Modifier
-                                    .sharedBounds(
-                                        sharedContentState = sharedTransitionScope.rememberSharedContentState(
-                                            item.uuid,
-                                        ),
-                                        animatedVisibilityScope = animatedContentScope,
-                                        resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(
-                                            ContentScale.Inside,
-                                            Alignment.Center,
-                                        ),
-                                    )
-                                    .then(
-                                        Modifier
-                                            .createListShapeWithPadding(
-                                                shape = MaterialTheme.shapes.medium,
-                                                itemsPadding = AppDimension.Padding.small,
-                                                index = index,
-                                                itemsCount = items.itemCount,
-                                            ),
-                                    ),
-                                item = item,
-                                isSelected = remember(state.selectedItems) {
-                                    state.selectedItems.contains(item.uuid)
-                                },
-                                onClick = {
-                                    consume(Action.Click.Item(item.uuid))
-                                },
-                                onLongClick = {
-                                    consume(Action.Click.LonkClick(item.uuid))
-                                },
-                            )
-                        }
+                        ExercisePagingItem(
+                            item = item,
+                            isSelected = remember(state.selectedItems) {
+                                state.selectedItems.contains(item.uuid)
+                            },
+                            onClick = {
+                                consume(Action.Click.Item(item.uuid))
+                            },
+                            itemPosition = ItemPosition.getItemPosition(index, items.itemCount),
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedContentScope = animatedContentScope,
+                            onLongClick = {
+                                consume(Action.Click.LonkClick(item.uuid))
+                            },
+                        )
                     }
                 }
             }
@@ -157,6 +137,7 @@ private fun AllTabsWidgetPreview() {
             items = itemsPaging,
             selectedItems = persistentSetOf(),
             query = "",
+            isKeyboardVisible = false,
         )
         AnimatedContent("") {
             SharedTransitionScope {

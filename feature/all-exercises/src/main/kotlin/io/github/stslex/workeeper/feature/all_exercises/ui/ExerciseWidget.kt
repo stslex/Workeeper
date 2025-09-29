@@ -93,6 +93,7 @@ private fun ExerciseWidgetPreview() {
             items = itemsPaging,
             selectedItems = persistentSetOf(),
             query = "",
+            isKeyboardVisible = false,
         )
 
         AnimatedContent("") {

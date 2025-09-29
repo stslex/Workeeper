@@ -42,6 +42,7 @@ internal class PagingHandlerTest {
         pagingUiState = handler.pagingUiState,
         query = initialQuery,
         selectedItems = persistentSetOf(),
+        isKeyboardVisible = false,
     )
     private val stateFlow = MutableStateFlow(initialState)
 

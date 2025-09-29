@@ -7,6 +7,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.navigation.NavGraphBuilder
+import io.github.stslex.workeeper.core.ui.kit.utils.OnKeyboardVisible
 import io.github.stslex.workeeper.core.ui.mvi.NavComponentScreen
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen
@@ -36,14 +37,23 @@ fun NavGraphBuilder.allTrainingsGraph(
             }
 
             BackHandler(
-                enabled = processor.state.value.selectedItems.isNotEmpty(),
+                enabled = (
+                    processor.state.value.selectedItems.isNotEmpty() ||
+                        processor.state.value.query.isNotEmpty()
+                    ) && processor.state.value.isKeyboardVisible.not(),
             ) {
                 processor.consume(Action.Click.BackHandler)
+            }
+
+            OnKeyboardVisible { isKeyboardVisible ->
+                processor.consume(Action.Input.KeyboardChange(isKeyboardVisible))
             }
 
             AllTrainingsScreen(
                 modifier = modifier,
                 state = processor.state.value,
+                sharedTransitionScope = sharedTransitionScope,
+                animatedContentScope = this,
                 consume = processor::consume,
             )
         }

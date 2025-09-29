@@ -43,6 +43,7 @@ internal class ClickHandlerTest {
         items = pagingUiState,
         selectedItems = persistentSetOf(),
         query = "",
+        isKeyboardVisible = false,
     )
 
     private val stateFlow = MutableStateFlow(initialState)
@@ -232,7 +233,7 @@ internal class ClickHandlerTest {
 
         val newState = stateSlot.captured(stateFlow.value)
         assertTrue(newState.selectedItems.isEmpty())
-        assertEquals(persistentSetOf<String>(), newState.selectedItems)
+        assertEquals(persistentSetOf(), newState.selectedItems)
     }
 
     @Test

@@ -35,6 +35,9 @@ internal class ClickHandler(
         if (state.value.selectedItems.isNotEmpty()) {
             updateState { it.copy(selectedItems = persistentSetOf()) }
         }
+        if (state.value.query.isNotEmpty()) {
+            updateState { it.copy(query = "") }
+        }
     }
 
     private fun processLongClick(action: Action.Click.LonkClick) {

@@ -17,7 +17,12 @@ internal class InputHandler(
     override fun invoke(action: Action.Input) {
         when (action) {
             is Action.Input.SearchQuery -> processQueryChange(action)
+            is Action.Input.KeyboardChange -> processKeyboardChange(action)
         }
+    }
+
+    private fun processKeyboardChange(action: Action.Input.KeyboardChange) {
+        updateState { it.copy(isKeyboardVisible = action.isVisible) }
     }
 
     private fun processQueryChange(action: Action.Input.SearchQuery) {
