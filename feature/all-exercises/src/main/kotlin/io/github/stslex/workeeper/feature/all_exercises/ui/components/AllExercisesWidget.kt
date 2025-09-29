@@ -68,8 +68,8 @@ internal fun AllExercisesWidget(
                 .background(
                     color = MaterialTheme.colorScheme.surfaceContainer,
                     shape = RoundedCornerShape(
-                        topStart = MaterialTheme.shapes.large.topStart,
-                        topEnd = MaterialTheme.shapes.large.topEnd,
+                        topStart = MaterialTheme.shapes.extraLarge.topStart,
+                        topEnd = MaterialTheme.shapes.extraLarge.topEnd,
                         bottomEnd = CornerSize(0.dp),
                         bottomStart = CornerSize(0.dp),
                     ),
@@ -79,7 +79,7 @@ internal fun AllExercisesWidget(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(MaterialTheme.shapes.medium),
+                    .clip(MaterialTheme.shapes.large),
                 state = lazyState,
             ) {
                 items(

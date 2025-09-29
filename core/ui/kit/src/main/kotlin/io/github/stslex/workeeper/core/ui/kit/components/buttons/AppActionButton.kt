@@ -13,8 +13,6 @@ import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -33,7 +31,6 @@ import androidx.graphics.shapes.star
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AppActionButton(
     onClick: () -> Unit,
@@ -100,14 +97,14 @@ fun AppActionButton(
             .clickable(
                 onClick = onClick,
             )
-            .size(ButtonDefaults.LargeContainerHeight),
+            .size(AppDimension.Button.big),
         contentAlignment = Alignment.Center,
     ) {
         AnimatedContent(
             targetState = selectedMode,
         ) { isSelecting ->
             Icon(
-                modifier = Modifier.size(ButtonDefaults.MediumIconSize),
+                modifier = Modifier.size(AppDimension.Icon.medium),
                 imageVector = if (isSelecting && selectedContentIcon != null) {
                     selectedContentIcon
                 } else {

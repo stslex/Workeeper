@@ -20,7 +20,7 @@ internal fun SearchWidget(
     TextField(
         modifier = modifier
             .fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
+        shape = MaterialTheme.shapes.large,
         value = query,
         onValueChange = onQueryChange,
         singleLine = true,

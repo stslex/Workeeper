@@ -166,7 +166,7 @@ internal class ClickHandlerTest {
 
         handler.invoke(ExercisesStore.Action.Click.LonkClick(exercise.uuid))
 
-        verify(exactly = 1) { store.sendEvent(ExercisesStore.Event.HapticFeedback(HapticFeedbackType.LongPress)) }
+        verify(exactly = 1) { store.sendEvent(ExercisesStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey)) }
 
         val stateSlot = slot<(ExercisesStore.State) -> ExercisesStore.State>()
         verify(exactly = 1) { store.updateState(capture(stateSlot)) }
@@ -196,7 +196,7 @@ internal class ClickHandlerTest {
 
         handler.invoke(ExercisesStore.Action.Click.LonkClick(exercise1.uuid))
 
-        verify(exactly = 1) { store.sendEvent(ExercisesStore.Event.HapticFeedback(HapticFeedbackType.LongPress)) }
+        verify(exactly = 1) { store.sendEvent(ExercisesStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey)) }
 
         val stateSlot = slot<(ExercisesStore.State) -> ExercisesStore.State>()
         verify(exactly = 1) { store.updateState(capture(stateSlot)) }
