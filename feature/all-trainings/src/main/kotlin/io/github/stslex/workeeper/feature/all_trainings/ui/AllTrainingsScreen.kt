@@ -30,12 +30,16 @@ import androidx.compose.ui.unit.dp
 import androidx.paging.LoadState
 import androidx.paging.PagingData
 import androidx.paging.compose.collectAsLazyPagingItems
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import io.github.stslex.workeeper.core.ui.kit.components.buttons.AppActionButton
 import io.github.stslex.workeeper.core.ui.kit.components.search.SearchPagingWidget
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.core.ui.kit.model.ItemPosition
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
+import io.github.stslex.workeeper.core.ui.kit.theme.AppUiFeatures.BLUR_ENABLE
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.EmptyWidget
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.SingleTrainingItemWidget
 import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.model.TrainingUiModel
@@ -55,6 +59,7 @@ internal fun AllTrainingsScreen(
     modifier: Modifier = Modifier,
 ) {
     val items = remember { state.pagingUiState() }.collectAsLazyPagingItems()
+    val hazeState: HazeState = rememberHazeState(blurEnabled = BLUR_ENABLE)
     Box(
         modifier = modifier
             .fillMaxSize(),
@@ -86,7 +91,8 @@ internal fun AllTrainingsScreen(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
-                        .clip(MaterialTheme.shapes.large),
+                        .clip(MaterialTheme.shapes.large)
+                        .hazeSource(state = hazeState),
                 ) {
                     items(
                         count = items.itemCount,
@@ -136,6 +142,7 @@ internal fun AllTrainingsScreen(
                 onClick = { consume(Action.Click.ActionButton) },
                 contentIcon = Icons.Default.Add,
                 selectedContentIcon = Icons.Default.Delete,
+                hazeState = hazeState,
                 selectedMode = state.selectedItems.isNotEmpty(),
             )
         }

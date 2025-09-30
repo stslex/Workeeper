@@ -2,9 +2,11 @@ package io.github.stslex.workeeper.core.ui.kit.components.buttons
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
@@ -21,16 +23,26 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.graphics.shapes.CornerRounding
 import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.RoundedPolygon
 import androidx.graphics.shapes.rectangle
 import androidx.graphics.shapes.star
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
+import dev.chrisbanes.haze.materials.HazeMaterials
+import dev.chrisbanes.haze.rememberHazeState
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
+import io.github.stslex.workeeper.core.ui.kit.theme.AppUiFeatures.BLUR_ENABLE
+import io.github.stslex.workeeper.core.ui.kit.theme.AppUiFeatures.DEFAULT_ANIMATION_DURATION
 
+@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun AppActionButton(
     onClick: () -> Unit,
@@ -40,6 +52,7 @@ fun AppActionButton(
     selectedContentIcon: ImageVector? = null,
     selectedContentDescription: String? = null,
     contentDescription: String? = null,
+    hazeState: HazeState = rememberHazeState(blurEnabled = BLUR_ENABLE),
 ) {
     val shapeA = remember {
         RoundedPolygon.rectangle(
@@ -67,37 +80,65 @@ fun AppActionButton(
     val animatedProgress = animateFloatAsState(
         targetValue = if (selectedMode) 1f else 0f,
         label = "progress",
-        animationSpec = tween(durationMillis = 600),
+        animationSpec = tween(DEFAULT_ANIMATION_DURATION),
     )
 
     val containerColor by animateColorAsState(
         targetValue = if (selectedMode) {
-            MaterialTheme.colorScheme.tertiary
+            MaterialTheme.colorScheme.errorContainer
         } else {
             MaterialTheme.colorScheme.primary
         },
         label = "Container color animation",
+        animationSpec = tween(DEFAULT_ANIMATION_DURATION),
     )
 
     val contentColor by animateColorAsState(
         targetValue = if (selectedMode) {
-            MaterialTheme.colorScheme.onTertiary
+            MaterialTheme.colorScheme.onErrorContainer
         } else {
             MaterialTheme.colorScheme.onPrimary
         },
         label = "Container color animation",
+        animationSpec = tween(DEFAULT_ANIMATION_DURATION),
+    )
+
+    val borderColor by animateColorAsState(
+        targetValue = if (selectedMode) {
+            MaterialTheme.colorScheme.onErrorContainer
+        } else {
+            Color.Transparent
+        },
+        label = "Border color animation",
+        animationSpec = tween(DEFAULT_ANIMATION_DURATION),
+    )
+
+    val borderWidth by animateDpAsState(
+        targetValue = if (selectedMode) {
+            AppDimension.Border.medium
+        } else {
+            0.dp
+        },
+        label = "Border width animation",
+        animationSpec = tween(DEFAULT_ANIMATION_DURATION),
     )
 
     Box(
         modifier = modifier
             .clip(AppMorphTransformationShape(morph, animatedProgress.value))
-            .background(
-                color = containerColor,
-            )
             .clickable(
                 onClick = onClick,
             )
-            .size(AppDimension.Button.big),
+            .size(AppDimension.Button.big)
+            .hazeEffect(state = hazeState, style = HazeMaterials.thin())
+            .background(
+                color = containerColor,
+            )
+            .border(
+                width = borderWidth,
+                color = borderColor,
+                shape = AppMorphTransformationShape(morph, animatedProgress.value),
+            ),
         contentAlignment = Alignment.Center,
     ) {
         AnimatedContent(

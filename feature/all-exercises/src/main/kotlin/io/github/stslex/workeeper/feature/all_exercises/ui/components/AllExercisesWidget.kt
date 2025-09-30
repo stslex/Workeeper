@@ -27,6 +27,9 @@ import androidx.paging.LoadState
 import androidx.paging.PagingData
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import io.github.stslex.workeeper.core.ui.kit.components.search.SearchPagingWidget
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.core.ui.kit.model.ItemPosition
@@ -45,6 +48,7 @@ internal fun AllExercisesWidget(
     state: State,
     sharedTransitionScope: SharedTransitionScope,
     animatedContentScope: AnimatedContentScope,
+    hazeState: HazeState,
     consume: (Action) -> Unit,
     lazyState: LazyListState,
     modifier: Modifier = Modifier,
@@ -78,7 +82,8 @@ internal fun AllExercisesWidget(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(MaterialTheme.shapes.large),
+                    .clip(MaterialTheme.shapes.large)
+                    .hazeSource(hazeState),
                 state = lazyState,
             ) {
                 items(
@@ -147,6 +152,7 @@ private fun AllTabsWidgetPreview() {
                     animatedContentScope = this@AnimatedContent,
                     consume = {},
                     lazyState = LazyListState(),
+                    hazeState = rememberHazeState(),
                     modifier = it,
                 )
             }
