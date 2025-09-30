@@ -1,9 +1,21 @@
 package io.github.stslex.workeeper.core.ui.kit.theme
 
-@Suppress("unused")
-object AppUiFeatures {
+import androidx.compose.runtime.staticCompositionLocalOf
 
-    const val BLUR_ENABLE: Boolean = false
+internal val LocalAppUiFeatures = staticCompositionLocalOf { appUiFeaturesState() }
 
-    const val DEFAULT_ANIMATION_DURATION = 600
-}
+data class AppUiFeatures(
+    val enableNoise: Boolean,
+    val enableBlur: Boolean,
+    val defaultAnimationDuration: Int,
+)
+
+fun appUiFeaturesState(
+    enableNoise: Boolean = true,
+    blurEnable: Boolean = false,
+    defaultAnimationDuration: Int = 600,
+): AppUiFeatures = AppUiFeatures(
+    enableNoise = enableNoise,
+    enableBlur = blurEnable,
+    defaultAnimationDuration = defaultAnimationDuration,
+)

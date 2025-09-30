@@ -39,8 +39,7 @@ import dev.chrisbanes.haze.materials.HazeMaterials
 import dev.chrisbanes.haze.rememberHazeState
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
-import io.github.stslex.workeeper.core.ui.kit.theme.AppUiFeatures.BLUR_ENABLE
-import io.github.stslex.workeeper.core.ui.kit.theme.AppUiFeatures.DEFAULT_ANIMATION_DURATION
+import io.github.stslex.workeeper.core.ui.kit.theme.AppUi.uiFeatures
 
 @OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
@@ -52,7 +51,7 @@ fun AppActionButton(
     selectedContentIcon: ImageVector? = null,
     selectedContentDescription: String? = null,
     contentDescription: String? = null,
-    hazeState: HazeState = rememberHazeState(blurEnabled = BLUR_ENABLE),
+    hazeState: HazeState = rememberHazeState(blurEnabled = uiFeatures.enableBlur),
 ) {
     val shapeA = remember {
         RoundedPolygon.rectangle(
@@ -80,7 +79,7 @@ fun AppActionButton(
     val animatedProgress = animateFloatAsState(
         targetValue = if (selectedMode) 1f else 0f,
         label = "progress",
-        animationSpec = tween(DEFAULT_ANIMATION_DURATION),
+        animationSpec = tween(uiFeatures.defaultAnimationDuration),
     )
 
     val containerColor by animateColorAsState(
@@ -90,7 +89,7 @@ fun AppActionButton(
             MaterialTheme.colorScheme.primary
         },
         label = "Container color animation",
-        animationSpec = tween(DEFAULT_ANIMATION_DURATION),
+        animationSpec = tween(uiFeatures.defaultAnimationDuration),
     )
 
     val contentColor by animateColorAsState(
@@ -100,7 +99,7 @@ fun AppActionButton(
             MaterialTheme.colorScheme.onPrimary
         },
         label = "Container color animation",
-        animationSpec = tween(DEFAULT_ANIMATION_DURATION),
+        animationSpec = tween(uiFeatures.defaultAnimationDuration),
     )
 
     val borderColor by animateColorAsState(
@@ -110,7 +109,7 @@ fun AppActionButton(
             Color.Transparent
         },
         label = "Border color animation",
-        animationSpec = tween(DEFAULT_ANIMATION_DURATION),
+        animationSpec = tween(uiFeatures.defaultAnimationDuration),
     )
 
     val borderWidth by animateDpAsState(
@@ -120,7 +119,7 @@ fun AppActionButton(
             0.dp
         },
         label = "Border width animation",
-        animationSpec = tween(DEFAULT_ANIMATION_DURATION),
+        animationSpec = tween(uiFeatures.defaultAnimationDuration),
     )
 
     Box(

@@ -19,7 +19,7 @@ import dev.chrisbanes.haze.rememberHazeState
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
-import io.github.stslex.workeeper.core.ui.kit.theme.AppUiFeatures.BLUR_ENABLE
+import io.github.stslex.workeeper.core.ui.kit.theme.AppUi.uiFeatures
 import io.github.stslex.workeeper.feature.all_exercises.ui.components.AllExercisesActionButton
 import io.github.stslex.workeeper.feature.all_exercises.ui.components.AllExercisesWidget
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.model.ExerciseUiModel
@@ -39,7 +39,7 @@ internal fun ExerciseWidget(
     lazyState: LazyListState,
     modifier: Modifier = Modifier,
 ) {
-    val hazeState = rememberHazeState(blurEnabled = BLUR_ENABLE)
+    val hazeState = rememberHazeState(blurEnabled = uiFeatures.enableBlur)
     Box(
         modifier = modifier
             .fillMaxSize(),

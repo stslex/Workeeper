@@ -39,7 +39,7 @@ import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.
 import io.github.stslex.workeeper.core.ui.kit.model.ItemPosition
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
-import io.github.stslex.workeeper.core.ui.kit.theme.AppUiFeatures.BLUR_ENABLE
+import io.github.stslex.workeeper.core.ui.kit.theme.AppUi.uiFeatures
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.EmptyWidget
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.SingleTrainingItemWidget
 import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.model.TrainingUiModel
@@ -59,7 +59,7 @@ internal fun AllTrainingsScreen(
     modifier: Modifier = Modifier,
 ) {
     val items = remember { state.pagingUiState() }.collectAsLazyPagingItems()
-    val hazeState: HazeState = rememberHazeState(blurEnabled = BLUR_ENABLE)
+    val hazeState: HazeState = rememberHazeState(uiFeatures.enableBlur)
     Box(
         modifier = modifier
             .fillMaxSize(),
