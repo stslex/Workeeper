@@ -80,16 +80,18 @@ This project showcases modern Android development practices with:
 
 ## 🛠️ Tech Stack
 
-- **Language**: Kotlin
-- **UI Framework**: Jetpack Compose
+- **Language**: Kotlin 2.2.10
+- **UI Framework**: Jetpack Compose with Material Design 3
 - **Architecture**: MVI (Model-View-Intent)
-- **Database**: Room with SQLite
-- **Dependency Injection**: Koin with KSP
-- **Async**: Kotlin Coroutines and Flow
+- **Database**: Room 2.8.0 with SQLite
+- **Dependency Injection**: Koin 4.1.1 with KSP annotations
+- **Async**: Kotlin Coroutines 1.10.2 and Flow
 - **Navigation**: Custom navigation with shared element transitions
+- **Storage**: DataStore for preferences
 - **Analytics**: Firebase Analytics and Crashlytics
-- **Build**: Gradle with Kotlin DSL
-- **Testing**: JUnit 5, Robolectric, MockK, Compose UI Test
+- **Build**: Gradle 8.14.3 with Kotlin DSL and custom convention plugins
+- **Testing**: JUnit 5, Robolectric 4.16, MockK, Compose UI Test
+- **Static Analysis**: Detekt 1.23.8 with custom architecture rules
 
 ## 🚀 Getting Started
 
@@ -97,7 +99,8 @@ This project showcases modern Android development practices with:
 
 - Android Studio (latest stable)
 - Java 21 (JDK 21)
-- Android SDK with minimum API 28
+- Gradle 8.14.3 or newer
+- Android SDK with minimum API 28 (target API 36)
 - Device or emulator for testing
 
 ### Building the Project
@@ -142,7 +145,7 @@ cd Workeeper
 ./gradlew lintDebug
 
 # Auto-fix detekt issues
-./gradlew detektFormat
+./gradlew detekt --auto-correct
 
 # Run all linting
 ./gradlew detekt lintDebug
