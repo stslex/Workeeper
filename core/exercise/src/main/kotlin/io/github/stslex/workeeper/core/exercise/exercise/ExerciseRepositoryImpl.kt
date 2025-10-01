@@ -57,12 +57,6 @@ internal class ExerciseRepositoryImpl(
         dao.getExercise(Uuid.parse(uuid))?.toData()
     }
 
-    override suspend fun getExerciseByName(
-        name: String,
-    ): ExerciseDataModel? = withContext(bgDispatcher) {
-        dao.getExerciseByName(name)?.toData()
-    }
-
     override suspend fun getExercises(
         name: String,
         startDate: Long,
@@ -74,18 +68,6 @@ internal class ExerciseRepositoryImpl(
             endDate = endDate,
         ).map { it.toData() }
     }
-
-    override fun getExercisesExactly(
-        name: String,
-        startDate: Long,
-        endDate: Long,
-    ): Flow<List<ExerciseDataModel>> = dao.getExercisesExactly(
-        name = name,
-        startDate = startDate,
-        endDate = endDate,
-    )
-        .map { list -> list.map { it.toData() } }
-        .flowOn(bgDispatcher)
 
     override suspend fun saveItem(item: ExerciseChangeDataModel) = withContext(bgDispatcher) {
         dao.create(item.toEntity())

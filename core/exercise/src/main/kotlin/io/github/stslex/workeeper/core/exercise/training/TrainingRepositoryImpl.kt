@@ -32,12 +32,6 @@ class TrainingRepositoryImpl(
         }
         .flowOn(ioDispatcher)
 
-    override suspend fun addTraining(training: TrainingDataModel) {
-        withContext(ioDispatcher) {
-            dao.add(training.toEntity())
-        }
-    }
-
     override suspend fun updateTraining(training: TrainingChangeDataModel) {
         withContext(ioDispatcher) {
             dao.add(training.toEntity())

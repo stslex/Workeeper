@@ -57,7 +57,7 @@ fun AppActionButton(
         RoundedPolygon.rectangle(
             rounding = CornerRounding(
                 radius = 0.35f,
-                smoothing = 1f, // Maximum smoothing for smooth edges
+                smoothing = 1f,
             ),
         )
     }

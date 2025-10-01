@@ -16,7 +16,4 @@ interface TrainingLabelDao {
 
     @Query("SELECT * FROM training_labels_table")
     suspend fun getAll(): List<TrainingLabelEntity>
-
-    @Query("DELETE FROM training_labels_table")
-    suspend fun clear()
 }

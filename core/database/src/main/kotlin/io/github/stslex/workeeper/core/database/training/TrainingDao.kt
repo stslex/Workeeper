@@ -5,7 +5,6 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 import kotlin.uuid.Uuid
 
@@ -24,9 +23,6 @@ interface TrainingDao {
     @Query("SELECT * FROM training_table WHERE uuid = :uuid")
     fun subscribeForTraining(uuid: Uuid): Flow<TrainingEntity?>
 
-    @Update(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun update(item: TrainingEntity)
-
     @Query("DELETE FROM training_table WHERE uuid = :uuid")
     suspend fun delete(uuid: Uuid)
 
@@ -37,7 +33,4 @@ interface TrainingDao {
 
     @Query("DELETE FROM training_table WHERE uuid in (:uuid)")
     suspend fun deleteAll(uuid: List<Uuid>)
-
-    @Query("DELETE FROM training_table")
-    suspend fun clear()
 }
