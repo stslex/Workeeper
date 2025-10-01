@@ -45,12 +45,17 @@ internal class TrainingStoreImplTest {
     private val clickHandler = mockk<ClickHandler> {
         coEvery { this@mockk.invoke(any()) } just runs
     }
+
+    private val inputHandler = mockk<io.github.stslex.workeeper.feature.all_trainings.ui.mvi.handler.InputHandler> {
+        coEvery { this@mockk.invoke(any()) } just runs
+    }
     private val handlerStore = mockk<TrainingHandlerStoreImpl>(relaxed = true) {
         every { state } returns MutableStateFlow(
             TrainingStore.State(
                 pagingUiState = pagingStateMock,
                 query = "",
                 selectedItems = persistentSetOf(),
+                isKeyboardVisible = false,
             ),
         )
     }
@@ -71,6 +76,7 @@ internal class TrainingStoreImplTest {
         navigationHandler = navigationHandler,
         pagingHandler = pagingHandler,
         clickHandler = clickHandler,
+        inputHandler = inputHandler,
         storeDispatchers = storeDispatchers,
         handlerStore = handlerStore,
         analytics = analytics,
@@ -263,6 +269,7 @@ internal class TrainingStoreImplTest {
             navigationHandler = navigationHandler,
             pagingHandler = customPagingHandler,
             clickHandler = clickHandler,
+            inputHandler = inputHandler,
             storeDispatchers = storeDispatchers,
             handlerStore = handlerStore,
             analytics = analytics,

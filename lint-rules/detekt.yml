@@ -72,15 +72,20 @@ complexity:
     excludes: [ '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**' ]
   LongMethod:
     active: true
-    threshold: 60
+    threshold: 120
     excludes: [ '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**' ]
+    ignoreAnnotated:
+      - androidx.compose.runtime.Composable
   LongParameterList:
     active: true
     functionThreshold: 6
     constructorThreshold: 7
     ignoreDefaultParameters: false
     ignoreDataClasses: true
-    ignoreAnnotated: [ ]
+    ignoreAnnotated:
+      - androidx.compose.runtime.Composable
+    excludes:
+      - '**/*StoreImpl*'
   MethodOverloading:
     active: false
   NestedBlockDepth:
@@ -244,7 +249,7 @@ naming:
     privatePropertyPattern: '(_)?[A-Za-z][_A-Za-z0-9]*'
   PackageNaming:
     active: true
-    packagePattern: '[a-z]+(\.[a-z][A-Za-z0-9]*)*'
+    packagePattern: '[a-z_]+(\.[a-zA-Z0-9_]+)*'
   TopLevelPropertyNaming:
     active: true
     constantPattern: '[A-Z][_A-Z0-9]*'
@@ -368,9 +373,9 @@ style:
   ForbiddenImport:
     active: true
     imports:
-      - 'kotlinx.android.synthetic.*'
-      - 'java.util.logging.*'
-      - 'android.util.Log.*'
+      - "kotlinx.android.synthetic.*"
+      - "java.util.logging.*"
+      - "android.util.Log.*"
     forbiddenPatterns: ''
   ForbiddenMethodCall:
     active: false
@@ -394,6 +399,8 @@ style:
     ignoreNamedArgument: true
     ignoreEnums: false
     ignoreRanges: false
+    ignoreAnnotated:
+      - androidx.compose.ui.tooling.preview.Preview
     ignoreExtensionFunctions: true
   BracesOnIfStatements:
     active: false
@@ -432,7 +439,7 @@ style:
   RedundantVisibilityModifierRule:
     active: false
   ReturnCount:
-    active: true
+    active: false
     max: 2
     excludedFunctions: [ "equals" ]
     excludeLabeled: false
@@ -565,7 +572,7 @@ formatting:
   NoWildcardImports:
     active: true
   PackageName:
-    active: true
+    active: false
   ParameterListWrapping:
     active: true
     indentSize: 4

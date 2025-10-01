@@ -17,6 +17,7 @@ internal interface ExercisesStore : Store<State, Action, Event> {
         val items: PagingUiState<PagingData<ExerciseUiModel>>,
         val selectedItems: ImmutableSet<String>,
         val query: String,
+        val isKeyboardVisible: Boolean,
     ) : Store.State {
 
         companion object {
@@ -27,6 +28,7 @@ internal interface ExercisesStore : Store<State, Action, Event> {
                 items = allItems,
                 selectedItems = persistentSetOf(),
                 query = "",
+                isKeyboardVisible = false,
             )
         }
     }
@@ -42,6 +44,8 @@ internal interface ExercisesStore : Store<State, Action, Event> {
         sealed interface Input : Action {
 
             data class SearchQuery(val query: String) : Input
+
+            data class KeyboardChange(val isVisible: Boolean) : Input
         }
 
         sealed interface Click : Action {

@@ -57,6 +57,7 @@ internal class AllExercisesStoreImplTest {
                 items = pagingUiState,
                 selectedItems = persistentSetOf(),
                 query = "",
+                isKeyboardVisible = false,
             ),
         )
     }

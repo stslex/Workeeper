@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="feature_all_trainings_empty_results">You don&#8217;t have any exercises yet</string>
+    <string name="feature_all_trainings_not_found_results">No results found</string>
+</resources>

@@ -1,69 +1,60 @@
 package io.github.stslex.workeeper.feature.all_exercises.ui.components
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.wrapContentHeight
+import android.annotation.SuppressLint
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedContentScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import io.github.stslex.workeeper.core.ui.kit.components.CardWithAnimatedBorder
+import io.github.stslex.workeeper.core.ui.kit.components.paging_item.BasePagingColumnItem
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
-import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
+import io.github.stslex.workeeper.core.ui.kit.model.ItemPosition
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.model.ExerciseUiModel
 import kotlin.uuid.Uuid
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 internal fun ExercisePagingItem(
     item: ExerciseUiModel,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedContentScope: AnimatedContentScope,
     isSelected: Boolean,
+    itemPosition: ItemPosition,
     modifier: Modifier = Modifier,
 ) {
-    CardWithAnimatedBorder(
-        modifier = modifier
-            .padding(AppDimension.Padding.medium)
-            .fillMaxWidth()
-            .wrapContentHeight(),
+    BasePagingColumnItem(
+        modifier = modifier,
+        sharedTransitionScope = sharedTransitionScope,
+        animatedContentScope = animatedContentScope,
+        itemKey = item.uuid,
         onClick = onClick,
         onLongClick = onLongClick,
-        isAnimated = isSelected,
-        borderSize = AppDimension.Border.medium,
-    ) {
-        Column(
-            modifier = Modifier
-                .padding(AppDimension.Padding.big),
-        ) {
-            Text(
-                text = item.name,
-                style = MaterialTheme.typography.labelLarge,
-            )
-//            Text(
-//                text = item.reps.toString(),
-//                style = MaterialTheme.typography.bodyLarge
-//            )
-//            Text(
-//                text = item.sets.toString(),
-//                style = MaterialTheme.typography.bodyLarge
-//            )
-//            Text(
-//                text = item.weight.toString(),
-//                style = MaterialTheme.typography.bodyLarge
-//            )
-            Text(
-                text = item.dateProperty.uiValue,
-                style = MaterialTheme.typography.labelSmall,
-            )
-        }
+        isSelected = isSelected,
+        itemPosition = itemPosition,
+    ) { contentColor ->
+        Text(
+            text = item.name,
+            style = MaterialTheme.typography.titleLarge,
+            color = contentColor.value,
+        )
+        Text(
+            text = item.dateProperty.uiValue,
+            style = MaterialTheme.typography.labelSmall,
+            color = contentColor.value,
+        )
     }
 }
 
+@SuppressLint("UnusedContentLambdaTargetStateParameter")
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 @Preview
 private fun ExercisePagingItemPreview() {
@@ -73,11 +64,19 @@ private fun ExercisePagingItemPreview() {
             name = "nameOfExercise",
             dateProperty = PropertyHolder.DateProperty.now(),
         )
-        ExercisePagingItem(
-            item = item,
-            isSelected = true,
-            onClick = {},
-            onLongClick = {},
-        )
+        AnimatedContent("") {
+            SharedTransitionScope { modifier ->
+                ExercisePagingItem(
+                    modifier = modifier,
+                    item = item,
+                    isSelected = true,
+                    onClick = {},
+                    sharedTransitionScope = this,
+                    animatedContentScope = this@AnimatedContent,
+                    itemPosition = ItemPosition.SINGLE,
+                    onLongClick = {},
+                )
+            }
+        }
     }
 }

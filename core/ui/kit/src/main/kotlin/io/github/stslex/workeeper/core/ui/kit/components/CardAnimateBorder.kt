@@ -31,6 +31,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
+@Suppress("MagicNumber")
 fun CardWithAnimatedBorder(
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {},

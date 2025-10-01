@@ -2,6 +2,7 @@ package io.github.stslex.workeeper.core.ui.kit.theme
 
 import androidx.compose.ui.unit.dp
 
+@Suppress("unused")
 object AppDimension {
 
     object Padding {
@@ -42,18 +43,15 @@ object AppDimension {
 
         val small = 16.dp
         val medium = 24.dp
-        val large = 32.dp
+        val big = 32.dp
+        val large = 48.dp
     }
 
     object Button {
 
-        val smallHeight = 12.dp
-        val mediumHeight = 32.dp
-        val bigHeight = 40.dp
-        val largeHeight = 48.dp
-
-        val smallWidth = 100.dp
-        val mediumWidth = 120.dp
-        val largeWidth = 240.dp
+        val smallest = 12.dp
+        val small = 36.dp
+        val medium = 60.dp
+        val big = 72.dp
     }
 }

@@ -15,11 +15,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.paging.PagingData
+import dev.chrisbanes.haze.rememberHazeState
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
+import io.github.stslex.workeeper.core.ui.kit.theme.AppUi.uiFeatures
+import io.github.stslex.workeeper.feature.all_exercises.ui.components.AllExercisesActionButton
 import io.github.stslex.workeeper.feature.all_exercises.ui.components.AllExercisesWidget
-import io.github.stslex.workeeper.feature.all_exercises.ui.components.HomeActionButton
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore.Action
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore.State
@@ -37,6 +39,7 @@ internal fun ExerciseWidget(
     lazyState: LazyListState,
     modifier: Modifier = Modifier,
 ) {
+    val hazeState = rememberHazeState(blurEnabled = uiFeatures.enableBlur)
     Box(
         modifier = modifier
             .fillMaxSize(),
@@ -48,10 +51,11 @@ internal fun ExerciseWidget(
             sharedTransitionScope = sharedTransitionScope,
             animatedContentScope = animatedContentScope,
             consume = consume,
+            hazeState = hazeState,
             lazyState = lazyState,
         )
         with(sharedTransitionScope) {
-            HomeActionButton(
+            AllExercisesActionButton(
                 modifier = Modifier
                     .sharedBounds(
                         sharedContentState = sharedTransitionScope.rememberSharedContentState(
@@ -65,6 +69,7 @@ internal fun ExerciseWidget(
                     )
                     .align(Alignment.BottomEnd)
                     .padding(AppDimension.Padding.big),
+                hazeState = hazeState,
                 selectedMode = state.selectedItems.isNotEmpty(),
             ) {
                 consume(Action.Click.FloatButtonClick)
@@ -93,6 +98,7 @@ private fun ExerciseWidgetPreview() {
             items = itemsPaging,
             selectedItems = persistentSetOf(),
             query = "",
+            isKeyboardVisible = false,
         )
 
         AnimatedContent("") {

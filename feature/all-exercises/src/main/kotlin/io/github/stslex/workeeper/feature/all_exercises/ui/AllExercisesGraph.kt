@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.navigation.NavGraphBuilder
+import io.github.stslex.workeeper.core.ui.kit.utils.OnKeyboardVisible
 import io.github.stslex.workeeper.core.ui.mvi.NavComponentScreen
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen
@@ -15,6 +16,7 @@ import io.github.stslex.workeeper.core.ui.navigation.navScreen
 import io.github.stslex.workeeper.feature.all_exercises.di.ExerciseFeature
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.handler.AllExercisesComponent
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore
+import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore.Action
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 fun NavGraphBuilder.allExercisesGraph(
@@ -36,9 +38,16 @@ fun NavGraphBuilder.allExercisesGraph(
             }
 
             BackHandler(
-                enabled = processor.state.value.selectedItems.isNotEmpty(),
+                enabled = (
+                    processor.state.value.selectedItems.isNotEmpty() ||
+                        processor.state.value.query.isNotEmpty()
+                    ) && processor.state.value.isKeyboardVisible.not(),
             ) {
-                processor.consume(ExercisesStore.Action.Click.BackHandler)
+                processor.consume(Action.Click.BackHandler)
+            }
+
+            OnKeyboardVisible { isKeyboardVisible ->
+                processor.consume(Action.Input.KeyboardChange(isKeyboardVisible))
             }
 
             val lazyListState = rememberLazyListState()

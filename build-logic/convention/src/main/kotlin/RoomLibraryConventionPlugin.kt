@@ -22,7 +22,6 @@ class RoomLibraryConventionPlugin : Plugin<Project> {
 
             extensions.configure<KspExtension> {
                 arg("room.generateKotlin", "true")
-
             }
 
             extensions.configure<RoomExtension> {

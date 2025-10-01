@@ -38,17 +38,19 @@ class MviActionNamingRule(config: Config = Config.Companion.empty) : Rule(config
             }
 
             // Check nested action classes
-            klass.declarations.filterIsInstance<KtClass>().forEach { nestedClass ->
-                val nestedName = nestedClass.name ?: return@forEach
-                if (!isValidActionName(nestedName)) {
-                    report(
-                        CodeSmell(
-                            issue, Entity.Companion.from(nestedClass),
-                            "Action '$nestedName' should use verb-noun pattern (e.g., ClickButton, LoadData)"
+            klass.declarations
+                .filterIsInstance<KtClass>()
+                .forEach { nestedClass ->
+                    val nestedName = nestedClass.name ?: return@forEach
+                    if (!isValidActionName(nestedName)) {
+                        report(
+                            CodeSmell(
+                                issue, Entity.Companion.from(nestedClass),
+                                "Action '$nestedName' should use verb-noun pattern (e.g., ClickButton, LoadData)"
+                            )
                         )
-                    )
+                    }
                 }
-            }
         }
     }
 
@@ -56,9 +58,13 @@ class MviActionNamingRule(config: Config = Config.Companion.empty) : Rule(config
         val validPatterns = listOf(
             "Click", "Load", "Save", "Delete", "Update", "Navigate",
             "Search", "Filter", "Sort", "Refresh", "Retry", "Cancel",
-            "Show", "Hide", "Toggle", "Select", "Clear", "Reset"
+            "Show", "Hide", "Toggle", "Select", "Clear", "Reset",
+            "Input", "Common", "Navigation", "Paging", "Change", "Create", "Open", "Close",
+            "Haptic"
         )
-        return validPatterns.any { name.startsWith(it) }
+        return validPatterns.any {
+            name.contains(it, ignoreCase = true)
+        }
     }
 
     private fun KtClass.isInMviModule(): Boolean {

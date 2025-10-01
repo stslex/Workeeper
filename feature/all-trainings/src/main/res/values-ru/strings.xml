@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="feature_all_trainings_empty_results">У вас пока нет упражнений</string>
+    <string name="feature_all_trainings_not_found_results">Не найдено упражений</string>
+</resources>

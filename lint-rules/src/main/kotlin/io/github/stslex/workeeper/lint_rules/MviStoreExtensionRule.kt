@@ -25,7 +25,7 @@ class MviStoreExtensionRule(config: Config = Config.Companion.empty) : Rule(conf
 
         val className = klass.name ?: return
 
-        if (className.endsWith("Store") && klass.isInMviModule()) {
+        if (className.endsWith("StoreImpl") && klass.isInMviModule()) {
             val superTypes = klass.getSuperTypeList()?.entries?.map { it.text }
             val extendsBaseStore = superTypes?.any { it.contains("BaseStore") } == true
 
@@ -33,7 +33,19 @@ class MviStoreExtensionRule(config: Config = Config.Companion.empty) : Rule(conf
                 report(
                     CodeSmell(
                         issue, Entity.Companion.from(klass),
-                        "Store class '$className' should extend BaseStore for proper MVI implementation"
+                        "StoreImpl class '$className' should extend BaseStore for proper MVI implementation"
+                    )
+                )
+            }
+        } else if (className.endsWith("Store") && klass.isInMviModule()) {
+            val superTypes = klass.getSuperTypeList()?.entries?.map { it.text }
+            val extendsBaseStore = superTypes?.any { it.contains("Store") } == true
+
+            if (!extendsBaseStore) {
+                report(
+                    CodeSmell(
+                        issue, Entity.Companion.from(klass),
+                        "Store class '$className' should implement Store for proper MVI implementation"
                     )
                 )
             }

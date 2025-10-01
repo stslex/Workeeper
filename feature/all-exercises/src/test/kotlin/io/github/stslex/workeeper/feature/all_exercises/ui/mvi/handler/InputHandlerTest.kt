@@ -130,4 +130,69 @@ internal class InputHandlerTest {
         verify(exactly = 1) { store.updateState(any()) }
         assertEquals(unicodeQuery, stateFlow.value.query)
     }
+
+    @Test
+    fun `keyboard change action with visible true updates keyboard state`() {
+        handler.invoke(ExercisesStore.Action.Input.KeyboardChange(isVisible = true))
+
+        verify(exactly = 1) { store.updateState(any()) }
+        assertEquals(true, stateFlow.value.isKeyboardVisible)
+        assertEquals(initialState.query, stateFlow.value.query)
+        assertEquals(initialState.items, stateFlow.value.items)
+        assertEquals(initialState.selectedItems, stateFlow.value.selectedItems)
+    }
+
+    @Test
+    fun `keyboard change action with visible false updates keyboard state`() {
+        // First set keyboard to visible
+        stateFlow.value = stateFlow.value.copy(isKeyboardVisible = true)
+
+        handler.invoke(ExercisesStore.Action.Input.KeyboardChange(isVisible = false))
+
+        verify(exactly = 1) { store.updateState(any()) }
+        assertEquals(false, stateFlow.value.isKeyboardVisible)
+    }
+
+    @Test
+    fun `keyboard change action preserves other state properties`() {
+        // Set up initial state with some data
+        stateFlow.value = stateFlow.value.copy(
+            query = "existing query",
+            selectedItems = persistentSetOf("item1", "item2"),
+        )
+
+        handler.invoke(ExercisesStore.Action.Input.KeyboardChange(isVisible = true))
+
+        verify(exactly = 1) { store.updateState(any()) }
+        assertEquals(true, stateFlow.value.isKeyboardVisible)
+        assertEquals("existing query", stateFlow.value.query)
+        assertEquals(persistentSetOf("item1", "item2"), stateFlow.value.selectedItems)
+        assertEquals(initialState.items, stateFlow.value.items)
+    }
+
+    @Test
+    fun `multiple keyboard change actions work correctly`() {
+        handler.invoke(ExercisesStore.Action.Input.KeyboardChange(isVisible = true))
+        assertEquals(true, stateFlow.value.isKeyboardVisible)
+
+        handler.invoke(ExercisesStore.Action.Input.KeyboardChange(isVisible = false))
+        assertEquals(false, stateFlow.value.isKeyboardVisible)
+
+        handler.invoke(ExercisesStore.Action.Input.KeyboardChange(isVisible = true))
+        assertEquals(true, stateFlow.value.isKeyboardVisible)
+
+        verify(exactly = 3) { store.updateState(any()) }
+    }
+
+    @Test
+    fun `input actions can be mixed - search and keyboard changes`() {
+        val query = "test query"
+
+        handler.invoke(ExercisesStore.Action.Input.SearchQuery(query))
+        handler.invoke(ExercisesStore.Action.Input.KeyboardChange(isVisible = true))
+
+        verify(exactly = 2) { store.updateState(any()) }
+        assertEquals(query, stateFlow.value.query)
+        assertEquals(true, stateFlow.value.isKeyboardVisible)
+    }
 }

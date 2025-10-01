@@ -1,0 +1,7 @@
+- ✨ fix colorscheme for actionButton, add animation source and initiate integrity of haze effects (experimental - disabled)
+- ✨ implement keyboard visibility handling and refactor UI components
+- ✨ update detekt configuration for better code quality checks
+- ✨ refactor action button and improve UI components
+- ✨ introduce chart data types and refactor chart domain models
+- ✨ implement back handler to clear selected items and add haptic feedback
+…

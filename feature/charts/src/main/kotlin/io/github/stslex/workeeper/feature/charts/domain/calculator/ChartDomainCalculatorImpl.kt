@@ -38,12 +38,13 @@ internal class ChartDomainCalculatorImpl : ChartDomainCalculator {
             endTimestamp = endTimestamp,
         )
 
+    @Suppress("MagicNumber")
     private fun createParams(
         startTimestamp: Long,
         endTimestamp: Long,
     ): ChartDomainCalculateParams {
         val diffTimestamp = endTimestamp - startTimestamp
-        val days = diffTimestamp / (1000 * 60 * 60 * 24)
+        val days = diffTimestamp / DAY_MS
         return when {
             days <= 14 -> ChartDomainCalculateParams(
                 xValues = days.toInt(),
@@ -174,5 +175,10 @@ internal class ChartDomainCalculatorImpl : ChartDomainCalculator {
             xValues <= 1 -> 0f
             else -> 1f / xValues.dec()
         }
+    }
+
+    companion object {
+
+        private const val DAY_MS = 1000 * 60 * 60 * 24
     }
 }
