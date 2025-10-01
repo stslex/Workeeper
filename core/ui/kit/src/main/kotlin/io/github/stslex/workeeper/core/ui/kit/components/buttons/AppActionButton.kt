@@ -64,7 +64,8 @@ fun AppActionButton(
 
     val shapeB = remember {
         RoundedPolygon.star(
-            6,
+            numVerticesPerRadius = 6,
+            innerRadius = 0.65f,
             rounding = CornerRounding(
                 radius = 0.35f,
                 smoothing = 1f,

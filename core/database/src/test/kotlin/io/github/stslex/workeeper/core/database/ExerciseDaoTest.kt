@@ -3,7 +3,6 @@ package io.github.stslex.workeeper.core.database
 import androidx.paging.PagingSource
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
 import io.github.stslex.workeeper.core.database.exercise.ExerciseEntity
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -38,7 +37,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
 
     @Test
     fun `get all items with full database`() = runTest {
-        dao.create(exerciseEntities)
+        exerciseEntities.forEach { dao.create(it) }
         val pagingSource = dao.getAll()
         val loadResult = pagingSource.load(
             PagingSource.LoadParams.Refresh(
@@ -54,7 +53,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
 
     @Test
     fun `get all items query with full database and empty query`() = runTest {
-        dao.create(exerciseEntities)
+        exerciseEntities.forEach { dao.create(it) }
         val pagingSource = dao.getAll("")
         val loadResult = pagingSource.load(
             PagingSource.LoadParams.Refresh(
@@ -70,7 +69,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
 
     @Test
     fun `get all items query with full database and not existed query`() = runTest {
-        dao.create(exerciseEntities)
+        exerciseEntities.forEach { dao.create(it) }
         val pagingSource = dao.getAll("not_existed_query")
         val loadResult = pagingSource.load(
             PagingSource.LoadParams.Refresh(
@@ -86,7 +85,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
 
     @Test
     fun `get all items query with full database and particularly existed query`() = runTest {
-        dao.create(exerciseEntities)
+        exerciseEntities.forEach { dao.create(it) }
         val pagingSource = dao.getAll(exerciseEntities.first().name)
         val loadResult = pagingSource.load(
             PagingSource.LoadParams.Refresh(
@@ -102,7 +101,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
 
     @Test
     fun `get all items query with full database and all existed query`() = runTest {
-        dao.create(exerciseEntities)
+        exerciseEntities.forEach { dao.create(it) }
         val pagingSource = dao.getAll("test")
         val loadResult = pagingSource.load(
             PagingSource.LoadParams.Refresh(
@@ -118,21 +117,21 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
 
     @Test
     fun `get all items full database with query from date to date matching all props`() = runTest {
-        dao.create(exerciseEntities)
+        exerciseEntities.forEach { dao.create(it) }
         val items = dao.getExercises("test", 0, Long.MAX_VALUE).reversed()
         assertEquals(exerciseEntities, items)
     }
 
     @Test
     fun `get all items full database with query from date to date not matching name`() = runTest {
-        dao.create(exerciseEntities)
+        exerciseEntities.forEach { dao.create(it) }
         val items = dao.getExercises("test_not_existed", 0, Long.MAX_VALUE).reversed()
         assertEquals(emptyList<ExerciseEntity>(), items)
     }
 
     @Test
     fun `get all items full database with query from date to date not matching date`() = runTest {
-        dao.create(exerciseEntities)
+        exerciseEntities.forEach { dao.create(it) }
         val items = dao.getExercises("test", 0, 1).reversed()
         assertEquals(emptyList<ExerciseEntity>(), items)
     }
@@ -140,35 +139,8 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
     @Test
     fun `get all items full database with query from date to date not matching date and name`() =
         runTest {
-            dao.create(exerciseEntities)
+            exerciseEntities.forEach { dao.create(it) }
             val items = dao.getExercises("test_not_existed", 0, 1).reversed()
-            assertEquals(emptyList<ExerciseEntity>(), items)
-        }
-
-    @Test
-    fun `get all items full database with exactly query from date to date not matching props`() =
-        runTest {
-            dao.create(exerciseEntities)
-            val items = dao.getExercisesExactly("test", 0, Long.MAX_VALUE).first().reversed()
-            assertEquals(emptyList<ExerciseEntity>(), items)
-        }
-
-    @Test
-    fun `get all items full database with exactly query from date to date matching prop`() =
-        runTest {
-            val firstEntity = exerciseEntities.first()
-            dao.create(exerciseEntities)
-            val items =
-                dao.getExercisesExactly(firstEntity.name, 0, Long.MAX_VALUE).first()
-            assertEquals(listOf(firstEntity), items)
-        }
-
-    @Test
-    fun `get all items full database with exactly query from date to date not matching date`() =
-        runTest {
-            val firstEntity = exerciseEntities.first()
-            dao.create(exerciseEntities)
-            val items = dao.getExercisesExactly(firstEntity.name, 0, 1).first()
             assertEquals(emptyList<ExerciseEntity>(), items)
         }
 
@@ -227,26 +199,11 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
     @Test
     fun `insert multiple items`() = runTest {
         val expectedItems = exerciseEntities
-        dao.create(expectedItems)
+        expectedItems.forEach { dao.create(it) }
         val actual = expectedItems.map {
             dao.getExercise(it.uuid)
         }
         assertEquals(expectedItems, actual)
-    }
-
-    @Test
-    fun `update exist item`() = runTest {
-        val item = createTestExercise()
-        val expectedNewItem = createTestExercise().copy(
-            uuid = item.uuid,
-        )
-        dao.create(item)
-        val createdItem = dao.getExercise(item.uuid)
-        assertEquals(item, createdItem)
-
-        dao.update(expectedNewItem)
-        val createdNewItem = dao.getExercise(item.uuid)
-        assertEquals(expectedNewItem, createdNewItem)
     }
 
     @Test
@@ -256,37 +213,6 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
         assertEquals(item, dao.getExercise(item.uuid))
         dao.delete(item.uuid)
         assertEquals(null, dao.getExercise(item.uuid))
-    }
-
-    @Test
-    fun `search unique results success`() = runTest {
-        val item1 = createTestExercise(0).copy(name = "name_1")
-        val item2 = createTestExercise(1).copy(name = "other_title")
-        val item3 = createTestExercise(2).copy(name = "other_title")
-        val item4 = createTestExercise(3).copy(name = "search_title")
-
-        dao.create(item1)
-        dao.create(item2)
-        dao.create(item3)
-        dao.create(item4)
-
-        val results = dao.searchUnique("title")
-        assertEquals(listOf(item4, item3), results)
-
-        val results2 = dao.searchUnique("other")
-        assertEquals(listOf(item3), results2)
-
-        val results3 = dao.searchUnique("_")
-        assertEquals(listOf(item4, item3, item1), results3)
-
-        val results4 = dao.searchUnique("1")
-        assertEquals(listOf(item1), results4)
-
-        val results5 = dao.searchUnique("name_123")
-        assertTrue(results5.isEmpty())
-
-        val results6 = dao.searchUnique("other_title")
-        assertEquals(listOf(item3), results6)
     }
 
     @Test
@@ -322,7 +248,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
 
     @Test
     fun `delete multiple items by uuids`() = runTest {
-        dao.create(exerciseEntities)
+        exerciseEntities.forEach { dao.create(it) }
         val uuidsToDelete = exerciseEntities.take(3).map { it.uuid }
 
         dao.delete(uuidsToDelete)
@@ -350,8 +276,8 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
             createTestExercise(index + 3)
         }.toList()
 
-        dao.create(exercisesWithTraining)
-        dao.create(exercisesWithoutTraining)
+        exercisesWithTraining.forEach { dao.create(it) }
+        exercisesWithoutTraining.forEach { dao.create(it) }
 
         dao.deleteAllByTraining(trainingUuid)
 
@@ -382,9 +308,9 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
             createTestExercise(index + 4)
         }.toList()
 
-        dao.create(exercisesWithTraining1)
-        dao.create(exercisesWithTraining2)
-        dao.create(exercisesWithoutTraining)
+        exercisesWithTraining1.forEach { dao.create(it) }
+        exercisesWithTraining2.forEach { dao.create(it) }
+        exercisesWithoutTraining.forEach { dao.create(it) }
 
         dao.deleteAllByTrainings(listOf(trainingUuid1, trainingUuid2))
 
@@ -401,7 +327,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
 
     @Test
     fun `delete all by empty training uuids list`() = runTest {
-        dao.create(exerciseEntities)
+        exerciseEntities.forEach { dao.create(it) }
 
         dao.deleteAllByTrainings(emptyList())
 
@@ -414,7 +340,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
     @OptIn(ExperimentalUuidApi::class)
     @Test
     fun `delete all by non-existing training uuid`() = runTest {
-        dao.create(exerciseEntities)
+        exerciseEntities.forEach { dao.create(it) }
         val nonExistingTrainingUuid = Uuid.random()
 
         dao.deleteAllByTraining(nonExistingTrainingUuid)
@@ -426,17 +352,8 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
     }
 
     @Test
-    fun `clear all items`() = runTest {
-        val expectedItem = createTestExercise()
-        dao.create(exerciseEntities)
-        dao.clear()
-        val actual = dao.getExercise(expectedItem.uuid)
-        assertEquals(null, actual)
-    }
-
-    @Test
     fun `get by uuids returns matching exercises`() = runTest {
-        dao.create(exerciseEntities)
+        exerciseEntities.forEach { dao.create(it) }
         val expectedUuids = exerciseEntities.take(3).map { it.uuid }
         val expectedExercises = exerciseEntities.take(3)
 
@@ -450,7 +367,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
 
     @Test
     fun `get by uuids with empty list returns empty result`() = runTest {
-        dao.create(exerciseEntities)
+        exerciseEntities.forEach { dao.create(it) }
 
         val actual = dao.getByUuids(emptyList())
 
@@ -459,7 +376,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
 
     @Test
     fun `get by uuids with non-existing uuids returns empty result`() = runTest {
-        dao.create(exerciseEntities)
+        exerciseEntities.forEach { dao.create(it) }
         val nonExistingUuids = listOf(
             Uuid.random(),
             Uuid.random(),
@@ -474,7 +391,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
     @Test
     fun `get by uuids with mix of existing and non-existing uuids returns only existing`() =
         runTest {
-            dao.create(exerciseEntities)
+            exerciseEntities.forEach { dao.create(it) }
             val existingUuids = exerciseEntities.take(2).map { it.uuid }
             val nonExistingUuids = listOf(Uuid.random())
             val mixedUuids = existingUuids + nonExistingUuids

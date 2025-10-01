@@ -64,18 +64,6 @@ internal class TrainingRepositoryImplTest {
     }
 
     @Test
-    fun `add training`() = runTest(testDispatcher) {
-        val uuid = Uuid.random()
-        val dataModel = createDataModel(0, uuid)
-        val entity = createEntity(0, uuid)
-
-        coEvery { dao.add(entity) } answers {}
-
-        repository.addTraining(dataModel)
-        coVerify(exactly = 1) { dao.add(entity) }
-    }
-
-    @Test
     fun `update training`() = runTest(testDispatcher) {
         val uuid = Uuid.random()
         val changeModel = createChangeModel(0, uuid)

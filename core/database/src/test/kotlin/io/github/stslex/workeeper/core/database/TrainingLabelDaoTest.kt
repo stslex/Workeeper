@@ -109,24 +109,6 @@ internal class TrainingLabelDaoTest : BaseDatabaseTest() {
     }
 
     @Test
-    fun `clear all labels`() = runTest {
-        testLabels.forEach { dao.add(it) }
-        assertEquals(testLabels.size, dao.getAll().size)
-
-        dao.clear()
-        val allLabels = dao.getAll()
-        assertEquals(0, allLabels.size)
-        assertTrue(allLabels.isEmpty())
-    }
-
-    @Test
-    fun `clear empty database should not cause errors`() = runTest {
-        dao.clear()
-        val allLabels = dao.getAll()
-        assertEquals(0, allLabels.size)
-    }
-
-    @Test
     fun `add labels with special characters`() = runTest {
         val specialLabels = listOf(
             TrainingLabelEntity("Push & Pull"),
@@ -141,27 +123,6 @@ internal class TrainingLabelDaoTest : BaseDatabaseTest() {
 
         assertEquals(specialLabels.size, allLabels.size)
         assertTrue(allLabels.containsAll(specialLabels))
-    }
-
-    @Test
-    fun `add and delete multiple operations`() = runTest {
-        val label1 = testLabels[0]
-        val label2 = testLabels[1]
-        val label3 = testLabels[2]
-
-        dao.add(label1)
-        dao.add(label2)
-        assertEquals(2, dao.getAll().size)
-
-        dao.delete(label1.label)
-        assertEquals(1, dao.getAll().size)
-        assertTrue(dao.getAll().contains(label2))
-
-        dao.add(label3)
-        assertEquals(2, dao.getAll().size)
-
-        dao.clear()
-        assertEquals(0, dao.getAll().size)
     }
 
     @Test

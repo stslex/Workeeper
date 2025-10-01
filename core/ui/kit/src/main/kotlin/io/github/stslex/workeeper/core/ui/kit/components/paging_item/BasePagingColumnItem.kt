@@ -69,8 +69,8 @@ fun BasePagingColumnItem(
     val topRadius by animateDpAsState(
         targetValue = when {
             itemPosition == ItemPosition.FIRST ||
-                    itemPosition == ItemPosition.SINGLE ||
-                    isSelected -> itemCornerRadius
+                itemPosition == ItemPosition.SINGLE ||
+                isSelected -> itemCornerRadius
 
             else -> AppDimension.Radius.smallest
         },
@@ -79,8 +79,8 @@ fun BasePagingColumnItem(
     val bottomRadius by animateDpAsState(
         targetValue = when {
             itemPosition == ItemPosition.LAST ||
-                    itemPosition == ItemPosition.SINGLE ||
-                    isSelected -> itemCornerRadius
+                itemPosition == ItemPosition.SINGLE ||
+                isSelected -> itemCornerRadius
 
             else -> AppDimension.Radius.smallest
         },
