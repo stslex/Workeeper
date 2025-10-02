@@ -60,7 +60,7 @@ open class BaseStore<S : State, A : Action, E : Event>(
     private val _state: MutableStateFlow<S> = MutableStateFlow(initialState)
     override val state: StateFlow<S> = _state.asStateFlow()
 
-    private val analytics: StoreAnalytics<A, E> by lazy { analyticsHolder.createStore(name) }
+    private val analytics: StoreAnalytics<A, E> by lazy { analyticsHolder.create(name) }
     override val logger: Logger by lazy { loggerHolder.create(name) }
 
     override val scope: AppCoroutineScope = AppCoroutineScope(

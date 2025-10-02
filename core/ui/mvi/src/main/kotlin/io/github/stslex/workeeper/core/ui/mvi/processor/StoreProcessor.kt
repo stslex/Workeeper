@@ -5,7 +5,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import io.github.stslex.workeeper.core.core.logger.FirebaseAnalyticsHolder
 import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
 import io.github.stslex.workeeper.core.core.logger.FirebaseEvent
@@ -45,22 +45,13 @@ interface StoreProcessor<S : State, A : Action, E : Event> {
  * @param TStoreImpl The type of the store implementation.
  */
 @Composable
-inline fun <
-    S : State,
-    A : Action,
-    E : Event,
-    reified TStoreImpl : BaseStore<S, A, E>,
-    TComponent : Component,
-    reified TFactory : StoreFactory<TComponent, TStoreImpl>,
-    > rememberStoreProcessor(
+inline fun <reified TStoreImpl : BaseStore<*, *, *>, TComponent : Component, reified TFactory : StoreFactory<TComponent, TStoreImpl>> rememberStoreProcessor(
     component: TComponent,
     key: String? = null,
-): StoreProcessor<S, A, E> {
+): StoreProcessor<*, *, *> {
     val store = hiltViewModel<TStoreImpl, TFactory>(key = key) {
         it.create(component)
-    }.apply {
-        initEmitter()
-    }
+    }.apply { initEmitter() }
     DisposableEffect(store) {
         store.initEmitter()
         store.init()

@@ -3,11 +3,12 @@ package io.github.stslex.workeeper.feature.single_training.di
 import androidx.compose.runtime.Composable
 import io.github.stslex.workeeper.core.ui.mvi.Feature
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
-import io.github.stslex.workeeper.core.ui.mvi.processor.rememberStoreProcessor
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.handler.SingleTrainingComponent
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingStore.Action
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingStore.Event
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingStore.State
+import io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingStoreImpl
+import io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingStoreImpl.Factory
 
 internal typealias TrainingStoreProcessor = StoreProcessor<State, Action, Event>
 
@@ -17,10 +18,10 @@ internal typealias TrainingStoreProcessor = StoreProcessor<State, Action, Event>
  *
  * @see [io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingStore]
  * */
-internal object TrainingFeature : Feature<TrainingStoreProcessor, SingleTrainingComponent> {
+internal object TrainingFeature : Feature<TrainingStoreProcessor, SingleTrainingComponent>() {
 
     @Composable
     override fun processor(
         component: SingleTrainingComponent,
-    ): TrainingStoreProcessor = rememberStoreProcessor(component)
+    ): TrainingStoreProcessor = createProcessor<TrainingStoreImpl, Factory>(component)
 }

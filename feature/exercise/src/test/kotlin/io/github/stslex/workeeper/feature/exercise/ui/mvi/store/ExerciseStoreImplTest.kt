@@ -30,8 +30,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
 import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -82,8 +82,8 @@ internal class ExerciseStoreImplTest {
         navigationHandler = navigationHandler,
         storeDispatchers = storeDispatchers,
         storeEmitter = storeEmitter,
-        logger = logger,
-        analytics = analytics,
+        loggerHolder = mockk { every { create(any()) } returns logger },
+        analyticsHolder = mockk { every { create<Action, Event>(any()) } returns analytics },
     )
 
     @Test
@@ -123,8 +123,8 @@ internal class ExerciseStoreImplTest {
             navigationHandler = navigationHandler,
             storeDispatchers = storeDispatchers,
             storeEmitter = storeEmitter,
-            logger = logger,
-            analytics = analytics,
+            loggerHolder = mockk { every { create(any()) } returns logger },
+            analyticsHolder = mockk { every { create<Action, Event>(any()) } returns analytics },
         )
 
         testStore.init()

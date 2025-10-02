@@ -19,8 +19,8 @@ import io.mockk.verify
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
 
 class ChartsInteractorImplTest {
 
@@ -228,7 +228,7 @@ class ChartsInteractorImplTest {
 
         val result = chartsInteractor.getChartsData(params)
 
-        assertEquals(emptyList(), result)
+        assertEquals(emptyList<SingleChartDomainModel>(), result)
         coVerify(exactly = 1) {
             trainingRepository.getTrainings(
                 query = "NonExistent",
@@ -283,7 +283,7 @@ class ChartsInteractorImplTest {
 
         val result = chartsInteractor.getChartsData(params)
 
-        assertEquals(emptyList(), result)
+        assertEquals(emptyList<SingleChartDomainModel>(), result)
         coVerify(exactly = 1) {
             exerciseRepository.getExercises(
                 name = "NonExistent",

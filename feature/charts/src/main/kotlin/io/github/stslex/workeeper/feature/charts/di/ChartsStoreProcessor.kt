@@ -3,7 +3,6 @@ package io.github.stslex.workeeper.feature.charts.di
 import androidx.compose.runtime.Composable
 import io.github.stslex.workeeper.core.ui.mvi.Feature
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
-import io.github.stslex.workeeper.core.ui.mvi.processor.rememberStoreProcessor
 import io.github.stslex.workeeper.feature.charts.ui.mvi.handler.ChartsComponent
 import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore.Action
 import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore.Event
@@ -18,17 +17,10 @@ internal typealias ChartsStoreProcessor = StoreProcessor<State, Action, Event>
  *
  * @see [io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore]
  * */
-internal object ChartsFeature : Feature<ChartsStoreProcessor, ChartsComponent> {
+internal object ChartsFeature : Feature<ChartsStoreProcessor, ChartsComponent>() {
 
     @Composable
     override fun processor(
         component: ChartsComponent,
-    ): ChartsStoreProcessor = rememberStoreProcessor<
-        State,
-        Action,
-        Event,
-        ChartsStoreImpl,
-        ChartsComponent,
-        ChartsStoreImpl.Factory,
-        >(component)
+    ): ChartsStoreProcessor = createProcessor<ChartsStoreImpl, ChartsStoreImpl.Factory>(component)
 }

@@ -25,8 +25,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
 
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class TrainingStoreImplTest {
@@ -46,9 +46,10 @@ internal class TrainingStoreImplTest {
         coEvery { this@mockk.invoke(any()) } just runs
     }
 
-    private val inputHandler = mockk<io.github.stslex.workeeper.feature.all_trainings.ui.mvi.handler.InputHandler> {
-        coEvery { this@mockk.invoke(any()) } just runs
-    }
+    private val inputHandler =
+        mockk<io.github.stslex.workeeper.feature.all_trainings.ui.mvi.handler.InputHandler> {
+            coEvery { this@mockk.invoke(any()) } just runs
+        }
     private val handlerStore = mockk<TrainingHandlerStoreImpl>(relaxed = true) {
         every { state } returns MutableStateFlow(
             TrainingStore.State(
@@ -79,8 +80,8 @@ internal class TrainingStoreImplTest {
         inputHandler = inputHandler,
         storeDispatchers = storeDispatchers,
         handlerStore = handlerStore,
-        analytics = analytics,
-        logger = logger,
+        loggerHolder = mockk { every { create(any()) } returns logger },
+        analyticsHolder = mockk { every { create<Action, Event>(any()) } returns analytics },
     )
 
     @Test
@@ -235,7 +236,7 @@ internal class TrainingStoreImplTest {
         assertEquals(pagingStateMock, state.pagingUiState)
         assertEquals("", state.query)
         assertEquals(0, state.selectedItems.size)
-        assertEquals(persistentSetOf(), state.selectedItems)
+        assertEquals(persistentSetOf<String>(), state.selectedItems)
     }
 
     @Test
@@ -255,7 +256,7 @@ internal class TrainingStoreImplTest {
 
         // Original state should be unchanged
         assertEquals("", state.query)
-        assertEquals(persistentSetOf(), state.selectedItems)
+        assertEquals(persistentSetOf<String>(), state.selectedItems)
     }
 
     @Test
@@ -272,8 +273,8 @@ internal class TrainingStoreImplTest {
             inputHandler = inputHandler,
             storeDispatchers = storeDispatchers,
             handlerStore = handlerStore,
-            analytics = analytics,
-            logger = logger,
+            loggerHolder = mockk { every { create(any()) } returns logger },
+            analyticsHolder = mockk { every { create<Action, Event>(any()) } returns analytics },
         )
 
         val state = customStore.state.value

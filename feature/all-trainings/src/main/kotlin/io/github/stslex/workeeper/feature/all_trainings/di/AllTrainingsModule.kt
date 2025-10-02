@@ -15,4 +15,8 @@ internal interface AllTrainingsModule {
     @Binds
     @ViewModelScoped
     fun bindInteractor(impl: AllTrainingsInteractorImpl): AllTrainingsInteractor
+
+    @Binds
+    @ViewModelScoped
+    fun bindHandlerStore(impl: TrainingHandlerStoreImpl): TrainingHandlerStore
 }

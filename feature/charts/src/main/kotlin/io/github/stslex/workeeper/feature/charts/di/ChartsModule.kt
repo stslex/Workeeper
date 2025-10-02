@@ -5,6 +5,8 @@ import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.android.components.ViewModelComponent
 import dagger.hilt.android.scopes.ViewModelScoped
+import io.github.stslex.workeeper.feature.charts.domain.calculator.ChartDomainCalculator
+import io.github.stslex.workeeper.feature.charts.domain.calculator.ChartDomainCalculatorImpl
 import io.github.stslex.workeeper.feature.charts.domain.interactor.ChartsInteractor
 import io.github.stslex.workeeper.feature.charts.domain.interactor.ChartsInteractorImpl
 
@@ -19,4 +21,8 @@ internal interface ChartsModule {
     @Binds
     @ViewModelScoped
     fun bindHandlerStore(impl: ChartsHandlerStoreImpl): ChartsHandlerStore
+
+    @Binds
+    @ViewModelScoped
+    fun bindDomainCalculator(impl: ChartDomainCalculatorImpl): ChartDomainCalculator
 }

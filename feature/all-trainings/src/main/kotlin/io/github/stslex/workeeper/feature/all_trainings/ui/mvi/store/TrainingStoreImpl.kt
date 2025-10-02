@@ -9,6 +9,7 @@ import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
+import io.github.stslex.workeeper.core.ui.mvi.processor.StoreFactory
 import io.github.stslex.workeeper.feature.all_trainings.di.TrainingHandlerStoreImpl
 import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.handler.AllTrainingsComponent
 import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.handler.ClickHandler
@@ -49,9 +50,7 @@ internal class TrainingStoreImpl @AssistedInject constructor(
 ) {
 
     @AssistedFactory
-    interface Factory {
-        fun create(component: AllTrainingsComponent): TrainingStoreImpl
-    }
+    interface Factory : StoreFactory<AllTrainingsComponent, TrainingStoreImpl>
 
     companion object {
 

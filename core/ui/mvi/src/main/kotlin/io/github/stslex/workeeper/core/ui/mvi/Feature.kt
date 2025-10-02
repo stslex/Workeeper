@@ -2,7 +2,9 @@ package io.github.stslex.workeeper.core.ui.mvi
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import io.github.stslex.workeeper.core.ui.mvi.processor.StoreFactory
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
+import io.github.stslex.workeeper.core.ui.mvi.processor.rememberStoreProcessor
 import io.github.stslex.workeeper.core.ui.navigation.Component
 
 /**
@@ -12,8 +14,16 @@ import io.github.stslex.workeeper.core.ui.navigation.Component
  * @see [StoreProcessor]
  * */
 @Immutable
-interface Feature<TProcessor : StoreProcessor<*, *, *>, TComponent : Component> {
+abstract class Feature<TProcessor : StoreProcessor<*, *, *>, TComponent : Component> {
 
     @Composable
-    fun processor(component: TComponent): TProcessor
+    abstract fun processor(component: TComponent): TProcessor
+
+    @Suppress("UNCHECKED_CAST")
+    @Composable
+    inline fun <reified TStoreImpl : BaseStore<*, *, *>, reified TFactory : StoreFactory<TComponent, TStoreImpl>> Feature<TProcessor, TComponent>.createProcessor(
+        component: TComponent,
+    ): TProcessor = rememberStoreProcessor<TStoreImpl, TComponent, TFactory>(
+        component,
+    ) as TProcessor
 }

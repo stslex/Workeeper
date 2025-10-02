@@ -8,7 +8,7 @@ import javax.inject.Singleton
 @Singleton
 class AnalyticsHolder @Inject constructor() {
 
-    fun <A : Store.Action, E : Store.Event> createStore(
+    fun <A : Store.Action, E : Store.Event> create(
         name: String,
     ) = StoreAnalytics<A, E>("${BaseStore.Companion.STORE_LOGGER_PREFIX}_$name")
 }
