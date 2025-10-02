@@ -1,10 +1,10 @@
 package io.github.stslex.workeeper.feature.single_training.domain.interactor
 
+import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.coroutine.asyncMap
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.DefaultDispatcher
+import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
-import io.github.stslex.workeeper.feature.single_training.di.TRAINING_SCOPE_NAME
 import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingDomainChangeModel
 import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingDomainModel
 import io.github.stslex.workeeper.feature.single_training.domain.model.toDomain
@@ -14,15 +14,13 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.koin.core.annotation.Scope
-import org.koin.core.annotation.Scoped
+import javax.inject.Inject
 
-@Scoped
-@Scope(name = TRAINING_SCOPE_NAME)
-internal class SingleTrainingInteractorImpl(
+@ViewModelScoped
+internal class SingleTrainingInteractorImpl @Inject constructor(
     private val trainingRepository: TrainingRepository,
     private val exerciseRepository: ExerciseRepository,
-    @param:DefaultDispatcher
+    @DefaultDispatcher
     private val defaultDispatcher: CoroutineDispatcher,
 ) : SingleTrainingInteractor {
 

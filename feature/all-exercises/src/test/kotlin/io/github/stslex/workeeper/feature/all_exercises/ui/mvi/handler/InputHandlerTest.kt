@@ -10,8 +10,8 @@ import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.coroutines.flow.MutableStateFlow
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
 
 internal class InputHandlerTest {
 

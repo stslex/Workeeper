@@ -57,14 +57,15 @@ fun AppActionButton(
         RoundedPolygon.rectangle(
             rounding = CornerRounding(
                 radius = 0.35f,
-                smoothing = 1f, // Maximum smoothing for smooth edges
+                smoothing = 1f,
             ),
         )
     }
 
     val shapeB = remember {
         RoundedPolygon.star(
-            6,
+            numVerticesPerRadius = 6,
+            innerRadius = 0.65f,
             rounding = CornerRounding(
                 radius = 0.35f,
                 smoothing = 1f,

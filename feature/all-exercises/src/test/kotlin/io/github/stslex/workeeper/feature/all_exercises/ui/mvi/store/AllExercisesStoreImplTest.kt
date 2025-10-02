@@ -4,8 +4,8 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.paging.PagingData
 import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
-import io.github.stslex.workeeper.core.ui.mvi.StoreAnalytics
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
+import io.github.stslex.workeeper.core.ui.mvi.holders.StoreAnalytics
 import io.github.stslex.workeeper.feature.all_exercises.di.ExerciseHandlerStoreImpl
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.handler.ClickHandler
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.handler.InputHandler
@@ -25,8 +25,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
 
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class AllExercisesStoreImplTest {
@@ -84,8 +84,8 @@ internal class AllExercisesStoreImplTest {
         inputHandler = inputHandler,
         storeDispatchers = storeDispatchers,
         storeEmitter = storeEmitter,
-        logger = logger,
-        analytics = analytics,
+        loggerHolder = mockk { every { create(any()) } returns logger },
+        analyticsHolder = mockk { every { create<Action, Event>(any()) } returns analytics },
     )
 
     @Test

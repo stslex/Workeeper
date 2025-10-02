@@ -1,9 +1,9 @@
 package io.github.stslex.workeeper.feature.single_training.ui.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.MainImmediateDispatcher
+import dagger.hilt.android.scopes.ViewModelScoped
+import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
-import io.github.stslex.workeeper.feature.single_training.di.TRAINING_SCOPE_NAME
 import io.github.stslex.workeeper.feature.single_training.di.TrainingHandlerStore
 import io.github.stslex.workeeper.feature.single_training.domain.interactor.SingleTrainingInteractor
 import io.github.stslex.workeeper.feature.single_training.ui.model.DialogState
@@ -12,19 +12,16 @@ import io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingS
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingStore.Action
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
-import org.koin.core.annotation.Named
-import org.koin.core.annotation.Scope
-import org.koin.core.annotation.Scoped
+import javax.inject.Inject
 import kotlin.uuid.Uuid
 
-@Scoped(binds = [ClickHandler::class])
-@Scope(name = TRAINING_SCOPE_NAME)
-internal class ClickHandler(
+@ViewModelScoped
+internal class ClickHandler @Inject constructor(
     private val interactor: SingleTrainingInteractor,
     private val changeMap: TrainingChangeMapper,
-    @param:MainImmediateDispatcher
+    @MainImmediateDispatcher
     private val mainDispatcher: CoroutineDispatcher,
-    @Named(TRAINING_SCOPE_NAME) store: TrainingHandlerStore,
+    store: TrainingHandlerStore,
 ) : Handler<Action.Click>, TrainingHandlerStore by store {
 
     override fun invoke(action: Action.Click) {

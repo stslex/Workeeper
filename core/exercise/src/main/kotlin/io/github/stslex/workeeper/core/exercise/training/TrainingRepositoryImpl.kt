@@ -5,7 +5,7 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
 import io.github.stslex.workeeper.core.core.coroutine.asyncMap
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.IODispatcher
+import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.database.training.TrainingDao
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
@@ -13,14 +13,14 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import org.koin.core.annotation.Single
+import javax.inject.Inject
+import javax.inject.Singleton
 import kotlin.uuid.Uuid
 
-@Single
-class TrainingRepositoryImpl(
+@Singleton
+class TrainingRepositoryImpl @Inject constructor(
     private val dao: TrainingDao,
-    @param:IODispatcher
-    private val ioDispatcher: CoroutineDispatcher,
+    @IODispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : TrainingRepository {
 
     override fun getTrainings(query: String): Flow<PagingData<TrainingDataModel>> = Pager(
@@ -31,12 +31,6 @@ class TrainingRepositoryImpl(
             pagingData.map { it.toData() }
         }
         .flowOn(ioDispatcher)
-
-    override suspend fun addTraining(training: TrainingDataModel) {
-        withContext(ioDispatcher) {
-            dao.add(training.toEntity())
-        }
-    }
 
     override suspend fun updateTraining(training: TrainingChangeDataModel) {
         withContext(ioDispatcher) {

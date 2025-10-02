@@ -1,11 +1,11 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
+import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.MenuItem
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder.Companion.update
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
-import io.github.stslex.workeeper.feature.exercise.di.EXERCISE_SCOPE_NAME
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.toUi
@@ -14,15 +14,12 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.St
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State.Companion.INITIAL
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toPersistentSet
-import org.koin.core.annotation.Named
-import org.koin.core.annotation.Scope
-import org.koin.core.annotation.Scoped
+import javax.inject.Inject
 
-@Scoped(binds = [CommonHandler::class])
-@Scope(name = EXERCISE_SCOPE_NAME)
-internal class CommonHandler(
+@ViewModelScoped
+internal class CommonHandler @Inject constructor(
     private val interactor: ExerciseInteractor,
-    @Named(EXERCISE_SCOPE_NAME) store: ExerciseHandlerStore,
+    store: ExerciseHandlerStore,
 ) : Handler<Action.Common>, ExerciseHandlerStore by store {
 
     override fun invoke(action: Action.Common) {

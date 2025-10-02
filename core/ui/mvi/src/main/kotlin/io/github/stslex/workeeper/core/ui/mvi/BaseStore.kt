@@ -4,7 +4,6 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScope
-import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.ui.mvi.Store.Action
 import io.github.stslex.workeeper.core.ui.mvi.Store.Event
@@ -13,6 +12,9 @@ import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.mvi.handler.HandlerCreator
 import io.github.stslex.workeeper.core.ui.mvi.handler.HandlerStoreEmitter
+import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
+import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
+import io.github.stslex.workeeper.core.ui.mvi.holders.StoreAnalytics
 import io.github.stslex.workeeper.core.ui.mvi.store.StoreConsumer
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -48,8 +50,8 @@ open class BaseStore<S : State, A : Action, E : Event>(
     private val initialActions: List<A> = emptyList(),
     storeDispatchers: StoreDispatchers,
     val disposeActions: List<A> = emptyList(),
-    val analytics: StoreAnalytics<A, E> = AnalyticsHolder.createStore(name),
-    override val logger: Logger = storeLogger(name),
+    val analyticsHolder: AnalyticsHolder,
+    val loggerHolder: LoggerHolder,
 ) : ViewModel(), Store<S, A, E>, StoreConsumer<S, A, E> {
 
     private val _event: MutableSharedFlow<E> = MutableSharedFlow()
@@ -57,6 +59,9 @@ open class BaseStore<S : State, A : Action, E : Event>(
 
     private val _state: MutableStateFlow<S> = MutableStateFlow(initialState)
     override val state: StateFlow<S> = _state.asStateFlow()
+
+    private val analytics: StoreAnalytics<A, E> by lazy { analyticsHolder.create(name) }
+    override val logger: Logger by lazy { loggerHolder.create(name) }
 
     override val scope: AppCoroutineScope = AppCoroutineScope(
         scope = viewModelScope,
@@ -183,7 +188,5 @@ open class BaseStore<S : State, A : Action, E : Event>(
     companion object {
 
         internal const val STORE_LOGGER_PREFIX = "MVI_STORE"
-
-        fun storeLogger(name: String) = Log.tag("${STORE_LOGGER_PREFIX}_$name")
     }
 }

@@ -6,11 +6,11 @@ import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
 import io.github.stslex.workeeper.core.exercise.training.TrainingDataModel
 import io.github.stslex.workeeper.feature.charts.domain.model.ChartDataType
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.assertNotNull
 import kotlin.uuid.Uuid
 
 class ChartDomainCalculatorImplTest {

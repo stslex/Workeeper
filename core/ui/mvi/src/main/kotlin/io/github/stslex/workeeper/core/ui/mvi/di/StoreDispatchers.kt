@@ -1,12 +1,13 @@
 package io.github.stslex.workeeper.core.ui.mvi.di
 
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.DefaultDispatcher
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.MainImmediateDispatcher
+import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
+import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import kotlinx.coroutines.CoroutineDispatcher
-import org.koin.core.annotation.Single
+import javax.inject.Inject
+import javax.inject.Singleton
 
-@Single
-data class StoreDispatchers(
-    @param:DefaultDispatcher val defaultDispatcher: CoroutineDispatcher,
-    @param:MainImmediateDispatcher val mainImmediateDispatcher: CoroutineDispatcher,
+@Singleton
+data class StoreDispatchers @Inject constructor(
+    @DefaultDispatcher val defaultDispatcher: CoroutineDispatcher,
+    @MainImmediateDispatcher val mainImmediateDispatcher: CoroutineDispatcher,
 )

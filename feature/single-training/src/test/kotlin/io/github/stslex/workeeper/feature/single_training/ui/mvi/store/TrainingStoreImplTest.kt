@@ -2,8 +2,8 @@ package io.github.stslex.workeeper.feature.single_training.ui.mvi.store
 
 import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
-import io.github.stslex.workeeper.core.ui.mvi.StoreAnalytics
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
+import io.github.stslex.workeeper.core.ui.mvi.holders.StoreAnalytics
 import io.github.stslex.workeeper.feature.single_training.di.TrainingHandlerStoreImpl
 import io.github.stslex.workeeper.feature.single_training.ui.model.DialogState
 import io.github.stslex.workeeper.feature.single_training.ui.model.ExerciseUiModel
@@ -27,8 +27,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
 
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class TrainingStoreImplTest {
@@ -75,8 +75,8 @@ internal class TrainingStoreImplTest {
         clickHandler = clickHandler,
         storeDispatchers = storeDispatchers,
         handlerStore = handlerStore,
-        analytics = analytics,
-        logger = logger,
+        loggerHolder = mockk { every { create(any()) } returns logger },
+        analyticsHolder = mockk { every { create<Action, Event>(any()) } returns analytics },
     )
 
     @Test
@@ -317,8 +317,8 @@ internal class TrainingStoreImplTest {
             clickHandler = clickHandler,
             storeDispatchers = storeDispatchers,
             handlerStore = handlerStore,
-            analytics = analytics,
-            logger = logger,
+            loggerHolder = mockk { every { create(any()) } returns logger },
+            analyticsHolder = mockk { every { create<Action, Event>(any()) } returns analytics },
         )
 
         customStore.init()
@@ -341,8 +341,8 @@ internal class TrainingStoreImplTest {
             clickHandler = clickHandler,
             storeDispatchers = storeDispatchers,
             handlerStore = handlerStore,
-            analytics = analytics,
-            logger = logger,
+            loggerHolder = mockk { every { create(any()) } returns logger },
+            analyticsHolder = mockk { every { create<Action, Event>(any()) } returns analytics },
         )
 
         customStore.init()

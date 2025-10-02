@@ -1,19 +1,16 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
+import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder.Companion.update
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
-import io.github.stslex.workeeper.feature.exercise.di.EXERCISE_SCOPE_NAME
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
-import org.koin.core.annotation.Named
-import org.koin.core.annotation.Scope
-import org.koin.core.annotation.Scoped
+import javax.inject.Inject
 
-@Scoped(binds = [InputHandler::class])
-@Scope(name = EXERCISE_SCOPE_NAME)
-internal class InputHandler(
-    @Named(EXERCISE_SCOPE_NAME) store: ExerciseHandlerStore,
+@ViewModelScoped
+internal class InputHandler @Inject constructor(
+    store: ExerciseHandlerStore,
 ) : Handler<Action.Input>, ExerciseHandlerStore by store {
 
     override fun invoke(action: Action.Input) {

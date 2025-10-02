@@ -15,6 +15,7 @@ dependencies {
     compileOnly(libs.composeCompiler.gradlePlugin)
     compileOnly(libs.fbCrashlytics.gradlePlugin)
     compileOnly(libs.detekt.gradle)
+    compileOnly(libs.hilt.gradlePlugin)
 }
 
 tasks {

@@ -72,7 +72,7 @@ fun BasePagingColumnItem(
                 itemPosition == ItemPosition.SINGLE ||
                 isSelected -> itemCornerRadius
 
-            else -> 0.dp
+            else -> AppDimension.Radius.smallest
         },
         animationSpec = tween(durationMillis = 600),
     )
@@ -82,7 +82,7 @@ fun BasePagingColumnItem(
                 itemPosition == ItemPosition.SINGLE ||
                 isSelected -> itemCornerRadius
 
-            else -> 0.dp
+            else -> AppDimension.Radius.smallest
         },
         animationSpec = tween(durationMillis = 600),
     )

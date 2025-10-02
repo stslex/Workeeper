@@ -16,6 +16,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.charts.ui.components.ChartsWidget
 import io.github.stslex.workeeper.feature.charts.ui.components.DatePickerDialog
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.CalendarState
+import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartsState
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartsType
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ExerciseChartPreviewParameterProvider
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.SingleChartUiModel
@@ -77,7 +78,7 @@ private fun HomeWidgetPreview(
             name = name,
             startDate = PropertyHolder.DateProperty.new(startDate),
             endDate = PropertyHolder.DateProperty.new(endDate),
-            charts = charts,
+            chartState = ChartsState.Content(charts),
             type = ChartsType.TRAINING,
             calendarState = CalendarState.Closed,
         )

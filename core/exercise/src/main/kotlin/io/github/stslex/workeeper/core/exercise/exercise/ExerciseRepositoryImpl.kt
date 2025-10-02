@@ -4,7 +4,7 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.IODispatcher
+import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
@@ -15,13 +15,14 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import org.koin.core.annotation.Single
+import javax.inject.Inject
+import javax.inject.Singleton
 import kotlin.uuid.Uuid
 
-@Single
-internal class ExerciseRepositoryImpl(
+@Singleton
+internal class ExerciseRepositoryImpl @Inject constructor(
     private val dao: ExerciseDao,
-    @param:IODispatcher private val bgDispatcher: CoroutineDispatcher,
+    @IODispatcher private val bgDispatcher: CoroutineDispatcher,
 ) : ExerciseRepository {
 
     override val exercises: Flow<PagingData<ExerciseDataModel>> = Pager(
@@ -57,12 +58,6 @@ internal class ExerciseRepositoryImpl(
         dao.getExercise(Uuid.parse(uuid))?.toData()
     }
 
-    override suspend fun getExerciseByName(
-        name: String,
-    ): ExerciseDataModel? = withContext(bgDispatcher) {
-        dao.getExerciseByName(name)?.toData()
-    }
-
     override suspend fun getExercises(
         name: String,
         startDate: Long,
@@ -74,18 +69,6 @@ internal class ExerciseRepositoryImpl(
             endDate = endDate,
         ).map { it.toData() }
     }
-
-    override fun getExercisesExactly(
-        name: String,
-        startDate: Long,
-        endDate: Long,
-    ): Flow<List<ExerciseDataModel>> = dao.getExercisesExactly(
-        name = name,
-        startDate = startDate,
-        endDate = endDate,
-    )
-        .map { list -> list.map { it.toData() } }
-        .flowOn(bgDispatcher)
 
     override suspend fun saveItem(item: ExerciseChangeDataModel) = withContext(bgDispatcher) {
         dao.create(item.toEntity())

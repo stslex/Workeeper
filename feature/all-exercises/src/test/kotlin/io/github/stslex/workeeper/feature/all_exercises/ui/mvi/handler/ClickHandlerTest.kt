@@ -24,9 +24,9 @@ import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 import kotlin.uuid.Uuid
 
 internal class ClickHandlerTest {
@@ -233,7 +233,7 @@ internal class ClickHandlerTest {
 
         val newState = stateSlot.captured(stateFlow.value)
         assertTrue(newState.selectedItems.isEmpty())
-        assertEquals(persistentSetOf(), newState.selectedItems)
+        assertEquals(persistentSetOf<String>(), newState.selectedItems)
     }
 
     @Test

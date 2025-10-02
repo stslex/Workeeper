@@ -3,12 +3,12 @@ package io.github.stslex.workeeper.feature.charts.ui.mvi.store
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
-import io.github.stslex.workeeper.core.ui.mvi.StoreAnalytics
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
+import io.github.stslex.workeeper.core.ui.mvi.holders.StoreAnalytics
 import io.github.stslex.workeeper.feature.charts.di.ChartsHandlerStoreImpl
+import io.github.stslex.workeeper.feature.charts.ui.mvi.handler.ChartsComponent
 import io.github.stslex.workeeper.feature.charts.ui.mvi.handler.ClickHandler
 import io.github.stslex.workeeper.feature.charts.ui.mvi.handler.InputHandler
-import io.github.stslex.workeeper.feature.charts.ui.mvi.handler.NavigationHandler
 import io.github.stslex.workeeper.feature.charts.ui.mvi.handler.PagingHandler
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.CalendarState
 import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore.Action
@@ -25,23 +25,23 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
 
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class ChartsStoreImplTest {
 
     private val testDispatcher = StandardTestDispatcher()
 
-    private val navigationHandler = mockk<NavigationHandler>(relaxed = true)
+    private val navigationHandler = mockk<ChartsComponent>(relaxed = true)
     private val pagingHandler = mockk<PagingHandler> {
         coEvery { this@mockk.invoke(any()) } just runs
     }
     private val clickHandler = mockk<ClickHandler> {
         coEvery { this@mockk.invoke(any()) } just runs
     }
-    private val inputHandler = mockk<InputHandler>() {
+    private val inputHandler = mockk<InputHandler> {
         coEvery { this@mockk.invoke(any()) } just runs
     }
 
@@ -65,14 +65,14 @@ internal class ChartsStoreImplTest {
     }
 
     private val store: ChartsStoreImpl = ChartsStoreImpl(
-        navigationHandler = navigationHandler,
+        component = navigationHandler,
         pagingHandler = pagingHandler,
         clickHandler = clickHandler,
         inputHandler = inputHandler,
         storeDispatchers = storeDispatchers,
         storeEmitter = storeEmitter,
-        analytics = analytics,
-        logger = logger,
+        loggerHolder = mockk { every { create(any()) } returns logger },
+        analyticsHolder = mockk { every { create<Action, Event>(any()) } returns analytics },
     )
 
     @Test
@@ -231,7 +231,7 @@ internal class ChartsStoreImplTest {
         val state = store.state.value
 
         assertEquals("", state.name)
-        assertEquals(0, state.charts.size)
+        assertEquals(ChartsStore.State.INITIAL.chartState, state.chartState)
         assertEquals(CalendarState.Closed, state.calendarState)
 
         // Check dates within tolerance due to timing

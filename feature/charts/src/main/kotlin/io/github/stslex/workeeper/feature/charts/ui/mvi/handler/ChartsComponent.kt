@@ -1,9 +1,11 @@
 package io.github.stslex.workeeper.feature.charts.ui.mvi.handler
 
+import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.navigation.Component
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
+import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore.Action
 
-interface ChartsComponent : Component {
+internal interface ChartsComponent : Component, Handler<Action.Navigation> {
 
     companion object {
 

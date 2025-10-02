@@ -14,10 +14,18 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.util.fastRoundToInt
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.toPx
@@ -54,9 +62,10 @@ internal fun ChartsCanvaWidget(
         }
     }
 
+    val testMeasurer = rememberTextMeasurer()
+
     Canvas(
-        modifier = modifier
-            .fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
     ) {
         val path = createBackgroundPath(
             strokeThin = outlineThin,
@@ -68,6 +77,12 @@ internal fun ChartsCanvaWidget(
             chartsMapped.forEachIndexed { index, chart ->
                 val points = calculateChartPoints(chart)
                 val path = createSmoothPathSimple(points)
+
+                drawAxis(
+                    points = points,
+                    textMeasurer = testMeasurer,
+                    color = Color.Black,
+                )
 
                 drawPath(
                     path = path,
@@ -87,10 +102,92 @@ internal fun ChartsCanvaWidget(
                 drawPath(
                     path = filledPath,
                     color = chart.color.copy(alpha = 0.1f),
-                    style = androidx.compose.ui.graphics.drawscope.Fill,
+                    style = Fill,
                 )
             }
         }
+    }
+}
+
+private fun DrawScope.drawAxis(
+    points: List<Offset>,
+    textMeasurer: TextMeasurer,
+    color: Color,
+) {
+    val xValueCount = 5
+    val xyCalculatedDiff = size.width / xValueCount
+
+    val textSize = 12.sp
+    val textStyle = TextStyle(
+        color = color,
+        fontSize = textSize,
+    )
+    val textMeasured = textMeasurer.measure(
+        text = "0",
+        style = textStyle,
+    )
+    val leftOffset = AppDimension.Padding.medium.toPx()
+    val yOffset = textMeasured.size.height.toFloat()
+
+    repeat(5) { index ->
+        val xValue = xyCalculatedDiff * index
+        drawLine(
+            color = color,
+            start = Offset(x = xValue, y = 0f),
+            end = Offset(x = xValue, y = size.height),
+            pathEffect = PathEffect.dashPathEffect(
+                intervals = floatArrayOf(10f, 10f),
+                phase = 0f,
+            ),
+        )
+        val text = "${index * 20}%"
+
+        val textWidth = textMeasurer.measure(
+            text = text,
+            style = textStyle,
+        ).size.width.toFloat()
+        drawText(
+            textMeasurer = textMeasurer,
+            text = text,
+            topLeft = Offset(
+                (xValue + leftOffset).coerceAtMost(size.width - textWidth),
+                size.height - yOffset,
+            ),
+            style = textStyle,
+            maxLines = 1,
+        )
+    }
+
+    val verticalLineCount = 6
+    val yCalculatedDiff = size.height / verticalLineCount
+    val yValueDiff = points.maxOfOrNull { it.y }
+        ?.takeIf { it.isFinite() }
+        ?.let { maxY -> maxY / verticalLineCount }
+        ?: 1f
+
+    repeat(verticalLineCount) { index ->
+        val text = "${(yValueDiff * (verticalLineCount - index)).fastRoundToInt()}"
+
+        val yValue = yCalculatedDiff * index
+        drawText(
+            textMeasurer = textMeasurer,
+            text = text,
+            topLeft = Offset(leftOffset, yValue - yOffset),
+            style = textStyle,
+//            overflow = TODO(),
+//            softWrap = TODO(),
+            maxLines = 1,
+        )
+
+        drawLine(
+            color = color,
+            start = Offset(x = 0f, y = yValue),
+            end = Offset(x = size.width, y = yValue),
+            pathEffect = PathEffect.dashPathEffect(
+                intervals = floatArrayOf(10f, 10f),
+                phase = 0f,
+            ),
+        )
     }
 }
 

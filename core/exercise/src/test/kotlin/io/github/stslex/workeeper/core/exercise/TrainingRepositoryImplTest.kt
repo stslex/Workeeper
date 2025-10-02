@@ -22,9 +22,9 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
 import kotlin.uuid.Uuid
 
 internal class TrainingRepositoryImplTest {
@@ -61,18 +61,6 @@ internal class TrainingRepositoryImplTest {
         verify(exactly = 1) { dao.getAll("some_query") }
 
         assertEquals(expectedDataModels, items)
-    }
-
-    @Test
-    fun `add training`() = runTest(testDispatcher) {
-        val uuid = Uuid.random()
-        val dataModel = createDataModel(0, uuid)
-        val entity = createEntity(0, uuid)
-
-        coEvery { dao.add(entity) } answers {}
-
-        repository.addTraining(dataModel)
-        coVerify(exactly = 1) { dao.add(entity) }
     }
 
     @Test

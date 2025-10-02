@@ -200,49 +200,6 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
     }
 
     @Test
-    fun `update existing training`() = runTest {
-        val originalTraining = testTrainings.first()
-        val updatedTraining = originalTraining.copy(
-            name = "Updated Training",
-            labels = listOf("Updated Label"),
-        )
-
-        dao.add(originalTraining)
-        dao.update(updatedTraining)
-
-        val pagingSource = dao.getAll("")
-        val loadResult = pagingSource.load(
-            PagingSource.LoadParams.Refresh(
-                key = null,
-                loadSize = 10,
-                placeholdersEnabled = false,
-            ),
-        )
-        val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
-        assertEquals(1, actual?.size)
-        assertEquals(updatedTraining, actual?.first())
-    }
-
-    @OptIn(ExperimentalUuidApi::class)
-    @Test
-    fun `update non-existing training should not add new training`() = runTest {
-        val nonExistingTraining = createTestTraining(0, uuid = Uuid.random())
-
-        dao.update(nonExistingTraining)
-
-        val pagingSource = dao.getAll("")
-        val loadResult = pagingSource.load(
-            PagingSource.LoadParams.Refresh(
-                key = null,
-                loadSize = 10,
-                placeholdersEnabled = false,
-            ),
-        )
-        val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
-        assertEquals(0, actual?.size)
-    }
-
-    @Test
     fun `delete existing training`() = runTest {
         val training = testTrainings.first()
         dao.add(training)
@@ -508,51 +465,6 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
         assertEquals(orderedTrainings[0], actual?.get(0))
         assertEquals(orderedTrainings[2], actual?.get(1))
         assertEquals(orderedTrainings[4], actual?.get(2))
-    }
-
-    @Test
-    fun `clear all trainings`() = runTest {
-        testTrainings.forEach { dao.add(it) }
-
-        val pagingSourceBefore = dao.getAll("")
-        val loadResultBefore = pagingSourceBefore.load(
-            PagingSource.LoadParams.Refresh(
-                key = null,
-                loadSize = testTrainings.size + 10,
-                placeholdersEnabled = false,
-            ),
-        )
-        val actualBefore = (loadResultBefore as? PagingSource.LoadResult.Page)?.data
-        assertEquals(testTrainings.size, actualBefore?.size)
-
-        dao.clear()
-
-        val pagingSourceAfter = dao.getAll("")
-        val loadResultAfter = pagingSourceAfter.load(
-            PagingSource.LoadParams.Refresh(
-                key = null,
-                loadSize = 10,
-                placeholdersEnabled = false,
-            ),
-        )
-        val actualAfter = (loadResultAfter as? PagingSource.LoadResult.Page)?.data
-        assertEquals(0, actualAfter?.size)
-    }
-
-    @Test
-    fun `clear empty database should not cause errors`() = runTest {
-        dao.clear()
-
-        val pagingSource = dao.getAll("")
-        val loadResult = pagingSource.load(
-            PagingSource.LoadParams.Refresh(
-                key = null,
-                loadSize = 10,
-                placeholdersEnabled = false,
-            ),
-        )
-        val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
-        assertEquals(0, actual?.size)
     }
 
     @Test

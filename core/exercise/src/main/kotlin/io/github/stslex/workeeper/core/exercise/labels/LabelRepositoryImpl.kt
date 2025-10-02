@@ -1,19 +1,19 @@
 package io.github.stslex.workeeper.core.exercise.labels
 
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.IODispatcher
+import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.database.trainingLabels.TrainingLabelDao
 import io.github.stslex.workeeper.core.exercise.labels.model.LabelDataModel
 import io.github.stslex.workeeper.core.exercise.labels.model.toData
 import io.github.stslex.workeeper.core.exercise.labels.model.toEntity
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
-import org.koin.core.annotation.Single
+import javax.inject.Inject
+import javax.inject.Singleton
 
-@Single
-class LabelRepositoryImpl(
+@Singleton
+class LabelRepositoryImpl @Inject constructor(
     private val dao: TrainingLabelDao,
-    @param:IODispatcher
-    private val ioDispatcher: CoroutineDispatcher,
+    @IODispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : LabelRepository {
 
     override suspend fun getAll(): List<LabelDataModel> = withContext(ioDispatcher) {

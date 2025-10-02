@@ -5,7 +5,6 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 import kotlin.uuid.Uuid
 
@@ -41,14 +40,8 @@ interface ExerciseDao {
         endDate: Long,
     ): Flow<List<ExerciseEntity>>
 
-    @Update
-    suspend fun update(exercise: ExerciseEntity)
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun create(exercise: ExerciseEntity)
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun create(exercise: List<ExerciseEntity>)
 
     @Query("DELETE FROM exercises_table WHERE uuid = :uuid")
     suspend fun delete(uuid: Uuid)
@@ -63,15 +56,7 @@ interface ExerciseDao {
     suspend fun deleteAllByTrainings(trainingUuid: List<Uuid>)
 
     @Query(
-        "SELECT * FROM exercises_table WHERE name LIKE '%' || :query || '%' GROUP BY name ORDER BY MAX(timestamp) DESC LIMIT 10",
-    )
-    suspend fun searchUnique(query: String): List<ExerciseEntity>
-
-    @Query(
         "SELECT * FROM exercises_table WHERE name LIKE '%' || :query || '%' AND name != :query GROUP BY name ORDER BY MAX(timestamp) DESC LIMIT 10",
     )
     suspend fun searchUniqueExclude(query: String): List<ExerciseEntity>
-
-    @Query("DELETE FROM exercises_table")
-    suspend fun clear()
 }

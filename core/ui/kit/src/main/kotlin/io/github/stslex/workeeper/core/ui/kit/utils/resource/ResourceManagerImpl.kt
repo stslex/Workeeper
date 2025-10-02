@@ -1,13 +1,15 @@
 package io.github.stslex.workeeper.core.ui.kit.utils.resource
 
 import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolder
-import org.koin.core.annotation.Single
 import java.util.Locale
+import javax.inject.Inject
+import javax.inject.Singleton
 
-@Single
-internal class ResourceManagerImpl(
-    private val fallbackContext: Context,
+@Singleton
+internal class ResourceManagerImpl @Inject constructor(
+    @ApplicationContext private val fallbackContext: Context,
     private val activityHolder: ActivityHolder,
 ) : ResourceManager {
 

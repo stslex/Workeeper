@@ -2,11 +2,11 @@ package io.github.stslex.workeeper.feature.all_exercises.ui.mvi.handler
 
 import androidx.paging.PagingData
 import androidx.paging.map
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.DefaultDispatcher
+import dagger.hilt.android.scopes.ViewModelScoped
+import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
-import io.github.stslex.workeeper.feature.all_exercises.di.EXERCISE_SCOPE_NAME
 import io.github.stslex.workeeper.feature.all_exercises.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.model.toUi
@@ -15,17 +15,14 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
-import org.koin.core.annotation.Named
-import org.koin.core.annotation.Scope
-import org.koin.core.annotation.Scoped
+import javax.inject.Inject
 
-@Scoped(binds = [PagingHandler::class])
-@Scope(name = EXERCISE_SCOPE_NAME)
-internal class PagingHandler(
+@ViewModelScoped
+internal class PagingHandler @Inject constructor(
     private val repository: ExerciseRepository,
-    @param:DefaultDispatcher
+    @DefaultDispatcher
     private val defaultDispatcher: CoroutineDispatcher,
-    @Named(EXERCISE_SCOPE_NAME) store: ExerciseHandlerStore,
+    store: ExerciseHandlerStore,
 ) : Handler<Action.Paging>, ExerciseHandlerStore by store {
 
     val processor: PagingUiState<PagingData<ExerciseUiModel>> = PagingUiState {

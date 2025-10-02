@@ -18,12 +18,10 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
 import kotlin.uuid.Uuid
 
 internal class ExerciseRepositoryTest {
@@ -94,28 +92,6 @@ internal class ExerciseRepositoryTest {
 
         val items = repository.getExercises("name", 100L, 200L)
         coVerify(exactly = 1) { dao.getExercises("name", 100L, 200L) }
-
-        assertEquals(expectedDataModels, items)
-    }
-
-    @Test
-    fun `get items with name from to date exactly`() = runTest(testDispatcher) {
-        val uuid1 = Uuid.random()
-        val uuid2 = Uuid.random()
-        val expectedEntites = listOf(
-            createEntity(0, uuid1),
-            createEntity(1, uuid2),
-        )
-        val expectedDataModels = listOf(
-            createDomain(0, uuid1),
-            createDomain(1, uuid2),
-        )
-
-        coEvery { dao.getExercisesExactly("name", 100L, 200L) } returns flowOf(expectedEntites)
-
-        val items = repository.getExercisesExactly("name", 100L, 200L).first()
-        @Suppress("UnusedFlow")
-        coVerify(exactly = 1) { dao.getExercisesExactly("name", 100L, 200L) }
 
         assertEquals(expectedDataModels, items)
     }

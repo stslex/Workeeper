@@ -8,13 +8,17 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
+import io.mockk.verify
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
+import kotlin.test.assertEquals
 
 internal class InputHandlerTest {
 
@@ -22,12 +26,16 @@ internal class InputHandlerTest {
     private val testDispatcher = UnconfinedTestDispatcher(testScheduler)
     private val commonStore = mockk<CommonDataStore>(relaxed = true)
     private val testScope = TestScope(testDispatcher)
+    private val initialState = ChartsStore.State.INITIAL
+    private val stateFlow = MutableStateFlow(initialState)
+
     private val store = mockk<ChartsHandlerStore>(relaxed = true) {
         every { this@mockk.scope } returns AppCoroutineScope(
             testScope,
             testDispatcher,
             testDispatcher,
         )
+        every { state } returns stateFlow
 
         // Mock the launch function to actually execute the coroutine
         every {
@@ -45,6 +53,37 @@ internal class InputHandlerTest {
     }
 
     private val handler = InputHandler(commonStore, store)
+
+    @Test
+    fun `process query action updates state name`() = runTest {
+        val queryName = "Test Query"
+
+        handler.invoke(ChartsStore.Action.Input.Query(queryName))
+
+        testScheduler.advanceUntilIdle()
+
+        val stateSlot = slot<(ChartsStore.State) -> ChartsStore.State>()
+        verify(exactly = 1) { store.updateState(capture(stateSlot)) }
+
+        val newState = stateSlot.captured(initialState)
+        assertEquals(queryName, newState.name)
+    }
+
+    @Test
+    fun `process query action updates state with empty name`() = runTest {
+        val initialState = ChartsStore.State.INITIAL.copy(name = "Initial")
+        val queryName = ""
+
+        handler.invoke(ChartsStore.Action.Input.Query(queryName))
+
+        testScheduler.advanceUntilIdle()
+
+        val stateSlot = slot<(ChartsStore.State) -> ChartsStore.State>()
+        verify(exactly = 1) { store.updateState(capture(stateSlot)) }
+
+        val newState = stateSlot.captured(initialState)
+        assertEquals(queryName, newState.name)
+    }
 
     @Test
     fun `change start date action updates common store start date`() = runTest {

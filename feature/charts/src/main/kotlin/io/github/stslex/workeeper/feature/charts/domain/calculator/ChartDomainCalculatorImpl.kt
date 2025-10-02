@@ -1,20 +1,18 @@
 package io.github.stslex.workeeper.feature.charts.domain.calculator
 
+import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.coroutine.asyncMap
 import io.github.stslex.workeeper.core.core.utils.NumUiUtils.safeDiv
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.exercise.training.TrainingDataModel
-import io.github.stslex.workeeper.feature.charts.di.CHARTS_SCOPE_NAME
 import io.github.stslex.workeeper.feature.charts.domain.model.ChartDataType
 import io.github.stslex.workeeper.feature.charts.domain.model.SingleChartDomainItem
 import io.github.stslex.workeeper.feature.charts.domain.model.SingleChartDomainModel
 import org.jetbrains.annotations.VisibleForTesting
-import org.koin.core.annotation.Scope
-import org.koin.core.annotation.Scoped
+import javax.inject.Inject
 
-@Scope(name = CHARTS_SCOPE_NAME)
-@Scoped
-internal class ChartDomainCalculatorImpl : ChartDomainCalculator {
+@ViewModelScoped
+internal class ChartDomainCalculatorImpl @Inject constructor() : ChartDomainCalculator {
 
     private var _calculateParams: ChartDomainCalculateParams? = null
 

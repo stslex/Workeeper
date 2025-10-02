@@ -1,15 +1,17 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.store
 
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.MenuItem
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SetUiType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SetsUiModel
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentSetOf
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertNotEquals
-import kotlin.test.assertTrue
 import kotlin.uuid.Uuid
 
 internal class ExerciseStoreStateTest {
@@ -20,13 +22,13 @@ internal class ExerciseStoreStateTest {
 
         assertEquals(null, state.uuid)
         assertEquals(PropertyHolder.StringProperty(), state.name)
-        assertEquals(persistentListOf(), state.sets)
+        assertEquals(persistentListOf<SetsUiModel>(), state.sets)
         assertEquals(PropertyHolder.DateProperty.new(), state.dateProperty)
         assertEquals(DialogState.Closed, state.dialogState)
         assertEquals(false, state.isMenuOpen)
-        assertEquals(persistentSetOf(), state.menuItems)
+        assertEquals(persistentSetOf<MenuItem<ExerciseUiModel>>(), state.menuItems)
         assertEquals(null, state.trainingUuid)
-        assertEquals(persistentListOf(), state.labels)
+        assertEquals(persistentListOf<String>(), state.labels)
         assertEquals(0, state.initialHash)
     }
 
@@ -90,7 +92,8 @@ internal class ExerciseStoreStateTest {
             base.copy(sets = persistentListOf(changedReps, set2)).calculateEqualsHash,
         )
 
-        val changedWeight = set2.copy(weight = PropertyHolder.DoubleProperty.new(initialValue = 46.0))
+        val changedWeight =
+            set2.copy(weight = PropertyHolder.DoubleProperty.new(initialValue = 46.0))
         assertNotEquals(
             baseHash,
             base.copy(sets = persistentListOf(set1, changedWeight)).calculateEqualsHash,
@@ -281,7 +284,7 @@ internal class ExerciseStoreStateTest {
         )
 
         assertTrue(state.dialogState is DialogState.Sets)
-        assertEquals(set, state.dialogState.set)
+        assertEquals(set, (state.dialogState as DialogState.Sets).set)
     }
 
     @Test

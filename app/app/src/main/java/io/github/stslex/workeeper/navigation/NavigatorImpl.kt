@@ -6,9 +6,12 @@ import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
 import io.github.stslex.workeeper.core.ui.navigation.Screen
+import javax.inject.Inject
+import javax.inject.Singleton
 
 @Stable
-class NavigatorImpl(
+@Singleton
+class NavigatorImpl @Inject constructor(
     private val holder: NavigatorHolder,
 ) : Navigator {
 

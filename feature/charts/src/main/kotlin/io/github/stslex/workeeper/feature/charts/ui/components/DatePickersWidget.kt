@@ -29,13 +29,12 @@ internal fun DatePickersWidget(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(AppDimension.Padding.medium),
+        modifier = modifier.fillMaxWidth(),
     ) {
         Text(
             text = stringResource(R.string.feature_all_charts_label_date_rage),
             style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurface,
         )
         Row(
             modifier = modifier

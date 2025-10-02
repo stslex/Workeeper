@@ -1,9 +1,9 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.MainImmediateDispatcher
+import dagger.hilt.android.scopes.ViewModelScoped
+import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder.Companion.update
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
-import io.github.stslex.workeeper.feature.exercise.di.EXERCISE_SCOPE_NAME
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.mappers.ExerciseUiMap
@@ -15,18 +15,15 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Ac
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
-import org.koin.core.annotation.Named
-import org.koin.core.annotation.Scope
-import org.koin.core.annotation.Scoped
+import javax.inject.Inject
 import kotlin.uuid.Uuid
 
-@Scoped(binds = [ClickHandler::class])
-@Scope(name = EXERCISE_SCOPE_NAME)
-internal class ClickHandler(
+@ViewModelScoped
+internal class ClickHandler @Inject constructor(
     private val interactor: ExerciseInteractor,
     private val exerciseUiMap: ExerciseUiMap,
-    @param:MainImmediateDispatcher private val mainDispatcher: CoroutineDispatcher,
-    @Named(EXERCISE_SCOPE_NAME) store: ExerciseHandlerStore,
+    @MainImmediateDispatcher private val mainDispatcher: CoroutineDispatcher,
+    store: ExerciseHandlerStore,
 ) : Handler<Action.Click>, ExerciseHandlerStore by store {
 
     override fun invoke(action: Action.Click) {
