@@ -15,13 +15,14 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import org.koin.core.annotation.Single
+import javax.inject.Inject
+import javax.inject.Singleton
 import kotlin.uuid.Uuid
 
-@Single
-internal class ExerciseRepositoryImpl(
+@Singleton
+internal class ExerciseRepositoryImpl @Inject constructor(
     private val dao: ExerciseDao,
-    @param:IODispatcher private val bgDispatcher: CoroutineDispatcher,
+    @IODispatcher private val bgDispatcher: CoroutineDispatcher,
 ) : ExerciseRepository {
 
     override val exercises: Flow<PagingData<ExerciseDataModel>> = Pager(

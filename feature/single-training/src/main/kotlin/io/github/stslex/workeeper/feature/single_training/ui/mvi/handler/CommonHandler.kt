@@ -1,22 +1,19 @@
 package io.github.stslex.workeeper.feature.single_training.ui.mvi.handler
 
+import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
-import io.github.stslex.workeeper.feature.single_training.di.TRAINING_SCOPE_NAME
 import io.github.stslex.workeeper.feature.single_training.di.TrainingHandlerStore
 import io.github.stslex.workeeper.feature.single_training.domain.interactor.SingleTrainingInteractor
 import io.github.stslex.workeeper.feature.single_training.ui.model.TrainingDomainUiModelMapper
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingStore.Action
-import org.koin.core.annotation.Named
-import org.koin.core.annotation.Scope
-import org.koin.core.annotation.Scoped
+import javax.inject.Inject
 import kotlin.uuid.Uuid
 
-@Scoped(binds = [CommonHandler::class])
-@Scope(name = TRAINING_SCOPE_NAME)
-internal class CommonHandler(
+@ViewModelScoped
+internal class CommonHandler @Inject constructor(
     private val interactor: SingleTrainingInteractor,
     private val trainingDomainUiMap: TrainingDomainUiModelMapper,
-    @Named(TRAINING_SCOPE_NAME) store: TrainingHandlerStore,
+    store: TrainingHandlerStore,
 ) : Handler<Action.Common>, TrainingHandlerStore by store {
 
     override fun invoke(action: Action.Common) {

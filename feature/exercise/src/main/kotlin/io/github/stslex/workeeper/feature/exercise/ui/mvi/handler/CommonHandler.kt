@@ -14,15 +14,13 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.St
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State.Companion.INITIAL
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toPersistentSet
-import org.koin.core.annotation.Named
-import org.koin.core.annotation.Scope
-import org.koin.core.annotation.Scoped
+import dagger.hilt.android.scopes.ViewModelScoped
+import javax.inject.Inject
 
-@Scoped(binds = [CommonHandler::class])
-@Scope(name = EXERCISE_SCOPE_NAME)
-internal class CommonHandler(
+@ViewModelScoped
+internal class CommonHandler @Inject constructor(
     private val interactor: ExerciseInteractor,
-    @Named(EXERCISE_SCOPE_NAME) store: ExerciseHandlerStore,
+    store: ExerciseHandlerStore,
 ) : Handler<Action.Common>, ExerciseHandlerStore by store {
 
     override fun invoke(action: Action.Common) {

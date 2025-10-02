@@ -16,23 +16,20 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.NavigationHand
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Event
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
-import org.koin.android.annotation.KoinViewModel
-import org.koin.core.annotation.InjectedParam
-import org.koin.core.annotation.Named
-import org.koin.core.annotation.Qualifier
-import org.koin.core.annotation.Scope
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
+import dagger.hilt.android.lifecycle.HiltViewModel
 
-@KoinViewModel([BaseStore::class])
-@Qualifier(name = EXERCISE_SCOPE_NAME)
-@Scope(name = EXERCISE_SCOPE_NAME)
-internal class ExerciseStoreImpl(
-    @InjectedParam component: ExerciseComponent,
+@HiltViewModel(assistedFactory = ExerciseStoreImpl.Factory::class)
+internal class ExerciseStoreImpl @AssistedInject constructor(
+    @Assisted component: ExerciseComponent,
     clickHandler: ClickHandler,
     inputHandler: InputHandler,
     commonHandler: CommonHandler,
     navigationHandler: NavigationHandler,
     storeDispatchers: StoreDispatchers,
-    @Named(EXERCISE_SCOPE_NAME) storeEmitter: ExerciseHandlerStoreImpl,
+    storeEmitter: ExerciseHandlerStoreImpl,
     analytics: StoreAnalytics<Action, Event> = AnalyticsHolder.createStore(NAME),
     override val logger: Logger = storeLogger(NAME),
 ) : BaseStore<State, Action, Event>(
@@ -58,6 +55,11 @@ internal class ExerciseStoreImpl(
     analytics = analytics,
     logger = logger,
 ) {
+
+    @AssistedFactory
+    interface Factory {
+        fun create(component: ExerciseComponent): ExerciseStoreImpl
+    }
 
     companion object {
 

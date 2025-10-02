@@ -1,25 +1,22 @@
 package io.github.stslex.workeeper.feature.all_exercises.ui.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.coroutine.asyncMap
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
-import io.github.stslex.workeeper.feature.all_exercises.di.EXERCISE_SCOPE_NAME
 import io.github.stslex.workeeper.feature.all_exercises.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore.Action
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore.Event
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableSet
-import org.koin.core.annotation.Named
-import org.koin.core.annotation.Scope
-import org.koin.core.annotation.Scoped
+import javax.inject.Inject
 import kotlin.uuid.Uuid
 
-@Scoped(binds = [ClickHandler::class])
-@Scope(name = EXERCISE_SCOPE_NAME)
-internal class ClickHandler(
+@ViewModelScoped
+internal class ClickHandler @Inject constructor(
     private val repository: ExerciseRepository,
-    @Named(EXERCISE_SCOPE_NAME) store: ExerciseHandlerStore,
+    store: ExerciseHandlerStore,
 ) : Handler<Action.Click>, ExerciseHandlerStore by store {
 
     override fun invoke(action: Action.Click) {

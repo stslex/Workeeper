@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.convention.application.dev)
+    alias(libs.plugins.convention.hilt)
 }
 
 dependencies {

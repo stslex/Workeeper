@@ -13,14 +13,14 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import org.koin.core.annotation.Single
+import javax.inject.Inject
+import javax.inject.Singleton
 import kotlin.uuid.Uuid
 
-@Single
-class TrainingRepositoryImpl(
+@Singleton
+class TrainingRepositoryImpl @Inject constructor(
     private val dao: TrainingDao,
-    @param:IODispatcher
-    private val ioDispatcher: CoroutineDispatcher,
+    @IODispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : TrainingRepository {
 
     override fun getTrainings(query: String): Flow<PagingData<TrainingDataModel>> = Pager(

@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.convention.application.store)
+    alias(libs.plugins.convention.hilt)
 }
 
 dependencies {

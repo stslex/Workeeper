@@ -6,20 +6,17 @@ import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDat
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
 import io.github.stslex.workeeper.core.exercise.training.toChangeModel
-import io.github.stslex.workeeper.feature.exercise.di.EXERCISE_SCOPE_NAME
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
-import org.koin.core.annotation.Scope
-import org.koin.core.annotation.Scoped
+import dagger.hilt.android.scopes.ViewModelScoped
+import javax.inject.Inject
 import kotlin.uuid.Uuid
 
-@Scope(name = EXERCISE_SCOPE_NAME)
-@Scoped
-internal class ExerciseInteractorImpl(
+@ViewModelScoped
+internal class ExerciseInteractorImpl @Inject constructor(
     private val exerciseRepository: ExerciseRepository,
     private val trainingRepository: TrainingRepository,
-    @param:DefaultDispatcher
-    private val dispatcher: CoroutineDispatcher,
+    @DefaultDispatcher private val dispatcher: CoroutineDispatcher,
 ) : ExerciseInteractor {
 
     override suspend fun saveItem(item: ExerciseChangeDataModel) {

@@ -1,25 +1,23 @@
 package io.github.stslex.workeeper.feature.charts.domain.interactor
 
+import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.coroutine.dispatcher.DefaultDispatcher
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
-import io.github.stslex.workeeper.feature.charts.di.CHARTS_SCOPE_NAME
 import io.github.stslex.workeeper.feature.charts.domain.calculator.ChartDomainCalculator
 import io.github.stslex.workeeper.feature.charts.domain.model.ChartParams
 import io.github.stslex.workeeper.feature.charts.domain.model.ChartsDomainType
 import io.github.stslex.workeeper.feature.charts.domain.model.SingleChartDomainModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
-import org.koin.core.annotation.Scope
-import org.koin.core.annotation.Scoped
+import javax.inject.Inject
 
-@Scoped(binds = [ChartsInteractor::class])
-@Scope(name = CHARTS_SCOPE_NAME)
-internal class ChartsInteractorImpl(
+@ViewModelScoped
+internal class ChartsInteractorImpl @Inject constructor(
     private val trainingRepository: TrainingRepository,
     private val exerciseRepository: ExerciseRepository,
     private val chartsCalculator: ChartDomainCalculator,
-    @param:DefaultDispatcher private val dispatcher: CoroutineDispatcher,
+    @DefaultDispatcher private val dispatcher: CoroutineDispatcher,
 ) : ChartsInteractor {
 
     override suspend fun getChartsData(

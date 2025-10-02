@@ -7,8 +7,6 @@ import AppExt.coreLibraryDesugaring
 import AppExt.findPluginId
 import AppExt.findVersionInt
 import AppExt.implementation
-import AppExt.implementationBundle
-import AppExt.ksp
 import AppExt.libs
 import AppExt.testImplementationBundle
 import AppExt.testImplementationPlatform
@@ -91,9 +89,6 @@ private fun Project.configureKotlinAndroid(
         androidTestImplementationBundle("android-test")
 
         implementation("androidx-core-ktx", "kotlinx-collections-immutable", "coroutines")
-
-        implementationBundle("koin")
-        ksp("koin-ksp")
     }
 
     tasks.withType<Test>().configureEach {

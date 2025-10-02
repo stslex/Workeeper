@@ -12,10 +12,9 @@ import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 import io.github.stslex.workeeper.core.ui.mvi.Store.Action
 import io.github.stslex.workeeper.core.ui.mvi.Store.Event
 import io.github.stslex.workeeper.core.ui.mvi.Store.State
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.stslex.workeeper.core.ui.navigation.Component
-import org.koin.compose.viewmodel.koinViewModel
-import org.koin.core.component.KoinScopeComponent
-import org.koin.core.parameter.parametersOf
 import androidx.compose.runtime.State as ComposeState
 
 /**
@@ -53,17 +52,14 @@ inline fun <
     E : Event,
     reified TStoreImpl : BaseStore<S, A, E>,
     TComponent : Component,
-    > KoinScopeComponent.rememberStoreProcessor(
+    > rememberStoreProcessor(
     component: TComponent,
+    factory: ViewModelProvider.Factory,
     key: String? = null,
 ): StoreProcessor<S, A, E> {
-    val store = koinViewModel<TStoreImpl>(
-        scope = scope,
-        qualifier = scope.scopeQualifier,
+    val store = viewModel<TStoreImpl>(
         key = key,
-        parameters = {
-            parametersOf(component)
-        },
+        factory = factory,
     ).apply { initEmitter() }
     DisposableEffect(store) {
         store.initEmitter()

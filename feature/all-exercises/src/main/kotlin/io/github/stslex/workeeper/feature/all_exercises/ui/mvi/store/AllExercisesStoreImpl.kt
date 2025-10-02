@@ -1,13 +1,17 @@
 package io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store
 
 import androidx.annotation.VisibleForTesting
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
+import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.ui.mvi.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 import io.github.stslex.workeeper.core.ui.mvi.StoreAnalytics
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
-import io.github.stslex.workeeper.feature.all_exercises.di.EXERCISE_SCOPE_NAME
 import io.github.stslex.workeeper.feature.all_exercises.di.ExerciseHandlerStoreImpl
+import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.handler.AllExercisesComponent
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.handler.ClickHandler
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.handler.InputHandler
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.handler.NavigationHandler
@@ -15,22 +19,15 @@ import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.handler.PagingHan
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore.Action
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore.Event
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore.State
-import org.koin.android.annotation.KoinViewModel
-import org.koin.core.annotation.InjectedParam
-import org.koin.core.annotation.Named
-import org.koin.core.annotation.Qualifier
-import org.koin.core.annotation.Scope
 
-@KoinViewModel([BaseStore::class])
-@Qualifier(name = EXERCISE_SCOPE_NAME)
-@Scope(name = EXERCISE_SCOPE_NAME)
-internal class AllExercisesStoreImpl(
-    @InjectedParam component: NavigationHandler,
+@HiltViewModel(assistedFactory = AllExercisesStoreImpl.Factory::class)
+internal class AllExercisesStoreImpl @AssistedInject constructor(
+    @Assisted component: NavigationHandler,
     pagingHandler: PagingHandler,
     clickHandler: ClickHandler,
     inputHandler: InputHandler,
     storeDispatchers: StoreDispatchers,
-    @Named(EXERCISE_SCOPE_NAME) storeEmitter: ExerciseHandlerStoreImpl,
+    storeEmitter: ExerciseHandlerStoreImpl,
     analytics: StoreAnalytics<Action, Event> = AnalyticsHolder.createStore(NAME),
     override val logger: Logger = storeLogger(NAME),
 ) : BaseStore<State, Action, Event>(
@@ -51,6 +48,11 @@ internal class AllExercisesStoreImpl(
     logger = logger,
     analytics = analytics,
 ) {
+
+    @AssistedFactory
+    interface Factory {
+        fun create(component: AllExercisesComponent): AllExercisesStoreImpl
+    }
 
     companion object {
 

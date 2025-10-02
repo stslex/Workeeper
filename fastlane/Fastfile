@@ -23,4 +23,9 @@ platform :android do
     gradle(task: "clean :app:store:bundle")
     upload_to_play_store
   end
+
+  desc "Build new version"
+  lane :build do
+    gradle(task: "clean :app:store:bundle")
+  end
 end

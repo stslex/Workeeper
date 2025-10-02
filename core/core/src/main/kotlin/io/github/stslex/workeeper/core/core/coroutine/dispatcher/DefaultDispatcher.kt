@@ -1,6 +1,7 @@
 package io.github.stslex.workeeper.core.core.coroutine.dispatcher
 
-import org.koin.core.annotation.Qualifier
+import javax.inject.Qualifier
 
 @Qualifier
+@Retention(AnnotationRetention.BINARY)
 annotation class DefaultDispatcher

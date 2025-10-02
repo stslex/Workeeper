@@ -5,12 +5,15 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import dagger.hilt.android.AndroidEntryPoint
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
-import org.koin.android.ext.android.getKoin
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    private val activityProducer: ActivityHolderProducer by lazy { getKoin().get() }
+    @Inject
+    lateinit var activityProducer: ActivityHolderProducer
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

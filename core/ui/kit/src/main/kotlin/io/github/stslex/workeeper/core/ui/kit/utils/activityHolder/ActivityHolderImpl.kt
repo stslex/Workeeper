@@ -1,11 +1,12 @@
 package io.github.stslex.workeeper.core.ui.kit.utils.activityHolder
 
 import android.app.Activity
-import org.koin.core.annotation.Single
 import java.lang.ref.WeakReference
+import javax.inject.Inject
+import javax.inject.Singleton
 
-@Single
-class ActivityHolderImpl : ActivityHolder, ActivityHolderProducer {
+@Singleton
+class ActivityHolderImpl @Inject constructor() : ActivityHolder, ActivityHolderProducer {
 
     private var _activity: WeakReference<Activity>? = null
 

@@ -1,36 +1,33 @@
 package io.github.stslex.workeeper.feature.single_training.ui.mvi.store
 
 import androidx.annotation.VisibleForTesting
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
+import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.ui.mvi.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 import io.github.stslex.workeeper.core.ui.mvi.StoreAnalytics
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
-import io.github.stslex.workeeper.feature.single_training.di.TRAINING_SCOPE_NAME
 import io.github.stslex.workeeper.feature.single_training.di.TrainingHandlerStoreImpl
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.handler.ClickHandler
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.handler.CommonHandler
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.handler.InputHandler
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.handler.NavigationHandler
+import io.github.stslex.workeeper.feature.single_training.ui.mvi.handler.SingleTrainingComponent
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingStore.Action
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingStore.Event
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingStore.State
-import org.koin.android.annotation.KoinViewModel
-import org.koin.core.annotation.InjectedParam
-import org.koin.core.annotation.Named
-import org.koin.core.annotation.Qualifier
-import org.koin.core.annotation.Scope
 
-@KoinViewModel(binds = [BaseStore::class])
-@Qualifier(name = TRAINING_SCOPE_NAME)
-@Scope(name = TRAINING_SCOPE_NAME)
-internal class TrainingStoreImpl(
-    @InjectedParam navigationHandler: NavigationHandler,
+@HiltViewModel(assistedFactory = TrainingStoreImpl.Factory::class)
+internal class TrainingStoreImpl @AssistedInject constructor(
+    @Assisted navigationHandler: NavigationHandler,
     commonHandler: CommonHandler,
     inputHandler: InputHandler,
     clickHandler: ClickHandler,
     storeDispatchers: StoreDispatchers,
-    @Named(TRAINING_SCOPE_NAME) handlerStore: TrainingHandlerStoreImpl,
+    handlerStore: TrainingHandlerStoreImpl,
     analytics: StoreAnalytics<Action, Event> = AnalyticsHolder.createStore(NAME),
     override val logger: Logger = storeLogger(NAME),
 ) : BaseStore<State, Action, Event>(
@@ -50,6 +47,11 @@ internal class TrainingStoreImpl(
     analytics = analytics,
     logger = logger,
 ) {
+
+    @AssistedFactory
+    interface Factory {
+        fun create(component: SingleTrainingComponent): TrainingStoreImpl
+    }
 
     companion object {
 

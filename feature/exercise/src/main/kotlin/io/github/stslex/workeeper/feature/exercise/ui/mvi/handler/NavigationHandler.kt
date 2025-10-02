@@ -6,14 +6,12 @@ import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SnackbarType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
-import org.koin.core.annotation.Named
-import org.koin.core.annotation.Scope
-import org.koin.core.annotation.Scoped
+import dagger.hilt.android.scopes.ViewModelScoped
+import javax.inject.Inject
 
-@Scoped(binds = [NavigationHandler::class])
-@Scope(name = EXERCISE_SCOPE_NAME)
-internal class NavigationHandler(
-    @Named(EXERCISE_SCOPE_NAME) store: ExerciseHandlerStore,
+@ViewModelScoped
+internal class NavigationHandler @Inject constructor(
+    store: ExerciseHandlerStore,
 ) : Handler<Action.NavigationMiddleware>, ExerciseHandlerStore by store {
 
     override fun invoke(action: Action.NavigationMiddleware) {

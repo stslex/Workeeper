@@ -15,6 +15,7 @@ dependencies {
     compileOnly(libs.composeCompiler.gradlePlugin)
     compileOnly(libs.fbCrashlytics.gradlePlugin)
     compileOnly(libs.detekt.gradle)
+    compileOnly(libs.hilt.gradlePlugin)
 }
 
 tasks {
@@ -53,6 +54,10 @@ gradlePlugin {
         register("lintConvention") {
             id = libs.plugins.convention.lint.get().pluginId
             implementationClass = "LintConventionPlugin"
+        }
+        register("hiltConvention") {
+            id = libs.plugins.convention.hilt.get().pluginId
+            implementationClass = "HiltConventionPlugin"
         }
     }
 }

@@ -4,12 +4,12 @@ import io.github.stslex.workeeper.core.dataStore.core.BaseDataStore
 import io.github.stslex.workeeper.core.dataStore.core.DataStoreProvider
 import io.github.stslex.workeeper.core.dataStore.di.CommonStoreQualifier
 import kotlinx.coroutines.flow.Flow
-import org.koin.core.annotation.Single
+import javax.inject.Inject
+import javax.inject.Singleton
 
-@Single
-class CommonDataStoreImpl internal constructor(
-    @CommonStoreQualifier
-    store: DataStoreProvider,
+@Singleton
+class CommonDataStoreImpl @Inject internal constructor(
+    @CommonStoreQualifier store: DataStoreProvider,
 ) : CommonDataStore, BaseDataStore(store) {
 
     override var homeSelectedStartDate: Flow<Long?> = getLong(KEY_HOME_SELECTED_START_DATE)

@@ -1,10 +1,10 @@
 package io.github.stslex.workeeper.feature.charts.ui.mvi.handler
 
+import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.coroutine.asyncMap
 import io.github.stslex.workeeper.core.dataStore.store.CommonDataStore
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
-import io.github.stslex.workeeper.feature.charts.di.CHARTS_SCOPE_NAME
 import io.github.stslex.workeeper.feature.charts.di.ChartsHandlerStore
 import io.github.stslex.workeeper.feature.charts.domain.interactor.ChartsInteractor
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartParamsMapper
@@ -14,18 +14,15 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
-import org.koin.core.annotation.Named
-import org.koin.core.annotation.Scope
-import org.koin.core.annotation.Scoped
+import javax.inject.Inject
 
-@Scoped(binds = [PagingHandler::class])
-@Scope(name = CHARTS_SCOPE_NAME)
-internal class PagingHandler(
+@ViewModelScoped
+internal class PagingHandler @Inject constructor(
     private val interactor: ChartsInteractor,
     private val commonStore: CommonDataStore,
     private val chartParamsMapper: ChartParamsMapper,
     private val chartResultsMapper: ChartResultsMapper,
-    @Named(CHARTS_SCOPE_NAME) store: ChartsHandlerStore,
+    store: ChartsHandlerStore,
 ) : Handler<Action.Paging>, ChartsHandlerStore by store {
 
     override fun invoke(action: Action.Paging) {
