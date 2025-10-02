@@ -4,13 +4,12 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.feature.charts.di.ChartsHandlerStore
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.CalendarState
+import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartsState
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartsType
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.SingleChartUiModel
 import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -20,7 +19,7 @@ internal class ClickHandlerTest {
 
     private val initialState = ChartsStore.State(
         name = "",
-        charts = persistentListOf(),
+        chartState = ChartsState.Loading,
         startDate = PropertyHolder.DateProperty.new(initialValue = 1000000L),
         endDate = PropertyHolder.DateProperty.new(initialValue = 2000000L),
         type = ChartsType.TRAINING,
@@ -52,7 +51,7 @@ internal class ClickHandlerTest {
 
         // Verify other state properties are preserved
         assertEquals(initialState.name, stateFlow.value.name)
-        assertEquals(initialState.charts, stateFlow.value.charts)
+        assertEquals(initialState.chartState, stateFlow.value.chartState)
         assertEquals(initialState.startDate, stateFlow.value.startDate)
         assertEquals(initialState.endDate, stateFlow.value.endDate)
     }
@@ -67,7 +66,7 @@ internal class ClickHandlerTest {
 
         // Verify other state properties are preserved
         assertEquals(initialState.name, stateFlow.value.name)
-        assertEquals(initialState.charts, stateFlow.value.charts)
+        assertEquals(initialState.chartState, stateFlow.value.chartState)
         assertEquals(initialState.startDate, stateFlow.value.startDate)
         assertEquals(initialState.endDate, stateFlow.value.endDate)
     }
@@ -118,7 +117,7 @@ internal class ClickHandlerTest {
         assertEquals("Test Exercise", stateFlow.value.name)
         assertEquals(5000000L, stateFlow.value.startDate.value)
         assertEquals(6000000L, stateFlow.value.endDate.value)
-        assertEquals(testState.charts, stateFlow.value.charts)
+        assertEquals(testState.chartState, stateFlow.value.chartState)
 
         // Switch to end date calendar
         handler.invoke(ChartsStore.Action.Click.Calendar.EndDate)
@@ -127,7 +126,7 @@ internal class ClickHandlerTest {
         assertEquals("Test Exercise", stateFlow.value.name)
         assertEquals(5000000L, stateFlow.value.startDate.value)
         assertEquals(6000000L, stateFlow.value.endDate.value)
-        assertEquals(testState.charts, stateFlow.value.charts)
+        assertEquals(testState.chartState, stateFlow.value.chartState)
     }
 
     @Test
@@ -166,10 +165,10 @@ internal class ClickHandlerTest {
 
     @Test
     fun `state transformation preserves exact state values`() {
-        val originalCharts = persistentListOf<SingleChartUiModel>()
+        val originalChartState = ChartsState.Empty
         val testState = ChartsStore.State(
             name = "Preserved Exercise",
-            charts = originalCharts,
+            chartState = originalChartState,
             startDate = PropertyHolder.DateProperty.new(initialValue = 1234567L),
             endDate = PropertyHolder.DateProperty.new(initialValue = 7654321L),
             type = ChartsType.TRAINING,
@@ -182,7 +181,7 @@ internal class ClickHandlerTest {
         val newState = stateFlow.value
         assertEquals(CalendarState.Opened.StartDate, newState.calendarState)
         assertEquals("Preserved Exercise", newState.name)
-        assertEquals(originalCharts, newState.charts)
+        assertEquals(originalChartState, newState.chartState)
         assertEquals(1234567L, newState.startDate.value)
         assertEquals(7654321L, newState.endDate.value)
     }

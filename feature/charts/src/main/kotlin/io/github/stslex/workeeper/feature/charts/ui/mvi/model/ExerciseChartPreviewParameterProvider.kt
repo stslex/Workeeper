@@ -18,19 +18,31 @@ internal class ExerciseChartPreviewParameterProvider :
                     valueY = 1.0f,
                 ),
                 SingleChartUiProperty(
+                    timeX = 0.1f,
+                    valueY = 123f,
+                ),
+                SingleChartUiProperty(
                     timeX = 0.2f,
-                    valueY = 2.0f,
+                    valueY = 12f,
+                ),
+                SingleChartUiProperty(
+                    timeX = 0.3f,
+                    valueY = null,
                 ),
                 SingleChartUiProperty(
                     timeX = 0.4f,
                     valueY = 5.0f,
                 ),
                 SingleChartUiProperty(
+                    timeX = 0.5f,
+                    valueY = 120.0f,
+                ),
+                SingleChartUiProperty(
                     timeX = 0.6f,
                     valueY = 120.0f,
                 ),
                 SingleChartUiProperty(
-                    timeX = 0.8f,
+                    timeX = 0.7f,
                     valueY = 3.0f,
                 ),
                 SingleChartUiProperty(

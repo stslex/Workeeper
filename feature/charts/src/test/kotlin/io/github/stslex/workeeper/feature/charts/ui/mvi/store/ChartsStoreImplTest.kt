@@ -231,7 +231,7 @@ internal class ChartsStoreImplTest {
         val state = store.state.value
 
         assertEquals("", state.name)
-        assertEquals(0, state.charts.size)
+        assertEquals(ChartsStore.State.INITIAL.chartState, state.chartState)
         assertEquals(CalendarState.Closed, state.calendarState)
 
         // Check dates within tolerance due to timing

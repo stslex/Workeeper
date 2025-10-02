@@ -13,6 +13,7 @@ import io.github.stslex.workeeper.feature.charts.domain.model.SingleChartDomainM
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.CalendarState
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartParamsMapper
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartResultsMapper
+import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartsState
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartsType
 import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore
 import io.mockk.coEvery
@@ -20,12 +21,11 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
@@ -33,7 +33,7 @@ import org.junit.jupiter.api.assertDoesNotThrow
 internal class PagingHandlerTest {
 
     private val testScheduler = TestCoroutineScheduler()
-    private val testDispatcher = UnconfinedTestDispatcher(testScheduler)
+    private val testDispatcher = StandardTestDispatcher(testScheduler)
     private val interactor: ChartsInteractor = mockk(relaxed = true)
 
     private val commonStore: CommonDataStore = mockk(relaxed = true)
@@ -42,7 +42,7 @@ internal class PagingHandlerTest {
 
     private val initialState = ChartsStore.State(
         name = "Test Exercise",
-        charts = persistentListOf(),
+        chartState = ChartsState.Loading,
         startDate = PropertyHolder.DateProperty.new(initialValue = 0L),
         endDate = PropertyHolder.DateProperty.new(initialValue = 0L),
         type = ChartsType.TRAINING,
@@ -55,6 +55,10 @@ internal class PagingHandlerTest {
     private val store: ChartsHandlerStore = mockk(relaxed = true) {
         every { state } returns stateFlow
         every { scope } returns AppCoroutineScope(testScope, testDispatcher, testDispatcher)
+        coEvery { updateStateImmediate(any<suspend (ChartsStore.State) -> ChartsStore.State>()) } coAnswers {
+            val transform = firstArg<suspend (ChartsStore.State) -> ChartsStore.State>()
+            stateFlow.value = transform(stateFlow.value)
+        }
     }
 
     private val handler: PagingHandler = PagingHandler(
@@ -67,7 +71,7 @@ internal class PagingHandlerTest {
 
     @Suppress("UnusedFlow")
     @Test
-    fun `init action subscribes to common store date flows and updates state`() = runTest {
+    fun `init action subscribes to common store date flows and updates state`() = runTest(testDispatcher) {
         every { commonStore.homeSelectedStartDate } returns flowOf(1500000L)
         every { commonStore.homeSelectedEndDate } returns flowOf(2500000L)
         every { chartParamsMapper.invoke(any()) } returns ChartParams(
@@ -80,6 +84,7 @@ internal class PagingHandlerTest {
         every { chartResultsMapper.invoke(any()) } returns mockk()
 
         handler.invoke(ChartsStore.Action.Paging.Init)
+        testScheduler.advanceTimeBy(500L) // Advance past the 300ms delay
         testScheduler.advanceUntilIdle()
 
         // Verify flows are accessed
@@ -91,7 +96,7 @@ internal class PagingHandlerTest {
     }
 
     @Test
-    fun `init action handles null values from common store correctly`() = runTest {
+    fun `init action handles null values from common store correctly`() = runTest(testDispatcher) {
         every { commonStore.homeSelectedStartDate } returns flowOf(null, 1500000L, null)
         every { commonStore.homeSelectedEndDate } returns flowOf(null, 2500000L, null)
         every { chartParamsMapper.invoke(any()) } returns ChartParams(
@@ -104,6 +109,7 @@ internal class PagingHandlerTest {
         every { chartResultsMapper.invoke(any()) } returns mockk()
 
         handler.invoke(ChartsStore.Action.Paging.Init)
+        testScheduler.advanceTimeBy(500L) // Advance past the 300ms delay
         testScheduler.advanceUntilIdle()
 
         // Verify the handler processed the init action
@@ -111,7 +117,7 @@ internal class PagingHandlerTest {
     }
 
     @Test
-    fun `charts subscription processes interactor data through mapper`() = runTest {
+    fun `charts subscription processes interactor data through mapper`() = runTest(testDispatcher) {
         val domainData = listOf(
             SingleChartDomainModel(
                 name = "Push ups",
@@ -136,6 +142,7 @@ internal class PagingHandlerTest {
         every { chartResultsMapper.invoke(any()) } returns mockk()
 
         handler.invoke(ChartsStore.Action.Paging.Init)
+        testScheduler.advanceTimeBy(500L) // Advance past the 300ms delay
         testScheduler.advanceUntilIdle()
 
         // Verify interactor was called with data
@@ -143,17 +150,20 @@ internal class PagingHandlerTest {
     }
 
     @Test
-    fun `chart params mapper errors are handled gracefully`() = runTest {
+    fun `chart params mapper errors are handled gracefully`() = runTest(testDispatcher) {
         every { commonStore.homeSelectedStartDate } returns flowOf(null)
         every { commonStore.homeSelectedEndDate } returns flowOf(null)
         every { chartParamsMapper.invoke(any()) } throws IllegalArgumentException("Mapper error")
 
-        assertDoesNotThrow { handler.invoke(ChartsStore.Action.Paging.Init) }
+        assertDoesNotThrow {
+            handler.invoke(ChartsStore.Action.Paging.Init)
+            testScheduler.advanceUntilIdle()
+        }
         verify(atLeast = 1) { chartParamsMapper.invoke(any()) }
     }
 
     @Test
-    fun `chart results mapper errors are handled gracefully`() = runTest {
+    fun `chart results mapper errors are handled gracefully`() = runTest(testDispatcher) {
         val domainData = listOf(
             SingleChartDomainModel(
                 name = "Test",
@@ -176,7 +186,11 @@ internal class PagingHandlerTest {
         coEvery { interactor.getChartsData(any()) } returns domainData
         every { chartResultsMapper.invoke(any()) } throws IllegalStateException("Results mapper error")
 
-        assertDoesNotThrow { handler.invoke(ChartsStore.Action.Paging.Init) }
+        assertDoesNotThrow {
+            handler.invoke(ChartsStore.Action.Paging.Init)
+            testScheduler.advanceTimeBy(500L)
+            testScheduler.advanceUntilIdle()
+        }
         coVerify { interactor.getChartsData(any()) }
     }
 }

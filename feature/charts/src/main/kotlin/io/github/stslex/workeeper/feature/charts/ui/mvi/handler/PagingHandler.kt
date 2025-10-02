@@ -9,11 +9,14 @@ import io.github.stslex.workeeper.feature.charts.di.ChartsHandlerStore
 import io.github.stslex.workeeper.feature.charts.domain.interactor.ChartsInteractor
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartParamsMapper
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartResultsMapper
+import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartsState
 import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore.Action
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
 import javax.inject.Inject
 
 @ViewModelScoped
@@ -54,7 +57,14 @@ internal class PagingHandler @Inject constructor(
             state
                 .map(chartParamsMapper::invoke)
                 .distinctUntilChanged()
-                .map { params -> interactor.getChartsData(params) },
+                .mapLatest { params ->
+                    updateStateImmediate {
+                        it.copy(chartState = ChartsState.Loading)
+                    }
+                    delay(300L) // To prevent too many requests when user change params fast.
+                    logger.d { "New chart params: $params" }
+                    interactor.getChartsData(params)
+                },
         ) { items ->
             logger.d { "Charts items: $items" }
 
@@ -65,7 +75,13 @@ internal class PagingHandler @Inject constructor(
             logger.d { "mapped chart items: $mappedItems" }
 
             updateStateImmediate {
-                it.copy(charts = mappedItems)
+                it.copy(
+                    chartState = if (mappedItems.isEmpty()) {
+                        ChartsState.Empty
+                    } else {
+                        ChartsState.Content(mappedItems)
+                    },
+                )
             }
         }
     }

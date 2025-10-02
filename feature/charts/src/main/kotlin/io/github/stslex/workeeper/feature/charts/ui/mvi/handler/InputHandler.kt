@@ -17,7 +17,12 @@ internal class InputHandler @Inject constructor(
         when (action) {
             is Action.Input.ChangeStartDate -> processStartDateChange(action)
             is Action.Input.ChangeEndDate -> processEndDateChange(action)
+            is Action.Input.Query -> processQuery(action)
         }
+    }
+
+    private fun processQuery(action: Action.Input.Query) {
+        updateState { it.copy(name = action.name) }
     }
 
     private fun processStartDateChange(action: Action.Input.ChangeStartDate) {
