@@ -1,6 +1,6 @@
 package io.github.stslex.workeeper.core.exercise.labels
 
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.IODispatcher
+import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.database.trainingLabels.TrainingLabelDao
 import io.github.stslex.workeeper.core.exercise.labels.model.LabelDataModel
 import io.github.stslex.workeeper.core.exercise.labels.model.toData

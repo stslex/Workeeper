@@ -5,13 +5,12 @@ import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.android.components.ViewModelComponent
 import dagger.hilt.android.scopes.ViewModelScoped
-import io.github.stslex.workeeper.core.ui.mvi.handler.HandlerStoreEmitter
 import io.github.stslex.workeeper.feature.charts.domain.interactor.ChartsInteractor
 import io.github.stslex.workeeper.feature.charts.domain.interactor.ChartsInteractorImpl
 
 @Module
 @InstallIn(ViewModelComponent::class)
-interface ChartsModule {
+internal interface ChartsModule {
 
     @Binds
     @ViewModelScoped
@@ -20,8 +19,4 @@ interface ChartsModule {
     @Binds
     @ViewModelScoped
     fun bindHandlerStore(impl: ChartsHandlerStoreImpl): ChartsHandlerStore
-
-    @Binds
-    @ViewModelScoped
-    fun bindHandlerStoreEmitter(impl: ChartsHandlerStoreImpl): HandlerStoreEmitter
 }

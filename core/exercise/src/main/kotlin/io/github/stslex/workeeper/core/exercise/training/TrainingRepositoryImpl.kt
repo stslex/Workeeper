@@ -5,7 +5,7 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
 import io.github.stslex.workeeper.core.core.coroutine.asyncMap
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.IODispatcher
+import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.database.training.TrainingDao
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow

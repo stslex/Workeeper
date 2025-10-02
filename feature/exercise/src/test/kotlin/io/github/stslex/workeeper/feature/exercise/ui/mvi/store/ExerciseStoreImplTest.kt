@@ -3,8 +3,8 @@ package io.github.stslex.workeeper.feature.exercise.ui.mvi.store
 import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.MenuItem
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
-import io.github.stslex.workeeper.core.ui.mvi.StoreAnalytics
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
+import io.github.stslex.workeeper.core.ui.mvi.holders.StoreAnalytics
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStoreImpl
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.ClickHandler
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.CommonHandler

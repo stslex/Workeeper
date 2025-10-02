@@ -4,8 +4,8 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.paging.PagingData
 import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
-import io.github.stslex.workeeper.core.ui.mvi.StoreAnalytics
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
+import io.github.stslex.workeeper.core.ui.mvi.holders.StoreAnalytics
 import io.github.stslex.workeeper.feature.all_exercises.di.ExerciseHandlerStoreImpl
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.handler.ClickHandler
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.handler.InputHandler

@@ -5,11 +5,11 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
-import io.github.stslex.workeeper.core.core.logger.Logger
-import io.github.stslex.workeeper.core.ui.mvi.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
-import io.github.stslex.workeeper.core.ui.mvi.StoreAnalytics
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
+import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
+import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
+import io.github.stslex.workeeper.core.ui.mvi.processor.StoreFactory
 import io.github.stslex.workeeper.feature.all_exercises.di.ExerciseHandlerStoreImpl
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.handler.AllExercisesComponent
 import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.handler.ClickHandler
@@ -22,14 +22,14 @@ import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesSt
 
 @HiltViewModel(assistedFactory = AllExercisesStoreImpl.Factory::class)
 internal class AllExercisesStoreImpl @AssistedInject constructor(
-    @Assisted component: NavigationHandler,
+    @Assisted component: AllExercisesComponent,
     pagingHandler: PagingHandler,
     clickHandler: ClickHandler,
     inputHandler: InputHandler,
     storeDispatchers: StoreDispatchers,
     storeEmitter: ExerciseHandlerStoreImpl,
-    analytics: StoreAnalytics<Action, Event> = AnalyticsHolder.createStore(NAME),
-    override val logger: Logger = storeLogger(NAME),
+    analyticsHolder: AnalyticsHolder,
+    loggerHolder: LoggerHolder,
 ) : BaseStore<State, Action, Event>(
     name = NAME,
     initialState = State.init(
@@ -40,19 +40,17 @@ internal class AllExercisesStoreImpl @AssistedInject constructor(
     handlerCreator = { action ->
         when (action) {
             is Action.Paging -> pagingHandler
-            is Action.Navigation -> component
+            is Action.Navigation -> component as NavigationHandler
             is Action.Click -> clickHandler
             is Action.Input -> inputHandler
         }
     },
-    logger = logger,
-    analytics = analytics,
+    loggerHolder = loggerHolder,
+    analyticsHolder = analyticsHolder,
 ) {
 
     @AssistedFactory
-    interface Factory {
-        fun create(component: AllExercisesComponent): AllExercisesStoreImpl
-    }
+    interface Factory : StoreFactory<AllExercisesComponent, AllExercisesStoreImpl>
 
     companion object {
 

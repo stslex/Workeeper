@@ -1,16 +1,17 @@
 package io.github.stslex.workeeper.core.dataStore.store
 
 import io.github.stslex.workeeper.core.dataStore.core.BaseDataStore
-import io.github.stslex.workeeper.core.dataStore.core.DataStoreProvider
-import io.github.stslex.workeeper.core.dataStore.di.CommonStoreQualifier
+import io.github.stslex.workeeper.core.dataStore.core.DataStoreProviderFactory
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class CommonDataStoreImpl @Inject internal constructor(
-    @CommonStoreQualifier store: DataStoreProvider,
-) : CommonDataStore, BaseDataStore(store) {
+    storeFactory: DataStoreProviderFactory,
+) : CommonDataStore, BaseDataStore(
+    storeFactory.create(NAME),
+) {
 
     override var homeSelectedStartDate: Flow<Long?> = getLong(KEY_HOME_SELECTED_START_DATE)
 
@@ -26,7 +27,8 @@ class CommonDataStoreImpl @Inject internal constructor(
 
     private companion object {
 
-        private const val KEY_HOME_SELECTED_START_DATE = "home_selected_start_date"
-        private const val KEY_HOME_SELECTED_END_DATE = "home_selected_end_date"
+        const val KEY_HOME_SELECTED_START_DATE = "home_selected_start_date"
+        const val KEY_HOME_SELECTED_END_DATE = "home_selected_end_date"
+        const val NAME = "common_prefs"
     }
 }

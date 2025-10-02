@@ -5,6 +5,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
+import androidx.hilt.navigation.compose.hiltViewModel
 import io.github.stslex.workeeper.core.core.logger.FirebaseAnalyticsHolder
 import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
 import io.github.stslex.workeeper.core.core.logger.FirebaseEvent
@@ -12,8 +13,6 @@ import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 import io.github.stslex.workeeper.core.ui.mvi.Store.Action
 import io.github.stslex.workeeper.core.ui.mvi.Store.Event
 import io.github.stslex.workeeper.core.ui.mvi.Store.State
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.stslex.workeeper.core.ui.navigation.Component
 import androidx.compose.runtime.State as ComposeState
 
@@ -52,15 +51,16 @@ inline fun <
     E : Event,
     reified TStoreImpl : BaseStore<S, A, E>,
     TComponent : Component,
+    reified TFactory : StoreFactory<TComponent, TStoreImpl>,
     > rememberStoreProcessor(
     component: TComponent,
-    factory: ViewModelProvider.Factory,
     key: String? = null,
 ): StoreProcessor<S, A, E> {
-    val store = viewModel<TStoreImpl>(
-        key = key,
-        factory = factory,
-    ).apply { initEmitter() }
+    val store = hiltViewModel<TStoreImpl, TFactory>(key = key) {
+        it.create(component)
+    }.apply {
+        initEmitter()
+    }
     DisposableEffect(store) {
         store.initEmitter()
         store.init()

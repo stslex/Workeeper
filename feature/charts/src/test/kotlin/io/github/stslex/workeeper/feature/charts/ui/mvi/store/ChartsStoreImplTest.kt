@@ -3,8 +3,8 @@ package io.github.stslex.workeeper.feature.charts.ui.mvi.store
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
-import io.github.stslex.workeeper.core.ui.mvi.StoreAnalytics
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
+import io.github.stslex.workeeper.core.ui.mvi.holders.StoreAnalytics
 import io.github.stslex.workeeper.feature.charts.di.ChartsHandlerStoreImpl
 import io.github.stslex.workeeper.feature.charts.ui.mvi.handler.ClickHandler
 import io.github.stslex.workeeper.feature.charts.ui.mvi.handler.InputHandler

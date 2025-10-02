@@ -4,7 +4,7 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.IODispatcher
+import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel

@@ -1,12 +1,15 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.store
 
 import androidx.annotation.VisibleForTesting
-import io.github.stslex.workeeper.core.core.logger.Logger
-import io.github.stslex.workeeper.core.ui.mvi.AnalyticsHolder
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
+import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
-import io.github.stslex.workeeper.core.ui.mvi.StoreAnalytics
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
-import io.github.stslex.workeeper.feature.exercise.di.EXERCISE_SCOPE_NAME
+import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
+import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
+import io.github.stslex.workeeper.core.ui.mvi.processor.StoreFactory
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStoreImpl
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.ClickHandler
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.CommonHandler
@@ -16,10 +19,6 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.NavigationHand
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Event
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
-import dagger.assisted.Assisted
-import dagger.assisted.AssistedFactory
-import dagger.assisted.AssistedInject
-import dagger.hilt.android.lifecycle.HiltViewModel
 
 @HiltViewModel(assistedFactory = ExerciseStoreImpl.Factory::class)
 internal class ExerciseStoreImpl @AssistedInject constructor(
@@ -30,8 +29,8 @@ internal class ExerciseStoreImpl @AssistedInject constructor(
     navigationHandler: NavigationHandler,
     storeDispatchers: StoreDispatchers,
     storeEmitter: ExerciseHandlerStoreImpl,
-    analytics: StoreAnalytics<Action, Event> = AnalyticsHolder.createStore(NAME),
-    override val logger: Logger = storeLogger(NAME),
+    analyticsHolder: AnalyticsHolder,
+    loggerHolder: LoggerHolder,
 ) : BaseStore<State, Action, Event>(
     name = NAME,
     initialState = State.INITIAL,
@@ -52,14 +51,12 @@ internal class ExerciseStoreImpl @AssistedInject constructor(
             trainingUuid = component.trainingUuid,
         ),
     ),
-    analytics = analytics,
-    logger = logger,
+    analyticsHolder = analyticsHolder,
+    loggerHolder = loggerHolder,
 ) {
 
     @AssistedFactory
-    interface Factory {
-        fun create(component: ExerciseComponent): ExerciseStoreImpl
-    }
+    interface Factory : StoreFactory<ExerciseComponent, ExerciseStoreImpl>
 
     companion object {
 

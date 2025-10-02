@@ -11,9 +11,4 @@ interface CommonDataStore {
     suspend fun setHomeSelectedStartDate(value: Long)
 
     suspend fun setHomeSelectedEndDate(value: Long)
-
-    companion object {
-
-        internal const val NAME = "common_prefs"
-    }
 }

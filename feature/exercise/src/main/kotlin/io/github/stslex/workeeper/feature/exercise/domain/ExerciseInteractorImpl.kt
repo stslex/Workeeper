@@ -1,6 +1,7 @@
 package io.github.stslex.workeeper.feature.exercise.domain
 
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.DefaultDispatcher
+import dagger.hilt.android.scopes.ViewModelScoped
+import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
@@ -8,7 +9,6 @@ import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
 import io.github.stslex.workeeper.core.exercise.training.toChangeModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
-import dagger.hilt.android.scopes.ViewModelScoped
 import javax.inject.Inject
 import kotlin.uuid.Uuid
 

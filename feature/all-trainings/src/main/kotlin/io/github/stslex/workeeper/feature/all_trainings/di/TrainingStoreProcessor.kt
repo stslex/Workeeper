@@ -11,17 +11,13 @@ import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store.TrainingSto
 
 internal typealias TrainingStoreProcessor = StoreProcessor<State, Action, Event>
 
-internal const val TRAINING_SCOPE_NAME = "all_trainings_scope"
-
 /**
- * TrainingsFeature is a Koin feature module that provides the TrainingStore processor.
+ * TrainingsFeature is a feature module that provides the TrainingStore processor.
  * It is responsible for managing the state and actions related to the profile feature.
  *
  * @see [io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store.TrainingStore]
  * */
-internal object TrainingsFeature : Feature<TrainingStoreProcessor, AllTrainingsComponent>(
-    TRAINING_SCOPE_NAME,
-) {
+internal object TrainingsFeature : Feature<TrainingStoreProcessor, AllTrainingsComponent> {
 
     @Composable
     override fun processor(

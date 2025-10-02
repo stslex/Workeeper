@@ -55,9 +55,5 @@ gradlePlugin {
             id = libs.plugins.convention.lint.get().pluginId
             implementationClass = "LintConventionPlugin"
         }
-        register("hiltConvention") {
-            id = libs.plugins.convention.hilt.get().pluginId
-            implementationClass = "HiltConventionPlugin"
-        }
     }
 }

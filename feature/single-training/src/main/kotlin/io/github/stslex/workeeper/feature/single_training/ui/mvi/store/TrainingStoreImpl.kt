@@ -5,11 +5,11 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
-import io.github.stslex.workeeper.core.core.logger.Logger
-import io.github.stslex.workeeper.core.ui.mvi.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
-import io.github.stslex.workeeper.core.ui.mvi.StoreAnalytics
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
+import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
+import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
+import io.github.stslex.workeeper.core.ui.mvi.processor.StoreFactory
 import io.github.stslex.workeeper.feature.single_training.di.TrainingHandlerStoreImpl
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.handler.ClickHandler
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.handler.CommonHandler
@@ -22,20 +22,20 @@ import io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingS
 
 @HiltViewModel(assistedFactory = TrainingStoreImpl.Factory::class)
 internal class TrainingStoreImpl @AssistedInject constructor(
-    @Assisted navigationHandler: NavigationHandler,
+    @Assisted navigationHandler: SingleTrainingComponent,
     commonHandler: CommonHandler,
     inputHandler: InputHandler,
     clickHandler: ClickHandler,
     storeDispatchers: StoreDispatchers,
     handlerStore: TrainingHandlerStoreImpl,
-    analytics: StoreAnalytics<Action, Event> = AnalyticsHolder.createStore(NAME),
-    override val logger: Logger = storeLogger(NAME),
+    analyticsHolder: AnalyticsHolder,
+    loggerHolder: LoggerHolder,
 ) : BaseStore<State, Action, Event>(
     name = NAME,
     initialState = State.INITIAL,
     handlerCreator = { action ->
         when (action) {
-            is Action.Navigation -> navigationHandler
+            is Action.Navigation -> navigationHandler as NavigationHandler
             is Action.Common -> commonHandler
             is Action.Input -> inputHandler
             is Action.Click -> clickHandler
@@ -44,14 +44,12 @@ internal class TrainingStoreImpl @AssistedInject constructor(
     storeEmitter = handlerStore,
     storeDispatchers = storeDispatchers,
     initialActions = listOf(Action.Common.Init(navigationHandler.uuid)),
-    analytics = analytics,
-    logger = logger,
+    analyticsHolder = analyticsHolder,
+    loggerHolder = loggerHolder,
 ) {
 
     @AssistedFactory
-    interface Factory {
-        fun create(component: SingleTrainingComponent): TrainingStoreImpl
-    }
+    interface Factory : StoreFactory<SingleTrainingComponent, TrainingStoreImpl>
 
     companion object {
 

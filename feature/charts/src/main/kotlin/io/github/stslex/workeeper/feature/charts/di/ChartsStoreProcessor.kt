@@ -8,21 +8,27 @@ import io.github.stslex.workeeper.feature.charts.ui.mvi.handler.ChartsComponent
 import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore.Action
 import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore.Event
 import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore.State
+import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStoreImpl
 
 internal typealias ChartsStoreProcessor = StoreProcessor<State, Action, Event>
 
-internal const val CHARTS_SCOPE_NAME = "home_scope"
-
 /**
- * ChartsFeature is a Koin feature module that provides the HomeStore processor.
+ * ChartsFeature is a Hilt feature module that provides the HomeStore processor.
  * It is responsible for managing the state and actions related to the profile feature.
  *
  * @see [io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore]
  * */
-internal object ChartsFeature : Feature<ChartsStoreProcessor, ChartsComponent>(CHARTS_SCOPE_NAME) {
+internal object ChartsFeature : Feature<ChartsStoreProcessor, ChartsComponent> {
 
     @Composable
     override fun processor(
         component: ChartsComponent,
-    ): ChartsStoreProcessor = rememberStoreProcessor(component)
+    ): ChartsStoreProcessor = rememberStoreProcessor<
+        State,
+        Action,
+        Event,
+        ChartsStoreImpl,
+        ChartsComponent,
+        ChartsStoreImpl.Factory,
+        >(component)
 }

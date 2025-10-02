@@ -1,7 +1,7 @@
 package io.github.stslex.workeeper.feature.all_trainings.domain
 
 import dagger.hilt.android.scopes.ViewModelScoped
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.DefaultDispatcher
+import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
 import kotlinx.coroutines.CoroutineDispatcher

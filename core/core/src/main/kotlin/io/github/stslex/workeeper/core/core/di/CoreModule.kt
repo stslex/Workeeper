@@ -4,10 +4,6 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.DefaultDispatcher
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.IODispatcher
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.MainDispatcher
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.MainImmediateDispatcher
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import javax.inject.Singleton

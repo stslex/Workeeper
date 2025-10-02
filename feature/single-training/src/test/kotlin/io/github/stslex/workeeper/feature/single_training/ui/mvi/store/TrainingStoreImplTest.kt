@@ -2,8 +2,8 @@ package io.github.stslex.workeeper.feature.single_training.ui.mvi.store
 
 import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
-import io.github.stslex.workeeper.core.ui.mvi.StoreAnalytics
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
+import io.github.stslex.workeeper.core.ui.mvi.holders.StoreAnalytics
 import io.github.stslex.workeeper.feature.single_training.di.TrainingHandlerStoreImpl
 import io.github.stslex.workeeper.feature.single_training.ui.model.DialogState
 import io.github.stslex.workeeper.feature.single_training.ui.model.ExerciseUiModel

@@ -7,6 +7,7 @@ import AppExt.coreLibraryDesugaring
 import AppExt.findPluginId
 import AppExt.findVersionInt
 import AppExt.implementation
+import AppExt.ksp
 import AppExt.libs
 import AppExt.testImplementationBundle
 import AppExt.testImplementationPlatform
@@ -44,6 +45,7 @@ private fun Project.configureKotlinAndroid(
 
     pluginManager.apply {
         apply(libs.findPluginId("robolectric-junit5"))
+        apply(libs.findPluginId("hilt"))
     }
 
     compileSdk = libs.findVersionInt("compileSdk")
@@ -88,7 +90,13 @@ private fun Project.configureKotlinAndroid(
         testImplementationBundle("test")
         androidTestImplementationBundle("android-test")
 
-        implementation("androidx-core-ktx", "kotlinx-collections-immutable", "coroutines")
+        implementation(
+            "androidx-core-ktx",
+            "kotlinx-collections-immutable",
+            "coroutines",
+            "hilt-android"
+        )
+        ksp("hilt-compiler")
     }
 
     tasks.withType<Test>().configureEach {
@@ -121,6 +129,7 @@ private fun Project.configureKotlin() {
                 "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
                 "-Xjvm-default=all",
                 "-Xcontext-receivers",
+                "-XXLanguage:+PropertyParamAnnotationDefaultTargetMode"
             )
         }
     }

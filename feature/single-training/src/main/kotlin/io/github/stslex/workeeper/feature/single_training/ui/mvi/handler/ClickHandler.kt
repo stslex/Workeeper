@@ -2,7 +2,7 @@ package io.github.stslex.workeeper.feature.single_training.ui.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dagger.hilt.android.scopes.ViewModelScoped
-import io.github.stslex.workeeper.core.core.coroutine.dispatcher.MainImmediateDispatcher
+import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.single_training.di.TrainingHandlerStore
 import io.github.stslex.workeeper.feature.single_training.domain.interactor.SingleTrainingInteractor

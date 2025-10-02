@@ -4,10 +4,12 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedInject
 
-internal class DataStoreProvider(
+class DataStoreProvider @AssistedInject constructor(
+    @Assisted private val name: String,
     context: Context,
-    private val name: String,
 ) {
 
     private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = name)
