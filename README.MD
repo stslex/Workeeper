@@ -52,8 +52,27 @@ This project showcases modern Android development practices with:
 - **🔄 MVI Pattern**: Unidirectional data flow with State, Actions, and Events
 - **⚡ Handler System**: Dedicated action processors (`ClickHandler`, `InputHandler`,
   `PagingHandler`)
-- **💉 Dependency Injection**: Koin with annotation processing and feature-scoped modules
+- **💉 Dependency Injection**: Hilt with feature-scoped modules and assisted factories
 - **🧪 Comprehensive Testing**: Unit tests with JUnit 5, Robolectric, and MockK
+
+## 💉 Dependency Injection (Hilt)
+
+Workeeper has migrated from Koin to [Hilt](https://dagger.dev/hilt) to align with the Android
+ecosystem and leverage compile-time safety:
+
+- **Singleton graph** lives in `core/*/di` modules (for example
+  `core/dataStore/src/main/kotlin/io/github/stslex/workeeper/core/dataStore/di/CoreDataStoreModule.kt`)
+  and provides shared resources such as DataStore, dispatchers, Room, and repositories.
+- **Feature-level bindings** are defined per module (e.g.
+  `feature/all-trainings/src/main/kotlin/io/github/stslex/workeeper/feature/all_trainings/di/AllTrainingsModule.kt`
+  and `feature/single-training/src/main/kotlin/io/github/stslex/workeeper/feature/single_training/di/SingleTrainingModule.kt`)
+  to keep handler stores and interactors scoped to `ViewModelComponent`.
+- **Assisted factories** (like
+  `core/dataStore/src/main/kotlin/io/github/stslex/workeeper/core/dataStore/core/DataStoreProviderFactory.kt`)
+  remain available for cases where runtime parameters are required.
+- Use the `@HiltViewModel` annotation for new stores and prefer constructor injection across the
+  codebase. See `feature/charts/src/main/kotlin/io/github/stslex/workeeper/feature/charts/di/ChartsModule.kt`
+  for a full example of how stores, interactors, and calculators are wired together.
 
 ## 📂 Project Structure
 
@@ -84,7 +103,7 @@ This project showcases modern Android development practices with:
 - **UI Framework**: Jetpack Compose with Material Design 3
 - **Architecture**: MVI (Model-View-Intent)
 - **Database**: Room 2.8.0 with SQLite
-- **Dependency Injection**: Koin 4.1.1 with KSP annotations
+- **Dependency Injection**: Hilt 2.57.2 with AndroidX navigation integration
 - **Async**: Kotlin Coroutines 1.10.2 and Flow
 - **Navigation**: Custom navigation with shared element transitions
 - **Storage**: DataStore for preferences
@@ -156,7 +175,7 @@ cd Workeeper
 The project includes custom linting rules that enforce:
 
 - MVI pattern compliance (State immutability, Action naming, Handler patterns)
-- Proper Koin dependency injection usage
+- Proper Hilt dependency injection usage
 - Compose best practices
 - Code style consistency
 
