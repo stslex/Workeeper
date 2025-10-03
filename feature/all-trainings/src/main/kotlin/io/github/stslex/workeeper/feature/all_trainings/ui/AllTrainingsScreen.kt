@@ -129,7 +129,7 @@ internal fun AllTrainingsScreen(
                 modifier = Modifier
                     .sharedBounds(
                         sharedContentState = sharedTransitionScope.rememberSharedContentState(
-                            "createExercise",
+                            "createTraining",
                         ),
                         animatedVisibilityScope = animatedContentScope,
                         resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(

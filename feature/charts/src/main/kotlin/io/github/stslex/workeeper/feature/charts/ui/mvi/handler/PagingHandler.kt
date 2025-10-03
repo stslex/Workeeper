@@ -58,10 +58,8 @@ internal class PagingHandler @Inject constructor(
                 .map(chartParamsMapper::invoke)
                 .distinctUntilChanged()
                 .mapLatest { params ->
-                    updateStateImmediate {
-                        it.copy(chartState = ChartsState.Loading)
-                    }
-                    delay(300L) // To prevent too many requests when user change params fast.
+                    updateStateImmediate { it.copy(chartState = ChartsState.Loading) }
+                    delay(DEFAULT_QUERY_DELAY) // To prevent too many requests when user change params fast.
                     logger.d { "New chart params: $params" }
                     interactor.getChartsData(params)
                 },
@@ -84,5 +82,10 @@ internal class PagingHandler @Inject constructor(
                 )
             }
         }
+    }
+
+    companion object {
+
+        private const val DEFAULT_QUERY_DELAY = 600L
     }
 }

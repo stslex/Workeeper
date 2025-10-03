@@ -45,6 +45,7 @@ object AppDimension {
         val medium = 24.dp
         val big = 32.dp
         val large = 48.dp
+        val huge = 72.dp
     }
 
     object Button {
@@ -53,5 +54,10 @@ object AppDimension {
         val small = 36.dp
         val medium = 60.dp
         val big = 72.dp
+    }
+
+    object BottomNavBar {
+
+        val height = 72.dp
     }
 }

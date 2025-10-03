@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -41,13 +42,14 @@ internal fun ChartsWidget(
     Column(
         modifier = modifier.fillMaxSize(),
     ) {
+        Spacer(Modifier.height(AppDimension.Padding.big))
         SearchPagingWidget(
             modifier = Modifier
-                .padding(AppDimension.Padding.big),
+                .padding(horizontal = AppDimension.Padding.big),
             query = state.name,
             onQueryChange = { consume(Action.Input.Query(it)) },
         )
-        Spacer(Modifier.height(AppDimension.Padding.large))
+        Spacer(Modifier.height(AppDimension.Padding.medium))
         ChartsTypePickerWidget(
             selectedType = state.type,
             onClick = { consume(Action.Click.ChangeType(it)) },
@@ -55,7 +57,7 @@ internal fun ChartsWidget(
                 .fillMaxWidth()
                 .padding(horizontal = AppDimension.Padding.big),
         )
-        Spacer(Modifier.height(AppDimension.Padding.large))
+        Spacer(Modifier.height(AppDimension.Padding.medium))
         DatePickersWidget(
             modifier = Modifier
                 .padding(horizontal = AppDimension.Padding.big),
@@ -64,7 +66,7 @@ internal fun ChartsWidget(
             onStartDateClick = { consume(Action.Click.Calendar.StartDate) },
             onEndDateClick = { consume(Action.Click.Calendar.EndDate) },
         )
-        Spacer(Modifier.height(AppDimension.Padding.large))
+        Spacer(Modifier.height(AppDimension.Padding.medium))
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -100,7 +102,8 @@ internal fun ChartsWidget(
 @Composable
 private fun LoadingWidget(modifier: Modifier) {
     LoadingIndicator(
-        modifier = modifier,
+        modifier = modifier
+            .size(AppDimension.Icon.huge),
     )
 }
 
