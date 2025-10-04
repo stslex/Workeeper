@@ -7,8 +7,9 @@ import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.feature.all_exercises.di.ExerciseHandlerStore
-import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.model.ExerciseUiModel
-import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore
+import io.github.stslex.workeeper.feature.all_exercises.mvi.handler.ClickHandler
+import io.github.stslex.workeeper.feature.all_exercises.mvi.model.ExerciseUiModel
+import io.github.stslex.workeeper.feature.all_exercises.mvi.store.ExercisesStore
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every

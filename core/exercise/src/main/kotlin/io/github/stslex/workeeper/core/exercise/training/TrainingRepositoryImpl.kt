@@ -32,6 +32,15 @@ class TrainingRepositoryImpl @Inject constructor(
         }
         .flowOn(ioDispatcher)
 
+    override fun getTrainingsUnique(query: String): Flow<PagingData<TrainingDataModel>> = Pager(
+        config = pagingConfig,
+        pagingSourceFactory = { dao.getAllUnique(query) },
+    ).flow
+        .map { pagingData ->
+            pagingData.map { it.toData() }
+        }
+        .flowOn(ioDispatcher)
+
     override suspend fun updateTraining(training: TrainingChangeDataModel) {
         withContext(ioDispatcher) {
             dao.add(training.toEntity())

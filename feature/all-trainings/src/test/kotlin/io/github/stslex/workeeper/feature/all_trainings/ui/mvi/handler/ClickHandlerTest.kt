@@ -6,8 +6,9 @@ import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScope
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.feature.all_trainings.di.TrainingHandlerStore
 import io.github.stslex.workeeper.feature.all_trainings.domain.AllTrainingsInteractor
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.model.TrainingUiModel
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store.TrainingStore
+import io.github.stslex.workeeper.feature.all_trainings.mvi.handler.ClickHandler
+import io.github.stslex.workeeper.feature.all_trainings.mvi.model.TrainingUiModel
+import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every

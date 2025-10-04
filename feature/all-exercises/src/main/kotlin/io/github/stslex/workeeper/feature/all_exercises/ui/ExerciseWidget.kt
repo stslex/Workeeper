@@ -20,11 +20,11 @@ import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi.uiFeatures
+import io.github.stslex.workeeper.feature.all_exercises.mvi.model.ExerciseUiModel
+import io.github.stslex.workeeper.feature.all_exercises.mvi.store.ExercisesStore.Action
+import io.github.stslex.workeeper.feature.all_exercises.mvi.store.ExercisesStore.State
 import io.github.stslex.workeeper.feature.all_exercises.ui.components.AllExercisesActionButton
 import io.github.stslex.workeeper.feature.all_exercises.ui.components.AllExercisesWidget
-import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.model.ExerciseUiModel
-import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore.Action
-import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore.State
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.coroutines.flow.flowOf
 import kotlin.uuid.Uuid

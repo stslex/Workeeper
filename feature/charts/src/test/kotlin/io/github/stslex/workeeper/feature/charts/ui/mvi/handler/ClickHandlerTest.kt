@@ -3,10 +3,11 @@ package io.github.stslex.workeeper.feature.charts.ui.mvi.handler
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.feature.charts.di.ChartsHandlerStore
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.CalendarState
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartsState
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartsType
-import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore
+import io.github.stslex.workeeper.feature.charts.mvi.handler.ClickHandler
+import io.github.stslex.workeeper.feature.charts.mvi.model.CalendarState
+import io.github.stslex.workeeper.feature.charts.mvi.model.ChartsState
+import io.github.stslex.workeeper.feature.charts.mvi.model.ChartsType
+import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -187,13 +188,58 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `type change action updates state correctly`() = runTest {
+    fun `type change action updates state and sends haptic feedback`() = runTest {
         val expectedType = ChartsType.EXERCISE
 
         handler.invoke(ChartsStore.Action.Click.ChangeType(expectedType))
 
         testScheduler.advanceUntilIdle()
 
-        assertEquals(stateFlow.value.type, expectedType)
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.HapticFeedback(HapticFeedbackType.ContextClick)) }
+        verify(exactly = 1) { store.updateState(any()) }
+        assertEquals(expectedType, stateFlow.value.type)
+    }
+
+    @Test
+    fun `charts header click sends haptic feedback and scroll pager event`() {
+        val chartIndex = 2
+
+        handler.invoke(ChartsStore.Action.Click.ChartsHeader(chartIndex))
+
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.HapticFeedback(HapticFeedbackType.ContextClick)) }
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.ScrollChartPager(chartIndex)) }
+        verify(exactly = 1) { store.updateState(any()) }
+    }
+
+    @Test
+    fun `charts header click with zero index works correctly`() {
+        val chartIndex = 0
+
+        handler.invoke(ChartsStore.Action.Click.ChartsHeader(chartIndex))
+
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.HapticFeedback(HapticFeedbackType.ContextClick)) }
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.ScrollChartPager(chartIndex)) }
+    }
+
+    @Test
+    fun `charts header click with large index works correctly`() {
+        val chartIndex = 999
+
+        handler.invoke(ChartsStore.Action.Click.ChartsHeader(chartIndex))
+
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.HapticFeedback(HapticFeedbackType.ContextClick)) }
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.ScrollChartPager(chartIndex)) }
+    }
+
+    @Test
+    fun `multiple charts header clicks send multiple events`() {
+        handler.invoke(ChartsStore.Action.Click.ChartsHeader(0))
+        handler.invoke(ChartsStore.Action.Click.ChartsHeader(1))
+        handler.invoke(ChartsStore.Action.Click.ChartsHeader(2))
+
+        verify(exactly = 3) { store.sendEvent(ChartsStore.Event.HapticFeedback(HapticFeedbackType.ContextClick)) }
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.ScrollChartPager(0)) }
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.ScrollChartPager(1)) }
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.ScrollChartPager(2)) }
     }
 }

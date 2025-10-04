@@ -10,12 +10,13 @@ import io.github.stslex.workeeper.feature.charts.domain.model.ChartParams
 import io.github.stslex.workeeper.feature.charts.domain.model.ChartsDomainType
 import io.github.stslex.workeeper.feature.charts.domain.model.SingleChartDomainItem
 import io.github.stslex.workeeper.feature.charts.domain.model.SingleChartDomainModel
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.CalendarState
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartParamsMapper
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartResultsMapper
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartsState
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartsType
-import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore
+import io.github.stslex.workeeper.feature.charts.mvi.handler.PagingHandler
+import io.github.stslex.workeeper.feature.charts.mvi.model.CalendarState
+import io.github.stslex.workeeper.feature.charts.mvi.model.ChartParamsMapper
+import io.github.stslex.workeeper.feature.charts.mvi.model.ChartResultsMapper
+import io.github.stslex.workeeper.feature.charts.mvi.model.ChartsState
+import io.github.stslex.workeeper.feature.charts.mvi.model.ChartsType
+import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -27,6 +28,7 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 
@@ -84,7 +86,7 @@ internal class PagingHandlerTest {
         every { chartResultsMapper.invoke(any()) } returns mockk()
 
         handler.invoke(ChartsStore.Action.Paging.Init)
-        testScheduler.advanceTimeBy(500L) // Advance past the 300ms delay
+        testScheduler.advanceTimeBy(700L) // Advance past the 600ms delay
         testScheduler.advanceUntilIdle()
 
         // Verify flows are accessed
@@ -109,7 +111,7 @@ internal class PagingHandlerTest {
         every { chartResultsMapper.invoke(any()) } returns mockk()
 
         handler.invoke(ChartsStore.Action.Paging.Init)
-        testScheduler.advanceTimeBy(500L) // Advance past the 300ms delay
+        testScheduler.advanceTimeBy(700L) // Advance past the 600ms delay
         testScheduler.advanceUntilIdle()
 
         // Verify the handler processed the init action
@@ -142,7 +144,7 @@ internal class PagingHandlerTest {
         every { chartResultsMapper.invoke(any()) } returns mockk()
 
         handler.invoke(ChartsStore.Action.Paging.Init)
-        testScheduler.advanceTimeBy(500L) // Advance past the 300ms delay
+        testScheduler.advanceTimeBy(700L) // Advance past the 600ms delay
         testScheduler.advanceUntilIdle()
 
         // Verify interactor was called with data
@@ -192,5 +194,182 @@ internal class PagingHandlerTest {
             testScheduler.advanceUntilIdle()
         }
         coVerify { interactor.getChartsData(any()) }
+    }
+
+    @Test
+    fun `state transitions to Loading before fetching data`() = runTest(testDispatcher) {
+        every { commonStore.homeSelectedStartDate } returns flowOf(1000000L)
+        every { commonStore.homeSelectedEndDate } returns flowOf(2000000L)
+        every { chartParamsMapper.invoke(any()) } returns ChartParams(
+            startDate = 1000000L,
+            endDate = 2000000L,
+            name = "Test",
+            type = ChartsDomainType.TRAINING,
+        )
+        coEvery { interactor.getChartsData(any()) } returns emptyList()
+
+        handler.invoke(ChartsStore.Action.Paging.Init)
+        testScheduler.advanceTimeBy(100L)
+
+        coVerify(atLeast = 1) { store.updateStateImmediate(any<suspend (ChartsStore.State) -> ChartsStore.State>()) }
+    }
+
+    @Test
+    fun `state transitions to Empty when results are empty`() = runTest(testDispatcher) {
+        every { commonStore.homeSelectedStartDate } returns flowOf(1000000L)
+        every { commonStore.homeSelectedEndDate } returns flowOf(2000000L)
+        every { chartParamsMapper.invoke(any()) } returns ChartParams(
+            startDate = 1000000L,
+            endDate = 2000000L,
+            name = "Test",
+            type = ChartsDomainType.TRAINING,
+        )
+        coEvery { interactor.getChartsData(any()) } returns emptyList()
+
+        handler.invoke(ChartsStore.Action.Paging.Init)
+        testScheduler.advanceTimeBy(700L)
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(ChartsState.Empty, stateFlow.value.chartState)
+    }
+
+    @Test
+    fun `state transitions to Content with correct data when results exist`() = runTest(testDispatcher) {
+        val domainData = listOf(
+            SingleChartDomainModel(
+                name = "Exercise 1",
+                dateType = ChartDataType.DAY,
+                values = listOf(
+                    SingleChartDomainItem(xValue = 0f, yValue = 10.0f),
+                ),
+            ),
+        )
+
+        every { commonStore.homeSelectedStartDate } returns flowOf(1000000L)
+        every { commonStore.homeSelectedEndDate } returns flowOf(2000000L)
+        every { chartParamsMapper.invoke(any()) } returns ChartParams(
+            startDate = 1000000L,
+            endDate = 2000000L,
+            name = "Test",
+            type = ChartsDomainType.TRAINING,
+        )
+        coEvery { interactor.getChartsData(any()) } returns domainData
+        every { chartResultsMapper.invoke(any()) } returns mockk(relaxed = true) {
+            every { name } returns "Exercise 1"
+        }
+
+        handler.invoke(ChartsStore.Action.Paging.Init)
+        testScheduler.advanceTimeBy(700L)
+        testScheduler.advanceUntilIdle()
+
+        val chartState = stateFlow.value.chartState
+        assert(chartState is ChartsState.Content) { "Expected Content state, got $chartState" }
+        val content = chartState as ChartsState.Content
+        assertEquals(1, content.charts.size)
+        assertEquals(0, content.selectedChartIndex)
+    }
+
+    @Test
+    fun `interactor errors are handled gracefully`() = runTest(testDispatcher) {
+        every { commonStore.homeSelectedStartDate } returns flowOf(1000000L)
+        every { commonStore.homeSelectedEndDate } returns flowOf(2000000L)
+        every { chartParamsMapper.invoke(any()) } returns ChartParams(
+            startDate = 1000000L,
+            endDate = 2000000L,
+            name = "Test",
+            type = ChartsDomainType.TRAINING,
+        )
+        coEvery { interactor.getChartsData(any()) } throws RuntimeException("Network error")
+
+        assertDoesNotThrow {
+            handler.invoke(ChartsStore.Action.Paging.Init)
+            testScheduler.advanceTimeBy(700L)
+            testScheduler.advanceUntilIdle()
+        }
+
+        coVerify(atLeast = 1) { interactor.getChartsData(any()) }
+    }
+
+    @Test
+    fun `scroll event is sent after data loads`() = runTest(testDispatcher) {
+        val domainData = listOf(
+            SingleChartDomainModel(
+                name = "Exercise 1",
+                dateType = ChartDataType.DAY,
+                values = listOf(
+                    SingleChartDomainItem(xValue = 0f, yValue = 10.0f),
+                ),
+            ),
+        )
+
+        every { commonStore.homeSelectedStartDate } returns flowOf(1000000L)
+        every { commonStore.homeSelectedEndDate } returns flowOf(2000000L)
+        every { chartParamsMapper.invoke(any()) } returns ChartParams(
+            startDate = 1000000L,
+            endDate = 2000000L,
+            name = "Test",
+            type = ChartsDomainType.TRAINING,
+        )
+        coEvery { interactor.getChartsData(any()) } returns domainData
+        every { chartResultsMapper.invoke(any()) } returns mockk(relaxed = true) {
+            every { name } returns "Exercise 1"
+        }
+
+        handler.invoke(ChartsStore.Action.Paging.Init)
+        testScheduler.advanceTimeBy(700L)
+        testScheduler.advanceUntilIdle()
+
+        verify(atLeast = 1) {
+            store.sendEvent(
+                ChartsStore.Event.ScrollChartHeader(
+                    chartIndex = 0,
+                    animated = false,
+                    force = true,
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `default selectedChartIndex is zero when state transitions to content`() = runTest(testDispatcher) {
+        val domainData = listOf(
+            SingleChartDomainModel(
+                name = "Exercise 1",
+                dateType = ChartDataType.DAY,
+                values = listOf(
+                    SingleChartDomainItem(xValue = 0f, yValue = 10.0f),
+                ),
+            ),
+            SingleChartDomainModel(
+                name = "Exercise 2",
+                dateType = ChartDataType.DAY,
+                values = listOf(
+                    SingleChartDomainItem(xValue = 0f, yValue = 20.0f),
+                ),
+            ),
+        )
+
+        every { commonStore.homeSelectedStartDate } returns flowOf(1000000L)
+        every { commonStore.homeSelectedEndDate } returns flowOf(2000000L)
+        every { chartParamsMapper.invoke(any()) } returns ChartParams(
+            startDate = 1000000L,
+            endDate = 2000000L,
+            name = "Test",
+            type = ChartsDomainType.TRAINING,
+        )
+        coEvery { interactor.getChartsData(any()) } returns domainData
+        every { chartResultsMapper.invoke(any()) } returns mockk(relaxed = true) {
+            every { name } returns "Exercise"
+        }
+
+        handler.invoke(ChartsStore.Action.Paging.Init)
+        testScheduler.advanceTimeBy(700L)
+        testScheduler.advanceUntilIdle()
+
+        val chartState = stateFlow.value.chartState
+        assert(chartState is ChartsState.Content) { "Expected Content state, got $chartState" }
+        val content = chartState as ChartsState.Content
+        assertEquals(0, content.selectedChartIndex)
+        assertEquals(2, content.charts.size)
     }
 }

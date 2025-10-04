@@ -1,0 +1,80 @@
+package io.github.stslex.workeeper.feature.all_exercises.mvi.handler
+
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import dagger.hilt.android.scopes.ViewModelScoped
+import io.github.stslex.workeeper.core.core.coroutine.asyncMap
+import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
+import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
+import io.github.stslex.workeeper.feature.all_exercises.di.ExerciseHandlerStore
+import io.github.stslex.workeeper.feature.all_exercises.mvi.store.ExercisesStore.Action
+import io.github.stslex.workeeper.feature.all_exercises.mvi.store.ExercisesStore.Event
+import kotlinx.collections.immutable.persistentSetOf
+import kotlinx.collections.immutable.toImmutableSet
+import javax.inject.Inject
+import kotlin.uuid.Uuid
+
+@ViewModelScoped
+internal class ClickHandler @Inject constructor(
+    private val repository: ExerciseRepository,
+    store: ExerciseHandlerStore,
+) : Handler<Action.Click>, ExerciseHandlerStore by store {
+
+    override fun invoke(action: Action.Click) {
+        when (action) {
+            Action.Click.FloatButtonClick -> processClickFloatingButton()
+            Action.Click.BackHandler -> processBackHandler()
+            is Action.Click.Item -> processClickItem(action)
+            is Action.Click.LonkClick -> processLongClick(action)
+        }
+    }
+
+    private fun processBackHandler() {
+        if (state.value.selectedItems.isNotEmpty()) {
+            updateState { it.copy(selectedItems = persistentSetOf()) }
+        }
+        if (state.value.query.isNotEmpty()) {
+            updateState { it.copy(query = "") }
+        }
+    }
+
+    private fun processLongClick(action: Action.Click.LonkClick) {
+        sendEvent(Event.HapticFeedback(HapticFeedbackType.VirtualKey))
+        val currentItems = state.value.selectedItems.toMutableSet()
+        logger.v {
+            "Current selected items: ${currentItems.joinToString(",") { it }}"
+        }
+        if (currentItems.contains(action.uuid)) {
+            currentItems.remove(action.uuid)
+        } else {
+            currentItems.add(action.uuid)
+        }
+        updateState {
+            it.copy(
+                selectedItems = currentItems.toImmutableSet(),
+            )
+        }
+    }
+
+    private fun processClickFloatingButton() {
+        sendEvent(Event.HapticFeedback(HapticFeedbackType.Confirm))
+        val selectedItems = state.value.selectedItems
+        if (selectedItems.isNotEmpty()) {
+            launch(
+                onSuccess = { updateState { it.copy(selectedItems = persistentSetOf()) } },
+            ) {
+                repository.deleteAllItems(selectedItems.asyncMap(Uuid::parse))
+            }
+        } else {
+            consume(Action.Navigation.CreateExerciseDialog)
+        }
+    }
+
+    private fun processClickItem(action: Action.Click.Item) {
+        if (state.value.selectedItems.isNotEmpty()) {
+            consume(Action.Click.LonkClick(action.uuid))
+        } else {
+            sendEvent(Event.HapticFeedback(HapticFeedbackType.VirtualKey))
+            consume(Action.Navigation.OpenExercise(action.uuid))
+        }
+    }
+}

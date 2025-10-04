@@ -150,7 +150,30 @@ internal class ChartDomainCalculatorImpl @Inject constructor() : ChartDomainCalc
             xValue = params.itemDiffK * index,
             yValue = searchTimeItem?.second,
         )
-    }.toList()
+    }
+        .let { points ->
+            val nullableFirstX = mutableListOf<Float>()
+            val nullableLastX = mutableListOf<Float>()
+
+            points.forEach { point ->
+                if (point.yValue == null) {
+                    nullableFirstX.add(point.xValue)
+                    nullableLastX.add(point.xValue)
+                } else {
+                    nullableLastX.clear()
+                }
+            }
+            points.map { point ->
+                val nullableFirst = nullableFirstX.contains(point.xValue)
+                val nullableLast = nullableLastX.contains(point.xValue)
+                if (nullableLast || nullableFirst) {
+                    point.copy(yValue = 0f)
+                } else {
+                    point
+                }
+            }
+        }
+        .toList()
 
     @VisibleForTesting
     data class ChartDomainCalculateParams(

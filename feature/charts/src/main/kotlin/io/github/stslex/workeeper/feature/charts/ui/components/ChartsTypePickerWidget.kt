@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -26,7 +27,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartsType
+import io.github.stslex.workeeper.feature.charts.mvi.model.ChartsType
 
 @Composable
 internal fun ChartsTypePickerWidget(
@@ -39,7 +40,7 @@ internal fun ChartsTypePickerWidget(
             .height(AppDimension.Button.big),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ChartsType.entries.forEach { chartsType ->
+        ChartsType.entries.forEachIndexed { index, chartsType ->
             ChartsTypeItem(
                 modifier = Modifier
                     .weight(1f),
@@ -47,6 +48,9 @@ internal fun ChartsTypePickerWidget(
                 isSelected = chartsType == selectedType,
                 onClick = { onClick(chartsType) },
             )
+            if (index != ChartsType.entries.lastIndex) {
+                Spacer(modifier = Modifier.padding(horizontal = AppDimension.Padding.medium))
+            }
         }
     }
 }
@@ -86,7 +90,6 @@ internal fun ChartsTypeItem(
 
     ElevatedCard(
         modifier = modifier
-            .padding(horizontal = AppDimension.Padding.medium)
             .height(AppDimension.Button.medium),
         onClick = onClick,
         colors = CardDefaults.elevatedCardColors(

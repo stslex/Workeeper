@@ -1,111 +1,111 @@
 package io.github.stslex.workeeper.feature.charts.ui.components
 
+import android.content.res.Configuration
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Stable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastRoundToInt
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.toPx
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ExerciseChartPreviewParameterProvider
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.SingleChartUiModel
+import io.github.stslex.workeeper.feature.charts.mvi.model.ExerciseChartPreviewParameterProvider
+import io.github.stslex.workeeper.feature.charts.mvi.model.SingleChartUiModel
 import kotlinx.collections.immutable.ImmutableList
 
 @Composable
 internal fun ChartsCanvaWidget(
     charts: ImmutableList<SingleChartUiModel>,
+    pagerState: PagerState,
     modifier: Modifier = Modifier,
 ) {
-    val outlineColor = MaterialTheme.colorScheme.outline
-    val outlineThin = AppDimension.Border.medium.toPx
-    val outlineChartThin = AppDimension.Border.small.toPx
-    val radius = AppDimension.Radius.medium.toPx
-
-    val chartColor = MaterialTheme.colorScheme.onSurface.copy(
-        alpha = 0.7f,
-    )
-
-    val chartsMapped = remember(charts) {
-        charts.mapIndexed { index, item ->
-            SingleChartCanvasModel(
-                name = item.name,
-                color = getRandomColor(index),
-                properties = item.properties.map { property ->
-                    SingleChartCanvasProperty(
-                        xValue = property.timeX,
-                        yValue = property.valueY,
-                    )
-                },
-            )
-        }
+    HorizontalPager(
+        modifier = modifier,
+        state = pagerState,
+        key = { charts[it].name },
+        pageSpacing = AppDimension.Padding.big,
+    ) { index ->
+        SingleChart(charts[index])
     }
+}
+
+@Composable
+private fun SingleChart(
+    chart: SingleChartUiModel,
+    modifier: Modifier = Modifier,
+) {
+    val outlineChartThin = AppDimension.Border.medium.toPx
+
+    val chartColor = MaterialTheme.colorScheme.primary
+        .copy(
+            alpha = 0.1f,
+        )
+    val axisColor = MaterialTheme.colorScheme.onSecondaryContainer
 
     val testMeasurer = rememberTextMeasurer()
 
     Canvas(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .clip(MaterialTheme.shapes.extraLarge)
+            .border(
+                width = AppDimension.Border.medium,
+                color = MaterialTheme.colorScheme.outline,
+                shape = MaterialTheme.shapes.extraLarge,
+            )
+            .background(MaterialTheme.colorScheme.surfaceContainer),
     ) {
-        val path = createBackgroundPath(
-            strokeThin = outlineThin,
-            strokeColor = outlineColor,
-            radius = radius,
+        val points = calculateChartPoints(chart)
+        val path = createSmoothPathSimple(points)
+
+        drawPath(
+            path = path,
+            color = axisColor,
+            style = Stroke(
+                width = outlineChartThin,
+            ),
         )
 
-        clipPath(path) {
-            chartsMapped.forEachIndexed { index, chart ->
-                val points = calculateChartPoints(chart)
-                val path = createSmoothPathSimple(points)
-
-                drawAxis(
-                    points = points,
-                    textMeasurer = testMeasurer,
-                    color = Color.Black,
-                )
-
-                drawPath(
-                    path = path,
-                    color = chartColor,
-                    style = Stroke(
-                        width = outlineChartThin,
-                    ),
-                )
-
-                val filledPath = Path().apply {
-                    addPath(path)
-                    lineTo(points.last().x, size.height)
-                    lineTo(points.first().x, size.height)
-                    close()
-                }
-
-                drawPath(
-                    path = filledPath,
-                    color = chart.color.copy(alpha = 0.1f),
-                    style = Fill,
-                )
-            }
+        val filledPath = Path().apply {
+            addPath(path)
+            lineTo(points.last().x, size.height)
+            lineTo(points.first().x, size.height)
+            close()
         }
+
+        drawPath(
+            path = filledPath,
+            color = chartColor,
+            style = Fill,
+        )
+
+        drawAxis(
+            points = points,
+            textMeasurer = testMeasurer,
+            color = axisColor,
+        )
     }
 }
 
@@ -174,8 +174,6 @@ private fun DrawScope.drawAxis(
             text = text,
             topLeft = Offset(leftOffset, yValue - yOffset),
             style = textStyle,
-//            overflow = TODO(),
-//            softWrap = TODO(),
             maxLines = 1,
         )
 
@@ -192,64 +190,28 @@ private fun DrawScope.drawAxis(
 }
 
 private fun DrawScope.calculateChartPoints(
-    chart: SingleChartCanvasModel,
+    chart: SingleChartUiModel,
 ): List<Offset> {
-    val maxProperty = chart.properties.maxOfOrNull { it.yValue ?: 0f } ?: 1f
+    val maxProperty = chart.properties.maxOfOrNull { it.valueY ?: 0f } ?: 1f
     val propertyK = size.height / maxProperty
 
     val itemsSize = chart.properties.size
     return chart.properties.mapIndexed { propertyIndex, property ->
         val yValue = if (
-            property.yValue == null &&
+            property.valueY == null &&
             (propertyIndex == 0 || propertyIndex == itemsSize.dec())
         ) {
             0f
         } else {
-            property.yValue?.let { yValue ->
+            property.valueY?.let { yValue ->
                 size.height - yValue * propertyK
             } ?: Float.NaN
         }
         Offset(
-            x = size.width * property.xValue,
+            x = size.width * property.timeX,
             y = yValue,
         )
     }
-}
-
-@Stable
-private data class SingleChartCanvasModel(
-    val name: String,
-    val color: Color,
-    val properties: List<SingleChartCanvasProperty>,
-)
-
-private data class SingleChartCanvasProperty(
-    val xValue: Float,
-    val yValue: Float?,
-)
-
-private fun DrawScope.createBackgroundPath(
-    strokeThin: Float,
-    strokeColor: Color,
-    radius: Float,
-): Path = Path().apply {
-    addRoundRect(
-        roundRect = RoundRect(
-            left = 0f,
-            top = 0f,
-            right = size.width,
-            bottom = size.height,
-            cornerRadius = CornerRadius(radius, radius),
-        ),
-    )
-}.also { path ->
-    drawPath(
-        path = path,
-        color = strokeColor,
-        style = Stroke(
-            width = strokeThin,
-        ),
-    )
 }
 
 @Suppress("MagicNumber")
@@ -267,7 +229,30 @@ private fun createSmoothPathSimple(points: List<Offset>): Path {
         return path
     }
 
-    val filteredPoints = points.filter { it.isValid() }
+    val nullableFirstX = mutableListOf<Float>()
+    val nullableLastX = mutableListOf<Float>()
+
+    points.forEach { point ->
+        if (point.y.isNaN() || point.y.isInfinite()) {
+            nullableFirstX.add(point.x)
+            nullableLastX.add(point.x)
+        } else {
+            nullableLastX.clear()
+        }
+    }
+
+    val filteredPoints = points.map { point ->
+        val nullableFirst = nullableFirstX.contains(point.x)
+        val nullableLast = nullableLastX.contains(point.x)
+        if (nullableLast || nullableFirst) {
+            Offset(
+                x = point.x,
+                y = 0f,
+            )
+        } else {
+            point
+        }
+    }.filter { it.isValid() }
 
     for (i in 0 until filteredPoints.size - 1) {
         val currentPoint = filteredPoints[i]
@@ -294,24 +279,20 @@ private fun createSmoothPathSimple(points: List<Offset>): Path {
     return path
 }
 
-private fun getRandomColor(index: Int): Color = Color(
-    red = getRandomColorInt(index.inc(), 1),
-    green = getRandomColorInt(index.inc(), 2),
-    blue = getRandomColorInt(index.inc(), 3),
-)
-
-private fun getRandomColorInt(index: Int, colorIndex: Int): Int =
-    ((0..255).random() * index * colorIndex) % 255
-
 @Composable
-@Preview
-private fun ChartsCanvaWidgetPreview() {
+@Preview(uiMode = Configuration.UI_MODE_NIGHT_YES or Configuration.UI_MODE_TYPE_NORMAL)
+@Preview(uiMode = Configuration.UI_MODE_NIGHT_NO or Configuration.UI_MODE_TYPE_NORMAL)
+private fun ChartsCanvaWidgetPreview(
+    @PreviewParameter(ExerciseChartPreviewParameterProvider::class)
+    params: ImmutableList<SingleChartUiModel>,
+) {
     AppTheme {
         Box(
             modifier = Modifier.background(MaterialTheme.colorScheme.background),
         ) {
             ChartsCanvaWidget(
-                charts = ExerciseChartPreviewParameterProvider().values.first(),
+                charts = params,
+                pagerState = rememberPagerState { 1 },
             )
         }
     }

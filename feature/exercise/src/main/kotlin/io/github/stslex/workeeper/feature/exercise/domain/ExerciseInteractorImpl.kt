@@ -57,6 +57,6 @@ internal class ExerciseInteractorImpl @Inject constructor(
 
     override suspend fun searchItems(query: String): List<ExerciseDataModel> =
         withContext(dispatcher) {
-            exerciseRepository.searchItems(query)
+            exerciseRepository.searchItemsWithExclude(query)
         }
 }

@@ -40,11 +40,11 @@ import io.github.stslex.workeeper.core.ui.kit.model.ItemPosition
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi.uiFeatures
+import io.github.stslex.workeeper.feature.all_trainings.mvi.model.TrainingUiModel
+import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore.Action
+import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore.State
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.EmptyWidget
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.SingleTrainingItemWidget
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.model.TrainingUiModel
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store.TrainingStore.Action
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store.TrainingStore.State
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.flowOf
@@ -129,7 +129,7 @@ internal fun AllTrainingsScreen(
                 modifier = Modifier
                     .sharedBounds(
                         sharedContentState = sharedTransitionScope.rememberSharedContentState(
-                            "createExercise",
+                            "createTraining",
                         ),
                         animatedVisibilityScope = animatedContentScope,
                         resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(
