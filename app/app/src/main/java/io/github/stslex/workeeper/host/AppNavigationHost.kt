@@ -6,12 +6,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.material3.BottomAppBarDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
@@ -33,9 +30,7 @@ internal fun AppNavigationHost(
     ) {
         val bottomBarModifier = Modifier
             .fillMaxSize()
-            .padding(
-                bottom = BottomAppBarDefaults.windowInsets.getBottom(LocalDensity.current).dp + AppDimension.Padding.large,
-            )
+            .padding(bottom = AppDimension.BottomNavBar.height)
             .systemBarsPadding()
             .background(MaterialTheme.colorScheme.background)
         NavHost(

@@ -1,5 +1,6 @@
 package io.github.stslex.workeeper.bottom_app_bar
 
+import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Stable
 import io.github.stslex.workeeper.app.app.R
@@ -9,19 +10,23 @@ import kotlinx.serialization.InternalSerializationApi
 
 @Stable
 enum class BottomBarItem(
-    @param:StringRes val titleRes: Int,
+    @StringRes val titleRes: Int,
+    @DrawableRes val iconRes: Int,
     val screen: Screen.BottomBar,
 ) {
     CHARTS(
         titleRes = R.string.bottom_bar_label_charts,
+        iconRes = R.drawable.ic_bottom_app_bar_chart_icon_24,
         screen = Screen.BottomBar.Charts,
     ),
     TRAININGS(
         titleRes = R.string.bottom_bar_label_trainings,
+        iconRes = R.drawable.ic_bottom_app_bar_exercise_24,
         screen = Screen.BottomBar.AllTrainings,
     ),
     EXERCISES(
         titleRes = R.string.bottom_bar_label_exercises,
+        iconRes = R.drawable.ic_bottom_app_bar_list_icon_24,
         screen = Screen.BottomBar.AllExercises,
     ),
     ;

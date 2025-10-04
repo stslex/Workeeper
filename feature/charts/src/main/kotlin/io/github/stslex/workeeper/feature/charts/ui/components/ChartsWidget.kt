@@ -8,6 +8,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -23,31 +26,34 @@ import io.github.stslex.workeeper.core.ui.kit.components.search.SearchPagingWidg
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.CalendarState
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartsState
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartsType
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ExerciseChartPreviewParameterProvider
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.SingleChartUiModel
-import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore.Action
-import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore.State
+import io.github.stslex.workeeper.feature.charts.mvi.model.CalendarState
+import io.github.stslex.workeeper.feature.charts.mvi.model.ChartsState
+import io.github.stslex.workeeper.feature.charts.mvi.model.ChartsType
+import io.github.stslex.workeeper.feature.charts.mvi.model.ExerciseChartPreviewParameterProvider
+import io.github.stslex.workeeper.feature.charts.mvi.model.SingleChartUiModel
+import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore.Action
+import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore.State
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.toImmutableList
 
 @Composable
 internal fun ChartsWidget(
     state: State,
+    pagerState: PagerState,
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier.fillMaxSize(),
     ) {
+        Spacer(Modifier.height(AppDimension.Padding.big))
         SearchPagingWidget(
             modifier = Modifier
-                .padding(AppDimension.Padding.big),
+                .padding(horizontal = AppDimension.Padding.big),
             query = state.name,
             onQueryChange = { consume(Action.Input.Query(it)) },
         )
-        Spacer(Modifier.height(AppDimension.Padding.large))
+        Spacer(Modifier.height(AppDimension.Padding.medium))
         ChartsTypePickerWidget(
             selectedType = state.type,
             onClick = { consume(Action.Click.ChangeType(it)) },
@@ -55,7 +61,7 @@ internal fun ChartsWidget(
                 .fillMaxWidth()
                 .padding(horizontal = AppDimension.Padding.big),
         )
-        Spacer(Modifier.height(AppDimension.Padding.large))
+        Spacer(Modifier.height(AppDimension.Padding.medium))
         DatePickersWidget(
             modifier = Modifier
                 .padding(horizontal = AppDimension.Padding.big),
@@ -64,7 +70,7 @@ internal fun ChartsWidget(
             onStartDateClick = { consume(Action.Click.Calendar.StartDate) },
             onEndDateClick = { consume(Action.Click.Calendar.EndDate) },
         )
-        Spacer(Modifier.height(AppDimension.Padding.large))
+        Spacer(Modifier.height(AppDimension.Padding.medium))
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -79,11 +85,19 @@ internal fun ChartsWidget(
                 ),
         ) {
             when (val chartState = state.chartState) {
-                is ChartsState.Content -> ChartsCanvaWidget(
-                    charts = chartState.charts,
-                    modifier = Modifier
-                        .padding(AppDimension.Padding.big),
-                )
+                is ChartsState.Content -> {
+                    ChartsCanvaWidget(
+                        charts = chartState.charts,
+                        pagerState = pagerState,
+                        modifier = Modifier
+                            .padding(AppDimension.Padding.big),
+                    )
+                    ChartsTitlesHeader(
+                        chartTitles = chartState.charts.map { it.name }.toImmutableList(),
+                        selectedIndex = chartState.selectedChartIndex,
+                        onSelectTitle = { index -> consume(Action.Click.ChartsHeader(index)) },
+                    )
+                }
 
                 is ChartsState.Loading -> LoadingWidget(
                     modifier = Modifier
@@ -100,12 +114,14 @@ internal fun ChartsWidget(
 @Composable
 private fun LoadingWidget(modifier: Modifier) {
     LoadingIndicator(
-        modifier = modifier,
+        modifier = modifier
+            .size(AppDimension.Icon.huge),
     )
 }
 
 @Composable
 @Preview
+@Suppress("unused")
 private fun ChartsWidgetPreview(
     @PreviewParameter(ExerciseChartPreviewParameterProvider::class)
     charts: ImmutableList<SingleChartUiModel>,
@@ -125,6 +141,7 @@ private fun ChartsWidgetPreview(
             )
             ChartsWidget(
                 state = chartsState,
+                pagerState = rememberPagerState { 1 },
                 consume = {},
             )
         }

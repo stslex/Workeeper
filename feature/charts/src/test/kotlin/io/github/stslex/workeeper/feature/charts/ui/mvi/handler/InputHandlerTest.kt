@@ -1,15 +1,20 @@
 package io.github.stslex.workeeper.feature.charts.ui.mvi.handler
 
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScope
 import io.github.stslex.workeeper.core.dataStore.store.CommonDataStore
 import io.github.stslex.workeeper.feature.charts.di.ChartsHandlerStore
-import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore
+import io.github.stslex.workeeper.feature.charts.mvi.handler.InputHandler
+import io.github.stslex.workeeper.feature.charts.mvi.model.ChartsState
+import io.github.stslex.workeeper.feature.charts.mvi.model.SingleChartUiModel
+import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -250,5 +255,192 @@ internal class InputHandlerTest {
 
         coVerify(exactly = 1) { commonStore.setHomeSelectedStartDate(currentTime) }
         coVerify(exactly = 1) { commonStore.setHomeSelectedEndDate(currentTime) }
+    }
+
+    @Test
+    fun `scroll to chart updates selected index and sends haptic feedback`() = runTest {
+        val chartContent = ChartsState.Content(
+            charts = persistentListOf(
+                mockk<SingleChartUiModel>(relaxed = true),
+                mockk<SingleChartUiModel>(relaxed = true),
+                mockk<SingleChartUiModel>(relaxed = true),
+            ),
+            chartsTitles = persistentListOf("Chart 1", "Chart 2", "Chart 3"),
+            selectedChartIndex = 0,
+        )
+        stateFlow.value = initialState.copy(chartState = chartContent)
+
+        every { store.updateState(any()) } answers {
+            val transform = arg<(ChartsStore.State) -> ChartsStore.State>(0)
+            val newState = transform(stateFlow.value)
+            stateFlow.value = newState
+        }
+
+        handler.invoke(ChartsStore.Action.Input.ScrollToChart(1))
+
+        testScheduler.advanceUntilIdle()
+
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey)) }
+        verify(exactly = 1) { store.updateState(any()) }
+        assertEquals(1, (stateFlow.value.chartState as ChartsState.Content).selectedChartIndex)
+    }
+
+    @Test
+    fun `scroll to chart with same index does not send haptic feedback`() = runTest {
+        val chartContent = ChartsState.Content(
+            charts = persistentListOf(
+                mockk<SingleChartUiModel>(relaxed = true),
+                mockk<SingleChartUiModel>(relaxed = true),
+            ),
+            chartsTitles = persistentListOf("Chart 1", "Chart 2"),
+            selectedChartIndex = 1,
+        )
+        stateFlow.value = initialState.copy(chartState = chartContent)
+
+        every { store.updateState(any()) } answers {
+            val transform = arg<(ChartsStore.State) -> ChartsStore.State>(0)
+            val newState = transform(stateFlow.value)
+            stateFlow.value = newState
+        }
+
+        handler.invoke(ChartsStore.Action.Input.ScrollToChart(1))
+
+        testScheduler.advanceUntilIdle()
+
+        verify(exactly = 0) { store.sendEvent(ChartsStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey)) }
+        verify(exactly = 1) { store.updateState(any()) }
+        assertEquals(1, (stateFlow.value.chartState as ChartsState.Content).selectedChartIndex)
+    }
+
+    @Test
+    fun `scroll to chart with loading state does not change chart state but sends haptic feedback`() = runTest {
+        val initialChartState = ChartsState.Loading
+        stateFlow.value = initialState.copy(chartState = initialChartState)
+
+        every { store.updateState(any()) } answers {
+            val transform = arg<(ChartsStore.State) -> ChartsStore.State>(0)
+            val newState = transform(stateFlow.value)
+            stateFlow.value = newState
+        }
+
+        handler.invoke(ChartsStore.Action.Input.ScrollToChart(2))
+
+        testScheduler.advanceUntilIdle()
+
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey)) }
+        assertEquals(initialChartState, stateFlow.value.chartState)
+    }
+
+    @Test
+    fun `scroll to chart with empty state does not change chart state but sends haptic feedback`() = runTest {
+        val initialChartState = ChartsState.Empty
+        stateFlow.value = initialState.copy(chartState = initialChartState)
+
+        every { store.updateState(any()) } answers {
+            val transform = arg<(ChartsStore.State) -> ChartsStore.State>(0)
+            val newState = transform(stateFlow.value)
+            stateFlow.value = newState
+        }
+
+        handler.invoke(ChartsStore.Action.Input.ScrollToChart(0))
+
+        testScheduler.advanceUntilIdle()
+
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey)) }
+        assertEquals(initialChartState, stateFlow.value.chartState)
+    }
+
+    @Test
+    fun `scroll to chart with zero index works correctly`() = runTest {
+        val chartContent = ChartsState.Content(
+            charts = persistentListOf(
+                mockk<SingleChartUiModel>(relaxed = true),
+                mockk<SingleChartUiModel>(relaxed = true),
+            ),
+            chartsTitles = persistentListOf("Chart 1", "Chart 2"),
+            selectedChartIndex = 1,
+        )
+        stateFlow.value = initialState.copy(chartState = chartContent)
+
+        every { store.updateState(any()) } answers {
+            val transform = arg<(ChartsStore.State) -> ChartsStore.State>(0)
+            val newState = transform(stateFlow.value)
+            stateFlow.value = newState
+        }
+
+        handler.invoke(ChartsStore.Action.Input.ScrollToChart(0))
+
+        testScheduler.advanceUntilIdle()
+
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey)) }
+        verify(exactly = 1) { store.updateState(any()) }
+        assertEquals(0, (stateFlow.value.chartState as ChartsState.Content).selectedChartIndex)
+    }
+
+    @Test
+    fun `multiple scroll to chart actions work correctly`() = runTest {
+        val chartContent = ChartsState.Content(
+            charts = persistentListOf(
+                mockk<SingleChartUiModel>(relaxed = true),
+                mockk<SingleChartUiModel>(relaxed = true),
+                mockk<SingleChartUiModel>(relaxed = true),
+                mockk<SingleChartUiModel>(relaxed = true),
+            ),
+            chartsTitles = persistentListOf("Chart 1", "Chart 2", "Chart 3", "Chart 4"),
+            selectedChartIndex = 0,
+        )
+        stateFlow.value = initialState.copy(chartState = chartContent)
+
+        every { store.updateState(any()) } answers {
+            val transform = arg<(ChartsStore.State) -> ChartsStore.State>(0)
+            val newState = transform(stateFlow.value)
+            stateFlow.value = newState
+        }
+
+        handler.invoke(ChartsStore.Action.Input.ScrollToChart(1))
+        testScheduler.advanceUntilIdle()
+        assertEquals(1, (stateFlow.value.chartState as ChartsState.Content).selectedChartIndex)
+
+        handler.invoke(ChartsStore.Action.Input.ScrollToChart(2))
+        testScheduler.advanceUntilIdle()
+        assertEquals(2, (stateFlow.value.chartState as ChartsState.Content).selectedChartIndex)
+
+        handler.invoke(ChartsStore.Action.Input.ScrollToChart(3))
+        testScheduler.advanceUntilIdle()
+        assertEquals(3, (stateFlow.value.chartState as ChartsState.Content).selectedChartIndex)
+
+        verify(exactly = 3) { store.sendEvent(ChartsStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey)) }
+        verify(exactly = 3) { store.updateState(any()) }
+    }
+
+    @Test
+    fun `scroll to chart preserves other state properties`() = runTest {
+        val chartContent = ChartsState.Content(
+            charts = persistentListOf(
+                mockk<SingleChartUiModel>(relaxed = true),
+                mockk<SingleChartUiModel>(relaxed = true),
+            ),
+            chartsTitles = persistentListOf("Chart 1", "Chart 2"),
+            selectedChartIndex = 0,
+        )
+        stateFlow.value = initialState.copy(chartState = chartContent)
+
+        val originalCharts = (stateFlow.value.chartState as ChartsState.Content).charts
+        val originalTitles = (stateFlow.value.chartState as ChartsState.Content).chartsTitles
+
+        every { store.updateState(any()) } answers {
+            val transform = arg<(ChartsStore.State) -> ChartsStore.State>(0)
+            val newState = transform(stateFlow.value)
+            stateFlow.value = newState
+        }
+
+        handler.invoke(ChartsStore.Action.Input.ScrollToChart(1))
+
+        testScheduler.advanceUntilIdle()
+
+        val updatedContent = stateFlow.value.chartState as ChartsState.Content
+        assertEquals(1, updatedContent.selectedChartIndex)
+        assertEquals(originalCharts, updatedContent.charts)
+        assertEquals(originalTitles, updatedContent.chartsTitles)
     }
 }

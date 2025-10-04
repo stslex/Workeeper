@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.feature.charts.ui.mvi.model
+package io.github.stslex.workeeper.feature.charts.mvi.model
 
 import androidx.compose.runtime.Stable
 

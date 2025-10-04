@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.feature.charts.ui.mvi.store
+package io.github.stslex.workeeper.feature.charts.mvi.store
 
 import androidx.annotation.VisibleForTesting
 import dagger.assisted.Assisted
@@ -11,13 +11,13 @@ import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreFactory
 import io.github.stslex.workeeper.feature.charts.di.ChartsHandlerStoreImpl
-import io.github.stslex.workeeper.feature.charts.ui.mvi.handler.ChartsComponent
-import io.github.stslex.workeeper.feature.charts.ui.mvi.handler.ClickHandler
-import io.github.stslex.workeeper.feature.charts.ui.mvi.handler.InputHandler
-import io.github.stslex.workeeper.feature.charts.ui.mvi.handler.PagingHandler
-import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore.Action
-import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore.Event
-import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore.State
+import io.github.stslex.workeeper.feature.charts.mvi.handler.ChartsComponent
+import io.github.stslex.workeeper.feature.charts.mvi.handler.ClickHandler
+import io.github.stslex.workeeper.feature.charts.mvi.handler.InputHandler
+import io.github.stslex.workeeper.feature.charts.mvi.handler.PagingHandler
+import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore.Action
+import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore.Event
+import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore.State
 
 @HiltViewModel(assistedFactory = ChartsStoreImpl.Factory::class)
 internal class ChartsStoreImpl @AssistedInject constructor(

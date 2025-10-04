@@ -1,14 +1,14 @@
-package io.github.stslex.workeeper.feature.charts.ui.mvi.store
+package io.github.stslex.workeeper.feature.charts.mvi.store
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.core.ui.mvi.Store
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.CalendarState
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartsState
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartsType
-import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore.Action
-import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore.Event
-import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore.State
+import io.github.stslex.workeeper.feature.charts.mvi.model.CalendarState
+import io.github.stslex.workeeper.feature.charts.mvi.model.ChartsState
+import io.github.stslex.workeeper.feature.charts.mvi.model.ChartsType
+import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore.Action
+import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore.Event
+import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore.State
 
 internal interface ChartsStore : Store<State, Action, Event> {
 
@@ -50,11 +50,15 @@ internal interface ChartsStore : Store<State, Action, Event> {
             data class ChangeEndDate(val timestamp: Long) : Input
 
             data class Query(val name: String) : Input
+
+            data class ScrollToChart(val index: Int) : Input
         }
 
         sealed interface Click : Action {
 
             data class ChangeType(val type: ChartsType) : Click
+
+            data class ChartsHeader(val index: Int) : Click
 
             sealed interface Calendar : Click {
 
@@ -73,6 +77,10 @@ internal interface ChartsStore : Store<State, Action, Event> {
 
         data class HapticFeedback(
             val type: HapticFeedbackType,
+        ) : Event
+
+        data class OnChartTitleChange(
+            val chartIndex: Int,
         ) : Event
     }
 }

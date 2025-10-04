@@ -2,6 +2,8 @@ package io.github.stslex.workeeper.feature.charts.ui
 
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -11,8 +13,8 @@ import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.core.ui.navigation.navScreen
 import io.github.stslex.workeeper.feature.charts.di.ChartsFeature
-import io.github.stslex.workeeper.feature.charts.ui.mvi.handler.ChartsComponent
-import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore
+import io.github.stslex.workeeper.feature.charts.mvi.handler.ChartsComponent
+import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 fun NavGraphBuilder.chartsGraph(
@@ -24,17 +26,29 @@ fun NavGraphBuilder.chartsGraph(
         val component = remember(navigator) { ChartsComponent.create(navigator) }
         NavComponentScreen(ChartsFeature, component) { processor ->
             val haptic = LocalHapticFeedback.current
+
+            val pagerState = rememberPagerState(initialPage = 0) {
+                processor.state.value.chartState.content?.charts?.size ?: 0
+            }
+
+            LaunchedEffect(pagerState.currentPage) {
+                processor.consume(ChartsStore.Action.Input.ScrollToChart(pagerState.currentPage))
+            }
+
             processor.Handle { event ->
                 when (event) {
                     is ChartsStore.Event.HapticFeedback -> haptic.performHapticFeedback(event.type)
+                    is ChartsStore.Event.OnChartTitleChange -> pagerState.animateScrollToPage(event.chartIndex)
                 }
             }
+
             AllChartsMainWidget(
                 modifier = modifier,
                 state = processor.state.value,
                 consume = processor::consume,
                 sharedTransitionScope = sharedTransitionScope,
                 animatedContentScope = this,
+                pagerState = pagerState,
             )
         }
     }
