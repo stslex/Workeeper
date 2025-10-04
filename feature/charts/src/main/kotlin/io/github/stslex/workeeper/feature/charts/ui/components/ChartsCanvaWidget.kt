@@ -1,14 +1,27 @@
 package io.github.stslex.workeeper.feature.charts.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
@@ -18,7 +31,6 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
@@ -28,24 +40,18 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastRoundToInt
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
+import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.toPx
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ExerciseChartPreviewParameterProvider
 import io.github.stslex.workeeper.feature.charts.ui.mvi.model.SingleChartUiModel
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.coroutines.launch
 
 @Composable
 internal fun ChartsCanvaWidget(
     charts: ImmutableList<SingleChartUiModel>,
     modifier: Modifier = Modifier,
 ) {
-    val outlineColor = MaterialTheme.colorScheme.outline
-    val outlineThin = AppDimension.Border.medium.toPx
-    val outlineChartThin = AppDimension.Border.small.toPx
-    val radius = AppDimension.Radius.medium.toPx
-
-    val chartColor = MaterialTheme.colorScheme.onSurface.copy(
-        alpha = 0.7f,
-    )
 
     val chartsMapped = remember(charts) {
         charts.mapIndexed { index, item ->
@@ -62,50 +68,114 @@ internal fun ChartsCanvaWidget(
         }
     }
 
-    val testMeasurer = rememberTextMeasurer()
+    val pagerState = rememberPagerState(initialPage = 0) { chartsMapped.size }
+    val coroutineScope = rememberCoroutineScope()
 
-    Canvas(
-        modifier = modifier.fillMaxSize(),
-    ) {
-        val path = createBackgroundPath(
-            strokeThin = outlineThin,
-            strokeColor = outlineColor,
-            radius = radius,
-        )
+    HorizontalPager(
+        modifier = modifier,
+        state = pagerState,
+        key = { chartsMapped[it].name },
+    ) { index ->
+        val chart = chartsMapped[index]
+        SingleChart(chart)
+    }
 
-        clipPath(path) {
-            chartsMapped.forEachIndexed { index, chart ->
-                val points = calculateChartPoints(chart)
-                val path = createSmoothPathSimple(points)
-
-                drawAxis(
-                    points = points,
-                    textMeasurer = testMeasurer,
-                    color = Color.Black,
-                )
-
-                drawPath(
-                    path = path,
-                    color = chartColor,
-                    style = Stroke(
-                        width = outlineChartThin,
-                    ),
-                )
-
-                val filledPath = Path().apply {
-                    addPath(path)
-                    lineTo(points.last().x, size.height)
-                    lineTo(points.first().x, size.height)
-                    close()
-                }
-
-                drawPath(
-                    path = filledPath,
-                    color = chart.color.copy(alpha = 0.1f),
-                    style = Fill,
+    FlowRow {
+        chartsMapped.forEachIndexed { index, item ->
+            val containerColor by animateColorAsState(
+                targetValue = if (pagerState.currentPage == index) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant
+                },
+                label = "container color animation",
+                animationSpec = tween(AppUi.uiFeatures.defaultAnimationDuration),
+            )
+            val contentColor by animateColorAsState(
+                targetValue = if (pagerState.currentPage == index) {
+                    MaterialTheme.colorScheme.onPrimary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                label = "Content color animation",
+                animationSpec = tween(AppUi.uiFeatures.defaultAnimationDuration),
+            )
+            Card(
+                modifier = Modifier
+                    .padding(AppDimension.Padding.medium),
+                colors = CardDefaults.cardColors(
+                    containerColor = containerColor,
+                    contentColor = contentColor,
+                ),
+                onClick = {
+                    coroutineScope.launch {
+                        pagerState.animateScrollToPage(index)
+                    }
+                },
+            ) {
+                Text(
+                    modifier = Modifier
+                        .padding(AppDimension.Padding.medium),
+                    text = item.name,
+                    style = MaterialTheme.typography.titleLarge,
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun SingleChart(
+    chart: SingleChartCanvasModel,
+    modifier: Modifier = Modifier,
+) {
+    val outlineChartThin = AppDimension.Border.small.toPx
+
+    val chartColor = MaterialTheme.colorScheme.primaryContainer
+    val axisColor = MaterialTheme.colorScheme.onPrimaryContainer
+
+    val testMeasurer = rememberTextMeasurer()
+
+    Canvas(
+        modifier = modifier
+            .fillMaxSize()
+            .clip(MaterialTheme.shapes.extraLarge)
+            .border(
+                width = AppDimension.Border.medium,
+                color = MaterialTheme.colorScheme.outline,
+                shape = MaterialTheme.shapes.extraLarge,
+            )
+            .background(MaterialTheme.colorScheme.surface),
+    ) {
+        val points = calculateChartPoints(chart)
+        val path = createSmoothPathSimple(points)
+
+        drawPath(
+            path = path,
+            color = axisColor,
+            style = Stroke(
+                width = outlineChartThin,
+            ),
+        )
+
+        val filledPath = Path().apply {
+            addPath(path)
+            lineTo(points.last().x, size.height)
+            lineTo(points.first().x, size.height)
+            close()
+        }
+
+        drawPath(
+            path = filledPath,
+            color = chartColor,
+            style = Fill,
+        )
+
+        drawAxis(
+            points = points,
+            textMeasurer = testMeasurer,
+            color = axisColor,
+        )
     }
 }
 

@@ -3,7 +3,6 @@ package io.github.stslex.workeeper.bottom_app_bar
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -13,7 +12,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.BottomAppBar
@@ -104,19 +102,7 @@ private fun BottomAppBarItem(
     )
 
     val rotation by animateFloatAsState(
-        targetValue = if (selected) 360f else 0f,
-        animationSpec = spring(
-            stiffness = 50f,
-            dampingRatio = 0.5f,
-        ),
-    )
-
-    val size by animateDpAsState(
-        targetValue = if (selected) {
-            AppDimension.Icon.big
-        } else {
-            AppDimension.Icon.medium
-        },
+        targetValue = 0f,
         animationSpec = spring(
             stiffness = 50f,
             dampingRatio = 0.5f,
@@ -139,7 +125,6 @@ private fun BottomAppBarItem(
     ) {
         Icon(
             modifier = Modifier
-                .size(size)
                 .rotate(rotation),
             imageVector = ImageVector.vectorResource(iconRes),
             contentDescription = stringResource(titleRes),
