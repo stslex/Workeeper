@@ -281,12 +281,13 @@ internal class InputHandlerTest {
         testScheduler.advanceUntilIdle()
 
         verify(exactly = 1) { store.sendEvent(ChartsStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey)) }
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.OnChartTitleScrolled(1)) }
         verify(exactly = 1) { store.updateState(any()) }
         assertEquals(1, (stateFlow.value.chartState as ChartsState.Content).selectedChartIndex)
     }
 
     @Test
-    fun `scroll to chart with same index does not send haptic feedback`() = runTest {
+    fun `scroll to chart with same index does not send haptic feedback but sends title scrolled event`() = runTest {
         val chartContent = ChartsState.Content(
             charts = persistentListOf(
                 mockk<SingleChartUiModel>(relaxed = true),
@@ -308,47 +309,64 @@ internal class InputHandlerTest {
         testScheduler.advanceUntilIdle()
 
         verify(exactly = 0) { store.sendEvent(ChartsStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey)) }
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.OnChartTitleScrolled(1)) }
         verify(exactly = 1) { store.updateState(any()) }
         assertEquals(1, (stateFlow.value.chartState as ChartsState.Content).selectedChartIndex)
     }
 
     @Test
-    fun `scroll to chart with loading state does not change chart state but sends haptic feedback`() = runTest {
-        val initialChartState = ChartsState.Loading
-        stateFlow.value = initialState.copy(chartState = initialChartState)
+    fun `scroll to chart with loading state does not change chart state but sends events`() =
+        runTest {
+            val initialChartState = ChartsState.Loading
+            stateFlow.value = initialState.copy(chartState = initialChartState)
 
-        every { store.updateState(any()) } answers {
-            val transform = arg<(ChartsStore.State) -> ChartsStore.State>(0)
-            val newState = transform(stateFlow.value)
-            stateFlow.value = newState
+            every { store.updateState(any()) } answers {
+                val transform = arg<(ChartsStore.State) -> ChartsStore.State>(0)
+                val newState = transform(stateFlow.value)
+                stateFlow.value = newState
+            }
+
+            handler.invoke(ChartsStore.Action.Input.ScrollToChart(2))
+
+            testScheduler.advanceUntilIdle()
+
+            verify(exactly = 1) {
+                store.sendEvent(
+                    ChartsStore.Event.HapticFeedback(
+                        HapticFeedbackType.VirtualKey,
+                    ),
+                )
+            }
+            verify(exactly = 1) { store.sendEvent(ChartsStore.Event.OnChartTitleScrolled(2)) }
+            assertEquals(initialChartState, stateFlow.value.chartState)
         }
-
-        handler.invoke(ChartsStore.Action.Input.ScrollToChart(2))
-
-        testScheduler.advanceUntilIdle()
-
-        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey)) }
-        assertEquals(initialChartState, stateFlow.value.chartState)
-    }
 
     @Test
-    fun `scroll to chart with empty state does not change chart state but sends haptic feedback`() = runTest {
-        val initialChartState = ChartsState.Empty
-        stateFlow.value = initialState.copy(chartState = initialChartState)
+    fun `scroll to chart with empty state does not change chart state but sends events`() =
+        runTest {
+            val initialChartState = ChartsState.Empty
+            stateFlow.value = initialState.copy(chartState = initialChartState)
 
-        every { store.updateState(any()) } answers {
-            val transform = arg<(ChartsStore.State) -> ChartsStore.State>(0)
-            val newState = transform(stateFlow.value)
-            stateFlow.value = newState
+            every { store.updateState(any()) } answers {
+                val transform = arg<(ChartsStore.State) -> ChartsStore.State>(0)
+                val newState = transform(stateFlow.value)
+                stateFlow.value = newState
+            }
+
+            handler.invoke(ChartsStore.Action.Input.ScrollToChart(0))
+
+            testScheduler.advanceUntilIdle()
+
+            verify(exactly = 1) {
+                store.sendEvent(
+                    ChartsStore.Event.HapticFeedback(
+                        HapticFeedbackType.VirtualKey,
+                    ),
+                )
+            }
+            verify(exactly = 1) { store.sendEvent(ChartsStore.Event.OnChartTitleScrolled(0)) }
+            assertEquals(initialChartState, stateFlow.value.chartState)
         }
-
-        handler.invoke(ChartsStore.Action.Input.ScrollToChart(0))
-
-        testScheduler.advanceUntilIdle()
-
-        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey)) }
-        assertEquals(initialChartState, stateFlow.value.chartState)
-    }
 
     @Test
     fun `scroll to chart with zero index works correctly`() = runTest {
@@ -373,6 +391,7 @@ internal class InputHandlerTest {
         testScheduler.advanceUntilIdle()
 
         verify(exactly = 1) { store.sendEvent(ChartsStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey)) }
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.OnChartTitleScrolled(0)) }
         verify(exactly = 1) { store.updateState(any()) }
         assertEquals(0, (stateFlow.value.chartState as ChartsState.Content).selectedChartIndex)
     }
@@ -410,6 +429,9 @@ internal class InputHandlerTest {
         assertEquals(3, (stateFlow.value.chartState as ChartsState.Content).selectedChartIndex)
 
         verify(exactly = 3) { store.sendEvent(ChartsStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey)) }
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.OnChartTitleScrolled(1)) }
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.OnChartTitleScrolled(2)) }
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.OnChartTitleScrolled(3)) }
         verify(exactly = 3) { store.updateState(any()) }
     }
 
@@ -438,6 +460,7 @@ internal class InputHandlerTest {
 
         testScheduler.advanceUntilIdle()
 
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.OnChartTitleScrolled(1)) }
         val updatedContent = stateFlow.value.chartState as ChartsState.Content
         assertEquals(1, updatedContent.selectedChartIndex)
         assertEquals(originalCharts, updatedContent.charts)

@@ -35,6 +35,7 @@ internal class InputHandler @Inject constructor(
                     ?: it.chartState,
             )
         }
+        sendEvent(ChartsStore.Event.OnChartTitleScrolled(action.index))
     }
 
     private fun processQuery(action: Action.Input.Query) {

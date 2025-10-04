@@ -7,6 +7,8 @@ import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
@@ -35,6 +37,7 @@ internal fun AllChartsMainWidget(
     sharedTransitionScope: SharedTransitionScope,
     animatedContentScope: AnimatedContentScope,
     pagerState: PagerState,
+    chartsListState: LazyListState,
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -46,6 +49,7 @@ internal fun AllChartsMainWidget(
             state = state,
             pagerState = pagerState,
             consume = consume,
+            chartsListState = chartsListState,
         )
 
         when (state.calendarState) {
@@ -101,6 +105,7 @@ private fun HomeWidgetPreview(
                     consume = {},
                     modifier = it,
                     pagerState = rememberPagerState { 1 },
+                    chartsListState = rememberLazyListState(),
                 )
             }
         }

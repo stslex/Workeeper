@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CornerSize
@@ -39,6 +41,7 @@ import kotlinx.collections.immutable.toImmutableList
 @Composable
 internal fun ChartsWidget(
     state: State,
+    chartsListState: LazyListState,
     pagerState: PagerState,
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
@@ -96,6 +99,7 @@ internal fun ChartsWidget(
                         chartTitles = chartState.charts.map { it.name }.toImmutableList(),
                         selectedIndex = chartState.selectedChartIndex,
                         onSelectTitle = { index -> consume(Action.Click.ChartsHeader(index)) },
+                        state = chartsListState,
                     )
                 }
 
@@ -143,6 +147,7 @@ private fun ChartsWidgetPreview(
                 state = chartsState,
                 pagerState = rememberPagerState { 1 },
                 consume = {},
+                chartsListState = rememberLazyListState(),
             )
         }
     }

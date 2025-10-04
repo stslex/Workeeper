@@ -2,6 +2,7 @@ package io.github.stslex.workeeper.feature.charts.ui
 
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -30,6 +31,7 @@ fun NavGraphBuilder.chartsGraph(
             val pagerState = rememberPagerState(initialPage = 0) {
                 processor.state.value.chartState.content?.charts?.size ?: 0
             }
+            val chartsListState = rememberLazyListState()
 
             LaunchedEffect(pagerState.currentPage) {
                 processor.consume(ChartsStore.Action.Input.ScrollToChart(pagerState.currentPage))
@@ -37,8 +39,17 @@ fun NavGraphBuilder.chartsGraph(
 
             processor.Handle { event ->
                 when (event) {
-                    is ChartsStore.Event.HapticFeedback -> haptic.performHapticFeedback(event.type)
-                    is ChartsStore.Event.OnChartTitleChange -> pagerState.animateScrollToPage(event.chartIndex)
+                    is ChartsStore.Event.HapticFeedback -> {
+                        haptic.performHapticFeedback(event.type)
+                    }
+
+                    is ChartsStore.Event.OnChartTitleChange -> {
+                        pagerState.animateScrollToPage(event.chartIndex)
+                    }
+
+                    is ChartsStore.Event.OnChartTitleScrolled -> {
+                        chartsListState.animateScrollToItem(event.chartIndex)
+                    }
                 }
             }
 
@@ -49,6 +60,7 @@ fun NavGraphBuilder.chartsGraph(
                 sharedTransitionScope = sharedTransitionScope,
                 animatedContentScope = this,
                 pagerState = pagerState,
+                chartsListState = chartsListState,
             )
         }
     }

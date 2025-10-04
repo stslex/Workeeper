@@ -82,5 +82,9 @@ internal interface ChartsStore : Store<State, Action, Event> {
         data class OnChartTitleChange(
             val chartIndex: Int,
         ) : Event
+
+        data class OnChartTitleScrolled(
+            val chartIndex: Int,
+        ) : Event
     }
 }
