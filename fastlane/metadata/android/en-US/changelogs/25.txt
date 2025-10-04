@@ -1,0 +1,5 @@
+- ♻️ This commit refactors the repository methods to include unique queries for exercises and trainings, enhancing data retrieval efficiency. Additionally, it reorganizes the package structure for UI models to improve code maintainability and clarity.
+- ♻️ enhance chart scrolling functionality and improve state management
+- ♻️ reorganize package structure and enhance ChartsState management
+- ♻️ optimize BottomAppBar animations and enhance ChartsCanvaWidget layout
+…
