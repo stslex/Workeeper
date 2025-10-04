@@ -14,6 +14,20 @@ interface TrainingDao {
     @Query("SELECT * FROM training_table WHERE name LIKE '%' || :query || '%' ORDER BY timestamp DESC")
     fun getAll(query: String): PagingSource<Int, TrainingEntity>
 
+    @Query(
+        """
+        SELECT * FROM training_table
+        WHERE uuid IN (
+            SELECT uuid FROM training_table
+            WHERE name LIKE '%' || :query || '%'
+            GROUP BY name
+            HAVING timestamp = MAX(timestamp)
+        )
+        ORDER BY timestamp DESC
+    """,
+    )
+    fun getAllUnique(query: String): PagingSource<Int, TrainingEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun add(item: TrainingEntity)
 

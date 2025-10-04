@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.navigation.NavGraphBuilder
@@ -16,6 +17,9 @@ import io.github.stslex.workeeper.core.ui.navigation.navScreen
 import io.github.stslex.workeeper.feature.charts.di.ChartsFeature
 import io.github.stslex.workeeper.feature.charts.mvi.handler.ChartsComponent
 import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 fun NavGraphBuilder.chartsGraph(
@@ -33,8 +37,23 @@ fun NavGraphBuilder.chartsGraph(
             }
             val chartsListState = rememberLazyListState()
 
-            LaunchedEffect(pagerState.currentPage) {
-                processor.consume(ChartsStore.Action.Input.ScrollToChart(pagerState.currentPage))
+            LaunchedEffect(pagerState) {
+                snapshotFlow { pagerState.currentPage }
+                    .filter {
+                        pagerState.isScrollInProgress && pagerState.targetPage == it
+                    }
+                    .distinctUntilChanged()
+                    .collectLatest { page ->
+                        processor.consume(ChartsStore.Action.Input.CurrentChartPageChange(page))
+                    }
+            }
+
+            suspend fun scrollHeader(animated: Boolean, index: Int) {
+                if (animated) {
+                    chartsListState.animateScrollToItem(index)
+                } else {
+                    chartsListState.scrollToItem(index)
+                }
             }
 
             processor.Handle { event ->
@@ -43,17 +62,28 @@ fun NavGraphBuilder.chartsGraph(
                         haptic.performHapticFeedback(event.type)
                     }
 
-                    is ChartsStore.Event.OnChartTitleChange -> {
+                    is ChartsStore.Event.ScrollChartPager -> {
                         pagerState.animateScrollToPage(event.chartIndex)
                     }
 
-                    is ChartsStore.Event.OnChartTitleScrolled -> {
-                        chartsListState.animateScrollToItem(event.chartIndex)
+                    is ChartsStore.Event.ScrollChartHeader -> {
+                        if (event.force) {
+                            scrollHeader(event.animated, event.chartIndex)
+                        } else {
+                            val isFullyVisible = chartsListState.layoutInfo.visibleItemsInfo.any {
+                                it.index == event.chartIndex &&
+                                    it.offset >= chartsListState.layoutInfo.viewportStartOffset &&
+                                    it.offset + it.size <= chartsListState.layoutInfo.viewportEndOffset
+                            }
+                            if (isFullyVisible.not()) {
+                                scrollHeader(event.animated, event.chartIndex)
+                            }
+                        }
                     }
                 }
             }
 
-            AllChartsMainWidget(
+            ChartsScreenWidget(
                 modifier = modifier,
                 state = processor.state.value,
                 consume = processor::consume,

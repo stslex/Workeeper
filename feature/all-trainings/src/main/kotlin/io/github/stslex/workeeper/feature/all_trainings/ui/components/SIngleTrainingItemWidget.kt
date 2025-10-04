@@ -30,7 +30,7 @@ import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.
 import io.github.stslex.workeeper.core.ui.kit.model.ItemPosition
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.model.TrainingUiModel
+import io.github.stslex.workeeper.feature.all_trainings.mvi.model.TrainingUiModel
 import kotlinx.collections.immutable.toImmutableList
 import kotlin.math.abs
 

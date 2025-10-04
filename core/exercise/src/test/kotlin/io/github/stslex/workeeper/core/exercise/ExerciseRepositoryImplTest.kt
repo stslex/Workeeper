@@ -76,6 +76,27 @@ internal class ExerciseRepositoryTest {
     }
 
     @Test
+    fun `get unique items with query paging`() = runTest(testDispatcher) {
+        val uuid1 = Uuid.random()
+        val uuid2 = Uuid.random()
+        val expectedEntites = listOf(
+            createEntity(0, uuid1),
+            createEntity(1, uuid2),
+        )
+        val expectedDataModels = listOf(
+            createDomain(0, uuid1),
+            createDomain(1, uuid2),
+        )
+
+        every { dao.getAllUnique("some_query") } returns TestPagingSource(expectedEntites)
+
+        val items = repository.getUniqueExercises("some_query").asSnapshot()
+        verify(exactly = 1) { dao.getAllUnique("some_query") }
+
+        assertEquals(expectedDataModels, items)
+    }
+
+    @Test
     fun `get items with name from to date`() = runTest(testDispatcher) {
         val uuid1 = Uuid.random()
         val uuid2 = Uuid.random()
@@ -126,7 +147,7 @@ internal class ExerciseRepositoryTest {
 
         coEvery { dao.searchUniqueExclude(query) } returns listOf(searchItem)
 
-        val result = repository.searchItems(query)
+        val result = repository.searchItemsWithExclude(query)
         coVerify(exactly = 1) { dao.searchUniqueExclude(query) }
         assertEquals(listOf(domainItem), result)
     }

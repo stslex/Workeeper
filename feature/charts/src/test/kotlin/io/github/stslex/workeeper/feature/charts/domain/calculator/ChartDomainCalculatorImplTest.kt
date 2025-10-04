@@ -374,9 +374,9 @@ class ChartDomainCalculatorImplTest {
         assertEquals(1.0f, chart.values[3].xValue, 0.0001f)
 
         // Verify yValues - should have data for weeks 2 and 4, null for weeks 1 and 3
-        assertEquals(null, chart.values[0].yValue) // Week 1 - no data
+        assertEquals(0f, chart.values[0].yValue) // Week 1 - no data
         assertEquals(80.0f, chart.values[1].yValue) // Week 2 - exercise1
-        assertEquals(null, chart.values[2].yValue) // Week 3 - no data
+        assertEquals(0f, chart.values[2].yValue) // Week 3 - no data
         assertEquals(90.0f, chart.values[3].yValue) // Week 4 - exercise2
     }
 
@@ -461,6 +461,16 @@ class ChartDomainCalculatorImplTest {
                 labels = emptyList(),
                 timestamp = startTimestamp + oneDayMs * 3, // Day 4 of the week
             ),
+            ExerciseDataModel(
+                uuid = "exercise1",
+                name = "Deadlift",
+                trainingUuid = null,
+                sets = listOf(
+                    SetsDataModel(Uuid.random().toString(), 5, 100.0, SetsDataType.WORK),
+                ),
+                labels = emptyList(),
+                timestamp = startTimestamp + oneDayMs * 5, // Day 6 of the week
+            ),
         )
 
         // When
@@ -478,13 +488,13 @@ class ChartDomainCalculatorImplTest {
 
         // The exercise should appear in the correct day position
         // Days 1-3 should be null, day 4 should have the value, days 5-7 should be null
-        assertEquals(null, chart.values[0].yValue) // Day 1
-        assertEquals(null, chart.values[1].yValue) // Day 2
-        assertEquals(null, chart.values[2].yValue) // Day 3
+        assertEquals(0f, chart.values[0].yValue) // Day 1
+        assertEquals(0f, chart.values[1].yValue) // Day 2
+        assertEquals(0f, chart.values[2].yValue) // Day 3
         assertEquals(200.0f, chart.values[3].yValue) // Day 4 - exercise timestamp
-        assertEquals(null, chart.values[4].yValue) // Day 5
-        assertEquals(null, chart.values[5].yValue) // Day 6
-        assertEquals(null, chart.values[6].yValue) // Day 7
+        assertEquals(0f, chart.values[4].yValue) // Day 5
+        assertEquals(100f, chart.values[5].yValue) // Day 6
+        assertEquals(0f, chart.values[6].yValue) // Day 7
     }
 
     @Test
@@ -542,7 +552,7 @@ class ChartDomainCalculatorImplTest {
         val morningChart = result.find { it.name == "Morning Exercise" }!!
         assertEquals(5, morningChart.values.size)
         assertEquals(50.0f, morningChart.values[0].yValue) // Should be in first day
-        assertEquals(null, morningChart.values[1].yValue)
+        assertEquals(0f, morningChart.values[1].yValue)
 
         // Verify Evening Exercise (in day 5)
         val eveningChart = result.find { it.name == "Evening Exercise" }!!
@@ -550,7 +560,7 @@ class ChartDomainCalculatorImplTest {
 
         // Verify No Sets Exercise (empty sets)
         val noSetsChart = result.find { it.name == "No Sets Exercise" }!!
-        assertEquals(0.0f, noSetsChart.values[2].yValue) // Should be 0 for empty sets
+        assertEquals(0f, noSetsChart.values[2].yValue) // Should be 0 for empty sets
     }
 
     @Test
@@ -592,9 +602,9 @@ class ChartDomainCalculatorImplTest {
         assertEquals(1.0f, chart.values[2].xValue, 0.0001f) // Month 3: 2 / (3-1) = 1.0
 
         // Exercise should appear in month 2 (day 30 falls in second month)
-        assertEquals(null, chart.values[0].yValue) // Month 1
+        assertEquals(0f, chart.values[0].yValue) // Month 1
         assertEquals(100.0f, chart.values[1].yValue) // Month 2 - exercise data
-        assertEquals(null, chart.values[2].yValue) // Month 3
+        assertEquals(0f, chart.values[2].yValue) // Month 3
     }
 
     @Test

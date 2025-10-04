@@ -9,7 +9,8 @@ import kotlinx.collections.immutable.toImmutableList
 import javax.inject.Inject
 
 @ViewModelScoped
-internal class ChartResultsMapper @Inject constructor() : Mapper<SingleChartDomainModel, SingleChartUiModel> {
+internal class ChartResultsMapper @Inject constructor() :
+    Mapper<SingleChartDomainModel, SingleChartUiModel> {
 
     override fun invoke(data: SingleChartDomainModel): SingleChartUiModel = SingleChartUiModel(
         name = data.name,

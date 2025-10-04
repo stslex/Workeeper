@@ -39,7 +39,7 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 
 @Composable
-internal fun ChartsWidget(
+internal fun ChartsScreenBodyWidget(
     state: State,
     chartsListState: LazyListState,
     pagerState: PagerState,
@@ -74,6 +74,21 @@ internal fun ChartsWidget(
             onEndDateClick = { consume(Action.Click.Calendar.EndDate) },
         )
         Spacer(Modifier.height(AppDimension.Padding.medium))
+        when (val chartState = state.chartState) {
+            is ChartsState.Content -> {
+                ChartsTitlesHeader(
+                    modifier = Modifier
+                        .padding(horizontal = AppDimension.Padding.big),
+                    chartTitles = chartState.charts.map { it.name }.toImmutableList(),
+                    selectedIndex = chartState.selectedChartIndex,
+                    onSelectTitle = { index -> consume(Action.Click.ChartsHeader(index)) },
+                    state = chartsListState,
+                )
+                Spacer(Modifier.height(AppDimension.Padding.medium))
+            }
+
+            else -> {}
+        }
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -94,12 +109,6 @@ internal fun ChartsWidget(
                         pagerState = pagerState,
                         modifier = Modifier
                             .padding(AppDimension.Padding.big),
-                    )
-                    ChartsTitlesHeader(
-                        chartTitles = chartState.charts.map { it.name }.toImmutableList(),
-                        selectedIndex = chartState.selectedChartIndex,
-                        onSelectTitle = { index -> consume(Action.Click.ChartsHeader(index)) },
-                        state = chartsListState,
                     )
                 }
 
@@ -126,7 +135,7 @@ private fun LoadingWidget(modifier: Modifier) {
 @Composable
 @Preview
 @Suppress("unused")
-private fun ChartsWidgetPreview(
+private fun ChartsScreenBodyWidgetPreview(
     @PreviewParameter(ExerciseChartPreviewParameterProvider::class)
     charts: ImmutableList<SingleChartUiModel>,
 ) {
@@ -143,7 +152,7 @@ private fun ChartsWidgetPreview(
                 type = ChartsType.TRAINING,
                 calendarState = CalendarState.Closed,
             )
-            ChartsWidget(
+            ChartsScreenBodyWidget(
                 state = chartsState,
                 pagerState = rememberPagerState { 1 },
                 consume = {},

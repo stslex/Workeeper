@@ -116,6 +116,138 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
     }
 
     @Test
+    fun `getAllUnique returns only latest exercise for each unique name`() = runTest {
+        val exercise1v1 = createTestExercise(0).copy(name = "exercise_1", timestamp = 100L)
+        val exercise1v2 = createTestExercise(1).copy(name = "exercise_1", timestamp = 200L)
+        val exercise1v3 = createTestExercise(2).copy(name = "exercise_1", timestamp = 300L)
+        val exercise2v1 = createTestExercise(3).copy(name = "exercise_2", timestamp = 150L)
+        val exercise2v2 = createTestExercise(4).copy(name = "exercise_2", timestamp = 250L)
+        val exercise3 = createTestExercise(5).copy(name = "exercise_3", timestamp = 175L)
+
+        dao.create(exercise1v1)
+        dao.create(exercise1v2)
+        dao.create(exercise1v3)
+        dao.create(exercise2v1)
+        dao.create(exercise2v2)
+        dao.create(exercise3)
+
+        val pagingSource = dao.getAllUnique("")
+        val loadResult = pagingSource.load(
+            PagingSource.LoadParams.Refresh(
+                key = null,
+                loadSize = 10,
+                placeholdersEnabled = false,
+            ),
+        )
+        val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
+
+        assertEquals(3, actual?.size)
+        assertTrue(actual?.contains(exercise1v3) == true)
+        assertTrue(actual?.contains(exercise2v2) == true)
+        assertTrue(actual?.contains(exercise3) == true)
+
+        // Verify all names are unique
+        val uniqueNames = actual?.map { it.name }?.toSet()
+        assertEquals(3, uniqueNames?.size, "All returned exercises should have unique names")
+    }
+
+    @Test
+    fun `getAllUnique filters by query and returns latest for each unique name`() = runTest {
+        val exercise1v1 = createTestExercise(0).copy(name = "bench_press", timestamp = 100L)
+        val exercise1v2 = createTestExercise(1).copy(name = "bench_press", timestamp = 200L)
+        val exercise2 = createTestExercise(2).copy(name = "squat", timestamp = 150L)
+        val exercise3 = createTestExercise(3).copy(name = "deadlift", timestamp = 175L)
+
+        dao.create(exercise1v1)
+        dao.create(exercise1v2)
+        dao.create(exercise2)
+        dao.create(exercise3)
+
+        val pagingSource = dao.getAllUnique("bench")
+        val loadResult = pagingSource.load(
+            PagingSource.LoadParams.Refresh(
+                key = null,
+                loadSize = 10,
+                placeholdersEnabled = false,
+            ),
+        )
+        val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
+
+        assertEquals(1, actual?.size)
+        assertTrue(actual?.contains(exercise1v2) == true)
+
+        // Verify all names are unique
+        val uniqueNames = actual?.map { it.name }?.toSet()
+        assertEquals(actual?.size, uniqueNames?.size, "All returned exercises should have unique names")
+    }
+
+    @Test
+    fun `getAllUnique with empty database returns empty list`() = runTest {
+        val pagingSource = dao.getAllUnique("")
+        val loadResult = pagingSource.load(
+            PagingSource.LoadParams.Refresh(
+                key = null,
+                loadSize = 10,
+                placeholdersEnabled = false,
+            ),
+        )
+        val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
+
+        assertEquals(0, actual?.size)
+    }
+
+    @Test
+    fun `getAllUnique with non-matching query returns empty list`() = runTest {
+        val exercise1 = createTestExercise(0).copy(name = "bench_press", timestamp = 100L)
+        val exercise2 = createTestExercise(1).copy(name = "squat", timestamp = 150L)
+
+        dao.create(exercise1)
+        dao.create(exercise2)
+
+        val pagingSource = dao.getAllUnique("deadlift")
+        val loadResult = pagingSource.load(
+            PagingSource.LoadParams.Refresh(
+                key = null,
+                loadSize = 10,
+                placeholdersEnabled = false,
+            ),
+        )
+        val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
+
+        assertEquals(0, actual?.size)
+    }
+
+    @Test
+    fun `getAllUnique returns results ordered by timestamp descending`() = runTest {
+        val exercise1 = createTestExercise(0).copy(name = "exercise_1", timestamp = 300L)
+        val exercise2 = createTestExercise(1).copy(name = "exercise_2", timestamp = 200L)
+        val exercise3 = createTestExercise(2).copy(name = "exercise_3", timestamp = 100L)
+
+        dao.create(exercise3)
+        dao.create(exercise1)
+        dao.create(exercise2)
+
+        val pagingSource = dao.getAllUnique("")
+        val loadResult = pagingSource.load(
+            PagingSource.LoadParams.Refresh(
+                key = null,
+                loadSize = 10,
+                placeholdersEnabled = false,
+            ),
+        )
+        val actual = (loadResult as? PagingSource.LoadResult.Page)?.data
+
+        assertEquals(3, actual?.size)
+        assertEquals(exercise1, actual?.get(0))
+        assertEquals(exercise2, actual?.get(1))
+        assertEquals(exercise3, actual?.get(2))
+
+        // Verify all names are unique
+        val uniqueNames = actual?.map { it.name }?.toSet()
+        assertEquals(3, uniqueNames?.size, "All returned exercises should have unique names")
+    }
+
+    @Test
     fun `get all items full database with query from date to date matching all props`() = runTest {
         exerciseEntities.forEach { dao.create(it) }
         val items = dao.getExercises("test", 0, Long.MAX_VALUE).reversed()

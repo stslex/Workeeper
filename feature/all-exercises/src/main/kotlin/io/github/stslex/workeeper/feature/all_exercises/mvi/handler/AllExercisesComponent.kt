@@ -1,15 +1,17 @@
-package io.github.stslex.workeeper.feature.all_trainings.ui.mvi.handler
+package io.github.stslex.workeeper.feature.all_exercises.mvi.handler
 
+import androidx.compose.runtime.Stable
 import io.github.stslex.workeeper.core.ui.navigation.Component
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 
-internal interface AllTrainingsComponent : Component {
+@Stable
+interface AllExercisesComponent : Component {
 
     companion object {
 
         fun create(
             navigator: Navigator,
-        ): AllTrainingsComponent = NavigationHandler(
+        ): AllExercisesComponent = NavigationHandler(
             navigator = navigator,
         )
     }

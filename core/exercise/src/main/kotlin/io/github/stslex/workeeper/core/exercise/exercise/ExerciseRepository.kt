@@ -12,6 +12,8 @@ interface ExerciseRepository {
 
     fun getExercises(query: String): Flow<PagingData<ExerciseDataModel>>
 
+    fun getUniqueExercises(query: String): Flow<PagingData<ExerciseDataModel>>
+
     suspend fun getExercisesByUuid(uuids: List<String>): List<ExerciseDataModel>
 
     suspend fun getExercise(uuid: String): ExerciseDataModel?
@@ -22,7 +24,7 @@ interface ExerciseRepository {
 
     suspend fun deleteItem(uuid: String)
 
-    suspend fun searchItems(query: String): List<ExerciseDataModel>
+    suspend fun searchItemsWithExclude(query: String): List<ExerciseDataModel>
 
     suspend fun deleteAllItems(uuids: List<Uuid>)
 

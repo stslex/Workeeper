@@ -10,6 +10,7 @@ import io.github.stslex.workeeper.feature.charts.domain.interactor.ChartsInterac
 import io.github.stslex.workeeper.feature.charts.mvi.model.ChartParamsMapper
 import io.github.stslex.workeeper.feature.charts.mvi.model.ChartResultsMapper
 import io.github.stslex.workeeper.feature.charts.mvi.model.ChartsState
+import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore
 import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore.Action
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.delay
@@ -72,6 +73,7 @@ internal class PagingHandler @Inject constructor(
 
             logger.d { "mapped chart items: $mappedItems" }
 
+            val selectedChartIndex = state.value.chartState.content?.selectedChartIndex ?: 0
             updateStateImmediate { state ->
                 state.copy(
                     chartState = if (mappedItems.isEmpty()) {
@@ -80,11 +82,18 @@ internal class PagingHandler @Inject constructor(
                         ChartsState.Content(
                             charts = mappedItems,
                             chartsTitles = mappedItems.map { it.name }.toImmutableList(),
-                            selectedChartIndex = state.chartState.content?.selectedChartIndex ?: 0,
+                            selectedChartIndex = selectedChartIndex,
                         )
                     },
                 )
             }
+            sendEvent(
+                ChartsStore.Event.ScrollChartHeader(
+                    chartIndex = selectedChartIndex,
+                    animated = false,
+                    force = true,
+                ),
+            )
         }
     }
 

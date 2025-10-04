@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store
+package io.github.stslex.workeeper.feature.all_trainings.mvi.store
 
 import androidx.annotation.VisibleForTesting
 import dagger.assisted.Assisted
@@ -11,14 +11,14 @@ import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreFactory
 import io.github.stslex.workeeper.feature.all_trainings.di.TrainingHandlerStoreImpl
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.handler.AllTrainingsComponent
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.handler.ClickHandler
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.handler.InputHandler
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.handler.NavigationHandler
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.handler.PagingHandler
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store.TrainingStore.Action
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store.TrainingStore.Event
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store.TrainingStore.State
+import io.github.stslex.workeeper.feature.all_trainings.mvi.handler.AllTrainingsComponent
+import io.github.stslex.workeeper.feature.all_trainings.mvi.handler.ClickHandler
+import io.github.stslex.workeeper.feature.all_trainings.mvi.handler.InputHandler
+import io.github.stslex.workeeper.feature.all_trainings.mvi.handler.NavigationHandler
+import io.github.stslex.workeeper.feature.all_trainings.mvi.handler.PagingHandler
+import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore.Action
+import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore.Event
+import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore.State
 
 @HiltViewModel(assistedFactory = TrainingStoreImpl.Factory::class)
 internal class TrainingStoreImpl @AssistedInject constructor(

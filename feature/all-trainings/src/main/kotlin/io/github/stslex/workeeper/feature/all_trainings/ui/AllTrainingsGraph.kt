@@ -13,9 +13,9 @@ import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.core.ui.navigation.navScreen
 import io.github.stslex.workeeper.feature.all_trainings.di.TrainingsFeature
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.handler.AllTrainingsComponent
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store.TrainingStore
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store.TrainingStore.Action
+import io.github.stslex.workeeper.feature.all_trainings.mvi.handler.AllTrainingsComponent
+import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore
+import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore.Action
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 fun NavGraphBuilder.allTrainingsGraph(

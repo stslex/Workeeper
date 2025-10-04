@@ -64,6 +64,27 @@ internal class TrainingRepositoryImplTest {
     }
 
     @Test
+    fun `get unique trainings with query paging`() = runTest(testDispatcher) {
+        val uuid1 = Uuid.random()
+        val uuid2 = Uuid.random()
+        val expectedEntities = listOf(
+            createEntity(0, uuid1),
+            createEntity(1, uuid2),
+        )
+        val expectedDataModels = listOf(
+            createDataModel(0, uuid1),
+            createDataModel(1, uuid2),
+        )
+
+        every { dao.getAllUnique("some_query") } returns TestPagingSource(expectedEntities)
+
+        val items = repository.getTrainingsUnique("some_query").asSnapshot()
+        verify(exactly = 1) { dao.getAllUnique("some_query") }
+
+        assertEquals(expectedDataModels, items)
+    }
+
+    @Test
     fun `update training`() = runTest(testDispatcher) {
         val uuid = Uuid.random()
         val changeModel = createChangeModel(0, uuid)

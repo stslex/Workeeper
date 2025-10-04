@@ -1,13 +1,13 @@
-package io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store
+package io.github.stslex.workeeper.feature.all_exercises.mvi.store
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.paging.PagingData
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.core.ui.mvi.Store
-import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.model.ExerciseUiModel
-import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore.Action
-import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore.Event
-import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore.State
+import io.github.stslex.workeeper.feature.all_exercises.mvi.model.ExerciseUiModel
+import io.github.stslex.workeeper.feature.all_exercises.mvi.store.ExercisesStore.Action
+import io.github.stslex.workeeper.feature.all_exercises.mvi.store.ExercisesStore.Event
+import io.github.stslex.workeeper.feature.all_exercises.mvi.store.ExercisesStore.State
 import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.persistentSetOf
 

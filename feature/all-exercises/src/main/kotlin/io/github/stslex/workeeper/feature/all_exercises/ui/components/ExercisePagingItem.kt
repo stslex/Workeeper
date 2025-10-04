@@ -15,7 +15,7 @@ import io.github.stslex.workeeper.core.ui.kit.components.paging_item.BasePagingC
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.core.ui.kit.model.ItemPosition
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
-import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.model.ExerciseUiModel
+import io.github.stslex.workeeper.feature.all_exercises.mvi.model.ExerciseUiModel
 import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)

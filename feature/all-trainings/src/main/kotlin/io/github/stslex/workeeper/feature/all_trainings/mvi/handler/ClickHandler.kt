@@ -1,12 +1,12 @@
-package io.github.stslex.workeeper.feature.all_trainings.ui.mvi.handler
+package io.github.stslex.workeeper.feature.all_trainings.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.all_trainings.di.TrainingHandlerStore
 import io.github.stslex.workeeper.feature.all_trainings.domain.AllTrainingsInteractor
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store.TrainingStore
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store.TrainingStore.Action
+import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore
+import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore.Action
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableSet
 import javax.inject.Inject

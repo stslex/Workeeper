@@ -24,7 +24,7 @@ import io.github.stslex.workeeper.feature.charts.mvi.model.ExerciseChartPreviewP
 import io.github.stslex.workeeper.feature.charts.mvi.model.SingleChartUiModel
 import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore.Action
 import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore.State
-import io.github.stslex.workeeper.feature.charts.ui.components.ChartsWidget
+import io.github.stslex.workeeper.feature.charts.ui.components.ChartsScreenBodyWidget
 import io.github.stslex.workeeper.feature.charts.ui.components.DatePickerDialog
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
@@ -32,7 +32,7 @@ import kotlinx.collections.immutable.toImmutableList
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 @Suppress("unused")
-internal fun AllChartsMainWidget(
+internal fun ChartsScreenWidget(
     state: State,
     sharedTransitionScope: SharedTransitionScope,
     animatedContentScope: AnimatedContentScope,
@@ -44,7 +44,7 @@ internal fun AllChartsMainWidget(
     Box(
         modifier = modifier.fillMaxSize(),
     ) {
-        ChartsWidget(
+        ChartsScreenBodyWidget(
             modifier = Modifier.fillMaxSize(),
             state = state,
             pagerState = pagerState,
@@ -74,7 +74,7 @@ internal fun AllChartsMainWidget(
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Preview
 @Composable
-private fun HomeWidgetPreview(
+private fun ChartsScreenWidgetPreview(
     @PreviewParameter(ExerciseChartPreviewParameterProvider::class)
     charts: ImmutableList<SingleChartUiModel>,
 ) {
@@ -98,7 +98,7 @@ private fun HomeWidgetPreview(
         )
         AnimatedContent("") {
             SharedTransitionScope {
-                AllChartsMainWidget(
+                ChartsScreenWidget(
                     state = chartsState,
                     sharedTransitionScope = this,
                     animatedContentScope = this@AnimatedContent,

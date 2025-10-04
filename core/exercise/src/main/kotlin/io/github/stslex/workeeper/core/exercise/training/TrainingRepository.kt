@@ -7,6 +7,8 @@ interface TrainingRepository {
 
     fun getTrainings(query: String): Flow<PagingData<TrainingDataModel>>
 
+    fun getTrainingsUnique(query: String): Flow<PagingData<TrainingDataModel>>
+
     suspend fun updateTraining(training: TrainingChangeDataModel)
 
     suspend fun removeTraining(uuid: String)

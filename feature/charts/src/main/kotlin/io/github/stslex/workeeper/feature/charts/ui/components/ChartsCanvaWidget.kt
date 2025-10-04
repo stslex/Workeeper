@@ -1,5 +1,6 @@
 package io.github.stslex.workeeper.feature.charts.ui.components
 
+import android.content.res.Configuration
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -24,6 +25,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastRoundToInt
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -54,10 +56,13 @@ private fun SingleChart(
     chart: SingleChartUiModel,
     modifier: Modifier = Modifier,
 ) {
-    val outlineChartThin = AppDimension.Border.small.toPx
+    val outlineChartThin = AppDimension.Border.medium.toPx
 
-    val chartColor = MaterialTheme.colorScheme.primaryContainer
-    val axisColor = MaterialTheme.colorScheme.onPrimaryContainer
+    val chartColor = MaterialTheme.colorScheme.primary
+        .copy(
+            alpha = 0.1f,
+        )
+    val axisColor = MaterialTheme.colorScheme.onSecondaryContainer
 
     val testMeasurer = rememberTextMeasurer()
 
@@ -70,7 +75,7 @@ private fun SingleChart(
                 color = MaterialTheme.colorScheme.outline,
                 shape = MaterialTheme.shapes.extraLarge,
             )
-            .background(MaterialTheme.colorScheme.surface),
+            .background(MaterialTheme.colorScheme.surfaceContainer),
     ) {
         val points = calculateChartPoints(chart)
         val path = createSmoothPathSimple(points)
@@ -169,8 +174,6 @@ private fun DrawScope.drawAxis(
             text = text,
             topLeft = Offset(leftOffset, yValue - yOffset),
             style = textStyle,
-//            overflow = TODO(),
-//            softWrap = TODO(),
             maxLines = 1,
         )
 
@@ -226,7 +229,30 @@ private fun createSmoothPathSimple(points: List<Offset>): Path {
         return path
     }
 
-    val filteredPoints = points.filter { it.isValid() }
+    val nullableFirstX = mutableListOf<Float>()
+    val nullableLastX = mutableListOf<Float>()
+
+    points.forEach { point ->
+        if (point.y.isNaN() || point.y.isInfinite()) {
+            nullableFirstX.add(point.x)
+            nullableLastX.add(point.x)
+        } else {
+            nullableLastX.clear()
+        }
+    }
+
+    val filteredPoints = points.map { point ->
+        val nullableFirst = nullableFirstX.contains(point.x)
+        val nullableLast = nullableLastX.contains(point.x)
+        if (nullableLast || nullableFirst) {
+            Offset(
+                x = point.x,
+                y = 0f,
+            )
+        } else {
+            point
+        }
+    }.filter { it.isValid() }
 
     for (i in 0 until filteredPoints.size - 1) {
         val currentPoint = filteredPoints[i]
@@ -254,14 +280,18 @@ private fun createSmoothPathSimple(points: List<Offset>): Path {
 }
 
 @Composable
-@Preview
-private fun ChartsCanvaWidgetPreview() {
+@Preview(uiMode = Configuration.UI_MODE_NIGHT_YES or Configuration.UI_MODE_TYPE_NORMAL)
+@Preview(uiMode = Configuration.UI_MODE_NIGHT_NO or Configuration.UI_MODE_TYPE_NORMAL)
+private fun ChartsCanvaWidgetPreview(
+    @PreviewParameter(ExerciseChartPreviewParameterProvider::class)
+    params: ImmutableList<SingleChartUiModel>,
+) {
     AppTheme {
         Box(
             modifier = Modifier.background(MaterialTheme.colorScheme.background),
         ) {
             ChartsCanvaWidget(
-                charts = ExerciseChartPreviewParameterProvider().values.first(),
+                charts = params,
                 pagerState = rememberPagerState { 1 },
             )
         }

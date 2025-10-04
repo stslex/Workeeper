@@ -34,6 +34,15 @@ internal class ExerciseRepositoryImpl @Inject constructor(
         }
         .flowOn(bgDispatcher)
 
+    override fun getUniqueExercises(query: String): Flow<PagingData<ExerciseDataModel>> = Pager(
+        config = pagingConfig,
+        pagingSourceFactory = { dao.getAllUnique(query) },
+    ).flow
+        .map { pagingData ->
+            pagingData.map { it.toData() }
+        }
+        .flowOn(bgDispatcher)
+
     override suspend fun getExercisesByUuid(
         uuids: List<String>,
     ): List<ExerciseDataModel> = withContext(bgDispatcher) {
@@ -80,7 +89,7 @@ internal class ExerciseRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun searchItems(query: String): List<ExerciseDataModel> =
+    override suspend fun searchItemsWithExclude(query: String): List<ExerciseDataModel> =
         withContext(bgDispatcher) {
             dao.searchUniqueExclude(query).map { it.toData() }
         }

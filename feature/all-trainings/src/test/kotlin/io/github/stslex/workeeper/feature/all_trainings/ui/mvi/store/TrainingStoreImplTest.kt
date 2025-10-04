@@ -6,12 +6,15 @@ import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.StoreAnalytics
 import io.github.stslex.workeeper.feature.all_trainings.di.TrainingHandlerStoreImpl
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.handler.ClickHandler
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.handler.NavigationHandler
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.handler.PagingHandler
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.model.TrainingUiModel
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store.TrainingStore.Action
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store.TrainingStore.Event
+import io.github.stslex.workeeper.feature.all_trainings.mvi.handler.ClickHandler
+import io.github.stslex.workeeper.feature.all_trainings.mvi.handler.InputHandler
+import io.github.stslex.workeeper.feature.all_trainings.mvi.handler.NavigationHandler
+import io.github.stslex.workeeper.feature.all_trainings.mvi.handler.PagingHandler
+import io.github.stslex.workeeper.feature.all_trainings.mvi.model.TrainingUiModel
+import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore
+import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore.Action
+import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore.Event
+import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStoreImpl
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -47,7 +50,7 @@ internal class TrainingStoreImplTest {
     }
 
     private val inputHandler =
-        mockk<io.github.stslex.workeeper.feature.all_trainings.ui.mvi.handler.InputHandler> {
+        mockk<InputHandler> {
             coEvery { this@mockk.invoke(any()) } just runs
         }
     private val handlerStore = mockk<TrainingHandlerStoreImpl>(relaxed = true) {

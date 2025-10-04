@@ -314,7 +314,7 @@ internal class ChartsStoreImplTest {
 
     @Test
     fun `store handles ScrollToChart input action`() = runTest(testDispatcher) {
-        val action = Action.Input.ScrollToChart(3)
+        val action = Action.Input.CurrentChartPageChange(3)
 
         store.init()
         store.initEmitter()
@@ -327,7 +327,7 @@ internal class ChartsStoreImplTest {
 
     @Test
     fun `store sends OnChartTitleChange event correctly`() = runTest(testDispatcher) {
-        val event = Event.OnChartTitleChange(chartIndex = 1)
+        val event = Event.ScrollChartPager(chartIndex = 1)
 
         store.init()
         store.initEmitter()
@@ -343,7 +343,7 @@ internal class ChartsStoreImplTest {
             Action.Click.ChangeType(io.github.stslex.workeeper.feature.charts.mvi.model.ChartsType.EXERCISE),
             Action.Input.Query("squat"),
             Action.Click.ChartsHeader(0),
-            Action.Input.ScrollToChart(1),
+            Action.Input.CurrentChartPageChange(1),
         )
 
         store.init()
@@ -363,9 +363,9 @@ internal class ChartsStoreImplTest {
     fun `store handles all event types correctly`() = runTest(testDispatcher) {
         val events = listOf(
             Event.HapticFeedback(HapticFeedbackType.LongPress),
-            Event.OnChartTitleChange(0),
+            Event.ScrollChartPager(0),
             Event.HapticFeedback(HapticFeedbackType.VirtualKey),
-            Event.OnChartTitleChange(2),
+            Event.ScrollChartPager(2),
         )
 
         store.init()

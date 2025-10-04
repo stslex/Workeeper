@@ -188,24 +188,27 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `type change action updates state correctly`() = runTest {
+    fun `type change action updates state and sends haptic feedback`() = runTest {
         val expectedType = ChartsType.EXERCISE
 
         handler.invoke(ChartsStore.Action.Click.ChangeType(expectedType))
 
         testScheduler.advanceUntilIdle()
 
-        assertEquals(stateFlow.value.type, expectedType)
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.HapticFeedback(HapticFeedbackType.ContextClick)) }
+        verify(exactly = 1) { store.updateState(any()) }
+        assertEquals(expectedType, stateFlow.value.type)
     }
 
     @Test
-    fun `charts header click sends haptic feedback and chart title change event`() {
+    fun `charts header click sends haptic feedback and scroll pager event`() {
         val chartIndex = 2
 
         handler.invoke(ChartsStore.Action.Click.ChartsHeader(chartIndex))
 
-        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey)) }
-        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.OnChartTitleChange(chartIndex)) }
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.HapticFeedback(HapticFeedbackType.ContextClick)) }
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.ScrollChartPager(chartIndex)) }
+        verify(exactly = 1) { store.updateState(any()) }
     }
 
     @Test
@@ -214,8 +217,8 @@ internal class ClickHandlerTest {
 
         handler.invoke(ChartsStore.Action.Click.ChartsHeader(chartIndex))
 
-        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey)) }
-        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.OnChartTitleChange(chartIndex)) }
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.HapticFeedback(HapticFeedbackType.ContextClick)) }
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.ScrollChartPager(chartIndex)) }
     }
 
     @Test
@@ -224,8 +227,8 @@ internal class ClickHandlerTest {
 
         handler.invoke(ChartsStore.Action.Click.ChartsHeader(chartIndex))
 
-        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey)) }
-        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.OnChartTitleChange(chartIndex)) }
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.HapticFeedback(HapticFeedbackType.ContextClick)) }
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.ScrollChartPager(chartIndex)) }
     }
 
     @Test
@@ -234,19 +237,9 @@ internal class ClickHandlerTest {
         handler.invoke(ChartsStore.Action.Click.ChartsHeader(1))
         handler.invoke(ChartsStore.Action.Click.ChartsHeader(2))
 
-        verify(exactly = 3) { store.sendEvent(ChartsStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey)) }
-        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.OnChartTitleChange(0)) }
-        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.OnChartTitleChange(1)) }
-        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.OnChartTitleChange(2)) }
-    }
-
-    @Test
-    fun `charts header click does not modify state`() {
-        val initialStateSnapshot = stateFlow.value
-
-        handler.invoke(ChartsStore.Action.Click.ChartsHeader(1))
-
-        assertEquals(initialStateSnapshot, stateFlow.value)
-        verify(exactly = 0) { store.updateState(any()) }
+        verify(exactly = 3) { store.sendEvent(ChartsStore.Event.HapticFeedback(HapticFeedbackType.ContextClick)) }
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.ScrollChartPager(0)) }
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.ScrollChartPager(1)) }
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.ScrollChartPager(2)) }
     }
 }

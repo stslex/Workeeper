@@ -1,9 +1,9 @@
-package io.github.stslex.workeeper.feature.all_trainings.ui.mvi.handler
+package io.github.stslex.workeeper.feature.all_trainings.mvi.handler
 
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.all_trainings.di.TrainingHandlerStore
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store.TrainingStore.Action
+import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore.Action
 import javax.inject.Inject
 
 @ViewModelScoped

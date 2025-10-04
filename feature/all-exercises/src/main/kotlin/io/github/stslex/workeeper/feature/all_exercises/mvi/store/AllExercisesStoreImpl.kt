@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store
+package io.github.stslex.workeeper.feature.all_exercises.mvi.store
 
 import androidx.annotation.VisibleForTesting
 import dagger.assisted.Assisted
@@ -11,14 +11,14 @@ import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreFactory
 import io.github.stslex.workeeper.feature.all_exercises.di.ExerciseHandlerStoreImpl
-import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.handler.AllExercisesComponent
-import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.handler.ClickHandler
-import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.handler.InputHandler
-import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.handler.NavigationHandler
-import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.handler.PagingHandler
-import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore.Action
-import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore.Event
-import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore.State
+import io.github.stslex.workeeper.feature.all_exercises.mvi.handler.AllExercisesComponent
+import io.github.stslex.workeeper.feature.all_exercises.mvi.handler.ClickHandler
+import io.github.stslex.workeeper.feature.all_exercises.mvi.handler.InputHandler
+import io.github.stslex.workeeper.feature.all_exercises.mvi.handler.NavigationHandler
+import io.github.stslex.workeeper.feature.all_exercises.mvi.handler.PagingHandler
+import io.github.stslex.workeeper.feature.all_exercises.mvi.store.ExercisesStore.Action
+import io.github.stslex.workeeper.feature.all_exercises.mvi.store.ExercisesStore.Event
+import io.github.stslex.workeeper.feature.all_exercises.mvi.store.ExercisesStore.State
 
 @HiltViewModel(assistedFactory = AllExercisesStoreImpl.Factory::class)
 internal class AllExercisesStoreImpl @AssistedInject constructor(

@@ -3,8 +3,9 @@ package io.github.stslex.workeeper.feature.all_exercises.ui.mvi.handler
 import androidx.paging.PagingData
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.feature.all_exercises.di.ExerciseHandlerStore
-import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.model.ExerciseUiModel
-import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore
+import io.github.stslex.workeeper.feature.all_exercises.mvi.handler.InputHandler
+import io.github.stslex.workeeper.feature.all_exercises.mvi.model.ExerciseUiModel
+import io.github.stslex.workeeper.feature.all_exercises.mvi.store.ExercisesStore
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify

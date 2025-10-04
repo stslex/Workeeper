@@ -203,11 +203,11 @@ internal class ExerciseInteractorImplTest {
             createExerciseDataModel("uuid_$it", "testQuery_$it", "training_uuid")
         }.toList()
 
-        coEvery { exerciseRepository.searchItems(testQuery) } returns testExercises
+        coEvery { exerciseRepository.searchItemsWithExclude(testQuery) } returns testExercises
 
         val exercises = interactor.searchItems(testQuery)
 
-        coVerify(exactly = 1) { exerciseRepository.searchItems(testQuery) }
+        coVerify(exactly = 1) { exerciseRepository.searchItemsWithExclude(testQuery) }
         assertEquals(testExercises, exercises)
     }
 

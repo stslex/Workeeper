@@ -51,7 +51,7 @@ internal interface ChartsStore : Store<State, Action, Event> {
 
             data class Query(val name: String) : Input
 
-            data class ScrollToChart(val index: Int) : Input
+            data class CurrentChartPageChange(val index: Int) : Input
         }
 
         sealed interface Click : Action {
@@ -79,12 +79,14 @@ internal interface ChartsStore : Store<State, Action, Event> {
             val type: HapticFeedbackType,
         ) : Event
 
-        data class OnChartTitleChange(
+        data class ScrollChartPager(
             val chartIndex: Int,
         ) : Event
 
-        data class OnChartTitleScrolled(
+        data class ScrollChartHeader(
             val chartIndex: Int,
+            val animated: Boolean = true,
+            val force: Boolean = false,
         ) : Event
     }
 }

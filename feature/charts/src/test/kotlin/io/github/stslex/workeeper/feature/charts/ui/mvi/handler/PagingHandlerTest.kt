@@ -86,7 +86,7 @@ internal class PagingHandlerTest {
         every { chartResultsMapper.invoke(any()) } returns mockk()
 
         handler.invoke(ChartsStore.Action.Paging.Init)
-        testScheduler.advanceTimeBy(500L) // Advance past the 300ms delay
+        testScheduler.advanceTimeBy(700L) // Advance past the 600ms delay
         testScheduler.advanceUntilIdle()
 
         // Verify flows are accessed
@@ -111,7 +111,7 @@ internal class PagingHandlerTest {
         every { chartResultsMapper.invoke(any()) } returns mockk()
 
         handler.invoke(ChartsStore.Action.Paging.Init)
-        testScheduler.advanceTimeBy(500L) // Advance past the 300ms delay
+        testScheduler.advanceTimeBy(700L) // Advance past the 600ms delay
         testScheduler.advanceUntilIdle()
 
         // Verify the handler processed the init action
@@ -144,7 +144,7 @@ internal class PagingHandlerTest {
         every { chartResultsMapper.invoke(any()) } returns mockk()
 
         handler.invoke(ChartsStore.Action.Paging.Init)
-        testScheduler.advanceTimeBy(500L) // Advance past the 300ms delay
+        testScheduler.advanceTimeBy(700L) // Advance past the 600ms delay
         testScheduler.advanceUntilIdle()
 
         // Verify interactor was called with data
@@ -288,5 +288,88 @@ internal class PagingHandlerTest {
         }
 
         coVerify(atLeast = 1) { interactor.getChartsData(any()) }
+    }
+
+    @Test
+    fun `scroll event is sent after data loads`() = runTest(testDispatcher) {
+        val domainData = listOf(
+            SingleChartDomainModel(
+                name = "Exercise 1",
+                dateType = ChartDataType.DAY,
+                values = listOf(
+                    SingleChartDomainItem(xValue = 0f, yValue = 10.0f),
+                ),
+            ),
+        )
+
+        every { commonStore.homeSelectedStartDate } returns flowOf(1000000L)
+        every { commonStore.homeSelectedEndDate } returns flowOf(2000000L)
+        every { chartParamsMapper.invoke(any()) } returns ChartParams(
+            startDate = 1000000L,
+            endDate = 2000000L,
+            name = "Test",
+            type = ChartsDomainType.TRAINING,
+        )
+        coEvery { interactor.getChartsData(any()) } returns domainData
+        every { chartResultsMapper.invoke(any()) } returns mockk(relaxed = true) {
+            every { name } returns "Exercise 1"
+        }
+
+        handler.invoke(ChartsStore.Action.Paging.Init)
+        testScheduler.advanceTimeBy(700L)
+        testScheduler.advanceUntilIdle()
+
+        verify(atLeast = 1) {
+            store.sendEvent(
+                ChartsStore.Event.ScrollChartHeader(
+                    chartIndex = 0,
+                    animated = false,
+                    force = true,
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `default selectedChartIndex is zero when state transitions to content`() = runTest(testDispatcher) {
+        val domainData = listOf(
+            SingleChartDomainModel(
+                name = "Exercise 1",
+                dateType = ChartDataType.DAY,
+                values = listOf(
+                    SingleChartDomainItem(xValue = 0f, yValue = 10.0f),
+                ),
+            ),
+            SingleChartDomainModel(
+                name = "Exercise 2",
+                dateType = ChartDataType.DAY,
+                values = listOf(
+                    SingleChartDomainItem(xValue = 0f, yValue = 20.0f),
+                ),
+            ),
+        )
+
+        every { commonStore.homeSelectedStartDate } returns flowOf(1000000L)
+        every { commonStore.homeSelectedEndDate } returns flowOf(2000000L)
+        every { chartParamsMapper.invoke(any()) } returns ChartParams(
+            startDate = 1000000L,
+            endDate = 2000000L,
+            name = "Test",
+            type = ChartsDomainType.TRAINING,
+        )
+        coEvery { interactor.getChartsData(any()) } returns domainData
+        every { chartResultsMapper.invoke(any()) } returns mockk(relaxed = true) {
+            every { name } returns "Exercise"
+        }
+
+        handler.invoke(ChartsStore.Action.Paging.Init)
+        testScheduler.advanceTimeBy(700L)
+        testScheduler.advanceUntilIdle()
+
+        val chartState = stateFlow.value.chartState
+        assert(chartState is ChartsState.Content) { "Expected Content state, got $chartState" }
+        val content = chartState as ChartsState.Content
+        assertEquals(0, content.selectedChartIndex)
+        assertEquals(2, content.charts.size)
     }
 }

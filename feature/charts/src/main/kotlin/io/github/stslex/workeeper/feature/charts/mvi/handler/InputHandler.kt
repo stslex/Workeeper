@@ -20,14 +20,15 @@ internal class InputHandler @Inject constructor(
             is Action.Input.ChangeStartDate -> processStartDateChange(action)
             is Action.Input.ChangeEndDate -> processEndDateChange(action)
             is Action.Input.Query -> processQuery(action)
-            is Action.Input.ScrollToChart -> processScrollToChart(action)
+            is Action.Input.CurrentChartPageChange -> processScrollToChart(action)
         }
     }
 
-    private fun processScrollToChart(action: Action.Input.ScrollToChart) {
-        if (state.value.chartState.content?.selectedChartIndex != action.index) {
-            sendEvent(ChartsStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey))
-        }
+    private fun processScrollToChart(action: Action.Input.CurrentChartPageChange) {
+        if (action.index == state.value.chartState.content?.selectedChartIndex) return
+
+        sendEvent(ChartsStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey))
+        sendEvent(ChartsStore.Event.ScrollChartHeader(action.index))
         updateState {
             it.copy(
                 chartState = it.chartState.content
@@ -35,11 +36,12 @@ internal class InputHandler @Inject constructor(
                     ?: it.chartState,
             )
         }
-        sendEvent(ChartsStore.Event.OnChartTitleScrolled(action.index))
     }
 
     private fun processQuery(action: Action.Input.Query) {
-        updateState { it.copy(name = action.name) }
+        updateState {
+            it.copy(name = action.name)
+        }
     }
 
     private fun processStartDateChange(action: Action.Input.ChangeStartDate) {

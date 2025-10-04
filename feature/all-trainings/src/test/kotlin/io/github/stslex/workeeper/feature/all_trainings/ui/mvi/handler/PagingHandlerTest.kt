@@ -5,12 +5,13 @@ import androidx.paging.LoadStates
 import androidx.paging.PagingData
 import androidx.paging.testing.asSnapshot
 import io.github.stslex.workeeper.core.exercise.training.TrainingDataModel
-import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.feature.all_trainings.di.TrainingHandlerStore
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.model.TrainingUiMapper
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.model.TrainingUiModel
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store.TrainingStore
+import io.github.stslex.workeeper.feature.all_trainings.domain.AllTrainingsInteractor
+import io.github.stslex.workeeper.feature.all_trainings.mvi.handler.PagingHandler
+import io.github.stslex.workeeper.feature.all_trainings.mvi.model.TrainingUiMapper
+import io.github.stslex.workeeper.feature.all_trainings.mvi.model.TrainingUiModel
+import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -29,14 +30,18 @@ internal class PagingHandlerTest {
 
     private val testScheduler = TestCoroutineScheduler()
     private val testDispatcher = StandardTestDispatcher(testScheduler)
-    private val repository = mockk<TrainingRepository>(relaxed = true)
+    private val interactor = mockk<AllTrainingsInteractor>()
     private val trainingMapper = mockk<TrainingUiMapper>(relaxed = true)
 
     private val initialQuery = "initial_query"
 
     private val store = mockk<TrainingHandlerStore>(relaxed = true)
-    private val handler: PagingHandler =
-        PagingHandler(repository, trainingMapper, testDispatcher, store)
+    private val handler: PagingHandler = PagingHandler(
+        interactor = interactor,
+        trainingMapper = trainingMapper,
+        defaultDispatcher = testDispatcher,
+        store = store,
+    )
 
     private val initialState = TrainingStore.State(
         pagingUiState = handler.pagingUiState,
@@ -52,7 +57,7 @@ internal class PagingHandlerTest {
         val testData = getTestData()
         val expectedData = getExpectedData()
 
-        every { repository.getTrainings(any()) } returns flowOf(getNotLoadingData(testData))
+        every { interactor.getTrainings(any()) } returns flowOf(getNotLoadingData(testData))
         every { store.state } returns stateFlow
 
         // Setup mapper to return expected UI models
@@ -70,20 +75,20 @@ internal class PagingHandlerTest {
         val result = handler.pagingUiState.invoke().asSnapshot()
 
         assertEquals(expectedData, result)
-        verify(exactly = 1) { repository.getTrainings(initialQuery) }
+        verify(exactly = 1) { interactor.getTrainings(initialQuery) }
     }
 
     @Suppress("UnusedFlow")
     @Test
     fun `pagingUiState transforms data correctly with empty pagingData`() =
         runTest(testDispatcher) {
-            every { repository.getTrainings(any()) } returns flowOf(getNotLoadingData(emptyList()))
+            every { interactor.getTrainings(any()) } returns flowOf(getNotLoadingData(emptyList()))
             every { store.state } returns stateFlow
 
             val result = handler.pagingUiState.invoke().asSnapshot()
 
             assertEquals(emptyList<TrainingUiModel>(), result)
-            verify(exactly = 1) { repository.getTrainings(initialQuery) }
+            verify(exactly = 1) { interactor.getTrainings(initialQuery) }
         }
 
     @Suppress("UnusedFlow")
@@ -91,8 +96,8 @@ internal class PagingHandlerTest {
     fun `pagingUiState transforms data correctly on query changes`() = runTest(testDispatcher) {
         val expectedQuery = "new_expected_query"
         val expectedData = getExpectedData()
-        every { repository.getTrainings(initialQuery) } returns flowOf(getNotLoadingData(emptyList()))
-        every { repository.getTrainings(expectedQuery) } returns flowOf(
+        every { interactor.getTrainings(initialQuery) } returns flowOf(getNotLoadingData(emptyList()))
+        every { interactor.getTrainings(expectedQuery) } returns flowOf(
             getNotLoadingData(
                 getTestData(),
             ),
@@ -115,21 +120,21 @@ internal class PagingHandlerTest {
         val emptySnapshot = pagingUiState.asSnapshot()
 
         assertEquals(emptyList<TrainingUiModel>(), emptySnapshot)
-        verify(exactly = 1) { repository.getTrainings(initialQuery) }
+        verify(exactly = 1) { interactor.getTrainings(initialQuery) }
 
         stateFlow.update { it.copy(query = expectedQuery) }
 
         val dataSnapshot = pagingUiState.asSnapshot()
 
         assertEquals(expectedData, dataSnapshot)
-        verify(exactly = 1) { repository.getTrainings(expectedQuery) }
+        verify(exactly = 1) { interactor.getTrainings(expectedQuery) }
     }
 
     @Suppress("UnusedFlow")
     @Test
     fun `pagingUiState uses distinctUntilChanged for query optimization`() =
         runTest(testDispatcher) {
-            every { repository.getTrainings(any()) } returns flowOf(getNotLoadingData(emptyList()))
+            every { interactor.getTrainings(any()) } returns flowOf(getNotLoadingData(emptyList()))
             every { store.state } returns stateFlow
 
             val pagingUiState = handler.pagingUiState.invoke()
@@ -142,13 +147,13 @@ internal class PagingHandlerTest {
             pagingUiState.asSnapshot()
 
             // Should only call repository once due to distinctUntilChanged
-            verify(exactly = 1) { repository.getTrainings(initialQuery) }
+            verify(exactly = 1) { interactor.getTrainings(initialQuery) }
         }
 
     @Test
     fun `trainingMapper is called for each data item`() = runTest(testDispatcher) {
         val testData = getTestData()
-        every { repository.getTrainings(any()) } returns flowOf(getNotLoadingData(testData))
+        every { interactor.getTrainings(any()) } returns flowOf(getNotLoadingData(testData))
         every { store.state } returns stateFlow
 
         // Setup mapper to return expected UI models

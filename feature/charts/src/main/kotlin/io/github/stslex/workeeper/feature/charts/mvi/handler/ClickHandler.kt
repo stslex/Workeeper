@@ -23,8 +23,15 @@ internal class ClickHandler @Inject constructor(
     }
 
     private fun processChartsHeaderClick(action: Action.Click.ChartsHeader) {
-        sendEvent(Event.HapticFeedback(HapticFeedbackType.VirtualKey))
-        sendEvent(Event.OnChartTitleChange(action.index))
+        updateState {
+            it.copy(
+                chartState = it.chartState.content
+                    ?.copy(selectedChartIndex = action.index)
+                    ?: it.chartState,
+            )
+        }
+        sendEvent(Event.HapticFeedback(HapticFeedbackType.ContextClick))
+        sendEvent(Event.ScrollChartPager(action.index))
     }
 
     private fun processTypeChange(action: Action.Click.ChangeType) {

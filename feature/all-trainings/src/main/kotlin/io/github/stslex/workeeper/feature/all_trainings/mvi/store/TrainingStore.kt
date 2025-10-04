@@ -1,14 +1,14 @@
-package io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store
+package io.github.stslex.workeeper.feature.all_trainings.mvi.store
 
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.paging.PagingData
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.core.ui.mvi.Store
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.model.TrainingUiModel
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store.TrainingStore.Action
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store.TrainingStore.Event
-import io.github.stslex.workeeper.feature.all_trainings.ui.mvi.store.TrainingStore.State
+import io.github.stslex.workeeper.feature.all_trainings.mvi.model.TrainingUiModel
+import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore.Action
+import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore.Event
+import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore.State
 import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.persistentSetOf
 
@@ -37,10 +37,7 @@ internal interface TrainingStore : Store<State, Action, Event> {
 
     sealed interface Action : Store.Action {
 
-        sealed interface Paging : Action {
-
-            data object Init : Paging
-        }
+        sealed interface Paging : Action
 
         sealed interface Click : Action {
 

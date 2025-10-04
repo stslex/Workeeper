@@ -1,9 +1,9 @@
-package io.github.stslex.workeeper.feature.all_exercises.ui.mvi.handler
+package io.github.stslex.workeeper.feature.all_exercises.mvi.handler
 
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.all_exercises.di.ExerciseHandlerStore
-import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore.Action
+import io.github.stslex.workeeper.feature.all_exercises.mvi.store.ExercisesStore.Action
 import javax.inject.Inject
 
 @ViewModelScoped

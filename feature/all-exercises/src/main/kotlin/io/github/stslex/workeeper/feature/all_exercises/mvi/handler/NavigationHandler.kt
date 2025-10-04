@@ -1,10 +1,10 @@
-package io.github.stslex.workeeper.feature.all_exercises.ui.mvi.handler
+package io.github.stslex.workeeper.feature.all_exercises.mvi.handler
 
 import androidx.compose.runtime.Stable
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen.Exercise
-import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore.Action
+import io.github.stslex.workeeper.feature.all_exercises.mvi.store.ExercisesStore.Action
 
 @Stable
 internal class NavigationHandler(

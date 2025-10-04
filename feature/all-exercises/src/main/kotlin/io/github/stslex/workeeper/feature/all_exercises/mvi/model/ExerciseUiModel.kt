@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.feature.all_exercises.ui.mvi.model
+package io.github.stslex.workeeper.feature.all_exercises.mvi.model
 
 import androidx.compose.runtime.Stable
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel

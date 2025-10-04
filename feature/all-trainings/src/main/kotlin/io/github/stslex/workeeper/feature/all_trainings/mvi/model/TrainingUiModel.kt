@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.feature.all_trainings.ui.mvi.model
+package io.github.stslex.workeeper.feature.all_trainings.mvi.model
 
 import androidx.compose.runtime.Stable
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder

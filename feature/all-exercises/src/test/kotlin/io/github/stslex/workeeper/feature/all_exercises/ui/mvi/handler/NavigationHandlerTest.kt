@@ -2,7 +2,8 @@ package io.github.stslex.workeeper.feature.all_exercises.ui.mvi.handler
 
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen
-import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore
+import io.github.stslex.workeeper.feature.all_exercises.mvi.handler.NavigationHandler
+import io.github.stslex.workeeper.feature.all_exercises.mvi.store.ExercisesStore
 import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.Test

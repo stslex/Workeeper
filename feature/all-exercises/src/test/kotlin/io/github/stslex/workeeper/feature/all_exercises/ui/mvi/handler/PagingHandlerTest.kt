@@ -8,8 +8,9 @@ import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.feature.all_exercises.di.ExerciseHandlerStore
-import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.model.ExerciseUiModel
-import io.github.stslex.workeeper.feature.all_exercises.ui.mvi.store.ExercisesStore
+import io.github.stslex.workeeper.feature.all_exercises.mvi.handler.PagingHandler
+import io.github.stslex.workeeper.feature.all_exercises.mvi.model.ExerciseUiModel
+import io.github.stslex.workeeper.feature.all_exercises.mvi.store.ExercisesStore
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -49,25 +50,25 @@ internal class PagingHandlerTest {
         val testData = getTestData()
         val expectedData = getExpectedData()
 
-        every { repository.getExercises(any()) } returns flowOf(getNotLoadingData(testData))
+        every { repository.getUniqueExercises(any()) } returns flowOf(getNotLoadingData(testData))
         every { store.state } returns stateFlow
 
         val result = handler.processor.invoke().asSnapshot()
 
         assertEquals(expectedData, result)
-        verify(exactly = 1) { repository.getExercises(initialQuery) }
+        verify(exactly = 1) { repository.getUniqueExercises(initialQuery) }
     }
 
     @Suppress("UnusedFlow")
     @Test
     fun `processor transforms data correctly with empty pagingData`() = runTest(testDispatcher) {
-        every { repository.getExercises(any()) } returns flowOf(getNotLoadingData(emptyList()))
+        every { repository.getUniqueExercises(any()) } returns flowOf(getNotLoadingData(emptyList()))
         every { store.state } returns stateFlow
 
         val result = handler.processor.invoke().asSnapshot()
 
         assertEquals(emptyList<ExerciseUiModel>(), result)
-        verify(exactly = 1) { repository.getExercises(initialQuery) }
+        verify(exactly = 1) { repository.getUniqueExercises(initialQuery) }
     }
 
     @Suppress("UnusedFlow")
@@ -75,8 +76,8 @@ internal class PagingHandlerTest {
     fun `processor transforms data correctly on query changes`() = runTest(testDispatcher) {
         val expectedQuery = "new_expected_query"
         val expectedData = getExpectedData()
-        every { repository.getExercises(initialQuery) } returns flowOf(getNotLoadingData(emptyList()))
-        every { repository.getExercises(expectedQuery) } returns flowOf(
+        every { repository.getUniqueExercises(initialQuery) } returns flowOf(getNotLoadingData(emptyList()))
+        every { repository.getUniqueExercises(expectedQuery) } returns flowOf(
             getNotLoadingData(
                 getTestData(),
             ),
@@ -87,14 +88,14 @@ internal class PagingHandlerTest {
         val emptySnapshot = processor.asSnapshot()
 
         assertEquals(emptyList<ExerciseUiModel>(), emptySnapshot)
-        verify(exactly = 1) { repository.getExercises(initialQuery) }
+        verify(exactly = 1) { repository.getUniqueExercises(initialQuery) }
 
         stateFlow.update { it.copy(query = expectedQuery) }
 
         val dataSnapshot = processor.asSnapshot()
 
         assertEquals(expectedData, dataSnapshot)
-        verify(exactly = 1) { repository.getExercises(expectedQuery) }
+        verify(exactly = 1) { repository.getUniqueExercises(expectedQuery) }
     }
 
     private fun getNotLoadingData(data: List<ExerciseDataModel>): PagingData<ExerciseDataModel> =
