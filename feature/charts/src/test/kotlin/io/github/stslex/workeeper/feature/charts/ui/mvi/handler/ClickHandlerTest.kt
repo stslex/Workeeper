@@ -3,10 +3,11 @@ package io.github.stslex.workeeper.feature.charts.ui.mvi.handler
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.feature.charts.di.ChartsHandlerStore
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.CalendarState
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartsState
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartsType
-import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore
+import io.github.stslex.workeeper.feature.charts.mvi.handler.ClickHandler
+import io.github.stslex.workeeper.feature.charts.mvi.model.CalendarState
+import io.github.stslex.workeeper.feature.charts.mvi.model.ChartsState
+import io.github.stslex.workeeper.feature.charts.mvi.model.ChartsType
+import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -195,5 +196,57 @@ internal class ClickHandlerTest {
         testScheduler.advanceUntilIdle()
 
         assertEquals(stateFlow.value.type, expectedType)
+    }
+
+    @Test
+    fun `charts header click sends haptic feedback and chart title change event`() {
+        val chartIndex = 2
+
+        handler.invoke(ChartsStore.Action.Click.ChartsHeader(chartIndex))
+
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey)) }
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.OnChartTitleChange(chartIndex)) }
+    }
+
+    @Test
+    fun `charts header click with zero index works correctly`() {
+        val chartIndex = 0
+
+        handler.invoke(ChartsStore.Action.Click.ChartsHeader(chartIndex))
+
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey)) }
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.OnChartTitleChange(chartIndex)) }
+    }
+
+    @Test
+    fun `charts header click with large index works correctly`() {
+        val chartIndex = 999
+
+        handler.invoke(ChartsStore.Action.Click.ChartsHeader(chartIndex))
+
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey)) }
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.OnChartTitleChange(chartIndex)) }
+    }
+
+    @Test
+    fun `multiple charts header clicks send multiple events`() {
+        handler.invoke(ChartsStore.Action.Click.ChartsHeader(0))
+        handler.invoke(ChartsStore.Action.Click.ChartsHeader(1))
+        handler.invoke(ChartsStore.Action.Click.ChartsHeader(2))
+
+        verify(exactly = 3) { store.sendEvent(ChartsStore.Event.HapticFeedback(HapticFeedbackType.VirtualKey)) }
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.OnChartTitleChange(0)) }
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.OnChartTitleChange(1)) }
+        verify(exactly = 1) { store.sendEvent(ChartsStore.Event.OnChartTitleChange(2)) }
+    }
+
+    @Test
+    fun `charts header click does not modify state`() {
+        val initialStateSnapshot = stateFlow.value
+
+        handler.invoke(ChartsStore.Action.Click.ChartsHeader(1))
+
+        assertEquals(initialStateSnapshot, stateFlow.value)
+        verify(exactly = 0) { store.updateState(any()) }
     }
 }

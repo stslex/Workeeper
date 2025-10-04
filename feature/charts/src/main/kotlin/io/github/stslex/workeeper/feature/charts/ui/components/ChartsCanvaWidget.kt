@@ -1,30 +1,18 @@
 package io.github.stslex.workeeper.feature.charts.ui.components
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Stable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
@@ -40,93 +28,30 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastRoundToInt
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
-import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.toPx
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ExerciseChartPreviewParameterProvider
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.SingleChartUiModel
+import io.github.stslex.workeeper.feature.charts.mvi.model.ExerciseChartPreviewParameterProvider
+import io.github.stslex.workeeper.feature.charts.mvi.model.SingleChartUiModel
 import kotlinx.collections.immutable.ImmutableList
-import kotlinx.coroutines.launch
 
 @Composable
 internal fun ChartsCanvaWidget(
     charts: ImmutableList<SingleChartUiModel>,
+    pagerState: PagerState,
     modifier: Modifier = Modifier,
 ) {
-
-    val chartsMapped = remember(charts) {
-        charts.mapIndexed { index, item ->
-            SingleChartCanvasModel(
-                name = item.name,
-                color = getRandomColor(index),
-                properties = item.properties.map { property ->
-                    SingleChartCanvasProperty(
-                        xValue = property.timeX,
-                        yValue = property.valueY,
-                    )
-                },
-            )
-        }
-    }
-
-    val pagerState = rememberPagerState(initialPage = 0) { chartsMapped.size }
-    val coroutineScope = rememberCoroutineScope()
-
     HorizontalPager(
         modifier = modifier,
         state = pagerState,
-        key = { chartsMapped[it].name },
+        key = { charts[it].name },
+        pageSpacing = AppDimension.Padding.big,
     ) { index ->
-        val chart = chartsMapped[index]
-        SingleChart(chart)
-    }
-
-    FlowRow {
-        chartsMapped.forEachIndexed { index, item ->
-            val containerColor by animateColorAsState(
-                targetValue = if (pagerState.currentPage == index) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant
-                },
-                label = "container color animation",
-                animationSpec = tween(AppUi.uiFeatures.defaultAnimationDuration),
-            )
-            val contentColor by animateColorAsState(
-                targetValue = if (pagerState.currentPage == index) {
-                    MaterialTheme.colorScheme.onPrimary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-                label = "Content color animation",
-                animationSpec = tween(AppUi.uiFeatures.defaultAnimationDuration),
-            )
-            Card(
-                modifier = Modifier
-                    .padding(AppDimension.Padding.medium),
-                colors = CardDefaults.cardColors(
-                    containerColor = containerColor,
-                    contentColor = contentColor,
-                ),
-                onClick = {
-                    coroutineScope.launch {
-                        pagerState.animateScrollToPage(index)
-                    }
-                },
-            ) {
-                Text(
-                    modifier = Modifier
-                        .padding(AppDimension.Padding.medium),
-                    text = item.name,
-                    style = MaterialTheme.typography.titleLarge,
-                )
-            }
-        }
+        SingleChart(charts[index])
     }
 }
 
 @Composable
 private fun SingleChart(
-    chart: SingleChartCanvasModel,
+    chart: SingleChartUiModel,
     modifier: Modifier = Modifier,
 ) {
     val outlineChartThin = AppDimension.Border.small.toPx
@@ -262,64 +187,28 @@ private fun DrawScope.drawAxis(
 }
 
 private fun DrawScope.calculateChartPoints(
-    chart: SingleChartCanvasModel,
+    chart: SingleChartUiModel,
 ): List<Offset> {
-    val maxProperty = chart.properties.maxOfOrNull { it.yValue ?: 0f } ?: 1f
+    val maxProperty = chart.properties.maxOfOrNull { it.valueY ?: 0f } ?: 1f
     val propertyK = size.height / maxProperty
 
     val itemsSize = chart.properties.size
     return chart.properties.mapIndexed { propertyIndex, property ->
         val yValue = if (
-            property.yValue == null &&
+            property.valueY == null &&
             (propertyIndex == 0 || propertyIndex == itemsSize.dec())
         ) {
             0f
         } else {
-            property.yValue?.let { yValue ->
+            property.valueY?.let { yValue ->
                 size.height - yValue * propertyK
             } ?: Float.NaN
         }
         Offset(
-            x = size.width * property.xValue,
+            x = size.width * property.timeX,
             y = yValue,
         )
     }
-}
-
-@Stable
-private data class SingleChartCanvasModel(
-    val name: String,
-    val color: Color,
-    val properties: List<SingleChartCanvasProperty>,
-)
-
-private data class SingleChartCanvasProperty(
-    val xValue: Float,
-    val yValue: Float?,
-)
-
-private fun DrawScope.createBackgroundPath(
-    strokeThin: Float,
-    strokeColor: Color,
-    radius: Float,
-): Path = Path().apply {
-    addRoundRect(
-        roundRect = RoundRect(
-            left = 0f,
-            top = 0f,
-            right = size.width,
-            bottom = size.height,
-            cornerRadius = CornerRadius(radius, radius),
-        ),
-    )
-}.also { path ->
-    drawPath(
-        path = path,
-        color = strokeColor,
-        style = Stroke(
-            width = strokeThin,
-        ),
-    )
 }
 
 @Suppress("MagicNumber")
@@ -364,15 +253,6 @@ private fun createSmoothPathSimple(points: List<Offset>): Path {
     return path
 }
 
-private fun getRandomColor(index: Int): Color = Color(
-    red = getRandomColorInt(index.inc(), 1),
-    green = getRandomColorInt(index.inc(), 2),
-    blue = getRandomColorInt(index.inc(), 3),
-)
-
-private fun getRandomColorInt(index: Int, colorIndex: Int): Int =
-    ((0..255).random() * index * colorIndex) % 255
-
 @Composable
 @Preview
 private fun ChartsCanvaWidgetPreview() {
@@ -382,6 +262,7 @@ private fun ChartsCanvaWidgetPreview() {
         ) {
             ChartsCanvaWidget(
                 charts = ExerciseChartPreviewParameterProvider().values.first(),
+                pagerState = rememberPagerState { 1 },
             )
         }
     }

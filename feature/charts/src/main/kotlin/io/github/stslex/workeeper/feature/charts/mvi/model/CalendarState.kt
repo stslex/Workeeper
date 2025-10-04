@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.feature.charts.ui.mvi.model
+package io.github.stslex.workeeper.feature.charts.mvi.model
 
 internal sealed interface CalendarState {
 
@@ -10,7 +10,4 @@ internal sealed interface CalendarState {
 
         data object EndDate : Opened
     }
-
-    val isOpened: Boolean
-        get() = this is Opened
 }

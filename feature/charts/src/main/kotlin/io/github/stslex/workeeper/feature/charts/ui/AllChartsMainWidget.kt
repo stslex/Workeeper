@@ -7,29 +7,34 @@ import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
+import io.github.stslex.workeeper.feature.charts.mvi.model.CalendarState
+import io.github.stslex.workeeper.feature.charts.mvi.model.ChartsState
+import io.github.stslex.workeeper.feature.charts.mvi.model.ChartsType
+import io.github.stslex.workeeper.feature.charts.mvi.model.ExerciseChartPreviewParameterProvider
+import io.github.stslex.workeeper.feature.charts.mvi.model.SingleChartUiModel
+import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore.Action
+import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore.State
 import io.github.stslex.workeeper.feature.charts.ui.components.ChartsWidget
 import io.github.stslex.workeeper.feature.charts.ui.components.DatePickerDialog
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.CalendarState
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartsState
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartsType
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ExerciseChartPreviewParameterProvider
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.SingleChartUiModel
-import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore.Action
-import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore.State
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.toImmutableList
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
+@Suppress("unused")
 internal fun AllChartsMainWidget(
     state: State,
     sharedTransitionScope: SharedTransitionScope,
     animatedContentScope: AnimatedContentScope,
+    pagerState: PagerState,
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -39,6 +44,7 @@ internal fun AllChartsMainWidget(
         ChartsWidget(
             modifier = Modifier.fillMaxSize(),
             state = state,
+            pagerState = pagerState,
             consume = consume,
         )
 
@@ -78,7 +84,11 @@ private fun HomeWidgetPreview(
             name = name,
             startDate = PropertyHolder.DateProperty.new(startDate),
             endDate = PropertyHolder.DateProperty.new(endDate),
-            chartState = ChartsState.Content(charts),
+            chartState = ChartsState.Content(
+                charts = charts,
+                selectedChartIndex = 0,
+                chartsTitles = charts.map { it.name }.toImmutableList(),
+            ),
             type = ChartsType.TRAINING,
             calendarState = CalendarState.Closed,
         )
@@ -90,6 +100,7 @@ private fun HomeWidgetPreview(
                     animatedContentScope = this@AnimatedContent,
                     consume = {},
                     modifier = it,
+                    pagerState = rememberPagerState { 1 },
                 )
             }
         }

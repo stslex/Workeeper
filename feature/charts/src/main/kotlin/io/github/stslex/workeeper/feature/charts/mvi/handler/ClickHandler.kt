@@ -1,12 +1,12 @@
-package io.github.stslex.workeeper.feature.charts.ui.mvi.handler
+package io.github.stslex.workeeper.feature.charts.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.charts.di.ChartsHandlerStore
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.CalendarState
-import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore.Action
-import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore.Event
+import io.github.stslex.workeeper.feature.charts.mvi.model.CalendarState
+import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore.Action
+import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore.Event
 import javax.inject.Inject
 
 @ViewModelScoped
@@ -18,7 +18,13 @@ internal class ClickHandler @Inject constructor(
         when (action) {
             is Action.Click.Calendar -> processClickCalendar(action)
             is Action.Click.ChangeType -> processTypeChange(action)
+            is Action.Click.ChartsHeader -> processChartsHeaderClick(action)
         }
+    }
+
+    private fun processChartsHeaderClick(action: Action.Click.ChartsHeader) {
+        sendEvent(Event.HapticFeedback(HapticFeedbackType.VirtualKey))
+        sendEvent(Event.OnChartTitleChange(action.index))
     }
 
     private fun processTypeChange(action: Action.Click.ChangeType) {

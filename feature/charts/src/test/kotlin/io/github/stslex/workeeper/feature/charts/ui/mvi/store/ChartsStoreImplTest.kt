@@ -6,13 +6,15 @@ import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.StoreAnalytics
 import io.github.stslex.workeeper.feature.charts.di.ChartsHandlerStoreImpl
-import io.github.stslex.workeeper.feature.charts.ui.mvi.handler.ChartsComponent
-import io.github.stslex.workeeper.feature.charts.ui.mvi.handler.ClickHandler
-import io.github.stslex.workeeper.feature.charts.ui.mvi.handler.InputHandler
-import io.github.stslex.workeeper.feature.charts.ui.mvi.handler.PagingHandler
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.CalendarState
-import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore.Action
-import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore.Event
+import io.github.stslex.workeeper.feature.charts.mvi.handler.ChartsComponent
+import io.github.stslex.workeeper.feature.charts.mvi.handler.ClickHandler
+import io.github.stslex.workeeper.feature.charts.mvi.handler.InputHandler
+import io.github.stslex.workeeper.feature.charts.mvi.handler.PagingHandler
+import io.github.stslex.workeeper.feature.charts.mvi.model.CalendarState
+import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore
+import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore.Action
+import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore.Event
+import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStoreImpl
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -269,5 +271,112 @@ internal class ChartsStoreImplTest {
         // Original state should be unchanged
         assertEquals("", state.name)
         assertEquals(CalendarState.Closed, state.calendarState)
+    }
+
+    @Test
+    fun `store handles ChangeType click action`() = runTest(testDispatcher) {
+        val action = Action.Click.ChangeType(io.github.stslex.workeeper.feature.charts.mvi.model.ChartsType.EXERCISE)
+
+        store.init()
+        store.initEmitter()
+        store.consume(action)
+        advanceUntilIdle()
+
+        coVerify { clickHandler.invoke(action) }
+        verify(exactly = 1) { analytics.logAction(action) }
+    }
+
+    @Test
+    fun `store handles ChartsHeader click action`() = runTest(testDispatcher) {
+        val action = Action.Click.ChartsHeader(2)
+
+        store.init()
+        store.initEmitter()
+        store.consume(action)
+        advanceUntilIdle()
+
+        coVerify { clickHandler.invoke(action) }
+        verify(exactly = 1) { analytics.logAction(action) }
+    }
+
+    @Test
+    fun `store handles Query input action`() = runTest(testDispatcher) {
+        val action = Action.Input.Query("bench press")
+
+        store.init()
+        store.initEmitter()
+        store.consume(action)
+        advanceUntilIdle()
+
+        coVerify { inputHandler.invoke(action) }
+        verify(exactly = 1) { analytics.logAction(action) }
+    }
+
+    @Test
+    fun `store handles ScrollToChart input action`() = runTest(testDispatcher) {
+        val action = Action.Input.ScrollToChart(3)
+
+        store.init()
+        store.initEmitter()
+        store.consume(action)
+        advanceUntilIdle()
+
+        coVerify { inputHandler.invoke(action) }
+        verify(exactly = 1) { analytics.logAction(action) }
+    }
+
+    @Test
+    fun `store sends OnChartTitleChange event correctly`() = runTest(testDispatcher) {
+        val event = Event.OnChartTitleChange(chartIndex = 1)
+
+        store.init()
+        store.initEmitter()
+        store.sendEvent(event)
+        advanceUntilIdle()
+
+        verify { analytics.logEvent(event) }
+    }
+
+    @Test
+    fun `store handles multiple mixed action types correctly`() = runTest(testDispatcher) {
+        val actions = listOf(
+            Action.Click.ChangeType(io.github.stslex.workeeper.feature.charts.mvi.model.ChartsType.EXERCISE),
+            Action.Input.Query("squat"),
+            Action.Click.ChartsHeader(0),
+            Action.Input.ScrollToChart(1),
+        )
+
+        store.init()
+        store.initEmitter()
+        actions.forEach { action ->
+            store.consume(action)
+        }
+        advanceUntilIdle()
+
+        coVerify { clickHandler.invoke(actions[0] as Action.Click) }
+        coVerify { inputHandler.invoke(actions[1] as Action.Input) }
+        coVerify { clickHandler.invoke(actions[2] as Action.Click) }
+        coVerify { inputHandler.invoke(actions[3] as Action.Input) }
+    }
+
+    @Test
+    fun `store handles all event types correctly`() = runTest(testDispatcher) {
+        val events = listOf(
+            Event.HapticFeedback(HapticFeedbackType.LongPress),
+            Event.OnChartTitleChange(0),
+            Event.HapticFeedback(HapticFeedbackType.VirtualKey),
+            Event.OnChartTitleChange(2),
+        )
+
+        store.init()
+        store.initEmitter()
+        events.forEach { event ->
+            store.sendEvent(event)
+        }
+        advanceUntilIdle()
+
+        events.forEach { event ->
+            verify { analytics.logEvent(event) }
+        }
     }
 }

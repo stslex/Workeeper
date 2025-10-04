@@ -1,8 +1,9 @@
-package io.github.stslex.workeeper.feature.charts.ui.mvi.handler
+package io.github.stslex.workeeper.feature.charts.mvi.handler
 
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
-import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore.Action
+import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore.Action
 
+@Suppress("unused")
 internal class NavigationHandler(
     private val navigator: Navigator,
 ) : ChartsComponent {

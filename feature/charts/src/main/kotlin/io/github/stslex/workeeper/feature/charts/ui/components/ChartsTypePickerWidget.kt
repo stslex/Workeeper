@@ -27,7 +27,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartsType
+import io.github.stslex.workeeper.feature.charts.mvi.model.ChartsType
 
 @Composable
 internal fun ChartsTypePickerWidget(

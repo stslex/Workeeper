@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.feature.charts.ui.mvi.model
+package io.github.stslex.workeeper.feature.charts.mvi.model
 
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.result.Mapper

@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.feature.charts.ui.mvi.handler
+package io.github.stslex.workeeper.feature.charts.mvi.handler
 
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.coroutine.asyncMap
@@ -7,10 +7,10 @@ import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.charts.di.ChartsHandlerStore
 import io.github.stslex.workeeper.feature.charts.domain.interactor.ChartsInteractor
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartParamsMapper
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartResultsMapper
-import io.github.stslex.workeeper.feature.charts.ui.mvi.model.ChartsState
-import io.github.stslex.workeeper.feature.charts.ui.mvi.store.ChartsStore.Action
+import io.github.stslex.workeeper.feature.charts.mvi.model.ChartParamsMapper
+import io.github.stslex.workeeper.feature.charts.mvi.model.ChartResultsMapper
+import io.github.stslex.workeeper.feature.charts.mvi.model.ChartsState
+import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore.Action
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -72,12 +72,16 @@ internal class PagingHandler @Inject constructor(
 
             logger.d { "mapped chart items: $mappedItems" }
 
-            updateStateImmediate {
-                it.copy(
+            updateStateImmediate { state ->
+                state.copy(
                     chartState = if (mappedItems.isEmpty()) {
                         ChartsState.Empty
                     } else {
-                        ChartsState.Content(mappedItems)
+                        ChartsState.Content(
+                            charts = mappedItems,
+                            chartsTitles = mappedItems.map { it.name }.toImmutableList(),
+                            selectedChartIndex = state.chartState.content?.selectedChartIndex ?: 0,
+                        )
                     },
                 )
             }
