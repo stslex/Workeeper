@@ -1,0 +1,1 @@
+- 🐛 fix crash in release caused in shared element transition lib
