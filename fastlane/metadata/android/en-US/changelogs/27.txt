@@ -1,0 +1,3 @@
+- ♻️ enhance unit tests for search functionality to validate limit and uniqueness
+- ✨ update property handling in TrainingUiModel and related classes
+- ♻️ update shared transition handling and improve content scaling
