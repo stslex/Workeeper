@@ -95,14 +95,34 @@ jobs:
           elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             CURRENT_TAG="${GITHUB_REF#refs/tags/}"
           else
-            CURRENT_TAG=""
+            # Get the latest release tag if input is empty and not triggered by tag push
+            CURRENT_TAG=$(git tag -l "release-*" --sort=-version:refname | head -1 || echo "")
+          fi
+
+          # Clean whitespace
+          CURRENT_TAG=$(echo "$CURRENT_TAG" | tr -d ' \t\n\r')
+
+          # Ensure "release-" prefix
+          if [ -n "$CURRENT_TAG" ] && [[ ! "$CURRENT_TAG" =~ ^release- ]]; then
+            CURRENT_TAG="release-$CURRENT_TAG"
           fi
 
           # Get previous release tag
           if [ -n "$CURRENT_TAG" ]; then
             PREV_TAG=$(git tag -l "release-*" --sort=-version:refname | grep -A1 "^$CURRENT_TAG$" | tail -1 || echo "")
+            # If PREV_TAG is same as CURRENT_TAG (only one tag), clear it
+            if [ "$PREV_TAG" = "$CURRENT_TAG" ]; then
+              PREV_TAG=""
+            fi
           else
-            PREV_TAG=$(git describe --tags --abbrev=0 --match="release-*" 2>/dev/null || echo "")
+            PREV_TAG=""
+          fi
+
+          # If no previous tag found and current tag doesn't exist in repo, use latest tag as previous
+          if [ -z "$PREV_TAG" ] && [ -n "$CURRENT_TAG" ]; then
+            if ! git rev-parse "$CURRENT_TAG" >/dev/null 2>&1; then
+              PREV_TAG=$(git tag -l "release-*" --sort=-version:refname | head -1 || echo "")
+            fi
           fi
 
           if [ -z "$PREV_TAG" ]; then
@@ -129,19 +149,29 @@ jobs:
         id: tag
         shell: bash
         run: |
+          # Determine the tag from input or ref
           if [ -n "${{ inputs.tag_name }}" ]; then
             TAG="${{ inputs.tag_name }}"
+          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
           else
-            if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-              TAG="${GITHUB_REF#refs/tags/}"
-            else
-              TAG=""
-            fi
+            # Get the latest release tag if input is empty and not triggered by tag push
+            TAG=$(git tag -l "release-*" --sort=-version:refname | head -1 || echo "")
           fi
+
+          # Clean whitespace
           TAG=$(echo "$TAG" | tr -d ' \t\n\r')
+
+          # Ensure "release-" prefix
+          if [ -n "$TAG" ] && [[ ! "$TAG" =~ ^release- ]]; then
+            TAG="release-$TAG"
+          fi
+
+          # Fallback to commit SHA only if no tag found at all
           if [ -z "$TAG" ]; then
             TAG="release-${GITHUB_SHA::7}"
           fi
+
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release and upload APK
