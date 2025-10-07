@@ -884,7 +884,7 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
         dao.add(training3)
         dao.add(training4)
 
-        val result = dao.searchTrainingsUnique("Chest")
+        val result = dao.searchTrainingsUniqueExclude("Chest", 100)
 
         assertEquals(2, result.size)
         assertTrue(result.contains(training2))
@@ -907,7 +907,7 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
         dao.add(training2v1)
         dao.add(training2v2)
 
-        val result = dao.searchTrainingsUnique("Body")
+        val result = dao.searchTrainingsUniqueExclude("Body", 100)
 
         assertEquals(2, result.size)
         assertTrue(result.contains(training1v3)) // Latest of "Upper Body Workout"
@@ -924,7 +924,7 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
         dao.add(training2)
         dao.add(training3)
 
-        val result = dao.searchTrainingsUnique("Training")
+        val result = dao.searchTrainingsUniqueExclude("Training", 100)
 
         assertEquals(3, result.size)
         assertEquals(training2, result[0]) // timestamp 300L
@@ -940,7 +940,7 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
         dao.add(training1)
         dao.add(training2)
 
-        val result = dao.searchTrainingsUnique("Legs")
+        val result = dao.searchTrainingsUniqueExclude("Legs", 100)
 
         assertTrue(result.isEmpty())
     }
@@ -951,14 +951,14 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
 
         dao.add(training)
 
-        val result = dao.searchTrainingsUnique("Chest")
+        val result = dao.searchTrainingsUniqueExclude("Chest", 100)
 
         assertTrue(result.isEmpty())
     }
 
     @Test
     fun `searchTrainingsUnique works with empty database`() = runTest {
-        val result = dao.searchTrainingsUnique("Any Query")
+        val result = dao.searchTrainingsUniqueExclude("Any Query", 100)
 
         assertTrue(result.isEmpty())
     }
@@ -971,9 +971,9 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
         dao.add(training1)
         dao.add(training2)
 
-        val resultUpper = dao.searchTrainingsUnique("BODY")
-        val resultLower = dao.searchTrainingsUnique("body")
-        val resultMixed = dao.searchTrainingsUnique("BoDy")
+        val resultUpper = dao.searchTrainingsUniqueExclude("BODY", 100)
+        val resultLower = dao.searchTrainingsUniqueExclude("body", 100)
+        val resultMixed = dao.searchTrainingsUniqueExclude("BoDy", 100)
 
         assertEquals(2, resultUpper.size)
         assertEquals(2, resultLower.size)
@@ -990,7 +990,7 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
         dao.add(training2)
         dao.add(training3)
 
-        val result = dao.searchTrainingsUnique("Body")
+        val result = dao.searchTrainingsUniqueExclude("Body", 100)
 
         assertEquals(2, result.size)
         assertTrue(result.contains(training2))
@@ -1012,13 +1012,161 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
         dao.add(training2v2)
         dao.add(training2v3)
 
-        val result = dao.searchTrainingsUnique("Workout")
+        val result = dao.searchTrainingsUniqueExclude("Workout", 100)
 
         assertEquals(2, result.size)
         val names = result.map { it.name }.toSet()
         assertEquals(2, names.size) // Verify unique names
         assertTrue(result.contains(training1v2)) // Latest "Morning Workout"
         assertTrue(result.contains(training2v3)) // Latest "Evening Workout"
+    }
+
+    @Test
+    fun `searchTrainingsUnique respects limit parameter`() = runTest {
+        // Create 15 unique trainings
+        val trainings = (0..14).map { index ->
+            createTestTraining(index, name = "Training_$index", timestamp = (100 + index).toLong())
+        }
+        trainings.forEach { dao.add(it) }
+
+        val resultLimit5 = dao.searchTrainingsUniqueExclude("Training", 5)
+        val resultLimit10 = dao.searchTrainingsUniqueExclude("Training", 10)
+        val resultLimitAll = dao.searchTrainingsUniqueExclude("Training", 100)
+
+        // Should return only 5 despite 15 matches
+        assertEquals(5, resultLimit5.size)
+        // Should be the 5 latest (indices 14 down to 10)
+        val expectedNames5 = (14 downTo 10).map { "Training_$it" }
+        val actualNames5 = resultLimit5.map { it.name }
+        assertEquals(expectedNames5, actualNames5)
+
+        // Should return 10
+        assertEquals(10, resultLimit10.size)
+        val expectedNames10 = (14 downTo 5).map { "Training_$it" }
+        val actualNames10 = resultLimit10.map { it.name }
+        assertEquals(expectedNames10, actualNames10)
+
+        // Should return all 15
+        assertEquals(15, resultLimitAll.size)
+    }
+
+    @Test
+    fun `searchTrainingsUnique with limit and duplicate names returns latest per name`() = runTest {
+        // Create duplicates with different timestamps
+        val training1v1 = createTestTraining(0, name = "Workout A", timestamp = 100L)
+        val training1v2 = createTestTraining(1, name = "Workout A", timestamp = 500L) // Latest
+        val training2v1 = createTestTraining(2, name = "Workout B", timestamp = 200L)
+        val training2v2 = createTestTraining(3, name = "Workout B", timestamp = 400L) // Latest
+        val training3v1 = createTestTraining(4, name = "Workout C", timestamp = 300L) // Latest
+
+        dao.add(training1v1)
+        dao.add(training1v2)
+        dao.add(training2v1)
+        dao.add(training2v2)
+        dao.add(training3v1)
+
+        // Limit to 2, should get the 2 latest unique trainings
+        val result = dao.searchTrainingsUniqueExclude("Workout", 2)
+
+        assertEquals(2, result.size)
+        assertTrue(result.contains(training1v2)) // Latest "Workout A" (timestamp 500)
+        assertTrue(result.contains(training2v2)) // Latest "Workout B" (timestamp 400)
+        assertFalse(result.contains(training3v1)) // "Workout C" should be excluded due to limit
+    }
+
+    @Test
+    fun `searchTrainingsUnique with limit 1 returns only latest`() = runTest {
+        val training1 = createTestTraining(0, name = "Training A", timestamp = 100L)
+        val training2 = createTestTraining(1, name = "Training B", timestamp = 300L)
+        val training3 = createTestTraining(2, name = "Training C", timestamp = 200L)
+
+        dao.add(training1)
+        dao.add(training2)
+        dao.add(training3)
+
+        val result = dao.searchTrainingsUniqueExclude("Training", 1)
+
+        assertEquals(1, result.size)
+        assertEquals(training2, result[0]) // Only the latest (timestamp 300)
+    }
+
+    @Test
+    fun `searchTrainingsUnique with limit 0 returns empty list`() = runTest {
+        val training1 = createTestTraining(0, name = "Training A", timestamp = 100L)
+        val training2 = createTestTraining(1, name = "Training B", timestamp = 200L)
+        val training3 = createTestTraining(2, name = "Training C", timestamp = 300L)
+
+        dao.add(training1)
+        dao.add(training2)
+        dao.add(training3)
+
+        val result = dao.searchTrainingsUniqueExclude("Training", 0)
+
+        // SQLite LIMIT 0 returns 0 rows
+        assertEquals(0, result.size)
+    }
+
+    @Test
+    fun `searchTrainingsUnique with limit -1 returns all results`() = runTest {
+        // Create 5 unique trainings
+        val trainings = (0..4).map { index ->
+            createTestTraining(index, name = "Training_$index", timestamp = (100 + index).toLong())
+        }
+        trainings.forEach { dao.add(it) }
+
+        val result = dao.searchTrainingsUniqueExclude("Training", -1)
+
+        // SQLite LIMIT -1 means no limit, returns all rows
+        assertEquals(5, result.size)
+        // Should be ordered by timestamp DESC
+        val expectedNames = (4 downTo 0).map { "Training_$it" }
+        val actualNames = result.map { it.name }
+        assertEquals(expectedNames, actualNames)
+    }
+
+    @Test
+    fun `searchTrainingsUnique with negative limit less than -1 returns all results`() = runTest {
+        val training1 = createTestTraining(0, name = "Training A", timestamp = 100L)
+        val training2 = createTestTraining(1, name = "Training B", timestamp = 200L)
+        val training3 = createTestTraining(2, name = "Training C", timestamp = 300L)
+
+        dao.add(training1)
+        dao.add(training2)
+        dao.add(training3)
+
+        // SQLite treats any negative value as no limit
+        val resultNeg5 = dao.searchTrainingsUniqueExclude("Training", -5)
+        val resultNeg100 = dao.searchTrainingsUniqueExclude("Training", -100)
+
+        assertEquals(3, resultNeg5.size)
+        assertEquals(3, resultNeg100.size)
+
+        // Verify ordering by timestamp DESC
+        assertEquals(training3, resultNeg5[0]) // 300L
+        assertEquals(training2, resultNeg5[1]) // 200L
+        assertEquals(training1, resultNeg5[2]) // 100L
+
+        assertEquals(training3, resultNeg100[0]) // 300L
+        assertEquals(training2, resultNeg100[1]) // 200L
+        assertEquals(training1, resultNeg100[2]) // 100L
+    }
+
+    @Test
+    fun `searchTrainingsUnique with very large limit returns all available results`() = runTest {
+        val trainings = (0..4).map { index ->
+            createTestTraining(index, name = "Training_$index", timestamp = (100 + index).toLong())
+        }
+        trainings.forEach { dao.add(it) }
+
+        val result = dao.searchTrainingsUniqueExclude("Training", Int.MAX_VALUE)
+
+        // Should return all 5 trainings
+        assertEquals(5, result.size)
+
+        // Verify ordering by timestamp DESC
+        val expectedNames = (4 downTo 0).map { "Training_$it" }
+        val actualNames = result.map { it.name }
+        assertEquals(expectedNames, actualNames)
     }
 
     @OptIn(ExperimentalUuidApi::class)

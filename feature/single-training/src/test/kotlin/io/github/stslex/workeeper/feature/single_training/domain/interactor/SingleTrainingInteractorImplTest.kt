@@ -340,7 +340,7 @@ internal class SingleTrainingInteractorImplTest {
         val exercise2 = createExerciseDataModel(exercise2Uuid, "Push Ups")
         val exercise3 = createExerciseDataModel(exercise3Uuid, "Dumbbell Flyes")
 
-        coEvery { trainingRepository.searchTrainingsUnique("Chest") } returns listOf(
+        coEvery { trainingRepository.searchTrainingsUnique("Chest", 10) } returns listOf(
             training1Data,
             training2Data,
         )
@@ -350,7 +350,7 @@ internal class SingleTrainingInteractorImplTest {
 
         val result = interactor.searchTrainings("Chest")
 
-        coVerify(exactly = 1) { trainingRepository.searchTrainingsUnique("Chest") }
+        coVerify(exactly = 1) { trainingRepository.searchTrainingsUnique("Chest", 10) }
         coVerify(exactly = 1) { exerciseRepository.getExercise(exercise1Uuid) }
         coVerify(exactly = 1) { exerciseRepository.getExercise(exercise2Uuid) }
         coVerify(exactly = 1) { exerciseRepository.getExercise(exercise3Uuid) }
@@ -370,11 +370,11 @@ internal class SingleTrainingInteractorImplTest {
 
     @Test
     fun `searchTrainings returns empty list when no matches`() = runTest(testDispatcher) {
-        coEvery { trainingRepository.searchTrainingsUnique("NonExistent") } returns emptyList()
+        coEvery { trainingRepository.searchTrainingsUnique("NonExistent", 10) } returns emptyList()
 
         val result = interactor.searchTrainings("NonExistent")
 
-        coVerify(exactly = 1) { trainingRepository.searchTrainingsUnique("NonExistent") }
+        coVerify(exactly = 1) { trainingRepository.searchTrainingsUnique("NonExistent", 10) }
         assertEquals(emptyList<TrainingDomainModel>(), result)
     }
 
@@ -395,7 +395,7 @@ internal class SingleTrainingInteractorImplTest {
 
         val exercise1 = createExerciseDataModel(exercise1Uuid, "Exercise 1")
 
-        coEvery { trainingRepository.searchTrainingsUnique("Test") } returns listOf(trainingData)
+        coEvery { trainingRepository.searchTrainingsUnique("Test", 10) } returns listOf(trainingData)
         coEvery { exerciseRepository.getExercise(exercise1Uuid) } returns exercise1
         coEvery { exerciseRepository.getExercise(exercise2Uuid) } returns null
         coEvery { exerciseRepository.getExercise(exercise3Uuid) } returns null
@@ -419,11 +419,11 @@ internal class SingleTrainingInteractorImplTest {
             timestamp = 1000L,
         )
 
-        coEvery { trainingRepository.searchTrainingsUnique("Empty") } returns listOf(trainingData)
+        coEvery { trainingRepository.searchTrainingsUnique("Empty", 10) } returns listOf(trainingData)
 
         val result = interactor.searchTrainings("Empty")
 
-        coVerify(exactly = 1) { trainingRepository.searchTrainingsUnique("Empty") }
+        coVerify(exactly = 1) { trainingRepository.searchTrainingsUnique("Empty", 10) }
         coVerify(exactly = 0) { exerciseRepository.getExercise(any()) }
 
         assertEquals(1, result.size)

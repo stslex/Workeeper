@@ -75,18 +75,23 @@ internal class SingleTrainingInteractorImpl @Inject constructor(
         }
     }
 
-    override suspend fun searchTrainings(query: String): List<TrainingDomainModel> =
-        withContext(defaultDispatcher) {
-            trainingRepository.searchTrainingsUnique(query)
-                .asyncMap { training ->
-                    training
-                        .toDomain(
-                            exercises = training.exerciseUuids
-                                .asyncMap { uuid ->
-                                    exerciseRepository.getExercise(uuid)?.toDomain()
-                                }
-                                .filterNotNull(),
-                        )
-                }
-        }
+    override suspend fun searchTrainings(
+        query: String,
+    ): List<TrainingDomainModel> = withContext(defaultDispatcher) {
+        trainingRepository
+            .searchTrainingsUnique(
+                query = query,
+                limit = 10, // limit to 10 results to avoid UI jank on large data sets
+            )
+            .asyncMap { training ->
+                training
+                    .toDomain(
+                        exercises = training.exerciseUuids
+                            .asyncMap { uuid ->
+                                exerciseRepository.getExercise(uuid)?.toDomain()
+                            }
+                            .filterNotNull(),
+                    )
+            }
+    }
 }
