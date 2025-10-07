@@ -40,10 +40,12 @@ internal class ClickHandlerTest {
 
     private val initialTraining = TrainingUiModel(
         uuid = testTrainingUuid,
-        name = "Test Training",
+        name = PropertyHolder.StringProperty.new(initialValue = "Test Training"),
         exercises = persistentListOf(),
         labels = persistentListOf(),
         date = PropertyHolder.DateProperty.new(initialValue = System.currentTimeMillis()),
+        isMenuOpen = false,
+        menuItems = kotlinx.collections.immutable.persistentSetOf(),
     )
 
     private val initialState = TrainingStore.State(
@@ -143,7 +145,9 @@ internal class ClickHandlerTest {
 
     @Test
     fun `save with valid name updates training and navigates back`() = runTest {
-        val validTraining = initialTraining.copy(name = "Valid Training Name")
+        val validTraining = initialTraining.copy(
+            name = PropertyHolder.StringProperty.new(initialValue = "Valid Training Name"),
+        )
         val changeModel = mockk<TrainingDomainChangeModel>()
 
         stateFlow.value = stateFlow.value.copy(training = validTraining)
@@ -162,7 +166,7 @@ internal class ClickHandlerTest {
 
     @Test
     fun `save with empty name does nothing`() = runTest {
-        val invalidTraining = initialTraining.copy(name = "")
+        val invalidTraining = initialTraining.copy(name = PropertyHolder.StringProperty.new(initialValue = ""))
         stateFlow.value = stateFlow.value.copy(training = invalidTraining)
 
         handler.invoke(TrainingStore.Action.Click.Save)
@@ -174,7 +178,7 @@ internal class ClickHandlerTest {
 
     @Test
     fun `save with blank name does nothing`() = runTest {
-        val invalidTraining = initialTraining.copy(name = "   ")
+        val invalidTraining = initialTraining.copy(name = PropertyHolder.StringProperty.new(initialValue = "   "))
         stateFlow.value = stateFlow.value.copy(training = invalidTraining)
 
         handler.invoke(TrainingStore.Action.Click.Save)

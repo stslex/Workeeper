@@ -4,6 +4,7 @@ import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.result.Mapper
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingDomainModel
+import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableList
 import javax.inject.Inject
 
@@ -14,11 +15,13 @@ internal class TrainingDomainUiModelMapper @Inject constructor(
 
     override operator fun invoke(data: TrainingDomainModel): TrainingUiModel = TrainingUiModel(
         uuid = data.uuid,
-        name = data.name,
+        name = PropertyHolder.StringProperty.new(data.name),
         labels = data.labels.toImmutableList(),
         exercises = data.exercises
             .map { exerciseMapper(it) }
             .toImmutableList(),
+        isMenuOpen = false,
+        menuItems = persistentSetOf(),
         date = PropertyHolder.DateProperty.new(data.timestamp),
     )
 }

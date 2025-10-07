@@ -51,7 +51,7 @@ interface ExerciseStore : Store<State, Action, Event> {
             val INITIAL
                 get() = State(
                     uuid = null,
-                    name = PropertyHolder.StringProperty(),
+                    name = PropertyHolder.StringProperty.empty(),
                     sets = persistentListOf(),
                     dateProperty = PropertyHolder.DateProperty.new(),
                     dialogState = DialogState.Closed,

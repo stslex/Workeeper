@@ -2,12 +2,17 @@ package io.github.stslex.workeeper.feature.single_training.ui.mvi.store
 
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.MenuItem
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.feature.single_training.ui.model.DialogState
+import io.github.stslex.workeeper.feature.single_training.ui.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.single_training.ui.model.TrainingUiModel
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingStore.Action
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingStore.Event
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingStore.State
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.ImmutableSet
 
 internal interface TrainingStore : Store<State, Action, Event> {
 
@@ -17,6 +22,26 @@ internal interface TrainingStore : Store<State, Action, Event> {
         val dialogState: DialogState,
         val pendingForCreateUuid: String,
     ) : Store.State {
+
+        fun copyTraining(
+            uuid: String = training.uuid,
+            name: PropertyHolder.StringProperty = training.name,
+            isMenuOpen: Boolean = training.isMenuOpen,
+            menuItems: ImmutableSet<MenuItem<TrainingUiModel>> = training.menuItems,
+            labels: ImmutableList<String> = training.labels,
+            exercises: ImmutableList<ExerciseUiModel> = training.exercises,
+            date: PropertyHolder.DateProperty = training.date,
+        ): State = copy(
+            training = training.copy(
+                uuid = uuid,
+                name = name,
+                isMenuOpen = isMenuOpen,
+                menuItems = menuItems,
+                labels = labels,
+                exercises = exercises,
+                date = date,
+            ),
+        )
 
         companion object {
 
@@ -61,6 +86,15 @@ internal interface TrainingStore : Store<State, Action, Event> {
             data object CreateExercise : Click
 
             data class ExerciseClick(val exerciseUuid: String) : Click
+
+            sealed interface Menu : Click {
+
+                data object Open : Menu
+
+                data object Close : Menu
+
+                data class Item(val item: MenuItem<TrainingUiModel>) : Menu
+            }
         }
 
         sealed interface Navigation : Action {

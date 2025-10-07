@@ -1,6 +1,8 @@
 package io.github.stslex.workeeper.feature.exercise.ui.components
 
+import android.content.res.Configuration
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -8,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -28,6 +31,7 @@ import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun ExercisedColumn(
     state: State,
@@ -56,13 +60,16 @@ internal fun ExercisedColumn(
             Column {
                 Text(
                     text = stringResource(R.string.feature_exercise_field_label_sets) + ":",
-                    style = MaterialTheme.typography.headlineLarge,
+                    style = MaterialTheme.typography.headlineLargeEmphasized,
+                    color = MaterialTheme.colorScheme.onBackground,
                 )
                 HorizontalDivider(modifier = Modifier.padding(vertical = AppDimension.Padding.big))
                 AnimatedVisibility(state.sets.isEmpty()) {
                     Text(
                         modifier = Modifier.padding(vertical = AppDimension.Padding.medium),
                         text = stringResource(R.string.feature_exercise_field_label_sets_are_empty),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onBackground,
                     )
                 }
             }
@@ -103,13 +110,23 @@ internal fun ExercisedColumn(
 }
 
 @Composable
-@Preview(showSystemUi = true, showBackground = false)
+@Preview(
+    showSystemUi = true,
+    showBackground = true,
+    uiMode = Configuration.UI_MODE_TYPE_NORMAL,
+)
+@Preview(
+    showSystemUi = true,
+    showBackground = true,
+    uiMode = Configuration.UI_MODE_NIGHT_YES or Configuration.UI_MODE_TYPE_NORMAL,
+)
 private fun ExercisedColumnPreview() {
     AppTheme {
         var state by remember {
             mutableStateOf(
                 State.INITIAL.copy(
                     dateProperty = PropertyHolder.DateProperty.now(),
+                    name = PropertyHolder.StringProperty.empty(),
                 ),
             )
         }
@@ -117,6 +134,7 @@ private fun ExercisedColumnPreview() {
         Box {
             ExercisedColumn(
                 modifier = Modifier
+                    .background(MaterialTheme.colorScheme.background)
                     .padding(AppDimension.Padding.big),
                 state = state,
                 consume = {},

@@ -1,5 +1,6 @@
 package io.github.stslex.workeeper.feature.single_training.ui
 
+import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,27 +9,30 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.DateInputField
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.TitleTextInputField
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.single_training.R
 import io.github.stslex.workeeper.feature.single_training.ui.component.DatePickerDialog
 import io.github.stslex.workeeper.feature.single_training.ui.component.ExerciseCreateWidget
 import io.github.stslex.workeeper.feature.single_training.ui.component.ToolbarRow
-import io.github.stslex.workeeper.feature.single_training.ui.component.TrainingPropertyTextField
 import io.github.stslex.workeeper.feature.single_training.ui.model.DialogState
-import io.github.stslex.workeeper.feature.single_training.ui.model.TextMode
 import io.github.stslex.workeeper.feature.single_training.ui.model.TrainingUiModel
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingStore.Action
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingStore.State
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.persistentSetOf
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun SingleTrainingsScreen(
     state: State,
@@ -54,13 +58,16 @@ internal fun SingleTrainingsScreen(
                     .padding(AppDimension.Padding.large),
             ) {
                 item {
-                    TrainingPropertyTextField(
-                        text = state.training.name,
+                    TitleTextInputField(
+                        property = state.training.name,
+                        isMenuOpen = state.training.isMenuOpen,
+                        menuItems = state.training.menuItems,
                         labelRes = R.string.feature_single_training_field_name_label,
-                        mode = TextMode.TITLE,
-                    ) {
-                        consume(Action.Input.Name(it))
-                    }
+                        onMenuClick = { consume(Action.Click.Menu.Open) },
+                        onMenuClose = { consume(Action.Click.Menu.Close) },
+                        onMenuItemClick = { consume(Action.Click.Menu.Item(it)) },
+                        onValueChange = { consume(Action.Input.Name(it)) },
+                    )
                 }
 
                 item {
@@ -70,12 +77,20 @@ internal fun SingleTrainingsScreen(
                 }
 
                 item {
-                    Text("Exercises: ")
+                    Text(
+                        text = "Exercises: ",
+                        style = MaterialTheme.typography.headlineLargeEmphasized,
+                        color = MaterialTheme.colorScheme.onBackground,
+                    )
                 }
 
                 if (state.training.exercises.isEmpty()) {
                     item {
-                        Text("There is no Exercises now - create or add new one")
+                        Text(
+                            text = "There is no Exercises now - create or add new one",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onBackground,
+                        )
                     }
                 } else {
                     items(
@@ -106,11 +121,9 @@ internal fun SingleTrainingsScreen(
                 }
 
                 item {
-                    TrainingPropertyTextField(
-                        text = state.training.date.uiValue,
+                    DateInputField(
+                        property = state.training.date,
                         labelRes = R.string.feature_single_training_field_date_label,
-                        mode = TextMode.DATE,
-                        onValueChange = {},
                         onClick = { consume(Action.Click.OpenCalendarPicker) },
                     )
                 }
@@ -128,18 +141,29 @@ internal fun SingleTrainingsScreen(
     }
 }
 
-@Preview
 @Composable
+@Preview(
+    showSystemUi = true,
+    showBackground = true,
+    uiMode = Configuration.UI_MODE_TYPE_NORMAL,
+)
+@Preview(
+    showSystemUi = true,
+    showBackground = true,
+    uiMode = Configuration.UI_MODE_NIGHT_YES or Configuration.UI_MODE_TYPE_NORMAL,
+)
 private fun SingleTrainingsScreenPreview() {
     AppTheme {
         SingleTrainingsScreen(
             state = State(
                 training = TrainingUiModel(
                     uuid = "uuid",
-                    name = "special training name",
+                    name = PropertyHolder.StringProperty.new("special training name"),
                     labels = persistentListOf(),
                     exercises = persistentListOf(),
                     date = PropertyHolder.DateProperty.now(),
+                    isMenuOpen = false,
+                    menuItems = persistentSetOf(),
                 ),
                 dialogState = DialogState.Closed,
                 pendingForCreateUuid = "pendingForCreateUuid",

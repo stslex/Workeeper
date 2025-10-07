@@ -33,10 +33,12 @@ internal class CommonHandlerTest {
     private val initialState = TrainingStore.State(
         training = TrainingUiModel(
             uuid = "",
-            name = "",
+            name = PropertyHolder.StringProperty.new(initialValue = ""),
             exercises = persistentListOf(),
             labels = persistentListOf(),
             date = PropertyHolder.DateProperty.new(initialValue = System.currentTimeMillis()),
+            isMenuOpen = false,
+            menuItems = kotlinx.collections.immutable.persistentSetOf(),
         ),
         dialogState = DialogState.Closed,
         pendingForCreateUuid = "",
@@ -64,10 +66,12 @@ internal class CommonHandlerTest {
         val domainModel = mockk<TrainingDomainModel>()
         val uiModel = TrainingUiModel(
             uuid = trainingUuid,
-            name = "Test Training",
+            name = PropertyHolder.StringProperty.new(initialValue = "Test Training"),
             exercises = persistentListOf(),
             labels = persistentListOf(),
             date = PropertyHolder.DateProperty.new(initialValue = System.currentTimeMillis()),
+            isMenuOpen = false,
+            menuItems = kotlinx.collections.immutable.persistentSetOf(),
         )
 
         coEvery { interactor.getTraining(trainingUuid) } returns domainModel

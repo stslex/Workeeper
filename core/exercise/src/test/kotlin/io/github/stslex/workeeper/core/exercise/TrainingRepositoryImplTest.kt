@@ -167,6 +167,54 @@ internal class TrainingRepositoryImplTest {
         coVerify(exactly = 1) { dao.deleteAll(uuids) }
     }
 
+    @Test
+    fun `searchTrainingsUnique returns mapped data models`() = runTest(testDispatcher) {
+        val uuid1 = Uuid.random()
+        val uuid2 = Uuid.random()
+        val uuid3 = Uuid.random()
+        val expectedEntities = listOf(
+            createEntity(0, uuid1),
+            createEntity(1, uuid2),
+            createEntity(2, uuid3),
+        )
+        val expectedDataModels = listOf(
+            createDataModel(0, uuid1),
+            createDataModel(1, uuid2),
+            createDataModel(2, uuid3),
+        )
+
+        coEvery { dao.searchTrainingsUnique("query") } returns expectedEntities
+
+        val result = repository.searchTrainingsUnique("query")
+        coVerify(exactly = 1) { dao.searchTrainingsUnique("query") }
+
+        assertEquals(expectedDataModels, result)
+    }
+
+    @Test
+    fun `searchTrainingsUnique returns empty list when no matches`() = runTest(testDispatcher) {
+        coEvery { dao.searchTrainingsUnique("nonexistent") } returns emptyList()
+
+        val result = repository.searchTrainingsUnique("nonexistent")
+        coVerify(exactly = 1) { dao.searchTrainingsUnique("nonexistent") }
+
+        assertEquals(emptyList<TrainingDataModel>(), result)
+    }
+
+    @Test
+    fun `searchTrainingsUnique with empty query`() = runTest(testDispatcher) {
+        val uuid1 = Uuid.random()
+        val expectedEntities = listOf(createEntity(0, uuid1))
+        val expectedDataModels = listOf(createDataModel(0, uuid1))
+
+        coEvery { dao.searchTrainingsUnique("") } returns expectedEntities
+
+        val result = repository.searchTrainingsUnique("")
+        coVerify(exactly = 1) { dao.searchTrainingsUnique("") }
+
+        assertEquals(expectedDataModels, result)
+    }
+
     private class TestPagingSource(
         private val expectedEntities: List<TrainingEntity>,
     ) : PagingSource<Int, TrainingEntity>() {

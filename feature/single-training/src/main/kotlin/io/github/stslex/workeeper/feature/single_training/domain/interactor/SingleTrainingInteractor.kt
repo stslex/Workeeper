@@ -13,4 +13,6 @@ internal interface SingleTrainingInteractor {
     suspend fun removeTraining(uuid: String)
 
     suspend fun updateTraining(training: TrainingDomainChangeModel)
+
+    suspend fun searchTrainings(query: String): List<TrainingDomainModel>
 }

@@ -14,6 +14,7 @@ sealed class PropertyHolder<T : Any>(
     private var valueState: MutableState<T> = mutableStateOf(initialValue ?: defaultValue)
     private val isValidState: MutableState<Boolean> = mutableStateOf(validate(valueState.value))
     private val isErrorState: MutableState<Boolean> = mutableStateOf(false)
+    private var onChange: (T) -> Unit = {}
 
     var value: T
         get() = valueState.value
@@ -21,6 +22,7 @@ sealed class PropertyHolder<T : Any>(
             if (valueState.value != value) {
                 isValidState.value = validate(value)
                 valueState.value = value
+                onChange(value)
             }
         }
 
@@ -37,7 +39,7 @@ sealed class PropertyHolder<T : Any>(
     protected open val toStringMap: (T?) -> String = { it?.toString().orEmpty() }
 
     @Stable
-    data class StringProperty(
+    class StringProperty private constructor(
         val initialValue: String? = null,
         val defaultValue: String = "",
         val validate: (String) -> Boolean = { it.isNotBlank() },
@@ -45,7 +47,42 @@ sealed class PropertyHolder<T : Any>(
         initialValue = initialValue,
         defaultValue = defaultValue,
         validate = validate,
-    )
+    ) {
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is StringProperty) return false
+            return initialValue == other.initialValue &&
+                defaultValue == other.defaultValue &&
+                value == other.value
+        }
+
+        override fun hashCode(): Int {
+            var result = initialValue?.hashCode() ?: 0
+            result = 31 * result + defaultValue.hashCode()
+            result = 31 * result + validate.hashCode()
+            return result
+        }
+
+        companion object {
+
+            fun empty() = StringProperty(
+                initialValue = "",
+                defaultValue = "",
+                validate = { it.isNotBlank() },
+            )
+
+            fun new(
+                initialValue: String? = null,
+                defaultValue: String = "",
+                validate: (String) -> Boolean = { it.isNotBlank() },
+            ): StringProperty = StringProperty(
+                initialValue = initialValue,
+                defaultValue = defaultValue,
+                validate = validate,
+            )
+        }
+    }
 
     @Stable
     class IntProperty private constructor(
@@ -218,8 +255,24 @@ sealed class PropertyHolder<T : Any>(
 
     companion object {
 
-        fun <T : Any, THolder : PropertyHolder<T>> THolder.update(property: T): THolder = apply {
-            value = property
-        }
+// todo check if this is needed -> maybe replace with classic data class ???
+//        fun <T : Any, THolder : PropertyHolder<T>> THolder.update(property: T): THolder = apply {
+//            value = property
+//        }
+
+        fun <T : Any, THolder : PropertyHolder<T>> THolder.update(
+            property: T,
+        ): THolder = reset(property)
+
+        @Suppress("UNCHECKED_CAST")
+        fun <T : Any, THolder : PropertyHolder<T>> THolder.reset(
+            property: T,
+        ): THolder = when (this) {
+            is DateProperty -> DateProperty.new(property as Long?)
+            is DoubleProperty -> DoubleProperty.new(property as Double?)
+            is IntProperty -> IntProperty.new(property as Int?)
+            is LongProperty -> LongProperty.new(property as Long?)
+            is StringProperty -> StringProperty.new(property as String?)
+        } as THolder
     }
 }

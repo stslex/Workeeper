@@ -28,6 +28,21 @@ interface TrainingDao {
     )
     fun getAllUnique(query: String): PagingSource<Int, TrainingEntity>
 
+    @Query(
+        """
+        SELECT * FROM training_table
+        WHERE uuid IN (
+            SELECT uuid FROM training_table
+            WHERE name LIKE '%' || :query || '%'
+            AND name != :query
+            GROUP BY name
+            HAVING timestamp = MAX(timestamp)
+        )
+        ORDER BY timestamp DESC
+    """,
+    )
+    suspend fun searchTrainingsUnique(query: String): List<TrainingEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun add(item: TrainingEntity)
 

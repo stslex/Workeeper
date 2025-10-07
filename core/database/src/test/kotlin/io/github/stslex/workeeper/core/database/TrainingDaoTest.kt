@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -869,6 +870,155 @@ internal class TrainingDaoTest : BaseDatabaseTest() {
         // Verify all names are unique
         val uniqueNames = actual?.map { it.name }?.toSet()
         assertEquals(2, uniqueNames?.size, "All returned trainings should have unique names")
+    }
+
+    @Test
+    fun `searchTrainingsUnique returns partial matches excluding exact match`() = runTest {
+        val training1 = createTestTraining(0, name = "Chest Workout", timestamp = 100L)
+        val training2 = createTestTraining(1, name = "Chest Training", timestamp = 200L)
+        val training3 = createTestTraining(2, name = "Chest", timestamp = 300L)
+        val training4 = createTestTraining(3, name = "Back Workout", timestamp = 400L)
+
+        dao.add(training1)
+        dao.add(training2)
+        dao.add(training3)
+        dao.add(training4)
+
+        val result = dao.searchTrainingsUnique("Chest")
+
+        assertEquals(2, result.size)
+        assertTrue(result.contains(training2))
+        assertTrue(result.contains(training1))
+        assertFalse(result.contains(training3)) // Exact match excluded
+        assertFalse(result.contains(training4)) // No match
+    }
+
+    @Test
+    fun `searchTrainingsUnique returns only latest for duplicate names`() = runTest {
+        val training1v1 = createTestTraining(0, name = "Upper Body Workout", timestamp = 100L)
+        val training1v2 = createTestTraining(1, name = "Upper Body Workout", timestamp = 200L)
+        val training1v3 = createTestTraining(2, name = "Upper Body Workout", timestamp = 300L)
+        val training2v1 = createTestTraining(3, name = "Lower Body Training", timestamp = 150L)
+        val training2v2 = createTestTraining(4, name = "Lower Body Training", timestamp = 250L)
+
+        dao.add(training1v1)
+        dao.add(training1v2)
+        dao.add(training1v3)
+        dao.add(training2v1)
+        dao.add(training2v2)
+
+        val result = dao.searchTrainingsUnique("Body")
+
+        assertEquals(2, result.size)
+        assertTrue(result.contains(training1v3)) // Latest of "Upper Body Workout"
+        assertTrue(result.contains(training2v2)) // Latest of "Lower Body Training"
+    }
+
+    @Test
+    fun `searchTrainingsUnique orders results by timestamp descending`() = runTest {
+        val training1 = createTestTraining(0, name = "Training A Session", timestamp = 100L)
+        val training2 = createTestTraining(1, name = "Training B Session", timestamp = 300L)
+        val training3 = createTestTraining(2, name = "Training C Session", timestamp = 200L)
+
+        dao.add(training1)
+        dao.add(training2)
+        dao.add(training3)
+
+        val result = dao.searchTrainingsUnique("Training")
+
+        assertEquals(3, result.size)
+        assertEquals(training2, result[0]) // timestamp 300L
+        assertEquals(training3, result[1]) // timestamp 200L
+        assertEquals(training1, result[2]) // timestamp 100L
+    }
+
+    @Test
+    fun `searchTrainingsUnique returns empty list when no partial matches`() = runTest {
+        val training1 = createTestTraining(0, name = "Chest Workout", timestamp = 100L)
+        val training2 = createTestTraining(1, name = "Back Workout", timestamp = 200L)
+
+        dao.add(training1)
+        dao.add(training2)
+
+        val result = dao.searchTrainingsUnique("Legs")
+
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `searchTrainingsUnique returns empty list when only exact match exists`() = runTest {
+        val training = createTestTraining(0, name = "Chest", timestamp = 100L)
+
+        dao.add(training)
+
+        val result = dao.searchTrainingsUnique("Chest")
+
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `searchTrainingsUnique works with empty database`() = runTest {
+        val result = dao.searchTrainingsUnique("Any Query")
+
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `searchTrainingsUnique is case insensitive`() = runTest {
+        val training1 = createTestTraining(0, name = "UPPER BODY WORKOUT", timestamp = 100L)
+        val training2 = createTestTraining(1, name = "lower body workout", timestamp = 200L)
+
+        dao.add(training1)
+        dao.add(training2)
+
+        val resultUpper = dao.searchTrainingsUnique("BODY")
+        val resultLower = dao.searchTrainingsUnique("body")
+        val resultMixed = dao.searchTrainingsUnique("BoDy")
+
+        assertEquals(2, resultUpper.size)
+        assertEquals(2, resultLower.size)
+        assertEquals(2, resultMixed.size)
+    }
+
+    @Test
+    fun `searchTrainingsUnique handles partial query matches`() = runTest {
+        val training1 = createTestTraining(0, name = "Full Body Strength Training", timestamp = 100L)
+        val training2 = createTestTraining(1, name = "Upper Body Workout", timestamp = 200L)
+        val training3 = createTestTraining(2, name = "Leg Day Session", timestamp = 300L)
+
+        dao.add(training1)
+        dao.add(training2)
+        dao.add(training3)
+
+        val result = dao.searchTrainingsUnique("Body")
+
+        assertEquals(2, result.size)
+        assertTrue(result.contains(training2))
+        assertTrue(result.contains(training1))
+        assertFalse(result.contains(training3))
+    }
+
+    @Test
+    fun `searchTrainingsUnique returns unique names only`() = runTest {
+        val training1v1 = createTestTraining(0, name = "Morning Workout", timestamp = 100L)
+        val training1v2 = createTestTraining(1, name = "Morning Workout", timestamp = 200L)
+        val training2v1 = createTestTraining(2, name = "Evening Workout", timestamp = 150L)
+        val training2v2 = createTestTraining(3, name = "Evening Workout", timestamp = 250L)
+        val training2v3 = createTestTraining(4, name = "Evening Workout", timestamp = 350L)
+
+        dao.add(training1v1)
+        dao.add(training1v2)
+        dao.add(training2v1)
+        dao.add(training2v2)
+        dao.add(training2v3)
+
+        val result = dao.searchTrainingsUnique("Workout")
+
+        assertEquals(2, result.size)
+        val names = result.map { it.name }.toSet()
+        assertEquals(2, names.size) // Verify unique names
+        assertTrue(result.contains(training1v2)) // Latest "Morning Workout"
+        assertTrue(result.contains(training2v3)) // Latest "Evening Workout"
     }
 
     @OptIn(ExperimentalUuidApi::class)

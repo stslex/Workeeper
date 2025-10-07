@@ -44,7 +44,7 @@ internal class ClickHandlerTest {
 
     private val initialState = ExerciseStore.State(
         uuid = "test-uuid",
-        name = PropertyHolder.StringProperty(initialValue = "Test Exercise"),
+        name = PropertyHolder.StringProperty.new(initialValue = "Test Exercise"),
         sets = persistentListOf(),
         dateProperty = PropertyHolder.DateProperty.new(initialValue = 1000000L),
         dialogState = DialogState.Closed,
@@ -95,7 +95,7 @@ internal class ClickHandlerTest {
     @Test
     fun `save action with valid data saves exercise and navigates back`() = runTest {
         coEvery { interactor.saveItem(any()) } just runs
-        val validName = PropertyHolder.StringProperty(initialValue = "Valid Exercise")
+        val validName = PropertyHolder.StringProperty.new(initialValue = "Valid Exercise")
         val validSet = SetsUiModel(
             uuid = "set-uuid",
             reps = PropertyHolder.IntProperty.new(initialValue = 10),
@@ -118,7 +118,7 @@ internal class ClickHandlerTest {
 
     @Test
     fun `save action with invalid name sends invalid params event`() {
-        val invalidName = PropertyHolder.StringProperty(initialValue = "")
+        val invalidName = PropertyHolder.StringProperty.new(initialValue = "")
         stateFlow.value = stateFlow.value.copy(name = invalidName)
 
         handler.invoke(ExerciseStore.Action.Click.Save)

@@ -1,5 +1,6 @@
 package io.github.stslex.workeeper.feature.exercise.ui
 
+import android.content.res.Configuration
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -154,7 +155,16 @@ private fun SnackbarHostWidget(
 }
 
 @Composable
-@Preview(showSystemUi = false, showBackground = false)
+@Preview(
+    showSystemUi = true,
+    showBackground = true,
+    uiMode = Configuration.UI_MODE_TYPE_NORMAL,
+)
+@Preview(
+    showSystemUi = true,
+    showBackground = true,
+    uiMode = Configuration.UI_MODE_NIGHT_YES or Configuration.UI_MODE_TYPE_NORMAL,
+)
 private fun ExerciseFeatureWidgetPreview() {
     AppTheme {
         ExerciseFeatureWidget(
