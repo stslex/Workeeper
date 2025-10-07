@@ -1,5 +1,6 @@
 package io.github.stslex.workeeper.feature.exercise.ui.components
 
+import android.content.res.Configuration
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -92,21 +93,29 @@ private fun ExerciseTextField(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
                 fontSize = 9.sp,
-                color = MaterialTheme.colorScheme.onSurface.copy(
-                    alpha = 0.6f,
-                ),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
             )
             Text(
                 modifier = Modifier.align(Alignment.Center),
                 text = text,
                 style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
             )
         }
     }
 }
 
 @Composable
-@Preview
+@Preview(
+    showSystemUi = true,
+    showBackground = true,
+    uiMode = Configuration.UI_MODE_TYPE_NORMAL,
+)
+@Preview(
+    showSystemUi = true,
+    showBackground = true,
+    uiMode = Configuration.UI_MODE_NIGHT_YES or Configuration.UI_MODE_TYPE_NORMAL,
+)
 private fun ExerciseSetsFieldPreview() {
     AppTheme {
         Box(

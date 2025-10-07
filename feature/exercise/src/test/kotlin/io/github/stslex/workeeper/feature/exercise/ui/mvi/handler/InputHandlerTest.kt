@@ -20,7 +20,7 @@ internal class InputHandlerTest {
 
     private val initialState = ExerciseStore.State(
         uuid = "test-uuid",
-        name = PropertyHolder.StringProperty(initialValue = ""),
+        name = PropertyHolder.StringProperty.new(initialValue = ""),
         sets = persistentListOf(),
         dateProperty = PropertyHolder.DateProperty.new(initialValue = 1000000L),
         dialogState = DialogState.Closed,

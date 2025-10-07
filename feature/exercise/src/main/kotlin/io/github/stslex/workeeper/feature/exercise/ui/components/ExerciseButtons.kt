@@ -1,5 +1,7 @@
 package io.github.stslex.workeeper.feature.exercise.ui.components
 
+import android.content.res.Configuration
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -10,7 +12,9 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedIconButton
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -43,9 +47,13 @@ private fun ConfirmationButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    OutlinedIconButton(
+    IconButton(
         modifier = modifier,
         onClick = onClick,
+        colors = IconButtonDefaults.iconButtonColors(
+            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ),
     ) {
         Icon(
             imageVector = icon,
@@ -55,11 +63,22 @@ private fun ConfirmationButton(
 }
 
 @Composable
-@Preview(device = "id:pixel_4", showSystemUi = true, showBackground = true)
+@Preview(
+    showSystemUi = true,
+    showBackground = true,
+    uiMode = Configuration.UI_MODE_TYPE_NORMAL,
+)
+@Preview(
+    showSystemUi = true,
+    showBackground = true,
+    uiMode = Configuration.UI_MODE_NIGHT_YES or Configuration.UI_MODE_TYPE_NORMAL,
+)
 private fun ExerciseButtonsRowPreview() {
     AppTheme {
         Box(
-            modifier = Modifier.padding(AppDimension.Padding.large + AppDimension.Padding.large),
+            modifier = Modifier
+                .background(MaterialTheme.colorScheme.background)
+                .padding(AppDimension.Padding.large + AppDimension.Padding.large),
         ) {
             ExerciseButtonsRow(
                 isDeleteVisible = true,

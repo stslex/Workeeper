@@ -6,14 +6,16 @@ import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingD
 import javax.inject.Inject
 
 @ViewModelScoped
-internal class TrainingChangeMapper @Inject constructor() : Mapper<TrainingUiModel, TrainingDomainChangeModel> {
+internal class TrainingChangeMapper @Inject constructor() :
+    Mapper<TrainingUiModel, TrainingDomainChangeModel> {
 
-    override fun invoke(data: TrainingUiModel): TrainingDomainChangeModel =
+    override fun invoke(data: TrainingUiModel): TrainingDomainChangeModel = with(data) {
         TrainingDomainChangeModel(
-            uuid = data.uuid.ifBlank { null },
-            name = data.name,
-            labels = data.labels,
-            exercisesUuids = data.exercises.map { it.uuid },
-            timestamp = data.date.value,
+            uuid = uuid.ifBlank { null },
+            name = name.value,
+            labels = labels,
+            exercisesUuids = exercises.map { it.uuid },
+            timestamp = date.value,
         )
+    }
 }

@@ -16,17 +16,34 @@ interface TrainingDao {
 
     @Query(
         """
-        SELECT * FROM training_table
-        WHERE uuid IN (
-            SELECT uuid FROM training_table
+        SELECT t1.* FROM training_table t1
+        INNER JOIN (
+            SELECT name, MAX(timestamp) as max_timestamp
+            FROM training_table
             WHERE name LIKE '%' || :query || '%'
             GROUP BY name
-            HAVING timestamp = MAX(timestamp)
-        )
-        ORDER BY timestamp DESC
+        ) t2 ON t1.name = t2.name AND t1.timestamp = t2.max_timestamp
+        ORDER BY t1.timestamp DESC
     """,
     )
     fun getAllUnique(query: String): PagingSource<Int, TrainingEntity>
+
+    @Query(
+        """
+        SELECT t1.* FROM training_table t1
+        INNER JOIN (
+            SELECT name, MAX(timestamp) as max_timestamp
+            FROM training_table
+            WHERE name LIKE '%' || :query || '%'
+            AND name != :query
+            GROUP BY name
+            ORDER BY max_timestamp DESC
+            LIMIT :limit
+        ) t2 ON t1.name = t2.name AND t1.timestamp = t2.max_timestamp
+        ORDER BY t1.timestamp DESC
+    """,
+    )
+    suspend fun searchTrainingsUniqueExclude(query: String, limit: Int): List<TrainingEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun add(item: TrainingEntity)

@@ -38,7 +38,7 @@ internal class NavigationHandlerTest {
     @Test
     fun `back with confirmation when not allowed shows dismiss snackbar`() {
         val modifiedState = stateFlow.value.copy(
-            name = PropertyHolder.StringProperty(initialValue = "Changed"),
+            name = PropertyHolder.StringProperty.new(initialValue = "Changed"),
         )
         stateFlow.value = modifiedState
         every { store.state } returns stateFlow

@@ -10,7 +10,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -73,16 +72,21 @@ internal fun <TMenuItem : Any> TextInputField(
         },
         keyboardOptions = keyboardOptions,
         trailingIcon = if (isMenuEnable && menuItems.isNotEmpty()) trailingIcon else null,
-        colors = if (textMode == TextMode.DATE) {
-            OutlinedTextFieldDefaults.colors(
-                disabledTextColor = LocalContentColor.current,
-                disabledBorderColor = MaterialTheme.colorScheme.outline,
-                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                disabledContainerColor = MaterialTheme.colorScheme.surface,
-            )
-        } else {
-            OutlinedTextFieldDefaults.colors()
-        },
+        colors = OutlinedTextFieldDefaults.colors(
+            disabledTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            disabledBorderColor = MaterialTheme.colorScheme.outline,
+            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            disabledContainerColor = MaterialTheme.colorScheme.surface,
+            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+            unfocusedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+            focusedLabelColor = MaterialTheme.colorScheme.primary,
+            unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            errorTextColor = MaterialTheme.colorScheme.error,
+            errorBorderColor = MaterialTheme.colorScheme.error,
+            errorLabelColor = MaterialTheme.colorScheme.error,
+        ),
         singleLine = true,
         readOnly = textMode == TextMode.DATE,
         enabled = textMode != TextMode.DATE,

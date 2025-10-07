@@ -536,6 +536,109 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
             }
         }
 
+    @Test
+    fun `searchUniqueExclude returns only latest for duplicate names`() = runTest {
+        val exercise1v1 = createTestExercise(0).copy(name = "Bench Press", timestamp = 100L)
+        val exercise1v2 = createTestExercise(1).copy(name = "Bench Press", timestamp = 200L)
+        val exercise1v3 = createTestExercise(2).copy(name = "Bench Press", timestamp = 300L)
+        val exercise2v1 = createTestExercise(3).copy(name = "Leg Press", timestamp = 150L)
+        val exercise2v2 = createTestExercise(4).copy(name = "Leg Press", timestamp = 250L)
+
+        dao.create(exercise1v1)
+        dao.create(exercise1v2)
+        dao.create(exercise1v3)
+        dao.create(exercise2v1)
+        dao.create(exercise2v2)
+
+        val results = dao.searchUniqueExclude("Press")
+
+        // Should return only latest of each name
+        assertEquals(2, results.size)
+        assertTrue(results.contains(exercise1v3)) // Latest "Bench Press"
+        assertTrue(results.contains(exercise2v2)) // Latest "Leg Press"
+
+        // Verify ordering by timestamp DESC
+        assertEquals(exercise1v3, results[0]) // 300L
+        assertEquals(exercise2v2, results[1]) // 250L
+    }
+
+    @Test
+    fun `searchUniqueExclude respects LIMIT 10`() = runTest {
+        // Create 12 unique exercises
+        val exercises = (0..11).map { index ->
+            createTestExercise(index).copy(
+                name = "Exercise_$index",
+                timestamp = (index + 100).toLong(),
+            )
+        }
+        exercises.forEach { dao.create(it) }
+
+        val results = dao.searchUniqueExclude("Exercise")
+
+        // Should return only 10 despite 12 matches
+        assertEquals(10, results.size)
+
+        // Should be the 10 latest (indices 11 down to 2)
+        val expectedNames = (11 downTo 2).map { "Exercise_$it" }
+        val actualNames = results.map { it.name }
+        assertEquals(expectedNames, actualNames)
+    }
+
+    @Test
+    fun `searchUniqueExclude with case insensitive partial match`() = runTest {
+        val exercise1 = createTestExercise(0).copy(name = "BENCH PRESS", timestamp = 100L)
+        val exercise2 = createTestExercise(1).copy(name = "bench press", timestamp = 200L)
+        val exercise2v2 = createTestExercise(4).copy(name = "BENCH PRESS", timestamp = 300L)
+        val exercise3 = createTestExercise(2).copy(name = "Squat", timestamp = 150L)
+
+        dao.create(exercise1)
+        dao.create(exercise2)
+        dao.create(exercise2v2)
+        dao.create(exercise3)
+
+        val resultsUpper = dao.searchUniqueExclude("PRESS")
+        val resultsLower = dao.searchUniqueExclude("press")
+        val resultsMixed = dao.searchUniqueExclude("PrEsS")
+
+        // All should return the latest variant - exercise2v2 (timestamp 300) is latest "BENCH PRESS"
+        // and exercise2 (timestamp 200) is the only "bench press" (different name)
+        assertEquals(2, resultsUpper.size)
+        assertEquals(2, resultsLower.size)
+        assertEquals(2, resultsMixed.size)
+    }
+
+    @Test
+    fun `searchUniqueExclude with empty query excludes all exact matches`() = runTest {
+        val exercise1 = createTestExercise(0).copy(name = "test", timestamp = 100L)
+        val exercise2 = createTestExercise(1).copy(name = "testing", timestamp = 200L)
+
+        dao.create(exercise1)
+        dao.create(exercise2)
+
+        val results = dao.searchUniqueExclude("")
+
+        // Empty query matches all, but nothing equals "" exactly, so all are included
+        assertEquals(2, results.size)
+    }
+
+    @Test
+    fun `searchUniqueExclude orders by timestamp when multiple unique names`() = runTest {
+        val exercise1 = createTestExercise(0).copy(name = "Exercise A", timestamp = 100L)
+        val exercise2 = createTestExercise(1).copy(name = "Exercise B", timestamp = 300L)
+        val exercise3 = createTestExercise(2).copy(name = "Exercise C", timestamp = 200L)
+
+        dao.create(exercise1)
+        dao.create(exercise2)
+        dao.create(exercise3)
+
+        val results = dao.searchUniqueExclude("Exercise")
+
+        assertEquals(3, results.size)
+        assertEquals(exercise2, results[0]) // 300L
+        assertEquals(exercise3, results[1]) // 200L
+        assertEquals(exercise1, results[2]) // 100L
+    }
+
     private fun createTestExercise(
         index: Int = 0,
     ): ExerciseEntity = ExerciseEntity(

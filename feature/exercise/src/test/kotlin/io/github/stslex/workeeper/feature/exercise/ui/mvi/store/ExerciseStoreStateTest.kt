@@ -21,9 +21,9 @@ internal class ExerciseStoreStateTest {
         val state = ExerciseStore.State.INITIAL
 
         assertEquals(null, state.uuid)
-        assertEquals(PropertyHolder.StringProperty(), state.name)
+        assertEquals("", state.name.value)
         assertEquals(persistentListOf<SetsUiModel>(), state.sets)
-        assertEquals(PropertyHolder.DateProperty.new(), state.dateProperty)
+        assertEquals(0L, state.dateProperty.value)
         assertEquals(DialogState.Closed, state.dialogState)
         assertEquals(false, state.isMenuOpen)
         assertEquals(persistentSetOf<MenuItem<ExerciseUiModel>>(), state.menuItems)
@@ -57,7 +57,7 @@ internal class ExerciseStoreStateTest {
 
         val base = ExerciseStore.State(
             uuid = "test-uuid",
-            name = PropertyHolder.StringProperty(initialValue = "Test Exercise"),
+            name = PropertyHolder.StringProperty.new(initialValue = "Test Exercise"),
             sets = persistentListOf(set1, set2),
             dateProperty = PropertyHolder.DateProperty.new(initialValue = 1234567890L),
             dialogState = DialogState.Closed,
@@ -76,7 +76,7 @@ internal class ExerciseStoreStateTest {
         // name value affects hash
         assertNotEquals(
             baseHash,
-            base.copy(name = PropertyHolder.StringProperty(initialValue = "Other")).calculateEqualsHash,
+            base.copy(name = PropertyHolder.StringProperty.new(initialValue = "Other")).calculateEqualsHash,
         )
 
         // date affects hash (by converted string)
@@ -109,10 +109,10 @@ internal class ExerciseStoreStateTest {
     @Test
     fun `calculateEqualsHash trims name before calculating`() {
         val state1 = ExerciseStore.State.INITIAL.copy(
-            name = PropertyHolder.StringProperty(initialValue = "Test Exercise"),
+            name = PropertyHolder.StringProperty.new(initialValue = "Test Exercise"),
         )
         val state2 = ExerciseStore.State.INITIAL.copy(
-            name = PropertyHolder.StringProperty(initialValue = "  Test Exercise  "),
+            name = PropertyHolder.StringProperty.new(initialValue = "  Test Exercise  "),
         )
 
         val hash1 = state1.calculateEqualsHash
@@ -125,7 +125,7 @@ internal class ExerciseStoreStateTest {
     fun `allowBack returns true for new exercise with empty fields`() {
         val state = ExerciseStore.State.INITIAL.copy(
             uuid = null,
-            name = PropertyHolder.StringProperty(initialValue = ""),
+            name = PropertyHolder.StringProperty.new(initialValue = ""),
             sets = persistentListOf(
                 SetsUiModel(
                     uuid = Uuid.random().toString(),
@@ -145,7 +145,7 @@ internal class ExerciseStoreStateTest {
     fun `allowBack returns false for new exercise with filled name`() {
         val state = ExerciseStore.State.INITIAL.copy(
             uuid = null,
-            name = PropertyHolder.StringProperty(initialValue = "Test Exercise"),
+            name = PropertyHolder.StringProperty.new(initialValue = "Test Exercise"),
             sets = persistentListOf(),
         )
 
@@ -158,7 +158,7 @@ internal class ExerciseStoreStateTest {
     fun `allowBack returns false for new exercise with filled sets`() {
         val state = ExerciseStore.State.INITIAL.copy(
             uuid = null,
-            name = PropertyHolder.StringProperty(initialValue = ""),
+            name = PropertyHolder.StringProperty.new(initialValue = ""),
             sets = persistentListOf(
                 SetsUiModel(
                     uuid = Uuid.random().toString(),
@@ -178,7 +178,7 @@ internal class ExerciseStoreStateTest {
     fun `allowBack returns true for existing exercise when hash matches initial`() {
         val initialState = ExerciseStore.State.INITIAL.copy(
             uuid = "test-uuid",
-            name = PropertyHolder.StringProperty(initialValue = "Test Exercise"),
+            name = PropertyHolder.StringProperty.new(initialValue = "Test Exercise"),
             sets = persistentListOf(
                 SetsUiModel(
                     uuid = Uuid.random().toString(),
@@ -203,7 +203,7 @@ internal class ExerciseStoreStateTest {
     fun `allowBack returns false for existing exercise when hash does not match`() {
         val state = ExerciseStore.State.INITIAL.copy(
             uuid = "test-uuid",
-            name = PropertyHolder.StringProperty(initialValue = "Test Exercise"),
+            name = PropertyHolder.StringProperty.new(initialValue = "Test Exercise"),
             sets = persistentListOf(),
             initialHash = 99999, // Different from calculated hash
         )
@@ -291,7 +291,7 @@ internal class ExerciseStoreStateTest {
     fun `allowBack with blank spaces in sets values returns true for new exercise`() {
         val state = ExerciseStore.State.INITIAL.copy(
             uuid = null,
-            name = PropertyHolder.StringProperty(initialValue = "   "), // Only spaces
+            name = PropertyHolder.StringProperty.new(initialValue = "   "), // Only spaces
             sets = persistentListOf(
                 SetsUiModel(
                     uuid = Uuid.random().toString(),
@@ -311,7 +311,7 @@ internal class ExerciseStoreStateTest {
     fun `calculateEqualsHash ignores labels trainingUuid and menuItems`() {
         val base = ExerciseStore.State.INITIAL.copy(
             uuid = "u",
-            name = PropertyHolder.StringProperty(initialValue = "N"),
+            name = PropertyHolder.StringProperty.new(initialValue = "N"),
             dateProperty = PropertyHolder.DateProperty.new(initialValue = 1L),
         )
 
@@ -331,7 +331,7 @@ internal class ExerciseStoreStateTest {
     fun `allowBack true for existing exercise when only ui state changed`() {
         val initial = ExerciseStore.State.INITIAL.copy(
             uuid = "id",
-            name = PropertyHolder.StringProperty(initialValue = "X"),
+            name = PropertyHolder.StringProperty.new(initialValue = "X"),
             dateProperty = PropertyHolder.DateProperty.new(initialValue = 1L),
         )
         val withHash = initial.copy(initialHash = initial.calculateEqualsHash)

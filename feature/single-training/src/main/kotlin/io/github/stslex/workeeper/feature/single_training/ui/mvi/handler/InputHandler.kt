@@ -1,7 +1,7 @@
 package io.github.stslex.workeeper.feature.single_training.ui.mvi.handler
 
 import dagger.hilt.android.scopes.ViewModelScoped
-import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder.Companion.update
+import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder.Companion.reset
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.single_training.di.TrainingHandlerStore
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingStore.Action
@@ -23,7 +23,7 @@ internal class InputHandler @Inject constructor(
         updateState {
             it.copy(
                 training = it.training.copy(
-                    date = it.training.date.update(action.timestamp),
+                    date = it.training.date.reset(action.timestamp),
                 ),
             )
         }
@@ -33,7 +33,7 @@ internal class InputHandler @Inject constructor(
         updateState {
             it.copy(
                 training = it.training.copy(
-                    name = action.value,
+                    name = it.training.name.reset(action.value),
                 ),
             )
         }

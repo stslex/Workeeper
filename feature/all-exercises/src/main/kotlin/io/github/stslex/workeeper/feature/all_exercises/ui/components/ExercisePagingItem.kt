@@ -34,7 +34,7 @@ internal fun ExercisePagingItem(
         modifier = modifier,
         sharedTransitionScope = sharedTransitionScope,
         animatedContentScope = animatedContentScope,
-        itemKey = item.uuid,
+        sharedContentState = sharedTransitionScope.rememberSharedContentState(item.uuid),
         onClick = onClick,
         onLongClick = onLongClick,
         isSelected = isSelected,

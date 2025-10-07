@@ -254,7 +254,7 @@ internal class TrainingStoreImplTest {
 
         // Verify TrainingUiModel.INITIAL structure
         assertEquals("", state.training.uuid)
-        assertEquals("", state.training.name)
+        assertEquals("", state.training.name.value)
         assertEquals(0, state.training.labels.size)
         assertEquals(0, state.training.exercises.size)
 
@@ -271,7 +271,7 @@ internal class TrainingStoreImplTest {
         val state = TrainingStore.State.INITIAL
         val newTraining = TrainingUiModel(
             uuid = "new-uuid",
-            name = "New Training",
+            name = PropertyHolder.StringProperty.new(initialValue = "New Training"),
             labels = persistentListOf("strength", "cardio"),
             exercises = persistentListOf(
                 ExerciseUiModel(
@@ -283,6 +283,8 @@ internal class TrainingStoreImplTest {
                 ),
             ),
             date = PropertyHolder.DateProperty.new(initialValue = System.currentTimeMillis() + 86400000), // tomorrow
+            isMenuOpen = false,
+            menuItems = kotlinx.collections.immutable.persistentSetOf(),
         )
 
         // Verify state is data class with copy functionality
@@ -293,7 +295,7 @@ internal class TrainingStoreImplTest {
 
         assertEquals(newTraining, newState.training)
         assertEquals(DialogState.Calendar, newState.dialogState)
-        assertEquals("New Training", newState.training.name)
+        assertEquals("New Training", newState.training.name.value)
         assertEquals(2, newState.training.labels.size)
         assertEquals(1, newState.training.exercises.size)
         assertEquals("Push-ups", newState.training.exercises.first().name)

@@ -19,14 +19,14 @@ interface ExerciseDao {
 
     @Query(
         """
-        SELECT * FROM exercises_table
-        WHERE uuid IN (
-            SELECT uuid FROM exercises_table
+        SELECT e1.* FROM exercises_table e1
+        INNER JOIN (
+            SELECT name, MAX(timestamp) as max_timestamp
+            FROM exercises_table
             WHERE name LIKE '%' || :query || '%'
             GROUP BY name
-            HAVING timestamp = MAX(timestamp)
-        )
-        ORDER BY timestamp DESC
+        ) e2 ON e1.name = e2.name AND e1.timestamp = e2.max_timestamp
+        ORDER BY e1.timestamp DESC
     """,
     )
     fun getAllUnique(query: String): PagingSource<Int, ExerciseEntity>
@@ -70,7 +70,19 @@ interface ExerciseDao {
     suspend fun deleteAllByTrainings(trainingUuid: List<Uuid>)
 
     @Query(
-        "SELECT * FROM exercises_table WHERE name LIKE '%' || :query || '%' AND name != :query GROUP BY name ORDER BY MAX(timestamp) DESC LIMIT 10",
+        """
+        SELECT e1.* FROM exercises_table e1
+        INNER JOIN (
+            SELECT name, MAX(timestamp) as max_timestamp
+            FROM exercises_table
+            WHERE name LIKE '%' || :query || '%'
+            AND name != :query
+            GROUP BY name
+            ORDER BY max_timestamp DESC
+            LIMIT 10
+        ) e2 ON e1.name = e2.name AND e1.timestamp = e2.max_timestamp
+        ORDER BY e1.timestamp DESC
+    """,
     )
     suspend fun searchUniqueExclude(query: String): List<ExerciseEntity>
 }

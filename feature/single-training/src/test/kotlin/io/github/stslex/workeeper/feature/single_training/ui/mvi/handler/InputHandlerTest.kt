@@ -18,10 +18,12 @@ internal class InputHandlerTest {
 
     private val initialTraining = TrainingUiModel(
         uuid = "test-uuid",
-        name = "Initial Training",
+        name = PropertyHolder.StringProperty.new(initialValue = "Initial Training"),
         exercises = persistentListOf(),
         labels = persistentListOf(),
         date = PropertyHolder.DateProperty.new(initialValue = 1000000L),
+        isMenuOpen = false,
+        menuItems = kotlinx.collections.immutable.persistentSetOf(),
     )
 
     private val initialState = TrainingStore.State(
@@ -52,7 +54,7 @@ internal class InputHandlerTest {
         handler.invoke(TrainingStore.Action.Input.Name(newName))
 
         verify(exactly = 1) { store.updateState(any()) }
-        assertEquals(newName, stateFlow.value.training.name)
+        assertEquals(newName, stateFlow.value.training.name.value)
         assertEquals(initialTraining.uuid, stateFlow.value.training.uuid)
         assertEquals(initialTraining.exercises, stateFlow.value.training.exercises)
         assertEquals(initialTraining.labels, stateFlow.value.training.labels)
@@ -66,7 +68,7 @@ internal class InputHandlerTest {
         handler.invoke(TrainingStore.Action.Input.Name(emptyName))
 
         verify(exactly = 1) { store.updateState(any()) }
-        assertEquals(emptyName, stateFlow.value.training.name)
+        assertEquals(emptyName, stateFlow.value.training.name.value)
     }
 
     @Test
@@ -76,7 +78,7 @@ internal class InputHandlerTest {
         handler.invoke(TrainingStore.Action.Input.Name(whitespaceName))
 
         verify(exactly = 1) { store.updateState(any()) }
-        assertEquals(whitespaceName, stateFlow.value.training.name)
+        assertEquals(whitespaceName, stateFlow.value.training.name.value)
     }
 
     @Test
@@ -122,7 +124,7 @@ internal class InputHandlerTest {
         handler.invoke(TrainingStore.Action.Input.Date(newTimestamp))
 
         verify(exactly = 2) { store.updateState(any()) }
-        assertEquals(newName, stateFlow.value.training.name)
+        assertEquals(newName, stateFlow.value.training.name.value)
         assertEquals(newTimestamp, stateFlow.value.training.date.value)
     }
 
@@ -153,7 +155,7 @@ internal class InputHandlerTest {
 
         // Test the captured transformation function
         val transformedState = stateSlot.captured(initialState)
-        assertEquals(newName, transformedState.training.name)
+        assertEquals(newName, transformedState.training.name.value)
         assertEquals(initialState.training.uuid, transformedState.training.uuid)
         assertEquals(initialState.dialogState, transformedState.dialogState)
     }

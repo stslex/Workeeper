@@ -34,6 +34,19 @@ internal class ClickHandler @Inject constructor(
             Action.Click.Delete -> processDelete()
             Action.Click.CreateExercise -> processCreateExercise()
             is Action.Click.ExerciseClick -> processClickExercise(action)
+            is Action.Click.Menu -> processMenuAction(action)
+        }
+    }
+
+    private fun processMenuAction(action: Action.Click.Menu) {
+        when (action) {
+            Action.Click.Menu.Close -> updateState { it.copyTraining(isMenuOpen = false) }
+            Action.Click.Menu.Open -> updateState { it.copyTraining(isMenuOpen = true) }
+            is Action.Click.Menu.Item -> updateState {
+                it.copy(
+                    training = action.item.itemModel.copy(isMenuOpen = false),
+                )
+            }
         }
     }
 
@@ -98,7 +111,7 @@ internal class ClickHandler @Inject constructor(
     }
 
     private fun processSave() {
-        if (state.value.training.name.isBlank()) {
+        if (state.value.training.name.isValid.not()) {
             // todo show error snackbar
             return
         }

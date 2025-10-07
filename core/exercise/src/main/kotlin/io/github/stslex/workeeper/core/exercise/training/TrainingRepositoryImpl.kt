@@ -41,6 +41,13 @@ class TrainingRepositoryImpl @Inject constructor(
         }
         .flowOn(ioDispatcher)
 
+    override suspend fun searchTrainingsUnique(
+        query: String,
+        limit: Int,
+    ): List<TrainingDataModel> = withContext(ioDispatcher) {
+        dao.searchTrainingsUniqueExclude(query, limit).map { it.toData() }
+    }
+
     override suspend fun updateTraining(training: TrainingChangeDataModel) {
         withContext(ioDispatcher) {
             dao.add(training.toEntity())
