@@ -5,6 +5,8 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.SharedTransitionScope.ResizeMode.Companion.ScaleToBounds
+import androidx.compose.animation.SharedTransitionScope.SharedContentState
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -20,9 +22,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -38,7 +42,7 @@ fun BasePagingColumnItem(
     onLongClick: () -> Unit,
     sharedTransitionScope: SharedTransitionScope,
     animatedContentScope: AnimatedContentScope,
-    itemKey: String,
+    sharedContentState: SharedContentState,
     isSelected: Boolean,
     itemPosition: ItemPosition,
     modifier: Modifier = Modifier,
@@ -86,15 +90,11 @@ fun BasePagingColumnItem(
     with(sharedTransitionScope) {
         NoiseColumn(
             modifier = modifier
-//                todo cause crash on release???
-//                .sharedBounds(
-//                    sharedContentState = sharedTransitionScope.rememberSharedContentState(itemKey),
-//                    animatedVisibilityScope = animatedContentScope,
-//                    resizeMode = ScaleToBounds(
-//                        ContentScale.Inside,
-//                        Alignment.Center,
-//                    ),
-//                )
+                .sharedBounds(
+                    sharedContentState = sharedContentState,
+                    animatedVisibilityScope = animatedContentScope,
+                    resizeMode = ScaleToBounds(ContentScale.Inside, Alignment.Center),
+                )
                 .fillMaxWidth()
                 .wrapContentHeight()
                 .padding(
@@ -132,10 +132,10 @@ private fun ExercisePagingItemPreview() {
             SharedTransitionScope { modifier ->
                 BasePagingColumnItem(
                     modifier = modifier,
-                    itemKey = "itemKey",
                     isSelected = true,
                     onClick = {},
                     sharedTransitionScope = this,
+                    sharedContentState = rememberSharedContentState("itemKey"),
                     animatedContentScope = this@AnimatedContent,
                     itemPosition = ItemPosition.SINGLE,
                     onLongClick = {},

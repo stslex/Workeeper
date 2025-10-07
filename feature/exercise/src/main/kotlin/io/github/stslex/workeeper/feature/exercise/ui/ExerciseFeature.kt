@@ -81,7 +81,7 @@ fun NavGraphBuilder.exerciseGraph(
                             ),
                             animatedVisibilityScope = this@navScreen,
                             resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(
-                                ContentScale.Inside,
+                                ContentScale.FillBounds,
                                 Alignment.Center,
                             ),
                         ),

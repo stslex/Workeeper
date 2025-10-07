@@ -37,7 +37,7 @@ fun NavGraphBuilder.singleTrainingsGraph(
                             ),
                             animatedVisibilityScope = this@navScreen,
                             resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(
-                                ContentScale.Inside,
+                                ContentScale.FillBounds,
                                 Alignment.Center,
                             ),
                         ),
