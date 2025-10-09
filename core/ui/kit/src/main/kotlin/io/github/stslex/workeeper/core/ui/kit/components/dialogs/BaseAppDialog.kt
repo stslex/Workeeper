@@ -6,13 +6,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
@@ -21,19 +21,23 @@ import androidx.compose.ui.window.Dialog
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun BaseAppDialog(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit = { },
 ) {
-    val size = LocalWindowInfo.current.containerDpSize
-    val isLandscape = size.width > size.height
+    val density = LocalDensity.current
+    val windowInfo = LocalWindowInfo.current
+    val containerSize = windowInfo.containerSize
 
-    val maxHeight = if (isLandscape) size.height * 0.5f else size.height * 0.6f
-    val minWidth = if (isLandscape) size.width * 0.3f else size.width * 0.5f
-    val minHeight = if (isLandscape) size.height * 0.4f else size.height * 0.2f
+    val screenWidth = with(density) { containerSize.width.toDp() }
+    val screenHeight = with(density) { containerSize.height.toDp() }
+    val isLandscape = screenWidth > screenHeight
+
+    val maxHeight = if (isLandscape) screenHeight * 0.5f else screenHeight * 0.6f
+    val minWidth = if (isLandscape) screenWidth * 0.3f else screenWidth * 0.5f
+    val minHeight = if (isLandscape) screenHeight * 0.4f else screenHeight * 0.2f
 
     Dialog(
         onDismissRequest = onDismissRequest,
@@ -44,10 +48,10 @@ fun BaseAppDialog(
                 .sizeIn(
                     minWidth = minWidth,
                     minHeight = minHeight,
-                    maxWidth = size.width,
+                    maxWidth = screenWidth,
                     maxHeight = maxHeight,
                 )
-                .clip(MaterialTheme.shapes.extraLargeIncreased)
+                .clip(MaterialTheme.shapes.extraLarge)
                 .background(MaterialTheme.colorScheme.surfaceContainer)
                 .padding(AppDimension.Padding.large),
             contentAlignment = Alignment.Center,
