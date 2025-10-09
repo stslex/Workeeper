@@ -11,17 +11,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ConfirmDialog(
     text: String,
@@ -43,17 +41,14 @@ fun ConfirmDialog(
             Row(
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                TextButton(
+                FilledTonalButton(
                     modifier = Modifier.weight(1f),
                     onClick = action,
-                    colors = ButtonDefaults.textButtonColors(
+                    colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     ),
-                    shapes = ButtonDefaults.shapes(
-                        shape = MaterialTheme.shapes.largeIncreased,
-                        pressedShape = MaterialTheme.shapes.largeIncreased,
-                    ),
+                    shape = MaterialTheme.shapes.large,
                 ) {
                     Text(
                         text = "Confirm",
@@ -63,18 +58,15 @@ fun ConfirmDialog(
 
                 Spacer(modifier = Modifier.width(AppDimension.Padding.medium))
 
-                TextButton(
+                FilledTonalButton(
                     modifier = Modifier.weight(1f),
                     onClick = onDismissRequest,
-                    colors = ButtonDefaults.textButtonColors(
+                    colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.errorContainer
                             .copy(alpha = 0.5f),
                         contentColor = MaterialTheme.colorScheme.onErrorContainer,
                     ),
-                    shapes = ButtonDefaults.shapes(
-                        shape = MaterialTheme.shapes.largeIncreased,
-                        pressedShape = MaterialTheme.shapes.largeIncreased,
-                    ),
+                    shape = MaterialTheme.shapes.large,
                 ) {
                     Text(
                         text = "Cancel",
