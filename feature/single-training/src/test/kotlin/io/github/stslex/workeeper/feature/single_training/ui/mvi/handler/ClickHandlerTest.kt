@@ -383,10 +383,12 @@ internal class ClickHandlerTest {
         verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.ContextClick)) }
         verify(exactly = 1) { store.updateState(capture(stateSlot)) }
         verify(exactly = 1) {
-            store.consume(match { action ->
-                action is TrainingStore.Action.Navigation.CreateExercise &&
-                    action.trainingUuid.isNotBlank()
-            })
+            store.consume(
+                match { action ->
+                    action is TrainingStore.Action.Navigation.CreateExercise &&
+                        action.trainingUuid.isNotBlank()
+                },
+            )
         }
 
         val newState = stateSlot.captured(stateFlow.value)
@@ -445,11 +447,13 @@ internal class ClickHandlerTest {
         verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.ContextClick)) }
         verify(exactly = 1) { store.updateState(capture(stateSlot)) }
         verify(exactly = 1) {
-            store.consume(match { action ->
-                action is TrainingStore.Action.Navigation.OpenExercise &&
-                    action.exerciseUuid == exerciseUuid &&
-                    action.trainingUuid.isNotBlank()
-            })
+            store.consume(
+                match { action ->
+                    action is TrainingStore.Action.Navigation.OpenExercise &&
+                        action.exerciseUuid == exerciseUuid &&
+                        action.trainingUuid.isNotBlank()
+                },
+            )
         }
 
         val newState = stateSlot.captured(stateFlow.value)
