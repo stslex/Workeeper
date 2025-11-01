@@ -31,10 +31,12 @@ internal class ClickHandler @Inject constructor(
             Action.Click.CloseCalendarPicker -> processCloseCalendar()
             Action.Click.OpenCalendarPicker -> processOpenCalendar()
             Action.Click.Save -> processSave()
-            Action.Click.Delete -> processDelete()
+            Action.Click.DeleteDialogOpen -> processDeleteDialogOpen()
             Action.Click.CreateExercise -> processCreateExercise()
             is Action.Click.ExerciseClick -> processClickExercise(action)
             is Action.Click.Menu -> processMenuAction(action)
+            is Action.Click.DialogDeleteTraining.Dismiss -> processDialogDeleteTrainingDismiss()
+            is Action.Click.DialogDeleteTraining.Confirm -> processDialogDeleteTrainingConfirm()
         }
     }
 
@@ -79,7 +81,13 @@ internal class ClickHandler @Inject constructor(
         )
     }
 
-    private fun processDelete() {
+    private fun processDialogDeleteTrainingDismiss() {
+        updateState {
+            it.copy(dialogState = DialogState.Closed)
+        }
+    }
+
+    private fun processDialogDeleteTrainingConfirm() {
         val uuid = state.value.training.uuid
             .ifBlank { state.value.pendingForCreateUuid }
             .ifBlank {
@@ -95,6 +103,12 @@ internal class ClickHandler @Inject constructor(
             },
         ) {
             interactor.removeTraining(uuid)
+        }
+    }
+
+    private fun processDeleteDialogOpen() {
+        updateState {
+            it.copy(dialogState = DialogState.DeleteTraining)
         }
     }
 

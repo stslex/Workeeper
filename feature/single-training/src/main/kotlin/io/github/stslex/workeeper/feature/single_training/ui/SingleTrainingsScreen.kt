@@ -15,7 +15,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import io.github.stslex.workeeper.core.ui.kit.components.dialogs.ConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.DateInputField
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.TitleTextInputField
@@ -50,7 +52,7 @@ internal fun SingleTrainingsScreen(
                 isDeleteVisible = state.training.uuid.isNotBlank(),
                 onConfirmClick = { consume(Action.Click.Save) },
                 onCancelClick = { consume(Action.Click.Close) },
-                onDeleteClick = { consume(Action.Click.Delete) },
+                onDeleteClick = { consume(Action.Click.DeleteDialogOpen) },
             )
             LazyColumn(
                 modifier = Modifier
@@ -136,6 +138,12 @@ internal fun SingleTrainingsScreen(
                 timestamp = state.training.date.value,
                 dateChange = { consume(Action.Input.Date(it)) },
                 onDismissRequest = { consume(Action.Click.CloseCalendarPicker) },
+            )
+
+            DialogState.DeleteTraining -> ConfirmDialog(
+                text = stringResource(R.string.feature_single_training_dialog_delete),
+                action = { consume(Action.Click.DialogDeleteTraining.Confirm) },
+                onDismissRequest = { consume(Action.Click.DialogDeleteTraining.Dismiss) },
             )
         }
     }

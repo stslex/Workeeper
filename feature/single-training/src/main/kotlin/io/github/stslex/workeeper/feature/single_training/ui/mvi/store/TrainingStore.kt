@@ -77,7 +77,7 @@ internal interface TrainingStore : Store<State, Action, Event> {
 
             data object Save : Click
 
-            data object Delete : Click
+            data object DeleteDialogOpen : Click
 
             data object OpenCalendarPicker : Click
 
@@ -86,6 +86,13 @@ internal interface TrainingStore : Store<State, Action, Event> {
             data object CreateExercise : Click
 
             data class ExerciseClick(val exerciseUuid: String) : Click
+
+            sealed interface DialogDeleteTraining : Click {
+
+                data object Confirm : DialogDeleteTraining
+
+                data object Dismiss : DialogDeleteTraining
+            }
 
             sealed interface Menu : Click {
 
