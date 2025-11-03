@@ -174,10 +174,32 @@ cd Workeeper
 
 The project includes custom linting rules that enforce:
 
-- MVI pattern compliance (State immutability, Action naming, Handler patterns)
-- Proper Hilt dependency injection usage
-- Compose best practices
-- Code style consistency
+- **MVI pattern compliance**: State immutability, Action naming, Event naming, Handler patterns
+- **Store validation**: BaseStore extension, Store state rules, Handler constructor validation
+- **Dependency injection**: Hilt scope validation (@ViewModelScoped, @Singleton)
+- **Compose best practices**: Composable state handling and component rules
+- **Code style consistency**: Unified naming conventions and patterns
+
+#### Custom Detekt Rules
+- `MviStateImmutabilityRule` - Ensures State classes are immutable data classes
+- `MviActionNamingRule` - Validates action naming (Click*, Load*, Save*)
+- `MviEventNamingRule` - Validates event naming (*Success, *Error, Haptic, Snackbar)
+- `MviHandlerNamingRule` - Ensures proper handler naming patterns
+- `MviStoreExtensionRule` - Validates Store classes extend BaseStore
+- `MviHandlerConstructorRule` - Validates handler constructor patterns
+- `MviStoreStateRule` - Validates store state management
+- `HiltScopeRule` - Validates Hilt dependency injection annotations
+- `ComposableStateRule` - Validates Composable component state handling
+
+#### Android Lint Rules
+The project enforces strict security and code quality rules:
+- **Security**: 12+ rules preventing vulnerabilities (SSL, file permissions, dynamic code loading)
+- **Memory/Lifecycle**: 10+ rules preventing leaks and lifecycle issues
+- **Performance**: 12+ rules ensuring optimal performance
+- **Code Quality**: 15+ rules maintaining code correctness
+- **Accessibility**: 5+ rules for better user experience
+
+See [LINT_IMPROVEMENTS.md](lint-rules/LINT_IMPROVEMENTS.md) for detailed rule documentation.
 
 ## 🔧 Configuration
 

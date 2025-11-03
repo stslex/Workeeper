@@ -41,14 +41,43 @@ Core configuration files for linting tools, now centralized in lint-rules module
 
 ### MVI Architecture Rules
 
-1. **MviStateImmutabilityRule** - checks state immutability
-2. **MviActionNamingRule** - action naming conventions
-3. **MviEventNamingRule** - event naming conventions
-4. **MviHandlerNamingRule** - handler naming conventions
-5. **MviStoreExtensionRule** - validates BaseStore inheritance
-6. **KoinScopeRule** - Koin DI rules (disabled - legacy)
-7. **HiltScopeRule** - Hilt dependency injection scope validation
-8. **ComposableStateRule** - Compose component checks
+All custom rules are implemented in `src/main/kotlin/io/github/stslex/workeeper/lint_rules/`:
+
+1. **MviStateImmutabilityRule** - Ensures State classes are immutable data classes with `val` properties
+2. **MviActionNamingRule** - Validates action naming conventions (Click*, Load*, Save*, Update*, etc.)
+3. **MviEventNamingRule** - Validates event naming conventions (*Success, *Error, *Completed, Haptic, Snackbar, etc.)
+4. **MviHandlerNamingRule** - Ensures handler classes follow proper naming patterns (*Handler)
+5. **MviStoreExtensionRule** - Validates that Store classes extend BaseStore
+6. **MviHandlerConstructorRule** - Validates handler constructor parameters and patterns
+7. **MviStoreStateRule** - Validates store state management and state class usage
+8. **HiltScopeRule** - Validates Hilt dependency injection annotations (@ViewModelScoped, @Singleton)
+9. **ComposableStateRule** - Validates Composable component state handling
+10. **KoinScopeRule** - Legacy Koin DI rules (disabled, kept for reference)
+
+### Android Lint Configuration
+
+The `lint.xml` file includes comprehensive rules organized by category:
+
+#### Security Rules (Error Severity)
+- SSL/TLS security checks
+- File permission validation
+- Dynamic code loading detection
+- JavaScript interface safety
+- Vulnerable dependency detection
+
+#### Performance Rules (Error Severity)
+- Unused resource detection
+- Layout optimization
+- ViewHolder pattern enforcement
+- Wakelock usage validation
+
+#### Code Quality Rules (Error Severity)
+- ID consistency checks
+- String format validation
+- Resource consistency
+- Gradle dependency management
+
+See [LINT_IMPROVEMENTS.md](LINT_IMPROVEMENTS.md) for complete documentation of all Android Lint rules.
 
 ## Usage
 
@@ -132,3 +161,9 @@ The baseline system has been simplified:
 - **Single lint baseline**: `lint-baseline.xml` for all modules
 - **Single detekt baseline**: `detekt-baseline.xml` for all modules
 - **No per-module files**: easier to manage and maintain
+
+## Documentation
+
+- **[LINT_IMPROVEMENTS.md](LINT_IMPROVEMENTS.md)** - Detailed documentation of all Android Lint rules and their categories
+- **[SUMMARY.md](SUMMARY.md)** - Architecture overview and solution benefits
+- **[README.md](README.md)** - This file, usage instructions and module structure
