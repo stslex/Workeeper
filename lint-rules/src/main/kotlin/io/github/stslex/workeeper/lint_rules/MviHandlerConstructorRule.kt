@@ -70,7 +70,8 @@ class MviHandlerConstructorRule(
             it.shortName?.asString() == "Inject"
         }
 
-        if (!hasInject && className.contains("NavigationHandler").not()) {
+        // Skip @Inject requirement for NavigationHandler
+        if (!hasInject && className != "NavigationHandler") {
             report(
                 CodeSmell(
                     issue,
