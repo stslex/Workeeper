@@ -13,12 +13,15 @@ import org.jetbrains.kotlin.psi.KtClass
 /**
  * Rule to ensure MVI State classes are immutable (data classes)
  */
-class MviStateImmutabilityRule(config: Config = Config.Companion.empty) : Rule(config) {
+class MviStateImmutabilityRule(
+    config: Config = Config.empty,
+) : Rule(config) {
+
     override val issue = Issue(
-        javaClass.simpleName,
-        Severity.CodeSmell,
-        "MVI State classes should be immutable data classes",
-        Debt.Companion.TWENTY_MINS
+        id = javaClass.simpleName,
+        severity = Severity.Defect,
+        description = "MVI State classes should be immutable data classes",
+        debt = Debt.FIVE_MINS,
     )
 
     override fun visitClass(klass: KtClass) {
@@ -26,17 +29,17 @@ class MviStateImmutabilityRule(config: Config = Config.Companion.empty) : Rule(c
 
         val className = klass.name ?: return
 
-        if (className.endsWith("State") &&
+        if (
+            className.endsWith("State") &&
             klass.isInMviModule() &&
             !klass.isData() &&
             !klass.hasModifier(KtTokens.SEALED_KEYWORD)
         ) {
-
             report(
                 CodeSmell(
-                    issue, Entity.Companion.from(klass),
-                    "State class '$className' should be a data class for immutability"
-                )
+                    issue, Entity.from(klass),
+                    "State class '$className' should be a data class for immutability",
+                ),
             )
         }
 
@@ -46,9 +49,9 @@ class MviStateImmutabilityRule(config: Config = Config.Companion.empty) : Rule(c
                 if (property.isVar) {
                     report(
                         CodeSmell(
-                            issue, Entity.Companion.from(property),
-                            "State properties should be immutable (val, not var)"
-                        )
+                            issue, Entity.from(property),
+                            "State properties should be immutable (val, not var)",
+                        ),
                     )
                 }
 
@@ -60,9 +63,9 @@ class MviStateImmutabilityRule(config: Config = Config.Companion.empty) : Rule(c
                 ) {
                     report(
                         CodeSmell(
-                            issue, Entity.Companion.from(property),
-                            "State should use immutable collections (List, Set, Map instead of Mutable*)"
-                        )
+                            issue, Entity.from(property),
+                            "State should use immutable collections (List, Set, Map instead of Mutable*)",
+                        ),
                     )
                 }
             }

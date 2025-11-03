@@ -8,54 +8,78 @@
     <!-- ================================ -->
 
     <!-- Icon and Resource Issues -->
-    <issue id="IconDensities" severity="ignore" />
-    <issue id="IconDuplicates" severity="ignore" />
-    <issue id="IconLocation" severity="ignore" />
-    <issue id="IconMissingDensityFolder" severity="ignore" />
-    <issue id="IconExpectedSize" severity="ignore" />
-    <issue id="IconLauncherShape" severity="ignore" />
-    <issue id="VectorRaster" severity="ignore" />
+    <!--Ignore launcher icon issues for mipmap folders -->
+    <issue id="IconDensities" severity="error">
+        <ignore path="**/app/src/main/res/mipmap-hdpi/ic_launcher**" />
+    </issue>
+    <issue id="IconDuplicates" severity="error">
+        <ignore path="**/app/src/main/res/mipmap-**/ic_launcher**" />
+    </issue>
+    <issue id="IconLocation" severity="error">
+        <ignore path="**/app/src/main/res/mipmap-**/ic_launcher**" />
+    </issue>
+    <issue id="IconMissingDensityFolder" severity="error">
+        <ignore path="**/app/src/main/res/mipmap-**/ic_launcher**" />
+    </issue>
+    <issue id="IconExpectedSize" severity="error">
+        <ignore path="**/app/src/main/res/mipmap-**/ic_launcher**" />
+    </issue>
+    <issue id="IconLauncherShape" severity="error">
+        <ignore path="**/app/src/main/res/mipmap-**/ic_launcher**" />
+    </issue>
+    <issue id="VectorRaster" severity="error">
+        <ignore path="**/app/src/main/res/mipmap-**/ic_launcher**" />
+    </issue>
+    <issue id="ConvertToWebp" severity="error">
+        <ignore path="**/app/src/main/res/mipmap-**/ic_launcher**" />
+    </issue>
 
     <!-- Typography and Text -->
-    <issue id="MissingTranslation" severity="ignore" />
-    <issue id="ExtraTranslation" severity="ignore" />
-    <issue id="TypographyFractions" severity="ignore" />
-    <issue id="TypographyDashes" severity="ignore" />
-    <issue id="Typos" severity="ignore" />
+    <issue id="MissingTranslation" severity="error" />
+    <issue id="ExtraTranslation" severity="error" />
+    <issue id="TypographyFractions" severity="error" />
+    <issue id="TypographyDashes" severity="error" />
+    <issue id="Typos" severity="error" />
 
     <!-- Accessibility (can be enabled later for production) -->
-    <issue id="ContentDescription" severity="ignore" />
-    <issue id="LabelFor" severity="ignore" />
-    <issue id="ClickableViewAccessibility" severity="ignore" />
-    <issue id="KeyboardInaccessibleWidget" severity="ignore" />
-    <issue id="RedundantLabel" severity="ignore" />
+    <issue id="ContentDescription" severity="error" />
+    <issue id="LabelFor" severity="error" />
+    <issue id="ClickableViewAccessibility" severity="error" />
+    <issue id="KeyboardInaccessibleWidget" severity="error" />
+    <issue id="RedundantLabel" severity="error" />
 
     <!-- Google Services -->
-    <issue id="GoogleAppIndexingWarning" severity="ignore" />
-    <issue id="HardcodedDebugMode" severity="ignore" />
+    <issue id="GoogleAppIndexingWarning" severity="error" />
+    <issue id="HardcodedDebugMode" severity="error" />
 
     <!-- Performance related -->
-    <issue id="UnusedResources" severity="warning" />
-    <issue id="UselessParent" severity="warning" />
-    <issue id="MergeRootFrame" severity="warning" />
-    <issue id="InefficientWeight" severity="warning" />
-    <issue id="NestedWeights" severity="warning" />
-    <issue id="DisableBaselineAlignment" severity="warning" />
-    <issue id="TooManyViews" severity="warning" />
-    <issue id="TooDeepLayout" severity="warning" />
-    <issue id="Overdraw" severity="warning" />
-    <issue id="ViewHolder" severity="warning" />
-    <issue id="RecyclerView" severity="warning" />
-    <issue id="Wakelock" severity="warning" />
+    <issue id="UnusedResources" severity="error" />
+    <issue id="UselessParent" severity="error" />
+    <issue id="MergeRootFrame" severity="error" />
+    <issue id="InefficientWeight" severity="error" />
+    <issue id="NestedWeights" severity="error" />
+    <issue id="DisableBaselineAlignment" severity="error" />
+    <issue id="TooManyViews" severity="error" />
+    <issue id="TooDeepLayout" severity="error" />
+    <issue id="Overdraw" severity="error" />
+    <issue id="ViewHolder" severity="error" />
+    <issue id="RecyclerView" severity="error" />
+    <issue id="Wakelock" severity="error" />
 
     <!-- Security related -->
-    <issue id="HardcodedText" severity="error" />
-    <issue id="SetTextI18n" severity="error" />
+    <issue id="HardcodedText" severity="error">
+        <ignore path="**/test/**" />
+        <ignore path="**/androidTest/**" />
+    </issue>
+    <issue id="SetTextI18n" severity="error">
+        <ignore path="**/test/**" />
+        <ignore path="**/androidTest/**" />
+    </issue>
     <issue id="AllowBackup" severity="error" />
     <issue id="ExportedReceiver" severity="error" />
     <issue id="ExportedService" severity="error" />
     <issue id="ExportedContentProvider" severity="error" />
-    <issue id="PermissionImpliesUnsupportedChromeOsHardware" severity="warning" />
+    <issue id="PermissionImpliesUnsupportedChromeOsHardware" severity="error" />
     <issue id="UnsafeProtectedBroadcastReceiver" severity="error" />
     <issue id="SecureRandom" severity="error" />
     <issue id="TrustAllX509TrustManager" severity="error" />
@@ -64,64 +88,79 @@
     <issue id="SSLCertificateSocketFactoryGetInsecure" severity="error" />
     <issue id="WorldReadableFiles" severity="error" />
     <issue id="WorldWriteableFiles" severity="error" />
+    <issue id="UnsafeDynamicallyLoadedCode" severity="error" />
+    <issue id="UnsafeNativeCodeLocation" severity="error" />
+    <issue id="PackageManagerGetSignatures" severity="error" />
+    <issue id="JavascriptInterface" severity="error" />
+    <issue id="AddJavascriptInterface" severity="error" />
+    <issue id="SetJavaScriptEnabled" severity="warning" />
+    <issue id="VulnerableCordovaVersion" severity="error" />
 
     <!-- Code quality -->
     <issue id="ObsoleteLayoutParam" severity="error" />
     <issue id="DuplicateIds" severity="error" />
     <issue id="UnknownId" severity="error" />
     <issue id="NotSibling" severity="error" />
-    <issue id="MissingId" severity="warning" />
-    <issue id="UnusedIds" severity="warning" />
+    <issue id="MissingId" severity="error" />
+    <issue id="UnusedIds" severity="error" />
     <issue id="InconsistentArrays" severity="error" />
     <issue id="DuplicateDefinition" severity="error" />
     <issue id="StringFormatMatches" severity="error" />
-    <issue id="PluralsCandidate" severity="warning" />
+    <issue id="PluralsCandidate" severity="error" />
     <issue id="StringFormatCount" severity="error" />
     <issue id="StringFormatInvalid" severity="error" />
-    <issue id="GradleDependency" severity="ignore" />
-    <issue id="NewerVersionAvailable" severity="ignore" />
-    <!-- Note: NonAsciiCharacters rule is not available in current lint version -->
+    <issue id="GradleDependency" severity="error" />
+    <issue id="NewerVersionAvailable" severity="error" />
+
+    <!-- Kotlin specific -->
+    <issue id="KotlinPropertyAccess" severity="warning" />
+
+    <!-- Memory leaks and lifecycle -->
+    <issue id="StaticFieldLeak" severity="error" />
+    <issue id="HandlerLeak" severity="error" />
+    <issue id="ServiceCast" severity="error" />
+    <issue id="Recycle" severity="error" />
+    <issue id="CommitTransaction" severity="error" />
+    <issue id="FragmentTagUsage" severity="warning" />
+    <issue id="ValidFragment" severity="error" />
+    <issue id="CutPasteId" severity="error" />
+    <issue id="UnprotectedSMSBroadcastReceiver" severity="error" />
 
     <!-- Android specific -->
     <issue id="NewApi" severity="error" />
-    <issue id="InlinedApi" severity="warning" />
+    <issue id="InlinedApi" severity="error" />
     <issue id="Override" severity="error" />
-    <issue id="UseSparseArrays" severity="warning" />
-    <issue id="UseValueOf" severity="warning" />
-    <issue id="LogConditional" severity="warning" />
+    <issue id="UseSparseArrays" severity="error" />
+    <issue id="UseValueOf" severity="error" />
+    <issue id="LogConditional" severity="error" />
+    <issue id="StopShip" severity="error" />
+    <issue id="MissingPermission" severity="error" />
+    <issue id="ProtectedPermissions" severity="error" />
+    <issue id="WrongConstant" severity="error" />
+    <issue id="RtlHardcoded" severity="error" />
+    <issue id="RtlCompat" severity="error" />
+    <issue id="RtlEnabled" severity="error" />
     <issue id="ObsoleteSdkInt">
         <ignore path="**/mipmap-**" />
     </issue>
-    <!--todo refactor png to webp-->
-    <issue id="ConvertToWebp" severity="ignore" />
 
     <!-- Compose specific -->
-    <!-- Note: Compose lint rules removed as they are not available in current lint version -->
+    <!-- Compose lint rules are version-dependent and handled by Compose Compiler -->
+    <!-- Enable specific rules when needed for your Compose version -->
+
+    <!-- Hilt Dependency Injection -->
+    <!-- Hilt lint rules are handled by Hilt Gradle Plugin automatically -->
 
     <!-- MVI Architecture specific (custom rules) -->
     <!-- Note: MVI rules are handled by custom detekt rules -->
 
-    <!-- Koin DI specific -->
-    <!-- Note: Koin rules are handled by custom detekt rules -->
-
     <!-- Room database -->
-    <!-- Note: Room rules are included in Android Gradle Plugin automatically -->
+    <!-- Room lint rules are handled by Room Gradle Plugin automatically -->
 
     <!-- Coroutines -->
-    <!-- Note: Coroutine rules are handled by detekt -->
+    <!-- Coroutine lint rules are handled by Kotlin Coroutines libraries -->
 
     <!-- Deprecation -->
     <issue id="Deprecated" severity="warning" />
     <issue id="ObsoleteSdkInt" severity="warning" />
-
-    <!-- Ignore rules for test files -->
-    <issue id="SetTextI18n">
-        <ignore path="**/test/**" />
-        <ignore path="**/androidTest/**" />
-    </issue>
-
-    <issue id="HardcodedText">
-        <ignore path="**/test/**" />
-        <ignore path="**/androidTest/**" />
-    </issue>
 </lint>

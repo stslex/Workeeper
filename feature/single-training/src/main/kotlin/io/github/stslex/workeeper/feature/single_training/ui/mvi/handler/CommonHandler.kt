@@ -22,6 +22,10 @@ internal class CommonHandler @Inject constructor(
     store: TrainingHandlerStore,
 ) : Handler<Action.Common>, TrainingHandlerStore by store {
 
+    private companion object {
+        const val SEARCH_DEBOUNCE_DELAY_MS = 600L
+    }
+
     override fun invoke(action: Action.Common) {
         when (action) {
             is Action.Common.Init -> initial(action)
@@ -42,8 +46,10 @@ internal class CommonHandler @Inject constructor(
             interactor.subscribeForTraining(uuid),
         ) { item ->
             updateStateImmediate { state ->
+                val training = item.let(trainingDomainUiMap::invoke)
                 state.copy(
-                    training = item.let(trainingDomainUiMap::invoke),
+                    training = training,
+                    initialTrainingUiModel = training,
                 )
             }
         }
@@ -54,7 +60,7 @@ internal class CommonHandler @Inject constructor(
                 .distinctUntilChanged()
                 .collectLatest { query ->
                     logger.v { "Search for query: '$query'" }
-                    delay(600L) // Debounce
+                    delay(SEARCH_DEBOUNCE_DELAY_MS)
 
                     val result = interactor.searchTrainings(query)
                         .map { training ->
@@ -68,7 +74,9 @@ internal class CommonHandler @Inject constructor(
 
                     updateStateImmediate {
                         it.copy(
-                            training = it.training.copy(menuItems = result),
+                            training = it.training.copy(
+                                menuItems = result,
+                            ),
                         )
                     }
                 }

@@ -30,16 +30,19 @@ internal class CommonHandlerTest {
     private val trainingDomainUiMapper = mockk<TrainingDomainUiModelMapper>(relaxed = true)
     private val testScope = TestScope(testDispatcher)
 
+    private val initialTraining = TrainingUiModel(
+        uuid = "",
+        name = PropertyHolder.StringProperty.new(initialValue = ""),
+        exercises = persistentListOf(),
+        labels = persistentListOf(),
+        date = PropertyHolder.DateProperty.new(initialValue = System.currentTimeMillis()),
+        isMenuOpen = false,
+        menuItems = kotlinx.collections.immutable.persistentSetOf(),
+    )
+
     private val initialState = TrainingStore.State(
-        training = TrainingUiModel(
-            uuid = "",
-            name = PropertyHolder.StringProperty.new(initialValue = ""),
-            exercises = persistentListOf(),
-            labels = persistentListOf(),
-            date = PropertyHolder.DateProperty.new(initialValue = System.currentTimeMillis()),
-            isMenuOpen = false,
-            menuItems = kotlinx.collections.immutable.persistentSetOf(),
-        ),
+        training = initialTraining,
+        initialTrainingUiModel = initialTraining,
         dialogState = DialogState.Closed,
         pendingForCreateUuid = "",
     )

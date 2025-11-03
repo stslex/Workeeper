@@ -21,7 +21,10 @@ abstract class Feature<TProcessor : StoreProcessor<*, *, *>, TComponent : Compon
 
     @Suppress("UNCHECKED_CAST")
     @Composable
-    inline fun <reified TStoreImpl : BaseStore<*, *, *>, reified TFactory : StoreFactory<TComponent, TStoreImpl>> Feature<TProcessor, TComponent>.createProcessor(
+    inline fun <
+        reified TStoreImpl : BaseStore<*, *, *>,
+        reified TFactory : StoreFactory<TComponent, TStoreImpl>,
+        > Feature<TProcessor, TComponent>.createProcessor(
         component: TComponent,
     ): TProcessor = rememberStoreProcessor<TStoreImpl, TComponent, TFactory>(
         component,

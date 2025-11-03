@@ -31,10 +31,12 @@ internal class ClickHandler @Inject constructor(
             Action.Click.CloseCalendarPicker -> processCloseCalendar()
             Action.Click.OpenCalendarPicker -> processOpenCalendar()
             Action.Click.Save -> processSave()
-            Action.Click.Delete -> processDelete()
+            Action.Click.DeleteDialogOpen -> processDeleteDialogOpen()
             Action.Click.CreateExercise -> processCreateExercise()
             is Action.Click.ExerciseClick -> processClickExercise(action)
             is Action.Click.Menu -> processMenuAction(action)
+            is Action.Click.ConfirmDialog.Dismiss -> processDialogDeleteTrainingDismiss()
+            is Action.Click.ConfirmDialog.Confirm -> processDialogTrainingConfirm()
         }
     }
 
@@ -79,7 +81,26 @@ internal class ClickHandler @Inject constructor(
         )
     }
 
-    private fun processDelete() {
+    private fun processDialogDeleteTrainingDismiss() {
+        updateState {
+            it.copy(dialogState = DialogState.Closed)
+        }
+    }
+
+    private fun processDialogTrainingConfirm() {
+        when (state.value.dialogState) {
+            DialogState.ConfirmDialog.Delete -> processDialogDeleteTrainingConfirm()
+            DialogState.ConfirmDialog.ExitWithoutSaving -> processDialogTrainingConfirmCloseScreen()
+            else -> return
+        }
+    }
+
+    private fun processDialogTrainingConfirmCloseScreen() {
+        updateState { it.copy(dialogState = DialogState.Closed) }
+        consume(Action.Navigation.PopBack)
+    }
+
+    private fun processDialogDeleteTrainingConfirm() {
         val uuid = state.value.training.uuid
             .ifBlank { state.value.pendingForCreateUuid }
             .ifBlank {
@@ -98,8 +119,18 @@ internal class ClickHandler @Inject constructor(
         }
     }
 
+    private fun processDeleteDialogOpen() {
+        updateState {
+            it.copy(dialogState = DialogState.ConfirmDialog.Delete)
+        }
+    }
+
     private fun processClickClose() {
-        consume(Action.Navigation.PopBack)
+        if (state.value.compareWithInitial()) {
+            consume(Action.Navigation.PopBack)
+        } else {
+            updateState { it.copy(dialogState = DialogState.ConfirmDialog.ExitWithoutSaving) }
+        }
     }
 
     private fun processCloseCalendar() {

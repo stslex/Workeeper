@@ -8,7 +8,7 @@ import io.github.stslex.workeeper.core.ui.mvi.Store.State
 import io.github.stslex.workeeper.core.ui.mvi.store.StoreConsumer
 import kotlinx.coroutines.flow.StateFlow
 
-open class BaseHandlerStore<S : State, A : Action, E : Event>() :
+open class BaseHandlerStore<S : State, A : Action, E : Event> :
     HandlerStore<S, A, E>,
     HandlerStoreEmitter<S, A, E> {
 

@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="toast_invalid_params_msg">Invalid params</string>
-    <string name="button_confirm_text">Save</string>
-    <string name="button_cancel_text">Cancel</string>
 
     <string name="feature_exercise_field_label_name">name</string>
     <string name="feature_exercise_field_label_sets">Sets</string>

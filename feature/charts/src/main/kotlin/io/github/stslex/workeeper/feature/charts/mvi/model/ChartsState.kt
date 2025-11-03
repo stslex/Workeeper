@@ -4,7 +4,7 @@ import androidx.compose.runtime.Stable
 import kotlinx.collections.immutable.ImmutableList
 
 @Stable
-internal interface ChartsState {
+internal sealed interface ChartsState {
 
     val content: Content?
         get() = this as? Content

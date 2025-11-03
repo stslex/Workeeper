@@ -109,6 +109,7 @@ private fun SingleChart(
     }
 }
 
+@Suppress("MagicNumber")
 private fun DrawScope.drawAxis(
     points: List<Offset>,
     textMeasurer: TextMeasurer,
@@ -189,6 +190,7 @@ private fun DrawScope.drawAxis(
     }
 }
 
+@Suppress("MagicNumber")
 private fun DrawScope.calculateChartPoints(
     chart: SingleChartUiModel,
 ): List<Offset> {

@@ -255,11 +255,6 @@ sealed class PropertyHolder<T : Any>(
 
     companion object {
 
-// todo check if this is needed -> maybe replace with classic data class ???
-//        fun <T : Any, THolder : PropertyHolder<T>> THolder.update(property: T): THolder = apply {
-//            value = property
-//        }
-
         fun <T : Any, THolder : PropertyHolder<T>> THolder.update(
             property: T,
         ): THolder = reset(property)

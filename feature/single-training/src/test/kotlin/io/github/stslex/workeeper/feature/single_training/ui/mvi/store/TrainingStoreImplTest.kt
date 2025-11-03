@@ -199,7 +199,7 @@ internal class TrainingStoreImplTest {
         val clickActions = listOf(
             Action.Click.Close,
             Action.Click.Save,
-            Action.Click.Delete,
+            Action.Click.DeleteDialogOpen,
             Action.Click.OpenCalendarPicker,
             Action.Click.CloseCalendarPicker,
         )

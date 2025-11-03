@@ -18,8 +18,10 @@ class MviArchitectureRuleSet : RuleSetProvider {
             MviEventNamingRule(config),
             MviHandlerNamingRule(config),
             MviStoreExtensionRule(config),
-            KoinScopeRule(config),
-            ComposableStateRule(config)
-        )
+            MviHandlerConstructorRule(config),
+            MviStoreStateRule(config),
+            HiltScopeRule(config),
+            ComposableStateRule(config),
+        ),
     )
 }

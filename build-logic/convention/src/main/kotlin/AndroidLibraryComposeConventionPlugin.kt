@@ -16,10 +16,11 @@ class AndroidLibraryComposeConventionPlugin : Plugin<Project> {
                 apply(libs.findPluginId("library"))
                 apply(libs.findPluginId("kotlin"))
                 apply(libs.findPluginId("composeCompiler"))
-                apply(libs.findPluginId("vkompose"))
                 apply(libs.findPluginId("serialization"))
                 apply(libs.findPluginId("ksp"))
                 apply(libs.findPluginId("convention.lint"))
+//                TODO - not support kotlin 2.2.21 yet - see https://github.com/VKCOM/vkompose/releases
+//                apply(libs.findPluginId("vkompose"))
             }
 
             extensions.configure<LibraryExtension> {

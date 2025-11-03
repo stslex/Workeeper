@@ -92,6 +92,7 @@ fun Modifier.drawNoiseOrFallback(
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
+@Suppress("MagicNumber")
 fun Modifier.drawNoise(
     noiseIntensity: Float = 0.05f,
     grainSize: Float = 400f,

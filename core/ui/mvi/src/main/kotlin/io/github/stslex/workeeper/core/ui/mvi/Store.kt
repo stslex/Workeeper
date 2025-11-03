@@ -6,6 +6,7 @@ import io.github.stslex.workeeper.core.ui.mvi.Store.State
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 
+@Suppress("MviStoreStateRule", "MviStoreExtensionRule", "MviStateImmutabilityRule")
 interface Store<out S : State, in A : Action, out E : Event> {
 
     /** Flow of the state of the screen. */

@@ -1,7 +1,13 @@
 build:
-  maxIssues: 200
+  maxIssues: 0
   excludeCorrectable: false
-  weights: { }
+  weights:
+    Defect: 2
+    Security: 2
+    Performance: 1
+    CodeSmell: 1
+    Style: 1
+    Maintainability: 1
 
 config:
   validation: true
@@ -78,14 +84,15 @@ complexity:
       - androidx.compose.runtime.Composable
   LongParameterList:
     active: true
-    functionThreshold: 6
-    constructorThreshold: 7
+    functionThreshold: 8
+    constructorThreshold: 9
     ignoreDefaultParameters: false
     ignoreDataClasses: true
     ignoreAnnotated:
       - androidx.compose.runtime.Composable
     excludes:
       - '**/*StoreImpl*'
+      - '**/*Store.kt'
   MethodOverloading:
     active: false
   NestedBlockDepth:
@@ -98,13 +105,20 @@ complexity:
   TooManyFunctions:
     active: true
     thresholdInFiles: 30
-    thresholdInClasses: 25
-    thresholdInInterfaces: 11
-    thresholdInObjects: 11
+    thresholdInClasses: 30
+    thresholdInInterfaces: 15
+    thresholdInObjects: 15
     thresholdInEnums: 11
     ignoreDeprecated: false
     ignorePrivate: false
     ignoreOverridden: false
+    ignoreAnnotated:
+      - 'androidx.room.Dao'
+    excludes:
+      - '**/core/core/logger/Logger.kt'
+      - '**/core/core/logger/Log.kt'
+      - '**/test/**'
+      - '**/androidTest/**'
 
 coroutines:
   active: true
@@ -626,7 +640,13 @@ mvi-architecture:
     active: true
   MviStoreExtensionRule:
     active: true
+  MviHandlerConstructorRule:
+    active: true
+  MviStoreStateRule:
+    active: true
   KoinScopeRule:
+    active: false  # Disabled: Project now uses Hilt instead of Koin
+  HiltScopeRule:
     active: true
   ComposableStateRule:
     active: true

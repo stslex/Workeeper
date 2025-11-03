@@ -15,7 +15,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import io.github.stslex.workeeper.core.ui.kit.components.dialogs.ConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.DateInputField
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.TitleTextInputField
@@ -50,7 +52,7 @@ internal fun SingleTrainingsScreen(
                 isDeleteVisible = state.training.uuid.isNotBlank(),
                 onConfirmClick = { consume(Action.Click.Save) },
                 onCancelClick = { consume(Action.Click.Close) },
-                onDeleteClick = { consume(Action.Click.Delete) },
+                onDeleteClick = { consume(Action.Click.DeleteDialogOpen) },
             )
             LazyColumn(
                 modifier = Modifier
@@ -87,7 +89,7 @@ internal fun SingleTrainingsScreen(
                 if (state.training.exercises.isEmpty()) {
                     item {
                         Text(
-                            text = "There is no Exercises now - create or add new one",
+                            text = stringResource(R.string.feature_single_training_field_exercises_empty_label),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onBackground,
                         )
@@ -130,12 +132,18 @@ internal fun SingleTrainingsScreen(
             }
         }
 
-        when (state.dialogState) {
+        when (val dialogState = state.dialogState) {
             DialogState.Closed -> Unit
             DialogState.Calendar -> DatePickerDialog(
                 timestamp = state.training.date.value,
                 dateChange = { consume(Action.Input.Date(it)) },
                 onDismissRequest = { consume(Action.Click.CloseCalendarPicker) },
+            )
+
+            is DialogState.ConfirmDialog -> ConfirmDialog(
+                text = stringResource(dialogState.titleRes),
+                action = { consume(Action.Click.ConfirmDialog.Confirm) },
+                onDismissRequest = { consume(Action.Click.ConfirmDialog.Dismiss) },
             )
         }
     }
@@ -167,6 +175,7 @@ private fun SingleTrainingsScreenPreview() {
                 ),
                 dialogState = DialogState.Closed,
                 pendingForCreateUuid = "pendingForCreateUuid",
+                initialTrainingUiModel = TrainingUiModel.INITIAL,
             ),
             consume = {},
         )

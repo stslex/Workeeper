@@ -39,13 +39,15 @@ interface StoreProcessor<S : State, A : Action, E : Event> {
  * StoreProcessorImpl is an implementation of the StoreProcessor interface.
  * It provides methods to consume actions and handle events in a store.
  *
- * @param S The type of the state.
- * @param A The type of the action.
- * @param E The type of the event.
- * @param TStoreImpl The type of the store implementation.
+ * @param component The component associated with the store.
+ * @param key An optional key for the store.
  */
 @Composable
-inline fun <reified TStoreImpl : BaseStore<*, *, *>, TComponent : Component, reified TFactory : StoreFactory<TComponent, TStoreImpl>> rememberStoreProcessor(
+inline fun <
+    reified TStoreImpl : BaseStore<*, *, *>,
+    TComponent : Component,
+    reified TFactory : StoreFactory<TComponent, TStoreImpl>,
+    > rememberStoreProcessor(
     component: TComponent,
     key: String? = null,
 ): StoreProcessor<*, *, *> {

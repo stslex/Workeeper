@@ -31,7 +31,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Base class for creating a store, which manages the state and events of a screen or feature.
- * It follows a unidirectional data flow pattern, where actions are consumed, leading to state updates and/or events being emitted.
+ * It follows a unidirectional data flow pattern, where actions are consumed,
+ * leading to state updates and/or events being emitted.
  *
  * @param S The type of the state held by the store.
  * @param A The type of actions that can be consumed by the store.
@@ -39,7 +40,8 @@ import java.util.concurrent.atomic.AtomicBoolean
  * @param name A descriptive name for the store, used for logging.
  * @param initialState The initial state of the store.
  * @param handlerCreator A factory function that creates an [Handler] for a given action.
- * @param initialActions A list of actions to be consumed immediately after the store is initialized. Defaults to an empty list.
+ * @param initialActions A list of actions to be consumed immediately after the store is initialized.
+ * Defaults to an empty list.
  */
 @Immutable
 open class BaseStore<S : State, A : Action, E : Event>(

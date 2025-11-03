@@ -12,12 +12,15 @@ import org.jetbrains.kotlin.psi.KtNamedFunction
 /**
  * Rule to check proper Composable state handling
  */
-class ComposableStateRule(config: Config = Config.Companion.empty) : Rule(config) {
+class ComposableStateRule(
+    config: Config = Config.empty,
+) : Rule(config) {
+
     override val issue = Issue(
-        javaClass.simpleName,
-        Severity.Warning,
-        "Composables should properly handle state",
-        Debt.Companion.TWENTY_MINS
+        id = javaClass.simpleName,
+        severity = Severity.Defect,
+        description = "Composable should properly handle state",
+        debt = Debt.TWENTY_MINS,
     )
 
     override fun visitNamedFunction(function: KtNamedFunction) {
@@ -45,18 +48,18 @@ class ComposableStateRule(config: Config = Config.Companion.empty) : Rule(config
             if (!hasStateParameter) {
                 report(
                     CodeSmell(
-                        issue, Entity.Companion.from(function),
-                        "Screen Composable '$functionName' should have a state parameter"
-                    )
+                        issue, Entity.from(function),
+                        "Screen Composable '$functionName' should have a state parameter",
+                    ),
                 )
             }
 
             if (!hasEventParameter) {
                 report(
                     CodeSmell(
-                        issue, Entity.Companion.from(function),
-                        "Screen Composable '$functionName' should have an event handler parameter"
-                    )
+                        issue, Entity.from(function),
+                        "Screen Composable '$functionName' should have an event handler parameter",
+                    ),
                 )
             }
         }

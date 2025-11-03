@@ -8,7 +8,7 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ContextualFlowRow
-import androidx.compose.foundation.layout.ContextualFlowRowOverflow.Companion.expandOrCollapseIndicator
+import androidx.compose.foundation.layout.ContextualFlowRowOverflow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -34,8 +34,8 @@ import io.github.stslex.workeeper.feature.all_trainings.mvi.model.TrainingUiMode
 import kotlinx.collections.immutable.toImmutableList
 import kotlin.math.abs
 
+@Suppress("DEPRECATION")
 @OptIn(ExperimentalLayoutApi::class, ExperimentalSharedTransitionApi::class)
-@Suppress("Deprecation")
 @Composable
 internal fun SingleTrainingItemWidget(
     item: TrainingUiModel,
@@ -72,7 +72,7 @@ internal fun SingleTrainingItemWidget(
                 maxLines = 2,
                 modifier = Modifier.fillMaxWidth(),
                 itemCount = item.labels.size,
-                overflow = expandOrCollapseIndicator(
+                overflow = ContextualFlowRowOverflow.expandOrCollapseIndicator(
                     expandIndicator = {
                         val hidden = abs(totalItemCount - shownItemCount)
                         SingleTrainingLabel(
@@ -82,7 +82,7 @@ internal fun SingleTrainingItemWidget(
                     collapseIndicator = {},
                 ),
             ) {
-                item.labels.forEachIndexed { index, label ->
+                item.labels.forEachIndexed { _, label ->
                     SingleTrainingLabel(
                         label = label,
                     )

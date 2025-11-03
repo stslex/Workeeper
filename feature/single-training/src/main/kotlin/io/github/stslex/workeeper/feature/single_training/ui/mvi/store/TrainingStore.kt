@@ -19,6 +19,7 @@ internal interface TrainingStore : Store<State, Action, Event> {
     @Stable
     data class State(
         val training: TrainingUiModel,
+        val initialTrainingUiModel: TrainingUiModel,
         val dialogState: DialogState,
         val pendingForCreateUuid: String,
     ) : Store.State {
@@ -43,10 +44,17 @@ internal interface TrainingStore : Store<State, Action, Event> {
             ),
         )
 
+        fun compareWithInitial(): Boolean = training.uuid == initialTrainingUiModel.uuid &&
+            training.name.value == initialTrainingUiModel.name.value &&
+            training.labels == initialTrainingUiModel.labels &&
+            training.date.value == initialTrainingUiModel.date.value &&
+            training.exercises == initialTrainingUiModel.exercises
+
         companion object {
 
             val INITIAL = State(
                 training = TrainingUiModel.INITIAL,
+                initialTrainingUiModel = TrainingUiModel.INITIAL,
                 dialogState = DialogState.Closed,
                 pendingForCreateUuid = "",
             )
@@ -77,7 +85,7 @@ internal interface TrainingStore : Store<State, Action, Event> {
 
             data object Save : Click
 
-            data object Delete : Click
+            data object DeleteDialogOpen : Click
 
             data object OpenCalendarPicker : Click
 
@@ -86,6 +94,13 @@ internal interface TrainingStore : Store<State, Action, Event> {
             data object CreateExercise : Click
 
             data class ExerciseClick(val exerciseUuid: String) : Click
+
+            sealed interface ConfirmDialog : Click {
+
+                data object Confirm : ConfirmDialog
+
+                data object Dismiss : ConfirmDialog
+            }
 
             sealed interface Menu : Click {
 

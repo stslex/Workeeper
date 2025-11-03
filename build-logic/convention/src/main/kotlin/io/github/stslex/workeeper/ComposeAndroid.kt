@@ -9,7 +9,6 @@ import AppExt.implementationPlatform
 import com.android.build.api.dsl.CommonExtension
 import com.vk.gradle.plugin.compose.utils.VkomposeExtension
 import org.gradle.api.Project
-import org.gradle.kotlin.dsl.configure
 
 /**
  * Configure Compose-specific options
@@ -29,7 +28,8 @@ internal fun Project.configureAndroidCompose(
         debugImplementation("androidx-compose-manifest")
     }
 
-    extensions.configure<VkomposeExtension>(action = ::configureVkompose)
+//    TODO - not support kotlin 2.2.21 yet - see https://github.com/VKCOM/vkompose/releases
+//    extensions.configure<VkomposeExtension>(action = ::configureVkompose)
 }
 
 private fun Project.configureVkompose(
