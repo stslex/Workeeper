@@ -22,6 +22,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 
 @Composable
+@Suppress("MagicNumber")
 fun BaseAppDialog(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,

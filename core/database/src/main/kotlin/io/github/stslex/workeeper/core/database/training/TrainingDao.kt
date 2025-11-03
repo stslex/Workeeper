@@ -58,7 +58,12 @@ interface TrainingDao {
     suspend fun delete(uuid: Uuid)
 
     @Query(
-        "SELECT * FROM training_table WHERE name LIKE '%' || :name || '%' AND timestamp BETWEEN :startDate AND :endDate ORDER BY timestamp DESC",
+        """
+            SELECT * FROM training_table 
+            WHERE name LIKE '%' || :name || '%' 
+            AND timestamp BETWEEN :startDate AND :endDate 
+            ORDER BY timestamp DESC
+            """,
     )
     suspend fun getTrainings(name: String, startDate: Long, endDate: Long): List<TrainingEntity>
 

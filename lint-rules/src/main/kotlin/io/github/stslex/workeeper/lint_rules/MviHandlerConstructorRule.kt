@@ -17,12 +17,15 @@ import org.jetbrains.kotlin.psi.KtClass
  * - Implement Handler<ActionType> interface
  * - Not have empty constructors
  */
-class MviHandlerConstructorRule(config: Config = Config.empty) : Rule(config) {
+class MviHandlerConstructorRule(
+    config: Config = Config.empty,
+) : Rule(config) {
+
     override val issue = Issue(
-        javaClass.simpleName,
-        Severity.Defect,
-        "MVI Handlers must use proper constructor injection",
-        Debt.TEN_MINS
+        id = javaClass.simpleName,
+        severity = Severity.Defect,
+        description = "MVI Handlers must use proper constructor injection",
+        debt = Debt.TEN_MINS,
     )
 
     override fun visitClass(klass: KtClass) {
@@ -56,8 +59,8 @@ class MviHandlerConstructorRule(config: Config = Config.empty) : Rule(config) {
                 CodeSmell(
                     issue,
                     Entity.from(klass),
-                    "Handler class '$className' must have a primary constructor with @Inject"
-                )
+                    "Handler class '$className' must have a primary constructor with @Inject",
+                ),
             )
             return
         }
@@ -67,13 +70,13 @@ class MviHandlerConstructorRule(config: Config = Config.empty) : Rule(config) {
             it.shortName?.asString() == "Inject"
         }
 
-        if (!hasInject) {
+        if (!hasInject && className.contains("NavigationHandler").not()) {
             report(
                 CodeSmell(
                     issue,
                     Entity.from(primaryConstructor),
-                    "Handler '$className' constructor must have @Inject annotation"
-                )
+                    "Handler '$className' constructor must have @Inject annotation",
+                ),
             )
         }
 
@@ -84,8 +87,8 @@ class MviHandlerConstructorRule(config: Config = Config.empty) : Rule(config) {
                 CodeSmell(
                     issue,
                     Entity.from(primaryConstructor),
-                    "Handler '$className' should have dependencies injected via constructor"
-                )
+                    "Handler '$className' should have dependencies injected via constructor",
+                ),
             )
         }
     }

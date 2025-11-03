@@ -13,39 +13,42 @@ import org.jetbrains.kotlin.psi.KtNamedFunction
 /**
  * Rule to enforce proper naming for MVI Handlers
  */
-class MviHandlerNamingRule(config: Config = Config.Companion.empty) : Rule(config) {
+class MviHandlerNamingRule(
+    config: Config = Config.empty,
+) : Rule(config) {
+
     override val issue = Issue(
-        javaClass.simpleName,
-        Severity.Style,
-        "MVI Handlers should follow naming conventions",
-        Debt.TWENTY_MINS
+        id = javaClass.simpleName,
+        severity = Severity.Style,
+        description = "MVI Handlers should follow naming conventions",
+        debt = Debt.FIVE_MINS,
     )
 
     override fun visitClass(klass: KtClass) {
         super.visitClass(klass)
 
-        val className = klass.name?.lowercase() ?: return
+        val className = klass.name ?: return
 
-        if (className.endsWith("handler")) {
+        if (className.endsWith("Handler")) {
             // Handlers should be classes, not data classes
             if (klass.isData()) {
                 report(
                     CodeSmell(
                         issue, Entity.from(klass),
-                        "Handler class '$className' should not be a data class"
-                    )
+                        "Handler class '$className' should not be a data class",
+                    ),
                 )
             }
 
             // Check for proper handler method naming
             klass.declarations.filterIsInstance<KtNamedFunction>().forEach { function ->
-                val functionName = function.name?.lowercase() ?: return@forEach
-                if (functionName.startsWith("handle") && !functionName.contains("action")) {
+                val functionName = function.name ?: return@forEach
+                if (functionName.startsWith("Handle") && !functionName.contains("Action")) {
                     report(
                         CodeSmell(
-                            issue, Entity.Companion.from(function),
-                            "Handler function '$functionName' should specify what it handles (e.g., handleClickAction)"
-                        )
+                            issue, Entity.from(function),
+                            "Handler function '$functionName' should specify what it handles (e.g., HandleClickAction)",
+                        ),
                     )
                 }
             }

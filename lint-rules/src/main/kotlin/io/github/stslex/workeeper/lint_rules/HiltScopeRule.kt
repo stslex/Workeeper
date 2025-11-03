@@ -18,16 +18,16 @@ import org.jetbrains.kotlin.psi.KtClass
  * - Interactors use appropriate scoping
  * - Mappers and other ViewModel dependencies use @ViewModelScoped
  */
-class HiltScopeRule(config: Config = Config.empty) : Rule(config) {
-    override val issue = Issue(
-        javaClass.simpleName,
-        Severity.Defect,
-        "Hilt scoped components should use proper scope annotations",
-        Debt.TEN_MINS
-    )
+class HiltScopeRule(
+    config: Config = Config.empty,
+) : Rule(config) {
 
-    private val viewModelScopedClasses = listOf("Handler", "Store", "Interactor", "Mapper")
-    private val singletonClasses = listOf("Repository", "DataStore", "Database")
+    override val issue = Issue(
+        id = javaClass.simpleName,
+        severity = Severity.Defect,
+        description = "Hilt scoped components should use proper scope annotations",
+        debt = Debt.TEN_MINS,
+    )
 
     override fun visitClass(klass: KtClass) {
         super.visitClass(klass)
@@ -38,68 +38,35 @@ class HiltScopeRule(config: Config = Config.empty) : Rule(config) {
         if (klass.containingKtFile.virtualFilePath.contains("/test/") || klass.isInterface()) {
             return
         }
-
-        val annotations = klass.annotationEntries
-        val hasViewModelScoped = annotations.any {
-            it.shortName?.asString() == "ViewModelScoped"
-        }
-        val hasSingleton = annotations.any {
-            it.shortName?.asString() == "Singleton"
-        }
         val hasInject = klass.primaryConstructor?.annotationEntries?.any {
             it.shortName?.asString() == "Inject"
         } ?: false
 
-        // Check if class should be ViewModel scoped
-        val shouldBeViewModelScoped = viewModelScopedClasses.any { className.contains(it) }
-        val shouldBeSingleton = singletonClasses.any { className.contains(it) }
+        if (hasInject.not()) return
+        val classType = ScopeClassType.getByName(className) ?: return
 
-        // If class has @Inject, it should have a scope annotation
-        if (hasInject && !hasViewModelScoped && !hasSingleton) {
-            if (shouldBeViewModelScoped || shouldBeSingleton) {
-                report(
-                    CodeSmell(
-                        issue,
-                        Entity.from(klass),
-                        "Class '$className' with @Inject must have ${if (shouldBeViewModelScoped) "@ViewModelScoped" else "@Singleton"} annotation"
-                    )
-                )
-            }
-        }
-
-        // Handlers and Stores must be @ViewModelScoped
-        if ((className.endsWith("Handler") || className.endsWith("StoreImpl")) && hasInject) {
-            if (!hasViewModelScoped) {
-                report(
-                    CodeSmell(
-                        issue,
-                        Entity.from(klass),
-                        "${if (className.endsWith("Handler")) "Handler" else "Store"} class '$className' must use @ViewModelScoped annotation"
-                    )
-                )
-            }
-
-            // Should not be Singleton
-            if (hasSingleton) {
-                report(
-                    CodeSmell(
-                        issue,
-                        Entity.from(klass),
-                        "${if (className.endsWith("Handler")) "Handler" else "Store"} class '$className' should not be @Singleton - use @ViewModelScoped instead"
-                    )
-                )
-            }
-        }
-
-        // Repositories should be @Singleton
-        if (className.endsWith("Repository") && hasInject && !hasSingleton) {
+        val annotationNames = klass.annotationEntries.mapNotNull { it.shortName?.asString() }
+        if (annotationNames.contains(classType.annotation).not()) {
             report(
                 CodeSmell(
                     issue,
                     Entity.from(klass),
-                    "Repository class '$className' should use @Singleton annotation"
-                )
+                    "Class '$className' should use @${classType.annotation} annotation",
+                ),
             )
+        }
+
+        val otherClasses = ScopeClassType.entries.filter { it != classType }
+        otherClasses.forEach { otherClass ->
+            if (annotationNames.contains(otherClass.annotation)) {
+                report(
+                    CodeSmell(
+                        issue,
+                        Entity.from(klass),
+                        "Class '$className' should not use @${otherClass.annotation} annotation",
+                    ),
+                )
+            }
         }
     }
 }

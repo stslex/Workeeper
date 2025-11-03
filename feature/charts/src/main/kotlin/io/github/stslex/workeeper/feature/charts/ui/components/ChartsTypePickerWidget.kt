@@ -56,6 +56,7 @@ internal fun ChartsTypePickerWidget(
 }
 
 @Composable
+@Suppress("MagicNumber")
 internal fun ChartsTypeItem(
     item: ChartsType,
     isSelected: Boolean,

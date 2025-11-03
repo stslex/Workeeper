@@ -41,12 +41,22 @@ interface ExerciseDao {
     suspend fun getExerciseByName(name: String): ExerciseEntity?
 
     @Query(
-        "SELECT * FROM exercises_table WHERE name LIKE '%' || :name || '%' AND timestamp BETWEEN :startDate AND :endDate ORDER BY timestamp DESC",
+        """
+            SELECT * FROM exercises_table 
+            WHERE name LIKE '%' || :name || '%' 
+            AND timestamp BETWEEN :startDate AND :endDate 
+            ORDER BY timestamp DESC
+            """,
     )
     suspend fun getExercises(name: String, startDate: Long, endDate: Long): List<ExerciseEntity>
 
     @Query(
-        "SELECT * FROM exercises_table WHERE name = :name AND timestamp BETWEEN :startDate AND :endDate ORDER BY timestamp DESC",
+        """
+            SELECT * FROM exercises_table 
+            WHERE name = :name 
+            AND timestamp BETWEEN :startDate AND :endDate 
+            ORDER BY timestamp DESC
+            """,
     )
     fun getExercisesExactly(
         name: String,

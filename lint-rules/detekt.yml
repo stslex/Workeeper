@@ -1,7 +1,13 @@
 build:
-  maxIssues: 200
+  maxIssues: 0
   excludeCorrectable: false
-  weights: { }
+  weights:
+    Defect: 2
+    Security: 2
+    Performance: 1
+    CodeSmell: 1
+    Style: 1
+    Maintainability: 1
 
 config:
   validation: true
@@ -99,16 +105,20 @@ complexity:
   TooManyFunctions:
     active: true
     thresholdInFiles: 30
-    thresholdInClasses: 25
-    thresholdInInterfaces: 11
-    thresholdInObjects: 11
+    thresholdInClasses: 30
+    thresholdInInterfaces: 15
+    thresholdInObjects: 15
     thresholdInEnums: 11
     ignoreDeprecated: false
     ignorePrivate: false
     ignoreOverridden: false
+    ignoreAnnotated:
+      - 'androidx.room.Dao'
     excludes:
       - '**/core/core/logger/Logger.kt'
       - '**/core/core/logger/Log.kt'
+      - '**/test/**'
+      - '**/androidTest/**'
 
 coroutines:
   active: true

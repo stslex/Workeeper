@@ -12,32 +12,35 @@ import org.jetbrains.kotlin.psi.KtNamedFunction
 /**
  * Rule to check proper Composable state handling
  */
-class ComposableStateRule(config: Config = Config.empty) : Rule(config) {
+class ComposableStateRule(
+    config: Config = Config.empty,
+) : Rule(config) {
+
     override val issue = Issue(
-        javaClass.simpleName,
-        Severity.Warning,
-        "Composables should properly handle state",
-        Debt.TWENTY_MINS
+        id = javaClass.simpleName,
+        severity = Severity.Defect,
+        description = "Composable should properly handle state",
+        debt = Debt.TWENTY_MINS,
     )
 
     override fun visitNamedFunction(function: KtNamedFunction) {
         super.visitNamedFunction(function)
 
-        val functionName = function.name?.lowercase() ?: return
+        val functionName = function.name ?: return
         val annotations = function.annotationEntries
         val isComposable = annotations.any { it.shortName?.asString() == "Composable" }
 
-        if (isComposable && functionName.endsWith("screen")) {
+        if (isComposable && functionName.endsWith("Screen")) {
             // Check if screen composable has proper state handling
             var hasStateParameter = false
             var hasEventParameter = false
 
             function.valueParameters.forEach { param ->
-                val paramType = param.typeReference?.text?.lowercase() ?: return@forEach
-                if (paramType.endsWith("state")) {
+                val paramType = param.typeReference?.text ?: return@forEach
+                if (paramType.endsWith("State")) {
                     hasStateParameter = true
                 }
-                if (paramType.contains("event") || paramType.contains("action")) {
+                if (paramType.contains("Event") || paramType.contains("Action")) {
                     hasEventParameter = true
                 }
             }
@@ -46,8 +49,8 @@ class ComposableStateRule(config: Config = Config.empty) : Rule(config) {
                 report(
                     CodeSmell(
                         issue, Entity.from(function),
-                        "Screen Composable '$functionName' should have a state parameter"
-                    )
+                        "Screen Composable '$functionName' should have a state parameter",
+                    ),
                 )
             }
 
@@ -55,8 +58,8 @@ class ComposableStateRule(config: Config = Config.empty) : Rule(config) {
                 report(
                     CodeSmell(
                         issue, Entity.from(function),
-                        "Screen Composable '$functionName' should have an event handler parameter"
-                    )
+                        "Screen Composable '$functionName' should have an event handler parameter",
+                    ),
                 )
             }
         }

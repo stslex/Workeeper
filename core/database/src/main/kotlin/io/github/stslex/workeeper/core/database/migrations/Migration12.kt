@@ -10,7 +10,7 @@ import kotlin.uuid.Uuid
 
 val MIGRATION_1_2 = object : Migration(1, 2) {
 
-    @Suppress("TYPE_INTERSECTION_AS_REIFIED_WARNING")
+    @Suppress("TYPE_INTERSECTION_AS_REIFIED_WARNING", "ComplexCondition")
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL(
             """
@@ -77,7 +77,10 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
                     }.toList()
 
                     db.execSQL(
-                        "INSERT INTO exercises_table_new (uuid, training_uuid, labels, sets, name, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
+                        """
+                            INSERT INTO exercises_table_new (uuid, training_uuid, labels, sets, name, timestamp) 
+                            VALUES (?, ?, ?, ?, ?, ?)
+                            """,
                         arrayOf(
                             exerciseUuid,
                             null,

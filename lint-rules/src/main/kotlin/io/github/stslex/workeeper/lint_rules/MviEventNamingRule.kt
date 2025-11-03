@@ -13,23 +13,26 @@ import org.jetbrains.kotlin.psi.KtClass
 /**
  * Rule to enforce proper naming conventions for MVI Events
  */
-class MviEventNamingRule(config: Config = Config.empty) : Rule(config) {
+class MviEventNamingRule(
+    config: Config = Config.empty,
+) : Rule(config) {
+
     override val issue = Issue(
-        javaClass.simpleName,
-        Severity.Style,
-        "MVI Events should follow naming conventions",
-        Debt.TWENTY_MINS
+        id = javaClass.simpleName,
+        severity = Severity.Style,
+        description = "MVI Events should follow naming conventions",
+        debt = Debt.FIVE_MINS,
     )
 
     private val validSuffixes = listOf(
-        "success",
-        "error",
-        "completed",
-        "started",
-        "failed",
-        "requested"
+        "Success",
+        "Error",
+        "Completed",
+        "Started",
+        "Failed",
+        "Requested",
     )
-    private val validPatterns = listOf("show", "navigate", "haptic", "snackbar", "scroll")
+    private val validPatterns = listOf("Show", "Navigate", "Haptic", "Snackbar", "Scroll")
 
     override fun visitClass(klass: KtClass) {
         super.visitClass(klass)
@@ -42,20 +45,20 @@ class MviEventNamingRule(config: Config = Config.empty) : Rule(config) {
                 report(
                     CodeSmell(
                         issue, Entity.from(klass),
-                        "Event class '$className' should be sealed class"
-                    )
+                        "Event class '$className' should be sealed class",
+                    ),
                 )
             }
 
             // Check nested event classes
             klass.declarations.filterIsInstance<KtClass>().forEach { nestedClass ->
-                val nestedName = nestedClass.name?.lowercase() ?: return@forEach
-                if (!nestedName.endsWith("event") && !isValidEventName(nestedName)) {
+                val nestedName = nestedClass.name ?: return@forEach
+                if (!nestedName.endsWith("Event") && !isValidEventName(nestedName)) {
                     report(
                         CodeSmell(
                             issue, Entity.from(nestedClass),
-                            "Event '$nestedName' should describe what happened (e.g., NavigationRequested, ErrorShown)"
-                        )
+                            "Event '$nestedName' should describe what happened (e.g., NavigationRequested, ErrorShown)",
+                        ),
                     )
                 }
             }
@@ -66,6 +69,6 @@ class MviEventNamingRule(config: Config = Config.empty) : Rule(config) {
             validPatterns.any { name.contains(it) }
 
     private fun KtClass.isInMviModule(): Boolean =
-        containingKtFile.packageFqName.asString().lowercase().contains("mvi") ||
-                containingKtFile.virtualFilePath.lowercase().contains("/mvi/")
+        containingKtFile.packageFqName.asString().contains("mvi") ||
+                containingKtFile.virtualFilePath.contains("/mvi/")
 }

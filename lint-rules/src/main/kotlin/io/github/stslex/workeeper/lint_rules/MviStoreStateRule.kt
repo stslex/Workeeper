@@ -18,12 +18,15 @@ import org.jetbrains.kotlin.psi.KtClass
  * - Implement Store.State interface
  * - Have immutable properties
  */
-class MviStoreStateRule(config: Config = Config.empty) : Rule(config) {
+class MviStoreStateRule(
+    config: Config = Config.empty,
+) : Rule(config) {
+
     override val issue = Issue(
-        javaClass.simpleName,
-        Severity.Defect,
-        "Store.State must be a data class implementing Store.State interface",
-        Debt.TEN_MINS
+        id = javaClass.simpleName,
+        severity = Severity.Defect,
+        description = "Store.State must be a data class implementing Store.State interface",
+        debt = Debt.TEN_MINS,
     )
 
     override fun visitClass(klass: KtClass) {
@@ -53,8 +56,8 @@ class MviStoreStateRule(config: Config = Config.empty) : Rule(config) {
                 CodeSmell(
                     issue,
                     Entity.from(klass),
-                    "State class in '${parentClass.name}' must be a data class"
-                )
+                    "State class in '${parentClass.name}' must be a data class",
+                ),
             )
         }
 
@@ -68,8 +71,8 @@ class MviStoreStateRule(config: Config = Config.empty) : Rule(config) {
                 CodeSmell(
                     issue,
                     Entity.from(klass),
-                    "State class in '${parentClass.name}' must implement Store.State interface"
-                )
+                    "State class in '${parentClass.name}' must implement Store.State interface",
+                ),
             )
         }
     }

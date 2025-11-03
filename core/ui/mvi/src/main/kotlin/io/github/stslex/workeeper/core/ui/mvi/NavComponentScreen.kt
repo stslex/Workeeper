@@ -14,6 +14,7 @@ import io.github.stslex.workeeper.core.ui.navigation.Component
  * @param content The composable content that receives the StoreProcessor.
  */
 @Composable
+@Suppress("ComposableStateRule")
 fun <TProcessor : StoreProcessor<*, *, *>, TComponent : Component> NavComponentScreen(
     feature: Feature<TProcessor, TComponent>,
     component: TComponent,

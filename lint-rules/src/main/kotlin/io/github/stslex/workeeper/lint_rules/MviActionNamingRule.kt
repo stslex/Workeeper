@@ -13,12 +13,15 @@ import org.jetbrains.kotlin.psi.KtClass
 /**
  * Rule to enforce proper naming conventions for MVI Actions
  */
-class MviActionNamingRule(config: Config = Config.empty) : Rule(config) {
+class MviActionNamingRule(
+    config: Config = Config.empty,
+) : Rule(config) {
+
     override val issue = Issue(
-        javaClass.simpleName,
-        Severity.Style,
-        "MVI Actions should follow naming conventions",
-        Debt.TWENTY_MINS
+        id = javaClass.simpleName,
+        severity = Severity.Style,
+        description = "MVI Actions should follow naming conventions",
+        debt = Debt.TWENTY_MINS,
     )
 
     override fun visitClass(klass: KtClass) {
@@ -31,8 +34,8 @@ class MviActionNamingRule(config: Config = Config.empty) : Rule(config) {
                 report(
                     CodeSmell(
                         issue, Entity.from(klass),
-                        "Action class '$className' should be sealed class or interface"
-                    )
+                        "Action class '$className' should be sealed class or interface",
+                    ),
                 )
             }
         }

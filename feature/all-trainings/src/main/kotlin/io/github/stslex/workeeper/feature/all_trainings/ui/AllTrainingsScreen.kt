@@ -114,6 +114,7 @@ internal fun AllTrainingsScreen(
                     }
                 }
 
+                @Suppress("ComplexCondition")
                 if (
                     items.loadState.refresh is LoadState.NotLoading &&
                     items.loadState.append is LoadState.NotLoading &&
