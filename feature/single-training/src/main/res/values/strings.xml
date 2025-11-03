@@ -3,7 +3,6 @@
     <string name="feature_single_training_field_name_label">Name</string>
     <string name="feature_single_training_field_date_label">Date</string>
 
-    <string name="feature_single_training_field_exercises_label">Exercises:</string>
     <string name="feature_single_training_field_exercise_create_label">Add exercise</string>
     <string name="feature_single_training_field_exercises_empty_label">There is no Exercises now - create or add new one</string>
 

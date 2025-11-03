@@ -128,7 +128,7 @@ private fun Project.configureKotlin() {
                 "-opt-in=kotlin.uuid.ExperimentalUuidApi",
                 "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
                 "-Xjvm-default=all",
-                "-Xcontext-receivers",
+                "-Xcontext-parameters",
                 "-XXLanguage:+PropertyParamAnnotationDefaultTargetMode"
             )
         }

@@ -63,7 +63,7 @@ internal object AppExt {
         dependencies {
             alias.forEach {
                 add(
-                    "debugImplementation",
+                    "implementation",
                     platform(libs.findLibrary(it).get())
                 )
             }

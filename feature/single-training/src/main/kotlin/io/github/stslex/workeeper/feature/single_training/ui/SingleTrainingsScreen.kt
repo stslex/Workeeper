@@ -89,7 +89,7 @@ internal fun SingleTrainingsScreen(
                 if (state.training.exercises.isEmpty()) {
                     item {
                         Text(
-                            text = "There is no Exercises now - create or add new one",
+                            text = stringResource(R.string.feature_single_training_field_exercises_empty_label),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onBackground,
                         )

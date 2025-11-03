@@ -8,26 +8,30 @@
     <!-- ================================ -->
 
     <!-- Icon and Resource Issues -->
+    <!--Ignore launcher icon issues for mipmap folders -->
     <issue id="IconDensities" severity="error">
-        <ignore path="**/app/src/main/res/mipmap-hdpi/ic_launcher_**" />
+        <ignore path="**/app/src/main/res/mipmap-hdpi/ic_launcher**" />
     </issue>
     <issue id="IconDuplicates" severity="error">
-        <ignore path="**/app/src/main/res/mipmap-**/ic_launcher_**" />
+        <ignore path="**/app/src/main/res/mipmap-**/ic_launcher**" />
     </issue>
     <issue id="IconLocation" severity="error">
-        <ignore path="**/app/src/main/res/mipmap-**/ic_launcher_**" />
+        <ignore path="**/app/src/main/res/mipmap-**/ic_launcher**" />
     </issue>
     <issue id="IconMissingDensityFolder" severity="error">
-        <ignore path="**/app/src/main/res/mipmap-**/ic_launcher_**" />
+        <ignore path="**/app/src/main/res/mipmap-**/ic_launcher**" />
     </issue>
     <issue id="IconExpectedSize" severity="error">
-        <ignore path="**/app/src/main/res/mipmap-**/ic_launcher_**" />
+        <ignore path="**/app/src/main/res/mipmap-**/ic_launcher**" />
     </issue>
     <issue id="IconLauncherShape" severity="error">
-        <ignore path="**/app/src/main/res/mipmap-**/ic_launcher_**" />
+        <ignore path="**/app/src/main/res/mipmap-**/ic_launcher**" />
     </issue>
     <issue id="VectorRaster" severity="error">
-        <ignore path="**/app/src/main/res/mipmap-**/ic_launcher_**" />
+        <ignore path="**/app/src/main/res/mipmap-**/ic_launcher**" />
+    </issue>
+    <issue id="ConvertToWebp" severity="error">
+        <ignore path="**/app/src/main/res/mipmap-**/ic_launcher**" />
     </issue>
 
     <!-- Typography and Text -->
@@ -139,9 +143,6 @@
     <issue id="ObsoleteSdkInt">
         <ignore path="**/mipmap-**" />
     </issue>
-
-    <!--todo refactor png to webp-->
-    <issue id="ConvertToWebp" severity="error" />
 
     <!-- Compose specific -->
     <!-- Compose lint rules are version-dependent and handled by Compose Compiler -->
