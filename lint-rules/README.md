@@ -46,8 +46,9 @@ Core configuration files for linting tools, now centralized in lint-rules module
 3. **MviEventNamingRule** - event naming conventions
 4. **MviHandlerNamingRule** - handler naming conventions
 5. **MviStoreExtensionRule** - validates BaseStore inheritance
-6. **KoinScopeRule** - Koin DI rules
-7. **ComposableStateRule** - Compose component checks
+6. **KoinScopeRule** - Koin DI rules (disabled - legacy)
+7. **HiltScopeRule** - Hilt dependency injection scope validation
+8. **ComposableStateRule** - Compose component checks
 
 ## Usage
 

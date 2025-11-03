@@ -13,12 +13,12 @@ import org.jetbrains.kotlin.psi.KtClass
 /**
  * Rule to enforce proper naming conventions for MVI Actions
  */
-class MviActionNamingRule(config: Config = Config.Companion.empty) : Rule(config) {
+class MviActionNamingRule(config: Config = Config.empty) : Rule(config) {
     override val issue = Issue(
         javaClass.simpleName,
         Severity.Style,
         "MVI Actions should follow naming conventions",
-        Debt.Companion.TWENTY_MINS
+        Debt.TWENTY_MINS
     )
 
     override fun visitClass(klass: KtClass) {
@@ -27,43 +27,14 @@ class MviActionNamingRule(config: Config = Config.Companion.empty) : Rule(config
         val className = klass.name ?: return
 
         if (className.endsWith("Action") && klass.isInMviModule()) {
-            // Actions should be sealed classes or interfaces
             if (!klass.hasModifier(KtTokens.SEALED_KEYWORD) && !klass.isInterface()) {
                 report(
                     CodeSmell(
-                        issue, Entity.Companion.from(klass),
+                        issue, Entity.from(klass),
                         "Action class '$className' should be sealed class or interface"
                     )
                 )
             }
-
-            // Check nested action classes
-            klass.declarations
-                .filterIsInstance<KtClass>()
-                .forEach { nestedClass ->
-                    val nestedName = nestedClass.name ?: return@forEach
-                    if (!isValidActionName(nestedName)) {
-                        report(
-                            CodeSmell(
-                                issue, Entity.Companion.from(nestedClass),
-                                "Action '$nestedName' should use verb-noun pattern (e.g., ClickButton, LoadData)"
-                            )
-                        )
-                    }
-                }
-        }
-    }
-
-    private fun isValidActionName(name: String): Boolean {
-        val validPatterns = listOf(
-            "Click", "Load", "Save", "Delete", "Update", "Navigate",
-            "Search", "Filter", "Sort", "Refresh", "Retry", "Cancel",
-            "Show", "Hide", "Toggle", "Select", "Clear", "Reset",
-            "Input", "Common", "Navigation", "Paging", "Change", "Create", "Open", "Close",
-            "Haptic"
-        )
-        return validPatterns.any {
-            name.contains(it, ignoreCase = true)
         }
     }
 

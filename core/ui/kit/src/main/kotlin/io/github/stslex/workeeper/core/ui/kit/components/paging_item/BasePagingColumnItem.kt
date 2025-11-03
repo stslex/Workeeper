@@ -5,7 +5,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.animation.SharedTransitionScope.ResizeMode.Companion.ScaleToBounds
+import androidx.compose.animation.SharedTransitionScope.ResizeMode.Companion.scaleToBounds
 import androidx.compose.animation.SharedTransitionScope.SharedContentState
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
@@ -35,7 +35,6 @@ import io.github.stslex.workeeper.core.ui.kit.model.ItemPosition
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun BasePagingColumnItem(
     onClick: () -> Unit,
@@ -93,7 +92,7 @@ fun BasePagingColumnItem(
                 .sharedBounds(
                     sharedContentState = sharedContentState,
                     animatedVisibilityScope = animatedContentScope,
-                    resizeMode = ScaleToBounds(ContentScale.Inside, Alignment.Center),
+                    resizeMode = scaleToBounds(ContentScale.Inside, Alignment.Center),
                 )
                 .fillMaxWidth()
                 .wrapContentHeight()

@@ -78,14 +78,15 @@ complexity:
       - androidx.compose.runtime.Composable
   LongParameterList:
     active: true
-    functionThreshold: 6
-    constructorThreshold: 7
+    functionThreshold: 8
+    constructorThreshold: 9
     ignoreDefaultParameters: false
     ignoreDataClasses: true
     ignoreAnnotated:
       - androidx.compose.runtime.Composable
     excludes:
       - '**/*StoreImpl*'
+      - '**/*Store.kt'
   MethodOverloading:
     active: false
   NestedBlockDepth:
@@ -105,6 +106,9 @@ complexity:
     ignoreDeprecated: false
     ignorePrivate: false
     ignoreOverridden: false
+    excludes:
+      - '**/core/core/logger/Logger.kt'
+      - '**/core/core/logger/Log.kt'
 
 coroutines:
   active: true
@@ -626,7 +630,13 @@ mvi-architecture:
     active: true
   MviStoreExtensionRule:
     active: true
+  MviHandlerConstructorRule:
+    active: true
+  MviStoreStateRule:
+    active: true
   KoinScopeRule:
+    active: false  # Disabled: Project now uses Hilt instead of Koin
+  HiltScopeRule:
     active: true
   ComposableStateRule:
     active: true

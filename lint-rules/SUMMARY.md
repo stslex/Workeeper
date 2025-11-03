@@ -26,10 +26,11 @@ Created a set of MVI architecture-specific rules:
 
 - **MviStateImmutabilityRule**: checks State class immutability
 - **MviActionNamingRule**: action naming conventions (Click*, Load*, Save*)
-- **MviEventNamingRule**: event naming conventions (*Success, *Error, *Completed)
+- **MviEventNamingRule**: event naming conventions (*Success, *Error, *Completed, Haptic, Snackbar)
 - **MviHandlerNamingRule**: handler naming conventions
 - **MviStoreExtensionRule**: validates BaseStore inheritance
-- **KoinScopeRule**: Koin DI scope rules
+- **KoinScopeRule**: Koin DI scope rules (disabled - legacy)
+- **HiltScopeRule**: Hilt dependency injection scope validation (@ViewModelScoped, @Singleton)
 - **ComposableStateRule**: Compose component checks
 
 ### 3. Automation via Convention Plugins

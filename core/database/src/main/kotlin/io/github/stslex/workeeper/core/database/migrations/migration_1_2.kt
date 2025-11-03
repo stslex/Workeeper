@@ -10,6 +10,7 @@ import kotlin.uuid.Uuid
 
 val MIGRATION_1_2 = object : Migration(1, 2) {
 
+    @Suppress("TYPE_INTERSECTION_AS_REIFIED_WARNING")
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL(
             """

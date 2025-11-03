@@ -18,7 +18,7 @@ class MviStateImmutabilityRule(config: Config = Config.Companion.empty) : Rule(c
         javaClass.simpleName,
         Severity.CodeSmell,
         "MVI State classes should be immutable data classes",
-        Debt.Companion.TWENTY_MINS
+        Debt.TWENTY_MINS
     )
 
     override fun visitClass(klass: KtClass) {
@@ -34,7 +34,7 @@ class MviStateImmutabilityRule(config: Config = Config.Companion.empty) : Rule(c
 
             report(
                 CodeSmell(
-                    issue, Entity.Companion.from(klass),
+                    issue, Entity.from(klass),
                     "State class '$className' should be a data class for immutability"
                 )
             )

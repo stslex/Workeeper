@@ -45,10 +45,10 @@ internal interface TrainingStore : Store<State, Action, Event> {
         )
 
         fun compareWithInitial(): Boolean = training.uuid == initialTrainingUiModel.uuid &&
-                training.name.value == initialTrainingUiModel.name.value &&
-                training.labels == initialTrainingUiModel.labels &&
-                training.date.value == initialTrainingUiModel.date.value &&
-                training.exercises == initialTrainingUiModel.exercises
+            training.name.value == initialTrainingUiModel.name.value &&
+            training.labels == initialTrainingUiModel.labels &&
+            training.date.value == initialTrainingUiModel.date.value &&
+            training.exercises == initialTrainingUiModel.exercises
 
         companion object {
 

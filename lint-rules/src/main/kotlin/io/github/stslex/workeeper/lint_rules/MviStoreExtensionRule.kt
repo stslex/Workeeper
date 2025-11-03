@@ -12,12 +12,15 @@ import org.jetbrains.kotlin.psi.KtClass
 /**
  * Rule to ensure proper BaseStore extension
  */
-class MviStoreExtensionRule(config: Config = Config.Companion.empty) : Rule(config) {
+class MviStoreExtensionRule(
+    config: Config = Config.empty
+) : Rule(config) {
+
     override val issue = Issue(
         javaClass.simpleName,
         Severity.Warning,
         "MVI Store classes should extend BaseStore",
-        Debt.Companion.TWENTY_MINS
+        Debt.TWENTY_MINS,
     )
 
     override fun visitClass(klass: KtClass) {
@@ -32,19 +35,23 @@ class MviStoreExtensionRule(config: Config = Config.Companion.empty) : Rule(conf
             if (!extendsBaseStore) {
                 report(
                     CodeSmell(
-                        issue, Entity.Companion.from(klass),
+                        issue, Entity.from(klass),
                         "StoreImpl class '$className' should extend BaseStore for proper MVI implementation"
                     )
                 )
             }
-        } else if (className.endsWith("Store") && klass.isInMviModule()) {
+        } else if (
+            className.endsWith("HandlerStore").not() &&
+            className.endsWith("Store") &&
+            klass.isInMviModule()
+        ) {
             val superTypes = klass.getSuperTypeList()?.entries?.map { it.text }
             val extendsBaseStore = superTypes?.any { it.contains("Store") } == true
 
             if (!extendsBaseStore) {
                 report(
                     CodeSmell(
-                        issue, Entity.Companion.from(klass),
+                        issue, Entity.from(klass),
                         "Store class '$className' should implement Store for proper MVI implementation"
                     )
                 )

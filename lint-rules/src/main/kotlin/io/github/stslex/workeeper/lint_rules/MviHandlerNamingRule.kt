@@ -18,20 +18,20 @@ class MviHandlerNamingRule(config: Config = Config.Companion.empty) : Rule(confi
         javaClass.simpleName,
         Severity.Style,
         "MVI Handlers should follow naming conventions",
-        Debt.Companion.TWENTY_MINS
+        Debt.TWENTY_MINS
     )
 
     override fun visitClass(klass: KtClass) {
         super.visitClass(klass)
 
-        val className = klass.name ?: return
+        val className = klass.name?.lowercase() ?: return
 
-        if (className.endsWith("Handler")) {
+        if (className.endsWith("handler")) {
             // Handlers should be classes, not data classes
             if (klass.isData()) {
                 report(
                     CodeSmell(
-                        issue, Entity.Companion.from(klass),
+                        issue, Entity.from(klass),
                         "Handler class '$className' should not be a data class"
                     )
                 )
@@ -39,8 +39,8 @@ class MviHandlerNamingRule(config: Config = Config.Companion.empty) : Rule(confi
 
             // Check for proper handler method naming
             klass.declarations.filterIsInstance<KtNamedFunction>().forEach { function ->
-                val functionName = function.name ?: return@forEach
-                if (functionName.startsWith("handle") && !functionName.contains("Action")) {
+                val functionName = function.name?.lowercase() ?: return@forEach
+                if (functionName.startsWith("handle") && !functionName.contains("action")) {
                     report(
                         CodeSmell(
                             issue, Entity.Companion.from(function),

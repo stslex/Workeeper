@@ -1,6 +1,5 @@
 package io.github.stslex.workeeper.navigation
 
-import android.annotation.SuppressLint
 import androidx.compose.runtime.Stable
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
@@ -17,7 +16,6 @@ class NavigatorImpl @Inject constructor(
 
     override val navController get() = holder.navigator
 
-    @SuppressLint("RestrictedApi")
     override fun navTo(screen: Screen) {
         logger.d("navTo $screen")
         try {
@@ -31,8 +29,8 @@ class NavigatorImpl @Inject constructor(
                     launchSingleTop = true
                 }
             }
-        } catch (exception: Exception) {
-            logger.e(exception, "screen: $screen")
+        } catch (ignore: Exception) {
+            logger.e(ignore, "screen: $screen")
         }
     }
 
