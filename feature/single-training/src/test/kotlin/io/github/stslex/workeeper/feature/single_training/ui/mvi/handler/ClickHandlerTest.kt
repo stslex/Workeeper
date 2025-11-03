@@ -18,6 +18,7 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -46,13 +47,14 @@ internal class ClickHandlerTest {
         labels = persistentListOf(),
         date = PropertyHolder.DateProperty.new(initialValue = System.currentTimeMillis()),
         isMenuOpen = false,
-        menuItems = kotlinx.collections.immutable.persistentSetOf(),
+        menuItems = persistentSetOf(),
     )
 
     private val initialState = TrainingStore.State(
         training = initialTraining,
         pendingForCreateUuid = "",
         dialogState = DialogState.Closed,
+        initialTrainingUiModel = initialTraining,
     )
 
     private val stateFlow = MutableStateFlow(initialState)
@@ -110,11 +112,29 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `close action triggers pop back navigation`() {
+    fun `close action triggers pop back navigation when state unchanged`() {
         handler.invoke(TrainingStore.Action.Click.Close)
 
         verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.ContextClick)) }
         verify(exactly = 1) { store.consume(TrainingStore.Action.Navigation.PopBack) }
+    }
+
+    @Test
+    fun `close action shows exit dialog when state has changed`() {
+        val modifiedTraining = initialTraining.copy(
+            name = PropertyHolder.StringProperty.new(initialValue = "Modified Training Name"),
+        )
+        stateFlow.value = stateFlow.value.copy(training = modifiedTraining)
+
+        handler.invoke(TrainingStore.Action.Click.Close)
+
+        val stateSlot = slot<(TrainingStore.State) -> TrainingStore.State>()
+        verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.ContextClick)) }
+        verify(exactly = 1) { store.updateState(capture(stateSlot)) }
+        verify(exactly = 0) { store.consume(TrainingStore.Action.Navigation.PopBack) }
+
+        val newState = stateSlot.captured(stateFlow.value)
+        assertEquals(DialogState.ConfirmDialog.ExitWithoutSaving, newState.dialogState)
     }
 
     @Test
@@ -167,7 +187,8 @@ internal class ClickHandlerTest {
 
     @Test
     fun `save with empty name does nothing`() = runTest {
-        val invalidTraining = initialTraining.copy(name = PropertyHolder.StringProperty.new(initialValue = ""))
+        val invalidTraining =
+            initialTraining.copy(name = PropertyHolder.StringProperty.new(initialValue = ""))
         stateFlow.value = stateFlow.value.copy(training = invalidTraining)
 
         handler.invoke(TrainingStore.Action.Click.Save)
@@ -179,7 +200,8 @@ internal class ClickHandlerTest {
 
     @Test
     fun `save with blank name does nothing`() = runTest {
-        val invalidTraining = initialTraining.copy(name = PropertyHolder.StringProperty.new(initialValue = "   "))
+        val invalidTraining =
+            initialTraining.copy(name = PropertyHolder.StringProperty.new(initialValue = "   "))
         stateFlow.value = stateFlow.value.copy(training = invalidTraining)
 
         handler.invoke(TrainingStore.Action.Click.Save)
@@ -199,14 +221,14 @@ internal class ClickHandlerTest {
         verify(exactly = 1) { store.updateState(capture(stateSlot)) }
 
         val newState = stateSlot.captured(stateFlow.value)
-        assertEquals(DialogState.DeleteTraining, newState.dialogState)
+        assertEquals(DialogState.ConfirmDialog.Delete, newState.dialogState)
     }
 
     @Test
     fun `dialog delete training dismiss sets dialog state to closed`() {
-        stateFlow.value = stateFlow.value.copy(dialogState = DialogState.DeleteTraining)
+        stateFlow.value = stateFlow.value.copy(dialogState = DialogState.ConfirmDialog.Delete)
 
-        handler.invoke(TrainingStore.Action.Click.DialogDeleteTraining.Dismiss)
+        handler.invoke(TrainingStore.Action.Click.ConfirmDialog.Dismiss)
 
         val stateSlot = slot<(TrainingStore.State) -> TrainingStore.State>()
         verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.ContextClick)) }
@@ -217,50 +239,57 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `dialog delete training confirm with valid uuid removes training and navigates back`() = runTest {
-        val trainingUuid = Uuid.random().toString()
-        val trainingWithUuid = initialTraining.copy(uuid = trainingUuid)
+    fun `dialog delete training confirm with valid uuid removes training and navigates back`() =
+        runTest {
+            val trainingUuid = Uuid.random().toString()
+            val trainingWithUuid = initialTraining.copy(uuid = trainingUuid)
 
-        stateFlow.value = stateFlow.value.copy(training = trainingWithUuid)
+            stateFlow.value = stateFlow.value.copy(
+                training = trainingWithUuid,
+                dialogState = DialogState.ConfirmDialog.Delete,
+            )
 
-        coEvery { interactor.removeTraining(trainingUuid) } returns Unit
+            coEvery { interactor.removeTraining(trainingUuid) } returns Unit
 
-        handler.invoke(TrainingStore.Action.Click.DialogDeleteTraining.Confirm)
+            handler.invoke(TrainingStore.Action.Click.ConfirmDialog.Confirm)
 
-        testScheduler.advanceUntilIdle()
+            testScheduler.advanceUntilIdle()
 
-        verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.ContextClick)) }
-        coVerify(exactly = 1) { interactor.removeTraining(trainingUuid) }
-        verify(exactly = 1) { store.consume(TrainingStore.Action.Navigation.PopBack) }
-    }
+            verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.ContextClick)) }
+            coVerify(exactly = 1) { interactor.removeTraining(trainingUuid) }
+            verify(exactly = 1) { store.consume(TrainingStore.Action.Navigation.PopBack) }
+        }
 
     @Test
-    fun `dialog delete training confirm with pending uuid removes training and navigates back`() = runTest {
-        val pendingUuid = Uuid.random().toString()
-        val trainingWithoutUuid = initialTraining.copy(uuid = "")
+    fun `dialog delete training confirm with pending uuid removes training and navigates back`() =
+        runTest {
+            val pendingUuid = Uuid.random().toString()
+            val trainingWithoutUuid = initialTraining.copy(uuid = "")
 
-        stateFlow.value = stateFlow.value.copy(
-            training = trainingWithoutUuid,
-            pendingForCreateUuid = pendingUuid,
-        )
+            stateFlow.value = stateFlow.value.copy(
+                training = trainingWithoutUuid,
+                pendingForCreateUuid = pendingUuid,
+                dialogState = DialogState.ConfirmDialog.Delete,
+            )
 
-        coEvery { interactor.removeTraining(pendingUuid) } returns Unit
+            coEvery { interactor.removeTraining(pendingUuid) } returns Unit
 
-        handler.invoke(TrainingStore.Action.Click.DialogDeleteTraining.Confirm)
+            handler.invoke(TrainingStore.Action.Click.ConfirmDialog.Confirm)
 
-        testScheduler.advanceUntilIdle()
+            testScheduler.advanceUntilIdle()
 
-        verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.ContextClick)) }
-        coVerify(exactly = 1) { interactor.removeTraining(pendingUuid) }
-        verify(exactly = 1) { store.consume(TrainingStore.Action.Navigation.PopBack) }
-    }
+            verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.ContextClick)) }
+            coVerify(exactly = 1) { interactor.removeTraining(pendingUuid) }
+            verify(exactly = 1) { store.consume(TrainingStore.Action.Navigation.PopBack) }
+        }
 
     @Test
     fun `dialog delete training confirm with empty uuid does nothing`() = runTest {
         val trainingWithoutUuid = initialTraining.copy(uuid = "")
-        stateFlow.value = stateFlow.value.copy(training = trainingWithoutUuid, pendingForCreateUuid = "")
+        stateFlow.value =
+            stateFlow.value.copy(training = trainingWithoutUuid, pendingForCreateUuid = "")
 
-        handler.invoke(TrainingStore.Action.Click.DialogDeleteTraining.Confirm)
+        handler.invoke(TrainingStore.Action.Click.ConfirmDialog.Confirm)
 
         testScheduler.advanceUntilIdle()
 
@@ -272,9 +301,10 @@ internal class ClickHandlerTest {
     @Test
     fun `dialog delete training confirm with blank uuid does nothing`() = runTest {
         val trainingWithBlankUuid = initialTraining.copy(uuid = "   ")
-        stateFlow.value = stateFlow.value.copy(training = trainingWithBlankUuid, pendingForCreateUuid = "   ")
+        stateFlow.value =
+            stateFlow.value.copy(training = trainingWithBlankUuid, pendingForCreateUuid = "   ")
 
-        handler.invoke(TrainingStore.Action.Click.DialogDeleteTraining.Confirm)
+        handler.invoke(TrainingStore.Action.Click.ConfirmDialog.Confirm)
 
         testScheduler.advanceUntilIdle()
 
@@ -374,7 +404,8 @@ internal class ClickHandlerTest {
     @Test
     fun `create exercise without uuid generates new uuid and updates state`() {
         val trainingWithoutUuid = initialTraining.copy(uuid = "")
-        stateFlow.value = stateFlow.value.copy(training = trainingWithoutUuid, pendingForCreateUuid = "")
+        stateFlow.value =
+            stateFlow.value.copy(training = trainingWithoutUuid, pendingForCreateUuid = "")
 
         handler.invoke(TrainingStore.Action.Click.CreateExercise)
 
@@ -438,7 +469,8 @@ internal class ClickHandlerTest {
     fun `exercise click without uuid generates new uuid and updates state`() {
         val exerciseUuid = "exercise-uuid-123"
         val trainingWithoutUuid = initialTraining.copy(uuid = "")
-        stateFlow.value = stateFlow.value.copy(training = trainingWithoutUuid, pendingForCreateUuid = "")
+        stateFlow.value =
+            stateFlow.value.copy(training = trainingWithoutUuid, pendingForCreateUuid = "")
 
         handler.invoke(TrainingStore.Action.Click.ExerciseClick(exerciseUuid))
 
@@ -484,5 +516,83 @@ internal class ClickHandlerTest {
         verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.ContextClick)) }
         coVerify(exactly = 1) { interactor.updateTraining(changeModel) }
         verify(exactly = 1) { store.consume(TrainingStore.Action.Navigation.PopBack) }
+    }
+
+    @Test
+    fun `dialog exit without saving dismiss sets dialog state to closed`() {
+        stateFlow.value = stateFlow.value.copy(dialogState = DialogState.ConfirmDialog.ExitWithoutSaving)
+
+        handler.invoke(TrainingStore.Action.Click.ConfirmDialog.Dismiss)
+
+        val stateSlot = slot<(TrainingStore.State) -> TrainingStore.State>()
+        verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.ContextClick)) }
+        verify(exactly = 1) { store.updateState(capture(stateSlot)) }
+
+        val newState = stateSlot.captured(stateFlow.value)
+        assertEquals(DialogState.Closed, newState.dialogState)
+    }
+
+    @Test
+    fun `dialog exit without saving confirm closes dialog and navigates back`() {
+        stateFlow.value = stateFlow.value.copy(dialogState = DialogState.ConfirmDialog.ExitWithoutSaving)
+
+        handler.invoke(TrainingStore.Action.Click.ConfirmDialog.Confirm)
+
+        val stateSlot = slot<(TrainingStore.State) -> TrainingStore.State>()
+        verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.ContextClick)) }
+        verify(exactly = 1) { store.updateState(capture(stateSlot)) }
+        verify(exactly = 1) { store.consume(TrainingStore.Action.Navigation.PopBack) }
+
+        val newState = stateSlot.captured(stateFlow.value)
+        assertEquals(DialogState.Closed, newState.dialogState)
+    }
+
+    @Test
+    fun `confirm dialog confirm on delete state triggers delete flow`() = runTest {
+        val trainingUuid = Uuid.random().toString()
+        val trainingWithUuid = initialTraining.copy(uuid = trainingUuid)
+
+        stateFlow.value = stateFlow.value.copy(
+            training = trainingWithUuid,
+            dialogState = DialogState.ConfirmDialog.Delete,
+        )
+
+        coEvery { interactor.removeTraining(trainingUuid) } returns Unit
+
+        handler.invoke(TrainingStore.Action.Click.ConfirmDialog.Confirm)
+
+        testScheduler.advanceUntilIdle()
+
+        verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.ContextClick)) }
+        coVerify(exactly = 1) { interactor.removeTraining(trainingUuid) }
+        verify(exactly = 1) { store.consume(TrainingStore.Action.Navigation.PopBack) }
+    }
+
+    @Test
+    fun `confirm dialog confirm on closed state does nothing`() = runTest {
+        stateFlow.value = stateFlow.value.copy(dialogState = DialogState.Closed)
+
+        handler.invoke(TrainingStore.Action.Click.ConfirmDialog.Confirm)
+
+        testScheduler.advanceUntilIdle()
+
+        verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.ContextClick)) }
+        coVerify(exactly = 0) { interactor.removeTraining(any()) }
+        verify(exactly = 0) { store.consume(any()) }
+        verify(exactly = 0) { store.updateState(any()) }
+    }
+
+    @Test
+    fun `confirm dialog confirm on calendar state does nothing`() = runTest {
+        stateFlow.value = stateFlow.value.copy(dialogState = DialogState.Calendar)
+
+        handler.invoke(TrainingStore.Action.Click.ConfirmDialog.Confirm)
+
+        testScheduler.advanceUntilIdle()
+
+        verify(exactly = 1) { store.sendEvent(TrainingStore.Event.Haptic(HapticFeedbackType.ContextClick)) }
+        coVerify(exactly = 0) { interactor.removeTraining(any()) }
+        verify(exactly = 0) { store.consume(any()) }
+        verify(exactly = 0) { store.updateState(any()) }
     }
 }

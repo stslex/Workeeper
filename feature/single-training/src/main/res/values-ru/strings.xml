@@ -8,4 +8,5 @@
     <string name="feature_single_training_field_exercises_empty_label">У вашей тренировки нет упражений - создайте или добавьте новое</string>
 
     <string name="feature_single_training_dialog_delete">Вы уверены, что хотите удалить эту тренировку?</string>
+    <string name="feature_single_training_dialog_exit">Вы уверены, что хотите выйти без сохранения?</string>
 </resources>

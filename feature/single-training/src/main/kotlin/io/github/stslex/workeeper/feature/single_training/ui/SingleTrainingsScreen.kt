@@ -132,7 +132,7 @@ internal fun SingleTrainingsScreen(
             }
         }
 
-        when (state.dialogState) {
+        when (val dialogState = state.dialogState) {
             DialogState.Closed -> Unit
             DialogState.Calendar -> DatePickerDialog(
                 timestamp = state.training.date.value,
@@ -140,10 +140,10 @@ internal fun SingleTrainingsScreen(
                 onDismissRequest = { consume(Action.Click.CloseCalendarPicker) },
             )
 
-            DialogState.DeleteTraining -> ConfirmDialog(
-                text = stringResource(R.string.feature_single_training_dialog_delete),
-                action = { consume(Action.Click.DialogDeleteTraining.Confirm) },
-                onDismissRequest = { consume(Action.Click.DialogDeleteTraining.Dismiss) },
+            is DialogState.ConfirmDialog -> ConfirmDialog(
+                text = stringResource(dialogState.titleRes),
+                action = { consume(Action.Click.ConfirmDialog.Confirm) },
+                onDismissRequest = { consume(Action.Click.ConfirmDialog.Dismiss) },
             )
         }
     }
@@ -175,6 +175,7 @@ private fun SingleTrainingsScreenPreview() {
                 ),
                 dialogState = DialogState.Closed,
                 pendingForCreateUuid = "pendingForCreateUuid",
+                initialTrainingUiModel = TrainingUiModel.INITIAL,
             ),
             consume = {},
         )

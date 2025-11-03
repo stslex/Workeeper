@@ -28,6 +28,7 @@ internal class InputHandlerTest {
 
     private val initialState = TrainingStore.State(
         training = initialTraining,
+        initialTrainingUiModel = initialTraining,
         dialogState = DialogState.Closed,
         pendingForCreateUuid = "",
     )
