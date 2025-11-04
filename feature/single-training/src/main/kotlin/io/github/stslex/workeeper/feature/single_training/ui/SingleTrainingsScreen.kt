@@ -55,7 +55,7 @@ internal fun SingleTrainingsScreen(
                 onConfirmClick = { consume(Action.Click.Save) },
                 onCancelClick = { consume(Action.Click.Close) },
                 onDeleteClick = { consume(Action.Click.DeleteDialogOpen) },
-                modifier = Modifier.testTag("SingleTrainingToolbar")
+                modifier = Modifier.testTag("SingleTrainingToolbar"),
             )
             LazyColumn(
                 modifier = Modifier
@@ -72,7 +72,7 @@ internal fun SingleTrainingsScreen(
                         onMenuClick = { consume(Action.Click.Menu.Open) },
                         onMenuClose = { consume(Action.Click.Menu.Close) },
                         onMenuItemClick = { consume(Action.Click.Menu.Item(it)) },
-                        onValueChange = { consume(Action.Input.Name(it)) }
+                        onValueChange = { consume(Action.Input.Name(it)) },
                     )
                 }
 
@@ -117,7 +117,7 @@ internal fun SingleTrainingsScreen(
                 item {
                     ExerciseCreateWidget(
                         onClick = { consume(Action.Click.CreateExercise) },
-                        modifier = Modifier.testTag("SingleTrainingCreateExerciseButton")
+                        modifier = Modifier.testTag("SingleTrainingCreateExerciseButton"),
                     )
                 }
 
@@ -131,7 +131,7 @@ internal fun SingleTrainingsScreen(
                     DateInputField(
                         property = state.training.date,
                         labelRes = R.string.feature_single_training_field_date_label,
-                        onClick = { consume(Action.Click.OpenCalendarPicker) }
+                        onClick = { consume(Action.Click.OpenCalendarPicker) },
                     )
                 }
             }

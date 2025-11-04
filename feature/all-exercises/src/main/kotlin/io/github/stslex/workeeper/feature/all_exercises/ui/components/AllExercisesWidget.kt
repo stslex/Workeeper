@@ -123,7 +123,7 @@ internal fun AllExercisesWidget(
             ) {
                 EmptyWidget(
                     query = state.query,
-                    modifier = Modifier.testTag("AllExercisesEmptyState")
+                    modifier = Modifier.testTag("AllExercisesEmptyState"),
                 )
             }
         }

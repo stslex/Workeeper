@@ -128,7 +128,7 @@ internal fun AllTrainingsScreen(
                 ) {
                     EmptyWidget(
                         query = state.query,
-                        modifier = Modifier.testTag("AllTrainingsEmptyState")
+                        modifier = Modifier.testTag("AllTrainingsEmptyState"),
                     )
                 }
             }
