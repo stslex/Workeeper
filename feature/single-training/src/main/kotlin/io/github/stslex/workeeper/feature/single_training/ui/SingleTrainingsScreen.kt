@@ -15,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.dialogs.ConfirmDialog
@@ -45,7 +46,8 @@ internal fun SingleTrainingsScreen(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .systemBarsPadding(),
+            .systemBarsPadding()
+            .testTag("SingleTrainingScreen"),
     ) {
         Column {
             ToolbarRow(
@@ -53,11 +55,13 @@ internal fun SingleTrainingsScreen(
                 onConfirmClick = { consume(Action.Click.Save) },
                 onCancelClick = { consume(Action.Click.Close) },
                 onDeleteClick = { consume(Action.Click.DeleteDialogOpen) },
+                modifier = Modifier.testTag("SingleTrainingToolbar")
             )
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(AppDimension.Padding.large),
+                    .padding(AppDimension.Padding.large)
+                    .testTag("SingleTrainingContent"),
             ) {
                 item {
                     TitleTextInputField(
@@ -68,7 +72,7 @@ internal fun SingleTrainingsScreen(
                         onMenuClick = { consume(Action.Click.Menu.Open) },
                         onMenuClose = { consume(Action.Click.Menu.Close) },
                         onMenuItemClick = { consume(Action.Click.Menu.Item(it)) },
-                        onValueChange = { consume(Action.Input.Name(it)) },
+                        onValueChange = { consume(Action.Input.Name(it)) }
                     )
                 }
 
@@ -113,6 +117,7 @@ internal fun SingleTrainingsScreen(
                 item {
                     ExerciseCreateWidget(
                         onClick = { consume(Action.Click.CreateExercise) },
+                        modifier = Modifier.testTag("SingleTrainingCreateExerciseButton")
                     )
                 }
 
@@ -126,7 +131,7 @@ internal fun SingleTrainingsScreen(
                     DateInputField(
                         property = state.training.date,
                         labelRes = R.string.feature_single_training_field_date_label,
-                        onClick = { consume(Action.Click.OpenCalendarPicker) },
+                        onClick = { consume(Action.Click.OpenCalendarPicker) }
                     )
                 }
             }

@@ -25,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.paging.LoadState
@@ -62,14 +63,16 @@ internal fun AllTrainingsScreen(
     val hazeState: HazeState = rememberHazeState(uiFeatures.enableBlur)
     Box(
         modifier = modifier
-            .fillMaxSize(),
+            .fillMaxSize()
+            .testTag("AllTrainingsScreen"),
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
         ) {
             SearchPagingWidget(
                 modifier = Modifier
-                    .padding(AppDimension.Padding.big),
+                    .padding(AppDimension.Padding.big)
+                    .testTag("AllTrainingsSearchWidget"),
                 query = state.query,
                 onQueryChange = { consume(Action.Input.SearchQuery(it)) },
             )
@@ -92,13 +95,15 @@ internal fun AllTrainingsScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .clip(MaterialTheme.shapes.large)
-                        .hazeSource(state = hazeState),
+                        .hazeSource(state = hazeState)
+                        .testTag("AllTrainingsList"),
                 ) {
                     items(
                         count = items.itemCount,
                     ) { index ->
                         items[index]?.let { item ->
                             SingleTrainingItemWidget(
+                                modifier = Modifier.testTag("TrainingItem_${item.uuid}"),
                                 item = item,
                                 isSelected = state.selectedItems.contains(item.uuid),
                                 onClick = { consume(Action.Click.TrainingItemClick(item.uuid)) },
@@ -121,7 +126,10 @@ internal fun AllTrainingsScreen(
                     items.loadState.prepend is LoadState.NotLoading &&
                     items.itemCount == 0
                 ) {
-                    EmptyWidget(query = state.query)
+                    EmptyWidget(
+                        query = state.query,
+                        modifier = Modifier.testTag("AllTrainingsEmptyState")
+                    )
                 }
             }
         }
@@ -139,7 +147,8 @@ internal fun AllTrainingsScreen(
                         ),
                     )
                     .align(Alignment.BottomEnd)
-                    .padding(AppDimension.Padding.big),
+                    .padding(AppDimension.Padding.big)
+                    .testTag("AllTrainingsActionButton"),
                 onClick = { consume(Action.Click.ActionButton) },
                 contentIcon = Icons.Default.Add,
                 selectedContentIcon = Icons.Default.Delete,

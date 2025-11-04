@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.paging.PagingData
 import dev.chrisbanes.haze.rememberHazeState
@@ -42,11 +43,13 @@ internal fun ExerciseWidget(
     val hazeState = rememberHazeState(blurEnabled = uiFeatures.enableBlur)
     Box(
         modifier = modifier
-            .fillMaxSize(),
+            .fillMaxSize()
+            .testTag("AllExercisesScreen"),
     ) {
         AllExercisesWidget(
             modifier = Modifier
-                .fillMaxSize(),
+                .fillMaxSize()
+                .testTag("AllExercisesWidget"),
             state = state,
             sharedTransitionScope = sharedTransitionScope,
             animatedContentScope = animatedContentScope,
@@ -68,7 +71,8 @@ internal fun ExerciseWidget(
                         ),
                     )
                     .align(Alignment.BottomEnd)
-                    .padding(AppDimension.Padding.big),
+                    .padding(AppDimension.Padding.big)
+                    .testTag("AllExercisesActionButton"),
                 hazeState = hazeState,
                 selectedMode = state.selectedItems.isNotEmpty(),
             ) {

@@ -2,6 +2,12 @@ plugins {
     alias(libs.plugins.convention.composeLibrary)
 }
 
+android {
+    defaultConfig {
+        testInstrumentationRunner = "io.github.stslex.workeeper.app.HiltTestRunner"
+    }
+}
+
 dependencies {
     implementation(project(":core:core"))
 
@@ -23,4 +29,8 @@ dependencies {
     implementation(libs.google.firebase.crashlytics)
 
     implementation(libs.hilt.navigation.compose)
+
+    androidTestImplementation(libs.bundles.android.test)
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
