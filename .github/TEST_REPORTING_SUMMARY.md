@@ -2,6 +2,10 @@
 
 ## What Was Added
 
+### Test Reports for BOTH Unit and UI Tests
+
+Now both `android_build.yml` (unit tests) and `android_ui_tests.yml` (UI tests) have comprehensive reporting with unique check names to avoid conflicts.
+
 ### Three Ready-Made GitHub Actions
 
 1. **EnricoMi/publish-unit-test-result-action@v2**
@@ -26,21 +30,33 @@
 
 ### Automatic PR Comments
 
-Every PR with tests will get an auto-comment:
+Every PR with tests will get **TWO separate comments** (no conflicts!):
 
+**Unit Tests:**
+```
+🧪 Unit Test Results
+45 tests   45 ✅  12s ⏱️
+✅ All tests passed!
+```
+
+**UI Tests:**
 ```
 🧪 UI Test Results (API 34)
 8 tests   8 ✅  8s ⏱️
 ✅ All tests passed!
 ```
 
-### Three Check Reports
+### Six Check Reports (3 for Unit + 3 for UI)
 
-Each with different view:
+**Unit Tests:**
+- 🧪 Unit Test Results - Summary with trends
+- 📊 Detailed Unit Test Report - Per-test breakdown
+- 📈 Unit Test Report - Visual report with annotations
 
-- 🧪 Summary with trends
-- 📊 Detailed breakdown
-- 📈 Visual report with annotations
+**UI Tests:**
+- 🧪 UI Test Results (API 34) - Summary with trends
+- 📊 Detailed Test Report (API 34) - Per-test breakdown
+- 📈 Test Report (API 34) - Visual report with annotations
 
 ### Artifacts (downloadable)
 
@@ -79,8 +95,12 @@ All functionality provided by battle-tested GitHub Actions:
 ## Files Modified
 
 1. `.github/workflows/android_ui_tests.yml`
-    - Added 3 reporting actions
-    - Simplified workflow (removed custom scripts)
+    - Added 3 reporting actions for UI tests
+    - Unique check names to avoid conflicts
+
+2. `.github/workflows/android_build.yml`
+    - Added 3 reporting actions for unit tests
+    - Unique check names (different from UI tests)
 
 ## Files Created
 

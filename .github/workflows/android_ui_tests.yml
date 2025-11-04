@@ -150,7 +150,7 @@ jobs:
         uses: dorny/test-reporter@v1
         if: always()
         with:
-          name: Test Report (API ${{ matrix.api-level }})
+          name: UI Test Report (API ${{ matrix.api-level }})
           path: |
             **/build/outputs/androidTest-results/connected/**/*.xml
             **/build/test-results/**/*.xml
