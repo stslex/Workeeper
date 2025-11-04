@@ -101,26 +101,13 @@ jobs:
           report_paths: |
             **/build/test-results/test*.xml
             **/build/test-results/**/*.xml
-          check_name: 📊 Detailed Unit Test Report
+          check_name: Detailed Unit Test Report
           detailed_summary: true
           include_passed: true
           fail_on_failure: false
           require_tests: true
           annotate_only: false
           job_summary: true
-
-      - name: Unit Test Reporter
-        uses: dorny/test-reporter@v1
-        if: always()
-        with:
-          name: Unit Test Report
-          path: |
-            **/build/test-results/test*.xml
-            **/build/test-results/**/*.xml
-          reporter: java-junit
-          fail-on-error: false
-          max-annotations: 50
-          only-summary: false
 
       - name: Upload detekt reports
         uses: actions/upload-artifact@v4

@@ -146,19 +146,6 @@ jobs:
           annotate_only: false
           job_summary: true
 
-      - name: Test Reporter
-        uses: dorny/test-reporter@v1
-        if: always()
-        with:
-          name: UI Test Report (API ${{ matrix.api-level }})
-          path: |
-            **/build/outputs/androidTest-results/connected/**/*.xml
-            **/build/test-results/**/*.xml
-          reporter: java-junit
-          fail-on-error: false
-          max-annotations: 50
-          only-summary: false
-
       - name: Upload UI test reports
         uses: actions/upload-artifact@v4
         if: always()

@@ -1,76 +1,73 @@
 package io.github.stslex.workeeper.feature.all_exercises
 
-import androidx.compose.foundation.lazy.LazyListState
+import android.annotation.SuppressLint
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
-import androidx.paging.PagingData
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
+import io.github.stslex.workeeper.core.ui.test.BaseComposeTest
+import io.github.stslex.workeeper.core.ui.test.MockDataFactory
+import io.github.stslex.workeeper.core.ui.test.PagingTestUtils
 import io.github.stslex.workeeper.feature.all_exercises.mvi.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.ExercisesStore
 import io.github.stslex.workeeper.feature.all_exercises.ui.ExerciseWidget
 import kotlinx.collections.immutable.persistentSetOf
-import kotlinx.coroutines.flow.flowOf
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import kotlin.uuid.Uuid
 
 @RunWith(AndroidJUnit4::class)
-class AllExercisesScreenTest {
+@SuppressLint("UnusedContentLambdaTargetStateParameter")
+internal class AllExercisesScreenTest : BaseComposeTest() {
 
     @get:Rule
-    val composeTestRule = createComposeRule()
+    val composeRule = createComposeRule()
 
     @Test
     fun allExercisesScreen_displaysCorrectly() {
         val mockExercises = createMockExercises(5)
         val state = ExercisesStore.State(
-            items = { flowOf(PagingData.from(mockExercises)) },
+            items = { PagingTestUtils.createPagingFlow(mockExercises) },
             query = "",
             selectedItems = persistentSetOf(),
-            isKeyboardVisible = false
+            isKeyboardVisible = false,
         )
 
-        composeTestRule.mainClock.autoAdvance = false
+        composeRule.mainClock.autoAdvance = false
 
-        composeTestRule.setContent {
-            androidx.compose.animation.AnimatedContent("") {
-                androidx.compose.animation.SharedTransitionScope {
-                    ExerciseWidget(
-                        state = state,
-                        modifier = it,
-                        consume = {},
-                        sharedTransitionScope = this,
-                        animatedContentScope = this@AnimatedContent,
-                        lazyState = LazyListState()
-                    )
-                }
-            }
+        composeRule.setTransitionContent { animatedContentScope, modifier ->
+            ExerciseWidget(
+                state = state,
+                modifier = modifier,
+                consume = {},
+                sharedTransitionScope = this,
+                animatedContentScope = animatedContentScope,
+                lazyState = rememberLazyListState(),
+            )
         }
 
-        composeTestRule.mainClock.advanceTimeBy(100)
-        composeTestRule.waitForIdle()
+        composeRule.mainClock.advanceTimeBy(100)
+        composeRule.waitForIdle()
 
-        composeTestRule
+        composeRule
             .onNodeWithTag("AllExercisesScreen")
             .assertIsDisplayed()
 
-        composeTestRule
+        composeRule
             .onNodeWithTag("AllExercisesWidget")
             .assertIsDisplayed()
 
-        composeTestRule
+        composeRule
             .onNodeWithTag("AllExercisesSearchWidget")
             .assertIsDisplayed()
 
-        composeTestRule
+        composeRule
             .onNodeWithTag("AllExercisesList")
             .assertIsDisplayed()
 
-        composeTestRule
+        composeRule
             .onNodeWithTag("AllExercisesActionButton")
             .assertIsDisplayed()
     }
@@ -78,85 +75,73 @@ class AllExercisesScreenTest {
     @Test
     fun allExercisesScreen_actionButton_isClickable() {
         val mockExercises = createMockExercises(2)
-        var actionButtonClicked = false
+        val actionCapture = ActionCapture<ExercisesStore.Action>()
         val state = ExercisesStore.State(
-            items = { flowOf(PagingData.from(mockExercises)) },
+            items = { PagingTestUtils.createPagingFlow(mockExercises) },
             query = "",
             selectedItems = persistentSetOf(),
-            isKeyboardVisible = false
+            isKeyboardVisible = false,
         )
 
-        composeTestRule.mainClock.autoAdvance = false
-
-        composeTestRule.setContent {
-            androidx.compose.animation.AnimatedContent("") {
-                androidx.compose.animation.SharedTransitionScope {
-                    ExerciseWidget(
-                        state = state,
-                        modifier = it,
-                        consume = { action ->
-                            if (action is ExercisesStore.Action.Click.FloatButtonClick) {
-                                actionButtonClicked = true
-                            }
-                        },
-                        sharedTransitionScope = this,
-                        animatedContentScope = this@AnimatedContent,
-                        lazyState = LazyListState()
-                    )
-                }
-            }
+        composeRule.mainClock.autoAdvance = false
+        composeRule.setTransitionContent { animatedContentScope, modifier ->
+            ExerciseWidget(
+                state = state,
+                modifier = modifier,
+                consume = actionCapture.consume,
+                sharedTransitionScope = this,
+                animatedContentScope = animatedContentScope,
+                lazyState = rememberLazyListState(),
+            )
         }
 
-        composeTestRule.mainClock.advanceTimeBy(100)
-        composeTestRule.waitForIdle()
+        composeRule.mainClock.advanceTimeBy(100)
+        composeRule.waitForIdle()
 
-        composeTestRule
+        composeRule
             .onNodeWithTag("AllExercisesActionButton")
             .assertIsDisplayed()
             .performClick()
 
-        composeTestRule.mainClock.advanceTimeBy(100)
+        composeRule.mainClock.advanceTimeBy(100)
+        composeRule.waitForIdle()
 
-        assert(actionButtonClicked) { "Action button click was not captured" }
+        actionCapture.assertCaptured { it is ExercisesStore.Action.Click.FloatButtonClick }
+            ?: error("FloatButtonClick action was not captured")
     }
 
     @Test
     fun allExercisesScreen_exerciseItems_areDisplayed() {
         val mockExercises = createMockExercises(3)
         val state = ExercisesStore.State(
-            items = { flowOf(PagingData.from(mockExercises)) },
+            items = { PagingTestUtils.createPagingFlow(mockExercises) },
             query = "",
             selectedItems = persistentSetOf(),
-            isKeyboardVisible = false
+            isKeyboardVisible = false,
         )
 
-        composeTestRule.mainClock.autoAdvance = false
-
-        composeTestRule.setContent {
-            androidx.compose.animation.AnimatedContent("") {
-                androidx.compose.animation.SharedTransitionScope {
-                    ExerciseWidget(
-                        state = state,
-                        modifier = it,
-                        consume = {},
-                        sharedTransitionScope = this,
-                        animatedContentScope = this@AnimatedContent,
-                        lazyState = LazyListState()
-                    )
-                }
-            }
+        composeRule.mainClock.autoAdvance = false
+        composeRule.setTransitionContent { animatedContentScope, modifier ->
+            ExerciseWidget(
+                state = state,
+                modifier = modifier,
+                consume = {},
+                sharedTransitionScope = this,
+                animatedContentScope = animatedContentScope,
+                lazyState = rememberLazyListState(),
+            )
         }
 
-        composeTestRule.mainClock.advanceTimeBy(100)
-        composeTestRule.waitForIdle()
+        composeRule.mainClock.advanceTimeBy(100)
+        composeRule.waitForIdle()
 
-        composeTestRule
+        composeRule
             .onNodeWithTag("AllExercisesList")
             .assertIsDisplayed()
 
         // Verify individual exercise items are tagged correctly
         mockExercises.forEach { exercise ->
-            composeTestRule
+            composeRule
                 .onNodeWithTag("ExerciseItem_${exercise.uuid}")
                 .assertExists()
         }
@@ -165,33 +150,28 @@ class AllExercisesScreenTest {
     @Test
     fun allExercisesScreen_emptyState_displaysWhenNoItems() {
         val state = ExercisesStore.State(
-            items = { flowOf(PagingData.from(emptyList())) },
+            items = { PagingTestUtils.createEmptyPagingFlow() },
             query = "",
             selectedItems = persistentSetOf(),
-            isKeyboardVisible = false
+            isKeyboardVisible = false,
         )
 
-        composeTestRule.mainClock.autoAdvance = false
-
-        composeTestRule.setContent {
-            androidx.compose.animation.AnimatedContent("") {
-                androidx.compose.animation.SharedTransitionScope {
-                    ExerciseWidget(
-                        state = state,
-                        modifier = it,
-                        consume = {},
-                        sharedTransitionScope = this,
-                        animatedContentScope = this@AnimatedContent,
-                        lazyState = LazyListState()
-                    )
-                }
-            }
+        composeRule.mainClock.autoAdvance = false
+        composeRule.setTransitionContent { animatedContentScope, modifier ->
+            ExerciseWidget(
+                state = state,
+                modifier = modifier,
+                consume = {},
+                sharedTransitionScope = this,
+                animatedContentScope = animatedContentScope,
+                lazyState = rememberLazyListState(),
+            )
         }
 
-        composeTestRule.mainClock.advanceTimeBy(100)
-        composeTestRule.waitForIdle()
+        composeRule.mainClock.advanceTimeBy(100)
+        composeRule.waitForIdle()
 
-        composeTestRule
+        composeRule
             .onNodeWithTag("AllExercisesScreen")
             .assertIsDisplayed()
     }
@@ -200,43 +180,40 @@ class AllExercisesScreenTest {
     fun allExercisesScreen_searchWidget_isDisplayed() {
         val mockExercises = createMockExercises(3)
         val state = ExercisesStore.State(
-            items = { flowOf(PagingData.from(mockExercises)) },
+            items = { PagingTestUtils.createPagingFlow(mockExercises) },
             query = "test query",
             selectedItems = persistentSetOf(),
-            isKeyboardVisible = false
+            isKeyboardVisible = false,
         )
 
-        composeTestRule.mainClock.autoAdvance = false
-
-        composeTestRule.setContent {
-            androidx.compose.animation.AnimatedContent("") {
-                androidx.compose.animation.SharedTransitionScope {
-                    ExerciseWidget(
-                        state = state,
-                        modifier = it,
-                        consume = {},
-                        sharedTransitionScope = this,
-                        animatedContentScope = this@AnimatedContent,
-                        lazyState = LazyListState()
-                    )
-                }
-            }
+        composeRule.mainClock.autoAdvance = false
+        composeRule.setTransitionContent { animatedContentScope, modifier ->
+            ExerciseWidget(
+                state = state,
+                modifier = modifier,
+                consume = {},
+                sharedTransitionScope = this,
+                animatedContentScope = animatedContentScope,
+                lazyState = rememberLazyListState(),
+            )
         }
 
-        composeTestRule.mainClock.advanceTimeBy(100)
-        composeTestRule.waitForIdle()
+        composeRule.mainClock.advanceTimeBy(100)
+        composeRule.waitForIdle()
 
-        composeTestRule
+        composeRule
             .onNodeWithTag("AllExercisesSearchWidget")
             .assertIsDisplayed()
     }
 
     private fun createMockExercises(count: Int): List<ExerciseUiModel> {
+        val uuids = MockDataFactory.createUuids(count)
+        val names = MockDataFactory.createTestNames("Exercise", count)
         return List(count) { index ->
             ExerciseUiModel(
-                uuid = Uuid.random().toString(),
-                name = "Exercise $index",
-                dateProperty = PropertyHolder.DateProperty.now()
+                uuid = uuids[index],
+                name = names[index],
+                dateProperty = MockDataFactory.createDateProperty(),
             )
         }
     }

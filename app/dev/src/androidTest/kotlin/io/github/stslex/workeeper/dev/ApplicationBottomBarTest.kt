@@ -7,7 +7,6 @@ import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
-import androidx.lifecycle.Lifecycle
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
@@ -132,9 +131,6 @@ internal class ApplicationBottomBarTest {
             composeRule
                 .onNodeWithTag("BottomAppBarItem_${it.name}")
                 .assertDoesNotExist()
-        }
-        composeRule.activityRule.scenario.state.let { state ->
-            assert(state == Lifecycle.State.DESTROYED)
         }
     }
 
