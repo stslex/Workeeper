@@ -21,7 +21,6 @@ import io.github.stslex.workeeper.feature.all_exercises.ui.ExerciseWidget
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableSet
 import kotlinx.coroutines.flow.flowOf
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -278,7 +277,6 @@ class AllExercisesScreenEdgeCasesTest : BaseComposeTest() {
     }
 
     @Test
-    @Ignore("Fail in ci - cannot reproduce locally - https://github.com/stslex/Workeeper/issues/38")
     fun allExercisesScreen_scrollToEnd_displaysLastItems() {
         val mockExercises = createMockExercises(50)
         val state = ExercisesStore.State(
@@ -288,7 +286,7 @@ class AllExercisesScreenEdgeCasesTest : BaseComposeTest() {
             isKeyboardVisible = false,
         )
 
-        composeTestRule.mainClock.autoAdvance = true
+        composeTestRule.mainClock.autoAdvance = false
 
         composeTestRule.setTransitionContent { animatedContentScope, modifier ->
             ExerciseWidget(
@@ -301,13 +299,27 @@ class AllExercisesScreenEdgeCasesTest : BaseComposeTest() {
             )
         }
 
+        // Give sufficient time for initial composition and paging data to load
+        composeTestRule.mainClock.advanceTimeBy(200)
         composeTestRule.waitForIdle()
+
+        // Verify list is displayed before scrolling
+        composeTestRule
+            .onNodeWithTag("AllExercisesList")
+            .assertIsDisplayed()
+
+        // Verify first item exists to ensure paging data is loaded
+        composeTestRule
+            .onNodeWithTag("ExerciseItem_${mockExercises.first().uuid}")
+            .assertExists()
 
         // Scroll to end
         composeTestRule
             .onNodeWithTag("AllExercisesList")
             .performScrollToIndex(mockExercises.size - 1)
 
+        // Allow time for scroll animation and composition
+        composeTestRule.mainClock.advanceTimeBy(300)
         composeTestRule.waitForIdle()
 
         // Verify last item exists
