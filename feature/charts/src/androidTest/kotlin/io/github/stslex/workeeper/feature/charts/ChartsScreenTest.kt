@@ -7,6 +7,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
+import io.github.stslex.workeeper.core.ui.test.BaseComposeTest
 import io.github.stslex.workeeper.feature.charts.mvi.model.CalendarState
 import io.github.stslex.workeeper.feature.charts.mvi.model.ChartsState
 import io.github.stslex.workeeper.feature.charts.mvi.model.ChartsType
@@ -17,7 +18,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
-class ChartsScreenTest {
+class ChartsScreenTest : BaseComposeTest() {
 
     @get:Rule
     val composeTestRule = createComposeRule()
@@ -30,24 +31,21 @@ class ChartsScreenTest {
             startDate = PropertyHolder.DateProperty.now(),
             endDate = PropertyHolder.DateProperty.now(),
             type = ChartsType.EXERCISE,
-            calendarState = CalendarState.Closed
+            calendarState = CalendarState.Closed,
         )
 
         composeTestRule.mainClock.autoAdvance = false
 
-        composeTestRule.setContent {
-            androidx.compose.animation.AnimatedContent("") {
-                androidx.compose.animation.SharedTransitionScope {
-                    ChartsScreenWidget(
-                        state = state,
-                        sharedTransitionScope = this,
-                        animatedContentScope = this@AnimatedContent,
-                        consume = {},
-                        pagerState = rememberPagerState { 1 },
-                        chartsListState = rememberLazyListState()
-                    )
-                }
-            }
+        composeTestRule.setTransitionContent { animatedContentScope, modifier ->
+            ChartsScreenWidget(
+                state = state,
+                modifier = modifier,
+                sharedTransitionScope = this,
+                animatedContentScope = animatedContentScope,
+                consume = {},
+                pagerState = rememberPagerState { 1 },
+                chartsListState = rememberLazyListState(),
+            )
         }
 
         composeTestRule.mainClock.advanceTimeBy(100)
@@ -66,24 +64,21 @@ class ChartsScreenTest {
             startDate = PropertyHolder.DateProperty.now(),
             endDate = PropertyHolder.DateProperty.now(),
             type = ChartsType.EXERCISE,
-            calendarState = CalendarState.Closed
+            calendarState = CalendarState.Closed,
         )
 
         composeTestRule.mainClock.autoAdvance = false
 
-        composeTestRule.setContent {
-            androidx.compose.animation.AnimatedContent("") {
-                androidx.compose.animation.SharedTransitionScope {
-                    ChartsScreenWidget(
-                        state = state,
-                        sharedTransitionScope = this,
-                        animatedContentScope = this@AnimatedContent,
-                        consume = {},
-                        pagerState = rememberPagerState { 1 },
-                        chartsListState = rememberLazyListState()
-                    )
-                }
-            }
+        composeTestRule.setTransitionContent { animatedContentScope, modifier ->
+            ChartsScreenWidget(
+                state = state,
+                modifier = modifier,
+                sharedTransitionScope = this,
+                animatedContentScope = animatedContentScope,
+                consume = {},
+                pagerState = rememberPagerState { 1 },
+                chartsListState = rememberLazyListState(),
+            )
         }
 
         composeTestRule.mainClock.advanceTimeBy(100)
@@ -102,24 +97,21 @@ class ChartsScreenTest {
             startDate = PropertyHolder.DateProperty.now(),
             endDate = PropertyHolder.DateProperty.now(),
             type = ChartsType.EXERCISE,
-            calendarState = CalendarState.Closed
+            calendarState = CalendarState.Closed,
         )
 
         composeTestRule.mainClock.autoAdvance = false
 
-        composeTestRule.setContent {
-            androidx.compose.animation.AnimatedContent("") {
-                androidx.compose.animation.SharedTransitionScope {
-                    ChartsScreenWidget(
-                        state = state,
-                        sharedTransitionScope = this,
-                        animatedContentScope = this@AnimatedContent,
-                        consume = {},
-                        pagerState = rememberPagerState { 1 },
-                        chartsListState = rememberLazyListState()
-                    )
-                }
-            }
+        composeTestRule.setTransitionContent { animatedContentScope, modifier ->
+            ChartsScreenWidget(
+                state = state,
+                modifier = modifier,
+                sharedTransitionScope = this,
+                animatedContentScope = animatedContentScope,
+                consume = {},
+                pagerState = rememberPagerState { 1 },
+                chartsListState = rememberLazyListState(),
+            )
         }
 
         composeTestRule.mainClock.advanceTimeBy(100)
@@ -138,24 +130,21 @@ class ChartsScreenTest {
             startDate = PropertyHolder.DateProperty.now(),
             endDate = PropertyHolder.DateProperty.now(),
             type = ChartsType.EXERCISE,
-            calendarState = CalendarState.Closed
+            calendarState = CalendarState.Closed,
         )
 
         composeTestRule.mainClock.autoAdvance = false
 
-        composeTestRule.setContent {
-            androidx.compose.animation.AnimatedContent("") {
-                androidx.compose.animation.SharedTransitionScope {
-                    ChartsScreenWidget(
-                        state = state,
-                        sharedTransitionScope = this,
-                        animatedContentScope = this@AnimatedContent,
-                        consume = {},
-                        pagerState = rememberPagerState { 1 },
-                        chartsListState = rememberLazyListState()
-                    )
-                }
-            }
+        composeTestRule.setTransitionContent { animatedContentScope, modifier ->
+            ChartsScreenWidget(
+                state = state,
+                modifier = modifier,
+                sharedTransitionScope = this,
+                animatedContentScope = animatedContentScope,
+                consume = {},
+                pagerState = rememberPagerState { 1 },
+                chartsListState = rememberLazyListState(),
+            )
         }
 
         composeTestRule.mainClock.advanceTimeBy(100)

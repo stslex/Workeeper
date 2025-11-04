@@ -16,6 +16,7 @@ import io.github.stslex.workeeper.core.ui.test.MockDataFactory
 import io.github.stslex.workeeper.core.ui.test.PagingTestUtils
 import io.github.stslex.workeeper.feature.all_exercises.mvi.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.ExercisesStore
+import io.github.stslex.workeeper.feature.all_exercises.mvi.store.ExercisesStore.Action
 import io.github.stslex.workeeper.feature.all_exercises.ui.ExerciseWidget
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableSet
@@ -40,7 +41,7 @@ class AllExercisesScreenEdgeCasesTest : BaseComposeTest() {
     @Test
     fun allExercisesScreen_searchInput_triggersQueryAction() {
         val mockExercises = createMockExercises(5)
-        val actionCapture = ActionCapture<ExercisesStore.Action>()
+        val actionCapture = createActionCapture<Action>()
         val state = ExercisesStore.State(
             items = { PagingTestUtils.createPagingFlow(mockExercises) },
             query = "",
@@ -54,7 +55,7 @@ class AllExercisesScreenEdgeCasesTest : BaseComposeTest() {
             ExerciseWidget(
                 state = state,
                 modifier = modifier,
-                consume = actionCapture.consume,
+                consume = actionCapture,
                 sharedTransitionScope = this,
                 animatedContentScope = animatedContentScope,
                 lazyState = rememberLazyListState(),
@@ -74,15 +75,16 @@ class AllExercisesScreenEdgeCasesTest : BaseComposeTest() {
         composeTestRule.waitForIdle()
 
         composeTestRule
-            .onNodeWithTag("SearchField")
+            .onNodeWithTag("AllExercisesSearchWidget")
             .performTextInput(searchQuery)
 
         composeTestRule.mainClock.advanceTimeBy(200)
         composeTestRule.waitForIdle()
 
         // Verify search action was captured
-        actionCapture.assertCaptured { it is ExercisesStore.Action.Input.SearchQuery }
-            ?: error("Query action was not captured")
+        actionCapture.capturedFirst<Action.Input.SearchQuery> {
+            "Query action was not captured"
+        }
     }
 
     @Test
@@ -120,7 +122,7 @@ class AllExercisesScreenEdgeCasesTest : BaseComposeTest() {
     @Test
     fun allExercisesScreen_clearSearch_triggersAction() {
         val mockExercises = createMockExercises(3)
-        val actionCapture = ActionCapture<ExercisesStore.Action>()
+        val actionCapture = createActionCapture<Action>()
         val state = ExercisesStore.State(
             items = { PagingTestUtils.createPagingFlow(mockExercises) },
             query = "test",
@@ -134,7 +136,7 @@ class AllExercisesScreenEdgeCasesTest : BaseComposeTest() {
             ExerciseWidget(
                 state = state,
                 modifier = modifier,
-                consume = actionCapture.consume,
+                consume = actionCapture,
                 sharedTransitionScope = this,
                 animatedContentScope = animatedContentScope,
                 lazyState = rememberLazyListState(),
@@ -146,14 +148,15 @@ class AllExercisesScreenEdgeCasesTest : BaseComposeTest() {
 
         // Clear search by inputting empty text
         composeTestRule
-            .onNodeWithTag("SearchField")
+            .onNodeWithTag("AllExercisesSearchWidget")
             .performTextClearance()
 
         composeTestRule.mainClock.advanceTimeBy(100)
 
         // Verify query input action was captured
-        actionCapture.assertCaptured { it is ExercisesStore.Action.Input.SearchQuery }
-            ?: error("Search query action was not captured")
+        actionCapture.capturedFirst<Action.Input.SearchQuery> {
+            "Search query action was not captured"
+        }
     }
 
     // ========== Selection Mode Tests ==========
@@ -176,7 +179,7 @@ class AllExercisesScreenEdgeCasesTest : BaseComposeTest() {
                 state = state,
                 modifier = modifier,
                 consume = { action ->
-                    if (action is ExercisesStore.Action.Click.Item) {
+                    if (action is Action.Click.Item) {
                         selectedId = action.uuid
                     }
                 },
@@ -435,7 +438,7 @@ class AllExercisesScreenEdgeCasesTest : BaseComposeTest() {
                 state = state,
                 modifier = modifier,
                 consume = { action ->
-                    if (action is ExercisesStore.Action.Click.FloatButtonClick) {
+                    if (action is Action.Click.FloatButtonClick) {
                         clickCount++
                     }
                 },

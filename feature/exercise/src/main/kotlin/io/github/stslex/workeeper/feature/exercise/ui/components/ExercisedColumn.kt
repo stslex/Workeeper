@@ -20,6 +20,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.DateInputField
@@ -43,6 +44,7 @@ internal fun ExercisedColumn(
     ) {
         item {
             TitleTextInputField(
+                modifier = Modifier.testTag("ExerciseNameField"),
                 property = state.name,
                 isMenuOpen = state.isMenuOpen,
                 menuItems = state.menuItems,
@@ -78,6 +80,8 @@ internal fun ExercisedColumn(
         state.sets.forEach { set ->
             item {
                 ExerciseSetsField(
+                    modifier = Modifier
+                        .testTag("ExerciseSetItem_${set.uuid}"),
                     property = set,
                     onClick = { item -> consume(Action.Click.DialogSets.OpenEdit(item)) },
                 )
@@ -99,6 +103,7 @@ internal fun ExercisedColumn(
 
         item {
             DateInputField(
+                modifier = Modifier.testTag("ExerciseDatePickerButton"),
                 property = state.dateProperty,
                 labelRes = R.string.feature_exercise_field_label_date,
                 onClick = {

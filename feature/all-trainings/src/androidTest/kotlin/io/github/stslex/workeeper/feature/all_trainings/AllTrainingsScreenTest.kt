@@ -4,11 +4,14 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.paging.PagingData
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
+import io.github.stslex.workeeper.core.ui.test.BaseComposeTest
 import io.github.stslex.workeeper.feature.all_trainings.mvi.model.TrainingUiModel
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore
+import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore.Action
 import io.github.stslex.workeeper.feature.all_trainings.ui.AllTrainingsScreen
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableList
@@ -18,7 +21,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
-class AllTrainingsScreenTest {
+class AllTrainingsScreenTest : BaseComposeTest() {
 
     @get:Rule
     val composeTestRule = createComposeRule()
@@ -30,23 +33,19 @@ class AllTrainingsScreenTest {
             pagingUiState = { flowOf(PagingData.from(mockTrainings)) },
             query = "",
             selectedItems = persistentSetOf(),
-            isKeyboardVisible = false
+            isKeyboardVisible = false,
         )
 
         composeTestRule.mainClock.autoAdvance = false
 
-        composeTestRule.setContent {
-            androidx.compose.animation.AnimatedContent("") {
-                androidx.compose.animation.SharedTransitionScope { modifier ->
-                    AllTrainingsScreen(
-                        state = state,
-                        modifier = modifier,
-                        consume = {},
-                        sharedTransitionScope = this,
-                        animatedContentScope = this@AnimatedContent
-                    )
-                }
-            }
+        composeTestRule.setTransitionContent { animatedContentScope, modifier ->
+            AllTrainingsScreen(
+                state = state,
+                modifier = modifier,
+                consume = {},
+                sharedTransitionScope = this,
+                animatedContentScope = animatedContentScope,
+            )
         }
 
         composeTestRule.mainClock.advanceTimeBy(100)
@@ -72,32 +71,24 @@ class AllTrainingsScreenTest {
     @Test
     fun allTrainingsScreen_searchWidget_isInteractive() {
         val mockTrainings = createMockTrainings(3)
-        var capturedQuery = ""
+        val action = createActionCapture<Action>()
         val state = TrainingStore.State(
             pagingUiState = { flowOf(PagingData.from(mockTrainings)) },
             query = "",
             selectedItems = persistentSetOf(),
-            isKeyboardVisible = false
+            isKeyboardVisible = false,
         )
 
         composeTestRule.mainClock.autoAdvance = false
 
-        composeTestRule.setContent {
-            androidx.compose.animation.AnimatedContent("") {
-                androidx.compose.animation.SharedTransitionScope { modifier ->
-                    AllTrainingsScreen(
-                        state = state,
-                        modifier = modifier,
-                        consume = { action ->
-                            if (action is TrainingStore.Action.Input.SearchQuery) {
-                                capturedQuery = action.query
-                            }
-                        },
-                        sharedTransitionScope = this,
-                        animatedContentScope = this@AnimatedContent
-                    )
-                }
-            }
+        composeTestRule.setTransitionContent { animatedContentScope, modifier ->
+            AllTrainingsScreen(
+                state = state,
+                modifier = modifier,
+                consume = action,
+                sharedTransitionScope = this,
+                animatedContentScope = animatedContentScope,
+            )
         }
 
         composeTestRule.mainClock.advanceTimeBy(100)
@@ -106,6 +97,11 @@ class AllTrainingsScreenTest {
         composeTestRule
             .onNodeWithTag("AllTrainingsSearchWidget")
             .assertIsDisplayed()
+            .performTextInput("Morning Workout")
+
+        val capturedQuery = action.capturedLast<Action.Input.SearchQuery>()?.query
+
+        assert(capturedQuery == "Morning Workout") { "Search query was not captured correctly" }
     }
 
     @Test
@@ -116,27 +112,23 @@ class AllTrainingsScreenTest {
             pagingUiState = { flowOf(PagingData.from(mockTrainings)) },
             query = "",
             selectedItems = persistentSetOf(),
-            isKeyboardVisible = false
+            isKeyboardVisible = false,
         )
 
         composeTestRule.mainClock.autoAdvance = false
 
-        composeTestRule.setContent {
-            androidx.compose.animation.AnimatedContent("") {
-                androidx.compose.animation.SharedTransitionScope { modifier ->
-                    AllTrainingsScreen(
-                        state = state,
-                        modifier = modifier,
-                        consume = { action ->
-                            if (action is TrainingStore.Action.Click.ActionButton) {
-                                actionButtonClicked = true
-                            }
-                        },
-                        sharedTransitionScope = this,
-                        animatedContentScope = this@AnimatedContent
-                    )
-                }
-            }
+        composeTestRule.setTransitionContent { animatedContentScope, modifier ->
+            AllTrainingsScreen(
+                state = state,
+                modifier = modifier,
+                consume = { action ->
+                    if (action is Action.Click.ActionButton) {
+                        actionButtonClicked = true
+                    }
+                },
+                sharedTransitionScope = this,
+                animatedContentScope = animatedContentScope,
+            )
         }
 
         composeTestRule.mainClock.advanceTimeBy(100)
@@ -158,23 +150,19 @@ class AllTrainingsScreenTest {
             pagingUiState = { flowOf(PagingData.from(emptyList())) },
             query = "",
             selectedItems = persistentSetOf(),
-            isKeyboardVisible = false
+            isKeyboardVisible = false,
         )
 
         composeTestRule.mainClock.autoAdvance = false
 
-        composeTestRule.setContent {
-            androidx.compose.animation.AnimatedContent("") {
-                androidx.compose.animation.SharedTransitionScope { modifier ->
-                    AllTrainingsScreen(
-                        state = state,
-                        modifier = modifier,
-                        consume = {},
-                        sharedTransitionScope = this,
-                        animatedContentScope = this@AnimatedContent
-                    )
-                }
-            }
+        composeTestRule.setTransitionContent { animatedContentScope, modifier ->
+            AllTrainingsScreen(
+                state = state,
+                modifier = modifier,
+                consume = {},
+                sharedTransitionScope = this,
+                animatedContentScope = animatedContentScope,
+            )
         }
 
         composeTestRule.mainClock.advanceTimeBy(100)
@@ -192,23 +180,19 @@ class AllTrainingsScreenTest {
             pagingUiState = { flowOf(PagingData.from(mockTrainings)) },
             query = "",
             selectedItems = persistentSetOf(),
-            isKeyboardVisible = false
+            isKeyboardVisible = false,
         )
 
         composeTestRule.mainClock.autoAdvance = false
 
-        composeTestRule.setContent {
-            androidx.compose.animation.AnimatedContent("") {
-                androidx.compose.animation.SharedTransitionScope { modifier ->
-                    AllTrainingsScreen(
-                        state = state,
-                        modifier = modifier,
-                        consume = {},
-                        sharedTransitionScope = this,
-                        animatedContentScope = this@AnimatedContent
-                    )
-                }
-            }
+        composeTestRule.setTransitionContent { animatedContentScope, modifier ->
+            AllTrainingsScreen(
+                state = state,
+                modifier = modifier,
+                consume = {},
+                sharedTransitionScope = this,
+                animatedContentScope = animatedContentScope,
+            )
         }
 
         composeTestRule.mainClock.advanceTimeBy(100)
@@ -233,7 +217,7 @@ class AllTrainingsScreenTest {
                 name = "Training $index",
                 labels = List(2) { "label_${index}_$it" }.toImmutableList(),
                 exerciseUuids = List(3) { "exercise_${index}_$it" }.toImmutableList(),
-                date = PropertyHolder.DateProperty.now()
+                date = PropertyHolder.DateProperty.now(),
             )
         }
     }

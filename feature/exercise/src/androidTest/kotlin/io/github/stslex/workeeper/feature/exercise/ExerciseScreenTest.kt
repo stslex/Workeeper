@@ -9,11 +9,13 @@ import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
+import io.github.stslex.workeeper.core.ui.test.BaseComposeTest
 import io.github.stslex.workeeper.feature.exercise.ui.ExerciseFeatureWidget
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SetUiType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SetsUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentSetOf
 import org.junit.Rule
@@ -26,7 +28,7 @@ import kotlin.uuid.Uuid
  * Tests both create and edit modes with various edge cases
  */
 @RunWith(AndroidJUnit4::class)
-class ExerciseScreenTest {
+class ExerciseScreenTest : BaseComposeTest() {
 
     @get:Rule
     val composeTestRule = createComposeRule()
@@ -125,16 +127,12 @@ class ExerciseScreenTest {
 
     @Test
     fun exerciseScreen_cancelButton_triggersAction() {
-        var actionCaptured = false
+        val actionCapture = createActionCapture<Action>()
         val state = ExerciseStore.State.INITIAL
 
         composeTestRule.setContent {
             ExerciseFeatureWidget(
-                consume = { action ->
-                    if (action is ExerciseStore.Action.Click.Cancel) {
-                        actionCaptured = true
-                    }
-                },
+                consume = actionCapture,
                 state = state,
                 snackbarHostState = SnackbarHostState(),
             )
@@ -146,21 +144,19 @@ class ExerciseScreenTest {
             .onNodeWithTag("ExerciseCancelButton")
             .performClick()
 
-        assert(actionCaptured) { "Cancel button click was not captured" }
+        actionCapture.assertCapturedOnce<Action.Click.Cancel> {
+            "Cancel button click was not captured"
+        }
     }
 
     @Test
     fun exerciseScreen_saveButton_triggersAction() {
-        var actionCaptured = false
+        val actionCapture = createActionCapture<Action>()
         val state = ExerciseStore.State.INITIAL
 
         composeTestRule.setContent {
             ExerciseFeatureWidget(
-                consume = { action ->
-                    if (action is ExerciseStore.Action.Click.Save) {
-                        actionCaptured = true
-                    }
-                },
+                consume = actionCapture,
                 state = state,
                 snackbarHostState = SnackbarHostState(),
             )
@@ -172,23 +168,21 @@ class ExerciseScreenTest {
             .onNodeWithTag("ExerciseSaveButton")
             .performClick()
 
-        assert(actionCaptured) { "Save button click was not captured" }
+        actionCapture.assertCapturedOnce<Action.Click.Save> {
+            "Save button click was not captured"
+        }
     }
 
     @Test
     fun exerciseScreen_deleteButton_triggersAction() {
-        var actionCaptured = false
+        val actionCapture = createActionCapture<Action>()
         val state = ExerciseStore.State.INITIAL.copy(
             uuid = Uuid.random().toString(),
         )
 
         composeTestRule.setContent {
             ExerciseFeatureWidget(
-                consume = { action ->
-                    if (action is ExerciseStore.Action.Click.Delete) {
-                        actionCaptured = true
-                    }
-                },
+                consume = actionCapture,
                 state = state,
                 snackbarHostState = SnackbarHostState(),
             )
@@ -200,21 +194,21 @@ class ExerciseScreenTest {
             .onNodeWithTag("ExerciseDeleteButton")
             .performClick()
 
-        assert(actionCaptured) { "Delete button click was not captured" }
+        actionCapture.assertCapturedOnce<Action.Click.Delete> {
+            "Delete button click was not captured"
+        }
     }
 
     // ========== Input Field Tests ==========
 
     @Test
     fun exerciseScreen_nameInput_triggersAction() {
-        val capturedActions = mutableListOf<ExerciseStore.Action>()
+        val actionCapture = createActionCapture<Action>()
         val state = ExerciseStore.State.INITIAL
 
         composeTestRule.setContent {
             ExerciseFeatureWidget(
-                consume = { action ->
-                    capturedActions.add(action)
-                },
+                consume = actionCapture,
                 state = state,
                 snackbarHostState = SnackbarHostState(),
             )
@@ -230,9 +224,7 @@ class ExerciseScreenTest {
         composeTestRule.waitForIdle()
 
         // Verify input action was captured
-        val nameInputAction =
-            capturedActions.filterIsInstance<ExerciseStore.Action.Input.PropertyName>()
-        assert(nameInputAction.isNotEmpty()) { "Name input action was not captured" }
+        actionCapture.assertCaptured<Action.Input.PropertyName> { "Name input action was not captured" }
     }
 
     // ========== Dialog Tests ==========
@@ -261,16 +253,12 @@ class ExerciseScreenTest {
 
     @Test
     fun exerciseScreen_datePickerButton_opensDialog() {
-        var actionCaptured = false
+        val actionCapture = createActionCapture<Action>()
         val state = ExerciseStore.State.INITIAL
 
         composeTestRule.setContent {
             ExerciseFeatureWidget(
-                consume = { action ->
-                    if (action is ExerciseStore.Action.Click.PickDate) {
-                        actionCaptured = true
-                    }
-                },
+                consume = actionCapture,
                 state = state,
                 snackbarHostState = SnackbarHostState(),
             )
@@ -282,7 +270,9 @@ class ExerciseScreenTest {
             .onNodeWithTag("ExerciseDatePickerButton")
             .performClick()
 
-        assert(actionCaptured) { "Date picker button click was not captured" }
+        actionCapture.assertCapturedCount<Action.Click.PickDate>(1) {
+            "Date picker button click was not captured"
+        }
     }
 
     @Test
@@ -310,7 +300,7 @@ class ExerciseScreenTest {
 
     @Test
     fun exerciseScreen_setsDialog_inputFields_work() {
-        val capturedActions = mutableListOf<ExerciseStore.Action>()
+        val actionCapture = createActionCapture<Action>()
         val mockSet = createMockSet()
         val state = ExerciseStore.State.INITIAL.copy(
             dialogState = DialogState.Sets(mockSet),
@@ -318,9 +308,7 @@ class ExerciseScreenTest {
 
         composeTestRule.setContent {
             ExerciseFeatureWidget(
-                consume = { action ->
-                    capturedActions.add(action)
-                },
+                consume = actionCapture,
                 state = state,
                 snackbarHostState = SnackbarHostState(),
             )
@@ -350,19 +338,18 @@ class ExerciseScreenTest {
 
         composeTestRule.waitForIdle()
 
-        // Verify actions were captured
-        val weightActions =
-            capturedActions.filterIsInstance<ExerciseStore.Action.Input.DialogSets.Weight>()
-        val repsActions =
-            capturedActions.filterIsInstance<ExerciseStore.Action.Input.DialogSets.Reps>()
+        actionCapture.assertCaptured<Action.Input.DialogSets.Weight> {
+            "Weight input action was not captured"
+        }
 
-        assert(weightActions.isNotEmpty()) { "Weight input action was not captured" }
-        assert(repsActions.isNotEmpty()) { "Reps input action was not captured" }
+        actionCapture.assertCaptured<Action.Input.DialogSets.Reps> {
+            "Reps input action was not captured"
+        }
     }
 
     @Test
     fun exerciseScreen_setsDialog_saveButton_triggersAction() {
-        var actionCaptured = false
+        val actionCapture = createActionCapture<Action>()
         val mockSet = createMockSet()
         val state = ExerciseStore.State.INITIAL.copy(
             dialogState = DialogState.Sets(mockSet),
@@ -370,11 +357,7 @@ class ExerciseScreenTest {
 
         composeTestRule.setContent {
             ExerciseFeatureWidget(
-                consume = { action ->
-                    if (action is ExerciseStore.Action.Click.DialogSets.SaveButton) {
-                        actionCaptured = true
-                    }
-                },
+                consume = actionCapture,
                 state = state,
                 snackbarHostState = SnackbarHostState(),
             )
@@ -386,12 +369,14 @@ class ExerciseScreenTest {
             .onNodeWithTag("ExerciseSetsDialogSaveButton")
             .performClick()
 
-        assert(actionCaptured) { "Sets dialog save button click was not captured" }
+        actionCapture.assertCapturedOnce<Action.Click.DialogSets.SaveButton> {
+            "Sets dialog save button click was not captured"
+        }
     }
 
     @Test
     fun exerciseScreen_setsDialog_cancelButton_triggersAction() {
-        var actionCaptured = false
+        val actionCapture = createActionCapture<Action>()
         val mockSet = createMockSet()
         val state = ExerciseStore.State.INITIAL.copy(
             dialogState = DialogState.Sets(mockSet),
@@ -399,11 +384,7 @@ class ExerciseScreenTest {
 
         composeTestRule.setContent {
             ExerciseFeatureWidget(
-                consume = { action ->
-                    if (action is ExerciseStore.Action.Click.DialogSets.CancelButton) {
-                        actionCaptured = true
-                    }
-                },
+                consume = actionCapture,
                 state = state,
                 snackbarHostState = SnackbarHostState(),
             )
@@ -415,7 +396,9 @@ class ExerciseScreenTest {
             .onNodeWithTag("ExerciseSetsDialogCancelButton")
             .performClick()
 
-        assert(actionCaptured) { "Sets dialog cancel button click was not captured" }
+        actionCapture.assertCapturedOnce<Action.Click.DialogSets.CancelButton> {
+            "Sets dialog cancel button click was not captured"
+        }
     }
 
     // ========== Edge Case Tests ==========

@@ -12,6 +12,7 @@ import io.github.stslex.workeeper.core.ui.test.MockDataFactory
 import io.github.stslex.workeeper.core.ui.test.PagingTestUtils
 import io.github.stslex.workeeper.feature.all_exercises.mvi.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.ExercisesStore
+import io.github.stslex.workeeper.feature.all_exercises.mvi.store.ExercisesStore.Action
 import io.github.stslex.workeeper.feature.all_exercises.ui.ExerciseWidget
 import kotlinx.collections.immutable.persistentSetOf
 import org.junit.Rule
@@ -75,7 +76,7 @@ internal class AllExercisesScreenTest : BaseComposeTest() {
     @Test
     fun allExercisesScreen_actionButton_isClickable() {
         val mockExercises = createMockExercises(2)
-        val actionCapture = ActionCapture<ExercisesStore.Action>()
+        val actionCapture = createActionCapture<Action>()
         val state = ExercisesStore.State(
             items = { PagingTestUtils.createPagingFlow(mockExercises) },
             query = "",
@@ -88,7 +89,7 @@ internal class AllExercisesScreenTest : BaseComposeTest() {
             ExerciseWidget(
                 state = state,
                 modifier = modifier,
-                consume = actionCapture.consume,
+                consume = actionCapture,
                 sharedTransitionScope = this,
                 animatedContentScope = animatedContentScope,
                 lazyState = rememberLazyListState(),
@@ -106,8 +107,9 @@ internal class AllExercisesScreenTest : BaseComposeTest() {
         composeRule.mainClock.advanceTimeBy(100)
         composeRule.waitForIdle()
 
-        actionCapture.assertCaptured { it is ExercisesStore.Action.Click.FloatButtonClick }
-            ?: error("FloatButtonClick action was not captured")
+        actionCapture.capturedFirst<Action.Click.FloatButtonClick> {
+            "FloatButtonClick action was not captured"
+        }
     }
 
     @Test

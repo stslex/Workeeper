@@ -8,6 +8,7 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
+import io.github.stslex.workeeper.core.ui.mvi.Store
 
 /**
  * Base class for Compose UI tests providing common functionality
@@ -38,19 +39,32 @@ abstract class BaseComposeTest {
         }
     }
 
+    protected fun <T : Store.Action> createActionCapture(): ActionCapture<T> = ActionCapture()
+
     /**
      * Captures actions for verification in tests
      */
-    protected class ActionCapture<T> {
-        private val capturedActions = mutableListOf<T>()
+    protected class ActionCapture<T : Store.Action> internal constructor() : (T) -> Unit {
+        val capturedActions = mutableListOf<T>()
 
-        val consume: (T) -> Unit = { action ->
+        override operator fun invoke(action: T) {
             capturedActions.add(action)
         }
 
-        fun assertCaptured(predicate: (T) -> Boolean): T? {
-            return capturedActions.firstOrNull(predicate)
-        }
+        inline fun <reified A : T> assertCaptured(
+            errorMsg: () -> String = { "No captured action Filter of type ${A::class.java} found." },
+        ): List<A> = capturedActions.filterIsInstance<A>()
+            .ifEmpty { error(errorMsg()) }
+
+        inline fun <reified A : T> captured(): List<A> = capturedActions.filterIsInstance<A>()
+
+        inline fun <reified A : T> capturedFirst(
+            errorMsg: () -> String = { "No captured action of type ${A::class.java} found." },
+        ): A = captured<A>().firstOrNull() ?: error(errorMsg())
+
+        inline fun <reified A : T> capturedLast(
+            errorMsg: () -> String = { "No captured action of type ${A::class.java} found." },
+        ): A = captured<A>().lastOrNull() ?: error(errorMsg())
 
         fun assertCapturedExactly(expectedAction: T) {
             require(capturedActions.contains(expectedAction)) {
@@ -58,9 +72,20 @@ abstract class BaseComposeTest {
             }
         }
 
-        fun assertCapturedCount(count: Int) {
-            require(capturedActions.size == count) {
-                "Expected $count actions but captured ${capturedActions.size}"
+        inline fun <reified A : T> assertCapturedCount(
+            count: Int,
+            errorMsg: () -> String = { "Expected $count actions but captured ${capturedActions.size}" },
+        ) {
+            require(captured<A>().size == count) {
+                errorMsg()
+            }
+        }
+
+        inline fun <reified A : T> assertCapturedOnce(
+            errorMsg: () -> String = { "Expected single action but captured ${capturedActions.size}" },
+        ) {
+            require(captured<A>().size == 1) {
+                errorMsg()
             }
         }
 

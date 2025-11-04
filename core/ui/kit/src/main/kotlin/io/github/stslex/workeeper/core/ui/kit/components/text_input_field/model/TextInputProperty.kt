@@ -2,6 +2,7 @@ package io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model
 
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.TextInputField
 import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.persistentSetOf
@@ -16,8 +17,10 @@ fun <TMenuItem : Any> TitleTextInputField(
     menuItems: ImmutableSet<MenuItem<TMenuItem>>,
     isMenuOpen: Boolean,
     onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     TextInputField(
+        modifier = modifier,
         property = property,
         labelRes = labelRes,
         textMode = TextMode.TEXT,
@@ -57,9 +60,11 @@ fun BodyTextInputField(
 fun BodyNumberInputField(
     property: PropertyHolder.IntProperty,
     labelRes: Int,
+    modifier: Modifier = Modifier,
     onValueChange: (String) -> Unit,
 ) {
     TextInputField<Any>(
+        modifier = modifier,
         property = property,
         labelRes = labelRes,
         textMode = TextMode.DECIMAL,
@@ -78,9 +83,11 @@ fun BodyNumberInputField(
 fun BodyFloatInputField(
     property: PropertyHolder.DoubleProperty,
     labelRes: Int,
+    modifier: Modifier = Modifier,
     onValueChange: (String) -> Unit,
 ) {
     TextInputField<Any>(
+        modifier = modifier,
         property = property,
         labelRes = labelRes,
         textMode = TextMode.DOUBLE,
@@ -99,9 +106,11 @@ fun BodyFloatInputField(
 fun DateInputField(
     property: PropertyHolder.DateProperty,
     labelRes: Int,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     TextInputField<Any>(
+        modifier = modifier,
         property = property,
         labelRes = labelRes,
         textMode = TextMode.DATE,

@@ -15,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.dialogs.BaseAppDialog
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.BodyFloatInputField
@@ -36,16 +37,19 @@ internal fun ExerciseSetsCreateDialog(
     modifier: Modifier = Modifier,
 ) {
     BaseAppDialog(
-        modifier = modifier,
+        modifier = modifier
+            .testTag("ExerciseSetsDialog"),
         onDismissRequest = { onDismissRequest(setsUiModel) },
     ) {
         Column {
             BodyNumberInputField(
+                modifier = Modifier.testTag("ExerciseSetsDialogRepsField"),
                 property = setsUiModel.reps,
                 labelRes = R.string.feature_exercise_field_label_reps,
                 onValueChange = onRepsInput,
             )
             BodyFloatInputField(
+                modifier = Modifier.testTag("ExerciseSetsDialogWeightField"),
                 property = setsUiModel.weight,
                 labelRes = R.string.feature_exercise_field_label_weight,
                 onValueChange = onWeightInput,
@@ -55,7 +59,9 @@ internal fun ExerciseSetsCreateDialog(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 FilledTonalButton(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("ExerciseSetsDialogSaveButton"),
                     onClick = {
                         onSaveClick(setsUiModel)
                     },
@@ -64,7 +70,9 @@ internal fun ExerciseSetsCreateDialog(
                 }
                 Spacer(modifier = Modifier.width(AppDimension.Padding.medium))
                 FilledTonalButton(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("ExerciseSetsDialogCancelButton"),
                     onClick = {
                         onCancelClick(setsUiModel.uuid)
                     },
