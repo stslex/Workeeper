@@ -30,6 +30,7 @@ processors:
     - 'ProjectLOCProcessor'
     - 'ProjectSLOCProcessor'
     - 'LicenseHeaderLoaderExtension'
+    - '**/*.md'
 
 console-reports:
   active: true

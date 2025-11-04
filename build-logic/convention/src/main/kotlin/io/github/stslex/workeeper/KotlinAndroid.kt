@@ -62,6 +62,7 @@ private fun Project.configureKotlinAndroid(
     defaultConfig {
         minSdk = libs.findVersionInt("minSdk")
         buildFeatures.buildConfig = true
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         gradleLocalProperties(
             projectRootDir = project.rootProject.projectDir,

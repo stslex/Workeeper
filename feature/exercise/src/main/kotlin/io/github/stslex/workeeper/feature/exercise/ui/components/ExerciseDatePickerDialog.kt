@@ -15,6 +15,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
@@ -39,7 +40,8 @@ internal fun ExerciseDatePickerDialog(
         modifier = Modifier
             .wrapContentHeight()
             .fillMaxWidth()
-            .clip(RoundedCornerShape(AppDimension.Radius.medium)),
+            .clip(RoundedCornerShape(AppDimension.Radius.medium))
+            .testTag("ExerciseDatePickerDialog"),
         onDismissRequest = onDismissRequest,
         confirmButton = {},
         dismissButton = {},

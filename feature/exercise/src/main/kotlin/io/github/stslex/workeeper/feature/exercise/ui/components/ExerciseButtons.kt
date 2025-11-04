@@ -18,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
@@ -31,13 +32,28 @@ internal fun ExerciseButtonsRow(
     modifier: Modifier = Modifier,
 ) {
     Row(modifier.fillMaxWidth()) {
-        ConfirmationButton(Icons.Default.Check, onConfirmClick)
+        ConfirmationButton(
+            modifier = Modifier
+                .testTag("ExerciseSaveButton"),
+            icon = Icons.Default.Check,
+            onClick = onConfirmClick,
+        )
         Spacer(Modifier.weight(1f))
         if (isDeleteVisible) {
-            ConfirmationButton(Icons.Default.Delete, onDeleteClick)
+            ConfirmationButton(
+                modifier = Modifier
+                    .testTag("ExerciseDeleteButton"),
+                icon = Icons.Default.Delete,
+                onClick = onDeleteClick,
+            )
         }
         Spacer(Modifier.weight(1f))
-        ConfirmationButton(Icons.Default.Clear, onCancelClick)
+        ConfirmationButton(
+            modifier = Modifier
+                .testTag("ExerciseCancelButton"),
+            icon = Icons.Default.Clear,
+            onClick = onCancelClick,
+        )
     }
 }
 

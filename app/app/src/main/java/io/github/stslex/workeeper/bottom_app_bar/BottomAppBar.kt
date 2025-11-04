@@ -30,8 +30,11 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
@@ -47,14 +50,16 @@ internal fun WorkeeperBottomAppBar(
     BottomAppBar(
         modifier = modifier
             .systemBarsPadding()
-            .height(AppDimension.BottomNavBar.height),
+            .height(AppDimension.BottomNavBar.height)
+            .testTag("WorkeeperBottomAppBar"),
         contentPadding = PaddingValues(AppDimension.Padding.medium),
     ) {
         BottomBarItem.entries.forEachIndexed { index, bottomBarItem ->
             BottomAppBarItem(
                 modifier = Modifier
                     .fillMaxHeight()
-                    .weight(1f),
+                    .weight(1f)
+                    .testTag("BottomAppBarItem_${bottomBarItem.name}"),
                 titleRes = bottomBarItem.titleRes,
                 iconRes = bottomBarItem.iconRes,
                 selected = selectedItem.value == bottomBarItem,
@@ -111,7 +116,10 @@ private fun BottomAppBarItem(
 
     FilledIconButton(
         modifier = modifier
-            .fillMaxHeight(),
+            .fillMaxHeight()
+            .semantics {
+                this.selected = selected
+            },
         onClick = onClick,
         colors = IconButtonDefaults.iconButtonColors(
             containerColor = containerColor,
