@@ -20,9 +20,9 @@ jobs:
 
     strategy:
       matrix:
-        api-level: [34]
-        target: [google_apis]
-        arch: [x86_64]
+        api-level: [ 34 ]
+        target: [ google_apis ]
+        arch: [ x86_64 ]
       fail-fast: false
 
     steps:
@@ -122,9 +122,42 @@ jobs:
           files: |
             **/build/outputs/androidTest-results/connected/**/*.xml
             **/build/test-results/**/*.xml
-          check_name: UI Test Results
-          comment_title: UI Test Results
+          check_name: UI Test Results (API ${{ matrix.api-level }})
+          comment_title: UI Test Results (API ${{ matrix.api-level }})
           commit: ${{ github.event.pull_request.head.sha || github.sha }}
+          report_individual_runs: true
+          deduplicate_classes_by_file_name: false
+          compare_to_earlier_commit: true
+          pull_request_build: commit
+          check_run_annotations: all tests, skipped tests
+
+      - name: Detailed Test Report
+        uses: mikepenz/action-junit-report@v4
+        if: always()
+        with:
+          report_paths: |
+            **/build/outputs/androidTest-results/connected/**/*.xml
+            **/build/test-results/**/*.xml
+          check_name: 📊 Detailed Test Report (API ${{ matrix.api-level }})
+          detailed_summary: true
+          include_passed: true
+          fail_on_failure: false
+          require_tests: true
+          annotate_only: false
+          job_summary: true
+
+      - name: Test Reporter
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Test Report (API ${{ matrix.api-level }})
+          path: |
+            **/build/outputs/androidTest-results/connected/**/*.xml
+            **/build/test-results/**/*.xml
+          reporter: java-junit
+          fail-on-error: false
+          max-annotations: 50
+          only-summary: false
 
       - name: Upload UI test reports
         uses: actions/upload-artifact@v4

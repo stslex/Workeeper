@@ -47,7 +47,7 @@ fun App() {
                 ) + scaleIn(
                     tween(AppUi.uiFeatures.defaultAnimationDuration),
                 ) + slideIn(
-                    initialOffset = { _ -> IntOffset(0, 0) },
+                    initialOffset = { IntOffset(0, 0) },
                     animationSpec = tween(AppUi.uiFeatures.defaultAnimationDuration),
                 ),
                 exit = fadeOut(
