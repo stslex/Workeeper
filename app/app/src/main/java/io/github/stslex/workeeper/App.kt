@@ -1,3 +1,5 @@
+package io.github.stslex.workeeper
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -14,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.zIndex
 import io.github.stslex.workeeper.bottom_app_bar.WorkeeperBottomAppBar
@@ -31,7 +34,8 @@ fun App() {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background),
+                .background(MaterialTheme.colorScheme.background)
+                .testTag("AppRoot"),
         ) {
             AnimatedVisibility(
                 modifier = Modifier
@@ -43,7 +47,7 @@ fun App() {
                 ) + scaleIn(
                     tween(AppUi.uiFeatures.defaultAnimationDuration),
                 ) + slideIn(
-                    initialOffset = { fullSize -> IntOffset(0, 0) },
+                    initialOffset = { _ -> IntOffset(0, 0) },
                     animationSpec = tween(AppUi.uiFeatures.defaultAnimationDuration),
                 ),
                 exit = fadeOut(

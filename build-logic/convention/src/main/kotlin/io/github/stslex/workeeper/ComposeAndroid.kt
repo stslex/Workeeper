@@ -1,7 +1,5 @@
 package io.github.stslex.workeeper
 
-import AppExt.androidTestImplementation
-import AppExt.androidTestImplementationPlatform
 import AppExt.debugImplementation
 import AppExt.implementation
 import AppExt.implementationBundle
@@ -19,13 +17,10 @@ internal fun Project.configureAndroidCompose(
     commonExtension.apply {
         buildFeatures.compose = true
 
-        androidTestImplementationPlatform("androidx-compose-bom")
         implementationPlatform("androidx-compose-bom")
         debugImplementation("androidx-compose-tooling")
-        androidTestImplementation("androidx-compose-ui-test-junit4")
         implementationBundle("accompanist", "compose", "lifecycle")
         implementation("appcompat", "material", "hilt-navigation-compose")
-        debugImplementation("androidx-compose-manifest")
     }
 
 //    TODO - not support kotlin 2.2.21 yet - see https://github.com/VKCOM/vkompose/releases
@@ -33,7 +28,7 @@ internal fun Project.configureAndroidCompose(
 }
 
 private fun Project.configureVkompose(
-    extension: VkomposeExtension
+    extension: VkomposeExtension,
 ): Unit = with(extension) {
     skippabilityCheck = true
     skippabilityCheck {

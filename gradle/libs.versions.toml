@@ -21,6 +21,7 @@ coroutines = "1.10.2"
 composeBom = "2025.10.01"
 composeGradle = "1.9.2"
 composeNavigation = "2.9.5"
+composeJunit = "1.10.0-beta01"
 accompanist = "0.36.0"
 coil = "3.3.0"
 composeActivity = "1.11.0"
@@ -102,8 +103,8 @@ androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime
 androidx-compose-navigation = { group = "androidx.navigation", name = "navigation-compose", version.ref = "composeNavigation" }
 
 androidx-compose-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
-androidx-compose-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
-androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
+androidx-compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
+androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4", version.ref = "composeJunit" }
 
 dev-haze-core = { group = "dev.chrisbanes.haze", name = "haze", version.ref = "haze" }
 dev-haze-materials = { group = "dev.chrisbanes.haze", name = "haze-materials", version.ref = "haze" }
@@ -143,7 +144,8 @@ junit-launcher = { group = "org.junit.platform", name = "junit-platform-launcher
 mockk-android = { group = "io.mockk", name = "mockk-android", version.ref = "mockk" }
 mockk-agent = { group = "io.mockk", name = "mockk-agent", version.ref = "mockk" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxJunit" }
-androidx-espresso = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
+androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
+androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidxTest" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 androidx-test = { group = "androidx.test", name = "core-ktx", version.ref = "androidxTest" }
 
@@ -160,6 +162,7 @@ hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref
 hilt-compiler = { group = "com.google.dagger", name = "hilt-compiler", version.ref = "hilt" }
 hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hiltCompose" }
 hilt-gradlePlugin = { group = "com.google.dagger", name = "hilt-android-gradle-plugin", version.ref = "hilt" }
+hilt-test = { group = "com.google.dagger", name = "hilt-android-testing", version.ref = "hilt" }
 
 coroutine-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutineTest" }
 
@@ -245,9 +248,10 @@ okhttp = [
 ]
 
 android-test = [
-    "junit-jupiter",
     "androidx-junit",
-    "androidx-espresso"
+    "androidx-espresso-core",
+    "androidx-test-runner",
+    "hilt-test"
 ]
 
 test = [

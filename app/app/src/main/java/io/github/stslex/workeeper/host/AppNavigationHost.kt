@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.navigation.compose.NavHost
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
@@ -39,25 +40,32 @@ internal fun AppNavigationHost(
             startDestination = Screen.BottomBar.Charts,
         ) {
             chartsGraph(
-                modifier = bottomBarModifier,
+                modifier = bottomBarModifier
+                    .testTag("ChartsGraph"),
                 navigator = navigator,
                 sharedTransitionScope = this@SharedTransitionLayout,
             )
             allTrainingsGraph(
-                modifier = bottomBarModifier,
+                modifier = bottomBarModifier
+                    .testTag("AllTrainingsGraph"),
                 navigator = navigator,
                 sharedTransitionScope = this@SharedTransitionLayout,
             )
             allExercisesGraph(
-                modifier = bottomBarModifier,
+                modifier = bottomBarModifier
+                    .testTag("AllExercisesGraph"),
                 navigator = navigator,
                 sharedTransitionScope = this@SharedTransitionLayout,
             )
             singleTrainingsGraph(
+                modifier = Modifier
+                    .testTag("SingleTrainingGraph"),
                 navigator = navigator,
                 sharedTransitionScope = this@SharedTransitionLayout,
             )
             exerciseGraph(
+                modifier = Modifier
+                    .testTag("ExerciseGraph"),
                 navigator = navigator,
                 sharedTransitionScope = this@SharedTransitionLayout,
             )
