@@ -179,9 +179,12 @@ jobs:
 
     strategy:
       matrix:
-        # For regular runs (PR/push/smoke): only API 36 (fast)
-        # For 'all' test suite: all API levels (comprehensive)
-        api-level: ${{ (github.event_name == 'workflow_dispatch' && inputs.test_suite == 'all') && fromJSON('[28, 33, 36]') || fromJSON('[36]') }}
+        # Default to API 36 for speed; expand to 28/33/36 for PRs into master or all/regression suites
+        api-level: ${{ (
+          (github.event_name == 'workflow_dispatch' && (inputs.test_suite == 'all' || inputs.test_suite == 'regression')) ||
+          (github.event_name == 'pull_request' && github.base_ref == 'master') ||
+          (github.event_name == 'push' && github.ref == 'refs/heads/master')
+          ) && fromJSON('[28, 33, 36]') || fromJSON('[36]') }}
         target: [ google_apis ]
         arch: [ x86_64 ]
       fail-fast: false

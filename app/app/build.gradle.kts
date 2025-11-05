@@ -10,6 +10,7 @@ android {
 
 dependencies {
     implementation(project(":core:core"))
+    androidTestImplementation(project(":core:ui:test-utils"))
 
     implementation(project(":core:ui:kit"))
     implementation(project(":core:ui:navigation"))
