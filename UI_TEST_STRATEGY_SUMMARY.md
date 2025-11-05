@@ -44,13 +44,17 @@ New custom tasks added to `build.gradle.kts`:
 
 ```bash
 # Run smoke tests only (fast - recommended for development)
-./gradlew connectedSmokeTest
+./gradlew connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke \
+  --continue
 
 # Run regression tests only (comprehensive)
-./gradlew connectedRegressionTest
+./gradlew connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Regression \
+  --continue
 
 # Run all UI tests
-./gradlew connectedAllUiTests
+./gradlew connectedDebugAndroidTest
 ```
 
 ### 4. Unified CI/CD Workflow
@@ -108,10 +112,14 @@ if: |
 
 ```bash
 # Quick smoke test during development
-./gradlew connectedSmokeTest
+./gradlew connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke \
+  --continue
 
 # Full regression test before creating PR to master
-./gradlew connectedRegressionTest
+./gradlew connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Regression \
+  --continue
 
 # Run all tests
 ./gradlew connectedDebugAndroidTest
@@ -164,14 +172,18 @@ The following workflows have been removed and replaced by the unified workflow:
 
 All existing test commands still work:
 ```bash
-# Still works - runs ALL tests
+# Runs ALL tests from all modules
 ./gradlew connectedDebugAndroidTest
 
-# New - runs only smoke tests
-./gradlew connectedSmokeTest
+# Run only smoke tests (fast, for feature modules)
+./gradlew connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke \
+  --continue
 
-# New - runs only regression tests
-./gradlew connectedRegressionTest
+# Run only regression tests (comprehensive, for app modules)
+./gradlew connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Regression \
+  --continue
 ```
 
 ## Best Practices
@@ -259,13 +271,15 @@ github.base_ref == 'master'  # PR targets master
 
 ```bash
 # Clean and rebuild
-./gradlew clean connectedSmokeTest
+./gradlew clean
 
 # Check emulator/device is connected
 adb devices
 
-# Run with verbose logging
-./gradlew connectedSmokeTest --info --stacktrace
+# Run smoke tests with verbose logging
+./gradlew connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke \
+  --info --stacktrace --continue
 ```
 
 ### Workflow Not Triggering

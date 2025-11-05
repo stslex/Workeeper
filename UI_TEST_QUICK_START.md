@@ -496,10 +496,14 @@ Each test should be independent:
 ./gradlew connectedDebugAndroidTest
 
 # Run smoke tests only (fast, recommended for development)
-./gradlew connectedSmokeTest
+./gradlew connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke \
+  --continue
 
 # Run regression tests only (comprehensive, for master branch)
-./gradlew connectedRegressionTest
+./gradlew connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Regression \
+  --continue
 
 # Run specific feature tests
 ./gradlew :feature:my-feature:connectedDebugAndroidTest

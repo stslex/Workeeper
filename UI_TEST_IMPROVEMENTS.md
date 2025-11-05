@@ -217,12 +217,16 @@ See [CLAUDE.md](CLAUDE.md#testing-strategy) for detailed test categorization str
 
 ### Run Smoke Tests Only (Fast - Recommended for Development)
 ```bash
-./gradlew connectedSmokeTest
+./gradlew connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke \
+  --continue
 ```
 
 ### Run Regression Tests Only (Comprehensive)
 ```bash
-./gradlew connectedRegressionTest
+./gradlew connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Regression \
+  --continue
 ```
 
 ### Run Specific Feature Tests

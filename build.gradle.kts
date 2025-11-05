@@ -31,33 +31,12 @@ tasks.register(name = "type", type = Delete::class) {
     delete(rootProject.projectDir.resolve("build"))
 }
 
-// Alias tasks for running categorized UI tests
-// These tasks are simple wrappers that run connectedDebugAndroidTest with annotation filters
-
-// Task to run smoke UI tests (fast, critical tests with mocked data)
-// Smoke tests are in feature modules and use AndroidJUnitRunner
-tasks.register<Exec>("connectedSmokeTest") {
-    group = "verification"
-    description = "Runs smoke UI tests annotated with @Smoke on connected devices"
-
-    commandLine(
-        "./gradlew",
-        "connectedDebugAndroidTest",
-        "-Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke",
-        "--continue"
-    )
-}
-
-// Task to run regression UI tests (comprehensive integration tests with real DI/DB)
-// Regression tests are in app modules and use HiltTestRunner
-tasks.register<Exec>("connectedRegressionTest") {
-    group = "verification"
-    description = "Runs regression UI tests annotated with @Regression on connected devices"
-
-    commandLine(
-        "./gradlew",
-        "connectedDebugAndroidTest",
-        "-Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Regression",
-        "--continue"
-    )
-}
+// Instructions for running categorized UI tests
+//
+// To run smoke UI tests (fast, critical tests with mocked data):
+//   ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke --continue
+//
+// To run regression UI tests (comprehensive integration tests with real DI/DB):
+//   ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Regression --continue
+//
+// The --continue flag ensures all modules are tested even if some fail.
