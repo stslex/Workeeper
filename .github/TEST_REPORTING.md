@@ -231,7 +231,7 @@ Current test configuration:
 - **Architecture:** x86_64
 
 **To add more API levels:**
-Edit `.github/workflows/android_ui_tests.yml`:
+Edit `.github/workflows/android_build_unified.yml`:
 
 ```yaml
 strategy:
@@ -241,7 +241,7 @@ strategy:
 
 ### Customizing Reports
 
-All three reporting actions are configured in `.github/workflows/android_ui_tests.yml`. Key
+All three reporting actions are configured in `.github/workflows/android_build_unified.yml`. Key
 settings:
 
 | Action   | Key Options                 | Default     |

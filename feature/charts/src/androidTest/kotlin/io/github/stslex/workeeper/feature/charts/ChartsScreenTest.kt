@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.core.ui.test.BaseComposeTest
+import io.github.stslex.workeeper.core.ui.test.annotations.Smoke
 import io.github.stslex.workeeper.feature.charts.mvi.model.CalendarState
 import io.github.stslex.workeeper.feature.charts.mvi.model.ChartsState
 import io.github.stslex.workeeper.feature.charts.mvi.model.ChartsType
@@ -17,6 +18,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
+@Smoke
 @RunWith(AndroidJUnit4::class)
 class ChartsScreenTest : BaseComposeTest() {
 

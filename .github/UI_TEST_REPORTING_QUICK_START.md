@@ -94,7 +94,7 @@ When you create a PR with UI test changes, you automatically get:
 
 ## Configuration
 
-All reporting is automatic! Configured in `.github/workflows/android_ui_tests.yml`
+All reporting is automatic! Configured in `.github/workflows/android_build_unified.yml`
 
 **Using GitHub Actions:**
 

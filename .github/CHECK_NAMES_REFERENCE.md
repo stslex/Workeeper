@@ -4,7 +4,7 @@ This document lists all check run names to avoid conflicts between workflows.
 
 ## Test Reporting Check Names
 
-### Unit Tests (android_build.yml)
+### Unit Tests (android_build_unified.yml)
 
 | Action | Check Name | Comment Title |
 |--------|-----------|---------------|
@@ -12,7 +12,7 @@ This document lists all check run names to avoid conflicts between workflows.
 | mikepenz | 📊 Detailed Unit Test Report | - |
 | dorny | 📈 Unit Test Report | - |
 
-### UI Tests (android_ui_tests.yml)
+### UI Tests (android_build_unified.yml)
 
 | Action | Check Name | Comment Title |
 |--------|-----------|---------------|

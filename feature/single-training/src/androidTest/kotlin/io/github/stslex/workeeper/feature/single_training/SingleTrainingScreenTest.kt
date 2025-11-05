@@ -6,6 +6,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
+import io.github.stslex.workeeper.core.ui.test.annotations.Smoke
 import io.github.stslex.workeeper.feature.single_training.ui.SingleTrainingsScreen
 import io.github.stslex.workeeper.feature.single_training.ui.model.DialogState
 import io.github.stslex.workeeper.feature.single_training.ui.model.TrainingUiModel
@@ -16,6 +17,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
+@Smoke
 @RunWith(AndroidJUnit4::class)
 class SingleTrainingScreenTest {
 

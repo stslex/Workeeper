@@ -10,6 +10,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.core.ui.test.BaseComposeTest
+import io.github.stslex.workeeper.core.ui.test.annotations.Smoke
 import io.github.stslex.workeeper.feature.exercise.ui.ExerciseFeatureWidget
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SetUiType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SetsUiModel
@@ -27,6 +28,7 @@ import kotlin.uuid.Uuid
  * Comprehensive UI tests for Exercise feature
  * Tests both create and edit modes with various edge cases
  */
+@Smoke
 @RunWith(AndroidJUnit4::class)
 class ExerciseScreenTest : BaseComposeTest() {
 

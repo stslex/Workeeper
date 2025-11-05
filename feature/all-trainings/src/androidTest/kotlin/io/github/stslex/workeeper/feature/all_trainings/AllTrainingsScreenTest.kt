@@ -9,6 +9,7 @@ import androidx.paging.PagingData
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.core.ui.test.BaseComposeTest
+import io.github.stslex.workeeper.core.ui.test.annotations.Smoke
 import io.github.stslex.workeeper.feature.all_trainings.mvi.model.TrainingUiModel
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore.Action
@@ -20,6 +21,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
+@Smoke
 @RunWith(AndroidJUnit4::class)
 class AllTrainingsScreenTest : BaseComposeTest() {
 

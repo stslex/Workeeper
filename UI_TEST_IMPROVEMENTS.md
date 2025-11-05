@@ -199,11 +199,30 @@ AnimatedContent("") {
 5. **Accessibility First**: Dedicated accessibility test suite
 6. **Reusability**: Shared utilities module reduces duplication
 
+## Test Categorization (Added 2025-11-05)
+
+All UI tests are now categorized using annotations:
+
+- **@Smoke**: Fast tests with mocked data (majority of tests)
+- **@Regression**: Full integration tests with real DI/DB
+
+See [CLAUDE.md](CLAUDE.md#testing-strategy) for detailed test categorization strategy.
+
 ## Running the Tests
 
 ### Run All UI Tests
 ```bash
 ./gradlew connectedDebugAndroidTest
+```
+
+### Run Smoke Tests Only (Fast - Recommended for Development)
+```bash
+./gradlew connectedSmokeTest
+```
+
+### Run Regression Tests Only (Comprehensive)
+```bash
+./gradlew connectedRegressionTest
 ```
 
 ### Run Specific Feature Tests
@@ -216,9 +235,14 @@ AnimatedContent("") {
 ```
 
 ### Run Tests in CI/CD
-Tests automatically run on GitHub Actions with the existing workflow:
+Tests automatically run on GitHub Actions with the unified workflow:
 ```bash
-# See: .github/workflows/android_ui_tests.yml
+# See: .github/workflows/android_build_unified.yml
+# - Smoke tests run on ALL PRs (to any branch)
+# - Regression tests run ONLY on:
+#   * PRs targeting master branch (github.base_ref == 'master')
+#   * Pushes to master branch
+#   * Manual workflow dispatch with 'regression' or 'all' option
 ```
 
 ## Test Maintenance Guidelines

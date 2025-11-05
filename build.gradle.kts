@@ -30,3 +30,49 @@ buildscript {
 tasks.register(name = "type", type = Delete::class) {
     delete(rootProject.projectDir.resolve("build"))
 }
+
+// Task to run smoke UI tests (fast, critical tests with mocked data)
+tasks.register("connectedSmokeTest") {
+    group = "verification"
+    description = "Runs smoke UI tests annotated with @Smoke on connected devices"
+
+    dependsOn(":app:dev:assembleDebugAndroidTest")
+
+    doLast {
+        exec {
+            commandLine(
+                "./gradlew",
+                "connectedDebugAndroidTest",
+                "-Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke",
+                "--continue"
+            )
+        }
+    }
+}
+
+// Task to run regression UI tests (comprehensive integration tests with real DI/DB)
+tasks.register("connectedRegressionTest") {
+    group = "verification"
+    description = "Runs regression UI tests annotated with @Regression on connected devices"
+
+    dependsOn(":app:dev:assembleDebugAndroidTest")
+
+    doLast {
+        exec {
+            commandLine(
+                "./gradlew",
+                "connectedDebugAndroidTest",
+                "-Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Regression",
+                "--continue"
+            )
+        }
+    }
+}
+
+// Task to run all UI tests (both smoke and regression)
+tasks.register("connectedAllUiTests") {
+    group = "verification"
+    description = "Runs all UI tests (both smoke and regression) on connected devices"
+
+    dependsOn("connectedSmokeTest", "connectedRegressionTest")
+}
