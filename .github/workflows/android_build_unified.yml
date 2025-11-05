@@ -23,6 +23,11 @@ permissions:
   checks: write
   pull-requests: write
 
+# cancel-in-progress runs for the same workflow in the same branch/PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # Main build job - runs linting, unit tests, and build
   build:
