@@ -27,18 +27,18 @@ echo "$KOTLIN_FILES"
 
 # Run detekt on changed files
 echo "Running detekt..."
-if ! ./gradlew detekt --quiet; then
+if ! ./gradlew detekt --no-configuration-cache --quiet; then
     echo "❌ detekt found issues. Please fix them before committing."
-    echo "Run './gradlew detekt' to see the full report."
-    echo "Run './gradlew detektFormat' to auto-fix formatting issues."
+    echo "Run './gradlew detekt --no-configuration-cache' to see the full report."
+    echo "Run './gradlew detektFormat --no-configuration-cache' to auto-fix formatting issues."
     exit 1
 fi
 
 # Run Android Lint
 echo "Running Android Lint..."
-if ! ./gradlew lintDebug --quiet; then
+if ! ./gradlew lintDebug --no-configuration-cache --quiet; then
     echo "❌ Android Lint found issues. Please fix them before committing."
-    echo "Run './gradlew lintDebug' to see the full report."
+    echo "Run './gradlew lintDebug --no-configuration-cache' to see the full report."
     exit 1
 fi
 

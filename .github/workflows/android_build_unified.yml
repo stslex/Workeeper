@@ -89,7 +89,7 @@ jobs:
         run: ./gradlew detekt --full-stacktrace
 
       - name: Run Android Lint
-        run: ./gradlew lintDebug --full-stacktrace
+        run: ./gradlew lintDebug --no-configuration-cache --full-stacktrace
 
       - name: Build with Gradle
         run: ./gradlew build -x test --full-stacktrace
@@ -179,7 +179,9 @@ jobs:
 
     strategy:
       matrix:
-        api-level: [ 28, 33, 36 ]
+        # For regular runs (PR/push/smoke): only API 36 (fast)
+        # For 'all' test suite: all API levels (comprehensive)
+        api-level: ${{ (github.event_name == 'workflow_dispatch' && inputs.test_suite == 'all') && fromJSON('[28, 33, 36]') || fromJSON('[36]') }}
         target: [ google_apis ]
         arch: [ x86_64 ]
       fail-fast: false
@@ -345,6 +347,7 @@ jobs:
 
     strategy:
       matrix:
+        # Regression tests always run on all API levels (comprehensive coverage)
         api-level: [ 28, 33, 36 ]
         target: [ google_apis ]
         arch: [ x86_64 ]
