@@ -15,6 +15,7 @@ on:
           - smoke
           - regression
           - all
+          - none
 
 permissions:
   contents: read
@@ -251,9 +252,6 @@ jobs:
           disable-animations: true
           script: echo "Generated AVD snapshot for caching."
 
-      - name: Build test APKs
-        run: ./gradlew assembleDebugAndroidTest --full-stacktrace
-
       - name: Run Smoke UI tests on emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -419,9 +417,6 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           script: echo "Generated AVD snapshot for caching."
-
-      - name: Build test APKs
-        run: ./gradlew assembleDebugAndroidTest --full-stacktrace
 
       - name: Run Regression UI tests on emulator
         uses: reactivecircus/android-emulator-runner@v2

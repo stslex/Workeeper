@@ -46,9 +46,7 @@ internal class ExerciseRepositoryImpl @Inject constructor(
     override suspend fun getExercisesByUuid(
         uuids: List<String>,
     ): List<ExerciseDataModel> = withContext(bgDispatcher) {
-        dao
-            .getByUuids(uuids.map(Uuid::parse))
-            .orEmpty()
+        dao.getByUuids(uuids.map(Uuid::parse))
             .map { it.toData() }
     }
 
@@ -85,7 +83,7 @@ internal class ExerciseRepositoryImpl @Inject constructor(
 
     override suspend fun deleteItem(uuid: String) {
         withContext(bgDispatcher) {
-            dao.delete(Uuid.Companion.parse(uuid))
+            dao.delete(Uuid.parse(uuid))
         }
     }
 

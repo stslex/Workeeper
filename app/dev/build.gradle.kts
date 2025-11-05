@@ -10,6 +10,7 @@ android {
 
 dependencies {
     implementation(project(":app:app"))
+    androidTestImplementation(project(":core:ui:test-utils"))
 
     implementation(platform(libs.google.firebase.bom))
     implementation(libs.google.firebase.analytics)
