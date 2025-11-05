@@ -14,24 +14,62 @@ dependencies {
 }
 ```
 
-### 2. Extend BaseComposeTest
+### 2. Choose Test Category
 
+All UI tests must be categorized as either **Smoke** or **Regression**:
+
+**Smoke Tests** - Fast tests with mocked data (use this for most tests):
 ```kotlin
 import io.github.stslex.workeeper.core.ui.test.BaseComposeTest
+import io.github.stslex.workeeper.core.ui.test.annotations.Smoke
 
+@Smoke
 @RunWith(AndroidJUnit4::class)
 class MyFeatureScreenTest : BaseComposeTest() {
-
     @get:Rule
     val composeTestRule = createComposeRule()
-
     // ... tests
 }
 ```
 
-## Basic Test Structure
+**Regression Tests** - Full integration tests with real DI:
+```kotlin
+import io.github.stslex.workeeper.core.ui.test.annotations.Regression
+
+@Regression
+@HiltAndroidTest
+@RunWith(AndroidJUnit4::class)
+class MyFullAppTest {
+    @get:Rule(order = 0)
+    val hiltRule = HiltAndroidRule(this)
+
+    @get:Rule(order = 1)
+    val composeRule = createAndroidComposeRule<MainActivity>()
+    // ... tests
+}
+```
+
+### 3. Test Category Guidelines
+
+**Use @Smoke when:**
+- Testing individual components with mocked data
+- Using `createComposeRule()` (no activity required)
+- No real DI container, database, or API needed
+- Fast execution (< 1 second per test)
+
+**Use @Regression when:**
+- Testing full app with `@HiltAndroidTest`
+- Using `createAndroidComposeRule<MainActivity>()`
+- Requires real DI, database, or full app initialization
+- Testing complete user flows across features
+
+## Basic Test Structure (Smoke Test)
 
 ```kotlin
+import io.github.stslex.workeeper.core.ui.test.BaseComposeTest
+import io.github.stslex.workeeper.core.ui.test.annotations.Smoke
+
+@Smoke
 @RunWith(AndroidJUnit4::class)
 class MyFeatureScreenTest : BaseComposeTest() {
 
@@ -40,13 +78,13 @@ class MyFeatureScreenTest : BaseComposeTest() {
 
     @Test
     fun myFeature_action_expectedResult() {
-        // 1. Setup state
+        // 1. Setup state with mocked data
         val state = MyStore.State.INITIAL.copy(
             // ... customize state
         )
 
         // 2. Setup action capture using BaseComposeTest utility
-        val actionCapture = ActionCapture<MyStore.Action>()
+        val actionCapture = createActionCapture<MyStore.Action>()
 
         // 3. Set content with transitions (using setTransitionContent extension)
         composeTestRule.mainClock.autoAdvance = false
@@ -54,7 +92,7 @@ class MyFeatureScreenTest : BaseComposeTest() {
             MyFeatureWidget(
                 state = state,
                 modifier = modifier,
-                consume = actionCapture.consume,
+                consume = actionCapture,
                 sharedTransitionScope = this,
                 animatedContentScope = animatedContentScope
             )
@@ -75,8 +113,9 @@ class MyFeatureScreenTest : BaseComposeTest() {
             .assertIsDisplayed()
 
         // 7. Verify actions using ActionCapture
-        actionCapture.assertCaptured { it is MyStore.Action.Click.MyButton }
-            ?: error("Button click was not captured")
+        actionCapture.capturedFirst<MyStore.Action.Click.MyButton> {
+            "Button click was not captured"
+        }
     }
 }
 ```
@@ -453,8 +492,18 @@ Each test should be independent:
 ## Running Tests
 
 ```bash
-# Run all UI tests
+# Run all UI tests (both smoke and regression)
 ./gradlew connectedDebugAndroidTest
+
+# Run smoke tests only (fast, recommended for development)
+./gradlew connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke \
+  --continue
+
+# Run regression tests only (comprehensive, for master branch)
+./gradlew connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Regression \
+  --continue
 
 # Run specific feature tests
 ./gradlew :feature:my-feature:connectedDebugAndroidTest
@@ -469,6 +518,10 @@ Each test should be independent:
 # Run specific test method
 ./gradlew connectedDebugAndroidTest \
   --tests "*.MyFeatureScreenTest.myFeature_action_expectedResult"
+
+# Run only smoke tests in specific feature
+./gradlew :feature:my-feature:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke
 ```
 
 ## Debugging Tests

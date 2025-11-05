@@ -12,11 +12,13 @@ import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import io.github.stslex.workeeper.MainActivity
 import io.github.stslex.workeeper.bottom_app_bar.BottomBarItem
+import io.github.stslex.workeeper.core.ui.test.annotations.Regression
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
+@Regression
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 internal class ApplicationBottomBarTest {

@@ -4,7 +4,7 @@
 
 ### Test Reports for BOTH Unit and UI Tests
 
-Now both `android_build.yml` (unit tests) and `android_ui_tests.yml` (UI tests) have comprehensive reporting with unique check names to avoid conflicts.
+Now `android_build_unified.yml` has comprehensive reporting for both unit tests and UI tests (smoke and regression) with unique check names to avoid conflicts.
 
 ### Three Ready-Made GitHub Actions
 
@@ -94,13 +94,13 @@ All functionality provided by battle-tested GitHub Actions:
 
 ## Files Modified
 
-1. `.github/workflows/android_ui_tests.yml`
-    - Added 3 reporting actions for UI tests
-    - Unique check names to avoid conflicts
-
-2. `.github/workflows/android_build.yml`
-    - Added 3 reporting actions for unit tests
-    - Unique check names (different from UI tests)
+1. `.github/workflows/android_build_unified.yml`
+    - Unified workflow with comprehensive test reporting
+    - Added 3 reporting actions for:
+      - Unit tests
+      - Smoke UI tests
+      - Regression UI tests
+    - Unique check names to avoid conflicts between test types
 
 ## Files Created
 
@@ -143,7 +143,7 @@ Adjust action parameters in workflow file:
 
 - [Quick Start Guide](UI_TEST_REPORTING_QUICK_START.md)
 - [Full Documentation](TEST_REPORTING.md)
-- [Workflow File](../workflows/android_ui_tests.yml)
+- [Workflow File](../workflows/android_build_unified.yml)
 
 ## Action Documentation
 

@@ -4,6 +4,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
+import io.github.stslex.workeeper.core.ui.test.annotations.Regression
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
@@ -15,6 +16,7 @@ import org.junit.runner.RunWith
  *
  * See [testing documentation](http://d.android.com/tools/testing).
  */
+@Regression
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class ExampleInstrumentedTest {

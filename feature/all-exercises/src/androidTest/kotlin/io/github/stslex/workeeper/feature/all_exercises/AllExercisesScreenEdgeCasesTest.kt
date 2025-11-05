@@ -14,6 +14,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stslex.workeeper.core.ui.test.BaseComposeTest
 import io.github.stslex.workeeper.core.ui.test.MockDataFactory
 import io.github.stslex.workeeper.core.ui.test.PagingTestUtils
+import io.github.stslex.workeeper.core.ui.test.annotations.Smoke
 import io.github.stslex.workeeper.feature.all_exercises.mvi.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.ExercisesStore
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.ExercisesStore.Action
@@ -29,6 +30,7 @@ import org.junit.runner.RunWith
  * Edge case and advanced UI tests for All Exercises screen
  * Tests error states, keyboard interactions, pagination, and selection modes
  */
+@Smoke
 @RunWith(AndroidJUnit4::class)
 @SuppressLint("UnusedContentLambdaTargetStateParameter")
 class AllExercisesScreenEdgeCasesTest : BaseComposeTest() {

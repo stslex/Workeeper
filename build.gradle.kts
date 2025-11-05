@@ -30,3 +30,13 @@ buildscript {
 tasks.register(name = "type", type = Delete::class) {
     delete(rootProject.projectDir.resolve("build"))
 }
+
+// Instructions for running categorized UI tests
+//
+// To run smoke UI tests (fast, critical tests with mocked data):
+//   ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke --continue
+//
+// To run regression UI tests (comprehensive integration tests with real DI/DB):
+//   ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Regression --continue
+//
+// The --continue flag ensures all modules are tested even if some fail.

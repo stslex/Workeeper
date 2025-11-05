@@ -178,7 +178,11 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
 
         // Verify all names are unique
         val uniqueNames = actual?.map { it.name }?.toSet()
-        assertEquals(actual?.size, uniqueNames?.size, "All returned exercises should have unique names")
+        assertEquals(
+            actual?.size,
+            uniqueNames?.size,
+            "All returned exercises should have unique names",
+        )
     }
 
     @Test
@@ -491,9 +495,9 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
 
         val actual = dao.getByUuids(expectedUuids)
 
-        assertEquals(expectedExercises.size, actual?.size)
+        assertEquals(expectedExercises.size, actual.size)
         expectedExercises.forEach { expected ->
-            assertTrue(actual?.contains(expected) == true)
+            assertTrue(actual.contains(expected))
         }
     }
 
@@ -503,7 +507,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
 
         val actual = dao.getByUuids(emptyList())
 
-        assertTrue(actual?.isEmpty() == true)
+        assertTrue(actual.isEmpty())
     }
 
     @Test
@@ -517,7 +521,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
 
         val actual = dao.getByUuids(nonExistingUuids)
 
-        assertTrue(actual?.isEmpty() == true)
+        assertTrue(actual.isEmpty())
     }
 
     @Test
@@ -530,10 +534,8 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
 
             val actual = dao.getByUuids(mixedUuids)
 
-            assertEquals(existingUuids.size, actual?.size)
-            existingUuids.forEach { uuid ->
-                assertTrue(actual?.any { it.uuid == uuid } == true)
-            }
+            assertEquals(existingUuids.size, actual.size)
+            existingUuids.forEach { uuid -> assertTrue(actual.any { it.uuid == uuid }) }
         }
 
     @Test
