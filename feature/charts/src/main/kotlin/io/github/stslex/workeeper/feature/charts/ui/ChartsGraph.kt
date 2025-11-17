@@ -10,7 +10,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
-import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.feature.charts.di.ChartsFeature
 import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore
 import kotlinx.coroutines.flow.collectLatest
@@ -19,11 +18,10 @@ import kotlinx.coroutines.flow.filter
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 fun NavGraphBuilder.chartsGraph(
-    navigator: Navigator,
     sharedTransitionScope: SharedTransitionScope,
     modifier: Modifier = Modifier,
 ) {
-    navComponentScreen(ChartsFeature, navigator) { processor ->
+    navComponentScreen(ChartsFeature) { processor ->
         val haptic = LocalHapticFeedback.current
 
         val pagerState = rememberPagerState(initialPage = 0) {

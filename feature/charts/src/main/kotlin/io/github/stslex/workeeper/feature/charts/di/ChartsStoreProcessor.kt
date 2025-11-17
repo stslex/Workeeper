@@ -3,7 +3,6 @@ package io.github.stslex.workeeper.feature.charts.di
 import androidx.compose.runtime.Composable
 import io.github.stslex.workeeper.core.ui.mvi.Feature
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
-import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen.BottomBar.Charts
 import io.github.stslex.workeeper.feature.charts.mvi.handler.ChartsComponent
 import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore.Action
@@ -24,12 +23,5 @@ internal object ChartsFeature : Feature<ChartsStoreProcessor, Charts, ChartsComp
     @Composable
     override fun processor(
         screen: Charts,
-        navigator: Navigator,
-    ): ChartsStoreProcessor =
-        createProcessor<ChartsStoreImpl, ChartsStoreImpl.Factory>(navigator, screen)
-
-    override fun createComponent(
-        navigator: Navigator,
-        screen: Charts,
-    ): ChartsComponent = ChartsComponent.create(navigator)
+    ): ChartsStoreProcessor = createProcessor<ChartsStoreImpl, ChartsStoreImpl.Factory>(screen)
 }

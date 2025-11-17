@@ -15,7 +15,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
-import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseFeature
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SnackbarType
@@ -25,10 +24,9 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Ac
 @OptIn(ExperimentalSharedTransitionApi::class)
 fun NavGraphBuilder.exerciseGraph(
     sharedTransitionScope: SharedTransitionScope,
-    navigator: Navigator,
     modifier: Modifier = Modifier,
 ) {
-    navComponentScreen(ExerciseFeature, navigator) { processor ->
+    navComponentScreen(ExerciseFeature) { processor ->
         val context = LocalContext.current
 
         val snackbarHostState = remember { SnackbarHostState() }

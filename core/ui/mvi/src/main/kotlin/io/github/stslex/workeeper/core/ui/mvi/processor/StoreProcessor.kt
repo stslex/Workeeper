@@ -14,6 +14,8 @@ import io.github.stslex.workeeper.core.ui.mvi.Store.Action
 import io.github.stslex.workeeper.core.ui.mvi.Store.Event
 import io.github.stslex.workeeper.core.ui.mvi.Store.State
 import io.github.stslex.workeeper.core.ui.navigation.Component
+import io.github.stslex.workeeper.core.ui.navigation.LocalRootComponent
+import io.github.stslex.workeeper.core.ui.navigation.Screen
 import androidx.compose.runtime.State as ComposeState
 
 /**
@@ -48,12 +50,19 @@ inline fun <
     TComponent : Component<*>,
     reified TFactory : StoreFactory<TComponent, TStoreImpl>,
     > rememberStoreProcessor(
-    component: TComponent,
+    screen: Screen,
     key: String? = null,
 ): StoreProcessor<*, *, *> {
+    val rootComponent = LocalRootComponent.current
+
+    val component = remember(screen) {
+        rootComponent.createComponent(screen) as TComponent
+    }
+
     val store = hiltViewModel<TStoreImpl, TFactory>(key = key) {
         it.create(component)
     }.apply { initEmitter() }
+
     DisposableEffect(store) {
         store.initEmitter()
         store.init()

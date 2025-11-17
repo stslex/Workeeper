@@ -4,17 +4,10 @@ import io.github.stslex.workeeper.core.ui.navigation.Component
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen.BottomBar.AllTrainings
 
-internal interface AllTrainingsComponent : Component<AllTrainings> {
-
-    override val data: AllTrainings
-        get() = AllTrainings
+abstract class AllTrainingsComponent : Component<AllTrainings>(AllTrainings) {
 
     companion object {
 
-        fun create(
-            navigator: Navigator,
-        ): AllTrainingsComponent = NavigationHandler(
-            navigator = navigator,
-        )
+        fun create(navigator: Navigator): AllTrainingsComponent = NavigationHandler(navigator)
     }
 }

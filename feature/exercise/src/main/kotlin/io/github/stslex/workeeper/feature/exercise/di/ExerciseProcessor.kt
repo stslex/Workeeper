@@ -3,7 +3,6 @@ package io.github.stslex.workeeper.feature.exercise.di
 import androidx.compose.runtime.Composable
 import io.github.stslex.workeeper.core.ui.mvi.Feature
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
-import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen.Exercise
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.ExerciseComponent
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
@@ -24,14 +23,7 @@ internal data object ExerciseFeature : Feature<ExerciseProcessor, Exercise, Exer
     @Composable
     override fun processor(
         screen: Exercise,
-        navigator: Navigator,
     ): ExerciseProcessor = createProcessor<ExerciseStoreImpl, ExerciseStoreImpl.Factory>(
-        navigator = navigator,
         screen = screen,
     )
-
-    override fun createComponent(
-        navigator: Navigator,
-        screen: Exercise,
-    ): ExerciseComponent = ExerciseComponent.create(navigator, screen)
 }

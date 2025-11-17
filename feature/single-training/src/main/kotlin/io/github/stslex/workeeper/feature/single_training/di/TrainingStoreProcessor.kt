@@ -3,7 +3,6 @@ package io.github.stslex.workeeper.feature.single_training.di
 import androidx.compose.runtime.Composable
 import io.github.stslex.workeeper.core.ui.mvi.Feature
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
-import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen.Training
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.handler.SingleTrainingComponent
 import io.github.stslex.workeeper.feature.single_training.ui.mvi.store.TrainingStore.Action
@@ -25,14 +24,7 @@ internal object TrainingFeature :
     @Composable
     override fun processor(
         screen: Training,
-        navigator: Navigator,
     ): TrainingStoreProcessor = createProcessor<TrainingStoreImpl, TrainingStoreImpl.Factory>(
-        navigator = navigator,
         screen = screen,
     )
-
-    override fun createComponent(
-        navigator: Navigator,
-        screen: Training,
-    ): SingleTrainingComponent = SingleTrainingComponent.create(navigator, screen)
 }

@@ -1,12 +1,12 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
-import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.navigation.Component
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 
-interface ExerciseComponent : Component<Screen.Exercise>, Handler<Action.Navigation> {
+abstract class ExerciseComponent(
+    data: Screen.Exercise,
+) : Component<Screen.Exercise>(data) {
 
     companion object {
 

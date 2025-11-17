@@ -5,7 +5,6 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
 import io.github.stslex.workeeper.core.ui.navigation.Component
-import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.core.ui.navigation.navScreen
 
@@ -15,7 +14,6 @@ import io.github.stslex.workeeper.core.ui.navigation.navScreen
  * within the composable content.
  *
  * @param feature The feature that provides the StoreProcessor.
- * @param navigator The navigator used to create the component.
  * @param content The composable content that receives the StoreProcessor.
  */
 @Suppress("ComposableStateRule")
@@ -25,10 +23,9 @@ inline fun <
     TComponent : Component<TScreen>,
     > NavGraphBuilder.navComponentScreen(
     feature: Feature<TProcessor, TScreen, TComponent>,
-    navigator: Navigator,
     crossinline content: @Composable AnimatedContentScope.(TProcessor) -> Unit,
 ) {
     navScreen<TScreen> { screen ->
-        content(feature.processor(screen, navigator))
+        content(feature.processor(screen))
     }
 }

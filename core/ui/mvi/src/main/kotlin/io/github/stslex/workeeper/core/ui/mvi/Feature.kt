@@ -2,12 +2,10 @@ package io.github.stslex.workeeper.core.ui.mvi
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.remember
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreFactory
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
 import io.github.stslex.workeeper.core.ui.mvi.processor.rememberStoreProcessor
 import io.github.stslex.workeeper.core.ui.navigation.Component
-import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 
 /**
@@ -20,15 +18,7 @@ import io.github.stslex.workeeper.core.ui.navigation.Screen
 abstract class Feature<TProcessor : StoreProcessor<*, *, *>, TScreen : Screen, TComponent : Component<TScreen>> {
 
     @Composable
-    abstract fun processor(
-        screen: TScreen,
-        navigator: Navigator,
-    ): TProcessor
-
-    abstract fun createComponent(
-        navigator: Navigator,
-        screen: TScreen,
-    ): TComponent
+    abstract fun processor(screen: TScreen): TProcessor
 
     @Suppress("UNCHECKED_CAST")
     @Composable
@@ -36,9 +26,6 @@ abstract class Feature<TProcessor : StoreProcessor<*, *, *>, TScreen : Screen, T
         reified TSImpl : BaseStore<*, *, *>,
         reified TFactory : StoreFactory<TComponent, TSImpl>,
         > Feature<TProcessor, TScreen, TComponent>.createProcessor(
-        navigator: Navigator,
         screen: TScreen,
-    ): TProcessor = rememberStoreProcessor<TSImpl, TComponent, TFactory>(
-        component = remember(screen) { createComponent(navigator, screen) },
-    ) as TProcessor
+    ): TProcessor = rememberStoreProcessor<TSImpl, TComponent, TFactory>(screen) as TProcessor
 }

@@ -7,16 +7,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
-import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.feature.single_training.di.TrainingFeature
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 fun NavGraphBuilder.singleTrainingsGraph(
-    navigator: Navigator,
     sharedTransitionScope: SharedTransitionScope,
     modifier: Modifier = Modifier,
 ) {
-    navComponentScreen(TrainingFeature, navigator) { processor ->
+    navComponentScreen(TrainingFeature) { processor ->
         with(sharedTransitionScope) {
             SingleTrainingsScreen(
                 modifier = modifier

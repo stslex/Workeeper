@@ -8,18 +8,16 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.kit.utils.OnKeyboardVisible
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
-import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.feature.all_trainings.di.TrainingsFeature
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore.Action
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 fun NavGraphBuilder.allTrainingsGraph(
-    navigator: Navigator,
     sharedTransitionScope: SharedTransitionScope,
     modifier: Modifier = Modifier,
 ) {
-    navComponentScreen(TrainingsFeature, navigator) { processor ->
+    navComponentScreen(TrainingsFeature) { processor ->
 
         val haptic = LocalHapticFeedback.current
 
