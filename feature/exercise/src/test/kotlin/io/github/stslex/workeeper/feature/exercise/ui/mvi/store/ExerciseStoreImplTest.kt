@@ -40,8 +40,10 @@ internal class ExerciseStoreImplTest {
     private val testDispatcher = StandardTestDispatcher()
 
     private val component = mockk<ExerciseComponent> {
-        every { uuid } returns null
-        every { trainingUuid } returns null
+        every { data } returns mockk {
+            every { uuid } returns null
+            every { trainingUuid } returns null
+        }
         coEvery { this@mockk.invoke(any()) } just runs
     }
     private val clickHandler = mockk<ClickHandler> {
@@ -97,8 +99,8 @@ internal class ExerciseStoreImplTest {
 
     @Test
     fun `store initializes with Init action when component data is null`() = runTest {
-        every { component.uuid } returns null
-        every { component.trainingUuid } returns null
+        every { component.data.uuid } returns null
+        every { component.data.trainingUuid } returns null
         val initAction = Action.Common.Init(uuid = null, trainingUuid = null)
 
         store.init()
@@ -111,12 +113,17 @@ internal class ExerciseStoreImplTest {
 
     @Test
     fun `store initializes with Init action when component data is provided`() = runTest {
-        every { component.uuid } returns "test-uuid"
-        every { component.trainingUuid } returns null
+        val customComponent = mockk<ExerciseComponent> {
+            every { data } returns mockk {
+                every { uuid } returns "test-uuid"
+                every { trainingUuid } returns null
+            }
+            coEvery { this@mockk.invoke(any()) } just runs
+        }
 
         // Create a new store instance after setting up the mock
         val testStore = ExerciseStoreImpl(
-            component = component,
+            component = customComponent,
             clickHandler = clickHandler,
             inputHandler = inputHandler,
             commonHandler = commonHandler,
