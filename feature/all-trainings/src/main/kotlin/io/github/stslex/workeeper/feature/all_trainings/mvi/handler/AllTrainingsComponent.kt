@@ -2,8 +2,12 @@ package io.github.stslex.workeeper.feature.all_trainings.mvi.handler
 
 import io.github.stslex.workeeper.core.ui.navigation.Component
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
+import io.github.stslex.workeeper.core.ui.navigation.Screen.BottomBar.AllTrainings
 
-internal interface AllTrainingsComponent : Component {
+internal interface AllTrainingsComponent : Component<AllTrainings> {
+
+    override val data: AllTrainings
+        get() = AllTrainings
 
     companion object {
 

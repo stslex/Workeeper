@@ -45,7 +45,7 @@ interface StoreProcessor<S : State, A : Action, E : Event> {
 @Composable
 inline fun <
     reified TStoreImpl : BaseStore<*, *, *>,
-    TComponent : Component,
+    TComponent : Component<*>,
     reified TFactory : StoreFactory<TComponent, TStoreImpl>,
     > rememberStoreProcessor(
     component: TComponent,

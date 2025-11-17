@@ -3,6 +3,8 @@ package io.github.stslex.workeeper.feature.all_trainings.di
 import androidx.compose.runtime.Composable
 import io.github.stslex.workeeper.core.ui.mvi.Feature
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
+import io.github.stslex.workeeper.core.ui.navigation.Navigator
+import io.github.stslex.workeeper.core.ui.navigation.Screen.BottomBar.AllTrainings
 import io.github.stslex.workeeper.feature.all_trainings.mvi.handler.AllTrainingsComponent
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore.Action
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore.Event
@@ -18,10 +20,17 @@ internal typealias TrainingStoreProcessor = StoreProcessor<State, Action, Event>
  *
  * @see [io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore]
  * */
-internal object TrainingsFeature : Feature<TrainingStoreProcessor, AllTrainingsComponent>() {
+internal object TrainingsFeature :
+    Feature<TrainingStoreProcessor, AllTrainings, AllTrainingsComponent>() {
 
     @Composable
     override fun processor(
-        component: AllTrainingsComponent,
-    ): TrainingStoreProcessor = createProcessor<TrainingStoreImpl, Factory>(component)
+        screen: AllTrainings,
+        navigator: Navigator,
+    ): TrainingStoreProcessor = createProcessor<TrainingStoreImpl, Factory>(navigator, screen)
+
+    override fun createComponent(
+        navigator: Navigator,
+        screen: AllTrainings,
+    ): AllTrainingsComponent = AllTrainingsComponent.create(navigator)
 }

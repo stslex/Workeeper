@@ -47,8 +47,8 @@ internal class ExerciseStoreImpl @AssistedInject constructor(
     storeDispatchers = storeDispatchers,
     initialActions = listOf(
         Action.Common.Init(
-            uuid = component.uuid,
-            trainingUuid = component.trainingUuid,
+            uuid = component.data.uuid,
+            trainingUuid = component.data.trainingUuid,
         ),
     ),
     analyticsHolder = analyticsHolder,

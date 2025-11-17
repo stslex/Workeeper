@@ -3,23 +3,19 @@ package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.navigation.Component
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
+import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 
-interface ExerciseComponent : Component, Handler<Action.Navigation> {
-
-    val uuid: String?
-    val trainingUuid: String?
+interface ExerciseComponent : Component<Screen.Exercise>, Handler<Action.Navigation> {
 
     companion object {
 
         fun create(
             navigator: Navigator,
-            uuid: String?,
-            trainingUuid: String?,
+            screen: Screen.Exercise,
         ): ExerciseComponent = ExerciseComponentImpl(
             navigator = navigator,
-            uuid = uuid,
-            trainingUuid = trainingUuid,
+            data = screen,
         )
     }
 }

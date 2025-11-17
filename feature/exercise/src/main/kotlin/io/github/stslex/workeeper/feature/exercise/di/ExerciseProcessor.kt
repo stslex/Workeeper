@@ -3,6 +3,8 @@ package io.github.stslex.workeeper.feature.exercise.di
 import androidx.compose.runtime.Composable
 import io.github.stslex.workeeper.core.ui.mvi.Feature
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
+import io.github.stslex.workeeper.core.ui.navigation.Navigator
+import io.github.stslex.workeeper.core.ui.navigation.Screen.Exercise
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.ExerciseComponent
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Event
@@ -17,10 +19,19 @@ internal typealias ExerciseProcessor = StoreProcessor<State, Action, Event>
  *
  * @see [io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore]
  * */
-internal object ExerciseFeature : Feature<ExerciseProcessor, ExerciseComponent>() {
+internal data object ExerciseFeature : Feature<ExerciseProcessor, Exercise, ExerciseComponent>() {
 
     @Composable
     override fun processor(
-        component: ExerciseComponent,
-    ): ExerciseProcessor = createProcessor<ExerciseStoreImpl, ExerciseStoreImpl.Factory>(component)
+        screen: Exercise,
+        navigator: Navigator,
+    ): ExerciseProcessor = createProcessor<ExerciseStoreImpl, ExerciseStoreImpl.Factory>(
+        navigator = navigator,
+        screen = screen,
+    )
+
+    override fun createComponent(
+        navigator: Navigator,
+        screen: Exercise,
+    ): ExerciseComponent = ExerciseComponent.create(navigator, screen)
 }
