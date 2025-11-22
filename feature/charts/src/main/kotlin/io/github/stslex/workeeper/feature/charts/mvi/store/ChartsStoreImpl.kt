@@ -14,6 +14,7 @@ import io.github.stslex.workeeper.feature.charts.di.ChartsHandlerStoreImpl
 import io.github.stslex.workeeper.feature.charts.mvi.handler.ChartsComponent
 import io.github.stslex.workeeper.feature.charts.mvi.handler.ClickHandler
 import io.github.stslex.workeeper.feature.charts.mvi.handler.InputHandler
+import io.github.stslex.workeeper.feature.charts.mvi.handler.NavigationHandler
 import io.github.stslex.workeeper.feature.charts.mvi.handler.PagingHandler
 import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore.Action
 import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore.Event
@@ -37,7 +38,7 @@ internal class ChartsStoreImpl @AssistedInject constructor(
     handlerCreator = { action ->
         when (action) {
             is Action.Paging -> pagingHandler
-            is Action.Navigation -> component
+            is Action.Navigation -> component as NavigationHandler
             is Action.Click -> clickHandler
             is Action.Input -> inputHandler
         }

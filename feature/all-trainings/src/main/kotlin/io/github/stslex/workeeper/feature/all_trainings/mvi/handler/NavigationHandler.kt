@@ -7,7 +7,7 @@ import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore.
 
 internal class NavigationHandler(
     private val navigator: Navigator,
-) : AllTrainingsComponent, Handler<Action.Navigation> {
+) : AllTrainingsComponent(), Handler<Action.Navigation> {
 
     override fun invoke(action: Action.Navigation) {
         when (action) {

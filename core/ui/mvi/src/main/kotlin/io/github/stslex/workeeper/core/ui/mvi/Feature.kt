@@ -6,6 +6,7 @@ import io.github.stslex.workeeper.core.ui.mvi.processor.StoreFactory
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
 import io.github.stslex.workeeper.core.ui.mvi.processor.rememberStoreProcessor
 import io.github.stslex.workeeper.core.ui.navigation.Component
+import io.github.stslex.workeeper.core.ui.navigation.Screen
 
 /**
  * Feature is a Koin feature module that provides a StoreProcessor.
@@ -14,19 +15,17 @@ import io.github.stslex.workeeper.core.ui.navigation.Component
  * @see [StoreProcessor]
  * */
 @Immutable
-abstract class Feature<TProcessor : StoreProcessor<*, *, *>, TComponent : Component> {
+abstract class Feature<TProcessor : StoreProcessor<*, *, *>, TScreen : Screen, TComponent : Component<TScreen>> {
 
     @Composable
-    abstract fun processor(component: TComponent): TProcessor
+    abstract fun processor(screen: TScreen): TProcessor
 
     @Suppress("UNCHECKED_CAST")
     @Composable
     inline fun <
-        reified TStoreImpl : BaseStore<*, *, *>,
-        reified TFactory : StoreFactory<TComponent, TStoreImpl>,
-        > Feature<TProcessor, TComponent>.createProcessor(
-        component: TComponent,
-    ): TProcessor = rememberStoreProcessor<TStoreImpl, TComponent, TFactory>(
-        component,
-    ) as TProcessor
+        reified TSImpl : BaseStore<*, *, *>,
+        reified TFactory : StoreFactory<TComponent, TSImpl>,
+        > Feature<TProcessor, TScreen, TComponent>.createProcessor(
+        screen: TScreen,
+    ): TProcessor = rememberStoreProcessor<TSImpl, TComponent, TFactory>(screen) as TProcessor
 }

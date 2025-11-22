@@ -14,6 +14,7 @@ import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStoreImpl
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.ClickHandler
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.CommonHandler
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.ExerciseComponent
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.ExerciseComponentImpl
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.InputHandler
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.NavigationHandler
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
@@ -37,7 +38,7 @@ internal class ExerciseStoreImpl @AssistedInject constructor(
     storeEmitter = storeEmitter,
     handlerCreator = { action ->
         when (action) {
-            is Action.Navigation -> component
+            is Action.Navigation -> component as ExerciseComponentImpl
             is Action.Click -> clickHandler
             is Action.Input -> inputHandler
             is Action.Common -> commonHandler
@@ -47,8 +48,8 @@ internal class ExerciseStoreImpl @AssistedInject constructor(
     storeDispatchers = storeDispatchers,
     initialActions = listOf(
         Action.Common.Init(
-            uuid = component.uuid,
-            trainingUuid = component.trainingUuid,
+            uuid = component.data.uuid,
+            trainingUuid = component.data.trainingUuid,
         ),
     ),
     analyticsHolder = analyticsHolder,
