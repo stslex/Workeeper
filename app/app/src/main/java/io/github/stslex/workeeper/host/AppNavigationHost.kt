@@ -42,31 +42,26 @@ internal fun AppNavigationHost(
             chartsGraph(
                 modifier = bottomBarModifier
                     .testTag("ChartsGraph"),
-                navigator = navigator,
                 sharedTransitionScope = this@SharedTransitionLayout,
             )
             allTrainingsGraph(
                 modifier = bottomBarModifier
                     .testTag("AllTrainingsGraph"),
-                navigator = navigator,
                 sharedTransitionScope = this@SharedTransitionLayout,
             )
             allExercisesGraph(
                 modifier = bottomBarModifier
                     .testTag("AllExercisesGraph"),
-                navigator = navigator,
                 sharedTransitionScope = this@SharedTransitionLayout,
             )
             singleTrainingsGraph(
                 modifier = Modifier
                     .testTag("SingleTrainingGraph"),
-                navigator = navigator,
                 sharedTransitionScope = this@SharedTransitionLayout,
             )
             exerciseGraph(
                 modifier = Modifier
                     .testTag("ExerciseGraph"),
-                navigator = navigator,
                 sharedTransitionScope = this@SharedTransitionLayout,
             )
         }

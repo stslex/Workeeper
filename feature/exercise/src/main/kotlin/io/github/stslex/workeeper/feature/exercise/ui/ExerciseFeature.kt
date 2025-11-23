@@ -14,13 +14,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.navigation.NavGraphBuilder
-import io.github.stslex.workeeper.core.ui.mvi.NavComponentScreen
-import io.github.stslex.workeeper.core.ui.navigation.Navigator
-import io.github.stslex.workeeper.core.ui.navigation.Screen
-import io.github.stslex.workeeper.core.ui.navigation.navScreen
+import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseFeature
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.ExerciseComponent
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SnackbarType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
@@ -28,65 +24,55 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Ac
 @OptIn(ExperimentalSharedTransitionApi::class)
 fun NavGraphBuilder.exerciseGraph(
     sharedTransitionScope: SharedTransitionScope,
-    navigator: Navigator,
     modifier: Modifier = Modifier,
 ) {
-    navScreen<Screen.Exercise> { data ->
-        val component = remember(navigator) {
-            ExerciseComponent.create(
-                navigator = navigator,
-                uuid = data.uuid,
-                trainingUuid = data.trainingUuid,
-            )
+    navComponentScreen(ExerciseFeature) { processor ->
+        val context = LocalContext.current
+
+        val snackbarHostState = remember { SnackbarHostState() }
+        val hapticFeedback = LocalHapticFeedback.current
+
+        val backHandlerEnable =
+            remember(processor.state.value) { processor.state.value.allowBack }
+
+        BackHandler(backHandlerEnable.not()) {
+            processor.consume(Action.NavigationMiddleware.BackWithConfirmation)
         }
-        NavComponentScreen(ExerciseFeature, component) { processor ->
-            val context = LocalContext.current
 
-            val snackbarHostState = remember { SnackbarHostState() }
-            val hapticFeedback = LocalHapticFeedback.current
+        processor.Handle { event ->
+            when (event) {
+                ExerciseStore.Event.InvalidParams -> showToast(context)
+                is ExerciseStore.Event.Snackbar -> snackbarHostState.showSnackbar(
+                    message = when (event.type) {
+                        SnackbarType.DELETE -> "Delete this note?"
+                        SnackbarType.DISMISS -> "Leave without saving?"
+                    },
+                    actionLabel = event.type.value,
+                    withDismissAction = true,
+                )
 
-            val backHandlerEnable =
-                remember(processor.state.value) { processor.state.value.allowBack }
-
-            BackHandler(backHandlerEnable.not()) {
-                processor.consume(Action.NavigationMiddleware.BackWithConfirmation)
-            }
-
-            processor.Handle { event ->
-                when (event) {
-                    ExerciseStore.Event.InvalidParams -> showToast(context)
-                    is ExerciseStore.Event.Snackbar -> snackbarHostState.showSnackbar(
-                        message = when (event.type) {
-                            SnackbarType.DELETE -> "Delete this note?"
-                            SnackbarType.DISMISS -> "Leave without saving?"
-                        },
-                        actionLabel = event.type.value,
-                        withDismissAction = true,
-                    )
-
-                    ExerciseStore.Event.HapticClick -> {
-                        hapticFeedback.performHapticFeedback(HapticFeedbackType.VirtualKey)
-                    }
+                ExerciseStore.Event.HapticClick -> {
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.VirtualKey)
                 }
             }
-            with(sharedTransitionScope) {
-                ExerciseFeatureWidget(
-                    consume = processor::consume,
-                    state = processor.state.value,
-                    snackbarHostState = snackbarHostState,
-                    modifier = modifier
-                        .sharedBounds(
-                            sharedContentState = sharedTransitionScope.rememberSharedContentState(
-                                component.uuid ?: "createExercise",
-                            ),
-                            animatedVisibilityScope = this@navScreen,
-                            resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(
-                                ContentScale.FillBounds,
-                                Alignment.Center,
-                            ),
+        }
+        with(sharedTransitionScope) {
+            ExerciseFeatureWidget(
+                consume = processor::consume,
+                state = processor.state.value,
+                snackbarHostState = snackbarHostState,
+                modifier = modifier
+                    .sharedBounds(
+                        sharedContentState = sharedTransitionScope.rememberSharedContentState(
+                            processor.state.value.uuid ?: "createExercise",
                         ),
-                )
-            }
+                        animatedVisibilityScope = this@navComponentScreen,
+                        resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(
+                            ContentScale.FillBounds,
+                            Alignment.Center,
+                        ),
+                    ),
+            )
         }
     }
 }

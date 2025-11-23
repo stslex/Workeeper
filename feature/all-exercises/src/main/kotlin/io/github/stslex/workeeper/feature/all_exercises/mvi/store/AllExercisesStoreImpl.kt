@@ -11,7 +11,7 @@ import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreFactory
 import io.github.stslex.workeeper.feature.all_exercises.di.ExerciseHandlerStoreImpl
-import io.github.stslex.workeeper.feature.all_exercises.mvi.handler.AllExercisesComponent
+import io.github.stslex.workeeper.feature.all_exercises.mvi.handler.AllExerciseComponent
 import io.github.stslex.workeeper.feature.all_exercises.mvi.handler.ClickHandler
 import io.github.stslex.workeeper.feature.all_exercises.mvi.handler.InputHandler
 import io.github.stslex.workeeper.feature.all_exercises.mvi.handler.NavigationHandler
@@ -22,7 +22,7 @@ import io.github.stslex.workeeper.feature.all_exercises.mvi.store.ExercisesStore
 
 @HiltViewModel(assistedFactory = AllExercisesStoreImpl.Factory::class)
 internal class AllExercisesStoreImpl @AssistedInject constructor(
-    @Assisted component: AllExercisesComponent,
+    @Assisted component: AllExerciseComponent,
     pagingHandler: PagingHandler,
     clickHandler: ClickHandler,
     inputHandler: InputHandler,
@@ -50,7 +50,7 @@ internal class AllExercisesStoreImpl @AssistedInject constructor(
 ) {
 
     @AssistedFactory
-    interface Factory : StoreFactory<AllExercisesComponent, AllExercisesStoreImpl>
+    interface Factory : StoreFactory<AllExerciseComponent, AllExercisesStoreImpl>
 
     companion object {
 
