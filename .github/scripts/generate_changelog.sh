@@ -118,7 +118,7 @@ elif [[ "$FORMAT" == "play" ]]; then
     echo "No relevant commits found, created fallback changelog"
   else
     # Limit to 500 chars total for Play Store
-    limit=500
+    limit=499
     total=0
     out_lines=()
 
