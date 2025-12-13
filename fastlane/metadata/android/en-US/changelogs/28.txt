@@ -1,0 +1,8 @@
+- 🐛 deploy changelog
+- ♻️ update JSON parsing logic in CI configuration
+- 📦 update library versions for improved functionality
+- ♻️ update JSON parsing logic in CI configuration
+- ♻️ update ExerciseComponent mock to ExerciseComponentImpl
+- ♻️ update navigation components and remove unnecessary parameters
+- ♻️ update mock behavior to use data property for ExerciseComponent and NavigationHandler
+- 📦 remove unused Ktor and OkHttp dependencies
