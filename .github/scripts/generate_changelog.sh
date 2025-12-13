@@ -112,28 +112,51 @@ if [[ "$FORMAT" == "github" ]]; then
 elif [[ "$FORMAT" == "play" ]]; then
   # Play Store format - filtered commits only
   mkdir -p "fastlane/metadata/android/en-US/changelogs"
+  OUTPUT_FILE="fastlane/metadata/android/en-US/changelogs/${VERSION_CODE}.txt"
 
   if (( ${#filtered_commits[@]} == 0 )); then
-    echo "- 🛠 Bug fixes and performance improvements" > "fastlane/metadata/android/en-US/changelogs/${VERSION_CODE}.txt"
+    echo "- Bug fixes and performance improvements" > "$OUTPUT_FILE"
     echo "No relevant commits found, created fallback changelog"
   else
-    # Limit to 500 chars total for Play Store
-    limit=499
+    # Play Store limit is 500 characters (bytes)
+    # We use 490 as safe limit to account for newlines and encoding
+    CHAR_LIMIT=490
     total=0
     out_lines=()
 
     for line in "${filtered_commits[@]}"; do
+      # Calculate byte length for proper UTF-8 handling
+      line_bytes=$(echo -n "$line" | wc -c)
       # +1 for newline when joined
-      next=$(( total + ${#line} + 1 ))
-      if (( next > limit )); then
-        out_lines+=("…")
+      next=$(( total + line_bytes + 1 ))
+      if (( next > CHAR_LIMIT )); then
         break
       fi
       out_lines+=("$line")
       total=$next
     done
 
-    printf "%s\n" "${out_lines[@]}" > "fastlane/metadata/android/en-US/changelogs/${VERSION_CODE}.txt"
-    echo "Created Play changelog with ${#filtered_commits[@]} items (${total} chars)"
+    # If no lines fit, add a truncated version of the first line
+    if (( ${#out_lines[@]} == 0 )); then
+      first_line="${filtered_commits[0]}"
+      # Truncate to ~480 bytes to be safe
+      truncated=$(echo -n "$first_line" | cut -c1-480)
+      out_lines+=("$truncated...")
+    fi
+
+    printf "%s\n" "${out_lines[@]}" > "$OUTPUT_FILE"
+
+    # Verify final file size and truncate if needed
+    file_bytes=$(wc -c < "$OUTPUT_FILE")
+    if (( file_bytes > 500 )); then
+      # Truncate file to 497 bytes and add "..."
+      head -c 497 "$OUTPUT_FILE" > "${OUTPUT_FILE}.tmp"
+      echo -n "..." >> "${OUTPUT_FILE}.tmp"
+      mv "${OUTPUT_FILE}.tmp" "$OUTPUT_FILE"
+      echo "Warning: Changelog truncated to 500 bytes"
+    fi
+
+    final_size=$(wc -c < "$OUTPUT_FILE")
+    echo "Created Play changelog with ${#out_lines[@]} items (${final_size} bytes)"
   fi
 fi
