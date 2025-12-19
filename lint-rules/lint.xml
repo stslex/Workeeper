@@ -109,8 +109,14 @@
     <issue id="PluralsCandidate" severity="error" />
     <issue id="StringFormatCount" severity="error" />
     <issue id="StringFormatInvalid" severity="error" />
-    <issue id="GradleDependency" severity="error" />
-    <issue id="NewerVersionAvailable" severity="error" />
+    <issue id="GradleDependency" severity="error">
+        <!-- Ignore intentional Kotlin downgrade for Hilt compatibility (Hilt doesn't support Kotlin 2.3.0 yet) -->
+        <ignore path="**/libs.versions.toml" />
+    </issue>
+    <issue id="NewerVersionAvailable" severity="error">
+        <!-- Ignore intentional Kotlin downgrade for Hilt compatibility (Hilt doesn't support Kotlin 2.3.0 yet) -->
+        <ignore path="**/libs.versions.toml" />
+    </issue>
 
     <!-- Kotlin specific -->
     <issue id="KotlinPropertyAccess" severity="warning" />
