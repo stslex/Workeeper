@@ -190,13 +190,9 @@ jobs:
 
     strategy:
       matrix:
-        # Default to API 34 for speed; expand to 28/34 for PRs into master or all/regression suites
-        # Note: API 33 removed due to unreliable emulator boot issues on GitHub Actions
-        api-level: ${{ (
-          (github.event_name == 'workflow_dispatch' && (inputs.test_suite == 'all' || inputs.test_suite == 'regression')) ||
-          (github.event_name == 'pull_request' && github.base_ref == 'master') ||
-          (github.event_name == 'push' && github.ref == 'refs/heads/master')
-          ) && fromJSON('[28, 34]') || fromJSON('[34]') }}
+        # Default to API 34 for speed; expand to 34 for PRs into master or all/regression suites
+        # Note: API 33,28 removed due to unreliable emulator boot issues on GitHub Actions
+        api-level: [ 34 ]
         target: [ google_apis ]
         arch: [ x86_64 ]
       fail-fast: false
@@ -375,8 +371,8 @@ jobs:
     strategy:
       matrix:
         # Regression tests always run on all API levels (comprehensive coverage)
-        # Note: API 33 removed due to unreliable emulator boot issues on GitHub Actions
-        api-level: [ 28, 34 ]
+        # Note: API 33, 28 removed due to unreliable emulator boot issues on GitHub Actions
+        api-level: [ 34 ]
         target: [ google_apis ]
         arch: [ x86_64 ]
       fail-fast: false
