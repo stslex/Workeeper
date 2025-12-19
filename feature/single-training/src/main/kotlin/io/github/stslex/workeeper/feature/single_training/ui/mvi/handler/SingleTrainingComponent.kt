@@ -2,19 +2,18 @@ package io.github.stslex.workeeper.feature.single_training.ui.mvi.handler
 
 import io.github.stslex.workeeper.core.ui.navigation.Component
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
+import io.github.stslex.workeeper.core.ui.navigation.Screen.Training
 
-internal interface SingleTrainingComponent : Component {
-
-    val uuid: String?
+abstract class SingleTrainingComponent(data: Training) : Component<Training>(data) {
 
     companion object {
 
         fun create(
             navigator: Navigator,
-            uuid: String?,
+            screen: Training,
         ): SingleTrainingComponent = NavigationHandler(
             navigator = navigator,
-            uuid = uuid,
+            data = screen,
         )
     }
 }

@@ -12,7 +12,7 @@ internal class NavigationHandlerTest {
     private val navigator = mockk<Navigator>(relaxed = true)
     private val handler = NavigationHandler(
         navigator = navigator,
-        uuid = null,
+        data = Screen.Training(uuid = null),
     )
 
     @Test

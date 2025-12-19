@@ -36,7 +36,9 @@ internal class TrainingStoreImplTest {
     private val testDispatcher = StandardTestDispatcher()
 
     private val navigationHandler = mockk<NavigationHandler> {
-        every { uuid } returns "test-uuid"
+        every { data } returns mockk {
+            every { uuid } returns "test-uuid"
+        }
         coEvery { this@mockk.invoke(any()) } just runs
     }
 
@@ -309,7 +311,9 @@ internal class TrainingStoreImplTest {
     fun `navigation handler uuid is properly accessed during initialization`() = runTest {
         val expectedUuid = "test-training-uuid"
         val customNavigationHandler = mockk<NavigationHandler>()
-        every { customNavigationHandler.uuid } returns expectedUuid
+        every { customNavigationHandler.data } returns mockk {
+            every { uuid } returns expectedUuid
+        }
         coEvery { customNavigationHandler.invoke(any()) } just runs
 
         val customStore = TrainingStoreImpl(
@@ -333,7 +337,9 @@ internal class TrainingStoreImplTest {
     @Test
     fun `store handles null uuid from navigationHandler`() = runTest {
         val nullUuidNavigationHandler = mockk<NavigationHandler>()
-        every { nullUuidNavigationHandler.uuid } returns null
+        every { nullUuidNavigationHandler.data } returns mockk {
+            every { uuid } returns null
+        }
         coEvery { nullUuidNavigationHandler.invoke(any()) } just runs
 
         val customStore = TrainingStoreImpl(

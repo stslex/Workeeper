@@ -66,7 +66,7 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
                     val name = cursor.getString(nameIndex)
                     val timestamp = cursor.getLong(timestampIndex)
 
-                    val setsType = SetsEntityType.Companion.defaultType
+                    val setsType = SetsEntityType.defaultType
                     val setsList = Array(sets) {
                         SetsEntity(
                             uuid = Uuid.random(),
@@ -77,11 +77,11 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
                     }.toList()
 
                     db.execSQL(
-                        """
+                        sql = """
                             INSERT INTO exercises_table_new (uuid, training_uuid, labels, sets, name, timestamp) 
                             VALUES (?, ?, ?, ?, ?, ?)
                             """,
-                        arrayOf(
+                        bindArgs = arrayOf<Any?>(
                             exerciseUuid,
                             null,
                             StringConverter.listToString(emptyList()),

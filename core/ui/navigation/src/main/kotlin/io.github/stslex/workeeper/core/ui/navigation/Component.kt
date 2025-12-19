@@ -1,3 +1,5 @@
 package io.github.stslex.workeeper.core.ui.navigation
 
-interface Component
+abstract class Component<ScreenType : Screen>(
+    val data: ScreenType,
+)

@@ -3,7 +3,8 @@ package io.github.stslex.workeeper.feature.all_exercises.di
 import androidx.compose.runtime.Composable
 import io.github.stslex.workeeper.core.ui.mvi.Feature
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
-import io.github.stslex.workeeper.feature.all_exercises.mvi.handler.AllExercisesComponent
+import io.github.stslex.workeeper.core.ui.navigation.Screen.BottomBar.AllExercises
+import io.github.stslex.workeeper.feature.all_exercises.mvi.handler.AllExerciseComponent
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStoreImpl
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStoreImpl.Factory
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.ExercisesStore.Action
@@ -18,10 +19,11 @@ internal typealias ExerciseStoreProcessor = StoreProcessor<State, Action, Event>
  *
  * @see [io.github.stslex.workeeper.feature.all_exercises.mvi.store.ExercisesStore]
  * */
-internal object ExerciseFeature : Feature<ExerciseStoreProcessor, AllExercisesComponent>() {
+internal object ExerciseFeature :
+    Feature<ExerciseStoreProcessor, AllExercises, AllExerciseComponent>() {
 
     @Composable
     override fun processor(
-        component: AllExercisesComponent,
-    ): ExerciseStoreProcessor = createProcessor<AllExercisesStoreImpl, Factory>(component)
+        screen: AllExercises,
+    ): ExerciseStoreProcessor = createProcessor<AllExercisesStoreImpl, Factory>(screen)
 }

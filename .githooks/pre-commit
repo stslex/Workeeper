@@ -2,10 +2,6 @@
 
 # Pre-commit hook to run linting
 
-# Set JAVA_HOME for the hook environment
-export JAVA_HOME="/var/home/stslex/.jdks/jbrsdk_jcef-21.0.8"
-export PATH="$JAVA_HOME/bin:$PATH"
-
 echo "Running pre-commit checks..."
 
 # Check if we're in a git repository

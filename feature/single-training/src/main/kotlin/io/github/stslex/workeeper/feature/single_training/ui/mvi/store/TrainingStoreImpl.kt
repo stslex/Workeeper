@@ -43,7 +43,7 @@ internal class TrainingStoreImpl @AssistedInject constructor(
     },
     storeEmitter = handlerStore,
     storeDispatchers = storeDispatchers,
-    initialActions = listOf(Action.Common.Init(navigationHandler.uuid)),
+    initialActions = listOf(Action.Common.Init(navigationHandler.data.uuid)),
     analyticsHolder = analyticsHolder,
     loggerHolder = loggerHolder,
 ) {

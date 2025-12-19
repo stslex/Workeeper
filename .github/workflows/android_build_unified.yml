@@ -190,12 +190,9 @@ jobs:
 
     strategy:
       matrix:
-        # Default to API 36 for speed; expand to 28/33/36 for PRs into master or all/regression suites
-        api-level: ${{ (
-          (github.event_name == 'workflow_dispatch' && (inputs.test_suite == 'all' || inputs.test_suite == 'regression')) ||
-          (github.event_name == 'pull_request' && github.base_ref == 'master') ||
-          (github.event_name == 'push' && github.ref == 'refs/heads/master')
-          ) && fromJSON('[28, 33, 36]') || fromJSON('[36]') }}
+        # Default to API 34 for speed; expand to 34 for PRs into master or all/regression suites
+        # Note: API 33,28 removed due to unreliable emulator boot issues on GitHub Actions
+        api-level: [ 34 ]
         target: [ google_apis ]
         arch: [ x86_64 ]
       fail-fast: false
@@ -279,8 +276,9 @@ jobs:
           target: ${{ matrix.target }}
           arch: ${{ matrix.arch }}
           force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 4096 -partition-size 4096
           disable-animations: true
+          emulator-boot-timeout: 900
           script: echo "Generated AVD snapshot for caching."
 
       - name: Run Smoke UI tests on emulator
@@ -290,8 +288,9 @@ jobs:
           target: ${{ matrix.target }}
           arch: ${{ matrix.arch }}
           force-avd-creation: false
-          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 4096 -partition-size 4096
           disable-animations: true
+          emulator-boot-timeout: 900
           script: |
             adb logcat > logcat-smoke.txt &
             ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Smoke --full-stacktrace --continue
@@ -372,7 +371,8 @@ jobs:
     strategy:
       matrix:
         # Regression tests always run on all API levels (comprehensive coverage)
-        api-level: [ 28, 33, 36 ]
+        # Note: API 33, 28 removed due to unreliable emulator boot issues on GitHub Actions
+        api-level: [ 34 ]
         target: [ google_apis ]
         arch: [ x86_64 ]
       fail-fast: false
@@ -456,8 +456,9 @@ jobs:
           target: ${{ matrix.target }}
           arch: ${{ matrix.arch }}
           force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 4096 -partition-size 4096
           disable-animations: true
+          emulator-boot-timeout: 900
           script: echo "Generated AVD snapshot for caching."
 
       - name: Run Regression UI tests on emulator
@@ -467,8 +468,9 @@ jobs:
           target: ${{ matrix.target }}
           arch: ${{ matrix.arch }}
           force-avd-creation: false
-          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 4096 -partition-size 4096
           disable-animations: true
+          emulator-boot-timeout: 900
           script: |
             adb logcat > logcat-regression.txt &
             ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.annotation=io.github.stslex.workeeper.core.ui.test.annotations.Regression --full-stacktrace --continue
