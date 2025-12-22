@@ -12,8 +12,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult.ActionPerformed
+import androidx.compose.material3.SnackbarResult.Dismissed
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,6 +25,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.zIndex
 import io.github.stslex.workeeper.bottom_app_bar.WorkeeperBottomAppBar
+import io.github.stslex.workeeper.core.ui.kit.components.snackbar.AppSnackBar
+import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.navigation.LocalNavigator
@@ -40,6 +46,24 @@ fun App() {
             LocalNavigator provides navigator,
             LocalRootComponent provides rootComponent,
         ) {
+            val snackbarHostState = remember { SnackbarHostState() }
+
+            LaunchedEffect(Unit) {
+                SnackbarManager.snackbar
+                    .collect { model ->
+                        val result = snackbarHostState.showSnackbar(
+                            message = model.message,
+                            actionLabel = model.actionLabel,
+                            withDismissAction = model.withDismissAction,
+                        )
+                        when (result) {
+                            ActionPerformed -> model.action()
+
+                            Dismissed -> Unit // No-op
+                        }
+                    }
+            }
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -78,6 +102,14 @@ fun App() {
                 AppNavigationHost(
                     modifier = Modifier,
                     navigator = navigator,
+                )
+
+                AppSnackBar(
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                    state = snackbarHostState,
+                    onActionClick = {
+                        snackbarHostState.currentSnackbarData?.performAction()
+                    },
                 )
             }
         }
