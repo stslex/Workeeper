@@ -1,4 +1,4 @@
-import AppExt.androidTestApi
+import AppExt.androidTestImplementation
 import AppExt.findPluginId
 import AppExt.implementation
 import AppExt.implementationBundle
@@ -36,7 +36,7 @@ class RoomLibraryConventionPlugin : Plugin<Project> {
 
                 ksp("androidx-room-compiler")
                 implementation("androidx-paging-runtime")
-                androidTestApi("androidx-room-testing")
+                androidTestImplementation("androidx-room-testing")
             }
         }
     }
