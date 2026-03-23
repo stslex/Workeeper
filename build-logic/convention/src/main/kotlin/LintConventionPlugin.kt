@@ -14,38 +14,36 @@ class LintConventionPlugin : Plugin<Project> {
             }
 
             val commonExtension = extensions.findByType(CommonExtension::class.java)
-            commonExtension?.apply {
-                lint {
-                    // Main lint configuration (includes centralized suppressions)
-                    lintConfig = rootProject.file("lint-rules/lint.xml")
+            commonExtension?.lint?.apply {
+                // Main lint configuration (includes centralized suppressions)
+                lintConfig = rootProject.file("lint-rules/lint.xml")
 
-                    // Report configuration
-                    htmlReport = true
-                    xmlReport = true
-                    sarifReport = true
-                    textReport = false
+                // Report configuration
+                htmlReport = true
+                xmlReport = true
+                sarifReport = true
+                textReport = false
 
-                    // Analysis configuration
-                    checkDependencies = true
-                    abortOnError = true
-                    ignoreWarnings = false
-                    checkAllWarnings = true
-                    warningsAsErrors = true
-                    checkGeneratedSources = false
-                    explainIssues = true
-                    noLines = false
-                    quiet = false
-                    checkReleaseBuilds = true
-                    ignoreTestSources = true
+                // Analysis configuration
+                checkDependencies = true
+                abortOnError = true
+                ignoreWarnings = false
+                checkAllWarnings = true
+                warningsAsErrors = true
+                checkGeneratedSources = false
+                explainIssues = true
+                noLines = false
+                quiet = false
+                checkReleaseBuilds = true
+                ignoreTestSources = true
 
-                    // Single centralized baseline file for all modules
-                    baseline = rootProject.file("lint-rules/lint-baseline.xml")
+                // Single centralized baseline file for all modules
+                baseline = rootProject.file("lint-rules/lint-baseline.xml")
 
-                    // Output directories
-                    htmlOutput = file("build/reports/lint-results.html")
-                    xmlOutput = file("build/reports/lint-results.xml")
-                    sarifOutput = file("build/reports/lint-results.sarif")
-                }
+                // Output directories
+                htmlOutput = file("build/reports/lint-results.html")
+                xmlOutput = file("build/reports/lint-results.xml")
+                sarifOutput = file("build/reports/lint-results.sarif")
             }
 
             // Configure detekt for each module

@@ -39,7 +39,7 @@ internal fun Project.configureKotlinAndroid(
  * Configure base Kotlin with Android options
  */
 private fun Project.configureKotlinAndroid(
-    commonExtension: CommonExtension<*, *, *, *, *, *>,
+    commonExtension: CommonExtension,
     isApp: Boolean
 ): Unit = with(commonExtension) {
 
@@ -59,9 +59,10 @@ private fun Project.configureKotlinAndroid(
 
     namespace = if (moduleName.isNotEmpty()) "$APP_PREFIX.$moduleName" else APP_PREFIX
 
-    defaultConfig {
+    buildFeatures.buildConfig = true
+
+    defaultConfig.apply {
         minSdk = libs.findVersionInt("minSdk")
-        buildFeatures.buildConfig = true
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         gradleLocalProperties(
@@ -72,7 +73,7 @@ private fun Project.configureKotlinAndroid(
         }
     }
 
-    compileOptions {
+    compileOptions.apply {
         // Up to Java 11 APIs are available through desugaring
         // https://developer.android.com/studio/write/java11-minimal-support-table
         sourceCompatibility = JavaVersion.VERSION_21
@@ -102,13 +103,13 @@ private fun Project.configureKotlinAndroid(
 
     tasks.withType<Test>().configureEach {
         useJUnitPlatform()
+        failOnNoDiscoveredTests.set(false)
         testLogging {
             events("passed", "skipped", "failed")
         }
     }
 
-
-    testOptions { unitTests.isIncludeAndroidResources = true }
+    testOptions.apply { unitTests.isIncludeAndroidResources = true }
 }
 
 /**
