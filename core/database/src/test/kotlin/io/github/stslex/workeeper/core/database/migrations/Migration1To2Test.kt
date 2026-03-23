@@ -140,7 +140,7 @@ class Migration1To2Test {
 
         testDb.execSQL(
             "INSERT INTO exercises_table (uuid, name, reps, weight, sets, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
-            arrayOf(testUuid, testName, testReps, testWeight, testSets, testTimestamp),
+            arrayOf<Any>(testUuid, testName, testReps, testWeight, testSets, testTimestamp),
         )
 
         // Run migration
@@ -199,7 +199,7 @@ class Migration1To2Test {
         exercises.forEach { exercise ->
             testDb.execSQL(
                 "INSERT INTO exercises_table (uuid, name, reps, weight, sets, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
-                arrayOf(
+                arrayOf<Any>(
                     exercise.uuid,
                     exercise.name,
                     exercise.reps,
@@ -294,13 +294,13 @@ class Migration1To2Test {
         // Insert exercise with zero sets (edge case)
         testDb.execSQL(
             "INSERT INTO exercises_table (uuid, name, reps, weight, sets, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
-            arrayOf("uuid-zero-sets", "Test Exercise", 10, 50.0, 0, 1640995200000L),
+            arrayOf<Any?>("uuid-zero-sets", "Test Exercise", 10, 50.0, 0, 1640995200000L),
         )
 
         // Insert exercise with negative values (edge case)
         testDb.execSQL(
             "INSERT INTO exercises_table (uuid, name, reps, weight, sets, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
-            arrayOf("uuid-negative", "Negative Exercise", -5, -10.0, 1, 1640995200000L),
+            arrayOf<Any?>("uuid-negative", "Negative Exercise", -5, -10.0, 1, 1640995200000L),
         )
 
         // Run migration
@@ -350,7 +350,7 @@ class Migration1To2Test {
 
         testDb.execSQL(
             "INSERT INTO exercises_table (uuid, name, reps, weight, sets, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
-            arrayOf("test-uuid", "Test Exercise", 15, 80.5, 2, 1640995200000L),
+            arrayOf<Any?>("test-uuid", "Test Exercise", 15, 80.5, 2, 1640995200000L),
         )
 
         // Run migration

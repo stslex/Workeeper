@@ -103,6 +103,7 @@ private fun Project.configureKotlinAndroid(
 
     tasks.withType<Test>().configureEach {
         useJUnitPlatform()
+        failOnNoDiscoveredTests.set(false)
         testLogging {
             events("passed", "skipped", "failed")
         }
