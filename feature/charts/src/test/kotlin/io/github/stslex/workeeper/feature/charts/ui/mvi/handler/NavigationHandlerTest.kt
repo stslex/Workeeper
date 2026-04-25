@@ -1,14 +1,10 @@
 package io.github.stslex.workeeper.feature.charts.ui.mvi.handler
 
-import io.github.stslex.workeeper.core.ui.navigation.Navigator
-import io.github.stslex.workeeper.feature.charts.mvi.handler.NavigationHandler
-import io.mockk.mockk
-import org.junit.jupiter.api.Disabled
+import org.junit.jupiter.api.Test
 
-@Disabled
-@Suppress("unused")
-internal class NavigationHandlerTest {
+class NavigationHandlerTest {
 
-    private val navigator = mockk<Navigator>(relaxed = true)
-    private val handler = NavigationHandler(navigator)
+    // TODO(feature-rewrite): rewrite presenter tests after feature redesign per documentation/testing.md.
+    @Test
+    fun placeholder() = Unit
 }
