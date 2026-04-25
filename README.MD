@@ -1,20 +1,12 @@
-[![Android CI/CD](https://github.com/stslex/Workeeper/actions/workflows/android_build.yml/badge.svg)](https://github.com/stslex/Workeeper/actions/workflows/android_build.yml)
+[![Android CI/CD](https://github.com/stslex/Workeeper/actions/workflows/android_build_unified.yml/badge.svg)](https://github.com/stslex/Workeeper/actions/workflows/android_build_unified.yml)
 
 <div align="center">
 
-# 💪 Workeeper
+# Workeeper
 
 **The Ultimate Strength Training Companion**
 
-*Track workouts, monitor progress, achieve your fitness goals*
-
----
-
-## 📱 Download Now
-
-Currently, the app is available only
-via [GitHub Releases](https://github.com/stslex/Workeeper/releases)and Google Play Console beta. A
-public release on the Play Store is coming soon!
+*Track workouts, monitor progress, achieve your fitness goals.*
 
 <p align="center">
   <a href="https://play.google.com/store/apps/details?id=io.github.stslex.workeeper">
@@ -26,265 +18,78 @@ public release on the Play Store is coming soon!
   </a>
 </p>
 
----
-
 </div>
 
-**Workeeper** is a modern, modular Android application built with Kotlin and Jetpack Compose. It's
-designed to help you log and track strength workouts with a clean, intuitive interface and powerful
-features for monitoring your fitness progress.
+Workeeper is a modular Android application written in Kotlin and Jetpack Compose. It logs and
+tracks strength workouts: trainings, exercises, sets, and progress charts. Data is stored
+locally with Room.
 
-## ✨ Key Features
+## Highlights
 
-- **📊 All Trainings**: Browse and manage past and scheduled workouts
-- **🏋️ Exercise Library**: Comprehensive exercise database with search and filtering
-- **📝 Training Editor**: Create and customize individual training sessions
-- **⚡ Exercise Editor**: Quick input for sets, reps, and weights with intuitive UI
-- **📈 Progress Charts**: Visualize your strength trends and improvements over time
-- **🔒 Privacy-First**: All data stored locally with Room database
-- **🎨 Modern UI**: Built with Jetpack Compose and Material Design 3
+- Modular structure: `app/`, `core/*`, `feature/*`, `build-logic/`, `lint-rules/`.
+- MVI with State / Action / Event / Handler — see
+  [documentation/architecture.md](documentation/architecture.md).
+- Hilt dependency injection with `@HiltViewModel` + assisted factories per feature.
+- Room database with exported schemas under `core/database/schemas/`.
+- Compose Material 3 UI with shared element transitions across the navigation graph.
+- Custom Detekt rules that enforce the MVI contract — see
+  [documentation/lint-rules.md](documentation/lint-rules.md).
 
-## 🏗️ Architecture
+## Requirements
 
-This project showcases modern Android development practices with:
+- Android Studio (latest stable).
+- JDK 21.
+- Android SDK with Build Tools matching the pinned `compileSdk` in
+  `gradle/libs.versions.toml`.
+- A device or emulator targeting `minSdk` 28 or newer.
 
-- **🏛️ Modular Architecture**: Clean separation between `app`, `core`, and `feature` modules
-- **🔄 MVI Pattern**: Unidirectional data flow with State, Actions, and Events
-- **⚡ Handler System**: Dedicated action processors (`ClickHandler`, `InputHandler`,
-  `PagingHandler`)
-- **💉 Dependency Injection**: Hilt with feature-scoped modules and assisted factories
-- **🧪 Comprehensive Testing**: Unit tests with JUnit 5, Robolectric, and MockK
+For release builds, place a `keystore.properties` at the repo root and per-variant
+`google-services.json` files at `app/dev/` and `app/store/`. Both are intentionally untracked.
 
-## 💉 Dependency Injection (Hilt)
-
-Workeeper has migrated from Koin to [Hilt](https://dagger.dev/hilt) to align with the Android
-ecosystem and leverage compile-time safety:
-
-- **Singleton graph** lives in `core/*/di` modules (for example
-  `core/dataStore/src/main/kotlin/io/github/stslex/workeeper/core/dataStore/di/CoreDataStoreModule.kt`)
-  and provides shared resources such as DataStore, dispatchers, Room, and repositories.
-- **Feature-level bindings** are defined per module (e.g.
-  `feature/all-trainings/src/main/kotlin/io/github/stslex/workeeper/feature/all_trainings/di/AllTrainingsModule.kt`
-  and `feature/single-training/src/main/kotlin/io/github/stslex/workeeper/feature/single_training/di/SingleTrainingModule.kt`)
-  to keep handler stores and interactors scoped to `ViewModelComponent`.
-- **Assisted factories** (like
-  `core/dataStore/src/main/kotlin/io/github/stslex/workeeper/core/dataStore/core/DataStoreProviderFactory.kt`)
-  remain available for cases where runtime parameters are required.
-- Use the `@HiltViewModel` annotation for new stores and prefer constructor injection across the
-  codebase. See `feature/charts/src/main/kotlin/io/github/stslex/workeeper/feature/charts/di/ChartsModule.kt`
-  for a full example of how stores, interactors, and calculators are wired together.
-
-## 📂 Project Structure
-
-```
-├── app/              # Application modules
-│   ├── app/          # Shared application code
-│   ├── dev/          # Development build variant
-│   └── store/        # Production build variant
-├── core/             # Core functionality modules
-│   ├── core/         # Base utilities, logging, coroutines
-│   ├── ui/           # UI components (kit, navigation, mvi)
-│   ├── database/     # Room database implementation
-│   ├── dataStore/    # Preferences and settings storage
-│   └── exercise/     # Exercise domain logic
-├── feature/          # Feature modules
-│   ├── all-trainings/    # Training list and management
-│   ├── all-exercises/    # Exercise library and search
-│   ├── single-training/  # Individual training details
-│   ├── exercise/         # Exercise editor and sets management
-│   └── charts/           # Progress visualization
-├── build-logic/      # Convention plugins for consistent builds
-└── lint-rules/       # Custom linting rules and configuration
-```
-
-## 🛠️ Tech Stack
-
-- **Language**: Kotlin 2.2.10
-- **UI Framework**: Jetpack Compose with Material Design 3
-- **Architecture**: MVI (Model-View-Intent)
-- **Database**: Room 2.8.0 with SQLite
-- **Dependency Injection**: Hilt 2.57.2 with AndroidX navigation integration
-- **Async**: Kotlin Coroutines 1.10.2 and Flow
-- **Navigation**: Custom navigation with shared element transitions
-- **Storage**: DataStore for preferences
-- **Analytics**: Firebase Analytics and Crashlytics
-- **Build**: Gradle 8.14.3 with Kotlin DSL and custom convention plugins
-- **Testing**: JUnit 5, Robolectric 4.16, MockK, Compose UI Test
-- **Static Analysis**: Detekt 1.23.8 with custom architecture rules
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Android Studio (latest stable)
-- Java 21 (JDK 21)
-- Gradle 8.14.3 or newer
-- Android SDK with minimum API 28 (target API 36)
-- Device or emulator for testing
-
-### Building the Project
+## Quickstart
 
 ```bash
-# Clone the repository
 git clone https://github.com/stslex/Workeeper.git
 cd Workeeper
 
-# Build debug version
-./gradlew :app:dev:assembleDebug
-
-# Install on connected device
+# Install the dev variant
 ./gradlew :app:dev:installDebug
 
-# Build release version
+# Build the release variant
 ./gradlew :app:store:assembleRelease
-```
 
-## 🧪 Testing & Quality
-
-### Running Tests
-
-```bash
-# Run all unit tests
+# Unit tests
 ./gradlew testDebugUnitTest
 
-# Run instrumented tests
-./gradlew :app:dev:connectedDebugAndroidTest
-
-# Run all tests
-./gradlew test
-```
-
-### Code Quality & Linting
-
-```bash
-# Run detekt (Kotlin static analysis)
-./gradlew detekt
-
-# Run Android Lint
-./gradlew lintDebug
-
-# Auto-fix detekt issues
-./gradlew detekt --auto-correct
-
-# Run all linting
+# Static analysis
 ./gradlew detekt lintDebug
 ```
 
-### Custom Architecture Rules
+UI tests live under each module's `src/androidTest/...` and are categorized with `@Smoke` /
+`@Regression`. Run them locally with `./gradlew connectedDebugAndroidTest`. They are optional
+in CI; see [documentation/testing.md](documentation/testing.md) and
+[documentation/ci-cd.md](documentation/ci-cd.md).
 
-The project includes custom linting rules that enforce:
+## Documentation
 
-- **MVI pattern compliance**: State immutability, Action naming, Event naming, Handler patterns
-- **Store validation**: BaseStore extension, Store state rules, Handler constructor validation
-- **Dependency injection**: Hilt scope validation (@ViewModelScoped, @Singleton)
-- **Compose best practices**: Composable state handling and component rules
-- **Code style consistency**: Unified naming conventions and patterns
+| Topic | Where |
+|---|---|
+| Modules, MVI contract, DI, data flow, navigation, build conventions | [documentation/architecture.md](documentation/architecture.md) |
+| Per-feature behaviour and MVI surface | [documentation/features.md](documentation/features.md) |
+| Unit tests, UI tests, smoke/regression strategy, gradle commands | [documentation/testing.md](documentation/testing.md) |
+| GitHub Actions workflows, release pipeline, secrets, branch model | [documentation/ci-cd.md](documentation/ci-cd.md) |
+| Custom Detekt rules, Android Lint config, suppressions, baselines | [documentation/lint-rules.md](documentation/lint-rules.md) |
+| Contributing workflow and commit format | [CONTRIBUTING.md](CONTRIBUTING.md) |
+| Code of conduct | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) |
+| Release notes | [RELEASE_NOTES.md](RELEASE_NOTES.md) |
+| Privacy policy (GitHub Pages) | [docs/index.md](docs/index.md) |
 
-#### Custom Detekt Rules
-- `MviStateImmutabilityRule` - Ensures State classes are immutable data classes
-- `MviActionNamingRule` - Validates action naming (Click*, Load*, Save*)
-- `MviEventNamingRule` - Validates event naming (*Success, *Error, Haptic, Snackbar)
-- `MviHandlerNamingRule` - Ensures proper handler naming patterns
-- `MviStoreExtensionRule` - Validates Store classes extend BaseStore
-- `MviHandlerConstructorRule` - Validates handler constructor patterns
-- `MviStoreStateRule` - Validates store state management
-- `HiltScopeRule` - Validates Hilt dependency injection annotations
-- `ComposableStateRule` - Validates Composable component state handling
+## Links
 
-#### Android Lint Rules
-The project enforces strict security and code quality rules:
-- **Security**: 12+ rules preventing vulnerabilities (SSL, file permissions, dynamic code loading)
-- **Memory/Lifecycle**: 10+ rules preventing leaks and lifecycle issues
-- **Performance**: 12+ rules ensuring optimal performance
-- **Code Quality**: 15+ rules maintaining code correctness
-- **Accessibility**: 5+ rules for better user experience
+- [Google Play Store](https://play.google.com/store/apps/details?id=io.github.stslex.workeeper)
+- [GitHub Releases](https://github.com/stslex/Workeeper/releases)
+- [Issue tracker](https://github.com/stslex/Workeeper/issues)
 
-See [LINT_IMPROVEMENTS.md](lint-rules/LINT_IMPROVEMENTS.md) for detailed rule documentation.
-
-## 🔧 Configuration
-
-### Required Files
-
-- `google-services.json` in both `app/dev/` and `app/store/` directories
-- `keystore.properties` for release builds
-- Environment variables or `local.properties` for build configuration
-
-### Firebase Setup
-
-The app uses Firebase for analytics and crash reporting. Ensure you have the proper
-`google-services.json` files configured for both build variants.
-
-## 📋 Development Guidelines
-
-### Module Conventions
-
-- **Core modules** (`core/*`): Shared, reusable functionality
-- **Feature modules** (`feature/*`): Self-contained user-facing features
-- **App modules** (`app/*`): Application targets and shared app code
-- Avoid circular dependencies between modules
-
-### MVI Data Flow
-
-1. **UI** triggers `Actions` (Click, Input, Navigation)
-2. **Handlers** process actions and interact with repositories
-3. **Store** updates `State` and emits one-time `Events`
-4. **UI** recomposes based on new state and handles events
-
-### Testing Strategy
-
-- **Unit Tests**: Business logic, handlers, repositories (`src/test/`)
-- **Integration Tests**: Database operations, API interactions
-- **UI Tests**: Compose UI components (`src/androidTest/`)
-- **Handler Tests**: MVI action processing and state updates
-
-## 🤝 Contributing
-
-We welcome contributions! Please read our guidelines:
-
-- [Contributing Guidelines](CONTRIBUTING.md)
-- [Code of Conduct](CODE_OF_CONDUCT.md)
-
-### Commit Convention
-
-Follow [Conventional Commits](https://www.conventionalcommits.org/):
-
-- `feat:` New features
-- `fix:` Bug fixes
-- `refactor:` Code refactoring
-- `test:` Adding or updating tests
-- `docs:` Documentation updates
-- `chore:` Maintenance tasks
-
-## 📊 CI/CD
-
-GitHub Actions pipeline automatically:
-
-- Builds and tests on every PR
-- Runs static analysis (detekt, lint)
-- Generates APKs for releases
-- Validates code quality and architecture
-
-See [`.github/workflows/android_build.yml`](.github/workflows/android_build.yml) for details.
-
-## 📝 License
+## License
 
 This project is licensed under the terms of the [LICENSE](LICENSE) file.
-
-## 🔗 Links
-
-- **📱 [Google Play Store](https://play.google.com/store/apps/details?id=io.github.stslex.workeeper)
-  **
-- **📦 [GitHub Releases](https://github.com/stslex/Workeeper/releases)**
-- **📋 [Release Notes](RELEASE_NOTES.md)**
-- **🐛 [Report Issues](https://github.com/stslex/Workeeper/issues)**
-- **📚 [Documentation](docs)**
-
----
-
-<div align="center">
-
-**Built with ❤️ for the fitness community**
-
-[⭐ Star this repository](https://github.com/stslex/Workeeper) if it helped you!
-
-</div>
