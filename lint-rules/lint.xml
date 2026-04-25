@@ -117,6 +117,10 @@
         <!-- Ignore intentional Kotlin downgrade for Hilt compatibility (Hilt doesn't support Kotlin 2.3.0 yet) -->
         <ignore path="**/libs.versions.toml" />
     </issue>
+    <issue id="AndroidGradlePluginVersion" severity="error">
+        <!-- AGP is intentionally pinned for Hilt compatibility; see GradleDependency above -->
+        <ignore path="**/libs.versions.toml" />
+    </issue>
 
     <!-- Kotlin specific -->
     <issue id="KotlinPropertyAccess" severity="warning" />
