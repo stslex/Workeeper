@@ -33,6 +33,20 @@ content here.
 - [documentation/lint-rules.md](documentation/lint-rules.md) — Detekt MVI rules + Android Lint.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — contributor workflow, commit format.
 
+## Workflow recipes (`.claude/skills/`)
+
+These are Claude Code-shaped skill files. Read them as procedural recipes for common tasks:
+
+- [`add-feature`](.claude/skills/add-feature.md) — scaffold a new `feature/<name>` module.
+- [`write-handler-test`](.claude/skills/write-handler-test.md) — JUnit 5 unit test for an MVI
+  handler or `*StoreImpl`.
+- [`write-ui-test`](.claude/skills/write-ui-test.md) — `@Smoke` Compose UI test with
+  `BaseComposeTest`.
+- [`add-database-migration`](.claude/skills/add-database-migration.md) — Room schema migration
+  + test.
+- [`refactor-with-mvi-rules`](.claude/skills/refactor-with-mvi-rules.md) — resolve a custom
+  Detekt rule violation.
+
 ## Current focus
 
 - `master` is the release branch; ongoing work targets `dev`.

@@ -33,6 +33,24 @@ content in this file.
 - [documentation/lint-rules.md](documentation/lint-rules.md) — Detekt MVI rules + Android Lint.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — contributor workflow, commit format.
 
+## Available skills
+
+Project-specific skills live under [`.claude/skills/`](.claude/skills/). Invoke the matching
+skill when the user asks for one of these tasks:
+
+- [`add-feature`](.claude/skills/add-feature.md) — scaffold a new `feature/<name>` module
+  (build script, MVI contract, handlers, Hilt module, navigation entry, smoke test stub).
+- [`write-handler-test`](.claude/skills/write-handler-test.md) — write a JUnit 5 unit test for
+  an MVI handler or `*StoreImpl` using the project's mocked `HandlerStore` + `TestScope`
+  pattern.
+- [`write-ui-test`](.claude/skills/write-ui-test.md) — write a `@Smoke` Compose UI test using
+  `BaseComposeTest`, `ActionCapture`, `MockDataFactory`, and `PagingTestUtils`.
+- [`add-database-migration`](.claude/skills/add-database-migration.md) — bump the Room schema
+  version, add a `MIGRATION_X_Y` object, register it in `CoreDatabaseModule`, and add a
+  `MigrationTestHelper`-based test.
+- [`refactor-with-mvi-rules`](.claude/skills/refactor-with-mvi-rules.md) — resolve a custom
+  Detekt MVI / Hilt scope / Composable rule violation by applying the conformant fix.
+
 ## Current focus
 
 - `master` is the release branch; ongoing work targets `dev`.
