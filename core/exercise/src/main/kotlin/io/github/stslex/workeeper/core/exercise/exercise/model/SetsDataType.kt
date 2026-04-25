@@ -1,24 +1,24 @@
 package io.github.stslex.workeeper.core.exercise.exercise.model
 
-import io.github.stslex.workeeper.core.database.exercise.model.SetsEntityType
+import io.github.stslex.workeeper.core.database.session.model.SetTypeEntity
 
 enum class SetsDataType {
     WARM, WORK, FAIL, DROP;
 
-    fun toEntity(): SetsEntityType = when (this) {
-        WARM -> SetsEntityType.WARM
-        WORK -> SetsEntityType.WORK
-        FAIL -> SetsEntityType.FAIL
-        DROP -> SetsEntityType.DROP
+    fun toEntity(): SetTypeEntity = when (this) {
+        WARM -> SetTypeEntity.WARM
+        WORK -> SetTypeEntity.WORK
+        FAIL -> SetTypeEntity.FAIL
+        DROP -> SetTypeEntity.DROP
     }
 
     companion object {
 
-        internal fun SetsEntityType.toData(): SetsDataType = when (this) {
-            SetsEntityType.WARM -> WARM
-            SetsEntityType.WORK -> WORK
-            SetsEntityType.FAIL -> FAIL
-            SetsEntityType.DROP -> DROP
+        internal fun SetTypeEntity.toData(): SetsDataType = when (this) {
+            SetTypeEntity.WARM -> WARM
+            SetTypeEntity.WORK -> WORK
+            SetTypeEntity.FAIL -> FAIL
+            SetTypeEntity.DROP -> DROP
         }
     }
 }

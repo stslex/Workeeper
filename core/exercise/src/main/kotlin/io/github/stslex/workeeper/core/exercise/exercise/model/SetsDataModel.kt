@@ -1,6 +1,6 @@
 package io.github.stslex.workeeper.core.exercise.exercise.model
 
-import io.github.stslex.workeeper.core.database.exercise.model.SetsEntity
+import io.github.stslex.workeeper.core.database.session.model.SetEntity
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType.Companion.toData
 import kotlin.uuid.Uuid
 
@@ -11,16 +11,21 @@ data class SetsDataModel(
     val type: SetsDataType,
 )
 
-internal fun SetsDataModel.toEntity(): SetsEntity = SetsEntity(
+internal fun SetsDataModel.toEntity(
+    performedExerciseUuid: Uuid,
+    position: Int,
+): SetEntity = SetEntity(
     uuid = Uuid.parse(uuid),
+    performedExerciseUuid = performedExerciseUuid,
+    position = position,
     reps = reps,
     weight = weight,
     type = type.toEntity(),
 )
 
-internal fun SetsEntity.toData(): SetsDataModel = SetsDataModel(
+internal fun SetEntity.toData(): SetsDataModel = SetsDataModel(
     uuid = uuid.toString(),
     reps = reps,
-    weight = weight,
+    weight = weight ?: 0.0,
     type = type.toData(),
 )

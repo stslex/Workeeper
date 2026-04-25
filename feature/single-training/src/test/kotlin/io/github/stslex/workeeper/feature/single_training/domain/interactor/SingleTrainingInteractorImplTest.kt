@@ -189,16 +189,14 @@ internal class SingleTrainingInteractorImplTest {
     }
 
     @Test
-    fun `remove training deletes training and associated exercises`() = runTest(testDispatcher) {
+    fun `remove training deletes training`() = runTest(testDispatcher) {
         val trainingUuid = Uuid.random().toString()
 
         coEvery { trainingRepository.removeTraining(trainingUuid) } returns Unit
-        coEvery { exerciseRepository.deleteByTrainingUuid(trainingUuid) } returns Unit
 
         interactor.removeTraining(trainingUuid)
 
         coVerify(exactly = 1) { trainingRepository.removeTraining(trainingUuid) }
-        coVerify(exactly = 1) { exerciseRepository.deleteByTrainingUuid(trainingUuid) }
     }
 
     @Test

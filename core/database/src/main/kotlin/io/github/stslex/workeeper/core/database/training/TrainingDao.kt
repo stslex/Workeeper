@@ -3,70 +3,55 @@ package io.github.stslex.workeeper.core.database.training
 import androidx.paging.PagingSource
 import androidx.room.Dao
 import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 import kotlin.uuid.Uuid
 
 @Dao
 interface TrainingDao {
 
-    @Query("SELECT * FROM training_table WHERE name LIKE '%' || :query || '%' ORDER BY timestamp DESC")
-    fun getAll(query: String): PagingSource<Int, TrainingEntity>
+    @Query(
+        """
+        SELECT * FROM training_table
+        WHERE is_adhoc = 0 AND archived = 0
+        ORDER BY name COLLATE NOCASE ASC
+        """,
+    )
+    fun pagedTemplates(): PagingSource<Int, TrainingEntity>
 
     @Query(
         """
-        SELECT t1.* FROM training_table t1
-        INNER JOIN (
-            SELECT name, MAX(timestamp) as max_timestamp
-            FROM training_table
-            WHERE name LIKE '%' || :query || '%'
-            GROUP BY name
-        ) t2 ON t1.name = t2.name AND t1.timestamp = t2.max_timestamp
-        ORDER BY t1.timestamp DESC
-    """,
+        SELECT t.* FROM training_table t
+        JOIN training_tag_table tt ON tt.training_uuid = t.uuid
+        WHERE t.is_adhoc = 0 AND t.archived = 0 AND tt.tag_uuid IN (:tagUuids)
+        GROUP BY t.uuid
+        ORDER BY t.name COLLATE NOCASE ASC
+        """,
     )
-    fun getAllUnique(query: String): PagingSource<Int, TrainingEntity>
+    fun pagedTemplatesByTags(tagUuids: List<Uuid>): PagingSource<Int, TrainingEntity>
 
-    @Query(
-        """
-        SELECT t1.* FROM training_table t1
-        INNER JOIN (
-            SELECT name, MAX(timestamp) as max_timestamp
-            FROM training_table
-            WHERE name LIKE '%' || :query || '%'
-            AND name != :query
-            GROUP BY name
-            ORDER BY max_timestamp DESC
-            LIMIT :limit
-        ) t2 ON t1.name = t2.name AND t1.timestamp = t2.max_timestamp
-        ORDER BY t1.timestamp DESC
-    """,
-    )
-    suspend fun searchTrainingsUniqueExclude(query: String, limit: Int): List<TrainingEntity>
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun add(item: TrainingEntity)
+    @Query("SELECT * FROM training_table WHERE archived = 1 ORDER BY name COLLATE NOCASE ASC")
+    fun pagedArchived(): PagingSource<Int, TrainingEntity>
 
     @Query("SELECT * FROM training_table WHERE uuid = :uuid")
-    suspend fun get(uuid: Uuid): TrainingEntity?
+    suspend fun getById(uuid: Uuid): TrainingEntity?
 
     @Query("SELECT * FROM training_table WHERE uuid = :uuid")
-    fun subscribeForTraining(uuid: Uuid): Flow<TrainingEntity?>
+    fun observeById(uuid: Uuid): Flow<TrainingEntity?>
+
+    @Insert
+    suspend fun insert(training: TrainingEntity)
+
+    @Update
+    suspend fun update(training: TrainingEntity)
+
+    @Query("UPDATE training_table SET archived = 1 WHERE uuid = :uuid")
+    suspend fun archive(uuid: Uuid)
+
+    @Query("UPDATE training_table SET archived = 0 WHERE uuid = :uuid")
+    suspend fun restore(uuid: Uuid)
 
     @Query("DELETE FROM training_table WHERE uuid = :uuid")
-    suspend fun delete(uuid: Uuid)
-
-    @Query(
-        """
-            SELECT * FROM training_table 
-            WHERE name LIKE '%' || :name || '%' 
-            AND timestamp BETWEEN :startDate AND :endDate 
-            ORDER BY timestamp DESC
-            """,
-    )
-    suspend fun getTrainings(name: String, startDate: Long, endDate: Long): List<TrainingEntity>
-
-    @Query("DELETE FROM training_table WHERE uuid in (:uuid)")
-    suspend fun deleteAll(uuid: List<Uuid>)
+    suspend fun permanentDelete(uuid: Uuid)
 }
