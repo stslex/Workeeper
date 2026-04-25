@@ -17,6 +17,14 @@ plugins {
 
 buildscript {
 
+    configurations.all {
+        resolutionStrategy {
+            // AGP 9.1.0 requires annotations:23.0.0, but Gradle 9.3.1's embedded Kotlin
+            // pins annotations:13.0 strictly. Force the higher version to resolve the conflict.
+            force("org.jetbrains:annotations:23.0.0")
+        }
+    }
+
     repositories {
         google()
         mavenCentral()

@@ -22,7 +22,6 @@ fun Project.configureApplication(
 ) {
     pluginManager.apply {
         apply(libs.findPluginId("application"))
-        apply(libs.findPluginId("kotlin"))
         apply(libs.findPluginId("composeCompiler"))
         apply(libs.findPluginId("vkompose"))
         apply(libs.findPluginId("serialization"))
@@ -34,10 +33,10 @@ fun Project.configureApplication(
 
     val appTypePostfix = if (appType.postfix.isNotEmpty()) ".${appType.postfix}" else ""
     val versionNamePostfix = if (appType.postfix.isNotEmpty()) "-${appType.postfix}" else ""
+    extensions.configure<KspExtension> {
+        arg("KOIN_CONFIG_CHECK", "true")
+    }
     extensions.configure<ApplicationExtension> {
-        extensions.configure<KspExtension> {
-            arg("KOIN_CONFIG_CHECK", "true")
-        }
         configureKotlinAndroid(this)
         configureAndroidCompose(this)
 
