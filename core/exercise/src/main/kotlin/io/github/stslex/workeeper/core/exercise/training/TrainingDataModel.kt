@@ -6,31 +6,44 @@ import kotlin.uuid.Uuid
 data class TrainingDataModel(
     val uuid: String,
     val name: String,
-    val labels: List<String>,
-    val exerciseUuids: List<String>,
+    val description: String? = null,
+    val isAdhoc: Boolean = false,
+    val archived: Boolean = false,
     val timestamp: Long,
+    val labels: List<String> = emptyList(),
+    val exerciseUuids: List<String> = emptyList(),
 )
 
-internal fun TrainingEntity.toData(): TrainingDataModel = TrainingDataModel(
+internal fun TrainingEntity.toData(
+    labels: List<String> = emptyList(),
+    exerciseUuids: List<String> = emptyList(),
+): TrainingDataModel = TrainingDataModel(
     uuid = uuid.toString(),
     name = name,
+    description = description,
+    isAdhoc = isAdhoc,
+    archived = archived,
+    timestamp = createdAt,
     labels = labels,
-    exerciseUuids = exercises.map { it.toString() },
-    timestamp = timestamp,
+    exerciseUuids = exerciseUuids,
 )
 
 internal fun TrainingDataModel.toEntity(): TrainingEntity = TrainingEntity(
     uuid = Uuid.parse(uuid),
     name = name,
-    labels = labels,
-    exercises = exerciseUuids.map { Uuid.parse(it) },
-    timestamp = timestamp,
+    description = description,
+    isAdhoc = isAdhoc,
+    archived = archived,
+    createdAt = timestamp,
 )
 
 fun TrainingDataModel.toChangeModel(): TrainingChangeDataModel = TrainingChangeDataModel(
     uuid = uuid,
     name = name,
+    description = description,
+    isAdhoc = isAdhoc,
+    archived = archived,
+    timestamp = timestamp,
     labels = labels,
     exerciseUuids = exerciseUuids,
-    timestamp = timestamp,
 )

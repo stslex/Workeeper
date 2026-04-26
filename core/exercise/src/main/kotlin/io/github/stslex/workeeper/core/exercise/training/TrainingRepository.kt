@@ -22,4 +22,10 @@ interface TrainingRepository {
     suspend fun removeAll(uuids: List<String>)
 
     suspend fun getTrainings(query: String, startDate: Long, endDate: Long): List<TrainingDataModel>
+
+    suspend fun archive(uuid: String)
+
+    suspend fun restore(uuid: String)
+
+    suspend fun permanentDelete(uuid: String)
 }

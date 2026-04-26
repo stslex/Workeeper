@@ -12,7 +12,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
@@ -55,12 +54,7 @@ internal class SingleTrainingInteractorImpl @Inject constructor(
 
     override suspend fun removeTraining(uuid: String) {
         withContext(defaultDispatcher) {
-            launch {
-                trainingRepository.removeTraining(uuid)
-            }
-            launch {
-                exerciseRepository.deleteByTrainingUuid(uuid)
-            }
+            trainingRepository.removeTraining(uuid)
         }
     }
 

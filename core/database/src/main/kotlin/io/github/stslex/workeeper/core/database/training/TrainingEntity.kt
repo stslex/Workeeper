@@ -2,20 +2,29 @@ package io.github.stslex.workeeper.core.database.training
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import kotlin.uuid.Uuid
 
-@Entity(tableName = "training_table")
+@Entity(
+    tableName = "training_table",
+    indices = [
+        Index(value = ["is_adhoc", "archived", "name"]),
+        Index(value = ["archived"]),
+    ],
+)
 data class TrainingEntity(
-    @PrimaryKey(autoGenerate = false)
+    @PrimaryKey
     @ColumnInfo(name = "uuid")
-    val uuid: Uuid,
+    val uuid: Uuid = Uuid.random(),
     @ColumnInfo(name = "name")
     val name: String,
-    @ColumnInfo(name = "exercises")
-    val exercises: List<Uuid>,
-    @ColumnInfo(name = "labels")
-    val labels: List<String>,
-    @ColumnInfo(name = "timestamp")
-    val timestamp: Long,
+    @ColumnInfo(name = "description")
+    val description: String?,
+    @ColumnInfo(name = "is_adhoc", defaultValue = "0")
+    val isAdhoc: Boolean,
+    @ColumnInfo(name = "archived", defaultValue = "0")
+    val archived: Boolean,
+    @ColumnInfo(name = "created_at")
+    val createdAt: Long,
 )

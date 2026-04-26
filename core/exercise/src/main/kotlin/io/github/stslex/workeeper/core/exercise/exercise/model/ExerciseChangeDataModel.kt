@@ -7,17 +7,23 @@ import kotlin.uuid.Uuid
 data class ExerciseChangeDataModel(
     val uuid: String? = null,
     val name: String,
-    val trainingUuid: String?,
-    val sets: List<SetsDataModel>,
-    val labels: List<String>,
+    val type: ExerciseTypeDataModel = ExerciseTypeDataModel.WEIGHTED,
+    val description: String? = null,
+    val imagePath: String? = null,
+    val archived: Boolean = false,
     val timestamp: Long,
+    // legacy v2 fields kept so feature stores compile; not persisted by the v3 schema.
+    val trainingUuid: String? = null,
+    val sets: List<SetsDataModel> = emptyList(),
+    val labels: List<String> = emptyList(),
 )
 
-fun ExerciseChangeDataModel.toEntity(): ExerciseEntity = ExerciseEntity(
+internal fun ExerciseChangeDataModel.toEntity(): ExerciseEntity = ExerciseEntity(
     uuid = Uuid.parseOrRandom(uuid),
     name = name,
-    trainingUuid = trainingUuid?.let { Uuid.parse(it) },
-    sets = sets.map { it.toEntity() },
-    labels = labels,
-    timestamp = timestamp,
+    type = type.toEntity(),
+    description = description,
+    imagePath = imagePath,
+    archived = archived,
+    createdAt = timestamp,
 )

@@ -6,6 +6,11 @@ import androidx.paging.PagingData
 import androidx.paging.map
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
+import io.github.stslex.workeeper.core.database.tag.ExerciseTagDao
+import io.github.stslex.workeeper.core.database.tag.ExerciseTagEntity
+import io.github.stslex.workeeper.core.database.tag.TagDao
+import io.github.stslex.workeeper.core.database.tag.TagEntity
+import io.github.stslex.workeeper.core.database.training.TrainingExerciseDao
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.toData
@@ -22,92 +27,122 @@ import kotlin.uuid.Uuid
 @Singleton
 internal class ExerciseRepositoryImpl @Inject constructor(
     private val dao: ExerciseDao,
+    private val tagDao: TagDao,
+    private val exerciseTagDao: ExerciseTagDao,
+    private val trainingExerciseDao: TrainingExerciseDao,
     @IODispatcher private val bgDispatcher: CoroutineDispatcher,
 ) : ExerciseRepository {
 
     override val exercises: Flow<PagingData<ExerciseDataModel>> = Pager(
         config = pagingConfig,
-        pagingSourceFactory = dao::getAll,
+        pagingSourceFactory = dao::pagedActive,
     ).flow
-        .map { pagingData ->
-            pagingData.map { it.toData() }
-        }
+        .map { pagingData -> pagingData.map { it.toData() } }
+        .flowOn(bgDispatcher)
+
+    // v3 has no name-LIKE paged search; ignores `query` and returns all active exercises.
+    override fun getExercises(query: String): Flow<PagingData<ExerciseDataModel>> = Pager(
+        config = pagingConfig,
+        pagingSourceFactory = dao::pagedActive,
+    ).flow
+        .map { pagingData -> pagingData.map { it.toData() } }
         .flowOn(bgDispatcher)
 
     override fun getUniqueExercises(query: String): Flow<PagingData<ExerciseDataModel>> = Pager(
         config = pagingConfig,
-        pagingSourceFactory = { dao.getAllUnique(query) },
+        pagingSourceFactory = dao::pagedActive,
     ).flow
-        .map { pagingData ->
-            pagingData.map { it.toData() }
-        }
+        .map { pagingData -> pagingData.map { it.toData() } }
         .flowOn(bgDispatcher)
 
     override suspend fun getExercisesByUuid(
         uuids: List<String>,
     ): List<ExerciseDataModel> = withContext(bgDispatcher) {
-        dao.getByUuids(uuids.map(Uuid::parse))
-            .map { it.toData() }
-    }
-
-    override fun getExercises(query: String): Flow<PagingData<ExerciseDataModel>> = Pager(
-        config = pagingConfig,
-        pagingSourceFactory = { dao.getAll(query) },
-    ).flow
-        .map { pagingData ->
-            pagingData.map { it.toData() }
+        dao.getByUuids(uuids.map(Uuid::parse)).map { entity ->
+            entity.toData(labels = loadLabels(entity.uuid))
         }
-        .flowOn(bgDispatcher)
+    }
 
     override suspend fun getExercise(
         uuid: String,
     ): ExerciseDataModel? = withContext(bgDispatcher) {
-        dao.getExercise(Uuid.parse(uuid))?.toData()
+        val entityUuid = Uuid.parse(uuid)
+        dao.getById(entityUuid)?.toData(labels = loadLabels(entityUuid))
     }
 
+    // v3 lacks date-range queries; charts will surface empty until v1 feature rewrite.
     override suspend fun getExercises(
         name: String,
         startDate: Long,
         endDate: Long,
-    ): List<ExerciseDataModel> = withContext(bgDispatcher) {
-        dao.getExercises(
-            name = name,
-            startDate = startDate,
-            endDate = endDate,
-        ).map { it.toData() }
-    }
+    ): List<ExerciseDataModel> = emptyList()
 
     override suspend fun saveItem(item: ExerciseChangeDataModel) = withContext(bgDispatcher) {
-        dao.create(item.toEntity())
+        val entity = item.toEntity()
+        if (item.uuid.isNullOrBlank()) {
+            dao.insert(entity)
+        } else {
+            val existing = dao.getById(entity.uuid)
+            if (existing == null) dao.insert(entity) else dao.update(entity)
+        }
+        syncLabels(entity.uuid, item.labels)
     }
 
     override suspend fun deleteItem(uuid: String) {
         withContext(bgDispatcher) {
-            dao.delete(Uuid.parse(uuid))
+            dao.permanentDelete(Uuid.parse(uuid))
         }
     }
 
-    override suspend fun searchItemsWithExclude(query: String): List<ExerciseDataModel> =
-        withContext(bgDispatcher) {
-            dao.searchUniqueExclude(query).map { it.toData() }
-        }
+    // v3 has no autocomplete query; return empty until feature redesign.
+    override suspend fun searchItemsWithExclude(query: String): List<ExerciseDataModel> = emptyList()
 
     override suspend fun deleteAllItems(uuids: List<Uuid>) {
         withContext(bgDispatcher) {
-            dao.delete(uuids)
+            uuids.forEach { dao.permanentDelete(it) }
         }
     }
 
-    override suspend fun deleteByTrainingUuid(trainingUuid: String) {
+    override suspend fun archive(uuid: String) {
         withContext(bgDispatcher) {
-            dao.deleteAllByTraining(Uuid.parse(trainingUuid))
+            dao.archive(Uuid.parse(uuid))
         }
     }
 
-    override suspend fun deleteByTrainingsUuids(trainingsUuids: List<String>) {
+    override suspend fun restore(uuid: String) {
         withContext(bgDispatcher) {
-            dao.deleteAllByTrainings(trainingsUuids.map(Uuid::parse))
+            dao.restore(Uuid.parse(uuid))
         }
+    }
+
+    override suspend fun permanentDelete(uuid: String) {
+        withContext(bgDispatcher) {
+            dao.permanentDelete(Uuid.parse(uuid))
+        }
+    }
+
+    override suspend fun canArchive(uuid: String): Boolean = withContext(bgDispatcher) {
+        trainingExerciseDao.countActiveTemplatesUsing(Uuid.parse(uuid)) == 0
+    }
+
+    private suspend fun loadLabels(exerciseUuid: Uuid): List<String> =
+        exerciseTagDao.getTagNames(exerciseUuid)
+
+    private suspend fun syncLabels(exerciseUuid: Uuid, labels: List<String>) {
+        exerciseTagDao.deleteByExercise(exerciseUuid)
+        if (labels.isEmpty()) return
+        val tagUuids = labels
+            .map(String::trim)
+            .filter { it.isNotEmpty() }
+            .distinctBy { it.lowercase() }
+            .map { name ->
+                tagDao.findByName(name)?.uuid ?: TagEntity(name = name).also { tagDao.insert(it) }.uuid
+            }
+        exerciseTagDao.insert(
+            tagUuids.map { tagUuid ->
+                ExerciseTagEntity(exerciseUuid = exerciseUuid, tagUuid = tagUuid)
+            },
+        )
     }
 
     companion object {

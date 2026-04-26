@@ -6,8 +6,14 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepositoryImpl
-import io.github.stslex.workeeper.core.exercise.labels.LabelRepository
-import io.github.stslex.workeeper.core.exercise.labels.LabelRepositoryImpl
+import io.github.stslex.workeeper.core.exercise.session.PerformedExerciseRepository
+import io.github.stslex.workeeper.core.exercise.session.PerformedExerciseRepositoryImpl
+import io.github.stslex.workeeper.core.exercise.session.SessionRepository
+import io.github.stslex.workeeper.core.exercise.session.SessionRepositoryImpl
+import io.github.stslex.workeeper.core.exercise.session.SetRepository
+import io.github.stslex.workeeper.core.exercise.session.SetRepositoryImpl
+import io.github.stslex.workeeper.core.exercise.tags.TagRepository
+import io.github.stslex.workeeper.core.exercise.tags.TagRepositoryImpl
 import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
 import io.github.stslex.workeeper.core.exercise.training.TrainingRepositoryImpl
 import javax.inject.Singleton
@@ -22,9 +28,23 @@ internal interface CoreExerciseModule {
 
     @Binds
     @Singleton
-    fun bindLabelRepository(impl: LabelRepositoryImpl): LabelRepository
+    fun bindTrainingRepository(impl: TrainingRepositoryImpl): TrainingRepository
 
     @Binds
     @Singleton
-    fun bindTrainingRepository(impl: TrainingRepositoryImpl): TrainingRepository
+    fun bindTagRepository(impl: TagRepositoryImpl): TagRepository
+
+    @Binds
+    @Singleton
+    fun bindSessionRepository(impl: SessionRepositoryImpl): SessionRepository
+
+    @Binds
+    @Singleton
+    fun bindPerformedExerciseRepository(
+        impl: PerformedExerciseRepositoryImpl,
+    ): PerformedExerciseRepository
+
+    @Binds
+    @Singleton
+    fun bindSetRepository(impl: SetRepositoryImpl): SetRepository
 }

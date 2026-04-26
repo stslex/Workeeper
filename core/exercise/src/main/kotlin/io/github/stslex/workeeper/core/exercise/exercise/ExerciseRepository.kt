@@ -28,7 +28,11 @@ interface ExerciseRepository {
 
     suspend fun deleteAllItems(uuids: List<Uuid>)
 
-    suspend fun deleteByTrainingUuid(trainingUuid: String)
+    suspend fun archive(uuid: String)
 
-    suspend fun deleteByTrainingsUuids(trainingsUuids: List<String>)
+    suspend fun restore(uuid: String)
+
+    suspend fun permanentDelete(uuid: String)
+
+    suspend fun canArchive(uuid: String): Boolean
 }
