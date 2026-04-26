@@ -43,6 +43,7 @@ import io.github.stslex.workeeper.feature.settings.ui.components.ArchivedItemRow
 import io.github.stslex.workeeper.feature.settings.ui.components.PermanentDeleteDialog
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.flow.flowOf
+import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
 @Composable
 internal fun ArchiveScreen(
@@ -66,7 +67,7 @@ internal fun ArchiveScreen(
             .testTag("ArchiveScreen"),
     ) {
         AppTopAppBar(
-            title = stringResource(R.string.feature_settings_archive_title),
+            title = stringResource(R.string.feature_archive_title),
             navigationIcon = {
                 IconButton(
                     modifier = Modifier.testTag("ArchiveBackButton"),
@@ -75,7 +76,7 @@ internal fun ArchiveScreen(
                     Icon(
                         modifier = Modifier.size(AppDimension.iconMd),
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(R.string.feature_settings_back),
+                        contentDescription = stringResource(KitR.string.core_ui_kit_action_back),
                     )
                 }
             },
@@ -86,8 +87,8 @@ internal fun ArchiveScreen(
                 .padding(horizontal = AppDimension.screenEdge, vertical = AppDimension.Space.sm)
                 .testTag("ArchiveSegments"),
             items = persistentListOf(
-                stringResource(R.string.feature_settings_archive_segment_exercises, state.exerciseCount),
-                stringResource(R.string.feature_settings_archive_segment_trainings, state.trainingCount),
+                stringResource(R.string.feature_archive_segment_exercises, state.exerciseCount),
+                stringResource(R.string.feature_archive_segment_trainings, state.trainingCount),
             ),
             selected = if (state.selectedSegment == Segment.EXERCISES) 0 else 1,
             onSelectedChange = { index ->
@@ -145,8 +146,8 @@ private fun ArchivedExerciseList(
     if (isPagingEmpty(items.loadState, items.itemCount)) {
         AppEmptyState(
             modifier = modifier.testTag("ArchiveEmptyExercises"),
-            headline = stringResource(R.string.feature_settings_archive_empty_headline),
-            supportingText = stringResource(R.string.feature_settings_archive_empty_supporting_exercises),
+            headline = stringResource(R.string.feature_archive_empty_headline),
+            supportingText = stringResource(R.string.feature_archive_empty_supporting_exercises),
             icon = Icons.Filled.Inventory2,
         )
         return
@@ -183,8 +184,8 @@ private fun ArchivedTrainingList(
     if (isPagingEmpty(items.loadState, items.itemCount)) {
         AppEmptyState(
             modifier = modifier.testTag("ArchiveEmptyTrainings"),
-            headline = stringResource(R.string.feature_settings_archive_empty_headline),
-            supportingText = stringResource(R.string.feature_settings_archive_empty_supporting_trainings),
+            headline = stringResource(R.string.feature_archive_empty_headline),
+            supportingText = stringResource(R.string.feature_archive_empty_supporting_trainings),
             icon = Icons.Filled.Inventory2,
         )
         return

@@ -80,7 +80,7 @@ internal class ArchiveClickHandler @Inject constructor(
                 is ArchivedItem.Exercise -> interactor.permanentlyDeleteExercise(target.uuid)
                 is ArchivedItem.Training -> interactor.permanentlyDeleteTraining(target.uuid)
             }
-            sendEvent(Event.ShowPermanentlyDeletedSnackbar)
+            sendEvent(Event.ShowPermanentlyDeletedSnackbar(target.name))
         }
     }
 

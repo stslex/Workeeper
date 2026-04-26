@@ -29,6 +29,7 @@ import io.github.stslex.workeeper.feature.settings.ui.components.AboutBlock
 import io.github.stslex.workeeper.feature.settings.ui.components.SettingsRow
 import io.github.stslex.workeeper.feature.settings.ui.components.SettingsSection
 import io.github.stslex.workeeper.feature.settings.ui.components.ThemeSelector
+import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
 @Composable
 internal fun SettingsScreen(
@@ -52,7 +53,7 @@ internal fun SettingsScreen(
                     Icon(
                         modifier = Modifier.size(AppDimension.iconMd),
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(R.string.feature_settings_back),
+                        contentDescription = stringResource(KitR.string.core_ui_kit_action_back),
                     )
                 }
             },
@@ -63,7 +64,7 @@ internal fun SettingsScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(AppDimension.sectionSpacing),
         ) {
-            SettingsSection(title = stringResource(R.string.feature_settings_about_section)) {
+            SettingsSection(title = stringResource(R.string.feature_settings_section_about)) {
                 AboutBlock(
                     appVersion = state.appVersion,
                     appVersionCode = state.appVersionCode,
@@ -72,16 +73,16 @@ internal fun SettingsScreen(
                     onPrivacyClick = { consume(Action.Click.OnPrivacyPolicyClick) },
                 )
             }
-            SettingsSection(title = stringResource(R.string.feature_settings_appearance_section)) {
+            SettingsSection(title = stringResource(R.string.feature_settings_section_appearance)) {
                 ThemeSelector(
                     selected = state.themeMode,
                     onSelectedChange = { mode -> consume(Action.Input.OnThemeChange(mode)) },
                 )
             }
-            SettingsSection(title = stringResource(R.string.feature_settings_data_section)) {
+            SettingsSection(title = stringResource(R.string.feature_settings_section_data)) {
                 SettingsRow(
                     modifier = Modifier.testTag("SettingsArchiveRow"),
-                    title = stringResource(R.string.feature_settings_archive_title),
+                    title = stringResource(R.string.feature_archive_title),
                     onClick = { consume(Action.Click.OnArchiveClick) },
                 )
             }

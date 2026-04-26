@@ -443,6 +443,108 @@ calling `LocalHapticFeedback.current.performHapticFeedback(...)` — see
 - `StoreDispatchers` (`core/ui/mvi/.../di/StoreDispatchers.kt`) injects `@DefaultDispatcher`
   and `@MainImmediateDispatcher` from `core/core/.../di/CoreModule.kt`.
 
+### Localization
+
+Workeeper supports two locales out of the box: **English** (default) and **Russian**.
+English is the default for international audience and contributors on GitHub; Russian is
+overlaid via Android's resource qualifier system for users with `system locale = ru`.
+
+Resource layout per module:
+
+```
+<module>/src/main/res/values/strings.xml        — English (default fallback)
+<module>/src/main/res/values-ru/strings.xml     — Russian overlay
+```
+
+Every user-facing string is extracted to `strings.xml` from the start. Compose code reads
+strings via `stringResource(R.string.xxx)`, never as Kotlin literals. This applies to:
+
+- Screen titles, button labels, list headers, empty state copy.
+- Error messages and snackbar text.
+- Field labels and placeholders.
+- Date/time format strings (use `androidx.compose.ui.text.intl.Locale.current` if format
+  varies by language).
+
+It does **not** apply to:
+
+- Internal log messages and analytics event names — these stay English-only.
+- Domain identifiers (entity types, set types, action names in MVI) — these stay English
+  in code, translated on display.
+
+#### Naming convention
+
+```
+feature_<feature>_<context>_<purpose>
+```
+
+Examples:
+
+```xml
+<string name="feature_settings_title">Settings</string>
+<string name="feature_settings_section_about">About</string>
+<string name="feature_settings_section_appearance">Appearance</string>
+<string name="feature_archive_segment_exercises">Exercises</string>
+<string name="feature_archive_action_restore">Restore</string>
+<string name="feature_archive_action_permanent_delete">Delete permanently</string>
+<string name="feature_archive_dialog_permanent_delete_title">Delete '%1$s' permanently?</string>
+<string name="feature_archive_dialog_permanent_delete_body_with_history">
+    This will permanently delete the %1$s along with %2$d sessions of history. This cannot be undone.
+</string>
+```
+
+Strings shared across features (e.g. "Cancel", "Save", "Back") live in the relevant `core/`
+module — typically `core/ui/kit` for UI verbs:
+
+```xml
+<string name="core_ui_kit_action_cancel">Cancel</string>
+<string name="core_ui_kit_action_save">Save</string>
+<string name="core_ui_kit_action_back">Back</string>
+```
+
+#### Pluralization
+
+Use `<plurals>` resources for any number-driven text ("1 session" vs "5 sessions" vs Russian
+forms "1 сессия" / "2 сессии" / "5 сессий"). Read with `pluralStringResource(R.plurals.xxx, count, count)`.
+
+Example:
+
+```xml
+<plurals name="feature_archive_session_count">
+    <item quantity="one">%d session</item>
+    <item quantity="other">%d sessions</item>
+</plurals>
+```
+
+Russian needs the `few` quantity for 2-4:
+
+```xml
+<plurals name="feature_archive_session_count">
+    <item quantity="one">%d сессия</item>
+    <item quantity="few">%d сессии</item>
+    <item quantity="many">%d сессий</item>
+    <item quantity="other">%d сессии</item>
+</plurals>
+```
+
+#### Forbidden patterns
+
+- Hardcoded user-facing string literals in Composables.
+- Concatenation of localized fragments — always use full sentences as resources, with
+  format placeholders for variable parts. (`"$name was archived"` is forbidden;
+  `getString(R.string.archived_format, name)` is correct.)
+- Manual locale switching in code — let Android resolve from system locale.
+
+#### Adding a new feature
+
+When creating a new feature module:
+
+1. Create `src/main/res/values/strings.xml` with all English strings.
+2. Create `src/main/res/values-ru/strings.xml` with the Russian translations.
+3. Both files must contain the same set of keys — adding a key to one without the other
+   means the missing locale falls back to English (which is acceptable but visible).
+4. Reference all strings via `stringResource(R.string.xxx)` from Composables and
+   `context.getString(R.string.xxx)` from non-Compose code.
+
 ## Build conventions
 
 Convention plugins live in `build-logic/convention/src/main/kotlin/`:

@@ -1,3 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="core_ui_kit_action_cancel">Отмена</string>
+    <string name="core_ui_kit_action_save">Сохранить</string>
+    <string name="core_ui_kit_action_back">Назад</string>
 </resources>

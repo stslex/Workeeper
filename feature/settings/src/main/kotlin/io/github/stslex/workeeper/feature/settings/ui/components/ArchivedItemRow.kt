@@ -69,7 +69,7 @@ internal fun ArchivedItemRow(
             )
             AppButton.Tertiary(
                 modifier = Modifier.testTag("ArchivedItemRestore_${item.uuid}"),
-                text = stringResource(R.string.feature_settings_archive_restore),
+                text = stringResource(R.string.feature_archive_action_restore),
                 onClick = onRestore,
                 size = AppButtonSize.SMALL,
             )
@@ -83,7 +83,7 @@ internal fun ArchivedItemRow(
                     Icon(
                         modifier = Modifier.size(AppDimension.iconSm),
                         imageVector = Icons.Default.MoreVert,
-                        contentDescription = stringResource(R.string.feature_settings_more),
+                        contentDescription = stringResource(R.string.feature_archive_action_more),
                         tint = AppUi.colors.textSecondary,
                     )
                 }
@@ -95,7 +95,7 @@ internal fun ArchivedItemRow(
                     DropdownMenuItem(
                         text = {
                             Text(
-                                text = stringResource(R.string.feature_settings_archive_delete_permanently),
+                                text = stringResource(R.string.feature_archive_action_permanent_delete),
                                 style = AppUi.typography.bodyMedium,
                                 color = AppUi.colors.setType.failureForeground,
                             )

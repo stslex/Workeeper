@@ -15,16 +15,22 @@ import io.github.stslex.workeeper.feature.settings.di.ArchiveFeature
 import io.github.stslex.workeeper.feature.settings.mvi.store.ArchiveStore.Action
 import io.github.stslex.workeeper.feature.settings.mvi.store.ArchiveStore.Event
 
-private fun formatArchivedAt(timestamp: Long): String = if (timestamp <= 0L) {
-    "Archived"
-} else {
-    val relative = DateUtils.getRelativeTimeSpanString(
-        timestamp,
-        System.currentTimeMillis(),
-        DateUtils.MINUTE_IN_MILLIS,
-        DateUtils.FORMAT_ABBREV_RELATIVE,
-    ).toString()
-    "Archived $relative"
+private class ArchivedAtFormatter(
+    private val archivedLabel: String,
+    private val archivedRelativeFormat: String,
+) : (Long) -> String {
+
+    override fun invoke(timestamp: Long): String = if (timestamp <= 0L) {
+        archivedLabel
+    } else {
+        val relative = DateUtils.getRelativeTimeSpanString(
+            timestamp,
+            System.currentTimeMillis(),
+            DateUtils.MINUTE_IN_MILLIS,
+            DateUtils.FORMAT_ABBREV_RELATIVE,
+        ).toString()
+        archivedRelativeFormat.format(relative)
+    }
 }
 
 fun NavGraphBuilder.archiveGraph(
@@ -32,10 +38,15 @@ fun NavGraphBuilder.archiveGraph(
 ) {
     navComponentScreen(ArchiveFeature) { processor ->
         val haptic = LocalHapticFeedback.current
-        val formatter = remember<(Long) -> String> { ::formatArchivedAt }
-        val restoredTemplate = stringResource(R.string.feature_settings_snackbar_restored)
-        val undoLabel = stringResource(R.string.feature_settings_snackbar_undo)
-        val deletedMessage = stringResource(R.string.feature_settings_snackbar_deleted)
+        val archivedLabel = stringResource(R.string.feature_archive_label_archived)
+        val archivedRelativeFormat = stringResource(R.string.feature_archive_label_archived_relative_format)
+        val restoredTemplate = stringResource(R.string.feature_archive_snackbar_restored_format)
+        val deletedTemplate = stringResource(R.string.feature_archive_snackbar_deleted_format)
+        val undoLabel = stringResource(R.string.feature_archive_snackbar_undo)
+
+        val formatter = remember(archivedLabel, archivedRelativeFormat) {
+            ArchivedAtFormatter(archivedLabel, archivedRelativeFormat)
+        }
 
         processor.Handle { event ->
             when (event) {
@@ -51,8 +62,8 @@ fun NavGraphBuilder.archiveGraph(
                     )
                 }
 
-                Event.ShowPermanentlyDeletedSnackbar -> {
-                    SnackbarManager.showSnackbar(message = deletedMessage)
+                is Event.ShowPermanentlyDeletedSnackbar -> {
+                    SnackbarManager.showSnackbar(message = deletedTemplate.format(event.name))
                 }
             }
         }

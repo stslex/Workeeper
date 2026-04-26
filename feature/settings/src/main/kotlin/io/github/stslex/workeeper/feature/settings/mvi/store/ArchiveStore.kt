@@ -80,7 +80,7 @@ internal interface ArchiveStore : Store<State, Action, Event> {
 
         data class ShowRestoredSnackbar(val item: ArchivedItem) : Event
 
-        data object ShowPermanentlyDeletedSnackbar : Event
+        data class ShowPermanentlyDeletedSnackbar(val name: String) : Event
 
         data class Haptic(val type: HapticFeedbackType) : Event
     }

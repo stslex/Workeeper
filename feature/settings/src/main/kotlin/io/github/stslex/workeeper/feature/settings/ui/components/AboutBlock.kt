@@ -35,7 +35,7 @@ internal fun AboutBlock(
             color = AppUi.colors.textPrimary,
         )
         Text(
-            text = stringResource(R.string.feature_settings_about_version, appVersion, appVersionCode),
+            text = stringResource(R.string.feature_settings_about_version_format, appVersion, appVersionCode),
             style = AppUi.typography.bodySmall,
             color = AppUi.colors.textTertiary,
         )
