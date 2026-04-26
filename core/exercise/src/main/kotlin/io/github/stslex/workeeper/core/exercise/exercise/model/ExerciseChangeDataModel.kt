@@ -26,4 +26,5 @@ internal fun ExerciseChangeDataModel.toEntity(): ExerciseEntity = ExerciseEntity
     imagePath = imagePath,
     archived = archived,
     createdAt = timestamp,
+    archivedAt = null,
 )

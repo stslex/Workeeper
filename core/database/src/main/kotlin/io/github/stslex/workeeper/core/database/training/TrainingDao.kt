@@ -34,6 +34,9 @@ interface TrainingDao {
     @Query("SELECT * FROM training_table WHERE archived = 1 ORDER BY name COLLATE NOCASE ASC")
     fun pagedArchived(): PagingSource<Int, TrainingEntity>
 
+    @Query("SELECT COUNT(*) FROM training_table WHERE archived = 1")
+    fun observeArchivedCount(): Flow<Int>
+
     @Query("SELECT * FROM training_table WHERE uuid = :uuid")
     suspend fun getById(uuid: Uuid): TrainingEntity?
 
@@ -46,10 +49,10 @@ interface TrainingDao {
     @Update
     suspend fun update(training: TrainingEntity)
 
-    @Query("UPDATE training_table SET archived = 1 WHERE uuid = :uuid")
-    suspend fun archive(uuid: Uuid)
+    @Query("UPDATE training_table SET archived = 1, archived_at = :archivedAt WHERE uuid = :uuid")
+    suspend fun archive(uuid: Uuid, archivedAt: Long)
 
-    @Query("UPDATE training_table SET archived = 0 WHERE uuid = :uuid")
+    @Query("UPDATE training_table SET archived = 0, archived_at = NULL WHERE uuid = :uuid")
     suspend fun restore(uuid: Uuid)
 
     @Query("DELETE FROM training_table WHERE uuid = :uuid")

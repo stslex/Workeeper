@@ -11,8 +11,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.window.Dialog
+import io.github.stslex.workeeper.core.ui.kit.R
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -31,6 +33,7 @@ fun AppDialog(
     destructive: Boolean = false,
 ) {
     val dialogBg = if (AppUi.colors.isDark) AppUi.colors.surfaceTier1 else AppUi.colors.surfaceTier2
+    val resolvedDismissLabel = dismissLabel ?: stringResource(R.string.core_ui_kit_action_cancel)
     Dialog(onDismissRequest = { onDismiss?.invoke() }) {
         Column(
             modifier = modifier
@@ -56,9 +59,9 @@ fun AppDialog(
                     alignment = Alignment.End,
                 ),
             ) {
-                if (dismissLabel != null && onDismiss != null) {
+                if (onDismiss != null) {
                     AppButton.Tertiary(
-                        text = dismissLabel,
+                        text = resolvedDismissLabel,
                         onClick = onDismiss,
                         size = AppButtonSize.MEDIUM,
                     )

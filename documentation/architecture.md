@@ -164,8 +164,11 @@ Briefly:
 - `Action` is a sealed interface or sealed class implementing `Store.Action`. Top-level
   categories are typically `Click`, `Input`, `Navigation`, `Paging`, `Common`.
 - `Event` is a sealed interface or sealed class implementing `Store.Event`. Names describe what
-  happened (`*Success`, `*Error`, `*Completed`, `Navigate*`, `Show*`, `Haptic*`, `Snackbar*`,
-  `Scroll*`).
+  happened (`*Success`, `*Error`, `*Completed`, `Show*`, `Haptic*`, `Snackbar*`, `Scroll*`).
+  **Events are for UI-side effects only** — haptic feedback, snackbar display, external Intent
+  dispatch, scroll commands. **Navigation is never an Event.** Navigation flows through
+  `Action.Navigation` consumed by the feature's `NavigationHandler` (see [Navigation
+  flow](#navigation-flow) below).
 
 ## Per-feature MVI layout
 
@@ -333,6 +336,58 @@ domain models:
   (`app/app/.../navigation/RootComponentImpl.kt`) creates the right `Component` for a screen and
   is provided through `LocalRootComponent`.
 
+### Navigation flow (canonical pattern)
+
+Navigation is **always** routed through a feature's `NavigationHandler`, never through the
+graph composable directly. This keeps UI dumb (it knows nothing about routes or `Navigator`)
+and lets navigation be tested in isolation. The pattern:
+
+1. UI emits an `Action.Navigation.<Something>` via `processor.consume(...)`.
+2. The store's `handlerCreator` lambda routes that action to the feature's `NavigationHandler`.
+3. `NavigationHandler` has `Navigator` injected via Hilt DI and calls `navigator.navTo(...)` or
+   `navigator.popBack()`.
+
+Concretely, a feature defines:
+
+```kotlin
+// In the Store contract:
+sealed interface Action : Store.Action {
+    sealed interface Navigation : Action {
+        data object Back : Navigation
+        data object OpenArchive : Navigation
+        // ... any other navigation targets
+    }
+}
+
+// As a separate handler class in mvi/handler/:
+internal class NavigationHandler @Inject constructor(
+    private val navigator: Navigator,
+) : <Feature>Component(), Handler<Action.Navigation> {
+    override fun invoke(action: Action.Navigation) {
+        when (action) {
+            is Action.Navigation.Back -> navigator.popBack()
+            is Action.Navigation.OpenArchive -> navigator.navTo(Screen.Archive)
+        }
+    }
+}
+```
+
+The graph composable consumes only **UI-side events** through `processor.Handle { event -> ... }`:
+
+- `Event.Haptic` — translated to `LocalHapticFeedback.current.performHapticFeedback(...)`.
+- `Event.ShowExternalLink(url)` — translated to an `Intent.ACTION_VIEW` against `LocalContext`.
+- `Event.Snackbar*` — emitted to the host snackbar manager.
+- `Event.Scroll*` — translated to a `LazyListState` scroll command in scope.
+
+The graph composable **never** reads `LocalNavigator` and **never** consumes an
+`Event.Navigate*` (such an event must not exist — it would be misnamed). `LocalNavigator`
+exists in `core/ui/navigation/Navigator.kt` so the root `App.kt` can provide a single
+`Navigator` instance into the composition tree, but the canonical read site is
+`NavigationHandler` via Hilt — not graph composables.
+
+Reference implementation: `feature/all-trainings/ui/AllTrainingsGraph.kt` (graph) and
+`feature/all-trainings/mvi/handler/NavigationHandler.kt` (handler).
+
 ### Navigation host and shared element transitions
 
 `app/app/src/main/java/io/github/stslex/workeeper/host/AppNavigationHost.kt` wraps the
@@ -387,6 +442,108 @@ calling `LocalHapticFeedback.current.performHapticFeedback(...)` — see
   emissions.
 - `StoreDispatchers` (`core/ui/mvi/.../di/StoreDispatchers.kt`) injects `@DefaultDispatcher`
   and `@MainImmediateDispatcher` from `core/core/.../di/CoreModule.kt`.
+
+### Localization
+
+Workeeper supports two locales out of the box: **English** (default) and **Russian**.
+English is the default for international audience and contributors on GitHub; Russian is
+overlaid via Android's resource qualifier system for users with `system locale = ru`.
+
+Resource layout per module:
+
+```
+<module>/src/main/res/values/strings.xml        — English (default fallback)
+<module>/src/main/res/values-ru/strings.xml     — Russian overlay
+```
+
+Every user-facing string is extracted to `strings.xml` from the start. Compose code reads
+strings via `stringResource(R.string.xxx)`, never as Kotlin literals. This applies to:
+
+- Screen titles, button labels, list headers, empty state copy.
+- Error messages and snackbar text.
+- Field labels and placeholders.
+- Date/time format strings (use `androidx.compose.ui.text.intl.Locale.current` if format
+  varies by language).
+
+It does **not** apply to:
+
+- Internal log messages and analytics event names — these stay English-only.
+- Domain identifiers (entity types, set types, action names in MVI) — these stay English
+  in code, translated on display.
+
+#### Naming convention
+
+```
+feature_<feature>_<context>_<purpose>
+```
+
+Examples:
+
+```xml
+<string name="feature_settings_title">Settings</string>
+<string name="feature_settings_section_about">About</string>
+<string name="feature_settings_section_appearance">Appearance</string>
+<string name="feature_archive_segment_exercises">Exercises</string>
+<string name="feature_archive_action_restore">Restore</string>
+<string name="feature_archive_action_permanent_delete">Delete permanently</string>
+<string name="feature_archive_dialog_permanent_delete_title">Delete '%1$s' permanently?</string>
+<string name="feature_archive_dialog_permanent_delete_body_with_history">
+    This will permanently delete the %1$s along with %2$d sessions of history. This cannot be undone.
+</string>
+```
+
+Strings shared across features (e.g. "Cancel", "Save", "Back") live in the relevant `core/`
+module — typically `core/ui/kit` for UI verbs:
+
+```xml
+<string name="core_ui_kit_action_cancel">Cancel</string>
+<string name="core_ui_kit_action_save">Save</string>
+<string name="core_ui_kit_action_back">Back</string>
+```
+
+#### Pluralization
+
+Use `<plurals>` resources for any number-driven text ("1 session" vs "5 sessions" vs Russian
+forms "1 сессия" / "2 сессии" / "5 сессий"). Read with `pluralStringResource(R.plurals.xxx, count, count)`.
+
+Example:
+
+```xml
+<plurals name="feature_archive_session_count">
+    <item quantity="one">%d session</item>
+    <item quantity="other">%d sessions</item>
+</plurals>
+```
+
+Russian needs the `few` quantity for 2-4:
+
+```xml
+<plurals name="feature_archive_session_count">
+    <item quantity="one">%d сессия</item>
+    <item quantity="few">%d сессии</item>
+    <item quantity="many">%d сессий</item>
+    <item quantity="other">%d сессии</item>
+</plurals>
+```
+
+#### Forbidden patterns
+
+- Hardcoded user-facing string literals in Composables.
+- Concatenation of localized fragments — always use full sentences as resources, with
+  format placeholders for variable parts. (`"$name was archived"` is forbidden;
+  `getString(R.string.archived_format, name)` is correct.)
+- Manual locale switching in code — let Android resolve from system locale.
+
+#### Adding a new feature
+
+When creating a new feature module:
+
+1. Create `src/main/res/values/strings.xml` with all English strings.
+2. Create `src/main/res/values-ru/strings.xml` with the Russian translations.
+3. Both files must contain the same set of keys — adding a key to one without the other
+   means the missing locale falls back to English (which is acceptable but visible).
+4. Reference all strings via `stringResource(R.string.xxx)` from Composables and
+   `context.getString(R.string.xxx)` from non-Compose code.
 
 ## Build conventions
 

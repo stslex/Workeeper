@@ -8,17 +8,23 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.core.view.WindowCompat
 
 @Composable
 fun AppTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    themeMode: ThemeMode = ThemeMode.SYSTEM,
     content: @Composable () -> Unit,
 ) {
     val localActivity = LocalActivity.current
+
+    val darkTheme = when (themeMode) {
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+    }
 
     val colors = remember(darkTheme) {
         if (darkTheme) provideDarkAppColors() else provideLightAppColors()
@@ -31,7 +37,7 @@ fun AppTheme(
     val m3Typography = remember(typography) { typography.toM3Typography() }
     val m3Shapes = remember(shapes) { shapes.toM3Shapes() }
 
-    LaunchedEffect(darkTheme) {
+    SideEffect {
         localActivity?.window?.let { window ->
             WindowCompat.getInsetsController(window, window.decorView)
                 .isAppearanceLightStatusBars = !darkTheme

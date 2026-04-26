@@ -48,6 +48,23 @@ interface SessionDao {
     @Query("SELECT * FROM session_table WHERE uuid = :uuid")
     suspend fun getById(uuid: Uuid): SessionEntity?
 
+    @Query(
+        """
+        SELECT COUNT(*) FROM session_table
+        WHERE training_uuid = :trainingUuid AND state = 'FINISHED'
+        """,
+    )
+    suspend fun countFinishedByTraining(trainingUuid: Uuid): Int
+
+    @Query(
+        """
+        SELECT COUNT(DISTINCT pe.session_uuid) FROM performed_exercise_table pe
+        JOIN session_table s ON s.uuid = pe.session_uuid
+        WHERE pe.exercise_uuid = :exerciseUuid AND s.state = 'FINISHED'
+        """,
+    )
+    suspend fun countFinishedContainingExercise(exerciseUuid: Uuid): Int
+
     @Insert
     suspend fun insert(session: SessionEntity)
 

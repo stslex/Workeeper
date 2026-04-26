@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="feature_settings_title">Settings</string>
+
+    <string name="feature_settings_section_about">About</string>
+    <string name="feature_settings_section_appearance">Appearance</string>
+    <string name="feature_settings_section_data">Data</string>
+
+    <string name="feature_settings_theme_system">System default</string>
+    <string name="feature_settings_theme_light">Light</string>
+    <string name="feature_settings_theme_dark">Dark</string>
+
+    <string name="feature_settings_about_app_name">Workeeper</string>
+    <string name="feature_settings_about_version_format">Version %1$s (%2$d)</string>
+    <string name="feature_settings_about_license">GPLv3 license</string>
+    <string name="feature_settings_about_github">View on GitHub</string>
+    <string name="feature_settings_about_privacy">Privacy Policy</string>
+
+    <string name="feature_archive_title">Archive</string>
+    <string name="feature_archive_action_more">More</string>
+    <string name="feature_archive_segment_exercises">Exercises (%1$d)</string>
+    <string name="feature_archive_segment_trainings">Trainings (%1$d)</string>
+
+    <string name="feature_archive_action_restore">Restore</string>
+    <string name="feature_archive_action_permanent_delete">Delete permanently</string>
+
+    <string name="feature_archive_label_archived">Archived</string>
+    <string name="feature_archive_label_archived_relative_format">Archived %1$s</string>
+
+    <string name="feature_archive_empty_headline">Nothing archived</string>
+    <string name="feature_archive_empty_supporting_exercises">Archived exercises appear here for restore or permanent delete.</string>
+    <string name="feature_archive_empty_supporting_trainings">Archived trainings appear here for restore or permanent delete.</string>
+
+    <string name="feature_archive_dialog_permanent_delete_title">Delete ‘%1$s’ permanently?</string>
+    <string name="feature_archive_dialog_permanent_delete_body_no_history">This action cannot be undone.</string>
+    <string name="feature_archive_dialog_impact_summary_empty">No session history affected</string>
+    <string name="feature_archive_dialog_confirm_delete">Delete</string>
+
+    <string name="feature_archive_snackbar_restored_format">%1$s restored</string>
+    <string name="feature_archive_snackbar_deleted_format">%1$s permanently deleted</string>
+    <string name="feature_archive_snackbar_undo">Undo</string>
+
+    <plurals name="feature_archive_session_count">
+        <item quantity="one">%d session</item>
+        <item quantity="other">%d sessions</item>
+    </plurals>
+
+    <plurals name="feature_archive_dialog_permanent_delete_body_with_history">
+        <item quantity="one">%1$d session of history will also be deleted. This action cannot be undone.</item>
+        <item quantity="other">%1$d sessions of history will also be deleted. This action cannot be undone.</item>
+    </plurals>
+</resources>

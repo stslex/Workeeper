@@ -27,4 +27,6 @@ data class TrainingEntity(
     val archived: Boolean,
     @ColumnInfo(name = "created_at")
     val createdAt: Long,
+    @ColumnInfo(name = "archived_at")
+    val archivedAt: Long?,
 )

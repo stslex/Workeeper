@@ -6,6 +6,7 @@ import androidx.paging.PagingData
 import androidx.paging.map
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
+import io.github.stslex.workeeper.core.database.session.SessionDao
 import io.github.stslex.workeeper.core.database.tag.ExerciseTagDao
 import io.github.stslex.workeeper.core.database.tag.ExerciseTagEntity
 import io.github.stslex.workeeper.core.database.tag.TagDao
@@ -30,6 +31,7 @@ internal class ExerciseRepositoryImpl @Inject constructor(
     private val tagDao: TagDao,
     private val exerciseTagDao: ExerciseTagDao,
     private val trainingExerciseDao: TrainingExerciseDao,
+    private val sessionDao: SessionDao,
     @IODispatcher private val bgDispatcher: CoroutineDispatcher,
 ) : ExerciseRepository {
 
@@ -105,7 +107,7 @@ internal class ExerciseRepositoryImpl @Inject constructor(
 
     override suspend fun archive(uuid: String) {
         withContext(bgDispatcher) {
-            dao.archive(Uuid.parse(uuid))
+            dao.archive(Uuid.parse(uuid), System.currentTimeMillis())
         }
     }
 
@@ -123,6 +125,24 @@ internal class ExerciseRepositoryImpl @Inject constructor(
 
     override suspend fun canArchive(uuid: String): Boolean = withContext(bgDispatcher) {
         trainingExerciseDao.countActiveTemplatesUsing(Uuid.parse(uuid)) == 0
+    }
+
+    override fun pagedArchived(): Flow<PagingData<ExerciseDataModel>> = Pager(
+        config = pagingConfig,
+        pagingSourceFactory = dao::pagedArchived,
+    ).flow
+        .map { pagingData ->
+            pagingData.map { entity -> entity.toData(labels = loadLabels(entity.uuid)) }
+        }
+        .flowOn(bgDispatcher)
+
+    override fun observeArchivedCount(): Flow<Int> = dao.observeArchivedCount()
+        .flowOn(bgDispatcher)
+
+    override suspend fun countSessionsUsing(
+        exerciseUuid: String,
+    ): Int = withContext(bgDispatcher) {
+        sessionDao.countFinishedContainingExercise(Uuid.parse(exerciseUuid))
     }
 
     private suspend fun loadLabels(exerciseUuid: Uuid): List<String> =

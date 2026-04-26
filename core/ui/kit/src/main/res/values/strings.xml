@@ -1,3 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="core_ui_kit_action_cancel">Cancel</string>
+    <string name="core_ui_kit_action_save">Save</string>
+    <string name="core_ui_kit_action_back">Back</string>
 </resources>

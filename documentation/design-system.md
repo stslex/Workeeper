@@ -2,7 +2,7 @@
 
 This document specifies the v1 design system for Workeeper: tokens
 (color, typography, spacing, shape, motion, elevation), component
-inventory (19 shared components), and the implementation plan for
+inventory (21 shared components), and the implementation plan for
 `core/ui/kit`.
 
 It is the input to the Claude Code prompt at the bottom of this
@@ -27,6 +27,56 @@ Material 3 + custom values + custom semantic layer.
   `LocalAppColors`, `LocalAppTypography`, etc. (CompositionLocal),
   carrying fitness-specific roles (set type colors, PR highlights,
   etc.) that M3 does not cover.
+
+### Theme switch reactivity contract
+
+When the user changes the theme preference (System / Light / Dark in
+Settings), three things must update **simultaneously and in a single
+recomposition**:
+
+1. M3 `MaterialTheme` color scheme — automatic via `AppTheme`
+   recomposition.
+2. `LocalAppColors` and other AppUi locals — automatic via
+   `AppTheme` recomposition.
+3. **Activity window chrome** — status bar tint, navigation bar
+   tint, and surface insets controller. This is **not** automatic;
+   it requires an explicit side effect inside `AppTheme`.
+
+The window chrome side effect must use `SideEffect` (not
+`LaunchedEffect`):
+
+```kotlin
+@Composable
+fun AppTheme(
+    themeMode: ThemeMode = ThemeMode.SYSTEM,
+    content: @Composable () -> Unit,
+) {
+    val darkTheme = when (themeMode) {
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+    }
+
+    val activity = LocalActivity.current
+    SideEffect {
+        activity?.window?.let { window ->
+            val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+            insetsController.isAppearanceLightStatusBars = !darkTheme
+            insetsController.isAppearanceLightNavigationBars = !darkTheme
+        }
+    }
+
+    // ... rest of AppTheme: build ColorScheme, provide locals, MaterialTheme { content }
+}
+```
+
+`SideEffect` runs on every successful recomposition. `LaunchedEffect`
+does not — it relaunches only when its keys change, which can miss
+the recomposition triggered by a `darkTheme` boolean flip.
+
+This contract is the source of the "TopAppBar recolors out of phase
+with screen content" bug. Any future contributor wiring window
+chrome behavior must use `SideEffect`.
 
 ### Color palette
 
@@ -288,9 +338,68 @@ The current hard-coded `defaultAnimationDuration = 600` in
 `core/ui/kit` is replaced by `AppMotion.deliberate`. All other
 animations use `normal` (300ms) or `fast` (200ms) as the default.
 
+### Haptic feedback
+
+Haptics are part of the design system contract, not optional. Every
+user-initiated action that produces an MVI side effect emits a
+`Haptic` event from the store. The application's Haptic event
+handler (existing in `core/ui/kit/utils/`) maps the event to the
+device's haptic feedback API.
+
+Workeeper recognizes two haptic intensities:
+
+- **light** — default for any normal click (button tap, row tap,
+  toggle, segment switch, FAB press, navigation). 90% of haptic
+  emissions.
+- **medium** — destructive intents and important confirmations
+  (delete confirm, archive permanent delete, finish session).
+
+Stores expose this through the `Event` sealed hierarchy. The
+existing pattern (used by all v1 features):
+
+```kotlin
+sealed interface Event : Store.Event {
+    data object HapticLight : Event
+    data object HapticMedium : Event
+    // ... feature-specific events
+}
+```
+
+#### When to emit haptics
+
+Every Click action that produces a state change OR triggers
+navigation OR opens a dialog must emit a haptic. Counter-examples
+(do NOT emit haptic):
+
+- Cancel/dismiss in dialogs — the haptic was already produced when
+  the dialog opened; cancelling is a "negation", not a positive
+  action.
+- Repeated rapid actions (e.g. holding a button for continuous
+  scroll) — haptics fire once on press, not on every frame.
+- Pure observational actions (text input typing, scroll, swipe in
+  progress before threshold).
+
+#### Convention
+
+Each feature spec under `documentation/feature-specs/` lists
+explicit haptic mappings per Click action. The base rule of thumb:
+
+| Action category | Intensity |
+|---|---|
+| Tap a row, button, FAB, toggle, chip, tab, segment | light |
+| Open a screen / dialog / bottom sheet | light (on the trigger) |
+| Confirm a destructive action | medium |
+| Confirm an important non-destructive action (finish session) | medium |
+| Cancel / dismiss any dialog | none |
+| Undo from snackbar | light |
+
+Haptic emission is the trigger's responsibility, not the receiver's.
+Tapping a row that opens a dialog: the haptic emits at row tap. The
+dialog opens silently (no separate haptic).
+
 ## Component inventory
 
-19 shared components in `core/ui/kit`. Each has a fixed package and a
+21 shared components in `core/ui/kit`. Each has a fixed package and a
 clear purpose. No two screens should reimplement these — if a screen
 needs a variation, it goes back into the kit.
 
@@ -650,8 +759,59 @@ swipe-from-end. Action panel uses actionTint as background (typically
 error or warning).
 ```
 
-(Counts as 19 + 1 added during scope review per the chat session;
-final count = 20 components.)
+### 21. AppSettingsRow
+
+A full-width row designed for Settings-style preference pickers and
+list-style menu entries. The default layout for everything that
+appears under Settings, Archive headers, future Manage tags, etc.
+
+```
+package: io.github.stslex.workeeper.core.ui.kit.components.settings
+
+variants:
+  AppSettingsRow.Navigation — title + optional subtitle + trailing chevron;
+                              tap navigates somewhere
+  AppSettingsRow.Choice     — title + optional subtitle + leading RadioButton;
+                              tap selects (use inside selectableGroup())
+  AppSettingsRow.Toggle     — title + optional subtitle + trailing Switch
+  AppSettingsRow.Action     — title + optional subtitle + trailing icon;
+                              tap fires an action (e.g. external link)
+
+API: composables taking title, subtitle (optional), enabled (default true),
+     onClick (or onCheckedChange for Toggle, selected for Choice).
+
+Visual:
+  width:            full screen width (modifier.fillMaxWidth())
+  height:           AppDimension.heightSm minimum, taller if subtitle wraps
+  horizontal padding: AppDimension.screenEdge (16.dp)
+  vertical padding:   12.dp
+  background:       transparent (the row sits on parent surface)
+  ripple:           full row width on tap
+  title:            AppUi.typography.bodyMedium, AppUi.colors.textPrimary
+  subtitle:         AppUi.typography.bodySmall, AppUi.colors.textTertiary
+  spacing between title and subtitle: 2.dp
+  trailing chevron / icon: AppDimension.iconSm (18.dp)
+
+Modifier behavior:
+  - Use Modifier.clickable for Navigation / Action variants.
+  - Use Modifier.selectable(role = Role.RadioButton) for Choice variant.
+  - Wrap a group of Choice rows in a Column with Modifier.selectableGroup().
+  - Choice variant: tapping anywhere on the row selects the option, ripple
+    covers the full row width. The RadioButton is purely visual indicator;
+    do not handle its onClick separately.
+```
+
+#### Why a dedicated component
+
+Settings UIs frequently fall into the trap of using bare
+`RadioButton + Text` or `Text + Switch` without a unifying row
+container. The result is small floating hit targets and ripples that
+do not match the visual extent of the option. AppSettingsRow
+enforces full-width tap targets and consistent typography across all
+settings surfaces.
+
+(Counts as 19 + 1 added during scope review per the chat session
++ 1 added in Stage 5.1 (AppSettingsRow); final count = 21 components.)
 
 ## Module structure
 
