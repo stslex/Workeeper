@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.feature.exercise.ui.components
 import android.content.res.Configuration
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -23,9 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.DateInputField
+import io.github.stslex.workeeper.core.ui.kit.components.input.AppTextField
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
-import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.TitleTextInputField
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.exercise.R
@@ -43,16 +43,12 @@ internal fun ExercisedColumn(
         modifier = modifier.fillMaxSize(),
     ) {
         item {
-            TitleTextInputField(
+            AppTextField(
                 modifier = Modifier.testTag("ExerciseNameField"),
-                property = state.name,
-                isMenuOpen = state.isMenuOpen,
-                menuItems = state.menuItems,
-                labelRes = R.string.feature_exercise_field_label_name,
-                onMenuClick = { consume(Action.Click.OpenMenuVariants) },
-                onMenuClose = { consume(Action.Click.CloseMenuVariants) },
-                onMenuItemClick = { consume(Action.Click.OnMenuItemClick(it)) },
+                value = state.name.uiValue,
                 onValueChange = { consume(Action.Input.PropertyName(it)) },
+                label = stringResource(R.string.feature_exercise_field_label_name),
+                isError = state.name.isError,
             )
         }
 
@@ -102,14 +98,15 @@ internal fun ExercisedColumn(
         }
 
         item {
-            DateInputField(
-                modifier = Modifier.testTag("ExerciseDatePickerButton"),
-                property = state.dateProperty,
-                labelRes = R.string.feature_exercise_field_label_date,
-                onClick = {
-                    consume(Action.Click.PickDate)
-                },
-            )
+            Box(modifier = Modifier.clickable { consume(Action.Click.PickDate) }) {
+                AppTextField(
+                    modifier = Modifier.testTag("ExerciseDatePickerButton"),
+                    value = state.dateProperty.uiValue,
+                    onValueChange = {},
+                    label = stringResource(R.string.feature_exercise_field_label_date),
+                    enabled = false,
+                )
+            }
         }
     }
 }

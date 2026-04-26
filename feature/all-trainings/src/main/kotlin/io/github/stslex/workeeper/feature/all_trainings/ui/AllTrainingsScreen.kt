@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -31,16 +32,12 @@ import androidx.compose.ui.unit.dp
 import androidx.paging.LoadState
 import androidx.paging.PagingData
 import androidx.paging.compose.collectAsLazyPagingItems
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.hazeSource
-import dev.chrisbanes.haze.rememberHazeState
-import io.github.stslex.workeeper.core.ui.kit.components.buttons.AppActionButton
-import io.github.stslex.workeeper.core.ui.kit.components.search.SearchPagingWidget
+import io.github.stslex.workeeper.core.ui.kit.components.fab.AppFAB
+import io.github.stslex.workeeper.core.ui.kit.components.input.AppTextField
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.core.ui.kit.model.ItemPosition
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
-import io.github.stslex.workeeper.core.ui.kit.theme.AppUi.uiFeatures
 import io.github.stslex.workeeper.feature.all_trainings.mvi.model.TrainingUiModel
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore.Action
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore.State
@@ -60,7 +57,7 @@ internal fun AllTrainingsScreen(
     modifier: Modifier = Modifier,
 ) {
     val items = remember { state.pagingUiState() }.collectAsLazyPagingItems()
-    val hazeState: HazeState = rememberHazeState(uiFeatures.enableBlur)
+    val isSelecting = state.selectedItems.isNotEmpty()
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -69,12 +66,14 @@ internal fun AllTrainingsScreen(
         Column(
             modifier = Modifier.fillMaxSize(),
         ) {
-            SearchPagingWidget(
+            AppTextField(
                 modifier = Modifier
                     .padding(AppDimension.Padding.big)
                     .testTag("AllTrainingsSearchWidget"),
-                query = state.query,
-                onQueryChange = { consume(Action.Input.SearchQuery(it)) },
+                value = state.query,
+                onValueChange = { consume(Action.Input.SearchQuery(it)) },
+                label = "Search",
+                leadingIcon = Icons.Default.Search,
             )
             Spacer(Modifier.height(AppDimension.Padding.big))
             Box(
@@ -95,7 +94,6 @@ internal fun AllTrainingsScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .clip(MaterialTheme.shapes.large)
-                        .hazeSource(state = hazeState)
                         .testTag("AllTrainingsList"),
                 ) {
                     items(
@@ -134,7 +132,7 @@ internal fun AllTrainingsScreen(
             }
         }
         with(sharedTransitionScope) {
-            AppActionButton(
+            AppFAB(
                 modifier = Modifier
                     .sharedBounds(
                         sharedContentState = sharedTransitionScope.rememberSharedContentState(
@@ -150,10 +148,8 @@ internal fun AllTrainingsScreen(
                     .padding(AppDimension.Padding.big)
                     .testTag("AllTrainingsActionButton"),
                 onClick = { consume(Action.Click.ActionButton) },
-                contentIcon = Icons.Default.Add,
-                selectedContentIcon = Icons.Default.Delete,
-                hazeState = hazeState,
-                selectedMode = state.selectedItems.isNotEmpty(),
+                icon = if (isSelecting) Icons.Default.Delete else Icons.Default.Add,
+                contentDescription = if (isSelecting) "Delete selected" else "Create training",
             )
         }
     }

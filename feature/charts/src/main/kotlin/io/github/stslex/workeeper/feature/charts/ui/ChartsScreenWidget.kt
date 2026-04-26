@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
+import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDatePickerDialog
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.charts.mvi.model.CalendarState
@@ -25,7 +26,6 @@ import io.github.stslex.workeeper.feature.charts.mvi.model.SingleChartUiModel
 import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore.Action
 import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore.State
 import io.github.stslex.workeeper.feature.charts.ui.components.ChartsScreenBodyWidget
-import io.github.stslex.workeeper.feature.charts.ui.components.DatePickerDialog
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 
@@ -53,16 +53,16 @@ internal fun ChartsScreenWidget(
         )
 
         when (state.calendarState) {
-            CalendarState.Opened.StartDate -> DatePickerDialog(
-                timestamp = state.startDate.value,
-                onDismissRequest = { consume(Action.Click.Calendar.Close) },
-                dateChange = { consume(Action.Input.ChangeStartDate(it)) },
+            CalendarState.Opened.StartDate -> AppDatePickerDialog(
+                initialDateMillis = state.startDate.value,
+                onDismiss = { consume(Action.Click.Calendar.Close) },
+                onDateSelected = { consume(Action.Input.ChangeStartDate(it)) },
             )
 
-            CalendarState.Opened.EndDate -> DatePickerDialog(
-                timestamp = state.endDate.value,
-                onDismissRequest = { consume(Action.Click.Calendar.Close) },
-                dateChange = { consume(Action.Input.ChangeEndDate(it)) },
+            CalendarState.Opened.EndDate -> AppDatePickerDialog(
+                initialDateMillis = state.endDate.value,
+                onDismiss = { consume(Action.Click.Calendar.Close) },
+                onDateSelected = { consume(Action.Input.ChangeEndDate(it)) },
             )
 
             else -> Unit

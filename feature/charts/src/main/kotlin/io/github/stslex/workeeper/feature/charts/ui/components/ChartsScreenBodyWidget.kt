@@ -15,6 +15,8 @@ import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
@@ -25,7 +27,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
-import io.github.stslex.workeeper.core.ui.kit.components.search.SearchPagingWidget
+import io.github.stslex.workeeper.core.ui.kit.components.input.AppTextField
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
@@ -53,11 +55,13 @@ internal fun ChartsScreenBodyWidget(
             .testTag("ChartsScreenBody"),
     ) {
         Spacer(Modifier.height(AppDimension.Padding.big))
-        SearchPagingWidget(
+        AppTextField(
             modifier = Modifier
                 .padding(horizontal = AppDimension.Padding.big),
-            query = state.name,
-            onQueryChange = { consume(Action.Input.Query(it)) },
+            value = state.name,
+            onValueChange = { consume(Action.Input.Query(it)) },
+            label = "Search",
+            leadingIcon = Icons.Default.Search,
         )
         Spacer(Modifier.height(AppDimension.Padding.medium))
         ChartsTypePickerWidget(

@@ -7,28 +7,27 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.rememberHazeState
-import io.github.stslex.workeeper.core.ui.kit.components.buttons.AppActionButton
+import io.github.stslex.workeeper.core.ui.kit.components.fab.AppFAB
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.all_exercises.R
 
 @Composable
 internal fun AllExercisesActionButton(
     selectedMode: Boolean,
-    hazeState: HazeState,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    AppActionButton(
-        onClick = onClick,
+    val icon = if (selectedMode) Icons.Outlined.Delete else Icons.Outlined.Create
+    val descriptionRes = if (selectedMode) {
+        R.string.feature_all_action_btn_description_delete
+    } else {
+        R.string.feature_all_action_btn_description_create
+    }
+    AppFAB(
         modifier = modifier,
-        hazeState = hazeState,
-        selectedMode = selectedMode,
-        contentIcon = Icons.Outlined.Create,
-        contentDescription = stringResource(R.string.feature_all_action_btn_description_create),
-        selectedContentIcon = Icons.Outlined.Delete,
-        selectedContentDescription = stringResource(R.string.feature_all_action_btn_description_delete),
+        icon = icon,
+        contentDescription = stringResource(descriptionRes),
+        onClick = onClick,
     )
 }
 
@@ -36,9 +35,6 @@ internal fun AllExercisesActionButton(
 @Preview
 private fun AllExercisesActionButtonPreview() {
     AppTheme {
-        AllExercisesActionButton(
-            selectedMode = false,
-            hazeState = rememberHazeState(),
-        ) { }
+        AllExercisesActionButton(selectedMode = false) { }
     }
 }

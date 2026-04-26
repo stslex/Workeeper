@@ -12,6 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult.ActionPerformed
 import androidx.compose.material3.SnackbarResult.Dismissed
@@ -25,7 +26,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.zIndex
 import io.github.stslex.workeeper.bottom_app_bar.WorkeeperBottomAppBar
-import io.github.stslex.workeeper.core.ui.kit.components.snackbar.AppSnackBar
+import io.github.stslex.workeeper.core.ui.kit.components.snackbar.AppSnackbar
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -76,20 +77,20 @@ fun App() {
                         .zIndex(1f),
                     visible = navigatorHolder.bottomBarDestination.value != null,
                     enter = fadeIn(
-                        tween(AppUi.uiFeatures.defaultAnimationDuration),
+                        tween(AppUi.motion.deliberate),
                     ) + scaleIn(
-                        tween(AppUi.uiFeatures.defaultAnimationDuration),
+                        tween(AppUi.motion.deliberate),
                     ) + slideIn(
                         initialOffset = { IntOffset(0, 0) },
-                        animationSpec = tween(AppUi.uiFeatures.defaultAnimationDuration),
+                        animationSpec = tween(AppUi.motion.deliberate),
                     ),
                     exit = fadeOut(
-                        tween(AppUi.uiFeatures.defaultAnimationDuration),
+                        tween(AppUi.motion.deliberate),
                     ) + scaleOut(
-                        tween(AppUi.uiFeatures.defaultAnimationDuration),
+                        tween(AppUi.motion.deliberate),
                     ) + slideOut(
                         targetOffset = { fullSize -> IntOffset(0, fullSize.height) },
-                        animationSpec = tween(AppUi.uiFeatures.defaultAnimationDuration),
+                        animationSpec = tween(AppUi.motion.deliberate),
                     ),
                 ) {
                     WorkeeperBottomAppBar(
@@ -104,13 +105,12 @@ fun App() {
                     navigator = navigator,
                 )
 
-                AppSnackBar(
+                SnackbarHost(
                     modifier = Modifier.align(Alignment.BottomCenter),
-                    state = snackbarHostState,
-                    onActionClick = {
-                        snackbarHostState.currentSnackbarData?.performAction()
-                    },
-                )
+                    hostState = snackbarHostState,
+                ) { data ->
+                    AppSnackbar(snackbarData = data)
+                }
             }
         }
     }

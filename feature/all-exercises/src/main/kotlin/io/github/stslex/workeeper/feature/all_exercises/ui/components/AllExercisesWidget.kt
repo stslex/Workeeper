@@ -17,6 +17,8 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -29,12 +31,9 @@ import androidx.paging.LoadState
 import androidx.paging.PagingData
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.hazeSource
-import dev.chrisbanes.haze.rememberHazeState
-import io.github.stslex.workeeper.core.ui.kit.components.search.SearchPagingWidget
+import io.github.stslex.workeeper.core.ui.kit.components.input.AppTextField
+import io.github.stslex.workeeper.core.ui.kit.components.list.AppListItem
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
-import io.github.stslex.workeeper.core.ui.kit.model.ItemPosition
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.all_exercises.mvi.model.ExerciseUiModel
@@ -46,11 +45,11 @@ import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
+@Suppress("UnusedParameter")
 internal fun AllExercisesWidget(
     state: State,
     sharedTransitionScope: SharedTransitionScope,
     animatedContentScope: AnimatedContentScope,
-    hazeState: HazeState,
     consume: (Action) -> Unit,
     lazyState: LazyListState,
     modifier: Modifier = Modifier,
@@ -60,12 +59,14 @@ internal fun AllExercisesWidget(
         modifier = modifier
             .fillMaxSize(),
     ) {
-        SearchPagingWidget(
+        AppTextField(
             modifier = Modifier
                 .padding(AppDimension.Padding.big)
                 .testTag("AllExercisesSearchWidget"),
-            query = state.query,
-            onQueryChange = { consume(Action.Input.SearchQuery(it)) },
+            value = state.query,
+            onValueChange = { consume(Action.Input.SearchQuery(it)) },
+            label = "Search",
+            leadingIcon = Icons.Default.Search,
         )
         Spacer(Modifier.height(AppDimension.Padding.big))
         Box(
@@ -86,7 +87,6 @@ internal fun AllExercisesWidget(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(MaterialTheme.shapes.large)
-                    .hazeSource(hazeState)
                     .testTag("AllExercisesList"),
                 state = lazyState,
             ) {
@@ -95,21 +95,11 @@ internal fun AllExercisesWidget(
                     key = items.itemKey { it.uuid },
                 ) { index ->
                     items[index]?.let { item ->
-                        ExercisePagingItem(
+                        AppListItem(
                             modifier = Modifier.testTag("ExerciseItem_${item.uuid}"),
-                            item = item,
-                            isSelected = remember(state.selectedItems) {
-                                state.selectedItems.contains(item.uuid)
-                            },
-                            onClick = {
-                                consume(Action.Click.Item(item.uuid))
-                            },
-                            itemPosition = ItemPosition.getItemPosition(index, items.itemCount),
-                            sharedTransitionScope = sharedTransitionScope,
-                            animatedContentScope = animatedContentScope,
-                            onLongClick = {
-                                consume(Action.Click.LonkClick(item.uuid))
-                            },
+                            headline = item.name,
+                            supportingText = item.dateProperty.uiValue,
+                            onClick = { consume(Action.Click.Item(item.uuid)) },
                         )
                     }
                 }
@@ -161,7 +151,6 @@ private fun AllTabsWidgetPreview() {
                     animatedContentScope = this@AnimatedContent,
                     consume = {},
                     lazyState = rememberLazyListState(),
-                    hazeState = rememberHazeState(),
                     modifier = it,
                 )
             }
