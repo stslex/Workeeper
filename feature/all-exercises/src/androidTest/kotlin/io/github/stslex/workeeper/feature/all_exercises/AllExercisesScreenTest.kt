@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.all_exercises
 
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -14,5 +15,6 @@ class AllExercisesScreenTest : BaseComposeTest() {
     @get:Rule
     val composeTestRule = createComposeRule()
 
-    // TODO(feature-rewrite): rewrite UI tests after feature redesign per documentation/testing.md.
+    // TODO(feature-rewrite-tests): cover ExerciseRow click, FAB click, archive swipe, tag-filter
+    // toggle, and empty state once Smoke harness wiring for AllExercisesScreen is restored.
 }

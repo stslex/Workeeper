@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise.di
 
 import dagger.Binds
@@ -14,9 +15,9 @@ internal interface ExerciseModule {
 
     @Binds
     @ViewModelScoped
-    fun bindExerciseInteractor(impl: ExerciseInteractorImpl): ExerciseInteractor
+    fun bindInteractor(impl: ExerciseInteractorImpl): ExerciseInteractor
 
     @Binds
     @ViewModelScoped
-    fun bindExerciseHandlerStore(impl: ExerciseHandlerStoreImpl): ExerciseHandlerStore
+    fun bindHandlerStore(impl: ExerciseHandlerStoreImpl): ExerciseHandlerStore
 }

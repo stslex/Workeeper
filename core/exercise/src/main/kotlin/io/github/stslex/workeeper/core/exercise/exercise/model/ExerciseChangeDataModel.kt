@@ -12,9 +12,6 @@ data class ExerciseChangeDataModel(
     val imagePath: String? = null,
     val archived: Boolean = false,
     val timestamp: Long,
-    // legacy v2 fields kept so feature stores compile; not persisted by the v3 schema.
-    val trainingUuid: String? = null,
-    val sets: List<SetsDataModel> = emptyList(),
     val labels: List<String> = emptyList(),
 )
 

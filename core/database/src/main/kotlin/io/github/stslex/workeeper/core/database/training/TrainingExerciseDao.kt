@@ -28,6 +28,18 @@ interface TrainingExerciseDao {
     )
     suspend fun countActiveTemplatesUsing(exerciseUuid: Uuid): Int
 
+    @Query(
+        """
+        SELECT t.name FROM training_exercise_table te
+        JOIN training_table t ON t.uuid = te.training_uuid
+        WHERE te.exercise_uuid = :exerciseUuid
+          AND t.archived = 0
+          AND t.is_adhoc = 0
+        ORDER BY t.name COLLATE NOCASE ASC
+        """,
+    )
+    suspend fun getActiveTemplateNamesUsing(exerciseUuid: Uuid): List<String>
+
     @Insert
     suspend fun insert(rows: List<TrainingExerciseEntity>)
 

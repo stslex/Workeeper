@@ -25,6 +25,23 @@ interface ExerciseDao {
     )
     fun pagedActiveByTags(tagUuids: List<Uuid>): PagingSource<Int, ExerciseEntity>
 
+    @Query(
+        """
+        SELECT e.* FROM exercise_table e
+        WHERE e.archived = 0
+          AND (
+            SELECT COUNT(DISTINCT et.tag_uuid)
+            FROM exercise_tag_table et
+            WHERE et.exercise_uuid = e.uuid AND et.tag_uuid IN (:tagUuids)
+          ) = :tagCount
+        ORDER BY e.name COLLATE NOCASE ASC
+        """,
+    )
+    fun pagedActiveByAllTags(
+        tagUuids: List<Uuid>,
+        tagCount: Int,
+    ): PagingSource<Int, ExerciseEntity>
+
     @Query("SELECT * FROM exercise_table WHERE archived = 1 ORDER BY name COLLATE NOCASE ASC")
     fun pagedArchived(): PagingSource<Int, ExerciseEntity>
 

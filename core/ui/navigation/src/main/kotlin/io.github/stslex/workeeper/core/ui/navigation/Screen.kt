@@ -41,7 +41,6 @@ sealed interface Screen {
     @Serializable
     data class Exercise(
         val uuid: String?,
-        val trainingUuid: String?,
     ) : Screen
 
     @Serializable

@@ -1,80 +1,73 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.all_exercises.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dagger.hilt.android.scopes.ViewModelScoped
-import io.github.stslex.workeeper.core.core.coroutine.asyncMap
-import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
-import io.github.stslex.workeeper.feature.all_exercises.di.ExerciseHandlerStore
-import io.github.stslex.workeeper.feature.all_exercises.mvi.store.ExercisesStore.Action
-import io.github.stslex.workeeper.feature.all_exercises.mvi.store.ExercisesStore.Event
-import kotlinx.collections.immutable.persistentSetOf
-import kotlinx.collections.immutable.toImmutableSet
+import io.github.stslex.workeeper.feature.all_exercises.di.AllExercisesHandlerStore
+import io.github.stslex.workeeper.feature.all_exercises.domain.AllExercisesInteractor
+import io.github.stslex.workeeper.feature.all_exercises.domain.AllExercisesInteractor.ArchiveResult
+import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Action
+import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Event
+import kotlinx.collections.immutable.minus
+import kotlinx.collections.immutable.plus
+import kotlinx.collections.immutable.toPersistentSet
 import javax.inject.Inject
-import kotlin.uuid.Uuid
 
 @ViewModelScoped
 internal class ClickHandler @Inject constructor(
-    private val repository: ExerciseRepository,
-    store: ExerciseHandlerStore,
-) : Handler<Action.Click>, ExerciseHandlerStore by store {
+    private val interactor: AllExercisesInteractor,
+    store: AllExercisesHandlerStore,
+) : Handler<Action.Click>, AllExercisesHandlerStore by store {
 
     override fun invoke(action: Action.Click) {
         when (action) {
-            Action.Click.FloatButtonClick -> processClickFloatingButton()
-            Action.Click.BackHandler -> processBackHandler()
-            is Action.Click.Item -> processClickItem(action)
-            is Action.Click.LonkClick -> processLongClick(action)
+            is Action.Click.OnExerciseClick -> processExerciseClick(action)
+            Action.Click.OnFabClick -> processFabClick()
+            is Action.Click.OnTagFilterToggle -> processTagFilterToggle(action)
+            is Action.Click.OnArchiveSwipe -> processArchiveSwipe(action)
+            is Action.Click.OnUndoArchive -> processUndoArchive(action)
         }
     }
 
-    private fun processBackHandler() {
-        if (state.value.selectedItems.isNotEmpty()) {
-            updateState { it.copy(selectedItems = persistentSetOf()) }
-        }
-        if (state.value.query.isNotEmpty()) {
-            updateState { it.copy(query = "") }
-        }
+    private fun processExerciseClick(action: Action.Click.OnExerciseClick) {
+        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
+        consume(Action.Navigation.OpenDetail(action.uuid))
     }
 
-    private fun processLongClick(action: Action.Click.LonkClick) {
-        sendEvent(Event.HapticFeedback(HapticFeedbackType.VirtualKey))
-        val currentItems = state.value.selectedItems.toMutableSet()
-        logger.v {
-            "Current selected items: ${currentItems.joinToString(",") { it }}"
-        }
-        if (currentItems.contains(action.uuid)) {
-            currentItems.remove(action.uuid)
-        } else {
-            currentItems.add(action.uuid)
-        }
-        updateState {
-            it.copy(
-                selectedItems = currentItems.toImmutableSet(),
-            )
-        }
+    private fun processFabClick() {
+        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
+        consume(Action.Navigation.OpenCreate)
     }
 
-    private fun processClickFloatingButton() {
-        sendEvent(Event.HapticFeedback(HapticFeedbackType.Confirm))
-        val selectedItems = state.value.selectedItems
-        if (selectedItems.isNotEmpty()) {
-            launch(
-                onSuccess = { updateState { it.copy(selectedItems = persistentSetOf()) } },
-            ) {
-                repository.deleteAllItems(selectedItems.asyncMap(Uuid::parse))
+    private fun processTagFilterToggle(action: Action.Click.OnTagFilterToggle) {
+        sendEvent(Event.Haptic(HapticFeedbackType.SegmentTick))
+        updateState { current ->
+            val next = if (action.tagUuid in current.activeTagFilter) {
+                current.activeTagFilter - action.tagUuid
+            } else {
+                current.activeTagFilter + action.tagUuid
             }
-        } else {
-            consume(Action.Navigation.CreateExerciseDialog)
+            current.copy(activeTagFilter = next.toPersistentSet())
         }
     }
 
-    private fun processClickItem(action: Action.Click.Item) {
-        if (state.value.selectedItems.isNotEmpty()) {
-            consume(Action.Click.LonkClick(action.uuid))
-        } else {
-            sendEvent(Event.HapticFeedback(HapticFeedbackType.VirtualKey))
-            consume(Action.Navigation.OpenExercise(action.uuid))
+    private fun processArchiveSwipe(action: Action.Click.OnArchiveSwipe) {
+        sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
+        launch {
+            when (val result = interactor.archiveExercise(action.uuid)) {
+                ArchiveResult.Success ->
+                    sendEvent(Event.ShowArchiveSuccess(action.name, action.uuid))
+
+                is ArchiveResult.Blocked ->
+                    sendEvent(Event.ShowArchiveBlocked(result.activeTrainings))
+            }
+        }
+    }
+
+    private fun processUndoArchive(action: Action.Click.OnUndoArchive) {
+        launch {
+            interactor.restoreExercise(action.uuid)
         }
     }
 }
