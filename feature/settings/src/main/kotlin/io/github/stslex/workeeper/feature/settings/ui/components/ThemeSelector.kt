@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.settings.ui.components
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
@@ -15,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
@@ -29,8 +32,7 @@ internal fun ThemeSelector(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = AppDimension.screenEdge),
-        verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xs),
+            .selectableGroup(),
     ) {
         ThemeOption(
             label = stringResource(R.string.feature_settings_theme_system),
@@ -63,21 +65,27 @@ private fun ThemeOption(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = AppDimension.Space.xs),
+            .selectable(
+                selected = selected,
+                onClick = onClick,
+                role = Role.RadioButton,
+            )
+            .heightIn(min = AppDimension.heightSm)
+            .padding(horizontal = AppDimension.screenEdge),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
         RadioButton(
             modifier = Modifier.testTag(tag),
             selected = selected,
-            onClick = onClick,
+            onClick = null,
             colors = RadioButtonDefaults.colors(
                 selectedColor = AppUi.colors.accent,
                 unselectedColor = AppUi.colors.borderStrong,
             ),
         )
         Text(
+            modifier = Modifier.weight(1f),
             text = label,
             style = AppUi.typography.bodyMedium,
             color = AppUi.colors.textPrimary,
