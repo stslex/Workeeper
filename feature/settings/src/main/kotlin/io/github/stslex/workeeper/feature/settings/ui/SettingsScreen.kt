@@ -47,7 +47,7 @@ internal fun SettingsScreen(
             navigationIcon = {
                 IconButton(
                     modifier = Modifier.testTag("SettingsBackButton"),
-                    onClick = { consume(Action.Navigation.OnBackClick) },
+                    onClick = { consume(Action.Navigation.Back) },
                 ) {
                     Icon(
                         modifier = Modifier.size(AppDimension.iconMd),

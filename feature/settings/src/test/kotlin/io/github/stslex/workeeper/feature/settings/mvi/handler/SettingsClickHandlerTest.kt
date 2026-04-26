@@ -18,12 +18,12 @@ internal class SettingsClickHandlerTest {
     private val handler = SettingsClickHandler(store)
 
     @Test
-    fun `OnArchiveClick emits Haptic ContextClick then NavigateToArchive`() {
+    fun `OnArchiveClick emits Haptic ContextClick then consumes OpenArchive`() {
         handler.invoke(Action.Click.OnArchiveClick)
         val captured = mutableListOf<Event>()
-        verify(exactly = 2) { store.sendEvent(capture(captured)) }
-        assertHaptic(captured.first(), HapticFeedbackType.ContextClick)
-        assertEquals(Event.NavigateToArchive, captured.last())
+        verify(exactly = 1) { store.sendEvent(capture(captured)) }
+        assertHaptic(captured.single(), HapticFeedbackType.ContextClick)
+        verify(exactly = 1) { store.consume(Action.Navigation.OpenArchive) }
     }
 
     @Test

@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -71,7 +70,7 @@ internal fun ArchiveScreen(
             navigationIcon = {
                 IconButton(
                     modifier = Modifier.testTag("ArchiveBackButton"),
-                    onClick = { consume(Action.Navigation.OnBackClick) },
+                    onClick = { consume(Action.Navigation.Back) },
                 ) {
                     Icon(
                         modifier = Modifier.size(AppDimension.iconMd),

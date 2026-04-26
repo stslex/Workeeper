@@ -243,18 +243,22 @@ interface SettingsStore : Store<SettingsState, Action, Event> {
             data class OnThemeChange(val mode: ThemeMode) : Input
         }
         sealed interface Navigation : Action {
-            data object OnBackClick : Navigation
+            data object Back : Navigation
+            data object OpenArchive : Navigation
         }
     }
 
     @Stable
     sealed interface Event : Store.Event {
-        data object NavigateToArchive : Event
-        data class OpenExternalLink(val url: String) : Event
-        data object NavigateBack : Event
+        data class HapticClick(val type: HapticFeedbackType) : Event
+        data class ShowExternalLink(val url: String) : Event
     }
 }
 ```
+
+Note: navigation is `Action.Navigation` consumed by `SettingsNavigationHandler`, not an
+`Event`. UI only consumes `Event.HapticClick` and `Event.ShowExternalLink`. See
+[architecture.md → Navigation flow](../architecture.md#navigation-flow-canonical-pattern).
 
 ### ArchiveStore
 
@@ -285,33 +289,59 @@ interface ArchiveStore : Store<ArchiveState, Action, Event> {
             data class OnUndoRestore(val item: ArchivedItem) : Click
         }
         sealed interface Navigation : Action {
-            data object OnBackClick : Navigation
+            data object Back : Navigation
         }
     }
 
     @Stable
     sealed interface Event : Store.Event {
+        data class HapticClick(val type: HapticFeedbackType) : Event
         data class ShowRestoredSnackbar(val item: ArchivedItem) : Event
         data object ShowPermanentlyDeletedSnackbar : Event
-        data object NavigateBack : Event
-        data object Haptic : Event
     }
 }
 ```
 
+Note: navigation is `Action.Navigation.Back` consumed by `ArchiveNavigationHandler`, not an
+`Event`. UI only consumes `Event.HapticClick` and the two snackbar events.
+
 ### Handler responsibilities
 
-- **SettingsClickHandler** — handles About link clicks (emits
-  `OpenExternalLink`) and Archive entry click (emits
-  `NavigateToArchive`).
-- **SettingsNavigationHandler** — emits `NavigateBack`.
-- Theme change is an `Input` action, handled by the store directly
-  (no separate handler) — writes to DataStore, updates state.
-- **ArchiveClickHandler** — handles segment switch, restore (with
-  snackbar undo), permanent delete trigger and confirm/dismiss.
-- **ArchivePagingHandler** — paged source for the active segment.
-  Switches between exercise paging and training paging based on
-  state.selectedSegment.
+Each feature has its own set of handlers. Settings has 3, Archive has 3.
+
+**Settings handlers:**
+
+- `SettingsClickHandler` — handles About link clicks (emits `Event.ShowExternalLink` for
+  external Intent dispatch) and Archive entry click (emits
+  `Action.Navigation.OpenArchive` via `consume`). Also handles theme change (it's an
+  `Input` action, but routed through this handler for simplicity — writes DataStore,
+  updates state).
+- `SettingsNavigationHandler` — `internal class @Inject constructor(private val navigator: Navigator)`.
+  Implements `Handler<Action.Navigation>`. Consumes `Action.Navigation.Back` →
+  `navigator.popBack()` and `Action.Navigation.OpenArchive` → `navigator.navTo(Screen.Archive)`.
+  Reference: `feature/all-trainings/.../mvi/handler/NavigationHandler.kt`.
+- (Optional) `SettingsCommonHandler` — only if the store has `Action.Common` items; not
+  required for v1.
+
+**Archive handlers:**
+
+- `ArchiveClickHandler` — handles segment switch, restore (with snackbar undo emitted as
+  Event), permanent delete trigger and confirm/dismiss.
+- `ArchivePagingHandler` — paged source for the active segment. Switches between exercise
+  paging and training paging based on `state.selectedSegment`.
+- `ArchiveNavigationHandler` — same shape as `SettingsNavigationHandler`. Consumes
+  `Action.Navigation.Back` → `navigator.popBack()`.
+
+**Graph composables (settingsGraph and archiveGraph):**
+
+Each consumes only UI-side events through `processor.Handle { event -> ... }`:
+
+- `Event.HapticClick` → `LocalHapticFeedback.current.performHapticFeedback(event.type)`
+- `Event.ShowExternalLink(url)` → `Intent.ACTION_VIEW` against `LocalContext`
+- `Event.ShowRestoredSnackbar` / `Event.ShowPermanentlyDeletedSnackbar` → snackbar host
+
+Graph composables **do NOT** read `LocalNavigator` and **do NOT** call `navigator.navTo`
+or `navigator.popBack` directly. All navigation goes through the relevant `NavigationHandler`.
 
 ## Domain layer
 
@@ -592,6 +622,24 @@ PROCESS
     conventions (BaseStore extension, @HiltViewModel store,
     @ViewModelScoped handlers). Custom Detekt MVI rules must pass
     without baseline additions.
+
+    CANONICAL NAVIGATION PATTERN (mandatory):
+    - Navigation is `Action.Navigation`, NOT `Event.Navigate*`.
+    - Each feature has a separate `NavigationHandler` class with
+      `Navigator` injected via Hilt @Inject constructor.
+      `NavigationHandler` implements `Handler<Action.Navigation>`
+      and consumes navigation actions by calling `navigator.navTo`
+      / `navigator.popBack`.
+    - The graph composable (`settingsGraph`, `archiveGraph`)
+      consumes ONLY UI-side events via `processor.Handle { event -> ... }`:
+      Haptic, ShowExternalLink, snackbar events.
+    - The graph composable MUST NOT read `LocalNavigator` and MUST
+      NOT call `navigator.navTo` / `navigator.popBack` directly.
+    - Reference implementation:
+      `feature/all-trainings/ui/AllTrainingsGraph.kt` (graph) and
+      `feature/all-trainings/mvi/handler/NavigationHandler.kt` (handler).
+    - Read `documentation/architecture.md` section "Navigation flow
+      (canonical pattern)" before writing graph composables.
 
 11. Implement domain layer: SettingsInteractor + impl. Hilt module
     in `feature/settings/.../di/`.

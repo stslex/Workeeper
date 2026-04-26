@@ -164,8 +164,11 @@ Briefly:
 - `Action` is a sealed interface or sealed class implementing `Store.Action`. Top-level
   categories are typically `Click`, `Input`, `Navigation`, `Paging`, `Common`.
 - `Event` is a sealed interface or sealed class implementing `Store.Event`. Names describe what
-  happened (`*Success`, `*Error`, `*Completed`, `Navigate*`, `Show*`, `Haptic*`, `Snackbar*`,
-  `Scroll*`).
+  happened (`*Success`, `*Error`, `*Completed`, `Show*`, `Haptic*`, `Snackbar*`, `Scroll*`).
+  **Events are for UI-side effects only** — haptic feedback, snackbar display, external Intent
+  dispatch, scroll commands. **Navigation is never an Event.** Navigation flows through
+  `Action.Navigation` consumed by the feature's `NavigationHandler` (see [Navigation
+  flow](#navigation-flow) below).
 
 ## Per-feature MVI layout
 
@@ -332,6 +335,58 @@ domain models:
   serialized route (`data: Screen.Training`, etc.). `RootComponentImpl`
   (`app/app/.../navigation/RootComponentImpl.kt`) creates the right `Component` for a screen and
   is provided through `LocalRootComponent`.
+
+### Navigation flow (canonical pattern)
+
+Navigation is **always** routed through a feature's `NavigationHandler`, never through the
+graph composable directly. This keeps UI dumb (it knows nothing about routes or `Navigator`)
+and lets navigation be tested in isolation. The pattern:
+
+1. UI emits an `Action.Navigation.<Something>` via `processor.consume(...)`.
+2. The store's `handlerCreator` lambda routes that action to the feature's `NavigationHandler`.
+3. `NavigationHandler` has `Navigator` injected via Hilt DI and calls `navigator.navTo(...)` or
+   `navigator.popBack()`.
+
+Concretely, a feature defines:
+
+```kotlin
+// In the Store contract:
+sealed interface Action : Store.Action {
+    sealed interface Navigation : Action {
+        data object Back : Navigation
+        data object OpenArchive : Navigation
+        // ... any other navigation targets
+    }
+}
+
+// As a separate handler class in mvi/handler/:
+internal class NavigationHandler @Inject constructor(
+    private val navigator: Navigator,
+) : <Feature>Component(), Handler<Action.Navigation> {
+    override fun invoke(action: Action.Navigation) {
+        when (action) {
+            is Action.Navigation.Back -> navigator.popBack()
+            is Action.Navigation.OpenArchive -> navigator.navTo(Screen.Archive)
+        }
+    }
+}
+```
+
+The graph composable consumes only **UI-side events** through `processor.Handle { event -> ... }`:
+
+- `Event.Haptic` — translated to `LocalHapticFeedback.current.performHapticFeedback(...)`.
+- `Event.ShowExternalLink(url)` — translated to an `Intent.ACTION_VIEW` against `LocalContext`.
+- `Event.Snackbar*` — emitted to the host snackbar manager.
+- `Event.Scroll*` — translated to a `LazyListState` scroll command in scope.
+
+The graph composable **never** reads `LocalNavigator` and **never** consumes an
+`Event.Navigate*` (such an event must not exist — it would be misnamed). `LocalNavigator`
+exists in `core/ui/navigation/Navigator.kt` so the root `App.kt` can provide a single
+`Navigator` instance into the composition tree, but the canonical read site is
+`NavigationHandler` via Hilt — not graph composables.
+
+Reference implementation: `feature/all-trainings/ui/AllTrainingsGraph.kt` (graph) and
+`feature/all-trainings/mvi/handler/NavigationHandler.kt` (handler).
 
 ### Navigation host and shared element transitions
 

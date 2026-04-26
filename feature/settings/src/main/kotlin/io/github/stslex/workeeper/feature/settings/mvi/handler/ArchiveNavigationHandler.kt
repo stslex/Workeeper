@@ -12,7 +12,7 @@ internal class ArchiveNavigationHandler(
 
     override fun invoke(action: Action.Navigation) {
         when (action) {
-            Action.Navigation.OnBackClick -> navigator.popBack()
+            Action.Navigation.Back -> navigator.popBack()
         }
     }
 }

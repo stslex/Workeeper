@@ -71,7 +71,7 @@ internal interface ArchiveStore : Store<State, Action, Event> {
 
         sealed interface Navigation : Action {
 
-            data object OnBackClick : Navigation
+            data object Back : Navigation
         }
     }
 

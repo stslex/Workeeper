@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.feature.settings.mvi.handler
 
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
+import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Action
 
 @Suppress("MviHandlerConstructorRule")
@@ -12,7 +13,8 @@ internal class SettingsNavigationHandler(
 
     override fun invoke(action: Action.Navigation) {
         when (action) {
-            Action.Navigation.OnBackClick -> navigator.popBack()
+            Action.Navigation.Back -> navigator.popBack()
+            Action.Navigation.OpenArchive -> navigator.navTo(Screen.Archive)
         }
     }
 }

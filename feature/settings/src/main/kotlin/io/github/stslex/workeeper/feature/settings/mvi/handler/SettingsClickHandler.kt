@@ -18,7 +18,7 @@ internal class SettingsClickHandler @Inject constructor(
     override fun invoke(action: Action.Click) {
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
         when (action) {
-            Action.Click.OnArchiveClick -> sendEvent(Event.NavigateToArchive)
+            Action.Click.OnArchiveClick -> consume(Action.Navigation.OpenArchive)
             Action.Click.OnGitHubClick -> sendEvent(Event.ShowExternalLink(AboutLinks.GITHUB_URL))
             Action.Click.OnLicenseClick -> sendEvent(Event.ShowExternalLink(AboutLinks.LICENSE_URL))
             Action.Click.OnPrivacyPolicyClick -> sendEvent(

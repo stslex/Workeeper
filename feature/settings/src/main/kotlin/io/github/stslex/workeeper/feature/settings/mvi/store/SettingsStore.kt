@@ -54,18 +54,16 @@ internal interface SettingsStore : Store<State, Action, Event> {
 
         sealed interface Navigation : Action {
 
-            data object OnBackClick : Navigation
+            data object Back : Navigation
+
+            data object OpenArchive : Navigation
         }
     }
 
     @Stable
     sealed interface Event : Store.Event {
 
-        data object NavigateToArchive : Event
-
         data class ShowExternalLink(val url: String) : Event
-
-        data object NavigateBack : Event
 
         data class Haptic(val type: HapticFeedbackType) : Event
     }
