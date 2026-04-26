@@ -73,10 +73,13 @@ fun NavGraphBuilder.exerciseGraph(
             }
         }
 
-        // Always route back through OnBackClick so Edit-mode discard confirmation runs and
-        // Read-mode falls through to consume(Action.Navigation.Back). This keeps every back
-        // path (BackHandler, system gesture, AppTopAppBar back arrow) on a single flow.
-        BackHandler { processor.consume(Action.Click.OnBackClick) }
+        // Only intercept the system back gesture when there are unsaved edits — otherwise
+        // BackHandler would shadow the Android 13+ predictive-back preview animation. The
+        // TopAppBar back arrow and Cancel button still emit OnBackClick directly so explicit
+        // taps always flow through the store regardless of interceptBack.
+        BackHandler(enabled = processor.state.value.interceptBack) {
+            processor.consume(Action.Click.OnBackClick)
+        }
 
         val state = processor.state.value
         when (state.mode) {

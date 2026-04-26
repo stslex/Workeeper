@@ -37,6 +37,14 @@ internal interface ExerciseStore : Store<State, Action, Event> {
         val hasChanges: Boolean
             get() = originalSnapshot?.matches(this) == false
 
+        /**
+         * True only when the system back gesture must surface the discard-changes dialog.
+         * When false, BackHandler stays unsubscribed so Compose nav handles the gesture
+         * natively (including the Android 13+ predictive-back preview animation).
+         */
+        val interceptBack: Boolean
+            get() = mode is Mode.Edit && hasChanges
+
         @Stable
         sealed interface Mode {
 
