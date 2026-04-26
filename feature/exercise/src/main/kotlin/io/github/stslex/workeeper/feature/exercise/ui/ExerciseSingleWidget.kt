@@ -23,10 +23,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDatePickerDialog
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseButtonsRow
-import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseDatePickerDialog
 import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseSetsCreateDialog
 import io.github.stslex.workeeper.feature.exercise.ui.components.ExercisedColumn
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SnackbarType
@@ -73,10 +73,10 @@ internal fun ExerciseFeatureWidget(
 
         when (val dialogState = state.dialogState) {
             DialogState.Closed -> Unit
-            DialogState.Calendar -> ExerciseDatePickerDialog(
-                timestamp = state.dateProperty.value,
-                onDismissRequest = { consume(Action.Click.CloseDialog) },
-                dateChange = { consume(Action.Input.Time(it)) },
+            DialogState.Calendar -> AppDatePickerDialog(
+                initialDateMillis = state.dateProperty.value,
+                onDismiss = { consume(Action.Click.CloseDialog) },
+                onDateSelected = { consume(Action.Input.Time(it)) },
             )
 
             is DialogState.Sets -> ExerciseSetsCreateDialog(

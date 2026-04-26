@@ -10,4 +10,29 @@ object AppUi {
         @Composable
         @ReadOnlyComposable
         get() = LocalAppUiFeatures.current
+
+    val colors: AppColors
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalAppColors.current
+
+    val typography: AppTypography
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalAppTypography.current
+
+    val shapes: AppShapes
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalAppShapes.current
+
+    val motion: AppMotion
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalAppMotion.current
+
+    val elevation: AppElevation
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalAppElevation.current
 }

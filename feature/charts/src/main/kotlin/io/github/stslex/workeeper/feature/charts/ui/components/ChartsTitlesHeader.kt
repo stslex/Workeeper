@@ -53,7 +53,7 @@ internal fun ChartsTitlesHeader(
                     MaterialTheme.colorScheme.surfaceVariant
                 },
                 label = "container color animation",
-                animationSpec = tween(AppUi.uiFeatures.defaultAnimationDuration),
+                animationSpec = tween(AppUi.motion.deliberate),
             )
             val contentColor by animateColorAsState(
                 targetValue = if (selectedIndex == index) {
@@ -62,7 +62,7 @@ internal fun ChartsTitlesHeader(
                     MaterialTheme.colorScheme.onSurfaceVariant
                 },
                 label = "Content color animation",
-                animationSpec = tween(AppUi.uiFeatures.defaultAnimationDuration),
+                animationSpec = tween(AppUi.motion.deliberate),
             )
             Card(
                 modifier = Modifier

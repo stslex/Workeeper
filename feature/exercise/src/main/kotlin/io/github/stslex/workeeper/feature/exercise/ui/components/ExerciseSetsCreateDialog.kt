@@ -1,27 +1,27 @@
 package io.github.stslex.workeeper.feature.exercise.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import io.github.stslex.workeeper.core.ui.kit.components.dialogs.BaseAppDialog
-import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.BodyFloatInputField
-import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.BodyNumberInputField
+import androidx.compose.ui.window.Dialog
+import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
+import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
+import io.github.stslex.workeeper.core.ui.kit.components.input.AppNumberInput
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
+import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.SetsUiModel
 
@@ -36,66 +36,70 @@ internal fun ExerciseSetsCreateDialog(
     onCancelClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    BaseAppDialog(
-        modifier = modifier
-            .testTag("ExerciseSetsDialog"),
-        onDismissRequest = { onDismissRequest(setsUiModel) },
-    ) {
-        Column {
-            BodyNumberInputField(
-                modifier = Modifier.testTag("ExerciseSetsDialogRepsField"),
-                property = setsUiModel.reps,
-                labelRes = R.string.feature_exercise_field_label_reps,
+    val surface = if (AppUi.colors.isDark) AppUi.colors.surfaceTier1 else AppUi.colors.surfaceTier2
+    Dialog(onDismissRequest = { onDismissRequest(setsUiModel) }) {
+        Column(
+            modifier = modifier
+                .testTag("ExerciseSetsDialog")
+                .clip(AppUi.shapes.medium)
+                .background(surface)
+                .padding(AppDimension.Space.lg),
+            verticalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
+        ) {
+            AppNumberInput(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("ExerciseSetsDialogRepsField"),
+                value = setsUiModel.reps.uiValue,
                 onValueChange = onRepsInput,
+                decimals = 0,
+                suffix = stringResource(R.string.feature_exercise_field_label_reps),
+                isError = setsUiModel.reps.isError,
             )
-            BodyFloatInputField(
-                modifier = Modifier.testTag("ExerciseSetsDialogWeightField"),
-                property = setsUiModel.weight,
-                labelRes = R.string.feature_exercise_field_label_weight,
+            AppNumberInput(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("ExerciseSetsDialogWeightField"),
+                value = setsUiModel.weight.uiValue,
                 onValueChange = onWeightInput,
+                decimals = 2,
+                suffix = stringResource(R.string.feature_exercise_field_label_weight),
+                isError = setsUiModel.weight.isError,
             )
-            Spacer(modifier = Modifier.padding(AppDimension.Padding.big))
             Row(
                 modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
             ) {
-                FilledTonalButton(
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("ExerciseSetsDialogSaveButton"),
-                    onClick = {
-                        onSaveClick(setsUiModel)
-                    },
-                ) {
-                    Text("Save")
+                Box(modifier = Modifier.weight(1f)) {
+                    AppButton.Primary(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("ExerciseSetsDialogSaveButton"),
+                        text = "Save",
+                        onClick = { onSaveClick(setsUiModel) },
+                        size = AppButtonSize.MEDIUM,
+                    )
                 }
-                Spacer(modifier = Modifier.width(AppDimension.Padding.medium))
-                FilledTonalButton(
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("ExerciseSetsDialogCancelButton"),
-                    onClick = {
-                        onCancelClick(setsUiModel.uuid)
-                    },
-                ) {
-                    Text("Cancel")
+                Box(modifier = Modifier.weight(1f)) {
+                    AppButton.Secondary(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("ExerciseSetsDialogCancelButton"),
+                        text = "Cancel",
+                        onClick = { onCancelClick(setsUiModel.uuid) },
+                        size = AppButtonSize.MEDIUM,
+                    )
                 }
             }
-            Spacer(modifier = Modifier.padding(AppDimension.Padding.medium))
             AnimatedVisibility(
-                setsUiModel.reps.isError.not() &&
-                    setsUiModel.weight.isError.not(),
+                setsUiModel.reps.isError.not() && setsUiModel.weight.isError.not(),
             ) {
-                FilledTonalButton(
+                AppButton.Destructive(
                     modifier = Modifier.fillMaxWidth(),
-                    onClick = {
-                        onDeleteClick(setsUiModel.uuid)
-                    },
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                    ),
-                ) {
-                    Text("Delete")
-                }
+                    text = "Delete",
+                    onClick = { onDeleteClick(setsUiModel.uuid) },
+                    size = AppButtonSize.MEDIUM,
+                )
             }
         }
     }

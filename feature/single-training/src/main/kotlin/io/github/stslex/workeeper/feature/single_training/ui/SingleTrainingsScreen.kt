@@ -2,6 +2,7 @@ package io.github.stslex.workeeper.feature.single_training.ui
 
 import android.content.res.Configuration
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,14 +19,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import io.github.stslex.workeeper.core.ui.kit.components.dialogs.ConfirmDialog
-import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.DateInputField
+import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDatePickerDialog
+import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
+import io.github.stslex.workeeper.core.ui.kit.components.input.AppTextField
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
-import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.TitleTextInputField
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.single_training.R
-import io.github.stslex.workeeper.feature.single_training.ui.component.DatePickerDialog
 import io.github.stslex.workeeper.feature.single_training.ui.component.ExerciseCreateWidget
 import io.github.stslex.workeeper.feature.single_training.ui.component.ToolbarRow
 import io.github.stslex.workeeper.feature.single_training.ui.model.DialogState
@@ -64,15 +64,11 @@ internal fun SingleTrainingsScreen(
                     .testTag("SingleTrainingContent"),
             ) {
                 item {
-                    TitleTextInputField(
-                        property = state.training.name,
-                        isMenuOpen = state.training.isMenuOpen,
-                        menuItems = state.training.menuItems,
-                        labelRes = R.string.feature_single_training_field_name_label,
-                        onMenuClick = { consume(Action.Click.Menu.Open) },
-                        onMenuClose = { consume(Action.Click.Menu.Close) },
-                        onMenuItemClick = { consume(Action.Click.Menu.Item(it)) },
+                    AppTextField(
+                        value = state.training.name.uiValue,
                         onValueChange = { consume(Action.Input.Name(it)) },
+                        label = stringResource(R.string.feature_single_training_field_name_label),
+                        isError = state.training.name.isError,
                     )
                 }
 
@@ -106,7 +102,6 @@ internal fun SingleTrainingsScreen(
                         },
                     ) { index ->
                         val item = state.training.exercises[index]
-                        // todo replace and refactor to new ui
                         Card(
                             modifier = Modifier.fillMaxSize(),
                             onClick = { consume(Action.Click.ExerciseClick(item.uuid)) },
@@ -128,27 +123,38 @@ internal fun SingleTrainingsScreen(
                 }
 
                 item {
-                    DateInputField(
-                        property = state.training.date,
-                        labelRes = R.string.feature_single_training_field_date_label,
-                        onClick = { consume(Action.Click.OpenCalendarPicker) },
-                    )
+                    Box(
+                        modifier = Modifier.clickable {
+                            consume(Action.Click.OpenCalendarPicker)
+                        },
+                    ) {
+                        AppTextField(
+                            value = state.training.date.uiValue,
+                            onValueChange = {},
+                            label = stringResource(R.string.feature_single_training_field_date_label),
+                            enabled = false,
+                        )
+                    }
                 }
             }
         }
 
         when (val dialogState = state.dialogState) {
             DialogState.Closed -> Unit
-            DialogState.Calendar -> DatePickerDialog(
-                timestamp = state.training.date.value,
-                dateChange = { consume(Action.Input.Date(it)) },
-                onDismissRequest = { consume(Action.Click.CloseCalendarPicker) },
+            DialogState.Calendar -> AppDatePickerDialog(
+                initialDateMillis = state.training.date.value,
+                onDateSelected = { consume(Action.Input.Date(it)) },
+                onDismiss = { consume(Action.Click.CloseCalendarPicker) },
             )
 
-            is DialogState.ConfirmDialog -> ConfirmDialog(
-                text = stringResource(dialogState.titleRes),
-                action = { consume(Action.Click.ConfirmDialog.Confirm) },
-                onDismissRequest = { consume(Action.Click.ConfirmDialog.Dismiss) },
+            is DialogState.ConfirmDialog -> AppDialog(
+                title = stringResource(dialogState.titleRes),
+                body = "",
+                confirmLabel = "Confirm",
+                onConfirm = { consume(Action.Click.ConfirmDialog.Confirm) },
+                dismissLabel = "Cancel",
+                onDismiss = { consume(Action.Click.ConfirmDialog.Dismiss) },
+                destructive = true,
             )
         }
     }
