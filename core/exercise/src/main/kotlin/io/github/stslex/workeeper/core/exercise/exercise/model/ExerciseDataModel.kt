@@ -11,6 +11,7 @@ data class ExerciseDataModel(
     val description: String? = null,
     val imagePath: String? = null,
     val archived: Boolean = false,
+    val archivedAt: Long? = null,
     val timestamp: Long,
     // legacy v2 fields, retained for feature compatibility during v3 transition.
     // `trainingUuid` is not modelled in v3 (exercises are library items, not training-bound).
@@ -30,6 +31,7 @@ internal fun ExerciseEntity.toData(
     description = description,
     imagePath = imagePath,
     archived = archived,
+    archivedAt = archivedAt,
     timestamp = createdAt,
     labels = labels,
 )
@@ -42,4 +44,5 @@ internal fun ExerciseDataModel.toEntity(): ExerciseEntity = ExerciseEntity(
     imagePath = imagePath,
     archived = archived,
     createdAt = timestamp,
+    archivedAt = archivedAt,
 )

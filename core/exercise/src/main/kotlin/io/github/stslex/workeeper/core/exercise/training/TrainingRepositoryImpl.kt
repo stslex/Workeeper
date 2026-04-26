@@ -5,6 +5,7 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
 import io.github.stslex.workeeper.core.core.di.IODispatcher
+import io.github.stslex.workeeper.core.database.session.SessionDao
 import io.github.stslex.workeeper.core.database.tag.TagDao
 import io.github.stslex.workeeper.core.database.tag.TagEntity
 import io.github.stslex.workeeper.core.database.tag.TrainingTagDao
@@ -27,6 +28,7 @@ class TrainingRepositoryImpl @Inject constructor(
     private val trainingExerciseDao: TrainingExerciseDao,
     private val tagDao: TagDao,
     private val trainingTagDao: TrainingTagDao,
+    private val sessionDao: SessionDao,
     @IODispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : TrainingRepository {
 
@@ -106,7 +108,7 @@ class TrainingRepositoryImpl @Inject constructor(
 
     override suspend fun archive(uuid: String) {
         withContext(ioDispatcher) {
-            dao.archive(Uuid.parse(uuid))
+            dao.archive(Uuid.parse(uuid), System.currentTimeMillis())
         }
     }
 
@@ -120,6 +122,29 @@ class TrainingRepositoryImpl @Inject constructor(
         withContext(ioDispatcher) {
             dao.permanentDelete(Uuid.parse(uuid))
         }
+    }
+
+    override fun pagedArchived(): Flow<PagingData<TrainingDataModel>> = Pager(
+        config = pagingConfig,
+        pagingSourceFactory = dao::pagedArchived,
+    ).flow
+        .map { pagingData ->
+            pagingData.map { entity ->
+                entity.toData(
+                    labels = trainingTagDao.getTagNames(entity.uuid),
+                    exerciseUuids = trainingExerciseDao.getByTraining(entity.uuid).map { it.exerciseUuid.toString() },
+                )
+            }
+        }
+        .flowOn(ioDispatcher)
+
+    override fun observeArchivedCount(): Flow<Int> = dao.observeArchivedCount()
+        .flowOn(ioDispatcher)
+
+    override suspend fun countSessionsUsing(
+        trainingUuid: String,
+    ): Int = withContext(ioDispatcher) {
+        sessionDao.countFinishedByTraining(Uuid.parse(trainingUuid))
     }
 
     private suspend fun syncLabels(trainingUuid: Uuid, labels: List<String>) {

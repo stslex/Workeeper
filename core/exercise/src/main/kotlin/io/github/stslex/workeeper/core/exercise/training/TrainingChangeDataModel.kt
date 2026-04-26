@@ -22,4 +22,5 @@ internal fun TrainingChangeDataModel.toEntity(): TrainingEntity = TrainingEntity
     isAdhoc = isAdhoc,
     archived = archived,
     createdAt = timestamp,
+    archivedAt = null,
 )

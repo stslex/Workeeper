@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.core.exercise.training
 import androidx.paging.PagingData
 import kotlinx.coroutines.flow.Flow
 
+@Suppress("TooManyFunctions")
 interface TrainingRepository {
 
     fun getTrainings(query: String): Flow<PagingData<TrainingDataModel>>
@@ -28,4 +29,10 @@ interface TrainingRepository {
     suspend fun restore(uuid: String)
 
     suspend fun permanentDelete(uuid: String)
+
+    fun pagedArchived(): Flow<PagingData<TrainingDataModel>>
+
+    fun observeArchivedCount(): Flow<Int>
+
+    suspend fun countSessionsUsing(trainingUuid: String): Int
 }

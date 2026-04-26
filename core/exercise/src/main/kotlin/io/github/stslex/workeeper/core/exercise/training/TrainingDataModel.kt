@@ -9,6 +9,7 @@ data class TrainingDataModel(
     val description: String? = null,
     val isAdhoc: Boolean = false,
     val archived: Boolean = false,
+    val archivedAt: Long? = null,
     val timestamp: Long,
     val labels: List<String> = emptyList(),
     val exerciseUuids: List<String> = emptyList(),
@@ -23,6 +24,7 @@ internal fun TrainingEntity.toData(
     description = description,
     isAdhoc = isAdhoc,
     archived = archived,
+    archivedAt = archivedAt,
     timestamp = createdAt,
     labels = labels,
     exerciseUuids = exerciseUuids,
@@ -35,6 +37,7 @@ internal fun TrainingDataModel.toEntity(): TrainingEntity = TrainingEntity(
     isAdhoc = isAdhoc,
     archived = archived,
     createdAt = timestamp,
+    archivedAt = archivedAt,
 )
 
 fun TrainingDataModel.toChangeModel(): TrainingChangeDataModel = TrainingChangeDataModel(

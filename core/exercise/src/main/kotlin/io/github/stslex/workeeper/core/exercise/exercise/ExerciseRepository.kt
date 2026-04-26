@@ -6,6 +6,7 @@ import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
 import kotlinx.coroutines.flow.Flow
 import kotlin.uuid.Uuid
 
+@Suppress("TooManyFunctions")
 interface ExerciseRepository {
 
     val exercises: Flow<PagingData<ExerciseDataModel>>
@@ -35,4 +36,10 @@ interface ExerciseRepository {
     suspend fun permanentDelete(uuid: String)
 
     suspend fun canArchive(uuid: String): Boolean
+
+    fun pagedArchived(): Flow<PagingData<ExerciseDataModel>>
+
+    fun observeArchivedCount(): Flow<Int>
+
+    suspend fun countSessionsUsing(exerciseUuid: String): Int
 }

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="feature_settings_title">Settings</string>
+    <string name="feature_settings_about_section">About</string>
+    <string name="feature_settings_appearance_section">Appearance</string>
+    <string name="feature_settings_data_section">Data</string>
+    <string name="feature_settings_theme_system">System default</string>
+    <string name="feature_settings_theme_light">Light</string>
+    <string name="feature_settings_theme_dark">Dark</string>
+
+    <string name="feature_settings_archive_title">Archive</string>
+    <string name="feature_settings_archive_segment_exercises">Exercises (%1$d)</string>
+    <string name="feature_settings_archive_segment_trainings">Trainings (%1$d)</string>
+    <string name="feature_settings_archive_restore">Restore</string>
+    <string name="feature_settings_archive_delete_permanently">Delete permanently</string>
+    <string name="feature_settings_archive_empty_headline">Nothing archived</string>
+    <string name="feature_settings_archive_empty_supporting_exercises">Archived exercises appear here for restore or permanent delete.</string>
+    <string name="feature_settings_archive_empty_supporting_trainings">Archived trainings appear here for restore or permanent delete.</string>
+
+    <string name="feature_settings_about_app_name">Workeeper</string>
+    <string name="feature_settings_about_version">Version %1$s (%2$d)</string>
+    <string name="feature_settings_about_license">GPLv3 license</string>
+    <string name="feature_settings_about_github">View on GitHub</string>
+    <string name="feature_settings_about_privacy">Privacy Policy</string>
+
+    <string name="feature_settings_back">Back</string>
+    <string name="feature_settings_more">More</string>
+
+    <string name="feature_settings_snackbar_restored">%1$s restored</string>
+    <string name="feature_settings_snackbar_deleted">Permanently deleted</string>
+    <string name="feature_settings_snackbar_undo">Undo</string>
+</resources>

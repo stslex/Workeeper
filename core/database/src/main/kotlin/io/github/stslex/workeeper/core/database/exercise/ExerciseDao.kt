@@ -5,6 +5,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
+import kotlinx.coroutines.flow.Flow
 import kotlin.uuid.Uuid
 
 @Dao
@@ -27,6 +28,9 @@ interface ExerciseDao {
     @Query("SELECT * FROM exercise_table WHERE archived = 1 ORDER BY name COLLATE NOCASE ASC")
     fun pagedArchived(): PagingSource<Int, ExerciseEntity>
 
+    @Query("SELECT COUNT(*) FROM exercise_table WHERE archived = 1")
+    fun observeArchivedCount(): Flow<Int>
+
     @Query("SELECT * FROM exercise_table WHERE uuid = :uuid")
     suspend fun getById(uuid: Uuid): ExerciseEntity?
 
@@ -39,10 +43,10 @@ interface ExerciseDao {
     @Update
     suspend fun update(exercise: ExerciseEntity)
 
-    @Query("UPDATE exercise_table SET archived = 1 WHERE uuid = :uuid")
-    suspend fun archive(uuid: Uuid)
+    @Query("UPDATE exercise_table SET archived = 1, archived_at = :archivedAt WHERE uuid = :uuid")
+    suspend fun archive(uuid: Uuid, archivedAt: Long)
 
-    @Query("UPDATE exercise_table SET archived = 0 WHERE uuid = :uuid")
+    @Query("UPDATE exercise_table SET archived = 0, archived_at = NULL WHERE uuid = :uuid")
     suspend fun restore(uuid: Uuid)
 
     @Query("DELETE FROM exercise_table WHERE uuid = :uuid")

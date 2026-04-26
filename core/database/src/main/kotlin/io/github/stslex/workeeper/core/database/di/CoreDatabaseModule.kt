@@ -23,6 +23,7 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object CoreDatabaseModule {
 
+    @Suppress("MagicNumber")
     @Provides
     @Singleton
     fun provideAppDatabase(
@@ -32,7 +33,7 @@ object CoreDatabaseModule {
         AppDatabase::class.java,
         AppDatabase.Companion.NAME,
     )
-        .fallbackToDestructiveMigrationFrom(dropAllTables = true, 2)
+        .fallbackToDestructiveMigrationFrom(dropAllTables = true, 2, 3)
         .build()
 
     @Provides

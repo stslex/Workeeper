@@ -18,6 +18,8 @@ import io.github.stslex.workeeper.feature.all_exercises.ui.allExercisesGraph
 import io.github.stslex.workeeper.feature.all_trainings.ui.allTrainingsGraph
 import io.github.stslex.workeeper.feature.charts.ui.chartsGraph
 import io.github.stslex.workeeper.feature.exercise.ui.exerciseGraph
+import io.github.stslex.workeeper.feature.settings.ui.archiveGraph
+import io.github.stslex.workeeper.feature.settings.ui.settingsGraph
 import io.github.stslex.workeeper.feature.single_training.ui.singleTrainingsGraph
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -63,6 +65,12 @@ internal fun AppNavigationHost(
                 modifier = Modifier
                     .testTag("ExerciseGraph"),
                 sharedTransitionScope = this@SharedTransitionLayout,
+            )
+            settingsGraph(
+                modifier = Modifier.testTag("SettingsGraph"),
+            )
+            archiveGraph(
+                modifier = Modifier.testTag("ArchiveGraph"),
             )
         }
     }

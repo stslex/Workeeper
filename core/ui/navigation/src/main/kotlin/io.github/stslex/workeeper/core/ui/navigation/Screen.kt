@@ -44,6 +44,12 @@ sealed interface Screen {
         val trainingUuid: String?,
     ) : Screen
 
+    @Serializable
+    data object Settings : Screen
+
+    @Serializable
+    data object Archive : Screen
+
     companion object {
 
         @OptIn(InternalSerializationApi::class, ExperimentalSerializationApi::class)
