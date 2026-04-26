@@ -10,6 +10,11 @@
     <string name="feature_all_exercises_archive_blocked_format">Нельзя архивировать — используется в: %1$s</string>
     <string name="feature_all_exercises_overflow_format">+%1$d</string>
     <string name="feature_all_exercises_chevron_description">Открыть упражнение</string>
+    <string name="feature_all_exercises_permanent_delete_title">Удалить «%1$s» навсегда?</string>
+    <string name="feature_all_exercises_permanent_delete_body">Упражнение не использовалось и не имеет истории. Это действие необратимо.</string>
+    <string name="feature_all_exercises_permanent_delete_impact">История не пострадает</string>
+    <string name="feature_all_exercises_permanent_delete_confirm">Удалить</string>
+    <string name="feature_all_exercises_permanent_delete_success">Упражнение удалено</string>
 
     <plurals name="feature_all_exercises_session_count">
         <item quantity="one">%d сессия</item>

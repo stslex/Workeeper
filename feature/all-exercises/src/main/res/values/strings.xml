@@ -10,6 +10,11 @@
     <string name="feature_all_exercises_archive_blocked_format">Cannot archive — used in: %1$s</string>
     <string name="feature_all_exercises_overflow_format">+%1$d</string>
     <string name="feature_all_exercises_chevron_description">Open exercise</string>
+    <string name="feature_all_exercises_permanent_delete_title">Delete &#8216;%1$s&#8217; permanently?</string>
+    <string name="feature_all_exercises_permanent_delete_body">This exercise has no history and isn&#8217;t used. This cannot be undone.</string>
+    <string name="feature_all_exercises_permanent_delete_impact">No history affected</string>
+    <string name="feature_all_exercises_permanent_delete_confirm">Delete</string>
+    <string name="feature_all_exercises_permanent_delete_success">Exercise deleted</string>
 
     <plurals name="feature_all_exercises_session_count">
         <item quantity="one">%d session</item>

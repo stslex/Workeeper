@@ -38,6 +38,8 @@ interface ExerciseRepository {
 
     suspend fun canArchive(uuid: String): Boolean
 
+    suspend fun canPermanentlyDeleteImmediately(uuid: String): Boolean
+
     suspend fun getActiveTrainingsUsing(exerciseUuid: String): List<String>
 
     fun pagedArchived(): Flow<PagingData<ExerciseDataModel>>

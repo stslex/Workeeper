@@ -23,7 +23,14 @@ internal interface AllExercisesStore : Store<State, Action, Event> {
         val pagingUiState: PagingUiState<PagingData<ExerciseUiModel>>,
         val availableTags: ImmutableList<TagUiModel>,
         val activeTagFilter: ImmutableSet<String>,
+        val pendingPermanentDelete: PendingDelete?,
     ) : Store.State {
+
+        @Stable
+        data class PendingDelete(
+            val uuid: String,
+            val name: String,
+        )
 
         companion object {
 
@@ -33,6 +40,7 @@ internal interface AllExercisesStore : Store<State, Action, Event> {
                 pagingUiState = pagingUiState,
                 availableTags = persistentListOf(),
                 activeTagFilter = persistentSetOf(),
+                pendingPermanentDelete = null,
             )
         }
     }
@@ -56,6 +64,10 @@ internal interface AllExercisesStore : Store<State, Action, Event> {
             data class OnArchiveSwipe(val uuid: String, val name: String) : Click
 
             data class OnUndoArchive(val uuid: String) : Click
+
+            data object OnConfirmPermanentDelete : Click
+
+            data object OnCancelPermanentDelete : Click
         }
 
         sealed interface Navigation : Action {
@@ -74,5 +86,7 @@ internal interface AllExercisesStore : Store<State, Action, Event> {
         data class ShowArchiveSuccess(val name: String, val uuid: String) : Event
 
         data class ShowArchiveBlocked(val trainings: List<String>) : Event
+
+        data class ShowPermanentDeleteSuccess(val name: String) : Event
     }
 }

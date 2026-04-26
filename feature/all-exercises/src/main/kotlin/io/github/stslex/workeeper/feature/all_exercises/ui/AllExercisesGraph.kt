@@ -31,6 +31,8 @@ fun NavGraphBuilder.allExercisesGraph(
         val archiveBlockedFormat =
             stringResource(R.string.feature_all_exercises_archive_blocked_format)
         val moreFormat = stringResource(R.string.feature_all_exercises_overflow_format)
+        val permanentDeleteSuccess =
+            stringResource(R.string.feature_all_exercises_permanent_delete_success)
 
         processor.Handle { event ->
             when (event) {
@@ -58,6 +60,9 @@ fun NavGraphBuilder.allExercisesGraph(
                         message = archiveBlockedFormat.format(joined),
                     )
                 }
+
+                is Event.ShowPermanentDeleteSuccess ->
+                    SnackbarManager.showSnackbar(message = permanentDeleteSuccess)
             }
         }
 

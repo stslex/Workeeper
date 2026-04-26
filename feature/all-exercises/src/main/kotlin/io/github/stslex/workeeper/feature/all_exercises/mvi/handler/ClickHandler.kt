@@ -9,6 +9,7 @@ import io.github.stslex.workeeper.feature.all_exercises.domain.AllExercisesInter
 import io.github.stslex.workeeper.feature.all_exercises.domain.AllExercisesInteractor.ArchiveResult
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Action
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Event
+import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.State.PendingDelete
 import kotlinx.collections.immutable.minus
 import kotlinx.collections.immutable.plus
 import kotlinx.collections.immutable.toPersistentSet
@@ -27,6 +28,8 @@ internal class ClickHandler @Inject constructor(
             is Action.Click.OnTagFilterToggle -> processTagFilterToggle(action)
             is Action.Click.OnArchiveSwipe -> processArchiveSwipe(action)
             is Action.Click.OnUndoArchive -> processUndoArchive(action)
+            Action.Click.OnConfirmPermanentDelete -> processConfirmPermanentDelete()
+            Action.Click.OnCancelPermanentDelete -> processCancelPermanentDelete()
         }
     }
 
@@ -55,6 +58,19 @@ internal class ClickHandler @Inject constructor(
     private fun processArchiveSwipe(action: Action.Click.OnArchiveSwipe) {
         sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
         launch {
+            // Unused exercises (no history, not in any active template) get a permanent
+            // delete prompt so the archive doesn't fill up with throwaway entries.
+            if (interactor.canPermanentlyDelete(action.uuid)) {
+                updateStateImmediate { current ->
+                    current.copy(
+                        pendingPermanentDelete = PendingDelete(
+                            uuid = action.uuid,
+                            name = action.name,
+                        ),
+                    )
+                }
+                return@launch
+            }
             when (val result = interactor.archiveExercise(action.uuid)) {
                 ArchiveResult.Success ->
                     sendEvent(Event.ShowArchiveSuccess(action.name, action.uuid))
@@ -69,5 +85,19 @@ internal class ClickHandler @Inject constructor(
         launch {
             interactor.restoreExercise(action.uuid)
         }
+    }
+
+    private fun processConfirmPermanentDelete() {
+        val pending = state.value.pendingPermanentDelete ?: return
+        sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
+        updateState { it.copy(pendingPermanentDelete = null) }
+        launch {
+            interactor.permanentlyDelete(pending.uuid)
+            sendEvent(Event.ShowPermanentDeleteSuccess(pending.name))
+        }
+    }
+
+    private fun processCancelPermanentDelete() {
+        updateState { it.copy(pendingPermanentDelete = null) }
     }
 }

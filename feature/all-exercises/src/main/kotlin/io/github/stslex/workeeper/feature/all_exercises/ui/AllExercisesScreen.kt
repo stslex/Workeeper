@@ -20,6 +20,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
+import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.fab.AppFAB
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -98,6 +99,20 @@ internal fun AllExercisesScreen(
             icon = Icons.Filled.Add,
             contentDescription = stringResource(R.string.feature_all_exercises_fab_create),
             onClick = { consume(Action.Click.OnFabClick) },
+        )
+    }
+
+    state.pendingPermanentDelete?.let { pending ->
+        AppConfirmDialog(
+            title = stringResource(
+                R.string.feature_all_exercises_permanent_delete_title,
+                pending.name,
+            ),
+            body = stringResource(R.string.feature_all_exercises_permanent_delete_body),
+            impactSummary = stringResource(R.string.feature_all_exercises_permanent_delete_impact),
+            confirmLabel = stringResource(R.string.feature_all_exercises_permanent_delete_confirm),
+            onConfirm = { consume(Action.Click.OnConfirmPermanentDelete) },
+            onDismiss = { consume(Action.Click.OnCancelPermanentDelete) },
         )
     }
 }

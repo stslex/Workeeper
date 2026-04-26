@@ -34,6 +34,7 @@ internal class ClickHandlerTest {
         pagingUiState = emptyPaging,
         availableTags = persistentListOf(),
         activeTagFilter = persistentSetOf(),
+        pendingPermanentDelete = null,
     )
     private val stateFlow = MutableStateFlow(initialState)
 
@@ -103,6 +104,33 @@ internal class ClickHandlerTest {
         // restoreExercise will not actually be called here because launch is mocked, but the
         // intention is exercised via the launch capture.
         coVerify(exactly = 0) { interactor.restoreExercise(any()) }
+    }
+
+    @Test
+    fun `OnCancelPermanentDelete clears pending delete`() {
+        stateFlow.value = stateFlow.value.copy(
+            pendingPermanentDelete = State.PendingDelete(uuid = "uuid-1", name = "Bench"),
+        )
+        handler.invoke(Action.Click.OnCancelPermanentDelete)
+        assertEquals(null, stateFlow.value.pendingPermanentDelete)
+    }
+
+    @Test
+    fun `OnConfirmPermanentDelete with no pending is no-op`() {
+        handler.invoke(Action.Click.OnConfirmPermanentDelete)
+        verify(exactly = 0) { store.sendEvent(any()) }
+    }
+
+    @Test
+    fun `OnConfirmPermanentDelete with pending clears state and emits LongPress haptic`() {
+        stateFlow.value = stateFlow.value.copy(
+            pendingPermanentDelete = State.PendingDelete(uuid = "uuid-1", name = "Bench"),
+        )
+        handler.invoke(Action.Click.OnConfirmPermanentDelete)
+        assertEquals(null, stateFlow.value.pendingPermanentDelete)
+        val captured = mutableListOf<Event>()
+        verify { store.sendEvent(capture(captured)) }
+        assertTrue(captured.any { it is Event.Haptic && it.type == HapticFeedbackType.LongPress })
     }
 
     private fun assertHaptic(event: Event, expected: HapticFeedbackType) {

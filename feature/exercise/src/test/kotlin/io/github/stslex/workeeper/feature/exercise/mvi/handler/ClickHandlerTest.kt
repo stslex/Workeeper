@@ -15,6 +15,7 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -33,7 +34,15 @@ internal class ClickHandlerTest {
                 stateFlow.value = update(stateFlow.value)
             }
         }
-        return TestSetup(stateFlow, store, ClickHandler(interactor, store))
+        return TestSetup(
+            stateFlow = stateFlow,
+            store = store,
+            handler = ClickHandler(
+                interactor = interactor,
+                mainDispatcher = Dispatchers.Unconfined,
+                store = store,
+            ),
+        )
     }
 
     private data class TestSetup(
@@ -126,6 +135,45 @@ internal class ClickHandlerTest {
         verify { store.sendEvent(capture(events)) }
         assertTrue(events.any { it is Event.Haptic && it.type == HapticFeedbackType.ContextClick })
         assertTrue(events.any { it == Event.ShowTrackNowPending })
+    }
+
+    @Test
+    fun `OnCancelClick from clean state navigates back`() {
+        val (_, store, handler) = setup(
+            State.create(uuid = "uuid-1").copy(mode = Mode.Edit(isCreate = false)),
+        )
+        handler.invoke(Action.Click.OnCancelClick)
+        verify { store.consume(Action.Navigation.Back) }
+    }
+
+    @Test
+    fun `OnCancelClick from dirty state shows discard dialog`() {
+        val (_, store, handler) = setup(
+            State.create(uuid = "uuid-1").copy(
+                mode = Mode.Edit(isCreate = false),
+                name = "Bench updated",
+                originalSnapshot = State.Snapshot(
+                    name = "Bench",
+                    type = ExerciseTypeDataModel.WEIGHTED,
+                    description = "",
+                    tagUuids = emptyList(),
+                ),
+            ),
+        )
+        handler.invoke(Action.Click.OnCancelClick)
+        verify(exactly = 0) { store.consume(Action.Navigation.Back) }
+        val events = mutableListOf<Event>()
+        verify { store.sendEvent(capture(events)) }
+        assertTrue(events.any { it == Event.ShowDiscardConfirmDialog })
+    }
+
+    @Test
+    fun `OnConfirmDiscard navigates back`() {
+        val (_, store, handler) = setup(
+            State.create(uuid = "uuid-1").copy(mode = Mode.Edit(isCreate = false)),
+        )
+        handler.invoke(Action.Click.OnConfirmDiscard)
+        verify { store.consume(Action.Navigation.Back) }
     }
 
     private fun assertHaptic(event: Event, expected: HapticFeedbackType) {

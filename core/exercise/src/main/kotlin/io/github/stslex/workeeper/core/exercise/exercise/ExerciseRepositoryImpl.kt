@@ -131,6 +131,14 @@ internal class ExerciseRepositoryImpl @Inject constructor(
         trainingExerciseDao.countActiveTemplatesUsing(Uuid.parse(uuid)) == 0
     }
 
+    override suspend fun canPermanentlyDeleteImmediately(
+        uuid: String,
+    ): Boolean = withContext(bgDispatcher) {
+        val parsed = Uuid.parse(uuid)
+        sessionDao.countFinishedContainingExercise(parsed) == 0 &&
+            trainingExerciseDao.countActiveTemplatesUsing(parsed) == 0
+    }
+
     override suspend fun getActiveTrainingsUsing(
         exerciseUuid: String,
     ): List<String> = withContext(bgDispatcher) {

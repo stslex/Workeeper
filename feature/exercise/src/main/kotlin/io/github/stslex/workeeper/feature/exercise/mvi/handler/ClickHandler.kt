@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.feature.exercise.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dagger.hilt.android.scopes.ViewModelScoped
+import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
@@ -14,6 +15,8 @@ import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Event
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State.Mode
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 private const val MAX_TAGS_PER_EXERCISE = 10
@@ -22,6 +25,8 @@ private const val MAX_TAGS_PER_EXERCISE = 10
 @ViewModelScoped
 internal class ClickHandler @Inject constructor(
     private val interactor: ExerciseInteractor,
+    @MainImmediateDispatcher
+    private val mainDispatcher: CoroutineDispatcher,
     store: ExerciseHandlerStore,
 ) : Handler<Action.Click>, ExerciseHandlerStore by store {
 
@@ -78,7 +83,10 @@ internal class ClickHandler @Inject constructor(
             when (val result = interactor.archive(uuid)) {
                 ArchiveResult.Success -> {
                     sendEvent(Event.ShowArchiveSuccess(name = name, uuid = uuid))
-                    consume(Action.Navigation.Back)
+                    // launch defaults to defaultDispatcher; navigator must be touched on Main.
+                    withContext(mainDispatcher) {
+                        consume(Action.Navigation.Back)
+                    }
                 }
 
                 is ArchiveResult.Blocked ->
@@ -112,17 +120,24 @@ internal class ClickHandler @Inject constructor(
             timestamp = System.currentTimeMillis(),
             labels = current.tags.map { it.name },
         )
+        val mode = current.mode
+        val isCreate = mode is Mode.Edit && mode.isCreate
+        // HandlerStore.launch defaults eachDispatcher to defaultDispatcher, so onSuccess runs
+        // on a background thread. Switch to mainDispatcher before consume(Action.Navigation.*)
+        // so navigator.popBack() lands on the UI thread.
         launch(
             onSuccess = { resolvedUuid ->
-                val savedSnapshot = State.Snapshot(
-                    name = current.name.trim(),
-                    type = current.type,
-                    description = current.description,
-                    tagUuids = current.tags.map { it.uuid },
-                )
-                if (current.mode is Mode.Edit && current.mode.isCreate) {
-                    consume(Action.Navigation.Back)
+                if (isCreate) {
+                    withContext(mainDispatcher) {
+                        consume(Action.Navigation.Back)
+                    }
                 } else {
+                    val savedSnapshot = State.Snapshot(
+                        name = current.name.trim(),
+                        type = current.type,
+                        description = current.description,
+                        tagUuids = current.tags.map { it.uuid },
+                    )
                     updateStateImmediate {
                         it.copy(
                             uuid = resolvedUuid,
@@ -139,47 +154,20 @@ internal class ClickHandler @Inject constructor(
 
     private fun processCancelClick() {
         val current = state.value
+        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
         if (current.mode is Mode.Edit && current.hasChanges) {
-            sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
             sendEvent(Event.ShowDiscardConfirmDialog)
             return
         }
-        leaveEditMode()
+        consume(Action.Navigation.Back)
     }
 
     private fun processConfirmDiscard() {
         sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
-        leaveEditMode()
+        consume(Action.Navigation.Back)
     }
 
     private fun processDismissDiscard() = Unit
-
-    private fun leaveEditMode() {
-        val current = state.value
-        val mode = current.mode
-        if (mode is Mode.Edit && mode.isCreate) {
-            consume(Action.Navigation.Back)
-            return
-        }
-        val snapshot = current.originalSnapshot
-        if (snapshot != null) {
-            updateState {
-                it.copy(
-                    mode = Mode.Read,
-                    name = snapshot.name,
-                    nameError = false,
-                    type = snapshot.type,
-                    description = snapshot.description,
-                    tags = it.availableTags
-                        .filter { tag -> tag.uuid in snapshot.tagUuids }
-                        .toImmutableList(),
-                    tagSearchQuery = "",
-                )
-            }
-        } else {
-            updateState { it.copy(mode = Mode.Read) }
-        }
-    }
 
     private fun processUndoArchive(action: Action.Click.OnUndoArchive) {
         launch { interactor.restore(action.uuid) }

@@ -73,9 +73,10 @@ fun NavGraphBuilder.exerciseGraph(
             }
         }
 
-        BackHandler(enabled = processor.state.value.mode is Mode.Edit) {
-            processor.consume(Action.Click.OnBackClick)
-        }
+        // Always route back through OnBackClick so Edit-mode discard confirmation runs and
+        // Read-mode falls through to consume(Action.Navigation.Back). This keeps every back
+        // path (BackHandler, system gesture, AppTopAppBar back arrow) on a single flow.
+        BackHandler { processor.consume(Action.Click.OnBackClick) }
 
         val state = processor.state.value
         when (state.mode) {

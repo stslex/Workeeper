@@ -16,6 +16,10 @@ internal interface AllExercisesInteractor {
 
     suspend fun restoreExercise(uuid: String)
 
+    suspend fun canPermanentlyDelete(uuid: String): Boolean
+
+    suspend fun permanentlyDelete(uuid: String)
+
     suspend fun getExercise(uuid: String): ExerciseDataModel?
 
     suspend fun countSessionsForExercise(uuid: String): Int
