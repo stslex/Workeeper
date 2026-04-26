@@ -105,5 +105,4 @@ internal class SettingsInteractorImplTest {
         coEvery { trainingRepository.countSessionsUsing("uuid-6") } returns 3
         assertEquals(3, interactor.countTrainingSessions("uuid-6"))
     }
-
 }

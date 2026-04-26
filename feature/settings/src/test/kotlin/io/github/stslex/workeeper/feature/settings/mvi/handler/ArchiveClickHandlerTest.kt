@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.settings.mvi.handler
 
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.feature.settings.di.ArchiveHandlerStore
 import io.github.stslex.workeeper.feature.settings.domain.SettingsInteractor
@@ -17,6 +18,7 @@ import io.mockk.slot
 import io.mockk.verify
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 internal class ArchiveClickHandlerTest {
@@ -51,14 +53,45 @@ internal class ArchiveClickHandlerTest {
     private val handler = ArchiveClickHandler(interactor, store)
 
     @Test
-    fun `OnSegmentChange updates selectedSegment`() {
+    fun `OnSegmentChange updates selectedSegment and emits SegmentTick haptic`() {
         handler.invoke(Action.Click.OnSegmentChange(Segment.TRAININGS))
         assertEquals(Segment.TRAININGS, stateFlow.value.selectedSegment)
+        val captured = slot<Event>()
+        verify(exactly = 1) { store.sendEvent(capture(captured)) }
+        assertHaptic(captured.captured, HapticFeedbackType.SegmentTick)
     }
 
     @Test
     fun `OnSegmentChange to current segment is no-op`() {
         handler.invoke(Action.Click.OnSegmentChange(Segment.EXERCISES))
+        verify(exactly = 0) { store.sendEvent(any()) }
+    }
+
+    @Test
+    fun `OnRestoreClick emits ContextClick haptic`() {
+        coEvery { interactor.restoreExercise(any()) } returns Unit
+        handler.invoke(Action.Click.OnRestoreClick(exerciseItem()))
+        val captured = mutableListOf<Event>()
+        verify { store.sendEvent(capture(captured)) }
+        assertHaptic(captured.first(), HapticFeedbackType.ContextClick)
+    }
+
+    @Test
+    fun `OnUndoRestore emits ContextClick haptic`() {
+        coEvery { interactor.reArchiveExercise(any()) } returns Unit
+        handler.invoke(Action.Click.OnUndoRestore(exerciseItem()))
+        val captured = slot<Event>()
+        verify(exactly = 1) { store.sendEvent(capture(captured)) }
+        assertHaptic(captured.captured, HapticFeedbackType.ContextClick)
+    }
+
+    @Test
+    fun `OnDeleteDismiss does not emit haptic`() {
+        stateFlow.value = stateFlow.value.copy(
+            pendingDeleteTarget = exerciseItem(),
+            pendingDeleteImpact = 0,
+        )
+        handler.invoke(Action.Click.OnDeleteDismiss)
         verify(exactly = 0) { store.sendEvent(any()) }
     }
 
@@ -75,16 +108,30 @@ internal class ArchiveClickHandlerTest {
     }
 
     @Test
-    fun `OnPermanentDeleteClick captures haptic event and target`() {
+    fun `OnPermanentDeleteClick emits LongPress haptic and stores target`() {
         coEvery { interactor.countExerciseSessions(any()) } returns 0
-        val capturedEvent = slot<Event>()
+        val captured = mutableListOf<Event>()
 
         val item = exerciseItem()
         handler.invoke(Action.Click.OnPermanentDeleteClick(item))
 
         assertEquals(item, stateFlow.value.pendingDeleteTarget)
-        verify { store.sendEvent(capture(capturedEvent)) }
-        assert(capturedEvent.captured is Event.Haptic)
+        verify { store.sendEvent(capture(captured)) }
+        assertHaptic(captured.first(), HapticFeedbackType.LongPress)
+    }
+
+    @Test
+    fun `OnDeleteConfirm emits LongPress haptic and clears target`() {
+        coEvery { interactor.permanentlyDeleteExercise(any()) } returns Unit
+        stateFlow.value = stateFlow.value.copy(
+            pendingDeleteTarget = exerciseItem(),
+            pendingDeleteImpact = 2,
+        )
+        handler.invoke(Action.Click.OnDeleteConfirm)
+        val captured = mutableListOf<Event>()
+        verify { store.sendEvent(capture(captured)) }
+        assertHaptic(captured.first(), HapticFeedbackType.LongPress)
+        assertEquals(null, stateFlow.value.pendingDeleteTarget)
     }
 
     @Test
@@ -101,4 +148,9 @@ internal class ArchiveClickHandlerTest {
         archivedAt = 0L,
         type = io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel.WEIGHTED,
     )
+
+    private fun assertHaptic(event: Event, expected: HapticFeedbackType) {
+        assertTrue(event is Event.Haptic, "expected Event.Haptic but got $event")
+        assertEquals(expected, (event as Event.Haptic).type)
+    }
 }

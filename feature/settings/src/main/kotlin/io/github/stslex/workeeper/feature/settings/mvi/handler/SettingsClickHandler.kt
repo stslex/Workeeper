@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.settings.mvi.handler
 
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.settings.about.AboutLinks
@@ -15,6 +16,7 @@ internal class SettingsClickHandler @Inject constructor(
 ) : Handler<Action.Click>, SettingsHandlerStore by store {
 
     override fun invoke(action: Action.Click) {
+        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
         when (action) {
             Action.Click.OnArchiveClick -> sendEvent(Event.NavigateToArchive)
             Action.Click.OnGitHubClick -> sendEvent(Event.ShowExternalLink(AboutLinks.GITHUB_URL))

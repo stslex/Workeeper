@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.feature.settings.mvi.store
 
 import androidx.compose.runtime.Stable
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Action
@@ -65,5 +66,7 @@ internal interface SettingsStore : Store<State, Action, Event> {
         data class ShowExternalLink(val url: String) : Event
 
         data object NavigateBack : Event
+
+        data class Haptic(val type: HapticFeedbackType) : Event
     }
 }

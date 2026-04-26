@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.feature.settings.ui
 import android.content.Intent
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.core.net.toUri
 import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
@@ -18,6 +19,7 @@ fun NavGraphBuilder.settingsGraph(
     navComponentScreen(SettingsFeature) { processor ->
         val context = LocalContext.current
         val navigator = LocalNavigator.current
+        val haptic = LocalHapticFeedback.current
 
         processor.Handle { event ->
             when (event) {
@@ -29,6 +31,8 @@ fun NavGraphBuilder.settingsGraph(
                     }
                     runCatching { context.startActivity(intent) }
                 }
+
+                is Event.Haptic -> haptic.performHapticFeedback(event.type)
             }
         }
 

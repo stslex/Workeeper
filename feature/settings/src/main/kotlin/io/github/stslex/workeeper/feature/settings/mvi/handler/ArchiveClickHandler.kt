@@ -35,7 +35,7 @@ internal class ArchiveClickHandler @Inject constructor(
     }
 
     private fun processRestore(item: ArchivedItem) {
-        sendEvent(Event.Haptic(HapticFeedbackType.Confirm))
+        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
         launch {
             when (item) {
                 is ArchivedItem.Exercise -> interactor.restoreExercise(item.uuid)
@@ -67,7 +67,7 @@ internal class ArchiveClickHandler @Inject constructor(
 
     private fun processDeleteConfirm() {
         val target = state.value.pendingDeleteTarget ?: return
-        sendEvent(Event.Haptic(HapticFeedbackType.Confirm))
+        sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
         updateState {
             it.copy(
                 pendingDeleteTarget = null,
@@ -95,6 +95,7 @@ internal class ArchiveClickHandler @Inject constructor(
     }
 
     private fun processUndoRestore(item: ArchivedItem) {
+        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
         launch {
             when (item) {
                 is ArchivedItem.Exercise -> interactor.reArchiveExercise(item.uuid)
