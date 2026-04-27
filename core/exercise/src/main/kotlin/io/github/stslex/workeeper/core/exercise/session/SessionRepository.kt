@@ -17,6 +17,14 @@ interface SessionRepository {
      */
     fun observeAnyActiveSession(): Flow<ActiveSessionInfo?>
 
+    /**
+     * Hot stream that powers the Home active-session banner. Carries the training name +
+     * `isAdhoc` flag plus the done/total exercise counts so the banner can render without
+     * an extra round trip per session. `doneCount` is heuristic — an exercise counts as
+     * done when it has at least one logged set.
+     */
+    fun observeActiveSessionWithStats(): Flow<ActiveSessionWithStats?>
+
     suspend fun getAnyActiveSession(): ActiveSessionInfo?
 
     suspend fun getActive(): SessionDataModel?
@@ -33,9 +41,29 @@ interface SessionRepository {
 
     suspend fun startSession(trainingUuid: String): SessionDataModel
 
+    /**
+     * Atomically creates a new IN_PROGRESS session for [trainingUuid] and seeds one
+     * performed_exercise row per `(exerciseUuid, position)` pair. Used by Live workout to
+     * spin up a session from a training in a single transaction.
+     */
+    suspend fun startSessionWithExercises(
+        trainingUuid: String,
+        exerciseUuids: List<Pair<String, Int>>,
+    ): SessionDataModel
+
     suspend fun resumeSession(sessionUuid: String): SessionDataModel?
 
     suspend fun finishSession(sessionUuid: String, finishedAt: Long)
 
     suspend fun deleteSession(uuid: String)
+
+    data class ActiveSessionWithStats(
+        val sessionUuid: String,
+        val trainingUuid: String,
+        val trainingName: String,
+        val isAdhoc: Boolean,
+        val startedAt: Long,
+        val totalCount: Int,
+        val doneCount: Int,
+    )
 }

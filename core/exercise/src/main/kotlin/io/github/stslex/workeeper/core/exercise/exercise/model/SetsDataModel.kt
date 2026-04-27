@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.exercise.exercise.model
 
 import io.github.stslex.workeeper.core.database.session.model.SetEntity
@@ -7,7 +8,7 @@ import kotlin.uuid.Uuid
 data class SetsDataModel(
     val uuid: String,
     val reps: Int,
-    val weight: Double,
+    val weight: Double?,
     val type: SetsDataType,
 )
 
@@ -26,7 +27,7 @@ internal fun SetsDataModel.toEntity(
 internal fun SetEntity.toData(): SetsDataModel = SetsDataModel(
     uuid = uuid.toString(),
     reps = reps,
-    weight = weight ?: 0.0,
+    weight = weight,
     type = type.toData(),
 )
 

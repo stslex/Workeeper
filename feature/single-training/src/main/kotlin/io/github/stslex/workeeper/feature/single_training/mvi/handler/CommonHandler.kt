@@ -93,7 +93,7 @@ internal class CommonHandler @Inject constructor(
                     exerciseUuid = detail.exercise.uuid,
                     exerciseName = detail.exercise.name,
                     exerciseType = detail.exercise.type.toUi(),
-                    tags = detail.exercise.labels.toImmutableList(),
+                    tags = detail.labels.toImmutableList(),
                     position = index,
                     planSets = planSets,
                     planSummary = planSets?.formatPlanSummary().orEmpty(),

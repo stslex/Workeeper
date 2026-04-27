@@ -51,11 +51,13 @@ internal class CommonHandler @Inject constructor(
             onSuccess = { result -> updateStateImmediate { current -> current.applyLoaded(result) } },
         ) {
             val exercise = async { interactor.getExercise(uuid) }
+            val labels = async { interactor.getLabels(uuid) }
             val history = async { interactor.getRecentHistory(uuid) }
             val canPermanentlyDelete = async { interactor.canPermanentlyDelete(uuid) }
             val adhocPlan = async { interactor.getAdhocPlan(uuid) }
             LoadResult(
                 exercise = exercise.await(),
+                labels = labels.await(),
                 history = history.await(),
                 canPermanentlyDelete = canPermanentlyDelete.await(),
                 adhocPlan = adhocPlan.await(),
@@ -65,7 +67,7 @@ internal class CommonHandler @Inject constructor(
 
     private fun State.applyLoaded(result: LoadResult): State {
         val exercise = result.exercise ?: return copy(isLoading = false)
-        val tags = exercise.labels
+        val tags = result.labels
             .map { name ->
                 val matched = availableTags.firstOrNull { it.name.equals(name, ignoreCase = true) }
                 matched ?: TagUiModel(uuid = name, name = name)
@@ -93,6 +95,7 @@ internal class CommonHandler @Inject constructor(
 
     private data class LoadResult(
         val exercise: ExerciseDataModel?,
+        val labels: List<String>,
         val history: List<HistoryEntry>,
         val canPermanentlyDelete: Boolean,
         val adhocPlan: List<PlanSetDataModel>?,

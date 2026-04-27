@@ -20,6 +20,8 @@ private class ArchivedAtFormatter(
     private val archivedRelativeFormat: String,
 ) : (Long) -> String {
 
+    // TODO(tech-debt): Move archive timestamp-to-label mapping out of UI graph and into
+    // handler/state mapping so composables render preformatted strings only.
     override fun invoke(timestamp: Long): String = if (timestamp <= 0L) {
         archivedLabel
     } else {

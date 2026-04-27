@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.exercise.exercise.model
 
 import io.github.stslex.workeeper.core.database.converters.PlanSetsConverter
@@ -15,19 +16,10 @@ data class ExerciseDataModel(
     val archived: Boolean = false,
     val archivedAt: Long? = null,
     val timestamp: Long,
-    // legacy v2 fields, retained for feature compatibility during v3 transition.
-    // `trainingUuid` is not modelled in v3 (exercises are library items, not training-bound).
-    // `sets` are now per-session (PerformedExercise/Set tables), not per-template.
-    // `labels` are populated from the exercise_tag join when available.
-    val trainingUuid: String? = null,
-    val sets: List<SetsDataModel> = emptyList(),
-    val labels: List<String> = emptyList(),
     val lastAdhocSets: List<PlanSetDataModel>?,
 )
 
-internal fun ExerciseEntity.toData(
-    labels: List<String> = emptyList(),
-): ExerciseDataModel = ExerciseDataModel(
+internal fun ExerciseEntity.toData(): ExerciseDataModel = ExerciseDataModel(
     uuid = uuid.toString(),
     name = name,
     type = type.toData(),
@@ -36,7 +28,6 @@ internal fun ExerciseEntity.toData(
     archived = archived,
     archivedAt = archivedAt,
     timestamp = createdAt,
-    labels = labels,
     lastAdhocSets = lastAdhocSets?.let { PlanSetsConverter.fromJson(it) },
 )
 

@@ -165,6 +165,7 @@ internal interface ExerciseStore : Store<State, Action, Event> {
             data class OnTagCreate(val name: String) : Click
         }
 
+        @Suppress("MviActionNamingRule")
         data class PlanEditorAction(val action: AppPlanEditorAction) : Action
 
         sealed interface Input : Action {

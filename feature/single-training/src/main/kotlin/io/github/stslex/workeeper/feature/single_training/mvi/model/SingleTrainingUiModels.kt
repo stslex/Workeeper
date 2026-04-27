@@ -31,4 +31,8 @@ data class PickerExerciseItem(
     val name: String,
     val type: ExerciseTypeUiModel,
     val tags: ImmutableList<String>,
-)
+) {
+
+    val tagsLabel: String
+        get() = tags.joinToString(separator = " · ")
+}

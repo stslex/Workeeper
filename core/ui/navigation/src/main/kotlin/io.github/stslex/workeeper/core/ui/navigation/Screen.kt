@@ -24,6 +24,9 @@ sealed interface Screen {
             get() = true
 
         @Serializable
+        data object Home : BottomBar
+
+        @Serializable
         data object Charts : BottomBar
 
         @Serializable
@@ -41,6 +44,18 @@ sealed interface Screen {
     @Serializable
     data class Exercise(
         val uuid: String?,
+    ) : Screen
+
+    /**
+     * Live workout screen. At least one of [sessionUuid] / [trainingUuid] must be non-null:
+     *  - `sessionUuid` non-null: resume the in-progress session.
+     *  - `sessionUuid` null + `trainingUuid` non-null: create a fresh session for that
+     *    training.
+     */
+    @Serializable
+    data class LiveWorkout(
+        val sessionUuid: String?,
+        val trainingUuid: String?,
     ) : Screen
 
     @Serializable

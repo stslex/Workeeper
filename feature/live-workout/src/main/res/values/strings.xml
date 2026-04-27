@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Header -->
+    <string name="feature_live_workout_progress_format" tools:ignore="PluralsCandidate">%1$d of %2$d done · %3$s</string>
+    <plurals name="feature_live_workout_set_count">
+        <item quantity="one">%d set logged</item>
+        <item quantity="other">%d sets logged</item>
+    </plurals>
+
+    <!-- Exercise card status -->
+    <string name="feature_live_workout_status_completed_format">Completed · %1$s</string>
+    <plurals name="feature_live_workout_status_set_count">
+        <item quantity="one">%d set</item>
+        <item quantity="other">%d sets</item>
+    </plurals>
+    <string name="feature_live_workout_status_progress_format" tools:ignore="PluralsCandidate">%1$d of %2$d sets</string>
+    <string name="feature_live_workout_status_skipped">Skipped</string>
+    <string name="feature_live_workout_status_plan_format">Plan: %1$s</string>
+    <string name="feature_live_workout_status_no_plan">no plan</string>
+
+    <!-- Exercise overflow -->
+    <string name="feature_live_workout_action_edit_plan">Edit plan</string>
+    <string name="feature_live_workout_action_reset_sets">Reset sets</string>
+    <string name="feature_live_workout_action_skip">Skip exercise</string>
+
+    <!-- Add set -->
+    <string name="feature_live_workout_add_set">+ Add set</string>
+
+    <!-- Reset confirmation -->
+    <string name="feature_live_workout_reset_title">Reset sets?</string>
+    <string name="feature_live_workout_reset_body">All logged sets for this exercise will be deleted. This cannot be undone.</string>
+    <string name="feature_live_workout_reset_confirm">Reset</string>
+    <string name="feature_live_workout_reset_dismiss">Cancel</string>
+
+    <!-- Skip confirmation -->
+    <string name="feature_live_workout_skip_title">Skip this exercise?</string>
+    <string name="feature_live_workout_skip_body">Logged sets for this exercise will be deleted and the exercise marked as skipped.</string>
+    <string name="feature_live_workout_skip_confirm">Skip</string>
+    <string name="feature_live_workout_skip_dismiss">Cancel</string>
+
+    <!-- Finish dialog -->
+    <string name="feature_live_workout_finish">Finish session</string>
+    <string name="feature_live_workout_finish_title">Finish session?</string>
+    <string name="feature_live_workout_finish_body">Your sets will be logged and plans will update with what you actually performed.</string>
+    <string name="feature_live_workout_finish_stat_duration">Duration</string>
+    <string name="feature_live_workout_finish_stat_exercises">Exercises</string>
+    <string name="feature_live_workout_finish_stat_sets">Sets logged</string>
+    <string name="feature_live_workout_finish_stat_exercises_format" tools:ignore="PluralsCandidate">%1$d of %2$d done</string>
+    <string name="feature_live_workout_finish_stat_exercises_with_skipped_format" tools:ignore="PluralsCandidate">%1$d of %2$d done · %3$d skipped</string>
+    <string name="feature_live_workout_finish_keep_going">Keep going</string>
+    <string name="feature_live_workout_finish_confirm">Finish</string>
+    <string name="feature_live_workout_finish_success">Session saved</string>
+
+    <!-- Header overflow -->
+    <string name="feature_live_workout_session_overflow_cancel">Cancel session</string>
+    <string name="feature_live_workout_cancel_title">Cancel session?</string>
+    <string name="feature_live_workout_cancel_body">All progress will be deleted. This cannot be undone.</string>
+    <string name="feature_live_workout_cancel_confirm">Cancel session</string>
+    <string name="feature_live_workout_cancel_dismiss">Keep going</string>
+
+    <!-- Misc -->
+    <string name="feature_live_workout_back">Back</string>
+    <string name="feature_live_workout_more">More</string>
+    <string name="feature_live_workout_remove_set">Remove set</string>
+
+    <!-- Errors -->
+    <string name="feature_live_workout_error_invalid_reps">Reps must be greater than 0</string>
+    <string name="feature_live_workout_error_set_save_failed">Could not save set</string>
+    <string name="feature_live_workout_error_set_delete_failed">Could not remove set</string>
+    <string name="feature_live_workout_error_reset_failed">Could not reset sets</string>
+    <string name="feature_live_workout_error_skip_failed">Could not skip exercise</string>
+    <string name="feature_live_workout_error_finish_missing_session">Session is no longer available</string>
+    <string name="feature_live_workout_error_finish_failed">Could not finish session</string>
+    <string name="feature_live_workout_error_cancel_failed">Could not cancel session</string>
+    <string name="feature_live_workout_error_plan_save_failed">Could not save plan</string>
+    <string name="feature_live_workout_error_unknown">Something went wrong</string>
+</resources>

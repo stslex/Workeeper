@@ -1,8 +1,6 @@
 package io.github.stslex.workeeper.feature.charts.domain.calculator
 
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
 import io.github.stslex.workeeper.core.exercise.training.TrainingDataModel
 import io.github.stslex.workeeper.feature.charts.domain.model.ChartDataType
 import kotlinx.coroutines.test.runTest
@@ -11,7 +9,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertNotNull
-import kotlin.uuid.Uuid
 
 class ChartDomainCalculatorImplTest {
 
@@ -50,23 +47,12 @@ class ChartDomainCalculatorImplTest {
                     ExerciseDataModel(
                         uuid = "exercise1",
                         name = "Push ups",
-                        trainingUuid = "training1",
-                        sets = listOf(
-                            SetsDataModel(Uuid.random().toString(), 10, 50.0, SetsDataType.WORK),
-                            SetsDataModel(Uuid.random().toString(), 8, 60.0, SetsDataType.WORK),
-                        ),
-                        labels = emptyList(),
                         timestamp = 1500L,
                         lastAdhocSets = null,
                     ),
                     ExerciseDataModel(
                         uuid = "exercise2",
                         name = "Bench press",
-                        trainingUuid = "training1",
-                        sets = listOf(
-                            SetsDataModel(Uuid.random().toString(), 5, 80.0, SetsDataType.WORK),
-                        ),
-                        labels = emptyList(),
                         timestamp = 1500L,
                         lastAdhocSets = null,
                     ),
@@ -76,11 +62,6 @@ class ChartDomainCalculatorImplTest {
                     ExerciseDataModel(
                         uuid = "exercise3",
                         name = "Dips",
-                        trainingUuid = "training2",
-                        sets = listOf(
-                            SetsDataModel(Uuid.random().toString(), 12, 40.0, SetsDataType.WORK),
-                        ),
-                        labels = emptyList(),
                         timestamp = 1800L,
                         lastAdhocSets = null,
                     ),
@@ -90,11 +71,6 @@ class ChartDomainCalculatorImplTest {
                     ExerciseDataModel(
                         uuid = "exercise4",
                         name = "Pull ups",
-                        trainingUuid = "training3",
-                        sets = listOf(
-                            SetsDataModel(Uuid.random().toString(), 8, 70.0, SetsDataType.WORK),
-                        ),
-                        labels = emptyList(),
                         timestamp = 1700L,
                         lastAdhocSets = null,
                     ),
@@ -131,34 +107,18 @@ class ChartDomainCalculatorImplTest {
             ExerciseDataModel(
                 uuid = "exercise1",
                 name = "Push ups",
-                trainingUuid = null,
-                sets = listOf(
-                    SetsDataModel(Uuid.random().toString(), 10, 50.0, SetsDataType.WORK),
-                    SetsDataModel(Uuid.random().toString(), 8, 60.0, SetsDataType.WORK),
-                ),
-                labels = emptyList(),
                 timestamp = 1500L,
                 lastAdhocSets = null,
             ),
             ExerciseDataModel(
                 uuid = "exercise2",
                 name = "Push ups",
-                trainingUuid = null,
-                sets = listOf(
-                    SetsDataModel(Uuid.random().toString(), 12, 65.0, SetsDataType.WORK),
-                ),
-                labels = emptyList(),
                 timestamp = 1800L,
                 lastAdhocSets = null,
             ),
             ExerciseDataModel(
                 uuid = "exercise3",
                 name = "Bench press",
-                trainingUuid = null,
-                sets = listOf(
-                    SetsDataModel(Uuid.random().toString(), 5, 80.0, SetsDataType.WORK),
-                ),
-                labels = emptyList(),
                 timestamp = 1700L,
                 lastAdhocSets = null,
             ),
@@ -219,9 +179,6 @@ class ChartDomainCalculatorImplTest {
             ExerciseDataModel(
                 uuid = "exercise1",
                 name = "Empty Exercise",
-                trainingUuid = null,
-                sets = emptyList(),
-                labels = emptyList(),
                 timestamp = 1500L,
                 lastAdhocSets = null,
             ),
@@ -256,11 +213,6 @@ class ChartDomainCalculatorImplTest {
             ExerciseDataModel(
                 uuid = "exercise1",
                 name = "Test Exercise",
-                trainingUuid = null,
-                sets = listOf(
-                    SetsDataModel(Uuid.random().toString(), 10, 50.0, SetsDataType.WORK),
-                ),
-                labels = emptyList(),
                 timestamp = 86401000L, // timestamp within our test range,
                 lastAdhocSets = null,
             ),
@@ -292,7 +244,7 @@ class ChartDomainCalculatorImplTest {
     }
 
     @Test
-    fun `mapExercises calculates xValue and yValue correctly for DAY type`() = runTest {
+    fun `mapExercises calculates xValue correctly for DAY type`() = runTest {
         // Given - Multiple exercises with known weights and timestamps
         val startTimestamp = 0L
         val oneDayMs = 86400000L
@@ -302,12 +254,6 @@ class ChartDomainCalculatorImplTest {
             ExerciseDataModel(
                 uuid = "exercise1",
                 name = "Bench Press",
-                trainingUuid = null,
-                sets = listOf(
-                    SetsDataModel(Uuid.random().toString(), 10, 100.0, SetsDataType.WORK),
-                    SetsDataModel(Uuid.random().toString(), 8, 120.0, SetsDataType.WORK),
-                ),
-                labels = emptyList(),
                 timestamp = oneDayMs / 2, // Middle of the day,
                 lastAdhocSets = null,
             ),
@@ -329,11 +275,10 @@ class ChartDomainCalculatorImplTest {
 
         val dataPoint = chart.values[0]
         assertEquals(0.0f, dataPoint.xValue) // Single point should be at position 0
-        assertEquals(120.0f, dataPoint.yValue) // Max weight from sets
     }
 
     @Test
-    fun `mapExercises calculates xValue and yValue correctly for WEEK type`() = runTest {
+    fun `mapExercises calculates xValue correctly for WEEK type`() = runTest {
         // Given - Exercise data across multiple weeks
         val startTimestamp = 0L
         val oneDayMs = 86400000L
@@ -344,22 +289,12 @@ class ChartDomainCalculatorImplTest {
             ExerciseDataModel(
                 uuid = "exercise1",
                 name = "Squat",
-                trainingUuid = null,
-                sets = listOf(
-                    SetsDataModel(Uuid.random().toString(), 10, 80.0, SetsDataType.WORK),
-                ),
-                labels = emptyList(),
                 timestamp = oneWeekMs, // Start of week 2,
                 lastAdhocSets = null,
             ),
             ExerciseDataModel(
                 uuid = "exercise2",
                 name = "Squat",
-                trainingUuid = null,
-                sets = listOf(
-                    SetsDataModel(Uuid.random().toString(), 8, 90.0, SetsDataType.WORK),
-                ),
-                labels = emptyList(),
                 timestamp = oneWeekMs * 3, // Start of week 4,
                 lastAdhocSets = null,
             ),
@@ -384,16 +319,10 @@ class ChartDomainCalculatorImplTest {
         assertEquals(0.33333334f, chart.values[1].xValue, 0.0001f)
         assertEquals(0.6666667f, chart.values[2].xValue, 0.0001f)
         assertEquals(1.0f, chart.values[3].xValue, 0.0001f)
-
-        // Verify yValues - should have data for weeks 2 and 4, null for weeks 1 and 3
-        assertEquals(0f, chart.values[0].yValue) // Week 1 - no data
-        assertEquals(80.0f, chart.values[1].yValue) // Week 2 - exercise1
-        assertEquals(0f, chart.values[2].yValue) // Week 3 - no data
-        assertEquals(90.0f, chart.values[3].yValue) // Week 4 - exercise2
     }
 
     @Test
-    fun `mapTrainings calculates average max weights correctly`() = runTest {
+    fun `mapTrainings produces single data point for single day range`() = runTest {
         // Given
         val startTimestamp = 0L
         val endTimestamp = 86400000L // 1 day
@@ -413,24 +342,12 @@ class ChartDomainCalculatorImplTest {
                 ExerciseDataModel(
                     uuid = "exercise1",
                     name = "Bench Press",
-                    trainingUuid = "training1",
-                    sets = listOf(
-                        SetsDataModel(Uuid.random().toString(), 10, 100.0, SetsDataType.WORK),
-                        SetsDataModel(Uuid.random().toString(), 8, 120.0, SetsDataType.WORK),
-                    ),
-                    labels = emptyList(),
                     timestamp = 43200000L,
                     lastAdhocSets = null,
                 ),
                 ExerciseDataModel(
                     uuid = "exercise2",
                     name = "Overhead Press",
-                    trainingUuid = "training1",
-                    sets = listOf(
-                        SetsDataModel(Uuid.random().toString(), 10, 60.0, SetsDataType.WORK),
-                        SetsDataModel(Uuid.random().toString(), 8, 80.0, SetsDataType.WORK),
-                    ),
-                    labels = emptyList(),
                     timestamp = 43200000L,
                     lastAdhocSets = null,
                 ),
@@ -453,8 +370,6 @@ class ChartDomainCalculatorImplTest {
 
         val dataPoint = chart.values[0]
         assertEquals(0.0f, dataPoint.xValue) // Single point should be at position 0
-        // Average of max weights: (120.0 + 80.0) / 2 = 100.0
-        assertEquals(100.0f, dataPoint.yValue)
     }
 
     @Test
@@ -468,22 +383,12 @@ class ChartDomainCalculatorImplTest {
             ExerciseDataModel(
                 uuid = "exercise1",
                 name = "Deadlift",
-                trainingUuid = null,
-                sets = listOf(
-                    SetsDataModel(Uuid.random().toString(), 5, 200.0, SetsDataType.WORK),
-                ),
-                labels = emptyList(),
                 timestamp = startTimestamp + oneDayMs * 3, // Day 4 of the week,
                 lastAdhocSets = null,
             ),
             ExerciseDataModel(
                 uuid = "exercise1",
                 name = "Deadlift",
-                trainingUuid = null,
-                sets = listOf(
-                    SetsDataModel(Uuid.random().toString(), 5, 100.0, SetsDataType.WORK),
-                ),
-                labels = emptyList(),
                 timestamp = startTimestamp + oneDayMs * 5, // Day 6 of the week,
                 lastAdhocSets = null,
             ),
@@ -499,18 +404,8 @@ class ChartDomainCalculatorImplTest {
         // Then
         assertEquals(1, result.size)
         val chart = result[0]
-        assertEquals(ChartDataType.DAY, chart.dateType) // 7 days ≤ 14, so DAY type
+        assertEquals(ChartDataType.DAY, chart.dateType) // 7 days <= 14, so DAY type
         assertEquals(7, chart.values.size) // 7 days
-
-        // The exercise should appear in the correct day position
-        // Days 1-3 should be null, day 4 should have the value, days 5-7 should be null
-        assertEquals(0f, chart.values[0].yValue) // Day 1
-        assertEquals(0f, chart.values[1].yValue) // Day 2
-        assertEquals(0f, chart.values[2].yValue) // Day 3
-        assertEquals(200.0f, chart.values[3].yValue) // Day 4 - exercise timestamp
-        assertEquals(0f, chart.values[4].yValue) // Day 5
-        assertEquals(100f, chart.values[5].yValue) // Day 6
-        assertEquals(0f, chart.values[6].yValue) // Day 7
     }
 
     @Test
@@ -525,11 +420,6 @@ class ChartDomainCalculatorImplTest {
             ExerciseDataModel(
                 uuid = "exercise1",
                 name = "Morning Exercise",
-                trainingUuid = null,
-                sets = listOf(
-                    SetsDataModel(Uuid.random().toString(), 10, 50.0, SetsDataType.WORK),
-                ),
-                labels = emptyList(),
                 timestamp = startTimestamp,
                 lastAdhocSets = null,
             ),
@@ -537,11 +427,6 @@ class ChartDomainCalculatorImplTest {
             ExerciseDataModel(
                 uuid = "exercise2",
                 name = "Evening Exercise",
-                trainingUuid = null,
-                sets = listOf(
-                    SetsDataModel(Uuid.random().toString(), 8, 75.0, SetsDataType.WORK),
-                ),
-                labels = emptyList(),
                 timestamp = startTimestamp + oneDayMs * 4 + (oneDayMs / 2), // Middle of day 5,
                 lastAdhocSets = null,
             ),
@@ -549,9 +434,6 @@ class ChartDomainCalculatorImplTest {
             ExerciseDataModel(
                 uuid = "exercise3",
                 name = "No Sets Exercise",
-                trainingUuid = null,
-                sets = emptyList(),
-                labels = emptyList(),
                 timestamp = startTimestamp + oneDayMs * 2,
                 lastAdhocSets = null,
             ),
@@ -570,16 +452,14 @@ class ChartDomainCalculatorImplTest {
         // Verify Morning Exercise (at start boundary)
         val morningChart = result.find { it.name == "Morning Exercise" }!!
         assertEquals(5, morningChart.values.size)
-        assertEquals(50.0f, morningChart.values[0].yValue) // Should be in first day
-        assertEquals(0f, morningChart.values[1].yValue)
 
         // Verify Evening Exercise (in day 5)
         val eveningChart = result.find { it.name == "Evening Exercise" }!!
-        assertEquals(75.0f, eveningChart.values[4].yValue) // Should be in day 5
+        assertEquals(5, eveningChart.values.size)
 
         // Verify No Sets Exercise (empty sets)
         val noSetsChart = result.find { it.name == "No Sets Exercise" }!!
-        assertEquals(0f, noSetsChart.values[2].yValue) // Should be 0 for empty sets
+        assertEquals(5, noSetsChart.values.size)
     }
 
     @Test
@@ -593,11 +473,6 @@ class ChartDomainCalculatorImplTest {
             ExerciseDataModel(
                 uuid = "exercise1",
                 name = "Monthly Exercise",
-                trainingUuid = null,
-                sets = listOf(
-                    SetsDataModel(Uuid.random().toString(), 10, 100.0, SetsDataType.WORK),
-                ),
-                labels = emptyList(),
                 timestamp = oneDayMs * 30, // Middle of range,
                 lastAdhocSets = null,
             ),
@@ -620,16 +495,11 @@ class ChartDomainCalculatorImplTest {
         assertEquals(0.0f, chart.values[0].xValue) // Month 1: 0
         assertEquals(0.5f, chart.values[1].xValue, 0.0001f) // Month 2: 1 / (3-1) = 0.5
         assertEquals(1.0f, chart.values[2].xValue, 0.0001f) // Month 3: 2 / (3-1) = 1.0
-
-        // Exercise should appear in month 2 (day 30 falls in second month)
-        assertEquals(0f, chart.values[0].yValue) // Month 1
-        assertEquals(100.0f, chart.values[1].yValue) // Month 2 - exercise data
-        assertEquals(0f, chart.values[2].yValue) // Month 3
     }
 
     @Test
-    fun `mapTrainings handles multiple exercises with different weights per training`() = runTest {
-        // Given - Training with exercises having varied weights
+    fun `mapTrainings handles multiple exercises per training`() = runTest {
+        // Given - Training with multiple exercises
         val startTimestamp = 0L
         val endTimestamp = 86400000L // 1 day
 
@@ -645,42 +515,21 @@ class ChartDomainCalculatorImplTest {
 
         val getExercises: suspend (List<String>) -> List<ExerciseDataModel> = { uuids ->
             listOf(
-                // Light weight exercise
                 ExerciseDataModel(
                     uuid = "exercise1",
                     name = "Warm-up",
-                    trainingUuid = "training1",
-                    sets = listOf(
-                        SetsDataModel(Uuid.random().toString(), 15, 20.0, SetsDataType.WORK),
-                        SetsDataModel(Uuid.random().toString(), 12, 25.0, SetsDataType.WORK),
-                    ),
-                    labels = emptyList(),
                     timestamp = 43200000L,
                     lastAdhocSets = null,
                 ),
-                // Heavy weight exercise
                 ExerciseDataModel(
                     uuid = "exercise2",
                     name = "Main Lift",
-                    trainingUuid = "training1",
-                    sets = listOf(
-                        SetsDataModel(Uuid.random().toString(), 5, 150.0, SetsDataType.WORK),
-                        SetsDataModel(Uuid.random().toString(), 3, 200.0, SetsDataType.WORK),
-                    ),
-                    labels = emptyList(),
                     timestamp = 43200000L,
                     lastAdhocSets = null,
                 ),
-                // Medium weight exercise
                 ExerciseDataModel(
                     uuid = "exercise3",
                     name = "Accessory",
-                    trainingUuid = "training1",
-                    sets = listOf(
-                        SetsDataModel(Uuid.random().toString(), 10, 80.0, SetsDataType.WORK),
-                        SetsDataModel(Uuid.random().toString(), 8, 90.0, SetsDataType.WORK),
-                    ),
-                    labels = emptyList(),
                     timestamp = 43200000L,
                     lastAdhocSets = null,
                 ),
@@ -703,9 +552,6 @@ class ChartDomainCalculatorImplTest {
 
         val dataPoint = chart.values[0]
         assertEquals(0.0f, dataPoint.xValue) // Single point should be at position 0
-
-        // Average of max weights: (25.0 + 200.0 + 90.0) / 3 = 105.0
-        assertEquals(105.0f, dataPoint.yValue)
     }
 
     @Test
@@ -832,16 +678,6 @@ class ChartDomainCalculatorImplTest {
                 ExerciseDataModel(
                     uuid = "exercise1",
                     name = "Test",
-                    trainingUuid = null,
-                    sets = listOf(
-                        SetsDataModel(
-                            Uuid.random().toString(),
-                            10,
-                            50.0,
-                            SetsDataType.WORK,
-                        ),
-                    ),
-                    labels = emptyList(),
                     timestamp = 43200000L, // Middle of range,
                     lastAdhocSets = null,
                 ),

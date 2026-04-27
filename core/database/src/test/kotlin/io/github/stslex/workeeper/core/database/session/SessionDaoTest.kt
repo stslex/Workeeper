@@ -7,6 +7,7 @@ import io.github.stslex.workeeper.core.database.exercise.ExerciseTypeEntity
 import io.github.stslex.workeeper.core.database.session.model.SetEntity
 import io.github.stslex.workeeper.core.database.session.model.SetTypeEntity
 import io.github.stslex.workeeper.core.database.training.TrainingEntity
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -176,6 +177,78 @@ internal class SessionDaoTest : BaseDatabaseTest() {
         )
         val row = sessionDao.getRecentSessionsForExercise(exerciseUuid, limit = 5).single()
         assertEquals(true, row.isAdhoc)
+    }
+
+    @Test
+    fun `observeActiveSessionWithStats returns done and total counts for active session`() = runTest {
+        val trainingUuid = Uuid.random()
+        val firstExerciseUuid = Uuid.random()
+        val secondExerciseUuid = Uuid.random()
+        seedTrainingAndExercise(trainingUuid, firstExerciseUuid, isAdhoc = false)
+        exerciseDao.insert(
+            ExerciseEntity(
+                uuid = secondExerciseUuid,
+                name = "Incline",
+                type = ExerciseTypeEntity.WEIGHTED,
+                description = null,
+                imagePath = null,
+                archived = false,
+                createdAt = 0L,
+                archivedAt = null,
+                lastAdhocSets = null,
+            ),
+        )
+
+        val sessionUuid = Uuid.random()
+        sessionDao.insert(
+            SessionEntity(
+                uuid = sessionUuid,
+                trainingUuid = trainingUuid,
+                state = SessionStateEntity.IN_PROGRESS,
+                startedAt = 123L,
+                finishedAt = null,
+            ),
+        )
+        val firstPerformedUuid = Uuid.random()
+        val secondPerformedUuid = Uuid.random()
+        performedExerciseDao.insert(
+            listOf(
+                PerformedExerciseEntity(
+                    uuid = firstPerformedUuid,
+                    sessionUuid = sessionUuid,
+                    exerciseUuid = firstExerciseUuid,
+                    position = 0,
+                    skipped = false,
+                ),
+                PerformedExerciseEntity(
+                    uuid = secondPerformedUuid,
+                    sessionUuid = sessionUuid,
+                    exerciseUuid = secondExerciseUuid,
+                    position = 1,
+                    skipped = true,
+                ),
+            ),
+        )
+        setDao.insert(
+            SetEntity(
+                uuid = Uuid.random(),
+                performedExerciseUuid = firstPerformedUuid,
+                position = 0,
+                reps = 5,
+                weight = 100.0,
+                type = SetTypeEntity.WORK,
+            ),
+        )
+
+        val row = sessionDao.observeActiveSessionWithStats().first()
+
+        assertEquals(sessionUuid, row?.uuid)
+        assertEquals(trainingUuid, row?.trainingUuid)
+        assertEquals("Push Day", row?.trainingName)
+        assertEquals(false, row?.isAdhoc)
+        assertEquals(123L, row?.startedAt)
+        assertEquals(1, row?.totalCount)
+        assertEquals(1, row?.doneCount)
     }
 
     private suspend fun seedTrainingAndExercise(

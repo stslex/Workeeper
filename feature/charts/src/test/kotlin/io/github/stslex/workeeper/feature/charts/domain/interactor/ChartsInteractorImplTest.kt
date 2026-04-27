@@ -130,9 +130,6 @@ class ChartsInteractorImplTest {
                 ExerciseDataModel(
                     uuid = "exercise1",
                     name = "Push ups",
-                    trainingUuid = null,
-                    sets = emptyList(),
-                    labels = emptyList(),
                     timestamp = 1500L,
                     lastAdhocSets = null,
                 ),

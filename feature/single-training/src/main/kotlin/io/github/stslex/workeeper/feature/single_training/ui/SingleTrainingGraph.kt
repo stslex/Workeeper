@@ -56,6 +56,8 @@ fun NavGraphBuilder.singleTrainingsGraph(
         var showDiscardDialog by remember { mutableStateOf(false) }
         var showPermanentDeleteDialog by remember { mutableStateOf(false) }
 
+        // TODO(tech-debt): Move event-to-message shaping out of UI graph and emit
+        // ready-to-render localized payloads from handler/state mapping.
         processor.Handle { event ->
             when (event) {
                 is Event.HapticClick -> haptic.performHapticFeedback(event.type)

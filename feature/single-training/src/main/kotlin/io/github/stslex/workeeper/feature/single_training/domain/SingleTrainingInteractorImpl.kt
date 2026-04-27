@@ -5,7 +5,6 @@ import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.exercise.session.model.ActiveSessionInfo
 import io.github.stslex.workeeper.core.exercise.session.model.SessionDataModel
@@ -54,8 +53,15 @@ internal class SingleTrainingInteractorImpl @Inject constructor(
                 exercise = exercise,
                 position = row.position,
                 planSets = row.planSets,
+                labels = exerciseRepository.getLabels(exercise.uuid),
             )
         }
+    }
+
+    override suspend fun getLabels(
+        exerciseUuid: String,
+    ): List<String> = withContext(defaultDispatcher) {
+        exerciseRepository.getLabels(exerciseUuid)
     }
 
     override suspend fun getRecentSessions(
@@ -120,13 +126,27 @@ internal class SingleTrainingInteractorImpl @Inject constructor(
     override suspend fun searchExercisesForPicker(
         query: String,
         excludeUuids: Set<String>,
-    ): List<ExerciseDataModel> = withContext(defaultDispatcher) {
-        exerciseRepository.searchActiveExercises(query, excludeUuids)
+    ): List<SingleTrainingInteractor.PickerExercise> = withContext(defaultDispatcher) {
+        exerciseRepository
+            .searchActiveExercises(query, excludeUuids)
+            .map { exercise ->
+                SingleTrainingInteractor.PickerExercise(
+                    exercise = exercise,
+                    labels = exerciseRepository.getLabels(exercise.uuid),
+                )
+            }
     }
 
     override suspend fun resolveExercises(
         uuids: List<String>,
-    ): List<ExerciseDataModel> = withContext(defaultDispatcher) {
-        exerciseRepository.getExercisesByUuid(uuids)
+    ): List<SingleTrainingInteractor.PickerExercise> = withContext(defaultDispatcher) {
+        exerciseRepository
+            .getExercisesByUuid(uuids)
+            .map { exercise ->
+                SingleTrainingInteractor.PickerExercise(
+                    exercise = exercise,
+                    labels = exerciseRepository.getLabels(exercise.uuid),
+                )
+            }
     }
 }

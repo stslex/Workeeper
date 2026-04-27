@@ -208,6 +208,9 @@ post-Stage-5.1 layout below.
     below). Hardcoded `Color()`, `sp`, or `dp` outside `core/ui/kit/theme/` are not allowed.
     Every `public` or `internal` `@Composable` you add must ship with `@Preview` functions
     in the same file — see Composable previews below.
+    Keep UI-layer boundaries strict: Composables/Graph files should render preformatted
+    state only. Date/time/number formatting, relative-time labels, list-to-string shaping,
+    and locale-sensitive text mapping belong in handler/mapper/state layers.
 
 18. Add a smoke UI test stub under
     `feature/<name>/src/androidTest/kotlin/.../<Name>ScreenTest.kt` annotated `@Smoke`. Most

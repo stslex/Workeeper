@@ -8,6 +8,8 @@ import io.github.stslex.workeeper.feature.all_exercises.mvi.handler.AllExercises
 import io.github.stslex.workeeper.feature.all_trainings.mvi.handler.AllTrainingsComponent
 import io.github.stslex.workeeper.feature.charts.mvi.handler.ChartsComponent
 import io.github.stslex.workeeper.feature.exercise.mvi.handler.ExerciseComponent
+import io.github.stslex.workeeper.feature.home.mvi.handler.HomeComponent
+import io.github.stslex.workeeper.feature.live_workout.mvi.handler.LiveWorkoutComponent
 import io.github.stslex.workeeper.feature.settings.mvi.handler.ArchiveComponent
 import io.github.stslex.workeeper.feature.settings.mvi.handler.SettingsComponent
 import io.github.stslex.workeeper.feature.single_training.mvi.handler.SingleTrainingComponent
@@ -19,11 +21,13 @@ class RootComponentImpl(
     override fun createComponent(
         screen: Screen,
     ): Component<*> = when (screen) {
+        Screen.BottomBar.Home -> HomeComponent.create(navigator)
         Screen.BottomBar.AllExercises -> AllExercisesComponent.create(navigator)
         Screen.BottomBar.AllTrainings -> AllTrainingsComponent.create(navigator)
         Screen.BottomBar.Charts -> ChartsComponent.create(navigator)
         is Screen.Exercise -> ExerciseComponent.create(navigator, screen)
         is Screen.Training -> SingleTrainingComponent.create(navigator, screen)
+        is Screen.LiveWorkout -> LiveWorkoutComponent.create(navigator, screen)
         Screen.Settings -> SettingsComponent.create(navigator)
         Screen.Archive -> ArchiveComponent.create(navigator)
     }

@@ -10,6 +10,8 @@ private const val MINUTE_MS = 60_000L
 private const val HOUR_MS = 60 * MINUTE_MS
 private const val DAY_MS = 24 * HOUR_MS
 
+// TODO(tech-debt): Move relative-time formatting out of UI components and provide a
+// preformatted status label from handler/state mapping.
 /**
  * Compact "Xm / Xh / Xd ago" labels used by Trainings tab status lines. Resolves the
  * strings via [stringResource] so RU plural forms come from `values-ru`.

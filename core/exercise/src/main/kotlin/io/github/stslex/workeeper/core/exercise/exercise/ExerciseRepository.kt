@@ -79,6 +79,13 @@ interface ExerciseRepository {
     suspend fun getRecentHistory(exerciseUuid: String, limit: Int): List<HistoryEntry>
 
     /**
+     * Returns the tag names denormalized through the `exercise_tag` join. Replaces the
+     * legacy `ExerciseDataModel.labels` field; callers query this only when they actually
+     * need to render tags so the Exercise data model stays untainted by join data.
+     */
+    suspend fun getLabels(exerciseUuid: String): List<String>
+
+    /**
      * Bulk-archive a batch of exercises. Mirrors [ExerciseRepository.archive] except it
      * runs in one transaction; exercises currently used by an active (non-archived)
      * training are excluded and surfaced in [BulkArchiveOutcome.blockedNames].
