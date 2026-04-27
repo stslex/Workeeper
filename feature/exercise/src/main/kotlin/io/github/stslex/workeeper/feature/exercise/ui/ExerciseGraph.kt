@@ -12,15 +12,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavGraphBuilder
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
-import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppPlanEditor
-import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppPlanEditorAction
-import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppPlanEditorState
 import io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
+import io.github.stslex.workeeper.core.ui.plan_editor.AppPlanEditor
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseFeature
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Action
@@ -61,10 +59,14 @@ fun NavGraphBuilder.exerciseGraph(
             stringResource(R.string.feature_exercise_detail_permanent_delete_confirm_button)
         val permanentDeleteSuccess =
             stringResource(R.string.feature_exercise_detail_permanent_delete_success)
-        val typeChangeTitle = stringResource(R.string.feature_exercise_edit_type_change_weightless_title)
-        val typeChangeBody = stringResource(R.string.feature_exercise_edit_type_change_weightless_body)
-        val typeChangeImpact = stringResource(R.string.feature_exercise_edit_type_change_weightless_impact)
-        val typeChangeConfirm = stringResource(R.string.feature_exercise_edit_type_change_weightless_confirm)
+        val typeChangeTitle =
+            stringResource(R.string.feature_exercise_edit_type_change_weightless_title)
+        val typeChangeBody =
+            stringResource(R.string.feature_exercise_edit_type_change_weightless_body)
+        val typeChangeImpact =
+            stringResource(R.string.feature_exercise_edit_type_change_weightless_impact)
+        val typeChangeConfirm =
+            stringResource(R.string.feature_exercise_edit_type_change_weightless_confirm)
 
         var pendingDiscard by remember { mutableStateOf<DiscardTarget?>(null) }
         var archiveBlockedState by remember {
@@ -91,12 +93,20 @@ fun NavGraphBuilder.exerciseGraph(
 
                 Event.ShowTagLimitReached -> SnackbarManager.showSnackbar(message = tagLimitMessage)
                 Event.ShowTrackNowPending -> SnackbarManager.showSnackbar(message = trackPendingMessage)
-                is Event.ShowDiscardConfirmDialog -> { pendingDiscard = event.target }
-                is Event.ShowPermanentDeleteConfirm -> { permanentDeleteName = event.name }
+                is Event.ShowDiscardConfirmDialog -> {
+                    pendingDiscard = event.target
+                }
+
+                is Event.ShowPermanentDeleteConfirm -> {
+                    permanentDeleteName = event.name
+                }
+
                 Event.ShowPermanentDeleteSuccess ->
                     SnackbarManager.showSnackbar(message = permanentDeleteSuccess)
 
-                Event.ShowTypeChangeConfirm -> { showTypeChangeDialog = true }
+                Event.ShowTypeChangeConfirm -> {
+                    showTypeChangeDialog = true
+                }
             }
         }
 
@@ -185,31 +195,11 @@ fun NavGraphBuilder.exerciseGraph(
         }
         state.planEditorTarget?.let { target ->
             AppPlanEditor(
-                state = AppPlanEditorState(
-                    exerciseName = state.name,
-                    draft = target.draft,
-                ),
-                isWeighted = state.type == ExerciseTypeDataModel.WEIGHTED,
-                onAction = { action -> processor.consume(action.toStoreAction()) },
+                exerciseName = state.name,
+                draft = target.draft,
+                isWeighted = state.type == ExerciseTypeUiModel.WEIGHTED,
+                onAction = { action -> processor.consume(Action.PlanEditorAction(action)) },
             )
         }
     }
-}
-
-private fun AppPlanEditorAction.toStoreAction(): Action.Click = when (this) {
-    is AppPlanEditorAction.OnSetWeightChange ->
-        Action.Click.OnPlanEditorSetWeight(index = index, value = value)
-
-    is AppPlanEditorAction.OnSetRepsChange ->
-        Action.Click.OnPlanEditorSetReps(index = index, reps = reps)
-
-    is AppPlanEditorAction.OnSetTypeChange ->
-        Action.Click.OnPlanEditorSetType(index = index, type = type)
-
-    is AppPlanEditorAction.OnSetRemove ->
-        Action.Click.OnPlanEditorRemoveSet(index = index)
-
-    AppPlanEditorAction.OnAddSet -> Action.Click.OnPlanEditorAddSet
-    AppPlanEditorAction.OnSave -> Action.Click.OnPlanEditorSave
-    AppPlanEditorAction.OnDismiss -> Action.Click.OnPlanEditorDismiss
 }

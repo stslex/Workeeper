@@ -7,12 +7,16 @@ import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.HistoryEntry
 import io.github.stslex.workeeper.core.exercise.tags.model.TagDataModel
 import kotlinx.coroutines.flow.Flow
+import kotlin.uuid.Uuid
 
 internal interface ExerciseInteractor {
 
     suspend fun getExercise(uuid: String): ExerciseDataModel?
 
-    suspend fun getRecentHistory(exerciseUuid: String, limit: Int = DEFAULT_HISTORY_LIMIT): List<HistoryEntry>
+    suspend fun getRecentHistory(
+        exerciseUuid: String,
+        limit: Int = DEFAULT_HISTORY_LIMIT,
+    ): List<HistoryEntry>
 
     fun observeAvailableTags(): Flow<List<TagDataModel>>
 
@@ -43,7 +47,7 @@ internal interface ExerciseInteractor {
 
     sealed interface SaveResult {
 
-        data class Success(val resolvedUuid: String) : SaveResult
+        data class Success(val resolvedUuid: Uuid) : SaveResult
 
         data object DuplicateName : SaveResult
     }

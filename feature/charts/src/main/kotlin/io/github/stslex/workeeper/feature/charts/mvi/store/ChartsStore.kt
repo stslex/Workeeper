@@ -1,5 +1,6 @@
 package io.github.stslex.workeeper.feature.charts.mvi.store
 
+import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
 import io.github.stslex.workeeper.core.ui.mvi.Store
@@ -12,6 +13,7 @@ import io.github.stslex.workeeper.feature.charts.mvi.store.ChartsStore.State
 
 internal interface ChartsStore : Store<State, Action, Event> {
 
+    @Stable
     data class State(
         val name: String,
         val chartState: ChartsState,

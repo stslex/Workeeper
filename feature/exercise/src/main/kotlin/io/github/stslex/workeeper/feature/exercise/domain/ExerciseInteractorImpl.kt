@@ -17,7 +17,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
-import kotlin.uuid.Uuid
 
 @ViewModelScoped
 internal class ExerciseInteractorImpl @Inject constructor(
@@ -46,10 +45,8 @@ internal class ExerciseInteractorImpl @Inject constructor(
     override suspend fun saveExercise(
         snapshot: ExerciseChangeDataModel,
     ): SaveResult = withContext(defaultDispatcher) {
-        val resolvedUuid = snapshot.uuid?.takeIf { it.isNotBlank() } ?: Uuid.random().toString()
-        val toSave = snapshot.copy(uuid = resolvedUuid)
-        when (exerciseRepository.saveItem(toSave)) {
-            ExerciseRepository.SaveResult.Success -> SaveResult.Success(resolvedUuid)
+        when (exerciseRepository.saveItem(snapshot)) {
+            ExerciseRepository.SaveResult.Success -> SaveResult.Success(snapshot.uuid)
             ExerciseRepository.SaveResult.DuplicateName -> SaveResult.DuplicateName
         }
     }

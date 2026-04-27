@@ -17,33 +17,34 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
-import io.github.stslex.workeeper.feature.exercise.R
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 
 @Composable
 internal fun TypeToggle(
-    selected: ExerciseTypeDataModel,
-    onSelect: (ExerciseTypeDataModel) -> Unit,
+    selected: ExerciseTypeUiModel,
+    onSelect: (ExerciseTypeUiModel) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier.fillMaxWidth().testTag("ExerciseTypeToggle"),
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag("ExerciseTypeToggle"),
         horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
         TypeOption(
-            label = stringResource(R.string.feature_exercise_detail_type_weighted),
-            isSelected = selected == ExerciseTypeDataModel.WEIGHTED,
-            onClick = { onSelect(ExerciseTypeDataModel.WEIGHTED) },
+            label = stringResource(ExerciseTypeUiModel.WEIGHTED.labelRes),
+            isSelected = selected == ExerciseTypeUiModel.WEIGHTED,
+            onClick = { onSelect(ExerciseTypeUiModel.WEIGHTED) },
             modifier = Modifier
                 .weight(1f)
                 .testTag("ExerciseTypeOption_WEIGHTED"),
         )
         TypeOption(
-            label = stringResource(R.string.feature_exercise_detail_type_weightless),
-            isSelected = selected == ExerciseTypeDataModel.WEIGHTLESS,
-            onClick = { onSelect(ExerciseTypeDataModel.WEIGHTLESS) },
+            label = stringResource(ExerciseTypeUiModel.WEIGHTLESS.labelRes),
+            isSelected = selected == ExerciseTypeUiModel.WEIGHTLESS,
+            onClick = { onSelect(ExerciseTypeUiModel.WEIGHTLESS) },
             modifier = Modifier
                 .weight(1f)
                 .testTag("ExerciseTypeOption_WEIGHTLESS"),
@@ -59,8 +60,16 @@ private fun TypeOption(
     modifier: Modifier = Modifier,
 ) {
     val borderColor = if (isSelected) AppUi.colors.accent else AppUi.colors.borderDefault
-    val background = if (isSelected) AppUi.colors.accentTintedBackground else AppUi.colors.surfaceTier1
-    val textColor = if (isSelected) AppUi.colors.accentTintedForeground else AppUi.colors.textPrimary
+    val background = if (isSelected) {
+        AppUi.colors.accentTintedBackground
+    } else {
+        AppUi.colors.surfaceTier1
+    }
+    val textColor = if (isSelected) {
+        AppUi.colors.accentTintedForeground
+    } else {
+        AppUi.colors.textPrimary
+    }
     Box(
         modifier = modifier
             .height(AppDimension.heightMd)

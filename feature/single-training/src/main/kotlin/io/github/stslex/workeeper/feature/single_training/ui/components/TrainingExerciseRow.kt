@@ -27,11 +27,11 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagChip
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.single_training.R
 import io.github.stslex.workeeper.feature.single_training.mvi.model.TrainingExerciseItem
 import kotlinx.collections.immutable.persistentListOf
@@ -44,7 +44,6 @@ internal fun TrainingExerciseRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val planSummary = item.planSets?.formatPlanSummary().orEmpty()
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -72,11 +71,11 @@ internal fun TrainingExerciseRow(
                 ExerciseRowTags(tags = item.tags)
             }
             Text(
-                text = planSummary.ifBlank {
+                text = item.planSummary.ifBlank {
                     stringResource(R.string.feature_training_edit_no_plan)
                 },
                 style = AppUi.typography.bodySmall.copy(
-                    fontStyle = if (planSummary.isBlank()) FontStyle.Italic else FontStyle.Normal,
+                    fontStyle = if (item.planSummary.isBlank()) FontStyle.Italic else FontStyle.Normal,
                 ),
                 color = AppUi.colors.textTertiary,
                 maxLines = 1,
@@ -93,8 +92,8 @@ internal fun TrainingExerciseRow(
 }
 
 @Composable
-private fun TypeIcon(type: ExerciseTypeDataModel) {
-    val isWeighted = type == ExerciseTypeDataModel.WEIGHTED
+internal fun TypeIcon(type: ExerciseTypeUiModel) {
+    val isWeighted = type == ExerciseTypeUiModel.WEIGHTED
     Box(
         modifier = Modifier
             .size(28.dp)
@@ -144,10 +143,11 @@ private fun TrainingExerciseRowPreview() {
             item = TrainingExerciseItem(
                 exerciseUuid = "1",
                 exerciseName = "Bench press",
-                exerciseType = ExerciseTypeDataModel.WEIGHTED,
+                exerciseType = ExerciseTypeUiModel.WEIGHTED,
                 tags = persistentListOf("Push", "Chest"),
                 position = 0,
                 planSets = null,
+                planSummary = "100×5 · 100×5 · 102.5×5",
             ),
             onClick = {},
         )

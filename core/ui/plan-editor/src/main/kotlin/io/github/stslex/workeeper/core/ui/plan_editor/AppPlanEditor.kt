@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.core.ui.kit.components.sheet
+package io.github.stslex.workeeper.core.ui.plan_editor
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -35,17 +35,18 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
-import io.github.stslex.workeeper.core.database.sets.SetTypeDataModel
 import io.github.stslex.workeeper.core.ui.kit.R
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppNumberInput
 import io.github.stslex.workeeper.core.ui.kit.components.setchip.AppSetTypeChip
-import io.github.stslex.workeeper.core.ui.kit.components.setchip.SetType
+import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppBottomSheet
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import io.github.stslex.workeeper.core.ui.plan_editor.model.AppPlanEditorAction
+import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
+import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -69,7 +70,8 @@ private const val WEIGHT_COLUMN_FLEX = 1.2f
  */
 @Composable
 fun AppPlanEditor(
-    state: AppPlanEditorState,
+    exerciseName: String,
+    draft: ImmutableList<PlanSetUiModel>,
     isWeighted: Boolean,
     onAction: (AppPlanEditorAction) -> Unit,
     modifier: Modifier = Modifier,
@@ -78,10 +80,10 @@ fun AppPlanEditor(
         modifier = modifier.testTag("AppPlanEditor"),
         onDismiss = { onAction(AppPlanEditorAction.OnDismiss) },
     ) {
-        PlanEditorHeader(exerciseName = state.exerciseName)
+        PlanEditorHeader(exerciseName = exerciseName)
         Spacer(Modifier.height(AppDimension.Space.md))
         PlanEditorBody(
-            draft = state.draft,
+            draft = draft,
             isWeighted = isWeighted,
             onAction = onAction,
         )
@@ -140,7 +142,7 @@ private fun PlanEditorHeader(exerciseName: String) {
 
 @Composable
 private fun ColumnScope.PlanEditorBody(
-    draft: ImmutableList<PlanSetDataModel>,
+    draft: ImmutableList<PlanSetUiModel>,
     isWeighted: Boolean,
     onAction: (AppPlanEditorAction) -> Unit,
 ) {
@@ -157,7 +159,7 @@ private fun ColumnScope.PlanEditorBody(
         return
     }
     // Plain Column rather than LazyColumn so each row's TextField is anchored to a
-    // stable composition slot — LazyColumn would re-key on PlanSetDataModel.hashCode
+    // stable composition slot — LazyColumn would re-key on PlanEditorSetUiModel.hashCode
     // changes and tear down the row each character, dismissing the soft keyboard.
     Column(
         modifier = Modifier
@@ -181,7 +183,7 @@ private fun ColumnScope.PlanEditorBody(
 @Composable
 private fun PlanEditorRow(
     index: Int,
-    item: PlanSetDataModel,
+    item: PlanSetUiModel,
     isWeighted: Boolean,
     onAction: (AppPlanEditorAction) -> Unit,
 ) {
@@ -231,14 +233,14 @@ private fun PlanEditorRow(
                     .padding(horizontal = AppDimension.Space.xxs, vertical = AppDimension.Space.xxs)
                     .testTag("AppPlanEditorRowType_$index"),
             ) {
-                AppSetTypeChip(type = item.type.toKitChip())
+                AppSetTypeChip(type = item.type.toUiKitType())
             }
             DropdownMenu(
                 expanded = typeMenuOpen,
                 onDismissRequest = { typeMenuOpen = false },
                 containerColor = AppUi.colors.surfaceTier2,
             ) {
-                SetTypeDataModel.entries.forEach { type ->
+                SetTypeUiModel.entries.forEach { type ->
                     DropdownMenuItem(
                         modifier = Modifier.testTag("AppPlanEditorTypeOption_${type.name}"),
                         text = {
@@ -272,20 +274,6 @@ private fun PlanEditorRow(
     }
 }
 
-private fun SetTypeDataModel.toKitChip(): SetType = when (this) {
-    SetTypeDataModel.WARMUP -> SetType.WARMUP
-    SetTypeDataModel.WORK -> SetType.WORK
-    SetTypeDataModel.FAILURE -> SetType.FAIL
-    SetTypeDataModel.DROP -> SetType.DROP
-}
-
-private val SetTypeDataModel.labelRes: Int
-    get() = when (this) {
-        SetTypeDataModel.WARMUP -> R.string.core_ui_kit_plan_editor_set_type_warmup
-        SetTypeDataModel.WORK -> R.string.core_ui_kit_plan_editor_set_type_work
-        SetTypeDataModel.FAILURE -> R.string.core_ui_kit_plan_editor_set_type_failure
-        SetTypeDataModel.DROP -> R.string.core_ui_kit_plan_editor_set_type_drop
-    }
 
 private fun Double.formatPlain(): String = if (this % 1.0 == 0.0) {
     toLong().toString()
@@ -303,15 +291,13 @@ private fun Double.formatPlain(): String = if (this % 1.0 == 0.0) {
 private fun AppPlanEditorWeightedPopulatedPreview() {
     AppTheme {
         AppPlanEditor(
-            state = AppPlanEditorState(
-                exerciseName = "Bench Press",
-                draft = listOf(
-                    PlanSetDataModel(60.0, 10, SetTypeDataModel.WARMUP),
-                    PlanSetDataModel(80.0, 8, SetTypeDataModel.WORK),
-                    PlanSetDataModel(100.0, 5, SetTypeDataModel.WORK),
-                    PlanSetDataModel(85.0, 6, SetTypeDataModel.FAILURE),
-                ).toImmutableList(),
-            ),
+            exerciseName = "Bench Press",
+            draft = listOf(
+                PlanSetUiModel(60.0, 10, SetTypeUiModel.WARMUP),
+                PlanSetUiModel(80.0, 8, SetTypeUiModel.WORK),
+                PlanSetUiModel(100.0, 5, SetTypeUiModel.WORK),
+                PlanSetUiModel(85.0, 6, SetTypeUiModel.FAILURE),
+            ).toImmutableList(),
             isWeighted = true,
             onAction = {},
         )
@@ -328,10 +314,8 @@ private fun AppPlanEditorWeightedPopulatedPreview() {
 private fun AppPlanEditorWeightedEmptyPreview() {
     AppTheme {
         AppPlanEditor(
-            state = AppPlanEditorState(
-                exerciseName = "Bench Press",
-                draft = persistentListOf(),
-            ),
+            exerciseName = "Bench Press",
+            draft = persistentListOf(),
             isWeighted = true,
             onAction = {},
         )
@@ -348,14 +332,12 @@ private fun AppPlanEditorWeightedEmptyPreview() {
 private fun AppPlanEditorWeightlessPopulatedPreview() {
     AppTheme {
         AppPlanEditor(
-            state = AppPlanEditorState(
-                exerciseName = "Pull-up",
-                draft = listOf(
-                    PlanSetDataModel(null, 8, SetTypeDataModel.WORK),
-                    PlanSetDataModel(null, 6, SetTypeDataModel.WORK),
-                    PlanSetDataModel(null, 4, SetTypeDataModel.DROP),
-                ).toImmutableList(),
-            ),
+            exerciseName = "Pull-up",
+            draft = listOf(
+                PlanSetUiModel(null, 8, SetTypeUiModel.WORK),
+                PlanSetUiModel(null, 6, SetTypeUiModel.WORK),
+                PlanSetUiModel(null, 4, SetTypeUiModel.DROP),
+            ).toImmutableList(),
             isWeighted = false,
             onAction = {},
         )
@@ -372,10 +354,8 @@ private fun AppPlanEditorWeightlessPopulatedPreview() {
 private fun AppPlanEditorWeightlessEmptyPreview() {
     AppTheme {
         AppPlanEditor(
-            state = AppPlanEditorState(
-                exerciseName = "",
-                draft = persistentListOf(),
-            ),
+            exerciseName = "",
+            draft = persistentListOf(),
             isWeighted = false,
             onAction = {},
         )

@@ -32,10 +32,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.card.AppCard
-import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagChip
+import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagChip.Static
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -67,7 +66,7 @@ internal fun ExerciseDetailScreen(
         ) {
             Spacer(Modifier.height(AppDimension.Space.sm))
             ExerciseHero(type = state.type)
-            TypePill(state = state)
+            Static(label = stringResource(state.type.labelRes))
             Text(
                 text = state.name,
                 style = AppUi.typography.headlineSmall,
@@ -79,7 +78,7 @@ internal fun ExerciseDetailScreen(
                     horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.xs),
                     verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xxs),
                 ) {
-                    state.tags.forEach { tag -> AppTagChip.Static(label = tag.name) }
+                    state.tags.forEach { tag -> Static(label = tag.name) }
                 }
             }
             if (state.description.isNotBlank()) {
@@ -185,16 +184,6 @@ private fun DetailTopBar(
             }
         },
     )
-}
-
-@Composable
-private fun TypePill(state: State) {
-    val labelRes = if (state.type == ExerciseTypeDataModel.WEIGHTED) {
-        R.string.feature_exercise_detail_type_weighted
-    } else {
-        R.string.feature_exercise_detail_type_weightless
-    }
-    AppTagChip.Static(label = stringResource(labelRes))
 }
 
 @Composable

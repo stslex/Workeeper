@@ -2,18 +2,19 @@
 package io.github.stslex.workeeper.feature.single_training.mvi.model
 
 import androidx.compose.runtime.Stable
-import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
+import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import kotlinx.collections.immutable.ImmutableList
 
 @Stable
 data class TrainingExerciseItem(
     val exerciseUuid: String,
     val exerciseName: String,
-    val exerciseType: ExerciseTypeDataModel,
+    val exerciseType: ExerciseTypeUiModel,
     val tags: ImmutableList<String>,
     val position: Int,
-    val planSets: ImmutableList<PlanSetDataModel>?,
+    val planSets: ImmutableList<PlanSetUiModel>?,
+    val planSummary: String,
 )
 
 @Stable
@@ -28,6 +29,6 @@ data class HistorySessionItem(
 data class PickerExerciseItem(
     val uuid: String,
     val name: String,
-    val type: ExerciseTypeDataModel,
+    val type: ExerciseTypeUiModel,
     val tags: ImmutableList<String>,
 )

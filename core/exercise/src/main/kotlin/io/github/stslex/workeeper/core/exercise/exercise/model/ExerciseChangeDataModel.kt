@@ -1,11 +1,12 @@
 package io.github.stslex.workeeper.core.exercise.exercise.model
 
-import io.github.stslex.workeeper.core.core.utils.CommonExt.parseOrRandom
+import io.github.stslex.workeeper.core.database.converters.PlanSetsConverter
 import io.github.stslex.workeeper.core.database.exercise.ExerciseEntity
+import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import kotlin.uuid.Uuid
 
 data class ExerciseChangeDataModel(
-    val uuid: String? = null,
+    val uuid: Uuid,
     val name: String,
     val type: ExerciseTypeDataModel = ExerciseTypeDataModel.WEIGHTED,
     val description: String? = null,
@@ -13,10 +14,11 @@ data class ExerciseChangeDataModel(
     val archived: Boolean = false,
     val timestamp: Long,
     val labels: List<String> = emptyList(),
+    val lastAdHocSets: List<PlanSetDataModel>?,
 )
 
 internal fun ExerciseChangeDataModel.toEntity(): ExerciseEntity = ExerciseEntity(
-    uuid = Uuid.parseOrRandom(uuid),
+    uuid = uuid,
     name = name,
     type = type.toEntity(),
     description = description,
@@ -24,4 +26,5 @@ internal fun ExerciseChangeDataModel.toEntity(): ExerciseEntity = ExerciseEntity
     archived = archived,
     createdAt = timestamp,
     archivedAt = null,
+    lastAdhocSets = PlanSetsConverter.toJson(lastAdHocSets),
 )

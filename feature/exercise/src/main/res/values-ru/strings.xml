@@ -9,8 +9,7 @@
     <string name="feature_exercise_detail_archive">В архив</string>
     <string name="feature_exercise_detail_back_description">Назад</string>
     <string name="feature_exercise_detail_more_description">Ещё</string>
-    <string name="feature_exercise_detail_type_weighted">С весом</string>
-    <string name="feature_exercise_detail_type_weightless">Без веса</string>
+
     <string name="feature_exercise_detail_archive_success_format">«%1$s» в архиве</string>
     <string name="feature_exercise_detail_archive_blocked_title">Нельзя архивировать</string>
     <string name="feature_exercise_detail_archive_blocked_body_format">«%1$s» используется в активных тренировках: %2$s. Удалите из них сначала.</string>

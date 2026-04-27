@@ -3,10 +3,11 @@ package io.github.stslex.workeeper.feature.single_training.mvi.store
 
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.exercise.session.model.ActiveSessionInfo
 import io.github.stslex.workeeper.core.ui.mvi.Store
+import io.github.stslex.workeeper.core.ui.plan_editor.model.AppPlanEditorAction
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
+import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.feature.single_training.mvi.model.HistorySessionItem
 import io.github.stslex.workeeper.feature.single_training.mvi.model.PickerExerciseItem
 import io.github.stslex.workeeper.feature.single_training.mvi.model.TagUiModel
@@ -75,9 +76,14 @@ internal interface SingleTrainingStore : Store<State, Action, Event> {
         ) {
 
             fun matches(state: State): Boolean = state.name == name &&
-                state.description == description &&
-                state.tags.map { it.uuid } == tagUuids &&
-                state.exercises.map { ExerciseSignature(it.exerciseUuid, it.position) } == exerciseSignature
+                    state.description == description &&
+                    state.tags.map { it.uuid } == tagUuids &&
+                    state.exercises.map {
+                        ExerciseSignature(
+                            it.exerciseUuid,
+                            it.position,
+                        )
+                    } == exerciseSignature
         }
 
         @Stable
@@ -87,14 +93,14 @@ internal interface SingleTrainingStore : Store<State, Action, Event> {
         data class PlanEditorTarget(
             val exerciseUuid: String,
             val exerciseName: String,
-            val exerciseType: ExerciseTypeDataModel,
+            val exerciseType: ExerciseTypeUiModel,
             /** Snapshot of the plan when the editor opened — used for dirty detection. */
-            val initialPlan: ImmutableList<PlanSetDataModel>,
+            val initialPlan: ImmutableList<PlanSetUiModel>,
             /** Live draft updated on every editor field change. */
-            val draft: ImmutableList<PlanSetDataModel>,
+            val draft: ImmutableList<PlanSetUiModel>,
         ) {
 
-            val isWeighted: Boolean get() = exerciseType == ExerciseTypeDataModel.WEIGHTED
+            val isWeighted: Boolean get() = exerciseType == ExerciseTypeUiModel.WEIGHTED
         }
 
         @Stable
@@ -180,23 +186,6 @@ internal interface SingleTrainingStore : Store<State, Action, Event> {
 
             data class OnEditPlanClick(val exerciseUuid: String) : Click
 
-            data class OnPlanEditorSetWeight(val index: Int, val value: Double?) : Click
-
-            data class OnPlanEditorSetReps(val index: Int, val reps: Int) : Click
-
-            data class OnPlanEditorSetType(
-                val index: Int,
-                val type: io.github.stslex.workeeper.core.database.sets.SetTypeDataModel,
-            ) : Click
-
-            data class OnPlanEditorRemoveSet(val index: Int) : Click
-
-            data object OnPlanEditorAddSet : Click
-
-            data object OnPlanEditorSave : Click
-
-            data object OnPlanEditorDismiss : Click
-
             data class OnTagToggle(val tagUuid: String) : Click
 
             data class OnTagRemove(val tagUuid: String) : Click
@@ -221,6 +210,10 @@ internal interface SingleTrainingStore : Store<State, Action, Event> {
 
             data class OnPickerSearchChange(val value: String) : Input
         }
+
+        data class PlanEditAction(
+            val action: AppPlanEditorAction,
+        ) : Action
 
         sealed interface Navigation : Action {
 

@@ -28,7 +28,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppTextField
@@ -36,6 +35,7 @@ import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppBottomSheet
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.single_training.R
 import io.github.stslex.workeeper.feature.single_training.mvi.model.PickerExerciseItem
 import kotlinx.collections.immutable.ImmutableList
@@ -189,13 +189,13 @@ private fun ExercisePickerSheetPreview() {
                 PickerExerciseItem(
                     uuid = "1",
                     name = "Bench press",
-                    type = ExerciseTypeDataModel.WEIGHTED,
+                    type = ExerciseTypeUiModel.WEIGHTED,
                     tags = persistentListOf("Push", "Chest"),
                 ),
                 PickerExerciseItem(
                     uuid = "2",
                     name = "Pull-up",
-                    type = ExerciseTypeDataModel.WEIGHTLESS,
+                    type = ExerciseTypeUiModel.WEIGHTLESS,
                     tags = persistentListOf("Pull"),
                 ),
             ),

@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
+import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppTextField
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -180,7 +181,7 @@ private fun DefaultPlanSection(
                 style = AppUi.typography.bodySmall,
                 color = AppUi.colors.textTertiary,
             )
-            io.github.stslex.workeeper.core.ui.kit.components.button.AppButton.Tertiary(
+            AppButton.Tertiary(
                 modifier = Modifier.testTag("ExerciseEditPlanEditButton"),
                 text = stringResource(
                     if (state.adhocPlan.isNullOrEmpty()) {
@@ -190,7 +191,7 @@ private fun DefaultPlanSection(
                     },
                 ),
                 onClick = { consume(Action.Click.OnEditPlanClick) },
-                size = io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize.SMALL,
+                size = AppButtonSize.SMALL,
             )
         }
     }

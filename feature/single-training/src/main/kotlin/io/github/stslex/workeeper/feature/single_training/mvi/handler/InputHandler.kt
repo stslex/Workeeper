@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.feature.single_training.mvi.handler
 
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel.Companion.toUi
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingHandlerStore
 import io.github.stslex.workeeper.feature.single_training.domain.SingleTrainingInteractor
 import io.github.stslex.workeeper.feature.single_training.mvi.model.PickerExerciseItem
@@ -50,7 +51,7 @@ internal class InputHandler @Inject constructor(
                                 PickerExerciseItem(
                                     uuid = exercise.uuid,
                                     name = exercise.name,
-                                    type = exercise.type,
+                                    type = exercise.type.toUi(),
                                     tags = exercise.labels.toImmutableList(),
                                 )
                             }.toImmutableList(),

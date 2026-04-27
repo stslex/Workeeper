@@ -5,6 +5,9 @@ import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.exercise.session.model.SessionDataModel
 import io.github.stslex.workeeper.core.exercise.training.TrainingDataModel
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
+import io.github.stslex.workeeper.core.ui.plan_editor.mappers.formatPlanSummary
+import io.github.stslex.workeeper.core.ui.plan_editor.mappers.toUi
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel.Companion.toUi
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingHandlerStore
 import io.github.stslex.workeeper.feature.single_training.domain.SingleTrainingInteractor
 import io.github.stslex.workeeper.feature.single_training.mvi.model.HistorySessionItem
@@ -13,6 +16,7 @@ import io.github.stslex.workeeper.feature.single_training.mvi.model.TrainingExer
 import io.github.stslex.workeeper.feature.single_training.mvi.model.toUi
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State
+import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import javax.inject.Inject
@@ -82,13 +86,17 @@ internal class CommonHandler @Inject constructor(
         val exercises = result.exercises
             .sortedBy { it.position }
             .mapIndexed { index, detail ->
+                val planSets = detail.planSets
+                    ?.map { it.toUi() }
+                    ?.toImmutableList()
                 TrainingExerciseItem(
                     exerciseUuid = detail.exercise.uuid,
                     exerciseName = detail.exercise.name,
-                    exerciseType = detail.exercise.type,
+                    exerciseType = detail.exercise.type.toUi(),
                     tags = detail.exercise.labels.toImmutableList(),
                     position = index,
-                    planSets = detail.planSets?.toImmutableList(),
+                    planSets = planSets,
+                    planSummary = planSets?.formatPlanSummary().orEmpty(),
                 )
             }.toImmutableList()
         val past = result.recentSessions.toHistoryItems(training)
@@ -96,7 +104,12 @@ internal class CommonHandler @Inject constructor(
             name = training.name,
             description = training.description.orEmpty(),
             tagUuids = tags.map { it.uuid },
-            exerciseSignature = exercises.map { State.ExerciseSignature(it.exerciseUuid, it.position) },
+            exerciseSignature = exercises.map {
+                State.ExerciseSignature(
+                    it.exerciseUuid,
+                    it.position,
+                )
+            },
         )
         return copy(
             uuid = training.uuid,
@@ -113,7 +126,7 @@ internal class CommonHandler @Inject constructor(
 
     private fun List<SessionDataModel>.toHistoryItems(
         training: TrainingDataModel,
-    ): kotlinx.collections.immutable.ImmutableList<HistorySessionItem> = mapNotNull { session ->
+    ): ImmutableList<HistorySessionItem> = mapNotNull { session ->
         val finished = session.finishedAt ?: return@mapNotNull null
         HistorySessionItem(
             sessionUuid = session.uuid,

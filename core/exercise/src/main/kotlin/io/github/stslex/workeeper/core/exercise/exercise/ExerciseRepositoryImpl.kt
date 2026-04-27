@@ -92,7 +92,7 @@ internal class ExerciseRepositoryImpl @Inject constructor(
     override suspend fun saveItem(item: ExerciseChangeDataModel): SaveResult = withContext(bgDispatcher) {
         val entity = item.toEntity()
         try {
-            if (item.uuid.isNullOrBlank()) {
+            if (item.uuid.toString().isBlank()) {
                 dao.insert(entity)
             } else {
                 val existing = dao.getById(entity.uuid)

@@ -6,6 +6,8 @@ import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.HistoryEntry
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
+import io.github.stslex.workeeper.core.ui.plan_editor.mappers.toUi
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel.Companion.toUi
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.mvi.model.TagUiModel
@@ -13,6 +15,7 @@ import io.github.stslex.workeeper.feature.exercise.mvi.model.toUi
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.async
 import javax.inject.Inject
 
 @ViewModelScoped
@@ -47,11 +50,16 @@ internal class CommonHandler @Inject constructor(
         launch(
             onSuccess = { result -> updateStateImmediate { current -> current.applyLoaded(result) } },
         ) {
-            val exercise = interactor.getExercise(uuid)
-            val history = interactor.getRecentHistory(uuid)
-            val canPermanentlyDelete = interactor.canPermanentlyDelete(uuid)
-            val adhocPlan = interactor.getAdhocPlan(uuid)
-            LoadResult(exercise, history, canPermanentlyDelete, adhocPlan)
+            val exercise = async { interactor.getExercise(uuid) }
+            val history = async { interactor.getRecentHistory(uuid) }
+            val canPermanentlyDelete = async { interactor.canPermanentlyDelete(uuid) }
+            val adhocPlan = async { interactor.getAdhocPlan(uuid) }
+            LoadResult(
+                exercise = exercise.await(),
+                history = history.await(),
+                canPermanentlyDelete = canPermanentlyDelete.await(),
+                adhocPlan = adhocPlan.await(),
+            )
         }
     }
 
@@ -65,16 +73,18 @@ internal class CommonHandler @Inject constructor(
             .toImmutableList()
         return copy(
             name = exercise.name,
-            type = exercise.type,
+            type = exercise.type.toUi(),
             description = exercise.description.orEmpty(),
             tags = tags,
             recentHistory = result.history.map { it.toUi() }.toImmutableList(),
             isLoading = false,
             canPermanentlyDelete = result.canPermanentlyDelete,
-            adhocPlan = result.adhocPlan?.toImmutableList(),
+            adhocPlan = result.adhocPlan
+                ?.map { it.toUi() }
+                ?.toImmutableList(),
             originalSnapshot = State.Snapshot(
                 name = exercise.name,
-                type = exercise.type,
+                type = exercise.type.toUi(),
                 description = exercise.description.orEmpty(),
                 tagUuids = tags.map { it.uuid },
             ),

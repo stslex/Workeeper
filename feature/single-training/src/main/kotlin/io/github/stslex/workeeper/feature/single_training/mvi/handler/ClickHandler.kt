@@ -4,10 +4,9 @@ package io.github.stslex.workeeper.feature.single_training.mvi.handler
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
-import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
-import io.github.stslex.workeeper.core.database.sets.SetTypeDataModel
 import io.github.stslex.workeeper.core.exercise.training.TrainingChangeDataModel
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel.Companion.toUi
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingHandlerStore
 import io.github.stslex.workeeper.feature.single_training.domain.SingleTrainingInteractor
 import io.github.stslex.workeeper.feature.single_training.domain.SingleTrainingInteractor.ArchiveResult
@@ -25,8 +24,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import kotlin.uuid.Uuid
-
-private const val DEFAULT_NEW_REPS = 5
 
 @Suppress("TooManyFunctions", "LongMethod")
 @ViewModelScoped
@@ -55,13 +52,6 @@ internal class ClickHandler @Inject constructor(
             is Action.Click.OnExerciseRemove -> processExerciseRemove(action)
             is Action.Click.OnExerciseReorder -> processExerciseReorder(action)
             is Action.Click.OnEditPlanClick -> processEditPlanClick(action)
-            is Action.Click.OnPlanEditorSetWeight -> processPlanEditorSetWeight(action)
-            is Action.Click.OnPlanEditorSetReps -> processPlanEditorSetReps(action)
-            is Action.Click.OnPlanEditorSetType -> processPlanEditorSetType(action)
-            is Action.Click.OnPlanEditorRemoveSet -> processPlanEditorRemoveSet(action)
-            Action.Click.OnPlanEditorAddSet -> processPlanEditorAddSet()
-            Action.Click.OnPlanEditorSave -> processPlanEditorSave()
-            Action.Click.OnPlanEditorDismiss -> processPlanEditorDismiss()
             is Action.Click.OnTagToggle -> processTagToggle(action)
             is Action.Click.OnTagRemove -> processTagRemove(action)
             is Action.Click.OnTagCreate -> processTagCreate(action)
@@ -274,7 +264,7 @@ internal class ClickHandler @Inject constructor(
                                 PickerExerciseItem(
                                     uuid = exercise.uuid,
                                     name = exercise.name,
-                                    type = exercise.type,
+                                    type = exercise.type.toUi(),
                                     tags = exercise.labels.toImmutableList(),
                                 )
                             }.toImmutableList(),
@@ -338,107 +328,6 @@ internal class ClickHandler @Inject constructor(
         }
     }
 
-    private fun processPlanEditorDismiss() {
-        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        val current = state.value
-        if (current.isPlanEditorDirty) {
-            sendEvent(Event.ShowDiscardConfirmDialog)
-        } else {
-            updateState { it.copy(planEditorTarget = null) }
-        }
-    }
-
-    private fun processPlanEditorSetWeight(action: Action.Click.OnPlanEditorSetWeight) {
-        updatePlanRow(action.index) { it.copy(weight = action.value) }
-    }
-
-    private fun processPlanEditorSetReps(action: Action.Click.OnPlanEditorSetReps) {
-        updatePlanRow(action.index) { it.copy(reps = action.reps.coerceAtLeast(0)) }
-    }
-
-    private fun processPlanEditorSetType(action: Action.Click.OnPlanEditorSetType) {
-        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        updatePlanRow(action.index) { it.copy(type = action.type) }
-    }
-
-    private fun processPlanEditorRemoveSet(action: Action.Click.OnPlanEditorRemoveSet) {
-        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        updateState { current ->
-            val target = current.planEditorTarget ?: return@updateState current
-            val nextDraft = target.draft.toMutableList()
-                .also { if (action.index in it.indices) it.removeAt(action.index) }
-                .toImmutableList()
-            current.copy(planEditorTarget = target.copy(draft = nextDraft))
-        }
-    }
-
-    private fun processPlanEditorAddSet() {
-        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        updateState { current ->
-            val target = current.planEditorTarget ?: return@updateState current
-            val previous = target.draft.lastOrNull()
-            val nextSet = if (previous != null) {
-                previous.copy(type = SetTypeDataModel.WORK)
-            } else {
-                PlanSetDataModel(
-                    weight = if (target.isWeighted) null else null,
-                    reps = DEFAULT_NEW_REPS,
-                    type = SetTypeDataModel.WORK,
-                )
-            }
-            current.copy(
-                planEditorTarget = target.copy(
-                    draft = (target.draft + nextSet).toImmutableList(),
-                ),
-            )
-        }
-    }
-
-    private fun processPlanEditorSave() {
-        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        val current = state.value
-        val target = current.planEditorTarget ?: return
-        val trainingUuid = current.uuid
-        val nextPlan = target.draft.takeIf { it.isNotEmpty() }
-        // Update the in-memory exercise row immediately so the UI reflects the new plan
-        // even before persistence completes. Plans are sub-entities of (training,
-        // exercise) — independent of training-level Save.
-        updateState { latest ->
-            latest.copy(
-                exercises = latest.exercises.map { item ->
-                    if (item.exerciseUuid == target.exerciseUuid) {
-                        item.copy(planSets = nextPlan)
-                    } else {
-                        item
-                    }
-                }.toImmutableList(),
-                planEditorTarget = null,
-            )
-        }
-        if (trainingUuid != null) {
-            launch(onSuccess = { Unit }) {
-                interactor.setPlanForExercise(
-                    trainingUuid = trainingUuid,
-                    exerciseUuid = target.exerciseUuid,
-                    plan = nextPlan,
-                )
-            }
-        }
-    }
-
-    private inline fun updatePlanRow(
-        index: Int,
-        crossinline transform: (PlanSetDataModel) -> PlanSetDataModel,
-    ) {
-        updateState { current ->
-            val target = current.planEditorTarget ?: return@updateState current
-            if (index !in target.draft.indices) return@updateState current
-            val next = target.draft.toMutableList().apply { this[index] = transform(this[index]) }
-                .toImmutableList()
-            current.copy(planEditorTarget = target.copy(draft = next))
-        }
-    }
-
     private fun processTagToggle(action: Action.Click.OnTagToggle) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         updateState { current ->
@@ -469,7 +358,10 @@ internal class ClickHandler @Inject constructor(
             onSuccess = { tag ->
                 updateStateImmediate { current ->
                     current.copy(
-                        tags = (current.tags + TagUiModel(uuid = tag.uuid, name = tag.name)).toImmutableList(),
+                        tags = (current.tags + TagUiModel(
+                            uuid = tag.uuid,
+                            name = tag.name,
+                        )).toImmutableList(),
                         tagSearchQuery = "",
                     )
                 }
@@ -511,10 +403,11 @@ internal class ClickHandler @Inject constructor(
                         TrainingExerciseItem(
                             exerciseUuid = exercise.uuid,
                             exerciseName = exercise.name,
-                            exerciseType = exercise.type,
+                            exerciseType = exercise.type.toUi(),
                             tags = exercise.labels.toImmutableList(),
                             position = latest.exercises.size + localIndex,
-                            planSets = null,
+                            planSets = persistentListOf(), // TODO: add save to exersize template and load here instead of defaulting to empty; requires
+                            planSummary = "",
                         )
                     }
                     latest.copy(

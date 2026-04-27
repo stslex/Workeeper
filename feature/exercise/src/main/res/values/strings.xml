@@ -9,8 +9,6 @@
     <string name="feature_exercise_detail_archive">Archive</string>
     <string name="feature_exercise_detail_back_description">Back</string>
     <string name="feature_exercise_detail_more_description">More</string>
-    <string name="feature_exercise_detail_type_weighted">Weighted</string>
-    <string name="feature_exercise_detail_type_weightless">Weightless</string>
     <string name="feature_exercise_detail_archive_success_format">&#8216;%1$s&#8217; archived</string>
     <string name="feature_exercise_detail_archive_blocked_title">Cannot archive</string>
     <string name="feature_exercise_detail_archive_blocked_body_format">&#8216;%1$s&#8217; is used in active trainings: %2$s. Remove from those first.</string>

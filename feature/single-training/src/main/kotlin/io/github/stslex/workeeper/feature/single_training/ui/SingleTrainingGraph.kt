@@ -14,11 +14,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
-import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppPlanEditor
-import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppPlanEditorAction
-import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppPlanEditorState
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
+import io.github.stslex.workeeper.core.ui.plan_editor.AppPlanEditor
 import io.github.stslex.workeeper.feature.single_training.R
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingFeature
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
@@ -65,8 +63,14 @@ fun NavGraphBuilder.singleTrainingsGraph(
                     SnackbarManager.showSnackbar(message = archiveSuccessFormat.format(event.name))
 
                 is Event.ShowArchiveBlocked -> SnackbarManager.showSnackbar(message = archiveBlocked)
-                Event.ShowDiscardConfirmDialog -> { showDiscardDialog = true }
-                Event.ShowPermanentDeleteConfirmDialog -> { showPermanentDeleteDialog = true }
+                Event.ShowDiscardConfirmDialog -> {
+                    showDiscardDialog = true
+                }
+
+                Event.ShowPermanentDeleteConfirmDialog -> {
+                    showPermanentDeleteDialog = true
+                }
+
                 Event.ShowLiveWorkoutPending -> SnackbarManager.showSnackbar(message = livePending)
                 is Event.ShowOtherSessionActive ->
                     SnackbarManager.showSnackbar(message = otherSessionFormat.format(event.trainingName))
@@ -98,12 +102,10 @@ fun NavGraphBuilder.singleTrainingsGraph(
 
         state.planEditorTarget?.let { target ->
             AppPlanEditor(
-                state = AppPlanEditorState(
-                    exerciseName = target.exerciseName,
-                    draft = target.draft,
-                ),
+                exerciseName = target.exerciseName,
+                draft = target.draft,
                 isWeighted = target.isWeighted,
-                onAction = { action -> processor.consume(action.toStoreAction()) },
+                onAction = { action -> processor.consume(Action.PlanEditAction(action)) },
             )
         }
 
@@ -155,20 +157,3 @@ fun NavGraphBuilder.singleTrainingsGraph(
     }
 }
 
-private fun AppPlanEditorAction.toStoreAction(): Action.Click = when (this) {
-    is AppPlanEditorAction.OnSetWeightChange ->
-        Action.Click.OnPlanEditorSetWeight(index = index, value = value)
-
-    is AppPlanEditorAction.OnSetRepsChange ->
-        Action.Click.OnPlanEditorSetReps(index = index, reps = reps)
-
-    is AppPlanEditorAction.OnSetTypeChange ->
-        Action.Click.OnPlanEditorSetType(index = index, type = type)
-
-    is AppPlanEditorAction.OnSetRemove ->
-        Action.Click.OnPlanEditorRemoveSet(index = index)
-
-    AppPlanEditorAction.OnAddSet -> Action.Click.OnPlanEditorAddSet
-    AppPlanEditorAction.OnSave -> Action.Click.OnPlanEditorSave
-    AppPlanEditorAction.OnDismiss -> Action.Click.OnPlanEditorDismiss
-}

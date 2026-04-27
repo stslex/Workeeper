@@ -4,10 +4,11 @@ package io.github.stslex.workeeper.feature.exercise.mvi.handler
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
-import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
+import io.github.stslex.workeeper.core.core.utils.CommonExt.parseOrRandom
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
+import io.github.stslex.workeeper.core.ui.plan_editor.mappers.toData
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor.ArchiveResult
@@ -23,9 +24,7 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
-
-private const val MAX_TAGS_PER_EXERCISE = 10
-private const val DEFAULT_NEW_REPS = 5
+import kotlin.uuid.Uuid
 
 @Suppress("TooManyFunctions")
 @ViewModelScoped
@@ -57,13 +56,6 @@ internal class ClickHandler @Inject constructor(
             Action.Click.OnTypeChangeConfirm -> processTypeChangeConfirm()
             Action.Click.OnTypeChangeDismiss -> processTypeChangeDismiss()
             Action.Click.OnEditPlanClick -> processEditPlanClick()
-            is Action.Click.OnPlanEditorSetWeight -> processPlanEditorSetWeight(action)
-            is Action.Click.OnPlanEditorSetReps -> processPlanEditorSetReps(action)
-            is Action.Click.OnPlanEditorSetType -> processPlanEditorSetType(action)
-            is Action.Click.OnPlanEditorRemoveSet -> processPlanEditorRemoveSet(action)
-            Action.Click.OnPlanEditorAddSet -> processPlanEditorAddSet()
-            Action.Click.OnPlanEditorSave -> processPlanEditorSave()
-            Action.Click.OnPlanEditorDismiss -> processPlanEditorDismiss()
             is Action.Click.OnTagToggle -> processTagToggle(action)
             is Action.Click.OnTagRemove -> processTagRemove(action)
             is Action.Click.OnTagCreate -> processTagCreate(action)
@@ -144,27 +136,22 @@ internal class ClickHandler @Inject constructor(
             return
         }
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
-        val snapshot = ExerciseChangeDataModel(
-            uuid = current.uuid,
-            name = current.name.trim(),
-            type = current.type,
-            description = current.description.takeIf { it.isNotBlank() },
-            timestamp = System.currentTimeMillis(),
-            labels = current.tags.map { it.name },
-        )
         val mode = current.mode
         val isCreate = mode is Mode.Edit && mode.isCreate
         // HandlerStore.launch defaults eachDispatcher to defaultDispatcher, so onSuccess runs
         // on a background thread. Switch to mainDispatcher before consume(Action.Navigation.*)
         // so navigator.popBack() lands on the UI thread.
+
         launch(
             onSuccess = { result ->
                 when (result) {
-                    is SaveResult.Success -> handleSaveSuccess(
-                        resolvedUuid = result.resolvedUuid,
-                        isCreate = isCreate,
-                        current = current,
-                    )
+                    is SaveResult.Success -> {
+                        handleSaveSuccess(
+                            resolvedUuid = result.resolvedUuid.toString(),
+                            isCreate = isCreate,
+                            current = current,
+                        )
+                    }
 
                     SaveResult.DuplicateName -> updateStateImmediate {
                         it.copy(nameDuplicateError = true)
@@ -172,6 +159,15 @@ internal class ClickHandler @Inject constructor(
                 }
             },
         ) {
+            val snapshot = ExerciseChangeDataModel(
+                uuid = Uuid.parseOrRandom(current.uuid),
+                name = current.name.trim(),
+                type = current.type.toData(),
+                description = current.description.takeIf { it.isNotBlank() },
+                timestamp = System.currentTimeMillis(),
+                labels = current.tags.map { it.name },
+                lastAdHocSets = current.adhocPlan?.map { it.toData() },
+            )
             interactor.saveExercise(snapshot)
         }
     }
@@ -284,9 +280,9 @@ internal class ClickHandler @Inject constructor(
         // Switching from WEIGHTED to WEIGHTLESS while weighted plan rows exist would
         // silently strand weight data once Live workout pre-fills. Surface a confirm so
         // the user opts in to the multi-row wipe (handled by `processTypeChangeConfirm`).
-        val needsWeightWipe = action.type == ExerciseTypeDataModel.WEIGHTLESS &&
-            current.type == ExerciseTypeDataModel.WEIGHTED &&
-            (current.adhocPlan?.any { it.weight != null } == true)
+        val needsWeightWipe = action.type == ExerciseTypeUiModel.WEIGHTLESS &&
+                current.type == ExerciseTypeUiModel.WEIGHTED &&
+                (current.adhocPlan?.any { it.weight != null } == true)
         if (needsWeightWipe) {
             sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
             updateState { it.copy(pendingTypeChange = action.type) }
@@ -334,88 +330,6 @@ internal class ClickHandler @Inject constructor(
         }
     }
 
-    private fun processPlanEditorDismiss() {
-        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
-        val current = state.value
-        if (current.isPlanEditorDirty) {
-            // Reuse the screen-level discard surface (POP_SCREEN target carries the
-            // existing wording — same dialog used for unsaved-form dismissals).
-            sendEvent(Event.ShowDiscardConfirmDialog(DiscardTarget.PLAN_EDITOR))
-        } else {
-            updateState { it.copy(planEditorTarget = null) }
-        }
-    }
-
-    private fun processPlanEditorSetWeight(action: Action.Click.OnPlanEditorSetWeight) {
-        updatePlanRow(action.index) { it.copy(weight = action.value) }
-    }
-
-    private fun processPlanEditorSetReps(action: Action.Click.OnPlanEditorSetReps) {
-        updatePlanRow(action.index) { it.copy(reps = action.reps.coerceAtLeast(0)) }
-    }
-
-    private fun processPlanEditorSetType(action: Action.Click.OnPlanEditorSetType) {
-        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
-        updatePlanRow(action.index) { it.copy(type = action.type) }
-    }
-
-    private fun processPlanEditorRemoveSet(action: Action.Click.OnPlanEditorRemoveSet) {
-        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
-        updateState { current ->
-            val target = current.planEditorTarget ?: return@updateState current
-            val nextDraft = target.draft.toMutableList()
-                .also { if (action.index in it.indices) it.removeAt(action.index) }
-                .toImmutableList()
-            current.copy(planEditorTarget = target.copy(draft = nextDraft))
-        }
-    }
-
-    private fun processPlanEditorAddSet() {
-        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
-        updateState { current ->
-            val target = current.planEditorTarget ?: return@updateState current
-            val previous = target.draft.lastOrNull()
-            val nextSet = previous?.copy(
-                type = io.github.stslex.workeeper.core.database.sets.SetTypeDataModel.WORK,
-            ) ?: io.github.stslex.workeeper.core.database.sets.PlanSetDataModel(
-                weight = null,
-                reps = DEFAULT_NEW_REPS,
-                type = io.github.stslex.workeeper.core.database.sets.SetTypeDataModel.WORK,
-            )
-            current.copy(
-                planEditorTarget = target.copy(
-                    draft = (target.draft + nextSet).toImmutableList(),
-                ),
-            )
-        }
-    }
-
-    private fun processPlanEditorSave() {
-        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
-        val current = state.value
-        val target = current.planEditorTarget ?: return
-        val uuid = current.uuid
-        val nextPlan = target.draft.takeIf { it.isNotEmpty() }?.toImmutableList()
-        updateState { it.copy(adhocPlan = nextPlan, planEditorTarget = null) }
-        if (uuid == null) return
-        launch(onSuccess = { Unit }) {
-            interactor.setAdhocPlan(uuid, nextPlan)
-        }
-    }
-
-    private inline fun updatePlanRow(
-        index: Int,
-        crossinline transform: (PlanSetDataModel) -> PlanSetDataModel,
-    ) {
-        updateState { current ->
-            val target = current.planEditorTarget ?: return@updateState current
-            if (index !in target.draft.indices) return@updateState current
-            val next = target.draft.toMutableList().apply { this[index] = transform(this[index]) }
-                .toImmutableList()
-            current.copy(planEditorTarget = target.copy(draft = next))
-        }
-    }
-
     private fun processTagToggle(action: Action.Click.OnTagToggle) {
         val current = state.value
         val tag = current.availableTags.firstOrNull { it.uuid == action.tagUuid } ?: return
@@ -423,7 +337,10 @@ internal class ClickHandler @Inject constructor(
         if (isSelected) {
             sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
             updateState {
-                it.copy(tags = it.tags.filterNot { existing -> existing.uuid == action.tagUuid }.toImmutableList())
+                it.copy(
+                    tags = it.tags.filterNot { existing -> existing.uuid == action.tagUuid }
+                        .toImmutableList(),
+                )
             }
         } else {
             if (current.tags.size >= MAX_TAGS_PER_EXERCISE) {
@@ -438,7 +355,10 @@ internal class ClickHandler @Inject constructor(
     private fun processTagRemove(action: Action.Click.OnTagRemove) {
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
         updateState {
-            it.copy(tags = it.tags.filterNot { tag -> tag.uuid == action.tagUuid }.toImmutableList())
+            it.copy(
+                tags = it.tags.filterNot { tag -> tag.uuid == action.tagUuid }
+                    .toImmutableList(),
+            )
         }
     }
 
@@ -453,7 +373,10 @@ internal class ClickHandler @Inject constructor(
             onSuccess = { tag ->
                 updateStateImmediate { state ->
                     state.copy(
-                        tags = (state.tags + TagUiModel(uuid = tag.uuid, name = tag.name)).toImmutableList(),
+                        tags = (state.tags + TagUiModel(
+                            uuid = tag.uuid,
+                            name = tag.name,
+                        )).toImmutableList(),
                         tagSearchQuery = "",
                     )
                 }
@@ -461,5 +384,9 @@ internal class ClickHandler @Inject constructor(
         ) {
             interactor.createTag(action.name.trim())
         }
+    }
+
+    companion object {
+        private const val MAX_TAGS_PER_EXERCISE = 10
     }
 }

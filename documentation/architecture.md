@@ -737,7 +737,56 @@ data class AppPlanEditorState(
 
 `@Immutable` is the stronger contract — all properties are val and themselves immutable.
 `@Stable` is weaker — properties may change but reads of the same instance are
-consistent. For Store.State implementations, `@Stable` is the convention.
+consistent. For Store.State implementations, `@Stable` is the convention. For pure value
+types (no mutable state, all properties val), `@Immutable` is preferred.
+
+### UI types vs domain types
+
+Composables consume **UI types**, not domain types. Domain types like `ExerciseDataModel`,
+`TrainingDataModel`, `PlanSetDataModel` live in `core/<feature>/` and represent the
+canonical data model. They are the contract between repository and use case.
+
+UI types live next to the Composable that consumes them — typically in the same kit
+component file or in a `ui/model/` package within the feature. They are tailored to what
+the UI needs to render: pre-formatted strings, derived flags, no business identifiers
+unless required for actions.
+
+```kotlin
+// In core/ui/kit/components/AppPlanEditor.kt — kit-local UI type
+@Immutable
+data class PlanEditorSetUiModel(
+    val weight: Double?,
+    val reps: Int,
+    val type: PlanEditorSetTypeUiModel,
+)
+
+enum class PlanEditorSetTypeUiModel { WARMUP, WORK, FAILURE, DROP }
+```
+
+The feature module owns the mapping `DomainType <-> UiModel`. Mappers live in the
+feature, not in the kit:
+
+```kotlin
+// In feature/single-training/.../mapper/PlanEditorMapper.kt
+fun List<PlanSetDataModel>.toUi(): ImmutableList<PlanEditorSetUiModel> = ...
+fun List<PlanEditorSetUiModel>.toData(): List<PlanSetDataModel> = ...
+```
+
+Why this matters:
+
+1. **`core/ui/kit` stays domain-agnostic.** A kit component that imports
+   `PlanSetDataModel` from `core/exercise` couples the kit to that domain. The kit can no
+   longer be reused if the exercise domain changes shape, and architectural ordering is
+   inverted (lower layer depending on higher layer).
+2. **UI types can be tailored.** Pre-formatted display strings, computed flags, sorted
+   collections — all things the UI needs but the domain doesn't care about.
+3. **Domain refactors don't break UI tests.** When `PlanSetDataModel` gains a field, only
+   the mapper changes; the Composable and its previews are unaffected.
+
+This applies to every `@Composable` parameter in the codebase — at no point should a
+domain `*DataModel` cross into a kit component. Feature-level Composables can use domain
+types directly because they live in the same architectural layer, but even there a
+dedicated UI model is preferred when display logic diverges from the domain shape.
 
 ### Collections in UI parameters
 

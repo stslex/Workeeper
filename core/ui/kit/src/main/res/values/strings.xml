@@ -4,6 +4,9 @@
     <string name="core_ui_kit_action_save">Save</string>
     <string name="core_ui_kit_action_back">Back</string>
 
+    <string name="feature_exercise_detail_type_weighted">Weighted</string>
+    <string name="feature_exercise_detail_type_weightless">Weightless</string>
+
     <string name="core_ui_kit_plan_editor_title_format">%1$s · plan</string>
     <string name="core_ui_kit_plan_editor_title_default">Plan</string>
     <string name="core_ui_kit_plan_editor_subtitle">Sets pre-fill in Live workout. Tracked sets update this plan.</string>

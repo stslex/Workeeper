@@ -33,6 +33,7 @@ import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.single_training.R
 import io.github.stslex.workeeper.feature.single_training.mvi.model.TrainingExerciseItem
 import kotlinx.collections.immutable.persistentListOf
@@ -49,7 +50,6 @@ internal fun TrainingExerciseEditRow(
     onEditPlan: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val planSummary = item.planSets?.formatPlanSummary().orEmpty()
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -108,11 +108,11 @@ internal fun TrainingExerciseEditRow(
         ) {
             Text(
                 modifier = Modifier.weight(1f),
-                text = planSummary.ifBlank {
+                text = item.planSummary.ifBlank {
                     stringResource(R.string.feature_training_edit_no_plan)
                 },
                 style = AppUi.typography.bodySmall.copy(
-                    fontStyle = if (planSummary.isBlank()) FontStyle.Italic else FontStyle.Normal,
+                    fontStyle = if (item.planSummary.isBlank()) FontStyle.Italic else FontStyle.Normal,
                 ),
                 color = AppUi.colors.textTertiary,
                 maxLines = 1,
@@ -208,10 +208,11 @@ private fun TrainingExerciseEditRowPreview() {
             item = TrainingExerciseItem(
                 exerciseUuid = "1",
                 exerciseName = "Bench press",
-                exerciseType = ExerciseTypeDataModel.WEIGHTED,
+                exerciseType = ExerciseTypeUiModel.WEIGHTED,
                 tags = persistentListOf("Push"),
                 position = 1,
                 planSets = null,
+                planSummary = "",
             ),
             isFirst = false,
             isLast = false,

@@ -33,5 +33,5 @@ data class ExerciseEntity(
     @ColumnInfo(name = "archived_at")
     val archivedAt: Long?,
     @ColumnInfo(name = "last_adhoc_sets")
-    val lastAdhocSets: String? = null,
+    val lastAdhocSets: String?,
 )

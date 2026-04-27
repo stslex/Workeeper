@@ -3,10 +3,10 @@ package io.github.stslex.workeeper.feature.exercise.mvi.store
 
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
-import io.github.stslex.workeeper.core.database.sets.SetTypeDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.ui.mvi.Store
+import io.github.stslex.workeeper.core.ui.plan_editor.model.AppPlanEditorAction
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
+import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.feature.exercise.mvi.model.HistoryUiModel
 import io.github.stslex.workeeper.feature.exercise.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Action
@@ -24,7 +24,7 @@ internal interface ExerciseStore : Store<State, Action, Event> {
         val name: String,
         val nameError: Boolean,
         val nameDuplicateError: Boolean,
-        val type: ExerciseTypeDataModel,
+        val type: ExerciseTypeUiModel,
         val description: String,
         val tags: ImmutableList<TagUiModel>,
         val availableTags: ImmutableList<TagUiModel>,
@@ -33,9 +33,9 @@ internal interface ExerciseStore : Store<State, Action, Event> {
         val originalSnapshot: Snapshot?,
         val isLoading: Boolean,
         val canPermanentlyDelete: Boolean,
-        val adhocPlan: ImmutableList<PlanSetDataModel>?,
+        val adhocPlan: ImmutableList<PlanSetUiModel>?,
         val planEditorTarget: PlanEditorTarget?,
-        val pendingTypeChange: ExerciseTypeDataModel?,
+        val pendingTypeChange: ExerciseTypeUiModel?,
     ) : Store.State {
 
         val isSaveEnabled: Boolean
@@ -67,23 +67,23 @@ internal interface ExerciseStore : Store<State, Action, Event> {
         @Stable
         data class Snapshot(
             val name: String,
-            val type: ExerciseTypeDataModel,
+            val type: ExerciseTypeUiModel,
             val description: String,
             val tagUuids: List<String>,
         ) {
 
             fun matches(state: State): Boolean = state.name == name &&
-                state.type == type &&
-                state.description == description &&
-                state.tags.map { it.uuid } == tagUuids
+                    state.type == type &&
+                    state.description == description &&
+                    state.tags.map { it.uuid } == tagUuids
         }
 
         @Stable
         data class PlanEditorTarget(
             /** Snapshot of the plan when the editor opened — used for dirty detection. */
-            val initialPlan: ImmutableList<PlanSetDataModel>,
+            val initialPlan: ImmutableList<PlanSetUiModel>,
             /** Live draft updated on every editor field change. */
-            val draft: ImmutableList<PlanSetDataModel>,
+            val draft: ImmutableList<PlanSetUiModel>,
         )
 
         companion object {
@@ -94,7 +94,7 @@ internal interface ExerciseStore : Store<State, Action, Event> {
                 name = "",
                 nameError = false,
                 nameDuplicateError = false,
-                type = ExerciseTypeDataModel.WEIGHTED,
+                type = ExerciseTypeUiModel.WEIGHTED,
                 description = "",
                 tags = persistentListOf(),
                 availableTags = persistentListOf(),
@@ -150,7 +150,7 @@ internal interface ExerciseStore : Store<State, Action, Event> {
 
             data class OnUndoArchive(val uuid: String) : Click
 
-            data class OnTypeSelect(val type: ExerciseTypeDataModel) : Click
+            data class OnTypeSelect(val type: ExerciseTypeUiModel) : Click
 
             data object OnTypeChangeConfirm : Click
 
@@ -158,26 +158,14 @@ internal interface ExerciseStore : Store<State, Action, Event> {
 
             data object OnEditPlanClick : Click
 
-            data class OnPlanEditorSetWeight(val index: Int, val value: Double?) : Click
-
-            data class OnPlanEditorSetReps(val index: Int, val reps: Int) : Click
-
-            data class OnPlanEditorSetType(val index: Int, val type: SetTypeDataModel) : Click
-
-            data class OnPlanEditorRemoveSet(val index: Int) : Click
-
-            data object OnPlanEditorAddSet : Click
-
-            data object OnPlanEditorSave : Click
-
-            data object OnPlanEditorDismiss : Click
-
             data class OnTagToggle(val tagUuid: String) : Click
 
             data class OnTagRemove(val tagUuid: String) : Click
 
             data class OnTagCreate(val name: String) : Click
         }
+
+        data class PlanEditorAction(val action: AppPlanEditorAction) : Action
 
         sealed interface Input : Action {
 
