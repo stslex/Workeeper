@@ -8,6 +8,7 @@ import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.database.session.SessionDao
 import io.github.stslex.workeeper.core.database.session.SessionEntity
 import io.github.stslex.workeeper.core.database.session.SessionStateEntity
+import io.github.stslex.workeeper.core.exercise.session.model.ActiveSessionInfo
 import io.github.stslex.workeeper.core.exercise.session.model.SessionDataModel
 import io.github.stslex.workeeper.core.exercise.session.model.toData
 import kotlinx.coroutines.CoroutineDispatcher
@@ -19,6 +20,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.uuid.Uuid
 
+@Suppress("TooManyFunctions")
 @Singleton
 internal class SessionRepositoryImpl @Inject constructor(
     private val dao: SessionDao,
@@ -29,6 +31,29 @@ internal class SessionRepositoryImpl @Inject constructor(
         .observeActive()
         .map { entity -> entity?.toData() }
         .flowOn(ioDispatcher)
+
+    override fun observeAnyActiveSession(): Flow<ActiveSessionInfo?> = dao
+        .observeAnyActiveSession()
+        .map { row ->
+            row?.let {
+                ActiveSessionInfo(
+                    sessionUuid = it.uuid.toString(),
+                    trainingUuid = it.trainingUuid.toString(),
+                    startedAt = it.startedAt,
+                )
+            }
+        }
+        .flowOn(ioDispatcher)
+
+    override suspend fun getAnyActiveSession(): ActiveSessionInfo? = withContext(ioDispatcher) {
+        dao.getActive()?.let { entity ->
+            ActiveSessionInfo(
+                sessionUuid = entity.uuid.toString(),
+                trainingUuid = entity.trainingUuid.toString(),
+                startedAt = entity.startedAt,
+            )
+        }
+    }
 
     override suspend fun getActive(): SessionDataModel? = withContext(ioDispatcher) {
         dao.getActive()?.toData()
@@ -54,6 +79,13 @@ internal class SessionRepositoryImpl @Inject constructor(
     ).flow
         .map { pagingData -> pagingData.map { it.toData() } }
         .flowOn(ioDispatcher)
+
+    override suspend fun getRecentFinishedByTraining(
+        trainingUuid: String,
+        limit: Int,
+    ): List<SessionDataModel> = withContext(ioDispatcher) {
+        dao.getRecentFinishedByTraining(Uuid.parse(trainingUuid), limit).map { it.toData() }
+    }
 
     override suspend fun getById(uuid: String): SessionDataModel? = withContext(ioDispatcher) {
         dao.getById(Uuid.parse(uuid))?.toData()

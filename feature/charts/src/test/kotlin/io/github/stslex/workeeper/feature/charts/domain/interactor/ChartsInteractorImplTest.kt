@@ -134,6 +134,7 @@ class ChartsInteractorImplTest {
                     sets = emptyList(),
                     labels = emptyList(),
                     timestamp = 1500L,
+                    lastAdhocSets = null,
                 ),
             )
 

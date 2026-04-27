@@ -67,4 +67,24 @@ internal class AllExercisesInteractorImpl @Inject constructor(
     ): Int = withContext(defaultDispatcher) {
         exerciseRepository.countSessionsUsing(uuid)
     }
+
+    override suspend fun bulkArchive(
+        uuids: Set<String>,
+    ): io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository.BulkArchiveOutcome =
+        withContext(defaultDispatcher) {
+            exerciseRepository.bulkArchive(uuids)
+        }
+
+    override suspend fun bulkPermanentDelete(
+        uuids: Set<String>,
+    ): Int = withContext(defaultDispatcher) {
+        exerciseRepository.bulkPermanentDelete(uuids)
+        uuids.size
+    }
+
+    override suspend fun canBulkPermanentDelete(
+        uuids: Set<String>,
+    ): Boolean = withContext(defaultDispatcher) {
+        exerciseRepository.canBulkPermanentDelete(uuids)
+    }
 }

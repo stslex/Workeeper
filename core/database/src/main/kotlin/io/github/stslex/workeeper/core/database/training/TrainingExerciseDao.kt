@@ -19,6 +19,14 @@ interface TrainingExerciseDao {
 
     @Query(
         """
+        SELECT * FROM training_exercise_table
+        WHERE exercise_uuid = :exerciseUuid
+        """,
+    )
+    suspend fun getAllForExercise(exerciseUuid: Uuid): List<TrainingExerciseEntity>
+
+    @Query(
+        """
         SELECT COUNT(*) FROM training_exercise_table te
         JOIN training_table t ON t.uuid = te.training_uuid
         WHERE te.exercise_uuid = :exerciseUuid

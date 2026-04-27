@@ -57,6 +57,7 @@ class ChartDomainCalculatorImplTest {
                         ),
                         labels = emptyList(),
                         timestamp = 1500L,
+                        lastAdhocSets = null,
                     ),
                     ExerciseDataModel(
                         uuid = "exercise2",
@@ -67,6 +68,7 @@ class ChartDomainCalculatorImplTest {
                         ),
                         labels = emptyList(),
                         timestamp = 1500L,
+                        lastAdhocSets = null,
                     ),
                 )
 
@@ -80,6 +82,7 @@ class ChartDomainCalculatorImplTest {
                         ),
                         labels = emptyList(),
                         timestamp = 1800L,
+                        lastAdhocSets = null,
                     ),
                 )
 
@@ -93,6 +96,7 @@ class ChartDomainCalculatorImplTest {
                         ),
                         labels = emptyList(),
                         timestamp = 1700L,
+                        lastAdhocSets = null,
                     ),
                 )
 
@@ -134,6 +138,7 @@ class ChartDomainCalculatorImplTest {
                 ),
                 labels = emptyList(),
                 timestamp = 1500L,
+                lastAdhocSets = null,
             ),
             ExerciseDataModel(
                 uuid = "exercise2",
@@ -144,6 +149,7 @@ class ChartDomainCalculatorImplTest {
                 ),
                 labels = emptyList(),
                 timestamp = 1800L,
+                lastAdhocSets = null,
             ),
             ExerciseDataModel(
                 uuid = "exercise3",
@@ -154,6 +160,7 @@ class ChartDomainCalculatorImplTest {
                 ),
                 labels = emptyList(),
                 timestamp = 1700L,
+                lastAdhocSets = null,
             ),
         )
 
@@ -216,6 +223,7 @@ class ChartDomainCalculatorImplTest {
                 sets = emptyList(),
                 labels = emptyList(),
                 timestamp = 1500L,
+                lastAdhocSets = null,
             ),
         )
 
@@ -253,7 +261,8 @@ class ChartDomainCalculatorImplTest {
                     SetsDataModel(Uuid.random().toString(), 10, 50.0, SetsDataType.WORK),
                 ),
                 labels = emptyList(),
-                timestamp = 86401000L, // timestamp within our test range
+                timestamp = 86401000L, // timestamp within our test range,
+                lastAdhocSets = null,
             ),
         )
 
@@ -299,7 +308,8 @@ class ChartDomainCalculatorImplTest {
                     SetsDataModel(Uuid.random().toString(), 8, 120.0, SetsDataType.WORK),
                 ),
                 labels = emptyList(),
-                timestamp = oneDayMs / 2, // Middle of the day
+                timestamp = oneDayMs / 2, // Middle of the day,
+                lastAdhocSets = null,
             ),
         )
 
@@ -339,7 +349,8 @@ class ChartDomainCalculatorImplTest {
                     SetsDataModel(Uuid.random().toString(), 10, 80.0, SetsDataType.WORK),
                 ),
                 labels = emptyList(),
-                timestamp = oneWeekMs, // Start of week 2
+                timestamp = oneWeekMs, // Start of week 2,
+                lastAdhocSets = null,
             ),
             ExerciseDataModel(
                 uuid = "exercise2",
@@ -349,7 +360,8 @@ class ChartDomainCalculatorImplTest {
                     SetsDataModel(Uuid.random().toString(), 8, 90.0, SetsDataType.WORK),
                 ),
                 labels = emptyList(),
-                timestamp = oneWeekMs * 3, // Start of week 4
+                timestamp = oneWeekMs * 3, // Start of week 4,
+                lastAdhocSets = null,
             ),
         )
 
@@ -408,6 +420,7 @@ class ChartDomainCalculatorImplTest {
                     ),
                     labels = emptyList(),
                     timestamp = 43200000L,
+                    lastAdhocSets = null,
                 ),
                 ExerciseDataModel(
                     uuid = "exercise2",
@@ -419,6 +432,7 @@ class ChartDomainCalculatorImplTest {
                     ),
                     labels = emptyList(),
                     timestamp = 43200000L,
+                    lastAdhocSets = null,
                 ),
             )
         }
@@ -459,7 +473,8 @@ class ChartDomainCalculatorImplTest {
                     SetsDataModel(Uuid.random().toString(), 5, 200.0, SetsDataType.WORK),
                 ),
                 labels = emptyList(),
-                timestamp = startTimestamp + oneDayMs * 3, // Day 4 of the week
+                timestamp = startTimestamp + oneDayMs * 3, // Day 4 of the week,
+                lastAdhocSets = null,
             ),
             ExerciseDataModel(
                 uuid = "exercise1",
@@ -469,7 +484,8 @@ class ChartDomainCalculatorImplTest {
                     SetsDataModel(Uuid.random().toString(), 5, 100.0, SetsDataType.WORK),
                 ),
                 labels = emptyList(),
-                timestamp = startTimestamp + oneDayMs * 5, // Day 6 of the week
+                timestamp = startTimestamp + oneDayMs * 5, // Day 6 of the week,
+                lastAdhocSets = null,
             ),
         )
 
@@ -515,6 +531,7 @@ class ChartDomainCalculatorImplTest {
                 ),
                 labels = emptyList(),
                 timestamp = startTimestamp,
+                lastAdhocSets = null,
             ),
             // Exercise near end but within the last day's time window
             ExerciseDataModel(
@@ -525,7 +542,8 @@ class ChartDomainCalculatorImplTest {
                     SetsDataModel(Uuid.random().toString(), 8, 75.0, SetsDataType.WORK),
                 ),
                 labels = emptyList(),
-                timestamp = startTimestamp + oneDayMs * 4 + (oneDayMs / 2), // Middle of day 5
+                timestamp = startTimestamp + oneDayMs * 4 + (oneDayMs / 2), // Middle of day 5,
+                lastAdhocSets = null,
             ),
             // Exercise with no sets (should return 0)
             ExerciseDataModel(
@@ -535,6 +553,7 @@ class ChartDomainCalculatorImplTest {
                 sets = emptyList(),
                 labels = emptyList(),
                 timestamp = startTimestamp + oneDayMs * 2,
+                lastAdhocSets = null,
             ),
         )
 
@@ -579,7 +598,8 @@ class ChartDomainCalculatorImplTest {
                     SetsDataModel(Uuid.random().toString(), 10, 100.0, SetsDataType.WORK),
                 ),
                 labels = emptyList(),
-                timestamp = oneDayMs * 30, // Middle of range
+                timestamp = oneDayMs * 30, // Middle of range,
+                lastAdhocSets = null,
             ),
         )
 
@@ -636,6 +656,7 @@ class ChartDomainCalculatorImplTest {
                     ),
                     labels = emptyList(),
                     timestamp = 43200000L,
+                    lastAdhocSets = null,
                 ),
                 // Heavy weight exercise
                 ExerciseDataModel(
@@ -648,6 +669,7 @@ class ChartDomainCalculatorImplTest {
                     ),
                     labels = emptyList(),
                     timestamp = 43200000L,
+                    lastAdhocSets = null,
                 ),
                 // Medium weight exercise
                 ExerciseDataModel(
@@ -660,6 +682,7 @@ class ChartDomainCalculatorImplTest {
                     ),
                     labels = emptyList(),
                     timestamp = 43200000L,
+                    lastAdhocSets = null,
                 ),
             )
         }
@@ -819,7 +842,8 @@ class ChartDomainCalculatorImplTest {
                         ),
                     ),
                     labels = emptyList(),
-                    timestamp = 43200000L, // Middle of range
+                    timestamp = 43200000L, // Middle of range,
+                    lastAdhocSets = null,
                 ),
             )
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.single_training
 
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -14,5 +15,7 @@ class SingleTrainingScreenTest : BaseComposeTest() {
     @get:Rule
     val composeTestRule = createComposeRule()
 
-    // TODO(feature-rewrite): rewrite UI tests after feature redesign per documentation/testing.md.
+    // TODO(feature-rewrite-tests): cover detail/edit mode flip, save validation, plan
+    // editor flow, exercise picker, and back-gesture interception once the smoke harness
+    // for SingleTrainingScreen is restored.
 }

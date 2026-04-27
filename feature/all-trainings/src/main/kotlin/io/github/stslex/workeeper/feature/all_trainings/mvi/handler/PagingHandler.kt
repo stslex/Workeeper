@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.all_trainings.mvi.handler
 
 import androidx.paging.PagingData
@@ -6,36 +7,50 @@ import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
-import io.github.stslex.workeeper.feature.all_trainings.di.TrainingHandlerStore
+import io.github.stslex.workeeper.feature.all_trainings.di.AllTrainingsHandlerStore
 import io.github.stslex.workeeper.feature.all_trainings.domain.AllTrainingsInteractor
-import io.github.stslex.workeeper.feature.all_trainings.mvi.model.TrainingUiMapper
-import io.github.stslex.workeeper.feature.all_trainings.mvi.model.TrainingUiModel
-import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore.Action
+import io.github.stslex.workeeper.feature.all_trainings.mvi.model.TrainingListItemUi
+import io.github.stslex.workeeper.feature.all_trainings.mvi.model.toUi
+import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.Action
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
+import io.github.stslex.workeeper.feature.all_trainings.mvi.model.toUi as toTagUi
 
 @ViewModelScoped
 internal class PagingHandler @Inject constructor(
     private val interactor: AllTrainingsInteractor,
-    private val trainingMapper: TrainingUiMapper,
-    @DefaultDispatcher
-    private val defaultDispatcher: CoroutineDispatcher,
-    private val store: TrainingHandlerStore,
-) : Handler<Action.Paging>, TrainingHandlerStore by store {
+    @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
+    store: AllTrainingsHandlerStore,
+) : Handler<Action.Paging>, AllTrainingsHandlerStore by store {
 
-    val pagingUiState: PagingUiState<PagingData<TrainingUiModel>> = PagingUiState {
-        state.map { it.query }
+    val pagingUiState: PagingUiState<PagingData<TrainingListItemUi>> = PagingUiState {
+        state.map { it.activeTagFilter }
             .distinctUntilChanged()
-            .flatMapLatest { query ->
-                interactor.getTrainings(query)
-                    .map { pagingData -> pagingData.map(trainingMapper::invoke) }
+            .flatMapLatest { filter ->
+                interactor.observeTrainings(filter)
+                    .map { pagingData -> pagingData.map { it.toUi() } }
             }
             .flowOn(defaultDispatcher)
     }
 
-    override fun invoke(action: Action.Paging) = Unit
+    override fun invoke(action: Action.Paging) {
+        when (action) {
+            Action.Paging.Init -> observeAvailableTags()
+        }
+    }
+
+    private fun observeAvailableTags() {
+        scope.launch(interactor.observeAvailableTags()) { tags ->
+            updateStateImmediate { current ->
+                current.copy(
+                    availableTags = tags.map { it.toTagUi() }.toImmutableList(),
+                )
+            }
+        }
+    }
 }

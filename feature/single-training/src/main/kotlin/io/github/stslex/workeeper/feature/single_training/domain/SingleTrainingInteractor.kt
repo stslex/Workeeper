@@ -1,0 +1,70 @@
+// SPDX-License-Identifier: GPL-3.0-only
+package io.github.stslex.workeeper.feature.single_training.domain
+
+import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
+import io.github.stslex.workeeper.core.exercise.session.model.ActiveSessionInfo
+import io.github.stslex.workeeper.core.exercise.session.model.SessionDataModel
+import io.github.stslex.workeeper.core.exercise.tags.model.TagDataModel
+import io.github.stslex.workeeper.core.exercise.training.TrainingChangeDataModel
+import io.github.stslex.workeeper.core.exercise.training.TrainingDataModel
+import kotlinx.coroutines.flow.Flow
+
+@Suppress("TooManyFunctions")
+internal interface SingleTrainingInteractor {
+
+    suspend fun getTraining(uuid: String): TrainingDataModel?
+
+    suspend fun getTrainingExercises(trainingUuid: String): List<TrainingExerciseDetail>
+
+    suspend fun getRecentSessions(trainingUuid: String, limit: Int): List<SessionDataModel>
+
+    fun observeAvailableTags(): Flow<List<TagDataModel>>
+
+    suspend fun saveTraining(snapshot: TrainingChangeDataModel)
+
+    suspend fun createTag(name: String): TagDataModel
+
+    suspend fun archive(uuid: String): ArchiveResult
+
+    suspend fun permanentlyDelete(uuid: String)
+
+    suspend fun canPermanentlyDelete(uuid: String): Boolean
+
+    fun observeAnyActiveSession(): Flow<ActiveSessionInfo?>
+
+    suspend fun setPlanForExercise(
+        trainingUuid: String,
+        exerciseUuid: String,
+        plan: List<PlanSetDataModel>?,
+    )
+
+    suspend fun searchExercisesForPicker(
+        query: String,
+        excludeUuids: Set<String>,
+    ): List<ExerciseDataModel>
+
+    suspend fun resolveExercises(uuids: List<String>): List<ExerciseDataModel>
+
+    /**
+     * Joined training_exercise row + linked exercise template. The plan lives on the join
+     * (training_exercise.plan_sets) but the name/type/tags come from the exercise table.
+     */
+    data class TrainingExerciseDetail(
+        val exercise: ExerciseDataModel,
+        val position: Int,
+        val planSets: List<PlanSetDataModel>?,
+    )
+
+    sealed interface ArchiveResult {
+
+        data object Success : ArchiveResult
+
+        data class Blocked(val reason: String) : ArchiveResult
+    }
+
+    companion object {
+
+        const val DEFAULT_HISTORY_LIMIT: Int = 5
+    }
+}

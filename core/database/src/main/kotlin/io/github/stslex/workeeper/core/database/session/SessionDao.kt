@@ -8,11 +8,20 @@ import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 import kotlin.uuid.Uuid
 
+@Suppress("TooManyFunctions")
 @Dao
 interface SessionDao {
 
     @Query("SELECT * FROM session_table WHERE state = 'IN_PROGRESS' LIMIT 1")
     fun observeActive(): Flow<SessionEntity?>
+
+    @Query(
+        """
+        SELECT uuid, training_uuid, started_at FROM session_table
+        WHERE state = 'IN_PROGRESS' LIMIT 1
+        """,
+    )
+    fun observeAnyActiveSession(): Flow<ActiveSessionRow?>
 
     @Query("SELECT * FROM session_table WHERE state = 'IN_PROGRESS' LIMIT 1")
     suspend fun getActive(): SessionEntity?
@@ -44,6 +53,19 @@ interface SessionDao {
         """,
     )
     fun pagedFinishedByTraining(trainingUuid: Uuid): PagingSource<Int, SessionEntity>
+
+    @Query(
+        """
+        SELECT * FROM session_table
+        WHERE training_uuid = :trainingUuid AND state = 'FINISHED'
+        ORDER BY finished_at DESC
+        LIMIT :limit
+        """,
+    )
+    suspend fun getRecentFinishedByTraining(
+        trainingUuid: Uuid,
+        limit: Int,
+    ): List<SessionEntity>
 
     @Query("SELECT * FROM session_table WHERE uuid = :uuid")
     suspend fun getById(uuid: Uuid): SessionEntity?

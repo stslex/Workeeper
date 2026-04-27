@@ -1,201 +1,171 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.all_trainings.ui
 
-import android.annotation.SuppressLint
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedContentScope
-import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CornerSize
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.paging.LoadState
-import androidx.paging.PagingData
+import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
+import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.fab.AppFAB
-import io.github.stslex.workeeper.core.ui.kit.components.input.AppTextField
-import io.github.stslex.workeeper.core.ui.kit.components.text_input_field.model.PropertyHolder
-import io.github.stslex.workeeper.core.ui.kit.model.ItemPosition
+import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
-import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
-import io.github.stslex.workeeper.feature.all_trainings.mvi.model.TrainingUiModel
-import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore.Action
-import io.github.stslex.workeeper.feature.all_trainings.mvi.store.TrainingStore.State
-import io.github.stslex.workeeper.feature.all_trainings.ui.components.EmptyWidget
-import io.github.stslex.workeeper.feature.all_trainings.ui.components.SingleTrainingItemWidget
-import kotlinx.collections.immutable.persistentSetOf
-import kotlinx.collections.immutable.toImmutableList
-import kotlinx.coroutines.flow.flowOf
+import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import io.github.stslex.workeeper.feature.all_trainings.R
+import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.Action
+import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.State
+import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.State.SelectionMode
+import io.github.stslex.workeeper.feature.all_trainings.ui.components.BulkActionBar
+import io.github.stslex.workeeper.feature.all_trainings.ui.components.SelectionTopBar
+import io.github.stslex.workeeper.feature.all_trainings.ui.components.TagFilterRow
+import io.github.stslex.workeeper.feature.all_trainings.ui.components.TrainingRow
+import io.github.stslex.workeeper.feature.all_trainings.ui.components.TrainingsEmptyState
 
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 internal fun AllTrainingsScreen(
     state: State,
-    sharedTransitionScope: SharedTransitionScope,
-    animatedContentScope: AnimatedContentScope,
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val items = remember { state.pagingUiState() }.collectAsLazyPagingItems()
-    val isSelecting = state.selectedItems.isNotEmpty()
+    val items = remember(state.pagingUiState) {
+        state.pagingUiState()
+    }.collectAsLazyPagingItems()
+
     Box(
         modifier = modifier
             .fillMaxSize()
+            .background(AppUi.colors.surfaceTier0)
             .testTag("AllTrainingsScreen"),
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            AppTextField(
-                modifier = Modifier
-                    .padding(AppDimension.Padding.big)
-                    .testTag("AllTrainingsSearchWidget"),
-                value = state.query,
-                onValueChange = { consume(Action.Input.SearchQuery(it)) },
-                label = "Search",
-                leadingIcon = Icons.Default.Search,
-            )
-            Spacer(Modifier.height(AppDimension.Padding.big))
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        color = MaterialTheme.colorScheme.surfaceContainer,
-                        shape = RoundedCornerShape(
-                            topStart = MaterialTheme.shapes.extraLarge.topStart,
-                            topEnd = MaterialTheme.shapes.extraLarge.topEnd,
-                            bottomEnd = CornerSize(0.dp),
-                            bottomStart = CornerSize(0.dp),
-                        ),
-                    )
-                    .padding(AppDimension.Padding.big),
-            ) {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(MaterialTheme.shapes.large)
-                        .testTag("AllTrainingsList"),
-                ) {
-                    items(
-                        count = items.itemCount,
-                    ) { index ->
-                        items[index]?.let { item ->
-                            SingleTrainingItemWidget(
-                                modifier = Modifier.testTag("TrainingItem_${item.uuid}"),
-                                item = item,
-                                isSelected = state.selectedItems.contains(item.uuid),
-                                onClick = { consume(Action.Click.TrainingItemClick(item.uuid)) },
-                                onLongClick = { consume(Action.Click.TrainingItemLongClick(item.uuid)) },
-                                sharedTransitionScope = sharedTransitionScope,
-                                animatedContentScope = animatedContentScope,
-                                itemPosition = ItemPosition.getItemPosition(
-                                    index = index,
-                                    itemsCount = items.itemCount,
-                                ),
-                            )
-                        }
-                    }
-                }
-
-                @Suppress("ComplexCondition")
-                if (
-                    items.loadState.refresh is LoadState.NotLoading &&
-                    items.loadState.append is LoadState.NotLoading &&
-                    items.loadState.prepend is LoadState.NotLoading &&
-                    items.itemCount == 0
-                ) {
-                    EmptyWidget(
-                        query = state.query,
-                        modifier = Modifier.testTag("AllTrainingsEmptyState"),
-                    )
+        Column(modifier = Modifier.fillMaxSize()) {
+            ScreenTopBar(state = state, consume = consume)
+            if (state.availableTags.isNotEmpty() && !state.isSelecting) {
+                TagFilterRow(
+                    tags = state.availableTags,
+                    activeTagFilter = state.activeTagFilter,
+                    onToggle = { uuid -> consume(Action.Click.OnTagFilterToggle(uuid)) },
+                )
+            }
+            Box(modifier = Modifier.weight(1f)) {
+                TrainingsList(
+                    state = state,
+                    items = items,
+                    consume = consume,
+                )
+                if (items.isEmptyAndIdle() && !state.isSelecting) {
+                    TrainingsEmptyState(modifier = Modifier.align(Alignment.Center))
                 }
             }
+            if (state.isSelecting) {
+                val selectionMode = state.selectionMode as SelectionMode.On
+                BulkActionBar(
+                    canDelete = selectionMode.canDeleteAll,
+                    onArchive = { consume(Action.Click.OnBulkArchive) },
+                    onDelete = { consume(Action.Click.OnBulkDelete) },
+                )
+            }
         }
-        with(sharedTransitionScope) {
+        if (!state.isSelecting) {
             AppFAB(
                 modifier = Modifier
-                    .sharedBounds(
-                        sharedContentState = sharedTransitionScope.rememberSharedContentState(
-                            "createTraining",
-                        ),
-                        animatedVisibilityScope = animatedContentScope,
-                        resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(
-                            ContentScale.Inside,
-                            Alignment.Center,
-                        ),
-                    )
                     .align(Alignment.BottomEnd)
-                    .padding(AppDimension.Padding.big)
-                    .testTag("AllTrainingsActionButton"),
-                onClick = { consume(Action.Click.ActionButton) },
-                icon = if (isSelecting) Icons.Default.Delete else Icons.Default.Add,
-                contentDescription = if (isSelecting) "Delete selected" else "Create training",
+                    .padding(AppDimension.screenEdge)
+                    .testTag("AllTrainingsFab"),
+                icon = Icons.Filled.Add,
+                contentDescription = stringResource(R.string.feature_all_trainings_fab_create),
+                onClick = { consume(Action.Click.OnFabClick) },
             )
         }
     }
+
+    state.pendingBulkDelete?.let { pending ->
+        AppConfirmDialog(
+            title = stringResource(R.string.feature_all_trainings_bulk_delete_confirm_title),
+            body = pluralStringResource(
+                R.plurals.feature_all_trainings_bulk_delete_confirm_body,
+                pending.count,
+                pending.count,
+            ),
+            impactSummary = stringResource(R.string.feature_all_trainings_bulk_delete_impact),
+            confirmLabel = stringResource(R.string.feature_all_trainings_bulk_delete),
+            onConfirm = { consume(Action.Click.OnBulkDeleteConfirm) },
+            onDismiss = { consume(Action.Click.OnBulkDeleteDismiss) },
+        )
+    }
 }
 
-@OptIn(ExperimentalSharedTransitionApi::class)
-@SuppressLint("UnusedContentLambdaTargetStateParameter")
 @Composable
-@Preview
-internal fun AllTrainingsScreenPreview() {
-    AppTheme {
-        val items = Array(10) { index ->
-            val labels = Array(10) {
-                "label${it + index}"
-            }.toImmutableList()
-            val uuids = Array(10) {
-                "uuid${it + index}"
-            }.toImmutableList()
-            TrainingUiModel(
-                uuid = "uuid$index",
-                name = "trainingName$index",
-                labels = labels,
-                exerciseUuids = uuids,
-                date = PropertyHolder.DateProperty.now(),
-            )
-        }.toList()
-
-        val itemsPaging = {
-            flowOf(PagingData.from(items))
-        }
-        val state = State(
-            pagingUiState = itemsPaging,
-            query = "",
-            selectedItems = persistentSetOf("uuid1", "uuid2"),
-            isKeyboardVisible = false,
+private fun ScreenTopBar(
+    state: State,
+    consume: (Action) -> Unit,
+) {
+    val mode = state.selectionMode
+    if (mode is SelectionMode.On) {
+        SelectionTopBar(
+            selectedCount = mode.selectedUuids.size,
+            onClose = { consume(Action.Click.OnSelectionExit) },
         )
-        AnimatedContent("") {
-            SharedTransitionScope { modifier ->
-                AllTrainingsScreen(
-                    state = state,
-                    modifier = modifier,
-                    consume = {},
-                    sharedTransitionScope = this,
-                    animatedContentScope = this@AnimatedContent,
+    } else {
+        AppTopAppBar(
+            title = stringResource(R.string.feature_all_trainings_title),
+        )
+    }
+}
+
+@Composable
+private fun TrainingsList(
+    state: State,
+    items: LazyPagingItems<*>,
+    consume: (Action) -> Unit,
+) {
+    @Suppress("UNCHECKED_CAST")
+    val typedItems = items
+        as LazyPagingItems<io.github.stslex.workeeper.feature.all_trainings.mvi.model.TrainingListItemUi>
+    val selectedSet = (state.selectionMode as? SelectionMode.On)?.selectedUuids
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .testTag("AllTrainingsList"),
+        contentPadding = PaddingValues(
+            horizontal = AppDimension.screenEdge,
+            vertical = AppDimension.Space.sm,
+        ),
+        verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
+    ) {
+        items(
+            count = typedItems.itemCount,
+            key = { index -> typedItems.peek(index)?.uuid ?: "training_$index" },
+        ) { index ->
+            typedItems[index]?.let { item ->
+                TrainingRow(
+                    item = item,
+                    isSelectionMode = state.isSelecting,
+                    isSelected = selectedSet?.contains(item.uuid) == true,
+                    onClick = { consume(Action.Click.OnTrainingClick(item.uuid)) },
+                    onLongPress = { consume(Action.Click.OnTrainingLongPress(item.uuid)) },
                 )
             }
         }
     }
 }
+
+private fun LazyPagingItems<*>.isEmptyAndIdle(): Boolean =
+    itemCount == 0 &&
+        loadState.refresh is LoadState.NotLoading &&
+        loadState.append is LoadState.NotLoading &&
+        loadState.prepend is LoadState.NotLoading

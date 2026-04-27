@@ -24,6 +24,14 @@ internal interface AllExercisesInteractor {
 
     suspend fun countSessionsForExercise(uuid: String): Int
 
+    suspend fun bulkArchive(
+        uuids: Set<String>,
+    ): io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository.BulkArchiveOutcome
+
+    suspend fun bulkPermanentDelete(uuids: Set<String>): Int
+
+    suspend fun canBulkPermanentDelete(uuids: Set<String>): Boolean
+
     sealed interface ArchiveResult {
 
         data object Success : ArchiveResult

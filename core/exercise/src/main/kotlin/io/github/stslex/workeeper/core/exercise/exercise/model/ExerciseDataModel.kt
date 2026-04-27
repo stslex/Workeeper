@@ -1,6 +1,8 @@
 package io.github.stslex.workeeper.core.exercise.exercise.model
 
+import io.github.stslex.workeeper.core.database.converters.PlanSetsConverter
 import io.github.stslex.workeeper.core.database.exercise.ExerciseEntity
+import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel.Companion.toData
 import kotlin.uuid.Uuid
 
@@ -20,6 +22,7 @@ data class ExerciseDataModel(
     val trainingUuid: String? = null,
     val sets: List<SetsDataModel> = emptyList(),
     val labels: List<String> = emptyList(),
+    val lastAdhocSets: List<PlanSetDataModel>?,
 )
 
 internal fun ExerciseEntity.toData(
@@ -34,6 +37,7 @@ internal fun ExerciseEntity.toData(
     archivedAt = archivedAt,
     timestamp = createdAt,
     labels = labels,
+    lastAdhocSets = lastAdhocSets?.let { PlanSetsConverter.fromJson(it) },
 )
 
 internal fun ExerciseDataModel.toEntity(): ExerciseEntity = ExerciseEntity(
@@ -45,4 +49,5 @@ internal fun ExerciseDataModel.toEntity(): ExerciseEntity = ExerciseEntity(
     archived = archived,
     createdAt = timestamp,
     archivedAt = archivedAt,
+    lastAdhocSets = lastAdhocSets?.let { PlanSetsConverter.toJson(it) },
 )

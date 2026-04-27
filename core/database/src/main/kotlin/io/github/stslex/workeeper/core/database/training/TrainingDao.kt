@@ -8,6 +8,7 @@ import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 import kotlin.uuid.Uuid
 
+@Suppress("TooManyFunctions")
 @Dao
 interface TrainingDao {
 
@@ -30,6 +31,44 @@ interface TrainingDao {
         """,
     )
     fun pagedTemplatesByTags(tagUuids: List<Uuid>): PagingSource<Int, TrainingEntity>
+
+    @Query(
+        """
+        SELECT t.uuid, t.name, t.description, t.is_adhoc, t.archived, t.created_at, t.archived_at,
+               (SELECT COUNT(*) FROM training_exercise_table WHERE training_uuid = t.uuid) AS exercise_count,
+               (SELECT MAX(s.finished_at) FROM session_table s
+                  WHERE s.training_uuid = t.uuid AND s.state = 'FINISHED') AS last_session_at,
+               (SELECT s.uuid FROM session_table s
+                  WHERE s.training_uuid = t.uuid AND s.state = 'IN_PROGRESS' LIMIT 1) AS active_session_uuid,
+               (SELECT s.started_at FROM session_table s
+                  WHERE s.training_uuid = t.uuid AND s.state = 'IN_PROGRESS' LIMIT 1) AS active_session_started_at
+        FROM training_table t
+        WHERE t.archived = 0 AND t.is_adhoc = 0
+        ORDER BY t.name COLLATE NOCASE ASC
+        """,
+    )
+    fun pagedActiveWithStats(): PagingSource<Int, TrainingListItemRow>
+
+    @Query(
+        """
+        SELECT t.uuid, t.name, t.description, t.is_adhoc, t.archived, t.created_at, t.archived_at,
+               (SELECT COUNT(*) FROM training_exercise_table WHERE training_uuid = t.uuid) AS exercise_count,
+               (SELECT MAX(s.finished_at) FROM session_table s
+                  WHERE s.training_uuid = t.uuid AND s.state = 'FINISHED') AS last_session_at,
+               (SELECT s.uuid FROM session_table s
+                  WHERE s.training_uuid = t.uuid AND s.state = 'IN_PROGRESS' LIMIT 1) AS active_session_uuid,
+               (SELECT s.started_at FROM session_table s
+                  WHERE s.training_uuid = t.uuid AND s.state = 'IN_PROGRESS' LIMIT 1) AS active_session_started_at
+        FROM training_table t
+        WHERE t.archived = 0 AND t.is_adhoc = 0
+          AND EXISTS (
+            SELECT 1 FROM training_tag_table tt
+            WHERE tt.training_uuid = t.uuid AND tt.tag_uuid IN (:tagUuids)
+          )
+        ORDER BY t.name COLLATE NOCASE ASC
+        """,
+    )
+    fun pagedActiveWithStatsByTags(tagUuids: List<Uuid>): PagingSource<Int, TrainingListItemRow>
 
     @Query("SELECT * FROM training_table WHERE archived = 1 ORDER BY name COLLATE NOCASE ASC")
     fun pagedArchived(): PagingSource<Int, TrainingEntity>
@@ -54,6 +93,17 @@ interface TrainingDao {
 
     @Query("UPDATE training_table SET archived = 0, archived_at = NULL WHERE uuid = :uuid")
     suspend fun restore(uuid: Uuid)
+
+    @Query(
+        """
+        UPDATE training_table SET archived = 1, archived_at = :archivedAt
+        WHERE uuid IN (:uuids)
+        """,
+    )
+    suspend fun archiveAll(uuids: List<Uuid>, archivedAt: Long)
+
+    @Query("DELETE FROM training_table WHERE uuid IN (:uuids)")
+    suspend fun permanentDeleteAll(uuids: List<Uuid>)
 
     @Query("DELETE FROM training_table WHERE uuid = :uuid")
     suspend fun permanentDelete(uuid: Uuid)

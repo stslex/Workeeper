@@ -1,11 +1,61 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="feature_single_training_field_name_label">Name</string>
-    <string name="feature_single_training_field_date_label">Date</string>
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="UnusedResources">
+    <!-- Detail -->
+    <string name="feature_training_detail_back">Back</string>
+    <string name="feature_training_detail_more">More</string>
+    <string name="feature_training_detail_exercises">Exercises</string>
+    <string name="feature_training_detail_past_sessions">Past sessions</string>
+    <string name="feature_training_detail_no_history">No sessions yet</string>
+    <string name="feature_training_detail_start_session">Start session</string>
+    <string name="feature_training_detail_resume_session">Resume session</string>
+    <string name="feature_training_detail_edit">Edit</string>
+    <string name="feature_training_detail_archive">Archive</string>
+    <string name="feature_training_detail_archive_blocked">Cannot archive — finish active session first</string>
+    <string name="feature_training_detail_archive_success_format">‘%1$s’ archived</string>
+    <string name="feature_training_detail_permanent_delete">Delete permanently</string>
+    <string name="feature_training_detail_permanent_delete_title">Delete ‘%1$s’ permanently?</string>
+    <string name="feature_training_detail_permanent_delete_body">This training has no history. This cannot be undone.</string>
+    <string name="feature_training_detail_permanent_delete_impact">No history affected</string>
+    <string name="feature_training_detail_permanent_delete_confirm">Delete</string>
+    <string name="feature_training_detail_other_session_active_format">Active session for ‘%1$s’ is in progress. Finish it first.</string>
+    <string name="feature_training_detail_live_workout_pending">Live workout coming in next stage</string>
+    <string name="feature_training_detail_chevron">Open</string>
+    <string name="feature_training_detail_active_pill">Active</string>
 
-    <string name="feature_single_training_field_exercise_create_label">Add exercise</string>
-    <string name="feature_single_training_field_exercises_empty_label">There is no Exercises now - create or add new one</string>
+    <plurals name="feature_training_detail_exercise_count">
+        <item quantity="one">%d exercise</item>
+        <item quantity="other">%d exercises</item>
+    </plurals>
 
-    <string name="feature_single_training_dialog_delete">Are you sure you want to delete this training?</string>
-    <string name="feature_single_training_dialog_exit">Are you sure you want to exit without saving?</string>
+    <!-- Edit -->
+    <string name="feature_training_edit_close">Close</string>
+    <string name="feature_training_edit_title_create">New training</string>
+    <string name="feature_training_edit_title_edit">Edit training</string>
+    <string name="feature_training_edit_label_name">Name</string>
+    <string name="feature_training_edit_label_description">Description</string>
+    <string name="feature_training_edit_placeholder_description">Optional notes — focus, week, etc.</string>
+    <string name="feature_training_edit_label_tags">Tags</string>
+    <string name="feature_training_edit_label_exercises_format">Exercises (%1$d)</string>
+    <string name="feature_training_edit_add_exercise">+ Add</string>
+    <string name="feature_training_edit_plan_edit">edit plan</string>
+    <string name="feature_training_edit_plan_add">add plan</string>
+    <string name="feature_training_edit_no_plan">no plan yet</string>
+    <string name="feature_training_edit_remove_exercise">Remove exercise</string>
+    <string name="feature_training_edit_drag_handle">Reorder</string>
+    <string name="feature_training_edit_error_name_required">Name is required</string>
+    <string name="feature_training_edit_error_no_exercises">Add at least one exercise</string>
+    <string name="feature_training_edit_discard_title">Discard changes?</string>
+    <string name="feature_training_edit_discard_body">Your changes will be lost.</string>
+    <string name="feature_training_edit_discard_confirm">Discard</string>
+    <string name="feature_training_edit_discard_dismiss">Keep editing</string>
+    <string name="feature_training_edit_tag_search_placeholder">Add tag…</string>
+    <string name="feature_training_edit_tag_create_format">+ Create “%1$s”</string>
+
+    <!-- Exercise picker -->
+    <string name="feature_training_picker_title">Add exercises</string>
+    <string name="feature_training_picker_search_placeholder">Search exercises…</string>
+    <string name="feature_training_picker_add_format">Add (%1$d)</string>
+    <string name="feature_training_picker_cancel">Cancel</string>
+    <string name="feature_training_picker_empty">No exercises match</string>
 </resources>

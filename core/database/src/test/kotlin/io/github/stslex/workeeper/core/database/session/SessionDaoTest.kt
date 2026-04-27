@@ -204,6 +204,7 @@ internal class SessionDaoTest : BaseDatabaseTest() {
                 archived = false,
                 createdAt = 0L,
                 archivedAt = null,
+                lastAdhocSets = null,
             ),
         )
     }

@@ -15,12 +15,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 
 @Composable
 internal fun ExerciseHero(
-    type: ExerciseTypeDataModel,
+    type: ExerciseTypeUiModel,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -31,7 +31,7 @@ internal fun ExerciseHero(
             .background(AppUi.colors.surfaceTier1),
         contentAlignment = Alignment.Center,
     ) {
-        val isWeighted = type == ExerciseTypeDataModel.WEIGHTED
+        val isWeighted = type == ExerciseTypeUiModel.WEIGHTED
         Icon(
             modifier = Modifier.size(36.dp),
             imageVector = if (isWeighted) Icons.Filled.FitnessCenter else Icons.Filled.AccessibilityNew,

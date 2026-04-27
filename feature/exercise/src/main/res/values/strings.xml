@@ -9,8 +9,6 @@
     <string name="feature_exercise_detail_archive">Archive</string>
     <string name="feature_exercise_detail_back_description">Back</string>
     <string name="feature_exercise_detail_more_description">More</string>
-    <string name="feature_exercise_detail_type_weighted">Weighted</string>
-    <string name="feature_exercise_detail_type_weightless">Weightless</string>
     <string name="feature_exercise_detail_archive_success_format">&#8216;%1$s&#8217; archived</string>
     <string name="feature_exercise_detail_archive_blocked_title">Cannot archive</string>
     <string name="feature_exercise_detail_archive_blocked_body_format">&#8216;%1$s&#8217; is used in active trainings: %2$s. Remove from those first.</string>
@@ -43,4 +41,17 @@
     <string name="feature_exercise_edit_discard_body">Your changes will be lost.</string>
     <string name="feature_exercise_edit_discard_confirm">Discard</string>
     <string name="feature_exercise_edit_discard_dismiss">Keep editing</string>
+
+    <!-- Adhoc plan -->
+    <string name="feature_exercise_edit_label_default_plan">Default plan (ad-hoc)</string>
+    <string name="feature_exercise_edit_default_plan_subtitle">Used when tracking this exercise outside any training</string>
+    <string name="feature_exercise_edit_plan_edit">Edit plan</string>
+    <string name="feature_exercise_edit_plan_add">+ Add plan</string>
+    <string name="feature_exercise_edit_plan_summary_no_plan">no plan yet</string>
+
+    <!-- Type change confirmation -->
+    <string name="feature_exercise_edit_type_change_weightless_title">Switch to weightless?</string>
+    <string name="feature_exercise_edit_type_change_weightless_body">Weight values from this exercise’s plans will be cleared. This cannot be undone.</string>
+    <string name="feature_exercise_edit_type_change_weightless_impact">All plan weights cleared</string>
+    <string name="feature_exercise_edit_type_change_weightless_confirm">Switch</string>
 </resources>

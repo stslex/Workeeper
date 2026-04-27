@@ -62,6 +62,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
                 archived = false,
                 createdAt = 0L,
                 archivedAt = null,
+                lastAdhocSets = null,
             ),
             ExerciseEntity(
                 uuid = rowUuid,
@@ -72,6 +73,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
                 archived = false,
                 createdAt = 0L,
                 archivedAt = null,
+                lastAdhocSets = null,
             ),
             ExerciseEntity(
                 uuid = pullupUuid,
@@ -82,6 +84,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
                 archived = false,
                 createdAt = 0L,
                 archivedAt = null,
+                lastAdhocSets = null,
             ),
         ).forEach { dao.insert(it) }
 
@@ -123,6 +126,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
                 archived = false,
                 createdAt = 0L,
                 archivedAt = null,
+                lastAdhocSets = null,
             ),
         )
         dao.insert(
@@ -135,6 +139,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
                 archived = true,
                 createdAt = 0L,
                 archivedAt = 1L,
+                lastAdhocSets = null,
             ),
         )
         exerciseTagDao.insert(
@@ -166,6 +171,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
                 archived = false,
                 createdAt = 0L,
                 archivedAt = null,
+                lastAdhocSets = null,
             ),
         )
         dao.insert(
@@ -178,6 +184,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
                 archived = false,
                 createdAt = 0L,
                 archivedAt = null,
+                lastAdhocSets = null,
             ),
         )
         exerciseTagDao.insert(
@@ -204,6 +211,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
                 archived = false,
                 createdAt = 0L,
                 archivedAt = null,
+                lastAdhocSets = null,
             ),
         )
 
@@ -219,6 +227,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
                         archived = false,
                         createdAt = 0L,
                         archivedAt = null,
+                        lastAdhocSets = null,
                     ),
                 )
             }
@@ -238,6 +247,7 @@ internal class ExerciseDaoTest : BaseDatabaseTest() {
                 archived = false,
                 createdAt = 0L,
                 archivedAt = null,
+                lastAdhocSets = null,
             ),
         )
 

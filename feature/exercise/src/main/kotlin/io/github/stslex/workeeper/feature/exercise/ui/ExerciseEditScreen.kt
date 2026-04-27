@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
+import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppTextField
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -132,9 +133,67 @@ internal fun ExerciseEditScreen(
                     singleLine = false,
                 )
             }
+            DefaultPlanSection(state = state, consume = consume)
             Spacer(Modifier.height(AppDimension.Space.md))
         }
         EditActionBar(state = state, consume = consume)
+    }
+}
+
+@Composable
+private fun DefaultPlanSection(
+    state: State,
+    consume: (Action) -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xs),
+    ) {
+        Text(
+            text = stringResource(R.string.feature_exercise_edit_label_default_plan),
+            style = AppUi.typography.labelSmall,
+            color = AppUi.colors.textTertiary,
+        )
+        Text(
+            text = stringResource(R.string.feature_exercise_edit_default_plan_subtitle),
+            style = AppUi.typography.bodySmall,
+            color = AppUi.colors.textTertiary,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val planText = state.adhocPlan
+                ?.joinToString(separator = " · ") { set ->
+                    val weightStr = set.weight?.let { weight ->
+                        if (weight % 1.0 == 0.0) weight.toLong().toString() else weight.toString()
+                    }
+                    if (weightStr != null) weightStr + "×" + set.reps else set.reps.toString()
+                }
+                ?.takeIf { it.isNotBlank() }
+                ?: stringResource(R.string.feature_exercise_edit_plan_summary_no_plan)
+            Text(
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("ExerciseEditPlanSummary"),
+                text = planText,
+                style = AppUi.typography.bodySmall,
+                color = AppUi.colors.textTertiary,
+            )
+            AppButton.Tertiary(
+                modifier = Modifier.testTag("ExerciseEditPlanEditButton"),
+                text = stringResource(
+                    if (state.adhocPlan.isNullOrEmpty()) {
+                        R.string.feature_exercise_edit_plan_add
+                    } else {
+                        R.string.feature_exercise_edit_plan_edit
+                    },
+                ),
+                onClick = { consume(Action.Click.OnEditPlanClick) },
+                size = AppButtonSize.SMALL,
+            )
+        }
     }
 }
 

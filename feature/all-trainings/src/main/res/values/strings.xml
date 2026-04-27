@@ -1,5 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="feature_all_trainings_empty_results">You don&#8217;t have any exercises yet</string>
-    <string name="feature_all_trainings_not_found_results">No results found</string>
+    <string name="feature_all_trainings_title">Trainings</string>
+    <string name="feature_all_trainings_empty_headline">No trainings yet</string>
+    <string name="feature_all_trainings_empty_supporting">Tap + to create your first training</string>
+    <string name="feature_all_trainings_fab_create">Create training</string>
+    <string name="feature_all_trainings_chevron_description">Open training</string>
+
+    <string name="feature_all_trainings_status_in_progress_format">in progress · started %1$s ago</string>
+    <string name="feature_all_trainings_status_last_format">last: %1$s</string>
+    <string name="feature_all_trainings_status_never">never trained</string>
+    <string name="feature_all_trainings_active_pill">Active</string>
+    <string name="feature_all_trainings_overflow_format">+%1$d</string>
+
+    <string name="feature_all_trainings_relative_just_now">just now</string>
+    <string name="feature_all_trainings_relative_minutes_format">%1$dm</string>
+    <string name="feature_all_trainings_relative_hours_format">%1$dh</string>
+    <string name="feature_all_trainings_relative_days_format">%1$dd</string>
+
+    <plurals name="feature_all_trainings_exercise_count">
+        <item quantity="one">%d exercise</item>
+        <item quantity="other">%d exercises</item>
+    </plurals>
+
+    <string name="feature_all_trainings_selection_close">Close selection</string>
+    <plurals name="feature_all_trainings_selected_count">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
+    <string name="feature_all_trainings_bulk_archive">Archive</string>
+    <string name="feature_all_trainings_bulk_delete">Delete</string>
+    <plurals name="feature_all_trainings_bulk_archive_success">
+        <item quantity="one">%d training archived</item>
+        <item quantity="other">%d trainings archived</item>
+    </plurals>
+    <string name="feature_all_trainings_bulk_archive_partial_format">Archived %1$d, blocked: %2$s</string>
+    <string name="feature_all_trainings_bulk_delete_confirm_title">Delete selected permanently?</string>
+    <plurals name="feature_all_trainings_bulk_delete_confirm_body">
+        <item quantity="one">%d training will be permanently deleted. This cannot be undone.</item>
+        <item quantity="other">%d trainings will be permanently deleted. This cannot be undone.</item>
+    </plurals>
+    <string name="feature_all_trainings_bulk_delete_impact">No history affected</string>
+    <plurals name="feature_all_trainings_bulk_delete_success">
+        <item quantity="one">%d training deleted</item>
+        <item quantity="other">%d trainings deleted</item>
+    </plurals>
 </resources>

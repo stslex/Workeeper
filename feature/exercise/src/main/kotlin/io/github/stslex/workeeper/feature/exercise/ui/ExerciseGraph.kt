@@ -17,6 +17,8 @@ import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
 import io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
+import io.github.stslex.workeeper.core.ui.plan_editor.AppPlanEditor
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseFeature
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Action
@@ -57,12 +59,21 @@ fun NavGraphBuilder.exerciseGraph(
             stringResource(R.string.feature_exercise_detail_permanent_delete_confirm_button)
         val permanentDeleteSuccess =
             stringResource(R.string.feature_exercise_detail_permanent_delete_success)
+        val typeChangeTitle =
+            stringResource(R.string.feature_exercise_edit_type_change_weightless_title)
+        val typeChangeBody =
+            stringResource(R.string.feature_exercise_edit_type_change_weightless_body)
+        val typeChangeImpact =
+            stringResource(R.string.feature_exercise_edit_type_change_weightless_impact)
+        val typeChangeConfirm =
+            stringResource(R.string.feature_exercise_edit_type_change_weightless_confirm)
 
         var pendingDiscard by remember { mutableStateOf<DiscardTarget?>(null) }
         var archiveBlockedState by remember {
             mutableStateOf<Pair<String, List<String>>?>(null)
         }
         var permanentDeleteName by remember { mutableStateOf<String?>(null) }
+        var showTypeChangeDialog by remember { mutableStateOf(false) }
 
         processor.Handle { event ->
             when (event) {
@@ -82,10 +93,20 @@ fun NavGraphBuilder.exerciseGraph(
 
                 Event.ShowTagLimitReached -> SnackbarManager.showSnackbar(message = tagLimitMessage)
                 Event.ShowTrackNowPending -> SnackbarManager.showSnackbar(message = trackPendingMessage)
-                is Event.ShowDiscardConfirmDialog -> { pendingDiscard = event.target }
-                is Event.ShowPermanentDeleteConfirm -> { permanentDeleteName = event.name }
+                is Event.ShowDiscardConfirmDialog -> {
+                    pendingDiscard = event.target
+                }
+
+                is Event.ShowPermanentDeleteConfirm -> {
+                    permanentDeleteName = event.name
+                }
+
                 Event.ShowPermanentDeleteSuccess ->
                     SnackbarManager.showSnackbar(message = permanentDeleteSuccess)
+
+                Event.ShowTypeChangeConfirm -> {
+                    showTypeChangeDialog = true
+                }
             }
         }
 
@@ -154,6 +175,30 @@ fun NavGraphBuilder.exerciseGraph(
                     permanentDeleteName = null
                     processor.consume(Action.Click.OnDismissPermanentDelete)
                 },
+            )
+        }
+        if (showTypeChangeDialog) {
+            AppConfirmDialog(
+                title = typeChangeTitle,
+                body = typeChangeBody,
+                impactSummary = typeChangeImpact,
+                confirmLabel = typeChangeConfirm,
+                onConfirm = {
+                    showTypeChangeDialog = false
+                    processor.consume(Action.Click.OnTypeChangeConfirm)
+                },
+                onDismiss = {
+                    showTypeChangeDialog = false
+                    processor.consume(Action.Click.OnTypeChangeDismiss)
+                },
+            )
+        }
+        state.planEditorTarget?.let { target ->
+            AppPlanEditor(
+                exerciseName = state.name,
+                draft = target.draft,
+                isWeighted = state.type == ExerciseTypeUiModel.WEIGHTED,
+                onAction = { action -> processor.consume(Action.PlanEditorAction(action)) },
             )
         }
     }

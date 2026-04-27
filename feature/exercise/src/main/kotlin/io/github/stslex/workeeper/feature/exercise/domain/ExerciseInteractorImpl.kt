@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.feature.exercise.domain
 
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
+import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
@@ -16,7 +17,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
-import kotlin.uuid.Uuid
 
 @ViewModelScoped
 internal class ExerciseInteractorImpl @Inject constructor(
@@ -45,10 +45,8 @@ internal class ExerciseInteractorImpl @Inject constructor(
     override suspend fun saveExercise(
         snapshot: ExerciseChangeDataModel,
     ): SaveResult = withContext(defaultDispatcher) {
-        val resolvedUuid = snapshot.uuid?.takeIf { it.isNotBlank() } ?: Uuid.random().toString()
-        val toSave = snapshot.copy(uuid = resolvedUuid)
-        when (exerciseRepository.saveItem(toSave)) {
-            ExerciseRepository.SaveResult.Success -> SaveResult.Success(resolvedUuid)
+        when (exerciseRepository.saveItem(snapshot)) {
+            ExerciseRepository.SaveResult.Success -> SaveResult.Success(snapshot.uuid)
             ExerciseRepository.SaveResult.DuplicateName -> SaveResult.DuplicateName
         }
     }
@@ -79,5 +77,23 @@ internal class ExerciseInteractorImpl @Inject constructor(
 
     override suspend fun permanentlyDelete(uuid: String) {
         withContext(defaultDispatcher) { exerciseRepository.permanentDelete(uuid) }
+    }
+
+    override suspend fun getAdhocPlan(
+        uuid: String,
+    ): List<PlanSetDataModel>? = withContext(defaultDispatcher) {
+        exerciseRepository.getAdhocPlan(uuid)
+    }
+
+    override suspend fun setAdhocPlan(uuid: String, plan: List<PlanSetDataModel>?) {
+        withContext(defaultDispatcher) {
+            exerciseRepository.setAdhocPlan(uuid, plan)
+        }
+    }
+
+    override suspend fun clearWeightsFromAllPlansForExercise(uuid: String) {
+        withContext(defaultDispatcher) {
+            exerciseRepository.clearWeightsFromAllPlansForExercise(uuid)
+        }
     }
 }

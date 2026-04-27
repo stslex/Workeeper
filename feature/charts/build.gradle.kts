@@ -11,6 +11,7 @@ dependencies {
     implementation(project(":core:ui:navigation"))
     implementation(project(":core:exercise"))
     testImplementation(kotlin("test"))
+    testImplementation(project(":core:database"))
 
     androidTestImplementation(libs.bundles.android.test)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

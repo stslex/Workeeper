@@ -38,4 +38,16 @@ internal class TrainingExerciseRepositoryImpl @Inject constructor(
             )
         }
     }
+
+    override suspend fun getRowsForTraining(
+        trainingUuid: String,
+    ): List<TrainingExerciseRepository.TrainingExerciseRow> = withContext(ioDispatcher) {
+        dao.getByTraining(Uuid.parse(trainingUuid)).map { row ->
+            TrainingExerciseRepository.TrainingExerciseRow(
+                exerciseUuid = row.exerciseUuid.toString(),
+                position = row.position,
+                planSets = PlanSetsConverter.fromJson(row.planSets),
+            )
+        }
+    }
 }

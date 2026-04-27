@@ -11,7 +11,6 @@ dependencies {
     implementation(project(":core:exercise"))
 
     testImplementation(libs.androidx.paging.testing)
-    implementation(libs.dev.haze.core)
 
     androidTestImplementation(libs.bundles.android.test)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

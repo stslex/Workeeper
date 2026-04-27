@@ -669,6 +669,292 @@ When creating a new feature module:
 4. Reference all strings via `stringResource(R.string.xxx)` from Composables and
    `context.getString(R.string.xxx)` from non-Compose code.
 
+## Compose UI conventions
+
+Composable functions follow strict conventions to keep recompositions predictable, state
+ownership clear, and components reusable across features.
+
+### Stateless components
+
+Composables that render UI are **stateless** by default. They receive their data via
+parameters and emit events via callbacks. They do not own their data, do not call
+business logic, and do not hold mutable state about what they display.
+
+```kotlin
+@Composable
+fun AppPlanEditor(
+    exerciseName: String,
+    draft: ImmutableList<PlanSetUiModel>,
+    isWeighted: Boolean,
+    onAction: (AppPlanEditorAction) -> Unit,
+    modifier: Modifier = Modifier,
+)
+```
+
+The state lives in the parent's `Store.State`. Each user input flows through the standard
+MVI cycle: UI emits Action → Handler updates State → State propagates back to UI. The
+component does not call `remember { mutableStateOf(...) }` for the data it displays.
+
+**The single allowed exception** is ephemeral local UI state with no persistence semantics:
+focus state, transient animation values, scroll position when not part of restored state.
+For these, `remember` / `rememberSaveable` is fine. But **never** for domain data like form
+inputs, drafts, dirty flags, or pending changes.
+
+When tempted to put data state in a Composable, ask: would another part of the app care
+about this value? If yes — it belongs in Store. If the answer is uncertain, default to
+Store.
+
+### Why stateless
+
+Three concrete consequences:
+
+1. **Discard and confirmation flows live in one place.** If a sheet has its own draft
+   state, it needs its own discard dialog. The parent screen also has its own discard
+   handling for surrounding edits. Two dialogs, unsynchronized, different UX. With
+   stateless components, the parent owns all draft state, all dirty detection, and the
+   single discard dialog flow per [Back gesture handling](#back-gesture-handling).
+
+2. **State changes from elsewhere are reflected.** If a background coroutine updates the
+   plan (e.g. live workout finishes and rewrites the plan), a stateless editor will
+   re-render with the new value. A stateful editor will keep showing its own draft and
+   silently overwrite the update on save.
+
+3. **Components are testable in isolation.** Stateless components are pure functions of
+   their input — write a `@Preview` per state, snapshot-test them, no DI required.
+
+### `@Stable` and `@Immutable`
+
+Every data class passed to a Composable is annotated `@Stable` or `@Immutable`. This
+allows Compose to skip recompositions when the value is unchanged (referential equality
+on stable types).
+
+```kotlin
+@Stable
+data class PlanEditorTarget(
+    val exerciseUuid: String,
+    val exerciseName: String,
+    val exerciseType: ExerciseTypeUiModel,
+    val initialPlan: ImmutableList<PlanSetUiModel>,
+    val draft: ImmutableList<PlanSetUiModel>,
+)
+```
+
+`@Immutable` is the stronger contract — all properties are val and themselves immutable.
+`@Stable` is weaker — properties may change but reads of the same instance are
+consistent. For Store.State implementations, `@Stable` is the convention. For pure value
+types (no mutable state, all properties val), `@Immutable` is preferred.
+
+Enums are stable by default (Compose treats them as `@Stable` automatically). Sealed
+interfaces and their data variants need explicit `@Stable` annotations on each variant.
+
+### UI types vs domain types
+
+Composables consume **UI types**, not domain types. Domain types like `ExerciseDataModel`,
+`TrainingDataModel`, `PlanSetDataModel` live in `core/<feature>/` and represent the
+canonical data model. They are the contract between repository and use case.
+
+UI types are tailored to what the UI needs to render: kit-local enums, derived display
+strings, no business identifiers unless required for actions. They live in the module
+that owns the corresponding Composable.
+
+```kotlin
+// In core/ui/plan-editor/.../model/PlanSetUiModel.kt — module-local UI type
+@Stable
+data class PlanSetUiModel(
+    val weight: Double?,
+    val reps: Int,
+    val type: SetTypeUiModel,
+)
+
+enum class SetTypeUiModel { WARMUP, WORK, FAILURE, DROP }
+```
+
+The mapper `DomainType <-> UiModel` lives in the module that owns the UiModel:
+
+```kotlin
+// In core/ui/plan-editor/.../mappers/PlanEditorMapper.kt
+fun PlanSetDataModel.toUi(): PlanSetUiModel = ...
+fun PlanSetUiModel.toData(): PlanSetDataModel = ...
+fun List<PlanSetDataModel>.toUi(): ImmutableList<PlanSetUiModel> = ...
+```
+
+**Mapping is a boundary operation.** Domain types appear only at:
+
+- Load boundary — interactor returns domain, handler maps to UI.
+- Persist boundary — handler maps UI to domain before calling repository.
+
+**Inside MVI** — Store.State, Action variants, Handler logic — only UI types flow.
+This includes feature-level state, not just kit-level.
+
+Why this matters:
+
+1. **Layer ordering stays correct.** A Composable in `core/ui/kit` that imports
+   `PlanSetDataModel` from `core/exercise` couples the kit to that domain. The kit can no
+   longer be reused if the exercise domain changes shape, and architectural ordering is
+   inverted (lower layer depending on higher layer).
+2. **UI types can be tailored.** Pre-formatted display strings, computed flags, sorted
+   collections — all things the UI needs but the domain doesn't care about.
+3. **Domain refactors don't break UI tests.** When `PlanSetDataModel` gains a field, only
+   the mapper changes; the Composable and its previews are unaffected.
+
+This applies to every `@Composable` parameter in the codebase — at no point should a
+domain `*DataModel` cross into a kit component or remain in a handler's State after the
+load boundary.
+
+### Specialized UI modules — `core/ui/<specialized>`
+
+Three architectural layers exist for UI code:
+
+1. **`core/ui/kit`** — pure Compose primitives (buttons, dialogs, sheets, list rows,
+   theme tokens, text fields). Domain-agnostic. Reusable across any product.
+   No `*DataModel` imports allowed.
+2. **`core/ui/<specialized>`** — domain-aware UI bridges. Sit one rung above the kit.
+   Allowed to import from `core/database` and `core/<feature>` for domain types.
+   Define their own UI types and mappers. Provide Composables consumed by features.
+   Examples: `core/ui/plan-editor` (the plan editor sheet + its UI types and mappers),
+   `core/ui/exercise-picker` (hypothetical), `core/ui/calendar-widget` (hypothetical).
+3. **`feature/<name>/ui/`** — feature-specific Composables that compose the kit and
+   specialized modules into a screen. Define feature-local UI state (Store.State)
+   and orchestrate the MVI cycle.
+
+Promote a Composable from feature to a specialized module when:
+
+- More than one feature consumes it (or will consume it within v1+v2 horizon).
+- It owns its own non-trivial UI types and mappers.
+- It can be specified independently of any single feature's lifecycle.
+
+Do **not** put it in `core/ui/kit` if it has any domain coupling. The kit boundary is
+strict — domain-agnostic. Specialized modules are the right slot for things that are
+"reusable but domain-aware".
+
+### Action wrapper pattern for reusable Composables
+
+When a reusable Composable (typically in `core/ui/<specialized>`) emits a non-trivial
+action surface, wrap it in a single Action variant in the consuming feature's Store
+contract rather than expanding it into many Click variants.
+
+```kotlin
+// Inside the specialized module:
+@Stable
+sealed interface AppPlanEditorAction {
+    @Stable data class OnSetWeightChange(val index: Int, val value: Double?) : AppPlanEditorAction
+    @Stable data class OnSetRepsChange(val index: Int, val value: Int) : AppPlanEditorAction
+    @Stable data class OnSetTypeChange(val index: Int, val value: SetTypeUiModel) : AppPlanEditorAction
+    @Stable data class OnSetRemove(val index: Int) : AppPlanEditorAction
+    @Stable object OnAddSet : AppPlanEditorAction
+    @Stable object OnDismiss : AppPlanEditorAction
+    @Stable object OnSave : AppPlanEditorAction
+}
+
+// In the feature's Store contract:
+sealed interface Action : Store.Action {
+    sealed interface Click : Action { /* feature-local clicks */ }
+    sealed interface Navigation : Action { /* navigation */ }
+    data class PlanEditAction(val action: AppPlanEditorAction) : Action
+}
+```
+
+The store's `handlerCreator` routes the wrapper to a dedicated handler:
+
+```kotlin
+when (action) {
+    is Action.Navigation     -> navigationHandler
+    is Action.Click          -> clickHandler
+    is Action.PlanEditAction -> planEditActionHandler
+}
+```
+
+The graph forwards the editor's actions verbatim:
+
+```kotlin
+state.planEditorTarget?.let { target ->
+    AppPlanEditor(
+        exerciseName = target.exerciseName,
+        draft = target.draft,
+        isWeighted = target.isWeighted,
+        onAction = { action -> processor.consume(Action.PlanEditAction(action)) },
+    )
+}
+```
+
+Why wrap rather than expand:
+
+1. **Action surface stays flat.** Six per-action `Click` variants would clutter the
+   feature's contract with concerns that belong to the editor module.
+2. **No translation layer in the graph.** Without a wrapper, the graph would need a
+   `toStoreAction()` mapping function. With a wrapper, it's a single line.
+3. **The editor is replaceable.** Swapping `AppPlanEditor` for a different editor
+   surface only changes the wrapper's payload type, not the surrounding Store contract.
+4. **Handler stays focused.** `PlanEditActionHandler` reads only `AppPlanEditorAction`
+   variants and operates only on plan-editor UI types. It doesn't know about the
+   feature's other Click actions.
+
+Apply this pattern when a specialized Composable emits more than 3-4 action variants.
+For 1-2 callback Composables (e.g. a single `onClick`), individual Click variants in the
+feature contract are fine.
+
+### Collections in UI parameters
+
+Always use `kotlinx.collections.immutable.ImmutableList` /
+`ImmutableSet` / `ImmutableMap` (or their `Persistent*` variants) when passing
+collections into Composables — never `List` / `Set` / `Map`.
+
+```kotlin
+// WRONG — kotlin.collections.List is not @Stable
+@Composable
+fun ExerciseListScreen(exercises: List<ExerciseDataModel>)
+
+// CORRECT — ImmutableList is @Stable
+@Composable
+fun ExerciseListScreen(exercises: ImmutableList<ExerciseDataModel>)
+```
+
+Why: `kotlin.collections.List` is an interface with no `@Stable` annotation. Compose
+treats it as unstable, which means every recomposition compares by reference (not
+content), and any change anywhere in the parent forces this Composable to recompose even
+when its data is unchanged. `ImmutableList` is annotated stable; Compose skips
+recompositions when the reference and content are unchanged.
+
+The dependency `org.jetbrains.kotlinx:kotlinx-collections-immutable` is already in the
+project. Convert to `ImmutableList` at the boundary where data leaves the data layer
+and enters MVI/UI flow.
+
+### TextField inputs and recomposition
+
+`OutlinedTextField` and `TextField` re-derive their internal state from the `value`
+parameter on each recomposition. If the parent State updates frequently and the
+TextField's `value` is computed from State (e.g. `state.draft[index].weight.toString()`),
+the new String instance on each recomposition can cause focus or selection state to
+reset, which dismisses the keyboard.
+
+To keep the keyboard open and cursor stable across user typing:
+
+- Pass `value` as the canonical String from State, **not** a recomputed-on-every-render
+  expression. If the State already holds a String form, use it directly.
+- Use `key = stableKey` on the parent layout when the TextField is inside a list, so
+  Compose can match the same TextField identity across recompositions.
+- Never call `softwareKeyboardController.hide()` from input handlers — the keyboard
+  should stay visible until the user taps elsewhere or submits.
+
+For lists of TextField rows (e.g. plan editor sets), each row needs a stable key so its
+TextField identity is preserved when adjacent rows are added, removed, or reordered.
+
+### Composable previews
+
+Every public or internal `@Composable` function has at least one `@Preview` next to it.
+
+- Public/internal Composables in `feature/*`, `core/ui/kit`, and `core/ui/<specialized>`
+  modules MUST have previews.
+- Private `@Composable` helpers do not require previews.
+- Previews use `AppTheme` with both `ThemeMode.LIGHT` and `ThemeMode.DARK` — either two
+  preview functions or one with `PreviewParameter`.
+- Previews use realistic stub data, not Lorem Ipsum.
+- Composables with multiple visually-distinct states (loading, empty, error, populated,
+  dirty form, selection mode, weighted vs weightless, etc.) get one `@Preview` per state.
+
+Previews are validated as part of code review — a Composable without a preview is
+incomplete. Reviewers should ask "where's the preview?" before approving.
+
 ## Build conventions
 
 Convention plugins live in `build-logic/convention/src/main/kotlin/`:

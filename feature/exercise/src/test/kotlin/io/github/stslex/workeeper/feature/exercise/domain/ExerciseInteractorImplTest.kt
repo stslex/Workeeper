@@ -13,9 +13,9 @@ import io.mockk.slot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import kotlin.uuid.Uuid
 
 internal class ExerciseInteractorImplTest {
 
@@ -28,32 +28,41 @@ internal class ExerciseInteractorImplTest {
     )
 
     @Test
-    fun `saveExercise generates uuid when input is null`() = runTest {
+    fun `saveExercise forwards the snapshot uuid to repository on Success`() = runTest {
         val captured = slot<ExerciseChangeDataModel>()
         coEvery { exerciseRepository.saveItem(capture(captured)) } returns ExerciseRepository.SaveResult.Success
 
+        val uuid = Uuid.random()
         val result = interactor.saveExercise(
-            ExerciseChangeDataModel(uuid = null, name = "Bench", timestamp = 0L),
+            ExerciseChangeDataModel(
+                uuid = uuid,
+                name = "Bench",
+                timestamp = 0L,
+                lastAdHocSets = null,
+            ),
         )
 
         assertTrue(result is SaveResult.Success)
-        val resolved = (result as SaveResult.Success).resolvedUuid
-        assertNotNull(captured.captured.uuid)
-        assertEquals(captured.captured.uuid, resolved)
+        assertEquals(uuid, (result as SaveResult.Success).resolvedUuid)
+        assertEquals(uuid, captured.captured.uuid)
         coVerify { exerciseRepository.saveItem(any()) }
     }
 
     @Test
-    fun `saveExercise preserves uuid when provided`() = runTest {
+    fun `saveExercise propagates the lastAdHocSets payload`() = runTest {
         val captured = slot<ExerciseChangeDataModel>()
         coEvery { exerciseRepository.saveItem(capture(captured)) } returns ExerciseRepository.SaveResult.Success
 
-        val result = interactor.saveExercise(
-            ExerciseChangeDataModel(uuid = "fixed", name = "Bench", timestamp = 0L),
+        interactor.saveExercise(
+            ExerciseChangeDataModel(
+                uuid = Uuid.random(),
+                name = "Bench",
+                timestamp = 0L,
+                lastAdHocSets = null,
+            ),
         )
 
-        assertEquals(SaveResult.Success("fixed"), result)
-        assertEquals("fixed", captured.captured.uuid)
+        assertEquals(null, captured.captured.lastAdHocSets)
     }
 
     @Test
@@ -61,7 +70,12 @@ internal class ExerciseInteractorImplTest {
         coEvery { exerciseRepository.saveItem(any()) } returns ExerciseRepository.SaveResult.DuplicateName
 
         val result = interactor.saveExercise(
-            ExerciseChangeDataModel(uuid = null, name = "Bench", timestamp = 0L),
+            ExerciseChangeDataModel(
+                uuid = Uuid.random(),
+                name = "Bench",
+                timestamp = 0L,
+                lastAdHocSets = null,
+            ),
         )
 
         assertEquals(SaveResult.DuplicateName, result)

@@ -3,8 +3,10 @@ package io.github.stslex.workeeper.feature.exercise.mvi.store
 
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.ui.mvi.Store
+import io.github.stslex.workeeper.core.ui.plan_editor.model.AppPlanEditorAction
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
+import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.feature.exercise.mvi.model.HistoryUiModel
 import io.github.stslex.workeeper.feature.exercise.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Action
@@ -22,7 +24,7 @@ internal interface ExerciseStore : Store<State, Action, Event> {
         val name: String,
         val nameError: Boolean,
         val nameDuplicateError: Boolean,
-        val type: ExerciseTypeDataModel,
+        val type: ExerciseTypeUiModel,
         val description: String,
         val tags: ImmutableList<TagUiModel>,
         val availableTags: ImmutableList<TagUiModel>,
@@ -31,6 +33,9 @@ internal interface ExerciseStore : Store<State, Action, Event> {
         val originalSnapshot: Snapshot?,
         val isLoading: Boolean,
         val canPermanentlyDelete: Boolean,
+        val adhocPlan: ImmutableList<PlanSetUiModel>?,
+        val planEditorTarget: PlanEditorTarget?,
+        val pendingTypeChange: ExerciseTypeUiModel?,
     ) : Store.State {
 
         val isSaveEnabled: Boolean
@@ -39,6 +44,9 @@ internal interface ExerciseStore : Store<State, Action, Event> {
         val hasChanges: Boolean
             get() = originalSnapshot?.matches(this) == false
 
+        val isPlanEditorDirty: Boolean
+            get() = planEditorTarget?.let { it.draft != it.initialPlan } == true
+
         /**
          * True only when the system back gesture must surface the discard-changes dialog,
          * or when Edit on an existing exercise must flip back to Read instead of popping.
@@ -46,7 +54,7 @@ internal interface ExerciseStore : Store<State, Action, Event> {
          * natively (including the Android 13+ predictive-back preview animation).
          */
         val interceptBack: Boolean
-            get() = mode is Mode.Edit && (hasChanges || !mode.isCreate)
+            get() = (mode is Mode.Edit && (hasChanges || !mode.isCreate)) || isPlanEditorDirty
 
         @Stable
         sealed interface Mode {
@@ -59,7 +67,7 @@ internal interface ExerciseStore : Store<State, Action, Event> {
         @Stable
         data class Snapshot(
             val name: String,
-            val type: ExerciseTypeDataModel,
+            val type: ExerciseTypeUiModel,
             val description: String,
             val tagUuids: List<String>,
         ) {
@@ -70,6 +78,14 @@ internal interface ExerciseStore : Store<State, Action, Event> {
                 state.tags.map { it.uuid } == tagUuids
         }
 
+        @Stable
+        data class PlanEditorTarget(
+            /** Snapshot of the plan when the editor opened — used for dirty detection. */
+            val initialPlan: ImmutableList<PlanSetUiModel>,
+            /** Live draft updated on every editor field change. */
+            val draft: ImmutableList<PlanSetUiModel>,
+        )
+
         companion object {
 
             fun create(uuid: String?): State = State(
@@ -78,7 +94,7 @@ internal interface ExerciseStore : Store<State, Action, Event> {
                 name = "",
                 nameError = false,
                 nameDuplicateError = false,
-                type = ExerciseTypeDataModel.WEIGHTED,
+                type = ExerciseTypeUiModel.WEIGHTED,
                 description = "",
                 tags = persistentListOf(),
                 availableTags = persistentListOf(),
@@ -87,6 +103,9 @@ internal interface ExerciseStore : Store<State, Action, Event> {
                 originalSnapshot = null,
                 isLoading = uuid != null,
                 canPermanentlyDelete = false,
+                adhocPlan = null,
+                planEditorTarget = null,
+                pendingTypeChange = null,
             )
         }
     }
@@ -131,7 +150,13 @@ internal interface ExerciseStore : Store<State, Action, Event> {
 
             data class OnUndoArchive(val uuid: String) : Click
 
-            data class OnTypeSelect(val type: ExerciseTypeDataModel) : Click
+            data class OnTypeSelect(val type: ExerciseTypeUiModel) : Click
+
+            data object OnTypeChangeConfirm : Click
+
+            data object OnTypeChangeDismiss : Click
+
+            data object OnEditPlanClick : Click
 
             data class OnTagToggle(val tagUuid: String) : Click
 
@@ -139,6 +164,8 @@ internal interface ExerciseStore : Store<State, Action, Event> {
 
             data class OnTagCreate(val name: String) : Click
         }
+
+        data class PlanEditorAction(val action: AppPlanEditorAction) : Action
 
         sealed interface Input : Action {
 
@@ -175,12 +202,15 @@ internal interface ExerciseStore : Store<State, Action, Event> {
         data class ShowPermanentDeleteConfirm(val name: String) : Event
 
         data object ShowPermanentDeleteSuccess : Event
+
+        data object ShowTypeChangeConfirm : Event
     }
 
     /**
      * Where the user is heading after confirming a discard. Lets the dialog reuse a single
-     * surface for both Edit-back (flip mode) and Edit(create)-back (pop screen).
+     * surface for the form-level (POP_SCREEN/FLIP_TO_READ) and plan-editor (PLAN_EDITOR)
+     * scopes — same dialog, different commit semantics.
      */
     @Stable
-    enum class DiscardTarget { POP_SCREEN, FLIP_TO_READ }
+    enum class DiscardTarget { POP_SCREEN, FLIP_TO_READ, PLAN_EDITOR }
 }
