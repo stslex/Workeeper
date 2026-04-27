@@ -162,3 +162,7 @@ Compose UI tests (see the `write-handler-test` and `write-ui-test` skills).
 - **Do not change rule sources to make a violation go away.** If a rule's intent is wrong
   for the codebase, that is a separate, larger conversation — open an issue rather than
   editing `lint-rules/.../lint_rules/*.kt` mid-feature work.
+- **When refactoring a Composable, ensure its `@Preview` functions are updated alongside.**
+  Signature changes, new visually-distinct states, and renamed parameters all require the
+  matching `@Preview` to be updated in the same change so the IDE preview pane keeps
+  rendering. See [add-feature.md → Composable previews](add-feature.md#composable-previews).

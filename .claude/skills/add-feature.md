@@ -206,6 +206,8 @@ post-Stage-5.1 layout below.
 
 17. Build the UI from `core/ui/kit` components and tokens (see Design system contract
     below). Hardcoded `Color()`, `sp`, or `dp` outside `core/ui/kit/theme/` are not allowed.
+    Every `public` or `internal` `@Composable` you add must ship with `@Preview` functions
+    in the same file — see Composable previews below.
 
 18. Add a smoke UI test stub under
     `feature/<name>/src/androidTest/kotlin/.../<Name>ScreenTest.kt` annotated `@Smoke`. Most
@@ -358,6 +360,98 @@ Quick reference:
 - Re-implementing dialogs, snackbars, list rows, or segmented controls inside a feature
   module — extend the shared component or land the variant in `core/ui/kit/`.
 
+## Composable previews
+
+Every `public` or `internal` `@Composable` function under `feature/*` and `core/ui/kit/`
+must ship with at least one `@Preview` function in the same file, placed directly below
+the composable it covers. Private `@Composable` helpers do **not** require previews — the
+parent composable's preview already exercises them.
+
+Rules:
+
+- **Both theme modes are required.** A composable must render in both light and dark.
+  Pick one of:
+  1. **Two preview functions** — one wraps the body in
+     `AppTheme(themeMode = ThemeMode.LIGHT) { ... }`, the other in
+     `AppTheme(themeMode = ThemeMode.DARK) { ... }`.
+  2. **One preview with `@PreviewParameter`** — declare a
+     `ThemeModeProvider : PreviewParameterProvider<ThemeMode>` that yields
+     `ThemeMode.LIGHT` and `ThemeMode.DARK`, take it as a `@PreviewParameter` argument,
+     and pass it into `AppTheme(themeMode = mode) { ... }`.
+
+  Implicit / system theme is not enough — the preview must lock the mode explicitly with
+  `AppTheme(themeMode = ...)`. Do not rely on `uiMode = Configuration.UI_MODE_NIGHT_YES`
+  alone; always pass the mode through `AppTheme`.
+
+- **Realistic stub data.** Use values the production feature actually shows (e.g. exercise
+  names like `"Bench press"`, plausible workout dates, real-looking set counts). No
+  `Lorem ipsum`, no `"asdf"` / `"test"` placeholders. `MockDataFactory` from
+  `core/ui/test-utils/` is fine to reach for when the preview is in a module that already
+  depends on it; otherwise inline a small stub.
+
+- **One preview per visually-distinct state.** If the composable branches on `loading` /
+  `empty` / `error` / `populated` / `dirty form` / `validation error` / `success` (etc.),
+  each state gets its own `@Preview` so the full visual surface is reviewable in the IDE
+  preview pane. A single `populated` preview is **not** enough when other states are
+  reachable.
+
+Shape:
+
+```kotlin
+@Preview
+@Composable
+private fun MyComponentPopulatedLightPreview() {
+    AppTheme(themeMode = ThemeMode.LIGHT) {
+        MyComponent(state = stubPopulatedState())
+    }
+}
+
+@Preview
+@Composable
+private fun MyComponentPopulatedDarkPreview() {
+    AppTheme(themeMode = ThemeMode.DARK) {
+        MyComponent(state = stubPopulatedState())
+    }
+}
+
+@Preview
+@Composable
+private fun MyComponentEmptyPreview() {
+    AppTheme(themeMode = ThemeMode.DARK) {
+        MyComponent(state = stubEmptyState())
+    }
+}
+
+@Preview
+@Composable
+private fun MyComponentErrorPreview() {
+    AppTheme(themeMode = ThemeMode.DARK) {
+        MyComponent(state = stubErrorState())
+    }
+}
+```
+
+Or with `@PreviewParameter` to halve the function count:
+
+```kotlin
+private class ThemeModeProvider : PreviewParameterProvider<ThemeMode> {
+    override val values = sequenceOf(ThemeMode.LIGHT, ThemeMode.DARK)
+}
+
+@Preview
+@Composable
+private fun MyComponentPopulatedPreview(
+    @PreviewParameter(ThemeModeProvider::class) themeMode: ThemeMode,
+) {
+    AppTheme(themeMode = themeMode) {
+        MyComponent(state = stubPopulatedState())
+    }
+}
+```
+
+Preview functions are `private` and named `<ComponentName>Preview` (or
+`<ComponentName><Variant>Preview` when there are multiple states).
+
 ## Verification
 
 ```bash
@@ -386,6 +480,10 @@ The detekt run exercises the custom MVI rules; if any fire, fix them rather than
   the feature's `Component.create(navigator)` factory).
 - **Do not hardcode colors / sizes / type styles in feature code.** Pull from `AppUi.*` and
   the `core/ui/kit` components. See the Design system contract above.
+- **Do not ship a `public` or `internal` `@Composable` without a `@Preview`.** Both light
+  and dark must be covered (two preview functions, or one with a `@PreviewParameter`-driven
+  `ThemeMode`), each visually-distinct state needs its own preview, and stub data must be
+  realistic. See Composable previews above. Private helpers are exempt.
 - **Do not forget the `convention.composeLibrary` plugin alias** in `build.gradle.kts`.
   Plain `kotlin("jvm")` modules will not get Hilt, Compose, or the lint convention.
 - **Do not bypass `Screen` for navigation.** Every navigable destination must be a
