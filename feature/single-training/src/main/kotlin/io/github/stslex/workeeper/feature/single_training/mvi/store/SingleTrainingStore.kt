@@ -47,13 +47,16 @@ internal interface SingleTrainingStore : Store<State, Action, Event> {
         val hasChanges: Boolean
             get() = originalSnapshot?.matches(this) == false
 
+        val isPlanEditorDirty: Boolean
+            get() = planEditorTarget?.let { it.draft != it.initialPlan } == true
+
         /**
-         * Intercepting back is only required when the form has unsaved-edits to surface
-         * the discard dialog. When the screen is in Read mode (or on a clean Edit) the
-         * predictive-back preview keeps running.
+         * Intercepting back is required when EITHER training-level edits OR plan-editor
+         * draft changes are unsaved. The handler routes the back to the right discard
+         * surface based on which is dirty.
          */
         val interceptBack: Boolean
-            get() = mode is Mode.Edit && hasChanges
+            get() = (mode is Mode.Edit && hasChanges) || isPlanEditorDirty
 
         @Stable
         sealed interface Mode {
@@ -85,8 +88,14 @@ internal interface SingleTrainingStore : Store<State, Action, Event> {
             val exerciseUuid: String,
             val exerciseName: String,
             val exerciseType: ExerciseTypeDataModel,
-            val initialPlan: ImmutableList<PlanSetDataModel>?,
-        )
+            /** Snapshot of the plan when the editor opened — used for dirty detection. */
+            val initialPlan: ImmutableList<PlanSetDataModel>,
+            /** Live draft updated on every editor field change. */
+            val draft: ImmutableList<PlanSetDataModel>,
+        ) {
+
+            val isWeighted: Boolean get() = exerciseType == ExerciseTypeDataModel.WEIGHTED
+        }
 
         @Stable
         sealed interface PickerState {
@@ -97,7 +106,7 @@ internal interface SingleTrainingStore : Store<State, Action, Event> {
             data class Open(
                 val query: String,
                 val results: ImmutableList<PickerExerciseItem>,
-                val selectedUuids: List<String>,
+                val selectedUuids: ImmutableList<String>,
             ) : PickerState
         }
 
@@ -171,9 +180,22 @@ internal interface SingleTrainingStore : Store<State, Action, Event> {
 
             data class OnEditPlanClick(val exerciseUuid: String) : Click
 
-            data object OnPlanEditorDismiss : Click
+            data class OnPlanEditorSetWeight(val index: Int, val value: Double?) : Click
 
-            data class OnPlanEditorSave(val planSets: List<PlanSetDataModel>?) : Click
+            data class OnPlanEditorSetReps(val index: Int, val reps: Int) : Click
+
+            data class OnPlanEditorSetType(
+                val index: Int,
+                val type: io.github.stslex.workeeper.core.database.sets.SetTypeDataModel,
+            ) : Click
+
+            data class OnPlanEditorRemoveSet(val index: Int) : Click
+
+            data object OnPlanEditorAddSet : Click
+
+            data object OnPlanEditorSave : Click
+
+            data object OnPlanEditorDismiss : Click
 
             data class OnTagToggle(val tagUuid: String) : Click
 

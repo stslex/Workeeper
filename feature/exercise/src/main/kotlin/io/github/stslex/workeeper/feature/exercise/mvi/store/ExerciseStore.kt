@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.feature.exercise.mvi.store
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
+import io.github.stslex.workeeper.core.database.sets.SetTypeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.feature.exercise.mvi.model.HistoryUiModel
@@ -33,7 +34,7 @@ internal interface ExerciseStore : Store<State, Action, Event> {
         val isLoading: Boolean,
         val canPermanentlyDelete: Boolean,
         val adhocPlan: ImmutableList<PlanSetDataModel>?,
-        val isPlanEditorOpen: Boolean,
+        val planEditorTarget: PlanEditorTarget?,
         val pendingTypeChange: ExerciseTypeDataModel?,
     ) : Store.State {
 
@@ -43,6 +44,9 @@ internal interface ExerciseStore : Store<State, Action, Event> {
         val hasChanges: Boolean
             get() = originalSnapshot?.matches(this) == false
 
+        val isPlanEditorDirty: Boolean
+            get() = planEditorTarget?.let { it.draft != it.initialPlan } == true
+
         /**
          * True only when the system back gesture must surface the discard-changes dialog,
          * or when Edit on an existing exercise must flip back to Read instead of popping.
@@ -50,7 +54,7 @@ internal interface ExerciseStore : Store<State, Action, Event> {
          * natively (including the Android 13+ predictive-back preview animation).
          */
         val interceptBack: Boolean
-            get() = mode is Mode.Edit && (hasChanges || !mode.isCreate)
+            get() = (mode is Mode.Edit && (hasChanges || !mode.isCreate)) || isPlanEditorDirty
 
         @Stable
         sealed interface Mode {
@@ -74,6 +78,14 @@ internal interface ExerciseStore : Store<State, Action, Event> {
                 state.tags.map { it.uuid } == tagUuids
         }
 
+        @Stable
+        data class PlanEditorTarget(
+            /** Snapshot of the plan when the editor opened — used for dirty detection. */
+            val initialPlan: ImmutableList<PlanSetDataModel>,
+            /** Live draft updated on every editor field change. */
+            val draft: ImmutableList<PlanSetDataModel>,
+        )
+
         companion object {
 
             fun create(uuid: String?): State = State(
@@ -92,7 +104,7 @@ internal interface ExerciseStore : Store<State, Action, Event> {
                 isLoading = uuid != null,
                 canPermanentlyDelete = false,
                 adhocPlan = null,
-                isPlanEditorOpen = false,
+                planEditorTarget = null,
                 pendingTypeChange = null,
             )
         }
@@ -146,9 +158,19 @@ internal interface ExerciseStore : Store<State, Action, Event> {
 
             data object OnEditPlanClick : Click
 
-            data object OnPlanEditorDismiss : Click
+            data class OnPlanEditorSetWeight(val index: Int, val value: Double?) : Click
 
-            data class OnPlanEditorSave(val plan: List<PlanSetDataModel>?) : Click
+            data class OnPlanEditorSetReps(val index: Int, val reps: Int) : Click
+
+            data class OnPlanEditorSetType(val index: Int, val type: SetTypeDataModel) : Click
+
+            data class OnPlanEditorRemoveSet(val index: Int) : Click
+
+            data object OnPlanEditorAddSet : Click
+
+            data object OnPlanEditorSave : Click
+
+            data object OnPlanEditorDismiss : Click
 
             data class OnTagToggle(val tagUuid: String) : Click
 
@@ -198,8 +220,9 @@ internal interface ExerciseStore : Store<State, Action, Event> {
 
     /**
      * Where the user is heading after confirming a discard. Lets the dialog reuse a single
-     * surface for both Edit-back (flip mode) and Edit(create)-back (pop screen).
+     * surface for the form-level (POP_SCREEN/FLIP_TO_READ) and plan-editor (PLAN_EDITOR)
+     * scopes — same dialog, different commit semantics.
      */
     @Stable
-    enum class DiscardTarget { POP_SCREEN, FLIP_TO_READ }
+    enum class DiscardTarget { POP_SCREEN, FLIP_TO_READ, PLAN_EDITOR }
 }

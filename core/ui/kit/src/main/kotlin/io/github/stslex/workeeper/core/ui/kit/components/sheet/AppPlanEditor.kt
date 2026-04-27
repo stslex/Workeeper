@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.core.ui.kit.components.sheet
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,8 +14,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.DropdownMenu
@@ -34,90 +35,55 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
+import io.github.stslex.workeeper.core.database.sets.SetTypeDataModel
 import io.github.stslex.workeeper.core.ui.kit.R
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
-import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppNumberInput
 import io.github.stslex.workeeper.core.ui.kit.components.setchip.AppSetTypeChip
 import io.github.stslex.workeeper.core.ui.kit.components.setchip.SetType
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
-
-private const val DEFAULT_REPS = 5
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
 
 // Weight column gets a slightly wider weight so the kg input stays legible at small
 // widths; reps stays at flex 1 so the row balances at typical phone sizes.
 private const val WEIGHT_COLUMN_FLEX = 1.2f
 
 /**
- * Modal bottom sheet for editing a plan as an ordered list of sets. Used by Edit training
- * (per training_exercise.plan_sets) and Edit exercise (for last_adhoc_sets).
+ * Modal bottom sheet for editing a plan as an ordered list of sets. Stateless — every
+ * field change emits an [AppPlanEditorAction] back to the parent store, which is the
+ * single source of truth for the draft. The component does NOT own any discard state;
+ * the parent decides whether to show a confirm dialog when [AppPlanEditorAction.OnDismiss]
+ * fires.
  *
- * The sheet keeps its own draft state so the parent only learns about the new plan when
- * the user taps Save. An empty plan (zero sets) saves as `null` so the data layer stores
- * "no plan yet" canonically.
- *
- * @param exerciseName name shown in the title; pass blank to use the default "Plan" title
- * @param isWeighted when false, the weight column is hidden and saved sets carry `weight = null`
- * @param initialSets the existing plan, or null/empty for a fresh plan
- * @param onSave invoked with the new plan (null when empty) once the user confirms
- * @param onDismiss invoked when the user cancels or swipes the sheet down
+ * @param state render data — exercise name + current draft sets
+ * @param isWeighted when false, the weight column is hidden and rendered sets carry
+ * `weight = null`
+ * @param onAction callback for every UI action; the parent translates into its own MVI
+ * action surface
  */
 @Composable
 fun AppPlanEditor(
-    exerciseName: String,
+    state: AppPlanEditorState,
     isWeighted: Boolean,
-    initialSets: List<PlanEditorSet>?,
-    onSave: (List<PlanEditorSet>?) -> Unit,
-    onDismiss: () -> Unit,
+    onAction: (AppPlanEditorAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val initialSafe = remember(initialSets) { initialSets.orEmpty() }
-    // The sheet is short-lived and parent state already persists the canonical plan, so a
-    // plain `remember` is enough — no Saver needed across config changes.
-    var draft by remember(initialSafe) { mutableStateOf(initialSafe.toList()) }
-    var typeMenuIndex by remember { mutableStateOf<Int?>(null) }
-    var showDiscardDialog by remember { mutableStateOf(false) }
-    val isDirty = draft != initialSafe
-
-    val attemptDismiss: () -> Unit = {
-        if (isDirty) showDiscardDialog = true else onDismiss()
-    }
-
     AppBottomSheet(
         modifier = modifier.testTag("AppPlanEditor"),
-        onDismiss = attemptDismiss,
+        onDismiss = { onAction(AppPlanEditorAction.OnDismiss) },
     ) {
-        PlanEditorHeader(exerciseName = exerciseName)
+        PlanEditorHeader(exerciseName = state.exerciseName)
         Spacer(Modifier.height(AppDimension.Space.md))
         PlanEditorBody(
-            draft = draft,
+            draft = state.draft,
             isWeighted = isWeighted,
-            typeMenuIndex = typeMenuIndex,
-            onTypeMenuOpen = { typeMenuIndex = it },
-            onTypeMenuDismiss = { typeMenuIndex = null },
-            onWeightChange = { index, value ->
-                draft = draft.toMutableList().apply {
-                    this[index] = this[index].copy(weight = value.toDoubleOrNull())
-                }
-            },
-            onRepsChange = { index, value ->
-                draft = draft.toMutableList().apply {
-                    val reps = value.toIntOrNull() ?: 0
-                    this[index] = this[index].copy(reps = reps.coerceAtLeast(0))
-                }
-            },
-            onTypeSelect = { index, type ->
-                draft = draft.toMutableList().apply {
-                    this[index] = this[index].copy(type = type)
-                }
-                typeMenuIndex = null
-            },
-            onRemove = { index ->
-                draft = draft.toMutableList().apply { removeAt(index) }
-            },
+            onAction = onAction,
         )
         Spacer(Modifier.height(AppDimension.Space.md))
         AppButton.Tertiary(
@@ -125,9 +91,7 @@ fun AppPlanEditor(
                 .fillMaxWidth()
                 .testTag("AppPlanEditorAddSet"),
             text = stringResource(R.string.core_ui_kit_plan_editor_add_set),
-            onClick = {
-                draft = draft + buildNewSet(draft, isWeighted)
-            },
+            onClick = { onAction(AppPlanEditorAction.OnAddSet) },
             size = AppButtonSize.MEDIUM,
         )
         Spacer(Modifier.height(AppDimension.Space.lg))
@@ -139,7 +103,7 @@ fun AppPlanEditor(
             AppButton.Tertiary(
                 modifier = Modifier.testTag("AppPlanEditorCancel"),
                 text = stringResource(R.string.core_ui_kit_action_cancel),
-                onClick = attemptDismiss,
+                onClick = { onAction(AppPlanEditorAction.OnDismiss) },
                 size = AppButtonSize.MEDIUM,
             )
             AppButton.Primary(
@@ -147,25 +111,10 @@ fun AppPlanEditor(
                     .weight(1f)
                     .testTag("AppPlanEditorSave"),
                 text = stringResource(R.string.core_ui_kit_plan_editor_save),
-                onClick = { onSave(draft.takeIf { it.isNotEmpty() }) },
+                onClick = { onAction(AppPlanEditorAction.OnSave) },
                 size = AppButtonSize.MEDIUM,
             )
         }
-    }
-
-    if (showDiscardDialog) {
-        AppDialog(
-            title = stringResource(R.string.core_ui_kit_plan_editor_discard_title),
-            body = stringResource(R.string.core_ui_kit_plan_editor_discard_body),
-            confirmLabel = stringResource(R.string.core_ui_kit_plan_editor_discard_confirm),
-            destructive = true,
-            dismissLabel = stringResource(R.string.core_ui_kit_action_cancel),
-            onConfirm = {
-                showDiscardDialog = false
-                onDismiss()
-            },
-            onDismiss = { showDiscardDialog = false },
-        )
     }
 }
 
@@ -189,18 +138,11 @@ private fun PlanEditorHeader(exerciseName: String) {
     )
 }
 
-@Suppress("LongParameterList")
 @Composable
 private fun ColumnScope.PlanEditorBody(
-    draft: List<PlanEditorSet>,
+    draft: ImmutableList<PlanSetDataModel>,
     isWeighted: Boolean,
-    typeMenuIndex: Int?,
-    onTypeMenuOpen: (Int) -> Unit,
-    onTypeMenuDismiss: () -> Unit,
-    onWeightChange: (Int, String) -> Unit,
-    onRepsChange: (Int, String) -> Unit,
-    onTypeSelect: (Int, SetType) -> Unit,
-    onRemove: (Int) -> Unit,
+    onAction: (AppPlanEditorAction) -> Unit,
 ) {
     if (draft.isEmpty()) {
         Text(
@@ -214,44 +156,36 @@ private fun ColumnScope.PlanEditorBody(
         )
         return
     }
-    LazyColumn(
+    // Plain Column rather than LazyColumn so each row's TextField is anchored to a
+    // stable composition slot — LazyColumn would re-key on PlanSetDataModel.hashCode
+    // changes and tear down the row each character, dismissing the soft keyboard.
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(max = 360.dp),
+            .heightIn(max = 360.dp)
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
-        items(items = draft, key = { it.hashCode() + draft.indexOf(it) }) { item ->
-            val index = draft.indexOf(item)
+        draft.forEachIndexed { index, set ->
             PlanEditorRow(
                 index = index,
-                item = item,
+                item = set,
                 isWeighted = isWeighted,
-                isMenuOpen = typeMenuIndex == index,
-                onTypeMenuOpen = { onTypeMenuOpen(index) },
-                onTypeMenuDismiss = onTypeMenuDismiss,
-                onWeightChange = { onWeightChange(index, it) },
-                onRepsChange = { onRepsChange(index, it) },
-                onTypeSelect = { onTypeSelect(index, it) },
-                onRemove = { onRemove(index) },
+                onAction = onAction,
             )
         }
     }
 }
 
-@Suppress("LongParameterList", "LongMethod")
+@Suppress("LongMethod")
 @Composable
 private fun PlanEditorRow(
     index: Int,
-    item: PlanEditorSet,
+    item: PlanSetDataModel,
     isWeighted: Boolean,
-    isMenuOpen: Boolean,
-    onTypeMenuOpen: () -> Unit,
-    onTypeMenuDismiss: () -> Unit,
-    onWeightChange: (String) -> Unit,
-    onRepsChange: (String) -> Unit,
-    onTypeSelect: (SetType) -> Unit,
-    onRemove: () -> Unit,
+    onAction: (AppPlanEditorAction) -> Unit,
 ) {
+    var typeMenuOpen by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -271,7 +205,9 @@ private fun PlanEditorRow(
                     .weight(WEIGHT_COLUMN_FLEX)
                     .testTag("AppPlanEditorRowWeight_$index"),
                 value = item.weight?.formatPlain().orEmpty(),
-                onValueChange = onWeightChange,
+                onValueChange = { raw ->
+                    onAction(AppPlanEditorAction.OnSetWeightChange(index, raw.toDoubleOrNull()))
+                },
                 decimals = 2,
                 suffix = stringResource(R.string.core_ui_kit_plan_editor_unit_kg),
             )
@@ -281,7 +217,9 @@ private fun PlanEditorRow(
                 .weight(1f)
                 .testTag("AppPlanEditorRowReps_$index"),
             value = item.reps.takeIf { it > 0 }?.toString().orEmpty(),
-            onValueChange = onRepsChange,
+            onValueChange = { raw ->
+                onAction(AppPlanEditorAction.OnSetRepsChange(index, raw.toIntOrNull() ?: 0))
+            },
             decimals = 0,
             suffix = stringResource(R.string.core_ui_kit_plan_editor_unit_reps),
         )
@@ -289,18 +227,18 @@ private fun PlanEditorRow(
             Box(
                 modifier = Modifier
                     .clip(AppUi.shapes.small)
-                    .clickable(onClick = onTypeMenuOpen)
+                    .clickable { typeMenuOpen = true }
                     .padding(horizontal = AppDimension.Space.xxs, vertical = AppDimension.Space.xxs)
                     .testTag("AppPlanEditorRowType_$index"),
             ) {
-                AppSetTypeChip(type = item.type)
+                AppSetTypeChip(type = item.type.toKitChip())
             }
             DropdownMenu(
-                expanded = isMenuOpen,
-                onDismissRequest = onTypeMenuDismiss,
+                expanded = typeMenuOpen,
+                onDismissRequest = { typeMenuOpen = false },
                 containerColor = AppUi.colors.surfaceTier2,
             ) {
-                SetType.entries.forEach { type ->
+                SetTypeDataModel.entries.forEach { type ->
                     DropdownMenuItem(
                         modifier = Modifier.testTag("AppPlanEditorTypeOption_${type.name}"),
                         text = {
@@ -310,7 +248,10 @@ private fun PlanEditorRow(
                                 color = AppUi.colors.textPrimary,
                             )
                         },
-                        onClick = { onTypeSelect(type) },
+                        onClick = {
+                            onAction(AppPlanEditorAction.OnSetTypeChange(index, type))
+                            typeMenuOpen = false
+                        },
                     )
                 }
             }
@@ -319,7 +260,7 @@ private fun PlanEditorRow(
             modifier = Modifier
                 .size(AppDimension.heightXs)
                 .testTag("AppPlanEditorRowRemove_$index"),
-            onClick = onRemove,
+            onClick = { onAction(AppPlanEditorAction.OnSetRemove(index)) },
         ) {
             Icon(
                 modifier = Modifier.size(AppDimension.iconSm),
@@ -331,26 +272,20 @@ private fun PlanEditorRow(
     }
 }
 
-private val SetType.labelRes: Int
-    get() = when (this) {
-        SetType.WARMUP -> R.string.core_ui_kit_plan_editor_set_type_warmup
-        SetType.WORK -> R.string.core_ui_kit_plan_editor_set_type_work
-        SetType.FAIL -> R.string.core_ui_kit_plan_editor_set_type_failure
-        SetType.DROP -> R.string.core_ui_kit_plan_editor_set_type_drop
-    }
-
-private fun buildNewSet(draft: List<PlanEditorSet>, isWeighted: Boolean): PlanEditorSet {
-    val previous = draft.lastOrNull()
-    return if (previous != null) {
-        previous.copy(type = SetType.WORK, weight = if (isWeighted) previous.weight else null)
-    } else {
-        PlanEditorSet(
-            weight = if (isWeighted) null else null,
-            reps = DEFAULT_REPS,
-            type = SetType.WORK,
-        )
-    }
+private fun SetTypeDataModel.toKitChip(): SetType = when (this) {
+    SetTypeDataModel.WARMUP -> SetType.WARMUP
+    SetTypeDataModel.WORK -> SetType.WORK
+    SetTypeDataModel.FAILURE -> SetType.FAIL
+    SetTypeDataModel.DROP -> SetType.DROP
 }
+
+private val SetTypeDataModel.labelRes: Int
+    get() = when (this) {
+        SetTypeDataModel.WARMUP -> R.string.core_ui_kit_plan_editor_set_type_warmup
+        SetTypeDataModel.WORK -> R.string.core_ui_kit_plan_editor_set_type_work
+        SetTypeDataModel.FAILURE -> R.string.core_ui_kit_plan_editor_set_type_failure
+        SetTypeDataModel.DROP -> R.string.core_ui_kit_plan_editor_set_type_drop
+    }
 
 private fun Double.formatPlain(): String = if (this % 1.0 == 0.0) {
     toLong().toString()
@@ -368,16 +303,17 @@ private fun Double.formatPlain(): String = if (this % 1.0 == 0.0) {
 private fun AppPlanEditorWeightedPopulatedPreview() {
     AppTheme {
         AppPlanEditor(
-            exerciseName = "Bench Press",
-            isWeighted = true,
-            initialSets = listOf(
-                PlanEditorSet(60.0, 10, SetType.WARMUP),
-                PlanEditorSet(80.0, 8, SetType.WORK),
-                PlanEditorSet(100.0, 5, SetType.WORK),
-                PlanEditorSet(85.0, 6, SetType.FAIL),
+            state = AppPlanEditorState(
+                exerciseName = "Bench Press",
+                draft = listOf(
+                    PlanSetDataModel(60.0, 10, SetTypeDataModel.WARMUP),
+                    PlanSetDataModel(80.0, 8, SetTypeDataModel.WORK),
+                    PlanSetDataModel(100.0, 5, SetTypeDataModel.WORK),
+                    PlanSetDataModel(85.0, 6, SetTypeDataModel.FAILURE),
+                ).toImmutableList(),
             ),
-            onSave = {},
-            onDismiss = {},
+            isWeighted = true,
+            onAction = {},
         )
     }
 }
@@ -392,11 +328,12 @@ private fun AppPlanEditorWeightedPopulatedPreview() {
 private fun AppPlanEditorWeightedEmptyPreview() {
     AppTheme {
         AppPlanEditor(
-            exerciseName = "Bench Press",
+            state = AppPlanEditorState(
+                exerciseName = "Bench Press",
+                draft = persistentListOf(),
+            ),
             isWeighted = true,
-            initialSets = null,
-            onSave = {},
-            onDismiss = {},
+            onAction = {},
         )
     }
 }
@@ -411,15 +348,16 @@ private fun AppPlanEditorWeightedEmptyPreview() {
 private fun AppPlanEditorWeightlessPopulatedPreview() {
     AppTheme {
         AppPlanEditor(
-            exerciseName = "Pull-up",
-            isWeighted = false,
-            initialSets = listOf(
-                PlanEditorSet(null, 8, SetType.WORK),
-                PlanEditorSet(null, 6, SetType.WORK),
-                PlanEditorSet(null, 4, SetType.DROP),
+            state = AppPlanEditorState(
+                exerciseName = "Pull-up",
+                draft = listOf(
+                    PlanSetDataModel(null, 8, SetTypeDataModel.WORK),
+                    PlanSetDataModel(null, 6, SetTypeDataModel.WORK),
+                    PlanSetDataModel(null, 4, SetTypeDataModel.DROP),
+                ).toImmutableList(),
             ),
-            onSave = {},
-            onDismiss = {},
+            isWeighted = false,
+            onAction = {},
         )
     }
 }
@@ -434,11 +372,12 @@ private fun AppPlanEditorWeightlessPopulatedPreview() {
 private fun AppPlanEditorWeightlessEmptyPreview() {
     AppTheme {
         AppPlanEditor(
-            exerciseName = "",
+            state = AppPlanEditorState(
+                exerciseName = "",
+                draft = persistentListOf(),
+            ),
             isWeighted = false,
-            initialSets = emptyList(),
-            onSave = {},
-            onDismiss = {},
+            onAction = {},
         )
     }
 }

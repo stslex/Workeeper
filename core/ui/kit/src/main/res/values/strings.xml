@@ -12,9 +12,6 @@
     <string name="core_ui_kit_plan_editor_add_set">+ Add set</string>
     <string name="core_ui_kit_plan_editor_save">Save plan</string>
     <string name="core_ui_kit_plan_editor_remove_set">Remove set</string>
-    <string name="core_ui_kit_plan_editor_discard_title">Discard plan changes?</string>
-    <string name="core_ui_kit_plan_editor_discard_body">Your changes to this plan will be lost.</string>
-    <string name="core_ui_kit_plan_editor_discard_confirm">Discard</string>
     <string name="core_ui_kit_plan_editor_set_type_warmup">Warmup</string>
     <string name="core_ui_kit_plan_editor_set_type_work">Work</string>
     <string name="core_ui_kit_plan_editor_set_type_failure">Failure</string>

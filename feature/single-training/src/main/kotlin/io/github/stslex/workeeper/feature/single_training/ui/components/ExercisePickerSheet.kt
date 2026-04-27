@@ -46,7 +46,7 @@ import kotlinx.collections.immutable.persistentListOf
 internal fun ExercisePickerSheet(
     query: String,
     results: ImmutableList<PickerExerciseItem>,
-    selectedUuids: List<String>,
+    selectedUuids: ImmutableList<String>,
     onSearchChange: (String) -> Unit,
     onToggle: (String) -> Unit,
     onConfirm: () -> Unit,
@@ -199,7 +199,7 @@ private fun ExercisePickerSheetPreview() {
                     tags = persistentListOf("Pull"),
                 ),
             ),
-            selectedUuids = listOf("1"),
+            selectedUuids = persistentListOf("1"),
             onSearchChange = {},
             onToggle = {},
             onConfirm = {},

@@ -4,6 +4,8 @@ package io.github.stslex.workeeper.feature.single_training.mvi.handler
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
+import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
+import io.github.stslex.workeeper.core.database.sets.SetTypeDataModel
 import io.github.stslex.workeeper.core.exercise.training.TrainingChangeDataModel
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingHandlerStore
@@ -23,6 +25,8 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import kotlin.uuid.Uuid
+
+private const val DEFAULT_NEW_REPS = 5
 
 @Suppress("TooManyFunctions", "LongMethod")
 @ViewModelScoped
@@ -51,8 +55,13 @@ internal class ClickHandler @Inject constructor(
             is Action.Click.OnExerciseRemove -> processExerciseRemove(action)
             is Action.Click.OnExerciseReorder -> processExerciseReorder(action)
             is Action.Click.OnEditPlanClick -> processEditPlanClick(action)
+            is Action.Click.OnPlanEditorSetWeight -> processPlanEditorSetWeight(action)
+            is Action.Click.OnPlanEditorSetReps -> processPlanEditorSetReps(action)
+            is Action.Click.OnPlanEditorSetType -> processPlanEditorSetType(action)
+            is Action.Click.OnPlanEditorRemoveSet -> processPlanEditorRemoveSet(action)
+            Action.Click.OnPlanEditorAddSet -> processPlanEditorAddSet()
+            Action.Click.OnPlanEditorSave -> processPlanEditorSave()
             Action.Click.OnPlanEditorDismiss -> processPlanEditorDismiss()
-            is Action.Click.OnPlanEditorSave -> processPlanEditorSave(action)
             is Action.Click.OnTagToggle -> processTagToggle(action)
             is Action.Click.OnTagRemove -> processTagRemove(action)
             is Action.Click.OnTagCreate -> processTagCreate(action)
@@ -65,6 +74,13 @@ internal class ClickHandler @Inject constructor(
     private fun processBackClick() {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         val current = state.value
+        // Plan editor is the inner-most surface — its draft takes priority over the
+        // training-level dirty check. Both share the same Event.ShowDiscardConfirmDialog
+        // surface; the OnConfirmDiscard handler routes to the right surface from state.
+        if (current.isPlanEditorDirty) {
+            sendEvent(Event.ShowDiscardConfirmDialog)
+            return
+        }
         if (current.mode !is Mode.Edit) {
             consume(Action.Navigation.Back)
             return
@@ -193,6 +209,12 @@ internal class ClickHandler @Inject constructor(
 
     private fun processConfirmDiscard() {
         sendEvent(Event.HapticClick(HapticFeedbackType.LongPress))
+        // Same OnConfirmDiscard action covers both the training-level form and the
+        // plan-editor sheet; route based on which is currently dirty.
+        if (state.value.isPlanEditorDirty) {
+            updateState { it.copy(planEditorTarget = null) }
+            return
+        }
         applyDiscard()
     }
 
@@ -302,35 +324,90 @@ internal class ClickHandler @Inject constructor(
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         val target = state.value.exercises.firstOrNull { it.exerciseUuid == action.exerciseUuid }
             ?: return
+        val initial = target.planSets ?: persistentListOf()
         updateState { current ->
             current.copy(
                 planEditorTarget = State.PlanEditorTarget(
                     exerciseUuid = target.exerciseUuid,
                     exerciseName = target.exerciseName,
                     exerciseType = target.exerciseType,
-                    initialPlan = target.planSets,
+                    initialPlan = initial,
+                    draft = initial,
                 ),
             )
         }
     }
 
     private fun processPlanEditorDismiss() {
-        updateState { current -> current.copy(planEditorTarget = null) }
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        val current = state.value
+        if (current.isPlanEditorDirty) {
+            sendEvent(Event.ShowDiscardConfirmDialog)
+        } else {
+            updateState { it.copy(planEditorTarget = null) }
+        }
     }
 
-    private fun processPlanEditorSave(action: Action.Click.OnPlanEditorSave) {
+    private fun processPlanEditorSetWeight(action: Action.Click.OnPlanEditorSetWeight) {
+        updatePlanRow(action.index) { it.copy(weight = action.value) }
+    }
+
+    private fun processPlanEditorSetReps(action: Action.Click.OnPlanEditorSetReps) {
+        updatePlanRow(action.index) { it.copy(reps = action.reps.coerceAtLeast(0)) }
+    }
+
+    private fun processPlanEditorSetType(action: Action.Click.OnPlanEditorSetType) {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updatePlanRow(action.index) { it.copy(type = action.type) }
+    }
+
+    private fun processPlanEditorRemoveSet(action: Action.Click.OnPlanEditorRemoveSet) {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updateState { current ->
+            val target = current.planEditorTarget ?: return@updateState current
+            val nextDraft = target.draft.toMutableList()
+                .also { if (action.index in it.indices) it.removeAt(action.index) }
+                .toImmutableList()
+            current.copy(planEditorTarget = target.copy(draft = nextDraft))
+        }
+    }
+
+    private fun processPlanEditorAddSet() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updateState { current ->
+            val target = current.planEditorTarget ?: return@updateState current
+            val previous = target.draft.lastOrNull()
+            val nextSet = if (previous != null) {
+                previous.copy(type = SetTypeDataModel.WORK)
+            } else {
+                PlanSetDataModel(
+                    weight = if (target.isWeighted) null else null,
+                    reps = DEFAULT_NEW_REPS,
+                    type = SetTypeDataModel.WORK,
+                )
+            }
+            current.copy(
+                planEditorTarget = target.copy(
+                    draft = (target.draft + nextSet).toImmutableList(),
+                ),
+            )
+        }
+    }
+
+    private fun processPlanEditorSave() {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         val current = state.value
         val target = current.planEditorTarget ?: return
         val trainingUuid = current.uuid
-        // Update the in-memory list immediately so the row renders the new plan even if
-        // the persistence call lags. Plans are sub-entities of (training, exercise), so
-        // this state update is independent of training-level Save.
+        val nextPlan = target.draft.takeIf { it.isNotEmpty() }
+        // Update the in-memory exercise row immediately so the UI reflects the new plan
+        // even before persistence completes. Plans are sub-entities of (training,
+        // exercise) — independent of training-level Save.
         updateState { latest ->
             latest.copy(
                 exercises = latest.exercises.map { item ->
                     if (item.exerciseUuid == target.exerciseUuid) {
-                        item.copy(planSets = action.planSets?.toImmutableList())
+                        item.copy(planSets = nextPlan)
                     } else {
                         item
                     }
@@ -339,15 +416,26 @@ internal class ClickHandler @Inject constructor(
             )
         }
         if (trainingUuid != null) {
-            launch(
-                onSuccess = { Unit },
-            ) {
+            launch(onSuccess = { Unit }) {
                 interactor.setPlanForExercise(
                     trainingUuid = trainingUuid,
                     exerciseUuid = target.exerciseUuid,
-                    plan = action.planSets,
+                    plan = nextPlan,
                 )
             }
+        }
+    }
+
+    private inline fun updatePlanRow(
+        index: Int,
+        crossinline transform: (PlanSetDataModel) -> PlanSetDataModel,
+    ) {
+        updateState { current ->
+            val target = current.planEditorTarget ?: return@updateState current
+            if (index !in target.draft.indices) return@updateState current
+            val next = target.draft.toMutableList().apply { this[index] = transform(this[index]) }
+                .toImmutableList()
+            current.copy(planEditorTarget = target.copy(draft = next))
         }
     }
 
@@ -404,7 +492,7 @@ internal class ClickHandler @Inject constructor(
             } else {
                 picker.selectedUuids + action.uuid
             }
-            current.copy(pickerState = picker.copy(selectedUuids = nextSelection))
+            current.copy(pickerState = picker.copy(selectedUuids = nextSelection.toImmutableList()))
         }
     }
 

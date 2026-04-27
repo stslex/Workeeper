@@ -18,13 +18,14 @@ import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Disca
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Event
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State.Mode
-import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 private const val MAX_TAGS_PER_EXERCISE = 10
+private const val DEFAULT_NEW_REPS = 5
 
 @Suppress("TooManyFunctions")
 @ViewModelScoped
@@ -56,8 +57,13 @@ internal class ClickHandler @Inject constructor(
             Action.Click.OnTypeChangeConfirm -> processTypeChangeConfirm()
             Action.Click.OnTypeChangeDismiss -> processTypeChangeDismiss()
             Action.Click.OnEditPlanClick -> processEditPlanClick()
+            is Action.Click.OnPlanEditorSetWeight -> processPlanEditorSetWeight(action)
+            is Action.Click.OnPlanEditorSetReps -> processPlanEditorSetReps(action)
+            is Action.Click.OnPlanEditorSetType -> processPlanEditorSetType(action)
+            is Action.Click.OnPlanEditorRemoveSet -> processPlanEditorRemoveSet(action)
+            Action.Click.OnPlanEditorAddSet -> processPlanEditorAddSet()
+            Action.Click.OnPlanEditorSave -> processPlanEditorSave()
             Action.Click.OnPlanEditorDismiss -> processPlanEditorDismiss()
-            is Action.Click.OnPlanEditorSave -> processPlanEditorSave(action)
             is Action.Click.OnTagToggle -> processTagToggle(action)
             is Action.Click.OnTagRemove -> processTagRemove(action)
             is Action.Click.OnTagCreate -> processTagCreate(action)
@@ -67,6 +73,12 @@ internal class ClickHandler @Inject constructor(
     private fun processBackClick() {
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
         val current = state.value
+        // Plan editor is the inner-most surface — its draft takes priority over the
+        // form-level dirty check. Same dialog UI as form discard, different commit.
+        if (current.isPlanEditorDirty) {
+            sendEvent(Event.ShowDiscardConfirmDialog(DiscardTarget.PLAN_EDITOR))
+            return
+        }
         val mode = current.mode
         if (mode !is Mode.Edit) {
             consume(Action.Navigation.Back)
@@ -239,6 +251,7 @@ internal class ClickHandler @Inject constructor(
         when (target) {
             DiscardTarget.POP_SCREEN -> consume(Action.Navigation.Back)
             DiscardTarget.FLIP_TO_READ -> processFlipToReadMode()
+            DiscardTarget.PLAN_EDITOR -> updateState { it.copy(planEditorTarget = null) }
         }
     }
 
@@ -293,7 +306,7 @@ internal class ClickHandler @Inject constructor(
             latest.copy(
                 type = pending,
                 pendingTypeChange = null,
-                adhocPlan = latest.adhocPlan?.map { it.copy(weight = null) }?.toImmutablePlan(),
+                adhocPlan = latest.adhocPlan?.map { it.copy(weight = null) }?.toImmutableList(),
             )
         }
         if (uuid == null) return
@@ -310,28 +323,98 @@ internal class ClickHandler @Inject constructor(
 
     private fun processEditPlanClick() {
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
-        updateState { it.copy(isPlanEditorOpen = true) }
-    }
-
-    private fun processPlanEditorDismiss() {
-        updateState { it.copy(isPlanEditorOpen = false) }
-    }
-
-    private fun processPlanEditorSave(action: Action.Click.OnPlanEditorSave) {
-        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
-        val current = state.value
-        val uuid = current.uuid
-        updateState { it.copy(adhocPlan = action.plan?.toImmutablePlan(), isPlanEditorOpen = false) }
-        if (uuid == null) return
-        launch(
-            onSuccess = { Unit },
-        ) {
-            interactor.setAdhocPlan(uuid, action.plan)
+        val initial = state.value.adhocPlan ?: persistentListOf()
+        updateState {
+            it.copy(
+                planEditorTarget = State.PlanEditorTarget(
+                    initialPlan = initial,
+                    draft = initial,
+                ),
+            )
         }
     }
 
-    private fun List<PlanSetDataModel>.toImmutablePlan(): ImmutableList<PlanSetDataModel> =
-        toImmutableList()
+    private fun processPlanEditorDismiss() {
+        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
+        val current = state.value
+        if (current.isPlanEditorDirty) {
+            // Reuse the screen-level discard surface (POP_SCREEN target carries the
+            // existing wording — same dialog used for unsaved-form dismissals).
+            sendEvent(Event.ShowDiscardConfirmDialog(DiscardTarget.PLAN_EDITOR))
+        } else {
+            updateState { it.copy(planEditorTarget = null) }
+        }
+    }
+
+    private fun processPlanEditorSetWeight(action: Action.Click.OnPlanEditorSetWeight) {
+        updatePlanRow(action.index) { it.copy(weight = action.value) }
+    }
+
+    private fun processPlanEditorSetReps(action: Action.Click.OnPlanEditorSetReps) {
+        updatePlanRow(action.index) { it.copy(reps = action.reps.coerceAtLeast(0)) }
+    }
+
+    private fun processPlanEditorSetType(action: Action.Click.OnPlanEditorSetType) {
+        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
+        updatePlanRow(action.index) { it.copy(type = action.type) }
+    }
+
+    private fun processPlanEditorRemoveSet(action: Action.Click.OnPlanEditorRemoveSet) {
+        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
+        updateState { current ->
+            val target = current.planEditorTarget ?: return@updateState current
+            val nextDraft = target.draft.toMutableList()
+                .also { if (action.index in it.indices) it.removeAt(action.index) }
+                .toImmutableList()
+            current.copy(planEditorTarget = target.copy(draft = nextDraft))
+        }
+    }
+
+    private fun processPlanEditorAddSet() {
+        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
+        updateState { current ->
+            val target = current.planEditorTarget ?: return@updateState current
+            val previous = target.draft.lastOrNull()
+            val nextSet = previous?.copy(
+                type = io.github.stslex.workeeper.core.database.sets.SetTypeDataModel.WORK,
+            ) ?: io.github.stslex.workeeper.core.database.sets.PlanSetDataModel(
+                weight = null,
+                reps = DEFAULT_NEW_REPS,
+                type = io.github.stslex.workeeper.core.database.sets.SetTypeDataModel.WORK,
+            )
+            current.copy(
+                planEditorTarget = target.copy(
+                    draft = (target.draft + nextSet).toImmutableList(),
+                ),
+            )
+        }
+    }
+
+    private fun processPlanEditorSave() {
+        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
+        val current = state.value
+        val target = current.planEditorTarget ?: return
+        val uuid = current.uuid
+        val nextPlan = target.draft.takeIf { it.isNotEmpty() }?.toImmutableList()
+        updateState { it.copy(adhocPlan = nextPlan, planEditorTarget = null) }
+        if (uuid == null) return
+        launch(onSuccess = { Unit }) {
+            interactor.setAdhocPlan(uuid, nextPlan)
+        }
+    }
+
+    private inline fun updatePlanRow(
+        index: Int,
+        crossinline transform: (PlanSetDataModel) -> PlanSetDataModel,
+    ) {
+        updateState { current ->
+            val target = current.planEditorTarget ?: return@updateState current
+            if (index !in target.draft.indices) return@updateState current
+            val next = target.draft.toMutableList().apply { this[index] = transform(this[index]) }
+                .toImmutableList()
+            current.copy(planEditorTarget = target.copy(draft = next))
+        }
+    }
 
     private fun processTagToggle(action: Action.Click.OnTagToggle) {
         val current = state.value

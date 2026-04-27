@@ -138,7 +138,7 @@ internal fun ExerciseRow(
 
 @Composable
 private fun ExerciseRowTags(
-    tags: List<String>,
+    tags: kotlinx.collections.immutable.ImmutableList<String>,
     modifier: Modifier = Modifier,
 ) {
     val visible = tags.take(MAX_INLINE_TAGS)

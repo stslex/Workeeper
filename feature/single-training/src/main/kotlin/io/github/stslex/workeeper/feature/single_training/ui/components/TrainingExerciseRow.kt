@@ -116,7 +116,7 @@ private fun TypeIcon(type: ExerciseTypeDataModel) {
 }
 
 @Composable
-private fun ExerciseRowTags(tags: List<String>) {
+private fun ExerciseRowTags(tags: kotlinx.collections.immutable.ImmutableList<String>) {
     val visible = tags.take(MAX_INLINE_TAGS)
     val overflow = tags.size - visible.size
     FlowRow(

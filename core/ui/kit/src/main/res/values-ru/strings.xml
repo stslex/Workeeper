@@ -12,9 +12,6 @@
     <string name="core_ui_kit_plan_editor_add_set">+ Добавить сет</string>
     <string name="core_ui_kit_plan_editor_save">Сохранить план</string>
     <string name="core_ui_kit_plan_editor_remove_set">Удалить сет</string>
-    <string name="core_ui_kit_plan_editor_discard_title">Отменить изменения плана?</string>
-    <string name="core_ui_kit_plan_editor_discard_body">Изменения этого плана будут потеряны.</string>
-    <string name="core_ui_kit_plan_editor_discard_confirm">Отменить</string>
     <string name="core_ui_kit_plan_editor_set_type_warmup">Разминка</string>
     <string name="core_ui_kit_plan_editor_set_type_work">Рабочий</string>
     <string name="core_ui_kit_plan_editor_set_type_failure">Отказ</string>

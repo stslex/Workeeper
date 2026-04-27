@@ -12,14 +12,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavGraphBuilder
-import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
-import io.github.stslex.workeeper.core.database.sets.SetTypeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
-import io.github.stslex.workeeper.core.ui.kit.components.setchip.SetType
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppPlanEditor
-import io.github.stslex.workeeper.core.ui.kit.components.sheet.PlanEditorSet
+import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppPlanEditorAction
+import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppPlanEditorState
 import io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
@@ -185,42 +183,33 @@ fun NavGraphBuilder.exerciseGraph(
                 },
             )
         }
-        if (state.isPlanEditorOpen) {
+        state.planEditorTarget?.let { target ->
             AppPlanEditor(
-                exerciseName = state.name,
+                state = AppPlanEditorState(
+                    exerciseName = state.name,
+                    draft = target.draft,
+                ),
                 isWeighted = state.type == ExerciseTypeDataModel.WEIGHTED,
-                initialSets = state.adhocPlan?.map { it.toEditor() },
-                onSave = { editorSets ->
-                    processor.consume(
-                        Action.Click.OnPlanEditorSave(
-                            plan = editorSets?.map { it.toData() },
-                        ),
-                    )
-                },
-                onDismiss = { processor.consume(Action.Click.OnPlanEditorDismiss) },
+                onAction = { action -> processor.consume(action.toStoreAction()) },
             )
         }
     }
 }
 
-private fun PlanSetDataModel.toEditor(): PlanEditorSet = PlanEditorSet(
-    weight = weight,
-    reps = reps,
-    type = when (type) {
-        SetTypeDataModel.WARMUP -> SetType.WARMUP
-        SetTypeDataModel.WORK -> SetType.WORK
-        SetTypeDataModel.FAILURE -> SetType.FAIL
-        SetTypeDataModel.DROP -> SetType.DROP
-    },
-)
+private fun AppPlanEditorAction.toStoreAction(): Action.Click = when (this) {
+    is AppPlanEditorAction.OnSetWeightChange ->
+        Action.Click.OnPlanEditorSetWeight(index = index, value = value)
 
-private fun PlanEditorSet.toData(): PlanSetDataModel = PlanSetDataModel(
-    weight = weight,
-    reps = reps,
-    type = when (type) {
-        SetType.WARMUP -> SetTypeDataModel.WARMUP
-        SetType.WORK -> SetTypeDataModel.WORK
-        SetType.FAIL -> SetTypeDataModel.FAILURE
-        SetType.DROP -> SetTypeDataModel.DROP
-    },
-)
+    is AppPlanEditorAction.OnSetRepsChange ->
+        Action.Click.OnPlanEditorSetReps(index = index, reps = reps)
+
+    is AppPlanEditorAction.OnSetTypeChange ->
+        Action.Click.OnPlanEditorSetType(index = index, type = type)
+
+    is AppPlanEditorAction.OnSetRemove ->
+        Action.Click.OnPlanEditorRemoveSet(index = index)
+
+    AppPlanEditorAction.OnAddSet -> Action.Click.OnPlanEditorAddSet
+    AppPlanEditorAction.OnSave -> Action.Click.OnPlanEditorSave
+    AppPlanEditorAction.OnDismiss -> Action.Click.OnPlanEditorDismiss
+}

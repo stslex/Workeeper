@@ -669,6 +669,137 @@ When creating a new feature module:
 4. Reference all strings via `stringResource(R.string.xxx)` from Composables and
    `context.getString(R.string.xxx)` from non-Compose code.
 
+## Compose UI conventions
+
+Composable functions follow strict conventions to keep recompositions predictable, state
+ownership clear, and components reusable across features.
+
+### Stateless components
+
+Composables that render UI are **stateless** by default. They receive their data via
+parameters and emit events via callbacks. They do not own their data, do not call
+business logic, and do not hold mutable state about what they display.
+
+```kotlin
+@Composable
+fun AppPlanEditor(
+    state: AppPlanEditorState,
+    onAction: (AppPlanEditorAction) -> Unit,
+    modifier: Modifier = Modifier,
+)
+```
+
+The state lives in the parent's `Store.State`. Each user input flows through the standard
+MVI cycle: UI emits Action → Handler updates State → State propagates back to UI. The
+component does not call `remember { mutableStateOf(...) }` for the data it displays.
+
+**The single allowed exception** is ephemeral local UI state with no persistence semantics:
+focus state, transient animation values, scroll position when not part of restored state.
+For these, `remember`/`rememberSaveable` is fine. But **never** for domain data like form
+inputs, drafts, dirty flags, or pending changes.
+
+When tempted to put data state in a Composable, ask: would another part of the app care
+about this value? If yes — it belongs in Store. If the answer is uncertain, default to
+Store.
+
+### Why stateless
+
+Three concrete consequences:
+
+1. **Discard and confirmation flows live in one place.** If a sheet has its own draft
+   state, it needs its own discard dialog. The parent screen also has its own discard
+   handling for surrounding edits. Two dialogs, unsynchronized, different UX. With
+   stateless components, the parent owns all draft state, all dirty detection, and the
+   single discard dialog flow per [Back gesture
+   handling](#back-gesture-handling).
+
+2. **State changes from elsewhere are reflected.** If a background coroutine updates the
+   plan (e.g. live workout finishes and rewrites the plan), a stateless editor will
+   re-render with the new value. A stateful editor will keep showing its own draft and
+   silently overwrite the update on save.
+
+3. **Components are testable in isolation.** Stateless components are pure functions of
+   their input — write a `@Preview` per state, snapshot-test them, no DI required.
+
+### `@Stable` and `@Immutable`
+
+Every data class passed to a Composable is annotated `@Stable` or `@Immutable`. This
+allows Compose to skip recompositions when the value is unchanged (referential equality
+on stable types).
+
+```kotlin
+@Stable
+data class AppPlanEditorState(
+    val exerciseName: String,
+    val draft: ImmutableList<PlanSetDataModel>,
+)
+```
+
+`@Immutable` is the stronger contract — all properties are val and themselves immutable.
+`@Stable` is weaker — properties may change but reads of the same instance are
+consistent. For Store.State implementations, `@Stable` is the convention.
+
+### Collections in UI parameters
+
+Always use `kotlinx.collections.immutable.ImmutableList` /
+`ImmutableSet` / `ImmutableMap` (or their `Persistent*` variants) when passing
+collections into Composables — never `List` / `Set` / `Map`.
+
+```kotlin
+// WRONG — kotlin.collections.List is not @Stable
+@Composable
+fun ExerciseListScreen(exercises: List<ExerciseDataModel>)
+
+// CORRECT — ImmutableList is @Stable
+@Composable
+fun ExerciseListScreen(exercises: ImmutableList<ExerciseDataModel>)
+```
+
+Why: `kotlin.collections.List` is an interface with no @Stable annotation. Compose treats
+it as unstable, which means every recomposition compares by reference (not content), and
+any change anywhere in the parent forces this Composable to recompose even when its data
+is unchanged. `ImmutableList` is annotated stable; Compose skips recompositions when the
+reference and content are unchanged.
+
+The dependency `org.jetbrains.kotlinx:kotlinx-collections-immutable` is already in the
+project — see `gradle/libs.versions.toml` and existing State classes in
+`feature/all-exercises/.../mvi/store/AllExercisesStore.kt`.
+
+### TextField inputs and recomposition
+
+`OutlinedTextField` and `TextField` re-derive their internal state from the `value`
+parameter on each recomposition. If the parent State updates frequently and the
+TextField's `value` is computed from State (e.g. `state.draft[index].weight.toString()`),
+the new String instance on each recomposition can cause focus or selection state to
+reset.
+
+To keep the keyboard open and cursor stable across user typing:
+
+- Pass `value` as the canonical String from State, **not** a recomputed-on-every-render
+  expression.
+- Use `key = stableKey` on the parent layout when the TextField is inside a list, so
+  Compose can match the same TextField identity across recompositions.
+- Never call `softwareKeyboardController.hide()` from input handlers — the keyboard
+  should stay visible until the user taps elsewhere or submits.
+
+For lists of TextField rows (e.g. plan editor sets), each row needs a stable key so its
+TextField identity is preserved when adjacent rows are added/removed/reordered.
+
+### Composable previews
+
+Every public or internal `@Composable` function has at least one `@Preview` next to it.
+
+- Public/internal Composables in `feature/*` and `core/ui/kit` MUST have previews.
+- Private `@Composable` helpers do not require previews.
+- Previews use `AppTheme` with both `ThemeMode.LIGHT` and `ThemeMode.DARK` — either two
+  preview functions or one with `PreviewParameter`.
+- Previews use realistic stub data, not Lorem Ipsum.
+- Composables with multiple visually-distinct states (loading, empty, error, populated,
+  dirty form, selection mode, weighted vs weightless, etc.) get one `@Preview` per state.
+
+Previews are validated as part of code review — a Composable without a preview is
+incomplete. Reviewers should ask "where's the preview?" before approving.
+
 ## Build conventions
 
 Convention plugins live in `build-logic/convention/src/main/kotlin/`:

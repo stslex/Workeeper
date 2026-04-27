@@ -15,12 +15,12 @@ import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppPlanEditor
+import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppPlanEditorAction
+import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppPlanEditorState
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
 import io.github.stslex.workeeper.feature.single_training.R
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingFeature
-import io.github.stslex.workeeper.feature.single_training.mvi.model.toData
-import io.github.stslex.workeeper.feature.single_training.mvi.model.toEditor
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Event
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State.Mode
@@ -75,8 +75,8 @@ fun NavGraphBuilder.singleTrainingsGraph(
             }
         }
 
-        // Intercept back only when there is unsaved-edit work to surface; clean Read mode
-        // and clean Edit (e.g. on a fresh detail open) keep the predictive-back preview.
+        // Intercept back when EITHER training-level edits OR plan-editor draft are dirty;
+        // the handler routes the dialog to the right surface (training vs plan) from state.
         BackHandler(enabled = processor.state.value.interceptBack) {
             processor.consume(Action.Click.OnBackClick)
         }
@@ -97,20 +97,13 @@ fun NavGraphBuilder.singleTrainingsGraph(
         }
 
         state.planEditorTarget?.let { target ->
-            val isWeighted = target.exerciseType ==
-                io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel.WEIGHTED
             AppPlanEditor(
-                exerciseName = target.exerciseName,
-                isWeighted = isWeighted,
-                initialSets = target.initialPlan?.map { it.toEditor() },
-                onSave = { editorSets ->
-                    processor.consume(
-                        Action.Click.OnPlanEditorSave(
-                            planSets = editorSets?.map { it.toData() },
-                        ),
-                    )
-                },
-                onDismiss = { processor.consume(Action.Click.OnPlanEditorDismiss) },
+                state = AppPlanEditorState(
+                    exerciseName = target.exerciseName,
+                    draft = target.draft,
+                ),
+                isWeighted = target.isWeighted,
+                onAction = { action -> processor.consume(action.toStoreAction()) },
             )
         }
 
@@ -160,4 +153,22 @@ fun NavGraphBuilder.singleTrainingsGraph(
             )
         }
     }
+}
+
+private fun AppPlanEditorAction.toStoreAction(): Action.Click = when (this) {
+    is AppPlanEditorAction.OnSetWeightChange ->
+        Action.Click.OnPlanEditorSetWeight(index = index, value = value)
+
+    is AppPlanEditorAction.OnSetRepsChange ->
+        Action.Click.OnPlanEditorSetReps(index = index, reps = reps)
+
+    is AppPlanEditorAction.OnSetTypeChange ->
+        Action.Click.OnPlanEditorSetType(index = index, type = type)
+
+    is AppPlanEditorAction.OnSetRemove ->
+        Action.Click.OnPlanEditorRemoveSet(index = index)
+
+    AppPlanEditorAction.OnAddSet -> Action.Click.OnPlanEditorAddSet
+    AppPlanEditorAction.OnSave -> Action.Click.OnPlanEditorSave
+    AppPlanEditorAction.OnDismiss -> Action.Click.OnPlanEditorDismiss
 }

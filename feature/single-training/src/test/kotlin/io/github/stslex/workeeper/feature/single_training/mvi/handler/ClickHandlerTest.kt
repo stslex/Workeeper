@@ -2,6 +2,8 @@
 package io.github.stslex.workeeper.feature.single_training.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingHandlerStore
 import io.github.stslex.workeeper.feature.single_training.domain.SingleTrainingInteractor
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
@@ -11,6 +13,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -52,17 +55,35 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `OnPlanEditorDismiss clears target`() {
+    fun `OnPlanEditorDismiss with clean draft closes target`() {
+        val plan = persistentListOf<PlanSetDataModel>()
         stateFlow.value = stateFlow.value.copy(
             planEditorTarget = State.PlanEditorTarget(
                 exerciseUuid = "ex-1",
                 exerciseName = "Bench",
-                exerciseType = io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel.WEIGHTED,
-                initialPlan = null,
+                exerciseType = ExerciseTypeDataModel.WEIGHTED,
+                initialPlan = plan,
+                draft = plan,
             ),
         )
         handler.invoke(Action.Click.OnPlanEditorDismiss)
         assertEquals(null, stateFlow.value.planEditorTarget)
+    }
+
+    @Test
+    fun `OnPlanEditorAddSet appends a default set to draft`() {
+        val plan = persistentListOf<PlanSetDataModel>()
+        stateFlow.value = stateFlow.value.copy(
+            planEditorTarget = State.PlanEditorTarget(
+                exerciseUuid = "ex-1",
+                exerciseName = "Bench",
+                exerciseType = ExerciseTypeDataModel.WEIGHTED,
+                initialPlan = plan,
+                draft = plan,
+            ),
+        )
+        handler.invoke(Action.Click.OnPlanEditorAddSet)
+        assertEquals(1, stateFlow.value.planEditorTarget?.draft?.size)
     }
 
     @Test
