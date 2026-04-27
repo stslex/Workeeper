@@ -7,6 +7,7 @@ import androidx.paging.map
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
 import io.github.stslex.workeeper.core.database.session.SessionDao
+import io.github.stslex.workeeper.core.database.session.SetDao
 import io.github.stslex.workeeper.core.database.tag.ExerciseTagDao
 import io.github.stslex.workeeper.core.database.tag.ExerciseTagEntity
 import io.github.stslex.workeeper.core.database.tag.TagDao
@@ -14,8 +15,10 @@ import io.github.stslex.workeeper.core.database.tag.TagEntity
 import io.github.stslex.workeeper.core.database.training.TrainingExerciseDao
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.HistoryEntry
 import io.github.stslex.workeeper.core.exercise.exercise.model.toData
 import io.github.stslex.workeeper.core.exercise.exercise.model.toEntity
+import io.github.stslex.workeeper.core.exercise.exercise.model.toSummary
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
@@ -32,6 +35,7 @@ internal class ExerciseRepositoryImpl @Inject constructor(
     private val exerciseTagDao: ExerciseTagDao,
     private val trainingExerciseDao: TrainingExerciseDao,
     private val sessionDao: SessionDao,
+    private val setDao: SetDao,
     @IODispatcher private val bgDispatcher: CoroutineDispatcher,
 ) : ExerciseRepository {
 
@@ -127,6 +131,20 @@ internal class ExerciseRepositoryImpl @Inject constructor(
         trainingExerciseDao.countActiveTemplatesUsing(Uuid.parse(uuid)) == 0
     }
 
+    override suspend fun canPermanentlyDeleteImmediately(
+        uuid: String,
+    ): Boolean = withContext(bgDispatcher) {
+        val parsed = Uuid.parse(uuid)
+        sessionDao.countFinishedContainingExercise(parsed) == 0 &&
+            trainingExerciseDao.countActiveTemplatesUsing(parsed) == 0
+    }
+
+    override suspend fun getActiveTrainingsUsing(
+        exerciseUuid: String,
+    ): List<String> = withContext(bgDispatcher) {
+        trainingExerciseDao.getActiveTemplateNamesUsing(Uuid.parse(exerciseUuid))
+    }
+
     override fun pagedArchived(): Flow<PagingData<ExerciseDataModel>> = Pager(
         config = pagingConfig,
         pagingSourceFactory = dao::pagedArchived,
@@ -143,6 +161,49 @@ internal class ExerciseRepositoryImpl @Inject constructor(
         exerciseUuid: String,
     ): Int = withContext(bgDispatcher) {
         sessionDao.countFinishedContainingExercise(Uuid.parse(exerciseUuid))
+    }
+
+    override suspend fun getRecentHistory(
+        exerciseUuid: String,
+        limit: Int,
+    ): List<HistoryEntry> = withContext(bgDispatcher) {
+        sessionDao
+            .getRecentSessionsForExercise(Uuid.parse(exerciseUuid), limit)
+            .map { row ->
+                val sets = setDao.getByPerformedExercise(row.performedExerciseUuid)
+                HistoryEntry(
+                    sessionUuid = row.sessionUuid.toString(),
+                    finishedAt = row.finishedAt,
+                    trainingName = row.trainingName,
+                    isAdhoc = row.isAdhoc,
+                    sets = sets.map { entity -> entity.toSummary() },
+                )
+            }
+    }
+
+    override fun pagedActiveByTags(
+        tagUuids: Set<String>,
+    ): Flow<PagingData<ExerciseDataModel>> {
+        if (tagUuids.isEmpty()) {
+            return Pager(
+                config = pagingConfig,
+                pagingSourceFactory = dao::pagedActive,
+            ).flow
+                .map { pagingData ->
+                    pagingData.map { entity -> entity.toData(labels = loadLabels(entity.uuid)) }
+                }
+                .flowOn(bgDispatcher)
+        }
+        val parsed = tagUuids.map(Uuid::parse)
+        // OR semantics: include the exercise when it has ANY of the selected tags.
+        return Pager(
+            config = pagingConfig,
+            pagingSourceFactory = { dao.pagedActiveByTags(parsed) },
+        ).flow
+            .map { pagingData ->
+                pagingData.map { entity -> entity.toData(labels = loadLabels(entity.uuid)) }
+            }
+            .flowOn(bgDispatcher)
     }
 
     private suspend fun loadLabels(exerciseUuid: Uuid): List<String> =

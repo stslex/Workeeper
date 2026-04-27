@@ -1,19 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="toast_invalid_params_msg">Некорректные поля ввода</string>
+    <!-- Exercise detail -->
+    <string name="feature_exercise_detail_recent">Последнее</string>
+    <string name="feature_exercise_detail_no_history">Сессий ещё не было</string>
+    <string name="feature_exercise_detail_track_now">Тренировать</string>
+    <string name="feature_exercise_detail_track_now_pending">Live-тренировка появится в следующем обновлении</string>
+    <string name="feature_exercise_detail_edit">Изменить</string>
+    <string name="feature_exercise_detail_archive">В архив</string>
+    <string name="feature_exercise_detail_back_description">Назад</string>
+    <string name="feature_exercise_detail_more_description">Ещё</string>
+    <string name="feature_exercise_detail_type_weighted">С весом</string>
+    <string name="feature_exercise_detail_type_weightless">Без веса</string>
+    <string name="feature_exercise_detail_archive_success_format">«%1$s» в архиве</string>
+    <string name="feature_exercise_detail_archive_blocked_title">Нельзя архивировать</string>
+    <string name="feature_exercise_detail_archive_blocked_body_format">«%1$s» используется в активных тренировках: %2$s. Удалите из них сначала.</string>
+    <string name="feature_exercise_detail_archive_blocked_ok">ОК</string>
+    <string name="feature_exercise_detail_archive_undo">Восстановить</string>
+    <string name="feature_exercise_detail_history_meta_format">%1$s · %2$s</string>
+    <string name="feature_exercise_detail_history_meta_adhoc_format">%1$s · отдельно</string>
+    <string name="feature_exercise_detail_permanent_delete">Удалить навсегда</string>
+    <string name="feature_exercise_detail_permanent_delete_confirm_title">Удалить «%1$s» навсегда?</string>
+    <string name="feature_exercise_detail_permanent_delete_confirm_body">У упражнения нет истории. Действие необратимо.</string>
+    <string name="feature_exercise_detail_permanent_delete_confirm_impact">История не затронута</string>
+    <string name="feature_exercise_detail_permanent_delete_confirm_button">Удалить</string>
+    <string name="feature_exercise_detail_permanent_delete_success">Упражнение удалено</string>
 
-    <string name="feature_exercise_field_label_name">НАЗВАНИЕ</string>
-    <string name="feature_exercise_field_label_sets">Подходы</string>
-    <string name="feature_exercise_field_label_reps">повторения</string>
-    <string name="feature_exercise_field_label_weight">вес</string>
-    <string name="feature_exercise_field_label_date">Дата</string>
-    <string name="feature_exercise_field_label_set_type">тип</string>
-
-    <string name="feature_exercise_set_type_warm">разминка</string>
-    <string name="feature_exercise_set_type_work">рабочий</string>
-    <string name="feature_exercise_set_type_fail">отказ</string>
-    <string name="feature_exercise_set_type_drop">дроп-сет</string>
-
-    <string name="feature_exercise_field_label_sets_are_empty">У данного упражнения нет и одного похода -> добавьте хотя бы один, чтобы создать упражнение</string>
-    <string name="feature_exercise_sets_create_button">Добавить подход</string>
+    <!-- Exercise edit -->
+    <string name="feature_exercise_edit_title_create">Новое упражнение</string>
+    <string name="feature_exercise_edit_title_edit">Изменить упражнение</string>
+    <string name="feature_exercise_edit_close_description">Закрыть</string>
+    <string name="feature_exercise_edit_label_name">Название</string>
+    <string name="feature_exercise_edit_label_type">Тип</string>
+    <string name="feature_exercise_edit_label_tags">Теги</string>
+    <string name="feature_exercise_edit_label_description">Описание</string>
+    <string name="feature_exercise_edit_placeholder_description">Заметки — техника, особенности зала</string>
+    <string name="feature_exercise_edit_tag_search_placeholder">Добавить тег…</string>
+    <string name="feature_exercise_edit_tag_create_format">+ Создать «%1$s»</string>
+    <string name="feature_exercise_edit_tag_limit">Максимум 10 тегов на упражнение</string>
+    <string name="feature_exercise_edit_error_name_required">Введите название</string>
+    <string name="feature_exercise_edit_discard_title">Отменить изменения?</string>
+    <string name="feature_exercise_edit_discard_body">Все изменения будут потеряны.</string>
+    <string name="feature_exercise_edit_discard_confirm">Отменить</string>
+    <string name="feature_exercise_edit_discard_dismiss">Продолжить</string>
 </resources>

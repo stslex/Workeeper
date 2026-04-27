@@ -388,6 +388,130 @@ exists in `core/ui/navigation/Navigator.kt` so the root `App.kt` can provide a s
 Reference implementation: `feature/all-trainings/ui/AllTrainingsGraph.kt` (graph) and
 `feature/all-trainings/mvi/handler/NavigationHandler.kt` (handler).
 
+### Back gesture handling
+
+Three different surfaces can trigger "go back" — the system back gesture (or hardware
+back button), the `AppTopAppBar` navigation icon, and a Cancel button on edit forms.
+The decision logic must be the same for all three (the user expects consistent
+behavior regardless of which surface they touched), but the **interception mechanics
+differ between gesture and explicit taps**.
+
+#### Why interception is conditional
+
+Android 13+ introduced [predictive back gesture](https://developer.android.com/guide/navigation/predictive-back-gesture):
+during a back swipe, the system animates a preview of the destination screen
+(parallax, peek behind). This animation only runs when the system can pop the back
+stack itself. As soon as a `BackHandler` with `enabled = true` is registered, the
+system **disables** the preview because the app intercepts the gesture.
+
+Therefore: keep `BackHandler` **disabled by default** (preserve native predictive
+back), and **enable it only when the screen actually needs to intercept** — typically
+when a form has unsaved changes that would be lost on pop.
+
+#### The `interceptBack` derived flag
+
+State carries the intercept condition as a derived boolean:
+
+```kotlin
+data class State(
+    val mode: Mode,
+    val originalSnapshot: Snapshot?,
+    val name: String,
+    // ... other form fields
+) : Store.State {
+    val interceptBack: Boolean
+        get() = mode is Mode.Edit && hasUnsavedChanges()
+
+    fun hasUnsavedChanges(): Boolean {
+        val snapshot = originalSnapshot ?: return false
+        return currentSnapshot() != snapshot
+    }
+
+    private fun currentSnapshot(): Snapshot = Snapshot(name, /* ... */)
+}
+```
+
+`interceptBack` is **computed**, not stored — it recomputes on every recomposition
+based on current state values. This way the BackHandler enabled status is reactive:
+the moment a user types in a clean form, `hasUnsavedChanges()` flips to true,
+`interceptBack` flips to true, and `BackHandler` becomes active.
+
+#### BackHandler wiring in Composables
+
+```kotlin
+val state by processor.state.collectAsState()
+
+BackHandler(enabled = state.interceptBack) {
+    processor.consume(Action.Click.OnBackClick)
+}
+```
+
+When `interceptBack` is false: the gesture goes natively through `NavController`,
+predictive preview animation runs, no store involvement.
+
+When `interceptBack` is true: gesture is intercepted, emits `OnBackClick` into the
+store, and the store decides what to do (typically: show a discard dialog).
+
+#### Explicit back triggers (top-bar arrow, Cancel button)
+
+These are explicit UI taps, not gesture interception. They **always** emit
+`Click.OnBackClick` directly:
+
+```kotlin
+AppTopAppBar(
+    navigationIcon = {
+        IconButton(onClick = { processor.consume(Action.Click.OnBackClick) }) { /* ... */ }
+    },
+    ...
+)
+```
+
+They do not depend on `interceptBack` — every tap goes into the store, and the
+store's `ClickHandler` decides whether to navigate back, show a discard dialog, etc.
+
+#### ClickHandler logic for `OnBackClick`
+
+The handler is the single source of truth for back behavior. Same logic for all
+three triggers:
+
+```kotlin
+fun processBackClick() {
+    when (state.value.mode) {
+        is Mode.Read -> consume(Action.Navigation.Back)
+        is Mode.Edit -> {
+            if (state.value.hasUnsavedChanges()) {
+                consume(Event.ShowDiscardConfirmDialog)
+            } else {
+                consume(Action.Navigation.Back)
+            }
+        }
+    }
+}
+```
+
+Two outcomes:
+
+1. **`Action.Navigation.Back`** — handled by the feature's `NavigationHandler`, which
+   calls `navigator.popBack()`.
+2. **`Event.ShowDiscardConfirmDialog`** — handled by the graph composable, which
+   renders an `AppDialog` (or `AppConfirmDialog`) asking the user to confirm losing
+   unsaved changes. Confirm → `consume(Action.Click.OnConfirmDiscard)` → emits
+   `Action.Navigation.Back`. Dismiss → just dismiss, stay on screen.
+
+#### Anti-patterns to avoid
+
+- `BackHandler { processor.consume(Action.Click.OnBackClick) }` (always enabled).
+  This breaks predictive back preview even in Read mode where there's nothing to
+  intercept.
+- `BackHandler(enabled = state.mode is Mode.Edit) { ... }` (gated only by mode, not
+  by dirty status). This intercepts every back in Edit mode even when there's
+  nothing to lose, again breaking predictive back unnecessarily.
+- Top-bar arrow that calls `navigator.popBack()` directly. This bypasses the store
+  and creates inconsistency: hardware back goes through ClickHandler with discard
+  dialog, but top-bar arrow skips it.
+- Three different click actions for three triggers (`OnBackGesture`, `OnTopBarBack`,
+  `OnCancelClick`). Use one (`OnBackClick`) routed identically.
+
 ### Navigation host and shared element transitions
 
 `app/app/src/main/java/io/github/stslex/workeeper/host/AppNavigationHost.kt` wraps the

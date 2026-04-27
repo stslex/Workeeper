@@ -14,17 +14,11 @@ internal class NavigationHandler(
         when (action) {
             Action.Navigation.PopBack -> navigator.popBack()
             is Action.Navigation.CreateExercise -> navigator.navTo(
-                Screen.Exercise(
-                    uuid = null,
-                    trainingUuid = action.trainingUuid,
-                ),
+                Screen.Exercise(uuid = null),
             )
 
             is Action.Navigation.OpenExercise -> navigator.navTo(
-                Screen.Exercise(
-                    uuid = action.exerciseUuid,
-                    trainingUuid = action.trainingUuid,
-                ),
+                Screen.Exercise(uuid = action.exerciseUuid),
             )
         }
     }

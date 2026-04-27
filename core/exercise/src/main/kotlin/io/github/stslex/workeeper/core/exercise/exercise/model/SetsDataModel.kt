@@ -29,3 +29,9 @@ internal fun SetEntity.toData(): SetsDataModel = SetsDataModel(
     weight = weight ?: 0.0,
     type = type.toData(),
 )
+
+internal fun SetEntity.toSummary(): SetSummary = SetSummary(
+    weight = weight,
+    reps = reps,
+    type = type.toData(),
+)

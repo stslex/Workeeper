@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.all_exercises.mvi.store
 
 import androidx.annotation.VisibleForTesting
@@ -10,47 +11,43 @@ import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreFactory
-import io.github.stslex.workeeper.feature.all_exercises.di.ExerciseHandlerStoreImpl
-import io.github.stslex.workeeper.feature.all_exercises.mvi.handler.AllExerciseComponent
+import io.github.stslex.workeeper.feature.all_exercises.di.AllExercisesHandlerStoreImpl
+import io.github.stslex.workeeper.feature.all_exercises.mvi.handler.AllExercisesComponent
 import io.github.stslex.workeeper.feature.all_exercises.mvi.handler.ClickHandler
-import io.github.stslex.workeeper.feature.all_exercises.mvi.handler.InputHandler
 import io.github.stslex.workeeper.feature.all_exercises.mvi.handler.NavigationHandler
 import io.github.stslex.workeeper.feature.all_exercises.mvi.handler.PagingHandler
-import io.github.stslex.workeeper.feature.all_exercises.mvi.store.ExercisesStore.Action
-import io.github.stslex.workeeper.feature.all_exercises.mvi.store.ExercisesStore.Event
-import io.github.stslex.workeeper.feature.all_exercises.mvi.store.ExercisesStore.State
+import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Action
+import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Event
+import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.State
 
 @HiltViewModel(assistedFactory = AllExercisesStoreImpl.Factory::class)
 internal class AllExercisesStoreImpl @AssistedInject constructor(
-    @Assisted component: AllExerciseComponent,
+    @Assisted component: AllExercisesComponent,
     pagingHandler: PagingHandler,
     clickHandler: ClickHandler,
-    inputHandler: InputHandler,
     storeDispatchers: StoreDispatchers,
-    storeEmitter: ExerciseHandlerStoreImpl,
+    handlerStore: AllExercisesHandlerStoreImpl,
     analyticsHolder: AnalyticsHolder,
     loggerHolder: LoggerHolder,
 ) : BaseStore<State, Action, Event>(
     name = NAME,
-    initialState = State.init(
-        allItems = pagingHandler.processor,
-    ),
-    storeEmitter = storeEmitter,
-    storeDispatchers = storeDispatchers,
+    initialState = State.init(pagingUiState = pagingHandler.pagingUiState),
     handlerCreator = { action ->
         when (action) {
-            is Action.Paging -> pagingHandler
             is Action.Navigation -> component as NavigationHandler
+            is Action.Paging -> pagingHandler
             is Action.Click -> clickHandler
-            is Action.Input -> inputHandler
         }
     },
-    loggerHolder = loggerHolder,
+    storeEmitter = handlerStore,
+    storeDispatchers = storeDispatchers,
+    initialActions = listOf(Action.Paging.Init),
     analyticsHolder = analyticsHolder,
+    loggerHolder = loggerHolder,
 ) {
 
     @AssistedFactory
-    interface Factory : StoreFactory<AllExerciseComponent, AllExercisesStoreImpl>
+    interface Factory : StoreFactory<AllExercisesComponent, AllExercisesStoreImpl>
 
     companion object {
 

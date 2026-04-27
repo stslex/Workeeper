@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.core.exercise.exercise
 import androidx.paging.PagingData
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.HistoryEntry
 import kotlinx.coroutines.flow.Flow
 import kotlin.uuid.Uuid
 
@@ -37,9 +38,17 @@ interface ExerciseRepository {
 
     suspend fun canArchive(uuid: String): Boolean
 
+    suspend fun canPermanentlyDeleteImmediately(uuid: String): Boolean
+
+    suspend fun getActiveTrainingsUsing(exerciseUuid: String): List<String>
+
     fun pagedArchived(): Flow<PagingData<ExerciseDataModel>>
 
     fun observeArchivedCount(): Flow<Int>
 
     suspend fun countSessionsUsing(exerciseUuid: String): Int
+
+    fun pagedActiveByTags(tagUuids: Set<String>): Flow<PagingData<ExerciseDataModel>>
+
+    suspend fun getRecentHistory(exerciseUuid: String, limit: Int): List<HistoryEntry>
 }

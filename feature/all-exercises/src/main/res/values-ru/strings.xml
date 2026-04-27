@@ -1,8 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="feature_all_action_btn_description_delete">удалить упражнение</string>
-    <string name="feature_all_action_btn_description_create">создать новое упражение</string>
+    <string name="feature_all_exercises_title">Упражнения</string>
+    <string name="feature_all_exercises_empty_headline">Пока нет упражнений</string>
+    <string name="feature_all_exercises_empty_supporting">Нажмите +, чтобы создать первое упражнение</string>
+    <string name="feature_all_exercises_fab_create">Создать упражнение</string>
+    <string name="feature_all_exercises_archive_action">В архив</string>
+    <string name="feature_all_exercises_archive_success_format">«%1$s» в архиве</string>
+    <string name="feature_all_exercises_archive_undo">Отменить</string>
+    <string name="feature_all_exercises_archive_blocked_format">Нельзя архивировать — используется в: %1$s</string>
+    <string name="feature_all_exercises_overflow_format">+%1$d</string>
+    <string name="feature_all_exercises_chevron_description">Открыть упражнение</string>
+    <string name="feature_all_exercises_permanent_delete_title">Удалить «%1$s» навсегда?</string>
+    <string name="feature_all_exercises_permanent_delete_body">Упражнение не использовалось и не имеет истории. Это действие необратимо.</string>
+    <string name="feature_all_exercises_permanent_delete_impact">История не пострадает</string>
+    <string name="feature_all_exercises_permanent_delete_confirm">Удалить</string>
+    <string name="feature_all_exercises_permanent_delete_success">Упражнение удалено</string>
 
-    <string name="feature_all_exercises_empty_results">У вас пока нет упражнений</string>
-    <string name="feature_all_exercises_not_found_results">Не найдено упражений</string>
+    <plurals name="feature_all_exercises_session_count">
+        <item quantity="one">%d сессия</item>
+        <item quantity="few">%d сессии</item>
+        <item quantity="many">%d сессий</item>
+        <item quantity="other">%d сессии</item>
+    </plurals>
 </resources>

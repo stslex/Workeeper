@@ -1,8 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="feature_all_action_btn_description_delete">delete exercise</string>
-    <string name="feature_all_action_btn_description_create">create new exercise</string>
+    <string name="feature_all_exercises_title">Exercises</string>
+    <string name="feature_all_exercises_empty_headline">No exercises yet</string>
+    <string name="feature_all_exercises_empty_supporting">Tap + to create your first exercise</string>
+    <string name="feature_all_exercises_fab_create">Create exercise</string>
+    <string name="feature_all_exercises_archive_action">Archive</string>
+    <string name="feature_all_exercises_archive_success_format">&#8216;%1$s&#8217; archived</string>
+    <string name="feature_all_exercises_archive_undo">Undo</string>
+    <string name="feature_all_exercises_archive_blocked_format">Cannot archive — used in: %1$s</string>
+    <string name="feature_all_exercises_overflow_format">+%1$d</string>
+    <string name="feature_all_exercises_chevron_description">Open exercise</string>
+    <string name="feature_all_exercises_permanent_delete_title">Delete &#8216;%1$s&#8217; permanently?</string>
+    <string name="feature_all_exercises_permanent_delete_body">This exercise has no history and isn&#8217;t used. This cannot be undone.</string>
+    <string name="feature_all_exercises_permanent_delete_impact">No history affected</string>
+    <string name="feature_all_exercises_permanent_delete_confirm">Delete</string>
+    <string name="feature_all_exercises_permanent_delete_success">Exercise deleted</string>
 
-    <string name="feature_all_exercises_empty_results">You don&#8217;t have any exercises yet</string>
-    <string name="feature_all_exercises_not_found_results">No results found</string>
+    <plurals name="feature_all_exercises_session_count">
+        <item quantity="one">%d session</item>
+        <item quantity="other">%d sessions</item>
+    </plurals>
 </resources>

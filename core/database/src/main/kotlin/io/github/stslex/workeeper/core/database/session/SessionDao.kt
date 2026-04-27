@@ -65,6 +65,33 @@ interface SessionDao {
     )
     suspend fun countFinishedContainingExercise(exerciseUuid: Uuid): Int
 
+    @Query(
+        """
+        SELECT s.uuid AS session_uuid,
+               pe.uuid AS performed_exercise_uuid,
+               s.finished_at AS finished_at,
+               t.name AS training_name,
+               t.is_adhoc AS is_adhoc
+        FROM session_table s
+        JOIN training_table t ON t.uuid = s.training_uuid
+        JOIN performed_exercise_table pe ON pe.session_uuid = s.uuid
+        WHERE pe.exercise_uuid = :exerciseUuid
+          AND s.state = 'FINISHED'
+          AND s.finished_at IS NOT NULL
+          AND EXISTS (
+            SELECT 1 FROM set_table st
+            WHERE st.performed_exercise_uuid = pe.uuid
+          )
+        GROUP BY s.uuid
+        ORDER BY s.finished_at DESC
+        LIMIT :limit
+        """,
+    )
+    suspend fun getRecentSessionsForExercise(
+        exerciseUuid: Uuid,
+        limit: Int,
+    ): List<SessionHistoryRow>
+
     @Insert
     suspend fun insert(session: SessionEntity)
 
