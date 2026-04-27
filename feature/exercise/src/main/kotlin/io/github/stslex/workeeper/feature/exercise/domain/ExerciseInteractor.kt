@@ -13,6 +13,8 @@ internal interface ExerciseInteractor {
 
     suspend fun getExercise(uuid: String): ExerciseDataModel?
 
+    suspend fun getLabels(exerciseUuid: String): List<String>
+
     suspend fun getRecentHistory(
         exerciseUuid: String,
         limit: Int = DEFAULT_HISTORY_LIMIT,

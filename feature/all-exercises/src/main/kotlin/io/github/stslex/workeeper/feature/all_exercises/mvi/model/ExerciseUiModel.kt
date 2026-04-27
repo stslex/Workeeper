@@ -5,6 +5,7 @@ import androidx.compose.runtime.Stable
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 
 @Stable
@@ -16,10 +17,13 @@ data class ExerciseUiModel(
     val sessionCount: Int,
 )
 
-internal fun ExerciseDataModel.toUi(sessionCount: Int = 0): ExerciseUiModel = ExerciseUiModel(
+internal fun ExerciseDataModel.toUi(
+    sessionCount: Int = 0,
+    tags: List<String> = emptyList(),
+): ExerciseUiModel = ExerciseUiModel(
     uuid = uuid,
     name = name,
     type = type,
-    tags = labels.toImmutableList(),
+    tags = if (tags.isEmpty()) persistentListOf() else tags.toImmutableList(),
     sessionCount = sessionCount,
 )

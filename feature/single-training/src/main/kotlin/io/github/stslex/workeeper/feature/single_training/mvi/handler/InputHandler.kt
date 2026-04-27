@@ -47,12 +47,12 @@ internal class InputHandler @Inject constructor(
                     latest.copy(
                         pickerState = latestPicker.copy(
                             query = action.value,
-                            results = results.map { exercise ->
+                            results = results.map { picker ->
                                 PickerExerciseItem(
-                                    uuid = exercise.uuid,
-                                    name = exercise.name,
-                                    type = exercise.type.toUi(),
-                                    tags = exercise.labels.toImmutableList(),
+                                    uuid = picker.exercise.uuid,
+                                    name = picker.exercise.name,
+                                    type = picker.exercise.type.toUi(),
+                                    tags = picker.labels.toImmutableList(),
                                 )
                             }.toImmutableList(),
                         ),

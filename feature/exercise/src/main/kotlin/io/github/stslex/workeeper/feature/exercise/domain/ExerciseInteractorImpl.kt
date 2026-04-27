@@ -31,6 +31,12 @@ internal class ExerciseInteractorImpl @Inject constructor(
         exerciseRepository.getExercise(uuid)
     }
 
+    override suspend fun getLabels(
+        exerciseUuid: String,
+    ): List<String> = withContext(defaultDispatcher) {
+        exerciseRepository.getLabels(exerciseUuid)
+    }
+
     override suspend fun getRecentHistory(
         exerciseUuid: String,
         limit: Int,

@@ -2,7 +2,6 @@ package io.github.stslex.workeeper.feature.charts.domain.calculator
 
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.coroutine.asyncMap
-import io.github.stslex.workeeper.core.core.utils.NumUiUtils.safeDiv
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.exercise.training.TrainingDataModel
 import io.github.stslex.workeeper.feature.charts.domain.model.ChartDataType
@@ -94,13 +93,12 @@ internal class ChartDomainCalculatorImpl @Inject constructor() : ChartDomainCalc
                     dateType = params.type,
                     values = trainings
                         .asyncMap { training ->
-                            val exerciseValue = getExercises(training.exerciseUuids)
-                                .map { exercise ->
-                                    exercise.sets.maxOfOrNull { it.weight } ?: 0.0
-                                }
-                                .let { exercise -> exercise.sumOf { it } safeDiv exercise.size }
-                                .toFloat()
-                            training.timestamp to exerciseValue
+                            // v3 reshape: max-set-weight aggregation lives on session sets,
+                            // not on the exercise template. Until charts are reimplemented
+                            // against the session/set tables, surface 0 here.
+                            @Suppress("UNUSED_VARIABLE")
+                            val resolved = getExercises(training.exerciseUuids)
+                            training.timestamp to 0f
                         }
                         .let { items -> mapParams(params, items) },
                 )
@@ -124,11 +122,9 @@ internal class ChartDomainCalculatorImpl @Inject constructor() : ChartDomainCalc
                     dateType = params.type,
                     values = exercises
                         .map { exercise ->
-                            val exerciseValue = exercise.sets
-                                .maxOfOrNull { it.weight }
-                                ?.toFloat()
-                                ?: 0f
-                            exercise.timestamp to exerciseValue
+                            // See mapTrainings: sets live on session/SetEntity in v3, so
+                            // until charts are reimplemented this surfaces 0.
+                            exercise.timestamp to 0f
                         }
                         .let { items -> mapParams(params, items) },
                 )

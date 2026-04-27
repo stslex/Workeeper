@@ -139,9 +139,13 @@ internal class ClickHandler @Inject constructor(
             sendEvent(Event.ShowOtherSessionActive(current.name))
             return
         }
-        // Live workout lands in Stage 5.4 — surface a snackbar so the user knows the
-        // CTA wired through but the destination isn't built yet.
-        sendEvent(Event.ShowLiveWorkoutPending)
+        // Resume an in-progress session for this training, or pass an empty uuid so
+        // the Live workout flow creates a fresh one when it loads.
+        consume(
+            Action.Navigation.OpenLiveWorkout(
+                sessionUuid = active?.sessionUuid.orEmpty(),
+            ),
+        )
     }
 
     private fun processExerciseRowClick(action: Action.Click.OnExerciseRowClick) {
@@ -260,12 +264,12 @@ internal class ClickHandler @Inject constructor(
                     latest.copy(
                         pickerState = PickerState.Open(
                             query = "",
-                            results = results.map { exercise ->
+                            results = results.map { picker ->
                                 PickerExerciseItem(
-                                    uuid = exercise.uuid,
-                                    name = exercise.name,
-                                    type = exercise.type.toUi(),
-                                    tags = exercise.labels.toImmutableList(),
+                                    uuid = picker.exercise.uuid,
+                                    name = picker.exercise.name,
+                                    type = picker.exercise.type.toUi(),
+                                    tags = picker.labels.toImmutableList(),
                                 )
                             }.toImmutableList(),
                             selectedUuids = persistentListOf(),
@@ -401,14 +405,14 @@ internal class ClickHandler @Inject constructor(
         launch(
             onSuccess = { resolved ->
                 updateStateImmediate { latest ->
-                    val nextItems = resolved.mapIndexed { localIndex, exercise ->
+                    val nextItems = resolved.mapIndexed { localIndex, picker ->
                         TrainingExerciseItem(
-                            exerciseUuid = exercise.uuid,
-                            exerciseName = exercise.name,
-                            exerciseType = exercise.type.toUi(),
-                            tags = exercise.labels.toImmutableList(),
+                            exerciseUuid = picker.exercise.uuid,
+                            exerciseName = picker.exercise.name,
+                            exerciseType = picker.exercise.type.toUi(),
+                            tags = picker.labels.toImmutableList(),
                             position = latest.exercises.size + localIndex,
-                            planSets = persistentListOf(), // TODO: add save to exersize template and load here instead of defaulting to empty; requires
+                            planSets = persistentListOf(),
                             planSummary = "",
                         )
                     }

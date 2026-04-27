@@ -4,6 +4,7 @@ import androidx.paging.PagingSource
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 import kotlin.uuid.Uuid
@@ -22,6 +23,26 @@ interface SessionDao {
         """,
     )
     fun observeAnyActiveSession(): Flow<ActiveSessionRow?>
+
+    @Query(
+        """
+        SELECT s.uuid AS uuid,
+               s.training_uuid AS training_uuid,
+               t.name AS training_name,
+               t.is_adhoc AS is_adhoc,
+               s.started_at AS started_at,
+               (SELECT COUNT(*) FROM performed_exercise_table pe
+                 WHERE pe.session_uuid = s.uuid AND pe.skipped = 0) AS total_count,
+               (SELECT COUNT(DISTINCT pe.uuid) FROM performed_exercise_table pe
+                 INNER JOIN set_table st ON st.performed_exercise_uuid = pe.uuid
+                 WHERE pe.session_uuid = s.uuid AND pe.skipped = 0) AS done_count
+        FROM session_table s
+        INNER JOIN training_table t ON t.uuid = s.training_uuid
+        WHERE s.state = 'IN_PROGRESS'
+        LIMIT 1
+        """,
+    )
+    fun observeActiveSessionWithStats(): Flow<ActiveSessionWithStatsRow?>
 
     @Query("SELECT * FROM session_table WHERE state = 'IN_PROGRESS' LIMIT 1")
     suspend fun getActive(): SessionEntity?
@@ -122,4 +143,39 @@ interface SessionDao {
 
     @Query("DELETE FROM session_table WHERE uuid = :uuid")
     suspend fun delete(uuid: Uuid)
+
+    @Insert
+    suspend fun insertPerformedExercises(rows: List<PerformedExerciseEntity>)
+
+    /**
+     * Atomically creates a session + its performed_exercise rows. Lets the LiveWorkout
+     * domain start a session in a single transaction without dragging room-ktx into
+     * core/exercise.
+     */
+    @Transaction
+    suspend fun startSessionWithExercises(
+        session: SessionEntity,
+        performedExercises: List<PerformedExerciseEntity>,
+    ) {
+        insert(session)
+        if (performedExercises.isNotEmpty()) {
+            insertPerformedExercises(performedExercises)
+        }
+    }
+
+    /**
+     * Atomically marks a session FINISHED at [finishedAt]. Returns the finished entity (or
+     * null if the session was already gone). Wrapper kept here so the impl can chain plan
+     * updates inside the same transaction in the future without re-routing through repos.
+     */
+    @Transaction
+    suspend fun finishSession(uuid: Uuid, finishedAt: Long) {
+        val current = getById(uuid) ?: return
+        update(
+            current.copy(
+                state = SessionStateEntity.FINISHED,
+                finishedAt = finishedAt,
+            ),
+        )
+    }
 }

@@ -70,16 +70,19 @@ internal class ExerciseRepositoryImpl @Inject constructor(
     override suspend fun getExercisesByUuid(
         uuids: List<String>,
     ): List<ExerciseDataModel> = withContext(bgDispatcher) {
-        dao.getByUuids(uuids.map(Uuid::parse)).map { entity ->
-            entity.toData(labels = loadLabels(entity.uuid))
-        }
+        dao.getByUuids(uuids.map(Uuid::parse)).map { it.toData() }
     }
 
     override suspend fun getExercise(
         uuid: String,
     ): ExerciseDataModel? = withContext(bgDispatcher) {
-        val entityUuid = Uuid.parse(uuid)
-        dao.getById(entityUuid)?.toData(labels = loadLabels(entityUuid))
+        dao.getById(Uuid.parse(uuid))?.toData()
+    }
+
+    override suspend fun getLabels(
+        exerciseUuid: String,
+    ): List<String> = withContext(bgDispatcher) {
+        loadLabels(Uuid.parse(exerciseUuid))
     }
 
     // v3 lacks date-range queries; charts will surface empty until v1 feature rewrite.
@@ -167,7 +170,7 @@ internal class ExerciseRepositoryImpl @Inject constructor(
             .filter { entity ->
                 query.isBlank() || entity.name.contains(query, ignoreCase = true)
             }
-            .map { entity -> entity.toData(labels = loadLabels(entity.uuid)) }
+            .map { it.toData() }
     }
 
     override suspend fun deleteAllItems(uuids: List<Uuid>) {
@@ -216,9 +219,7 @@ internal class ExerciseRepositoryImpl @Inject constructor(
         config = pagingConfig,
         pagingSourceFactory = dao::pagedArchived,
     ).flow
-        .map { pagingData ->
-            pagingData.map { entity -> entity.toData(labels = loadLabels(entity.uuid)) }
-        }
+        .map { pagingData -> pagingData.map { it.toData() } }
         .flowOn(bgDispatcher)
 
     override fun observeArchivedCount(): Flow<Int> = dao.observeArchivedCount()
@@ -256,9 +257,7 @@ internal class ExerciseRepositoryImpl @Inject constructor(
                 config = pagingConfig,
                 pagingSourceFactory = dao::pagedActive,
             ).flow
-                .map { pagingData ->
-                    pagingData.map { entity -> entity.toData(labels = loadLabels(entity.uuid)) }
-                }
+                .map { pagingData -> pagingData.map { it.toData() } }
                 .flowOn(bgDispatcher)
         }
         val parsed = tagUuids.map(Uuid::parse)
@@ -267,9 +266,7 @@ internal class ExerciseRepositoryImpl @Inject constructor(
             config = pagingConfig,
             pagingSourceFactory = { dao.pagedActiveByTags(parsed) },
         ).flow
-            .map { pagingData ->
-                pagingData.map { entity -> entity.toData(labels = loadLabels(entity.uuid)) }
-            }
+            .map { pagingData -> pagingData.map { it.toData() } }
             .flowOn(bgDispatcher)
     }
 

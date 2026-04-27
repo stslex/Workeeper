@@ -24,7 +24,7 @@ class NavHostControllerHolder private constructor(
         fun rememberNavHostControllerHolder(): NavHostControllerHolder {
             val controller = rememberNavController()
             val bottomBarDestination = remember {
-                mutableStateOf<BottomBarItem?>(BottomBarItem.CHARTS)
+                mutableStateOf<BottomBarItem?>(BottomBarItem.HOME)
             }
             DisposableEffect(controller) {
                 val listener = OnDestinationChangedListener { _, destination, _ ->

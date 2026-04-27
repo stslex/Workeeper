@@ -42,9 +42,21 @@ internal interface SingleTrainingInteractor {
     suspend fun searchExercisesForPicker(
         query: String,
         excludeUuids: Set<String>,
-    ): List<ExerciseDataModel>
+    ): List<PickerExercise>
 
-    suspend fun resolveExercises(uuids: List<String>): List<ExerciseDataModel>
+    suspend fun resolveExercises(uuids: List<String>): List<PickerExercise>
+
+    /**
+     * Picker projection: an ExerciseDataModel plus the labels denormalized through the
+     * exercise_tag join. The labels live outside the data model (per the v3 hygiene rule)
+     * so we surface them here for callers that actually want to render tags inline.
+     */
+    data class PickerExercise(
+        val exercise: ExerciseDataModel,
+        val labels: List<String>,
+    )
+
+    suspend fun getLabels(exerciseUuid: String): List<String>
 
     /**
      * Joined training_exercise row + linked exercise template. The plan lives on the join
@@ -54,6 +66,7 @@ internal interface SingleTrainingInteractor {
         val exercise: ExerciseDataModel,
         val position: Int,
         val planSets: List<PlanSetDataModel>?,
+        val labels: List<String>,
     )
 
     sealed interface ArchiveResult {

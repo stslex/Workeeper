@@ -72,7 +72,7 @@ internal class SettingsInteractorImpl @Inject constructor(
                 ArchivedItem.Exercise(
                     uuid = exercise.uuid,
                     name = exercise.name,
-                    tags = exercise.labels,
+                    tags = exerciseRepository.getLabels(exercise.uuid),
                     archivedAt = exercise.archivedAt ?: exercise.timestamp,
                     type = exercise.type,
                 )

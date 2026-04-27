@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="feature_home_title">Home</string>
+    <string name="feature_home_active_session_label">Session in progress</string>
+    <string name="feature_home_active_session_progress_format" tools:ignore="PluralsCandidate">%1$d of %2$d done</string>
+    <string name="feature_home_empty_headline">Ready when you are</string>
+    <string name="feature_home_empty_supporting">Start a training from the Trainings tab</string>
+    <string name="feature_home_settings">Settings</string>
+</resources>

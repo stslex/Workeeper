@@ -5,6 +5,7 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
 import io.github.stslex.workeeper.core.core.di.IODispatcher
+import io.github.stslex.workeeper.core.database.session.PerformedExerciseEntity
 import io.github.stslex.workeeper.core.database.session.SessionDao
 import io.github.stslex.workeeper.core.database.session.SessionEntity
 import io.github.stslex.workeeper.core.database.session.SessionStateEntity
@@ -40,6 +41,23 @@ internal class SessionRepositoryImpl @Inject constructor(
                     sessionUuid = it.uuid.toString(),
                     trainingUuid = it.trainingUuid.toString(),
                     startedAt = it.startedAt,
+                )
+            }
+        }
+        .flowOn(ioDispatcher)
+
+    override fun observeActiveSessionWithStats(): Flow<SessionRepository.ActiveSessionWithStats?> = dao
+        .observeActiveSessionWithStats()
+        .map { row ->
+            row?.let {
+                SessionRepository.ActiveSessionWithStats(
+                    sessionUuid = it.uuid.toString(),
+                    trainingUuid = it.trainingUuid.toString(),
+                    trainingName = it.trainingName,
+                    isAdhoc = it.isAdhoc,
+                    startedAt = it.startedAt,
+                    totalCount = it.totalCount,
+                    doneCount = it.doneCount,
                 )
             }
         }
@@ -102,6 +120,28 @@ internal class SessionRepositoryImpl @Inject constructor(
         )
         dao.insert(entity)
         entity.toData()
+    }
+
+    override suspend fun startSessionWithExercises(
+        trainingUuid: String,
+        exerciseUuids: List<Pair<String, Int>>,
+    ): SessionDataModel = withContext(ioDispatcher) {
+        val session = SessionEntity(
+            trainingUuid = Uuid.parse(trainingUuid),
+            state = SessionStateEntity.IN_PROGRESS,
+            startedAt = System.currentTimeMillis(),
+            finishedAt = null,
+        )
+        val performed = exerciseUuids.map { (exerciseUuid, position) ->
+            PerformedExerciseEntity(
+                sessionUuid = session.uuid,
+                exerciseUuid = Uuid.parse(exerciseUuid),
+                position = position,
+                skipped = false,
+            )
+        }
+        dao.startSessionWithExercises(session, performed)
+        session.toData()
     }
 
     override suspend fun resumeSession(

@@ -211,6 +211,7 @@ internal interface SingleTrainingStore : Store<State, Action, Event> {
             data class OnPickerSearchChange(val value: String) : Input
         }
 
+        @Suppress("MviActionNamingRule")
         data class PlanEditAction(
             val action: AppPlanEditorAction,
         ) : Action
