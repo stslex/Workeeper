@@ -6,10 +6,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Archive
@@ -22,12 +25,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
+import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.ui.kit.components.swipe.AppSwipeAction
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagChip
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
+import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.feature.all_exercises.R
 import io.github.stslex.workeeper.feature.all_exercises.mvi.model.ExerciseUiModel
+import kotlinx.collections.immutable.persistentListOf
 
 private const val MAX_INLINE_TAGS = 3
 
@@ -114,6 +121,59 @@ private fun ExerciseRowTags(
                     overflow,
                 ),
             )
+        }
+    }
+}
+
+@Preview(name = "Light", showBackground = true)
+@Preview(
+    name = "Dark",
+    showBackground = true,
+    uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES,
+)
+@Composable
+private fun ExerciseRowPreview() {
+    val sample = listOf(
+        ExerciseUiModel(
+            uuid = "1",
+            name = "Bench press",
+            type = ExerciseTypeDataModel.WEIGHTED,
+            tags = persistentListOf("Push", "Chest"),
+            sessionCount = 12,
+        ),
+        ExerciseUiModel(
+            uuid = "2",
+            name = "Pull-up",
+            type = ExerciseTypeDataModel.WEIGHTLESS,
+            tags = persistentListOf("Pull", "Back", "Calisthenics", "Upper"),
+            sessionCount = 4,
+        ),
+        ExerciseUiModel(
+            uuid = "3",
+            name = "Squat",
+            type = ExerciseTypeDataModel.WEIGHTED,
+            tags = persistentListOf(),
+            sessionCount = 0,
+        ),
+    )
+    AppTheme {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(AppUi.colors.surfaceTier0),
+            contentPadding = PaddingValues(
+                horizontal = AppDimension.screenEdge,
+                vertical = AppDimension.Space.sm,
+            ),
+            verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
+        ) {
+            items(items = sample, key = { it.uuid }) { item ->
+                ExerciseRow(
+                    item = item,
+                    onClick = {},
+                    onArchive = {},
+                )
+            }
         }
     }
 }
