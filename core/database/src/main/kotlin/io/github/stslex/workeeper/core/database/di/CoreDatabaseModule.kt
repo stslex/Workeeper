@@ -33,7 +33,7 @@ object CoreDatabaseModule {
         AppDatabase::class.java,
         AppDatabase.Companion.NAME,
     )
-        .fallbackToDestructiveMigrationFrom(dropAllTables = true, 2, 3)
+        .fallbackToDestructiveMigrationFrom(dropAllTables = true, 2, 3, 4)
         .build()
 
     @Provides

@@ -15,7 +15,7 @@ internal interface ExerciseInteractor {
 
     fun observeAvailableTags(): Flow<List<TagDataModel>>
 
-    suspend fun saveExercise(snapshot: ExerciseChangeDataModel): String
+    suspend fun saveExercise(snapshot: ExerciseChangeDataModel): SaveResult
 
     suspend fun createTag(name: String): TagDataModel
 
@@ -32,6 +32,13 @@ internal interface ExerciseInteractor {
         data object Success : ArchiveResult
 
         data class Blocked(val activeTrainings: List<String>) : ArchiveResult
+    }
+
+    sealed interface SaveResult {
+
+        data class Success(val resolvedUuid: String) : SaveResult
+
+        data object DuplicateName : SaveResult
     }
 
     companion object {

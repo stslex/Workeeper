@@ -5,6 +5,7 @@ import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.exercise.tags.TagRepository
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor.ArchiveResult
+import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor.SaveResult
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -29,12 +30,14 @@ internal class ExerciseInteractorImplTest {
     @Test
     fun `saveExercise generates uuid when input is null`() = runTest {
         val captured = slot<ExerciseChangeDataModel>()
-        coEvery { exerciseRepository.saveItem(capture(captured)) } returns Unit
+        coEvery { exerciseRepository.saveItem(capture(captured)) } returns ExerciseRepository.SaveResult.Success
 
-        val resolved = interactor.saveExercise(
+        val result = interactor.saveExercise(
             ExerciseChangeDataModel(uuid = null, name = "Bench", timestamp = 0L),
         )
 
+        assertTrue(result is SaveResult.Success)
+        val resolved = (result as SaveResult.Success).resolvedUuid
         assertNotNull(captured.captured.uuid)
         assertEquals(captured.captured.uuid, resolved)
         coVerify { exerciseRepository.saveItem(any()) }
@@ -43,14 +46,25 @@ internal class ExerciseInteractorImplTest {
     @Test
     fun `saveExercise preserves uuid when provided`() = runTest {
         val captured = slot<ExerciseChangeDataModel>()
-        coEvery { exerciseRepository.saveItem(capture(captured)) } returns Unit
+        coEvery { exerciseRepository.saveItem(capture(captured)) } returns ExerciseRepository.SaveResult.Success
 
-        val resolved = interactor.saveExercise(
+        val result = interactor.saveExercise(
             ExerciseChangeDataModel(uuid = "fixed", name = "Bench", timestamp = 0L),
         )
 
-        assertEquals("fixed", resolved)
+        assertEquals(SaveResult.Success("fixed"), result)
         assertEquals("fixed", captured.captured.uuid)
+    }
+
+    @Test
+    fun `saveExercise propagates DuplicateName from repository`() = runTest {
+        coEvery { exerciseRepository.saveItem(any()) } returns ExerciseRepository.SaveResult.DuplicateName
+
+        val result = interactor.saveExercise(
+            ExerciseChangeDataModel(uuid = null, name = "Bench", timestamp = 0L),
+        )
+
+        assertEquals(SaveResult.DuplicateName, result)
     }
 
     @Test

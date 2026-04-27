@@ -11,13 +11,14 @@ import kotlin.uuid.Uuid
     indices = [
         Index(value = ["archived", "name"]),
         Index(value = ["archived"]),
+        Index(value = ["name"], unique = true),
     ],
 )
 data class ExerciseEntity(
     @PrimaryKey
     @ColumnInfo(name = "uuid")
     val uuid: Uuid = Uuid.random(),
-    @ColumnInfo(name = "name")
+    @ColumnInfo(name = "name", collate = ColumnInfo.NOCASE)
     val name: String,
     @ColumnInfo(name = "type")
     val type: ExerciseTypeEntity,
@@ -31,4 +32,6 @@ data class ExerciseEntity(
     val createdAt: Long,
     @ColumnInfo(name = "archived_at")
     val archivedAt: Long?,
+    @ColumnInfo(name = "last_adhoc_sets")
+    val lastAdhocSets: String? = null,
 )

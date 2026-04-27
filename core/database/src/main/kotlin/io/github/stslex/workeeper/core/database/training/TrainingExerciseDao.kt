@@ -40,6 +40,23 @@ interface TrainingExerciseDao {
     )
     suspend fun getActiveTemplateNamesUsing(exerciseUuid: Uuid): List<String>
 
+    @Query(
+        """
+        SELECT plan_sets FROM training_exercise_table
+        WHERE training_uuid = :trainingUuid AND exercise_uuid = :exerciseUuid
+        """,
+    )
+    suspend fun getPlanSets(trainingUuid: Uuid, exerciseUuid: Uuid): String?
+
+    @Query(
+        """
+        UPDATE training_exercise_table
+        SET plan_sets = :planSets
+        WHERE training_uuid = :trainingUuid AND exercise_uuid = :exerciseUuid
+        """,
+    )
+    suspend fun updatePlanSets(trainingUuid: Uuid, exerciseUuid: Uuid, planSets: String?)
+
     @Insert
     suspend fun insert(rows: List<TrainingExerciseEntity>)
 

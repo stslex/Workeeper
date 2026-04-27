@@ -9,6 +9,7 @@ import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor.ArchiveResult
+import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor.SaveResult
 import io.github.stslex.workeeper.feature.exercise.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.DiscardTarget
@@ -137,29 +138,47 @@ internal class ClickHandler @Inject constructor(
         // on a background thread. Switch to mainDispatcher before consume(Action.Navigation.*)
         // so navigator.popBack() lands on the UI thread.
         launch(
-            onSuccess = { resolvedUuid ->
-                if (isCreate) {
-                    withContext(mainDispatcher) {
-                        consume(Action.Navigation.Back)
-                    }
-                } else {
-                    val savedSnapshot = State.Snapshot(
-                        name = current.name.trim(),
-                        type = current.type,
-                        description = current.description,
-                        tagUuids = current.tags.map { it.uuid },
+            onSuccess = { result ->
+                when (result) {
+                    is SaveResult.Success -> handleSaveSuccess(
+                        resolvedUuid = result.resolvedUuid,
+                        isCreate = isCreate,
+                        current = current,
                     )
-                    updateStateImmediate {
-                        it.copy(
-                            uuid = resolvedUuid,
-                            mode = Mode.Read,
-                            originalSnapshot = savedSnapshot,
-                        )
+
+                    SaveResult.DuplicateName -> updateStateImmediate {
+                        it.copy(nameDuplicateError = true)
                     }
                 }
             },
         ) {
             interactor.saveExercise(snapshot)
+        }
+    }
+
+    private suspend fun handleSaveSuccess(
+        resolvedUuid: String,
+        isCreate: Boolean,
+        current: State,
+    ) {
+        if (isCreate) {
+            withContext(mainDispatcher) {
+                consume(Action.Navigation.Back)
+            }
+        } else {
+            val savedSnapshot = State.Snapshot(
+                name = current.name.trim(),
+                type = current.type,
+                description = current.description,
+                tagUuids = current.tags.map { it.uuid },
+            )
+            updateStateImmediate {
+                it.copy(
+                    uuid = resolvedUuid,
+                    mode = Mode.Read,
+                    originalSnapshot = savedSnapshot,
+                )
+            }
         }
     }
 
@@ -196,6 +215,7 @@ internal class ClickHandler @Inject constructor(
                     mode = Mode.Read,
                     name = snapshot.name,
                     nameError = false,
+                    nameDuplicateError = false,
                     type = snapshot.type,
                     description = snapshot.description,
                     tags = current.availableTags

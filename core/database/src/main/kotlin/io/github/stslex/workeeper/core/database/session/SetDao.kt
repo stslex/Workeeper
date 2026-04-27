@@ -19,6 +19,11 @@ interface SetDao {
     )
     suspend fun getByPerformedExercise(performedExerciseUuid: Uuid): List<SetEntity>
 
+    @Deprecated(
+        message = "v5 plan-first model: prev-set hint comes from training_exercise.plan_sets" +
+            " or exercise.last_adhoc_sets, not from history. Kept temporarily so existing" +
+            " call sites stay compiling until they migrate to the plan accessors.",
+    )
     @Query(
         """
         SELECT s.* FROM set_table s

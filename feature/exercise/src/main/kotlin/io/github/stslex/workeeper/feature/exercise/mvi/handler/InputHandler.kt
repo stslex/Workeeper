@@ -20,6 +20,7 @@ internal class InputHandler @Inject constructor(
                 current.copy(
                     name = action.value,
                     nameError = false,
+                    nameDuplicateError = false,
                 )
             }
 

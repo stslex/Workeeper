@@ -38,6 +38,7 @@
     <string name="feature_exercise_edit_tag_create_format">+ Создать «%1$s»</string>
     <string name="feature_exercise_edit_tag_limit">Максимум 10 тегов на упражнение</string>
     <string name="feature_exercise_edit_error_name_required">Введите название</string>
+    <string name="feature_exercise_edit_error_name_duplicate">Упражнение с таким именем уже есть</string>
     <string name="feature_exercise_edit_discard_title">Отменить изменения?</string>
     <string name="feature_exercise_edit_discard_body">Все изменения будут потеряны.</string>
     <string name="feature_exercise_edit_discard_confirm">Отменить</string>

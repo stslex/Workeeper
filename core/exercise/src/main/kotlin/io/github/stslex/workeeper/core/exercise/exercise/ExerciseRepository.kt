@@ -1,6 +1,7 @@
 package io.github.stslex.workeeper.core.exercise.exercise
 
 import androidx.paging.PagingData
+import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.HistoryEntry
@@ -22,7 +23,11 @@ interface ExerciseRepository {
 
     suspend fun getExercises(name: String, startDate: Long, endDate: Long): List<ExerciseDataModel>
 
-    suspend fun saveItem(item: ExerciseChangeDataModel)
+    suspend fun saveItem(item: ExerciseChangeDataModel): SaveResult
+
+    suspend fun getAdhocPlan(exerciseUuid: String): List<PlanSetDataModel>?
+
+    suspend fun setAdhocPlan(exerciseUuid: String, planSets: List<PlanSetDataModel>?)
 
     suspend fun deleteItem(uuid: String)
 
@@ -51,4 +56,11 @@ interface ExerciseRepository {
     fun pagedActiveByTags(tagUuids: Set<String>): Flow<PagingData<ExerciseDataModel>>
 
     suspend fun getRecentHistory(exerciseUuid: String, limit: Int): List<HistoryEntry>
+
+    sealed interface SaveResult {
+
+        data object Success : SaveResult
+
+        data object DuplicateName : SaveResult
+    }
 }
