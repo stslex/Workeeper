@@ -37,7 +37,7 @@ internal fun ExerciseEntity.toData(
     archivedAt = archivedAt,
     timestamp = createdAt,
     labels = labels,
-    lastAdhocSets = lastAdhocSets?.let { PlanSetsConverter.fromJson(it) }
+    lastAdhocSets = lastAdhocSets?.let { PlanSetsConverter.fromJson(it) },
 )
 
 internal fun ExerciseDataModel.toEntity(): ExerciseEntity = ExerciseEntity(

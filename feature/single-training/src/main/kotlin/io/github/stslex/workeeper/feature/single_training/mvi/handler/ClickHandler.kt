@@ -358,10 +358,12 @@ internal class ClickHandler @Inject constructor(
             onSuccess = { tag ->
                 updateStateImmediate { current ->
                     current.copy(
-                        tags = (current.tags + TagUiModel(
-                            uuid = tag.uuid,
-                            name = tag.name,
-                        )).toImmutableList(),
+                        tags = (
+                            current.tags + TagUiModel(
+                                uuid = tag.uuid,
+                                name = tag.name,
+                            )
+                            ).toImmutableList(),
                         tagSearchQuery = "",
                     )
                 }

@@ -2,7 +2,9 @@
 package io.github.stslex.workeeper.feature.exercise.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
+import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
+import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.mvi.model.TagUiModel
@@ -19,6 +21,8 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -55,18 +59,63 @@ internal class ClickHandlerTest {
     @Test
     fun `OnTypeSelect with same type is no-op`() {
         val (_, store, handler) = setup()
-        handler.invoke(Action.Click.OnTypeSelect(ExerciseTypeDataModel.WEIGHTED))
+        handler.invoke(Action.Click.OnTypeSelect(ExerciseTypeUiModel.WEIGHTED))
         verify(exactly = 0) { store.sendEvent(any()) }
     }
 
     @Test
     fun `OnTypeSelect with new type emits SegmentTick haptic and updates state`() {
         val (stateFlow, store, handler) = setup()
-        handler.invoke(Action.Click.OnTypeSelect(ExerciseTypeDataModel.WEIGHTLESS))
+        handler.invoke(Action.Click.OnTypeSelect(ExerciseTypeUiModel.WEIGHTLESS))
         val captured = slot<Event>()
         verify { store.sendEvent(capture(captured)) }
         assertHaptic(captured.captured, HapticFeedbackType.SegmentTick)
-        assertEquals(ExerciseTypeDataModel.WEIGHTLESS, stateFlow.value.type)
+        assertEquals(ExerciseTypeUiModel.WEIGHTLESS, stateFlow.value.type)
+    }
+
+    @Test
+    fun `OnTypeSelect from WEIGHTED to WEIGHTLESS with weighted plan asks for confirm`() {
+        val (stateFlow, store, handler) = setup(
+            State.create(uuid = "uuid-1").copy(
+                type = ExerciseTypeUiModel.WEIGHTED,
+                adhocPlan = persistentListOf(
+                    PlanSetUiModel(weight = 50.0, reps = 8, type = SetTypeUiModel.WORK),
+                ),
+            ),
+        )
+        handler.invoke(Action.Click.OnTypeSelect(ExerciseTypeUiModel.WEIGHTLESS))
+        val events = mutableListOf<Event>()
+        verify { store.sendEvent(capture(events)) }
+        assertTrue(events.any { it == Event.ShowTypeChangeConfirm })
+        assertEquals(ExerciseTypeUiModel.WEIGHTED, stateFlow.value.type)
+        assertEquals(ExerciseTypeUiModel.WEIGHTLESS, stateFlow.value.pendingTypeChange)
+    }
+
+    @Test
+    fun `OnTypeChangeConfirm wipes weights from adhoc plan`() {
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = null).copy(
+                type = ExerciseTypeUiModel.WEIGHTED,
+                pendingTypeChange = ExerciseTypeUiModel.WEIGHTLESS,
+                adhocPlan = persistentListOf(
+                    PlanSetUiModel(weight = 50.0, reps = 8, type = SetTypeUiModel.WORK),
+                    PlanSetUiModel(weight = 60.0, reps = 6, type = SetTypeUiModel.FAILURE),
+                ),
+            ),
+        )
+        handler.invoke(Action.Click.OnTypeChangeConfirm)
+        assertEquals(ExerciseTypeUiModel.WEIGHTLESS, stateFlow.value.type)
+        assertEquals(null, stateFlow.value.pendingTypeChange)
+        assertTrue(stateFlow.value.adhocPlan?.all { it.weight == null } == true)
+    }
+
+    @Test
+    fun `OnTypeChangeDismiss clears pending type change`() {
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = null).copy(pendingTypeChange = ExerciseTypeUiModel.WEIGHTLESS),
+        )
+        handler.invoke(Action.Click.OnTypeChangeDismiss)
+        assertNull(stateFlow.value.pendingTypeChange)
     }
 
     @Test
@@ -82,7 +131,7 @@ internal class ClickHandlerTest {
         val (stateFlow, _, handler) = setup(
             State.create(uuid = "uuid-1").copy(
                 name = "Bench",
-                type = ExerciseTypeDataModel.WEIGHTED,
+                type = ExerciseTypeUiModel.WEIGHTED,
                 description = "Notes",
             ),
         )
@@ -90,6 +139,68 @@ internal class ClickHandlerTest {
         assertTrue(stateFlow.value.mode is Mode.Edit)
         assertEquals(false, (stateFlow.value.mode as Mode.Edit).isCreate)
         assertEquals("Bench", stateFlow.value.originalSnapshot?.name)
+    }
+
+    @Test
+    fun `OnEditPlanClick stages an empty editor target when no adhoc plan`() {
+        val (stateFlow, _, handler) = setup()
+        handler.invoke(Action.Click.OnEditPlanClick)
+        val target = stateFlow.value.planEditorTarget
+        assertNotNull(target)
+        assertEquals(0, target?.draft?.size)
+        assertEquals(0, target?.initialPlan?.size)
+    }
+
+    @Test
+    fun `OnEditPlanClick seeds the editor draft from existing adhoc plan`() {
+        val seed = persistentListOf(
+            PlanSetUiModel(weight = 50.0, reps = 8, type = SetTypeUiModel.WORK),
+        )
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = "uuid-1").copy(adhocPlan = seed),
+        )
+        handler.invoke(Action.Click.OnEditPlanClick)
+        assertEquals(seed, stateFlow.value.planEditorTarget?.draft)
+        assertEquals(seed, stateFlow.value.planEditorTarget?.initialPlan)
+    }
+
+    @Test
+    fun `OnConfirmDiscard with PLAN_EDITOR closes the editor`() {
+        val (stateFlow, store, handler) = setup(
+            State.create(uuid = "uuid-1").copy(
+                planEditorTarget = State.PlanEditorTarget(
+                    initialPlan = persistentListOf(),
+                    draft = persistentListOf(
+                        PlanSetUiModel(weight = 50.0, reps = 8, type = SetTypeUiModel.WORK),
+                    ),
+                ),
+            ),
+        )
+        handler.invoke(Action.Click.OnConfirmDiscard(DiscardTarget.PLAN_EDITOR))
+        assertNull(stateFlow.value.planEditorTarget)
+        verify(exactly = 0) { store.consume(Action.Navigation.Back) }
+    }
+
+    @Test
+    fun `OnBackClick with dirty plan editor surfaces PLAN_EDITOR discard target`() {
+        val (_, store, handler) = setup(
+            State.create(uuid = "uuid-1").copy(
+                planEditorTarget = State.PlanEditorTarget(
+                    initialPlan = persistentListOf(),
+                    draft = persistentListOf(
+                        PlanSetUiModel(weight = 50.0, reps = 8, type = SetTypeUiModel.WORK),
+                    ),
+                ),
+            ),
+        )
+        handler.invoke(Action.Click.OnBackClick)
+        val events = mutableListOf<Event>()
+        verify { store.sendEvent(capture(events)) }
+        assertTrue(
+            events.any {
+                it is Event.ShowDiscardConfirmDialog && it.target == DiscardTarget.PLAN_EDITOR
+            },
+        )
     }
 
     @Test
@@ -165,7 +276,7 @@ internal class ClickHandlerTest {
                 name = "Bench updated",
                 originalSnapshot = State.Snapshot(
                     name = "Bench",
-                    type = ExerciseTypeDataModel.WEIGHTED,
+                    type = ExerciseTypeUiModel.WEIGHTED,
                     description = "",
                     tagUuids = emptyList(),
                 ),
@@ -199,7 +310,7 @@ internal class ClickHandlerTest {
                 name = "Bench edited",
                 originalSnapshot = State.Snapshot(
                     name = "Bench",
-                    type = ExerciseTypeDataModel.WEIGHTED,
+                    type = ExerciseTypeUiModel.WEIGHTED,
                     description = "",
                     tagUuids = emptyList(),
                 ),

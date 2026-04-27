@@ -20,6 +20,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import kotlin.uuid.Uuid
 
 internal class ExerciseRepositoryImplTest {
 
@@ -43,13 +44,17 @@ internal class ExerciseRepositoryImplTest {
 
     @Test
     fun `saveItem returns DuplicateName when DAO throws unique-constraint error`() = runTest(testDispatcher) {
+        // saveItem branches on whether the exercise already exists. We force the insert path
+        // by stubbing getById to return null, then making insert throw the unique-name
+        // collision the production code maps to DuplicateName.
+        coEvery { exerciseDao.getById(any()) } returns null
         coEvery {
             exerciseDao.insert(any())
         } throws SQLiteConstraintException("UNIQUE constraint failed: exercise_table.name")
 
         val result = repository.saveItem(
             ExerciseChangeDataModel(
-                uuid = null,
+                uuid = Uuid.random(),
                 name = "Bench Press",
                 type = ExerciseTypeDataModel.WEIGHTED,
                 description = null,
@@ -57,6 +62,7 @@ internal class ExerciseRepositoryImplTest {
                 archived = false,
                 timestamp = 0L,
                 labels = emptyList(),
+                lastAdHocSets = null,
             ),
         )
 
@@ -66,11 +72,12 @@ internal class ExerciseRepositoryImplTest {
 
     @Test
     fun `saveItem returns Success when DAO insert succeeds`() = runTest(testDispatcher) {
+        coEvery { exerciseDao.getById(any()) } returns null
         coEvery { exerciseDao.insert(any()) } returns Unit
 
         val result = repository.saveItem(
             ExerciseChangeDataModel(
-                uuid = null,
+                uuid = Uuid.random(),
                 name = "Squat",
                 type = ExerciseTypeDataModel.WEIGHTED,
                 description = null,
@@ -78,6 +85,7 @@ internal class ExerciseRepositoryImplTest {
                 archived = false,
                 timestamp = 0L,
                 labels = emptyList(),
+                lastAdHocSets = null,
             ),
         )
 

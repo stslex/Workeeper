@@ -41,7 +41,6 @@ internal class PlanEditActionHandler @Inject constructor(
         // save when exit from feature
     }
 
-
     private fun processPlanEditorSave() {
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
         updateState {
@@ -113,6 +112,5 @@ internal class PlanEditActionHandler @Inject constructor(
     companion object {
 
         private const val DEFAULT_NEW_REPS = 5
-
     }
 }

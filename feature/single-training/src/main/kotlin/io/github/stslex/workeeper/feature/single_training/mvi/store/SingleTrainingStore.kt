@@ -76,14 +76,14 @@ internal interface SingleTrainingStore : Store<State, Action, Event> {
         ) {
 
             fun matches(state: State): Boolean = state.name == name &&
-                    state.description == description &&
-                    state.tags.map { it.uuid } == tagUuids &&
-                    state.exercises.map {
-                        ExerciseSignature(
-                            it.exerciseUuid,
-                            it.position,
-                        )
-                    } == exerciseSignature
+                state.description == description &&
+                state.tags.map { it.uuid } == tagUuids &&
+                state.exercises.map {
+                    ExerciseSignature(
+                        it.exerciseUuid,
+                        it.position,
+                    )
+                } == exerciseSignature
         }
 
         @Stable

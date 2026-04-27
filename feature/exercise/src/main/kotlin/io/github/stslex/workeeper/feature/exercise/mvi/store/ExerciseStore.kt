@@ -73,9 +73,9 @@ internal interface ExerciseStore : Store<State, Action, Event> {
         ) {
 
             fun matches(state: State): Boolean = state.name == name &&
-                    state.type == type &&
-                    state.description == description &&
-                    state.tags.map { it.uuid } == tagUuids
+                state.type == type &&
+                state.description == description &&
+                state.tags.map { it.uuid } == tagUuids
         }
 
         @Stable

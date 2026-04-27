@@ -29,13 +29,11 @@ sealed interface AppPlanEditorAction {
         val index: Int,
     ) : AppPlanEditorAction
 
-
     @Stable
     data object OnAddSet : AppPlanEditorAction
 
     @Stable
     object OnDismiss : AppPlanEditorAction
-
 
     @Stable
     object OnSave : AppPlanEditorAction

@@ -274,7 +274,6 @@ private fun PlanEditorRow(
     }
 }
 
-
 private fun Double.formatPlain(): String = if (this % 1.0 == 0.0) {
     toLong().toString()
 } else {

@@ -39,4 +39,3 @@ private fun PlanSetUiModel.formatSet(): String {
     val weightStr = if (w % 1.0 == 0.0) w.toLong().toString() else w.toString()
     return weightStr + "×" + reps
 }
-

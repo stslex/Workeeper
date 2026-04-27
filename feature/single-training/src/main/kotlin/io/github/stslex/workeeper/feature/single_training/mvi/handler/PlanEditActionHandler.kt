@@ -138,6 +138,5 @@ internal class PlanEditActionHandler @Inject constructor(
     companion object {
 
         private const val DEFAULT_NEW_REPS = 5
-
     }
 }

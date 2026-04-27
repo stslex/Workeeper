@@ -119,6 +119,7 @@ internal class TrainingExerciseDaoTest : BaseDatabaseTest() {
                 archived = false,
                 createdAt = 0L,
                 archivedAt = null,
+                lastAdhocSets = null,
             ),
         )
     }

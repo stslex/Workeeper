@@ -281,8 +281,8 @@ internal class ClickHandler @Inject constructor(
         // silently strand weight data once Live workout pre-fills. Surface a confirm so
         // the user opts in to the multi-row wipe (handled by `processTypeChangeConfirm`).
         val needsWeightWipe = action.type == ExerciseTypeUiModel.WEIGHTLESS &&
-                current.type == ExerciseTypeUiModel.WEIGHTED &&
-                (current.adhocPlan?.any { it.weight != null } == true)
+            current.type == ExerciseTypeUiModel.WEIGHTED &&
+            (current.adhocPlan?.any { it.weight != null } == true)
         if (needsWeightWipe) {
             sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
             updateState { it.copy(pendingTypeChange = action.type) }
@@ -373,10 +373,12 @@ internal class ClickHandler @Inject constructor(
             onSuccess = { tag ->
                 updateStateImmediate { state ->
                     state.copy(
-                        tags = (state.tags + TagUiModel(
-                            uuid = tag.uuid,
-                            name = tag.name,
-                        )).toImmutableList(),
+                        tags = (
+                            state.tags + TagUiModel(
+                                uuid = tag.uuid,
+                                name = tag.name,
+                            )
+                            ).toImmutableList(),
                         tagSearchQuery = "",
                     )
                 }
