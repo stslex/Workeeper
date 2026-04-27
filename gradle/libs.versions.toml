@@ -6,7 +6,7 @@ androidGradlePlugin = "9.1.0"
 androidTools = "32.1.0"
 
 minSdk = "28"
-targetSdk = "36"
+targetSdk = "37"
 compileSdk = "36"
 versionName = "1.27"
 versionCode = "28"
