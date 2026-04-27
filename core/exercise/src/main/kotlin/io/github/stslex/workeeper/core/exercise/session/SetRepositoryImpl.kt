@@ -23,6 +23,11 @@ internal class SetRepositoryImpl @Inject constructor(
         dao.getByPerformedExercise(Uuid.parse(performedExerciseUuid)).map { it.toData() }
     }
 
+    @Suppress("DEPRECATION")
+    @Deprecated(
+        message = "v5 plan-first model: prev-set hint comes from training_exercise.plan_sets" +
+            " or exercise.last_adhoc_sets, not from history.",
+    )
     override suspend fun getLastFinishedSet(
         exerciseUuid: String,
     ): SetsDataModel? = withContext(ioDispatcher) {

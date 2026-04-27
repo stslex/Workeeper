@@ -10,6 +10,7 @@ import io.github.stslex.workeeper.core.exercise.exercise.model.HistoryEntry
 import io.github.stslex.workeeper.core.exercise.tags.TagRepository
 import io.github.stslex.workeeper.core.exercise.tags.model.TagDataModel
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor.ArchiveResult
+import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor.SaveResult
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
@@ -43,11 +44,13 @@ internal class ExerciseInteractorImpl @Inject constructor(
 
     override suspend fun saveExercise(
         snapshot: ExerciseChangeDataModel,
-    ): String = withContext(defaultDispatcher) {
+    ): SaveResult = withContext(defaultDispatcher) {
         val resolvedUuid = snapshot.uuid?.takeIf { it.isNotBlank() } ?: Uuid.random().toString()
         val toSave = snapshot.copy(uuid = resolvedUuid)
-        exerciseRepository.saveItem(toSave)
-        resolvedUuid
+        when (exerciseRepository.saveItem(toSave)) {
+            ExerciseRepository.SaveResult.Success -> SaveResult.Success(resolvedUuid)
+            ExerciseRepository.SaveResult.DuplicateName -> SaveResult.DuplicateName
+        }
     }
 
     override suspend fun createTag(name: String): TagDataModel = withContext(defaultDispatcher) {

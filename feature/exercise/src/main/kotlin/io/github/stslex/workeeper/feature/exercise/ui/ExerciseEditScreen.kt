@@ -81,17 +81,24 @@ internal fun ExerciseEditScreen(
         ) {
             Spacer(Modifier.height(AppDimension.Space.sm))
             FormSection(label = stringResource(R.string.feature_exercise_edit_label_name)) {
+                val nameErrorText = when {
+                    state.nameError -> stringResource(R.string.feature_exercise_edit_error_name_required)
+                    state.nameDuplicateError ->
+                        stringResource(R.string.feature_exercise_edit_error_name_duplicate)
+
+                    else -> null
+                }
                 AppTextField(
                     modifier = Modifier.testTag("ExerciseEditNameField"),
                     value = state.name,
                     onValueChange = { consume(Action.Input.OnNameChange(it)) },
                     placeholder = stringResource(R.string.feature_exercise_edit_label_name),
-                    isError = state.nameError,
+                    isError = nameErrorText != null,
                 )
-                if (state.nameError) {
+                if (nameErrorText != null) {
                     Text(
                         modifier = Modifier.padding(top = AppDimension.Space.xs),
-                        text = stringResource(R.string.feature_exercise_edit_error_name_required),
+                        text = nameErrorText,
                         style = AppUi.typography.bodySmall,
                         color = AppUi.colors.status.error,
                     )

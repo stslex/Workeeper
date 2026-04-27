@@ -1,18 +1,22 @@
 package io.github.stslex.workeeper.core.exercise.exercise
 
+import android.database.sqlite.SQLiteConstraintException
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
 import io.github.stslex.workeeper.core.core.di.IODispatcher
+import io.github.stslex.workeeper.core.database.converters.PlanSetsConverter
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
 import io.github.stslex.workeeper.core.database.session.SessionDao
 import io.github.stslex.workeeper.core.database.session.SetDao
+import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.database.tag.ExerciseTagDao
 import io.github.stslex.workeeper.core.database.tag.ExerciseTagEntity
 import io.github.stslex.workeeper.core.database.tag.TagDao
 import io.github.stslex.workeeper.core.database.tag.TagEntity
 import io.github.stslex.workeeper.core.database.training.TrainingExerciseDao
+import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository.SaveResult
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.HistoryEntry
@@ -83,15 +87,39 @@ internal class ExerciseRepositoryImpl @Inject constructor(
         endDate: Long,
     ): List<ExerciseDataModel> = emptyList()
 
-    override suspend fun saveItem(item: ExerciseChangeDataModel) = withContext(bgDispatcher) {
+    override suspend fun saveItem(item: ExerciseChangeDataModel): SaveResult = withContext(bgDispatcher) {
         val entity = item.toEntity()
-        if (item.uuid.isNullOrBlank()) {
-            dao.insert(entity)
-        } else {
-            val existing = dao.getById(entity.uuid)
-            if (existing == null) dao.insert(entity) else dao.update(entity)
+        try {
+            if (item.uuid.isNullOrBlank()) {
+                dao.insert(entity)
+            } else {
+                val existing = dao.getById(entity.uuid)
+                if (existing == null) dao.insert(entity) else dao.update(entity)
+            }
+        } catch (_: SQLiteConstraintException) {
+            return@withContext SaveResult.DuplicateName
         }
         syncLabels(entity.uuid, item.labels)
+        SaveResult.Success
+    }
+
+    override suspend fun getAdhocPlan(
+        exerciseUuid: String,
+    ): List<PlanSetDataModel>? = withContext(bgDispatcher) {
+        val entity = dao.getById(Uuid.parse(exerciseUuid)) ?: return@withContext null
+        PlanSetsConverter.fromJson(entity.lastAdhocSets)
+    }
+
+    override suspend fun setAdhocPlan(
+        exerciseUuid: String,
+        planSets: List<PlanSetDataModel>?,
+    ) {
+        withContext(bgDispatcher) {
+            dao.updateLastAdhocSets(
+                uuid = Uuid.parse(exerciseUuid),
+                lastAdhocSets = PlanSetsConverter.toJson(planSets),
+            )
+        }
     }
 
     override suspend fun deleteItem(uuid: String) {

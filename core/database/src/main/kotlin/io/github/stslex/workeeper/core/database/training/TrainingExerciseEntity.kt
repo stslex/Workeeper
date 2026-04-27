@@ -33,4 +33,5 @@ data class TrainingExerciseEntity(
     @ColumnInfo(name = "training_uuid") val trainingUuid: Uuid,
     @ColumnInfo(name = "exercise_uuid") val exerciseUuid: Uuid,
     @ColumnInfo(name = "position") val position: Int,
+    @ColumnInfo(name = "plan_sets") val planSets: String? = null,
 )

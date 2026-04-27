@@ -14,6 +14,8 @@ import io.github.stslex.workeeper.core.exercise.session.SetRepository
 import io.github.stslex.workeeper.core.exercise.session.SetRepositoryImpl
 import io.github.stslex.workeeper.core.exercise.tags.TagRepository
 import io.github.stslex.workeeper.core.exercise.tags.TagRepositoryImpl
+import io.github.stslex.workeeper.core.exercise.training.TrainingExerciseRepository
+import io.github.stslex.workeeper.core.exercise.training.TrainingExerciseRepositoryImpl
 import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
 import io.github.stslex.workeeper.core.exercise.training.TrainingRepositoryImpl
 import javax.inject.Singleton
@@ -29,6 +31,12 @@ internal interface CoreExerciseModule {
     @Binds
     @Singleton
     fun bindTrainingRepository(impl: TrainingRepositoryImpl): TrainingRepository
+
+    @Binds
+    @Singleton
+    fun bindTrainingExerciseRepository(
+        impl: TrainingExerciseRepositoryImpl,
+    ): TrainingExerciseRepository
 
     @Binds
     @Singleton

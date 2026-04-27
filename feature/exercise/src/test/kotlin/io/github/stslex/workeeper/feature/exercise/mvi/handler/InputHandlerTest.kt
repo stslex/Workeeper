@@ -32,6 +32,13 @@ internal class InputHandlerTest {
     }
 
     @Test
+    fun `OnNameChange clears nameDuplicateError`() {
+        stateFlow.value = stateFlow.value.copy(nameDuplicateError = true)
+        handler.invoke(Action.Input.OnNameChange("New name"))
+        assertEquals(false, stateFlow.value.nameDuplicateError)
+    }
+
+    @Test
     fun `OnDescriptionChange truncates to 2000 chars`() {
         val long = "a".repeat(3000)
         handler.invoke(Action.Input.OnDescriptionChange(long))
