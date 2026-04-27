@@ -11,6 +11,7 @@ import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor.ArchiveResult
 import io.github.stslex.workeeper.feature.exercise.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Action
+import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.DiscardTarget
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Event
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State.Mode
@@ -39,9 +40,13 @@ internal class ClickHandler @Inject constructor(
             is Action.Click.OnHistoryRowClick -> processHistoryRowClick(action)
             Action.Click.OnSaveClick -> processSaveClick()
             Action.Click.OnCancelClick -> processCancelClick()
-            Action.Click.OnConfirmDiscard -> processConfirmDiscard()
+            is Action.Click.OnConfirmDiscard -> processConfirmDiscard(action.target)
             Action.Click.OnDismissDiscard -> processDismissDiscard()
             Action.Click.OnDismissArchiveBlocked -> Unit
+            Action.Click.FlipToReadMode -> processFlipToReadMode()
+            Action.Click.OnPermanentDeleteMenuClick -> processPermanentDeleteMenuClick()
+            Action.Click.OnConfirmPermanentDelete -> processConfirmPermanentDelete()
+            Action.Click.OnDismissPermanentDelete -> Unit
             is Action.Click.OnUndoArchive -> processUndoArchive(action)
             is Action.Click.OnTypeSelect -> processTypeSelect(action)
             is Action.Click.OnTagToggle -> processTagToggle(action)
@@ -51,13 +56,19 @@ internal class ClickHandler @Inject constructor(
     }
 
     private fun processBackClick() {
-        if (state.value.mode is Mode.Edit && state.value.hasChanges) {
-            sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
-            sendEvent(Event.ShowDiscardConfirmDialog)
+        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
+        val current = state.value
+        val mode = current.mode
+        if (mode !is Mode.Edit) {
+            consume(Action.Navigation.Back)
             return
         }
-        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
-        consume(Action.Navigation.Back)
+        val target = if (mode.isCreate) DiscardTarget.POP_SCREEN else DiscardTarget.FLIP_TO_READ
+        if (current.hasChanges) {
+            sendEvent(Event.ShowDiscardConfirmDialog(target))
+        } else {
+            applyDiscardTarget(target)
+        }
     }
 
     private fun processEditClick() {
@@ -153,21 +164,74 @@ internal class ClickHandler @Inject constructor(
     }
 
     private fun processCancelClick() {
-        val current = state.value
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
-        if (current.mode is Mode.Edit && current.hasChanges) {
-            sendEvent(Event.ShowDiscardConfirmDialog)
+        val current = state.value
+        val mode = current.mode
+        if (mode !is Mode.Edit) {
+            consume(Action.Navigation.Back)
             return
         }
-        consume(Action.Navigation.Back)
+        val target = if (mode.isCreate) DiscardTarget.POP_SCREEN else DiscardTarget.FLIP_TO_READ
+        if (current.hasChanges) {
+            sendEvent(Event.ShowDiscardConfirmDialog(target))
+        } else {
+            applyDiscardTarget(target)
+        }
     }
 
-    private fun processConfirmDiscard() {
+    private fun processConfirmDiscard(target: DiscardTarget) {
         sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
-        consume(Action.Navigation.Back)
+        applyDiscardTarget(target)
     }
 
     private fun processDismissDiscard() = Unit
+
+    private fun processFlipToReadMode() {
+        updateState { current ->
+            val snapshot = current.originalSnapshot
+            if (snapshot == null) {
+                current.copy(mode = Mode.Read)
+            } else {
+                current.copy(
+                    mode = Mode.Read,
+                    name = snapshot.name,
+                    nameError = false,
+                    type = snapshot.type,
+                    description = snapshot.description,
+                    tags = current.availableTags
+                        .filter { tag -> tag.uuid in snapshot.tagUuids }
+                        .toImmutableList(),
+                    tagSearchQuery = "",
+                )
+            }
+        }
+    }
+
+    private fun applyDiscardTarget(target: DiscardTarget) {
+        when (target) {
+            DiscardTarget.POP_SCREEN -> consume(Action.Navigation.Back)
+            DiscardTarget.FLIP_TO_READ -> processFlipToReadMode()
+        }
+    }
+
+    private fun processPermanentDeleteMenuClick() {
+        if (!state.value.canPermanentlyDelete) return
+        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
+        sendEvent(Event.ShowPermanentDeleteConfirm(state.value.name))
+    }
+
+    private fun processConfirmPermanentDelete() {
+        val uuid = state.value.uuid ?: return
+        sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
+        launch(
+            onSuccess = {
+                sendEvent(Event.ShowPermanentDeleteSuccess)
+                withContext(mainDispatcher) { consume(Action.Navigation.Back) }
+            },
+        ) {
+            interactor.permanentlyDelete(uuid)
+        }
+    }
 
     private fun processUndoArchive(action: Action.Click.OnUndoArchive) {
         launch { interactor.restore(action.uuid) }

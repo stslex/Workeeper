@@ -67,4 +67,14 @@ internal class ExerciseInteractorImpl @Inject constructor(
     override suspend fun restore(uuid: String) {
         withContext(defaultDispatcher) { exerciseRepository.restore(uuid) }
     }
+
+    override suspend fun canPermanentlyDelete(
+        uuid: String,
+    ): Boolean = withContext(defaultDispatcher) {
+        exerciseRepository.canPermanentlyDeleteImmediately(uuid)
+    }
+
+    override suspend fun permanentlyDelete(uuid: String) {
+        withContext(defaultDispatcher) { exerciseRepository.permanentDelete(uuid) }
+    }
 }

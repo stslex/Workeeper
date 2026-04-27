@@ -23,6 +23,10 @@ internal interface ExerciseInteractor {
 
     suspend fun restore(uuid: String)
 
+    suspend fun canPermanentlyDelete(uuid: String): Boolean
+
+    suspend fun permanentlyDelete(uuid: String)
+
     sealed interface ArchiveResult {
 
         data object Success : ArchiveResult

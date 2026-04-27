@@ -7,6 +7,7 @@ import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Action
+import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.DiscardTarget
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Event
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State.Mode
@@ -138,16 +139,26 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `OnCancelClick from clean state navigates back`() {
-        val (_, store, handler) = setup(
+    fun `OnCancelClick from clean Edit on existing flips to Read mode`() {
+        val (stateFlow, store, handler) = setup(
             State.create(uuid = "uuid-1").copy(mode = Mode.Edit(isCreate = false)),
+        )
+        handler.invoke(Action.Click.OnCancelClick)
+        verify(exactly = 0) { store.consume(Action.Navigation.Back) }
+        assertEquals(Mode.Read, stateFlow.value.mode)
+    }
+
+    @Test
+    fun `OnCancelClick from clean create mode pops back`() {
+        val (_, store, handler) = setup(
+            State.create(uuid = null),
         )
         handler.invoke(Action.Click.OnCancelClick)
         verify { store.consume(Action.Navigation.Back) }
     }
 
     @Test
-    fun `OnCancelClick from dirty state shows discard dialog`() {
+    fun `OnCancelClick from dirty Edit on existing shows FLIP_TO_READ discard dialog`() {
         val (_, store, handler) = setup(
             State.create(uuid = "uuid-1").copy(
                 mode = Mode.Edit(isCreate = false),
@@ -164,16 +175,75 @@ internal class ClickHandlerTest {
         verify(exactly = 0) { store.consume(Action.Navigation.Back) }
         val events = mutableListOf<Event>()
         verify { store.sendEvent(capture(events)) }
-        assertTrue(events.any { it == Event.ShowDiscardConfirmDialog })
+        assertTrue(
+            events.any {
+                it is Event.ShowDiscardConfirmDialog && it.target == DiscardTarget.FLIP_TO_READ
+            },
+        )
     }
 
     @Test
-    fun `OnConfirmDiscard navigates back`() {
+    fun `OnConfirmDiscard with POP_SCREEN navigates back`() {
         val (_, store, handler) = setup(
             State.create(uuid = "uuid-1").copy(mode = Mode.Edit(isCreate = false)),
         )
-        handler.invoke(Action.Click.OnConfirmDiscard)
+        handler.invoke(Action.Click.OnConfirmDiscard(DiscardTarget.POP_SCREEN))
         verify { store.consume(Action.Navigation.Back) }
+    }
+
+    @Test
+    fun `OnConfirmDiscard with FLIP_TO_READ flips mode without popping`() {
+        val (stateFlow, store, handler) = setup(
+            State.create(uuid = "uuid-1").copy(
+                mode = Mode.Edit(isCreate = false),
+                name = "Bench edited",
+                originalSnapshot = State.Snapshot(
+                    name = "Bench",
+                    type = ExerciseTypeDataModel.WEIGHTED,
+                    description = "",
+                    tagUuids = emptyList(),
+                ),
+            ),
+        )
+        handler.invoke(Action.Click.OnConfirmDiscard(DiscardTarget.FLIP_TO_READ))
+        verify(exactly = 0) { store.consume(Action.Navigation.Back) }
+        assertEquals(Mode.Read, stateFlow.value.mode)
+        assertEquals("Bench", stateFlow.value.name)
+    }
+
+    @Test
+    fun `OnBackClick in clean Edit on existing flips to Read mode`() {
+        val (stateFlow, store, handler) = setup(
+            State.create(uuid = "uuid-1").copy(mode = Mode.Edit(isCreate = false)),
+        )
+        handler.invoke(Action.Click.OnBackClick)
+        verify(exactly = 0) { store.consume(Action.Navigation.Back) }
+        assertEquals(Mode.Read, stateFlow.value.mode)
+    }
+
+    @Test
+    fun `OnPermanentDeleteMenuClick is no-op when not eligible`() {
+        val (_, store, handler) = setup(
+            State.create(uuid = "uuid-1").copy(canPermanentlyDelete = false),
+        )
+        handler.invoke(Action.Click.OnPermanentDeleteMenuClick)
+        verify(exactly = 0) { store.sendEvent(any()) }
+    }
+
+    @Test
+    fun `OnPermanentDeleteMenuClick emits ShowPermanentDeleteConfirm when eligible`() {
+        val (_, store, handler) = setup(
+            State.create(uuid = "uuid-1").copy(
+                canPermanentlyDelete = true,
+                name = "Bench",
+            ),
+        )
+        handler.invoke(Action.Click.OnPermanentDeleteMenuClick)
+        val events = mutableListOf<Event>()
+        verify { store.sendEvent(capture(events)) }
+        assertTrue(
+            events.any { it is Event.ShowPermanentDeleteConfirm && it.name == "Bench" },
+        )
     }
 
     private fun assertHaptic(event: Event, expected: HapticFeedbackType) {

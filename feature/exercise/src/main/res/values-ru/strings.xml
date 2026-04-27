@@ -18,6 +18,12 @@
     <string name="feature_exercise_detail_archive_undo">Восстановить</string>
     <string name="feature_exercise_detail_history_meta_format">%1$s · %2$s</string>
     <string name="feature_exercise_detail_history_meta_adhoc_format">%1$s · отдельно</string>
+    <string name="feature_exercise_detail_permanent_delete">Удалить навсегда</string>
+    <string name="feature_exercise_detail_permanent_delete_confirm_title">Удалить «%1$s» навсегда?</string>
+    <string name="feature_exercise_detail_permanent_delete_confirm_body">У упражнения нет истории. Действие необратимо.</string>
+    <string name="feature_exercise_detail_permanent_delete_confirm_impact">История не затронута</string>
+    <string name="feature_exercise_detail_permanent_delete_confirm_button">Удалить</string>
+    <string name="feature_exercise_detail_permanent_delete_success">Упражнение удалено</string>
 
     <!-- Exercise edit -->
     <string name="feature_exercise_edit_title_create">Новое упражнение</string>

@@ -195,9 +195,10 @@ internal class ExerciseRepositoryImpl @Inject constructor(
                 .flowOn(bgDispatcher)
         }
         val parsed = tagUuids.map(Uuid::parse)
+        // OR semantics: include the exercise when it has ANY of the selected tags.
         return Pager(
             config = pagingConfig,
-            pagingSourceFactory = { dao.pagedActiveByAllTags(parsed, parsed.size) },
+            pagingSourceFactory = { dao.pagedActiveByTags(parsed) },
         ).flow
             .map { pagingData ->
                 pagingData.map { entity -> entity.toData(labels = loadLabels(entity.uuid)) }

@@ -48,17 +48,13 @@ internal class CommonHandler @Inject constructor(
         ) {
             val exercise = interactor.getExercise(uuid)
             val history = interactor.getRecentHistory(uuid)
-            exercise to history
+            val canPermanentlyDelete = interactor.canPermanentlyDelete(uuid)
+            LoadResult(exercise, history, canPermanentlyDelete)
         }
     }
 
-    private fun State.applyLoaded(
-        result: Pair<ExerciseDataModel?, List<HistoryEntry>>,
-    ): State {
-        val (exercise, history) = result
-        if (exercise == null) {
-            return copy(isLoading = false)
-        }
+    private fun State.applyLoaded(result: LoadResult): State {
+        val exercise = result.exercise ?: return copy(isLoading = false)
         val tags = exercise.labels
             .map { name ->
                 val matched = availableTags.firstOrNull { it.name.equals(name, ignoreCase = true) }
@@ -70,8 +66,9 @@ internal class CommonHandler @Inject constructor(
             type = exercise.type,
             description = exercise.description.orEmpty(),
             tags = tags,
-            recentHistory = history.map { it.toUi() }.toImmutableList(),
+            recentHistory = result.history.map { it.toUi() }.toImmutableList(),
             isLoading = false,
+            canPermanentlyDelete = result.canPermanentlyDelete,
             originalSnapshot = State.Snapshot(
                 name = exercise.name,
                 type = exercise.type,
@@ -80,4 +77,10 @@ internal class CommonHandler @Inject constructor(
             ),
         )
     }
+
+    private data class LoadResult(
+        val exercise: ExerciseDataModel?,
+        val history: List<HistoryEntry>,
+        val canPermanentlyDelete: Boolean,
+    )
 }

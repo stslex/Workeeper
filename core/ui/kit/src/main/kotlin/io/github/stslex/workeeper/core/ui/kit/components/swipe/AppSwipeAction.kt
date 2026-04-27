@@ -17,7 +17,7 @@ import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,13 +39,22 @@ fun AppSwipeAction(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    val state = rememberSwipeToDismissBoxState()
-    LaunchedEffect(state.currentValue) {
-        if (state.currentValue == SwipeToDismissBoxValue.EndToStart) {
-            onAction()
-            state.reset()
-        }
-    }
+    // Veto the EndToStart swipe before it commits so the row never animates to the
+    // action position. The action callback (which usually surfaces a confirmation
+    // dialog) fires while the row springs back to its default state — successful
+    // archive removes the item from the underlying list, so no manual reset is
+    // needed when the user confirms, and Cancel naturally leaves the row unmoved.
+    val onActionState = rememberUpdatedState(onAction)
+    val state = rememberSwipeToDismissBoxState(
+        confirmValueChange = { newValue ->
+            if (newValue == SwipeToDismissBoxValue.EndToStart) {
+                onActionState.value()
+                false
+            } else {
+                true
+            }
+        },
+    )
     SwipeToDismissBox(
         state = state,
         modifier = modifier.clip(AppUi.shapes.medium),

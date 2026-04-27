@@ -25,6 +25,16 @@ interface ExerciseDao {
     )
     fun pagedActiveByTags(tagUuids: List<Uuid>): PagingSource<Int, ExerciseEntity>
 
+    /**
+     * AND-semantics tag filter: only exercises tagged with EVERY tag in `tagUuids`.
+     * Currently unused — the library tab switched to OR semantics via
+     * [pagedActiveByTags]. Retained until a future feature needs the AND filter
+     * again.
+     */
+    @Deprecated(
+        message = "OR-semantics is the v1 default; switch back to pagedActiveByTags.",
+        replaceWith = ReplaceWith("pagedActiveByTags(tagUuids)"),
+    )
     @Query(
         """
         SELECT e.* FROM exercise_table e

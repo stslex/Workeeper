@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavGraphBuilder
+import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
 import io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
@@ -19,6 +20,7 @@ import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseFeature
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Action
+import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.DiscardTarget
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Event
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State.Mode
 
@@ -45,11 +47,22 @@ fun NavGraphBuilder.exerciseGraph(
         val archiveBlockedBodyFormat =
             stringResource(R.string.feature_exercise_detail_archive_blocked_body_format)
         val archiveBlockedOk = stringResource(R.string.feature_exercise_detail_archive_blocked_ok)
+        val permanentDeleteTitleFormat =
+            stringResource(R.string.feature_exercise_detail_permanent_delete_confirm_title)
+        val permanentDeleteBody =
+            stringResource(R.string.feature_exercise_detail_permanent_delete_confirm_body)
+        val permanentDeleteImpact =
+            stringResource(R.string.feature_exercise_detail_permanent_delete_confirm_impact)
+        val permanentDeleteConfirm =
+            stringResource(R.string.feature_exercise_detail_permanent_delete_confirm_button)
+        val permanentDeleteSuccess =
+            stringResource(R.string.feature_exercise_detail_permanent_delete_success)
 
-        var showDiscardDialog by remember { mutableStateOf(false) }
+        var pendingDiscard by remember { mutableStateOf<DiscardTarget?>(null) }
         var archiveBlockedState by remember {
             mutableStateOf<Pair<String, List<String>>?>(null)
         }
+        var permanentDeleteName by remember { mutableStateOf<String?>(null) }
 
         processor.Handle { event ->
             when (event) {
@@ -69,7 +82,10 @@ fun NavGraphBuilder.exerciseGraph(
 
                 Event.ShowTagLimitReached -> SnackbarManager.showSnackbar(message = tagLimitMessage)
                 Event.ShowTrackNowPending -> SnackbarManager.showSnackbar(message = trackPendingMessage)
-                Event.ShowDiscardConfirmDialog -> { showDiscardDialog = true }
+                is Event.ShowDiscardConfirmDialog -> { pendingDiscard = event.target }
+                is Event.ShowPermanentDeleteConfirm -> { permanentDeleteName = event.name }
+                Event.ShowPermanentDeleteSuccess ->
+                    SnackbarManager.showSnackbar(message = permanentDeleteSuccess)
             }
         }
 
@@ -96,7 +112,7 @@ fun NavGraphBuilder.exerciseGraph(
             )
         }
 
-        if (showDiscardDialog) {
+        pendingDiscard?.let { target ->
             AppDialog(
                 title = discardTitle,
                 body = discardBody,
@@ -104,11 +120,11 @@ fun NavGraphBuilder.exerciseGraph(
                 dismissLabel = discardDismiss,
                 destructive = true,
                 onConfirm = {
-                    showDiscardDialog = false
-                    processor.consume(Action.Click.OnConfirmDiscard)
+                    pendingDiscard = null
+                    processor.consume(Action.Click.OnConfirmDiscard(target))
                 },
                 onDismiss = {
-                    showDiscardDialog = false
+                    pendingDiscard = null
                     processor.consume(Action.Click.OnDismissDiscard)
                 },
             )
@@ -121,6 +137,22 @@ fun NavGraphBuilder.exerciseGraph(
                 onConfirm = {
                     archiveBlockedState = null
                     processor.consume(Action.Click.OnDismissArchiveBlocked)
+                },
+            )
+        }
+        permanentDeleteName?.let { name ->
+            AppConfirmDialog(
+                title = permanentDeleteTitleFormat.format(name),
+                body = permanentDeleteBody,
+                impactSummary = permanentDeleteImpact,
+                confirmLabel = permanentDeleteConfirm,
+                onConfirm = {
+                    permanentDeleteName = null
+                    processor.consume(Action.Click.OnConfirmPermanentDelete)
+                },
+                onDismiss = {
+                    permanentDeleteName = null
+                    processor.consume(Action.Click.OnDismissPermanentDelete)
                 },
             )
         }

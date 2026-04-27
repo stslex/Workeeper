@@ -70,4 +70,16 @@ internal class ExerciseInteractorImplTest {
         assertTrue(result is ArchiveResult.Success)
         coVerify { exerciseRepository.archive("uuid-1") }
     }
+
+    @Test
+    fun `canPermanentlyDelete delegates to repository`() = runTest {
+        coEvery { exerciseRepository.canPermanentlyDeleteImmediately("uuid-1") } returns true
+        assertTrue(interactor.canPermanentlyDelete("uuid-1"))
+    }
+
+    @Test
+    fun `permanentlyDelete delegates to repository`() = runTest {
+        interactor.permanentlyDelete("uuid-1")
+        coVerify { exerciseRepository.permanentDelete("uuid-1") }
+    }
 }

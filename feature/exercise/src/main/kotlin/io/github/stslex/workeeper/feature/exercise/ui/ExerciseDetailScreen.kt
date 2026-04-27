@@ -57,7 +57,7 @@ internal fun ExerciseDetailScreen(
             .background(AppUi.colors.surfaceTier0)
             .testTag("ExerciseDetailScreen"),
     ) {
-        DetailTopBar(consume = consume)
+        DetailTopBar(state = state, consume = consume)
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -99,7 +99,10 @@ internal fun ExerciseDetailScreen(
 }
 
 @Composable
-private fun DetailTopBar(consume: (Action) -> Unit) {
+private fun DetailTopBar(
+    state: State,
+    consume: (Action) -> Unit,
+) {
     var menuExpanded by remember { mutableStateOf(false) }
     AppTopAppBar(
         title = "",
@@ -160,6 +163,24 @@ private fun DetailTopBar(consume: (Action) -> Unit) {
                             consume(Action.Click.OnArchiveMenuClick)
                         },
                     )
+                    if (state.canPermanentlyDelete) {
+                        DropdownMenuItem(
+                            modifier = Modifier.testTag("ExerciseDetailPermanentDeleteMenuItem"),
+                            text = {
+                                Text(
+                                    text = stringResource(
+                                        R.string.feature_exercise_detail_permanent_delete,
+                                    ),
+                                    style = AppUi.typography.bodyMedium,
+                                    color = AppUi.colors.setType.failureForeground,
+                                )
+                            },
+                            onClick = {
+                                menuExpanded = false
+                                consume(Action.Click.OnPermanentDeleteMenuClick)
+                            },
+                        )
+                    }
                 }
             }
         },

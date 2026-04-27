@@ -29,6 +29,7 @@ internal interface ExerciseStore : Store<State, Action, Event> {
         val recentHistory: ImmutableList<HistoryUiModel>,
         val originalSnapshot: Snapshot?,
         val isLoading: Boolean,
+        val canPermanentlyDelete: Boolean,
     ) : Store.State {
 
         val isSaveEnabled: Boolean
@@ -38,12 +39,13 @@ internal interface ExerciseStore : Store<State, Action, Event> {
             get() = originalSnapshot?.matches(this) == false
 
         /**
-         * True only when the system back gesture must surface the discard-changes dialog.
+         * True only when the system back gesture must surface the discard-changes dialog,
+         * or when Edit on an existing exercise must flip back to Read instead of popping.
          * When false, BackHandler stays unsubscribed so Compose nav handles the gesture
          * natively (including the Android 13+ predictive-back preview animation).
          */
         val interceptBack: Boolean
-            get() = mode is Mode.Edit && hasChanges
+            get() = mode is Mode.Edit && (hasChanges || !mode.isCreate)
 
         @Stable
         sealed interface Mode {
@@ -82,6 +84,7 @@ internal interface ExerciseStore : Store<State, Action, Event> {
                 recentHistory = persistentListOf(),
                 originalSnapshot = null,
                 isLoading = uuid != null,
+                canPermanentlyDelete = false,
             )
         }
     }
@@ -110,11 +113,19 @@ internal interface ExerciseStore : Store<State, Action, Event> {
 
             data object OnCancelClick : Click
 
-            data object OnConfirmDiscard : Click
+            data class OnConfirmDiscard(val target: DiscardTarget) : Click
 
             data object OnDismissDiscard : Click
 
             data object OnDismissArchiveBlocked : Click
+
+            data object FlipToReadMode : Click
+
+            data object OnPermanentDeleteMenuClick : Click
+
+            data object OnConfirmPermanentDelete : Click
+
+            data object OnDismissPermanentDelete : Click
 
             data class OnUndoArchive(val uuid: String) : Click
 
@@ -157,6 +168,17 @@ internal interface ExerciseStore : Store<State, Action, Event> {
 
         data object ShowTrackNowPending : Event
 
-        data object ShowDiscardConfirmDialog : Event
+        data class ShowDiscardConfirmDialog(val target: DiscardTarget) : Event
+
+        data class ShowPermanentDeleteConfirm(val name: String) : Event
+
+        data object ShowPermanentDeleteSuccess : Event
     }
+
+    /**
+     * Where the user is heading after confirming a discard. Lets the dialog reuse a single
+     * surface for both Edit-back (flip mode) and Edit(create)-back (pop screen).
+     */
+    @Stable
+    enum class DiscardTarget { POP_SCREEN, FLIP_TO_READ }
 }

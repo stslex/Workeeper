@@ -54,7 +54,7 @@ internal fun ExerciseRow(
                 .testTag("AllExercisesItem_${item.uuid}")
                 .padding(
                     horizontal = AppDimension.cardPadding,
-                    vertical = AppDimension.Space.sm,
+                    vertical = AppDimension.cardPadding,
                 ),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.md),

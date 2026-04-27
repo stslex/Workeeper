@@ -18,6 +18,12 @@
     <string name="feature_exercise_detail_archive_undo">Undo</string>
     <string name="feature_exercise_detail_history_meta_format">%1$s · %2$s</string>
     <string name="feature_exercise_detail_history_meta_adhoc_format">%1$s · ad-hoc</string>
+    <string name="feature_exercise_detail_permanent_delete">Delete permanently</string>
+    <string name="feature_exercise_detail_permanent_delete_confirm_title">Delete &#8216;%1$s&#8217; permanently?</string>
+    <string name="feature_exercise_detail_permanent_delete_confirm_body">This exercise has no history. This cannot be undone.</string>
+    <string name="feature_exercise_detail_permanent_delete_confirm_impact">No history affected</string>
+    <string name="feature_exercise_detail_permanent_delete_confirm_button">Delete</string>
+    <string name="feature_exercise_detail_permanent_delete_success">Exercise deleted</string>
 
     <!-- Exercise edit -->
     <string name="feature_exercise_edit_title_create">New exercise</string>
