@@ -307,6 +307,32 @@ domain models:
 - `training/TrainingRepository` plus `TrainingDataModel`, `TrainingChangeDataModel`.
 - `labels/LabelRepository` plus `LabelDataModel`.
 
+### DataModel hygiene
+
+When implementing a feature, audit the `*DataModel` types you touch. If any field is
+obsolete, redundant, or violates the current schema — **delete it**, don't map around it.
+
+Phantom fields are dangerous because they look harmless. They survive mapping, get
+serialized through Action variants, take up state, and silently leak into UI. Mapping
+around them feels safe (it's "compatible") but compounds drift on every PR.
+
+Concrete rules:
+
+- A field that nothing reads — delete it.
+- A field that's always null in current writes — delete it.
+- A field that duplicates information now sourced from a join table — delete it (the
+  join is canonical).
+- A field whose semantics changed (e.g. `sets` on `ExerciseDataModel` used to be
+  performed sets, now sets live in `SetEntity` via `performed_exercise`) — delete it.
+
+If removal touches multiple callsites, surface it explicitly in the PR description:
+"removing X required updating Y callsites in features Z and W". Reviewers must sign off
+on the cleanup as part of the feature.
+
+The repository → interactor → store flow reflects the **current** schema. Legacy
+compatibility shims belong in migration code (which we don't have because migrations are
+destructive — see [Room database](#room-database)), not in domain models.
+
 ### DataStore (preferences)
 
 `core/dataStore/src/main/kotlin/io/github/stslex/workeeper/core/dataStore/`:
@@ -785,6 +811,11 @@ fun List<PlanSetDataModel>.toUi(): ImmutableList<PlanSetUiModel> = ...
 
 **Inside MVI** — Store.State, Action variants, Handler logic — only UI types flow.
 This includes feature-level state, not just kit-level.
+
+Mapping is **boundary-only**, not maintenance scaffolding. If a domain field is no longer
+relevant to the UI, remove it from the domain model — don't keep it alive by mapping it
+to a UI field nobody reads. Stale domain fields propagate through every feature that
+touches them. See [DataModel hygiene](#datamodel-hygiene).
 
 Why this matters:
 
