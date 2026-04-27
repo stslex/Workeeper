@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.feature.live_workout.mvi.handler
 
 import dagger.hilt.android.scopes.ViewModelScoped
+import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
@@ -52,7 +53,13 @@ internal class CommonHandler @Inject constructor(
     private fun processTimerTick() {
         updateState { current ->
             if (current.startedAt <= 0L) current
-            else current.copy(nowMillis = System.currentTimeMillis())
+            else {
+                val now = System.currentTimeMillis()
+                current.copy(
+                    nowMillis = now,
+                    elapsedDurationLabel = formatElapsedDuration(now - current.startedAt),
+                )
+            }
         }
     }
 

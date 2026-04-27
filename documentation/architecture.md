@@ -615,6 +615,10 @@ strings via `stringResource(R.string.xxx)`, never as Kotlin literals. This appli
 - Date/time format strings (use `androidx.compose.ui.text.intl.Locale.current` if format
   varies by language).
 
+Locale-sensitive value shaping (durations, relative time, decimal text, joined labels) is
+also localization work. It must happen before rendering (handler/mapper/state), not inside
+Composables.
+
 It does **not** apply to:
 
 - Internal log messages and analytics event names — these stay English-only.
@@ -683,6 +687,9 @@ Russian needs the `few` quantity for 2-4:
   format placeholders for variable parts. (`"$name was archived"` is forbidden;
   `getString(R.string.archived_format, name)` is correct.)
 - Manual locale switching in code — let Android resolve from system locale.
+- Value-to-text shaping in Composables (date/time/number formatting, joined message lists,
+  summary string construction). Perform it in handler/mapper/state and pass preformatted text
+  to UI.
 
 #### Adding a new feature
 
@@ -825,6 +832,8 @@ Why this matters:
    inverted (lower layer depending on higher layer).
 2. **UI types can be tailored.** Pre-formatted display strings, computed flags, sorted
    collections — all things the UI needs but the domain doesn't care about.
+   Locale-sensitive text (durations, relative timestamps, decimal rendering) belongs here as
+   preformatted UI fields, not inside Composable functions.
 3. **Domain refactors don't break UI tests.** When `PlanSetDataModel` gains a field, only
    the mapper changes; the Composable and its previews are unaffected.
 

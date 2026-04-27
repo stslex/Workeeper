@@ -10,6 +10,7 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.ErrorType
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Event
 import kotlinx.collections.immutable.toImmutableList
@@ -94,7 +95,8 @@ internal class PlanEditActionHandler @Inject constructor(
                 exercises = latest.exercises.map { exercise ->
                     if (exercise.exerciseUuid == target.exerciseUuid) {
                         exercise.copy(
-                            planSets = nextPlan?.toImmutableList() ?: kotlinx.collections.immutable.persistentListOf(),
+                            planSets = nextPlan?.toImmutableList()
+                                ?: kotlinx.collections.immutable.persistentListOf(),
                         )
                     } else {
                         exercise
@@ -106,7 +108,7 @@ internal class PlanEditActionHandler @Inject constructor(
         val trainingUuid = current.trainingUuid
         val isAdhoc = current.isAdhoc
         launch(
-            onError = { _ -> sendEvent(Event.ShowError(message = "plan_save_failed")) },
+            onError = { _ -> sendEvent(Event.ShowError(ErrorType.PlanSaveFailed)) },
         ) {
             val data = nextPlan?.map { it.toData() }
             if (isAdhoc) {

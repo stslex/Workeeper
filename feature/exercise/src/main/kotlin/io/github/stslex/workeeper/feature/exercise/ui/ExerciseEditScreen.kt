@@ -164,6 +164,8 @@ private fun DefaultPlanSection(
             horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            // TODO(tech-debt): Move plan-summary mapping (weight/reps string shaping) into
+            // handler/state mapping and render a preformatted summary here.
             val planText = state.adhocPlan
                 ?.joinToString(separator = " · ") { set ->
                     val weightStr = set.weight?.let { weight ->

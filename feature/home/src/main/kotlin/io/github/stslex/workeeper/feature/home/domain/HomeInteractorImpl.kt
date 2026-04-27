@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.feature.home.domain
 
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
+import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
 import io.github.stslex.workeeper.core.exercise.session.SessionRepository
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore
 import kotlinx.coroutines.CoroutineDispatcher
@@ -21,6 +22,7 @@ internal class HomeInteractorImpl @Inject constructor(
         sessionRepository.observeActiveSessionWithStats()
             .map { row ->
                 row?.let {
+                    val now = System.currentTimeMillis()
                     HomeStore.State.ActiveSessionInfo(
                         sessionUuid = it.sessionUuid,
                         trainingUuid = it.trainingUuid,
@@ -28,6 +30,7 @@ internal class HomeInteractorImpl @Inject constructor(
                         startedAt = it.startedAt,
                         doneCount = it.doneCount,
                         totalCount = it.totalCount,
+                        elapsedDurationLabel = formatElapsedDuration(now - it.startedAt),
                     )
                 }
             }

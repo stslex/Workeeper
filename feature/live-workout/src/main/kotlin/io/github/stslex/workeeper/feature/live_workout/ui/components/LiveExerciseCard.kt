@@ -55,6 +55,7 @@ private const val SKIPPED_ALPHA = 0.4f
 @Composable
 internal fun LiveExerciseCard(
     exercise: LiveExerciseUiModel,
+    expanded: Boolean,
     drafts: ImmutableMap<LiveWorkoutStore.State.DraftKey, LiveSetUiModel>,
     consume: (LiveWorkoutStore.Action) -> Unit,
     modifier: Modifier = Modifier,
@@ -68,7 +69,6 @@ internal fun LiveExerciseCard(
         ExerciseStatusUiModel.SKIPPED -> SKIPPED_ALPHA
         else -> 1f
     }
-    val expanded = exercise.status == ExerciseStatusUiModel.CURRENT
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -94,6 +94,7 @@ internal fun LiveExerciseCard(
             ExerciseCardBody(
                 exercise = exercise,
                 drafts = drafts,
+                isReadOnly = exercise.status == ExerciseStatusUiModel.DONE,
                 consume = consume,
             )
         }
@@ -130,7 +131,7 @@ private fun ExerciseCardHeader(
                 color = AppUi.colors.textSecondary,
             )
         }
-        if (exercise.status != ExerciseStatusUiModel.SKIPPED) {
+        if (exercise.status == ExerciseStatusUiModel.CURRENT) {
             IconButton(onClick = { menuExpanded = true }) {
                 Icon(
                     modifier = Modifier.size(AppDimension.iconSm),
@@ -172,6 +173,7 @@ private fun ExerciseCardHeader(
 private fun ExerciseCardBody(
     exercise: LiveExerciseUiModel,
     drafts: ImmutableMap<LiveWorkoutStore.State.DraftKey, LiveSetUiModel>,
+    isReadOnly: Boolean,
     consume: (LiveWorkoutStore.Action) -> Unit,
 ) {
     val isWeighted = exercise.exerciseType == ExerciseTypeUiModel.WEIGHTED
@@ -205,28 +207,47 @@ private fun ExerciseCardBody(
                     )
                 },
                 onTypeChange = { type ->
-                    consume(
-                        LiveWorkoutStore.Action.Click.OnSetTypeSelect(
-                            exercise.performedExerciseUuid,
-                            row.position,
-                            type,
-                        ),
-                    )
+                    if (!isReadOnly) {
+                        consume(
+                            LiveWorkoutStore.Action.Click.OnSetTypeSelect(
+                                exercise.performedExerciseUuid,
+                                row.position,
+                                type,
+                            ),
+                        )
+                    }
                 },
                 onMarkDone = {
-                    consume(LiveWorkoutStore.Action.Click.OnSetMarkDone(exercise.performedExerciseUuid, row.position))
+                    if (!isReadOnly) {
+                        consume(
+                            LiveWorkoutStore.Action.Click.OnSetMarkDone(
+                                exercise.performedExerciseUuid,
+                                row.position,
+                            ),
+                        )
+                    }
                 },
                 onUncheck = {
-                    consume(LiveWorkoutStore.Action.Click.OnSetUncheck(exercise.performedExerciseUuid, row.position))
+                    if (!isReadOnly) {
+                        consume(
+                            LiveWorkoutStore.Action.Click.OnSetUncheck(
+                                exercise.performedExerciseUuid,
+                                row.position,
+                            ),
+                        )
+                    }
                 },
+                editable = !isReadOnly,
             )
         }
-        AppButton.Tertiary(
-            modifier = Modifier.fillMaxWidth(),
-            text = stringResource(R.string.feature_live_workout_add_set),
-            onClick = { consume(LiveWorkoutStore.Action.Click.OnAddSet(exercise.performedExerciseUuid)) },
-            size = AppButtonSize.SMALL,
-        )
+        if (!isReadOnly) {
+            AppButton.Tertiary(
+                modifier = Modifier.fillMaxWidth(),
+                text = stringResource(R.string.feature_live_workout_add_set),
+                onClick = { consume(LiveWorkoutStore.Action.Click.OnAddSet(exercise.performedExerciseUuid)) },
+                size = AppButtonSize.SMALL,
+            )
+        }
     }
 }
 
@@ -271,6 +292,8 @@ private fun buildSetRowList(
 }
 
 @Composable
+// TODO(tech-debt): Move status-line shaping into handler/state mapping and keep UI
+// components focused on rendering preformatted labels.
 private fun LiveExerciseUiModel.statusLine(): String = when (status) {
     ExerciseStatusUiModel.DONE -> {
         val count = performedSets.size
@@ -287,6 +310,11 @@ private fun LiveExerciseUiModel.statusLine(): String = when (status) {
     ExerciseStatusUiModel.CURRENT -> {
         if (planSets.isEmpty()) {
             stringResource(R.string.feature_live_workout_status_no_plan)
+        } else if (performedSets.none { it.isDone }) {
+            stringResource(
+                R.string.feature_live_workout_status_plan_format,
+                planSets.formatPlanSummary(),
+            )
         } else {
             stringResource(
                 R.string.feature_live_workout_status_progress_format,
@@ -314,6 +342,7 @@ private fun LiveExerciseCardCurrentLightPreview() {
     AppTheme(themeMode = ThemeMode.LIGHT) {
         LiveExerciseCard(
             exercise = previewCurrent(),
+            expanded = true,
             drafts = persistentMapOf(),
             consume = {},
         )
@@ -326,6 +355,7 @@ private fun LiveExerciseCardCurrentDarkPreview() {
     AppTheme(themeMode = ThemeMode.DARK) {
         LiveExerciseCard(
             exercise = previewCurrent(),
+            expanded = true,
             drafts = persistentMapOf(),
             consume = {},
         )
@@ -338,6 +368,7 @@ private fun LiveExerciseCardDonePreview() {
     AppTheme(themeMode = ThemeMode.DARK) {
         LiveExerciseCard(
             exercise = previewDone(),
+            expanded = true,
             drafts = persistentMapOf(),
             consume = {},
         )
@@ -350,6 +381,7 @@ private fun LiveExerciseCardPendingPreview() {
     AppTheme(themeMode = ThemeMode.DARK) {
         LiveExerciseCard(
             exercise = previewPending(),
+            expanded = false,
             drafts = persistentMapOf(),
             consume = {},
         )
@@ -362,6 +394,7 @@ private fun LiveExerciseCardSkippedPreview() {
     AppTheme(themeMode = ThemeMode.DARK) {
         LiveExerciseCard(
             exercise = previewSkipped(),
+            expanded = false,
             drafts = persistentMapOf(),
             consume = {},
         )

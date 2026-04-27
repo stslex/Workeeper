@@ -3,12 +3,15 @@ package io.github.stslex.workeeper.feature.live_workout.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dagger.hilt.android.scopes.ViewModelScoped
+import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
+import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
 import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.ErrorType
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
@@ -18,12 +21,16 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStor
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableMap
+import kotlinx.collections.immutable.toImmutableSet
+import kotlinx.coroutines.CoroutineDispatcher
 import javax.inject.Inject
 
 @Suppress("TooManyFunctions", "LongMethod")
 @ViewModelScoped
 internal class ClickHandler @Inject constructor(
     private val interactor: LiveWorkoutInteractor,
+    @MainImmediateDispatcher
+    private val mainImmediateDispatcher: CoroutineDispatcher,
     store: LiveWorkoutHandlerStore,
 ) : Handler<Action.Click>, LiveWorkoutHandlerStore by store {
 
@@ -61,10 +68,10 @@ internal class ClickHandler @Inject constructor(
     private fun processSetMarkDone(action: Action.Click.OnSetMarkDone) {
         sendEvent(Event.HapticImpact(HapticFeedbackType.Confirm))
         val current = state.value
-        val exercise = current.findExercise(action.performedExerciseUuid) ?: return
+        current.findExercise(action.performedExerciseUuid) ?: return
         val seedDraft = current.draftFor(action.performedExerciseUuid, action.position)
         if (seedDraft.reps <= 0) {
-            sendEvent(Event.ShowError(message = "invalid_reps"))
+            sendEvent(Event.ShowError(ErrorType.InvalidReps))
             return
         }
         val planSet = PlanSetDataModel(
@@ -73,10 +80,16 @@ internal class ClickHandler @Inject constructor(
             type = seedDraft.type.toData(),
         )
         // Optimistic UI: flip the row to done immediately so the checkbox tap feels snappy.
-        updateState { latest -> latest.applySetMarked(action.performedExerciseUuid, action.position, seedDraft) }
+        updateState { latest ->
+            latest.applySetMarked(
+                action.performedExerciseUuid,
+                action.position,
+                seedDraft,
+            )
+        }
         launch(
             onError = { _ ->
-                sendEvent(Event.ShowError(message = "set_save_failed"))
+                sendEvent(Event.ShowError(ErrorType.SetSaveFailed))
                 // Revert to a clean reload-shaped state by rebuilding statuses.
                 updateState { latest -> latest.recomputeStatuses() }
             },
@@ -87,15 +100,18 @@ internal class ClickHandler @Inject constructor(
                 set = planSet,
             )
         }
-        @Suppress("UNUSED_VARIABLE")
-        val handled = exercise
     }
 
     private fun processSetUncheck(action: Action.Click.OnSetUncheck) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        updateState { latest -> latest.applySetUnchecked(action.performedExerciseUuid, action.position) }
+        updateState { latest ->
+            latest.applySetUnchecked(
+                action.performedExerciseUuid,
+                action.position,
+            )
+        }
         launch(
-            onError = { _ -> sendEvent(Event.ShowError(message = "set_delete_failed")) },
+            onError = { _ -> sendEvent(Event.ShowError(ErrorType.SetDeleteFailed)) },
         ) {
             interactor.deleteSet(action.performedExerciseUuid, action.position)
         }
@@ -117,7 +133,7 @@ internal class ClickHandler @Inject constructor(
                 )
             }
             launch(
-                onError = { _ -> sendEvent(Event.ShowError(message = "set_save_failed")) },
+                onError = { _ -> sendEvent(Event.ShowError(ErrorType.SetSaveFailed)) },
             ) {
                 interactor.upsertSet(
                     performedExerciseUuid = action.performedExerciseUuid,
@@ -142,9 +158,14 @@ internal class ClickHandler @Inject constructor(
 
     private fun processSetRemove(action: Action.Click.OnSetRemove) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        updateState { latest -> latest.applySetUnchecked(action.performedExerciseUuid, action.position) }
+        updateState { latest ->
+            latest.applySetUnchecked(
+                action.performedExerciseUuid,
+                action.position,
+            )
+        }
         launch(
-            onError = { _ -> sendEvent(Event.ShowError(message = "set_delete_failed")) },
+            onError = { _ -> sendEvent(Event.ShowError(ErrorType.SetDeleteFailed)) },
         ) {
             interactor.deleteSet(action.performedExerciseUuid, action.position)
         }
@@ -153,16 +174,19 @@ internal class ClickHandler @Inject constructor(
     private fun processAddSet(action: Action.Click.OnAddSet) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         updateState { latest ->
-            val exercise = latest.findExercise(action.performedExerciseUuid) ?: return@updateState latest
-            val nextPosition = exercise.performedSets.size
-            val seed = exercise.performedSets.lastOrNull()?.copy(position = nextPosition, isDone = false)
-                ?: LiveSetUiModel(
-                    position = nextPosition,
-                    weight = exercise.planSets.getOrNull(nextPosition)?.weight,
-                    reps = exercise.planSets.getOrNull(nextPosition)?.reps ?: 0,
-                    type = exercise.planSets.getOrNull(nextPosition)?.type ?: SetTypeUiModel.WORK,
-                    isDone = false,
-                )
+            val exercise =
+                latest.findExercise(action.performedExerciseUuid) ?: return@updateState latest
+            val nextPosition = latest.nextSetPosition(exercise)
+            val seed = latest.lastKnownSetSeed(exercise)?.copy(
+                position = nextPosition,
+                isDone = false,
+            ) ?: LiveSetUiModel(
+                position = nextPosition,
+                weight = null,
+                reps = 0,
+                type = SetTypeUiModel.WORK,
+                isDone = false,
+            )
             val key = State.DraftKey(action.performedExerciseUuid, nextPosition)
             latest.copy(
                 setDrafts = (latest.setDrafts + (key to seed)).toImmutableMap(),
@@ -173,7 +197,8 @@ internal class ClickHandler @Inject constructor(
     private fun processEditPlan(action: Action.Click.OnEditPlan) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         updateState { latest ->
-            val exercise = latest.findExercise(action.performedExerciseUuid) ?: return@updateState latest
+            val exercise =
+                latest.findExercise(action.performedExerciseUuid) ?: return@updateState latest
             val initial = exercise.planSets
             latest.copy(
                 planEditorTarget = State.PlanEditorTarget(
@@ -198,7 +223,7 @@ internal class ClickHandler @Inject constructor(
         sendEvent(Event.HapticImpact(HapticFeedbackType.LongPress))
         updateState { latest -> latest.applyResetSets(action.performedExerciseUuid) }
         launch(
-            onError = { _ -> sendEvent(Event.ShowError(message = "reset_failed")) },
+            onError = { _ -> sendEvent(Event.ShowError(ErrorType.ResetFailed)) },
         ) {
             interactor.resetExerciseSets(action.performedExerciseUuid)
         }
@@ -218,7 +243,7 @@ internal class ClickHandler @Inject constructor(
         sendEvent(Event.HapticImpact(HapticFeedbackType.LongPress))
         updateState { latest -> latest.applySkip(action.performedExerciseUuid) }
         launch(
-            onError = { _ -> sendEvent(Event.ShowError(message = "skip_failed")) },
+            onError = { _ -> sendEvent(Event.ShowError(ErrorType.SkipFailed)) },
         ) {
             interactor.setSkipped(action.performedExerciseUuid, skipped = true)
         }
@@ -233,6 +258,7 @@ internal class ClickHandler @Inject constructor(
         val current = state.value
         val stats = State.FinishStats(
             durationMillis = current.elapsedMillis,
+            durationLabel = current.elapsedDurationLabel,
             doneCount = current.exercises.count {
                 it.status == ExerciseStatusUiModel.DONE
             },
@@ -252,20 +278,21 @@ internal class ClickHandler @Inject constructor(
         launch(
             onSuccess = { result ->
                 if (result == null) {
-                    sendEvent(Event.ShowError(message = "finish_missing_session"))
+                    sendEvent(Event.ShowError(ErrorType.FinishMissingSession))
                     return@launch
                 }
                 val stats = State.FinishStats(
                     durationMillis = result.durationMillis,
+                    durationLabel = formatElapsedDuration(result.durationMillis),
                     doneCount = result.doneCount,
                     totalCount = result.totalCount,
                     skippedCount = result.skippedCount,
                     setsLogged = result.setsLogged,
                 )
                 sendEvent(Event.ShowSessionSavedSnackbar(stats))
-                consume(Action.Navigation.Back)
+                consumeOnMain(Action.Navigation.Back)
             },
-            onError = { _ -> sendEvent(Event.ShowError(message = "finish_failed")) },
+            onError = { _ -> sendEvent(Event.ShowError(ErrorType.FinishFailed)) },
         ) {
             interactor.finishSession(sessionUuid)
         }
@@ -288,8 +315,8 @@ internal class ClickHandler @Inject constructor(
             return
         }
         launch(
-            onSuccess = { consume(Action.Navigation.Back) },
-            onError = { _ -> sendEvent(Event.ShowError(message = "cancel_failed")) },
+            onSuccess = { consumeOnMain(Action.Navigation.Back) },
+            onError = { _ -> sendEvent(Event.ShowError(ErrorType.CancelFailed)) },
         ) {
             interactor.cancelSession(sessionUuid)
         }
@@ -300,10 +327,16 @@ internal class ClickHandler @Inject constructor(
     }
 
     private fun processExerciseHeaderClick(action: Action.Click.OnExerciseHeaderClick) {
-        // Reserved for collapse/expand toggling on completed exercises. Stage 5.4 keeps
-        // this as a no-op so the click acts as a stable anchor for analytics.
-        @Suppress("UNUSED_VARIABLE")
-        val ignored = action
+        updateState { current ->
+            val exercise =
+                current.findExercise(action.performedExerciseUuid) ?: return@updateState current
+            if (exercise.status != ExerciseStatusUiModel.DONE) return@updateState current
+            val next = current.expandedDoneExerciseUuids.toMutableSet()
+            if (!next.add(action.performedExerciseUuid)) {
+                next.remove(action.performedExerciseUuid)
+            }
+            current.copy(expandedDoneExerciseUuids = next.toImmutableSet())
+        }
     }
 
     private fun State.findExercise(performedExerciseUuid: String): LiveExerciseUiModel? =
@@ -359,7 +392,6 @@ internal class ClickHandler @Inject constructor(
             if (exercise.performedExerciseUuid != performedExerciseUuid) return@map exercise
             val nextSets = exercise.performedSets
                 .filterNot { it.position == position }
-                .mapIndexed { idx, set -> set.copy(position = idx) }
                 .toImmutableList()
             exercise.copy(performedSets = nextSets)
         }.toImmutableList()
@@ -435,6 +467,37 @@ internal class ClickHandler @Inject constructor(
         return copy(exercises = rebuilt)
     }
 
+    private fun State.nextSetPosition(exercise: LiveExerciseUiModel): Int {
+        val draftMax = setDrafts.keys
+            .filter { it.performedExerciseUuid == exercise.performedExerciseUuid }
+            .maxOfOrNull { it.position } ?: -1
+        val doneMax = exercise.performedSets.maxOfOrNull { it.position } ?: -1
+        val planMax = exercise.planSets.lastIndex
+        return maxOf(draftMax, doneMax, planMax) + 1
+    }
+
+    private fun State.lastKnownSetSeed(exercise: LiveExerciseUiModel): LiveSetUiModel? {
+        val draftMax = setDrafts
+            .filterKeys { it.performedExerciseUuid == exercise.performedExerciseUuid }
+            .maxByOrNull { it.key.position }?.value
+        val doneMax = exercise.performedSets.maxByOrNull { it.position }
+        val planMax = exercise.planSets
+            .withIndex()
+            .lastOrNull()
+            ?.let { (position, plan) ->
+                LiveSetUiModel(
+                    position = position,
+                    weight = plan.weight,
+                    reps = plan.reps,
+                    type = plan.type,
+                    isDone = false,
+                )
+            }
+        return sequenceOf(draftMax, doneMax, planMax)
+            .filterNotNull()
+            .maxByOrNull { it.position }
+    }
+
     private fun ImmutableListOfExercise.toUiListAfterSkip(skippedUuid: String): ImmutableListOfExercise =
         map { exercise ->
             if (exercise.performedExerciseUuid == skippedUuid) {
@@ -452,10 +515,13 @@ internal class ClickHandler @Inject constructor(
             val planSets = exercise.planSets
             val performed = exercise.performedSets
             val skipped = exercise.status == ExerciseStatusUiModel.SKIPPED
-            val isDone = !skipped &&
-                planSets.isNotEmpty() &&
+            val performedByPosition = performed.associateBy { it.position }
+            val isDone = !skipped && if (planSets.isEmpty()) {
+                performed.any { it.isDone }
+            } else {
                 performed.size >= planSets.size &&
-                performed.all { it.isDone }
+                        planSets.indices.all { index -> performedByPosition[index]?.isDone == true }
+            }
             val nextStatus = when {
                 skipped -> ExerciseStatusUiModel.SKIPPED
                 isDone -> ExerciseStatusUiModel.DONE
@@ -470,7 +536,20 @@ internal class ClickHandler @Inject constructor(
         }.toImmutableList()
     }
 
-    private fun State.recomputeStatuses(): State = copy(exercises = exercises.recomputeOnly())
+    private fun State.recomputeStatuses(): State {
+        val refreshed = exercises.recomputeOnly()
+        val doneUuids = refreshed
+            .asSequence()
+            .filter { it.status == ExerciseStatusUiModel.DONE }
+            .map { it.performedExerciseUuid }
+            .toSet()
+        return copy(
+            exercises = refreshed,
+            expandedDoneExerciseUuids = expandedDoneExerciseUuids
+                .filter { it in doneUuids }
+                .toImmutableSet(),
+        )
+    }
 }
 
 private typealias ImmutableListOfExercise = kotlinx.collections.immutable.ImmutableList<LiveExerciseUiModel>

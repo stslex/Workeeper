@@ -62,4 +62,16 @@
     <string name="feature_live_workout_back">Back</string>
     <string name="feature_live_workout_more">More</string>
     <string name="feature_live_workout_remove_set">Remove set</string>
+
+    <!-- Errors -->
+    <string name="feature_live_workout_error_invalid_reps">Reps must be greater than 0</string>
+    <string name="feature_live_workout_error_set_save_failed">Could not save set</string>
+    <string name="feature_live_workout_error_set_delete_failed">Could not remove set</string>
+    <string name="feature_live_workout_error_reset_failed">Could not reset sets</string>
+    <string name="feature_live_workout_error_skip_failed">Could not skip exercise</string>
+    <string name="feature_live_workout_error_finish_missing_session">Session is no longer available</string>
+    <string name="feature_live_workout_error_finish_failed">Could not finish session</string>
+    <string name="feature_live_workout_error_cancel_failed">Could not cancel session</string>
+    <string name="feature_live_workout_error_plan_save_failed">Could not save plan</string>
+    <string name="feature_live_workout_error_unknown">Something went wrong</string>
 </resources>

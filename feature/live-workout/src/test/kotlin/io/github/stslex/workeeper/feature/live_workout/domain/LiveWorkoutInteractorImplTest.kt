@@ -23,6 +23,7 @@ import io.mockk.slot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 internal class LiveWorkoutInteractorImplTest {
@@ -203,6 +204,74 @@ internal class LiveWorkoutInteractorImplTest {
                 ),
             )
             sessionRepository.finishSession(eq(sessionUuid), any())
+        }
+    }
+
+    @Test
+    fun `finishSession rolls back applied plans when final session finish fails`() = runTest {
+        val sessionUuid = "session-1"
+        val trainingUuid = "training-1"
+        val oldPlan = listOf(
+            PlanSetDataModel(weight = 90.0, reps = 5, type = SetTypeDataModel.WORK),
+        )
+        val newPlan = listOf(
+            PlanSetDataModel(weight = 100.0, reps = 5, type = SetTypeDataModel.WORK),
+            PlanSetDataModel(weight = 100.0, reps = 5, type = SetTypeDataModel.WORK),
+        )
+
+        coEvery { sessionRepository.getById(sessionUuid) } returns SessionDataModel(
+            uuid = sessionUuid,
+            trainingUuid = trainingUuid,
+            state = SessionStateDataModel.IN_PROGRESS,
+            startedAt = 1_000L,
+            finishedAt = null,
+        )
+        coEvery { trainingRepository.getTraining(trainingUuid) } returns TrainingDataModel(
+            uuid = trainingUuid,
+            name = "Push Day",
+            description = null,
+            isAdhoc = false,
+            archived = false,
+            archivedAt = null,
+            timestamp = 0L,
+            labels = emptyList(),
+            exerciseUuids = listOf("ex-1"),
+        )
+        coEvery { performedExerciseRepository.getBySession(sessionUuid) } returns listOf(
+            PerformedExerciseDataModel(
+                uuid = "pe-1",
+                sessionUuid = sessionUuid,
+                exerciseUuid = "ex-1",
+                position = 0,
+                skipped = false,
+            ),
+        )
+        coEvery { setRepository.getByPerformedExercise("pe-1") } returns listOf(
+            SetsDataModel(uuid = "s-1", reps = 5, weight = 100.0, type = SetsDataType.WORK),
+            SetsDataModel(uuid = "s-2", reps = 5, weight = 100.0, type = SetsDataType.WORK),
+        )
+        coEvery { trainingExerciseRepository.getPlan(trainingUuid, "ex-1") } returns oldPlan
+        coEvery {
+            trainingExerciseRepository.setPlan(trainingUuid, "ex-1", newPlan)
+        } returns Unit
+        coEvery {
+            trainingExerciseRepository.setPlan(trainingUuid, "ex-1", oldPlan)
+        } returns Unit
+        coEvery { sessionRepository.finishSession(sessionUuid, any()) } throws IllegalStateException("boom")
+
+        var thrown: Throwable? = null
+        try {
+            interactor.finishSession(sessionUuid)
+        } catch (error: Throwable) {
+            thrown = error
+        }
+
+        assertTrue(thrown is IllegalStateException)
+
+        coVerifyOrder {
+            trainingExerciseRepository.setPlan(trainingUuid, "ex-1", newPlan)
+            sessionRepository.finishSession(eq(sessionUuid), any())
+            trainingExerciseRepository.setPlan(trainingUuid, "ex-1", oldPlan)
         }
     }
 

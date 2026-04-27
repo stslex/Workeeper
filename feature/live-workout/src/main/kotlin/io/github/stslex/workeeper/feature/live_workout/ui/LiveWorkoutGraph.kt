@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
@@ -26,7 +27,9 @@ fun NavGraphBuilder.liveWorkoutGraph(
 ) {
     navComponentScreen(LiveWorkoutFeature) { processor ->
         val haptic = LocalHapticFeedback.current
+        val resources = LocalResources.current
 
+        // TODO: Move these strings into the store and emit them as part of the state, so that the UI is dumb and just displays what it's given, and so that the processor can decide not just when to show a dialog, but also what content it should have
         val finishSavedMessage = stringResource(R.string.feature_live_workout_finish_success)
         val resetTitle = stringResource(R.string.feature_live_workout_reset_title)
         val resetBody = stringResource(R.string.feature_live_workout_reset_body)
@@ -41,17 +44,23 @@ fun NavGraphBuilder.liveWorkoutGraph(
         val cancelConfirm = stringResource(R.string.feature_live_workout_cancel_confirm)
         val cancelDismiss = stringResource(R.string.feature_live_workout_cancel_dismiss)
 
+
+        // TODO: Refactor to use a single dialog state with a sealed class for type, instead of multiple booleans
         var showResetDialog by remember { mutableStateOf(false) }
         var showSkipDialog by remember { mutableStateOf(false) }
         var showCancelDialog by remember { mutableStateOf(false) }
         var showFinishDialog by remember { mutableStateOf(false) }
+
 
         processor.Handle { event ->
             when (event) {
                 is Event.HapticClick -> haptic.performHapticFeedback(event.type)
                 is Event.HapticImpact -> haptic.performHapticFeedback(event.type)
                 is Event.ShowSessionSavedSnackbar -> SnackbarManager.showSnackbar(message = finishSavedMessage)
-                is Event.ShowError -> SnackbarManager.showSnackbar(message = event.message)
+                is Event.ShowError -> SnackbarManager.showSnackbar(
+                    message = resources.getString(event.type.msgRes),
+                )
+
                 Event.ShowFinishConfirmDialog -> {
                     showFinishDialog = true
                 }
@@ -103,7 +112,9 @@ fun NavGraphBuilder.liveWorkoutGraph(
                         processor.consume(Action.Click.OnFinishDismiss)
                     },
                 )
-            } ?: run { showFinishDialog = false }
+            } ?: run {
+                showFinishDialog = false
+            }
         }
 
         if (showResetDialog) {

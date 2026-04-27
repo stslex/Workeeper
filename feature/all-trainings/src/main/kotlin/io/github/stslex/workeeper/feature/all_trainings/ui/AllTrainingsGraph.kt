@@ -47,6 +47,8 @@ fun NavGraphBuilder.allTrainingsGraph(
                     )
 
                 is Event.ShowBulkArchiveBlocked -> {
+                    // TODO(tech-debt): Move blocked-name list shaping into handler/state and
+                    // emit a ready-to-render localized message payload for UI.
                     val visible = event.blockedNames.take(MAX_BLOCKED_NAMES).joinToString(", ")
                     val joined = if (event.blockedNames.size > MAX_BLOCKED_NAMES) {
                         "$visible, +${event.blockedNames.size - MAX_BLOCKED_NAMES}"

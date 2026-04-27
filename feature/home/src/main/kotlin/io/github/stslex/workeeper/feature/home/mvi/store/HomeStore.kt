@@ -22,6 +22,7 @@ internal interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStor
             val startedAt: Long,
             val doneCount: Int,
             val totalCount: Int,
+            val elapsedDurationLabel: String,
         ) {
             fun elapsedMillis(now: Long): Long = (now - startedAt).coerceAtLeast(0L)
         }

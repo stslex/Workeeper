@@ -56,6 +56,8 @@ fun NavGraphBuilder.allExercisesGraph(
                 )
 
                 is Event.ShowArchiveBlocked -> {
+                    // TODO(tech-debt): Move blocked-name list shaping into handler/state and
+                    // emit a ready-to-render localized message payload for UI.
                     val visible = event.trainings.take(MAX_BLOCKED_TRAINING_NAMES)
                     val joined = buildString {
                         append(visible.joinToString(", "))
@@ -83,6 +85,8 @@ fun NavGraphBuilder.allExercisesGraph(
                     )
 
                 is Event.ShowBulkArchiveBlocked -> {
+                    // TODO(tech-debt): Keep this text shaping out of UI; handler/state should
+                    // provide a final localized message payload.
                     val visible = event.blockedNames.take(MAX_BLOCKED_TRAINING_NAMES)
                     val joined = buildString {
                         append(visible.joinToString(", "))

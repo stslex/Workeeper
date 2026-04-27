@@ -127,7 +127,7 @@ private fun Body(
         Spacer(Modifier.height(AppDimension.Space.sm))
         LiveWorkoutHeader(
             trainingName = state.trainingName,
-            elapsedMillis = state.elapsedMillis,
+            elapsedLabel = state.elapsedDurationLabel,
             doneCount = doneCount,
             totalCount = state.exercises.size,
             setsLogged = setsLogged,
@@ -145,6 +145,11 @@ private fun Body(
             ) { exercise ->
                 LiveExerciseCard(
                     exercise = exercise,
+                    expanded = exercise.status == ExerciseStatusUiModel.CURRENT ||
+                        (
+                            exercise.status == ExerciseStatusUiModel.DONE &&
+                                exercise.performedExerciseUuid in state.expandedDoneExerciseUuids
+                            ),
                     drafts = state.setDrafts,
                     consume = consume,
                 )
@@ -207,6 +212,7 @@ private fun stubState(): State = State(
     isAdhoc = false,
     startedAt = 0L,
     nowMillis = 23 * 60_000L + 14_000L,
+    elapsedDurationLabel = "23:14",
     exercises = persistentListOf(
         LiveExerciseUiModel(
             performedExerciseUuid = "pe-1",
@@ -245,6 +251,7 @@ private fun stubState(): State = State(
         ),
     ),
     setDrafts = persistentMapOf(),
+    expandedDoneExerciseUuids = kotlinx.collections.immutable.persistentSetOf(),
     planEditorTarget = null,
     pendingFinishConfirm = null,
     pendingResetExerciseUuid = null,

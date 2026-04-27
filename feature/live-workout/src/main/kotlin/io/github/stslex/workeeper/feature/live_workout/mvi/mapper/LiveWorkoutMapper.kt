@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.live_workout.mvi.mapper
 
+import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
 import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.ui.plan_editor.mappers.toUi
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel.Companion.toUi
@@ -13,6 +14,7 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiM
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableMap
 
@@ -32,8 +34,10 @@ internal fun SessionSnapshot.toState(
         isAdhoc = isAdhoc,
         startedAt = session.startedAt,
         nowMillis = nowMillis.coerceAtLeast(session.startedAt),
+        elapsedDurationLabel = formatElapsedDuration(nowMillis - session.startedAt),
         exercises = ui,
         setDrafts = emptyMap<State.DraftKey, LiveSetUiModel>().toImmutableMap(),
+        expandedDoneExerciseUuids = persistentSetOf(),
         planEditorTarget = null,
         pendingFinishConfirm = null,
         pendingResetExerciseUuid = null,
@@ -92,10 +96,8 @@ private fun isExerciseDone(
     skipped: Boolean,
 ): Boolean {
     if (skipped) return false
-    if (plan.isEmpty()) return false
+    if (plan.isEmpty()) return performed.any { it.isDone }
     if (performed.size < plan.size) return false
-    // The exercise is done when each plan row has a corresponding logged set; the rule
-    // is intentionally lenient about exact value match because the set may have been
-    // tweaked at runtime (different weight or reps) and still count as completed.
-    return plan.indices.all { idx -> performed.getOrNull(idx)?.isDone == true }
+    val performedByPosition = performed.associateBy { it.position }
+    return plan.indices.all { idx -> performedByPosition[idx]?.isDone == true }
 }

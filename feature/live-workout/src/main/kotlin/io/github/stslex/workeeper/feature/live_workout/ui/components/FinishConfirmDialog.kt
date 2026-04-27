@@ -52,7 +52,7 @@ internal fun FinishConfirmDialog(
             )
             StatRow(
                 label = stringResource(R.string.feature_live_workout_finish_stat_duration),
-                value = formatElapsed(stats.durationMillis),
+                value = stats.durationLabel,
             )
             StatRow(
                 label = stringResource(R.string.feature_live_workout_finish_stat_exercises),
@@ -123,6 +123,7 @@ private fun FinishConfirmDialogAllDoneLightPreview() {
         FinishConfirmDialog(
             stats = LiveWorkoutStore.State.FinishStats(
                 durationMillis = 47 * 60_000L + 8_000L,
+                durationLabel = "47:08",
                 doneCount = 5,
                 totalCount = 5,
                 skippedCount = 0,
@@ -141,6 +142,7 @@ private fun FinishConfirmDialogPartialDarkPreview() {
         FinishConfirmDialog(
             stats = LiveWorkoutStore.State.FinishStats(
                 durationMillis = 32 * 60_000L,
+                durationLabel = "32:00",
                 doneCount = 3,
                 totalCount = 5,
                 skippedCount = 1,

@@ -10,6 +10,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -41,6 +44,16 @@ internal fun HomeScreen(
     ) {
         AppTopAppBar(
             title = stringResource(R.string.feature_home_title),
+            actions = {
+                IconButton(
+                    onClick = { consume(Action.Click.OnSettingsClick) },
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Settings,
+                        contentDescription = stringResource(R.string.feature_home_settings),
+                    )
+                }
+            },
         )
         when {
             state.isLoading -> AppLoadingIndicator(
@@ -55,7 +68,6 @@ internal fun HomeScreen(
                 Spacer(Modifier.height(AppDimension.Space.lg))
                 ActiveSessionBanner(
                     info = state.activeSession,
-                    nowMillis = state.nowMillis,
                     onClick = { consume(Action.Click.OnActiveSessionClick) },
                 )
             }
@@ -113,6 +125,7 @@ private fun HomeScreenWithSessionPreview() {
                     startedAt = 0L,
                     doneCount = 2,
                     totalCount = 5,
+                    elapsedDurationLabel = "12:34",
                 ),
                 nowMillis = 12 * 60_000L + 34_000L,
                 isLoading = false,

@@ -50,6 +50,7 @@ internal class ClickHandlerTest {
             startedAt = 0L,
             doneCount = 1,
             totalCount = 3,
+            elapsedDurationLabel = "00:10",
         )
         val store = newStore(baseState.copy(activeSession = active))
         val handler = ClickHandler(store)

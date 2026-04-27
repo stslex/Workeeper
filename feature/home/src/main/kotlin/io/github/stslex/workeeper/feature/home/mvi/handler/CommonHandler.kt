@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.feature.home.mvi.handler
 
 import dagger.hilt.android.scopes.ViewModelScoped
+import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.home.di.HomeHandlerStore
 import io.github.stslex.workeeper.feature.home.domain.HomeInteractor
@@ -49,7 +50,15 @@ internal class CommonHandler @Inject constructor(
 
     private fun processTimerTick() {
         updateState { current ->
-            current.copy(nowMillis = System.currentTimeMillis())
+            val now = System.currentTimeMillis()
+            current.copy(
+                nowMillis = now,
+                activeSession = current.activeSession?.copy(
+                    elapsedDurationLabel = formatElapsedDuration(
+                        current.activeSession.elapsedMillis(now),
+                    ),
+                ),
+            )
         }
     }
 }

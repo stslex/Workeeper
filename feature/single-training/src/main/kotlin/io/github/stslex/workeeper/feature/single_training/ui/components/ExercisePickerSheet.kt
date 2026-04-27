@@ -156,7 +156,7 @@ private fun PickerRow(
             )
             if (item.tags.isNotEmpty()) {
                 Text(
-                    text = item.tags.joinToString(" · "),
+                    text = item.tagsLabel,
                     style = AppUi.typography.bodySmall,
                     color = AppUi.colors.textTertiary,
                 )

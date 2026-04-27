@@ -40,6 +40,7 @@ internal fun LiveSetRow(
     onTypeChange: (SetTypeUiModel) -> Unit,
     onMarkDone: () -> Unit,
     onUncheck: () -> Unit,
+    editable: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val rowBg = if (set.isDone) AppUi.colors.surfaceTier2 else AppUi.colors.surfaceTier1
@@ -60,11 +61,11 @@ internal fun LiveSetRow(
         if (isWeighted) {
             Box(modifier = Modifier.weight(WEIGHT_COLUMN_FLEX)) {
                 AppNumberInput(
-                    value = set.weight?.let { formatWeight(it) }.orEmpty(),
+                    value = set.weightLabel,
                     onValueChange = { input -> onWeightChange(input.toDoubleOrNull()) },
                     decimals = 2,
                     suffix = "kg",
-                    enabled = !set.isDone,
+                    enabled = editable && !set.isDone,
                 )
             }
         }
@@ -74,16 +75,21 @@ internal fun LiveSetRow(
                 onValueChange = { input -> onRepsChange(input.toIntOrNull()) },
                 decimals = 0,
                 suffix = "reps",
-                enabled = !set.isDone,
+                enabled = editable && !set.isDone,
             )
         }
         Box(
-            modifier = Modifier.clickable { onTypeChange(set.type.next()) },
+            modifier = if (editable) {
+                Modifier.clickable { onTypeChange(set.type.next()) }
+            } else {
+                Modifier
+            },
         ) {
             AppSetTypeChip(type = set.type.toUiKitType())
         }
         IconButton(
             onClick = { if (set.isDone) onUncheck() else onMarkDone() },
+            enabled = editable,
         ) {
             Icon(
                 modifier = Modifier.size(AppDimension.iconMd),
@@ -94,9 +100,6 @@ internal fun LiveSetRow(
         }
     }
 }
-
-private fun formatWeight(value: Double): String =
-    if (value % 1.0 == 0.0) value.toLong().toString() else value.toString()
 
 private fun SetTypeUiModel.next(): SetTypeUiModel {
     val all = SetTypeUiModel.entries
@@ -116,6 +119,7 @@ private fun LiveSetRowPendingLightPreview() {
             onTypeChange = {},
             onMarkDone = {},
             onUncheck = {},
+            editable = true,
         )
     }
 }
@@ -132,6 +136,7 @@ private fun LiveSetRowDonePreview() {
             onTypeChange = {},
             onMarkDone = {},
             onUncheck = {},
+            editable = true,
         )
     }
 }
@@ -148,6 +153,7 @@ private fun LiveSetRowWeightlessPreview() {
             onTypeChange = {},
             onMarkDone = {},
             onUncheck = {},
+            editable = true,
         )
     }
 }

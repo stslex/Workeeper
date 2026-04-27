@@ -57,4 +57,15 @@
     <string name="feature_live_workout_back">Назад</string>
     <string name="feature_live_workout_more">Меню</string>
     <string name="feature_live_workout_remove_set">Удалить сет</string>
+
+    <string name="feature_live_workout_error_invalid_reps">Повторения должны быть больше 0</string>
+    <string name="feature_live_workout_error_set_save_failed">Не удалось сохранить сет</string>
+    <string name="feature_live_workout_error_set_delete_failed">Не удалось удалить сет</string>
+    <string name="feature_live_workout_error_reset_failed">Не удалось сбросить сеты</string>
+    <string name="feature_live_workout_error_skip_failed">Не удалось пропустить упражнение</string>
+    <string name="feature_live_workout_error_finish_missing_session">Сессия больше недоступна</string>
+    <string name="feature_live_workout_error_finish_failed">Не удалось завершить сессию</string>
+    <string name="feature_live_workout_error_cancel_failed">Не удалось отменить сессию</string>
+    <string name="feature_live_workout_error_plan_save_failed">Не удалось сохранить план</string>
+    <string name="feature_live_workout_error_unknown">Что-то пошло не так</string>
 </resources>

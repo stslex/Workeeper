@@ -6,7 +6,6 @@ import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.database.sets.SetTypeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
 import io.github.stslex.workeeper.core.exercise.session.PerformedExerciseRepository
@@ -33,6 +32,12 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
     private val trainingExerciseRepository: TrainingExerciseRepository,
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
 ) : LiveWorkoutInteractor {
+
+    private data class PlanMutation(
+        val exerciseUuid: String,
+        val oldPlan: List<PlanSetDataModel>?,
+        val newPlan: List<PlanSetDataModel>?,
+    )
 
     override suspend fun startSession(
         trainingUuid: String,
@@ -147,6 +152,8 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
         val training = trainingRepository.getTraining(session.trainingUuid)
         val performedRows = performedExerciseRepository.getBySession(sessionUuid)
         val isAdhoc = training?.isAdhoc == true
+        val planMutations = mutableListOf<PlanMutation>()
+        val appliedMutations = mutableListOf<PlanMutation>()
         var setsLogged = 0
         var doneCount = 0
         val skippedCount = performedRows.count { it.skipped }
@@ -166,25 +173,50 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
                 )
             }
             val nextPlan = PlanUpdateRule.update(existingPlan, performedSets)
-            if (isAdhoc) {
-                exerciseRepository.setAdhocPlan(row.exerciseUuid, nextPlan)
-            } else {
-                trainingExerciseRepository.setPlan(
-                    trainingUuid = session.trainingUuid,
-                    exerciseUuid = row.exerciseUuid,
-                    planSets = nextPlan,
-                )
-            }
+            planMutations += PlanMutation(
+                exerciseUuid = row.exerciseUuid,
+                oldPlan = existingPlan,
+                newPlan = nextPlan,
+            )
         }
-        val finishedAt = System.currentTimeMillis()
-        sessionRepository.finishSession(sessionUuid, finishedAt)
-        FinishResult(
-            durationMillis = finishedAt - session.startedAt,
-            doneCount = doneCount,
-            totalCount = performedRows.size,
-            skippedCount = skippedCount,
-            setsLogged = setsLogged,
-        )
+        try {
+            for (mutation in planMutations) {
+                if (isAdhoc) {
+                    exerciseRepository.setAdhocPlan(mutation.exerciseUuid, mutation.newPlan)
+                } else {
+                    trainingExerciseRepository.setPlan(
+                        trainingUuid = session.trainingUuid,
+                        exerciseUuid = mutation.exerciseUuid,
+                        planSets = mutation.newPlan,
+                    )
+                }
+                appliedMutations += mutation
+            }
+            val finishedAt = System.currentTimeMillis()
+            sessionRepository.finishSession(sessionUuid, finishedAt)
+            FinishResult(
+                durationMillis = finishedAt - session.startedAt,
+                doneCount = doneCount,
+                totalCount = performedRows.size,
+                skippedCount = skippedCount,
+                setsLogged = setsLogged,
+            )
+        } catch (error: Throwable) {
+            for (mutation in appliedMutations.asReversed()) {
+                runCatching {
+                    if (isAdhoc) {
+                        exerciseRepository.setAdhocPlan(mutation.exerciseUuid, mutation.oldPlan)
+                    } else {
+                        trainingExerciseRepository.setPlan(
+                            trainingUuid = session.trainingUuid,
+                            exerciseUuid = mutation.exerciseUuid,
+                            planSets = mutation.oldPlan,
+                        )
+                    }
+                }
+            }
+            throw error
+        }
     }
 
     override suspend fun cancelSession(sessionUuid: String) {

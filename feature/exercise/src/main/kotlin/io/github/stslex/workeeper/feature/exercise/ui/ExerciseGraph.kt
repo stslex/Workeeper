@@ -75,6 +75,8 @@ fun NavGraphBuilder.exerciseGraph(
         var permanentDeleteName by remember { mutableStateOf<String?>(null) }
         var showTypeChangeDialog by remember { mutableStateOf(false) }
 
+        // TODO(tech-debt): Move event-to-message shaping out of UI graph and emit
+        // ready-to-render localized payloads from handler/state mapping.
         processor.Handle { event ->
             when (event) {
                 is Event.Haptic -> haptic.performHapticFeedback(event.type)

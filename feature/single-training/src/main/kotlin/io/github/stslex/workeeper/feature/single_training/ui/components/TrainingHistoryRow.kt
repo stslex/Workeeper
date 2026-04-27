@@ -27,6 +27,8 @@ internal fun TrainingHistoryRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // TODO(tech-debt): Move history date formatting into handler/state mapping and keep
+    // this composable focused on rendering preformatted labels.
     val dateFormatter = remember { DateFormat.getDateInstance(DateFormat.MEDIUM) }
     val dateLabel = remember(item.finishedAt) { dateFormatter.format(Date(item.finishedAt)) }
     Column(

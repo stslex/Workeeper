@@ -72,6 +72,29 @@ internal class LiveWorkoutMapperTest {
         assertEquals(2_000L, state.elapsedMillis)
     }
 
+    @Test
+    fun `mapper treats no-plan exercise with logged sets as DONE`() {
+        val snapshot = SessionSnapshot(
+            session = sessionAt(1000L),
+            trainingName = "Adhoc",
+            isAdhoc = true,
+            exercises = listOf(
+                pending(uuid = "pe-1", position = 0).copy(
+                    planSets = null,
+                    performedSets = listOf(
+                        PlanSetDataModel(weight = null, reps = 10, type = SetTypeDataModel.WORK),
+                    ),
+                ),
+                pending(uuid = "pe-2", position = 1),
+            ),
+        )
+
+        val state = snapshot.toState(nowMillis = 2000L)
+
+        assertEquals(ExerciseStatusUiModel.DONE, state.exercises[0].status)
+        assertEquals(ExerciseStatusUiModel.CURRENT, state.exercises[1].status)
+    }
+
     private fun sessionAt(startedAt: Long): SessionDataModel = SessionDataModel(
         uuid = "session-1",
         trainingUuid = "training-1",

@@ -28,7 +28,7 @@ import io.github.stslex.workeeper.feature.live_workout.R
 @Composable
 internal fun LiveWorkoutHeader(
     trainingName: String,
-    elapsedMillis: Long,
+    elapsedLabel: String,
     doneCount: Int,
     totalCount: Int,
     setsLogged: Int,
@@ -55,7 +55,7 @@ internal fun LiveWorkoutHeader(
                 color = AppUi.colors.textPrimary,
             )
             Text(
-                text = "•" + formatElapsed(elapsedMillis),
+                text = "•$elapsedLabel",
                 style = AppUi.typography.titleMedium,
                 color = AppUi.colors.accent,
             )
@@ -94,7 +94,7 @@ private fun LiveWorkoutHeaderLightPreview() {
     AppTheme(themeMode = ThemeMode.LIGHT) {
         LiveWorkoutHeader(
             trainingName = "Push Day",
-            elapsedMillis = 23 * 60_000L + 14_000L,
+            elapsedLabel = "23:14",
             doneCount = 2,
             totalCount = 5,
             setsLogged = 16,
@@ -108,7 +108,7 @@ private fun LiveWorkoutHeaderDarkPreview() {
     AppTheme(themeMode = ThemeMode.DARK) {
         LiveWorkoutHeader(
             trainingName = "Push Day",
-            elapsedMillis = 47 * 60_000L + 8_000L,
+            elapsedLabel = "47:08",
             doneCount = 4,
             totalCount = 5,
             setsLogged = 22,

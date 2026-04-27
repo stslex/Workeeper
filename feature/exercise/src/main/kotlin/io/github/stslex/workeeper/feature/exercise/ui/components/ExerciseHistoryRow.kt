@@ -31,6 +31,8 @@ internal fun ExerciseHistoryRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // TODO(tech-debt): Move history date/set-summary formatting into handler/state mapping
+    // and pass preformatted labels to UI.
     val dateFormatter = remember { DateFormat.getDateInstance(DateFormat.MEDIUM) }
     val dateLabel = remember(item.finishedAt) { dateFormatter.format(Date(item.finishedAt)) }
     val metaLabel = if (item.isAdhoc) {

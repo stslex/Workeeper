@@ -23,15 +23,10 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.feature.home.R
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore
-import java.util.Locale
-import kotlin.time.Duration.Companion.milliseconds
-
-private const val SECONDS_IN_MINUTE = 60L
 
 @Composable
 internal fun ActiveSessionBanner(
     info: HomeStore.State.ActiveSessionInfo,
-    nowMillis: Long,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -62,7 +57,7 @@ internal fun ActiveSessionBanner(
                         color = AppUi.colors.textPrimary,
                     )
                     Text(
-                        text = "•" + formatElapsed(info.elapsedMillis(nowMillis)),
+                        text = "•${info.elapsedDurationLabel}",
                         style = AppUi.typography.titleMedium,
                         color = AppUi.colors.accent,
                     )
@@ -88,18 +83,6 @@ internal fun ActiveSessionBanner(
     }
 }
 
-private fun formatElapsed(millis: Long): String {
-    val total = millis.coerceAtLeast(0L).milliseconds
-    val hours = total.inWholeHours
-    val minutes = total.inWholeMinutes % SECONDS_IN_MINUTE
-    val seconds = total.inWholeSeconds % SECONDS_IN_MINUTE
-    return if (hours > 0L) {
-        String.format(Locale.US, "%d:%02d:%02d", hours, minutes, seconds)
-    } else {
-        String.format(Locale.US, "%02d:%02d", minutes, seconds)
-    }
-}
-
 @Preview
 @Composable
 private fun ActiveSessionBannerLightPreview() {
@@ -112,8 +95,8 @@ private fun ActiveSessionBannerLightPreview() {
                 startedAt = 0L,
                 doneCount = 2,
                 totalCount = 5,
+                elapsedDurationLabel = "12:34",
             ),
-            nowMillis = 12 * 60_000L + 34_000L,
             onClick = {},
         )
     }
@@ -131,8 +114,8 @@ private fun ActiveSessionBannerDarkPreview() {
                 startedAt = 0L,
                 doneCount = 4,
                 totalCount = 5,
+                elapsedDurationLabel = "1:15:00",
             ),
-            nowMillis = 75 * 60_000L,
             onClick = {},
         )
     }
