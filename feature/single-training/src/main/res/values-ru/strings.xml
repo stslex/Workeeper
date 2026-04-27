@@ -1,11 +1,62 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="feature_single_training_field_name_label">Название тренировки</string>
-    <string name="feature_single_training_field_date_label">Дата</string>
+    <!-- Detail -->
+    <string name="feature_training_detail_back">Назад</string>
+    <string name="feature_training_detail_more">Ещё</string>
+    <string name="feature_training_detail_exercises">Упражнения</string>
+    <string name="feature_training_detail_past_sessions">История</string>
+    <string name="feature_training_detail_no_history">Сессий ещё не было</string>
+    <string name="feature_training_detail_start_session">Начать сессию</string>
+    <string name="feature_training_detail_resume_session">Продолжить сессию</string>
+    <string name="feature_training_detail_edit">Изменить</string>
+    <string name="feature_training_detail_archive">В архив</string>
+    <string name="feature_training_detail_archive_blocked">Нельзя архивировать — завершите активную сессию</string>
+    <string name="feature_training_detail_archive_success_format">«%1$s» в архиве</string>
+    <string name="feature_training_detail_permanent_delete">Удалить навсегда</string>
+    <string name="feature_training_detail_permanent_delete_title">Удалить «%1$s» навсегда?</string>
+    <string name="feature_training_detail_permanent_delete_body">У тренировки нет истории. Это нельзя отменить.</string>
+    <string name="feature_training_detail_permanent_delete_impact">История не пострадает</string>
+    <string name="feature_training_detail_permanent_delete_confirm">Удалить</string>
+    <string name="feature_training_detail_other_session_active_format">Активна сессия «%1$s». Завершите её сначала.</string>
+    <string name="feature_training_detail_live_workout_pending">Live-тренировка появится в следующем обновлении</string>
+    <string name="feature_training_detail_chevron">Открыть</string>
+    <string name="feature_training_detail_active_pill">Активна</string>
 
-    <string name="feature_single_training_field_exercise_create_label">Добавить упражнение</string>
-    <string name="feature_single_training_field_exercises_empty_label">У вашей тренировки нет упражений - создайте или добавьте новое</string>
+    <plurals name="feature_training_detail_exercise_count">
+        <item quantity="one">%d упражнение</item>
+        <item quantity="few">%d упражнения</item>
+        <item quantity="many">%d упражнений</item>
+        <item quantity="other">%d упражнения</item>
+    </plurals>
 
-    <string name="feature_single_training_dialog_delete">Вы уверены, что хотите удалить эту тренировку?</string>
-    <string name="feature_single_training_dialog_exit">Вы уверены, что хотите выйти без сохранения?</string>
+    <!-- Edit -->
+    <string name="feature_training_edit_close">Закрыть</string>
+    <string name="feature_training_edit_title_create">Новая тренировка</string>
+    <string name="feature_training_edit_title_edit">Изменить тренировку</string>
+    <string name="feature_training_edit_label_name">Название</string>
+    <string name="feature_training_edit_label_description">Описание</string>
+    <string name="feature_training_edit_placeholder_description">Заметки — фокус, неделя и т.д.</string>
+    <string name="feature_training_edit_label_tags">Теги</string>
+    <string name="feature_training_edit_label_exercises_format">Упражнения (%1$d)</string>
+    <string name="feature_training_edit_add_exercise">+ Добавить</string>
+    <string name="feature_training_edit_plan_edit">изменить план</string>
+    <string name="feature_training_edit_plan_add">добавить план</string>
+    <string name="feature_training_edit_no_plan">плана пока нет</string>
+    <string name="feature_training_edit_remove_exercise">Удалить упражнение</string>
+    <string name="feature_training_edit_drag_handle">Переместить</string>
+    <string name="feature_training_edit_error_name_required">Введите название</string>
+    <string name="feature_training_edit_error_no_exercises">Добавьте хотя бы одно упражнение</string>
+    <string name="feature_training_edit_discard_title">Отменить изменения?</string>
+    <string name="feature_training_edit_discard_body">Все изменения будут потеряны.</string>
+    <string name="feature_training_edit_discard_confirm">Отменить</string>
+    <string name="feature_training_edit_discard_dismiss">Продолжить</string>
+    <string name="feature_training_edit_tag_search_placeholder">Добавить тег…</string>
+    <string name="feature_training_edit_tag_create_format">+ Создать «%1$s»</string>
+
+    <!-- Exercise picker -->
+    <string name="feature_training_picker_title">Добавить упражнения</string>
+    <string name="feature_training_picker_search_placeholder">Поиск упражнений…</string>
+    <string name="feature_training_picker_add_format">Добавить (%1$d)</string>
+    <string name="feature_training_picker_cancel">Отмена</string>
+    <string name="feature_training_picker_empty">Ничего не найдено</string>
 </resources>

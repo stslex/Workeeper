@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.feature.exercise.mvi.handler
 
 import dagger.hilt.android.scopes.ViewModelScoped
+import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.HistoryEntry
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
@@ -49,7 +50,8 @@ internal class CommonHandler @Inject constructor(
             val exercise = interactor.getExercise(uuid)
             val history = interactor.getRecentHistory(uuid)
             val canPermanentlyDelete = interactor.canPermanentlyDelete(uuid)
-            LoadResult(exercise, history, canPermanentlyDelete)
+            val adhocPlan = interactor.getAdhocPlan(uuid)
+            LoadResult(exercise, history, canPermanentlyDelete, adhocPlan)
         }
     }
 
@@ -69,6 +71,7 @@ internal class CommonHandler @Inject constructor(
             recentHistory = result.history.map { it.toUi() }.toImmutableList(),
             isLoading = false,
             canPermanentlyDelete = result.canPermanentlyDelete,
+            adhocPlan = result.adhocPlan?.toImmutableList(),
             originalSnapshot = State.Snapshot(
                 name = exercise.name,
                 type = exercise.type,
@@ -82,5 +85,6 @@ internal class CommonHandler @Inject constructor(
         val exercise: ExerciseDataModel?,
         val history: List<HistoryEntry>,
         val canPermanentlyDelete: Boolean,
+        val adhocPlan: List<PlanSetDataModel>?,
     )
 }

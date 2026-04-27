@@ -12,4 +12,17 @@ interface TrainingExerciseRepository {
         exerciseUuid: String,
         planSets: List<PlanSetDataModel>?,
     )
+
+    /**
+     * Returns the (exerciseUuid, position, plan_sets) tuples for a training, ordered by
+     * position. Lets callers join with the exercise table without owning a Dao reference
+     * directly.
+     */
+    suspend fun getRowsForTraining(trainingUuid: String): List<TrainingExerciseRow>
+
+    data class TrainingExerciseRow(
+        val exerciseUuid: String,
+        val position: Int,
+        val planSets: List<PlanSetDataModel>?,
+    )
 }

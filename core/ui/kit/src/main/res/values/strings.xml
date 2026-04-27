@@ -3,4 +3,21 @@
     <string name="core_ui_kit_action_cancel">Cancel</string>
     <string name="core_ui_kit_action_save">Save</string>
     <string name="core_ui_kit_action_back">Back</string>
+
+    <string name="core_ui_kit_plan_editor_title_format">%1$s · plan</string>
+    <string name="core_ui_kit_plan_editor_title_default">Plan</string>
+    <string name="core_ui_kit_plan_editor_subtitle">Sets pre-fill in Live workout. Tracked sets update this plan.</string>
+    <string name="core_ui_kit_plan_editor_unit_kg">kg</string>
+    <string name="core_ui_kit_plan_editor_unit_reps">reps</string>
+    <string name="core_ui_kit_plan_editor_add_set">+ Add set</string>
+    <string name="core_ui_kit_plan_editor_save">Save plan</string>
+    <string name="core_ui_kit_plan_editor_remove_set">Remove set</string>
+    <string name="core_ui_kit_plan_editor_discard_title">Discard plan changes?</string>
+    <string name="core_ui_kit_plan_editor_discard_body">Your changes to this plan will be lost.</string>
+    <string name="core_ui_kit_plan_editor_discard_confirm">Discard</string>
+    <string name="core_ui_kit_plan_editor_set_type_warmup">Warmup</string>
+    <string name="core_ui_kit_plan_editor_set_type_work">Work</string>
+    <string name="core_ui_kit_plan_editor_set_type_failure">Failure</string>
+    <string name="core_ui_kit_plan_editor_set_type_drop">Drop</string>
+    <string name="core_ui_kit_plan_editor_empty_hint">No sets yet — tap “Add set” to start the plan.</string>
 </resources>

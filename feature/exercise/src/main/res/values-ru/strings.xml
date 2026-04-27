@@ -43,4 +43,17 @@
     <string name="feature_exercise_edit_discard_body">Все изменения будут потеряны.</string>
     <string name="feature_exercise_edit_discard_confirm">Отменить</string>
     <string name="feature_exercise_edit_discard_dismiss">Продолжить</string>
+
+    <!-- Adhoc plan -->
+    <string name="feature_exercise_edit_label_default_plan">План по умолчанию (отдельно)</string>
+    <string name="feature_exercise_edit_default_plan_subtitle">Используется при отдельном трекинге упражнения</string>
+    <string name="feature_exercise_edit_plan_edit">Изменить план</string>
+    <string name="feature_exercise_edit_plan_add">+ Добавить план</string>
+    <string name="feature_exercise_edit_plan_summary_no_plan">плана пока нет</string>
+
+    <!-- Type change confirmation -->
+    <string name="feature_exercise_edit_type_change_weightless_title">Переключить на без веса?</string>
+    <string name="feature_exercise_edit_type_change_weightless_body">Значения веса из планов этого упражнения будут очищены. Это нельзя отменить.</string>
+    <string name="feature_exercise_edit_type_change_weightless_impact">Все веса в планах очищены</string>
+    <string name="feature_exercise_edit_type_change_weightless_confirm">Переключить</string>
 </resources>

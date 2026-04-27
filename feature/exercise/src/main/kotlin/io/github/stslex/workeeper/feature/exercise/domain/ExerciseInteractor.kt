@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise.domain
 
+import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.HistoryEntry
@@ -26,6 +27,12 @@ internal interface ExerciseInteractor {
     suspend fun canPermanentlyDelete(uuid: String): Boolean
 
     suspend fun permanentlyDelete(uuid: String)
+
+    suspend fun getAdhocPlan(uuid: String): List<PlanSetDataModel>?
+
+    suspend fun setAdhocPlan(uuid: String, plan: List<PlanSetDataModel>?)
+
+    suspend fun clearWeightsFromAllPlansForExercise(uuid: String)
 
     sealed interface ArchiveResult {
 

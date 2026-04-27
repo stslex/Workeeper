@@ -35,6 +35,8 @@ internal class ClickHandlerTest {
         availableTags = persistentListOf(),
         activeTagFilter = persistentSetOf(),
         pendingPermanentDelete = null,
+        selectionMode = State.SelectionMode.Off,
+        pendingBulkDelete = null,
     )
     private val stateFlow = MutableStateFlow(initialState)
 

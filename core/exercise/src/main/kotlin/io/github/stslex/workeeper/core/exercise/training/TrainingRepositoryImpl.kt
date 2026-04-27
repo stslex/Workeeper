@@ -13,6 +13,7 @@ import io.github.stslex.workeeper.core.database.tag.TrainingTagEntity
 import io.github.stslex.workeeper.core.database.training.TrainingDao
 import io.github.stslex.workeeper.core.database.training.TrainingExerciseDao
 import io.github.stslex.workeeper.core.database.training.TrainingExerciseEntity
+import io.github.stslex.workeeper.core.exercise.training.TrainingRepository.BulkArchiveOutcome
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
@@ -22,6 +23,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.uuid.Uuid
 
+@Suppress("TooManyFunctions")
 @Singleton
 class TrainingRepositoryImpl @Inject constructor(
     private val dao: TrainingDao,
@@ -147,6 +149,58 @@ class TrainingRepositoryImpl @Inject constructor(
         sessionDao.countFinishedByTraining(Uuid.parse(trainingUuid))
     }
 
+    override fun pagedActiveWithStats(
+        filterTagUuids: Set<String>,
+    ): Flow<PagingData<TrainingListItem>> {
+        val pager = if (filterTagUuids.isEmpty()) {
+            Pager(config = pagingConfig, pagingSourceFactory = dao::pagedActiveWithStats)
+        } else {
+            val parsed = filterTagUuids.map(Uuid::parse)
+            Pager(
+                config = pagingConfig,
+                pagingSourceFactory = { dao.pagedActiveWithStatsByTags(parsed) },
+            )
+        }
+        return pager.flow
+            .map { pagingData ->
+                pagingData.map { row -> row.toData(labels = trainingTagDao.getTagNames(row.uuid)) }
+            }
+            .flowOn(ioDispatcher)
+    }
+
+    override suspend fun bulkArchive(
+        uuids: Set<String>,
+    ): BulkArchiveOutcome = withContext(ioDispatcher) {
+        if (uuids.isEmpty()) return@withContext BulkArchiveOutcome(0, emptyList())
+        val parsed = uuids.map(Uuid::parse)
+        // Block trainings with an in-progress session — archive on those would orphan the
+        // active session in the UI, so the bulk path skips them and surfaces names.
+        val activeTrainingUuid = sessionDao.getActive()?.trainingUuid
+        val (allowed, blocked) = parsed.partition { it != activeTrainingUuid }
+        val blockedNames = blocked.mapNotNull { dao.getById(it)?.name }
+        if (allowed.isNotEmpty()) {
+            dao.archiveAll(allowed, System.currentTimeMillis())
+        }
+        BulkArchiveOutcome(archivedCount = allowed.size, blockedNames = blockedNames)
+    }
+
+    override suspend fun bulkPermanentDelete(uuids: Set<String>) {
+        withContext(ioDispatcher) {
+            if (uuids.isEmpty()) return@withContext
+            dao.permanentDeleteAll(uuids.map(Uuid::parse))
+        }
+    }
+
+    override suspend fun canBulkPermanentDelete(
+        uuids: Set<String>,
+    ): Boolean = withContext(ioDispatcher) {
+        if (uuids.isEmpty()) return@withContext false
+        val activeTrainingUuid = sessionDao.getActive()?.trainingUuid?.toString()
+        uuids.all { uuid ->
+            uuid != activeTrainingUuid && sessionDao.countFinishedByTraining(Uuid.parse(uuid)) == 0
+        }
+    }
+
     private suspend fun syncLabels(trainingUuid: Uuid, labels: List<String>) {
         trainingTagDao.deleteByTraining(trainingUuid)
         if (labels.isEmpty()) return
@@ -165,14 +219,21 @@ class TrainingRepositoryImpl @Inject constructor(
     }
 
     private suspend fun syncExercises(trainingUuid: Uuid, exerciseUuids: List<String>) {
+        // Snapshot existing rows before truncating so we can preserve plan_sets across an
+        // edit. Plans are sub-entities of (training, exercise) — replacing the position
+        // map should not silently wipe them.
+        val existing = trainingExerciseDao.getByTraining(trainingUuid)
+            .associateBy { it.exerciseUuid }
         trainingExerciseDao.deleteByTraining(trainingUuid)
         if (exerciseUuids.isEmpty()) return
         trainingExerciseDao.insert(
             exerciseUuids.mapIndexed { index, raw ->
+                val exerciseUuid = Uuid.parse(raw)
                 TrainingExerciseEntity(
                     trainingUuid = trainingUuid,
-                    exerciseUuid = Uuid.parse(raw),
+                    exerciseUuid = exerciseUuid,
                     position = index,
+                    planSets = existing[exerciseUuid]?.planSets,
                 )
             },
         )

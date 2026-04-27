@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="DuplicateStrings">
     <string name="feature_all_exercises_title">Exercises</string>
     <string name="feature_all_exercises_empty_headline">No exercises yet</string>
     <string name="feature_all_exercises_empty_supporting">Tap + to create your first exercise</string>
@@ -19,5 +20,28 @@
     <plurals name="feature_all_exercises_session_count">
         <item quantity="one">%d session</item>
         <item quantity="other">%d sessions</item>
+    </plurals>
+
+    <string name="feature_all_exercises_selection_close">Close selection</string>
+    <plurals name="feature_all_exercises_selected_count">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
+    <string name="feature_all_exercises_bulk_archive">Archive</string>
+    <string name="feature_all_exercises_bulk_delete">Delete</string>
+    <plurals name="feature_all_exercises_bulk_archive_success">
+        <item quantity="one">%d exercise archived</item>
+        <item quantity="other">%d exercises archived</item>
+    </plurals>
+    <string name="feature_all_exercises_bulk_archive_partial_format">Archived %1$d, blocked: %2$s</string>
+    <string name="feature_all_exercises_bulk_delete_confirm_title">Delete selected permanently?</string>
+    <plurals name="feature_all_exercises_bulk_delete_confirm_body">
+        <item quantity="one">%d exercise will be permanently deleted. This cannot be undone.</item>
+        <item quantity="other">%d exercises will be permanently deleted. This cannot be undone.</item>
+    </plurals>
+    <string name="feature_all_exercises_bulk_delete_impact">No history affected</string>
+    <plurals name="feature_all_exercises_bulk_delete_success">
+        <item quantity="one">%d exercise deleted</item>
+        <item quantity="other">%d exercises deleted</item>
     </plurals>
 </resources>

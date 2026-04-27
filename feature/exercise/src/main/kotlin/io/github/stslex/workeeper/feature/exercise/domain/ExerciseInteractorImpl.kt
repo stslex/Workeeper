@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.feature.exercise.domain
 
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
+import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
@@ -79,5 +80,23 @@ internal class ExerciseInteractorImpl @Inject constructor(
 
     override suspend fun permanentlyDelete(uuid: String) {
         withContext(defaultDispatcher) { exerciseRepository.permanentDelete(uuid) }
+    }
+
+    override suspend fun getAdhocPlan(
+        uuid: String,
+    ): List<PlanSetDataModel>? = withContext(defaultDispatcher) {
+        exerciseRepository.getAdhocPlan(uuid)
+    }
+
+    override suspend fun setAdhocPlan(uuid: String, plan: List<PlanSetDataModel>?) {
+        withContext(defaultDispatcher) {
+            exerciseRepository.setAdhocPlan(uuid, plan)
+        }
+    }
+
+    override suspend fun clearWeightsFromAllPlansForExercise(uuid: String) {
+        withContext(defaultDispatcher) {
+            exerciseRepository.clearWeightsFromAllPlansForExercise(uuid)
+        }
     }
 }

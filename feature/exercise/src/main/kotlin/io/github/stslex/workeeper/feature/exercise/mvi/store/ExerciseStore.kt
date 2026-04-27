@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.feature.exercise.mvi.store
 
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.feature.exercise.mvi.model.HistoryUiModel
@@ -31,6 +32,9 @@ internal interface ExerciseStore : Store<State, Action, Event> {
         val originalSnapshot: Snapshot?,
         val isLoading: Boolean,
         val canPermanentlyDelete: Boolean,
+        val adhocPlan: ImmutableList<PlanSetDataModel>?,
+        val isPlanEditorOpen: Boolean,
+        val pendingTypeChange: ExerciseTypeDataModel?,
     ) : Store.State {
 
         val isSaveEnabled: Boolean
@@ -87,6 +91,9 @@ internal interface ExerciseStore : Store<State, Action, Event> {
                 originalSnapshot = null,
                 isLoading = uuid != null,
                 canPermanentlyDelete = false,
+                adhocPlan = null,
+                isPlanEditorOpen = false,
+                pendingTypeChange = null,
             )
         }
     }
@@ -133,6 +140,16 @@ internal interface ExerciseStore : Store<State, Action, Event> {
 
             data class OnTypeSelect(val type: ExerciseTypeDataModel) : Click
 
+            data object OnTypeChangeConfirm : Click
+
+            data object OnTypeChangeDismiss : Click
+
+            data object OnEditPlanClick : Click
+
+            data object OnPlanEditorDismiss : Click
+
+            data class OnPlanEditorSave(val plan: List<PlanSetDataModel>?) : Click
+
             data class OnTagToggle(val tagUuid: String) : Click
 
             data class OnTagRemove(val tagUuid: String) : Click
@@ -175,6 +192,8 @@ internal interface ExerciseStore : Store<State, Action, Event> {
         data class ShowPermanentDeleteConfirm(val name: String) : Event
 
         data object ShowPermanentDeleteSuccess : Event
+
+        data object ShowTypeChangeConfirm : Event
     }
 
     /**

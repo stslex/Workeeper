@@ -4,7 +4,9 @@ package io.github.stslex.workeeper.feature.exercise.mvi.handler
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
+import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
@@ -16,6 +18,7 @@ import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Disca
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Event
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State.Mode
+import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -50,6 +53,11 @@ internal class ClickHandler @Inject constructor(
             Action.Click.OnDismissPermanentDelete -> Unit
             is Action.Click.OnUndoArchive -> processUndoArchive(action)
             is Action.Click.OnTypeSelect -> processTypeSelect(action)
+            Action.Click.OnTypeChangeConfirm -> processTypeChangeConfirm()
+            Action.Click.OnTypeChangeDismiss -> processTypeChangeDismiss()
+            Action.Click.OnEditPlanClick -> processEditPlanClick()
+            Action.Click.OnPlanEditorDismiss -> processPlanEditorDismiss()
+            is Action.Click.OnPlanEditorSave -> processPlanEditorSave(action)
             is Action.Click.OnTagToggle -> processTagToggle(action)
             is Action.Click.OnTagRemove -> processTagRemove(action)
             is Action.Click.OnTagCreate -> processTagCreate(action)
@@ -258,10 +266,72 @@ internal class ClickHandler @Inject constructor(
     }
 
     private fun processTypeSelect(action: Action.Click.OnTypeSelect) {
-        if (state.value.type == action.type) return
+        val current = state.value
+        if (current.type == action.type) return
+        // Switching from WEIGHTED to WEIGHTLESS while weighted plan rows exist would
+        // silently strand weight data once Live workout pre-fills. Surface a confirm so
+        // the user opts in to the multi-row wipe (handled by `processTypeChangeConfirm`).
+        val needsWeightWipe = action.type == ExerciseTypeDataModel.WEIGHTLESS &&
+            current.type == ExerciseTypeDataModel.WEIGHTED &&
+            (current.adhocPlan?.any { it.weight != null } == true)
+        if (needsWeightWipe) {
+            sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
+            updateState { it.copy(pendingTypeChange = action.type) }
+            sendEvent(Event.ShowTypeChangeConfirm)
+            return
+        }
         sendEvent(Event.Haptic(HapticFeedbackType.SegmentTick))
         updateState { it.copy(type = action.type) }
     }
+
+    private fun processTypeChangeConfirm() {
+        val current = state.value
+        val pending = current.pendingTypeChange ?: return
+        val uuid = current.uuid
+        sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
+        updateState { latest ->
+            latest.copy(
+                type = pending,
+                pendingTypeChange = null,
+                adhocPlan = latest.adhocPlan?.map { it.copy(weight = null) }?.toImmutablePlan(),
+            )
+        }
+        if (uuid == null) return
+        launch(
+            onSuccess = { Unit },
+        ) {
+            interactor.clearWeightsFromAllPlansForExercise(uuid)
+        }
+    }
+
+    private fun processTypeChangeDismiss() {
+        updateState { it.copy(pendingTypeChange = null) }
+    }
+
+    private fun processEditPlanClick() {
+        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
+        updateState { it.copy(isPlanEditorOpen = true) }
+    }
+
+    private fun processPlanEditorDismiss() {
+        updateState { it.copy(isPlanEditorOpen = false) }
+    }
+
+    private fun processPlanEditorSave(action: Action.Click.OnPlanEditorSave) {
+        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
+        val current = state.value
+        val uuid = current.uuid
+        updateState { it.copy(adhocPlan = action.plan?.toImmutablePlan(), isPlanEditorOpen = false) }
+        if (uuid == null) return
+        launch(
+            onSuccess = { Unit },
+        ) {
+            interactor.setAdhocPlan(uuid, action.plan)
+        }
+    }
+
+    private fun List<PlanSetDataModel>.toImmutablePlan(): ImmutableList<PlanSetDataModel> =
+        toImmutableList()
 
     private fun processTagToggle(action: Action.Click.OnTagToggle) {
         val current = state.value

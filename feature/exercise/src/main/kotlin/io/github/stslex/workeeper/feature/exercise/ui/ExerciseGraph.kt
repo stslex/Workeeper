@@ -12,8 +12,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavGraphBuilder
+import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
+import io.github.stslex.workeeper.core.database.sets.SetTypeDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
+import io.github.stslex.workeeper.core.ui.kit.components.setchip.SetType
+import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppPlanEditor
+import io.github.stslex.workeeper.core.ui.kit.components.sheet.PlanEditorSet
 import io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
@@ -57,12 +63,17 @@ fun NavGraphBuilder.exerciseGraph(
             stringResource(R.string.feature_exercise_detail_permanent_delete_confirm_button)
         val permanentDeleteSuccess =
             stringResource(R.string.feature_exercise_detail_permanent_delete_success)
+        val typeChangeTitle = stringResource(R.string.feature_exercise_edit_type_change_weightless_title)
+        val typeChangeBody = stringResource(R.string.feature_exercise_edit_type_change_weightless_body)
+        val typeChangeImpact = stringResource(R.string.feature_exercise_edit_type_change_weightless_impact)
+        val typeChangeConfirm = stringResource(R.string.feature_exercise_edit_type_change_weightless_confirm)
 
         var pendingDiscard by remember { mutableStateOf<DiscardTarget?>(null) }
         var archiveBlockedState by remember {
             mutableStateOf<Pair<String, List<String>>?>(null)
         }
         var permanentDeleteName by remember { mutableStateOf<String?>(null) }
+        var showTypeChangeDialog by remember { mutableStateOf(false) }
 
         processor.Handle { event ->
             when (event) {
@@ -86,6 +97,8 @@ fun NavGraphBuilder.exerciseGraph(
                 is Event.ShowPermanentDeleteConfirm -> { permanentDeleteName = event.name }
                 Event.ShowPermanentDeleteSuccess ->
                     SnackbarManager.showSnackbar(message = permanentDeleteSuccess)
+
+                Event.ShowTypeChangeConfirm -> { showTypeChangeDialog = true }
             }
         }
 
@@ -156,5 +169,58 @@ fun NavGraphBuilder.exerciseGraph(
                 },
             )
         }
+        if (showTypeChangeDialog) {
+            AppConfirmDialog(
+                title = typeChangeTitle,
+                body = typeChangeBody,
+                impactSummary = typeChangeImpact,
+                confirmLabel = typeChangeConfirm,
+                onConfirm = {
+                    showTypeChangeDialog = false
+                    processor.consume(Action.Click.OnTypeChangeConfirm)
+                },
+                onDismiss = {
+                    showTypeChangeDialog = false
+                    processor.consume(Action.Click.OnTypeChangeDismiss)
+                },
+            )
+        }
+        if (state.isPlanEditorOpen) {
+            AppPlanEditor(
+                exerciseName = state.name,
+                isWeighted = state.type == ExerciseTypeDataModel.WEIGHTED,
+                initialSets = state.adhocPlan?.map { it.toEditor() },
+                onSave = { editorSets ->
+                    processor.consume(
+                        Action.Click.OnPlanEditorSave(
+                            plan = editorSets?.map { it.toData() },
+                        ),
+                    )
+                },
+                onDismiss = { processor.consume(Action.Click.OnPlanEditorDismiss) },
+            )
+        }
     }
 }
+
+private fun PlanSetDataModel.toEditor(): PlanEditorSet = PlanEditorSet(
+    weight = weight,
+    reps = reps,
+    type = when (type) {
+        SetTypeDataModel.WARMUP -> SetType.WARMUP
+        SetTypeDataModel.WORK -> SetType.WORK
+        SetTypeDataModel.FAILURE -> SetType.FAIL
+        SetTypeDataModel.DROP -> SetType.DROP
+    },
+)
+
+private fun PlanEditorSet.toData(): PlanSetDataModel = PlanSetDataModel(
+    weight = weight,
+    reps = reps,
+    type = when (type) {
+        SetType.WARMUP -> SetTypeDataModel.WARMUP
+        SetType.WORK -> SetTypeDataModel.WORK
+        SetType.FAIL -> SetTypeDataModel.FAILURE
+        SetType.DROP -> SetTypeDataModel.DROP
+    },
+)

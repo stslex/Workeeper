@@ -43,4 +43,17 @@
     <string name="feature_exercise_edit_discard_body">Your changes will be lost.</string>
     <string name="feature_exercise_edit_discard_confirm">Discard</string>
     <string name="feature_exercise_edit_discard_dismiss">Keep editing</string>
+
+    <!-- Adhoc plan -->
+    <string name="feature_exercise_edit_label_default_plan">Default plan (ad-hoc)</string>
+    <string name="feature_exercise_edit_default_plan_subtitle">Used when tracking this exercise outside any training</string>
+    <string name="feature_exercise_edit_plan_edit">Edit plan</string>
+    <string name="feature_exercise_edit_plan_add">+ Add plan</string>
+    <string name="feature_exercise_edit_plan_summary_no_plan">no plan yet</string>
+
+    <!-- Type change confirmation -->
+    <string name="feature_exercise_edit_type_change_weightless_title">Switch to weightless?</string>
+    <string name="feature_exercise_edit_type_change_weightless_body">Weight values from this exercise’s plans will be cleared. This cannot be undone.</string>
+    <string name="feature_exercise_edit_type_change_weightless_impact">All plan weights cleared</string>
+    <string name="feature_exercise_edit_type_change_weightless_confirm">Switch</string>
 </resources>

@@ -16,6 +16,7 @@ import io.github.stslex.workeeper.core.database.tag.ExerciseTagEntity
 import io.github.stslex.workeeper.core.database.tag.TagDao
 import io.github.stslex.workeeper.core.database.tag.TagEntity
 import io.github.stslex.workeeper.core.database.training.TrainingExerciseDao
+import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository.BulkArchiveOutcome
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository.SaveResult
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
@@ -32,6 +33,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.uuid.Uuid
 
+@Suppress("TooManyFunctions", "LongParameterList")
 @Singleton
 internal class ExerciseRepositoryImpl @Inject constructor(
     private val dao: ExerciseDao,
@@ -122,6 +124,30 @@ internal class ExerciseRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun clearWeightsFromAllPlansForExercise(exerciseUuid: String) {
+        // The clear is idempotent (already cleared = no-op), so a partial-failure
+        // recovery is safe to retry. Avoiding `withTransaction` keeps this module free
+        // of the room-ktx dep that core/database does not transitively expose.
+        withContext(bgDispatcher) {
+            val parsed = Uuid.parse(exerciseUuid)
+            val exercise = dao.getById(parsed) ?: return@withContext
+            val adhoc = PlanSetsConverter.fromJson(exercise.lastAdhocSets)
+            if (adhoc != null) {
+                val cleared = adhoc.map { it.copy(weight = null) }
+                dao.updateLastAdhocSets(parsed, PlanSetsConverter.toJson(cleared))
+            }
+            trainingExerciseDao.getAllForExercise(parsed).forEach { row ->
+                val parsedPlan = PlanSetsConverter.fromJson(row.planSets) ?: return@forEach
+                val cleared = parsedPlan.map { it.copy(weight = null) }
+                trainingExerciseDao.updatePlanSets(
+                    trainingUuid = row.trainingUuid,
+                    exerciseUuid = row.exerciseUuid,
+                    planSets = PlanSetsConverter.toJson(cleared),
+                )
+            }
+        }
+    }
+
     override suspend fun deleteItem(uuid: String) {
         withContext(bgDispatcher) {
             dao.permanentDelete(Uuid.parse(uuid))
@@ -130,6 +156,19 @@ internal class ExerciseRepositoryImpl @Inject constructor(
 
     // v3 has no autocomplete query; return empty until feature redesign.
     override suspend fun searchItemsWithExclude(query: String): List<ExerciseDataModel> = emptyList()
+
+    override suspend fun searchActiveExercises(
+        query: String,
+        excludeUuids: Set<String>,
+    ): List<ExerciseDataModel> = withContext(bgDispatcher) {
+        val excluded = excludeUuids.map(Uuid::parse).toSet()
+        dao.getAllActive()
+            .filter { entity -> entity.uuid !in excluded }
+            .filter { entity ->
+                query.isBlank() || entity.name.contains(query, ignoreCase = true)
+            }
+            .map { entity -> entity.toData(labels = loadLabels(entity.uuid)) }
+    }
 
     override suspend fun deleteAllItems(uuids: List<Uuid>) {
         withContext(bgDispatcher) {
@@ -232,6 +271,35 @@ internal class ExerciseRepositoryImpl @Inject constructor(
                 pagingData.map { entity -> entity.toData(labels = loadLabels(entity.uuid)) }
             }
             .flowOn(bgDispatcher)
+    }
+
+    override suspend fun bulkArchive(
+        uuids: Set<String>,
+    ): BulkArchiveOutcome = withContext(bgDispatcher) {
+        if (uuids.isEmpty()) return@withContext BulkArchiveOutcome(0, emptyList())
+        val parsed = uuids.map(Uuid::parse)
+        val (allowed, blocked) = parsed.partition { uuid ->
+            trainingExerciseDao.countActiveTemplatesUsing(uuid) == 0
+        }
+        val blockedNames = blocked.mapNotNull { dao.getById(it)?.name }
+        if (allowed.isNotEmpty()) {
+            val now = System.currentTimeMillis()
+            allowed.forEach { dao.archive(it, now) }
+        }
+        BulkArchiveOutcome(archivedCount = allowed.size, blockedNames = blockedNames)
+    }
+
+    override suspend fun bulkPermanentDelete(uuids: Set<String>) {
+        withContext(bgDispatcher) {
+            uuids.forEach { dao.permanentDelete(Uuid.parse(it)) }
+        }
+    }
+
+    override suspend fun canBulkPermanentDelete(
+        uuids: Set<String>,
+    ): Boolean = withContext(bgDispatcher) {
+        if (uuids.isEmpty()) return@withContext false
+        uuids.all { uuid -> canPermanentlyDeleteImmediately(uuid) }
     }
 
     private suspend fun loadLabels(exerciseUuid: Uuid): List<String> =

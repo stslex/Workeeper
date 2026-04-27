@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.all_exercises.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavGraphBuilder
@@ -18,13 +20,18 @@ import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesSt
 private const val MAX_BLOCKED_TRAINING_NAMES = 2
 
 @OptIn(ExperimentalSharedTransitionApi::class)
-@Suppress("UnusedParameter")
+@Suppress("UnusedParameter", "LongMethod")
 fun NavGraphBuilder.allExercisesGraph(
     sharedTransitionScope: SharedTransitionScope,
     modifier: Modifier = Modifier,
 ) {
     navComponentScreen(AllExercisesFeature) { processor ->
         val haptic = LocalHapticFeedback.current
+        // Compose-ui in this project predates LocalResources; LocalContext.resources is
+        // the documented v1 fallback. Plurals reload via Configuration changes through
+        // recomposition, so the lint warning is benign here.
+        @Suppress("LocalContextResourcesRead")
+        val resources = LocalContext.current.resources
         val archiveSuccessFormat =
             stringResource(R.string.feature_all_exercises_archive_success_format)
         val undoLabel = stringResource(R.string.feature_all_exercises_archive_undo)
@@ -33,6 +40,8 @@ fun NavGraphBuilder.allExercisesGraph(
         val moreFormat = stringResource(R.string.feature_all_exercises_overflow_format)
         val permanentDeleteSuccess =
             stringResource(R.string.feature_all_exercises_permanent_delete_success)
+        val bulkArchivePartialFormat =
+            stringResource(R.string.feature_all_exercises_bulk_archive_partial_format)
 
         processor.Handle { event ->
             when (event) {
@@ -63,7 +72,44 @@ fun NavGraphBuilder.allExercisesGraph(
 
                 is Event.ShowPermanentDeleteSuccess ->
                     SnackbarManager.showSnackbar(message = permanentDeleteSuccess)
+
+                is Event.ShowBulkArchiveSuccess ->
+                    SnackbarManager.showSnackbar(
+                        message = resources.getQuantityString(
+                            R.plurals.feature_all_exercises_bulk_archive_success,
+                            event.count,
+                            event.count,
+                        ),
+                    )
+
+                is Event.ShowBulkArchiveBlocked -> {
+                    val visible = event.blockedNames.take(MAX_BLOCKED_TRAINING_NAMES)
+                    val joined = buildString {
+                        append(visible.joinToString(", "))
+                        val overflow = event.blockedNames.size - visible.size
+                        if (overflow > 0) {
+                            append(", ")
+                            append(moreFormat.format(overflow))
+                        }
+                    }
+                    SnackbarManager.showSnackbar(
+                        message = bulkArchivePartialFormat.format(event.archivedCount, joined),
+                    )
+                }
+
+                is Event.ShowBulkDeleteSuccess ->
+                    SnackbarManager.showSnackbar(
+                        message = resources.getQuantityString(
+                            R.plurals.feature_all_exercises_bulk_delete_success,
+                            event.count,
+                            event.count,
+                        ),
+                    )
             }
+        }
+
+        BackHandler(enabled = processor.state.value.interceptBack) {
+            processor.consume(Action.Click.OnSelectionExit)
         }
 
         AllExercisesScreen(

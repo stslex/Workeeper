@@ -14,6 +14,9 @@ interface ExerciseDao {
     @Query("SELECT * FROM exercise_table WHERE archived = 0 ORDER BY name COLLATE NOCASE ASC")
     fun pagedActive(): PagingSource<Int, ExerciseEntity>
 
+    @Query("SELECT * FROM exercise_table WHERE archived = 0 ORDER BY name COLLATE NOCASE ASC")
+    suspend fun getAllActive(): List<ExerciseEntity>
+
     @Query(
         """
         SELECT e.* FROM exercise_table e

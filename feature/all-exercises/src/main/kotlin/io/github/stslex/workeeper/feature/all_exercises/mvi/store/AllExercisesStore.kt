@@ -24,13 +24,38 @@ internal interface AllExercisesStore : Store<State, Action, Event> {
         val availableTags: ImmutableList<TagUiModel>,
         val activeTagFilter: ImmutableSet<String>,
         val pendingPermanentDelete: PendingDelete?,
+        val selectionMode: SelectionMode,
+        val pendingBulkDelete: PendingBulkDelete?,
     ) : Store.State {
+
+        val isSelecting: Boolean get() = selectionMode is SelectionMode.On
+
+        /**
+         * Multi-select intercepts back so the gesture exits selection rather than the
+         * tab. Outside selection mode the predictive-back preview keeps running for the
+         * normal bottom-tab navigation.
+         */
+        val interceptBack: Boolean get() = isSelecting
 
         @Stable
         data class PendingDelete(
             val uuid: String,
             val name: String,
         )
+
+        @Stable
+        sealed interface SelectionMode {
+            data object Off : SelectionMode
+
+            @Stable
+            data class On(
+                val selectedUuids: ImmutableSet<String>,
+                val canDeleteAll: Boolean,
+            ) : SelectionMode
+        }
+
+        @Stable
+        data class PendingBulkDelete(val count: Int)
 
         companion object {
 
@@ -41,6 +66,8 @@ internal interface AllExercisesStore : Store<State, Action, Event> {
                 availableTags = persistentListOf(),
                 activeTagFilter = persistentSetOf(),
                 pendingPermanentDelete = null,
+                selectionMode = SelectionMode.Off,
+                pendingBulkDelete = null,
             )
         }
     }
@@ -57,6 +84,8 @@ internal interface AllExercisesStore : Store<State, Action, Event> {
 
             data class OnExerciseClick(val uuid: String) : Click
 
+            data class OnExerciseLongPress(val uuid: String) : Click
+
             data object OnFabClick : Click
 
             data class OnTagFilterToggle(val tagUuid: String) : Click
@@ -68,6 +97,18 @@ internal interface AllExercisesStore : Store<State, Action, Event> {
             data object OnConfirmPermanentDelete : Click
 
             data object OnCancelPermanentDelete : Click
+
+            data class OnSelectionToggle(val uuid: String) : Click
+
+            data object OnSelectionExit : Click
+
+            data object OnBulkArchive : Click
+
+            data object OnBulkDelete : Click
+
+            data object OnBulkDeleteConfirm : Click
+
+            data object OnBulkDeleteDismiss : Click
         }
 
         sealed interface Navigation : Action {
@@ -88,5 +129,14 @@ internal interface AllExercisesStore : Store<State, Action, Event> {
         data class ShowArchiveBlocked(val trainings: List<String>) : Event
 
         data class ShowPermanentDeleteSuccess(val name: String) : Event
+
+        data class ShowBulkArchiveSuccess(val count: Int) : Event
+
+        data class ShowBulkArchiveBlocked(
+            val archivedCount: Int,
+            val blockedNames: List<String>,
+        ) : Event
+
+        data class ShowBulkDeleteSuccess(val count: Int) : Event
     }
 }

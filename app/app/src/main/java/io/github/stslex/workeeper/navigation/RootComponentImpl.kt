@@ -10,7 +10,7 @@ import io.github.stslex.workeeper.feature.charts.mvi.handler.ChartsComponent
 import io.github.stslex.workeeper.feature.exercise.mvi.handler.ExerciseComponent
 import io.github.stslex.workeeper.feature.settings.mvi.handler.ArchiveComponent
 import io.github.stslex.workeeper.feature.settings.mvi.handler.SettingsComponent
-import io.github.stslex.workeeper.feature.single_training.ui.mvi.handler.SingleTrainingComponent
+import io.github.stslex.workeeper.feature.single_training.mvi.handler.SingleTrainingComponent
 
 class RootComponentImpl(
     private val navigator: Navigator,

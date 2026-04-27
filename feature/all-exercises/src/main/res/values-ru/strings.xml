@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="DuplicateStrings">
     <string name="feature_all_exercises_title">Упражнения</string>
     <string name="feature_all_exercises_empty_headline">Пока нет упражнений</string>
     <string name="feature_all_exercises_empty_supporting">Нажмите +, чтобы создать первое упражнение</string>
@@ -21,5 +22,36 @@
         <item quantity="few">%d сессии</item>
         <item quantity="many">%d сессий</item>
         <item quantity="other">%d сессии</item>
+    </plurals>
+
+    <string name="feature_all_exercises_selection_close">Закрыть выбор</string>
+    <plurals name="feature_all_exercises_selected_count">
+        <item quantity="one">выбрано %d</item>
+        <item quantity="few">выбрано %d</item>
+        <item quantity="many">выбрано %d</item>
+        <item quantity="other">выбрано %d</item>
+    </plurals>
+    <string name="feature_all_exercises_bulk_archive">В архив</string>
+    <string name="feature_all_exercises_bulk_delete">Удалить</string>
+    <plurals name="feature_all_exercises_bulk_archive_success">
+        <item quantity="one">%d упражнение в архиве</item>
+        <item quantity="few">%d упражнения в архиве</item>
+        <item quantity="many">%d упражнений в архиве</item>
+        <item quantity="other">%d упражнения в архиве</item>
+    </plurals>
+    <string name="feature_all_exercises_bulk_archive_partial_format">В архиве: %1$d, не получилось: %2$s</string>
+    <string name="feature_all_exercises_bulk_delete_confirm_title">Удалить выбранные навсегда?</string>
+    <plurals name="feature_all_exercises_bulk_delete_confirm_body">
+        <item quantity="one">%d упражнение будет удалено навсегда. Это нельзя отменить.</item>
+        <item quantity="few">%d упражнения будут удалены навсегда. Это нельзя отменить.</item>
+        <item quantity="many">%d упражнений будут удалены навсегда. Это нельзя отменить.</item>
+        <item quantity="other">%d упражнения будут удалены навсегда. Это нельзя отменить.</item>
+    </plurals>
+    <string name="feature_all_exercises_bulk_delete_impact">История не пострадает</string>
+    <plurals name="feature_all_exercises_bulk_delete_success">
+        <item quantity="one">%d упражнение удалено</item>
+        <item quantity="few">%d упражнения удалены</item>
+        <item quantity="many">%d упражнений удалены</item>
+        <item quantity="other">%d упражнения удалены</item>
     </plurals>
 </resources>

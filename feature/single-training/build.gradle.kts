@@ -8,6 +8,7 @@ dependencies {
     implementation(project(":core:ui:kit"))
     implementation(project(":core:ui:mvi"))
     implementation(project(":core:ui:navigation"))
+    implementation(project(":core:database"))
     implementation(project(":core:exercise"))
 
     androidTestImplementation(libs.bundles.android.test)

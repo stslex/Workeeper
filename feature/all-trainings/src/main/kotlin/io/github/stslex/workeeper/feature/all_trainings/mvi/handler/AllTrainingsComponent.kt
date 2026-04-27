@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.all_trainings.mvi.handler
 
 import io.github.stslex.workeeper.core.ui.navigation.Component
