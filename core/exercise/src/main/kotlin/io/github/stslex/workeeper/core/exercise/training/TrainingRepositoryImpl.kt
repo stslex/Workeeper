@@ -34,26 +34,12 @@ class TrainingRepositoryImpl @Inject constructor(
     @IODispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : TrainingRepository {
 
-    // v3 has no name-LIKE paged search; ignores `query` and returns all template trainings.
-    override fun getTrainings(query: String): Flow<PagingData<TrainingDataModel>> = Pager(
-        config = pagingConfig,
-        pagingSourceFactory = dao::pagedTemplates,
-    ).flow
-        .map { pagingData -> pagingData.map { it.toData() } }
-        .flowOn(ioDispatcher)
-
     override fun getTrainingsUnique(query: String): Flow<PagingData<TrainingDataModel>> = Pager(
         config = pagingConfig,
         pagingSourceFactory = dao::pagedTemplates,
     ).flow
         .map { pagingData -> pagingData.map { it.toData() } }
         .flowOn(ioDispatcher)
-
-    // v3 has no autocomplete query; return empty until feature redesign.
-    override suspend fun searchTrainingsUnique(
-        query: String,
-        limit: Int,
-    ): List<TrainingDataModel> = emptyList()
 
     override suspend fun updateTraining(training: TrainingChangeDataModel) {
         withContext(ioDispatcher) {
@@ -100,13 +86,6 @@ class TrainingRepositoryImpl @Inject constructor(
     override suspend fun removeAll(uuids: List<String>) = withContext(ioDispatcher) {
         uuids.forEach { dao.permanentDelete(Uuid.parse(it)) }
     }
-
-    // v3 lacks date-range queries; this legacy overload currently returns no results.
-    override suspend fun getTrainings(
-        query: String,
-        startDate: Long,
-        endDate: Long,
-    ): List<TrainingDataModel> = emptyList()
 
     override suspend fun archive(uuid: String) {
         withContext(ioDispatcher) {

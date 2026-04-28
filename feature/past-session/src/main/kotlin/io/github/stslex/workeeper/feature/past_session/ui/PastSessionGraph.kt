@@ -26,6 +26,7 @@ fun NavGraphBuilder.pastSessionGraph(
             when (event) {
                 is Event.HapticClick -> haptic.performHapticFeedback(event.type)
                 is Event.ShowError -> SnackbarManager.showSnackbar(
+                    // TODO(tech-debt): UI mapping boundary — see documentation/tech-debt.md
                     message = when (event.errorType) {
                         ErrorType.SessionNotFound -> errorNotFound
                         ErrorType.LoadFailed -> errorLoadFailed

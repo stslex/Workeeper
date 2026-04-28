@@ -151,6 +151,7 @@ fun NavGraphBuilder.exerciseGraph(
                 }
 
                 is Event.ShowImageError -> {
+                    // TODO(tech-debt): UI mapping boundary — see documentation/tech-debt.md
                     val message = when (event.errorType) {
                         ImageErrorType.SaveFailed -> imageSaveFailed
                         ImageErrorType.LoadFailed -> imageLoadFailed

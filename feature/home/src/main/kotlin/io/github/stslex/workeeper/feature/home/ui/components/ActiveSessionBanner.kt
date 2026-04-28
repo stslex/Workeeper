@@ -65,6 +65,7 @@ internal fun ActiveSessionBanner(
                     )
                 }
                 Text(
+                    // TODO(tech-debt): UI mapping boundary — see documentation/tech-debt.md
                     text = stringResource(R.string.feature_home_active_session_label) + " · " +
                         stringResource(
                             R.string.feature_home_active_session_progress_format,

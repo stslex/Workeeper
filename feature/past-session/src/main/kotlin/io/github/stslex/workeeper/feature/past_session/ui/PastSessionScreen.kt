@@ -117,6 +117,7 @@ private fun ErrorContent(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // TODO(tech-debt): UI mapping boundary — see documentation/tech-debt.md
     val headlineRes = when (errorType) {
         ErrorType.SessionNotFound -> R.string.feature_past_session_error_not_found
         ErrorType.LoadFailed -> R.string.feature_past_session_error_load_failed

@@ -13,15 +13,11 @@ interface ExerciseRepository {
 
     val exercises: Flow<PagingData<ExerciseDataModel>>
 
-    fun getExercises(query: String): Flow<PagingData<ExerciseDataModel>>
-
     fun getUniqueExercises(query: String): Flow<PagingData<ExerciseDataModel>>
 
     suspend fun getExercisesByUuid(uuids: List<String>): List<ExerciseDataModel>
 
     suspend fun getExercise(uuid: String): ExerciseDataModel?
-
-    suspend fun getExercises(name: String, startDate: Long, endDate: Long): List<ExerciseDataModel>
 
     suspend fun saveItem(item: ExerciseChangeDataModel): SaveResult
 
@@ -41,8 +37,6 @@ interface ExerciseRepository {
     suspend fun clearWeightsFromAllPlansForExercise(exerciseUuid: String)
 
     suspend fun deleteItem(uuid: String)
-
-    suspend fun searchItemsWithExclude(query: String): List<ExerciseDataModel>
 
     /**
      * One-shot list of active exercises filtered by [query] (case-insensitive prefix on

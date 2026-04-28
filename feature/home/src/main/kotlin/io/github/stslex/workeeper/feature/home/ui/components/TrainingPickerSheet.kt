@@ -99,6 +99,7 @@ private fun PickerRow(
             style = AppUi.typography.titleMedium,
             color = AppUi.colors.textPrimary,
         )
+        // TODO(tech-debt): UI mapping boundary — see documentation/tech-debt.md
         val subtitle = listOfNotNull(
             template.exerciseCountLabel,
             template.lastSessionRelativeLabel,
