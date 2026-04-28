@@ -11,6 +11,7 @@ import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSetUiModel
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Action
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Event
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.State
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.collections.immutable.toImmutableList
@@ -23,6 +24,7 @@ internal class InputHandler @Inject constructor(
 ) : Handler<Action.Input>, PastSessionHandlerStore by store {
 
     private val persistJobs = mutableMapOf<String, Job>()
+    private val originalSets = mutableMapOf<String, PastSetUiModel>()
 
     override fun invoke(action: Action.Input) {
         when (action) {
@@ -32,9 +34,10 @@ internal class InputHandler @Inject constructor(
     }
 
     private fun processWeightChange(action: Action.Input.OnSetWeightChange) {
+        cancelPersist(action.setUuid)
         val parsed = action.raw.takeIf { it.isNotBlank() }?.toDoubleOrNull()
         val isValid = action.raw.isBlank() || (parsed != null && parsed >= 0.0)
-        val updatedSet = updateSetInState(action.setUuid) { set ->
+        val updatedSet = updateSetInState(action.setUuid, rememberOriginal = true) { set ->
             set.copy(weightInput = action.raw, weightError = !isValid)
         } ?: return
         if (isValid) {
@@ -43,9 +46,10 @@ internal class InputHandler @Inject constructor(
     }
 
     private fun processRepsChange(action: Action.Input.OnSetRepsChange) {
+        cancelPersist(action.setUuid)
         val parsed = action.raw.takeIf { it.isNotBlank() }?.toIntOrNull()
         val isValid = parsed != null && parsed > 0
-        val updatedSet = updateSetInState(action.setUuid) { set ->
+        val updatedSet = updateSetInState(action.setUuid, rememberOriginal = true) { set ->
             set.copy(repsInput = action.raw, repsError = !isValid)
         } ?: return
         if (isValid) {
@@ -55,6 +59,7 @@ internal class InputHandler @Inject constructor(
 
     private fun updateSetInState(
         setUuid: String,
+        rememberOriginal: Boolean = false,
         transform: (PastSetUiModel) -> PastSetUiModel,
     ): PastSetUiModel? {
         val current = state.value.phase as? State.Phase.Loaded ?: return null
@@ -67,6 +72,9 @@ internal class InputHandler @Inject constructor(
                     exercise.copy(
                         sets = exercise.sets.map { set ->
                             if (set.setUuid == setUuid) {
+                                if (rememberOriginal) {
+                                    originalSets.putIfAbsent(setUuid, set)
+                                }
                                 transform(set).also { resultSet = it }
                             } else {
                                 set
@@ -89,15 +97,26 @@ internal class InputHandler @Inject constructor(
         if (set.weightInput.isNotBlank() && weight == null) return
         if (set.weightError) return
 
-        persistJobs.remove(set.setUuid)?.cancel()
+        val originalSet = originalSets[set.setUuid] ?: set
         var persistJob: Job? = null
         persistJob = launch(
-            onError = { _ ->
+            onError = { throwable ->
+                if (throwable is CancellationException || persistJobs[set.setUuid] != persistJob) {
+                    clearPersistJob(set.setUuid, persistJob)
+                    return@launch
+                }
                 clearPersistJob(set.setUuid, persistJob)
+                restoreSetInState(originalSet)
+                originalSets.remove(set.setUuid)
                 sendEvent(Event.SaveFailedSnackbar)
             },
             onSuccess = {
+                if (persistJobs[set.setUuid] != persistJob) {
+                    clearPersistJob(set.setUuid, persistJob)
+                    return@launch
+                }
                 clearPersistJob(set.setUuid, persistJob)
+                originalSets.remove(set.setUuid)
             },
         ) {
             delay(DEBOUNCE_MILLIS)
@@ -115,10 +134,18 @@ internal class InputHandler @Inject constructor(
         persistJobs[set.setUuid] = persistJob
     }
 
+    private fun cancelPersist(setUuid: String) {
+        persistJobs.remove(setUuid)?.cancel()
+    }
+
     private fun clearPersistJob(setUuid: String, job: Job?) {
         if (persistJobs[setUuid] == job) {
             persistJobs.remove(setUuid)
         }
+    }
+
+    private fun restoreSetInState(set: PastSetUiModel) {
+        updateSetInState(set.setUuid) { set }
     }
 
     private companion object {
