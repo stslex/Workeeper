@@ -17,8 +17,8 @@ internal class NavigationHandler(
             Action.Navigation.Back -> navigator.popBack()
             is Action.Navigation.OpenExerciseDetail ->
                 navigator.navTo(Screen.Exercise(uuid = action.uuid))
-            // OpenSession lands on Past session detail (Stage 5.5). For now keep as no-op.
-            is Action.Navigation.OpenSession -> Unit
+            is Action.Navigation.OpenSession ->
+                navigator.navTo(Screen.PastSession(sessionUuid = action.sessionUuid))
             is Action.Navigation.OpenLiveWorkout -> navigator.navTo(
                 Screen.LiveWorkout(
                     sessionUuid = action.sessionUuid.takeIf { it.isNotBlank() },

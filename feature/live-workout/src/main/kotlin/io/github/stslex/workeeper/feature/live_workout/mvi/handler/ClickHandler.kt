@@ -293,7 +293,7 @@ internal class ClickHandler @Inject constructor(
                         message = resourceWrapper.getString(R.string.feature_live_workout_finish_success),
                     ),
                 )
-                consumeOnMain(Action.Navigation.Back)
+                consumeOnMain(Action.Navigation.OpenPastSession(sessionUuid = sessionUuid))
             },
             onError = { _ -> sendError(ErrorType.FinishFailed) },
         ) {
