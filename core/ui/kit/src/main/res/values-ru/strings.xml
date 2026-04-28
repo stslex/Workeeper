@@ -1,6 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="core_ui_kit_field_search">Поиск</string>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="core_ui_kit_action_cancel">Отмена</string>
+    <string name="core_ui_kit_action_save">Сохранить</string>
+    <string name="core_ui_kit_action_back">Назад</string>
 
-    <string name="core_ui_kit_snack_bar_dismiss">Отмена</string>
+    <string name="feature_exercise_detail_type_weighted">С весом</string>
+    <string name="feature_exercise_detail_type_weightless">Без веса</string>
+
+    <string name="core_ui_kit_plan_editor_title_format">%1$s · план</string>
+    <string name="core_ui_kit_plan_editor_title_default">План</string>
+    <string name="core_ui_kit_plan_editor_subtitle">Сеты подставятся в Live-тренировке. Записанные сеты обновят план.</string>
+    <string name="core_ui_kit_plan_editor_unit_kg">кг</string>
+    <string name="core_ui_kit_plan_editor_unit_reps">повт</string>
+    <string name="core_ui_kit_plan_editor_add_set">+ Добавить сет</string>
+    <string name="core_ui_kit_plan_editor_save">Сохранить план</string>
+    <string name="core_ui_kit_plan_editor_remove_set">Удалить сет</string>
+    <string name="core_ui_kit_plan_editor_set_type_warmup">Разминка</string>
+    <string name="core_ui_kit_plan_editor_set_type_work">Рабочий</string>
+    <string name="core_ui_kit_plan_editor_set_type_failure">Отказ</string>
+    <string name="core_ui_kit_plan_editor_set_type_drop" tools:ignore="UnusedResources">Дроп</string>
+    <string name="core_ui_kit_plan_editor_empty_hint">Сетов пока нет — нажмите «Добавить сет», чтобы создать план.</string>
 </resources>

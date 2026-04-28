@@ -1,5 +1,57 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="feature_all_trainings_empty_results">У вас пока нет упражнений</string>
-    <string name="feature_all_trainings_not_found_results">Не найдено упражений</string>
+    <string name="feature_all_trainings_title">Тренировки</string>
+    <string name="feature_all_trainings_empty_headline">Пока нет тренировок</string>
+    <string name="feature_all_trainings_empty_supporting">Нажмите +, чтобы создать первую тренировку</string>
+    <string name="feature_all_trainings_fab_create">Создать тренировку</string>
+    <string name="feature_all_trainings_chevron_description">Открыть тренировку</string>
+
+    <string name="feature_all_trainings_status_in_progress_format">в процессе · началась %1$s назад</string>
+    <string name="feature_all_trainings_status_last_format">последняя: %1$s</string>
+    <string name="feature_all_trainings_status_never">ещё не было</string>
+    <string name="feature_all_trainings_active_pill">Активна</string>
+    <string name="feature_all_trainings_overflow_format">+%1$d</string>
+
+    <string name="feature_all_trainings_relative_just_now">только что</string>
+    <string name="feature_all_trainings_relative_minutes_format">%1$d мин</string>
+    <string name="feature_all_trainings_relative_hours_format">%1$d ч</string>
+    <string name="feature_all_trainings_relative_days_format">%1$d дн</string>
+
+    <plurals name="feature_all_trainings_exercise_count">
+        <item quantity="one">%d упражнение</item>
+        <item quantity="few">%d упражнения</item>
+        <item quantity="many">%d упражнений</item>
+        <item quantity="other">%d упражнения</item>
+    </plurals>
+
+    <string name="feature_all_trainings_selection_close">Закрыть выбор</string>
+    <plurals name="feature_all_trainings_selected_count">
+        <item quantity="one">выбрана %d</item>
+        <item quantity="few">выбрано %d</item>
+        <item quantity="many">выбрано %d</item>
+        <item quantity="other">выбрано %d</item>
+    </plurals>
+    <string name="feature_all_trainings_bulk_archive">В архив</string>
+    <string name="feature_all_trainings_bulk_delete">Удалить</string>
+    <plurals name="feature_all_trainings_bulk_archive_success">
+        <item quantity="one">%d тренировка в архиве</item>
+        <item quantity="few">%d тренировки в архиве</item>
+        <item quantity="many">%d тренировок в архиве</item>
+        <item quantity="other">%d тренировки в архиве</item>
+    </plurals>
+    <string name="feature_all_trainings_bulk_archive_partial_format">В архиве: %1$d, не получилось: %2$s</string>
+    <string name="feature_all_trainings_bulk_delete_confirm_title">Удалить выбранные навсегда?</string>
+    <plurals name="feature_all_trainings_bulk_delete_confirm_body">
+        <item quantity="one">%d тренировка будет удалена навсегда. Это нельзя отменить.</item>
+        <item quantity="few">%d тренировки будут удалены навсегда. Это нельзя отменить.</item>
+        <item quantity="many">%d тренировок будут удалены навсегда. Это нельзя отменить.</item>
+        <item quantity="other">%d тренировки будут удалены навсегда. Это нельзя отменить.</item>
+    </plurals>
+    <string name="feature_all_trainings_bulk_delete_impact">История не пострадает</string>
+    <plurals name="feature_all_trainings_bulk_delete_success">
+        <item quantity="one">%d тренировка удалена</item>
+        <item quantity="few">%d тренировки удалены</item>
+        <item quantity="many">%d тренировок удалены</item>
+        <item quantity="other">%d тренировки удалены</item>
+    </plurals>
 </resources>

@@ -1,31 +1,44 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.exercise.exercise.model
 
+import io.github.stslex.workeeper.core.database.converters.PlanSetsConverter
 import io.github.stslex.workeeper.core.database.exercise.ExerciseEntity
+import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel.Companion.toData
 import kotlin.uuid.Uuid
 
 data class ExerciseDataModel(
     val uuid: String,
     val name: String,
-    val trainingUuid: String?,
-    val sets: List<SetsDataModel>,
-    val labels: List<String>,
+    val type: ExerciseTypeDataModel = ExerciseTypeDataModel.WEIGHTED,
+    val description: String? = null,
+    val imagePath: String? = null,
+    val archived: Boolean = false,
+    val archivedAt: Long? = null,
     val timestamp: Long,
+    val lastAdhocSets: List<PlanSetDataModel>?,
 )
 
-fun ExerciseEntity.toData(): ExerciseDataModel = ExerciseDataModel(
+internal fun ExerciseEntity.toData(): ExerciseDataModel = ExerciseDataModel(
     uuid = uuid.toString(),
     name = name,
-    trainingUuid = trainingUuid?.toString(),
-    labels = labels,
-    sets = sets.map { it.toData() },
-    timestamp = timestamp,
+    type = type.toData(),
+    description = description,
+    imagePath = imagePath,
+    archived = archived,
+    archivedAt = archivedAt,
+    timestamp = createdAt,
+    lastAdhocSets = lastAdhocSets?.let { PlanSetsConverter.fromJson(it) },
 )
 
-fun ExerciseDataModel.toEntity(): ExerciseEntity = ExerciseEntity(
+internal fun ExerciseDataModel.toEntity(): ExerciseEntity = ExerciseEntity(
     uuid = Uuid.parse(uuid),
     name = name,
-    trainingUuid = trainingUuid?.let(Uuid::parse),
-    sets = sets.map { it.toEntity() },
-    labels = labels,
-    timestamp = timestamp,
+    type = type.toEntity(),
+    description = description,
+    imagePath = imagePath,
+    archived = archived,
+    createdAt = timestamp,
+    archivedAt = archivedAt,
+    lastAdhocSets = lastAdhocSets?.let { PlanSetsConverter.toJson(it) },
 )

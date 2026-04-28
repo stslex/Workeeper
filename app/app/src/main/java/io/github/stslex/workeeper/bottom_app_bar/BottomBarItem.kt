@@ -14,10 +14,10 @@ enum class BottomBarItem(
     @DrawableRes val iconRes: Int,
     val screen: Screen.BottomBar,
 ) {
-    CHARTS(
-        titleRes = R.string.bottom_bar_label_charts,
+    HOME(
+        titleRes = R.string.bottom_bar_label_home,
         iconRes = R.drawable.ic_bottom_app_bar_chart_icon_24,
-        screen = Screen.BottomBar.Charts,
+        screen = Screen.BottomBar.Home,
     ),
     TRAININGS(
         titleRes = R.string.bottom_bar_label_trainings,

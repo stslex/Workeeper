@@ -1,77 +1,49 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.all_trainings.domain
 
-import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
+import io.github.stslex.workeeper.core.exercise.tags.TagRepository
 import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
+import io.github.stslex.workeeper.core.exercise.training.TrainingRepository.BulkArchiveOutcome
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import kotlin.uuid.Uuid
 
 internal class AllTrainingsInteractorImplTest {
 
-    private val testDispatcher = UnconfinedTestDispatcher()
-    private val trainingRepository = mockk<TrainingRepository>()
-    private val exerciseRepository = mockk<ExerciseRepository>()
-    private val interactor: AllTrainingsInteractor = AllTrainingsInteractorImpl(
+    private val trainingRepository = mockk<TrainingRepository>(relaxed = true)
+    private val tagRepository = mockk<TagRepository>(relaxed = true)
+    private val interactor = AllTrainingsInteractorImpl(
         trainingRepository = trainingRepository,
-        exerciseRepository = exerciseRepository,
-        defaultDispatcher = testDispatcher,
+        tagRepository = tagRepository,
+        defaultDispatcher = Dispatchers.Unconfined,
     )
 
-    @BeforeEach
-    fun bindMain() = Dispatchers.setMain(testDispatcher)
-
-    @AfterEach
-    fun unbindMain() = Dispatchers.resetMain()
-
     @Test
-    fun `delete all trainings with exercises`() = runTest(testDispatcher) {
-        val trainingsUuids = listOf(
-            Uuid.random().toString(),
-            Uuid.random().toString(),
-            Uuid.random().toString(),
-        )
+    fun `archiveTrainings delegates to repository bulkArchive`() = runTest {
+        coEvery { trainingRepository.bulkArchive(any()) } returns BulkArchiveOutcome(2, emptyList())
 
-        coEvery { exerciseRepository.deleteByTrainingsUuids(trainingsUuids) } returns Unit
-        coEvery { trainingRepository.removeAll(trainingsUuids) } returns Unit
+        val outcome = interactor.archiveTrainings(setOf("a", "b"))
 
-        interactor.deleteAll(trainingsUuids)
-
-        coVerify(exactly = 1) { exerciseRepository.deleteByTrainingsUuids(trainingsUuids) }
-        coVerify(exactly = 1) { trainingRepository.removeAll(trainingsUuids) }
+        assertEquals(2, outcome.archivedCount)
+        coVerify { trainingRepository.bulkArchive(setOf("a", "b")) }
     }
 
     @Test
-    fun `delete all with empty list`() = runTest(testDispatcher) {
-        val emptyList = emptyList<String>()
+    fun `deleteTrainings returns target count and delegates`() = runTest {
+        val outcome = interactor.deleteTrainings(setOf("a", "b"))
 
-        coEvery { exerciseRepository.deleteByTrainingsUuids(emptyList) } returns Unit
-        coEvery { trainingRepository.removeAll(emptyList) } returns Unit
-
-        interactor.deleteAll(emptyList)
-
-        coVerify(exactly = 1) { exerciseRepository.deleteByTrainingsUuids(emptyList) }
-        coVerify(exactly = 1) { trainingRepository.removeAll(emptyList) }
+        assertEquals(2, outcome)
+        coVerify { trainingRepository.bulkPermanentDelete(setOf("a", "b")) }
     }
 
     @Test
-    fun `delete all with single training`() = runTest(testDispatcher) {
-        val singleUuid = listOf(Uuid.random().toString())
-
-        coEvery { exerciseRepository.deleteByTrainingsUuids(singleUuid) } returns Unit
-        coEvery { trainingRepository.removeAll(singleUuid) } returns Unit
-
-        interactor.deleteAll(singleUuid)
-
-        coVerify(exactly = 1) { exerciseRepository.deleteByTrainingsUuids(singleUuid) }
-        coVerify(exactly = 1) { trainingRepository.removeAll(singleUuid) }
+    fun `canPermanentlyDelete delegates to repository`() = runTest {
+        coEvery { trainingRepository.canBulkPermanentDelete(any()) } returns true
+        assertTrue(interactor.canPermanentlyDelete(setOf("a")))
     }
 }

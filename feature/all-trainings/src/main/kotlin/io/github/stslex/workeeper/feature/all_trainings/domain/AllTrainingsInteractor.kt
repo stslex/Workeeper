@@ -1,12 +1,21 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.all_trainings.domain
 
 import androidx.paging.PagingData
-import io.github.stslex.workeeper.core.exercise.training.TrainingDataModel
+import io.github.stslex.workeeper.core.exercise.tags.model.TagDataModel
+import io.github.stslex.workeeper.core.exercise.training.TrainingListItem
+import io.github.stslex.workeeper.core.exercise.training.TrainingRepository.BulkArchiveOutcome
 import kotlinx.coroutines.flow.Flow
 
 internal interface AllTrainingsInteractor {
 
-    suspend fun deleteAll(trainingsUuids: List<String>)
+    fun observeTrainings(filterTagUuids: Set<String>): Flow<PagingData<TrainingListItem>>
 
-    fun getTrainings(query: String): Flow<PagingData<TrainingDataModel>>
+    fun observeAvailableTags(): Flow<List<TagDataModel>>
+
+    suspend fun archiveTrainings(uuids: Set<String>): BulkArchiveOutcome
+
+    suspend fun deleteTrainings(uuids: Set<String>): Int
+
+    suspend fun canPermanentlyDelete(uuids: Set<String>): Boolean
 }

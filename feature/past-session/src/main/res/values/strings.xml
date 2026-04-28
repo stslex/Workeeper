@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="feature_past_session_loading_title">Past session</string>
+    <string name="feature_past_session_adhoc_label">Ad-hoc workout</string>
+
+    <string name="feature_past_session_error_not_found">Session not found</string>
+    <string name="feature_past_session_error_load_failed">Could not load session</string>
+    <string name="feature_past_session_action_retry">Retry</string>
+    <string name="feature_past_session_action_delete">Delete</string>
+
+    <string name="feature_past_session_delete_dialog_title">Delete session?</string>
+    <string name="feature_past_session_delete_dialog_body">This permanently removes the session and all its sets. The training template is unchanged.</string>
+
+    <string name="feature_past_session_deleted_snackbar">Session deleted</string>
+    <string name="feature_past_session_save_failed_snackbar">Could not save change — try again</string>
+
+    <string name="feature_past_session_skipped_chip">Skipped</string>
+    <string name="feature_past_session_no_sets">No sets logged</string>
+
+    <string name="feature_past_session_volume_label">%1$s kg total</string>
+    <string name="feature_past_session_totals_format">%1$s · %2$s</string>
+
+    <plurals name="feature_past_session_exercises_count">
+        <item quantity="one">%d exercise</item>
+        <item quantity="other">%d exercises</item>
+    </plurals>
+
+    <plurals name="feature_past_session_sets_count">
+        <item quantity="one">%d set</item>
+        <item quantity="other">%d sets</item>
+    </plurals>
+</resources>

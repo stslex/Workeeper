@@ -16,8 +16,13 @@ import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.all_exercises.ui.allExercisesGraph
 import io.github.stslex.workeeper.feature.all_trainings.ui.allTrainingsGraph
-import io.github.stslex.workeeper.feature.charts.ui.chartsGraph
 import io.github.stslex.workeeper.feature.exercise.ui.exerciseGraph
+import io.github.stslex.workeeper.feature.home.ui.homeGraph
+import io.github.stslex.workeeper.feature.image_viewer.ui.imageViewerGraph
+import io.github.stslex.workeeper.feature.live_workout.ui.liveWorkoutGraph
+import io.github.stslex.workeeper.feature.past_session.ui.pastSessionGraph
+import io.github.stslex.workeeper.feature.settings.ui.archiveGraph
+import io.github.stslex.workeeper.feature.settings.ui.settingsGraph
 import io.github.stslex.workeeper.feature.single_training.ui.singleTrainingsGraph
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -37,12 +42,11 @@ internal fun AppNavigationHost(
         NavHost(
             modifier = Modifier.fillMaxSize(),
             navController = navigator.navController,
-            startDestination = Screen.BottomBar.Charts,
+            startDestination = Screen.BottomBar.Home,
         ) {
-            chartsGraph(
+            homeGraph(
                 modifier = bottomBarModifier
-                    .testTag("ChartsGraph"),
-                sharedTransitionScope = this@SharedTransitionLayout,
+                    .testTag("HomeGraph"),
             )
             allTrainingsGraph(
                 modifier = bottomBarModifier
@@ -63,6 +67,21 @@ internal fun AppNavigationHost(
                 modifier = Modifier
                     .testTag("ExerciseGraph"),
                 sharedTransitionScope = this@SharedTransitionLayout,
+            )
+            liveWorkoutGraph(
+                modifier = Modifier.testTag("LiveWorkoutGraph"),
+            )
+            pastSessionGraph(
+                modifier = Modifier.testTag("PastSessionGraph"),
+            )
+            imageViewerGraph(
+                modifier = Modifier.testTag("ImageViewerGraph"),
+            )
+            settingsGraph(
+                modifier = Modifier.testTag("SettingsGraph"),
+            )
+            archiveGraph(
+                modifier = Modifier.testTag("ArchiveGraph"),
             )
         }
     }

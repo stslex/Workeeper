@@ -16,6 +16,7 @@ enum class ScopeClassType(
             "Repository",
             "DataStore",
             "Database",
+            "Storage",
             "StoreDispatchers",
         )
         private val viewModelScopedClasses = listOf(

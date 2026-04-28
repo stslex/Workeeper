@@ -1,0 +1,7 @@
+- ✨ enhance zoomable image handling with updated state management
+- ✨ add fullscreen exercise image viewer
+- ✨ image attachment (v1.5)
+- ✨ implement Stage 5.5 for Home dashboard and Past session detail
+- 🐛 wrap getSessionDetail in db.withTransaction
+- 🐛 revert state on persist failure
+- 🐛 debounce edit-set persist

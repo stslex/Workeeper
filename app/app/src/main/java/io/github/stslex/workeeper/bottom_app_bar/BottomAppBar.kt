@@ -85,7 +85,7 @@ private fun BottomAppBarItem(
 ) {
     @Composable
     fun <T : Any> animationSpec(): AnimationSpec<T> = tween(
-        durationMillis = AppUi.uiFeatures.defaultAnimationDuration,
+        durationMillis = AppUi.motion.deliberate,
         easing = FastOutSlowInEasing,
     )
 

@@ -3,96 +3,58 @@ package io.github.stslex.workeeper.core.database.exercise
 import androidx.paging.PagingSource
 import androidx.room.Dao
 import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 import kotlin.uuid.Uuid
 
 @Dao
 interface ExerciseDao {
 
-    @Query("SELECT * FROM exercises_table ORDER BY timestamp DESC")
-    fun getAll(): PagingSource<Int, ExerciseEntity>
+    @Query("SELECT * FROM exercise_table WHERE archived = 0 ORDER BY name COLLATE NOCASE ASC")
+    fun pagedActive(): PagingSource<Int, ExerciseEntity>
 
-    @Query("SELECT * FROM exercises_table WHERE name LIKE '%' || :query || '%' ORDER BY timestamp DESC")
-    fun getAll(query: String): PagingSource<Int, ExerciseEntity>
+    @Query("SELECT * FROM exercise_table WHERE archived = 0 ORDER BY name COLLATE NOCASE ASC")
+    suspend fun getAllActive(): List<ExerciseEntity>
 
     @Query(
         """
-        SELECT e1.* FROM exercises_table e1
-        INNER JOIN (
-            SELECT name, MAX(timestamp) as max_timestamp
-            FROM exercises_table
-            WHERE name LIKE '%' || :query || '%'
-            GROUP BY name
-        ) e2 ON e1.name = e2.name AND e1.timestamp = e2.max_timestamp
-        ORDER BY e1.timestamp DESC
-    """,
+        SELECT e.* FROM exercise_table e
+        JOIN exercise_tag_table et ON et.exercise_uuid = e.uuid
+        WHERE e.archived = 0 AND et.tag_uuid IN (:tagUuids)
+        GROUP BY e.uuid
+        ORDER BY e.name COLLATE NOCASE ASC
+        """,
     )
-    fun getAllUnique(query: String): PagingSource<Int, ExerciseEntity>
+    fun pagedActiveByTags(tagUuids: List<Uuid>): PagingSource<Int, ExerciseEntity>
 
-    @Query("SELECT * FROM exercises_table WHERE uuid = :uuid")
-    suspend fun getExercise(uuid: Uuid): ExerciseEntity?
+    @Query("SELECT * FROM exercise_table WHERE archived = 1 ORDER BY name COLLATE NOCASE ASC")
+    fun pagedArchived(): PagingSource<Int, ExerciseEntity>
 
-    @Query("SELECT * FROM exercises_table WHERE uuid IN (:uuids)")
+    @Query("SELECT COUNT(*) FROM exercise_table WHERE archived = 1")
+    fun observeArchivedCount(): Flow<Int>
+
+    @Query("SELECT * FROM exercise_table WHERE uuid = :uuid")
+    suspend fun getById(uuid: Uuid): ExerciseEntity?
+
+    @Query("SELECT * FROM exercise_table WHERE uuid IN (:uuids)")
     suspend fun getByUuids(uuids: List<Uuid>): List<ExerciseEntity>
 
-    @Query("SELECT * FROM exercises_table WHERE name = :name ORDER BY timestamp DESC LIMIT 1")
-    suspend fun getExerciseByName(name: String): ExerciseEntity?
+    @Insert
+    suspend fun insert(exercise: ExerciseEntity)
 
-    @Query(
-        """
-            SELECT * FROM exercises_table 
-            WHERE name LIKE '%' || :name || '%' 
-            AND timestamp BETWEEN :startDate AND :endDate 
-            ORDER BY timestamp DESC
-            """,
-    )
-    suspend fun getExercises(name: String, startDate: Long, endDate: Long): List<ExerciseEntity>
+    @Update
+    suspend fun update(exercise: ExerciseEntity)
 
-    @Query(
-        """
-            SELECT * FROM exercises_table 
-            WHERE name = :name 
-            AND timestamp BETWEEN :startDate AND :endDate 
-            ORDER BY timestamp DESC
-            """,
-    )
-    fun getExercisesExactly(
-        name: String,
-        startDate: Long,
-        endDate: Long,
-    ): Flow<List<ExerciseEntity>>
+    @Query("UPDATE exercise_table SET last_adhoc_sets = :lastAdhocSets WHERE uuid = :uuid")
+    suspend fun updateLastAdhocSets(uuid: Uuid, lastAdhocSets: String?)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun create(exercise: ExerciseEntity)
+    @Query("UPDATE exercise_table SET archived = 1, archived_at = :archivedAt WHERE uuid = :uuid")
+    suspend fun archive(uuid: Uuid, archivedAt: Long)
 
-    @Query("DELETE FROM exercises_table WHERE uuid = :uuid")
-    suspend fun delete(uuid: Uuid)
+    @Query("UPDATE exercise_table SET archived = 0, archived_at = NULL WHERE uuid = :uuid")
+    suspend fun restore(uuid: Uuid)
 
-    @Query("DELETE FROM exercises_table WHERE uuid IN (:uuid)")
-    suspend fun delete(uuid: List<Uuid>)
-
-    @Query("DELETE FROM exercises_table WHERE training_uuid = :trainingUuid")
-    suspend fun deleteAllByTraining(trainingUuid: Uuid)
-
-    @Query("DELETE FROM exercises_table WHERE training_uuid in (:trainingUuid)")
-    suspend fun deleteAllByTrainings(trainingUuid: List<Uuid>)
-
-    @Query(
-        """
-        SELECT e1.* FROM exercises_table e1
-        INNER JOIN (
-            SELECT name, MAX(timestamp) as max_timestamp
-            FROM exercises_table
-            WHERE name LIKE '%' || :query || '%'
-            AND name != :query
-            GROUP BY name
-            ORDER BY max_timestamp DESC
-            LIMIT 10
-        ) e2 ON e1.name = e2.name AND e1.timestamp = e2.max_timestamp
-        ORDER BY e1.timestamp DESC
-    """,
-    )
-    suspend fun searchUniqueExclude(query: String): List<ExerciseEntity>
+    @Query("DELETE FROM exercise_table WHERE uuid = :uuid")
+    suspend fun permanentDelete(uuid: Uuid)
 }

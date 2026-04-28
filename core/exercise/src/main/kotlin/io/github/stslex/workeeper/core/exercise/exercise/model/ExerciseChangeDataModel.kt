@@ -1,23 +1,30 @@
 package io.github.stslex.workeeper.core.exercise.exercise.model
 
-import io.github.stslex.workeeper.core.core.utils.CommonExt.parseOrRandom
+import io.github.stslex.workeeper.core.database.converters.PlanSetsConverter
 import io.github.stslex.workeeper.core.database.exercise.ExerciseEntity
+import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import kotlin.uuid.Uuid
 
 data class ExerciseChangeDataModel(
-    val uuid: String? = null,
+    val uuid: Uuid,
     val name: String,
-    val trainingUuid: String?,
-    val sets: List<SetsDataModel>,
-    val labels: List<String>,
+    val type: ExerciseTypeDataModel = ExerciseTypeDataModel.WEIGHTED,
+    val description: String? = null,
+    val imagePath: String? = null,
+    val archived: Boolean = false,
     val timestamp: Long,
+    val labels: List<String> = emptyList(),
+    val lastAdHocSets: List<PlanSetDataModel>?,
 )
 
-fun ExerciseChangeDataModel.toEntity(): ExerciseEntity = ExerciseEntity(
-    uuid = Uuid.parseOrRandom(uuid),
+internal fun ExerciseChangeDataModel.toEntity(): ExerciseEntity = ExerciseEntity(
+    uuid = uuid,
     name = name,
-    trainingUuid = trainingUuid?.let { Uuid.parse(it) },
-    sets = sets.map { it.toEntity() },
-    labels = labels,
-    timestamp = timestamp,
+    type = type.toEntity(),
+    description = description,
+    imagePath = imagePath,
+    archived = archived,
+    createdAt = timestamp,
+    archivedAt = null,
+    lastAdhocSets = PlanSetsConverter.toJson(lastAdHocSets),
 )

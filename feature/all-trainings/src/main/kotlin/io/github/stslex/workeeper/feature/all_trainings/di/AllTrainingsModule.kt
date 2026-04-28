@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.all_trainings.di
 
 import dagger.Binds
@@ -18,5 +19,5 @@ internal interface AllTrainingsModule {
 
     @Binds
     @ViewModelScoped
-    fun bindHandlerStore(impl: TrainingHandlerStoreImpl): TrainingHandlerStore
+    fun bindHandlerStore(impl: AllTrainingsHandlerStoreImpl): AllTrainingsHandlerStore
 }

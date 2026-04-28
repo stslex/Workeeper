@@ -21,9 +21,13 @@ dependencies {
 
     implementation(project(":feature:exercise"))
     implementation(project(":feature:all-trainings"))
-    implementation(project(":feature:charts"))
     implementation(project(":feature:all-exercises"))
     implementation(project(":feature:single-training"))
+    implementation(project(":feature:settings"))
+    implementation(project(":feature:home"))
+    implementation(project(":feature:live-workout"))
+    implementation(project(":feature:past-session"))
+    implementation(project(":feature:image-viewer"))
 
     implementation(platform(libs.google.firebase.bom))
     implementation(libs.google.firebase.analytics)

@@ -24,7 +24,7 @@ sealed interface Screen {
             get() = true
 
         @Serializable
-        data object Charts : BottomBar
+        data object Home : BottomBar
 
         @Serializable
         data object AllExercises : BottomBar
@@ -41,7 +41,39 @@ sealed interface Screen {
     @Serializable
     data class Exercise(
         val uuid: String?,
+    ) : Screen
+
+    /**
+     * Live workout screen. At least one of [sessionUuid] / [trainingUuid] must be non-null:
+     *  - `sessionUuid` non-null: resume the in-progress session.
+     *  - `sessionUuid` null + `trainingUuid` non-null: create a fresh session for that
+     *    training.
+     */
+    @Serializable
+    data class LiveWorkout(
+        val sessionUuid: String?,
         val trainingUuid: String?,
+    ) : Screen
+
+    @Serializable
+    data object Settings : Screen
+
+    @Serializable
+    data object Archive : Screen
+
+    @Serializable
+    data class PastSession(
+        val sessionUuid: String,
+    ) : Screen
+
+    /**
+     * Full-screen image viewer. [model] is either an absolute file path
+     * (`filesDir/exercise_images/<uuid>.jpg`) or a content URI string
+     * (e.g. from `PickVisualMedia`); Coil resolves both transparently.
+     */
+    @Serializable
+    data class ExerciseImage(
+        val model: String,
     ) : Screen
 
     companion object {

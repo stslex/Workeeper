@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="feature_image_viewer_back">Back</string>
+    <string name="feature_image_viewer_content_description">Exercise image, full size</string>
+    <string name="feature_image_viewer_unavailable">Image unavailable</string>
+</resources>

@@ -48,6 +48,22 @@ the same tasks:
 - [`refactor-with-mvi-rules`](.claude/skills/refactor-with-mvi-rules.md) — resolve a custom
   Detekt rule violation.
 
+## Required skill usage
+
+For any task that matches a workflow in `.claude/skills/`, agents must read and follow the
+relevant skill file before making changes.
+
+Use this mapping:
+
+- New feature or `feature/<name>` module work: `.claude/skills/add-feature.md`
+- JUnit 5 tests for MVI handlers or `*StoreImpl`: `.claude/skills/write-handler-test.md`
+- Compose UI smoke tests: `.claude/skills/write-ui-test.md`
+- Room schema migrations and migration tests: `.claude/skills/add-database-migration.md`
+- Refactors driven by custom MVI/Detekt rules: `.claude/skills/refactor-with-mvi-rules.md`
+
+If multiple skills apply, use the most specific one first, then combine the others as needed.
+If no listed skill applies, continue with the normal repository instructions.
+
 ## Current focus
 
 - `master` is the release branch; ongoing work targets `dev`.

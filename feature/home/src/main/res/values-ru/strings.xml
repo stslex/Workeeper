@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="feature_home_title">Главная</string>
+    <string name="feature_home_active_session_label">Сессия в процессе</string>
+    <string name="feature_home_active_session_progress_format">%1$d из %2$d</string>
+    <string name="feature_home_empty_headline">Готовы тренироваться</string>
+    <string name="feature_home_empty_supporting">Начните тренировку, чтобы записать первую сессию</string>
+    <string name="feature_home_settings">Настройки</string>
+
+    <string name="feature_home_start_cta_title">Начать тренировку</string>
+    <string name="feature_home_start_cta_subtitle">Выберите шаблон тренировки</string>
+    <string name="feature_home_recent_adhoc_label">Свободная тренировка</string>
+    <string name="feature_home_recent_stats_format">%1$s · %2$s</string>
+
+    <string name="feature_home_picker_title">Выберите тренировку</string>
+    <string name="feature_home_picker_see_all">Все шаблоны</string>
+    <string name="feature_home_picker_empty">Пока нет шаблонов</string>
+
+    <plurals name="feature_home_recent_exercises_count">
+        <item quantity="one">%d упражнение</item>
+        <item quantity="few">%d упражнения</item>
+        <item quantity="many">%d упражнений</item>
+        <item quantity="other">%d упражнений</item>
+    </plurals>
+
+    <plurals name="feature_home_recent_sets_count">
+        <item quantity="one">%d подход</item>
+        <item quantity="few">%d подхода</item>
+        <item quantity="many">%d подходов</item>
+        <item quantity="other">%d подходов</item>
+    </plurals>
+</resources>

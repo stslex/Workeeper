@@ -1,0 +1,6 @@
+- ✨ enhance workout session management and UI updates
+- ✨ streamline exercise data handling and improve UI models
+- ✨ update AppPlanEditor parameters and enhance architectural documentation
+- ♻️ clean up code by removing unnecessary newlines and improving formatting
+- ✨ introduce PlanSet and ExerciseType UI models for plan editor
+- ♻️ make AppPlanEditor stateless and unify discard

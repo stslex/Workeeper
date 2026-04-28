@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="feature_settings_title">Настройки</string>
+
+    <string name="feature_settings_section_about">О приложении</string>
+    <string name="feature_settings_section_appearance">Внешний вид</string>
+    <string name="feature_settings_section_data">Данные</string>
+
+    <string name="feature_settings_theme_system">Как в системе</string>
+    <string name="feature_settings_theme_light">Светлая</string>
+    <string name="feature_settings_theme_dark">Тёмная</string>
+
+    <string name="feature_settings_about_app_name">Workeeper</string>
+    <string name="feature_settings_about_version_format">Версия %1$s (%2$d)</string>
+    <string name="feature_settings_about_license">Лицензия GPLv3</string>
+    <string name="feature_settings_about_github">Открыть на GitHub</string>
+    <string name="feature_settings_about_privacy">Политика конфиденциальности</string>
+
+    <string name="feature_archive_title">Архив</string>
+    <string name="feature_archive_action_more">Ещё</string>
+    <string name="feature_archive_segment_exercises">Упражнения (%1$d)</string>
+    <string name="feature_archive_segment_trainings">Тренировки (%1$d)</string>
+
+    <string name="feature_archive_action_restore">Восстановить</string>
+    <string name="feature_archive_action_permanent_delete">Удалить навсегда</string>
+
+    <string name="feature_archive_label_archived">В архиве</string>
+    <string name="feature_archive_label_archived_relative_format">Архивировано %1$s</string>
+
+    <string name="feature_archive_empty_headline">Архив пуст</string>
+    <string name="feature_archive_empty_supporting_exercises">Здесь будут архивированные упражнения — для восстановления или удаления навсегда.</string>
+    <string name="feature_archive_empty_supporting_trainings">Здесь будут архивированные тренировки — для восстановления или удаления навсегда.</string>
+
+    <string name="feature_archive_dialog_permanent_delete_title">Удалить «%1$s» навсегда?</string>
+    <string name="feature_archive_dialog_permanent_delete_body_no_history">Это действие нельзя отменить.</string>
+    <string name="feature_archive_dialog_impact_summary_empty">Сессии истории не затронуты</string>
+    <string name="feature_archive_dialog_confirm_delete">Удалить</string>
+
+    <string name="feature_archive_snackbar_restored_format">«%1$s» восстановлено</string>
+    <string name="feature_archive_snackbar_deleted_format">«%1$s» удалено навсегда</string>
+    <string name="feature_archive_snackbar_undo">Отменить</string>
+
+    <plurals name="feature_archive_session_count">
+        <item quantity="one">%d сессия</item>
+        <item quantity="few">%d сессии</item>
+        <item quantity="many">%d сессий</item>
+        <item quantity="other">%d сессии</item>
+    </plurals>
+
+    <plurals name="feature_archive_dialog_permanent_delete_body_with_history">
+        <item quantity="one">Также будет удалена %1$d сессия истории. Это действие нельзя отменить.</item>
+        <item quantity="few">Также будут удалены %1$d сессии истории. Это действие нельзя отменить.</item>
+        <item quantity="many">Также будет удалено %1$d сессий истории. Это действие нельзя отменить.</item>
+        <item quantity="other">Также будет удалено %1$d сессии истории. Это действие нельзя отменить.</item>
+    </plurals>
+</resources>

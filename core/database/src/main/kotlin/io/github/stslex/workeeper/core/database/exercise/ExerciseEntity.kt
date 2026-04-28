@@ -2,23 +2,36 @@ package io.github.stslex.workeeper.core.database.exercise
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
-import io.github.stslex.workeeper.core.database.exercise.model.SetsEntity
 import kotlin.uuid.Uuid
 
-@Entity(tableName = "exercises_table")
+@Entity(
+    tableName = "exercise_table",
+    indices = [
+        Index(value = ["archived", "name"]),
+        Index(value = ["archived"]),
+        Index(value = ["name"], unique = true),
+    ],
+)
 data class ExerciseEntity(
-    @PrimaryKey(autoGenerate = false)
+    @PrimaryKey
     @ColumnInfo(name = "uuid")
     val uuid: Uuid = Uuid.random(),
-    @ColumnInfo(name = "training_uuid")
-    val trainingUuid: Uuid?,
-    @ColumnInfo(name = "labels")
-    val labels: List<String>,
-    @ColumnInfo(name = "sets")
-    val sets: List<SetsEntity>,
-    @ColumnInfo(name = "name")
+    @ColumnInfo(name = "name", collate = ColumnInfo.NOCASE)
     val name: String,
-    @ColumnInfo(name = "timestamp")
-    val timestamp: Long,
+    @ColumnInfo(name = "type")
+    val type: ExerciseTypeEntity,
+    @ColumnInfo(name = "description")
+    val description: String?,
+    @ColumnInfo(name = "image_path")
+    val imagePath: String?,
+    @ColumnInfo(name = "archived", defaultValue = "0")
+    val archived: Boolean,
+    @ColumnInfo(name = "created_at")
+    val createdAt: Long,
+    @ColumnInfo(name = "archived_at")
+    val archivedAt: Long?,
+    @ColumnInfo(name = "last_adhoc_sets")
+    val lastAdhocSets: String?,
 )

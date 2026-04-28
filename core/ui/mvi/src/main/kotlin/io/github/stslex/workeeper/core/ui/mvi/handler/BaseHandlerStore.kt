@@ -7,6 +7,7 @@ import io.github.stslex.workeeper.core.ui.mvi.Store.Event
 import io.github.stslex.workeeper.core.ui.mvi.Store.State
 import io.github.stslex.workeeper.core.ui.mvi.store.StoreConsumer
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.withContext
 
 open class BaseHandlerStore<S : State, A : Action, E : Event> :
     HandlerStore<S, A, E>,
@@ -34,6 +35,12 @@ open class BaseHandlerStore<S : State, A : Action, E : Event> :
 
     override fun consume(action: A) {
         store.consume(action)
+    }
+
+    override suspend fun consumeOnMain(action: A) {
+        withContext(store.scope.immediateDispatcher) {
+            store.consume(action)
+        }
     }
 
     override fun updateState(update: (S) -> S) {

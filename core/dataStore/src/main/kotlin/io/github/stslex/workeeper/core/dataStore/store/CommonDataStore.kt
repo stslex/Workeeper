@@ -8,7 +8,11 @@ interface CommonDataStore {
 
     val homeSelectedEndDate: Flow<Long?>
 
+    val themePreference: Flow<String>
+
     suspend fun setHomeSelectedStartDate(value: Long)
 
     suspend fun setHomeSelectedEndDate(value: Long)
+
+    suspend fun setThemePreference(value: String)
 }

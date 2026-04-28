@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: GPL-3.0-only
+package io.github.stslex.workeeper.feature.home.ui
+
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.navigation.NavGraphBuilder
+import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
+import io.github.stslex.workeeper.feature.home.di.HomeFeature
+import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Action
+import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Event
+import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.State
+import io.github.stslex.workeeper.feature.home.ui.components.TrainingPickerSheet
+
+fun NavGraphBuilder.homeGraph(
+    modifier: Modifier = Modifier,
+) {
+    navComponentScreen(HomeFeature) { processor ->
+        val haptic = LocalHapticFeedback.current
+
+        processor.Handle { event ->
+            when (event) {
+                is Event.HapticClick -> haptic.performHapticFeedback(event.type)
+            }
+        }
+
+        val state = processor.state.value
+        HomeScreen(
+            modifier = modifier,
+            state = state,
+            consume = processor::consume,
+        )
+
+        (state.picker as? State.PickerState.Visible)?.let { visible ->
+            TrainingPickerSheet(
+                state = visible,
+                onSelect = { uuid ->
+                    processor.consume(Action.Click.OnPickerTrainingSelected(trainingUuid = uuid))
+                },
+                onSeeAll = { processor.consume(Action.Click.OnPickerSeeAllClick) },
+                onDismiss = { processor.consume(Action.Click.OnPickerDismiss) },
+            )
+        }
+    }
+}

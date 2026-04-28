@@ -1,4 +1,5 @@
 [![Android CI/CD](https://github.com/stslex/Workeeper/actions/workflows/android_build_unified.yml/badge.svg)](https://github.com/stslex/Workeeper/actions/workflows/android_build_unified.yml)
+[![License: GPLv3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
 
 <div align="center">
 
@@ -92,4 +93,5 @@ in CI; see [documentation/testing.md](documentation/testing.md) and
 
 ## License
 
-This project is licensed under the terms of the [LICENSE](LICENSE) file.
+This project is licensed under the GNU General Public License v3.0. See the
+[LICENSE](LICENSE) file for the full text.
