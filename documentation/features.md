@@ -6,10 +6,10 @@ limitations. For the architectural pattern these features share, see
 [architecture.md](architecture.md).
 
 The bottom navigation bar (`app/app/src/main/java/io/github/stslex/workeeper/bottom_app_bar/BottomBarItem.kt`)
-exposes three top-level entries that map to bottom-bar screens: `CHARTS` →
-`Screen.BottomBar.Charts`, `TRAININGS` → `Screen.BottomBar.AllTrainings`, `EXERCISES` →
-`Screen.BottomBar.AllExercises`. The other two destinations (`Screen.Training`,
-`Screen.Exercise`) are reached by navigating from a list or by creating a new item.
+exposes three top-level entries that map to bottom-bar screens: `HOME` →
+`Screen.BottomBar.Home`, `TRAININGS` → `Screen.BottomBar.AllTrainings`, `EXERCISES` →
+`Screen.BottomBar.AllExercises`. Detail destinations such as `Screen.Training` and
+`Screen.Exercise` are reached by navigating from a list or by creating a new item.
 
 ## All trainings
 
@@ -208,56 +208,11 @@ single training.
   the current state differs from `initialHash`). Adding new `State` fields requires updating
   the hash calculation in the contract file or the dirty-check will silently miss them.
 
-## Charts
-
-**Path:** `feature/charts`
-
-**Purpose:** Visualize progress over time. The user picks a chart type
-(training-aggregate or per-exercise), sets a date range, and sees the resulting chart pages.
-
-**Primary user actions**
-
-- Initialize and load data (`Action.Paging.Init`).
-- Switch chart type (`Action.Click.ChangeType`) — `ChartsType` is `TRAINING` or `EXERCISE`.
-- Tap the chart header (`Action.Click.ChartsHeader`).
-- Open / close the calendar (`Action.Click.Calendar.{StartDate, EndDate, Close}`); pick dates
-  via `Action.Input.{ChangeStartDate, ChangeEndDate}`.
-- Type a query when filtering by exercise (`Action.Input.Query`).
-- Track the current chart pager position
-  (`Action.Input.CurrentChartPageChange`).
-
-**MVI surface**
-
-- Contract: `feature/charts/src/main/kotlin/io/github/stslex/workeeper/feature/charts/mvi/store/ChartsStore.kt`
-- Store impl: `feature/charts/.../mvi/store/ChartsStoreImpl.kt`
-- Handlers: `feature/charts/.../mvi/handler/{Click,Input,Navigation,Paging}Handler.kt`
-- DI: `feature/charts/.../di/ChartsModule.kt`,
-  `ChartsHandlerStore.kt`, `ChartsHandlerStoreImpl.kt`,
-  `ChartsStoreProcessor.kt`
-- Screen entry: `feature/charts/.../ui/ChartsScreenWidget.kt`,
-  with `ui/components/{ChartsCanvaWidget, ChartsScreenBodyWidget,
-  ChartsTypePickerWidget, DatePickersWidget, EmptyWidget}.kt`.
-
-**State fields:** `name`, `chartState: ChartsState`, `startDate: PropertyHolder.DateProperty`,
-`endDate: PropertyHolder.DateProperty`, `type: ChartsType`, `calendarState: CalendarState`.
-
-**Events:** `HapticFeedback`, `ScrollChartPager`, `ScrollChartHeader`.
-
-**Repositories injected:** `TrainingRepository`, `ExerciseRepository`.
-
-**UI tests:**
-`feature/charts/src/androidTest/kotlin/io/github/stslex/workeeper/feature/charts/ChartsScreenTest.kt`.
-
-**Known limitations**
-
-- `Action.Navigation` is currently an empty sealed surface; the charts screen does not navigate
-  away on its own. New navigation targets need to be added to the contract first.
-
 ## Cross-feature flows
 
-- **Bottom-bar tabs** are the three `Screen.BottomBar` destinations (`Charts`, `AllExercises`,
+- **Bottom-bar tabs** are the three `Screen.BottomBar` destinations (`Home`, `AllExercises`,
   `AllTrainings`) declared in
-  `core/ui/navigation/src/main/kotlin/io.github/stslex/workeeper/core/ui/navigation/Screen.kt`.
+  `core/ui/navigation/src/main/kotlin/io.github.stslex.workeeper/core/ui/navigation/Screen.kt`.
 - **Training → exercise drill-down**: from `feature/all-trainings` the user opens
   `Screen.Training` (`feature/single-training`); from there `Action.Navigation.OpenExercise`
   routes to `Screen.Exercise(uuid, trainingUuid)` (`feature/exercise`).

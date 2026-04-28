@@ -101,7 +101,7 @@ class TrainingRepositoryImpl @Inject constructor(
         uuids.forEach { dao.permanentDelete(Uuid.parse(it)) }
     }
 
-    // v3 lacks date-range queries; charts will surface empty until v1 feature rewrite.
+    // v3 lacks date-range queries; this legacy overload currently returns no results.
     override suspend fun getTrainings(
         query: String,
         startDate: Long,

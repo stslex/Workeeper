@@ -29,7 +29,3 @@ Tracked `TODO(tech-debt)` locations:
   - History date formatting is currently performed in UI component.
 - [feature/live-workout/src/main/kotlin/io/github/stslex/workeeper/feature/live_workout/ui/components/LiveExerciseCard.kt](../feature/live-workout/src/main/kotlin/io/github/stslex/workeeper/feature/live_workout/ui/components/LiveExerciseCard.kt)
   - Status-line text shaping is currently performed in UI component.
-
-## Notes
-
-- `feature/charts` is intentionally excluded from this audit as requested.

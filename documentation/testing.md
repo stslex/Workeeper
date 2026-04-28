@@ -181,7 +181,7 @@ Use `Modifier.testTag("...")` with these prefixes so finders are stable across P
 - Dialog: `"<Feature>Dialog"`.
 
 `app/app/src/main/java/io/github/stslex/workeeper/host/AppNavigationHost.kt` uses graph-level
-tags (`"ChartsGraph"`, `"AllTrainingsGraph"`, etc.) for cross-feature tests.
+tags (`"HomeGraph"`, `"AllTrainingsGraph"`, etc.) for cross-feature tests.
 
 ### Existing UI tests
 
@@ -191,7 +191,6 @@ tags (`"ChartsGraph"`, `"AllTrainingsGraph"`, etc.) for cross-feature tests.
 | `feature/all-exercises` | `feature/all-exercises/src/androidTest/.../AllExercisesScreenTest.kt`, `AllExercisesScreenAccessibilityTest.kt`, `AllExercisesScreenEdgeCasesTest.kt` |
 | `feature/single-training` | `feature/single-training/src/androidTest/.../SingleTrainingScreenTest.kt` |
 | `feature/exercise` | `feature/exercise/src/androidTest/.../ExerciseScreenTest.kt` |
-| `feature/charts` | `feature/charts/src/androidTest/.../ChartsScreenTest.kt` |
 
 ## Running tests
 

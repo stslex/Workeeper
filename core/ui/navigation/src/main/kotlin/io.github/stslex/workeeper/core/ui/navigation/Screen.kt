@@ -27,9 +27,6 @@ sealed interface Screen {
         data object Home : BottomBar
 
         @Serializable
-        data object Charts : BottomBar
-
-        @Serializable
         data object AllExercises : BottomBar
 
         @Serializable

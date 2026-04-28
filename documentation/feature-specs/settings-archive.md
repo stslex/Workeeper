@@ -34,7 +34,7 @@ Create a new feature module:
 
 ```
 feature/settings/
-  build.gradle.kts                        — apply convention plugins (see feature/charts)
+  build.gradle.kts                        — apply convention plugins (see feature/home)
   src/main/AndroidManifest.xml
   src/main/kotlin/io/github/stslex/workeeper/feature/settings/
     di/CoreSettingsModule.kt              — Hilt module

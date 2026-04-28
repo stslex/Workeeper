@@ -44,10 +44,11 @@ The build is configured in `settings.gradle.kts`. Every module is included from 
 ### `feature/`
 
 Each feature is a self-contained module that owns a Store, Handlers, DI, and a Compose entry
-point. The five features are `feature/all-trainings`, `feature/all-exercises`,
-`feature/single-training`, `feature/exercise`, and `feature/charts`. Feature contents are
-detailed in [features.md](features.md); their conventional layout is described under
-[Per-feature MVI layout](#per-feature-mvi-layout).
+point. Current feature modules live under `feature/`, including `feature/home`,
+`feature/all-trainings`, `feature/all-exercises`, `feature/single-training`,
+`feature/exercise`, `feature/live-workout`, `feature/past-session`, and
+`feature/settings`. Feature contents are detailed in [features.md](features.md); their
+conventional layout is described under [Per-feature MVI layout](#per-feature-mvi-layout).
 
 ### `build-logic/`
 
@@ -230,9 +231,9 @@ feature/exercise/src/main/kotlin/io/github/stslex/workeeper/feature/exercise/
 ```
 
 Note that `feature/exercise` and `feature/single-training` keep MVI under a `ui/mvi/` package
-while the simpler `feature/all-trainings`, `feature/all-exercises`, and `feature/charts` keep it
-directly under `mvi/`. Both layouts work with the linting rules; pick the one that already
-exists when adding to an existing feature.
+while the simpler `feature/all-trainings` and `feature/all-exercises` keep it directly under
+`mvi/`. Both layouts work with the linting rules; pick the one that already exists when adding
+to an existing feature.
 
 `<Name>HandlerStore` interfaces and their `Impl`s live under both `mvi/` and `di/` packages in
 some features for historical reasons — the `Impl` is in `di/` because it is a Hilt binding; the
@@ -379,7 +380,7 @@ destructive — see [Room database](#room-database)), not in domain models.
 ### Routes and the navigator
 
 - `core/ui/navigation/.../Screen.kt` defines routes as a `@Serializable sealed interface`. The
-  three bottom-bar destinations are nested under `Screen.BottomBar` (`Charts`, `AllExercises`,
+  three bottom-bar destinations are nested under `Screen.BottomBar` (`Home`, `AllExercises`,
   `AllTrainings`), and the two detail destinations are `Screen.Training(uuid)` and
   `Screen.Exercise(uuid, trainingUuid)`. Bottom-bar screens declare `isSingleTop = true`.
 - `core/ui/navigation/.../Navigator.kt` is a small `Navigator` interface exposing a
@@ -620,10 +621,10 @@ Two outcomes:
 `app/app/src/main/java/io/github/stslex/workeeper/host/AppNavigationHost.kt` wraps the
 `NavHost` in a `SharedTransitionLayout` (Jetpack Compose
 `ExperimentalSharedTransitionApi`). The single shared `SharedTransitionScope` is passed to each
-feature's `<Name>Graph` extension function (`chartsGraph`, `allTrainingsGraph`,
+feature's `<Name>Graph` extension function (`homeGraph`, `allTrainingsGraph`,
 `allExercisesGraph`, `singleTrainingsGraph`, `exerciseGraph`), so transitions can be wired
 across the whole graph from a single root scope. The start destination is
-`Screen.BottomBar.Charts`. Each graph is added via `navComponentScreen<Feature>` which expands
+`Screen.BottomBar.Home`. Each graph is added via `navComponentScreen<Feature>` which expands
 to a `composable<Screen>` block under the hood (see
 `core/ui/navigation/.../Screen.kt::navScreen`).
 
@@ -633,7 +634,7 @@ animated visibility transition.
 
 ### Bottom navigation
 
-`app/app/.../bottom_app_bar/BottomBarItem.kt` declares three tab entries — `CHARTS`,
+`app/app/.../bottom_app_bar/BottomBarItem.kt` declares three tab entries — `HOME`,
 `TRAININGS`, `EXERCISES` — each pointing at a `Screen.BottomBar`. `BottomAppBar.kt` renders
 them with haptic feedback on selection.
 
@@ -1199,5 +1200,5 @@ General Kotlin/Android conventions:
   UPPER_SNAKE_CASE.
 - Packages: lowercase, dot-separated; respect the `core/*`, `feature/*`, `app/*` layout.
 - Android resources: snake_case (e.g. `ic_bottom_app_bar_chart_icon_24`,
-  `bottom_bar_label_charts`).
+  `bottom_bar_label_home`).
 - Compose previews: keep them in the same file, suffixed `Preview`.
