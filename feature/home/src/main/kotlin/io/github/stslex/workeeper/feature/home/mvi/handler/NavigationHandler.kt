@@ -13,14 +13,26 @@ internal class NavigationHandler(
 
     override fun invoke(action: Action.Navigation) {
         when (action) {
-            is Action.Navigation.OpenLiveWorkout -> navigator.navTo(
+            is Action.Navigation.OpenLiveWorkoutResume -> navigator.navTo(
                 Screen.LiveWorkout(
                     sessionUuid = action.sessionUuid,
                     trainingUuid = null,
                 ),
             )
 
+            is Action.Navigation.OpenLiveWorkoutFresh -> navigator.navTo(
+                Screen.LiveWorkout(
+                    sessionUuid = null,
+                    trainingUuid = action.trainingUuid,
+                ),
+            )
+
+            is Action.Navigation.OpenPastSession -> navigator.navTo(
+                Screen.PastSession(sessionUuid = action.sessionUuid),
+            )
+
             Action.Navigation.OpenSettings -> navigator.navTo(Screen.Settings)
+            Action.Navigation.OpenAllTrainings -> navigator.navTo(Screen.BottomBar.AllTrainings)
         }
     }
 }
