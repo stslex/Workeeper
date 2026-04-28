@@ -21,3 +21,11 @@ suspend fun <K, V, R> Map<K, V>.asyncMap(
 ): List<R> = coroutineScope {
     this@asyncMap.map { entry -> async { transform(entry) } }
 }.awaitAll()
+
+suspend fun <T> Collection<T>.asyncForEach(
+    action: suspend (T) -> Unit,
+) {
+    coroutineScope {
+        map { item -> async { action(item) } }
+    }.awaitAll()
+}

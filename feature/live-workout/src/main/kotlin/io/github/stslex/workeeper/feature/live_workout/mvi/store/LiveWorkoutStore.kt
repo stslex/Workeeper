@@ -170,13 +170,6 @@ internal interface LiveWorkoutStore :
 
     @Stable
     sealed interface Event : Store.Event {
-        @Stable
-        data class ConfirmDialog(
-            val title: String,
-            val body: String,
-            val confirmLabel: String,
-            val dismissLabel: String,
-        )
 
         data class HapticClick(val type: HapticFeedbackType) : Event
         data class HapticImpact(val type: HapticFeedbackType) : Event
@@ -187,4 +180,12 @@ internal interface LiveWorkoutStore :
         data class ShowSkipExerciseConfirmDialog(val dialog: ConfirmDialog) : Event
         data class ShowCancelSessionConfirmDialog(val dialog: ConfirmDialog) : Event
     }
+
+    @Stable
+    data class ConfirmDialog(
+        val title: String,
+        val body: String,
+        val confirmLabel: String,
+        val dismissLabel: String,
+    )
 }

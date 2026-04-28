@@ -3,7 +3,6 @@ package io.github.stslex.workeeper.feature.live_workout.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dagger.hilt.android.scopes.ViewModelScoped
-import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
@@ -18,6 +17,7 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.model.ErrorType
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Event
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
@@ -25,7 +25,6 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableMap
 import kotlinx.collections.immutable.toImmutableSet
-import kotlinx.coroutines.CoroutineDispatcher
 import javax.inject.Inject
 
 @Suppress("TooManyFunctions", "LongMethod")
@@ -33,8 +32,6 @@ import javax.inject.Inject
 internal class ClickHandler @Inject constructor(
     private val interactor: LiveWorkoutInteractor,
     private val resourceWrapper: ResourceWrapper,
-    @MainImmediateDispatcher
-    private val mainImmediateDispatcher: CoroutineDispatcher,
     store: LiveWorkoutHandlerStore,
 ) : Handler<Action.Click>, LiveWorkoutHandlerStore by store {
 
@@ -222,7 +219,7 @@ internal class ClickHandler @Inject constructor(
         updateState { it.copy(pendingResetExerciseUuid = action.performedExerciseUuid) }
         sendEvent(
             Event.ShowResetSetsConfirmDialog(
-                dialog = Event.ConfirmDialog(
+                dialog = LiveWorkoutStore.ConfirmDialog(
                     title = resourceWrapper.getString(R.string.feature_live_workout_reset_title),
                     body = resourceWrapper.getString(R.string.feature_live_workout_reset_body),
                     confirmLabel = resourceWrapper.getString(R.string.feature_live_workout_reset_confirm),
@@ -251,7 +248,7 @@ internal class ClickHandler @Inject constructor(
         updateState { it.copy(pendingSkipExerciseUuid = action.performedExerciseUuid) }
         sendEvent(
             Event.ShowSkipExerciseConfirmDialog(
-                dialog = Event.ConfirmDialog(
+                dialog = LiveWorkoutStore.ConfirmDialog(
                     title = resourceWrapper.getString(R.string.feature_live_workout_skip_title),
                     body = resourceWrapper.getString(R.string.feature_live_workout_skip_body),
                     confirmLabel = resourceWrapper.getString(R.string.feature_live_workout_skip_confirm),
@@ -313,7 +310,7 @@ internal class ClickHandler @Inject constructor(
         updateState { it.copy(pendingCancelConfirm = true) }
         sendEvent(
             Event.ShowCancelSessionConfirmDialog(
-                dialog = Event.ConfirmDialog(
+                dialog = LiveWorkoutStore.ConfirmDialog(
                     title = resourceWrapper.getString(R.string.feature_live_workout_cancel_title),
                     body = resourceWrapper.getString(R.string.feature_live_workout_cancel_body),
                     confirmLabel = resourceWrapper.getString(R.string.feature_live_workout_cancel_confirm),
@@ -535,7 +532,7 @@ internal class ClickHandler @Inject constructor(
                 performed.any { it.isDone }
             } else {
                 performed.size >= planSets.size &&
-                        planSets.indices.all { index -> performedByPosition[index]?.isDone == true }
+                    planSets.indices.all { index -> performedByPosition[index]?.isDone == true }
             }
             val nextStatus = when {
                 skipped -> ExerciseStatusUiModel.SKIPPED

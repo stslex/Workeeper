@@ -30,13 +30,13 @@
     <string name="feature_live_workout_reset_title">Reset sets?</string>
     <string name="feature_live_workout_reset_body">All logged sets for this exercise will be deleted. This cannot be undone.</string>
     <string name="feature_live_workout_reset_confirm">Reset</string>
-    <string name="feature_live_workout_reset_dismiss">Cancel</string>
+    <string name="feature_live_workout_reset_dismiss" tools:ignore="DuplicateStrings">Cancel</string>
 
     <!-- Skip confirmation -->
     <string name="feature_live_workout_skip_title">Skip this exercise?</string>
     <string name="feature_live_workout_skip_body">Logged sets for this exercise will be deleted and the exercise marked as skipped.</string>
     <string name="feature_live_workout_skip_confirm">Skip</string>
-    <string name="feature_live_workout_skip_dismiss">Cancel</string>
+    <string name="feature_live_workout_skip_dismiss" tools:ignore="DuplicateStrings">Cancel</string>
 
     <!-- Finish dialog -->
     <string name="feature_live_workout_finish">Finish session</string>
@@ -48,21 +48,21 @@
     <string name="feature_live_workout_finish_stat_sets_count">%1$d</string>
     <string name="feature_live_workout_finish_stat_exercises_format" tools:ignore="PluralsCandidate">%1$d of %2$d done</string>
     <string name="feature_live_workout_finish_stat_exercises_with_skipped_format" tools:ignore="PluralsCandidate">%1$d of %2$d done · %3$d skipped</string>
-    <string name="feature_live_workout_finish_keep_going">Keep going</string>
+    <string name="feature_live_workout_finish_keep_going" tools:ignore="DuplicateStrings">Keep going</string>
     <string name="feature_live_workout_finish_confirm">Finish</string>
     <string name="feature_live_workout_finish_success">Session saved</string>
 
     <!-- Header overflow -->
-    <string name="feature_live_workout_session_overflow_cancel">Cancel session</string>
+    <string name="feature_live_workout_session_overflow_cancel" tools:ignore="DuplicateStrings">Cancel session</string>
     <string name="feature_live_workout_cancel_title">Cancel session?</string>
     <string name="feature_live_workout_cancel_body">All progress will be deleted. This cannot be undone.</string>
     <string name="feature_live_workout_cancel_confirm">Cancel session</string>
-    <string name="feature_live_workout_cancel_dismiss">Keep going</string>
+    <string name="feature_live_workout_cancel_dismiss" tools:ignore="DuplicateStrings">Keep going</string>
 
     <!-- Misc -->
     <string name="feature_live_workout_back">Back</string>
     <string name="feature_live_workout_more">More</string>
-    <string name="feature_live_workout_remove_set">Remove set</string>
+    <string name="feature_live_workout_remove_set" tools:ignore="UnusedResources">Remove set</string>
 
     <!-- Errors -->
     <string name="feature_live_workout_error_invalid_reps">Reps must be greater than 0</string>

@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.feature.live_workout.domain
 
 import dagger.hilt.android.scopes.ViewModelScoped
+import io.github.stslex.workeeper.core.core.coroutine.asyncForEach
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.database.sets.SetTypeDataModel
@@ -18,6 +19,7 @@ import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInterac
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.PerformedExerciseSnapshot
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.SessionSnapshot
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
@@ -149,16 +151,21 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
         sessionUuid: String,
     ): FinishResult? = withContext(defaultDispatcher) {
         val session = sessionRepository.getById(sessionUuid) ?: return@withContext null
-        val training = trainingRepository.getTraining(session.trainingUuid)
-        val performedRows = performedExerciseRepository.getBySession(sessionUuid)
-        val isAdhoc = training?.isAdhoc == true
+        val training = async { trainingRepository.getTraining(session.trainingUuid) }
+        val performedRows = async { performedExerciseRepository.getBySession(sessionUuid) }
+        val isAdhoc = training.await()?.isAdhoc == true
+
         val planMutations = mutableListOf<PlanMutation>()
         val appliedMutations = mutableListOf<PlanMutation>()
         var setsLogged = 0
         var doneCount = 0
-        val skippedCount = performedRows.count { it.skipped }
-        for (row in performedRows) {
-            if (row.skipped) continue
+        var skippedCount = 0
+
+        for (row in performedRows.await()) {
+            if (row.skipped) {
+                skippedCount++
+                continue
+            }
             val performedSets = setRepository
                 .getByPerformedExercise(row.uuid)
                 .map { it.toPlanSet() }
@@ -179,8 +186,8 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
                 newPlan = nextPlan,
             )
         }
-        try {
-            for (mutation in planMutations) {
+        runCatching {
+            planMutations.asyncForEach { mutation ->
                 if (isAdhoc) {
                     exerciseRepository.setAdhocPlan(mutation.exerciseUuid, mutation.newPlan)
                 } else {
@@ -197,26 +204,27 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
             FinishResult(
                 durationMillis = finishedAt - session.startedAt,
                 doneCount = doneCount,
-                totalCount = performedRows.size,
+                totalCount = performedRows.await().size,
                 skippedCount = skippedCount,
                 setsLogged = setsLogged,
             )
-        } catch (error: Throwable) {
-            for (mutation in appliedMutations.asReversed()) {
-                runCatching {
-                    if (isAdhoc) {
-                        exerciseRepository.setAdhocPlan(mutation.exerciseUuid, mutation.oldPlan)
-                    } else {
-                        trainingExerciseRepository.setPlan(
-                            trainingUuid = session.trainingUuid,
-                            exerciseUuid = mutation.exerciseUuid,
-                            planSets = mutation.oldPlan,
-                        )
+        }
+            .onFailure {
+                appliedMutations.asReversed().forEach { mutation ->
+                    runCatching {
+                        if (isAdhoc) {
+                            exerciseRepository.setAdhocPlan(mutation.exerciseUuid, mutation.oldPlan)
+                        } else {
+                            trainingExerciseRepository.setPlan(
+                                trainingUuid = session.trainingUuid,
+                                exerciseUuid = mutation.exerciseUuid,
+                                planSets = mutation.oldPlan,
+                            )
+                        }
                     }
                 }
             }
-            throw error
-        }
+            .getOrThrow()
     }
 
     override suspend fun cancelSession(sessionUuid: String) {

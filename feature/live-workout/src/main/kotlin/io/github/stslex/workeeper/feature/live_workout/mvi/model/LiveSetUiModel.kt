@@ -15,6 +15,10 @@ data class LiveSetUiModel(
 
     val weightLabel: String
         get() = weight?.toDisplayLabel().orEmpty()
-}
 
-private fun Double.toDisplayLabel(): String = if (this % 1.0 == 0.0) toLong().toString() else toString()
+    private fun Double.toDisplayLabel(): String = if (this % 1.0 == 0.0) {
+        toLong().toString()
+    } else {
+        toString()
+    }
+}

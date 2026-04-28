@@ -42,12 +42,7 @@ internal class SettingsInteractorImpl @Inject constructor(
 
     override fun appVersionName(): String = packageInfo.versionName.orEmpty()
 
-    override fun appVersionCode(): Long = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-        packageInfo.longVersionCode
-    } else {
-        @Suppress("DEPRECATION")
-        packageInfo.versionCode.toLong()
-    }
+    override fun appVersionCode(): Long = packageInfo.longVersionCode
 
     override fun observeThemeMode(): Flow<ThemeMode> = commonDataStore.themePreference
         .map { value -> runCatching { ThemeMode.valueOf(value) }.getOrDefault(ThemeMode.SYSTEM) }

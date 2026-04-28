@@ -28,7 +28,8 @@ enum class BottomBarItem(
         titleRes = R.string.bottom_bar_label_exercises,
         iconRes = R.drawable.ic_bottom_app_bar_list_icon_24,
         screen = Screen.BottomBar.AllExercises,
-    );
+    ),
+    ;
 
     companion object {
 

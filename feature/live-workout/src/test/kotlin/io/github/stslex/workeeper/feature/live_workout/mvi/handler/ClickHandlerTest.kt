@@ -14,7 +14,6 @@ import io.mockk.mockk
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -30,7 +29,6 @@ internal class ClickHandlerTest {
         val handler = ClickHandler(
             interactor = interactor,
             resourceWrapper = resourceWrapper,
-            mainImmediateDispatcher = UnconfinedTestDispatcher(),
             store = store,
         )
 
@@ -54,7 +52,6 @@ internal class ClickHandlerTest {
         val handler = ClickHandler(
             interactor = interactor,
             resourceWrapper = resourceWrapper,
-            mainImmediateDispatcher = UnconfinedTestDispatcher(),
             store = store,
         )
 

@@ -1,0 +1,6 @@
+[*.{kt,kts}]
+indent_size = 4
+ij_continuation_indent_size = 4
+ij_kotlin_continuation_indent_in_expression_bodies = false
+ij_kotlin_continuation_indent_in_argument_lists = false
+ij_kotlin_continuation_indent_in_parameter_lists = false

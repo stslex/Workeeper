@@ -34,6 +34,7 @@ internal class PlanEditActionHandlerTest {
         }
     }
 
+    private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
     private val handler = PlanEditActionHandler(resourceWrapper, store)
 
     private fun openTarget(
@@ -179,4 +180,3 @@ internal class PlanEditActionHandlerTest {
         assertNull(stateFlow.value.planEditorTarget)
     }
 }
-    private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)

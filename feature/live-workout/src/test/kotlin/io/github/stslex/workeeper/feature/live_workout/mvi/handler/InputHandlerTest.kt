@@ -5,6 +5,7 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
@@ -32,7 +33,7 @@ internal class InputHandlerTest {
                         exerciseName = "Bench",
                         exerciseType = ExerciseTypeUiModel.WEIGHTED,
                         position = 0,
-                        status = io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel.CURRENT,
+                        status = ExerciseStatusUiModel.CURRENT,
                         statusLabel = "",
                         planSets = persistentListOf(
                             PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),

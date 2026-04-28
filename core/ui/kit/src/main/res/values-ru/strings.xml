@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="core_ui_kit_action_cancel">Отмена</string>
     <string name="core_ui_kit_action_save">Сохранить</string>
     <string name="core_ui_kit_action_back">Назад</string>
@@ -18,6 +18,6 @@
     <string name="core_ui_kit_plan_editor_set_type_warmup">Разминка</string>
     <string name="core_ui_kit_plan_editor_set_type_work">Рабочий</string>
     <string name="core_ui_kit_plan_editor_set_type_failure">Отказ</string>
-    <string name="core_ui_kit_plan_editor_set_type_drop">Дроп</string>
+    <string name="core_ui_kit_plan_editor_set_type_drop" tools:ignore="UnusedResources">Дроп</string>
     <string name="core_ui_kit_plan_editor_empty_hint">Сетов пока нет — нажмите «Добавить сет», чтобы создать план.</string>
 </resources>

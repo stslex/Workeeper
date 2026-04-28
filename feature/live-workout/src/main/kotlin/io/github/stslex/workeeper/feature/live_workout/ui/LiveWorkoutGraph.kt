@@ -14,6 +14,7 @@ import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
 import io.github.stslex.workeeper.core.ui.plan_editor.AppPlanEditor
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutFeature
+import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Event
 import io.github.stslex.workeeper.feature.live_workout.ui.components.FinishConfirmDialog
@@ -24,11 +25,10 @@ fun NavGraphBuilder.liveWorkoutGraph(
 ) {
     navComponentScreen(LiveWorkoutFeature) { processor ->
         val haptic = LocalHapticFeedback.current
-        var resetDialog by remember { mutableStateOf<Event.ConfirmDialog?>(null) }
-        var skipDialog by remember { mutableStateOf<Event.ConfirmDialog?>(null) }
-        var cancelDialog by remember { mutableStateOf<Event.ConfirmDialog?>(null) }
+        var resetDialog by remember { mutableStateOf<LiveWorkoutStore.ConfirmDialog?>(null) }
+        var skipDialog by remember { mutableStateOf<LiveWorkoutStore.ConfirmDialog?>(null) }
+        var cancelDialog by remember { mutableStateOf<LiveWorkoutStore.ConfirmDialog?>(null) }
         var showFinishDialog by remember { mutableStateOf(false) }
-
 
         processor.Handle { event ->
             when (event) {
