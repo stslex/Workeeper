@@ -88,6 +88,7 @@ internal fun ExerciseEditScreen(
                     imageDisplay = state.effectiveImageDisplay,
                     onEditClick = { consume(Action.Click.OnEditImageClick) },
                     onRemoveClick = { consume(Action.Click.OnRemoveImageClick) },
+                    onThumbClick = { consume(Action.Click.OnImageThumbnailClick) },
                 )
             }
             FormSection(label = stringResource(R.string.feature_exercise_edit_label_name)) {

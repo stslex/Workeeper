@@ -423,6 +423,27 @@ internal class ClickHandlerTest {
         assertTrue(events.any { it is Event.NavigateOpenAppSettings })
     }
 
+    @Test
+    fun `OnImageThumbnailClick with committed path consumes OpenImageViewer with the path`() {
+        val path = "/data/user/0/app/files/exercise_images/uuid-1.jpg"
+        val (_, store, handler) = setup(
+            State.create(uuid = "uuid-1").copy(
+                imagePath = path,
+                imageLastModified = 100L,
+            ),
+        )
+        handler.invoke(Action.Click.OnImageThumbnailClick)
+        verify { store.consume(Action.Navigation.OpenImageViewer(path)) }
+    }
+
+    @Test
+    fun `OnImageThumbnailClick with no image is a no-op`() {
+        val (_, store, handler) = setup()
+        handler.invoke(Action.Click.OnImageThumbnailClick)
+        verify(exactly = 0) { store.consume(any<Action.Navigation.OpenImageViewer>()) }
+        verify(exactly = 0) { store.sendEvent(any()) }
+    }
+
     private fun assertHaptic(event: Event, expected: HapticFeedbackType) {
         assertTrue(event is Event.Haptic, "expected Event.Haptic but got $event")
         assertEquals(expected, (event as Event.Haptic).type)

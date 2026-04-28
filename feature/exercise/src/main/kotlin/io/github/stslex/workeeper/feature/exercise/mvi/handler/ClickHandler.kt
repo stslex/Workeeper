@@ -22,6 +22,7 @@ import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor.ArchiveResult
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor.SaveResult
 import io.github.stslex.workeeper.feature.exercise.mvi.mapper.toAdhocPlanSummary
+import io.github.stslex.workeeper.feature.exercise.mvi.model.ImageDisplay
 import io.github.stslex.workeeper.feature.exercise.mvi.model.ImageErrorType
 import io.github.stslex.workeeper.feature.exercise.mvi.model.ImageSourceUiModel
 import io.github.stslex.workeeper.feature.exercise.mvi.model.PendingImage
@@ -75,6 +76,7 @@ internal class ClickHandler @Inject constructor(
             is Action.Click.OnTagRemove -> processTagRemove(action)
             is Action.Click.OnTagCreate -> processTagCreate(action)
             Action.Click.OnEditImageClick -> processEditImageClick()
+            Action.Click.OnImageThumbnailClick -> processImageThumbnailClick()
             is Action.Click.OnImageSourceSelected -> processImageSourceSelected(action)
             Action.Click.OnRemoveImageClick -> processRemoveImageClick()
             Action.Click.OnImageSourceDialogDismiss -> processImageSourceDialogDismiss()
@@ -562,6 +564,19 @@ internal class ClickHandler @Inject constructor(
     private fun processEditImageClick() {
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
         updateState { it.copy(sourceDialogVisible = true) }
+    }
+
+    private fun processImageThumbnailClick() {
+        // Derive the viewer's model arg from whatever is currently displayed — committed
+        // file path OR the freshly-picked content URI. ImageDisplay.None means the
+        // thumbnail isn't visible anyway, so the click can't physically happen.
+        val model = when (val display = state.value.effectiveImageDisplay) {
+            is ImageDisplay.FromPath -> display.path
+            is ImageDisplay.FromUri -> display.uri.toString()
+            ImageDisplay.None -> return
+        }
+        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
+        consume(Action.Navigation.OpenImageViewer(model))
     }
 
     private fun processImageSourceSelected(action: Action.Click.OnImageSourceSelected) {

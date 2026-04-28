@@ -201,6 +201,8 @@ internal interface ExerciseStore : Store<State, Action, Event> {
 
             data object OnEditImageClick : Click
 
+            data object OnImageThumbnailClick : Click
+
             data class OnImageSourceSelected(val source: ImageSourceUiModel) : Click
 
             data object OnRemoveImageClick : Click
@@ -235,6 +237,8 @@ internal interface ExerciseStore : Store<State, Action, Event> {
             data object Back : Navigation
 
             data class OpenSession(val sessionUuid: String) : Navigation
+
+            data class OpenImageViewer(val model: String) : Navigation
         }
     }
 

@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.feature.exercise.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +42,7 @@ internal fun ImageEditRow(
     imageDisplay: ImageDisplay,
     onEditClick: () -> Unit,
     onRemoveClick: () -> Unit,
+    onThumbClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val hasImage = imageDisplay !is ImageDisplay.None
@@ -54,6 +56,7 @@ internal fun ImageEditRow(
         ImageThumb(
             type = type,
             imageDisplay = imageDisplay,
+            onClick = if (hasImage) onThumbClick else null,
         )
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -87,12 +90,15 @@ internal fun ImageEditRow(
 private fun ImageThumb(
     type: ExerciseTypeUiModel,
     imageDisplay: ImageDisplay,
+    onClick: (() -> Unit)? = null,
 ) {
+    val clickModifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
     Box(
         modifier = Modifier
             .size(THUMB_SIZE)
             .clip(AppUi.shapes.medium)
             .background(AppUi.colors.surfaceTier1)
+            .then(clickModifier)
             .testTag("ExerciseEditImageThumb"),
         contentAlignment = Alignment.Center,
     ) {

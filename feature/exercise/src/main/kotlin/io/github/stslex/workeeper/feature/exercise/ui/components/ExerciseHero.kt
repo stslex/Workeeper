@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.feature.exercise.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -33,13 +34,20 @@ internal fun ExerciseHero(
     type: ExerciseTypeUiModel,
     imageDisplay: ImageDisplay,
     modifier: Modifier = Modifier,
+    onImageClick: (() -> Unit)? = null,
 ) {
+    val clickableModifier = if (imageDisplay !is ImageDisplay.None && onImageClick != null) {
+        Modifier.clickable(onClick = onImageClick)
+    } else {
+        Modifier
+    }
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(120.dp)
             .clip(AppUi.shapes.medium)
             .background(AppUi.colors.surfaceTier1)
+            .then(clickableModifier)
             .testTag("ExerciseHero"),
         contentAlignment = Alignment.Center,
     ) {

@@ -10,11 +10,12 @@ This is the v1.5 spec — a fast follow-up after v1 closure. The first feature o
 
 ## Scope
 
-Three deliverables:
+Four deliverables:
 
 - **ImageStorage utility** in a shared core module — handles compress + save + delete + path generation. Single source of truth for the file lifecycle.
 - **Picker flow in Edit exercise** — camera capture + gallery selection, with permission handling, optimistic UI updates, and "save on commit" semantics so cancelled edits leave no orphan files.
 - **Read-only surfaces in Exercise detail + Exercises tab row** — replace the existing icon placeholder with the actual image when `imagePath != null`, retain the placeholder otherwise.
+- **Full-screen image viewer** — tap-to-open from Exercise detail hero and Edit exercise thumbnail. Pinch-to-zoom + pan + double-tap-to-toggle, hosted as a routed screen.
 
 ## Out of scope
 
@@ -26,6 +27,10 @@ Three deliverables:
 - Sharing / exporting an exercise image — v2.
 - ExifInterface orientation correction beyond what `ImageDecoder` does for free.
 - Migration of `imagePath` for existing exercises — they all stay `null` until the user explicitly attaches; no batch import.
+- **Tap-to-fullscreen on Exercises tab row thumbnail** — row tap opens Exercise detail (existing convention). Adding a separate gesture to open the viewer would conflict.
+- **Swipe-to-dismiss in viewer** — back gesture / back button only. Vertical-drag dismiss is a v2 nice-to-have.
+- **Immersive mode in viewer (hiding system bars)** — viewer renders with normal status/nav bars. Edge-to-edge content via Scaffold + transparent top bar; no `WindowInsetsController` manipulation.
+- **Save / share / delete actions inside viewer** — view-only. Delete + edit are reachable from Exercise detail; the viewer doesn't duplicate them.
 
 ## Design decisions (locked)
 
@@ -44,6 +49,10 @@ These were "open questions" in product.md. Locking them now.
 | File replace | **Atomic via temp file + rename** within `saveImage`. | If process is killed mid-write, old file remains intact. |
 | Lifecycle | **Delete file only on `deleteItem` (permanent)**. Archive does NOT delete the file. | Per product.md: archive preserves history. If unarchived later, image must still be there. |
 | Coil cache invalidation | **Append `?v=<lastModifiedMs>` to the image model** when displaying. | Coil keys cache by URI string. Without versioning, replacing a file at the same path shows the old cached image. |
+| Viewer hosting | **Routed screen via `Screen.ExerciseImage(path)`** | Consistent with project nav model (PastSession, AllTrainings are routes). Saves state across config changes for free. NOT bottom sheet (constrained padding/scrim) and NOT in-place overlay (state lost on rotation). |
+| Viewer zoom impl | **Self-written via `Modifier.pointerInput` + `detectTransformGestures` + `graphicsLayer`** | ~80 lines, no new dependency. Compose Foundation has no first-party zoomable Modifier yet. Adding a third-party lib for one feature isn't justified. |
+| Viewer image quality | **Full file via Coil at native viewport size** | Files are already capped at 1280×1280 by ImageStorage. Most phone viewports ≤ 1280px, so Coil gets full source quality automatically. No extra "high-res" path needed. |
+| Viewer source from Exercises row | **NOT added** — row tap opens Exercise detail (existing convention) | Adding a second gesture to the same row hits the gesture-conflict / discoverability tradeoff with no real win. Detail is one tap away. |
 
 If any of these need to change, surface it in PR review — but the spec assumes them.
 
@@ -102,8 +111,36 @@ feature/
         └── ui/components/
             └── ExerciseRow.kt               # MODIFIED — AsyncImage when path != null, else ExerciseTypeIcon
 
+feature/image-viewer/              # NEW MODULE
+└── src/main/kotlin/.../feature/image_viewer/
+    ├── di/
+    │   ├── ImageViewerFeature.kt
+    │   ├── ImageViewerHandlerStore.kt
+    │   ├── ImageViewerHandlerStoreImpl.kt
+    │   └── ImageViewerModule.kt
+    ├── mvi/
+    │   ├── handler/
+    │   │   ├── ClickHandler.kt              # back, double-tap zoom toggle
+    │   │   ├── CommonHandler.kt             # init from Screen route arg
+    │   │   ├── ImageViewerComponent.kt
+    │   │   └── NavigationHandler.kt
+    │   └── store/
+    │       ├── ImageViewerStore.kt
+    │       └── ImageViewerStoreImpl.kt
+    └── ui/
+        ├── ImageViewerGraph.kt
+        ├── ImageViewerScreen.kt             # full-screen Scaffold + ZoomableImage
+        └── components/
+            └── ZoomableImage.kt             # the gesture/transform Modifier impl
+
+core/ui/navigation/                # MODIFIED
+└── src/main/kotlin/.../core/ui/navigation/
+    └── Screen.kt                            # +data class ExerciseImage(path: String)
+
 app/app/                           # MODIFIED
 ├── src/main/AndroidManifest.xml             # +CAMERA permission, +FileProvider authority
+├── src/main/java/.../host/AppNavigationHost.kt    # +imageViewerGraph(...)
+├── src/main/java/.../navigation/RootComponentImpl.kt  # +Screen.ExerciseImage branch
 ├── src/main/res/xml/
 │   └── file_provider_paths.xml              # NEW — exposes filesDir/exercise_images for camera capture URI
 └── src/main/res/values/strings.xml          # NEW image-related strings (mirrored in values-ru)
@@ -397,12 +434,42 @@ sealed interface Click : Action {
     data object OnPermissionDeniedSettingsClick : Click   // open app settings
     data object RequestCameraCapture : Click       // internal: emitted by permission launcher result
     data object OnCameraPermissionDenied : Click   // internal: emitted by permission launcher result
+    data object OnImageThumbnailClick : Click      // opens viewer (Edit screen + Detail screen)
 }
 
 sealed interface Common : Action {
     // ... existing
     data class ImagePicked(val uri: Uri) : Common
     data object ImagePickCancelled : Common
+}
+```
+
+### Navigation additions
+
+```kotlin
+sealed interface Navigation : Action {
+    // ... existing
+    data class OpenImageViewer(val model: String) : Navigation
+}
+```
+
+`NavigationHandler`:
+
+```kotlin
+is Action.Navigation.OpenImageViewer ->
+    navigator.navTo(Screen.ExerciseImage(action.model))
+```
+
+`ClickHandler.OnImageThumbnailClick` derives the viewer model from current state:
+
+```kotlin
+Action.Click.OnImageThumbnailClick -> {
+    val model = when (val display = state.value.effectiveImageDisplay) {
+        is ImageDisplay.FromPath -> display.path
+        is ImageDisplay.FromUri -> display.uri.toString()
+        ImageDisplay.None -> return  // no-op: thumbnail isn't shown anyway
+    }
+    consume(Action.Navigation.OpenImageViewer(model))
 }
 ```
 
@@ -496,6 +563,238 @@ When no image: thumb shows the placeholder icon (reuse `ExerciseHero` styled sma
 
 `PermissionDeniedDialog` — `AppDialog` explaining the permission was denied, with primary "Open settings" and secondary "Cancel".
 
+## Full-screen image viewer — `feature/image-viewer`
+
+### Trigger surfaces
+
+Two entry points add a tap handler:
+
+- **Exercise detail hero** — `ExerciseHero` (when `imagePath != null`) becomes clickable. Tap → `Action.Click.OnHeroClick` → `Action.Navigation.OpenImageViewer(path)` → `navigator.navTo(Screen.ExerciseImage(path))`.
+- **Edit exercise thumbnail** — the thumbnail in `ImageEditRow` becomes clickable when an effective image is displayed (`effectiveImageDisplay != ImageDisplay.None`). Tap on the **image area** opens viewer; tap on **Edit / Remove buttons** does what those buttons do.
+
+The Exercises tab row thumbnail does NOT trigger the viewer (row tap → Exercise detail; explicit out of scope, see top of spec).
+
+### Viewer source-of-truth
+
+Viewer takes a single `path: String` arg from the route — the absolute file path under `filesDir/exercise_images/`. Viewer does NOT load the exercise from the DB; it doesn't need name/type/tags. This keeps the route stateless and the screen reusable for any future image-viewing need (e.g. v2 training cover).
+
+### Edit-screen viewer for pending image
+
+If the user has just picked a new image (`pendingImage = NewFromUri(uri)`) and taps the thumbnail, the viewer needs to display that **content URI**, not a committed file path. Two reasonable approaches:
+
+- (a) Generalize the route arg to accept either path-or-URI. `Screen.ExerciseImage(modelString)` where `modelString` can be `"/data/.../exercise_images/<uuid>.jpg"` (file path Coil handles natively) OR `"content://..."` from the picker.
+- (b) Disable viewer tap when there's a pending image, only enable for committed paths.
+
+**Pick (a).** Coil's `data` parameter accepts both `String` paths and `Uri` content URIs through the same loader; passing the URI's `toString()` and reconstructing on the receiving side works. Worth verifying in implementation that the content URI's permission grant survives the navigation — content URIs from `PickVisualMedia` get a transient grant that should persist within the same Activity's lifetime; we navigate within the same Activity, so this should hold. If it doesn't, fall back to (b) and document.
+
+### Route + Navigator
+
+Add to `core/ui/navigation/Screen.kt`:
+
+```kotlin
+@Serializable
+data class ExerciseImage(
+    val model: String,    // file path OR content URI string
+) : Screen
+```
+
+No new Navigator method required — uses existing `navTo` and `popBack`.
+
+`AppNavigationHost` registers `imageViewerGraph(...)` like other feature graphs. `RootComponentImpl` adds:
+
+```kotlin
+is Screen.ExerciseImage -> ImageViewerComponent.create(navigator, screen)
+```
+
+### MVI surface
+
+```kotlin
+internal abstract class ImageViewerComponent(
+    val data: Screen.ExerciseImage,
+) : Component
+
+@Stable
+data class State(
+    val model: String,
+    val scale: Float,
+    val offsetX: Float,
+    val offsetY: Float,
+) : Store.State {
+    companion object {
+        const val MIN_SCALE = 1f
+        const val MAX_SCALE = 5f
+        const val DOUBLE_TAP_TARGET_SCALE = 2.5f
+
+        fun initial(model: String): State = State(
+            model = model,
+            scale = MIN_SCALE,
+            offsetX = 0f,
+            offsetY = 0f,
+        )
+    }
+}
+
+@Stable
+sealed interface Action : Store.Action {
+
+    sealed interface Click : Action {
+        data object OnBackClick : Click
+        data object OnDoubleTap : Click
+    }
+
+    sealed interface Common : Action {
+        data class TransformChange(val scaleDelta: Float, val panX: Float, val panY: Float) : Common
+        data object Init : Common
+    }
+
+    sealed interface Navigation : Action {
+        data object Back : Navigation
+    }
+}
+
+@Stable
+sealed interface Event : Store.Event {
+    data class HapticClick(val type: HapticFeedbackType) : Event
+}
+```
+
+Handler logic:
+
+- `CommonHandler.Init` → just confirms `state.model` reflects route arg (already set by initial()).
+- `CommonHandler.TransformChange(scaleDelta, panX, panY)` → compute `newScale = (state.scale * scaleDelta).coerceIn(MIN_SCALE, MAX_SCALE)`. If `newScale == 1f`, snap offset to 0. Otherwise apply pan with bounds (offsets clamped so image edges don't pull beyond viewport when zoomed; bounds = `(scale - 1) * viewportSize / 2` per axis, computed from the LayoutCoordinates the screen owns and passed in via the action).
+- `ClickHandler.OnDoubleTap` → toggle scale: if `scale > MIN_SCALE`, animate to `MIN_SCALE` (and reset offsets); else animate to `DOUBLE_TAP_TARGET_SCALE`. Animation in the UI layer via `Animatable`.
+- `ClickHandler.OnBackClick` → `consume(Action.Navigation.Back)`.
+- `NavigationHandler.Back` → `navigator.popBack()`.
+
+The transform clamp logic depends on viewport size. Two options:
+- (a) Pass viewport dimensions in the action: `TransformChange(scaleDelta, panX, panY, viewportWidth, viewportHeight)`. Store does math.
+- (b) Do all gesture math in the Composable, store only the final clamped values.
+
+**Pick (b).** Less data marshalling, gesture math is presentational concern. Store holds final scale/offset; Composable does the clamping using `LayoutCoordinates`. Action becomes simpler:
+
+```kotlin
+data class TransformChange(val scale: Float, val offsetX: Float, val offsetY: Float) : Common
+```
+
+Composable computes new scale + clamped offsets, sends absolute values.
+
+### Compose surface — `ImageViewerScreen`
+
+```kotlin
+@Composable
+internal fun ImageViewerScreen(
+    state: ImageViewerStore.State,
+    consume: (ImageViewerStore.Action) -> Unit,
+) {
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        topBar = {
+            AppTopAppBar(
+                title = { /* empty — no clutter */ },
+                navigationIcon = {
+                    IconButton(onClick = { consume(Action.Click.OnBackClick) }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.feature_image_viewer_back))
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                ),
+            )
+        },
+        containerColor = Color.Black,
+    ) { padding ->
+        ZoomableImage(
+            model = state.model,
+            scale = state.scale,
+            offsetX = state.offsetX,
+            offsetY = state.offsetY,
+            onTransform = { newScale, newOffsetX, newOffsetY ->
+                consume(Action.Common.TransformChange(newScale, newOffsetX, newOffsetY))
+            },
+            onDoubleTap = { consume(Action.Click.OnDoubleTap) },
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+        )
+    }
+}
+```
+
+`BackHandler { consume(Action.Click.OnBackClick) }` — system-back goes through the same Action path as the icon. Not strictly required (default popBack works), but keeps haptic + analytics consistent if added later.
+
+### `ZoomableImage` composable
+
+```kotlin
+@Composable
+internal fun ZoomableImage(
+    model: String,
+    scale: Float,
+    offsetX: Float,
+    offsetY: Float,
+    onTransform: (scale: Float, offsetX: Float, offsetY: Float) -> Unit,
+    onDoubleTap: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val animatedScale by animateFloatAsState(scale, label = "scale")
+    val animatedOffsetX by animateFloatAsState(offsetX, label = "offsetX")
+    val animatedOffsetY by animateFloatAsState(offsetY, label = "offsetY")
+
+    var viewportSize by remember { mutableStateOf(IntSize.Zero) }
+
+    Box(
+        modifier = modifier
+            .onSizeChanged { viewportSize = it }
+            .pointerInput(viewportSize) {
+                detectTransformGestures { _, pan, zoom, _ ->
+                    val newScale = (scale * zoom).coerceIn(MIN_SCALE, MAX_SCALE)
+                    val newOffsetX: Float
+                    val newOffsetY: Float
+                    if (newScale <= MIN_SCALE) {
+                        newOffsetX = 0f
+                        newOffsetY = 0f
+                    } else {
+                        val maxOffsetX = (viewportSize.width * (newScale - 1f)) / 2f
+                        val maxOffsetY = (viewportSize.height * (newScale - 1f)) / 2f
+                        newOffsetX = (offsetX + pan.x).coerceIn(-maxOffsetX, maxOffsetX)
+                        newOffsetY = (offsetY + pan.y).coerceIn(-maxOffsetY, maxOffsetY)
+                    }
+                    onTransform(newScale, newOffsetX, newOffsetY)
+                }
+            }
+            .pointerInput(Unit) {
+                detectTapGestures(onDoubleTap = { onDoubleTap() })
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        AsyncImage(
+            model = model,    // Coil handles file path or content URI string
+            contentDescription = stringResource(R.string.feature_image_viewer_content_description),
+            contentScale = ContentScale.Fit,
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = animatedScale
+                    scaleY = animatedScale
+                    translationX = animatedOffsetX
+                    translationY = animatedOffsetY
+                },
+        )
+    }
+}
+```
+
+Two `pointerInput` blocks because `detectTransformGestures` and `detectTapGestures` can't compose in a single block — Compose runs the first matching detector and ignores others within the same `pointerInput`. Splitting them lets both run.
+
+Note: `detectTapGestures(onDoubleTap = ...)` consumes single taps too — but here that's fine because there's no single-tap action. If a single-tap-to-toggle-bars feature were added later, the second `pointerInput` would need restructuring.
+
+### Edge cases
+
+- **File missing at viewer open** — Coil renders nothing / its error placeholder. Handle by setting `error` and `fallback` on `ImageRequest.Builder` to show a simple "Image unavailable" overlay. State doesn't need to track this; UI-only concern.
+- **Rotation during zoomed state** — viewer survives via routed nav; State persists; offsets are absolute pixel values that may not map perfectly to new viewport. Acceptable: on rotation, clamp re-runs on next gesture and snaps to bounds. If the visible glitch is bad, reset to MIN_SCALE on viewport change (`LaunchedEffect(viewportSize) { if (oldSize != newSize) consume(reset) }`). Defer until it's actually a problem.
+- **Process death** — ROM-dependent; Compose state is lost, but `Screen.ExerciseImage(model)` route arg survives via SavedStateHandle. Viewer reopens at MIN_SCALE. Acceptable.
+- **Content URI permission expired** — if Edit-screen viewer fails to load a content URI because the grant lapsed (theoretical edge case across long viewer sessions / process restart), Coil shows error placeholder. User taps back, picks again. Document but don't prevent.
+
+
 ## Localization
 
 New strings (en + ru, both with proper plurals where applicable):
@@ -528,6 +827,11 @@ New strings (en + ru, both with proper plurals where applicable):
 <string name="feature_exercise_image_error_save_failed">Could not save image — try again</string>
 <string name="feature_exercise_image_error_load_failed">Could not load image</string>
 <string name="feature_exercise_image_error_decode_failed">Image format not supported</string>
+
+<!-- Image viewer -->
+<string name="feature_image_viewer_back">Back</string>
+<string name="feature_image_viewer_content_description">Exercise image, full size</string>
+<string name="feature_image_viewer_unavailable">Image unavailable</string>
 ```
 
 Russian translations to mirror — pay attention to verb forms ("открыть настройки" / "выбрать из галереи" etc.).
@@ -559,12 +863,19 @@ Russian translations to mirror — pay attention to verb forms ("открыть 
 - `feature/all-exercises`:
   - `AllExercisesUiMapperTest` — `imagePath` propagates from DataModel to UiModel.
 
+- `feature/image-viewer`:
+  - `ClickHandlerTest` — `OnBackClick` emits `Action.Navigation.Back`. `OnDoubleTap` toggles scale: from MIN_SCALE → DOUBLE_TAP_TARGET_SCALE; from any > MIN_SCALE → MIN_SCALE with reset offsets.
+  - `CommonHandlerTest` — `TransformChange` updates state with passed values. `Init` no-op (state already from initial()).
+  - `NavigationHandlerTest` — `Back` calls `navigator.popBack()`.
+  - No mapper test — viewer has no domain → UI mapping; route arg flows through unchanged.
+
 ### Compose tests
 
 - `ExerciseEditScreenTest` — when no image, renders Add button + placeholder. When image present (committed), renders thumbnail + Edit + Remove. When `pendingImage = RemoveExisting`, renders placeholder despite committed path (effective display wins). When `pendingImage = NewFromUri`, renders new URI image.
 - `ExerciseDetailScreenTest` — hero shows AsyncImage when `imagePath != null`, placeholder otherwise.
 - `ExerciseRowTest` — leading slot AsyncImage when imagePath, ExerciseTypeIcon otherwise.
 - `ImageSourceDialogTest`, `PermissionDeniedDialogTest` — render + interaction.
+- `ImageViewerScreenTest` — renders AsyncImage with passed model; back icon click emits OnBackClick; tapping image area twice in quick succession emits OnDoubleTap; pinch gesture (synthesized via robolectric/compose test injectors) emits TransformChange. Real pinch + bound clamping are best validated in androidTest (see Integration tests).
 
 ### Integration tests (`androidTest`)
 
@@ -574,6 +885,10 @@ Russian translations to mirror — pay attention to verb forms ("открыть 
 - Cancel flow: existing exercise with image → edit → pick new → press back / cancel → no file changes, DB unchanged.
 - Delete flow: exercise with image → permanent delete → file gone.
 - Archive flow: exercise with image → archive → file present (regression).
+- Viewer open from Detail: tap hero with imagePath set → ImageViewerScreen reached → back gesture returns to Detail with same scroll position.
+- Viewer open from Edit (committed image): tap thumbnail → viewer opens → back returns to Edit with form state preserved (pendingImage still Unchanged).
+- Viewer open from Edit (pending image): pick new image → tap thumbnail → viewer shows the new content URI → back → pending state intact, picker hasn't re-fired.
+- Viewer pinch-zoom: programmatic pinch gesture → scale increases → max scale clamped at 5f. Pan only available when scale > 1f. Pan clamped to image bounds.
 
 ## Verification gate
 
@@ -594,6 +909,11 @@ Before marking PR ready:
   - Permanent delete exercise → file gone from disk (verify via Device Explorer / `adb shell run-as`).
   - Archive exercise with image → file still present.
   - Kill app during camera capture (force stop while camera open) → next launch, no temp file left behind.
+  - Tap hero on Exercise detail (with image) → viewer opens, image fits viewport, status bar visible.
+  - In viewer: pinch to zoom in, pan around — image bounds clamp pan correctly. Pinch out → image snaps back to MIN_SCALE = 1f and centers.
+  - In viewer: double-tap zoomed-out image → animates to ~2.5x. Double-tap again → animates back to 1f.
+  - Back gesture from viewer → returns to entry screen.
+  - Tap thumbnail in Edit screen with a freshly picked (uncommitted) image → viewer shows the picked image (content URI). Back → Edit screen still has `pendingImage = NewFromUri`.
   - In RU locale, all new strings translated.
 
 ## Constraints
@@ -623,6 +943,12 @@ Critical constraints:
 - `READ_MEDIA_IMAGES` permission must NOT appear in AndroidManifest — Photo Picker handles gallery without it.
 - `CAMERA` permission is the only runtime permission added.
 - Cache-bust Coil with `?v=<lastModifiedMs>` when path changes (most important on the edit screen).
+- Viewer is a routed screen, NOT a bottom sheet or in-place overlay.
+- Viewer takes a single `model: String` route arg — file path OR content URI string. Coil handles both.
+- Viewer triggers from Detail hero + Edit thumbnail ONLY. Exercises tab row stays as-is (tap → Detail).
+- Viewer zoom: self-written via Modifier.pointerInput, no third-party library.
+- Viewer scale clamp [1f, 5f]; pan only when scale > 1f; double-tap toggles 1f ↔ 2.5f.
+- Pan bounds = ((scale - 1) * viewportSize) / 2 per axis. No bleed beyond image edges.
 
 Locked design decisions are in the "Design decisions (locked)" table — do NOT deviate without raising in PR review.
 
@@ -630,6 +956,7 @@ PR body must include:
 - Files changed grouped by module.
 - Verification gate report (build + tests + detekt + lint + manual scenarios checked off).
 - Note: "First feature attached to a real file lifecycle. Future features needing image attachment (training cover, etc — v2) should reuse core/core/images/ImageStorage."
+- Note: "Image viewer is generic over its `model` arg (file path OR content URI). Future image-viewing needs (training cover viewer, set-photo viewer) should reuse `Screen.ExerciseImage` route or refactor it to a generically-named `Screen.ImageViewer` if/when that's needed."
 - Disk usage estimate: at JPEG q85, 1280×1280, expect ~150-400 KB per image. 100 exercises with photos ≈ 25 MB.
 
 Stop condition: draft PR opened with verification gate passed, ready for review.
