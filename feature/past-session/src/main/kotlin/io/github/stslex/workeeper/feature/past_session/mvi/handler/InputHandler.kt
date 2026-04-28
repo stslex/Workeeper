@@ -11,6 +11,8 @@ import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSetUiModel
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Action
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Event
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.State
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.collections.immutable.toImmutableList
 import javax.inject.Inject
 
@@ -19,6 +21,8 @@ internal class InputHandler @Inject constructor(
     private val interactor: PastSessionInteractor,
     store: PastSessionHandlerStore,
 ) : Handler<Action.Input>, PastSessionHandlerStore by store {
+
+    private val persistJobs = mutableMapOf<String, Job>()
 
     override fun invoke(action: Action.Input) {
         when (action) {
@@ -84,9 +88,19 @@ internal class InputHandler @Inject constructor(
         val weight = set.weightInput.takeIf { it.isNotBlank() }?.toDoubleOrNull()
         if (set.weightInput.isNotBlank() && weight == null) return
         if (set.weightError) return
-        launch(
-            onError = { _ -> sendEvent(Event.SaveFailedSnackbar) },
+
+        persistJobs.remove(set.setUuid)?.cancel()
+        var persistJob: Job? = null
+        persistJob = launch(
+            onError = { _ ->
+                clearPersistJob(set.setUuid, persistJob)
+                sendEvent(Event.SaveFailedSnackbar)
+            },
+            onSuccess = {
+                clearPersistJob(set.setUuid, persistJob)
+            },
         ) {
+            delay(DEBOUNCE_MILLIS)
             interactor.updateSet(
                 performedExerciseUuid = set.performedExerciseUuid,
                 position = set.position,
@@ -98,5 +112,17 @@ internal class InputHandler @Inject constructor(
                 ),
             )
         }
+        persistJobs[set.setUuid] = persistJob
+    }
+
+    private fun clearPersistJob(setUuid: String, job: Job?) {
+        if (persistJobs[setUuid] == job) {
+            persistJobs.remove(setUuid)
+        }
+    }
+
+    private companion object {
+
+        const val DEBOUNCE_MILLIS = 300L
     }
 }
