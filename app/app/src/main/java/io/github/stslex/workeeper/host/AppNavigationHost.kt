@@ -20,6 +20,7 @@ import io.github.stslex.workeeper.feature.charts.ui.chartsGraph
 import io.github.stslex.workeeper.feature.exercise.ui.exerciseGraph
 import io.github.stslex.workeeper.feature.home.ui.homeGraph
 import io.github.stslex.workeeper.feature.live_workout.ui.liveWorkoutGraph
+import io.github.stslex.workeeper.feature.past_session.ui.pastSessionGraph
 import io.github.stslex.workeeper.feature.settings.ui.archiveGraph
 import io.github.stslex.workeeper.feature.settings.ui.settingsGraph
 import io.github.stslex.workeeper.feature.single_training.ui.singleTrainingsGraph
@@ -74,6 +75,9 @@ internal fun AppNavigationHost(
             )
             liveWorkoutGraph(
                 modifier = Modifier.testTag("LiveWorkoutGraph"),
+            )
+            pastSessionGraph(
+                modifier = Modifier.testTag("PastSessionGraph"),
             )
             settingsGraph(
                 modifier = Modifier.testTag("SettingsGraph"),

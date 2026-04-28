@@ -21,8 +21,10 @@ internal class NavigationHandlerTest {
     }
 
     @Test
-    fun `BackToHome triggers popBack`() {
-        handler.invoke(Action.Navigation.BackToHome)
-        verify(exactly = 1) { navigator.popBack() }
+    fun `OpenPastSession triggers replaceTo with PastSession route`() {
+        handler.invoke(Action.Navigation.OpenPastSession(sessionUuid = "session-1"))
+        verify(exactly = 1) {
+            navigator.replaceTo(Screen.PastSession(sessionUuid = "session-1"))
+        }
     }
 }

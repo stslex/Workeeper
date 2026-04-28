@@ -50,5 +50,6 @@ include(":feature:single-training")
 include(":feature:settings")
 include(":feature:home")
 include(":feature:live-workout")
+include(":feature:past-session")
 
 include(":lint-rules")

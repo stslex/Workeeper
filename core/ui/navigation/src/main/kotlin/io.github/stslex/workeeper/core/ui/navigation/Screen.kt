@@ -64,6 +64,11 @@ sealed interface Screen {
     @Serializable
     data object Archive : Screen
 
+    @Serializable
+    data class PastSession(
+        val sessionUuid: String,
+    ) : Screen
+
     companion object {
 
         @OptIn(InternalSerializationApi::class, ExperimentalSerializationApi::class)

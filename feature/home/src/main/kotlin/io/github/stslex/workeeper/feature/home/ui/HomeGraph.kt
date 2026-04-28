@@ -6,7 +6,10 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
 import io.github.stslex.workeeper.feature.home.di.HomeFeature
+import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Action
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Event
+import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.State
+import io.github.stslex.workeeper.feature.home.ui.components.TrainingPickerSheet
 
 fun NavGraphBuilder.homeGraph(
     modifier: Modifier = Modifier,
@@ -20,10 +23,22 @@ fun NavGraphBuilder.homeGraph(
             }
         }
 
+        val state = processor.state.value
         HomeScreen(
             modifier = modifier,
-            state = processor.state.value,
+            state = state,
             consume = processor::consume,
         )
+
+        (state.picker as? State.PickerState.Visible)?.let { visible ->
+            TrainingPickerSheet(
+                state = visible,
+                onSelect = { uuid ->
+                    processor.consume(Action.Click.OnPickerTrainingSelected(trainingUuid = uuid))
+                },
+                onSeeAll = { processor.consume(Action.Click.OnPickerSeeAllClick) },
+                onDismiss = { processor.consume(Action.Click.OnPickerDismiss) },
+            )
+        }
     }
 }

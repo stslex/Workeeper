@@ -24,4 +24,10 @@ internal class NavigationHandlerTest {
         handler.invoke(Action.Navigation.OpenExerciseDetail("ex-1"))
         verify(exactly = 1) { navigator.navTo(Screen.Exercise(uuid = "ex-1")) }
     }
+
+    @Test
+    fun `OpenSession navigates to Screen PastSession`() {
+        handler.invoke(Action.Navigation.OpenSession(sessionUuid = "session-99"))
+        verify(exactly = 1) { navigator.navTo(Screen.PastSession(sessionUuid = "session-99")) }
+    }
 }

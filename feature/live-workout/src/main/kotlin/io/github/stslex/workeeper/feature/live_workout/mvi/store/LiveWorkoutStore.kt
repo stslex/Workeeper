@@ -156,7 +156,7 @@ internal interface LiveWorkoutStore :
 
         sealed interface Navigation : Action {
             data object Back : Navigation
-            data object BackToHome : Navigation
+            data class OpenPastSession(val sessionUuid: String) : Navigation
         }
 
         sealed interface Common : Action {

@@ -39,6 +39,22 @@ class NavigatorImpl @Inject constructor(
         navController.popBackStack()
     }
 
+    override fun replaceTo(screen: Screen) {
+        logger.d("replaceTo $screen")
+        try {
+            val currentRoute = holder.navigator.currentDestination?.route ?: return
+            navController.navigate(screen) {
+                popUpTo(currentRoute) {
+                    inclusive = true
+                    saveState = false
+                }
+                launchSingleTop = true
+            }
+        } catch (ignore: Exception) {
+            logger.e(ignore, "screen: $screen")
+        }
+    }
+
     companion object {
 
         private const val TAG = "NAVIGATION"

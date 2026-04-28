@@ -15,11 +15,8 @@ internal class NavigationHandler(
     override fun invoke(action: Action.Navigation) {
         when (action) {
             Action.Navigation.Back -> navigator.popBack()
-            Action.Navigation.BackToHome -> {
-                // Pop until the user lands back on the bottom-tab Home — the same
-                // popBack works because Live workout sits one detail deep from Home.
-                navigator.popBack()
-            }
+            is Action.Navigation.OpenPastSession ->
+                navigator.replaceTo(Screen.PastSession(sessionUuid = action.sessionUuid))
         }
     }
 }

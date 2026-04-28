@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="feature_past_session_loading_title">Прошедшая сессия</string>
+    <string name="feature_past_session_adhoc_label">Свободная тренировка</string>
+
+    <string name="feature_past_session_error_not_found">Сессия не найдена</string>
+    <string name="feature_past_session_error_load_failed">Не удалось загрузить сессию</string>
+    <string name="feature_past_session_action_retry">Повторить</string>
+    <string name="feature_past_session_action_delete">Удалить</string>
+
+    <string name="feature_past_session_delete_dialog_title">Удалить сессию?</string>
+    <string name="feature_past_session_delete_dialog_body">Сессия и все её подходы будут безвозвратно удалены. Шаблон тренировки не изменится.</string>
+
+    <string name="feature_past_session_deleted_snackbar">Сессия удалена</string>
+    <string name="feature_past_session_save_failed_snackbar">Не удалось сохранить — попробуйте ещё раз</string>
+
+    <string name="feature_past_session_skipped_chip">Пропущено</string>
+    <string name="feature_past_session_no_sets">Подходы не записаны</string>
+
+    <string name="feature_past_session_volume_label">Всего %1$s кг</string>
+    <string name="feature_past_session_totals_format">%1$s · %2$s</string>
+
+    <plurals name="feature_past_session_exercises_count">
+        <item quantity="one">%d упражнение</item>
+        <item quantity="few">%d упражнения</item>
+        <item quantity="many">%d упражнений</item>
+        <item quantity="other">%d упражнений</item>
+    </plurals>
+
+    <plurals name="feature_past_session_sets_count">
+        <item quantity="one">%d подход</item>
+        <item quantity="few">%d подхода</item>
+        <item quantity="many">%d подходов</item>
+        <item quantity="other">%d подходов</item>
+    </plurals>
+</resources>

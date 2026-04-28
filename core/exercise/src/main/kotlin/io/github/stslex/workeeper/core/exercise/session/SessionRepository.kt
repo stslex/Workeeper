@@ -2,7 +2,9 @@ package io.github.stslex.workeeper.core.exercise.session
 
 import androidx.paging.PagingData
 import io.github.stslex.workeeper.core.exercise.session.model.ActiveSessionInfo
+import io.github.stslex.workeeper.core.exercise.session.model.RecentSessionDataModel
 import io.github.stslex.workeeper.core.exercise.session.model.SessionDataModel
+import io.github.stslex.workeeper.core.exercise.session.model.SessionDetailDataModel
 import kotlinx.coroutines.flow.Flow
 
 @Suppress("TooManyFunctions")
@@ -30,6 +32,19 @@ interface SessionRepository {
     suspend fun getActive(): SessionDataModel?
 
     fun observeRecent(limit: Int): Flow<List<SessionDataModel>>
+
+    /**
+     * Hot stream of the most recent finished sessions (newest first), with the per-row
+     * stats the Home recent list needs (training name, exercise count, set count).
+     */
+    fun observeRecentWithStats(limit: Int): Flow<List<RecentSessionDataModel>>
+
+    /**
+     * One-shot hierarchical fetch for the Past session detail screen. Returns the session
+     * row plus all performed exercises and their sets. Returns `null` when the session
+     * does not exist (e.g. it was deleted between navigation and load).
+     */
+    suspend fun getSessionDetail(sessionUuid: String): SessionDetailDataModel?
 
     fun pagedFinished(): Flow<PagingData<SessionDataModel>>
 

@@ -10,6 +10,7 @@ import io.github.stslex.workeeper.feature.charts.mvi.handler.ChartsComponent
 import io.github.stslex.workeeper.feature.exercise.mvi.handler.ExerciseComponent
 import io.github.stslex.workeeper.feature.home.mvi.handler.HomeComponent
 import io.github.stslex.workeeper.feature.live_workout.mvi.handler.LiveWorkoutComponent
+import io.github.stslex.workeeper.feature.past_session.mvi.handler.PastSessionComponent
 import io.github.stslex.workeeper.feature.settings.mvi.handler.ArchiveComponent
 import io.github.stslex.workeeper.feature.settings.mvi.handler.SettingsComponent
 import io.github.stslex.workeeper.feature.single_training.mvi.handler.SingleTrainingComponent
@@ -30,5 +31,6 @@ class RootComponentImpl(
         is Screen.LiveWorkout -> LiveWorkoutComponent.create(navigator, screen)
         Screen.Settings -> SettingsComponent.create(navigator)
         Screen.Archive -> ArchiveComponent.create(navigator)
+        is Screen.PastSession -> PastSessionComponent.create(navigator, screen)
     }
 }
