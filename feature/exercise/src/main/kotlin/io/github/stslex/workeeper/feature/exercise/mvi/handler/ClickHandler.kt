@@ -1,9 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise.mvi.handler
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.core.content.ContextCompat
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
+import io.github.stslex.workeeper.core.core.images.model.ImageSaveResult
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.utils.CommonExt.parseOrRandom
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
@@ -16,6 +22,9 @@ import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor.ArchiveResult
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor.SaveResult
 import io.github.stslex.workeeper.feature.exercise.mvi.mapper.toAdhocPlanSummary
+import io.github.stslex.workeeper.feature.exercise.mvi.model.ImageErrorType
+import io.github.stslex.workeeper.feature.exercise.mvi.model.ImageSourceUiModel
+import io.github.stslex.workeeper.feature.exercise.mvi.model.PendingImage
 import io.github.stslex.workeeper.feature.exercise.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.DiscardTarget
@@ -34,6 +43,8 @@ import kotlin.uuid.Uuid
 internal class ClickHandler @Inject constructor(
     private val interactor: ExerciseInteractor,
     private val resourceWrapper: ResourceWrapper,
+    @ApplicationContext
+    private val context: Context,
     @MainImmediateDispatcher
     private val mainDispatcher: CoroutineDispatcher,
     store: ExerciseHandlerStore,
@@ -63,6 +74,14 @@ internal class ClickHandler @Inject constructor(
             is Action.Click.OnTagToggle -> processTagToggle(action)
             is Action.Click.OnTagRemove -> processTagRemove(action)
             is Action.Click.OnTagCreate -> processTagCreate(action)
+            Action.Click.OnEditImageClick -> processEditImageClick()
+            is Action.Click.OnImageSourceSelected -> processImageSourceSelected(action)
+            Action.Click.OnRemoveImageClick -> processRemoveImageClick()
+            Action.Click.OnImageSourceDialogDismiss -> processImageSourceDialogDismiss()
+            Action.Click.OnPermissionDeniedDialogDismiss -> processPermissionDeniedDialogDismiss()
+            Action.Click.OnPermissionDeniedSettingsClick -> processPermissionDeniedSettingsClick()
+            Action.Click.RequestCameraCapture -> launchCameraCapture()
+            Action.Click.OnCameraPermissionDenied -> processCameraPermissionDenied()
         }
     }
 
@@ -153,6 +172,7 @@ internal class ClickHandler @Inject constructor(
         consume(Action.Navigation.OpenSession(action.sessionUuid))
     }
 
+    @Suppress("LongMethod")
     private fun processSaveClick() {
         val current = state.value
         if (current.name.isBlank()) {
@@ -166,33 +186,87 @@ internal class ClickHandler @Inject constructor(
         // on a background thread. Switch to mainDispatcher before consume(Action.Navigation.*)
         // so navigator.popBack() lands on the UI thread.
 
+        val resolvedUuid = Uuid.parseOrRandom(current.uuid)
         launch(
-            onSuccess = { result ->
-                when (result) {
-                    is SaveResult.Success -> {
-                        handleSaveSuccess(
-                            resolvedUuid = result.resolvedUuid.toString(),
-                            isCreate = isCreate,
-                            current = current,
-                        )
-                    }
+            onSuccess = { outcome ->
+                when (outcome) {
+                    is SaveOutcome.Success -> handleSaveSuccess(
+                        resolvedUuid = outcome.resolvedUuid,
+                        isCreate = isCreate,
+                        current = current,
+                        finalImagePath = outcome.finalImagePath,
+                    )
 
-                    SaveResult.DuplicateName -> updateStateImmediate {
+                    SaveOutcome.DuplicateName -> updateStateImmediate {
                         it.copy(nameDuplicateError = true)
                     }
+
+                    SaveOutcome.ImageSaveFailed -> Unit // error toast already emitted.
                 }
             },
         ) {
+            // Commit pending image first; if it fails, abort the DB write so we never
+            // end up with a half-applied save (image referenced from DB but missing on disk).
+            val imageOutcome = commitPendingImage(current, resolvedUuid)
+            if (imageOutcome is ImageCommitOutcome.Failed) {
+                sendEvent(Event.ShowImageError(ImageErrorType.SaveFailed))
+                return@launch SaveOutcome.ImageSaveFailed
+            }
+            val finalImagePath = when (imageOutcome) {
+                is ImageCommitOutcome.Stored -> imageOutcome.newPath
+                is ImageCommitOutcome.Removed -> null
+                ImageCommitOutcome.Unchanged -> current.imagePath
+                ImageCommitOutcome.Failed -> error("unreachable")
+            }
             val snapshot = ExerciseChangeDataModel(
-                uuid = Uuid.parseOrRandom(current.uuid),
+                uuid = resolvedUuid,
                 name = current.name.trim(),
                 type = current.type.toData(),
                 description = current.description.takeIf { it.isNotBlank() },
+                imagePath = finalImagePath,
                 timestamp = System.currentTimeMillis(),
                 labels = current.tags.map { it.name },
                 lastAdHocSets = current.adhocPlan?.map { it.toData() },
             )
-            interactor.saveExercise(snapshot)
+            when (interactor.saveExercise(snapshot)) {
+                is SaveResult.Success -> {
+                    // Only after the DB row is updated do we delete the previous file —
+                    // a process kill between write and DB update leaves an orphaned new file
+                    // (better than the reverse, which would leave the DB pointing at nothing).
+                    if (imageOutcome is ImageCommitOutcome.Stored) {
+                        imageOutcome.previousPath
+                            ?.takeIf { it.isNotBlank() && it != imageOutcome.newPath }
+                            ?.let { interactor.deleteImageFile(it) }
+                    }
+                    if (imageOutcome is ImageCommitOutcome.Removed) {
+                        imageOutcome.previousPath?.let { interactor.deleteImageFile(it) }
+                    }
+                    SaveOutcome.Success(
+                        resolvedUuid = resolvedUuid.toString(),
+                        finalImagePath = finalImagePath,
+                    )
+                }
+
+                SaveResult.DuplicateName -> SaveOutcome.DuplicateName
+            }
+        }
+    }
+
+    private suspend fun commitPendingImage(
+        current: State,
+        resolvedUuid: Uuid,
+    ): ImageCommitOutcome = when (val pending = current.pendingImage) {
+        PendingImage.Unchanged -> ImageCommitOutcome.Unchanged
+        PendingImage.RemoveExisting -> ImageCommitOutcome.Removed(previousPath = current.imagePath)
+        is PendingImage.NewFromUri -> when (
+            val saveResult = interactor.saveImage(pending.uri, resolvedUuid.toString())
+        ) {
+            is ImageSaveResult.Success -> ImageCommitOutcome.Stored(
+                newPath = saveResult.absolutePath,
+                previousPath = current.imagePath,
+            )
+
+            is ImageSaveResult.Failure -> ImageCommitOutcome.Failed
         }
     }
 
@@ -200,6 +274,7 @@ internal class ClickHandler @Inject constructor(
         resolvedUuid: String,
         isCreate: Boolean,
         current: State,
+        finalImagePath: String?,
     ) {
         if (isCreate) {
             withContext(mainDispatcher) {
@@ -212,14 +287,40 @@ internal class ClickHandler @Inject constructor(
                 description = current.description,
                 tagUuids = current.tags.map { it.uuid },
             )
-            updateStateImmediate {
-                it.copy(
+            updateStateImmediate { latest ->
+                latest.copy(
                     uuid = resolvedUuid,
                     mode = Mode.Read,
                     originalSnapshot = savedSnapshot,
+                    imagePath = finalImagePath,
+                    imageLastModified = System.currentTimeMillis(),
+                    pendingImage = PendingImage.Unchanged,
                 )
             }
         }
+    }
+
+    private sealed interface SaveOutcome {
+
+        data class Success(
+            val resolvedUuid: String,
+            val finalImagePath: String?,
+        ) : SaveOutcome
+
+        data object DuplicateName : SaveOutcome
+
+        data object ImageSaveFailed : SaveOutcome
+    }
+
+    private sealed interface ImageCommitOutcome {
+
+        data object Unchanged : ImageCommitOutcome
+
+        data class Stored(val newPath: String, val previousPath: String?) : ImageCommitOutcome
+
+        data class Removed(val previousPath: String?) : ImageCommitOutcome
+
+        data object Failed : ImageCommitOutcome
     }
 
     private fun processCancelClick() {
@@ -249,7 +350,7 @@ internal class ClickHandler @Inject constructor(
         updateState { current ->
             val snapshot = current.originalSnapshot
             if (snapshot == null) {
-                current.copy(mode = Mode.Read)
+                current.copy(mode = Mode.Read, pendingImage = PendingImage.Unchanged)
             } else {
                 current.copy(
                     mode = Mode.Read,
@@ -262,6 +363,7 @@ internal class ClickHandler @Inject constructor(
                         .filter { tag -> tag.uuid in snapshot.tagUuids }
                         .toImmutableList(),
                     tagSearchQuery = "",
+                    pendingImage = PendingImage.Unchanged,
                 )
             }
         }
@@ -456,6 +558,70 @@ internal class ClickHandler @Inject constructor(
             interactor.createTag(action.name.trim())
         }
     }
+
+    private fun processEditImageClick() {
+        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
+        updateState { it.copy(sourceDialogVisible = true) }
+    }
+
+    private fun processImageSourceSelected(action: Action.Click.OnImageSourceSelected) {
+        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
+        updateState { it.copy(sourceDialogVisible = false) }
+        when (action.source) {
+            ImageSourceUiModel.Camera -> {
+                if (hasCameraPermission()) {
+                    launchCameraCapture()
+                } else {
+                    sendEvent(Event.NavigateRequestCameraPermission)
+                }
+            }
+
+            ImageSourceUiModel.Gallery -> sendEvent(Event.NavigateLaunchGallery)
+        }
+    }
+
+    private fun launchCameraCapture() {
+        launch(
+            onSuccess = { tempUri ->
+                sendEvent(Event.NavigateLaunchCamera(tempUri))
+            },
+        ) {
+            interactor.createTempCaptureUri()
+        }
+    }
+
+    private fun processRemoveImageClick() {
+        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
+        updateState {
+            it.copy(
+                pendingImage = PendingImage.RemoveExisting,
+                sourceDialogVisible = false,
+            )
+        }
+    }
+
+    private fun processImageSourceDialogDismiss() {
+        updateState { it.copy(sourceDialogVisible = false) }
+    }
+
+    private fun processPermissionDeniedDialogDismiss() {
+        updateState { it.copy(permissionDeniedDialogVisible = false) }
+    }
+
+    private fun processPermissionDeniedSettingsClick() {
+        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
+        updateState { it.copy(permissionDeniedDialogVisible = false) }
+        sendEvent(Event.NavigateOpenAppSettings(context.packageName))
+    }
+
+    private fun processCameraPermissionDenied() {
+        updateState { it.copy(permissionDeniedDialogVisible = true) }
+    }
+
+    private fun hasCameraPermission(): Boolean = ContextCompat.checkSelfPermission(
+        context,
+        Manifest.permission.CAMERA,
+    ) == PackageManager.PERMISSION_GRANTED
 
     companion object {
         private const val MAX_TAGS_PER_EXERCISE = 10

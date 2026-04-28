@@ -6,6 +6,7 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
 import io.github.stslex.workeeper.core.core.di.IODispatcher
+import io.github.stslex.workeeper.core.core.images.ImageStorage
 import io.github.stslex.workeeper.core.database.converters.PlanSetsConverter
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
 import io.github.stslex.workeeper.core.database.session.SessionDao
@@ -42,6 +43,7 @@ internal class ExerciseRepositoryImpl @Inject constructor(
     private val trainingExerciseDao: TrainingExerciseDao,
     private val sessionDao: SessionDao,
     private val setDao: SetDao,
+    private val imageStorage: ImageStorage,
     @IODispatcher private val bgDispatcher: CoroutineDispatcher,
 ) : ExerciseRepository {
 
@@ -153,7 +155,10 @@ internal class ExerciseRepositoryImpl @Inject constructor(
 
     override suspend fun deleteItem(uuid: String) {
         withContext(bgDispatcher) {
+            // Read imagePath BEFORE delete — once the row is gone, we lose the path.
+            val imagePath = dao.getById(Uuid.parse(uuid))?.imagePath
             dao.permanentDelete(Uuid.parse(uuid))
+            imagePath?.let { imageStorage.deleteImage(it) }
         }
     }
 
@@ -175,7 +180,10 @@ internal class ExerciseRepositoryImpl @Inject constructor(
 
     override suspend fun deleteAllItems(uuids: List<Uuid>) {
         withContext(bgDispatcher) {
+            // Snapshot paths before deleting rows so we can clean image files after.
+            val paths = uuids.mapNotNull { dao.getById(it)?.imagePath }
             uuids.forEach { dao.permanentDelete(it) }
+            paths.forEach { imageStorage.deleteImage(it) }
         }
     }
 
@@ -193,7 +201,9 @@ internal class ExerciseRepositoryImpl @Inject constructor(
 
     override suspend fun permanentDelete(uuid: String) {
         withContext(bgDispatcher) {
+            val imagePath = dao.getById(Uuid.parse(uuid))?.imagePath
             dao.permanentDelete(Uuid.parse(uuid))
+            imagePath?.let { imageStorage.deleteImage(it) }
         }
     }
 
@@ -288,7 +298,10 @@ internal class ExerciseRepositoryImpl @Inject constructor(
 
     override suspend fun bulkPermanentDelete(uuids: Set<String>) {
         withContext(bgDispatcher) {
-            uuids.forEach { dao.permanentDelete(Uuid.parse(it)) }
+            val parsed = uuids.map(Uuid::parse)
+            val paths = parsed.mapNotNull { dao.getById(it)?.imagePath }
+            parsed.forEach { dao.permanentDelete(it) }
+            paths.forEach { imageStorage.deleteImage(it) }
         }
     }
 

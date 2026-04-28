@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise.domain
 
+import android.net.Uri
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
+import io.github.stslex.workeeper.core.core.images.ImageStorage
+import io.github.stslex.workeeper.core.core.images.model.ImageSaveResult
 import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
@@ -22,6 +25,7 @@ import javax.inject.Inject
 internal class ExerciseInteractorImpl @Inject constructor(
     private val exerciseRepository: ExerciseRepository,
     private val tagRepository: TagRepository,
+    private val imageStorage: ImageStorage,
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
 ) : ExerciseInteractor {
 
@@ -102,4 +106,13 @@ internal class ExerciseInteractorImpl @Inject constructor(
             exerciseRepository.clearWeightsFromAllPlansForExercise(uuid)
         }
     }
+
+    override suspend fun saveImage(
+        uri: Uri,
+        exerciseUuid: String,
+    ): ImageSaveResult = imageStorage.saveImage(uri, exerciseUuid)
+
+    override suspend fun createTempCaptureUri(): Uri = imageStorage.createTempCaptureUri()
+
+    override suspend fun deleteImageFile(path: String): Boolean = imageStorage.deleteImage(path)
 }

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise.mvi.handler
 
+import android.content.Context
+import android.content.pm.PackageManager
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
@@ -31,6 +33,10 @@ internal class ClickHandlerTest {
 
     private val interactor = mockk<ExerciseInteractor>(relaxed = true)
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
+    private val context = mockk<Context>(relaxed = true).apply {
+        every { packageName } returns "io.github.stslex.workeeper.test"
+        every { checkPermission(any(), any(), any()) } returns PackageManager.PERMISSION_GRANTED
+    }
 
     private fun setup(initialState: State = State.create(uuid = "uuid-1")): TestSetup {
         val stateFlow = MutableStateFlow(initialState)
@@ -47,6 +53,7 @@ internal class ClickHandlerTest {
             handler = ClickHandler(
                 interactor = interactor,
                 resourceWrapper = resourceWrapper,
+                context = context,
                 mainDispatcher = Dispatchers.Unconfined,
                 store = store,
             ),
@@ -356,6 +363,64 @@ internal class ClickHandlerTest {
         val events = mutableListOf<Event>()
         verify { store.sendEvent(capture(events)) }
         assertTrue(events.any { it is Event.ShowPermanentDeleteConfirm })
+    }
+
+    @Test
+    fun `OnEditImageClick opens the source dialog`() {
+        val (stateFlow, _, handler) = setup()
+        handler.invoke(Action.Click.OnEditImageClick)
+        assertTrue(stateFlow.value.sourceDialogVisible)
+    }
+
+    @Test
+    fun `OnRemoveImageClick stages a RemoveExisting pending image`() {
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = "uuid-1").copy(
+                imagePath = "/files/old.jpg",
+                imageLastModified = 100L,
+            ),
+        )
+        handler.invoke(Action.Click.OnRemoveImageClick)
+        assertEquals(
+            io.github.stslex.workeeper.feature.exercise.mvi.model.PendingImage.RemoveExisting,
+            stateFlow.value.pendingImage,
+        )
+    }
+
+    @Test
+    fun `OnImageSourceDialogDismiss hides the source dialog`() {
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = "uuid-1").copy(sourceDialogVisible = true),
+        )
+        handler.invoke(Action.Click.OnImageSourceDialogDismiss)
+        assertEquals(false, stateFlow.value.sourceDialogVisible)
+    }
+
+    @Test
+    fun `OnPermissionDeniedDialogDismiss hides the permission dialog`() {
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = "uuid-1").copy(permissionDeniedDialogVisible = true),
+        )
+        handler.invoke(Action.Click.OnPermissionDeniedDialogDismiss)
+        assertEquals(false, stateFlow.value.permissionDeniedDialogVisible)
+    }
+
+    @Test
+    fun `OnCameraPermissionDenied surfaces the permission denied dialog`() {
+        val (stateFlow, _, handler) = setup()
+        handler.invoke(Action.Click.OnCameraPermissionDenied)
+        assertTrue(stateFlow.value.permissionDeniedDialogVisible)
+    }
+
+    @Test
+    fun `OnPermissionDeniedSettingsClick emits NavigateOpenAppSettings`() {
+        val (_, store, handler) = setup(
+            State.create(uuid = "uuid-1").copy(permissionDeniedDialogVisible = true),
+        )
+        handler.invoke(Action.Click.OnPermissionDeniedSettingsClick)
+        val events = mutableListOf<Event>()
+        verify { store.sendEvent(capture(events)) }
+        assertTrue(events.any { it is Event.NavigateOpenAppSettings })
     }
 
     private fun assertHaptic(event: Event, expected: HapticFeedbackType) {

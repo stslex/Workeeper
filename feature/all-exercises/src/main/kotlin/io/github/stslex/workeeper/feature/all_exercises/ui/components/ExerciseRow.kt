@@ -21,14 +21,21 @@ import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.ui.kit.components.swipe.AppSwipeAction
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagChip
@@ -38,8 +45,10 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.feature.all_exercises.R
 import io.github.stslex.workeeper.feature.all_exercises.mvi.model.ExerciseUiModel
 import kotlinx.collections.immutable.persistentListOf
+import java.io.File
 
 private const val MAX_INLINE_TAGS = 3
+private val LEADING_THUMB_SIZE = 28.dp
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Suppress("LongParameterList")
@@ -71,7 +80,7 @@ internal fun ExerciseRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
         ) {
-            ExerciseTypeIcon(type = item.type)
+            ExerciseLeading(item = item)
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xxs),
@@ -137,6 +146,32 @@ internal fun ExerciseRow(
 }
 
 @Composable
+private fun ExerciseLeading(
+    item: ExerciseUiModel,
+) {
+    val path = item.imagePath
+    if (path != null) {
+        // Capture mtime once per recomposition for cache-busting; do not re-read the file
+        // on every recompose. The library tab tolerates a small staleness window — the
+        // edit screen does the more aggressive cache-busting.
+        val lastModified = remember(path) { File(path).lastModified() }
+        AsyncImage(
+            modifier = Modifier
+                .size(LEADING_THUMB_SIZE)
+                .clip(AppUi.shapes.small),
+            model = ImageRequest.Builder(LocalContext.current)
+                .data("$path?v=$lastModified")
+                .crossfade(true)
+                .build(),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+        )
+    } else {
+        ExerciseTypeIcon(type = item.type)
+    }
+}
+
+@Composable
 private fun ExerciseRowTags(
     tags: kotlinx.collections.immutable.ImmutableList<String>,
     modifier: Modifier = Modifier,
@@ -175,6 +210,7 @@ private fun ExerciseRowPreview() {
             type = ExerciseTypeDataModel.WEIGHTED,
             tags = persistentListOf("Push", "Chest"),
             sessionCount = 12,
+            imagePath = null,
         ),
         ExerciseUiModel(
             uuid = "2",
@@ -182,6 +218,7 @@ private fun ExerciseRowPreview() {
             type = ExerciseTypeDataModel.WEIGHTLESS,
             tags = persistentListOf("Pull", "Back", "Calisthenics", "Upper"),
             sessionCount = 4,
+            imagePath = null,
         ),
         ExerciseUiModel(
             uuid = "3",
@@ -189,6 +226,7 @@ private fun ExerciseRowPreview() {
             type = ExerciseTypeDataModel.WEIGHTED,
             tags = persistentListOf(),
             sessionCount = 0,
+            imagePath = null,
         ),
     )
     AppTheme {

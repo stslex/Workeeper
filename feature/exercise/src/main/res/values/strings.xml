@@ -54,4 +54,27 @@
     <string name="feature_exercise_edit_type_change_weightless_body">Weight values from this exercise’s plans will be cleared. This cannot be undone.</string>
     <string name="feature_exercise_edit_type_change_weightless_impact">All plan weights cleared</string>
     <string name="feature_exercise_edit_type_change_weightless_confirm">Switch</string>
+
+    <!-- Edit exercise — image -->
+    <string name="feature_exercise_image_edit_title">Exercise image</string>
+    <string name="feature_exercise_image_action_add">Add image</string>
+    <string name="feature_exercise_image_action_edit">Edit image</string>
+    <string name="feature_exercise_image_action_remove">Remove</string>
+    <string name="feature_exercise_image_thumb_description">Attached exercise photo</string>
+    <string name="feature_exercise_image_placeholder_description">No exercise photo attached</string>
+
+    <!-- Source dialog -->
+    <string name="feature_exercise_image_source_dialog_title">Choose source</string>
+    <string name="feature_exercise_image_source_camera">Take photo</string>
+    <string name="feature_exercise_image_source_gallery">Choose from gallery</string>
+
+    <!-- Permission -->
+    <string name="feature_exercise_image_permission_denied_title">Camera permission denied</string>
+    <string name="feature_exercise_image_permission_denied_body">To take a photo, grant camera access in app settings. You can still choose an existing photo from your gallery.</string>
+    <string name="feature_exercise_image_permission_denied_action_settings">Open settings</string>
+
+    <!-- Errors -->
+    <string name="feature_exercise_image_error_save_failed">Could not save image — try again</string>
+    <string name="feature_exercise_image_error_load_failed">Could not load image</string>
+    <string name="feature_exercise_image_error_decode_failed">Image format not supported</string>
 </resources>

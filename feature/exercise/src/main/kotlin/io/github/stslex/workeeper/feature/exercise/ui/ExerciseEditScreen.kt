@@ -34,6 +34,7 @@ import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State.Mode
+import io.github.stslex.workeeper.feature.exercise.ui.components.ImageEditRow
 import io.github.stslex.workeeper.feature.exercise.ui.components.TagPickerInline
 import io.github.stslex.workeeper.feature.exercise.ui.components.TypeToggle
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
@@ -81,6 +82,14 @@ internal fun ExerciseEditScreen(
             verticalArrangement = Arrangement.spacedBy(AppDimension.sectionSpacing),
         ) {
             Spacer(Modifier.height(AppDimension.Space.sm))
+            FormSection(label = stringResource(R.string.feature_exercise_image_edit_title)) {
+                ImageEditRow(
+                    type = state.type,
+                    imageDisplay = state.effectiveImageDisplay,
+                    onEditClick = { consume(Action.Click.OnEditImageClick) },
+                    onRemoveClick = { consume(Action.Click.OnRemoveImageClick) },
+                )
+            }
             FormSection(label = stringResource(R.string.feature_exercise_edit_label_name)) {
                 val nameErrorText = when {
                     state.nameError -> stringResource(R.string.feature_exercise_edit_error_name_required)

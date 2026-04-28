@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise.domain
 
+import io.github.stslex.workeeper.core.core.images.ImageStorage
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.exercise.tags.TagRepository
@@ -21,9 +22,11 @@ internal class ExerciseInteractorImplTest {
 
     private val exerciseRepository = mockk<ExerciseRepository>(relaxed = true)
     private val tagRepository = mockk<TagRepository>(relaxed = true)
+    private val imageStorage = mockk<ImageStorage>(relaxed = true)
     private val interactor = ExerciseInteractorImpl(
         exerciseRepository = exerciseRepository,
         tagRepository = tagRepository,
+        imageStorage = imageStorage,
         defaultDispatcher = Dispatchers.Unconfined,
     )
 

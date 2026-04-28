@@ -13,11 +13,13 @@ import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.mvi.mapper.toAdhocPlanSummary
 import io.github.stslex.workeeper.feature.exercise.mvi.mapper.toUi
+import io.github.stslex.workeeper.feature.exercise.mvi.model.PendingImage
 import io.github.stslex.workeeper.feature.exercise.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.async
+import java.io.File
 import javax.inject.Inject
 
 @ViewModelScoped
@@ -30,7 +32,22 @@ internal class CommonHandler @Inject constructor(
     override fun invoke(action: Action.Common) {
         when (action) {
             Action.Common.Init -> processInit()
+            is Action.Common.ImagePicked -> processImagePicked(action)
+            Action.Common.ImagePickCancelled -> processImagePickCancelled()
         }
+    }
+
+    private fun processImagePicked(action: Action.Common.ImagePicked) {
+        updateState {
+            it.copy(
+                pendingImage = PendingImage.NewFromUri(action.uri),
+                sourceDialogVisible = false,
+            )
+        }
+    }
+
+    private fun processImagePickCancelled() {
+        updateState { it.copy(sourceDialogVisible = false) }
     }
 
     private fun processInit() {
@@ -79,6 +96,10 @@ internal class CommonHandler @Inject constructor(
                 matched ?: TagUiModel(uuid = name, name = name)
             }
             .toImmutableList()
+        val imagePath = exercise.imagePath
+        // Capture the file's mtime so Coil can key by `?v=<mtime>` and avoid serving a
+        // stale cache entry when the user replaces the image at the same path.
+        val imageLastModified = imagePath?.let { File(it).lastModified() } ?: 0L
         return copy(
             name = exercise.name,
             type = exercise.type.toUi(),
@@ -89,6 +110,9 @@ internal class CommonHandler @Inject constructor(
             canPermanentlyDelete = result.canPermanentlyDelete,
             adhocPlan = adhocPlan,
             adhocPlanSummaryLabel = adhocPlan.toAdhocPlanSummary(resourceWrapper),
+            imagePath = imagePath,
+            imageLastModified = imageLastModified,
+            pendingImage = PendingImage.Unchanged,
             originalSnapshot = State.Snapshot(
                 name = exercise.name,
                 type = exercise.type.toUi(),
