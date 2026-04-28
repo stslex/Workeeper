@@ -4,7 +4,9 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
+import androidx.room.withTransaction
 import io.github.stslex.workeeper.core.core.di.IODispatcher
+import io.github.stslex.workeeper.core.database.AppDatabase
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
 import io.github.stslex.workeeper.core.database.session.PerformedExerciseDao
 import io.github.stslex.workeeper.core.database.session.PerformedExerciseEntity
@@ -34,6 +36,7 @@ import kotlin.uuid.Uuid
 @Suppress("TooManyFunctions", "LongParameterList")
 @Singleton
 internal class SessionRepositoryImpl @Inject constructor(
+    private val database: AppDatabase,
     private val dao: SessionDao,
     private val performedExerciseDao: PerformedExerciseDao,
     private val setDao: SetDao,
@@ -105,11 +108,11 @@ internal class SessionRepositoryImpl @Inject constructor(
 
     override suspend fun getSessionDetail(
         sessionUuid: String,
-    ): SessionDetailDataModel? = withContext(ioDispatcher) {
+    ): SessionDetailDataModel? = database.withTransaction {
         val sessionId = Uuid.parse(sessionUuid)
-        val session = dao.getById(sessionId) ?: return@withContext null
-        val finishedAt = session.finishedAt ?: return@withContext null
-        val training = trainingDao.getById(session.trainingUuid) ?: return@withContext null
+        val session = dao.getById(sessionId) ?: return@withTransaction null
+        val finishedAt = session.finishedAt ?: return@withTransaction null
+        val training = trainingDao.getById(session.trainingUuid) ?: return@withTransaction null
         val performed = performedExerciseDao
             .getBySession(sessionId)
             .sortedBy { it.position }

@@ -94,11 +94,11 @@ private fun List<PerformedExerciseDetailDataModel>.toUiList(): ImmutableList<Pas
 private fun List<SetsDataModel>.toUiSets(
     performedExerciseUuid: String,
 ): ImmutableList<PastSetUiModel> = this
-    .map { set ->
+    .mapIndexed { index, set ->
         PastSetUiModel(
             setUuid = set.uuid,
             performedExerciseUuid = performedExerciseUuid,
-            position = 0,
+            position = index,
             type = set.type.toUi(),
             weightInput = set.weight?.let(::formatWeight).orEmpty(),
             repsInput = set.reps.takeIf { it > 0 }?.toString().orEmpty(),
