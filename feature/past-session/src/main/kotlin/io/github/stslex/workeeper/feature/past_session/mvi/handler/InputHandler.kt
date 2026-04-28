@@ -11,10 +11,10 @@ import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSetUiModel
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Action
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Event
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.State
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.collections.immutable.toImmutableList
 import javax.inject.Inject
 
 @ViewModelScoped

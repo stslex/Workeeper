@@ -10,5 +10,6 @@ dependencies {
     implementation(libs.androidx.compose.runtime)
 
     implementation(libs.androidx.paging.runtime)
+    implementation(libs.androidx.room.ktx)
     testImplementation(libs.androidx.paging.testing)
 }
