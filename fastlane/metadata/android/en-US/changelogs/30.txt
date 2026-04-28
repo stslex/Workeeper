@@ -1,0 +1,7 @@
+- ✨ wire past-session into nav host + root component
+- ✨ wire finish + OpenSession to PastSession
+- ✨ expand dashboard with Start CTA, recent sessions, training picker
+- ✨ new module — view, edit, delete a finished session
+- ✨ Stage 5.5 data layer — recent sessions, session detail, recent templates
+- ✨ add Screen.PastSession + Navigator.replaceTo + relative time formatter
+- ✨ add .editorconfig for Kotlin code style and refactor LiveWorkoutStore confirm dialog
