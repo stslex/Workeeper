@@ -1,12 +1,15 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dagger.hilt.android.scopes.ViewModelScoped
+import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.model.AppPlanEditorAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
+import io.github.stslex.workeeper.feature.exercise.mvi.mapper.toAdhocPlanSummary
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Event
 import kotlinx.collections.immutable.toImmutableList
@@ -15,6 +18,7 @@ import javax.inject.Inject
 @Suppress("TooManyFunctions", "LongMethod")
 @ViewModelScoped
 internal class PlanEditActionHandler @Inject constructor(
+    private val resourceWrapper: ResourceWrapper,
     store: ExerciseHandlerStore,
 ) : Handler<Action.PlanEditorAction>, ExerciseHandlerStore by store {
 
@@ -33,8 +37,10 @@ internal class PlanEditActionHandler @Inject constructor(
     private fun processPlanEditorDismiss() {
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
         updateState {
+            val nextPlan = it.planEditorTarget?.draft
             it.copy(
-                adhocPlan = it.planEditorTarget?.draft,
+                adhocPlan = nextPlan,
+                adhocPlanSummaryLabel = nextPlan.toAdhocPlanSummary(resourceWrapper),
                 planEditorTarget = null,
             )
         }
@@ -44,8 +50,10 @@ internal class PlanEditActionHandler @Inject constructor(
     private fun processPlanEditorSave() {
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
         updateState {
+            val nextPlan = it.planEditorTarget?.draft
             it.copy(
-                adhocPlan = it.planEditorTarget?.draft,
+                adhocPlan = nextPlan,
+                adhocPlanSummaryLabel = nextPlan.toAdhocPlanSummary(resourceWrapper),
                 planEditorTarget = null,
             )
         }

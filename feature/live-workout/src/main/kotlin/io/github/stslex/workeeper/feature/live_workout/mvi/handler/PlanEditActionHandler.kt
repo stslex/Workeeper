@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.feature.live_workout.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dagger.hilt.android.scopes.ViewModelScoped
+import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.mappers.toData
 import io.github.stslex.workeeper.core.ui.plan_editor.model.AppPlanEditorAction
@@ -10,6 +11,7 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.withPresentation
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ErrorType
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Event
@@ -22,6 +24,7 @@ private const val DEFAULT_NEW_REPS = 5
 @ViewModelScoped
 internal class PlanEditActionHandler @Inject constructor(
     private val interactor: LiveWorkoutInteractor,
+    private val resourceWrapper: ResourceWrapper,
     store: LiveWorkoutHandlerStore,
 ) : Handler<LiveWorkoutStore.Action.PlanEditAction>, LiveWorkoutHandlerStore by store {
 
@@ -103,12 +106,18 @@ internal class PlanEditActionHandler @Inject constructor(
                     }
                 }.toImmutableList(),
                 planEditorTarget = null,
-            )
+            ).withPresentation(resourceWrapper)
         }
         val trainingUuid = current.trainingUuid
         val isAdhoc = current.isAdhoc
         launch(
-            onError = { _ -> sendEvent(Event.ShowError(ErrorType.PlanSaveFailed)) },
+            onError = { _ ->
+                sendEvent(
+                    Event.ShowError(
+                        message = resourceWrapper.getString(ErrorType.PlanSaveFailed.msgRes),
+                    ),
+                )
+            },
         ) {
             val data = nextPlan?.map { it.toData() }
             if (isAdhoc) {

@@ -56,24 +56,11 @@ internal fun FinishConfirmDialog(
             )
             StatRow(
                 label = stringResource(R.string.feature_live_workout_finish_stat_exercises),
-                value = if (stats.skippedCount > 0) {
-                    stringResource(
-                        R.string.feature_live_workout_finish_stat_exercises_with_skipped_format,
-                        stats.doneCount,
-                        stats.totalCount,
-                        stats.skippedCount,
-                    )
-                } else {
-                    stringResource(
-                        R.string.feature_live_workout_finish_stat_exercises_format,
-                        stats.doneCount,
-                        stats.totalCount,
-                    )
-                },
+                value = stats.exercisesSummaryLabel,
             )
             StatRow(
                 label = stringResource(R.string.feature_live_workout_finish_stat_sets),
-                value = stats.setsLogged.toString(),
+                value = stats.setsLoggedLabel,
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -124,10 +111,8 @@ private fun FinishConfirmDialogAllDoneLightPreview() {
             stats = LiveWorkoutStore.State.FinishStats(
                 durationMillis = 47 * 60_000L + 8_000L,
                 durationLabel = "47:08",
-                doneCount = 5,
-                totalCount = 5,
-                skippedCount = 0,
-                setsLogged = 22,
+                exercisesSummaryLabel = "5 of 5 done",
+                setsLoggedLabel = "22",
             ),
             onConfirm = {},
             onDismiss = {},
@@ -143,10 +128,8 @@ private fun FinishConfirmDialogPartialDarkPreview() {
             stats = LiveWorkoutStore.State.FinishStats(
                 durationMillis = 32 * 60_000L,
                 durationLabel = "32:00",
-                doneCount = 3,
-                totalCount = 5,
-                skippedCount = 1,
-                setsLogged = 12,
+                exercisesSummaryLabel = "3 of 5 done · 1 skipped",
+                setsLoggedLabel = "12",
             ),
             onConfirm = {},
             onDismiss = {},

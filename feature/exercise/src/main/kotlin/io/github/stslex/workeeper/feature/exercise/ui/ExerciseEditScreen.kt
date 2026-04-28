@@ -164,22 +164,11 @@ private fun DefaultPlanSection(
             horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // TODO(tech-debt): Move plan-summary mapping (weight/reps string shaping) into
-            // handler/state mapping and render a preformatted summary here.
-            val planText = state.adhocPlan
-                ?.joinToString(separator = " · ") { set ->
-                    val weightStr = set.weight?.let { weight ->
-                        if (weight % 1.0 == 0.0) weight.toLong().toString() else weight.toString()
-                    }
-                    if (weightStr != null) weightStr + "×" + set.reps else set.reps.toString()
-                }
-                ?.takeIf { it.isNotBlank() }
-                ?: stringResource(R.string.feature_exercise_edit_plan_summary_no_plan)
             Text(
                 modifier = Modifier
                     .weight(1f)
                     .testTag("ExerciseEditPlanSummary"),
-                text = planText,
+                text = state.adhocPlanSummaryLabel,
                 style = AppUi.typography.bodySmall,
                 color = AppUi.colors.textTertiary,
             )

@@ -7,6 +7,7 @@ import androidx.paging.PagingData
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.feature.settings.domain.model.ArchivedItem
+import io.github.stslex.workeeper.feature.settings.mvi.model.ArchivedItemUi
 import io.github.stslex.workeeper.feature.settings.mvi.store.ArchiveStore.Action
 import io.github.stslex.workeeper.feature.settings.mvi.store.ArchiveStore.Event
 import io.github.stslex.workeeper.feature.settings.mvi.store.ArchiveStore.State
@@ -21,8 +22,8 @@ internal interface ArchiveStore : Store<State, Action, Event> {
         val selectedSegment: Segment,
         val exerciseCount: Int,
         val trainingCount: Int,
-        val archivedExercisesPaging: PagingUiState<PagingData<ArchivedItem.Exercise>>,
-        val archivedTrainingsPaging: PagingUiState<PagingData<ArchivedItem.Training>>,
+        val archivedExercisesPaging: PagingUiState<PagingData<ArchivedItemUi.Exercise>>,
+        val archivedTrainingsPaging: PagingUiState<PagingData<ArchivedItemUi.Training>>,
         val pendingDeleteImpact: Int?,
         val pendingDeleteTarget: ArchivedItem?,
         val deleteImpactLoading: Boolean,
@@ -31,8 +32,8 @@ internal interface ArchiveStore : Store<State, Action, Event> {
         companion object {
 
             fun init(
-                archivedExercisesPaging: PagingUiState<PagingData<ArchivedItem.Exercise>>,
-                archivedTrainingsPaging: PagingUiState<PagingData<ArchivedItem.Training>>,
+                archivedExercisesPaging: PagingUiState<PagingData<ArchivedItemUi.Exercise>>,
+                archivedTrainingsPaging: PagingUiState<PagingData<ArchivedItemUi.Training>>,
             ): State = State(
                 selectedSegment = Segment.EXERCISES,
                 exerciseCount = 0,

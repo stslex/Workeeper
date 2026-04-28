@@ -4,13 +4,16 @@ package io.github.stslex.workeeper.feature.live_workout.mvi.handler
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
-import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
+import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
+import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.toFinishStats
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.withPresentation
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ErrorType
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
@@ -29,6 +32,7 @@ import javax.inject.Inject
 @ViewModelScoped
 internal class ClickHandler @Inject constructor(
     private val interactor: LiveWorkoutInteractor,
+    private val resourceWrapper: ResourceWrapper,
     @MainImmediateDispatcher
     private val mainImmediateDispatcher: CoroutineDispatcher,
     store: LiveWorkoutHandlerStore,
@@ -71,7 +75,7 @@ internal class ClickHandler @Inject constructor(
         current.findExercise(action.performedExerciseUuid) ?: return
         val seedDraft = current.draftFor(action.performedExerciseUuid, action.position)
         if (seedDraft.reps <= 0) {
-            sendEvent(Event.ShowError(ErrorType.InvalidReps))
+            sendError(ErrorType.InvalidReps)
             return
         }
         val planSet = PlanSetDataModel(
@@ -89,7 +93,7 @@ internal class ClickHandler @Inject constructor(
         }
         launch(
             onError = { _ ->
-                sendEvent(Event.ShowError(ErrorType.SetSaveFailed))
+                sendError(ErrorType.SetSaveFailed)
                 // Revert to a clean reload-shaped state by rebuilding statuses.
                 updateState { latest -> latest.recomputeStatuses() }
             },
@@ -111,7 +115,7 @@ internal class ClickHandler @Inject constructor(
             )
         }
         launch(
-            onError = { _ -> sendEvent(Event.ShowError(ErrorType.SetDeleteFailed)) },
+            onError = { _ -> sendError(ErrorType.SetDeleteFailed) },
         ) {
             interactor.deleteSet(action.performedExerciseUuid, action.position)
         }
@@ -133,7 +137,7 @@ internal class ClickHandler @Inject constructor(
                 )
             }
             launch(
-                onError = { _ -> sendEvent(Event.ShowError(ErrorType.SetSaveFailed)) },
+                onError = { _ -> sendError(ErrorType.SetSaveFailed) },
             ) {
                 interactor.upsertSet(
                     performedExerciseUuid = action.performedExerciseUuid,
@@ -165,7 +169,7 @@ internal class ClickHandler @Inject constructor(
             )
         }
         launch(
-            onError = { _ -> sendEvent(Event.ShowError(ErrorType.SetDeleteFailed)) },
+            onError = { _ -> sendError(ErrorType.SetDeleteFailed) },
         ) {
             interactor.deleteSet(action.performedExerciseUuid, action.position)
         }
@@ -216,14 +220,23 @@ internal class ClickHandler @Inject constructor(
     private fun processResetSetsAsk(action: Action.Click.OnResetSets) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         updateState { it.copy(pendingResetExerciseUuid = action.performedExerciseUuid) }
-        sendEvent(Event.ShowResetSetsConfirmDialog)
+        sendEvent(
+            Event.ShowResetSetsConfirmDialog(
+                dialog = Event.ConfirmDialog(
+                    title = resourceWrapper.getString(R.string.feature_live_workout_reset_title),
+                    body = resourceWrapper.getString(R.string.feature_live_workout_reset_body),
+                    confirmLabel = resourceWrapper.getString(R.string.feature_live_workout_reset_confirm),
+                    dismissLabel = resourceWrapper.getString(R.string.feature_live_workout_reset_dismiss),
+                ),
+            ),
+        )
     }
 
     private fun processResetSetsConfirm(action: Action.Click.OnResetSetsConfirm) {
         sendEvent(Event.HapticImpact(HapticFeedbackType.LongPress))
         updateState { latest -> latest.applyResetSets(action.performedExerciseUuid) }
         launch(
-            onError = { _ -> sendEvent(Event.ShowError(ErrorType.ResetFailed)) },
+            onError = { _ -> sendError(ErrorType.ResetFailed) },
         ) {
             interactor.resetExerciseSets(action.performedExerciseUuid)
         }
@@ -236,14 +249,23 @@ internal class ClickHandler @Inject constructor(
     private fun processSkipExerciseAsk(action: Action.Click.OnSkipExercise) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         updateState { it.copy(pendingSkipExerciseUuid = action.performedExerciseUuid) }
-        sendEvent(Event.ShowSkipExerciseConfirmDialog)
+        sendEvent(
+            Event.ShowSkipExerciseConfirmDialog(
+                dialog = Event.ConfirmDialog(
+                    title = resourceWrapper.getString(R.string.feature_live_workout_skip_title),
+                    body = resourceWrapper.getString(R.string.feature_live_workout_skip_body),
+                    confirmLabel = resourceWrapper.getString(R.string.feature_live_workout_skip_confirm),
+                    dismissLabel = resourceWrapper.getString(R.string.feature_live_workout_skip_dismiss),
+                ),
+            ),
+        )
     }
 
     private fun processSkipExerciseConfirm(action: Action.Click.OnSkipExerciseConfirm) {
         sendEvent(Event.HapticImpact(HapticFeedbackType.LongPress))
         updateState { latest -> latest.applySkip(action.performedExerciseUuid) }
         launch(
-            onError = { _ -> sendEvent(Event.ShowError(ErrorType.SkipFailed)) },
+            onError = { _ -> sendError(ErrorType.SkipFailed) },
         ) {
             interactor.setSkipped(action.performedExerciseUuid, skipped = true)
         }
@@ -255,19 +277,7 @@ internal class ClickHandler @Inject constructor(
 
     private fun processFinishClick() {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        val current = state.value
-        val stats = State.FinishStats(
-            durationMillis = current.elapsedMillis,
-            durationLabel = current.elapsedDurationLabel,
-            doneCount = current.exercises.count {
-                it.status == ExerciseStatusUiModel.DONE
-            },
-            totalCount = current.exercises.size,
-            skippedCount = current.exercises.count {
-                it.status == ExerciseStatusUiModel.SKIPPED
-            },
-            setsLogged = current.exercises.sumOf { it.performedSets.count { set -> set.isDone } },
-        )
+        val stats = state.value.toFinishStats(resourceWrapper)
         updateState { it.copy(pendingFinishConfirm = stats) }
         sendEvent(Event.ShowFinishConfirmDialog)
     }
@@ -278,21 +288,17 @@ internal class ClickHandler @Inject constructor(
         launch(
             onSuccess = { result ->
                 if (result == null) {
-                    sendEvent(Event.ShowError(ErrorType.FinishMissingSession))
+                    sendError(ErrorType.FinishMissingSession)
                     return@launch
                 }
-                val stats = State.FinishStats(
-                    durationMillis = result.durationMillis,
-                    durationLabel = formatElapsedDuration(result.durationMillis),
-                    doneCount = result.doneCount,
-                    totalCount = result.totalCount,
-                    skippedCount = result.skippedCount,
-                    setsLogged = result.setsLogged,
+                sendEvent(
+                    Event.ShowSessionSavedSnackbar(
+                        message = resourceWrapper.getString(R.string.feature_live_workout_finish_success),
+                    ),
                 )
-                sendEvent(Event.ShowSessionSavedSnackbar(stats))
                 consumeOnMain(Action.Navigation.Back)
             },
-            onError = { _ -> sendEvent(Event.ShowError(ErrorType.FinishFailed)) },
+            onError = { _ -> sendError(ErrorType.FinishFailed) },
         ) {
             interactor.finishSession(sessionUuid)
         }
@@ -305,7 +311,16 @@ internal class ClickHandler @Inject constructor(
     private fun processCancelClick() {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         updateState { it.copy(pendingCancelConfirm = true) }
-        sendEvent(Event.ShowCancelSessionConfirmDialog)
+        sendEvent(
+            Event.ShowCancelSessionConfirmDialog(
+                dialog = Event.ConfirmDialog(
+                    title = resourceWrapper.getString(R.string.feature_live_workout_cancel_title),
+                    body = resourceWrapper.getString(R.string.feature_live_workout_cancel_body),
+                    confirmLabel = resourceWrapper.getString(R.string.feature_live_workout_cancel_confirm),
+                    dismissLabel = resourceWrapper.getString(R.string.feature_live_workout_cancel_dismiss),
+                ),
+            ),
+        )
     }
 
     private fun processCancelConfirm() {
@@ -316,7 +331,7 @@ internal class ClickHandler @Inject constructor(
         }
         launch(
             onSuccess = { consumeOnMain(Action.Navigation.Back) },
-            onError = { _ -> sendEvent(Event.ShowError(ErrorType.CancelFailed)) },
+            onError = { _ -> sendError(ErrorType.CancelFailed) },
         ) {
             interactor.cancelSession(sessionUuid)
         }
@@ -464,7 +479,7 @@ internal class ClickHandler @Inject constructor(
         // exercise's own `status` field is recomputed alongside everything else so the
         // CURRENT marker walks past the now-skipped row.
         val rebuilt = exercises.toUiListAfterSkip(performedExerciseUuid)
-        return copy(exercises = rebuilt)
+        return copy(exercises = rebuilt).withPresentation(resourceWrapper)
     }
 
     private fun State.nextSetPosition(exercise: LiveExerciseUiModel): Int {
@@ -548,6 +563,14 @@ internal class ClickHandler @Inject constructor(
             expandedDoneExerciseUuids = expandedDoneExerciseUuids
                 .filter { it in doneUuids }
                 .toImmutableSet(),
+        ).withPresentation(resourceWrapper)
+    }
+
+    private fun sendError(type: ErrorType) {
+        sendEvent(
+            Event.ShowError(
+                message = resourceWrapper.getString(type.msgRes),
+            ),
         )
     }
 }

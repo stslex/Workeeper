@@ -3,7 +3,9 @@ package io.github.stslex.workeeper.feature.all_exercises.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dagger.hilt.android.scopes.ViewModelScoped
+import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
+import io.github.stslex.workeeper.feature.all_exercises.R
 import io.github.stslex.workeeper.feature.all_exercises.di.AllExercisesHandlerStore
 import io.github.stslex.workeeper.feature.all_exercises.domain.AllExercisesInteractor
 import io.github.stslex.workeeper.feature.all_exercises.domain.AllExercisesInteractor.ArchiveResult
@@ -12,16 +14,17 @@ import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesSt
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.State.PendingBulkDelete
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.State.PendingDelete
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.State.SelectionMode
-import kotlinx.collections.immutable.minus
 import kotlinx.collections.immutable.persistentSetOf
-import kotlinx.collections.immutable.plus
 import kotlinx.collections.immutable.toPersistentSet
 import javax.inject.Inject
+
+private const val MAX_BLOCKED_TRAINING_NAMES = 2
 
 @Suppress("TooManyFunctions")
 @ViewModelScoped
 internal class ClickHandler @Inject constructor(
     private val interactor: AllExercisesInteractor,
+    private val resourceWrapper: ResourceWrapper,
     store: AllExercisesHandlerStore,
 ) : Handler<Action.Click>, AllExercisesHandlerStore by store {
 
@@ -98,10 +101,25 @@ internal class ClickHandler @Inject constructor(
             }
             when (val result = interactor.archiveExercise(action.uuid)) {
                 ArchiveResult.Success ->
-                    sendEvent(Event.ShowArchiveSuccess(action.name, action.uuid))
+                    sendEvent(
+                        Event.ShowArchiveSuccess(
+                            uuid = action.uuid,
+                            message = resourceWrapper.getString(
+                                R.string.feature_all_exercises_archive_success_format,
+                                action.name,
+                            ),
+                        ),
+                    )
 
                 is ArchiveResult.Blocked ->
-                    sendEvent(Event.ShowArchiveBlocked(result.activeTrainings))
+                    sendEvent(
+                        Event.ShowArchiveBlocked(
+                            message = resourceWrapper.getString(
+                                R.string.feature_all_exercises_archive_blocked_format,
+                                result.activeTrainings.toOverflowPreview(),
+                            ),
+                        ),
+                    )
             }
         }
     }
@@ -118,7 +136,11 @@ internal class ClickHandler @Inject constructor(
         updateState { it.copy(pendingPermanentDelete = null) }
         launch {
             interactor.permanentlyDelete(pending.uuid)
-            sendEvent(Event.ShowPermanentDeleteSuccess(pending.name))
+            sendEvent(
+                Event.ShowPermanentDeleteSuccess(
+                    message = resourceWrapper.getString(R.string.feature_all_exercises_permanent_delete_success),
+                ),
+            )
         }
     }
 
@@ -192,12 +214,23 @@ internal class ClickHandler @Inject constructor(
                     current.copy(selectionMode = SelectionMode.Off)
                 }
                 if (outcome.blockedNames.isEmpty()) {
-                    sendEvent(Event.ShowBulkArchiveSuccess(outcome.archivedCount))
+                    sendEvent(
+                        Event.ShowBulkArchiveSuccess(
+                            message = resourceWrapper.getQuantityString(
+                                R.plurals.feature_all_exercises_bulk_archive_success,
+                                outcome.archivedCount,
+                                outcome.archivedCount,
+                            ),
+                        ),
+                    )
                 } else {
                     sendEvent(
                         Event.ShowBulkArchiveBlocked(
-                            archivedCount = outcome.archivedCount,
-                            blockedNames = outcome.blockedNames,
+                            message = resourceWrapper.getString(
+                                R.string.feature_all_exercises_bulk_archive_partial_format,
+                                outcome.archivedCount,
+                                outcome.blockedNames.toOverflowPreview(),
+                            ),
                         ),
                     )
                 }
@@ -228,7 +261,15 @@ internal class ClickHandler @Inject constructor(
                         pendingBulkDelete = null,
                     )
                 }
-                sendEvent(Event.ShowBulkDeleteSuccess(count))
+                sendEvent(
+                    Event.ShowBulkDeleteSuccess(
+                        message = resourceWrapper.getQuantityString(
+                            R.plurals.feature_all_exercises_bulk_delete_success,
+                            count,
+                            count,
+                        ),
+                    ),
+                )
             },
         ) {
             interactor.bulkPermanentDelete(targets)
@@ -237,5 +278,13 @@ internal class ClickHandler @Inject constructor(
 
     private fun processBulkDeleteDismiss() {
         updateState { current -> current.copy(pendingBulkDelete = null) }
+    }
+
+    private fun List<String>.toOverflowPreview(): String {
+        val visible = take(MAX_BLOCKED_TRAINING_NAMES).joinToString(separator = ", ")
+        val overflow = size - MAX_BLOCKED_TRAINING_NAMES
+        if (overflow <= 0) return visible
+        val overflowLabel = resourceWrapper.getString(R.string.feature_all_exercises_overflow_format, overflow)
+        return "$visible, $overflowLabel"
     }
 }

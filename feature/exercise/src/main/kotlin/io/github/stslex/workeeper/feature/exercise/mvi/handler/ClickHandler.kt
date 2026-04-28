@@ -4,15 +4,18 @@ package io.github.stslex.workeeper.feature.exercise.mvi.handler
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
+import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.utils.CommonExt.parseOrRandom
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.mappers.toData
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
+import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor.ArchiveResult
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor.SaveResult
+import io.github.stslex.workeeper.feature.exercise.mvi.mapper.toAdhocPlanSummary
 import io.github.stslex.workeeper.feature.exercise.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.DiscardTarget
@@ -30,6 +33,7 @@ import kotlin.uuid.Uuid
 @ViewModelScoped
 internal class ClickHandler @Inject constructor(
     private val interactor: ExerciseInteractor,
+    private val resourceWrapper: ResourceWrapper,
     @MainImmediateDispatcher
     private val mainDispatcher: CoroutineDispatcher,
     store: ExerciseHandlerStore,
@@ -106,7 +110,15 @@ internal class ClickHandler @Inject constructor(
         launch {
             when (val result = interactor.archive(uuid)) {
                 ArchiveResult.Success -> {
-                    sendEvent(Event.ShowArchiveSuccess(name = name, uuid = uuid))
+                    sendEvent(
+                        Event.ShowArchiveSuccess(
+                            uuid = uuid,
+                            message = resourceWrapper.getString(
+                                R.string.feature_exercise_detail_archive_success_format,
+                                name,
+                            ),
+                        ),
+                    )
                     // launch defaults to defaultDispatcher; navigator must be touched on Main.
                     withContext(mainDispatcher) {
                         consume(Action.Navigation.Back)
@@ -114,14 +126,26 @@ internal class ClickHandler @Inject constructor(
                 }
 
                 is ArchiveResult.Blocked ->
-                    sendEvent(Event.ShowArchiveBlocked(name, result.activeTrainings))
+                    sendEvent(
+                        Event.ShowArchiveBlocked(
+                            body = resourceWrapper.getString(
+                                R.string.feature_exercise_detail_archive_blocked_body_format,
+                                name,
+                                result.activeTrainings.joinToString(", "),
+                            ),
+                        ),
+                    )
             }
         }
     }
 
     private fun processTrackNowClick() {
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
-        sendEvent(Event.ShowTrackNowPending)
+        sendEvent(
+            Event.ShowTrackNowPending(
+                message = resourceWrapper.getString(R.string.feature_exercise_detail_track_now_pending),
+            ),
+        )
     }
 
     private fun processHistoryRowClick(action: Action.Click.OnHistoryRowClick) {
@@ -254,7 +278,21 @@ internal class ClickHandler @Inject constructor(
     private fun processPermanentDeleteMenuClick() {
         if (!state.value.canPermanentlyDelete) return
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
-        sendEvent(Event.ShowPermanentDeleteConfirm(state.value.name))
+        sendEvent(
+            Event.ShowPermanentDeleteConfirm(
+                title = resourceWrapper.getString(
+                    R.string.feature_exercise_detail_permanent_delete_confirm_title,
+                    state.value.name,
+                ),
+                body = resourceWrapper.getString(R.string.feature_exercise_detail_permanent_delete_confirm_body),
+                impactSummary = resourceWrapper.getString(
+                    R.string.feature_exercise_detail_permanent_delete_confirm_impact,
+                ),
+                confirmLabel = resourceWrapper.getString(
+                    R.string.feature_exercise_detail_permanent_delete_confirm_button,
+                ),
+            ),
+        )
     }
 
     private fun processConfirmPermanentDelete() {
@@ -262,7 +300,13 @@ internal class ClickHandler @Inject constructor(
         sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
         launch(
             onSuccess = {
-                sendEvent(Event.ShowPermanentDeleteSuccess)
+                sendEvent(
+                    Event.ShowPermanentDeleteSuccess(
+                        message = resourceWrapper.getString(
+                            R.string.feature_exercise_detail_permanent_delete_success,
+                        ),
+                    ),
+                )
                 withContext(mainDispatcher) { consume(Action.Navigation.Back) }
             },
         ) {
@@ -286,7 +330,22 @@ internal class ClickHandler @Inject constructor(
         if (needsWeightWipe) {
             sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
             updateState { it.copy(pendingTypeChange = action.type) }
-            sendEvent(Event.ShowTypeChangeConfirm)
+            sendEvent(
+                Event.ShowTypeChangeConfirm(
+                    title = resourceWrapper.getString(
+                        R.string.feature_exercise_edit_type_change_weightless_title,
+                    ),
+                    body = resourceWrapper.getString(
+                        R.string.feature_exercise_edit_type_change_weightless_body,
+                    ),
+                    impactSummary = resourceWrapper.getString(
+                        R.string.feature_exercise_edit_type_change_weightless_impact,
+                    ),
+                    confirmLabel = resourceWrapper.getString(
+                        R.string.feature_exercise_edit_type_change_weightless_confirm,
+                    ),
+                ),
+            )
             return
         }
         sendEvent(Event.Haptic(HapticFeedbackType.SegmentTick))
@@ -299,10 +358,12 @@ internal class ClickHandler @Inject constructor(
         val uuid = current.uuid
         sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
         updateState { latest ->
+            val nextPlan = latest.adhocPlan?.map { it.copy(weight = null) }?.toImmutableList()
             latest.copy(
                 type = pending,
                 pendingTypeChange = null,
-                adhocPlan = latest.adhocPlan?.map { it.copy(weight = null) }?.toImmutableList(),
+                adhocPlan = nextPlan,
+                adhocPlanSummaryLabel = nextPlan.toAdhocPlanSummary(resourceWrapper),
             )
         }
         if (uuid == null) return
@@ -344,7 +405,11 @@ internal class ClickHandler @Inject constructor(
             }
         } else {
             if (current.tags.size >= MAX_TAGS_PER_EXERCISE) {
-                sendEvent(Event.ShowTagLimitReached)
+                sendEvent(
+                    Event.ShowTagLimitReached(
+                        message = resourceWrapper.getString(R.string.feature_exercise_edit_tag_limit),
+                    ),
+                )
                 return
             }
             sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
@@ -365,7 +430,11 @@ internal class ClickHandler @Inject constructor(
     private fun processTagCreate(action: Action.Click.OnTagCreate) {
         val current = state.value
         if (current.tags.size >= MAX_TAGS_PER_EXERCISE) {
-            sendEvent(Event.ShowTagLimitReached)
+            sendEvent(
+                Event.ShowTagLimitReached(
+                    message = resourceWrapper.getString(R.string.feature_exercise_edit_tag_limit),
+                ),
+            )
             return
         }
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))

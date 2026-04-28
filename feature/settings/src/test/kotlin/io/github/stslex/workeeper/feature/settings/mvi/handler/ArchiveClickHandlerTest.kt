@@ -6,6 +6,7 @@ import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.feature.settings.di.ArchiveHandlerStore
 import io.github.stslex.workeeper.feature.settings.domain.SettingsInteractor
 import io.github.stslex.workeeper.feature.settings.domain.model.ArchivedItem
+import io.github.stslex.workeeper.feature.settings.mvi.model.ArchivedItemUi
 import io.github.stslex.workeeper.feature.settings.mvi.store.ArchiveStore.Action
 import io.github.stslex.workeeper.feature.settings.mvi.store.ArchiveStore.Event
 import io.github.stslex.workeeper.feature.settings.mvi.store.ArchiveStore.Segment
@@ -24,10 +25,14 @@ import org.junit.jupiter.api.Test
 internal class ArchiveClickHandlerTest {
 
     private val interactor = mockk<SettingsInteractor>(relaxed = true)
-    private val emptyPaging: PagingUiState<androidx.paging.PagingData<ArchivedItem.Exercise>> =
-        PagingUiState { kotlinx.coroutines.flow.flowOf(androidx.paging.PagingData.empty()) }
-    private val emptyTrainingPaging: PagingUiState<androidx.paging.PagingData<ArchivedItem.Training>> =
-        PagingUiState { kotlinx.coroutines.flow.flowOf(androidx.paging.PagingData.empty()) }
+    private val emptyPaging: PagingUiState<androidx.paging.PagingData<ArchivedItemUi.Exercise>> =
+        PagingUiState {
+            kotlinx.coroutines.flow.flowOf(androidx.paging.PagingData.empty<ArchivedItemUi.Exercise>())
+        }
+    private val emptyTrainingPaging: PagingUiState<androidx.paging.PagingData<ArchivedItemUi.Training>> =
+        PagingUiState {
+            kotlinx.coroutines.flow.flowOf(androidx.paging.PagingData.empty<ArchivedItemUi.Training>())
+        }
 
     private val initialState = State(
         selectedSegment = Segment.EXERCISES,

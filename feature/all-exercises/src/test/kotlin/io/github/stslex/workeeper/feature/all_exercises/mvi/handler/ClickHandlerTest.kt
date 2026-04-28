@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.feature.all_exercises.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.paging.PagingData
+import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.feature.all_exercises.di.AllExercisesHandlerStore
 import io.github.stslex.workeeper.feature.all_exercises.domain.AllExercisesInteractor
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.Test
 internal class ClickHandlerTest {
 
     private val interactor = mockk<AllExercisesInteractor>(relaxed = true)
+    private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
     private val emptyPaging = PagingUiState { flowOf(PagingData.empty<ExerciseUiModel>()) }
     private val initialState = State(
         pagingUiState = emptyPaging,
@@ -51,7 +53,7 @@ internal class ClickHandlerTest {
         }
     }
 
-    private val handler = ClickHandler(interactor, store)
+    private val handler = ClickHandler(interactor, resourceWrapper, store)
 
     @Test
     fun `OnExerciseClick emits haptic and navigates to OpenDetail`() {

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.live_workout.mvi.mapper
 
+import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.database.sets.SetTypeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
@@ -10,10 +11,12 @@ import io.github.stslex.workeeper.core.exercise.session.model.SessionStateDataMo
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.PerformedExerciseSnapshot
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.SessionSnapshot
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
+import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 internal class LiveWorkoutMapperTest {
+    private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
 
     @Test
     fun `mapper marks the lowest-position non-skipped non-done exercise as CURRENT`() {
@@ -28,7 +31,7 @@ internal class LiveWorkoutMapperTest {
             ),
         )
 
-        val state = snapshot.toState(nowMillis = 5000L)
+        val state = snapshot.toState(nowMillis = 5000L, resourceWrapper = resourceWrapper)
 
         assertEquals(ExerciseStatusUiModel.DONE, state.exercises[0].status)
         assertEquals(ExerciseStatusUiModel.CURRENT, state.exercises[1].status)
@@ -50,7 +53,7 @@ internal class LiveWorkoutMapperTest {
             ),
         )
 
-        val state = snapshot.toState(nowMillis = 1000L)
+        val state = snapshot.toState(nowMillis = 1000L, resourceWrapper = resourceWrapper)
 
         assertEquals(ExerciseStatusUiModel.SKIPPED, state.exercises[0].status)
         assertEquals(ExerciseStatusUiModel.CURRENT, state.exercises[1].status)
@@ -65,7 +68,7 @@ internal class LiveWorkoutMapperTest {
             exercises = emptyList(),
         )
 
-        val state = snapshot.toState(nowMillis = 9_000L)
+        val state = snapshot.toState(nowMillis = 9_000L, resourceWrapper = resourceWrapper)
 
         assertEquals(7_000L, state.startedAt)
         assertEquals(9_000L, state.nowMillis)
@@ -89,7 +92,7 @@ internal class LiveWorkoutMapperTest {
             ),
         )
 
-        val state = snapshot.toState(nowMillis = 2000L)
+        val state = snapshot.toState(nowMillis = 2000L, resourceWrapper = resourceWrapper)
 
         assertEquals(ExerciseStatusUiModel.DONE, state.exercises[0].status)
         assertEquals(ExerciseStatusUiModel.CURRENT, state.exercises[1].status)

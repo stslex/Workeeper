@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.feature.exercise.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.plan_editor.model.AppPlanEditorAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
@@ -33,7 +34,7 @@ internal class PlanEditActionHandlerTest {
         }
     }
 
-    private val handler = PlanEditActionHandler(store)
+    private val handler = PlanEditActionHandler(resourceWrapper, store)
 
     private fun openTarget(
         initial: List<PlanSetUiModel> = emptyList(),
@@ -178,3 +179,4 @@ internal class PlanEditActionHandlerTest {
         assertNull(stateFlow.value.planEditorTarget)
     }
 }
+    private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)

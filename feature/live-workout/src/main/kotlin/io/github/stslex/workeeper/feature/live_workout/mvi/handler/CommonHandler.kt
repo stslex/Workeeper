@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.feature.live_workout.mvi.handler
 
 import dagger.hilt.android.scopes.ViewModelScoped
+import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
@@ -17,6 +18,7 @@ private const val TIMER_TICK_MS = 1000L
 @ViewModelScoped
 internal class CommonHandler @Inject constructor(
     private val interactor: LiveWorkoutInteractor,
+    private val resourceWrapper: ResourceWrapper,
     store: LiveWorkoutHandlerStore,
 ) : Handler<Action.Common>, LiveWorkoutHandlerStore by store {
 
@@ -36,7 +38,12 @@ internal class CommonHandler @Inject constructor(
                     return@launch
                 }
                 val now = System.currentTimeMillis()
-                updateStateImmediate { snapshot.toState(nowMillis = now) }
+                updateStateImmediate {
+                    snapshot.toState(
+                        nowMillis = now,
+                        resourceWrapper = resourceWrapper,
+                    )
+                }
                 startTimer()
             },
         ) {

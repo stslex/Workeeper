@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.feature.exercise.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.Test
 internal class ClickHandlerTest {
 
     private val interactor = mockk<ExerciseInteractor>(relaxed = true)
+    private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
 
     private fun setup(initialState: State = State.create(uuid = "uuid-1")): TestSetup {
         val stateFlow = MutableStateFlow(initialState)
@@ -44,6 +46,7 @@ internal class ClickHandlerTest {
             store = store,
             handler = ClickHandler(
                 interactor = interactor,
+                resourceWrapper = resourceWrapper,
                 mainDispatcher = Dispatchers.Unconfined,
                 store = store,
             ),
@@ -86,7 +89,7 @@ internal class ClickHandlerTest {
         handler.invoke(Action.Click.OnTypeSelect(ExerciseTypeUiModel.WEIGHTLESS))
         val events = mutableListOf<Event>()
         verify { store.sendEvent(capture(events)) }
-        assertTrue(events.any { it == Event.ShowTypeChangeConfirm })
+        assertTrue(events.any { it is Event.ShowTypeChangeConfirm })
         assertEquals(ExerciseTypeUiModel.WEIGHTED, stateFlow.value.type)
         assertEquals(ExerciseTypeUiModel.WEIGHTLESS, stateFlow.value.pendingTypeChange)
     }
@@ -227,7 +230,7 @@ internal class ClickHandlerTest {
         handler.invoke(Action.Click.OnTagToggle("tag-11"))
         val captured = slot<Event>()
         verify { store.sendEvent(capture(captured)) }
-        assertEquals(Event.ShowTagLimitReached, captured.captured)
+        assertTrue(captured.captured is Event.ShowTagLimitReached)
         assertEquals(10, stateFlow.value.tags.size)
     }
 
@@ -246,7 +249,7 @@ internal class ClickHandlerTest {
         val events = mutableListOf<Event>()
         verify { store.sendEvent(capture(events)) }
         assertTrue(events.any { it is Event.Haptic && it.type == HapticFeedbackType.ContextClick })
-        assertTrue(events.any { it == Event.ShowTrackNowPending })
+        assertTrue(events.any { it is Event.ShowTrackNowPending })
     }
 
     @Test
@@ -352,9 +355,7 @@ internal class ClickHandlerTest {
         handler.invoke(Action.Click.OnPermanentDeleteMenuClick)
         val events = mutableListOf<Event>()
         verify { store.sendEvent(capture(events)) }
-        assertTrue(
-            events.any { it is Event.ShowPermanentDeleteConfirm && it.name == "Bench" },
-        )
+        assertTrue(events.any { it is Event.ShowPermanentDeleteConfirm })
     }
 
     private fun assertHaptic(event: Event, expected: HapticFeedbackType) {

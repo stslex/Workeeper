@@ -75,9 +75,4 @@ internal interface SingleTrainingInteractor {
 
         data class Blocked(val reason: String) : ArchiveResult
     }
-
-    companion object {
-
-        const val DEFAULT_HISTORY_LIMIT: Int = 5
-    }
 }

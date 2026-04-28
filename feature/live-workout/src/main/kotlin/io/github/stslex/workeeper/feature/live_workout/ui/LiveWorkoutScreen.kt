@@ -117,8 +117,6 @@ private fun Body(
     state: State,
     consume: (Action) -> Unit,
 ) {
-    val doneCount = state.exercises.count { it.status == ExerciseStatusUiModel.DONE }
-    val setsLogged = state.exercises.sumOf { it.performedSets.count { set -> set.isDone } }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -126,11 +124,10 @@ private fun Body(
     ) {
         Spacer(Modifier.height(AppDimension.Space.sm))
         LiveWorkoutHeader(
-            trainingName = state.trainingName,
+            trainingNameLabel = state.trainingNameLabel,
             elapsedLabel = state.elapsedDurationLabel,
-            doneCount = doneCount,
-            totalCount = state.exercises.size,
-            setsLogged = setsLogged,
+            progressLabel = state.progressLabel,
+            progress = state.progress,
         )
         Spacer(Modifier.height(AppDimension.Space.md))
         LazyColumn(
@@ -209,10 +206,16 @@ private fun stubState(): State = State(
     sessionUuid = "session-1",
     trainingUuid = "training-1",
     trainingName = "Push Day",
+    trainingNameLabel = "Push Day",
     isAdhoc = false,
     startedAt = 0L,
     nowMillis = 23 * 60_000L + 14_000L,
     elapsedDurationLabel = "23:14",
+    doneCount = 1,
+    totalCount = 2,
+    setsLogged = 1,
+    progress = 0.5f,
+    progressLabel = "1 of 2 done · 1 set logged",
     exercises = persistentListOf(
         LiveExerciseUiModel(
             performedExerciseUuid = "pe-1",
@@ -221,6 +224,7 @@ private fun stubState(): State = State(
             exerciseType = ExerciseTypeUiModel.WEIGHTED,
             position = 0,
             status = ExerciseStatusUiModel.CURRENT,
+            statusLabel = "1 of 3 sets",
             planSets = persistentListOf(
                 PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
                 PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
@@ -243,6 +247,7 @@ private fun stubState(): State = State(
             exerciseType = ExerciseTypeUiModel.WEIGHTLESS,
             position = 1,
             status = ExerciseStatusUiModel.PENDING,
+            statusLabel = "Plan: 2x8",
             planSets = persistentListOf(
                 PlanSetUiModel(weight = null, reps = 8, type = SetTypeUiModel.WORK),
                 PlanSetUiModel(weight = null, reps = 8, type = SetTypeUiModel.WORK),

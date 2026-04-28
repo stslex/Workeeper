@@ -8,7 +8,6 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.AppPlanEditorAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
-import io.github.stslex.workeeper.feature.live_workout.mvi.model.ErrorType
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
 import kotlinx.collections.immutable.ImmutableList
@@ -27,10 +26,16 @@ internal interface LiveWorkoutStore :
         val sessionUuid: String?,
         val trainingUuid: String?,
         val trainingName: String,
+        val trainingNameLabel: String,
         val isAdhoc: Boolean,
         val startedAt: Long,
         val nowMillis: Long,
         val elapsedDurationLabel: String,
+        val doneCount: Int,
+        val totalCount: Int,
+        val setsLogged: Int,
+        val progress: Float,
+        val progressLabel: String,
         val exercises: ImmutableList<LiveExerciseUiModel>,
         val setDrafts: ImmutableMap<DraftKey, LiveSetUiModel>,
         val expandedDoneExerciseUuids: ImmutableSet<String>,
@@ -50,10 +55,8 @@ internal interface LiveWorkoutStore :
         data class FinishStats(
             val durationMillis: Long,
             val durationLabel: String,
-            val doneCount: Int,
-            val totalCount: Int,
-            val skippedCount: Int,
-            val setsLogged: Int,
+            val exercisesSummaryLabel: String,
+            val setsLoggedLabel: String,
         )
 
         @Stable
@@ -81,10 +84,16 @@ internal interface LiveWorkoutStore :
                 sessionUuid = sessionUuid,
                 trainingUuid = trainingUuid,
                 trainingName = "",
+                trainingNameLabel = "",
                 isAdhoc = false,
                 startedAt = 0L,
                 nowMillis = 0L,
                 elapsedDurationLabel = "00:00",
+                doneCount = 0,
+                totalCount = 0,
+                setsLogged = 0,
+                progress = 0f,
+                progressLabel = "",
                 exercises = persistentListOf(),
                 setDrafts = persistentMapOf(),
                 expandedDoneExerciseUuids = persistentSetOf(),
@@ -161,13 +170,21 @@ internal interface LiveWorkoutStore :
 
     @Stable
     sealed interface Event : Store.Event {
+        @Stable
+        data class ConfirmDialog(
+            val title: String,
+            val body: String,
+            val confirmLabel: String,
+            val dismissLabel: String,
+        )
+
         data class HapticClick(val type: HapticFeedbackType) : Event
         data class HapticImpact(val type: HapticFeedbackType) : Event
-        data class ShowSessionSavedSnackbar(val stats: State.FinishStats) : Event
-        data class ShowError(val type: ErrorType) : Event
+        data class ShowSessionSavedSnackbar(val message: String) : Event
+        data class ShowError(val message: String) : Event
         data object ShowFinishConfirmDialog : Event
-        data object ShowResetSetsConfirmDialog : Event
-        data object ShowSkipExerciseConfirmDialog : Event
-        data object ShowCancelSessionConfirmDialog : Event
+        data class ShowResetSetsConfirmDialog(val dialog: ConfirmDialog) : Event
+        data class ShowSkipExerciseConfirmDialog(val dialog: ConfirmDialog) : Event
+        data class ShowCancelSessionConfirmDialog(val dialog: ConfirmDialog) : Event
     }
 }

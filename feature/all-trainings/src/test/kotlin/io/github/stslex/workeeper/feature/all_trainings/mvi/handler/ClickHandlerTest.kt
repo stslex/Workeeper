@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.feature.all_trainings.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.paging.PagingData
+import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.feature.all_trainings.di.AllTrainingsHandlerStore
 import io.github.stslex.workeeper.feature.all_trainings.domain.AllTrainingsInteractor
@@ -42,12 +43,22 @@ internal class ClickHandlerTest {
             val update = firstArg<(State) -> State>()
             stateFlow.value = update(stateFlow.value)
         }
-        every { launch(any(), any(), any(), any(), any<suspend CoroutineScope.() -> Unit>()) } answers {
+        every {
+            launch(
+                any(),
+                any(),
+                any(),
+                any(),
+                any<suspend CoroutineScope.() -> Unit>(),
+            )
+        } answers {
             mockk(relaxed = true)
         }
     }
 
-    private val handler = ClickHandler(interactor, store)
+    private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
+
+    private val handler = ClickHandler(interactor, resourceWrapper, store)
 
     @Test
     fun `OnTrainingClick emits haptic and navigates to OpenDetail`() {
@@ -94,7 +105,8 @@ internal class ClickHandlerTest {
 
     @Test
     fun `OnBulkDeleteDismiss clears pending delete`() {
-        stateFlow.value = stateFlow.value.copy(pendingBulkDelete = State.PendingBulkDelete(count = 2))
+        stateFlow.value =
+            stateFlow.value.copy(pendingBulkDelete = State.PendingBulkDelete(count = 2))
         handler.invoke(Action.Click.OnBulkDeleteDismiss)
         assertEquals(null, stateFlow.value.pendingBulkDelete)
     }

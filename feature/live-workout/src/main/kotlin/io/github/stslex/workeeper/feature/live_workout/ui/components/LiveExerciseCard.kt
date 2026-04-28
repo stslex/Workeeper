@@ -34,7 +34,6 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
-import io.github.stslex.workeeper.core.ui.plan_editor.mappers.formatPlanSummary
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
@@ -126,7 +125,7 @@ private fun ExerciseCardHeader(
                 color = AppUi.colors.textPrimary,
             )
             Text(
-                text = exercise.statusLine(),
+                text = exercise.statusLabel,
                 style = AppUi.typography.bodySmall,
                 color = AppUi.colors.textSecondary,
             )
@@ -291,51 +290,6 @@ private fun buildSetRowList(
     }
 }
 
-@Composable
-// TODO(tech-debt): Move status-line shaping into handler/state mapping and keep UI
-// components focused on rendering preformatted labels.
-private fun LiveExerciseUiModel.statusLine(): String = when (status) {
-    ExerciseStatusUiModel.DONE -> {
-        val count = performedSets.size
-        stringResource(
-            R.string.feature_live_workout_status_completed_format,
-            androidx.compose.ui.res.pluralStringResource(
-                id = R.plurals.feature_live_workout_status_set_count,
-                count = count,
-                count,
-            ),
-        )
-    }
-
-    ExerciseStatusUiModel.CURRENT -> {
-        if (planSets.isEmpty()) {
-            stringResource(R.string.feature_live_workout_status_no_plan)
-        } else if (performedSets.none { it.isDone }) {
-            stringResource(
-                R.string.feature_live_workout_status_plan_format,
-                planSets.formatPlanSummary(),
-            )
-        } else {
-            stringResource(
-                R.string.feature_live_workout_status_progress_format,
-                performedSets.count { it.isDone },
-                planSets.size,
-            )
-        }
-    }
-
-    ExerciseStatusUiModel.PENDING -> {
-        val summary = if (planSets.isEmpty()) {
-            stringResource(R.string.feature_live_workout_status_no_plan)
-        } else {
-            planSets.formatPlanSummary()
-        }
-        stringResource(R.string.feature_live_workout_status_plan_format, summary)
-    }
-
-    ExerciseStatusUiModel.SKIPPED -> stringResource(R.string.feature_live_workout_status_skipped)
-}
-
 @Preview
 @Composable
 private fun LiveExerciseCardCurrentLightPreview() {
@@ -408,6 +362,7 @@ private fun previewCurrent() = LiveExerciseUiModel(
     exerciseType = ExerciseTypeUiModel.WEIGHTED,
     position = 0,
     status = ExerciseStatusUiModel.CURRENT,
+    statusLabel = "1 of 3 sets",
     planSets = persistentListOf(
         PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
         PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
@@ -420,6 +375,7 @@ private fun previewCurrent() = LiveExerciseUiModel(
 
 private fun previewDone() = previewCurrent().copy(
     status = ExerciseStatusUiModel.DONE,
+    statusLabel = "Completed · 3 sets",
     performedSets = persistentListOf(
         LiveSetUiModel(position = 0, weight = 100.0, reps = 5, type = SetTypeUiModel.WORK, isDone = true),
         LiveSetUiModel(position = 1, weight = 100.0, reps = 5, type = SetTypeUiModel.WORK, isDone = true),
@@ -429,10 +385,12 @@ private fun previewDone() = previewCurrent().copy(
 
 private fun previewPending() = previewCurrent().copy(
     status = ExerciseStatusUiModel.PENDING,
+    statusLabel = "Plan: 3x5",
     performedSets = persistentListOf(),
 )
 
 private fun previewSkipped() = previewCurrent().copy(
     status = ExerciseStatusUiModel.SKIPPED,
+    statusLabel = "Skipped",
     performedSets = persistentListOf(),
 )

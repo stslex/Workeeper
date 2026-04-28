@@ -4,9 +4,11 @@ package io.github.stslex.workeeper.feature.single_training.mvi.handler
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
+import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.exercise.training.TrainingChangeDataModel
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel.Companion.toUi
+import io.github.stslex.workeeper.feature.single_training.R
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingHandlerStore
 import io.github.stslex.workeeper.feature.single_training.domain.SingleTrainingInteractor
 import io.github.stslex.workeeper.feature.single_training.domain.SingleTrainingInteractor.ArchiveResult
@@ -29,6 +31,7 @@ import kotlin.uuid.Uuid
 @ViewModelScoped
 internal class ClickHandler @Inject constructor(
     private val interactor: SingleTrainingInteractor,
+    private val resourceWrapper: ResourceWrapper,
     @MainImmediateDispatcher private val mainDispatcher: CoroutineDispatcher,
     store: SingleTrainingHandlerStore,
 ) : Handler<Action.Click>, SingleTrainingHandlerStore by store {
@@ -100,12 +103,25 @@ internal class ClickHandler @Inject constructor(
             onSuccess = { result ->
                 when (result) {
                     ArchiveResult.Success -> {
-                        sendEvent(Event.ShowArchiveSuccess(name))
+                        sendEvent(
+                            Event.ShowArchiveSuccess(
+                                message = resourceWrapper.getString(
+                                    R.string.feature_training_detail_archive_success_format,
+                                    name,
+                                ),
+                            ),
+                        )
                         withContext(mainDispatcher) { consume(Action.Navigation.Back) }
                     }
 
                     is ArchiveResult.Blocked ->
-                        sendEvent(Event.ShowArchiveBlocked(result.reason))
+                        sendEvent(
+                            Event.ShowArchiveBlocked(
+                                message = resourceWrapper.getString(
+                                    R.string.feature_training_detail_archive_blocked,
+                                ),
+                            ),
+                        )
                 }
             },
         ) {
@@ -116,7 +132,17 @@ internal class ClickHandler @Inject constructor(
     private fun processPermanentDeleteMenu() {
         if (!state.value.canPermanentlyDelete) return
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        sendEvent(Event.ShowPermanentDeleteConfirmDialog)
+        sendEvent(
+            Event.ShowPermanentDeleteConfirmDialog(
+                title = resourceWrapper.getString(
+                    R.string.feature_training_detail_permanent_delete_title,
+                    state.value.name,
+                ),
+                body = resourceWrapper.getString(R.string.feature_training_detail_permanent_delete_body),
+                impactSummary = resourceWrapper.getString(R.string.feature_training_detail_permanent_delete_impact),
+                confirmLabel = resourceWrapper.getString(R.string.feature_training_detail_permanent_delete_confirm),
+            ),
+        )
     }
 
     private fun processPermanentDeleteConfirm() {
@@ -136,7 +162,14 @@ internal class ClickHandler @Inject constructor(
         val current = state.value
         val active = current.activeSession
         if (active != null && active.trainingUuid != current.uuid) {
-            sendEvent(Event.ShowOtherSessionActive(current.name))
+            sendEvent(
+                Event.ShowOtherSessionActive(
+                    message = resourceWrapper.getString(
+                        R.string.feature_training_detail_other_session_active_format,
+                        current.name,
+                    ),
+                ),
+            )
             return
         }
         // Resume an in-progress session for this training, or pass an empty uuid so
@@ -166,7 +199,11 @@ internal class ClickHandler @Inject constructor(
             return
         }
         if (current.exercises.isEmpty()) {
-            sendEvent(Event.ShowSaveError("no_exercises"))
+            sendEvent(
+                Event.ShowSaveError(
+                    message = resourceWrapper.getString(R.string.feature_training_edit_error_no_exercises),
+                ),
+            )
             return
         }
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))

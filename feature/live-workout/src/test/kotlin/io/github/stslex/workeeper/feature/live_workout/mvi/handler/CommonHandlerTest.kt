@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.live_workout.mvi.handler
 
+import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.Test
 internal class CommonHandlerTest {
 
     private val interactor = mockk<LiveWorkoutInteractor>(relaxed = true)
+    private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
 
     @Test
     fun `TimerTick updates nowMillis when session is started`() {
@@ -31,7 +33,11 @@ internal class CommonHandlerTest {
                 stateFlow.value = update(stateFlow.value)
             }
         }
-        val handler = CommonHandler(interactor = interactor, store = store)
+        val handler = CommonHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            store = store,
+        )
 
         handler.invoke(Action.Common.TimerTick)
 

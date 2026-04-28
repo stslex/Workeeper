@@ -33,6 +33,7 @@ internal class InputHandlerTest {
                         exerciseType = ExerciseTypeUiModel.WEIGHTED,
                         position = 0,
                         status = io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel.CURRENT,
+                        statusLabel = "",
                         planSets = persistentListOf(
                             PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
                         ),

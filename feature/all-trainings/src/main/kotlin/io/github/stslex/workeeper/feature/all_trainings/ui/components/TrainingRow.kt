@@ -196,21 +196,8 @@ private fun TrainingRowTagsLine(item: TrainingListItemUi) {
 
 @Composable
 private fun TrainingRowStatusLine(item: TrainingListItemUi) {
-    val text = when {
-        item.isActive && item.activeSessionStartedAt != null ->
-            stringResource(
-                R.string.feature_all_trainings_status_in_progress_format,
-                rememberRelativeTimeLabel(item.activeSessionStartedAt),
-            )
-        item.lastSessionAt != null ->
-            stringResource(
-                R.string.feature_all_trainings_status_last_format,
-                rememberRelativeTimeLabel(item.lastSessionAt),
-            )
-        else -> stringResource(R.string.feature_all_trainings_status_never)
-    }
     Text(
-        text = text,
+        text = item.statusLabel,
         style = AppUi.typography.bodySmall,
         color = AppUi.colors.textTertiary,
         maxLines = 1,
@@ -226,34 +213,30 @@ private fun TrainingRowStatusLine(item: TrainingListItemUi) {
 )
 @Composable
 private fun TrainingRowPreview() {
-    val now = System.currentTimeMillis()
     val sample = listOf(
         TrainingListItemUi(
             uuid = "1",
             name = "Push day A",
             tags = persistentListOf("Push", "Chest", "Triceps"),
             exerciseCount = 6,
-            lastSessionAt = now - 2 * 24 * 60 * 60 * 1000L,
             isActive = true,
-            activeSessionStartedAt = now - 12 * 60 * 1000L,
+            statusLabel = "in progress · started 12m ago",
         ),
         TrainingListItemUi(
             uuid = "2",
             name = "Pull day",
             tags = persistentListOf("Pull", "Back", "Biceps", "Forearms"),
             exerciseCount = 5,
-            lastSessionAt = now - 5 * 24 * 60 * 60 * 1000L,
             isActive = false,
-            activeSessionStartedAt = null,
+            statusLabel = "last: 5d ago",
         ),
         TrainingListItemUi(
             uuid = "3",
             name = "Legs",
             tags = persistentListOf(),
             exerciseCount = 0,
-            lastSessionAt = null,
             isActive = false,
-            activeSessionStartedAt = null,
+            statusLabel = "never trained",
         ),
     )
     AppTheme {
