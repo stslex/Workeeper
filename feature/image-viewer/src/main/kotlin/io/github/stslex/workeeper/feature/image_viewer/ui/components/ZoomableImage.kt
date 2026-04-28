@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,6 +59,18 @@ internal fun ZoomableImage(
     val animatedOffsetX by animateFloatAsState(offsetX, label = "offsetX")
     val animatedOffsetY by animateFloatAsState(offsetY, label = "offsetY")
 
+    // pointerInput's coroutine is launched once and captures whatever values
+    // existed at launch time. Without rememberUpdatedState, scale/offset reads
+    // inside the gesture lambda always see the launch-time snapshot, so each
+    // pinch frame computes newScale = STALE_scale * zoom — accumulation breaks.
+    // rememberUpdatedState gives the long-lived coroutine a stable State holder
+    // it can re-read on every frame without restarting the coroutine.
+    val currentScale by rememberUpdatedState(scale)
+    val currentOffsetX by rememberUpdatedState(offsetX)
+    val currentOffsetY by rememberUpdatedState(offsetY)
+    val currentOnTransform by rememberUpdatedState(onTransform)
+    val currentOnDoubleTap by rememberUpdatedState(onDoubleTap)
+
     var viewportSize by remember { mutableStateOf(IntSize.Zero) }
     var loadFailed by remember { mutableStateOf(false) }
 
@@ -69,7 +82,7 @@ internal fun ZoomableImage(
                 // Compose runs only the first matching detector inside one pointerInput,
                 // so transform-gestures and tap-gestures must live in separate blocks.
                 detectTransformGestures { _, pan, zoom, _ ->
-                    val newScale = (scale * zoom).coerceIn(MIN_SCALE, MAX_SCALE)
+                    val newScale = (currentScale * zoom).coerceIn(MIN_SCALE, MAX_SCALE)
                     val newOffsetX: Float
                     val newOffsetY: Float
                     if (newScale <= MIN_SCALE) {
@@ -80,14 +93,14 @@ internal fun ZoomableImage(
                         // pulling beyond the viewport on either side.
                         val maxOffsetX = (viewportSize.width * (newScale - 1f)) / 2f
                         val maxOffsetY = (viewportSize.height * (newScale - 1f)) / 2f
-                        newOffsetX = (offsetX + pan.x).coerceIn(-maxOffsetX, maxOffsetX)
-                        newOffsetY = (offsetY + pan.y).coerceIn(-maxOffsetY, maxOffsetY)
+                        newOffsetX = (currentOffsetX + pan.x).coerceIn(-maxOffsetX, maxOffsetX)
+                        newOffsetY = (currentOffsetY + pan.y).coerceIn(-maxOffsetY, maxOffsetY)
                     }
-                    onTransform(newScale, newOffsetX, newOffsetY)
+                    currentOnTransform(newScale, newOffsetX, newOffsetY)
                 }
             }
             .pointerInput(Unit) {
-                detectTapGestures(onDoubleTap = { onDoubleTap() })
+                detectTapGestures(onDoubleTap = { currentOnDoubleTap() })
             },
         contentAlignment = Alignment.Center,
     ) {
