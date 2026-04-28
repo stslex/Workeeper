@@ -40,6 +40,7 @@ internal fun RecentSessionRow(
                 color = AppUi.colors.textSecondary,
             )
             Text(
+                // TODO(tech-debt): UI mapping boundary — see documentation/tech-debt.md
                 text = "${item.finishedAtRelativeLabel} · ${item.durationLabel}",
                 style = AppUi.typography.labelSmall,
                 color = AppUi.colors.textTertiary,

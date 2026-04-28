@@ -28,6 +28,7 @@ fun NavGraphBuilder.archiveGraph(
                 is Event.ShowRestoredSnackbar -> {
                     SnackbarManager.showSnackbar(
                         AppSnackbarModel(
+                            // TODO(tech-debt): UI mapping boundary — see documentation/tech-debt.md
                             message = restoredTemplate.format(event.item.name),
                             actionLabel = undoLabel,
                             withDismissAction = true,

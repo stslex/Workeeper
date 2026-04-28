@@ -33,6 +33,7 @@ fun NavGraphBuilder.singleTrainingsGraph(
 ) {
     navComponentScreen(SingleTrainingFeature) { processor ->
         val haptic = LocalHapticFeedback.current
+        // TODO(tech-debt): UI mapping boundary — see documentation/tech-debt.md
         val discardTitle = stringResource(R.string.feature_training_edit_discard_title)
         val discardBody = stringResource(R.string.feature_training_edit_discard_body)
         val discardConfirm = stringResource(R.string.feature_training_edit_discard_confirm)
