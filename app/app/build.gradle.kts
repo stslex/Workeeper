@@ -27,6 +27,7 @@ dependencies {
     implementation(project(":feature:home"))
     implementation(project(":feature:live-workout"))
     implementation(project(":feature:past-session"))
+    implementation(project(":feature:image-viewer"))
 
     implementation(platform(libs.google.firebase.bom))
     implementation(libs.google.firebase.analytics)

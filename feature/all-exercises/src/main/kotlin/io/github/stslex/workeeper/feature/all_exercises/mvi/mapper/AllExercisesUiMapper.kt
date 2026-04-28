@@ -17,6 +17,7 @@ internal fun ExerciseDataModel.toUi(
     type = type,
     tags = if (tags.isEmpty()) persistentListOf() else tags.toImmutableList(),
     sessionCount = sessionCount,
+    imagePath = imagePath,
 )
 
 internal fun TagDataModel.toUi(): TagUiModel = TagUiModel(uuid = uuid, name = name)

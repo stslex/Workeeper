@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise.mvi.store
 
+import android.net.Uri
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.ui.mvi.Store
@@ -8,6 +9,10 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.AppPlanEditorAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.feature.exercise.mvi.model.HistoryUiModel
+import io.github.stslex.workeeper.feature.exercise.mvi.model.ImageDisplay
+import io.github.stslex.workeeper.feature.exercise.mvi.model.ImageErrorType
+import io.github.stslex.workeeper.feature.exercise.mvi.model.ImageSourceUiModel
+import io.github.stslex.workeeper.feature.exercise.mvi.model.PendingImage
 import io.github.stslex.workeeper.feature.exercise.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Event
@@ -37,16 +42,35 @@ internal interface ExerciseStore : Store<State, Action, Event> {
         val adhocPlanSummaryLabel: String,
         val planEditorTarget: PlanEditorTarget?,
         val pendingTypeChange: ExerciseTypeUiModel?,
+        val imagePath: String?,
+        val imageLastModified: Long,
+        val pendingImage: PendingImage,
+        val sourceDialogVisible: Boolean,
+        val permissionDeniedDialogVisible: Boolean,
     ) : Store.State {
 
         val isSaveEnabled: Boolean
             get() = name.isNotBlank()
 
         val hasChanges: Boolean
-            get() = originalSnapshot?.matches(this) == false
+            get() = originalSnapshot?.matches(this) == false || isImageDirty
 
         val isPlanEditorDirty: Boolean
             get() = planEditorTarget?.let { it.draft != it.initialPlan } == true
+
+        val isImageDirty: Boolean
+            get() = pendingImage != PendingImage.Unchanged
+
+        /** What the UI should display right now — pending overrides committed. */
+        val effectiveImageDisplay: ImageDisplay
+            get() = when (val pending = pendingImage) {
+                is PendingImage.NewFromUri -> ImageDisplay.FromUri(pending.uri)
+                PendingImage.RemoveExisting -> ImageDisplay.None
+                PendingImage.Unchanged -> when (val path = imagePath) {
+                    null -> ImageDisplay.None
+                    else -> ImageDisplay.FromPath(path, lastModified = imageLastModified)
+                }
+            }
 
         /**
          * True only when the system back gesture must surface the discard-changes dialog,
@@ -108,6 +132,11 @@ internal interface ExerciseStore : Store<State, Action, Event> {
                 adhocPlanSummaryLabel = "",
                 planEditorTarget = null,
                 pendingTypeChange = null,
+                imagePath = null,
+                imageLastModified = 0L,
+                pendingImage = PendingImage.Unchanged,
+                sourceDialogVisible = false,
+                permissionDeniedDialogVisible = false,
             )
         }
     }
@@ -118,6 +147,10 @@ internal interface ExerciseStore : Store<State, Action, Event> {
         sealed interface Common : Action {
 
             data object Init : Common
+
+            data class ImagePicked(val uri: Uri) : Common
+
+            data object ImagePickCancelled : Common
         }
 
         sealed interface Click : Action {
@@ -165,6 +198,26 @@ internal interface ExerciseStore : Store<State, Action, Event> {
             data class OnTagRemove(val tagUuid: String) : Click
 
             data class OnTagCreate(val name: String) : Click
+
+            data object OnEditImageClick : Click
+
+            data object OnImageThumbnailClick : Click
+
+            data class OnImageSourceSelected(val source: ImageSourceUiModel) : Click
+
+            data object OnRemoveImageClick : Click
+
+            data object OnImageSourceDialogDismiss : Click
+
+            data object OnPermissionDeniedDialogDismiss : Click
+
+            data object OnPermissionDeniedSettingsClick : Click
+
+            /** Internal: emitted by the camera-permission launcher when granted. */
+            data object RequestCameraCapture : Click
+
+            /** Internal: emitted by the camera-permission launcher when denied. */
+            data object OnCameraPermissionDenied : Click
         }
 
         @Suppress("MviActionNamingRule")
@@ -184,6 +237,8 @@ internal interface ExerciseStore : Store<State, Action, Event> {
             data object Back : Navigation
 
             data class OpenSession(val sessionUuid: String) : Navigation
+
+            data class OpenImageViewer(val model: String) : Navigation
         }
     }
 
@@ -217,6 +272,16 @@ internal interface ExerciseStore : Store<State, Action, Event> {
             val impactSummary: String,
             val confirmLabel: String,
         ) : Event
+
+        data class NavigateLaunchCamera(val tempUri: Uri) : Event
+
+        data object NavigateLaunchGallery : Event
+
+        data object NavigateRequestCameraPermission : Event
+
+        data class NavigateOpenAppSettings(val packageName: String) : Event
+
+        data class ShowImageError(val errorType: ImageErrorType) : Event
     }
 
     /**

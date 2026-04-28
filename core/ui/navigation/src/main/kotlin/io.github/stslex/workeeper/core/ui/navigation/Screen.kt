@@ -66,6 +66,16 @@ sealed interface Screen {
         val sessionUuid: String,
     ) : Screen
 
+    /**
+     * Full-screen image viewer. [model] is either an absolute file path
+     * (`filesDir/exercise_images/<uuid>.jpg`) or a content URI string
+     * (e.g. from `PickVisualMedia`); Coil resolves both transparently.
+     */
+    @Serializable
+    data class ExerciseImage(
+        val model: String,
+    ) : Screen
+
     companion object {
 
         @OptIn(InternalSerializationApi::class, ExperimentalSerializationApi::class)

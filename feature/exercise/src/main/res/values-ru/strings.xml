@@ -55,4 +55,27 @@
     <string name="feature_exercise_edit_type_change_weightless_body">Значения веса из планов этого упражнения будут очищены. Это нельзя отменить.</string>
     <string name="feature_exercise_edit_type_change_weightless_impact">Все веса в планах очищены</string>
     <string name="feature_exercise_edit_type_change_weightless_confirm">Переключить</string>
+
+    <!-- Edit exercise — image -->
+    <string name="feature_exercise_image_edit_title">Изображение упражнения</string>
+    <string name="feature_exercise_image_action_add">Добавить фото</string>
+    <string name="feature_exercise_image_action_edit">Изменить фото</string>
+    <string name="feature_exercise_image_action_remove">Убрать</string>
+    <string name="feature_exercise_image_thumb_description">Прикреплённое фото упражнения</string>
+    <string name="feature_exercise_image_placeholder_description">Фото упражнения не прикреплено</string>
+
+    <!-- Source dialog -->
+    <string name="feature_exercise_image_source_dialog_title">Выберите источник</string>
+    <string name="feature_exercise_image_source_camera">Сделать фото</string>
+    <string name="feature_exercise_image_source_gallery">Выбрать из галереи</string>
+
+    <!-- Permission -->
+    <string name="feature_exercise_image_permission_denied_title">Доступ к камере запрещён</string>
+    <string name="feature_exercise_image_permission_denied_body">Чтобы сделать фото, разрешите доступ к камере в настройках приложения. Вы можете выбрать фото из галереи.</string>
+    <string name="feature_exercise_image_permission_denied_action_settings">Открыть настройки</string>
+
+    <!-- Errors -->
+    <string name="feature_exercise_image_error_save_failed">Не удалось сохранить фото — попробуйте ещё раз</string>
+    <string name="feature_exercise_image_error_load_failed">Не удалось загрузить фото</string>
+    <string name="feature_exercise_image_error_decode_failed">Формат изображения не поддерживается</string>
 </resources>

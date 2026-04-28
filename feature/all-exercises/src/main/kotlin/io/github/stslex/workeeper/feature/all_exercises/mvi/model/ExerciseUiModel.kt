@@ -12,4 +12,5 @@ data class ExerciseUiModel(
     val type: ExerciseTypeDataModel,
     val tags: ImmutableList<String>,
     val sessionCount: Int,
+    val imagePath: String?,
 )

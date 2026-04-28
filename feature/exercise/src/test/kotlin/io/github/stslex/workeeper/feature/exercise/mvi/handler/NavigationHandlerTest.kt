@@ -28,4 +28,11 @@ internal class NavigationHandlerTest {
         verify(exactly = 0) { navigator.popBack() }
         verify(exactly = 0) { navigator.navTo(any()) }
     }
+
+    @Test
+    fun `OpenImageViewer navigates to Screen ExerciseImage with the model arg`() {
+        val model = "/data/user/0/app/files/exercise_images/abc.jpg"
+        handler.invoke(Action.Navigation.OpenImageViewer(model))
+        verify(exactly = 1) { navigator.navTo(Screen.ExerciseImage(model)) }
+    }
 }

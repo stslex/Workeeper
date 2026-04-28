@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise.domain
 
+import android.net.Uri
+import io.github.stslex.workeeper.core.core.images.model.ImageSaveResult
 import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
@@ -9,6 +11,7 @@ import io.github.stslex.workeeper.core.exercise.tags.model.TagDataModel
 import kotlinx.coroutines.flow.Flow
 import kotlin.uuid.Uuid
 
+@Suppress("TooManyFunctions")
 internal interface ExerciseInteractor {
 
     suspend fun getExercise(uuid: String): ExerciseDataModel?
@@ -39,6 +42,12 @@ internal interface ExerciseInteractor {
     suspend fun setAdhocPlan(uuid: String, plan: List<PlanSetDataModel>?)
 
     suspend fun clearWeightsFromAllPlansForExercise(uuid: String)
+
+    suspend fun saveImage(uri: Uri, exerciseUuid: String): ImageSaveResult
+
+    suspend fun createTempCaptureUri(): Uri
+
+    suspend fun deleteImageFile(path: String): Boolean
 
     sealed interface ArchiveResult {
 

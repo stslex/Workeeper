@@ -65,7 +65,11 @@ internal fun ExerciseDetailScreen(
             verticalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
         ) {
             Spacer(Modifier.height(AppDimension.Space.sm))
-            ExerciseHero(type = state.type)
+            ExerciseHero(
+                type = state.type,
+                imageDisplay = state.effectiveImageDisplay,
+                onImageClick = { consume(Action.Click.OnImageThumbnailClick) },
+            )
             Static(label = stringResource(state.type.labelRes))
             Text(
                 text = state.name,

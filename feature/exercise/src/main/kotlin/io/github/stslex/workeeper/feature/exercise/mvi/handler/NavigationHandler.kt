@@ -16,6 +16,8 @@ internal class NavigationHandler(
         when (action) {
             Action.Navigation.Back -> navigator.popBack()
             is Action.Navigation.OpenSession -> Unit
+            is Action.Navigation.OpenImageViewer ->
+                navigator.navTo(Screen.ExerciseImage(action.model))
         }
     }
 }

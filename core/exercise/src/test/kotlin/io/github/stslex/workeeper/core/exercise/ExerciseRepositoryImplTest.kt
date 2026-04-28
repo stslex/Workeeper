@@ -2,7 +2,10 @@
 package io.github.stslex.workeeper.core.exercise
 
 import android.database.sqlite.SQLiteConstraintException
+import io.github.stslex.workeeper.core.core.images.ImageStorage
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
+import io.github.stslex.workeeper.core.database.exercise.ExerciseEntity
+import io.github.stslex.workeeper.core.database.exercise.ExerciseTypeEntity
 import io.github.stslex.workeeper.core.database.session.SessionDao
 import io.github.stslex.workeeper.core.database.session.SetDao
 import io.github.stslex.workeeper.core.database.tag.ExerciseTagDao
@@ -31,6 +34,7 @@ internal class ExerciseRepositoryImplTest {
     private val trainingExerciseDao = mockk<TrainingExerciseDao>(relaxed = true)
     private val sessionDao = mockk<SessionDao>(relaxed = true)
     private val setDao = mockk<SetDao>(relaxed = true)
+    private val imageStorage = mockk<ImageStorage>(relaxed = true)
 
     private val repository: ExerciseRepository = ExerciseRepositoryImpl(
         dao = exerciseDao,
@@ -39,7 +43,23 @@ internal class ExerciseRepositoryImplTest {
         trainingExerciseDao = trainingExerciseDao,
         sessionDao = sessionDao,
         setDao = setDao,
+        imageStorage = imageStorage,
         bgDispatcher = testDispatcher,
+    )
+
+    private fun exerciseEntity(
+        uuid: Uuid,
+        imagePath: String? = null,
+    ): ExerciseEntity = ExerciseEntity(
+        uuid = uuid,
+        name = "name-$uuid",
+        type = ExerciseTypeEntity.WEIGHTED,
+        description = null,
+        imagePath = imagePath,
+        archived = false,
+        createdAt = 0L,
+        archivedAt = null,
+        lastAdhocSets = null,
     )
 
     @Test
@@ -90,5 +110,80 @@ internal class ExerciseRepositoryImplTest {
         )
 
         assertEquals(SaveResult.Success, result)
+    }
+
+    @Test
+    fun `deleteItem removes the row and the image file when imagePath set`() = runTest(testDispatcher) {
+        val uuid = Uuid.random()
+        val path = "/data/user/0/app/files/exercise_images/$uuid.jpg"
+        coEvery { exerciseDao.getById(uuid) } returns exerciseEntity(uuid, imagePath = path)
+
+        repository.deleteItem(uuid.toString())
+
+        coVerify { exerciseDao.permanentDelete(uuid) }
+        coVerify { imageStorage.deleteImage(path) }
+    }
+
+    @Test
+    fun `deleteItem skips imageStorage when imagePath is null`() = runTest(testDispatcher) {
+        val uuid = Uuid.random()
+        coEvery { exerciseDao.getById(uuid) } returns exerciseEntity(uuid, imagePath = null)
+
+        repository.deleteItem(uuid.toString())
+
+        coVerify { exerciseDao.permanentDelete(uuid) }
+        coVerify(exactly = 0) { imageStorage.deleteImage(any()) }
+    }
+
+    @Test
+    fun `deleteAllItems removes rows and image files`() = runTest(testDispatcher) {
+        val uuidA = Uuid.random()
+        val uuidB = Uuid.random()
+        val pathA = "/files/$uuidA.jpg"
+        coEvery { exerciseDao.getById(uuidA) } returns exerciseEntity(uuidA, imagePath = pathA)
+        coEvery { exerciseDao.getById(uuidB) } returns exerciseEntity(uuidB, imagePath = null)
+
+        repository.deleteAllItems(listOf(uuidA, uuidB))
+
+        coVerify { exerciseDao.permanentDelete(uuidA) }
+        coVerify { exerciseDao.permanentDelete(uuidB) }
+        coVerify(exactly = 1) { imageStorage.deleteImage(pathA) }
+    }
+
+    @Test
+    fun `archive does not delete the image file`() = runTest(testDispatcher) {
+        val uuid = Uuid.random()
+
+        repository.archive(uuid.toString())
+
+        coVerify { exerciseDao.archive(uuid, any()) }
+        coVerify(exactly = 0) { imageStorage.deleteImage(any()) }
+    }
+
+    @Test
+    fun `permanentDelete removes the image file`() = runTest(testDispatcher) {
+        val uuid = Uuid.random()
+        val path = "/files/$uuid.jpg"
+        coEvery { exerciseDao.getById(uuid) } returns exerciseEntity(uuid, imagePath = path)
+
+        repository.permanentDelete(uuid.toString())
+
+        coVerify { exerciseDao.permanentDelete(uuid) }
+        coVerify { imageStorage.deleteImage(path) }
+    }
+
+    @Test
+    fun `bulkPermanentDelete removes image files for all rows`() = runTest(testDispatcher) {
+        val uuidA = Uuid.random()
+        val uuidB = Uuid.random()
+        val pathA = "/files/$uuidA.jpg"
+        coEvery { exerciseDao.getById(uuidA) } returns exerciseEntity(uuidA, imagePath = pathA)
+        coEvery { exerciseDao.getById(uuidB) } returns exerciseEntity(uuidB, imagePath = null)
+
+        repository.bulkPermanentDelete(setOf(uuidA.toString(), uuidB.toString()))
+
+        coVerify { exerciseDao.permanentDelete(uuidA) }
+        coVerify { exerciseDao.permanentDelete(uuidB) }
+        coVerify(exactly = 1) { imageStorage.deleteImage(pathA) }
     }
 }

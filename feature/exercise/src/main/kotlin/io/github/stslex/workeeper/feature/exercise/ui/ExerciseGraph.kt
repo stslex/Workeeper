@@ -1,7 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise.ui
 
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.runtime.getValue
@@ -9,8 +15,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.core.net.toUri
 import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
@@ -21,19 +29,23 @@ import io.github.stslex.workeeper.core.ui.plan_editor.AppPlanEditor
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseFeature
+import io.github.stslex.workeeper.feature.exercise.mvi.model.ImageErrorType
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.DiscardTarget
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Event
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State.Mode
+import io.github.stslex.workeeper.feature.exercise.ui.components.ImageSourceDialog
+import io.github.stslex.workeeper.feature.exercise.ui.components.PermissionDeniedDialog
 
 @OptIn(ExperimentalSharedTransitionApi::class)
-@Suppress("UnusedParameter", "LongMethod")
+@Suppress("UnusedParameter", "LongMethod", "CyclomaticComplexMethod")
 fun NavGraphBuilder.exerciseGraph(
     sharedTransitionScope: SharedTransitionScope,
     modifier: Modifier = Modifier,
 ) {
     navComponentScreen(ExerciseFeature) { processor ->
         val haptic = LocalHapticFeedback.current
+        val context = LocalContext.current
         val undoLabel = stringResource(R.string.feature_exercise_detail_archive_undo)
         val discardTitle = stringResource(R.string.feature_exercise_edit_discard_title)
         val discardBody = stringResource(R.string.feature_exercise_edit_discard_body)
@@ -42,11 +54,45 @@ fun NavGraphBuilder.exerciseGraph(
         val archiveBlockedTitle =
             stringResource(R.string.feature_exercise_detail_archive_blocked_title)
         val archiveBlockedOk = stringResource(R.string.feature_exercise_detail_archive_blocked_ok)
+        val imageSaveFailed = stringResource(R.string.feature_exercise_image_error_save_failed)
+        val imageLoadFailed = stringResource(R.string.feature_exercise_image_error_load_failed)
+        val imageDecodeFailed = stringResource(R.string.feature_exercise_image_error_decode_failed)
 
         var pendingDiscard by remember { mutableStateOf<DiscardTarget?>(null) }
         var archiveBlockedBody by remember { mutableStateOf<String?>(null) }
         var permanentDeleteDialog by remember { mutableStateOf<Event.ShowPermanentDeleteConfirm?>(null) }
         var typeChangeDialog by remember { mutableStateOf<Event.ShowTypeChangeConfirm?>(null) }
+        var pendingCameraTempUri by remember { mutableStateOf<Uri?>(null) }
+
+        val cameraLauncher = rememberLauncherForActivityResult(
+            ActivityResultContracts.TakePicture(),
+        ) { success ->
+            val uri = pendingCameraTempUri
+            if (success && uri != null) {
+                processor.consume(Action.Common.ImagePicked(uri))
+            } else {
+                processor.consume(Action.Common.ImagePickCancelled)
+            }
+            pendingCameraTempUri = null
+        }
+        val galleryLauncher = rememberLauncherForActivityResult(
+            ActivityResultContracts.PickVisualMedia(),
+        ) { uri ->
+            if (uri != null) {
+                processor.consume(Action.Common.ImagePicked(uri))
+            } else {
+                processor.consume(Action.Common.ImagePickCancelled)
+            }
+        }
+        val cameraPermissionLauncher = rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission(),
+        ) { granted ->
+            if (granted) {
+                processor.consume(Action.Click.RequestCameraCapture)
+            } else {
+                processor.consume(Action.Click.OnCameraPermissionDenied)
+            }
+        }
 
         processor.Handle { event ->
             when (event) {
@@ -79,6 +125,38 @@ fun NavGraphBuilder.exerciseGraph(
 
                 is Event.ShowTypeChangeConfirm -> {
                     typeChangeDialog = event
+                }
+
+                is Event.NavigateLaunchCamera -> {
+                    pendingCameraTempUri = event.tempUri
+                    cameraLauncher.launch(event.tempUri)
+                }
+
+                Event.NavigateLaunchGallery -> {
+                    galleryLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                    )
+                }
+
+                Event.NavigateRequestCameraPermission -> {
+                    cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
+                }
+
+                is Event.NavigateOpenAppSettings -> {
+                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = "package:${event.packageName}".toUri()
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(intent)
+                }
+
+                is Event.ShowImageError -> {
+                    val message = when (event.errorType) {
+                        ImageErrorType.SaveFailed -> imageSaveFailed
+                        ImageErrorType.LoadFailed -> imageLoadFailed
+                        ImageErrorType.DecodeFailed -> imageDecodeFailed
+                    }
+                    SnackbarManager.showSnackbar(message = message)
                 }
             }
         }
@@ -172,6 +250,26 @@ fun NavGraphBuilder.exerciseGraph(
                 draft = target.draft,
                 isWeighted = state.type == ExerciseTypeUiModel.WEIGHTED,
                 onAction = { action -> processor.consume(Action.PlanEditorAction(action)) },
+            )
+        }
+        if (state.sourceDialogVisible) {
+            ImageSourceDialog(
+                onSourceSelected = { source ->
+                    processor.consume(Action.Click.OnImageSourceSelected(source))
+                },
+                onDismiss = {
+                    processor.consume(Action.Click.OnImageSourceDialogDismiss)
+                },
+            )
+        }
+        if (state.permissionDeniedDialogVisible) {
+            PermissionDeniedDialog(
+                onSettingsClick = {
+                    processor.consume(Action.Click.OnPermissionDeniedSettingsClick)
+                },
+                onDismiss = {
+                    processor.consume(Action.Click.OnPermissionDeniedDialogDismiss)
+                },
             )
         }
     }
