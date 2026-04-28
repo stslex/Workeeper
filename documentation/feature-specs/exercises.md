@@ -1,5 +1,7 @@
 # Feature spec — Exercises
 
+**Status:** Merged in Stage 5.2 (PR #59). For current architecture, see [architecture.md](../architecture.md). This spec is preserved as a historical record of the planning state.
+
 This is the Stage 5.2 feature spec — second v1 feature implementation
 after Settings + Archive. It builds on:
 
@@ -704,27 +706,34 @@ Unit tests:
 
 UI: `@Smoke` stubs with `TODO(feature-rewrite-tests)` (per testing.md).
 
-## Stage 5.2 deliverables checklist
+## Stage outcomes
 
-- [ ] feature/all-exercises rewritten with v1 design and v3 schema.
-- [ ] feature/exercise rewritten with v1 design and v3 schema.
+- [x] feature/all-exercises rewritten with v1 design and v3 schema.
+- [x] feature/exercise rewritten with v1 design and v3 schema.
 - [ ] Phantom shims (trainingUuid, sets, labels, exerciseUuids) on
       ExerciseDataModel + TrainingDataModel — relevant ones removed.
+      ExerciseDataModel dropped the Stage 5.2 shims, but
+      TrainingDataModel still carries `labels` and `exerciseUuids`.
 - [ ] Repository extended with `pagedActiveByTags(Set<String>)` for
-      AND semantics.
-- [ ] DAO query `pagedActiveByAllTags` added.
-- [ ] DAO query `getRecentSessionsForExercise` added.
-- [ ] `feature_exercise_*` and `feature_all_exercises_*` strings in
+      AND semantics. The repository method ships, but the current
+      implementation uses OR semantics; AND semantics live in the
+      deprecated `ExerciseDao.pagedActiveByAllTags`.
+- [x] DAO query `pagedActiveByAllTags` added.
+- [x] DAO query `getRecentSessionsForExercise` added.
+- [x] `feature_exercise_*` and `feature_all_exercises_*` strings in
       both EN and RU strings.xml.
-- [ ] All Composables use `stringResource(R.string.xxx)` — no
+- [x] All Composables use `stringResource(R.string.xxx)` — no
       hardcoded literals.
-- [ ] All UI uses `core/ui/kit` components and AppUi tokens.
+- [x] All UI uses `core/ui/kit` components and AppUi tokens.
 - [ ] Canonical navigation pattern (NavigationHandler with @Inject
       Navigator; graph composables consume only UI events).
+      NavigationHandlers and event-driven graph wiring shipped, but the
+      handlers are manually constructed rather than `@Inject`ed.
 - [ ] Haptics emitted for every Click action per the architecture.md
-      Haptics convention.
-- [ ] Unit tests for handlers, interactors, new DAO queries.
-- [ ] Smoke UI test stubs.
+      Haptics convention. Several click paths still bypass haptics,
+      including undo/cancel flows.
+- [x] Unit tests for handlers, interactors, new DAO queries.
+- [x] Smoke UI test stubs.
 - [ ] App launches; Exercises tab loads; create/edit/archive flow
       works; tag filter narrows list correctly; Russian locale shows
-      Russian strings.
+      Russian strings. verification needed.

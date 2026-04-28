@@ -1,5 +1,7 @@
 # Feature spec — Live workout (Stage 5.4)
 
+**Status:** Merged in Stage 5.4 (PR #63). For current architecture, see [architecture.md](../architecture.md). This spec is preserved as a historical record of the planning state.
+
 This is the Stage 5.4 feature spec — the fourth v1 feature implementation, after Settings + Archive (5.1), Exercises (5.2), Trainings (5.3). It builds on:
 
 - [product.md](../product.md)
@@ -829,30 +831,39 @@ Compose previews:
 - `ActiveSessionBanner` previews cover: short timer, long timer, RU locale.
 - `FinishConfirmDialog` previews cover: all done, partial done, with skipped.
 
-## Stage 5.4 deliverables checklist
+## Stage outcomes
 
-- [ ] `feature/live-workout` new module, fully implemented per spec.
-- [ ] `feature/home` new minimal module — banner + empty state.
-- [ ] `Screen.LiveWorkout(sessionUuid, trainingUuid)` route added.
-- [ ] `Screen.BottomBar.Home` wired in app navigation.
-- [ ] DataModel audit completed:
-  - [ ] `ExerciseDataModel.trainingUuid` removed
-  - [ ] `ExerciseDataModel.sets` removed
-  - [ ] `ExerciseDataModel.labels` removed
-  - [ ] `SetsDataModel.weight` made nullable
-  - [ ] `PerformedExerciseDataModel` and `SessionDataModel` audited (likely clean)
+- [x] `feature/live-workout` new module, fully implemented per spec.
+- [x] `feature/home` new minimal module — banner + empty state.
+- [x] `Screen.LiveWorkout(sessionUuid, trainingUuid)` route added.
+- [x] `Screen.BottomBar.Home` wired in app navigation.
+- [x] DataModel audit completed:
+  - [x] `ExerciseDataModel.trainingUuid` removed
+  - [x] `ExerciseDataModel.sets` removed
+  - [x] `ExerciseDataModel.labels` removed
+  - [x] `SetsDataModel.weight` made nullable
+  - [x] `PerformedExerciseDataModel` and `SessionDataModel` audited (likely clean)
 - [ ] `SetRepository.upsert / deleteByPerformedAndPosition / hasAny / count / deleteAll` added.
-- [ ] `SessionDao.observeActiveSessionWithStats` added.
-- [ ] `PerformedExerciseRepository.insertForSession` added.
+      Equivalent APIs shipped, but the exact surface is
+      `hasAnyForPerformed` / `countByPerformedExercise` /
+      `deleteAllForPerformedExercise`.
+- [x] `SessionDao.observeActiveSessionWithStats` added.
+- [x] `PerformedExerciseRepository.insertForSession` added.
 - [ ] `LiveWorkoutInteractor.finishSession` is one transaction, applies PlanUpdateRule per non-skipped exercise.
-- [ ] `LiveWorkoutInteractor.startSession` creates session + performed_exercise rows in one transaction.
-- [ ] All EN + RU strings per spec.
-- [ ] Canonical NavigationHandler pattern.
-- [ ] Conditional BackHandler via `interceptBack` derived flag (only when plan editor is dirty).
+      PlanUpdateRule is applied per non-skipped exercise, but the
+      shipped finish flow uses compensating rollbacks rather than one
+      DB transaction.
+- [x] `LiveWorkoutInteractor.startSession` creates session + performed_exercise rows in one transaction.
+- [x] All EN + RU strings per spec.
+- [x] Canonical NavigationHandler pattern.
+- [x] Conditional BackHandler via `interceptBack` derived flag (only when plan editor is dirty).
 - [ ] Haptics: light click on most actions, medium impact on set checkbox tap, medium impact on finish/skip/cancel destructive confirms.
-- [ ] Plan editor wrapper pattern (`Action.PlanEditAction(AppPlanEditorAction)`) applied to live-workout store.
+      Core mappings shipped, but dismiss/header-click paths still skip
+      haptic emission.
+- [x] Plan editor wrapper pattern (`Action.PlanEditAction(AppPlanEditorAction)`) applied to live-workout store.
 - [ ] Composable @Previews for every public/internal Composable.
-- [ ] Unit tests for handlers, interactors, mappers, new DAO queries.
+      Preview coverage is partial, not exhaustive.
+- [x] Unit tests for handlers, interactors, mappers, new DAO queries.
 
 ## Live workout depends on Stage 5.3 in dev
 
@@ -864,4 +875,3 @@ Stage 5.3 must be in dev before this Code session runs. Specifically:
 - `PlanUpdateRule` exists.
 
 Verify with `grep -r "AppPlanEditor" --include="*.kt"` returns hits in `core/ui/plan-editor`.
-

@@ -1,5 +1,7 @@
 # Feature spec — Trainings (Stage 5.3)
 
+**Status:** Merged in Stage 5.3 (PR #62). For current architecture, see [architecture.md](../architecture.md). This spec is preserved as a historical record of the planning state.
+
 This is the Stage 5.3 feature spec — the third v1 feature
 implementation after Settings + Archive (Stage 5.1) and Exercises
 (Stage 5.2). It builds on:
@@ -1123,23 +1125,28 @@ Compose previews:
 - `AppPlanEditor` previews include weighted, weightless, and
   populated/empty states.
 
-## Stage 5.3 deliverables checklist
+## Stage outcomes
 
-- [ ] `feature/all-trainings` rewritten per spec.
-- [ ] `feature/single-training` rewritten per spec.
-- [ ] Multi-select retrofit on `feature/all-exercises`.
-- [ ] Plan editor + last_adhoc_sets retrofit on `feature/exercise`.
-- [ ] Type change confirmation retrofit on `feature/exercise`.
-- [ ] `core/ui/kit/components/AppPlanEditor.kt` new shared component.
-- [ ] DAO additions: `pagedActiveWithStats`, `pagedActiveWithStatsByTags`,
+- [x] `feature/all-trainings` rewritten per spec.
+- [x] `feature/single-training` rewritten per spec.
+- [x] Multi-select retrofit on `feature/all-exercises`.
+- [x] Plan editor + last_adhoc_sets retrofit on `feature/exercise`.
+- [x] Type change confirmation retrofit on `feature/exercise`.
+- [x] `core/ui/kit/components/AppPlanEditor.kt` new shared component.
+- [x] DAO additions: `pagedActiveWithStats`, `pagedActiveWithStatsByTags`,
       `observeAnyActiveSession`.
-- [ ] Interactor + repository additions per spec.
-- [ ] All EN + RU strings per spec.
-- [ ] Canonical NavigationHandler pattern, conditional BackHandler
+- [x] Interactor + repository additions per spec.
+- [x] All EN + RU strings per spec.
+- [x] Canonical NavigationHandler pattern, conditional BackHandler
       via `interceptBack` derived flag.
-- [ ] Haptics emitted for every Click action.
+- [ ] Haptics emitted for every Click action. Dismiss/undo paths still
+      bypass haptic emission in the shipped handlers.
 - [ ] Composable @Previews for every public/internal Composable
       including AppPlanEditor (weighted, weightless, populated, empty).
+      Preview coverage exists, but not for every public/internal
+      Composable.
 - [ ] Unit tests for handlers, interactors, new DAO queries, plan
-      editor logic.
-- [ ] Smoke UI test stubs.
+      editor logic. Handler/interactor/plan-editor tests ship, but no
+      direct DAO-query tests were found for
+      `pagedActiveWithStats` / `pagedActiveWithStatsByTags`.
+- [x] Smoke UI test stubs.

@@ -1,5 +1,7 @@
 # Feature spec — Exercise image attachment (v1.5)
 
+**Status:** Merged in Stage v1.5 (PR #71). For current architecture, see [architecture.md](../architecture.md). This spec is preserved as a historical record of the planning state.
+
 This is the v1.5 spec — a fast follow-up after v1 closure. The first feature outside the v1 bottom-bar shape: Exercise image attachment. References:
 
 - [product.md](../product.md) — `v1.5` feature 14 (Exercise image attachment) + Open questions section ("Image storage strategy")
@@ -924,39 +926,3 @@ Before marking PR ready:
 - pendingImage in State ONLY — do not write to disk before Save click.
 - No image-related code in `core/database` (it's a pure persistence layer).
 - No image-related code in `feature/single-training`, `feature/all-trainings`, `feature/live-workout`, `feature/past-session`, `feature/home` — exercise-only.
-
-## Implementation prompt (for coding agent)
-
-Read this entire spec before starting. Key callouts below — but the spec is the contract.
-
-Branch: feat/v1-5-exercise-image
-PR title: feat(exercise): image attachment (v1.5)
-PR mode: draft (mark ready after verification gate)
-
-Critical constraints:
-- Save sequence is fixed: write new file → update DB → delete old file. Never reorder.
-- ImageStorage is the only filesystem-touching module for images.
-- Edit semantics are "save on commit" — pendingImage held in State, disk write only on Save click.
-- Archive does NOT delete file. Permanent delete DOES.
-- minSdk 28 — use ImageDecoder, not deprecated BitmapFactory paths.
-- Use existing Coil 3.3.0 (already in libs.versions.toml). Do not add a new image lib.
-- `READ_MEDIA_IMAGES` permission must NOT appear in AndroidManifest — Photo Picker handles gallery without it.
-- `CAMERA` permission is the only runtime permission added.
-- Cache-bust Coil with `?v=<lastModifiedMs>` when path changes (most important on the edit screen).
-- Viewer is a routed screen, NOT a bottom sheet or in-place overlay.
-- Viewer takes a single `model: String` route arg — file path OR content URI string. Coil handles both.
-- Viewer triggers from Detail hero + Edit thumbnail ONLY. Exercises tab row stays as-is (tap → Detail).
-- Viewer zoom: self-written via Modifier.pointerInput, no third-party library.
-- Viewer scale clamp [1f, 5f]; pan only when scale > 1f; double-tap toggles 1f ↔ 2.5f.
-- Pan bounds = ((scale - 1) * viewportSize) / 2 per axis. No bleed beyond image edges.
-
-Locked design decisions are in the "Design decisions (locked)" table — do NOT deviate without raising in PR review.
-
-PR body must include:
-- Files changed grouped by module.
-- Verification gate report (build + tests + detekt + lint + manual scenarios checked off).
-- Note: "First feature attached to a real file lifecycle. Future features needing image attachment (training cover, etc — v2) should reuse core/core/images/ImageStorage."
-- Note: "Image viewer is generic over its `model` arg (file path OR content URI). Future image-viewing needs (training cover viewer, set-photo viewer) should reuse `Screen.ExerciseImage` route or refactor it to a generically-named `Screen.ImageViewer` if/when that's needed."
-- Disk usage estimate: at JPEG q85, 1280×1280, expect ~150-400 KB per image. 100 exercises with photos ≈ 25 MB.
-
-Stop condition: draft PR opened with verification gate passed, ready for review.

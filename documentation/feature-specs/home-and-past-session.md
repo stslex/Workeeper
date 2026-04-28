@@ -1,5 +1,7 @@
 # Feature spec — Home dashboard expansion + Past session detail (Stage 5.5)
 
+**Status:** Merged in Stage 5.5 (PR #66). For current architecture, see [architecture.md](../architecture.md). This spec is preserved as a historical record of the planning state.
+
 This is the Stage 5.5 feature spec — the **fifth and final v1 feature stage**, after Settings +
 Archive (5.1), Exercises (5.2), Trainings (5.3), Live workout + minimal Home banner (5.4). After
 this PR merges, every feature in `product.md → v1` is shipped. It builds on:
@@ -1071,6 +1073,12 @@ Before marking PR ready for review:
       retry button.
     - **Picker:** Tap "see all templates" → switch to Trainings tab.
 - In RU locale, all new strings translated; plurals correct.
+
+## Stage outcomes
+
+This spec merged without a final deliverables checklist section. Shipped
+scope is captured by PR #66 and the verification gate above, so no
+retroactive checkbox list was added in this hygiene pass.
 
 ## Constraints
 
