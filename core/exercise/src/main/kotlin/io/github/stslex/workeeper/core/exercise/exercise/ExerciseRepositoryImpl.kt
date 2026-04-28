@@ -54,14 +54,6 @@ internal class ExerciseRepositoryImpl @Inject constructor(
         .map { pagingData -> pagingData.map { it.toData() } }
         .flowOn(bgDispatcher)
 
-    // v3 has no name-LIKE paged search; ignores `query` and returns all active exercises.
-    override fun getExercises(query: String): Flow<PagingData<ExerciseDataModel>> = Pager(
-        config = pagingConfig,
-        pagingSourceFactory = dao::pagedActive,
-    ).flow
-        .map { pagingData -> pagingData.map { it.toData() } }
-        .flowOn(bgDispatcher)
-
     override fun getUniqueExercises(query: String): Flow<PagingData<ExerciseDataModel>> = Pager(
         config = pagingConfig,
         pagingSourceFactory = dao::pagedActive,
@@ -86,13 +78,6 @@ internal class ExerciseRepositoryImpl @Inject constructor(
     ): List<String> = withContext(bgDispatcher) {
         loadLabels(Uuid.parse(exerciseUuid))
     }
-
-    // v3 lacks date-range queries; this legacy overload currently returns no results.
-    override suspend fun getExercises(
-        name: String,
-        startDate: Long,
-        endDate: Long,
-    ): List<ExerciseDataModel> = emptyList()
 
     override suspend fun saveItem(item: ExerciseChangeDataModel): SaveResult = withContext(bgDispatcher) {
         val entity = item.toEntity()
@@ -161,9 +146,6 @@ internal class ExerciseRepositoryImpl @Inject constructor(
             imagePath?.let { imageStorage.deleteImage(it) }
         }
     }
-
-    // v3 has no autocomplete query; return empty until feature redesign.
-    override suspend fun searchItemsWithExclude(query: String): List<ExerciseDataModel> = emptyList()
 
     override suspend fun searchActiveExercises(
         query: String,
