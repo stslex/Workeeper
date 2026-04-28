@@ -521,23 +521,26 @@ later).
 - **Animation when restoring.** Slide out of archive list +
   invalidate. Default M3 paging animation, no custom.
 
-## Stage 5.1 deliverables checklist
+## Stage outcomes
 
-- [ ] `feature/settings` module created and registered.
-- [ ] Settings screen with About, Theme, Archive entry.
-- [ ] Archive screen with segment selector, paged lists, restore,
+- [x] `feature/settings` module created and registered.
+- [x] Settings screen with About, Theme, Archive entry.
+- [x] Archive screen with segment selector, paged lists, restore,
       permanent delete with impact dialog, empty states.
-- [ ] `ThemeMode` enum in `core/ui/kit`, `AppTheme` updated.
-- [ ] DataStore key `theme_preference` wired.
-- [ ] App entry composable reads theme preference and passes to
+- [x] `ThemeMode` enum in `core/ui/kit`, `AppTheme` updated.
+- [x] DataStore key `theme_preference` wired.
+- [x] App entry composable reads theme preference and passes to
       `AppTheme`.
-- [ ] `core/exercise` repositories extended with `pagedArchived` and
+- [x] `core/exercise` repositories extended with `pagedArchived` and
       `countSessionsUsing` for both exercises and trainings.
 - [ ] `core/database` migration v3 → v4 adds `archived_at`. (Or
-      decision to skip if option B is chosen.)
-- [ ] `LICENSE` file with full GPLv3 text added at repo root.
+      decision to skip if option B is chosen.) `archived_at` is present
+      in the exported schemas, but the shipped Room setup uses
+      `fallbackToDestructiveMigrationFrom(..., 3, 4)` instead of a
+      dedicated `Migration(3, 4)`.
+- [x] `LICENSE` file with full GPLv3 text added at repo root.
       `SPDX-License-Identifier: GPL-3.0-only` header on new source
       files (decision: only on new files in this PR — bulk update
       across existing codebase is a separate cleanup).
-- [ ] README updated with GPLv3 badge.
-- [ ] Unit tests for handlers and interactor.
+- [x] README updated with GPLv3 badge.
+- [x] Unit tests for handlers and interactor.

@@ -1074,6 +1074,12 @@ Before marking PR ready for review:
     - **Picker:** Tap "see all templates" → switch to Trainings tab.
 - In RU locale, all new strings translated; plurals correct.
 
+## Stage outcomes
+
+This spec merged without a final deliverables checklist section. Shipped
+scope is captured by PR #66 and the verification gate above, so no
+retroactive checkbox list was added in this hygiene pass.
+
 ## Constraints
 
 - **Phantom shims related to DataModel audit are in scope** — must be removed.
