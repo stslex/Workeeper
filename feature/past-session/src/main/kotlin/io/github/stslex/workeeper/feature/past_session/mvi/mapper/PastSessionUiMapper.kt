@@ -122,7 +122,9 @@ internal fun SetTypeUiModel.toSetsDataType(): SetsDataType = when (this) {
     SetTypeUiModel.DROP -> SetsDataType.DROP
 }
 
+private const val WEIGHT_DECIMAL_FACTOR = 10.0
+
 private fun formatWeight(weight: Double): String {
-    val rounded = (weight * 10.0).toLong() / 10.0
+    val rounded = (weight * WEIGHT_DECIMAL_FACTOR).toLong() / WEIGHT_DECIMAL_FACTOR
     return if (rounded % 1.0 == 0.0) rounded.toLong().toString() else rounded.toString()
 }

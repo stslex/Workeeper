@@ -17,7 +17,7 @@ internal fun DeleteConfirmDialog(
     AppDialog(
         title = stringResource(R.string.feature_past_session_delete_dialog_title),
         body = stringResource(R.string.feature_past_session_delete_dialog_body),
-        confirmLabel = stringResource(R.string.feature_past_session_delete_dialog_confirm),
+        confirmLabel = stringResource(R.string.feature_past_session_action_delete),
         onConfirm = onConfirm,
         onDismiss = onDismiss,
         destructive = true,

@@ -10,7 +10,6 @@
 
     <string name="feature_past_session_delete_dialog_title">Delete session?</string>
     <string name="feature_past_session_delete_dialog_body">This permanently removes the session and all its sets. The training template is unchanged.</string>
-    <string name="feature_past_session_delete_dialog_confirm">Delete</string>
 
     <string name="feature_past_session_deleted_snackbar">Session deleted</string>
     <string name="feature_past_session_save_failed_snackbar">Could not save change — try again</string>

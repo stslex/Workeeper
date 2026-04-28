@@ -2,8 +2,8 @@
 package io.github.stslex.workeeper.feature.past_session.ui
 
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
@@ -17,23 +17,24 @@ fun NavGraphBuilder.pastSessionGraph(
 ) {
     navComponentScreen(PastSessionFeature) { processor ->
         val haptic = LocalHapticFeedback.current
-        val context = LocalContext.current
+        val errorNotFound = stringResource(R.string.feature_past_session_error_not_found)
+        val errorLoadFailed = stringResource(R.string.feature_past_session_error_load_failed)
+        val saveFailed = stringResource(R.string.feature_past_session_save_failed_snackbar)
+        val deletedMessage = stringResource(R.string.feature_past_session_deleted_snackbar)
 
         processor.Handle { event ->
             when (event) {
                 is Event.HapticClick -> haptic.performHapticFeedback(event.type)
-                is Event.ShowError ->
-                    SnackbarManager.showSnackbar(message = context.getString(event.errorType.toMessageRes()))
+                is Event.ShowError -> SnackbarManager.showSnackbar(
+                    message = when (event.errorType) {
+                        ErrorType.SessionNotFound -> errorNotFound
+                        ErrorType.LoadFailed -> errorLoadFailed
+                        ErrorType.SaveFailed -> saveFailed
+                    },
+                )
 
-                Event.DeletedSnackbar ->
-                    SnackbarManager.showSnackbar(
-                        message = context.getString(R.string.feature_past_session_deleted_snackbar),
-                    )
-
-                Event.SaveFailedSnackbar ->
-                    SnackbarManager.showSnackbar(
-                        message = context.getString(R.string.feature_past_session_save_failed_snackbar),
-                    )
+                Event.DeletedSnackbar -> SnackbarManager.showSnackbar(message = deletedMessage)
+                Event.SaveFailedSnackbar -> SnackbarManager.showSnackbar(message = saveFailed)
             }
         }
 
@@ -43,10 +44,4 @@ fun NavGraphBuilder.pastSessionGraph(
             consume = processor::consume,
         )
     }
-}
-
-private fun ErrorType.toMessageRes(): Int = when (this) {
-    ErrorType.SessionNotFound -> R.string.feature_past_session_error_not_found
-    ErrorType.LoadFailed -> R.string.feature_past_session_error_load_failed
-    ErrorType.SaveFailed -> R.string.feature_past_session_save_failed_snackbar
 }

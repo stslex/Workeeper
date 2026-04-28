@@ -10,7 +10,6 @@
 
     <string name="feature_past_session_delete_dialog_title">Удалить сессию?</string>
     <string name="feature_past_session_delete_dialog_body">Сессия и все её подходы будут безвозвратно удалены. Шаблон тренировки не изменится.</string>
-    <string name="feature_past_session_delete_dialog_confirm">Удалить</string>
 
     <string name="feature_past_session_deleted_snackbar">Сессия удалена</string>
     <string name="feature_past_session_save_failed_snackbar">Не удалось сохранить — попробуйте ещё раз</string>

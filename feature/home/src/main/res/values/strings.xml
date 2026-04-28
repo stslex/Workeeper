@@ -9,7 +9,6 @@
 
     <string name="feature_home_start_cta_title">Start a workout</string>
     <string name="feature_home_start_cta_subtitle">Pick a training template</string>
-    <string name="feature_home_recent_section_title">Recent sessions</string>
     <string name="feature_home_recent_adhoc_label">Ad-hoc workout</string>
     <string name="feature_home_recent_stats_format">%1$s · %2$s</string>
 
