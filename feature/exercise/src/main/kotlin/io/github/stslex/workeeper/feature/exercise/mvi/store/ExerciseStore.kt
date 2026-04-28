@@ -34,6 +34,7 @@ internal interface ExerciseStore : Store<State, Action, Event> {
         val isLoading: Boolean,
         val canPermanentlyDelete: Boolean,
         val adhocPlan: ImmutableList<PlanSetUiModel>?,
+        val adhocPlanSummaryLabel: String,
         val planEditorTarget: PlanEditorTarget?,
         val pendingTypeChange: ExerciseTypeUiModel?,
     ) : Store.State {
@@ -104,6 +105,7 @@ internal interface ExerciseStore : Store<State, Action, Event> {
                 isLoading = uuid != null,
                 canPermanentlyDelete = false,
                 adhocPlan = null,
+                adhocPlanSummaryLabel = "",
                 planEditorTarget = null,
                 pendingTypeChange = null,
             )
@@ -190,21 +192,31 @@ internal interface ExerciseStore : Store<State, Action, Event> {
 
         data class Haptic(val type: HapticFeedbackType) : Event
 
-        data class ShowArchiveSuccess(val name: String, val uuid: String) : Event
+        data class ShowArchiveSuccess(val uuid: String, val message: String) : Event
 
-        data class ShowArchiveBlocked(val exerciseName: String, val trainings: List<String>) : Event
+        data class ShowArchiveBlocked(val body: String) : Event
 
-        data object ShowTagLimitReached : Event
+        data class ShowTagLimitReached(val message: String) : Event
 
-        data object ShowTrackNowPending : Event
+        data class ShowTrackNowPending(val message: String) : Event
 
         data class ShowDiscardConfirmDialog(val target: DiscardTarget) : Event
 
-        data class ShowPermanentDeleteConfirm(val name: String) : Event
+        data class ShowPermanentDeleteConfirm(
+            val title: String,
+            val body: String,
+            val impactSummary: String,
+            val confirmLabel: String,
+        ) : Event
 
-        data object ShowPermanentDeleteSuccess : Event
+        data class ShowPermanentDeleteSuccess(val message: String) : Event
 
-        data object ShowTypeChangeConfirm : Event
+        data class ShowTypeChangeConfirm(
+            val title: String,
+            val body: String,
+            val impactSummary: String,
+            val confirmLabel: String,
+        ) : Event
     }
 
     /**

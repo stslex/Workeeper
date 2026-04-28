@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.feature.exercise.mvi.handler
 
 import dagger.hilt.android.scopes.ViewModelScoped
+import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.HistoryEntry
@@ -10,8 +11,9 @@ import io.github.stslex.workeeper.core.ui.plan_editor.mappers.toUi
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel.Companion.toUi
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
+import io.github.stslex.workeeper.feature.exercise.mvi.mapper.toAdhocPlanSummary
+import io.github.stslex.workeeper.feature.exercise.mvi.mapper.toUi
 import io.github.stslex.workeeper.feature.exercise.mvi.model.TagUiModel
-import io.github.stslex.workeeper.feature.exercise.mvi.model.toUi
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State
 import kotlinx.collections.immutable.toImmutableList
@@ -21,6 +23,7 @@ import javax.inject.Inject
 @ViewModelScoped
 internal class CommonHandler @Inject constructor(
     private val interactor: ExerciseInteractor,
+    private val resourceWrapper: ResourceWrapper,
     store: ExerciseHandlerStore,
 ) : Handler<Action.Common>, ExerciseHandlerStore by store {
 
@@ -67,6 +70,9 @@ internal class CommonHandler @Inject constructor(
 
     private fun State.applyLoaded(result: LoadResult): State {
         val exercise = result.exercise ?: return copy(isLoading = false)
+        val adhocPlan = result.adhocPlan
+            ?.map { it.toUi() }
+            ?.toImmutableList()
         val tags = result.labels
             .map { name ->
                 val matched = availableTags.firstOrNull { it.name.equals(name, ignoreCase = true) }
@@ -78,12 +84,11 @@ internal class CommonHandler @Inject constructor(
             type = exercise.type.toUi(),
             description = exercise.description.orEmpty(),
             tags = tags,
-            recentHistory = result.history.map { it.toUi() }.toImmutableList(),
+            recentHistory = result.history.map { it.toUi(resourceWrapper) }.toImmutableList(),
             isLoading = false,
             canPermanentlyDelete = result.canPermanentlyDelete,
-            adhocPlan = result.adhocPlan
-                ?.map { it.toUi() }
-                ?.toImmutableList(),
+            adhocPlan = adhocPlan,
+            adhocPlanSummaryLabel = adhocPlan.toAdhocPlanSummary(resourceWrapper),
             originalSnapshot = State.Snapshot(
                 name = exercise.name,
                 type = exercise.type.toUi(),

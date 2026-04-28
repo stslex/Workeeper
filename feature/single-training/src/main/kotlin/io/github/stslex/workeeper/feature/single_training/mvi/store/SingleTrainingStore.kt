@@ -233,19 +233,24 @@ internal interface SingleTrainingStore : Store<State, Action, Event> {
 
         data class HapticClick(val type: HapticFeedbackType) : Event
 
-        data class ShowArchiveSuccess(val name: String) : Event
+        data class ShowArchiveSuccess(val message: String) : Event
 
-        data class ShowArchiveBlocked(val reason: String) : Event
+        data class ShowArchiveBlocked(val message: String) : Event
 
         data object ShowDiscardConfirmDialog : Event
 
-        data object ShowPermanentDeleteConfirmDialog : Event
+        data class ShowPermanentDeleteConfirmDialog(
+            val title: String,
+            val body: String,
+            val impactSummary: String,
+            val confirmLabel: String,
+        ) : Event
 
-        data object ShowLiveWorkoutPending : Event
+        data class ShowLiveWorkoutPending(val message: String) : Event
 
-        data class ShowOtherSessionActive(val trainingName: String) : Event
+        data class ShowOtherSessionActive(val message: String) : Event
 
-        data class ShowSaveError(val reason: String) : Event
+        data class ShowSaveError(val message: String) : Event
     }
 
     companion object {

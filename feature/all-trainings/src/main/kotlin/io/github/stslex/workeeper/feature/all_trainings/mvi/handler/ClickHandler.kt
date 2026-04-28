@@ -3,7 +3,9 @@ package io.github.stslex.workeeper.feature.all_trainings.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dagger.hilt.android.scopes.ViewModelScoped
+import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
+import io.github.stslex.workeeper.feature.all_trainings.R
 import io.github.stslex.workeeper.feature.all_trainings.di.AllTrainingsHandlerStore
 import io.github.stslex.workeeper.feature.all_trainings.domain.AllTrainingsInteractor
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.Action
@@ -11,16 +13,17 @@ import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsSt
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.State
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.State.PendingBulkDelete
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.State.SelectionMode
-import kotlinx.collections.immutable.minus
 import kotlinx.collections.immutable.persistentSetOf
-import kotlinx.collections.immutable.plus
 import kotlinx.collections.immutable.toPersistentSet
 import javax.inject.Inject
+
+private const val MAX_BLOCKED_NAMES = 2
 
 @Suppress("TooManyFunctions")
 @ViewModelScoped
 internal class ClickHandler @Inject constructor(
     private val interactor: AllTrainingsInteractor,
+    private val resourceWrapper: ResourceWrapper,
     store: AllTrainingsHandlerStore,
 ) : Handler<Action.Click>, AllTrainingsHandlerStore by store {
 
@@ -149,12 +152,23 @@ internal class ClickHandler @Inject constructor(
                     current.copy(selectionMode = SelectionMode.Off)
                 }
                 if (outcome.blockedNames.isEmpty()) {
-                    sendEvent(Event.ShowBulkArchiveSuccess(outcome.archivedCount))
+                    sendEvent(
+                        Event.ShowBulkArchiveSuccess(
+                            message = resourceWrapper.getQuantityString(
+                                R.plurals.feature_all_trainings_bulk_archive_success,
+                                outcome.archivedCount,
+                                outcome.archivedCount,
+                            ),
+                        ),
+                    )
                 } else {
                     sendEvent(
                         Event.ShowBulkArchiveBlocked(
-                            archivedCount = outcome.archivedCount,
-                            blockedNames = outcome.blockedNames,
+                            message = resourceWrapper.getString(
+                                R.string.feature_all_trainings_bulk_archive_partial_format,
+                                outcome.archivedCount,
+                                outcome.blockedNames.toOverflowPreview(),
+                            ),
                         ),
                     )
                 }
@@ -185,7 +199,15 @@ internal class ClickHandler @Inject constructor(
                         pendingBulkDelete = null,
                     )
                 }
-                sendEvent(Event.ShowBulkDeleteSuccess(count))
+                sendEvent(
+                    Event.ShowBulkDeleteSuccess(
+                        message = resourceWrapper.getQuantityString(
+                            R.plurals.feature_all_trainings_bulk_delete_success,
+                            count,
+                            count,
+                        ),
+                    ),
+                )
             },
         ) {
             interactor.deleteTrainings(targets)
@@ -198,4 +220,12 @@ internal class ClickHandler @Inject constructor(
 
     @Suppress("unused")
     private fun State.placeholder(): State = this
+
+    private fun List<String>.toOverflowPreview(): String {
+        val visible = take(MAX_BLOCKED_NAMES).joinToString(separator = ", ")
+        val overflow = size - MAX_BLOCKED_NAMES
+        if (overflow <= 0) return visible
+        val overflowLabel = resourceWrapper.getString(R.string.feature_all_trainings_overflow_format, overflow)
+        return "$visible, $overflowLabel"
+    }
 }

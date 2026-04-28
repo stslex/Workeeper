@@ -124,19 +124,16 @@ internal interface AllExercisesStore : Store<State, Action, Event> {
 
         data class Haptic(val type: HapticFeedbackType) : Event
 
-        data class ShowArchiveSuccess(val name: String, val uuid: String) : Event
+        data class ShowArchiveSuccess(val uuid: String, val message: String) : Event
 
-        data class ShowArchiveBlocked(val trainings: List<String>) : Event
+        data class ShowArchiveBlocked(val message: String) : Event
 
-        data class ShowPermanentDeleteSuccess(val name: String) : Event
+        data class ShowPermanentDeleteSuccess(val message: String) : Event
 
-        data class ShowBulkArchiveSuccess(val count: Int) : Event
+        data class ShowBulkArchiveSuccess(val message: String) : Event
 
-        data class ShowBulkArchiveBlocked(
-            val archivedCount: Int,
-            val blockedNames: List<String>,
-        ) : Event
+        data class ShowBulkArchiveBlocked(val message: String) : Event
 
-        data class ShowBulkDeleteSuccess(val count: Int) : Event
+        data class ShowBulkDeleteSuccess(val message: String) : Event
     }
 }

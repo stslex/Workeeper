@@ -34,55 +34,26 @@ fun NavGraphBuilder.exerciseGraph(
 ) {
     navComponentScreen(ExerciseFeature) { processor ->
         val haptic = LocalHapticFeedback.current
-        val archiveSuccessFormat =
-            stringResource(R.string.feature_exercise_detail_archive_success_format)
         val undoLabel = stringResource(R.string.feature_exercise_detail_archive_undo)
-        val trackPendingMessage =
-            stringResource(R.string.feature_exercise_detail_track_now_pending)
-        val tagLimitMessage = stringResource(R.string.feature_exercise_edit_tag_limit)
         val discardTitle = stringResource(R.string.feature_exercise_edit_discard_title)
         val discardBody = stringResource(R.string.feature_exercise_edit_discard_body)
         val discardConfirm = stringResource(R.string.feature_exercise_edit_discard_confirm)
         val discardDismiss = stringResource(R.string.feature_exercise_edit_discard_dismiss)
         val archiveBlockedTitle =
             stringResource(R.string.feature_exercise_detail_archive_blocked_title)
-        val archiveBlockedBodyFormat =
-            stringResource(R.string.feature_exercise_detail_archive_blocked_body_format)
         val archiveBlockedOk = stringResource(R.string.feature_exercise_detail_archive_blocked_ok)
-        val permanentDeleteTitleFormat =
-            stringResource(R.string.feature_exercise_detail_permanent_delete_confirm_title)
-        val permanentDeleteBody =
-            stringResource(R.string.feature_exercise_detail_permanent_delete_confirm_body)
-        val permanentDeleteImpact =
-            stringResource(R.string.feature_exercise_detail_permanent_delete_confirm_impact)
-        val permanentDeleteConfirm =
-            stringResource(R.string.feature_exercise_detail_permanent_delete_confirm_button)
-        val permanentDeleteSuccess =
-            stringResource(R.string.feature_exercise_detail_permanent_delete_success)
-        val typeChangeTitle =
-            stringResource(R.string.feature_exercise_edit_type_change_weightless_title)
-        val typeChangeBody =
-            stringResource(R.string.feature_exercise_edit_type_change_weightless_body)
-        val typeChangeImpact =
-            stringResource(R.string.feature_exercise_edit_type_change_weightless_impact)
-        val typeChangeConfirm =
-            stringResource(R.string.feature_exercise_edit_type_change_weightless_confirm)
 
         var pendingDiscard by remember { mutableStateOf<DiscardTarget?>(null) }
-        var archiveBlockedState by remember {
-            mutableStateOf<Pair<String, List<String>>?>(null)
-        }
-        var permanentDeleteName by remember { mutableStateOf<String?>(null) }
-        var showTypeChangeDialog by remember { mutableStateOf(false) }
+        var archiveBlockedBody by remember { mutableStateOf<String?>(null) }
+        var permanentDeleteDialog by remember { mutableStateOf<Event.ShowPermanentDeleteConfirm?>(null) }
+        var typeChangeDialog by remember { mutableStateOf<Event.ShowTypeChangeConfirm?>(null) }
 
-        // TODO(tech-debt): Move event-to-message shaping out of UI graph and emit
-        // ready-to-render localized payloads from handler/state mapping.
         processor.Handle { event ->
             when (event) {
                 is Event.Haptic -> haptic.performHapticFeedback(event.type)
                 is Event.ShowArchiveSuccess -> SnackbarManager.showSnackbar(
                     AppSnackbarModel(
-                        message = archiveSuccessFormat.format(event.name),
+                        message = event.message,
                         actionLabel = undoLabel,
                         withDismissAction = true,
                         action = { processor.consume(Action.Click.OnUndoArchive(event.uuid)) },
@@ -90,24 +61,24 @@ fun NavGraphBuilder.exerciseGraph(
                 )
 
                 is Event.ShowArchiveBlocked -> {
-                    archiveBlockedState = event.exerciseName to event.trainings
+                    archiveBlockedBody = event.body
                 }
 
-                Event.ShowTagLimitReached -> SnackbarManager.showSnackbar(message = tagLimitMessage)
-                Event.ShowTrackNowPending -> SnackbarManager.showSnackbar(message = trackPendingMessage)
+                is Event.ShowTagLimitReached -> SnackbarManager.showSnackbar(message = event.message)
+                is Event.ShowTrackNowPending -> SnackbarManager.showSnackbar(message = event.message)
                 is Event.ShowDiscardConfirmDialog -> {
                     pendingDiscard = event.target
                 }
 
                 is Event.ShowPermanentDeleteConfirm -> {
-                    permanentDeleteName = event.name
+                    permanentDeleteDialog = event
                 }
 
-                Event.ShowPermanentDeleteSuccess ->
-                    SnackbarManager.showSnackbar(message = permanentDeleteSuccess)
+                is Event.ShowPermanentDeleteSuccess ->
+                    SnackbarManager.showSnackbar(message = event.message)
 
-                Event.ShowTypeChangeConfirm -> {
-                    showTypeChangeDialog = true
+                is Event.ShowTypeChangeConfirm -> {
+                    typeChangeDialog = event
                 }
             }
         }
@@ -152,45 +123,45 @@ fun NavGraphBuilder.exerciseGraph(
                 },
             )
         }
-        archiveBlockedState?.let { (name, trainings) ->
+        archiveBlockedBody?.let { body ->
             AppDialog(
                 title = archiveBlockedTitle,
-                body = archiveBlockedBodyFormat.format(name, trainings.joinToString(", ")),
+                body = body,
                 confirmLabel = archiveBlockedOk,
                 onConfirm = {
-                    archiveBlockedState = null
+                    archiveBlockedBody = null
                     processor.consume(Action.Click.OnDismissArchiveBlocked)
                 },
             )
         }
-        permanentDeleteName?.let { name ->
+        permanentDeleteDialog?.let { dialog ->
             AppConfirmDialog(
-                title = permanentDeleteTitleFormat.format(name),
-                body = permanentDeleteBody,
-                impactSummary = permanentDeleteImpact,
-                confirmLabel = permanentDeleteConfirm,
+                title = dialog.title,
+                body = dialog.body,
+                impactSummary = dialog.impactSummary,
+                confirmLabel = dialog.confirmLabel,
                 onConfirm = {
-                    permanentDeleteName = null
+                    permanentDeleteDialog = null
                     processor.consume(Action.Click.OnConfirmPermanentDelete)
                 },
                 onDismiss = {
-                    permanentDeleteName = null
+                    permanentDeleteDialog = null
                     processor.consume(Action.Click.OnDismissPermanentDelete)
                 },
             )
         }
-        if (showTypeChangeDialog) {
+        typeChangeDialog?.let { dialog ->
             AppConfirmDialog(
-                title = typeChangeTitle,
-                body = typeChangeBody,
-                impactSummary = typeChangeImpact,
-                confirmLabel = typeChangeConfirm,
+                title = dialog.title,
+                body = dialog.body,
+                impactSummary = dialog.impactSummary,
+                confirmLabel = dialog.confirmLabel,
                 onConfirm = {
-                    showTypeChangeDialog = false
+                    typeChangeDialog = null
                     processor.consume(Action.Click.OnTypeChangeConfirm)
                 },
                 onDismiss = {
-                    showTypeChangeDialog = false
+                    typeChangeDialog = null
                     processor.consume(Action.Click.OnTypeChangeDismiss)
                 },
             )

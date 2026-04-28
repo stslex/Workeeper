@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.live_workout.mvi.handler
 
+import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.Test
 internal class ClickHandlerTest {
 
     private val interactor = mockk<LiveWorkoutInteractor>(relaxed = true)
+    private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
 
     @Test
     fun `OnExerciseHeaderClick toggles expansion for DONE exercises`() {
@@ -27,6 +29,7 @@ internal class ClickHandlerTest {
         val store = handlerStore(stateFlow)
         val handler = ClickHandler(
             interactor = interactor,
+            resourceWrapper = resourceWrapper,
             mainImmediateDispatcher = UnconfinedTestDispatcher(),
             store = store,
         )
@@ -50,6 +53,7 @@ internal class ClickHandlerTest {
         val store = handlerStore(stateFlow)
         val handler = ClickHandler(
             interactor = interactor,
+            resourceWrapper = resourceWrapper,
             mainImmediateDispatcher = UnconfinedTestDispatcher(),
             store = store,
         )
@@ -86,6 +90,7 @@ internal class ClickHandlerTest {
         exerciseType = ExerciseTypeUiModel.WEIGHTED,
         position = 0,
         status = status,
+        statusLabel = "",
         planSets = persistentListOf(),
         performedSets = persistentListOf(),
     )

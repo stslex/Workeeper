@@ -42,6 +42,7 @@
     <string name="feature_live_workout_finish_stat_duration">Длительность</string>
     <string name="feature_live_workout_finish_stat_exercises">Упражнения</string>
     <string name="feature_live_workout_finish_stat_sets">Сетов</string>
+    <string name="feature_live_workout_finish_stat_sets_count">%1$d</string>
     <string name="feature_live_workout_finish_stat_exercises_format">%1$d из %2$d</string>
     <string name="feature_live_workout_finish_stat_exercises_with_skipped_format">%1$d из %2$d · %3$d пропущено</string>
     <string name="feature_live_workout_finish_keep_going">Продолжить</string>

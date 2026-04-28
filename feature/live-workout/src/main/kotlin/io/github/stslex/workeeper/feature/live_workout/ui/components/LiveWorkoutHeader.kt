@@ -16,26 +16,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.pluralStringResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
-import io.github.stslex.workeeper.feature.live_workout.R
 
 @Composable
 internal fun LiveWorkoutHeader(
-    trainingName: String,
+    trainingNameLabel: String,
     elapsedLabel: String,
-    doneCount: Int,
-    totalCount: Int,
-    setsLogged: Int,
+    progressLabel: String,
+    progress: Float,
     modifier: Modifier = Modifier,
 ) {
-    val safeTotal = totalCount.coerceAtLeast(1)
-    val progress = doneCount.toFloat() / safeTotal.toFloat()
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -50,7 +44,7 @@ internal fun LiveWorkoutHeader(
         ) {
             Text(
                 modifier = Modifier.weight(1f),
-                text = trainingName.ifBlank { stringResource(R.string.feature_live_workout_status_no_plan) },
+                text = trainingNameLabel,
                 style = AppUi.typography.titleMedium,
                 color = AppUi.colors.textPrimary,
             )
@@ -61,16 +55,7 @@ internal fun LiveWorkoutHeader(
             )
         }
         Text(
-            text = stringResource(
-                R.string.feature_live_workout_progress_format,
-                doneCount,
-                totalCount,
-                pluralStringResource(
-                    id = R.plurals.feature_live_workout_set_count,
-                    count = setsLogged,
-                    setsLogged,
-                ),
-            ),
+            text = progressLabel,
             style = AppUi.typography.bodySmall,
             color = AppUi.colors.textSecondary,
         )
@@ -80,7 +65,7 @@ internal fun LiveWorkoutHeader(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(AppDimension.Space.xs),
-                progress = { progress.coerceIn(0f, 1f) },
+                progress = { progress },
                 color = AppUi.colors.accent,
                 trackColor = AppUi.colors.surfaceTier3,
             )
@@ -93,11 +78,10 @@ internal fun LiveWorkoutHeader(
 private fun LiveWorkoutHeaderLightPreview() {
     AppTheme(themeMode = ThemeMode.LIGHT) {
         LiveWorkoutHeader(
-            trainingName = "Push Day",
+            trainingNameLabel = "Push Day",
             elapsedLabel = "23:14",
-            doneCount = 2,
-            totalCount = 5,
-            setsLogged = 16,
+            progressLabel = "2 of 5 done · 16 sets logged",
+            progress = 0.4f,
         )
     }
 }
@@ -107,11 +91,10 @@ private fun LiveWorkoutHeaderLightPreview() {
 private fun LiveWorkoutHeaderDarkPreview() {
     AppTheme(themeMode = ThemeMode.DARK) {
         LiveWorkoutHeader(
-            trainingName = "Push Day",
+            trainingNameLabel = "Push Day",
             elapsedLabel = "47:08",
-            doneCount = 4,
-            totalCount = 5,
-            setsLogged = 22,
+            progressLabel = "4 of 5 done · 22 sets logged",
+            progress = 0.8f,
         )
     }
 }

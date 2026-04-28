@@ -50,6 +50,8 @@ internal fun ActiveSessionBanner(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    // TODO(tech-debt-localization): Precompute fallback title and progress labels
+                    // in Home handler/interactor so UI only renders prepared strings.
                     Text(
                         modifier = Modifier.weight(1f),
                         text = info.trainingName.ifBlank { stringResource(R.string.feature_home_active_session_label) },

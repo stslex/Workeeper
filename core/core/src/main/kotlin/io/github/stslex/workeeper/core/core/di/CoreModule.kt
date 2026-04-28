@@ -1,9 +1,14 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.core.di
 
+import android.content.Context
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import io.github.stslex.workeeper.core.core.resources.AndroidResourceWrapper
+import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import javax.inject.Singleton
@@ -31,4 +36,10 @@ object CoreModule {
     @Singleton
     @IODispatcher
     fun provideIODispatcher(): CoroutineDispatcher = Dispatchers.IO
+
+    @Provides
+    @Singleton
+    fun provideResourceWrapper(
+        @ApplicationContext context: Context,
+    ): ResourceWrapper = AndroidResourceWrapper(context)
 }

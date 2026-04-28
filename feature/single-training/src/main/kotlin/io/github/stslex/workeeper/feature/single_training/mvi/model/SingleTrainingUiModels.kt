@@ -20,7 +20,7 @@ data class TrainingExerciseItem(
 @Stable
 data class HistorySessionItem(
     val sessionUuid: String,
-    val finishedAt: Long,
+    val dateLabel: String,
     val trainingName: String,
     val exerciseCount: Int,
 )
@@ -33,6 +33,8 @@ data class PickerExerciseItem(
     val tags: ImmutableList<String>,
 ) {
 
+    // TODO(tech-debt-localization): Move tag-label aggregation into handler-level mapping
+    // and persist a ready-to-render field instead of formatting from the UI model.
     val tagsLabel: String
         get() = tags.joinToString(separator = " · ")
 }

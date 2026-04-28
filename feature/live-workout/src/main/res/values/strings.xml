@@ -45,6 +45,7 @@
     <string name="feature_live_workout_finish_stat_duration">Duration</string>
     <string name="feature_live_workout_finish_stat_exercises">Exercises</string>
     <string name="feature_live_workout_finish_stat_sets">Sets logged</string>
+    <string name="feature_live_workout_finish_stat_sets_count">%1$d</string>
     <string name="feature_live_workout_finish_stat_exercises_format" tools:ignore="PluralsCandidate">%1$d of %2$d done</string>
     <string name="feature_live_workout_finish_stat_exercises_with_skipped_format" tools:ignore="PluralsCandidate">%1$d of %2$d done · %3$d skipped</string>
     <string name="feature_live_workout_finish_keep_going">Keep going</string>

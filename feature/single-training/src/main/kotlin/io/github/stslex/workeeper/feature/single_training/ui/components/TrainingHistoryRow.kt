@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
@@ -18,8 +17,6 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.feature.single_training.mvi.model.HistorySessionItem
-import java.text.DateFormat
-import java.util.Date
 
 @Composable
 internal fun TrainingHistoryRow(
@@ -27,10 +24,6 @@ internal fun TrainingHistoryRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // TODO(tech-debt): Move history date formatting into handler/state mapping and keep
-    // this composable focused on rendering preformatted labels.
-    val dateFormatter = remember { DateFormat.getDateInstance(DateFormat.MEDIUM) }
-    val dateLabel = remember(item.finishedAt) { dateFormatter.format(Date(item.finishedAt)) }
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -42,7 +35,7 @@ internal fun TrainingHistoryRow(
         verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xxs),
     ) {
         Text(
-            text = dateLabel,
+            text = item.dateLabel,
             style = AppUi.typography.bodyMedium,
             color = AppUi.colors.textPrimary,
         )
@@ -66,7 +59,7 @@ private fun TrainingHistoryRowPreview() {
         TrainingHistoryRow(
             item = HistorySessionItem(
                 sessionUuid = "1",
-                finishedAt = System.currentTimeMillis() - 24 * 60 * 60 * 1000L,
+                dateLabel = "Apr 1, 2026",
                 trainingName = "Push day A",
                 exerciseCount = 5,
             ),

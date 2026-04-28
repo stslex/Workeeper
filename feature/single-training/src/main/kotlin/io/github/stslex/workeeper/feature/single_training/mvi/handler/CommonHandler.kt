@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.feature.single_training.mvi.handler
 
 import dagger.hilt.android.scopes.ViewModelScoped
+import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.exercise.session.model.SessionDataModel
 import io.github.stslex.workeeper.core.exercise.training.TrainingDataModel
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
@@ -10,22 +11,20 @@ import io.github.stslex.workeeper.core.ui.plan_editor.mappers.toUi
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel.Companion.toUi
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingHandlerStore
 import io.github.stslex.workeeper.feature.single_training.domain.SingleTrainingInteractor
+import io.github.stslex.workeeper.feature.single_training.mvi.mapper.toUi
 import io.github.stslex.workeeper.feature.single_training.mvi.model.HistorySessionItem
 import io.github.stslex.workeeper.feature.single_training.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.single_training.mvi.model.TrainingExerciseItem
-import io.github.stslex.workeeper.feature.single_training.mvi.model.toUi
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State
 import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import javax.inject.Inject
-
-private const val HISTORY_LIMIT = 5
 
 @ViewModelScoped
 internal class CommonHandler @Inject constructor(
     private val interactor: SingleTrainingInteractor,
+    private val resourceWrapper: ResourceWrapper,
     store: SingleTrainingHandlerStore,
 ) : Handler<Action.Common>, SingleTrainingHandlerStore by store {
 
@@ -67,7 +66,9 @@ internal class CommonHandler @Inject constructor(
 
     private fun loadTraining(uuid: String) {
         launch(
-            onSuccess = { result -> updateStateImmediate { current -> current.applyLoaded(result) } },
+            onSuccess = { result ->
+                updateState { current -> current.applyLoaded(result) }
+            },
         ) {
             val training = interactor.getTraining(uuid)
             val exercises = interactor.getTrainingExercises(uuid)
@@ -130,7 +131,7 @@ internal class CommonHandler @Inject constructor(
         val finished = session.finishedAt ?: return@mapNotNull null
         HistorySessionItem(
             sessionUuid = session.uuid,
-            finishedAt = finished,
+            dateLabel = resourceWrapper.formatMediumDate(finished),
             trainingName = training.name,
             exerciseCount = 0,
         )
@@ -142,6 +143,10 @@ internal class CommonHandler @Inject constructor(
         val recentSessions: List<SessionDataModel>,
         val canPermanentlyDelete: Boolean,
     )
+
+    companion object {
+        private const val HISTORY_LIMIT = 5
+    }
 }
 
 internal fun State.toSnapshot(): State.Snapshot = State.Snapshot(
@@ -150,6 +155,3 @@ internal fun State.toSnapshot(): State.Snapshot = State.Snapshot(
     tagUuids = tags.map { it.uuid },
     exerciseSignature = exercises.map { State.ExerciseSignature(it.exerciseUuid, it.position) },
 )
-
-@Suppress("unused")
-private val EMPTY_HISTORY = persistentListOf<HistorySessionItem>()

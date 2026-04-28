@@ -2,31 +2,36 @@
 package io.github.stslex.workeeper.feature.settings.mvi.handler
 
 import androidx.paging.PagingData
+import androidx.paging.map
 import dagger.hilt.android.scopes.ViewModelScoped
-import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
+import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.settings.di.ArchiveHandlerStore
 import io.github.stslex.workeeper.feature.settings.domain.SettingsInteractor
-import io.github.stslex.workeeper.feature.settings.domain.model.ArchivedItem
+import io.github.stslex.workeeper.feature.settings.mvi.mapper.toUi
+import io.github.stslex.workeeper.feature.settings.mvi.model.ArchivedItemUi
 import io.github.stslex.workeeper.feature.settings.mvi.store.ArchiveStore.Action
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 @ViewModelScoped
 internal class ArchivePagingHandler @Inject constructor(
     private val interactor: SettingsInteractor,
-    @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
+    private val resourceWrapper: ResourceWrapper,
     store: ArchiveHandlerStore,
 ) : Handler<Action.Paging>, ArchiveHandlerStore by store {
 
-    val archivedExercisesPaging: PagingUiState<PagingData<ArchivedItem.Exercise>> = PagingUiState {
-        interactor.pagedArchivedExercises().flowOn(defaultDispatcher)
+    val archivedExercisesPaging: PagingUiState<PagingData<ArchivedItemUi.Exercise>> = PagingUiState {
+        interactor
+            .pagedArchivedExercises()
+            .map { paging -> paging.map { item -> item.toUi(resourceWrapper) } }
     }
 
-    val archivedTrainingsPaging: PagingUiState<PagingData<ArchivedItem.Training>> = PagingUiState {
-        interactor.pagedArchivedTrainings().flowOn(defaultDispatcher)
+    val archivedTrainingsPaging: PagingUiState<PagingData<ArchivedItemUi.Training>> = PagingUiState {
+        interactor
+            .pagedArchivedTrainings()
+            .map { paging -> paging.map { item -> item.toUi(resourceWrapper) } }
     }
 
     override fun invoke(action: Action.Paging) {

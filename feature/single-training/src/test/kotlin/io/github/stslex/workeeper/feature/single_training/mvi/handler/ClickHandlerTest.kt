@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.feature.single_training.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
@@ -36,12 +37,22 @@ internal class ClickHandlerTest {
             val update = firstArg<(State) -> State>()
             stateFlow.value = update(stateFlow.value)
         }
-        every { launch(any(), any(), any(), any(), any<suspend CoroutineScope.() -> Unit>()) } answers {
+        every {
+            launch(
+                any(),
+                any(),
+                any(),
+                any(),
+                any<suspend CoroutineScope.() -> Unit>(),
+            )
+        } answers {
             mockk(relaxed = true)
         }
     }
 
-    private val handler = ClickHandler(interactor, Dispatchers.Unconfined, store)
+    private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
+
+    private val handler = ClickHandler(interactor, resourceWrapper, Dispatchers.Unconfined, store)
 
     @Test
     fun `OnSaveClick with blank name flips nameError`() {

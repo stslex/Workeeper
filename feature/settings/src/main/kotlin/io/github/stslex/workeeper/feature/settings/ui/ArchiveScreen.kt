@@ -35,7 +35,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.feature.settings.R
-import io.github.stslex.workeeper.feature.settings.domain.model.ArchivedItem
+import io.github.stslex.workeeper.feature.settings.mvi.model.ArchivedItemUi
 import io.github.stslex.workeeper.feature.settings.mvi.store.ArchiveStore.Action
 import io.github.stslex.workeeper.feature.settings.mvi.store.ArchiveStore.Segment
 import io.github.stslex.workeeper.feature.settings.mvi.store.ArchiveStore.State
@@ -49,7 +49,6 @@ import io.github.stslex.workeeper.core.ui.kit.R as KitR
 internal fun ArchiveScreen(
     state: State,
     consume: (Action) -> Unit,
-    formatArchivedAt: (Long) -> String,
     modifier: Modifier = Modifier,
 ) {
     val exerciseItems = remember(state.archivedExercisesPaging) {
@@ -86,6 +85,8 @@ internal fun ArchiveScreen(
             modifier = Modifier
                 .padding(horizontal = AppDimension.screenEdge, vertical = AppDimension.Space.sm)
                 .testTag("ArchiveSegments"),
+            // TODO(tech-debt-localization): Move segment label formatting with counts into
+            // Archive state mapping to keep UI text rendering-only.
             items = persistentListOf(
                 stringResource(R.string.feature_archive_segment_exercises, state.exerciseCount),
                 stringResource(R.string.feature_archive_segment_trainings, state.trainingCount),
@@ -101,14 +102,12 @@ internal fun ArchiveScreen(
             Segment.EXERCISES -> ArchivedExerciseList(
                 items = exerciseItems,
                 consume = consume,
-                formatArchivedAt = formatArchivedAt,
                 modifier = Modifier.fillMaxSize(),
             )
 
             Segment.TRAININGS -> ArchivedTrainingList(
                 items = trainingItems,
                 consume = consume,
-                formatArchivedAt = formatArchivedAt,
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -138,9 +137,8 @@ internal fun ArchiveScreen(
 
 @Composable
 private fun ArchivedExerciseList(
-    items: LazyPagingItems<ArchivedItem.Exercise>,
+    items: LazyPagingItems<ArchivedItemUi.Exercise>,
     consume: (Action) -> Unit,
-    formatArchivedAt: (Long) -> String,
     modifier: Modifier = Modifier,
 ) {
     if (isPagingEmpty(items.loadState, items.itemCount)) {
@@ -160,14 +158,14 @@ private fun ArchivedExerciseList(
     ) {
         items(
             count = items.itemCount,
-            key = { index -> items.peek(index)?.uuid ?: "exercise_$index" },
+            key = { index -> items.peek(index)?.item?.uuid ?: "exercise_$index" },
         ) { index ->
-            items[index]?.let { item ->
+            items[index]?.let { row ->
                 ArchivedItemRow(
-                    item = item,
-                    archivedAtLabel = formatArchivedAt(item.archivedAt),
-                    onRestore = { consume(Action.Click.OnRestoreClick(item)) },
-                    onPermanentDelete = { consume(Action.Click.OnPermanentDeleteClick(item)) },
+                    item = row.item,
+                    archivedAtLabel = row.archivedAtLabel,
+                    onRestore = { consume(Action.Click.OnRestoreClick(row.item)) },
+                    onPermanentDelete = { consume(Action.Click.OnPermanentDeleteClick(row.item)) },
                 )
             }
         }
@@ -176,9 +174,8 @@ private fun ArchivedExerciseList(
 
 @Composable
 private fun ArchivedTrainingList(
-    items: LazyPagingItems<ArchivedItem.Training>,
+    items: LazyPagingItems<ArchivedItemUi.Training>,
     consume: (Action) -> Unit,
-    formatArchivedAt: (Long) -> String,
     modifier: Modifier = Modifier,
 ) {
     if (isPagingEmpty(items.loadState, items.itemCount)) {
@@ -198,14 +195,14 @@ private fun ArchivedTrainingList(
     ) {
         items(
             count = items.itemCount,
-            key = { index -> items.peek(index)?.uuid ?: "training_$index" },
+            key = { index -> items.peek(index)?.item?.uuid ?: "training_$index" },
         ) { index ->
-            items[index]?.let { item ->
+            items[index]?.let { row ->
                 ArchivedItemRow(
-                    item = item,
-                    archivedAtLabel = formatArchivedAt(item.archivedAt),
-                    onRestore = { consume(Action.Click.OnRestoreClick(item)) },
-                    onPermanentDelete = { consume(Action.Click.OnPermanentDeleteClick(item)) },
+                    item = row.item,
+                    archivedAtLabel = row.archivedAtLabel,
+                    onRestore = { consume(Action.Click.OnRestoreClick(row.item)) },
+                    onPermanentDelete = { consume(Action.Click.OnPermanentDeleteClick(row.item)) },
                 )
             }
         }
@@ -242,7 +239,6 @@ private fun ArchiveScreenPreview() {
                 deleteImpactLoading = false,
             ),
             consume = {},
-            formatArchivedAt = { "Archived recently" },
         )
     }
 }

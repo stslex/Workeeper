@@ -33,51 +33,34 @@ fun NavGraphBuilder.singleTrainingsGraph(
 ) {
     navComponentScreen(SingleTrainingFeature) { processor ->
         val haptic = LocalHapticFeedback.current
-        val archiveSuccessFormat =
-            stringResource(R.string.feature_training_detail_archive_success_format)
-        val archiveBlocked = stringResource(R.string.feature_training_detail_archive_blocked)
-        val livePending = stringResource(R.string.feature_training_detail_live_workout_pending)
-        val otherSessionFormat =
-            stringResource(R.string.feature_training_detail_other_session_active_format)
-        val noExercises = stringResource(R.string.feature_training_edit_error_no_exercises)
         val discardTitle = stringResource(R.string.feature_training_edit_discard_title)
         val discardBody = stringResource(R.string.feature_training_edit_discard_body)
         val discardConfirm = stringResource(R.string.feature_training_edit_discard_confirm)
         val discardDismiss = stringResource(R.string.feature_training_edit_discard_dismiss)
-        val permanentDeleteTitleFormat =
-            stringResource(R.string.feature_training_detail_permanent_delete_title)
-        val permanentDeleteBody =
-            stringResource(R.string.feature_training_detail_permanent_delete_body)
-        val permanentDeleteImpact =
-            stringResource(R.string.feature_training_detail_permanent_delete_impact)
-        val permanentDeleteConfirmLabel =
-            stringResource(R.string.feature_training_detail_permanent_delete_confirm)
 
         var showDiscardDialog by remember { mutableStateOf(false) }
-        var showPermanentDeleteDialog by remember { mutableStateOf(false) }
+        var permanentDeleteDialog by remember { mutableStateOf<Event.ShowPermanentDeleteConfirmDialog?>(null) }
 
-        // TODO(tech-debt): Move event-to-message shaping out of UI graph and emit
-        // ready-to-render localized payloads from handler/state mapping.
         processor.Handle { event ->
             when (event) {
                 is Event.HapticClick -> haptic.performHapticFeedback(event.type)
                 is Event.ShowArchiveSuccess ->
-                    SnackbarManager.showSnackbar(message = archiveSuccessFormat.format(event.name))
+                    SnackbarManager.showSnackbar(message = event.message)
 
-                is Event.ShowArchiveBlocked -> SnackbarManager.showSnackbar(message = archiveBlocked)
+                is Event.ShowArchiveBlocked -> SnackbarManager.showSnackbar(message = event.message)
                 Event.ShowDiscardConfirmDialog -> {
                     showDiscardDialog = true
                 }
 
-                Event.ShowPermanentDeleteConfirmDialog -> {
-                    showPermanentDeleteDialog = true
+                is Event.ShowPermanentDeleteConfirmDialog -> {
+                    permanentDeleteDialog = event
                 }
 
-                Event.ShowLiveWorkoutPending -> SnackbarManager.showSnackbar(message = livePending)
+                is Event.ShowLiveWorkoutPending -> SnackbarManager.showSnackbar(message = event.message)
                 is Event.ShowOtherSessionActive ->
-                    SnackbarManager.showSnackbar(message = otherSessionFormat.format(event.trainingName))
+                    SnackbarManager.showSnackbar(message = event.message)
 
-                is Event.ShowSaveError -> SnackbarManager.showSnackbar(message = noExercises)
+                is Event.ShowSaveError -> SnackbarManager.showSnackbar(message = event.message)
             }
         }
 
@@ -140,18 +123,18 @@ fun NavGraphBuilder.singleTrainingsGraph(
                 },
             )
         }
-        if (showPermanentDeleteDialog) {
+        permanentDeleteDialog?.let { dialog ->
             AppConfirmDialog(
-                title = permanentDeleteTitleFormat.format(state.name),
-                body = permanentDeleteBody,
-                impactSummary = permanentDeleteImpact,
-                confirmLabel = permanentDeleteConfirmLabel,
+                title = dialog.title,
+                body = dialog.body,
+                impactSummary = dialog.impactSummary,
+                confirmLabel = dialog.confirmLabel,
                 onConfirm = {
-                    showPermanentDeleteDialog = false
+                    permanentDeleteDialog = null
                     processor.consume(Action.Click.OnPermanentDeleteConfirm)
                 },
                 onDismiss = {
-                    showPermanentDeleteDialog = false
+                    permanentDeleteDialog = null
                     processor.consume(Action.Click.OnPermanentDeleteDismiss)
                 },
             )

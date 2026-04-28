@@ -14,6 +14,7 @@ data class LiveExerciseUiModel(
     val exerciseType: ExerciseTypeUiModel,
     val position: Int,
     val status: ExerciseStatusUiModel,
+    val statusLabel: String,
     val planSets: ImmutableList<PlanSetUiModel>,
     val performedSets: ImmutableList<LiveSetUiModel>,
 )
