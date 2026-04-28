@@ -339,6 +339,23 @@ domain models:
 - `training/TrainingRepository` plus `TrainingDataModel`, `TrainingChangeDataModel`.
 - `labels/LabelRepository` plus `LabelDataModel`.
 
+### Reactive aggregations
+
+Repository methods that return `Flow<T>` follow a single pattern: the DAO emits a Room-backed
+`Flow`, the repo wraps it with `.map { ... }.flowOn(ioDispatcher)`. Room recompiles the query
+and re-emits whenever any of the involved tables changes, so consumers never need an explicit
+invalidation channel.
+
+Do **not** add manual caches at the repo level (e.g.
+`mutableMapOf<Key, MutableStateFlow>`); they leak subscriptions and obscure lifecycle
+ownership. If a heavy aggregation needs to suppress wasted recomputation, cache at the
+**consumer** level using `stateIn(viewModelScope, WhileSubscribed(...), initial)` — the
+StateFlow disappears with the screen and the upstream collection cancels cleanly.
+
+Live workout's pre-session PR snapshot is a deliberate exception: it collects the reactive
+PR Flow once via `firstOrNull()` to freeze a session-scoped baseline. Other consumers
+(Exercise detail PR card, Past session PR badges) subscribe normally.
+
 ### DataModel hygiene
 
 When implementing a feature, audit the `*DataModel` types you touch. If any field is

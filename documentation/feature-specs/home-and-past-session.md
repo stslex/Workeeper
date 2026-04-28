@@ -779,6 +779,7 @@ data class State(
         val repsInput: String,
         val weightError: Boolean,
         val repsError: Boolean,
+        val isPersonalRecord: Boolean,           // v2.1 — true iff setUuid matches current PR
     )
 
     enum class ErrorType { SessionNotFound, LoadFailed }
@@ -786,6 +787,13 @@ data class State(
     val canDelete: Boolean get() = phase is Phase.Loaded
 }
 ```
+
+**v2.1 PR badge.** `PastSessionInteractor.observeDetailWithPrs(sessionUuid)` returns a
+combined `Flow<DetailWithPrs?>` that pairs the one-shot session detail with a reactive PR
+map (`observePersonalRecords` per exercise). The mapper sets `isPersonalRecord = (prMap
+[exerciseUuid]?.setUuid == set.uuid)`. Edits apply optimistically through `InputHandler`,
+so the snapshot stays consistent between PR re-emissions; when the user saves an edit, the
+underlying `set_table` change triggers Room to re-emit the PR map and the badge follows.
 
 ### Action
 

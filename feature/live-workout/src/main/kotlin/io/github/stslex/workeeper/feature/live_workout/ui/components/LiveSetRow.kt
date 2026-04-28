@@ -20,6 +20,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppNumberInput
+import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordBadge
+import io.github.stslex.workeeper.core.ui.kit.components.pr.personalRecordAccent
 import io.github.stslex.workeeper.core.ui.kit.components.setchip.AppSetTypeChip
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
@@ -44,12 +46,17 @@ internal fun LiveSetRow(
     modifier: Modifier = Modifier,
 ) {
     val rowBg = if (set.isDone) AppUi.colors.surfaceTier2 else AppUi.colors.surfaceTier1
+    val baseModifier = modifier
+        .fillMaxWidth()
+        .height(AppDimension.heightLg)
+        .background(rowBg)
+    val rowModifier = if (set.isPersonalRecord) {
+        baseModifier.personalRecordAccent()
+    } else {
+        baseModifier
+    }.padding(horizontal = AppDimension.Space.sm)
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(AppDimension.heightLg)
-            .background(rowBg)
-            .padding(horizontal = AppDimension.Space.sm),
+        modifier = rowModifier,
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
@@ -86,6 +93,9 @@ internal fun LiveSetRow(
             },
         ) {
             AppSetTypeChip(type = set.type.toUiKitType())
+        }
+        if (set.isPersonalRecord) {
+            PersonalRecordBadge()
         }
         IconButton(
             onClick = { if (set.isDone) onUncheck() else onMarkDone() },

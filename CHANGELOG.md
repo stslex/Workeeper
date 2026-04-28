@@ -18,13 +18,19 @@ Conventions:
 - Default plan surface in Exercise detail read mode.
 - Active session conflict modal across all Live-workout entry points.
 - Delete session option in Live workout overflow with confirm dialog.
+- Personal records: heaviest set per exercise, displayed on the Exercise detail screen.
+- In-moment PR highlight: Live-workout set rows that beat the pre-session record show an amber accent and PR badge.
+- "New personal records" block in the Live-workout finish dialog when the session bit one or more PRs.
+- PR badge on Past session set rows for sets that are the current personal record for their exercise.
 
 ### Changed
 - finishSession now runs as a single SQL transaction; manual rollback removed.
+- `PersonalRecordRepository` extended with reactive `observe*` APIs (Room native Flow). Exercise detail and Past session subscribe; Live workout takes a one-shot session-frozen snapshot.
 
 ### Tests
 - Smoke UI tests for all v1 list and detail screens.
 - DAO unit tests for new aggregation queries (PR, best volume, history-by-exercise) and pre-existing untested queries (`pagedActiveWithStats`, `pagedActiveWithStatsByTags`, `observeAnyActiveSession`).
+- DAO + repository tests for the reactive PR pipeline; `PrComparator` branch coverage and finish-dialog new-PR computation.
 
 ## [1.5.0] — Image attachment — TBD
 

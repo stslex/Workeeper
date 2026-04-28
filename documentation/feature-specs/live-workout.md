@@ -196,6 +196,25 @@ Same row layout invariant from Stage 5.3 — 3 lines max:
 
 Status line in line 2 (just below the name) varies by state per the four states above.
 
+### v2.1 PR highlight
+
+Set rows whose values strictly beat `state.preSessionPrSnapshot[exerciseUuid]` render with a
+3dp amber left-stripe (`Modifier.personalRecordAccent()`) and a `PersonalRecordBadge` pill
+to the right of the type chip. The flag lives on `LiveSetUiModel.isPersonalRecord` and is
+computed by `PrComparator.beats(candidate, baseline, type)` either at session load (already
+saved sets) or at `OnSetMarkDone` (newly checked sets). Drafts never carry the badge — the
+highlight only appears once a set is logged.
+
+The pre-session snapshot is one-shot: `LiveWorkoutInteractor.loadSession` collects
+`personalRecordRepository.observePersonalRecords(uuidsByType)` exactly once via
+`firstOrNull()` and discards the flow. This is intentional (Q6 lock — pre-session snapshot
+scope); mid-session emissions from elsewhere must not flip in-moment highlights.
+
+When the user finishes the session, `LiveWorkoutMapper.toFinishStats` walks `state.exercises`,
+picks the best logged set per exercise via `PrComparator.bestOf`, and adds a `NewPrEntry` to
+`FinishStats.newPersonalRecords` if it strictly beats the baseline. The finish dialog
+renders the resulting list as a small amber-tinted block above the action buttons.
+
 ### Set entry inline
 
 CURRENT exercise card shows all set rows inline, populated from plan (pre-filled inputs) or empty if no plan. Each row:
@@ -342,6 +361,7 @@ interface LiveWorkoutStore : Store<State, Action, Event> {
         val nowMillis: Long,                     // for live timer rendering
         val exercises: ImmutableList<LiveExerciseUiModel>,
         val setDrafts: ImmutableMap<DraftKey, LiveSetUiModel>,
+        val preSessionPrSnapshot: ImmutableMap<String, PrSnapshotItem>,  // v2.1 frozen baseline
         val planEditorTarget: PlanEditorTarget?,
         val pendingFinishConfirm: FinishStats?,
         val pendingResetExerciseUuid: String?,
@@ -357,6 +377,23 @@ interface LiveWorkoutStore : Store<State, Action, Event> {
             val totalCount: Int,
             val skippedCount: Int,
             val setsLogged: Int,
+            // v2.1 — exercises whose best logged set strictly beat the pre-session PR.
+            val newPersonalRecords: ImmutableList<NewPrEntry>,
+        ) {
+            data class NewPrEntry(
+                val exerciseUuid: String,
+                val exerciseName: String,
+                val displayLabel: String,    // pre-formatted "105 × 5" / "15 reps"
+            )
+        }
+        // v2.1 — frozen at session load via `observePersonalRecords(...).firstOrNull()`.
+        // Held in State for the session's lifetime; mid-session emissions from other
+        // screens do not refresh it (Q6 lock — pre-session snapshot scope).
+        data class PrSnapshotItem(
+            val weight: Double?,
+            val reps: Int,
+            val type: ExerciseTypeUiModel,
+            val setUuid: String,
         )
         data class PlanEditorTarget(
             val performedExerciseUuid: String,

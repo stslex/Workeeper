@@ -5,11 +5,13 @@ import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
+import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordDataModel
 import io.github.stslex.workeeper.core.exercise.session.model.PerformedExerciseDetailDataModel
 import io.github.stslex.workeeper.core.exercise.session.model.SessionDetailDataModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.past_session.R
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -69,6 +71,37 @@ internal class PastSessionUiMapperTest {
         assertTrue(ui.exercises[2].sets.isEmpty())
         assertEquals(listOf(0, 1), ui.exercises[1].sets.map { it.position })
         assertEquals(listOf(SetTypeUiModel.WORK, SetTypeUiModel.FAILURE), ui.exercises[1].sets.map { it.type })
+    }
+
+    @Test
+    fun `mapper marks the PR-bearing set with isPersonalRecord`() {
+        val pr = PersonalRecordDataModel(
+            sessionUuid = "session-prev",
+            performedExerciseUuid = "performed-prev",
+            setUuid = "set-2",
+            weight = 100.0,
+            reps = 5,
+            type = SetsDataType.WORK,
+            finishedAt = 100L,
+        )
+        val ui = sessionDetail(
+            isAdhoc = false,
+            exercises = listOf(weightedExercise(position = 0)),
+        ).toUi(resources, prMap = mapOf("exercise-2" to pr))
+
+        val sets = ui.exercises.single().sets
+        assertEquals(true, sets.first { it.setUuid == "set-2" }.isPersonalRecord)
+        assertFalse(sets.first { it.setUuid == "set-3" }.isPersonalRecord)
+    }
+
+    @Test
+    fun `mapper leaves all sets unflagged when prMap is empty`() {
+        val ui = sessionDetail(
+            isAdhoc = false,
+            exercises = listOf(weightedExercise(position = 0)),
+        ).toUi(resources, prMap = emptyMap())
+
+        ui.exercises.single().sets.forEach { assertFalse(it.isPersonalRecord) }
     }
 
     @Test

@@ -8,11 +8,25 @@ import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataM
 import io.github.stslex.workeeper.core.exercise.session.model.PerformedExerciseDataModel
 import io.github.stslex.workeeper.core.exercise.session.model.SessionDataModel
 import io.github.stslex.workeeper.core.exercise.session.model.SessionStateDataModel
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
+import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
+import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
+import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.PerformedExerciseSnapshot
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.SessionSnapshot
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
+import io.mockk.every
 import io.mockk.mockk
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.persistentMapOf
+import kotlinx.collections.immutable.persistentSetOf
+import kotlinx.collections.immutable.toImmutableList
+import kotlinx.collections.immutable.toImmutableMap
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 internal class LiveWorkoutMapperTest {
@@ -29,6 +43,7 @@ internal class LiveWorkoutMapperTest {
                 pending(uuid = "pe-2", position = 1),
                 pending(uuid = "pe-3", position = 2),
             ),
+            preSessionPrSnapshot = emptyMap(),
         )
 
         val state = snapshot.toState(nowMillis = 5000L, resourceWrapper = resourceWrapper)
@@ -51,6 +66,7 @@ internal class LiveWorkoutMapperTest {
                 ).copy(performed = pending("pe-1", 0).performed.copy(skipped = true)),
                 pending(uuid = "pe-2", position = 1),
             ),
+            preSessionPrSnapshot = emptyMap(),
         )
 
         val state = snapshot.toState(nowMillis = 1000L, resourceWrapper = resourceWrapper)
@@ -66,6 +82,7 @@ internal class LiveWorkoutMapperTest {
             trainingName = "Push Day",
             isAdhoc = false,
             exercises = emptyList(),
+            preSessionPrSnapshot = emptyMap(),
         )
 
         val state = snapshot.toState(nowMillis = 9_000L, resourceWrapper = resourceWrapper)
@@ -90,6 +107,7 @@ internal class LiveWorkoutMapperTest {
                 ),
                 pending(uuid = "pe-2", position = 1),
             ),
+            preSessionPrSnapshot = emptyMap(),
         )
 
         val state = snapshot.toState(nowMillis = 2000L, resourceWrapper = resourceWrapper)
@@ -132,4 +150,197 @@ internal class LiveWorkoutMapperTest {
                 PlanSetDataModel(weight = 100.0, reps = 5, type = SetTypeDataModel.WORK),
             ),
         )
+
+    @Test
+    fun `toFinishStats emits one NewPrEntry per exercise that beats the snapshot`() {
+        val res = mockk<ResourceWrapper>(relaxed = true)
+        every {
+            res.getString(R.string.feature_live_workout_finish_pr_weighted_format, "110", 5)
+        } returns "110 × 5"
+        every {
+            res.getString(R.string.feature_live_workout_finish_pr_weightless_format, 18)
+        } returns "18 reps"
+        val state = State(
+            sessionUuid = "s",
+            trainingUuid = "t",
+            trainingName = "X",
+            trainingNameLabel = "X",
+            isAdhoc = false,
+            startedAt = 0L,
+            nowMillis = 0L,
+            elapsedDurationLabel = "",
+            doneCount = 2,
+            totalCount = 2,
+            setsLogged = 4,
+            progress = 1f,
+            progressLabel = "",
+            exercises = persistentListOf(
+                exerciseUi(
+                    exerciseUuid = "ex-1",
+                    name = "Bench",
+                    type = ExerciseTypeUiModel.WEIGHTED,
+                    performed = listOf(
+                        liveSet(0, 105.0, 5, isDone = true),
+                        liveSet(1, 110.0, 5, isDone = true),
+                    ),
+                ),
+                exerciseUi(
+                    exerciseUuid = "ex-2",
+                    name = "Pull-ups",
+                    type = ExerciseTypeUiModel.WEIGHTLESS,
+                    performed = listOf(liveSet(0, null, 18, isDone = true)),
+                ),
+            ),
+            setDrafts = persistentMapOf(),
+            expandedDoneExerciseUuids = persistentSetOf(),
+            preSessionPrSnapshot = mapOf(
+                "ex-1" to State.PrSnapshotItem(
+                    weight = 100.0,
+                    reps = 5,
+                    type = ExerciseTypeUiModel.WEIGHTED,
+                    setUuid = "set-prev-1",
+                ),
+                "ex-2" to State.PrSnapshotItem(
+                    weight = null,
+                    reps = 12,
+                    type = ExerciseTypeUiModel.WEIGHTLESS,
+                    setUuid = "set-prev-2",
+                ),
+            ).toImmutableMap(),
+            planEditorTarget = null,
+            pendingFinishConfirm = null,
+            pendingResetExerciseUuid = null,
+            pendingSkipExerciseUuid = null,
+            pendingCancelConfirm = false,
+            deleteDialogVisible = false,
+            isLoading = false,
+            errorMessage = null,
+        )
+
+        val stats = state.toFinishStats(res)
+
+        assertEquals(2, stats.newPersonalRecords.size)
+        assertEquals("ex-1", stats.newPersonalRecords[0].exerciseUuid)
+        assertEquals("110 × 5", stats.newPersonalRecords[0].displayLabel)
+        assertEquals("ex-2", stats.newPersonalRecords[1].exerciseUuid)
+        assertEquals("18 reps", stats.newPersonalRecords[1].displayLabel)
+    }
+
+    @Test
+    fun `toFinishStats emits no NewPrEntry when nothing beats the snapshot`() {
+        val res = mockk<ResourceWrapper>(relaxed = true)
+        val state = baseState().copy(
+            exercises = persistentListOf(
+                exerciseUi(
+                    exerciseUuid = "ex-1",
+                    name = "Bench",
+                    type = ExerciseTypeUiModel.WEIGHTED,
+                    performed = listOf(liveSet(0, 100.0, 5, isDone = true)),
+                ),
+            ),
+            preSessionPrSnapshot = mapOf(
+                "ex-1" to State.PrSnapshotItem(
+                    weight = 100.0,
+                    reps = 5,
+                    type = ExerciseTypeUiModel.WEIGHTED,
+                    setUuid = "set-prev",
+                ),
+            ).toImmutableMap(),
+        )
+
+        assertTrue(state.toFinishStats(res).newPersonalRecords.isEmpty())
+    }
+
+    @Test
+    fun `toFinishStats picks the heaviest set per exercise even with multiple PR sets`() {
+        val res = mockk<ResourceWrapper>(relaxed = true)
+        every {
+            res.getString(R.string.feature_live_workout_finish_pr_weighted_format, "115", 3)
+        } returns "115 × 3"
+        val state = baseState().copy(
+            exercises = persistentListOf(
+                exerciseUi(
+                    exerciseUuid = "ex-1",
+                    name = "Bench",
+                    type = ExerciseTypeUiModel.WEIGHTED,
+                    performed = listOf(
+                        liveSet(0, 105.0, 5, isDone = true),
+                        liveSet(1, 110.0, 5, isDone = true),
+                        liveSet(2, 115.0, 3, isDone = true),
+                    ),
+                ),
+            ),
+            preSessionPrSnapshot = mapOf(
+                "ex-1" to State.PrSnapshotItem(
+                    weight = 100.0,
+                    reps = 5,
+                    type = ExerciseTypeUiModel.WEIGHTED,
+                    setUuid = "set-prev",
+                ),
+            ).toImmutableMap(),
+        )
+
+        val stats = state.toFinishStats(res)
+
+        assertEquals(1, stats.newPersonalRecords.size)
+        assertEquals("115 × 3", stats.newPersonalRecords.single().displayLabel)
+    }
+
+    private fun baseState() = State(
+        sessionUuid = "s",
+        trainingUuid = "t",
+        trainingName = "",
+        trainingNameLabel = "",
+        isAdhoc = false,
+        startedAt = 0L,
+        nowMillis = 0L,
+        elapsedDurationLabel = "",
+        doneCount = 0,
+        totalCount = 0,
+        setsLogged = 0,
+        progress = 0f,
+        progressLabel = "",
+        exercises = persistentListOf(),
+        setDrafts = persistentMapOf(),
+        expandedDoneExerciseUuids = persistentSetOf(),
+        preSessionPrSnapshot = persistentMapOf(),
+        planEditorTarget = null,
+        pendingFinishConfirm = null,
+        pendingResetExerciseUuid = null,
+        pendingSkipExerciseUuid = null,
+        pendingCancelConfirm = false,
+        deleteDialogVisible = false,
+        isLoading = false,
+        errorMessage = null,
+    )
+
+    private fun exerciseUi(
+        exerciseUuid: String,
+        name: String,
+        type: ExerciseTypeUiModel,
+        performed: List<LiveSetUiModel>,
+    ): LiveExerciseUiModel = LiveExerciseUiModel(
+        performedExerciseUuid = "pe-$exerciseUuid",
+        exerciseUuid = exerciseUuid,
+        exerciseName = name,
+        exerciseType = type,
+        position = 0,
+        status = ExerciseStatusUiModel.DONE,
+        statusLabel = "",
+        planSets = persistentListOf<PlanSetUiModel>(),
+        performedSets = performed.toImmutableList(),
+    )
+
+    private fun liveSet(
+        position: Int,
+        weight: Double?,
+        reps: Int,
+        isDone: Boolean,
+    ): LiveSetUiModel = LiveSetUiModel(
+        position = position,
+        weight = weight,
+        reps = reps,
+        type = SetTypeUiModel.WORK,
+        isDone = isDone,
+    )
 }

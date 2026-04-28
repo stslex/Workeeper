@@ -34,6 +34,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.card.AppCard
+import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordCard
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagChip.Static
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -96,6 +97,13 @@ internal fun ExerciseDetailScreen(
             }
             if (state.planSummaryVisible) {
                 DefaultPlanCard(planSummaryLabel = state.adhocPlanSummaryLabel)
+            }
+            state.personalRecord?.let { pr ->
+                PersonalRecordCard(
+                    modifier = Modifier.testTag("ExerciseDetailPersonalRecordCard"),
+                    displayLabel = pr.displayLabel,
+                    relativeDateLabel = pr.relativeDateLabel,
+                )
             }
             HistorySection(state = state, consume = consume)
             Spacer(Modifier.height(AppDimension.Space.md))

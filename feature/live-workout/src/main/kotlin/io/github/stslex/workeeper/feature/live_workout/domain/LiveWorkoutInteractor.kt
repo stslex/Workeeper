@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.feature.live_workout.domain
 
 import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
+import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordDataModel
 import io.github.stslex.workeeper.core.exercise.session.model.PerformedExerciseDataModel
 import io.github.stslex.workeeper.core.exercise.session.model.SessionDataModel
 
@@ -37,11 +38,18 @@ internal interface LiveWorkoutInteractor {
 
     suspend fun setAdhocPlan(exerciseUuid: String, plan: List<PlanSetDataModel>?)
 
+    /**
+     * Captures the per-exercise PR snapshot taken once at session load. The flow underlying
+     * this map is intentionally not held open — Q6 lock requires session-frozen comparator
+     * semantics, so the snapshot does not refresh mid-session even if other screens log new
+     * sets that would otherwise bump the PR.
+     */
     data class SessionSnapshot(
         val session: SessionDataModel,
         val trainingName: String,
         val isAdhoc: Boolean,
         val exercises: List<PerformedExerciseSnapshot>,
+        val preSessionPrSnapshot: Map<String, PersonalRecordDataModel?>,
     )
 
     data class PerformedExerciseSnapshot(

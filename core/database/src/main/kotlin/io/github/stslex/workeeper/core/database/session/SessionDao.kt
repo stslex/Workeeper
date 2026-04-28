@@ -234,6 +234,37 @@ interface SessionDao {
     suspend fun getPersonalRecord(exerciseUuid: Uuid, isWeightless: Boolean): PersonalRecordRow?
 
     /**
+     * Reactive PR for [exerciseUuid]. Same SQL body as [getPersonalRecord]; Room re-emits
+     * whenever any of the participating tables change. Subscribers see the new PR after a
+     * finished session bumps it, an edit-save changes a top set, or the holder set is deleted.
+     */
+    @Query(
+        """
+        SELECT s.uuid AS set_uuid,
+               s.weight AS weight,
+               s.reps AS reps,
+               s.type AS type,
+               s.performed_exercise_uuid AS performed_exercise_uuid,
+               sn.uuid AS session_uuid,
+               sn.finished_at AS finished_at
+        FROM set_table s
+        JOIN performed_exercise_table pe ON pe.uuid = s.performed_exercise_uuid
+        JOIN session_table sn ON sn.uuid = pe.session_uuid
+        WHERE pe.exercise_uuid = :exerciseUuid
+          AND sn.state = 'FINISHED'
+          AND sn.finished_at IS NOT NULL
+          AND (:isWeightless = 1 OR s.weight IS NOT NULL)
+        ORDER BY
+            CASE WHEN :isWeightless = 0 THEN s.weight END DESC,
+            s.reps DESC,
+            sn.finished_at ASC,
+            s.position ASC
+        LIMIT 1
+        """,
+    )
+    fun observePersonalRecord(exerciseUuid: Uuid, isWeightless: Boolean): Flow<PersonalRecordRow?>
+
+    /**
      * Top-N finished sessions by volume in the window starting at [sinceMillis]. Volume is
      * `Σ(weight × reps)` over weighted sets only — weightless exercises and weight-null
      * sets are filtered before the sum so they never inflate the metric.

@@ -274,9 +274,10 @@ forgotten and so future decisions cite this document.
 - **Tag filter semantics.** When the user picks multiple tags, does the
   filter return items matching ALL of them (intersection) or ANY of
   them (union)?
-- **PR metric set** (v2). Exactly which records to track: 1RM
-  estimate, best set at fixed reps (3RM, 5RM, 10RM), best total
-  volume in a session?
+- **PR metric set — closed (v2.1).** PR metric is the **heaviest set**
+  per exercise (weight DESC, reps DESC, finished_at ASC; weightless =
+  reps DESC, finished_at ASC). Per-rep-bucket records (1RM / 3RM /
+  5RM / 10RM) and 1RM estimate are explicitly deferred.
 - **Chart metrics** (v2). What goes on the per-exercise progress chart
   by default: heaviest set, estimated 1RM, total volume?
 - **Multi-select trigger** (v2). Long-press vs visible toggle for

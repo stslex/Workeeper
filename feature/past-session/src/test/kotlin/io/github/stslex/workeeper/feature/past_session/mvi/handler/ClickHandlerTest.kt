@@ -139,6 +139,7 @@ internal class ClickHandlerTest {
                                     repsInput = "8",
                                     weightError = false,
                                     repsError = false,
+                                    isPersonalRecord = false,
                                 ),
                             ),
                         ),

@@ -39,6 +39,7 @@ internal interface LiveWorkoutStore :
         val exercises: ImmutableList<LiveExerciseUiModel>,
         val setDrafts: ImmutableMap<DraftKey, LiveSetUiModel>,
         val expandedDoneExerciseUuids: ImmutableSet<String>,
+        val preSessionPrSnapshot: ImmutableMap<String, PrSnapshotItem>,
         val planEditorTarget: PlanEditorTarget?,
         val pendingFinishConfirm: FinishStats?,
         val pendingResetExerciseUuid: String?,
@@ -52,13 +53,35 @@ internal interface LiveWorkoutStore :
         @Stable
         data class DraftKey(val performedExerciseUuid: String, val position: Int)
 
+        /**
+         * Pre-session PR snapshot held in State for the entire session (Q6 lock — frozen
+         * snapshot scope). One entry per exercise; absent key means "no PR yet" and any
+         * non-zero candidate beats it.
+         */
+        @Stable
+        data class PrSnapshotItem(
+            val weight: Double?,
+            val reps: Int,
+            val type: ExerciseTypeUiModel,
+            val setUuid: String,
+        )
+
         @Stable
         data class FinishStats(
             val durationMillis: Long,
             val durationLabel: String,
             val exercisesSummaryLabel: String,
             val setsLoggedLabel: String,
-        )
+            val newPersonalRecords: ImmutableList<NewPrEntry>,
+        ) {
+
+            @Stable
+            data class NewPrEntry(
+                val exerciseUuid: String,
+                val exerciseName: String,
+                val displayLabel: String,
+            )
+        }
 
         @Stable
         data class PlanEditorTarget(
@@ -98,6 +121,7 @@ internal interface LiveWorkoutStore :
                 exercises = persistentListOf(),
                 setDrafts = persistentMapOf(),
                 expandedDoneExerciseUuids = persistentSetOf(),
+                preSessionPrSnapshot = persistentMapOf(),
                 planEditorTarget = null,
                 pendingFinishConfirm = null,
                 pendingResetExerciseUuid = null,

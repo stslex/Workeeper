@@ -49,6 +49,16 @@
     <string name="feature_live_workout_finish_confirm">Завершить</string>
     <string name="feature_live_workout_finish_success">Сессия сохранена</string>
 
+    <plurals name="feature_live_workout_finish_new_pr_title">
+        <item quantity="one">%d новый рекорд</item>
+        <item quantity="few">%d новых рекорда</item>
+        <item quantity="many">%d новых рекордов</item>
+        <item quantity="other">%d новых рекордов</item>
+    </plurals>
+    <string name="feature_live_workout_finish_new_pr_row_format">%1$s — %2$s</string>
+    <string name="feature_live_workout_finish_pr_weighted_format">%1$s × %2$d</string>
+    <string name="feature_live_workout_finish_pr_weightless_format">%1$d повт</string>
+
     <string name="feature_live_workout_session_overflow_cancel" tools:ignore="DuplicateStrings">Отменить сессию</string>
     <string name="feature_live_workout_cancel_title">Отменить сессию?</string>
     <string name="feature_live_workout_cancel_body">Весь прогресс будет удалён. Это нельзя отменить.</string>

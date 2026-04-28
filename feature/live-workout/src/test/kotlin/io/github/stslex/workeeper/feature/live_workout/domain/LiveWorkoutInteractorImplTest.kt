@@ -6,6 +6,7 @@ import io.github.stslex.workeeper.core.database.sets.SetTypeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
+import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordRepository
 import io.github.stslex.workeeper.core.exercise.session.PerformedExerciseRepository
 import io.github.stslex.workeeper.core.exercise.session.PlanUpdate
 import io.github.stslex.workeeper.core.exercise.session.SessionRepository
@@ -18,9 +19,11 @@ import io.github.stslex.workeeper.core.exercise.training.TrainingExerciseReposit
 import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -33,6 +36,9 @@ internal class LiveWorkoutInteractorImplTest {
     private val exerciseRepository = mockk<ExerciseRepository>(relaxed = true)
     private val trainingRepository = mockk<TrainingRepository>(relaxed = true)
     private val trainingExerciseRepository = mockk<TrainingExerciseRepository>(relaxed = true)
+    private val personalRecordRepository = mockk<PersonalRecordRepository>(relaxed = true).apply {
+        every { observePersonalRecords(any()) } returns flowOf(emptyMap())
+    }
 
     private val interactor = LiveWorkoutInteractorImpl(
         sessionRepository = sessionRepository,
@@ -41,6 +47,7 @@ internal class LiveWorkoutInteractorImplTest {
         exerciseRepository = exerciseRepository,
         trainingRepository = trainingRepository,
         trainingExerciseRepository = trainingExerciseRepository,
+        personalRecordRepository = personalRecordRepository,
         defaultDispatcher = Dispatchers.Unconfined,
     )
 

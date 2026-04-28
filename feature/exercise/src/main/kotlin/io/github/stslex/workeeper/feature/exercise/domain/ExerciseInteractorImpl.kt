@@ -11,7 +11,10 @@ import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.HistoryEntry
+import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordDataModel
+import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordRepository
 import io.github.stslex.workeeper.core.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.exercise.tags.TagRepository
 import io.github.stslex.workeeper.core.exercise.tags.model.TagDataModel
@@ -36,6 +39,7 @@ internal class ExerciseInteractorImpl @Inject constructor(
     private val imageStorage: ImageStorage,
     private val sessionRepository: SessionRepository,
     private val trainingRepository: TrainingRepository,
+    private val personalRecordRepository: PersonalRecordRepository,
     private val resourceWrapper: ResourceWrapper,
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
 ) : ExerciseInteractor {
@@ -62,6 +66,12 @@ internal class ExerciseInteractorImpl @Inject constructor(
     override fun observeAvailableTags(): Flow<List<TagDataModel>> = tagRepository
         .observeAll()
         .flowOn(defaultDispatcher)
+
+    override fun observePersonalRecord(
+        exerciseUuid: String,
+        type: ExerciseTypeDataModel,
+    ): Flow<PersonalRecordDataModel?> = personalRecordRepository
+        .observePersonalRecord(exerciseUuid, type)
 
     override suspend fun saveExercise(
         snapshot: ExerciseChangeDataModel,

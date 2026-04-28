@@ -7,6 +7,11 @@ import io.github.stslex.workeeper.core.database.session.SessionDao
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType.Companion.toData
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -28,6 +33,28 @@ internal class PersonalRecordRepositoryImpl @Inject constructor(
                 isWeightless = type == ExerciseTypeDataModel.WEIGHTLESS,
             )
             ?.toData()
+    }
+
+    override fun observePersonalRecord(
+        exerciseUuid: String,
+        type: ExerciseTypeDataModel,
+    ): Flow<PersonalRecordDataModel?> = sessionDao
+        .observePersonalRecord(
+            exerciseUuid = Uuid.parse(exerciseUuid),
+            isWeightless = type == ExerciseTypeDataModel.WEIGHTLESS,
+        )
+        .map { it?.toData() }
+        .flowOn(ioDispatcher)
+
+    override fun observePersonalRecords(
+        uuidsByType: Map<String, ExerciseTypeDataModel>,
+    ): Flow<Map<String, PersonalRecordDataModel?>> {
+        if (uuidsByType.isEmpty()) return flowOf(emptyMap())
+        val perExerciseFlows: List<Flow<Pair<String, PersonalRecordDataModel?>>> =
+            uuidsByType.map { (uuid, type) ->
+                observePersonalRecord(uuid, type).map { uuid to it }
+            }
+        return combine(perExerciseFlows) { pairs -> pairs.toMap() }
     }
 
     private fun PersonalRecordRow.toData(): PersonalRecordDataModel = PersonalRecordDataModel(

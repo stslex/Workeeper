@@ -41,6 +41,7 @@ data class PastSetUiModel(
     val repsInput: String,
     val weightError: Boolean,
     val repsError: Boolean,
+    val isPersonalRecord: Boolean,
 )
 
 enum class ErrorType {

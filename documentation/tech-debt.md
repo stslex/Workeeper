@@ -36,6 +36,15 @@ Each tracked location should carry a `TODO(tech-debt): <category> — <ref>` mar
 
 ---
 
+## Reactive Aggregations
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟡 PARKED | TBD per v2.2 stage | **Heavy-aggregation re-execution policy.** Room native Flow re-runs queries on every change to involved tables, regardless of whether the change is relevant to the specific query. For PR (LIMIT 1, indexed) the cost is negligible; v2.1 ships as-is. For v2.2 chart series (full history scan + Kotlin-side bucketing), the cost may matter if a session logs many sets while a chart is observed. **Trigger to act:** profiling in v2.2. **Anti-patterns to avoid:** repo-level `mutableMapOf<Key, StateFlow>` caches (subscription leaks, concurrent mutation, no clean lifecycle owner — entries removed from the map don't cancel upstream subscriptions; collectors cancelled on the consumer side leave the StateFlow producer alive); manual event-bus invalidators built on top of Room (duplicates a primitive Room already provides). **If a cache is needed,** put it at the consumer side (`stateIn(viewModelScope, WhileSubscribed(...), initial)` on the interactor) where lifecycle is bounded and the StateFlow disappears with the consumer. |
+| 🟢 | [core/exercise/.../sets/PrComparator.kt](../core/exercise/src/main/kotlin/io/github/stslex/workeeper/core/exercise/sets/PrComparator.kt) ↔ [SessionDao.observePersonalRecord](../core/database/src/main/kotlin/io/github/stslex/workeeper/core/database/session/SessionDao.kt) | Two parallel implementations of the same comparator (Kotlin object-level and SQL `ORDER BY`). The Kotlin path is needed at session finish where the comparison happens against an immutable in-memory snapshot. If the comparator definition changes (e.g. tiebreak rule), both must be updated together. Acceptable duplication; covered by `PrComparatorTest`. |
+
+---
+
 ## Spec-vs-Reality Drift
 
 Items where shipped behaviour diverges from what specs originally asked for. Surfaced by the 2026-04-28 audit.

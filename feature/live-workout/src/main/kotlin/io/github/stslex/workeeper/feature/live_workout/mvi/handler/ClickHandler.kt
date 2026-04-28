@@ -5,6 +5,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
+import io.github.stslex.workeeper.core.exercise.sets.PrComparator
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
@@ -408,7 +409,24 @@ internal class ClickHandler @Inject constructor(
             if (exercise.performedExerciseUuid != performedExerciseUuid) return@map exercise
             val nextSets = exercise.performedSets.toMutableList()
             val existingIdx = nextSets.indexOfFirst { it.position == position }
-            val marked = draft.copy(position = position, isDone = true)
+            val baseline = preSessionPrSnapshot[exercise.exerciseUuid]
+            val candidate = PlanSetDataModel(
+                weight = draft.weight,
+                reps = draft.reps,
+                type = draft.type.toData(),
+            )
+            val isPr = PrComparator.beats(
+                candidate = candidate,
+                baselineWeight = baseline?.weight,
+                baselineReps = baseline?.reps,
+                type = exercise.exerciseType.toData(),
+                hasBaseline = baseline != null,
+            )
+            val marked = draft.copy(
+                position = position,
+                isDone = true,
+                isPersonalRecord = isPr,
+            )
             if (existingIdx >= 0) {
                 nextSets[existingIdx] = marked
             } else {

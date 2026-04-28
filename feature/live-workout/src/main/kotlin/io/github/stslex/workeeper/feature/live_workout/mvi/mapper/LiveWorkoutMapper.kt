@@ -4,8 +4,12 @@ package io.github.stslex.workeeper.feature.live_workout.mvi.mapper
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
 import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
+import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordDataModel
+import io.github.stslex.workeeper.core.exercise.sets.PrComparator
 import io.github.stslex.workeeper.core.ui.plan_editor.mappers.formatPlanSummary
 import io.github.stslex.workeeper.core.ui.plan_editor.mappers.toUi
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel.Companion.toUi
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel.Companion.toUi
@@ -31,7 +35,11 @@ internal fun SessionSnapshot.toState(
     nowMillis: Long,
     resourceWrapper: ResourceWrapper,
 ): State {
-    val ui = exercises.toUiList()
+    val typeByUuid = exercises.associate {
+        it.performed.exerciseUuid to it.exerciseType
+    }
+    val prSnapshot = preSessionPrSnapshot.toUiSnapshot(typeByUuid)
+    val ui = exercises.toUiList(preSessionPrSnapshot)
     return State(
         sessionUuid = session.uuid,
         trainingUuid = session.trainingUuid,
@@ -49,6 +57,7 @@ internal fun SessionSnapshot.toState(
         exercises = ui,
         setDrafts = emptyMap<State.DraftKey, LiveSetUiModel>().toImmutableMap(),
         expandedDoneExerciseUuids = persistentSetOf(),
+        preSessionPrSnapshot = prSnapshot,
         planEditorTarget = null,
         pendingFinishConfirm = null,
         pendingResetExerciseUuid = null,
@@ -60,12 +69,15 @@ internal fun SessionSnapshot.toState(
     ).withPresentation(resourceWrapper)
 }
 
-internal fun List<PerformedExerciseSnapshot>.toUiList(): ImmutableList<LiveExerciseUiModel> {
+internal fun List<PerformedExerciseSnapshot>.toUiList(
+    prSnapshot: Map<String, PersonalRecordDataModel?> = emptyMap(),
+): ImmutableList<LiveExerciseUiModel> {
     var foundCurrent = false
     return sortedBy { it.performed.position }
         .map { snapshot ->
             val plan = snapshot.planSets.orEmpty().map(PlanSetDataModel::toUi).toImmutableList()
-            val performed = snapshot.toLiveSets()
+            val baseline = prSnapshot[snapshot.performed.exerciseUuid]
+            val performed = snapshot.toLiveSets(baseline)
             val isDone = isExerciseDone(plan, performed, snapshot.performed.skipped)
             val status = when {
                 snapshot.performed.skipped -> ExerciseStatusUiModel.SKIPPED
@@ -92,7 +104,9 @@ internal fun List<PerformedExerciseSnapshot>.toUiList(): ImmutableList<LiveExerc
         .toImmutableList()
 }
 
-private fun PerformedExerciseSnapshot.toLiveSets(): ImmutableList<LiveSetUiModel> =
+private fun PerformedExerciseSnapshot.toLiveSets(
+    baseline: PersonalRecordDataModel?,
+): ImmutableList<LiveSetUiModel> =
     performedSets.mapIndexed { index, set ->
         LiveSetUiModel(
             position = index,
@@ -100,8 +114,25 @@ private fun PerformedExerciseSnapshot.toLiveSets(): ImmutableList<LiveSetUiModel
             reps = set.reps,
             type = set.type.toUi(),
             isDone = true,
+            isPersonalRecord = PrComparator.beats(set, baseline, exerciseType),
         )
     }.toImmutableList()
+
+private fun Map<String, PersonalRecordDataModel?>.toUiSnapshot(
+    typeByUuid: Map<String, ExerciseTypeDataModel>,
+): kotlinx.collections.immutable.ImmutableMap<String, State.PrSnapshotItem> = entries
+    .mapNotNull { (uuid, pr) ->
+        pr?.let {
+            uuid to State.PrSnapshotItem(
+                weight = pr.weight,
+                reps = pr.reps,
+                type = (typeByUuid[uuid] ?: ExerciseTypeDataModel.WEIGHTED).toUi(),
+                setUuid = pr.setUuid,
+            )
+        }
+    }
+    .toMap()
+    .toImmutableMap()
 
 private fun isExerciseDone(
     plan: ImmutableList<PlanSetUiModel>,
@@ -162,10 +193,14 @@ internal fun State.toFinishStats(resourceWrapper: ResourceWrapper): State.Finish
             R.string.feature_live_workout_finish_stat_sets_count,
             setsLogged,
         ),
+        newPersonalRecords = computeNewPersonalRecords(resourceWrapper),
     )
 }
 
-internal fun FinishResult.toFinishStats(resourceWrapper: ResourceWrapper): State.FinishStats =
+internal fun FinishResult.toFinishStats(
+    state: State,
+    resourceWrapper: ResourceWrapper,
+): State.FinishStats =
     State.FinishStats(
         durationMillis = durationMillis,
         durationLabel = formatElapsedDuration(durationMillis),
@@ -179,7 +214,86 @@ internal fun FinishResult.toFinishStats(resourceWrapper: ResourceWrapper): State
             R.string.feature_live_workout_finish_stat_sets_count,
             setsLogged,
         ),
+        newPersonalRecords = state.computeNewPersonalRecords(resourceWrapper),
     )
+
+/**
+ * Walks the in-memory exercises and finds, per exercise, the best logged set; then keeps
+ * only the ones that strictly beat the pre-session snapshot. No DB hit — the snapshot is
+ * already in State, the performed sets came from the user's session.
+ */
+private fun State.computeNewPersonalRecords(
+    resourceWrapper: ResourceWrapper,
+): ImmutableList<State.FinishStats.NewPrEntry> = exercises
+    .asSequence()
+    .filter { it.status != ExerciseStatusUiModel.SKIPPED }
+    .mapNotNull { it.toNewPrEntry(preSessionPrSnapshot, resourceWrapper) }
+    .toList()
+    .toImmutableList()
+
+private fun LiveExerciseUiModel.toNewPrEntry(
+    snapshot: Map<String, State.PrSnapshotItem>,
+    resourceWrapper: ResourceWrapper,
+): State.FinishStats.NewPrEntry? {
+    val performedAsPlanSets = performedSets
+        .filter { it.isDone }
+        .map { it.toPlanSet() }
+    if (performedAsPlanSets.isEmpty()) return null
+    val typeData = exerciseType.toData()
+    val best = PrComparator.bestOf(performedAsPlanSets, typeData) ?: return null
+    val baseline = snapshot[exerciseUuid]
+    val beatsBaseline = PrComparator.beats(
+        candidate = best,
+        baselineWeight = baseline?.weight,
+        baselineReps = baseline?.reps,
+        type = typeData,
+        hasBaseline = baseline != null,
+    )
+    if (!beatsBaseline) return null
+    return State.FinishStats.NewPrEntry(
+        exerciseUuid = exerciseUuid,
+        exerciseName = exerciseName,
+        displayLabel = formatPrLabel(
+            weight = best.weight,
+            reps = best.reps,
+            type = exerciseType,
+            resourceWrapper = resourceWrapper,
+        ),
+    )
+}
+
+private fun LiveSetUiModel.toPlanSet(): PlanSetDataModel = PlanSetDataModel(
+    weight = weight,
+    reps = reps,
+    type = type.toData(),
+)
+
+private fun formatPrLabel(
+    weight: Double?,
+    reps: Int,
+    type: ExerciseTypeUiModel,
+    resourceWrapper: ResourceWrapper,
+): String = when (type) {
+    ExerciseTypeUiModel.WEIGHTED -> {
+        val weightLabel = (weight ?: 0.0).formatPrWeight()
+        resourceWrapper.getString(
+            R.string.feature_live_workout_finish_pr_weighted_format,
+            weightLabel,
+            reps,
+        )
+    }
+
+    ExerciseTypeUiModel.WEIGHTLESS -> resourceWrapper.getString(
+        R.string.feature_live_workout_finish_pr_weightless_format,
+        reps,
+    )
+}
+
+private fun Double.formatPrWeight(): String = if (this % 1.0 == 0.0) {
+    toLong().toString()
+} else {
+    toString().trimEnd('0').trimEnd('.')
+}
 
 private fun LiveExerciseUiModel.toStatusLabel(resourceWrapper: ResourceWrapper): String = when (status) {
     ExerciseStatusUiModel.DONE -> {

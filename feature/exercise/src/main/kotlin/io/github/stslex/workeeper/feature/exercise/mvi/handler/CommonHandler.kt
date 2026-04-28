@@ -5,6 +5,7 @@ import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.HistoryEntry
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.mappers.toUi
@@ -68,7 +69,10 @@ internal class CommonHandler @Inject constructor(
 
     private fun loadExercise(uuid: String) {
         launch(
-            onSuccess = { result -> updateStateImmediate { current -> current.applyLoaded(result) } },
+            onSuccess = { result ->
+                updateStateImmediate { current -> current.applyLoaded(result) }
+                result.exercise?.type?.let { type -> observePersonalRecord(uuid, type) }
+            },
         ) {
             val exercise = async { interactor.getExercise(uuid) }
             val labels = async { interactor.getLabels(uuid) }
@@ -82,6 +86,15 @@ internal class CommonHandler @Inject constructor(
                 canPermanentlyDelete = canPermanentlyDelete.await(),
                 adhocPlan = adhocPlan.await(),
             )
+        }
+    }
+
+    private fun observePersonalRecord(uuid: String, type: ExerciseTypeDataModel) {
+        val typeUi = type.toUi()
+        scope.launch(interactor.observePersonalRecord(uuid, type)) { record ->
+            updateStateImmediate { current ->
+                current.copy(personalRecord = record?.toUi(resourceWrapper, typeUi))
+            }
         }
     }
 

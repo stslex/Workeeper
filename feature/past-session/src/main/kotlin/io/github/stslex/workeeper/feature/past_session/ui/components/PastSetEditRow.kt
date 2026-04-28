@@ -11,6 +11,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppNumberInput
+import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordBadge
+import io.github.stslex.workeeper.core.ui.kit.components.pr.personalRecordAccent
 import io.github.stslex.workeeper.core.ui.kit.components.setchip.AppSetTypeChip
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
@@ -30,8 +32,13 @@ internal fun PastSetEditRow(
     @Suppress("UnusedParameter") onTypeChange: (SetTypeUiModel) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val rowModifier = if (set.isPersonalRecord) {
+        modifier.fillMaxWidth().personalRecordAccent()
+    } else {
+        modifier.fillMaxWidth()
+    }
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = rowModifier,
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
@@ -56,6 +63,9 @@ internal fun PastSetEditRow(
             decimals = 0,
             isError = set.repsError,
         )
+        if (set.isPersonalRecord) {
+            PersonalRecordBadge()
+        }
     }
 }
 
@@ -110,4 +120,5 @@ private fun stubSet(): PastSetUiModel = PastSetUiModel(
     repsInput = "5",
     weightError = false,
     repsError = false,
+    isPersonalRecord = false,
 )

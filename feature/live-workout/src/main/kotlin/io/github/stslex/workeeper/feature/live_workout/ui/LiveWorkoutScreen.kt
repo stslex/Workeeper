@@ -286,6 +286,7 @@ private fun stubState(): State = State(
     ),
     setDrafts = persistentMapOf(),
     expandedDoneExerciseUuids = kotlinx.collections.immutable.persistentSetOf(),
+    preSessionPrSnapshot = persistentMapOf(),
     planEditorTarget = null,
     pendingFinishConfirm = null,
     pendingResetExerciseUuid = null,
