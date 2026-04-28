@@ -7,6 +7,7 @@ import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
 import io.github.stslex.workeeper.core.exercise.session.PerformedExerciseRepository
+import io.github.stslex.workeeper.core.exercise.session.PlanUpdate
 import io.github.stslex.workeeper.core.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.exercise.session.SetRepository
 import io.github.stslex.workeeper.core.exercise.session.model.PerformedExerciseDataModel
@@ -17,13 +18,11 @@ import io.github.stslex.workeeper.core.exercise.training.TrainingExerciseReposit
 import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.coVerifyOrder
 import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 internal class LiveWorkoutInteractorImplTest {
@@ -89,7 +88,7 @@ internal class LiveWorkoutInteractorImplTest {
     }
 
     @Test
-    fun `finishSession applies PlanUpdateRule per non-skipped exercise and finalises session`() = runTest {
+    fun `finishSession sends PlanUpdate per non-skipped exercise and finishes atomically`() = runTest {
         val sessionUuid = "session-1"
         val trainingUuid = "training-1"
         coEvery { sessionRepository.getById(sessionUuid) } returns SessionDataModel(
@@ -133,24 +132,26 @@ internal class LiveWorkoutInteractorImplTest {
         coEvery { trainingExerciseRepository.getPlan(trainingUuid, "ex-1") } returns listOf(
             PlanSetDataModel(weight = 90.0, reps = 5, type = SetTypeDataModel.WORK),
         )
+        val captured = slot<List<PlanUpdate>>()
+        coEvery {
+            sessionRepository.finishSessionAtomic(eq(sessionUuid), any(), capture(captured))
+        } returns true
 
         val result = interactor.finishSession(sessionUuid)
 
+        // Only the non-skipped exercise contributes a PlanUpdate.
+        assertEquals(1, captured.captured.size)
+        val update = captured.captured.single()
+        assertEquals("ex-1", update.exerciseUuid)
+        assertEquals(false, update.isAdhoc)
         // PlanUpdateRule promotes the larger performed list to the new plan.
-        coVerify(exactly = 1) {
-            trainingExerciseRepository.setPlan(
-                trainingUuid = trainingUuid,
-                exerciseUuid = "ex-1",
-                planSets = listOf(
-                    PlanSetDataModel(weight = 100.0, reps = 5, type = SetTypeDataModel.WORK),
-                    PlanSetDataModel(weight = 100.0, reps = 5, type = SetTypeDataModel.WORK),
-                ),
-            )
-        }
-        // The skipped exercise's plan must NOT be touched.
-        coVerify(exactly = 0) { trainingExerciseRepository.setPlan(any(), eq("ex-2"), any()) }
-        // Session must end as FINISHED.
-        coVerify(exactly = 1) { sessionRepository.finishSession(eq(sessionUuid), any()) }
+        assertEquals(
+            listOf(
+                PlanSetDataModel(weight = 100.0, reps = 5, type = SetTypeDataModel.WORK),
+                PlanSetDataModel(weight = 100.0, reps = 5, type = SetTypeDataModel.WORK),
+            ),
+            update.newPlan,
+        )
 
         assertEquals(2, result?.setsLogged)
         assertEquals(1, result?.doneCount)
@@ -159,7 +160,7 @@ internal class LiveWorkoutInteractorImplTest {
     }
 
     @Test
-    fun `finishSession routes plan writes through adhoc storage when training is adhoc`() = runTest {
+    fun `finishSession marks PlanUpdate as adhoc when training is adhoc`() = runTest {
         val sessionUuid = "session-1"
         val trainingUuid = "training-1"
         coEvery { sessionRepository.getById(sessionUuid) } returns SessionDataModel(
@@ -193,37 +194,31 @@ internal class LiveWorkoutInteractorImplTest {
             SetsDataModel(uuid = "s-1", reps = 8, weight = 50.0, type = SetsDataType.WORK),
         )
         coEvery { exerciseRepository.getAdhocPlan("ex-1") } returns null
+        val captured = slot<List<PlanUpdate>>()
+        coEvery {
+            sessionRepository.finishSessionAtomic(eq(sessionUuid), any(), capture(captured))
+        } returns true
 
         interactor.finishSession(sessionUuid)
 
-        coVerifyOrder {
-            exerciseRepository.setAdhocPlan(
-                exerciseUuid = "ex-1",
-                planSets = listOf(
-                    PlanSetDataModel(weight = 50.0, reps = 8, type = SetTypeDataModel.WORK),
-                ),
-            )
-            sessionRepository.finishSession(eq(sessionUuid), any())
-        }
+        val update = captured.captured.single()
+        assertEquals("ex-1", update.exerciseUuid)
+        assertEquals(true, update.isAdhoc)
+        assertEquals(
+            listOf(PlanSetDataModel(weight = 50.0, reps = 8, type = SetTypeDataModel.WORK)),
+            update.newPlan,
+        )
     }
 
     @Test
-    fun `finishSession rolls back applied plans when final session finish fails`() = runTest {
+    fun `finishSession returns null when session is gone after preload`() = runTest {
         val sessionUuid = "session-1"
         val trainingUuid = "training-1"
-        val oldPlan = listOf(
-            PlanSetDataModel(weight = 90.0, reps = 5, type = SetTypeDataModel.WORK),
-        )
-        val newPlan = listOf(
-            PlanSetDataModel(weight = 100.0, reps = 5, type = SetTypeDataModel.WORK),
-            PlanSetDataModel(weight = 100.0, reps = 5, type = SetTypeDataModel.WORK),
-        )
-
         coEvery { sessionRepository.getById(sessionUuid) } returns SessionDataModel(
             uuid = sessionUuid,
             trainingUuid = trainingUuid,
             state = SessionStateDataModel.IN_PROGRESS,
-            startedAt = 1_000L,
+            startedAt = 0L,
             finishedAt = null,
         )
         coEvery { trainingRepository.getTraining(trainingUuid) } returns TrainingDataModel(
@@ -235,44 +230,16 @@ internal class LiveWorkoutInteractorImplTest {
             archivedAt = null,
             timestamp = 0L,
             labels = emptyList(),
-            exerciseUuids = listOf("ex-1"),
+            exerciseUuids = emptyList(),
         )
-        coEvery { performedExerciseRepository.getBySession(sessionUuid) } returns listOf(
-            PerformedExerciseDataModel(
-                uuid = "pe-1",
-                sessionUuid = sessionUuid,
-                exerciseUuid = "ex-1",
-                position = 0,
-                skipped = false,
-            ),
-        )
-        coEvery { setRepository.getByPerformedExercise("pe-1") } returns listOf(
-            SetsDataModel(uuid = "s-1", reps = 5, weight = 100.0, type = SetsDataType.WORK),
-            SetsDataModel(uuid = "s-2", reps = 5, weight = 100.0, type = SetsDataType.WORK),
-        )
-        coEvery { trainingExerciseRepository.getPlan(trainingUuid, "ex-1") } returns oldPlan
+        coEvery { performedExerciseRepository.getBySession(sessionUuid) } returns emptyList()
         coEvery {
-            trainingExerciseRepository.setPlan(trainingUuid, "ex-1", newPlan)
-        } returns Unit
-        coEvery {
-            trainingExerciseRepository.setPlan(trainingUuid, "ex-1", oldPlan)
-        } returns Unit
-        coEvery { sessionRepository.finishSession(sessionUuid, any()) } throws IllegalStateException("boom")
+            sessionRepository.finishSessionAtomic(any(), any(), any())
+        } returns false
 
-        var thrown: Throwable? = null
-        try {
-            interactor.finishSession(sessionUuid)
-        } catch (error: Throwable) {
-            thrown = error
-        }
+        val result = interactor.finishSession(sessionUuid)
 
-        assertTrue(thrown is IllegalStateException)
-
-        coVerifyOrder {
-            trainingExerciseRepository.setPlan(trainingUuid, "ex-1", newPlan)
-            sessionRepository.finishSession(eq(sessionUuid), any())
-            trainingExerciseRepository.setPlan(trainingUuid, "ex-1", oldPlan)
-        }
+        assertEquals(null, result)
     }
 
     @Test

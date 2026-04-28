@@ -44,6 +44,7 @@ internal interface LiveWorkoutStore :
         val pendingResetExerciseUuid: String?,
         val pendingSkipExerciseUuid: String?,
         val pendingCancelConfirm: Boolean,
+        val deleteDialogVisible: Boolean,
         val isLoading: Boolean,
         val errorMessage: String?,
     ) : Store.State {
@@ -102,6 +103,7 @@ internal interface LiveWorkoutStore :
                 pendingResetExerciseUuid = null,
                 pendingSkipExerciseUuid = null,
                 pendingCancelConfirm = false,
+                deleteDialogVisible = false,
                 isLoading = true,
                 errorMessage = null,
             )
@@ -136,6 +138,9 @@ internal interface LiveWorkoutStore :
             data object OnCancelSessionClick : Click
             data object OnCancelSessionConfirm : Click
             data object OnCancelSessionDismiss : Click
+            data object OnDeleteSessionMenuClick : Click
+            data object OnDeleteSessionConfirm : Click
+            data object OnDeleteSessionDismiss : Click
             data class OnExerciseHeaderClick(val performedExerciseUuid: String) : Click
             data object OnBackClick : Click
         }

@@ -94,6 +94,9 @@ internal fun ExerciseDetailScreen(
                     )
                 }
             }
+            if (state.planSummaryVisible) {
+                DefaultPlanCard(planSummaryLabel = state.adhocPlanSummaryLabel)
+            }
             HistorySection(state = state, consume = consume)
             Spacer(Modifier.height(AppDimension.Space.md))
         }
@@ -188,6 +191,25 @@ private fun DetailTopBar(
             }
         },
     )
+}
+
+@Composable
+private fun DefaultPlanCard(planSummaryLabel: String) {
+    AppCard {
+        Column(verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xxs)) {
+            Text(
+                text = stringResource(R.string.feature_exercise_detail_default_plan),
+                style = AppUi.typography.labelSmall,
+                color = AppUi.colors.textTertiary,
+            )
+            Text(
+                modifier = Modifier.testTag("ExerciseDetailDefaultPlanSummary"),
+                text = planSummaryLabel,
+                style = AppUi.typography.bodyMedium,
+                color = AppUi.colors.textPrimary,
+            )
+        }
+    }
 }
 
 @Composable

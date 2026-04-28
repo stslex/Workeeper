@@ -54,6 +54,7 @@ internal fun SessionSnapshot.toState(
         pendingResetExerciseUuid = null,
         pendingSkipExerciseUuid = null,
         pendingCancelConfirm = false,
+        deleteDialogVisible = false,
         isLoading = false,
         errorMessage = null,
     ).withPresentation(resourceWrapper)

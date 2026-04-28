@@ -2,7 +2,6 @@
 package io.github.stslex.workeeper.feature.live_workout.domain
 
 import dagger.hilt.android.scopes.ViewModelScoped
-import io.github.stslex.workeeper.core.core.coroutine.asyncForEach
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.database.sets.SetTypeDataModel
@@ -10,6 +9,7 @@ import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
 import io.github.stslex.workeeper.core.exercise.session.PerformedExerciseRepository
+import io.github.stslex.workeeper.core.exercise.session.PlanUpdate
 import io.github.stslex.workeeper.core.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.exercise.session.SetRepository
 import io.github.stslex.workeeper.core.exercise.sets.PlanUpdateRule
@@ -34,12 +34,6 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
     private val trainingExerciseRepository: TrainingExerciseRepository,
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
 ) : LiveWorkoutInteractor {
-
-    private data class PlanMutation(
-        val exerciseUuid: String,
-        val oldPlan: List<PlanSetDataModel>?,
-        val newPlan: List<PlanSetDataModel>?,
-    )
 
     override suspend fun startSession(
         trainingUuid: String,
@@ -155,8 +149,7 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
         val performedRows = async { performedExerciseRepository.getBySession(sessionUuid) }
         val isAdhoc = training.await()?.isAdhoc == true
 
-        val planMutations = mutableListOf<PlanMutation>()
-        val appliedMutations = mutableListOf<PlanMutation>()
+        val planUpdates = mutableListOf<PlanUpdate>()
         var setsLogged = 0
         var doneCount = 0
         var skippedCount = 0
@@ -180,51 +173,27 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
                 )
             }
             val nextPlan = PlanUpdateRule.update(existingPlan, performedSets)
-            planMutations += PlanMutation(
+            planUpdates += PlanUpdate(
+                trainingUuid = session.trainingUuid,
                 exerciseUuid = row.exerciseUuid,
-                oldPlan = existingPlan,
+                isAdhoc = isAdhoc,
                 newPlan = nextPlan,
             )
         }
-        runCatching {
-            planMutations.asyncForEach { mutation ->
-                if (isAdhoc) {
-                    exerciseRepository.setAdhocPlan(mutation.exerciseUuid, mutation.newPlan)
-                } else {
-                    trainingExerciseRepository.setPlan(
-                        trainingUuid = session.trainingUuid,
-                        exerciseUuid = mutation.exerciseUuid,
-                        planSets = mutation.newPlan,
-                    )
-                }
-                appliedMutations += mutation
-            }
-            val finishedAt = System.currentTimeMillis()
-            sessionRepository.finishSession(sessionUuid, finishedAt)
-            FinishResult(
-                durationMillis = finishedAt - session.startedAt,
-                doneCount = doneCount,
-                totalCount = performedRows.await().size,
-                skippedCount = skippedCount,
-                setsLogged = setsLogged,
-            )
-        }
-            .onFailure {
-                appliedMutations.asReversed().forEach { mutation ->
-                    runCatching {
-                        if (isAdhoc) {
-                            exerciseRepository.setAdhocPlan(mutation.exerciseUuid, mutation.oldPlan)
-                        } else {
-                            trainingExerciseRepository.setPlan(
-                                trainingUuid = session.trainingUuid,
-                                exerciseUuid = mutation.exerciseUuid,
-                                planSets = mutation.oldPlan,
-                            )
-                        }
-                    }
-                }
-            }
-            .getOrThrow()
+        val finishedAt = System.currentTimeMillis()
+        val applied = sessionRepository.finishSessionAtomic(
+            sessionUuid = sessionUuid,
+            finishedAt = finishedAt,
+            planUpdates = planUpdates,
+        )
+        if (!applied) return@withContext null
+        FinishResult(
+            durationMillis = finishedAt - session.startedAt,
+            doneCount = doneCount,
+            totalCount = performedRows.await().size,
+            skippedCount = skippedCount,
+            setsLogged = setsLogged,
+        )
     }
 
     override suspend fun cancelSession(sessionUuid: String) {

@@ -1,6 +1,7 @@
 package io.github.stslex.workeeper.core.exercise.session
 
 import androidx.paging.PagingData
+import io.github.stslex.workeeper.core.exercise.exercise.model.HistoryEntry
 import io.github.stslex.workeeper.core.exercise.session.model.ActiveSessionInfo
 import io.github.stslex.workeeper.core.exercise.session.model.RecentSessionDataModel
 import io.github.stslex.workeeper.core.exercise.session.model.SessionDataModel
@@ -70,7 +71,35 @@ interface SessionRepository {
 
     suspend fun finishSession(sessionUuid: String, finishedAt: Long)
 
+    /**
+     * Atomically transitions [sessionUuid] to FINISHED at [finishedAt] and applies the
+     * supplied [planUpdates] in a single SQL transaction. Replaces the manual `runCatching`
+     * + compensating-rollback path: if any mutation throws, Room rolls back the whole batch
+     * and the caller observes a thrown exception. Returns false when the session row is
+     * missing (e.g. already deleted).
+     */
+    suspend fun finishSessionAtomic(
+        sessionUuid: String,
+        finishedAt: Long,
+        planUpdates: List<PlanUpdate>,
+    ): Boolean
+
     suspend fun deleteSession(uuid: String)
+
+    /**
+     * Date-ordered history for [exerciseUuid] across finished sessions. Each emitted entry
+     * groups the rows of one finished session into a single record. Used by Exercise detail
+     * recent history (v2.0) and the v2.2 charts.
+     */
+    fun pagedHistoryByExercise(exerciseUuid: String): Flow<PagingData<HistoryEntry>>
+
+    /**
+     * One-shot version of [pagedHistoryByExercise] for callers that need a bounded list
+     * (Exercise detail recent block currently uses [SessionRepository] indirectly via
+     * `getRecentSessionsForExercise`; this query backfills a sets-level surface for the v2.1
+     * PR detector and v2.2 sparkline previews).
+     */
+    suspend fun getHistoryByExercise(exerciseUuid: String): List<HistoryEntry>
 
     data class ActiveSessionWithStats(
         val sessionUuid: String,

@@ -16,6 +16,7 @@ import io.github.stslex.workeeper.core.database.session.model.SetEntity
 import io.github.stslex.workeeper.core.database.session.model.SetTypeEntity
 import io.github.stslex.workeeper.core.database.training.TrainingDao
 import io.github.stslex.workeeper.core.database.training.TrainingEntity
+import io.github.stslex.workeeper.core.database.training.TrainingExerciseDao
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -40,6 +41,7 @@ internal class SessionRepositoryGetDetailTest {
     private val setDao = mockk<SetDao>(relaxed = true)
     private val trainingDao = mockk<TrainingDao>(relaxed = true)
     private val exerciseDao = mockk<ExerciseDao>(relaxed = true)
+    private val trainingExerciseDao = mockk<TrainingExerciseDao>(relaxed = true)
 
     private val repository = SessionRepositoryImpl(
         database = database,
@@ -48,6 +50,7 @@ internal class SessionRepositoryGetDetailTest {
         setDao = setDao,
         trainingDao = trainingDao,
         exerciseDao = exerciseDao,
+        trainingExerciseDao = trainingExerciseDao,
         ioDispatcher = dispatcher,
     )
 

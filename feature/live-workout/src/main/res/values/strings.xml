@@ -58,6 +58,9 @@
     <string name="feature_live_workout_cancel_body">All progress will be deleted. This cannot be undone.</string>
     <string name="feature_live_workout_cancel_confirm">Cancel session</string>
     <string name="feature_live_workout_cancel_dismiss" tools:ignore="DuplicateStrings">Keep going</string>
+    <string name="feature_live_workout_delete_session" tools:ignore="DuplicateStrings">Delete session</string>
+    <string name="feature_live_workout_delete_session_unnamed">Workout</string>
+    <string name="feature_live_workout_delete_session_progress_format" tools:ignore="PluralsCandidate">%1$d of %2$d exercises done · %3$d sets logged</string>
 
     <!-- Misc -->
     <string name="feature_live_workout_back">Back</string>

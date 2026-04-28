@@ -31,6 +31,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
+import io.github.stslex.workeeper.core.ui.kit.components.dialog.DiscardSessionConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.loading.AppLoadingIndicator
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -72,6 +73,22 @@ internal fun LiveWorkoutScreen(
             Body(state = state, consume = consume)
         }
     }
+    if (state.deleteDialogVisible) {
+        val sessionName = state.trainingNameLabel.takeIf { it.isNotBlank() }
+            ?: stringResource(R.string.feature_live_workout_delete_session_unnamed)
+        val progressLabel = stringResource(
+            R.string.feature_live_workout_delete_session_progress_format,
+            state.doneCount,
+            state.totalCount,
+            state.setsLogged,
+        )
+        DiscardSessionConfirmDialog(
+            sessionName = sessionName,
+            progressLabel = progressLabel,
+            onConfirmDelete = { consume(Action.Click.OnDeleteSessionConfirm) },
+            onDismiss = { consume(Action.Click.OnDeleteSessionDismiss) },
+        )
+    }
 }
 
 @Composable
@@ -105,6 +122,18 @@ private fun TopBar(consume: (Action) -> Unit) {
                     onClick = {
                         menuExpanded = false
                         consume(Action.Click.OnCancelSessionClick)
+                    },
+                )
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = stringResource(R.string.feature_live_workout_delete_session),
+                            color = AppUi.colors.setType.failureForeground,
+                        )
+                    },
+                    onClick = {
+                        menuExpanded = false
+                        consume(Action.Click.OnDeleteSessionMenuClick)
                     },
                 )
             }
@@ -262,6 +291,7 @@ private fun stubState(): State = State(
     pendingResetExerciseUuid = null,
     pendingSkipExerciseUuid = null,
     pendingCancelConfirm = false,
+    deleteDialogVisible = false,
     isLoading = false,
     errorMessage = null,
 )

@@ -20,4 +20,14 @@
     <string name="core_ui_kit_plan_editor_set_type_failure">Отказ</string>
     <string name="core_ui_kit_plan_editor_set_type_drop" tools:ignore="UnusedResources">Дроп</string>
     <string name="core_ui_kit_plan_editor_empty_hint">Сетов пока нет — нажмите «Добавить сет», чтобы создать план.</string>
+
+    <string name="core_ui_kit_active_session_conflict_title">Активная тренировка</string>
+    <string name="core_ui_kit_active_session_conflict_body_format">%1$s — %2$s</string>
+    <string name="core_ui_kit_active_session_conflict_warning">Записанные сеты будут потеряны при удалении.</string>
+    <string name="core_ui_kit_active_session_conflict_resume">Продолжить</string>
+    <string name="core_ui_kit_active_session_conflict_delete_and_start">Удалить и начать новую</string>
+
+    <string name="core_ui_kit_discard_session_confirm_title_format">Удалить «%1$s»?</string>
+    <string name="core_ui_kit_discard_session_confirm_warning">Сессия будет удалена. Отменить нельзя.</string>
+    <string name="core_ui_kit_discard_session_confirm_delete">Удалить</string>
 </resources>

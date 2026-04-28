@@ -19,6 +19,7 @@ internal interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStor
         val isActiveLoaded: Boolean,
         val isRecentLoaded: Boolean,
         val picker: PickerState,
+        val pendingConflict: ConflictInfo?,
     ) : Store.State {
 
         @Stable
@@ -46,6 +47,21 @@ internal interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStor
             ) : PickerState
         }
 
+        /**
+         * Pending Active session conflict awaiting user choice. The Home picker tap routes
+         * here when a different training already has an in-progress session; carrying this
+         * in State (instead of as event-only data) keeps the modal stable across config
+         * changes. `requestedTrainingUuid` lets Delete & start new resume the original
+         * Start CTA flow after the active session is gone.
+         */
+        @Stable
+        data class ConflictInfo(
+            val activeSessionUuid: String,
+            val requestedTrainingUuid: String,
+            val activeSessionName: String,
+            val progressLabel: String,
+        )
+
         val isLoading: Boolean get() = !isActiveLoaded || !isRecentLoaded
         val showStartCta: Boolean get() = activeSession == null && !isLoading
         val showRecentList: Boolean get() = recent.isNotEmpty()
@@ -61,6 +77,7 @@ internal interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStor
                 isActiveLoaded = false,
                 isRecentLoaded = false,
                 picker = PickerState.Hidden,
+                pendingConflict = null,
             )
         }
     }
@@ -76,6 +93,9 @@ internal interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStor
             data class OnPickerTrainingSelected(val trainingUuid: String) : Click
             data object OnPickerSeeAllClick : Click
             data object OnPickerDismiss : Click
+            data object OnConflictResume : Click
+            data object OnConflictDeleteAndStart : Click
+            data object OnConflictDismiss : Click
         }
 
         sealed interface Navigation : Action {
@@ -95,5 +115,9 @@ internal interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStor
     @Stable
     sealed interface Event : Store.Event {
         data class HapticClick(val type: HapticFeedbackType) : Event
+        data class ShowActiveSessionConflict(
+            val activeSessionName: String,
+            val progressLabel: String,
+        ) : Event
     }
 }

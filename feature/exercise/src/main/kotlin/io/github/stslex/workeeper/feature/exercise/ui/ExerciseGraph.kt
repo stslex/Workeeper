@@ -20,6 +20,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.core.net.toUri
 import androidx.navigation.NavGraphBuilder
+import io.github.stslex.workeeper.core.ui.kit.components.dialog.ActiveSessionConflictDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
 import io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel
@@ -111,7 +112,7 @@ fun NavGraphBuilder.exerciseGraph(
                 }
 
                 is Event.ShowTagLimitReached -> SnackbarManager.showSnackbar(message = event.message)
-                is Event.ShowTrackNowPending -> SnackbarManager.showSnackbar(message = event.message)
+                is Event.ShowActiveSessionConflict -> Unit // rendered from state.pendingConflict
                 is Event.ShowDiscardConfirmDialog -> {
                     pendingDiscard = event.target
                 }
@@ -271,6 +272,17 @@ fun NavGraphBuilder.exerciseGraph(
                 onDismiss = {
                     processor.consume(Action.Click.OnPermissionDeniedDialogDismiss)
                 },
+            )
+        }
+        state.pendingConflict?.let { info ->
+            ActiveSessionConflictDialog(
+                activeSessionName = info.activeSessionName,
+                progressLabel = info.progressLabel,
+                onResume = { processor.consume(Action.Click.OnTrackNowResumeConfirm) },
+                onDeleteAndStartNew = {
+                    processor.consume(Action.Click.OnTrackNowDeleteAndStart)
+                },
+                onCancel = { processor.consume(Action.Click.OnTrackNowConflictDismiss) },
             )
         }
     }

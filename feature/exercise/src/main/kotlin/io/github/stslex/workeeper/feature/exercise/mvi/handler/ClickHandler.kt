@@ -21,6 +21,7 @@ import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor.ArchiveResult
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor.SaveResult
+import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor.TrackNowConflict
 import io.github.stslex.workeeper.feature.exercise.mvi.mapper.toAdhocPlanSummary
 import io.github.stslex.workeeper.feature.exercise.mvi.model.ImageDisplay
 import io.github.stslex.workeeper.feature.exercise.mvi.model.ImageErrorType
@@ -31,6 +32,7 @@ import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Actio
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.DiscardTarget
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Event
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State
+import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State.ConflictInfo
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State.Mode
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -57,6 +59,9 @@ internal class ClickHandler @Inject constructor(
             Action.Click.OnEditClick -> processEditClick()
             Action.Click.OnArchiveMenuClick -> processArchiveClick()
             Action.Click.OnTrackNowClick -> processTrackNowClick()
+            Action.Click.OnTrackNowResumeConfirm -> processTrackNowResumeConfirm()
+            Action.Click.OnTrackNowDeleteAndStart -> processTrackNowDeleteAndStart()
+            Action.Click.OnTrackNowConflictDismiss -> processTrackNowConflictDismiss()
             is Action.Click.OnHistoryRowClick -> processHistoryRowClick(action)
             Action.Click.OnSaveClick -> processSaveClick()
             Action.Click.OnCancelClick -> processCancelClick()
@@ -162,11 +167,57 @@ internal class ClickHandler @Inject constructor(
 
     private fun processTrackNowClick() {
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
-        sendEvent(
-            Event.ShowTrackNowPending(
-                message = resourceWrapper.getString(R.string.feature_exercise_detail_track_now_pending),
-            ),
-        )
+        val exerciseUuid = state.value.uuid ?: return
+        launch {
+            when (val resolution = interactor.resolveTrackNowConflict()) {
+                TrackNowConflict.ProceedFresh -> startFreshTrackNow(exerciseUuid)
+                is TrackNowConflict.NeedsUserChoice -> {
+                    val info = ConflictInfo(
+                        sessionUuid = resolution.active.sessionUuid,
+                        activeSessionName = resolution.sessionLabel,
+                        progressLabel = resourceWrapper.getString(
+                            R.string.feature_exercise_track_now_conflict_progress_format,
+                            0,
+                            0,
+                        ),
+                    )
+                    updateStateImmediate { it.copy(pendingConflict = info) }
+                    sendEvent(
+                        Event.ShowActiveSessionConflict(
+                            activeSessionName = info.activeSessionName,
+                            progressLabel = info.progressLabel,
+                        ),
+                    )
+                }
+            }
+        }
+    }
+
+    private suspend fun startFreshTrackNow(exerciseUuid: String) {
+        val sessionUuid = interactor.startTrackNowSession(exerciseUuid)
+        consumeOnMain(Action.Navigation.OpenLiveWorkout(sessionUuid))
+    }
+
+    private fun processTrackNowResumeConfirm() {
+        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
+        val info = state.value.pendingConflict ?: return
+        updateState { it.copy(pendingConflict = null) }
+        consume(Action.Navigation.OpenLiveWorkout(info.sessionUuid))
+    }
+
+    private fun processTrackNowDeleteAndStart() {
+        sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
+        val info = state.value.pendingConflict ?: return
+        val exerciseUuid = state.value.uuid ?: return
+        updateState { it.copy(pendingConflict = null) }
+        launch {
+            interactor.deleteSession(info.sessionUuid)
+            startFreshTrackNow(exerciseUuid)
+        }
+    }
+
+    private fun processTrackNowConflictDismiss() {
+        updateState { it.copy(pendingConflict = null) }
     }
 
     private fun processHistoryRowClick(action: Action.Click.OnHistoryRowClick) {

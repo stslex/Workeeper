@@ -54,6 +54,9 @@
     <string name="feature_live_workout_cancel_body">Весь прогресс будет удалён. Это нельзя отменить.</string>
     <string name="feature_live_workout_cancel_confirm">Отменить сессию</string>
     <string name="feature_live_workout_cancel_dismiss" tools:ignore="DuplicateStrings">Продолжить</string>
+    <string name="feature_live_workout_delete_session" tools:ignore="DuplicateStrings">Удалить сессию</string>
+    <string name="feature_live_workout_delete_session_unnamed">Тренировка</string>
+    <string name="feature_live_workout_delete_session_progress_format">%1$d из %2$d упражнений · %3$d сетов записано</string>
 
     <string name="feature_live_workout_back">Назад</string>
     <string name="feature_live_workout_more">Меню</string>

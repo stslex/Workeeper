@@ -99,19 +99,92 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `OnPickerTrainingSelected consumes OpenLiveWorkoutFresh with the training uuid`() {
+    fun `OnPickerTrainingSelected hides the picker before resolving conflict`() {
         val visiblePicker = State.PickerState.Visible(
             templates = kotlinx.collections.immutable.persistentListOf(),
             isLoading = false,
         )
-        val store = newStore(baseState.copy(picker = visiblePicker))
+        val flow = MutableStateFlow(baseState.copy(picker = visiblePicker))
+        val store = mockk<HomeHandlerStore>(relaxed = true) {
+            every { this@mockk.state } returns flow
+            every { updateState(any()) } answers {
+                val update = firstArg<(State) -> State>()
+                flow.value = update(flow.value)
+            }
+            every { scope } returns AppCoroutineScope(
+                scope = TestScope(),
+                defaultDispatcher = Dispatchers.Unconfined,
+                immediateDispatcher = Dispatchers.Unconfined,
+            )
+        }
         val handler = ClickHandler(interactor = interactor, resourceWrapper = resources, store = store)
 
         handler.invoke(Action.Click.OnPickerTrainingSelected(trainingUuid = "tpl-1"))
 
-        verify(exactly = 1) {
-            store.consume(Action.Navigation.OpenLiveWorkoutFresh(trainingUuid = "tpl-1"))
+        assertEquals(State.PickerState.Hidden, flow.value.picker)
+    }
+
+    @Test
+    fun `OnConflictDismiss clears pendingConflict`() {
+        val state = baseState.copy(
+            pendingConflict = State.ConflictInfo(
+                activeSessionUuid = "session-1",
+                requestedTrainingUuid = "tpl-1",
+                activeSessionName = "Push Day",
+                progressLabel = "0 of 0",
+            ),
+        )
+        val flow = MutableStateFlow(state)
+        val store = mockk<HomeHandlerStore>(relaxed = true) {
+            every { this@mockk.state } returns flow
+            every { updateState(any()) } answers {
+                val update = firstArg<(State) -> State>()
+                flow.value = update(flow.value)
+            }
+            every { scope } returns AppCoroutineScope(
+                scope = TestScope(),
+                defaultDispatcher = Dispatchers.Unconfined,
+                immediateDispatcher = Dispatchers.Unconfined,
+            )
         }
+        val handler = ClickHandler(interactor = interactor, resourceWrapper = resources, store = store)
+
+        handler.invoke(Action.Click.OnConflictDismiss)
+
+        assertEquals(null, flow.value.pendingConflict)
+    }
+
+    @Test
+    fun `OnConflictResume consumes OpenLiveWorkoutResume with the active session uuid`() {
+        val state = baseState.copy(
+            pendingConflict = State.ConflictInfo(
+                activeSessionUuid = "session-1",
+                requestedTrainingUuid = "tpl-1",
+                activeSessionName = "Push Day",
+                progressLabel = "0 of 0",
+            ),
+        )
+        val flow = MutableStateFlow(state)
+        val store = mockk<HomeHandlerStore>(relaxed = true) {
+            every { this@mockk.state } returns flow
+            every { updateState(any()) } answers {
+                val update = firstArg<(State) -> State>()
+                flow.value = update(flow.value)
+            }
+            every { scope } returns AppCoroutineScope(
+                scope = TestScope(),
+                defaultDispatcher = Dispatchers.Unconfined,
+                immediateDispatcher = Dispatchers.Unconfined,
+            )
+        }
+        val handler = ClickHandler(interactor = interactor, resourceWrapper = resources, store = store)
+
+        handler.invoke(Action.Click.OnConflictResume)
+
+        verify(exactly = 1) {
+            store.consume(Action.Navigation.OpenLiveWorkoutResume(sessionUuid = "session-1"))
+        }
+        assertEquals(null, flow.value.pendingConflict)
     }
 
     private fun newStore(state: State): HomeHandlerStore {

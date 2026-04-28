@@ -63,6 +63,75 @@ internal class ClickHandlerTest {
         )
     }
 
+    @Test
+    fun `OnDeleteSessionMenuClick flips deleteDialogVisible true`() {
+        val stateFlow = MutableStateFlow(baseState(doneExercise(status = ExerciseStatusUiModel.CURRENT)))
+        val store = handlerStore(stateFlow)
+        val handler = ClickHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            store = store,
+        )
+
+        handler.invoke(Action.Click.OnDeleteSessionMenuClick)
+
+        assertEquals(true, stateFlow.value.deleteDialogVisible)
+    }
+
+    @Test
+    fun `OnDeleteSessionDismiss flips deleteDialogVisible false`() {
+        val stateFlow = MutableStateFlow(
+            baseState(doneExercise(status = ExerciseStatusUiModel.CURRENT))
+                .copy(deleteDialogVisible = true),
+        )
+        val store = handlerStore(stateFlow)
+        val handler = ClickHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            store = store,
+        )
+
+        handler.invoke(Action.Click.OnDeleteSessionDismiss)
+
+        assertEquals(false, stateFlow.value.deleteDialogVisible)
+    }
+
+    @Test
+    fun `OnDeleteSessionConfirm clears dialog without sessionUuid`() {
+        val stateFlow = MutableStateFlow(
+            baseState(doneExercise(status = ExerciseStatusUiModel.CURRENT))
+                .copy(sessionUuid = null, deleteDialogVisible = true),
+        )
+        val store = handlerStore(stateFlow)
+        val handler = ClickHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            store = store,
+        )
+
+        handler.invoke(Action.Click.OnDeleteSessionConfirm)
+
+        assertEquals(false, stateFlow.value.deleteDialogVisible)
+    }
+
+    @Test
+    fun `OnDeleteSessionConfirm with sessionUuid hides dialog`() {
+        val stateFlow = MutableStateFlow(
+            baseState(doneExercise(status = ExerciseStatusUiModel.CURRENT))
+                .copy(deleteDialogVisible = true),
+        )
+        val store = handlerStore(stateFlow)
+        val handler = ClickHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            store = store,
+        )
+
+        handler.invoke(Action.Click.OnDeleteSessionConfirm)
+
+        assertEquals(false, stateFlow.value.deleteDialogVisible)
+    }
+
     private fun handlerStore(stateFlow: MutableStateFlow<State>): LiveWorkoutHandlerStore =
         mockk(relaxed = true) {
             every { state } returns stateFlow

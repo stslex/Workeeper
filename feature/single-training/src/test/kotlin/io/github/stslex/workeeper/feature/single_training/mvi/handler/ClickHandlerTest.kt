@@ -246,4 +246,31 @@ internal class ClickHandlerTest {
         assertTrue(captured.captured is Event.HapticClick)
         assertEquals(HapticFeedbackType.ContextClick, (captured.captured as Event.HapticClick).type)
     }
+
+    @Test
+    fun `OnConflictDismiss clears pendingConflict`() {
+        stateFlow.value = stateFlow.value.copy(
+            pendingConflict = State.ConflictInfo(
+                sessionUuid = "session-1",
+                activeSessionName = "Push Day",
+                progressLabel = "0 of 0",
+            ),
+        )
+        handler.invoke(Action.Click.OnConflictDismiss)
+        assertEquals(null, stateFlow.value.pendingConflict)
+    }
+
+    @Test
+    fun `OnConflictResume consumes OpenLiveWorkout with active session uuid`() {
+        stateFlow.value = stateFlow.value.copy(
+            pendingConflict = State.ConflictInfo(
+                sessionUuid = "session-1",
+                activeSessionName = "Push Day",
+                progressLabel = "0 of 0",
+            ),
+        )
+        handler.invoke(Action.Click.OnConflictResume)
+        verify { store.consume(Action.Navigation.OpenLiveWorkout(sessionUuid = "session-1")) }
+        assertEquals(null, stateFlow.value.pendingConflict)
+    }
 }

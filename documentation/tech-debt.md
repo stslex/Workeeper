@@ -1,6 +1,6 @@
 # Technical Debt Register
 
-This document tracks known debt that should be addressed after functional delivery. It is a **living ratchet**: entries are added when debt is incurred, removed when paid down, and audited periodically against reality (last full audit: 2026-04-28 via dual-model triangulation).
+This document tracks known debt that should be addressed after functional delivery. It is a **living ratchet**: entries are added when debt is incurred, removed when paid down, and audited periodically against reality (last full audit: 2026-04-28 via dual-model triangulation; v2.0 stage updates applied 2026-04-28).
 
 Each tracked location should carry a `TODO(tech-debt): <category> — <ref>` marker in code so debt is grep-able during development.
 
@@ -43,18 +43,16 @@ Items where shipped behaviour diverges from what specs originally asked for. Sur
 | Severity | Spec | Item | Reality |
 |---|---|---|---|
 | 🟡 | exercises.md | "Phantom shims removed" | `TrainingDataModel.labels` and `TrainingDataModel.exerciseUuids` still present and populated by repo. Cleanup. |
-| 🟡 | exercises.md | "`pagedActiveByTags(Set<String>)` AND semantics" | Shipped uses `IN (:tagUuids)` (OR semantics). The deprecated AND-semantics query was removed as dead code; if product wants AND back, it must be reintroduced intentionally. **Decision needed.** |
-| 🟡 | exercises.md | "Canonical NavigationHandler with `@Inject Navigator`" | `feature/all-exercises` and `feature/exercise` NavigationHandlers are manually constructed; `@Suppress("MviHandlerConstructorRule")`. Migrate to canonical pattern (Stage 5.5 features already use it). |
+| 🟡 | exercises.md | "`pagedActiveByTags(Set<String>)` AND semantics" | Shipped uses `IN (:tagUuids)` (OR semantics). The deprecated AND-semantics query was removed as dead code; OR is intentional and remains the supported behaviour — locked decision in v2.0 spec. |
+| 🟡 | exercises.md | "Canonical NavigationHandler with `@Inject Navigator`" | All feature NavigationHandlers use the manual `Component.create(navigator, screen)` constructor pattern with `@Suppress("MviHandlerConstructorRule")`. The architecture relies on the manual pattern because handlers carry per-screen `data`. Treated as architectural; not migrated in v2.0. |
 | 🟡 | exercises.md, trainings.md, live-workout.md | "Haptics emitted for every Click action" | Several dismiss / undo / cancel paths bypass haptic emission. Specifically: `processUndoArchive`, `processCancelPermanentDelete`, `processBulkDeleteDismiss` in all-exercises; `processBulkDeleteDismiss` in all-trainings; dismiss handlers and done-card header expansion in live-workout. |
 | 🟡 | trainings.md, live-workout.md | "Composable `@Previews` for every public/internal Composable" | `AllTrainingsScreen`, `TrainingDetailScreen`, `TrainingEditScreen` expose internals without `@Preview`. `TrainingRow` lacks active/inactive permutations. `live-workout` is fully covered (verified). |
-| 🟡 | trainings.md | "Unit tests for new DAO queries" | No tests for `TrainingDao.pagedActiveWithStats`, `pagedActiveWithStatsByTags`, or `observeAnyActiveSession`. |
-| 🟡 | live-workout.md | "`finishSession` is one transaction" | Uses `runCatching` + compensating rollback instead of a single `db.withTransaction { ... }`. Edge case: partial rollback could leave inconsistent state. Worth fixing before v2 PR detection (which depends on session integrity). |
 
 ---
 
 ## androidTest Coverage Gap
 
-Six stub files with `TODO(feature-rewrite-tests)` markers and zero test methods. Created during initial Stage rewrites (5.1 / 5.2 / 5.3) under the assumption tests would be filled once the smoke harness stabilised. Never filled.
+Six stub files with `TODO(feature-rewrite-tests)` markers and zero test methods. Created during initial Stage rewrites (5.1 / 5.2 / 5.3) under the assumption tests would be filled once the smoke harness stabilised. v2.0 stage scheduled the fill-in work; remaining stubs are tracked in the v2.0 spec and addressed in their own PRs.
 
 | Severity | Location | Stage |
 |---|---|---|
@@ -66,6 +64,19 @@ Six stub files with `TODO(feature-rewrite-tests)` markers and zero test methods.
 | 🟡 | [feature/single-training/.../SingleTrainingScreenTest.kt](../feature/single-training/src/androidTest/kotlin/io/github/stslex/workeeper/feature/single_training/SingleTrainingScreenTest.kt) | 5.3 |
 
 **Plan:** address as a dedicated test-coverage PR after v2 stabilises. Don't try to fill in feature PRs.
+
+---
+
+## v2.0 Foundations Stage — closed entries
+
+The v2.0 stage addressed the following items. They are listed here for traceability before they roll into the next audit cleanup.
+
+- ✅ `feature/exercise/.../mvi/handler/ClickHandler.kt:163` Track now CTA stub replaced with a real flow that creates an ad-hoc training and opens Live workout via `SessionConflictResolver`.
+- ✅ `feature/exercise/.../ui/ExerciseDetailScreen.kt` now renders `state.adhocPlanSummaryLabel` between the description and history sections.
+- ✅ `LiveWorkoutInteractorImpl.finishSession` now delegates to `SessionRepository.finishSessionAtomic`, which wraps plan updates + state transition in a single `database.withTransaction { ... }`. `runCatching` + compensating-rollback removed.
+- ✅ DAO unit tests added for `TrainingDao.pagedActiveWithStats`, `pagedActiveWithStatsByTags`, and `SessionDao.observeAnyActiveSession` plus the three new aggregation queries (`getPersonalRecord`, `getBestSessionVolumes`, `pagedHistoryByExercise`).
+- ✅ Active session conflict modal (`core/ui/kit/.../ActiveSessionConflictDialog.kt`) shared by Home Start CTA, Training detail Start session, and Exercise detail Track now.
+- ✅ Live workout overflow Delete session option + `DiscardSessionConfirmDialog` confirm flow.
 
 ---
 

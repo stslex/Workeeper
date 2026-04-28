@@ -200,4 +200,115 @@ interface SessionDao {
             ),
         )
     }
+
+    /**
+     * Heaviest set the user has ever logged for [exerciseUuid] across finished sessions.
+     * The `:isWeightless` flag controls whether weight participates in the ordering — for
+     * weightless exercises only reps and timestamp drive PR ownership. Tiebreak by earliest
+     * `finished_at` so the PR badge belongs to the first occurrence.
+     */
+    @Query(
+        """
+        SELECT s.uuid AS set_uuid,
+               s.weight AS weight,
+               s.reps AS reps,
+               s.type AS type,
+               s.performed_exercise_uuid AS performed_exercise_uuid,
+               sn.uuid AS session_uuid,
+               sn.finished_at AS finished_at
+        FROM set_table s
+        JOIN performed_exercise_table pe ON pe.uuid = s.performed_exercise_uuid
+        JOIN session_table sn ON sn.uuid = pe.session_uuid
+        WHERE pe.exercise_uuid = :exerciseUuid
+          AND sn.state = 'FINISHED'
+          AND sn.finished_at IS NOT NULL
+          AND (:isWeightless = 1 OR s.weight IS NOT NULL)
+        ORDER BY
+            CASE WHEN :isWeightless = 0 THEN s.weight END DESC,
+            s.reps DESC,
+            sn.finished_at ASC,
+            s.position ASC
+        LIMIT 1
+        """,
+    )
+    suspend fun getPersonalRecord(exerciseUuid: Uuid, isWeightless: Boolean): PersonalRecordRow?
+
+    /**
+     * Top-N finished sessions by volume in the window starting at [sinceMillis]. Volume is
+     * `Σ(weight × reps)` over weighted sets only — weightless exercises and weight-null
+     * sets are filtered before the sum so they never inflate the metric.
+     */
+    @Query(
+        """
+        SELECT sn.uuid AS session_uuid,
+               sn.training_uuid AS training_uuid,
+               sn.finished_at AS finished_at,
+               SUM(s.weight * s.reps) AS volume
+        FROM session_table sn
+        JOIN performed_exercise_table pe ON pe.session_uuid = sn.uuid
+        JOIN exercise_table e ON e.uuid = pe.exercise_uuid
+        JOIN set_table s ON s.performed_exercise_uuid = pe.uuid
+        WHERE sn.state = 'FINISHED'
+          AND sn.finished_at IS NOT NULL
+          AND sn.finished_at >= :sinceMillis
+          AND e.type = 'WEIGHTED'
+          AND s.weight IS NOT NULL
+        GROUP BY sn.uuid
+        HAVING volume IS NOT NULL
+        ORDER BY volume DESC, sn.finished_at DESC
+        LIMIT :limit
+        """,
+    )
+    suspend fun getBestSessionVolumes(sinceMillis: Long, limit: Int): List<BestSessionVolumeRow>
+
+    /**
+     * Date-ordered set list for [exerciseUuid] across finished sessions. Each row carries
+     * its parent session metadata so the consumer (Exercise detail history, v2.2 charts)
+     * can group rows into sessions without an extra round trip per row.
+     */
+    @Query(
+        """
+        SELECT sn.uuid AS session_uuid,
+               sn.finished_at AS finished_at,
+               sn.training_uuid AS training_uuid,
+               t.name AS training_name,
+               t.is_adhoc AS is_adhoc,
+               s.weight AS weight,
+               s.reps AS reps,
+               s.position AS position,
+               s.type AS set_type
+        FROM set_table s
+        JOIN performed_exercise_table pe ON pe.uuid = s.performed_exercise_uuid
+        JOIN session_table sn ON sn.uuid = pe.session_uuid
+        JOIN training_table t ON t.uuid = sn.training_uuid
+        WHERE pe.exercise_uuid = :exerciseUuid
+          AND sn.state = 'FINISHED'
+          AND sn.finished_at IS NOT NULL
+        ORDER BY sn.finished_at DESC, s.position ASC
+        """,
+    )
+    fun pagedHistoryByExercise(exerciseUuid: Uuid): PagingSource<Int, HistoryByExerciseRow>
+
+    @Query(
+        """
+        SELECT sn.uuid AS session_uuid,
+               sn.finished_at AS finished_at,
+               sn.training_uuid AS training_uuid,
+               t.name AS training_name,
+               t.is_adhoc AS is_adhoc,
+               s.weight AS weight,
+               s.reps AS reps,
+               s.position AS position,
+               s.type AS set_type
+        FROM set_table s
+        JOIN performed_exercise_table pe ON pe.uuid = s.performed_exercise_uuid
+        JOIN session_table sn ON sn.uuid = pe.session_uuid
+        JOIN training_table t ON t.uuid = sn.training_uuid
+        WHERE pe.exercise_uuid = :exerciseUuid
+          AND sn.state = 'FINISHED'
+          AND sn.finished_at IS NOT NULL
+        ORDER BY sn.finished_at DESC, s.position ASC
+        """,
+    )
+    suspend fun getHistoryByExercise(exerciseUuid: Uuid): List<HistoryByExerciseRow>
 }
