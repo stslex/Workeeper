@@ -483,8 +483,8 @@ KeyboardOptions:
 
 ### 5. AppDatePickerDialog
 
-Single source for date pickers. Currently duplicated across three
-features (single-training, exercise, charts) — consolidated here.
+Single source for date pickers. Currently duplicated across two
+features (single-training, exercise) — consolidated here.
 
 ```
 package: io.github.stslex.workeeper.core.ui.kit.components.dialog
@@ -945,7 +945,7 @@ Goal: implement the 20 shared components.
    - Have a Compose Preview function below the implementation showing both light and dark mode.
    - Have `internal` visibility on private composables; `public` on the entry-point composable.
    - Follow existing project naming and detekt rules.
-3. AppDatePickerDialog — copy logic from the three current implementations (feature/single-training, feature/exercise, feature/charts), unify to one file, delete the originals from feature modules and update their imports.
+3. AppDatePickerDialog — copy logic from the two current implementations (feature/single-training, feature/exercise), unify to one file, delete the originals from feature modules and update their imports.
 4. AppBottomBar — encode the 3-destination structure (Home / Trainings / Exercises). Destinations and icons are hard-coded in the kit (not configurable). When a feature module needs the bottom bar, it just calls `AppBottomBar()`.
 5. Verify all components compile and previews render: `./gradlew :core:ui:kit:assembleDebug`.
 6. Run `./gradlew detekt lintDebug` — pass.

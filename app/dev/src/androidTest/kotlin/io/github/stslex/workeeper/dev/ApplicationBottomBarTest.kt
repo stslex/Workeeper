@@ -30,7 +30,7 @@ internal class ApplicationBottomBarTest {
     val composeRule = createAndroidComposeRule<MainActivity>()
 
     private val graphsForSelected = listOf(
-        "ChartsGraph" to BottomBarItem.CHARTS,
+        "HomeGraph" to BottomBarItem.HOME,
         "AllTrainingsGraph" to BottomBarItem.TRAININGS,
         "AllExercisesGraph" to BottomBarItem.EXERCISES,
     )
@@ -48,7 +48,7 @@ internal class ApplicationBottomBarTest {
             .onNodeWithTag("AppRoot")
             .assertIsDisplayed()
 
-        checkScreenOpen(BottomBarItem.CHARTS)
+        checkScreenOpen(BottomBarItem.HOME)
     }
 
     @Test
@@ -59,7 +59,7 @@ internal class ApplicationBottomBarTest {
             .onNodeWithTag("AppRoot")
             .assertIsDisplayed()
 
-        checkScreenOpen(BottomBarItem.CHARTS)
+        checkScreenOpen(BottomBarItem.HOME)
 
         /**Open Trainings*/
         BottomBarItem.TRAININGS.performClick()
@@ -82,7 +82,7 @@ internal class ApplicationBottomBarTest {
             .onNodeWithTag("AppRoot")
             .assertIsDisplayed()
 
-        checkScreenOpen(BottomBarItem.CHARTS)
+        checkScreenOpen(BottomBarItem.HOME)
 
         /**Open Exercises*/
         BottomBarItem.EXERCISES.performClick()
@@ -105,7 +105,7 @@ internal class ApplicationBottomBarTest {
             .onNodeWithTag("AppRoot")
             .assertIsDisplayed()
 
-        checkScreenOpen(BottomBarItem.CHARTS)
+        checkScreenOpen(BottomBarItem.HOME)
 
         /**Open Exercises*/
         BottomBarItem.EXERCISES.performClick()

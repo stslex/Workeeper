@@ -16,7 +16,6 @@ import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.all_exercises.ui.allExercisesGraph
 import io.github.stslex.workeeper.feature.all_trainings.ui.allTrainingsGraph
-import io.github.stslex.workeeper.feature.charts.ui.chartsGraph
 import io.github.stslex.workeeper.feature.exercise.ui.exerciseGraph
 import io.github.stslex.workeeper.feature.home.ui.homeGraph
 import io.github.stslex.workeeper.feature.live_workout.ui.liveWorkoutGraph
@@ -47,11 +46,6 @@ internal fun AppNavigationHost(
             homeGraph(
                 modifier = bottomBarModifier
                     .testTag("HomeGraph"),
-            )
-            chartsGraph(
-                modifier = bottomBarModifier
-                    .testTag("ChartsGraph"),
-                sharedTransitionScope = this@SharedTransitionLayout,
             )
             allTrainingsGraph(
                 modifier = bottomBarModifier

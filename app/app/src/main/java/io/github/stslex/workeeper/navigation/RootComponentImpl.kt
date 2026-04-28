@@ -6,7 +6,6 @@ import io.github.stslex.workeeper.core.ui.navigation.RootComponent
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.all_exercises.mvi.handler.AllExercisesComponent
 import io.github.stslex.workeeper.feature.all_trainings.mvi.handler.AllTrainingsComponent
-import io.github.stslex.workeeper.feature.charts.mvi.handler.ChartsComponent
 import io.github.stslex.workeeper.feature.exercise.mvi.handler.ExerciseComponent
 import io.github.stslex.workeeper.feature.home.mvi.handler.HomeComponent
 import io.github.stslex.workeeper.feature.live_workout.mvi.handler.LiveWorkoutComponent
@@ -25,7 +24,6 @@ class RootComponentImpl(
         Screen.BottomBar.Home -> HomeComponent.create(navigator)
         Screen.BottomBar.AllExercises -> AllExercisesComponent.create(navigator)
         Screen.BottomBar.AllTrainings -> AllTrainingsComponent.create(navigator)
-        Screen.BottomBar.Charts -> ChartsComponent.create(navigator)
         is Screen.Exercise -> ExerciseComponent.create(navigator, screen)
         is Screen.Training -> SingleTrainingComponent.create(navigator, screen)
         is Screen.LiveWorkout -> LiveWorkoutComponent.create(navigator, screen)

@@ -21,7 +21,6 @@ dependencies {
 
     implementation(project(":feature:exercise"))
     implementation(project(":feature:all-trainings"))
-    implementation(project(":feature:charts"))
     implementation(project(":feature:all-exercises"))
     implementation(project(":feature:single-training"))
     implementation(project(":feature:settings"))
