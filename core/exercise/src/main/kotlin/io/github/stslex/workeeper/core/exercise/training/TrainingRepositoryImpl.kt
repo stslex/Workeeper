@@ -143,6 +143,13 @@ class TrainingRepositoryImpl @Inject constructor(
     override fun observeArchivedCount(): Flow<Int> = dao.observeArchivedCount()
         .flowOn(ioDispatcher)
 
+    override fun observeRecentTemplates(
+        limit: Int,
+    ): Flow<List<TrainingListItem>> = dao
+        .observeRecentTemplates(limit)
+        .map { rows -> rows.map { row -> row.toData(labels = trainingTagDao.getTagNames(row.uuid)) } }
+        .flowOn(ioDispatcher)
+
     override suspend fun countSessionsUsing(
         trainingUuid: String,
     ): Int = withContext(ioDispatcher) {

@@ -46,6 +46,12 @@ interface TrainingRepository {
     ): Flow<PagingData<TrainingListItem>>
 
     /**
+     * Hot stream of recent template trainings, ordered by `lastSessionAt DESC` (trainings
+     * never used come last, sorted by name). Powers the Home training-picker bottom sheet.
+     */
+    fun observeRecentTemplates(limit: Int): Flow<List<TrainingListItem>>
+
+    /**
      * Bulk-archive a batch of trainings in a single transaction. Trainings with an active
      * (in-progress) session are excluded; the returned [BulkArchiveOutcome] reports how
      * many were archived and which got skipped.

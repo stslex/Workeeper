@@ -5,12 +5,22 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
 import io.github.stslex.workeeper.core.core.di.IODispatcher
+import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
+import io.github.stslex.workeeper.core.database.session.PerformedExerciseDao
 import io.github.stslex.workeeper.core.database.session.PerformedExerciseEntity
 import io.github.stslex.workeeper.core.database.session.SessionDao
 import io.github.stslex.workeeper.core.database.session.SessionEntity
 import io.github.stslex.workeeper.core.database.session.SessionStateEntity
+import io.github.stslex.workeeper.core.database.session.SetDao
+import io.github.stslex.workeeper.core.database.training.TrainingDao
+import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel.Companion.toData
+import io.github.stslex.workeeper.core.exercise.exercise.model.toData
 import io.github.stslex.workeeper.core.exercise.session.model.ActiveSessionInfo
+import io.github.stslex.workeeper.core.exercise.session.model.PerformedExerciseDetailDataModel
+import io.github.stslex.workeeper.core.exercise.session.model.RecentSessionDataModel
 import io.github.stslex.workeeper.core.exercise.session.model.SessionDataModel
+import io.github.stslex.workeeper.core.exercise.session.model.SessionDetailDataModel
 import io.github.stslex.workeeper.core.exercise.session.model.toData
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
@@ -21,10 +31,14 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.uuid.Uuid
 
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "LongParameterList")
 @Singleton
 internal class SessionRepositoryImpl @Inject constructor(
     private val dao: SessionDao,
+    private val performedExerciseDao: PerformedExerciseDao,
+    private val setDao: SetDao,
+    private val trainingDao: TrainingDao,
+    private val exerciseDao: ExerciseDao,
     @IODispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : SessionRepository {
 
@@ -81,6 +95,53 @@ internal class SessionRepositoryImpl @Inject constructor(
         .observeRecent(limit)
         .map { list -> list.map { it.toData() } }
         .flowOn(ioDispatcher)
+
+    override fun observeRecentWithStats(
+        limit: Int,
+    ): Flow<List<RecentSessionDataModel>> = dao
+        .observeRecentWithStats(limit)
+        .map { rows -> rows.map { it.toData() } }
+        .flowOn(ioDispatcher)
+
+    override suspend fun getSessionDetail(
+        sessionUuid: String,
+    ): SessionDetailDataModel? = withContext(ioDispatcher) {
+        val sessionId = Uuid.parse(sessionUuid)
+        val session = dao.getById(sessionId) ?: return@withContext null
+        val finishedAt = session.finishedAt ?: return@withContext null
+        val training = trainingDao.getById(session.trainingUuid) ?: return@withContext null
+        val performed = performedExerciseDao
+            .getBySession(sessionId)
+            .sortedBy { it.position }
+        val exerciseUuids = performed.map { it.exerciseUuid }.distinct()
+        val exerciseByUuid = exerciseDao
+            .getByUuids(exerciseUuids)
+            .associateBy { it.uuid }
+        val exercises = performed.map { row ->
+            PerformedExerciseDetailDataModel(
+                performedExerciseUuid = row.uuid.toString(),
+                exerciseUuid = row.exerciseUuid.toString(),
+                exerciseName = exerciseByUuid[row.exerciseUuid]?.name.orEmpty(),
+                exerciseType = exerciseByUuid[row.exerciseUuid]?.type?.toData()
+                    ?: ExerciseTypeDataModel.WEIGHTED,
+                position = row.position,
+                skipped = row.skipped,
+                sets = setDao
+                    .getByPerformedExercise(row.uuid)
+                    .sortedBy { it.position }
+                    .map { it.toData() },
+            )
+        }
+        SessionDetailDataModel(
+            sessionUuid = session.uuid.toString(),
+            trainingUuid = session.trainingUuid.toString(),
+            trainingName = training.name,
+            isAdhoc = training.isAdhoc,
+            startedAt = session.startedAt,
+            finishedAt = finishedAt,
+            exercises = exercises,
+        )
+    }
 
     override fun pagedFinished(): Flow<PagingData<SessionDataModel>> = Pager(
         config = pagingConfig,

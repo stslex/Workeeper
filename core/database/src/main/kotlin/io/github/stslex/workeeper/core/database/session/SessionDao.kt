@@ -59,6 +59,28 @@ interface SessionDao {
 
     @Query(
         """
+        SELECT s.uuid AS session_uuid,
+               s.training_uuid AS training_uuid,
+               t.name AS training_name,
+               t.is_adhoc AS is_adhoc,
+               s.started_at AS started_at,
+               s.finished_at AS finished_at,
+               (SELECT COUNT(*) FROM performed_exercise_table pe
+                  WHERE pe.session_uuid = s.uuid AND pe.skipped = 0) AS exercise_count,
+               (SELECT COUNT(*) FROM set_table st
+                  JOIN performed_exercise_table pe2 ON pe2.uuid = st.performed_exercise_uuid
+                  WHERE pe2.session_uuid = s.uuid) AS set_count
+        FROM session_table s
+        INNER JOIN training_table t ON t.uuid = s.training_uuid
+        WHERE s.state = 'FINISHED' AND s.finished_at IS NOT NULL
+        ORDER BY s.finished_at DESC
+        LIMIT :limit
+        """,
+    )
+    fun observeRecentWithStats(limit: Int): Flow<List<RecentSessionRow>>
+
+    @Query(
+        """
         SELECT * FROM session_table
         WHERE state = 'FINISHED'
         ORDER BY finished_at DESC

@@ -30,5 +30,6 @@ class RootComponentImpl(
         is Screen.LiveWorkout -> LiveWorkoutComponent.create(navigator, screen)
         Screen.Settings -> SettingsComponent.create(navigator)
         Screen.Archive -> ArchiveComponent.create(navigator)
+        is Screen.PastSession -> TODO("Wired in P6 once feature/past-session module exists")
     }
 }
