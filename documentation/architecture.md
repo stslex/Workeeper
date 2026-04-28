@@ -4,6 +4,11 @@ This document is the canonical reference for how the Workeeper codebase is laid 
 moving parts fit together: the module graph, the MVI contract, dependency injection, the data
 layer, navigation, build conventions, and naming.
 
+Architectural rules in this document are aspirational where the codebase doesn't yet
+match. Known violations live in [documentation/tech-debt.md](tech-debt.md) — they're
+not accepted as the right shape; they're tracked for cleanup. When you change code in
+a file listed there, fix the cited debt as part of the change and remove the entry.
+
 ## Module map
 
 The build is configured in `settings.gradle.kts`. Every module is included from there.
@@ -130,6 +135,12 @@ helpers. The feature owns a `<Name>HandlerStoreImpl` annotated `@ViewModelScoped
 `BaseHandlerStore<State, Action, Event>` and is passed into the Store via DI. Example:
 `feature/exercise/src/main/kotlin/io/github/stslex/workeeper/feature/exercise/di/ExerciseHandlerStoreImpl.kt`.
 
+The interface includes `consumeOnMain(action)` (suspend) for cases where a handler
+needs to dispatch an `Action.Navigation.*` from a background coroutine. It wraps
+the `consume` call in `withContext(immediateDispatcher)`, ensuring `Navigator`
+invocations land on the main thread. See [Navigation flow → Dispatching navigation
+from background coroutines](#dispatching-navigation-from-background-coroutines).
+
 ### `StoreProcessor`
 
 Compose talks to MVI through `StoreProcessor` (see
@@ -169,6 +180,26 @@ Briefly:
   dispatch, scroll commands. **Navigation is never an Event.** Navigation flows through
   `Action.Navigation` consumed by the feature's `NavigationHandler` (see [Navigation
   flow](#navigation-flow) below).
+- **Error events carry enum types, not raw strings.** When a handler needs to surface a
+  user-visible error (e.g. `Event.ShowError`), the event payload is a feature-local enum
+  whose variants reference a `string` resource:
+
+  ```kotlin
+  // In feature/<n>/.../mvi/model/ErrorType.kt
+  internal enum class ErrorType(val msgRes: Int) {
+      InvalidReps(R.string.feature_<n>_error_invalid_reps),
+      SaveFailed(R.string.feature_<n>_error_save_failed),
+      // ...
+  }
+
+  // In Store.Event:
+  data class ShowError(val type: ErrorType) : Event
+  ```
+
+  This keeps handlers free of localized strings, gives the compiler exhaustive `when`
+  coverage in the graph, and ensures every error path is localized for free. Raw
+  `String message` payloads on error events are forbidden — they bypass localization
+  and skip the compiler check.
 
 ## Per-feature MVI layout
 
@@ -413,6 +444,52 @@ exists in `core/ui/navigation/Navigator.kt` so the root `App.kt` can provide a s
 
 Reference implementation: `feature/all-trainings/ui/AllTrainingsGraph.kt` (graph) and
 `feature/all-trainings/mvi/handler/NavigationHandler.kt` (handler).
+
+#### Dispatching navigation from background coroutines
+
+`NavigationHandler.invoke` calls into `Navigator` which touches `NavController` —
+that work must happen on the main thread. When a click handler emits a navigation
+action from inside a background coroutine (e.g. `repository.archive` success
+callback), it must dispatch to main before calling `consume`.
+
+The `HandlerStore` interface exposes `consumeOnMain(action)` exactly for this:
+
+```kotlin
+// In HandlerStore.kt:
+suspend fun consumeOnMain(action: A)
+
+// In BaseHandlerStore.kt:
+override suspend fun consumeOnMain(action: A) {
+    withContext(store.scope.immediateDispatcher) {
+        store.consume(action)
+    }
+}
+```
+
+Use it from any handler that emits `Action.Navigation.*` after a suspend call:
+
+```kotlin
+// CORRECT — use consumeOnMain for navigation from background
+fun processArchiveClick(uuid: String) {
+    launch(defaultDispatcher) {
+        interactor.archive(uuid)
+        consumeOnMain(Action.Navigation.Back)
+    }
+}
+
+// WRONG — raw consume from background dispatcher will crash NavController
+fun processArchiveClick(uuid: String) {
+    launch(defaultDispatcher) {
+        interactor.archive(uuid)
+        consume(Action.Navigation.Back)  // background → main thread violation
+    }
+}
+```
+
+Plain `consume` is still correct from main-dispatched contexts (UI clicks routed
+through `processor.consume`, callbacks already on main, etc). The rule: any
+`consume(Action.Navigation.*)` invocation that originates from a coroutine
+launched on a non-main dispatcher must use `consumeOnMain`.
 
 ### Back gesture handling
 
@@ -840,6 +917,61 @@ Why this matters:
 This applies to every `@Composable` parameter in the codebase — at no point should a
 domain `*DataModel` cross into a kit component or remain in a handler's State after the
 load boundary.
+
+### Pre-formatted UI fields
+
+Display text — durations, relative timestamps, decimal weight rendering, joined
+label lists, summary strings — is computed in the handler/mapper layer and stored
+on State as a ready-to-render String. Composables render the string; they do not
+shape it.
+
+```kotlin
+// CORRECT — state carries pre-formatted text
+@Stable
+data class State(
+    val startedAt: Long,
+    val nowMillis: Long,
+    val elapsedDurationLabel: String,         // "12:34", computed in CommonHandler.TimerTick
+    val tagsLabel: String,                    // "Push · Upper body", computed in mapper
+    val planSummaryLabel: String,             // "100×5 · 100×5 · 102.5×5", computed in mapper
+)
+
+@Composable
+fun WorkoutHeader(state: State) {
+    Text(state.elapsedDurationLabel)         // just renders
+}
+
+// WRONG — Composable derives display text every recomposition
+@Composable
+fun WorkoutHeader(startedAt: Long, nowMillis: Long) {
+    val label = formatElapsedDuration(nowMillis - startedAt)   // recomputed on every recompose
+    Text(label)
+}
+```
+
+Why:
+
+1. **Recomposition cost.** Formatting is non-trivial — locale lookups, allocations,
+   number-to-string conversion. Pulling it out of the render path is free perf.
+2. **Locale-correctness.** Locale-sensitive shaping (durations, decimal separators,
+   relative time, plurals) must run before Compose render so the result respects
+   the user's locale at the moment of shaping. Doing it in a Composable risks
+   stale locale snapshots and bypasses our localization layer.
+3. **Testability.** A mapper that produces "12:34" from `(startedAt, now)` is
+   trivially unit-testable. A Composable that does the same is testable only
+   through screenshot tests or instrumentation.
+4. **Stateless components stay stateless.** A Composable that derives display
+   text is implicitly stateful in time (`now` changes). Pulling the derivation
+   into the State machine restores statelessness.
+
+The shaping helper itself lives wherever it's most reusable — `core/core/.../time/`
+for time/duration formatters, feature-local mappers for feature-specific
+summaries. It's invoked by handlers (e.g. `CommonHandler.TimerTick` updates
+`elapsedDurationLabel` once per second) or by mappers (e.g. when
+`PerformedExerciseSnapshot` is mapped to `LiveExerciseUiModel`).
+
+When debt accumulates (Composables still doing shaping), tracked in
+[documentation/tech-debt.md](tech-debt.md) "UI Mapping Boundary Debt".
 
 ### Specialized UI modules — `core/ui/<specialized>`
 
