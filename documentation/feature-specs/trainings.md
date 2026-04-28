@@ -1,5 +1,7 @@
 # Feature spec — Trainings (Stage 5.3)
 
+**Status:** Merged in Stage 5.3 (PR #62). For current architecture, see [architecture.md](../architecture.md). This spec is preserved as a historical record of the planning state.
+
 This is the Stage 5.3 feature spec — the third v1 feature
 implementation after Settings + Archive (Stage 5.1) and Exercises
 (Stage 5.2). It builds on:

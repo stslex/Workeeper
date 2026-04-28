@@ -1,5 +1,7 @@
 # Feature spec — Live workout (Stage 5.4)
 
+**Status:** Merged in Stage 5.4 (PR #63). For current architecture, see [architecture.md](../architecture.md). This spec is preserved as a historical record of the planning state.
+
 This is the Stage 5.4 feature spec — the fourth v1 feature implementation, after Settings + Archive (5.1), Exercises (5.2), Trainings (5.3). It builds on:
 
 - [product.md](../product.md)
@@ -864,4 +866,3 @@ Stage 5.3 must be in dev before this Code session runs. Specifically:
 - `PlanUpdateRule` exists.
 
 Verify with `grep -r "AppPlanEditor" --include="*.kt"` returns hits in `core/ui/plan-editor`.
-

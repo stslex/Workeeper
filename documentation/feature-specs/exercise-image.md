@@ -1,5 +1,7 @@
 # Feature spec — Exercise image attachment (v1.5)
 
+**Status:** Merged in Stage v1.5 (PR #71). For current architecture, see [architecture.md](../architecture.md). This spec is preserved as a historical record of the planning state.
+
 This is the v1.5 spec — a fast follow-up after v1 closure. The first feature outside the v1 bottom-bar shape: Exercise image attachment. References:
 
 - [product.md](../product.md) — `v1.5` feature 14 (Exercise image attachment) + Open questions section ("Image storage strategy")

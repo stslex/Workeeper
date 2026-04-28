@@ -1,5 +1,7 @@
 # Feature spec — Settings + Archive
 
+**Status:** Merged in Stage 5.1 (PR #57). For current architecture, see [architecture.md](../architecture.md). This spec is preserved as a historical record of the planning state.
+
 This is the Stage 5.1 feature spec, the first v1 feature
 implementation. It builds on the foundation set by
 [product.md](../product.md), [ux-architecture.md](../ux-architecture.md),

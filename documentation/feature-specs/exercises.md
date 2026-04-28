@@ -1,5 +1,7 @@
 # Feature spec — Exercises
 
+**Status:** Merged in Stage 5.2 (PR #59). For current architecture, see [architecture.md](../architecture.md). This spec is preserved as a historical record of the planning state.
+
 This is the Stage 5.2 feature spec — second v1 feature implementation
 after Settings + Archive. It builds on:
 
