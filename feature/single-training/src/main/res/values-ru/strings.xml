@@ -18,7 +18,8 @@
     <string name="feature_training_detail_permanent_delete_impact">История не пострадает</string>
     <string name="feature_training_detail_permanent_delete_confirm">Удалить</string>
     <string name="feature_training_detail_other_session_active_format">Активна сессия «%1$s». Завершите её сначала.</string>
-    <string name="feature_training_detail_live_workout_pending">Live-тренировка появится в следующем обновлении</string>
+    <string name="feature_training_detail_conflict_unnamed">Тренировка</string>
+    <string name="feature_training_detail_conflict_progress_format">%1$d из %2$d упражнений выполнено</string>
     <string name="feature_training_detail_chevron">Открыть</string>
     <string name="feature_training_detail_active_pill">Активна</string>
 

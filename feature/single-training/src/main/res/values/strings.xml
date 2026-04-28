@@ -19,7 +19,8 @@
     <string name="feature_training_detail_permanent_delete_impact">No history affected</string>
     <string name="feature_training_detail_permanent_delete_confirm">Delete</string>
     <string name="feature_training_detail_other_session_active_format">Active session for ‘%1$s’ is in progress. Finish it first.</string>
-    <string name="feature_training_detail_live_workout_pending">Live workout coming in next stage</string>
+    <string name="feature_training_detail_conflict_unnamed">Workout</string>
+    <string name="feature_training_detail_conflict_progress_format" tools:ignore="PluralsCandidate">%1$d of %2$d exercises done</string>
     <string name="feature_training_detail_chevron">Open</string>
     <string name="feature_training_detail_active_pill">Active</string>
 

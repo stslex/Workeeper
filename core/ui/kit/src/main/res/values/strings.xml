@@ -20,4 +20,14 @@
     <string name="core_ui_kit_plan_editor_set_type_failure">Failure</string>
     <string name="core_ui_kit_plan_editor_set_type_drop" tools:ignore="UnusedResources">Drop</string>
     <string name="core_ui_kit_plan_editor_empty_hint">No sets yet — tap “Add set” to start the plan.</string>
+
+    <string name="core_ui_kit_active_session_conflict_title">Active session in progress</string>
+    <string name="core_ui_kit_active_session_conflict_body_format">%1$s — %2$s</string>
+    <string name="core_ui_kit_active_session_conflict_warning">Sets logged so far will be lost if deleted.</string>
+    <string name="core_ui_kit_active_session_conflict_resume">Resume</string>
+    <string name="core_ui_kit_active_session_conflict_delete_and_start">Delete &amp; start new</string>
+
+    <string name="core_ui_kit_discard_session_confirm_title_format">Delete %1$s?</string>
+    <string name="core_ui_kit_discard_session_confirm_warning">This session will be deleted. Cannot be undone.</string>
+    <string name="core_ui_kit_discard_session_confirm_delete">Delete</string>
 </resources>

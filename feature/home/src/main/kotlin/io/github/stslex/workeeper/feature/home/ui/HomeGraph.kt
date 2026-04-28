@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.feature.home.ui
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.navigation.NavGraphBuilder
+import io.github.stslex.workeeper.core.ui.kit.components.dialog.ActiveSessionConflictDialog
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
 import io.github.stslex.workeeper.feature.home.di.HomeFeature
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Action
@@ -20,6 +21,7 @@ fun NavGraphBuilder.homeGraph(
         processor.Handle { event ->
             when (event) {
                 is Event.HapticClick -> haptic.performHapticFeedback(event.type)
+                is Event.ShowActiveSessionConflict -> Unit // rendered from state.pendingConflict
             }
         }
 
@@ -38,6 +40,16 @@ fun NavGraphBuilder.homeGraph(
                 },
                 onSeeAll = { processor.consume(Action.Click.OnPickerSeeAllClick) },
                 onDismiss = { processor.consume(Action.Click.OnPickerDismiss) },
+            )
+        }
+
+        state.pendingConflict?.let { info ->
+            ActiveSessionConflictDialog(
+                activeSessionName = info.activeSessionName,
+                progressLabel = info.progressLabel,
+                onResume = { processor.consume(Action.Click.OnConflictResume) },
+                onDeleteAndStartNew = { processor.consume(Action.Click.OnConflictDeleteAndStart) },
+                onCancel = { processor.consume(Action.Click.OnConflictDismiss) },
             )
         }
     }

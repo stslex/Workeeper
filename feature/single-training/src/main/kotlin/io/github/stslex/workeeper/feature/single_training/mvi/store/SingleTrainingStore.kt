@@ -38,6 +38,7 @@ internal interface SingleTrainingStore : Store<State, Action, Event> {
         val originalSnapshot: Snapshot?,
         val planEditorTarget: PlanEditorTarget?,
         val pickerState: PickerState,
+        val pendingConflict: ConflictInfo?,
         val isLoading: Boolean,
     ) : Store.State {
 
@@ -116,6 +117,18 @@ internal interface SingleTrainingStore : Store<State, Action, Event> {
             ) : PickerState
         }
 
+        /**
+         * In-flight Active session conflict awaiting user choice. Carried in State so the
+         * dialog survives configuration changes and the resume/delete branch knows which
+         * session to act on.
+         */
+        @Stable
+        data class ConflictInfo(
+            val sessionUuid: String,
+            val activeSessionName: String,
+            val progressLabel: String,
+        )
+
         companion object {
 
             fun create(uuid: String?): State = State(
@@ -134,6 +147,7 @@ internal interface SingleTrainingStore : Store<State, Action, Event> {
                 originalSnapshot = null,
                 planEditorTarget = null,
                 pickerState = PickerState.Closed,
+                pendingConflict = null,
                 isLoading = uuid != null,
             )
         }
@@ -164,6 +178,12 @@ internal interface SingleTrainingStore : Store<State, Action, Event> {
             data object OnPermanentDeleteDismiss : Click
 
             data object OnStartSessionClick : Click
+
+            data object OnConflictResume : Click
+
+            data object OnConflictDeleteAndStart : Click
+
+            data object OnConflictDismiss : Click
 
             data class OnExerciseRowClick(val exerciseUuid: String) : Click
 
@@ -246,9 +266,10 @@ internal interface SingleTrainingStore : Store<State, Action, Event> {
             val confirmLabel: String,
         ) : Event
 
-        data class ShowLiveWorkoutPending(val message: String) : Event
-
-        data class ShowOtherSessionActive(val message: String) : Event
+        data class ShowActiveSessionConflict(
+            val activeSessionName: String,
+            val progressLabel: String,
+        ) : Event
 
         data class ShowSaveError(val message: String) : Event
     }

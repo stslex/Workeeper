@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.feature.single_training.domain
 
 import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
+import io.github.stslex.workeeper.core.exercise.session.SessionConflictResolver
 import io.github.stslex.workeeper.core.exercise.session.model.ActiveSessionInfo
 import io.github.stslex.workeeper.core.exercise.session.model.SessionDataModel
 import io.github.stslex.workeeper.core.exercise.tags.model.TagDataModel
@@ -45,6 +46,17 @@ internal interface SingleTrainingInteractor {
     ): List<PickerExercise>
 
     suspend fun resolveExercises(uuids: List<String>): List<PickerExercise>
+
+    /**
+     * Resolves the at-most-one-active-session invariant for the Start session button. A
+     * conflict only arises when an active session belongs to a *different* training; the
+     * same-training case silently resumes (the user implicitly chose to continue).
+     */
+    suspend fun resolveStartSessionConflict(
+        requestedTrainingUuid: String,
+    ): SessionConflictResolver.Resolution
+
+    suspend fun deleteSession(sessionUuid: String)
 
     /**
      * Picker projection: an ExerciseDataModel plus the labels denormalized through the

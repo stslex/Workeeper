@@ -13,7 +13,18 @@ Conventions:
 
 ## [Unreleased]
 
-(Nothing yet — v2 planning starts here.)
+### Added
+- Track now CTA opens Live workout with an ad-hoc training (was a stub).
+- Default plan surface in Exercise detail read mode.
+- Active session conflict modal across all Live-workout entry points.
+- Delete session option in Live workout overflow with confirm dialog.
+
+### Changed
+- finishSession now runs as a single SQL transaction; manual rollback removed.
+
+### Tests
+- Smoke UI tests for all v1 list and detail screens.
+- DAO unit tests for new aggregation queries (PR, best volume, history-by-exercise) and pre-existing untested queries (`pagedActiveWithStats`, `pagedActiveWithStatsByTags`, `observeAnyActiveSession`).
 
 ## [1.5.0] — Image attachment — TBD
 

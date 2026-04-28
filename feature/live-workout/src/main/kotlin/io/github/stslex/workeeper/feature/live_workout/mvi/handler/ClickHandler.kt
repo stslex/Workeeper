@@ -55,6 +55,9 @@ internal class ClickHandler @Inject constructor(
             Action.Click.OnCancelSessionClick -> processCancelClick()
             Action.Click.OnCancelSessionConfirm -> processCancelConfirm()
             Action.Click.OnCancelSessionDismiss -> processCancelDismiss()
+            Action.Click.OnDeleteSessionMenuClick -> processDeleteSessionMenuClick()
+            Action.Click.OnDeleteSessionConfirm -> processDeleteSessionConfirm()
+            Action.Click.OnDeleteSessionDismiss -> processDeleteSessionDismiss()
             is Action.Click.OnExerciseHeaderClick -> processExerciseHeaderClick(action)
             Action.Click.OnBackClick -> processBackClick()
         }
@@ -336,6 +339,30 @@ internal class ClickHandler @Inject constructor(
 
     private fun processCancelDismiss() {
         updateState { it.copy(pendingCancelConfirm = false) }
+    }
+
+    private fun processDeleteSessionMenuClick() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updateState { it.copy(deleteDialogVisible = true) }
+    }
+
+    private fun processDeleteSessionConfirm() {
+        val sessionUuid = state.value.sessionUuid ?: run {
+            updateState { it.copy(deleteDialogVisible = false) }
+            return
+        }
+        sendEvent(Event.HapticImpact(HapticFeedbackType.LongPress))
+        updateState { it.copy(deleteDialogVisible = false) }
+        launch(
+            onSuccess = { consumeOnMain(Action.Navigation.Back) },
+            onError = { _ -> sendError(ErrorType.CancelFailed) },
+        ) {
+            interactor.cancelSession(sessionUuid)
+        }
+    }
+
+    private fun processDeleteSessionDismiss() {
+        updateState { it.copy(deleteDialogVisible = false) }
     }
 
     private fun processExerciseHeaderClick(action: Action.Click.OnExerciseHeaderClick) {

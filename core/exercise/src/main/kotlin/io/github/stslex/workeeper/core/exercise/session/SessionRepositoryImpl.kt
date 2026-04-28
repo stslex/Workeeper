@@ -7,7 +7,9 @@ import androidx.paging.map
 import androidx.room.withTransaction
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.database.AppDatabase
+import io.github.stslex.workeeper.core.database.converters.PlanSetsConverter
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
+import io.github.stslex.workeeper.core.database.session.HistoryByExerciseRow
 import io.github.stslex.workeeper.core.database.session.PerformedExerciseDao
 import io.github.stslex.workeeper.core.database.session.PerformedExerciseEntity
 import io.github.stslex.workeeper.core.database.session.SessionDao
@@ -15,8 +17,12 @@ import io.github.stslex.workeeper.core.database.session.SessionEntity
 import io.github.stslex.workeeper.core.database.session.SessionStateEntity
 import io.github.stslex.workeeper.core.database.session.SetDao
 import io.github.stslex.workeeper.core.database.training.TrainingDao
+import io.github.stslex.workeeper.core.database.training.TrainingExerciseDao
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel.Companion.toData
+import io.github.stslex.workeeper.core.exercise.exercise.model.HistoryEntry
+import io.github.stslex.workeeper.core.exercise.exercise.model.SetSummary
+import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType.Companion.toData
 import io.github.stslex.workeeper.core.exercise.exercise.model.toData
 import io.github.stslex.workeeper.core.exercise.session.model.ActiveSessionInfo
 import io.github.stslex.workeeper.core.exercise.session.model.PerformedExerciseDetailDataModel
@@ -42,6 +48,7 @@ internal class SessionRepositoryImpl @Inject constructor(
     private val setDao: SetDao,
     private val trainingDao: TrainingDao,
     private val exerciseDao: ExerciseDao,
+    private val trainingExerciseDao: TrainingExerciseDao,
     @IODispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : SessionRepository {
 
@@ -226,11 +233,100 @@ internal class SessionRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun finishSessionAtomic(
+        sessionUuid: String,
+        finishedAt: Long,
+        planUpdates: List<PlanUpdate>,
+    ): Boolean = withContext(ioDispatcher) {
+        database.withTransaction {
+            val current = dao.getById(Uuid.parse(sessionUuid))
+                ?: return@withTransaction false
+            planUpdates.forEach { update ->
+                val planJson = PlanSetsConverter.toJson(update.newPlan)
+                if (update.isAdhoc) {
+                    exerciseDao.updateLastAdhocSets(
+                        uuid = Uuid.parse(update.exerciseUuid),
+                        lastAdhocSets = planJson,
+                    )
+                } else {
+                    trainingExerciseDao.updatePlanSets(
+                        trainingUuid = Uuid.parse(update.trainingUuid),
+                        exerciseUuid = Uuid.parse(update.exerciseUuid),
+                        planSets = planJson,
+                    )
+                }
+            }
+            dao.update(
+                current.copy(
+                    state = SessionStateEntity.FINISHED,
+                    finishedAt = finishedAt,
+                ),
+            )
+            true
+        }
+    }
+
     override suspend fun deleteSession(uuid: String) {
         withContext(ioDispatcher) {
             dao.delete(Uuid.parse(uuid))
         }
     }
+
+    override fun pagedHistoryByExercise(
+        exerciseUuid: String,
+    ): Flow<PagingData<HistoryEntry>> = Pager(
+        config = pagingConfig,
+        pagingSourceFactory = { dao.pagedHistoryByExercise(Uuid.parse(exerciseUuid)) },
+    ).flow
+        .map { pagingData -> pagingData.map { row -> row.toSingleEntry() } }
+        .flowOn(ioDispatcher)
+
+    override suspend fun getHistoryByExercise(
+        exerciseUuid: String,
+    ): List<HistoryEntry> = withContext(ioDispatcher) {
+        dao.getHistoryByExercise(Uuid.parse(exerciseUuid)).groupBySession()
+    }
+
+    private fun List<HistoryByExerciseRow>.groupBySession(): List<HistoryEntry> = this
+        .groupBy { it.sessionUuid }
+        .map { (_, rows) ->
+            val first = rows.first()
+            HistoryEntry(
+                sessionUuid = first.sessionUuid.toString(),
+                finishedAt = first.finishedAt,
+                trainingName = first.trainingName,
+                isAdhoc = first.isAdhoc,
+                sets = rows
+                    .sortedBy { it.position }
+                    .map { row ->
+                        SetSummary(
+                            weight = row.weight,
+                            reps = row.reps,
+                            type = row.setType.toData(),
+                        )
+                    },
+            )
+        }
+        .sortedByDescending { it.finishedAt }
+
+    /**
+     * The PagingSource emits one row per (session, set). For chart-style consumers a
+     * single-set entry is enough; the recent-history grid uses [getHistoryByExercise]
+     * (one-shot, grouped) to render multi-set summaries per session.
+     */
+    private fun HistoryByExerciseRow.toSingleEntry(): HistoryEntry = HistoryEntry(
+        sessionUuid = sessionUuid.toString(),
+        finishedAt = finishedAt,
+        trainingName = trainingName,
+        isAdhoc = isAdhoc,
+        sets = listOf(
+            SetSummary(
+                weight = weight,
+                reps = reps,
+                type = setType.toData(),
+            ),
+        ),
+    )
 
     companion object {
 

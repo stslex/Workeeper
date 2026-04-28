@@ -5,6 +5,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.core.exercise.session.SessionConflictResolver
 import io.github.stslex.workeeper.core.exercise.training.TrainingChangeDataModel
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel.Companion.toUi
@@ -45,6 +46,9 @@ internal class ClickHandler @Inject constructor(
             Action.Click.OnPermanentDeleteConfirm -> processPermanentDeleteConfirm()
             Action.Click.OnPermanentDeleteDismiss -> Unit
             Action.Click.OnStartSessionClick -> processStartSession()
+            Action.Click.OnConflictResume -> processConflictResume()
+            Action.Click.OnConflictDeleteAndStart -> processConflictDeleteAndStart()
+            Action.Click.OnConflictDismiss -> processConflictDismiss()
             is Action.Click.OnExerciseRowClick -> processExerciseRowClick(action)
             is Action.Click.OnPastSessionClick -> processPastSessionClick(action)
             Action.Click.OnSaveClick -> processSaveClick()
@@ -160,25 +164,61 @@ internal class ClickHandler @Inject constructor(
     private fun processStartSession() {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         val current = state.value
-        val active = current.activeSession
-        if (active != null && active.trainingUuid != current.uuid) {
-            sendEvent(
-                Event.ShowOtherSessionActive(
-                    message = resourceWrapper.getString(
-                        R.string.feature_training_detail_other_session_active_format,
-                        current.name,
-                    ),
-                ),
-            )
-            return
+        val trainingUuid = current.uuid ?: return
+        launch {
+            when (val resolution = interactor.resolveStartSessionConflict(trainingUuid)) {
+                SessionConflictResolver.Resolution.ProceedFresh -> consumeOnMain(
+                    Action.Navigation.OpenLiveWorkout(sessionUuid = ""),
+                )
+
+                is SessionConflictResolver.Resolution.SilentResume -> consumeOnMain(
+                    Action.Navigation.OpenLiveWorkout(sessionUuid = resolution.sessionUuid),
+                )
+
+                is SessionConflictResolver.Resolution.NeedsUserChoice -> {
+                    val info = State.ConflictInfo(
+                        sessionUuid = resolution.active.sessionUuid,
+                        activeSessionName = current.name.takeIf { it.isNotBlank() }
+                            ?: resourceWrapper.getString(
+                                R.string.feature_training_detail_conflict_unnamed,
+                            ),
+                        progressLabel = resourceWrapper.getString(
+                            R.string.feature_training_detail_conflict_progress_format,
+                            0,
+                            0,
+                        ),
+                    )
+                    updateStateImmediate { it.copy(pendingConflict = info) }
+                    sendEvent(
+                        Event.ShowActiveSessionConflict(
+                            activeSessionName = info.activeSessionName,
+                            progressLabel = info.progressLabel,
+                        ),
+                    )
+                }
+            }
         }
-        // Resume an in-progress session for this training, or pass an empty uuid so
-        // the Live workout flow creates a fresh one when it loads.
-        consume(
-            Action.Navigation.OpenLiveWorkout(
-                sessionUuid = active?.sessionUuid.orEmpty(),
-            ),
-        )
+    }
+
+    private fun processConflictResume() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        val info = state.value.pendingConflict ?: return
+        updateState { it.copy(pendingConflict = null) }
+        consume(Action.Navigation.OpenLiveWorkout(sessionUuid = info.sessionUuid))
+    }
+
+    private fun processConflictDeleteAndStart() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.LongPress))
+        val info = state.value.pendingConflict ?: return
+        updateState { it.copy(pendingConflict = null) }
+        launch {
+            interactor.deleteSession(info.sessionUuid)
+            consumeOnMain(Action.Navigation.OpenLiveWorkout(sessionUuid = ""))
+        }
+    }
+
+    private fun processConflictDismiss() {
+        updateState { it.copy(pendingConflict = null) }
     }
 
     private fun processExerciseRowClick(action: Action.Click.OnExerciseRowClick) {
