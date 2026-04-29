@@ -30,12 +30,12 @@ suspend fun <T, R> Collection<T>.asyncMapIndexed(
 suspend fun <T> asyncScope(
     context: CoroutineContext = EmptyCoroutineContext,
     start: CoroutineStart = CoroutineStart.DEFAULT,
-    block: suspend CoroutineScope.() -> T
+    block: suspend CoroutineScope.() -> T,
 ): Deferred<T> = coroutineScope {
     async(
         context = context,
         start = start,
-        block = block
+        block = block,
     )
 }
 

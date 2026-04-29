@@ -225,7 +225,7 @@ class TrainingRepositoryImpl @Inject constructor(
             tags.map { tag ->
                 TrainingTagEntity(
                     trainingUuid = trainingUuid,
-                    tagUuid = tag.uuid
+                    tagUuid = tag.uuid,
                 )
             },
         )
