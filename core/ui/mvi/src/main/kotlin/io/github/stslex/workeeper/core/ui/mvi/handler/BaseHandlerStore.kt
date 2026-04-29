@@ -1,13 +1,15 @@
 package io.github.stslex.workeeper.core.ui.mvi.handler
 
-import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScope
 import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.ui.mvi.Store.Action
 import io.github.stslex.workeeper.core.ui.mvi.Store.Event
 import io.github.stslex.workeeper.core.ui.mvi.Store.State
 import io.github.stslex.workeeper.core.ui.mvi.store.StoreConsumer
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.withContext
 
 open class BaseHandlerStore<S : State, A : Action, E : Event> :
     HandlerStore<S, A, E>,
@@ -26,9 +28,6 @@ open class BaseHandlerStore<S : State, A : Action, E : Event> :
     override val logger: Logger
         get() = store.logger
 
-    override val scope: AppCoroutineScope
-        get() = store.scope
-
     override fun sendEvent(event: E) {
         store.sendEvent(event)
     }
@@ -38,9 +37,7 @@ open class BaseHandlerStore<S : State, A : Action, E : Event> :
     }
 
     override suspend fun consumeOnMain(action: A) {
-        withContext(store.scope.immediateDispatcher) {
-            store.consume(action)
-        }
+        store.consumeOnMain(action)
     }
 
     override fun updateState(update: (S) -> S) {
@@ -62,4 +59,31 @@ open class BaseHandlerStore<S : State, A : Action, E : Event> :
     override fun clearStore() {
         _store = null
     }
+
+    override fun <T> launch(
+        onError: suspend (Throwable) -> Unit,
+        onSuccess: suspend CoroutineScope.(T) -> Unit,
+        workDispatcher: CoroutineDispatcher?,
+        eachDispatcher: CoroutineDispatcher?,
+        action: suspend CoroutineScope.() -> T,
+    ): Job = store.launch(
+        onError = onError,
+        onSuccess = onSuccess,
+        workDispatcher = workDispatcher,
+        eachDispatcher = eachDispatcher,
+        action = action,
+    )
+
+    override fun <T> Flow<T>.launch(
+        onError: suspend (cause: Throwable) -> Unit,
+        workDispatcher: CoroutineDispatcher?,
+        eachDispatcher: CoroutineDispatcher?,
+        each: suspend (T) -> Unit,
+    ): Job = store.launch(
+        flow = this,
+        onError = onError,
+        workDispatcher = workDispatcher,
+        eachDispatcher = eachDispatcher,
+        each = each,
+    )
 }

@@ -108,7 +108,6 @@ internal interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStor
 
         sealed interface Common : Action {
             data object Init : Common
-            data object TimerTick : Common
         }
     }
 

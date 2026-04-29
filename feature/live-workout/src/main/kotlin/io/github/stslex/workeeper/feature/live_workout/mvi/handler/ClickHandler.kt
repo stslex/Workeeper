@@ -310,7 +310,7 @@ internal class ClickHandler @Inject constructor(
     }
 
     private fun processCancelClick() {
-        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        sendEvent(Event.HapticClick(HapticFeedbackType.Confirm))
         updateState { it.copy(pendingCancelConfirm = true) }
         sendEvent(
             Event.ShowCancelSessionConfirmDialog(
@@ -385,6 +385,7 @@ internal class ClickHandler @Inject constructor(
                         expandedExerciseUuids = expandedNext.toImmutableSet(),
                     ).recomputeStatuses()
                 }
+
                 ExerciseStatusUiModel.CURRENT -> {
                     // Toggle expanded. If it's the auto-default (not yet in activeUuids),
                     // also promote to explicit-active so the user can later collapse it.
@@ -400,6 +401,7 @@ internal class ClickHandler @Inject constructor(
                         expandedExerciseUuids = expandedNext.toImmutableSet(),
                     )
                 }
+
                 ExerciseStatusUiModel.DONE -> {
                     val expandedNext = current.expandedExerciseUuids.toMutableSet()
                     if (!expandedNext.add(action.performedExerciseUuid)) {

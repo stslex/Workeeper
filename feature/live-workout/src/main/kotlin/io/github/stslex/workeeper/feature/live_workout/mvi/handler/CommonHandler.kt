@@ -9,11 +9,10 @@ import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStor
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.toState
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import javax.inject.Inject
-
-private const val TIMER_TICK_MS = 1000L
 
 @ViewModelScoped
 internal class CommonHandler @Inject constructor(
@@ -22,10 +21,11 @@ internal class CommonHandler @Inject constructor(
     store: LiveWorkoutHandlerStore,
 ) : Handler<Action.Common>, LiveWorkoutHandlerStore by store {
 
+    private var startTimerJob: Job? = null
+
     override fun invoke(action: Action.Common) {
         when (action) {
             Action.Common.Init -> processInit()
-            Action.Common.TimerTick -> processTimerTick()
         }
     }
 
@@ -57,29 +57,27 @@ internal class CommonHandler @Inject constructor(
         return interactor.startSession(trainingUuid)
     }
 
-    private fun processTimerTick() {
-        updateState { current ->
-            if (current.startedAt <= 0L) current
-            else {
-                val now = System.currentTimeMillis()
-                current.copy(
-                    nowMillis = now,
-                    elapsedDurationLabel = formatElapsedDuration(now - current.startedAt),
-                )
+    private fun startTimer() {
+        startTimerJob?.cancel()
+        startTimerJob = launch {
+            while (isActive) {
+                updateStateImmediate { current ->
+                    if (current.startedAt <= 0L) current
+                    else {
+                        val now = System.currentTimeMillis()
+                        current.copy(
+                            nowMillis = now,
+                            elapsedDurationLabel = formatElapsedDuration(now - current.startedAt),
+                        )
+                    }
+                }
+                delay(TIMER_TICK_MS)
             }
         }
     }
 
-    private fun startTimer() {
-        scope.launch(
-            workDispatcher = scope.defaultDispatcher,
-            eachDispatcher = scope.defaultDispatcher,
-            action = {
-                while (isActive) {
-                    delay(TIMER_TICK_MS)
-                    consume(Action.Common.TimerTick)
-                }
-            },
-        )
+    companion object {
+
+        private const val TIMER_TICK_MS = 1000L
     }
 }

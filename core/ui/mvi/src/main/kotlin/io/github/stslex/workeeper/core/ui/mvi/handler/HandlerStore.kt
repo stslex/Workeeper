@@ -1,6 +1,5 @@
 package io.github.stslex.workeeper.core.ui.mvi.handler
 
-import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScope
 import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.core.ui.mvi.Store.Event
@@ -28,8 +27,6 @@ interface HandlerStore<S : State, A : Store.Action, in E : Event> {
 
     val logger: Logger
 
-    val scope: AppCoroutineScope
-
     fun sendEvent(event: E)
 
     fun consume(action: A)
@@ -50,20 +47,13 @@ interface HandlerStore<S : State, A : Store.Action, in E : Event> {
      * @return Job
      * @see Job
      * */
-    // todo -> refactor for better testing
     fun <T> launch(
         onError: suspend (Throwable) -> Unit = {},
         onSuccess: suspend CoroutineScope.(T) -> Unit = {},
-        workDispatcher: CoroutineDispatcher = scope.defaultDispatcher,
-        eachDispatcher: CoroutineDispatcher = scope.defaultDispatcher,
+        workDispatcher: CoroutineDispatcher? = null,
+        eachDispatcher: CoroutineDispatcher? = null,
         action: suspend CoroutineScope.() -> T,
-    ): Job = scope.launch(
-        onError = onError,
-        onSuccess = onSuccess,
-        workDispatcher = workDispatcher,
-        eachDispatcher = eachDispatcher,
-        action = action,
-    )
+    ): Job
 
     /**
      * Launches a flow and collects it in the screenModelScope. The flow is collected on the default dispatcher.
@@ -73,17 +63,10 @@ interface HandlerStore<S : State, A : Store.Action, in E : Event> {
      * @see Flow
      * @see Job
      * */
-    // todo -> refactor for better testing
     fun <T> Flow<T>.launch(
         onError: suspend (cause: Throwable) -> Unit = {},
-        workDispatcher: CoroutineDispatcher = scope.defaultDispatcher,
-        eachDispatcher: CoroutineDispatcher = scope.defaultDispatcher,
+        workDispatcher: CoroutineDispatcher? = null,
+        eachDispatcher: CoroutineDispatcher? = null,
         each: suspend (T) -> Unit,
-    ): Job = scope.launch(
-        flow = this,
-        onError = onError,
-        workDispatcher = workDispatcher,
-        eachDispatcher = eachDispatcher,
-        each = each,
-    )
+    ): Job
 }

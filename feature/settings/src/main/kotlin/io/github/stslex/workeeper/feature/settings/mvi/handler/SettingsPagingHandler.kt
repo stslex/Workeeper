@@ -21,7 +21,7 @@ internal class SettingsPagingHandler @Inject constructor(
     }
 
     private fun observeTheme() {
-        scope.launch(interactor.observeThemeMode()) { mode ->
+        interactor.observeThemeMode().launch { mode ->
             updateStateImmediate { it.copy(themeMode = mode) }
         }
     }

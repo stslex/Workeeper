@@ -41,7 +41,11 @@ fun NavGraphBuilder.singleTrainingsGraph(
         val discardDismiss = stringResource(R.string.feature_training_edit_discard_dismiss)
 
         var showDiscardDialog by remember { mutableStateOf(false) }
-        var permanentDeleteDialog by remember { mutableStateOf<Event.ShowPermanentDeleteConfirmDialog?>(null) }
+        var permanentDeleteDialog by remember {
+            mutableStateOf<Event.ShowPermanentDeleteConfirmDialog?>(
+                null,
+            )
+        }
 
         processor.Handle { event ->
             when (event) {

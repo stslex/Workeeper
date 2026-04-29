@@ -61,7 +61,7 @@ internal class CommonHandler @Inject constructor(
     }
 
     private fun observeTags() {
-        scope.launch(interactor.observeAvailableTags()) { tags ->
+        interactor.observeAvailableTags().launch { tags ->
             val mapped = tags.map { it.toUi() }.toImmutableList()
             updateStateImmediate { current -> current.copy(availableTags = mapped) }
         }
@@ -100,7 +100,7 @@ internal class CommonHandler @Inject constructor(
         val flow = typeFlow.flatMapLatest { type ->
             interactor.observePersonalRecord(uuid, type).map { record -> record to type }
         }
-        scope.launch(flow) { (record, type) ->
+        flow.launch { (record, type) ->
             val pr = record?.toUi(resourceWrapper, type.toUi())
             updateStateImmediate { current -> current.copy(personalRecord = pr) }
         }

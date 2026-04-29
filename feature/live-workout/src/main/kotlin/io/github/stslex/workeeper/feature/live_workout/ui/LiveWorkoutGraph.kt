@@ -2,13 +2,17 @@
 package io.github.stslex.workeeper.feature.live_workout.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.navigation.NavGraphBuilder
+import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
@@ -21,6 +25,7 @@ import io.github.stslex.workeeper.feature.live_workout.ui.components.FinishConfi
 
 @Suppress("LongMethod", "CyclomaticComplexMethod")
 fun NavGraphBuilder.liveWorkoutGraph(
+    sharedTransitionScope: SharedTransitionScope,
     modifier: Modifier = Modifier,
 ) {
     navComponentScreen(LiveWorkoutFeature) { processor ->
@@ -31,6 +36,7 @@ fun NavGraphBuilder.liveWorkoutGraph(
         var showFinishDialog by remember { mutableStateOf(false) }
 
         processor.Handle { event ->
+            Log.tag("MVI_STORE_LiveWorkout").i { "Received event: $event" }
             when (event) {
                 is Event.HapticClick -> haptic.performHapticFeedback(event.type)
                 is Event.HapticImpact -> haptic.performHapticFeedback(event.type)
@@ -64,6 +70,16 @@ fun NavGraphBuilder.liveWorkoutGraph(
             modifier = modifier,
             state = state,
             consume = processor::consume,
+            activeSessionBannerModifier = with(sharedTransitionScope) {
+                Modifier.sharedBounds(
+                    sharedContentState = sharedTransitionScope.rememberSharedContentState("activeSessionBanner"),
+                    animatedVisibilityScope = this@navComponentScreen,
+                    resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(
+                        ContentScale.FillBounds,
+                        Alignment.Center,
+                    ),
+                )
+            },
         )
 
         state.planEditorTarget?.let { target ->

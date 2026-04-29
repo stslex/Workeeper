@@ -5,8 +5,14 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
+import io.github.stslex.workeeper.core.core.coroutine.asyncForEach
+import io.github.stslex.workeeper.core.core.coroutine.asyncMap
+import io.github.stslex.workeeper.core.core.coroutine.asyncMapNotNull
+import io.github.stslex.workeeper.core.core.coroutine.asyncScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.images.ImageStorage
+import io.github.stslex.workeeper.core.core.utils.CommonExt.runIfNotNull
+import io.github.stslex.workeeper.core.database.common.DbTransition
 import io.github.stslex.workeeper.core.database.converters.PlanSetsConverter
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
 import io.github.stslex.workeeper.core.database.session.SessionDao
@@ -44,6 +50,7 @@ internal class ExerciseRepositoryImpl @Inject constructor(
     private val sessionDao: SessionDao,
     private val setDao: SetDao,
     private val imageStorage: ImageStorage,
+    private val transition: DbTransition,
     @IODispatcher private val bgDispatcher: CoroutineDispatcher,
 ) : ExerciseRepository {
 
@@ -79,17 +86,23 @@ internal class ExerciseRepositoryImpl @Inject constructor(
         loadLabels(Uuid.parse(exerciseUuid))
     }
 
-    override suspend fun saveItem(item: ExerciseChangeDataModel): SaveResult = withContext(bgDispatcher) {
+    override suspend fun saveItem(
+        item: ExerciseChangeDataModel,
+    ): SaveResult = transition {
         val entity = item.toEntity()
         try {
             if (item.uuid.toString().isBlank()) {
                 dao.insert(entity)
             } else {
                 val existing = dao.getById(entity.uuid)
-                if (existing == null) dao.insert(entity) else dao.update(entity)
+                if (existing == null) {
+                    dao.insert(entity)
+                } else {
+                    dao.update(entity)
+                }
             }
         } catch (_: SQLiteConstraintException) {
-            return@withContext SaveResult.DuplicateName
+            return@transition SaveResult.DuplicateName
         }
         syncLabels(entity.uuid, item.labels)
         SaveResult.Success
@@ -115,19 +128,18 @@ internal class ExerciseRepositoryImpl @Inject constructor(
     }
 
     override suspend fun clearWeightsFromAllPlansForExercise(exerciseUuid: String) {
-        // The clear is idempotent (already cleared = no-op), so a partial-failure
-        // recovery is safe to retry. Avoiding `withTransaction` keeps this module free
-        // of the room-ktx dep that core/database does not transitively expose.
-        withContext(bgDispatcher) {
+        transition {
             val parsed = Uuid.parse(exerciseUuid)
-            val exercise = dao.getById(parsed) ?: return@withContext
+            val exercise = dao.getById(parsed) ?: return@transition
             val adhoc = PlanSetsConverter.fromJson(exercise.lastAdhocSets)
-            if (adhoc != null) {
-                val cleared = adhoc.map { it.copy(weight = null) }
-                dao.updateLastAdhocSets(parsed, PlanSetsConverter.toJson(cleared))
+            val updateDeferred = runIfNotNull(adhoc) { adhocNotNull ->
+                asyncScope {
+                    val cleared = adhocNotNull.map { it.copy(weight = null) }
+                    dao.updateLastAdhocSets(parsed, PlanSetsConverter.toJson(cleared))
+                }
             }
-            trainingExerciseDao.getAllForExercise(parsed).forEach { row ->
-                val parsedPlan = PlanSetsConverter.fromJson(row.planSets) ?: return@forEach
+            trainingExerciseDao.getAllForExercise(parsed).asyncForEach { row ->
+                val parsedPlan = PlanSetsConverter.fromJson(row.planSets) ?: return@asyncForEach
                 val cleared = parsedPlan.map { it.copy(weight = null) }
                 trainingExerciseDao.updatePlanSets(
                     trainingUuid = row.trainingUuid,
@@ -135,15 +147,19 @@ internal class ExerciseRepositoryImpl @Inject constructor(
                     planSets = PlanSetsConverter.toJson(cleared),
                 )
             }
+            updateDeferred?.await()
         }
     }
 
     override suspend fun deleteItem(uuid: String) {
-        withContext(bgDispatcher) {
+        transition {
             // Read imagePath BEFORE delete — once the row is gone, we lose the path.
-            val imagePath = dao.getById(Uuid.parse(uuid))?.imagePath
-            dao.permanentDelete(Uuid.parse(uuid))
-            imagePath?.let { imageStorage.deleteImage(it) }
+            val imagePath = asyncScope { dao.getById(Uuid.parse(uuid))?.imagePath }
+            val deleteDeferred = asyncScope { dao.permanentDelete(Uuid.parse(uuid)) }
+            imagePath.await()?.let {
+                imageStorage.deleteImage(it)
+            }
+            deleteDeferred.await()
         }
     }
 
@@ -161,11 +177,16 @@ internal class ExerciseRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteAllItems(uuids: List<Uuid>) {
-        withContext(bgDispatcher) {
+        transition {
             // Snapshot paths before deleting rows so we can clean image files after.
-            val paths = uuids.mapNotNull { dao.getById(it)?.imagePath }
-            uuids.forEach { dao.permanentDelete(it) }
-            paths.forEach { imageStorage.deleteImage(it) }
+            val paths = uuids.asyncMap { dao.getById(it)?.imagePath }
+                .filterNotNull()
+
+            uuids.asyncForEach { dao.permanentDelete(it) }
+
+            paths.asyncForEach { imagePath ->
+                imageStorage.deleteImage(imagePath)
+            }
         }
     }
 
@@ -182,7 +203,7 @@ internal class ExerciseRepositoryImpl @Inject constructor(
     }
 
     override suspend fun permanentDelete(uuid: String) {
-        withContext(bgDispatcher) {
+        transition {
             val imagePath = dao.getById(Uuid.parse(uuid))?.imagePath
             dao.permanentDelete(Uuid.parse(uuid))
             imagePath?.let { imageStorage.deleteImage(it) }
@@ -195,10 +216,15 @@ internal class ExerciseRepositoryImpl @Inject constructor(
 
     override suspend fun canPermanentlyDeleteImmediately(
         uuid: String,
-    ): Boolean = withContext(bgDispatcher) {
+    ): Boolean = transition {
         val parsed = Uuid.parse(uuid)
-        sessionDao.countFinishedContainingExercise(parsed) == 0 &&
+        val countFinishedExercise = asyncScope {
+            sessionDao.countFinishedContainingExercise(parsed) == 0
+        }
+        val countActiveTemplates = asyncScope {
             trainingExerciseDao.countActiveTemplatesUsing(parsed) == 0
+        }
+        countFinishedExercise.await() && countActiveTemplates.await()
     }
 
     override suspend fun getActiveTrainingsUsing(
@@ -226,10 +252,10 @@ internal class ExerciseRepositoryImpl @Inject constructor(
     override suspend fun getRecentHistory(
         exerciseUuid: String,
         limit: Int,
-    ): List<HistoryEntry> = withContext(bgDispatcher) {
+    ): List<HistoryEntry> = transition {
         sessionDao
             .getRecentSessionsForExercise(Uuid.parse(exerciseUuid), limit)
-            .map { row ->
+            .asyncMap { row ->
                 val sets = setDao.getByPerformedExercise(row.performedExerciseUuid)
                 HistoryEntry(
                     sessionUuid = row.sessionUuid.toString(),
@@ -264,8 +290,8 @@ internal class ExerciseRepositoryImpl @Inject constructor(
 
     override suspend fun bulkArchive(
         uuids: Set<String>,
-    ): BulkArchiveOutcome = withContext(bgDispatcher) {
-        if (uuids.isEmpty()) return@withContext BulkArchiveOutcome(0, emptyList())
+    ): BulkArchiveOutcome = transition {
+        if (uuids.isEmpty()) return@transition BulkArchiveOutcome(0, emptyList())
         val parsed = uuids.map(Uuid::parse)
         val (allowed, blocked) = parsed.partition { uuid ->
             trainingExerciseDao.countActiveTemplatesUsing(uuid) == 0
@@ -279,11 +305,11 @@ internal class ExerciseRepositoryImpl @Inject constructor(
     }
 
     override suspend fun bulkPermanentDelete(uuids: Set<String>) {
-        withContext(bgDispatcher) {
+        transition {
             val parsed = uuids.map(Uuid::parse)
-            val paths = parsed.mapNotNull { dao.getById(it)?.imagePath }
-            parsed.forEach { dao.permanentDelete(it) }
-            paths.forEach { imageStorage.deleteImage(it) }
+            val paths = parsed.asyncMapNotNull { dao.getById(it)?.imagePath }
+            parsed.asyncForEach { dao.permanentDelete(it) }
+            paths.asyncForEach { imageStorage.deleteImage(it) }
         }
     }
 
@@ -298,20 +324,30 @@ internal class ExerciseRepositoryImpl @Inject constructor(
         exerciseTagDao.getTagNames(exerciseUuid)
 
     private suspend fun syncLabels(exerciseUuid: Uuid, labels: List<String>) {
-        exerciseTagDao.deleteByExercise(exerciseUuid)
-        if (labels.isEmpty()) return
-        val tagUuids = labels
-            .map(String::trim)
-            .filter { it.isNotEmpty() }
-            .distinctBy { it.lowercase() }
-            .map { name ->
-                tagDao.findByName(name)?.uuid ?: TagEntity(name = name).also { tagDao.insert(it) }.uuid
+        transition {
+            if (labels.isEmpty()) {
+                exerciseTagDao.deleteByExercise(exerciseUuid)
+                return@transition
             }
-        exerciseTagDao.insert(
-            tagUuids.map { tagUuid ->
-                ExerciseTagEntity(exerciseUuid = exerciseUuid, tagUuid = tagUuid)
-            },
-        )
+            val deleteExerciseDeferred = asyncScope {
+                exerciseTagDao.deleteByExercise(exerciseUuid)
+            }
+            val tagUuids = labels
+                .map(String::trim)
+                .filter { it.isNotEmpty() }
+                .distinctBy { it.lowercase() }
+                .asyncMap { name ->
+                    tagDao.findByName(name)?.uuid ?: TagEntity(name = name).also {
+                        tagDao.insert(it)
+                    }.uuid
+                }
+            deleteExerciseDeferred.await()
+            exerciseTagDao.insert(
+                tagUuids.map { tagUuid ->
+                    ExerciseTagEntity(exerciseUuid = exerciseUuid, tagUuid = tagUuid)
+                },
+            )
+        }
     }
 
     companion object {

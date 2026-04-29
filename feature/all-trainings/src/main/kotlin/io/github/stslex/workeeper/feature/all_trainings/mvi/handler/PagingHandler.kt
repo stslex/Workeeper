@@ -47,7 +47,7 @@ internal class PagingHandler @Inject constructor(
     }
 
     private fun observeAvailableTags() {
-        scope.launch(interactor.observeAvailableTags()) { tags ->
+        interactor.observeAvailableTags().launch { tags ->
             updateStateImmediate { current ->
                 current.copy(
                     availableTags = tags.map { it.toTagUi() }.toImmutableList(),

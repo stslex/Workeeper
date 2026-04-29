@@ -11,11 +11,8 @@ import io.github.stslex.workeeper.feature.home.mvi.mapper.toRecentItems
 import io.github.stslex.workeeper.feature.home.mvi.mapper.toUi
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Action
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
+import kotlinx.coroutines.flow.distinctUntilChanged
 import javax.inject.Inject
-
-private const val TIMER_TICK_MS = 1000L
-private const val HOME_RECENT_LIMIT = 10
 
 @ViewModelScoped
 internal class CommonHandler @Inject constructor(
@@ -27,15 +24,23 @@ internal class CommonHandler @Inject constructor(
     override fun invoke(action: Action.Common) {
         when (action) {
             Action.Common.Init -> processInit()
-            Action.Common.TimerTick -> processTimerTick()
         }
     }
 
     private fun processInit() {
-        scope.launch(interactor.observeActiveSession()) { row ->
+        logger.i {
+            "Home screen initialized, observing active session and recent sessions."
+        }
+        interactor.observeActiveSession().launch { row ->
+            logger.i {
+                "Received update for active session: ${row ?: "null"}. Updating state with new active session data."
+            }
             updateStateImmediate { current ->
-                val now =
-                    if (current.nowMillis == 0L) System.currentTimeMillis() else current.nowMillis
+                val now = if (current.nowMillis == 0L) {
+                    System.currentTimeMillis()
+                } else {
+                    current.nowMillis
+                }
                 current.copy(
                     activeSession = row?.toUi(now, resourceWrapper),
                     isActiveLoaded = true,
@@ -43,10 +48,17 @@ internal class CommonHandler @Inject constructor(
                 )
             }
         }
-        scope.launch(interactor.observeRecent(HOME_RECENT_LIMIT)) { sessions ->
+        interactor.observeRecent(HOME_RECENT_LIMIT).launch { sessions ->
+            logger.i {
+                "Received update for recent sessions: ${sessions.size} sessions. " +
+                    "Updating state with new recent sessions data."
+            }
             updateStateImmediate { current ->
-                val now =
-                    if (current.nowMillis == 0L) System.currentTimeMillis() else current.nowMillis
+                val now = if (current.nowMillis == 0L) {
+                    System.currentTimeMillis()
+                } else {
+                    current.nowMillis
+                }
                 current.copy(
                     recent = sessions.toRecentItems(now, resourceWrapper),
                     isRecentLoaded = true,
@@ -54,29 +66,38 @@ internal class CommonHandler @Inject constructor(
                 )
             }
         }
-        scope.launch(
-            workDispatcher = scope.defaultDispatcher,
-            eachDispatcher = scope.defaultDispatcher,
-            action = {
-                while (isActive) {
-                    delay(TIMER_TICK_MS)
-                    consume(Action.Common.TimerTick)
+
+        state
+            .distinctUntilChanged { old, new -> (new.activeSession == null) == (old.activeSession == null) }
+            .launch {
+                if (state.value.activeSession != null) {
+                    logger.v {
+                        "Active session is present. " +
+                            "Starting timer tick loop to update elapsed duration every second."
+                    }
+
+                    while (state.value.activeSession != null) {
+                        updateStateImmediate { current ->
+                            val now = System.currentTimeMillis()
+                            current.copy(
+                                nowMillis = now,
+                                activeSession = current.activeSession?.copy(
+                                    elapsedDurationLabel = formatElapsedDuration(
+                                        current.activeSession.elapsedMillis(now),
+                                    ),
+                                ),
+                            )
+                        }
+                        delay(TIMER_TICK_MS)
+                    }
+                } else {
+                    logger.v { "No active session. Timer tick loop will not be started." }
                 }
-            },
-        )
+            }
     }
 
-    private fun processTimerTick() {
-        updateState { current ->
-            val now = System.currentTimeMillis()
-            current.copy(
-                nowMillis = now,
-                activeSession = current.activeSession?.copy(
-                    elapsedDurationLabel = formatElapsedDuration(
-                        current.activeSession.elapsedMillis(now),
-                    ),
-                ),
-            )
-        }
+    companion object {
+        private const val TIMER_TICK_MS = 1000L
+        private const val HOME_RECENT_LIMIT = 10
     }
 }

@@ -6,6 +6,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.rememberLifecycleOwner
 import io.github.stslex.workeeper.core.core.logger.FirebaseAnalyticsHolder
 import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
 import io.github.stslex.workeeper.core.core.logger.FirebaseEvent
@@ -63,9 +64,10 @@ inline fun <
         it.create(component)
     }.apply { initEmitter() }
 
-    DisposableEffect(store) {
+    val currentLifecycleOwner = rememberLifecycleOwner()
+    DisposableEffect(store, currentLifecycleOwner) {
         store.initEmitter()
-        store.init()
+        store.init(currentLifecycleOwner)
         FirebaseCrashlyticsHolder.setScreenName(store.name)
         FirebaseAnalyticsHolder.log(FirebaseEvent.Screen(store.name))
         onDispose {

@@ -21,6 +21,14 @@ suspend fun <T, R> Collection<T>.asyncMap(
     map { item -> async { transform(item) } }
 }.awaitAll()
 
+suspend fun <T, R> Collection<T>.asyncMapNotNull(
+    transform: suspend (T) -> R?,
+): List<R> = coroutineScope {
+    map { item -> async { transform(item) } }
+}
+    .awaitAll()
+    .filterNotNull()
+
 suspend fun <T, R> Collection<T>.asyncMapIndexed(
     transform: suspend (Int, T) -> R,
 ): List<R> = coroutineScope {

@@ -35,8 +35,7 @@ internal class CommonHandler @Inject constructor(
     private fun processInit() {
         val sessionUuid = state.value.sessionUuid
         updateState { it.copy(phase = State.Phase.Loading) }
-        scope.launch(
-            flow = interactor.observeDetailWithPrs(sessionUuid),
+        interactor.observeDetailWithPrs(sessionUuid).launch(
             onError = { _ ->
                 updateStateImmediate {
                     it.copy(phase = State.Phase.Error(ErrorType.LoadFailed))

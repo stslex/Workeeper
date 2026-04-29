@@ -7,10 +7,13 @@ import com.google.firebase.analytics.logEvent
 object FirebaseAnalyticsHolder {
 
     private val analytics by lazy { Firebase.analytics }
+    private val filter = EventsFilter()
 
     fun log(event: FirebaseEvent) {
-        analytics.logEvent(event.name) {
-            event.params.forEach { (key, value) -> param(key, value) }
+        filter(event.hashCode().toString()) {
+            analytics.logEvent(event.name) {
+                event.params.forEach { (key, value) -> param(key, value) }
+            }
         }
     }
 }

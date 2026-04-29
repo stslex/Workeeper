@@ -8,14 +8,13 @@ object FirebaseCrashlyticsHolder {
 
     private const val SCREEN_NAME_KEY = "SCREEN_NAME"
     private const val UNRESOLVE_SCREEN_NAME = "UNRESOLVED"
-    private const val LAST_EVENT_TIME_DIFF = 2_000L
-    private var lastEvent: Pair<String, Long>? = null
 
     private val crashlytics by lazy { Firebase.crashlytics }
+    private val filter = EventsFilter()
 
     @Synchronized
     fun log(message: String) {
-        runIfNameChanged(message) { crashlytics.log(message) }
+        filter(message) { crashlytics.log(message) }
     }
 
     @Synchronized
@@ -24,7 +23,7 @@ object FirebaseCrashlyticsHolder {
         tag: String,
     ) {
         crashlytics.recordException(throwable) { key("TAG", tag) }
-        lastEvent = null
+        filter.clear()
     }
 
     fun setCustomKey(key: String, value: String) {
@@ -44,18 +43,5 @@ object FirebaseCrashlyticsHolder {
             crashlytics.sendUnsentReports()
         }
         clearScreenName()
-    }
-
-    private fun runIfNameChanged(name: String, block: () -> Unit) {
-        val currentTime = System.currentTimeMillis()
-        val lastEvent = lastEvent
-        if (
-            lastEvent == null ||
-            lastEvent.first != name ||
-            (currentTime - lastEvent.second) > LAST_EVENT_TIME_DIFF
-        ) {
-            block()
-        }
-        this.lastEvent = Pair(name, currentTime)
     }
 }
