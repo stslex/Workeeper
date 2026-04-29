@@ -36,6 +36,41 @@ Each tracked location should carry a `TODO(tech-debt): <category> — <ref>` mar
 
 ---
 
+## Reactive Aggregations
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟡 PARKED | TBD per v2.2 stage | **Heavy-aggregation re-execution policy.** Room native Flow re-runs queries on every change to involved tables, regardless of whether the change is relevant to the specific query. For PR (LIMIT 1, indexed) the cost is negligible; v2.1 ships as-is. For v2.2 chart series (full history scan + Kotlin-side bucketing), the cost may matter if a session logs many sets while a chart is observed. **Trigger to act:** profiling in v2.2. **Anti-patterns to avoid:** repo-level `mutableMapOf<Key, StateFlow>` caches (subscription leaks, concurrent mutation, no clean lifecycle owner — entries removed from the map don't cancel upstream subscriptions; collectors cancelled on the consumer side leave the StateFlow producer alive); manual event-bus invalidators built on top of Room (duplicates a primitive Room already provides). **If a cache is needed,** put it at the consumer side (`stateIn(viewModelScope, WhileSubscribed(...), initial)` on the interactor) where lifecycle is bounded and the StateFlow disappears with the consumer. |
+| 🟢 | [core/exercise/.../sets/PrComparator.kt](../core/exercise/src/main/kotlin/io/github/stslex/workeeper/core/exercise/sets/PrComparator.kt) ↔ [SessionDao.observePersonalRecord](../core/database/src/main/kotlin/io/github/stslex/workeeper/core/database/session/SessionDao.kt) | Two parallel implementations of the same comparator (Kotlin object-level and SQL `ORDER BY`). The Kotlin path is needed at session finish where the comparison happens against an immutable in-memory snapshot. If the comparator definition changes (e.g. tiebreak rule), both must be updated together. Acceptable duplication; covered by `PrComparatorTest`. |
+| 🟢 | [core/exercise/.../sets/PrComparator.kt](../core/exercise/src/main/kotlin/io/github/stslex/workeeper/core/exercise/sets/PrComparator.kt) ↔ [SessionDao.observePersonalRecordsBatch](../core/database/src/main/kotlin/io/github/stslex/workeeper/core/database/session/SessionDao.kt) | Spec called for a parity test that seeds Room and asserts both `bestOf(...)` and the DAO pick the same set. Not implemented because Room test setup in `core/exercise/test` is cross-module; the test would need to live alongside `androidTest` infrastructure. **Trigger to act:** comparator semantics change (e.g. tiebreak rule). |
+| 🟢 | [feature/live-workout/.../domain/LiveWorkoutInteractorImpl.kt:70-86](../feature/live-workout/src/main/kotlin/io/github/stslex/workeeper/feature/live_workout/domain/LiveWorkoutInteractorImpl.kt) | Sequential (not parallel) per-entity queries — `loadSession` does N per-exercise calls (`getAdhocPlan` / `getPlan` / `setRepository.getByPerformedExercise`) in a loop. One-shot at session open, low frequency. Cheapest fix: wrap with `asyncMap` from [`core/core/coroutine/CoroutineExt.kt`](../core/core/src/main/kotlin/io/github/stslex/workeeper/core/core/coroutine/CoroutineExt.kt). Not blocking. |
+| 🟢 | [core/exercise/.../session/SessionRepositoryImpl.kt:130-143](../core/exercise/src/main/kotlin/io/github/stslex/workeeper/core/exercise/session/SessionRepositoryImpl.kt) | Sequential per-entity queries — `getSessionDetail` does N `setDao.getByPerformedExercise` calls inside `withTransaction`. One-shot at Past session open, low frequency. Same fix shape (`asyncMap`). Not blocking. |
+
+---
+
+## State Mutation Discipline
+
+**Rule:** `BaseStore.updateState` and `updateStateImmediate` lambdas should perform pure state transformation only — given `current`, return a copy. Mapping, formatting, and any work involving `ResourceWrapper` or domain-to-UI conversions runs *before* the lambda body. See [architecture.md → State mutation discipline](architecture.md) and the [`compose-state-discipline`](../.claude/skills/compose-state-discipline.md) skill.
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟡 | [feature/home/.../mvi/handler/CommonHandler.kt:36-39](../feature/home/src/main/kotlin/io/github/stslex/workeeper/feature/home/mvi/handler/CommonHandler.kt) | Mapping inside `updateStateImmediate` lambda — `row?.toUi(now, resourceWrapper)` runs on Main.immediate every active-session emit. Hoist out before the lambda. |
+| 🟡 | [feature/all-exercises/.../mvi/handler/PagingHandler.kt:49-52](../feature/all-exercises/src/main/kotlin/io/github/stslex/workeeper/feature/all_exercises/mvi/handler/PagingHandler.kt) | Mapping `tags.map { it.toTagUi() }.toImmutableList()` inside `updateStateImmediate` lambda. Same fix shape as above. |
+| 🟡 | [feature/all-trainings/.../mvi/handler/PagingHandler.kt:51-54](../feature/all-trainings/src/main/kotlin/io/github/stslex/workeeper/feature/all_trainings/mvi/handler/PagingHandler.kt) | Same pattern as the home / all-exercises rows. |
+| 🟡 | [feature/single-training/.../mvi/handler/CommonHandler.kt:55-56](../feature/single-training/src/main/kotlin/io/github/stslex/workeeper/feature/single_training/mvi/handler/CommonHandler.kt) | Same pattern as the home / all-exercises rows. |
+
+---
+
+## Live workout — release-phase hot-fix follow-ups
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟡 | [feature/live-workout/.../domain/LiveWorkoutInteractorImpl.kt loadSession](../feature/live-workout/src/main/kotlin/io/github/stslex/workeeper/feature/live_workout/domain/LiveWorkoutInteractorImpl.kt) | Read-time `trainingPlan ?: exerciseRepository.getAdhocPlan(...)` fallback exists because we don't backfill old data via migration in this commit. When the next schema bump lands (with the proper Migration framework now in place — see Migration Policy in [architecture.md](architecture.md) → Room database), include a one-shot backfill: `UPDATE training_exercise_table SET plan_sets = (SELECT plan_sets FROM exercise_table WHERE exercise_table.uuid = training_exercise_table.exercise_uuid) WHERE plan_sets IS NULL`. After that, drop the runtime fallback. |
+| 🟢 | [feature/live-workout/.../mvi/handler/ClickHandler.kt recomputeOnly](../feature/live-workout/src/main/kotlin/io/github/stslex/workeeper/feature/live_workout/mvi/handler/ClickHandler.kt) + [LiveWorkoutMapper.kt toUiList](../feature/live-workout/src/main/kotlin/io/github/stslex/workeeper/feature/live_workout/mvi/mapper/LiveWorkoutMapper.kt) | Status derivation logic duplicated between mapper (initial load) and click handler (post-mutation recompute). Extract to a shared helper in a follow-up so future status semantics changes happen in one place. |
+| 🟢 | [feature/live-workout/.../mvi/store/LiveWorkoutStore.kt activeExerciseUuids](../feature/live-workout/src/main/kotlin/io/github/stslex/workeeper/feature/live_workout/mvi/store/LiveWorkoutStore.kt) | Active-set state is ephemeral — resets on app background/restore. If users complain about losing parallel state, persist via a new column on `performed_exercise_table` or session-scoped DataStore. Not blocking. |
+
+---
+
 ## Spec-vs-Reality Drift
 
 Items where shipped behaviour diverges from what specs originally asked for. Surfaced by the 2026-04-28 audit.

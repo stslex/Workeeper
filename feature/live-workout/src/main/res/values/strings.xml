@@ -52,6 +52,15 @@
     <string name="feature_live_workout_finish_confirm">Finish</string>
     <string name="feature_live_workout_finish_success">Session saved</string>
 
+    <!-- New PR section in finish dialog -->
+    <plurals name="feature_live_workout_finish_new_pr_title">
+        <item quantity="one">%d new personal record</item>
+        <item quantity="other">%d new personal records</item>
+    </plurals>
+    <string name="feature_live_workout_finish_new_pr_row_format">%1$s — %2$s</string>
+    <string name="feature_live_workout_finish_pr_weighted_format">%1$s × %2$d</string>
+    <string name="feature_live_workout_finish_pr_weightless_format" tools:ignore="PluralsCandidate">%1$d reps</string>
+
     <!-- Header overflow -->
     <string name="feature_live_workout_session_overflow_cancel" tools:ignore="DuplicateStrings">Cancel session</string>
     <string name="feature_live_workout_cancel_title">Cancel session?</string>

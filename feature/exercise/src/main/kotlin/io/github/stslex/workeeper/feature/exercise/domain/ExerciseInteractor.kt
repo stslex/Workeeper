@@ -6,7 +6,9 @@ import io.github.stslex.workeeper.core.core.images.model.ImageSaveResult
 import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.HistoryEntry
+import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordDataModel
 import io.github.stslex.workeeper.core.exercise.session.model.ActiveSessionInfo
 import io.github.stslex.workeeper.core.exercise.tags.model.TagDataModel
 import kotlinx.coroutines.flow.Flow
@@ -25,6 +27,16 @@ internal interface ExerciseInteractor {
     ): List<HistoryEntry>
 
     fun observeAvailableTags(): Flow<List<TagDataModel>>
+
+    /**
+     * Reactive PR for the exercise. Re-emits when finished-session sets for [exerciseUuid]
+     * change (Room invalidation). Drives the read-mode PR card; collected only when the
+     * screen is bound to an existing exercise (create mode has no uuid yet).
+     */
+    fun observePersonalRecord(
+        exerciseUuid: String,
+        type: ExerciseTypeDataModel,
+    ): Flow<PersonalRecordDataModel?>
 
     suspend fun saveExercise(snapshot: ExerciseChangeDataModel): SaveResult
 

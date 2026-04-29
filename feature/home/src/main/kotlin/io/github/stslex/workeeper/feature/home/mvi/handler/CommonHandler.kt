@@ -34,7 +34,8 @@ internal class CommonHandler @Inject constructor(
     private fun processInit() {
         scope.launch(interactor.observeActiveSession()) { row ->
             updateStateImmediate { current ->
-                val now = if (current.nowMillis == 0L) System.currentTimeMillis() else current.nowMillis
+                val now =
+                    if (current.nowMillis == 0L) System.currentTimeMillis() else current.nowMillis
                 current.copy(
                     activeSession = row?.toUi(now, resourceWrapper),
                     isActiveLoaded = true,
@@ -44,7 +45,8 @@ internal class CommonHandler @Inject constructor(
         }
         scope.launch(interactor.observeRecent(HOME_RECENT_LIMIT)) { sessions ->
             updateStateImmediate { current ->
-                val now = if (current.nowMillis == 0L) System.currentTimeMillis() else current.nowMillis
+                val now =
+                    if (current.nowMillis == 0L) System.currentTimeMillis() else current.nowMillis
                 current.copy(
                     recent = sessions.toRecentItems(now, resourceWrapper),
                     isRecentLoaded = true,

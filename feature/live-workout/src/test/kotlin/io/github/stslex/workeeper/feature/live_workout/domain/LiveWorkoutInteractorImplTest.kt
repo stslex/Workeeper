@@ -4,8 +4,11 @@ package io.github.stslex.workeeper.feature.live_workout.domain
 import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.database.sets.SetTypeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
+import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
+import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordRepository
 import io.github.stslex.workeeper.core.exercise.session.PerformedExerciseRepository
 import io.github.stslex.workeeper.core.exercise.session.PlanUpdate
 import io.github.stslex.workeeper.core.exercise.session.SessionRepository
@@ -18,9 +21,11 @@ import io.github.stslex.workeeper.core.exercise.training.TrainingExerciseReposit
 import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -33,6 +38,9 @@ internal class LiveWorkoutInteractorImplTest {
     private val exerciseRepository = mockk<ExerciseRepository>(relaxed = true)
     private val trainingRepository = mockk<TrainingRepository>(relaxed = true)
     private val trainingExerciseRepository = mockk<TrainingExerciseRepository>(relaxed = true)
+    private val personalRecordRepository = mockk<PersonalRecordRepository>(relaxed = true).apply {
+        every { observePersonalRecords(any()) } returns flowOf(emptyMap())
+    }
 
     private val interactor = LiveWorkoutInteractorImpl(
         sessionRepository = sessionRepository,
@@ -41,6 +49,7 @@ internal class LiveWorkoutInteractorImplTest {
         exerciseRepository = exerciseRepository,
         trainingRepository = trainingRepository,
         trainingExerciseRepository = trainingExerciseRepository,
+        personalRecordRepository = personalRecordRepository,
         defaultDispatcher = Dispatchers.Unconfined,
     )
 
@@ -260,5 +269,137 @@ internal class LiveWorkoutInteractorImplTest {
         interactor.setSkipped("pe-1", skipped = false)
         coVerify(exactly = 1) { performedExerciseRepository.setSkipped("pe-1", false) }
         coVerify(exactly = 0) { setRepository.deleteAllForPerformedExercise(any()) }
+    }
+
+    @Test
+    fun `loadSession with non-adhoc training and null trainingExercise plan falls back to adhocPlan`() = runTest {
+        val sessionUuid = "session-1"
+        val trainingUuid = "training-1"
+        val exerciseUuid = "ex-1"
+        val adhoc = listOf(PlanSetDataModel(weight = 80.0, reps = 5, type = SetTypeDataModel.WORK))
+        seedNonAdhocLoad(sessionUuid, trainingUuid, exerciseUuid)
+        coEvery { trainingExerciseRepository.getPlan(trainingUuid, exerciseUuid) } returns null
+        coEvery { exerciseRepository.getAdhocPlan(exerciseUuid) } returns adhoc
+
+        val snapshot = interactor.loadSession(sessionUuid)
+
+        assertEquals(adhoc, snapshot?.exercises?.single()?.planSets)
+    }
+
+    @Test
+    fun `loadSession with non-adhoc training and empty plan returns empty without fallback`() = runTest {
+        val sessionUuid = "session-1"
+        val trainingUuid = "training-1"
+        val exerciseUuid = "ex-1"
+        seedNonAdhocLoad(sessionUuid, trainingUuid, exerciseUuid)
+        coEvery { trainingExerciseRepository.getPlan(trainingUuid, exerciseUuid) } returns emptyList()
+        coEvery { exerciseRepository.getAdhocPlan(exerciseUuid) } returns listOf(
+            PlanSetDataModel(weight = 80.0, reps = 5, type = SetTypeDataModel.WORK),
+        )
+
+        val snapshot = interactor.loadSession(sessionUuid)
+
+        assertEquals(emptyList<PlanSetDataModel>(), snapshot?.exercises?.single()?.planSets)
+        coVerify(exactly = 0) { exerciseRepository.getAdhocPlan(exerciseUuid) }
+    }
+
+    @Test
+    fun `loadSession with non-adhoc training and non-empty trainingExercise plan returns it as-is`() = runTest {
+        val sessionUuid = "session-1"
+        val trainingUuid = "training-1"
+        val exerciseUuid = "ex-1"
+        val plan = listOf(PlanSetDataModel(weight = 100.0, reps = 3, type = SetTypeDataModel.WORK))
+        seedNonAdhocLoad(sessionUuid, trainingUuid, exerciseUuid)
+        coEvery { trainingExerciseRepository.getPlan(trainingUuid, exerciseUuid) } returns plan
+        coEvery { exerciseRepository.getAdhocPlan(exerciseUuid) } returns listOf(
+            PlanSetDataModel(weight = 80.0, reps = 5, type = SetTypeDataModel.WORK),
+        )
+
+        val snapshot = interactor.loadSession(sessionUuid)
+
+        assertEquals(plan, snapshot?.exercises?.single()?.planSets)
+        coVerify(exactly = 0) { exerciseRepository.getAdhocPlan(exerciseUuid) }
+    }
+
+    @Test
+    fun `loadSession with adhoc training uses getAdhocPlan directly without trainingExercise lookup`() = runTest {
+        val sessionUuid = "session-1"
+        val trainingUuid = "training-1"
+        val exerciseUuid = "ex-1"
+        val adhoc = listOf(PlanSetDataModel(weight = 80.0, reps = 5, type = SetTypeDataModel.WORK))
+        seedAdhocLoad(sessionUuid, trainingUuid, exerciseUuid)
+        coEvery { exerciseRepository.getAdhocPlan(exerciseUuid) } returns adhoc
+
+        val snapshot = interactor.loadSession(sessionUuid)
+
+        assertEquals(adhoc, snapshot?.exercises?.single()?.planSets)
+        coVerify(exactly = 0) {
+            trainingExerciseRepository.getPlan(any(), any())
+        }
+    }
+
+    private suspend fun seedNonAdhocLoad(
+        sessionUuid: String,
+        trainingUuid: String,
+        exerciseUuid: String,
+    ) {
+        seedLoad(sessionUuid, trainingUuid, exerciseUuid, isAdhoc = false)
+    }
+
+    private suspend fun seedAdhocLoad(
+        sessionUuid: String,
+        trainingUuid: String,
+        exerciseUuid: String,
+    ) {
+        seedLoad(sessionUuid, trainingUuid, exerciseUuid, isAdhoc = true)
+    }
+
+    private suspend fun seedLoad(
+        sessionUuid: String,
+        trainingUuid: String,
+        exerciseUuid: String,
+        isAdhoc: Boolean,
+    ) {
+        coEvery { sessionRepository.getById(sessionUuid) } returns SessionDataModel(
+            uuid = sessionUuid,
+            trainingUuid = trainingUuid,
+            state = SessionStateDataModel.IN_PROGRESS,
+            startedAt = 1_000L,
+            finishedAt = null,
+        )
+        coEvery { trainingRepository.getTraining(trainingUuid) } returns TrainingDataModel(
+            uuid = trainingUuid,
+            name = "Push Day",
+            description = null,
+            isAdhoc = isAdhoc,
+            archived = false,
+            archivedAt = null,
+            timestamp = 0L,
+            labels = emptyList(),
+            exerciseUuids = listOf(exerciseUuid),
+        )
+        coEvery { performedExerciseRepository.getBySession(sessionUuid) } returns listOf(
+            PerformedExerciseDataModel(
+                uuid = "pe-1",
+                sessionUuid = sessionUuid,
+                exerciseUuid = exerciseUuid,
+                position = 0,
+                skipped = false,
+            ),
+        )
+        coEvery { exerciseRepository.getExercisesByUuid(listOf(exerciseUuid)) } returns listOf(
+            ExerciseDataModel(
+                uuid = exerciseUuid,
+                name = "Bench",
+                type = ExerciseTypeDataModel.WEIGHTED,
+                description = null,
+                imagePath = null,
+                archived = false,
+                archivedAt = null,
+                timestamp = 0L,
+                lastAdhocSets = null,
+            ),
+        )
+        coEvery { setRepository.getByPerformedExercise("pe-1") } returns emptyList()
     }
 }

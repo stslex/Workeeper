@@ -11,6 +11,7 @@ data class LiveSetUiModel(
     val reps: Int,
     val type: SetTypeUiModel,
     val isDone: Boolean,
+    val isPersonalRecord: Boolean = false,
 ) {
 
     val weightLabel: String

@@ -134,6 +134,7 @@ private fun stubExercise(): PastExerciseUiModel = PastExerciseUiModel(
             repsInput = "5",
             weightError = false,
             repsError = false,
+            isPersonalRecord = true,
         ),
         PastSetUiModel(
             setUuid = "s-2",
@@ -144,6 +145,7 @@ private fun stubExercise(): PastExerciseUiModel = PastExerciseUiModel(
             repsInput = "5",
             weightError = false,
             repsError = false,
+            isPersonalRecord = false,
         ),
     ),
 )

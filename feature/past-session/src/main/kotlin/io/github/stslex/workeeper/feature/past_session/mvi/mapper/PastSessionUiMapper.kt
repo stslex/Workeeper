@@ -18,6 +18,7 @@ import kotlinx.collections.immutable.toImmutableList
 
 internal fun SessionDetailDataModel.toUi(
     resourceWrapper: ResourceWrapper,
+    prSetUuids: Set<String> = emptySet(),
 ): PastSessionUiModel {
     val totalSets = exercises.sumOf { it.sets.size }
     val activeExercises = exercises.count { !it.skipped }
@@ -40,7 +41,7 @@ internal fun SessionDetailDataModel.toUi(
         durationLabel = durationLabel,
         totalsLabel = totalsLabel,
         volumeLabel = volumeLabel,
-        exercises = exercises.toUiList(),
+        exercises = exercises.toUiList(prSetUuids),
     )
 }
 
@@ -77,7 +78,9 @@ private fun buildTotalsLabel(
     )
 }
 
-private fun List<PerformedExerciseDetailDataModel>.toUiList(): ImmutableList<PastExerciseUiModel> =
+private fun List<PerformedExerciseDetailDataModel>.toUiList(
+    prSetUuids: Set<String>,
+): ImmutableList<PastExerciseUiModel> =
     sortedBy { it.position }
         .map { exercise ->
             PastExerciseUiModel(
@@ -86,13 +89,17 @@ private fun List<PerformedExerciseDetailDataModel>.toUiList(): ImmutableList<Pas
                 position = exercise.position,
                 skipped = exercise.skipped,
                 isWeighted = exercise.exerciseType == ExerciseTypeDataModel.WEIGHTED,
-                sets = exercise.sets.toUiSets(exercise.performedExerciseUuid),
+                sets = exercise.sets.toUiSets(
+                    performedExerciseUuid = exercise.performedExerciseUuid,
+                    prSetUuids = prSetUuids,
+                ),
             )
         }
         .toImmutableList()
 
 private fun List<SetsDataModel>.toUiSets(
     performedExerciseUuid: String,
+    prSetUuids: Set<String>,
 ): ImmutableList<PastSetUiModel> = this
     .mapIndexed { index, set ->
         PastSetUiModel(
@@ -104,6 +111,7 @@ private fun List<SetsDataModel>.toUiSets(
             repsInput = set.reps.takeIf { it > 0 }?.toString().orEmpty(),
             weightError = false,
             repsError = false,
+            isPersonalRecord = set.uuid in prSetUuids,
         )
     }
     .toImmutableList()

@@ -177,6 +177,14 @@ Layout:
    - `AppButton.Primary` "Track now" (full width minus icon button)
    - `AppButton.Secondary` icon-only Edit button (navigates to Edit)
 
+**v2.1 PR card.** Between the default-plan card and the history
+section, render `PersonalRecordCard` when `state.personalRecord !=
+null`. Pre-formatted display label ("105 × 5" weighted / "15 reps"
+weightless) plus relative date label ("12 апр", "вчера"). Driven by
+`ExerciseInteractor.observePersonalRecord(uuid, type)` collected in
+`CommonHandler` once the exercise type is known. No tap behaviour in
+v2.1; chart entry point lands in v2.2.
+
 #### `ExerciseHistoryRow` layout
 
 ```

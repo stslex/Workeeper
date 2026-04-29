@@ -35,18 +35,65 @@ internal class ClickHandlerTest {
         handler.invoke(Action.Click.OnExerciseHeaderClick("pe-1"))
         assertEquals(
             persistentSetOf("pe-1"),
-            stateFlow.value.expandedDoneExerciseUuids,
+            stateFlow.value.expandedExerciseUuids,
         )
 
         handler.invoke(Action.Click.OnExerciseHeaderClick("pe-1"))
         assertEquals(
             persistentSetOf<String>(),
-            stateFlow.value.expandedDoneExerciseUuids,
+            stateFlow.value.expandedExerciseUuids,
         )
     }
 
     @Test
-    fun `OnExerciseHeaderClick is no-op for non-DONE exercises`() {
+    fun `OnExerciseHeaderClick is no-op for SKIPPED exercises`() {
+        val stateFlow = MutableStateFlow(baseState(doneExercise(status = ExerciseStatusUiModel.SKIPPED)))
+        val store = handlerStore(stateFlow)
+        val handler = ClickHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            store = store,
+        )
+
+        handler.invoke(Action.Click.OnExerciseHeaderClick("pe-1"))
+
+        assertEquals(persistentSetOf<String>(), stateFlow.value.expandedExerciseUuids)
+        assertEquals(persistentSetOf<String>(), stateFlow.value.activeExerciseUuids)
+    }
+
+    @Test
+    fun `OnExerciseHeaderClick on PENDING adds uuid to activeExerciseUuids and expandedExerciseUuids`() {
+        val stateFlow = MutableStateFlow(
+            baseState(doneExercise(status = ExerciseStatusUiModel.PENDING))
+                .copy(
+                    exercises = persistentListOf(
+                        doneExercise(status = ExerciseStatusUiModel.CURRENT),
+                        doneExercise(status = ExerciseStatusUiModel.PENDING).copy(
+                            performedExerciseUuid = "pe-2",
+                            exerciseUuid = "ex-2",
+                            position = 1,
+                        ),
+                    ),
+                ),
+        )
+        val store = handlerStore(stateFlow)
+        val handler = ClickHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            store = store,
+        )
+
+        handler.invoke(Action.Click.OnExerciseHeaderClick("pe-2"))
+
+        assertEquals(persistentSetOf("pe-2"), stateFlow.value.activeExerciseUuids)
+        assertEquals(persistentSetOf("pe-2"), stateFlow.value.expandedExerciseUuids)
+        // Status of pe-2 flips to CURRENT after recompute.
+        val pe2 = stateFlow.value.exercises.first { it.performedExerciseUuid == "pe-2" }
+        assertEquals(ExerciseStatusUiModel.CURRENT, pe2.status)
+    }
+
+    @Test
+    fun `OnExerciseHeaderClick on auto-default CURRENT promotes to active and toggles expanded`() {
         val stateFlow = MutableStateFlow(baseState(doneExercise(status = ExerciseStatusUiModel.CURRENT)))
         val store = handlerStore(stateFlow)
         val handler = ClickHandler(
@@ -57,10 +104,13 @@ internal class ClickHandlerTest {
 
         handler.invoke(Action.Click.OnExerciseHeaderClick("pe-1"))
 
-        assertEquals(
-            persistentSetOf<String>(),
-            stateFlow.value.expandedDoneExerciseUuids,
-        )
+        assertEquals(persistentSetOf("pe-1"), stateFlow.value.activeExerciseUuids)
+        assertEquals(persistentSetOf("pe-1"), stateFlow.value.expandedExerciseUuids)
+
+        // Tapping again collapses (removes from expanded), but the uuid stays in activeUuids.
+        handler.invoke(Action.Click.OnExerciseHeaderClick("pe-1"))
+        assertEquals(persistentSetOf("pe-1"), stateFlow.value.activeExerciseUuids)
+        assertEquals(persistentSetOf<String>(), stateFlow.value.expandedExerciseUuids)
     }
 
     @Test

@@ -25,28 +25,28 @@ internal class CommonHandler @Inject constructor(
         }
     }
 
+    /**
+     * Subscribes to a combined detail + PR-set-uuid flow. Detail is re-fetched in the
+     * interactor on every PR re-emission so optimistic edits aren't clobbered by stale
+     * captured detail. UI mapping happens in the collector body — keeping
+     * `updateStateImmediate` reduced to pure state transformation per the State mutation
+     * discipline rule.
+     */
     private fun processInit() {
         val sessionUuid = state.value.sessionUuid
         updateState { it.copy(phase = State.Phase.Loading) }
-        launch(
-            onSuccess = { detail ->
-                if (detail == null) {
-                    updateStateImmediate {
-                        it.copy(phase = State.Phase.Error(ErrorType.SessionNotFound))
-                    }
-                } else {
-                    updateStateImmediate {
-                        it.copy(phase = State.Phase.Loaded(detail = detail.toUi(resourceWrapper)))
-                    }
-                }
-            },
+        scope.launch(
+            flow = interactor.observeDetailWithPrs(sessionUuid),
             onError = { _ ->
                 updateStateImmediate {
                     it.copy(phase = State.Phase.Error(ErrorType.LoadFailed))
                 }
             },
-        ) {
-            interactor.getSessionDetail(sessionUuid)
+        ) { result ->
+            val phase = result?.let {
+                State.Phase.Loaded(detail = it.detail.toUi(resourceWrapper, it.prSetUuids))
+            } ?: State.Phase.Error(ErrorType.SessionNotFound)
+            updateStateImmediate { current -> current.copy(phase = phase) }
         }
     }
 }

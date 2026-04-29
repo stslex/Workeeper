@@ -235,6 +235,12 @@ Aggregated across features. Intended as the input list for DAOs.
 - P2. **In-progress session lookup** (S1).
 - P3. **Archive-blocked check** for exercise (feature 2 validation
   query).
+- P4. **Personal record lookup** — heaviest set per exercise across
+  finished sessions. Both one-shot (`getPersonalRecord`) and reactive
+  (`observePersonalRecord`) variants exist. Consumers in v2.1:
+  Exercise detail PR card (subscribes), Past session set badges
+  (subscribes via `observePersonalRecords` batch), Live workout
+  pre-session snapshot (one-shot via `firstOrNull()`).
 
 ### Mutations
 

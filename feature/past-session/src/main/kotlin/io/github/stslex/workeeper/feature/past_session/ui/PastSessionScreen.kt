@@ -253,6 +253,7 @@ private fun stubDetail(): PastSessionUiModel = PastSessionUiModel(
                     repsInput = "5",
                     weightError = false,
                     repsError = false,
+                    isPersonalRecord = false,
                 ),
             ),
         ),

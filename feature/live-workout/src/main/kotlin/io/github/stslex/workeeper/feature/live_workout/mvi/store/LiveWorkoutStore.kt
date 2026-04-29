@@ -38,7 +38,20 @@ internal interface LiveWorkoutStore :
         val progressLabel: String,
         val exercises: ImmutableList<LiveExerciseUiModel>,
         val setDrafts: ImmutableMap<DraftKey, LiveSetUiModel>,
-        val expandedDoneExerciseUuids: ImmutableSet<String>,
+        /**
+         * UUIDs the user has explicitly tapped to start (or kept active across recompute).
+         * When non-empty, the auto-default first-CURRENT behavior is suppressed; only
+         * exercises in this set become CURRENT (alongside SKIPPED/DONE derivation).
+         * Ephemeral — resets on app background/restore.
+         */
+        val activeExerciseUuids: ImmutableSet<String>,
+        /**
+         * UUIDs the user has explicitly toggled expanded. Covers both DONE rows the user
+         * pulled open and CURRENT rows the user collapsed/re-expanded. Pruned by
+         * `recomputeStatuses` when an exercise transitions out of DONE/CURRENT.
+         */
+        val expandedExerciseUuids: ImmutableSet<String>,
+        val preSessionPrSnapshot: ImmutableMap<String, PrSnapshotItem>,
         val planEditorTarget: PlanEditorTarget?,
         val pendingFinishConfirm: FinishStats?,
         val pendingResetExerciseUuid: String?,
@@ -52,13 +65,35 @@ internal interface LiveWorkoutStore :
         @Stable
         data class DraftKey(val performedExerciseUuid: String, val position: Int)
 
+        /**
+         * Pre-session PR snapshot held in State for the entire session (Q6 lock — frozen
+         * snapshot scope). One entry per exercise; absent key means "no PR yet" and any
+         * non-zero candidate beats it. Identity (`setUuid`) is intentionally absent — the
+         * comparator paths only need weight + reps + type.
+         */
+        @Stable
+        data class PrSnapshotItem(
+            val weight: Double?,
+            val reps: Int,
+            val type: ExerciseTypeUiModel,
+        )
+
         @Stable
         data class FinishStats(
             val durationMillis: Long,
             val durationLabel: String,
             val exercisesSummaryLabel: String,
             val setsLoggedLabel: String,
-        )
+            val newPersonalRecords: ImmutableList<NewPrEntry>,
+        ) {
+
+            @Stable
+            data class NewPrEntry(
+                val exerciseUuid: String,
+                val exerciseName: String,
+                val displayLabel: String,
+            )
+        }
 
         @Stable
         data class PlanEditorTarget(
@@ -97,7 +132,9 @@ internal interface LiveWorkoutStore :
                 progressLabel = "",
                 exercises = persistentListOf(),
                 setDrafts = persistentMapOf(),
-                expandedDoneExerciseUuids = persistentSetOf(),
+                activeExerciseUuids = persistentSetOf(),
+                expandedExerciseUuids = persistentSetOf(),
+                preSessionPrSnapshot = persistentMapOf(),
                 planEditorTarget = null,
                 pendingFinishConfirm = null,
                 pendingResetExerciseUuid = null,

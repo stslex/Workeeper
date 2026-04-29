@@ -166,6 +166,7 @@ internal class InputHandlerTest {
         repsInput = repsInput,
         weightError = weightError,
         repsError = repsError,
+        isPersonalRecord = false,
     )
 
     private class TestStore(

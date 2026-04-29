@@ -13,6 +13,7 @@ import io.github.stslex.workeeper.feature.exercise.mvi.model.ImageDisplay
 import io.github.stslex.workeeper.feature.exercise.mvi.model.ImageErrorType
 import io.github.stslex.workeeper.feature.exercise.mvi.model.ImageSourceUiModel
 import io.github.stslex.workeeper.feature.exercise.mvi.model.PendingImage
+import io.github.stslex.workeeper.feature.exercise.mvi.model.PersonalRecordUiModel
 import io.github.stslex.workeeper.feature.exercise.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Event
@@ -48,6 +49,7 @@ internal interface ExerciseStore : Store<State, Action, Event> {
         val sourceDialogVisible: Boolean,
         val permissionDeniedDialogVisible: Boolean,
         val pendingConflict: ConflictInfo?,
+        val personalRecord: PersonalRecordUiModel?,
     ) : Store.State {
 
         val isSaveEnabled: Boolean
@@ -160,6 +162,7 @@ internal interface ExerciseStore : Store<State, Action, Event> {
                 sourceDialogVisible = false,
                 permissionDeniedDialogVisible = false,
                 pendingConflict = null,
+                personalRecord = null,
             )
         }
     }

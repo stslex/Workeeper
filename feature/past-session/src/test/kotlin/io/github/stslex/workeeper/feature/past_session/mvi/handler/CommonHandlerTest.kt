@@ -4,16 +4,24 @@ package io.github.stslex.workeeper.feature.past_session.mvi.handler
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScope
 import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
+import io.github.stslex.workeeper.core.exercise.session.model.PerformedExerciseDetailDataModel
+import io.github.stslex.workeeper.core.exercise.session.model.SessionDetailDataModel
 import io.github.stslex.workeeper.feature.past_session.R
 import io.github.stslex.workeeper.feature.past_session.di.PastSessionHandlerStore
 import io.github.stslex.workeeper.feature.past_session.domain.PastSessionInteractor
+import io.github.stslex.workeeper.feature.past_session.domain.PastSessionInteractor.DetailWithPrs
 import io.github.stslex.workeeper.feature.past_session.mvi.model.ErrorType
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Action
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Event
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.State
-import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -29,6 +37,7 @@ internal class CommonHandlerTest {
     private val resources = object : ResourceWrapper {
         override fun getString(id: Int, vararg args: Any): String = when (id) {
             R.string.feature_past_session_totals_format -> "${args[0]} · ${args[1]}"
+            R.string.feature_past_session_volume_label -> "vol ${args[0]}"
             else -> error("Unexpected string id: $id")
         }
 
@@ -56,7 +65,9 @@ internal class CommonHandlerTest {
             resourceWrapper = resources,
             store = store,
         )
-        coEvery { interactor.getSessionDetail(SESSION_UUID) } returns sessionDetail()
+        every { interactor.observeDetailWithPrs(SESSION_UUID) } returns flowOf(
+            DetailWithPrs(detail = sessionDetail(), prSetUuids = emptySet()),
+        )
 
         handler.invoke(Action.Common.Init)
         advanceUntilIdle()
@@ -77,7 +88,7 @@ internal class CommonHandlerTest {
             resourceWrapper = resources,
             store = store,
         )
-        coEvery { interactor.getSessionDetail(SESSION_UUID) } returns null
+        every { interactor.observeDetailWithPrs(SESSION_UUID) } returns flowOf(null)
 
         handler.invoke(Action.Common.Init)
         advanceUntilIdle()
@@ -97,7 +108,9 @@ internal class CommonHandlerTest {
             resourceWrapper = resources,
             store = store,
         )
-        coEvery { interactor.getSessionDetail(SESSION_UUID) } throws IllegalStateException("boom")
+        every { interactor.observeDetailWithPrs(SESSION_UUID) } returns flow {
+            throw IllegalStateException("boom")
+        }
 
         handler.invoke(Action.Common.Init)
         advanceUntilIdle()
@@ -108,7 +121,41 @@ internal class CommonHandlerTest {
         )
     }
 
-    private fun sessionDetail() = io.github.stslex.workeeper.core.exercise.session.model.SessionDetailDataModel(
+    @Test
+    fun `Init flags PR set with isPersonalRecord`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val store = TestStore(State.create(sessionUuid = SESSION_UUID), this, dispatcher)
+        val handler = CommonHandler(
+            interactor = interactor,
+            resourceWrapper = resources,
+            store = store,
+        )
+        val prSet = SetsDataModel(uuid = "set-pr", reps = 5, weight = 100.0, type = SetsDataType.WORK)
+        val plainSet = SetsDataModel(uuid = "set-plain", reps = 5, weight = 80.0, type = SetsDataType.WORK)
+        val performed = PerformedExerciseDetailDataModel(
+            performedExerciseUuid = "performed-1",
+            exerciseUuid = "exercise-1",
+            exerciseName = "Bench",
+            exerciseType = ExerciseTypeDataModel.WEIGHTED,
+            position = 0,
+            skipped = false,
+            sets = listOf(plainSet, prSet),
+        )
+        val detail = sessionDetail().copy(exercises = listOf(performed))
+        every { interactor.observeDetailWithPrs(SESSION_UUID) } returns flowOf(
+            DetailWithPrs(detail = detail, prSetUuids = setOf("set-pr")),
+        )
+
+        handler.invoke(Action.Common.Init)
+        advanceUntilIdle()
+
+        val phase = store.state.value.phase as State.Phase.Loaded
+        val sets = phase.detail.exercises.single().sets
+        assertEquals(true, sets.first { it.setUuid == "set-pr" }.isPersonalRecord)
+        assertEquals(false, sets.first { it.setUuid == "set-plain" }.isPersonalRecord)
+    }
+
+    private fun sessionDetail() = SessionDetailDataModel(
         sessionUuid = SESSION_UUID,
         trainingUuid = "training-1",
         trainingName = "Push Day",

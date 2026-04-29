@@ -206,10 +206,14 @@ interface SessionDao {
      * The `:isWeightless` flag controls whether weight participates in the ordering — for
      * weightless exercises only reps and timestamp drive PR ownership. Tiebreak by earliest
      * `finished_at` so the PR badge belongs to the first occurrence.
+     *
+     * Ordering semantics here mirror [observePersonalRecordsBatch]; if the tiebreak rule
+     * changes, update both in lockstep.
      */
     @Query(
         """
-        SELECT s.uuid AS set_uuid,
+        SELECT pe.exercise_uuid AS exercise_uuid,
+               s.uuid AS set_uuid,
                s.weight AS weight,
                s.reps AS reps,
                s.type AS type,
@@ -232,6 +236,72 @@ interface SessionDao {
         """,
     )
     suspend fun getPersonalRecord(exerciseUuid: Uuid, isWeightless: Boolean): PersonalRecordRow?
+
+    /**
+     * Reactive PR for [exerciseUuid]. Same SQL body as [getPersonalRecord]; Room re-emits
+     * whenever any of the participating tables change. Subscribers see the new PR after a
+     * finished session bumps it, an edit-save changes a top set, or the holder set is deleted.
+     */
+    @Query(
+        """
+        SELECT pe.exercise_uuid AS exercise_uuid,
+               s.uuid AS set_uuid,
+               s.weight AS weight,
+               s.reps AS reps,
+               s.type AS type,
+               s.performed_exercise_uuid AS performed_exercise_uuid,
+               sn.uuid AS session_uuid,
+               sn.finished_at AS finished_at
+        FROM set_table s
+        JOIN performed_exercise_table pe ON pe.uuid = s.performed_exercise_uuid
+        JOIN session_table sn ON sn.uuid = pe.session_uuid
+        WHERE pe.exercise_uuid = :exerciseUuid
+          AND sn.state = 'FINISHED'
+          AND sn.finished_at IS NOT NULL
+          AND (:isWeightless = 1 OR s.weight IS NOT NULL)
+        ORDER BY
+            CASE WHEN :isWeightless = 0 THEN s.weight END DESC,
+            s.reps DESC,
+            sn.finished_at ASC,
+            s.position ASC
+        LIMIT 1
+        """,
+    )
+    fun observePersonalRecord(exerciseUuid: Uuid, isWeightless: Boolean): Flow<PersonalRecordRow?>
+
+    /**
+     * Reactive PR rows across many exercises in a single subscription. Returns *all* candidate
+     * sets ordered so the consumer can `groupBy { exerciseUuid }.mapValues { it.first() }` to
+     * pick the heaviest per exercise. Single batch query avoids the combine-of-N amplification
+     * pattern that long-lived subscribers (Past session) would otherwise hit. Ordering matches
+     * [getPersonalRecord]: non-null weights first, then weight DESC, reps DESC, earliest
+     * finished_at wins.
+     */
+    @Query(
+        """
+        SELECT pe.exercise_uuid AS exercise_uuid,
+               s.uuid AS set_uuid,
+               s.weight AS weight,
+               s.reps AS reps,
+               s.type AS type,
+               s.performed_exercise_uuid AS performed_exercise_uuid,
+               sn.uuid AS session_uuid,
+               sn.finished_at AS finished_at
+        FROM set_table s
+        JOIN performed_exercise_table pe ON pe.uuid = s.performed_exercise_uuid
+        JOIN session_table sn ON sn.uuid = pe.session_uuid
+        WHERE pe.exercise_uuid IN (:exerciseUuids)
+          AND sn.state = 'FINISHED'
+          AND sn.finished_at IS NOT NULL
+        ORDER BY pe.exercise_uuid,
+            CASE WHEN s.weight IS NULL THEN 1 ELSE 0 END,
+            s.weight DESC,
+            s.reps DESC,
+            sn.finished_at ASC,
+            s.position ASC
+        """,
+    )
+    fun observePersonalRecordsBatch(exerciseUuids: List<Uuid>): Flow<List<PersonalRecordRow>>
 
     /**
      * Top-N finished sessions by volume in the window starting at [sinceMillis]. Volume is

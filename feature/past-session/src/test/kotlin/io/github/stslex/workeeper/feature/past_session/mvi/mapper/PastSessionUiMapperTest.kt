@@ -10,6 +10,7 @@ import io.github.stslex.workeeper.core.exercise.session.model.SessionDetailDataM
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.past_session.R
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -69,6 +70,28 @@ internal class PastSessionUiMapperTest {
         assertTrue(ui.exercises[2].sets.isEmpty())
         assertEquals(listOf(0, 1), ui.exercises[1].sets.map { it.position })
         assertEquals(listOf(SetTypeUiModel.WORK, SetTypeUiModel.FAILURE), ui.exercises[1].sets.map { it.type })
+    }
+
+    @Test
+    fun `mapper marks the PR-bearing set with isPersonalRecord`() {
+        val ui = sessionDetail(
+            isAdhoc = false,
+            exercises = listOf(weightedExercise(position = 0)),
+        ).toUi(resources, prSetUuids = setOf("set-2"))
+
+        val sets = ui.exercises.single().sets
+        assertEquals(true, sets.first { it.setUuid == "set-2" }.isPersonalRecord)
+        assertFalse(sets.first { it.setUuid == "set-3" }.isPersonalRecord)
+    }
+
+    @Test
+    fun `mapper leaves all sets unflagged when prSetUuids is empty`() {
+        val ui = sessionDetail(
+            isAdhoc = false,
+            exercises = listOf(weightedExercise(position = 0)),
+        ).toUi(resources, prSetUuids = emptySet())
+
+        ui.exercises.single().sets.forEach { assertFalse(it.isPersonalRecord) }
     }
 
     @Test

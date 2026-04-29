@@ -25,6 +25,15 @@ data class StatusColors(
     val info: Color,
 )
 
+@Suppress("MagicNumber")
+@Immutable
+data class RecordColors(
+    val background: Color,
+    val border: Color,
+    val textPrimary: Color,
+    val textSecondary: Color,
+)
+
 @Suppress("LongParameterList")
 @Immutable
 data class AppColors(
@@ -48,6 +57,7 @@ data class AppColors(
     val inverseOnSurface: Color,
     val setType: SetTypeColors,
     val status: StatusColors,
+    val record: RecordColors,
     val isDark: Boolean,
 )
 
@@ -87,6 +97,12 @@ fun provideDarkAppColors(): AppColors = AppColors(
         error = Color(0xFFD58A8A),
         info = Color(0xFFB5B6B0),
     ),
+    record = RecordColors(
+        background = Color(0xFF2E2410),
+        border = Color(0xFFE6B85C),
+        textPrimary = Color(0xFFF6E2B0),
+        textSecondary = Color(0xFFE6B85C),
+    ),
     isDark = true,
 )
 
@@ -125,6 +141,12 @@ fun provideLightAppColors(): AppColors = AppColors(
         warning = Color(0xFF7A5418),
         error = Color(0xFF7A2828),
         info = Color(0xFF5A5B58),
+    ),
+    record = RecordColors(
+        background = Color(0xFFFFF6E0),
+        border = Color(0xFFD08418),
+        textPrimary = Color(0xFF6B3F08),
+        textSecondary = Color(0xFF7A5418),
     ),
     isDark = false,
 )

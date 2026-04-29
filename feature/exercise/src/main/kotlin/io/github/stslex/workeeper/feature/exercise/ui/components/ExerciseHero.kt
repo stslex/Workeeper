@@ -36,18 +36,14 @@ internal fun ExerciseHero(
     modifier: Modifier = Modifier,
     onImageClick: (() -> Unit)? = null,
 ) {
-    val clickableModifier = if (imageDisplay !is ImageDisplay.None && onImageClick != null) {
-        Modifier.clickable(onClick = onImageClick)
-    } else {
-        Modifier
-    }
+    val isClickable = imageDisplay !is ImageDisplay.None && onImageClick != null
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(120.dp)
             .clip(AppUi.shapes.medium)
             .background(AppUi.colors.surfaceTier1)
-            .then(clickableModifier)
+            .clickable(enabled = isClickable) { onImageClick?.invoke() }
             .testTag("ExerciseHero"),
         contentAlignment = Alignment.Center,
     ) {

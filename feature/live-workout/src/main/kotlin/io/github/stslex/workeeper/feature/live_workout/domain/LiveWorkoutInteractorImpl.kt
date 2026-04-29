@@ -8,6 +8,7 @@ import io.github.stslex.workeeper.core.database.sets.SetTypeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
+import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordRepository
 import io.github.stslex.workeeper.core.exercise.session.PerformedExerciseRepository
 import io.github.stslex.workeeper.core.exercise.session.PlanUpdate
 import io.github.stslex.workeeper.core.exercise.session.SessionRepository
@@ -20,6 +21,7 @@ import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInterac
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.SessionSnapshot
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
@@ -32,6 +34,7 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
     private val exerciseRepository: ExerciseRepository,
     private val trainingRepository: TrainingRepository,
     private val trainingExerciseRepository: TrainingExerciseRepository,
+    private val personalRecordRepository: PersonalRecordRepository,
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
 ) : LiveWorkoutInteractor {
 
@@ -70,10 +73,16 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
             }
         } else {
             performedRows.associate { row ->
-                row.exerciseUuid to trainingExerciseRepository.getPlan(
+                val trainingPlan = trainingExerciseRepository.getPlan(
                     trainingUuid = session.trainingUuid,
                     exerciseUuid = row.exerciseUuid,
                 )
+                // Read-time fallback: trainings created before the write-time fix may have
+                // null planSets even when the exercise has its own default. Recover here so
+                // existing user data isn't stranded. Empty plan (deliberately cleared by
+                // the user) is preserved as empty — `?:` only triggers on null.
+                val resolved = trainingPlan ?: exerciseRepository.getAdhocPlan(row.exerciseUuid)
+                row.exerciseUuid to resolved
             }
         }
         val exerciseSnapshots = performedRows
@@ -96,11 +105,23 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
                     performedSetUuids = performedSets.map { it.uuid },
                 )
             }
+        // Q6 lock — pre-session snapshot scope. We collect the PR map exactly once here and
+        // then drop the underlying flow; the snapshot lives in State for the session's
+        // lifetime, immune to mid-session emissions from other places (Exercise detail edit,
+        // a finished session on another screen).
+        val uuidsByType = exerciseSnapshots.associate { snap ->
+            snap.performed.exerciseUuid to snap.exerciseType
+        }
+        val preSessionPrs = personalRecordRepository
+            .observePersonalRecords(uuidsByType)
+            .firstOrNull()
+            .orEmpty()
         SessionSnapshot(
             session = session,
             trainingName = training?.name.orEmpty(),
             isAdhoc = training?.isAdhoc == true,
             exercises = exerciseSnapshots,
+            preSessionPrSnapshot = preSessionPrs,
         )
     }
 
@@ -167,10 +188,12 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
             val existingPlan = if (isAdhoc) {
                 exerciseRepository.getAdhocPlan(row.exerciseUuid)
             } else {
-                trainingExerciseRepository.getPlan(
-                    trainingUuid = session.trainingUuid,
-                    exerciseUuid = row.exerciseUuid,
-                )
+                trainingExerciseRepository
+                    .getPlan(
+                        trainingUuid = session.trainingUuid,
+                        exerciseUuid = row.exerciseUuid,
+                    )
+                    ?: exerciseRepository.getAdhocPlan(row.exerciseUuid)
             }
             val nextPlan = PlanUpdateRule.update(existingPlan, performedSets)
             planUpdates += PlanUpdate(
