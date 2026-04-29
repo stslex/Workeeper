@@ -10,7 +10,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.database.AppDatabase
-import io.github.stslex.workeeper.core.database.common.DbTransition
+import io.github.stslex.workeeper.core.database.common.DbTransitionRunner
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
 import io.github.stslex.workeeper.core.database.session.PerformedExerciseDao
 import io.github.stslex.workeeper.core.database.session.SessionDao
@@ -45,7 +45,7 @@ object CoreDatabaseModule {
     internal fun provideTransition(
         db: AppDatabase,
         @IODispatcher ioDispatcher: CoroutineDispatcher,
-    ): DbTransition = object : DbTransition {
+    ): DbTransitionRunner = object : DbTransitionRunner {
         override suspend fun <T> invoke(block: suspend () -> T): T = withContext(ioDispatcher) {
             db.withTransaction(block)
         }

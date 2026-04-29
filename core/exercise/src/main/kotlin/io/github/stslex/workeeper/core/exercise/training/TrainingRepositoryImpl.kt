@@ -211,20 +211,25 @@ class TrainingRepositoryImpl @Inject constructor(
     }
 
     private suspend fun syncLabels(trainingUuid: Uuid, labels: List<String>) {
-        val tagUuids = labels
-            .map(String::trim)
-            .filter { it.isNotEmpty() }
+        trainingTagDao.deleteByTraining(trainingUuid)
+        if (labels.isEmpty()) return
+        val tags = labels.filter { it.isNotBlank() }
             .distinctBy { it.lowercase() }
-            .asyncMap { name ->
-                tagDao.findByName(name)?.uuid
-                    ?: TagEntity(name = name).also { tagDao.insert(it) }.uuid
-            }
+            .asyncMap { name -> tagDao.findByName(name) ?: TagEntity(name = name) }
+
+        val tagsInsertionAwait = asyncScope {
+            tagDao.insertAll(tags)
+        }
 
         trainingTagDao.insert(
-            tagUuids.map { tagUuid ->
-                TrainingTagEntity(trainingUuid = trainingUuid, tagUuid = tagUuid)
+            tags.map { tag ->
+                TrainingTagEntity(
+                    trainingUuid = trainingUuid,
+                    tagUuid = tag.uuid,
+                )
             },
         )
+        tagsInsertionAwait.await()
     }
 
     private suspend fun syncExercises(trainingUuid: Uuid, exerciseUuids: List<String>) {

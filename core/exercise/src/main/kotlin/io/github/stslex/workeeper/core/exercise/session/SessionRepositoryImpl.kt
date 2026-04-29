@@ -5,7 +5,7 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
 import io.github.stslex.workeeper.core.core.di.IODispatcher
-import io.github.stslex.workeeper.core.database.common.DbTransition
+import io.github.stslex.workeeper.core.database.common.DbTransitionRunner
 import io.github.stslex.workeeper.core.database.converters.PlanSetsConverter
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
 import io.github.stslex.workeeper.core.database.session.HistoryByExerciseRow
@@ -47,7 +47,7 @@ internal class SessionRepositoryImpl @Inject constructor(
     private val trainingDao: TrainingDao,
     private val exerciseDao: ExerciseDao,
     private val trainingExerciseDao: TrainingExerciseDao,
-    private val transition: DbTransition,
+    private val transition: DbTransitionRunner,
     @IODispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : SessionRepository {
 

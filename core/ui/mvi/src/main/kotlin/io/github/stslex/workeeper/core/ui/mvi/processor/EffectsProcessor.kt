@@ -18,8 +18,8 @@ class EffectsProcessor<E : Store.Event, TStore : Store<*, *, E>>(
     operator fun invoke(block: SuspendProcessor<E>) {
         val currentLifecycleOwner = rememberLifecycleOwner()
         LaunchedEffect(currentLifecycleOwner) {
-            store.event.collect { event ->
-                currentLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            currentLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                store.event.collect { event ->
                     Log.tag("MVI_STORE_LiveWorkout").i { "Received event collector: $event" }
                     block(event)
                 }

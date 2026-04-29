@@ -12,7 +12,7 @@ import io.github.stslex.workeeper.core.core.coroutine.asyncScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.images.ImageStorage
 import io.github.stslex.workeeper.core.core.utils.CommonExt.runIfNotNull
-import io.github.stslex.workeeper.core.database.common.DbTransition
+import io.github.stslex.workeeper.core.database.common.DbTransitionRunner
 import io.github.stslex.workeeper.core.database.converters.PlanSetsConverter
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
 import io.github.stslex.workeeper.core.database.session.SessionDao
@@ -50,7 +50,7 @@ internal class ExerciseRepositoryImpl @Inject constructor(
     private val sessionDao: SessionDao,
     private val setDao: SetDao,
     private val imageStorage: ImageStorage,
-    private val transition: DbTransition,
+    private val transition: DbTransitionRunner,
     @IODispatcher private val bgDispatcher: CoroutineDispatcher,
 ) : ExerciseRepository {
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.exercise.session
 
-import io.github.stslex.workeeper.core.database.common.DbTransition
+import io.github.stslex.workeeper.core.database.common.DbTransitionRunner
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
 import io.github.stslex.workeeper.core.database.exercise.ExerciseEntity
 import io.github.stslex.workeeper.core.database.exercise.ExerciseTypeEntity
@@ -38,7 +38,7 @@ internal class SessionRepositoryGetDetailTest {
     private val exerciseDao = mockk<ExerciseDao>(relaxed = true)
     private val trainingExerciseDao = mockk<TrainingExerciseDao>(relaxed = true)
     private val transition = spyk(
-        object : DbTransition {
+        object : DbTransitionRunner {
             override suspend fun <T> invoke(block: suspend () -> T): T = block()
         },
     )
