@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.core.exercise
 
 import android.database.sqlite.SQLiteConstraintException
 import io.github.stslex.workeeper.core.core.images.ImageStorage
+import io.github.stslex.workeeper.core.database.common.DbTransition
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
 import io.github.stslex.workeeper.core.database.exercise.ExerciseEntity
 import io.github.stslex.workeeper.core.database.exercise.ExerciseTypeEntity
@@ -35,6 +36,9 @@ internal class ExerciseRepositoryImplTest {
     private val sessionDao = mockk<SessionDao>(relaxed = true)
     private val setDao = mockk<SetDao>(relaxed = true)
     private val imageStorage = mockk<ImageStorage>(relaxed = true)
+    private val transition = object : DbTransition {
+        override suspend fun <T> invoke(block: suspend () -> T): T = block()
+    }
 
     private val repository: ExerciseRepository = ExerciseRepositoryImpl(
         dao = exerciseDao,
@@ -44,6 +48,7 @@ internal class ExerciseRepositoryImplTest {
         sessionDao = sessionDao,
         setDao = setDao,
         imageStorage = imageStorage,
+        transition = transition,
         bgDispatcher = testDispatcher,
     )
 

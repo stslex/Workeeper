@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.past_session.mvi.handler
 
-import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScope
 import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
@@ -19,14 +18,24 @@ import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStor
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.State
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -167,18 +176,13 @@ internal class CommonHandlerTest {
 
     private class TestStore(
         initialState: State,
-        testScope: TestScope,
-        dispatcher: TestDispatcher,
+        private val testScope: TestScope,
+        private val dispatcher: TestDispatcher,
     ) : PastSessionHandlerStore {
 
         override val state = MutableStateFlow(initialState)
         override val lastAction: Action? = null
         override val logger: Logger = mockk(relaxed = true)
-        override val scope = AppCoroutineScope(
-            scope = testScope,
-            defaultDispatcher = dispatcher,
-            immediateDispatcher = dispatcher,
-        )
 
         override fun sendEvent(event: Event) = Unit
 
@@ -197,6 +201,33 @@ internal class CommonHandlerTest {
         override suspend fun updateStateImmediate(state: State) {
             this.state.value = state
         }
+
+        override fun <T> launch(
+            onError: suspend (Throwable) -> Unit,
+            onSuccess: suspend CoroutineScope.(T) -> Unit,
+            workDispatcher: CoroutineDispatcher?,
+            eachDispatcher: CoroutineDispatcher?,
+            action: suspend CoroutineScope.() -> T,
+        ): Job = testScope.launch(workDispatcher ?: dispatcher) {
+            runCatching { action() }
+                .onSuccess {
+                    withContext(eachDispatcher ?: dispatcher) { onSuccess(it) }
+                }
+                .onFailure {
+                    withContext(eachDispatcher ?: dispatcher) { onError(it) }
+                }
+        }
+
+        override fun <T> Flow<T>.launch(
+            onError: suspend (cause: Throwable) -> Unit,
+            workDispatcher: CoroutineDispatcher?,
+            eachDispatcher: CoroutineDispatcher?,
+            each: suspend (T) -> Unit,
+        ): Job = this
+            .catch { onError(it) }
+            .onEach { withContext(eachDispatcher ?: dispatcher) { each(it) } }
+            .flowOn(workDispatcher ?: dispatcher)
+            .launchIn(testScope)
     }
 
     private companion object {
