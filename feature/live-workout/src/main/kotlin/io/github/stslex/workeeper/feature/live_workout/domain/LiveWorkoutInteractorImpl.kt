@@ -188,10 +188,12 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
             val existingPlan = if (isAdhoc) {
                 exerciseRepository.getAdhocPlan(row.exerciseUuid)
             } else {
-                trainingExerciseRepository.getPlan(
-                    trainingUuid = session.trainingUuid,
-                    exerciseUuid = row.exerciseUuid,
-                )
+                trainingExerciseRepository
+                    .getPlan(
+                        trainingUuid = session.trainingUuid,
+                        exerciseUuid = row.exerciseUuid,
+                    )
+                    ?: exerciseRepository.getAdhocPlan(row.exerciseUuid)
             }
             val nextPlan = PlanUpdateRule.update(existingPlan, performedSets)
             planUpdates += PlanUpdate(
