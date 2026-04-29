@@ -109,11 +109,10 @@ open class BaseStore<S : State, A : Action, E : Event>(
     }
 
     fun dispose() {
-        scope.removeObserver(lifecycleObserver)
-        _scope = null
-
         disposeActions.forEach { consume(it) }
+        scope.removeObserver(lifecycleObserver)
         allowConsumeAction.set(false)
+        _scope = null
     }
 
     @Suppress("UNCHECKED_CAST")
