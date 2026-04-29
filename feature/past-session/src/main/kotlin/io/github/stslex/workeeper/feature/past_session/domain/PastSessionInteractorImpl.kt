@@ -25,23 +25,28 @@ internal class PastSessionInteractorImpl @Inject constructor(
 ) : PastSessionInteractor {
 
     /**
-     * Fetches detail once at subscription and combines it with the live PR map. Detail edits
-     * are reflected via optimistic state mutation in the handler; the PR flow re-emits when
-     * the underlying `set_table` rows change so badges follow the current PR holder.
+     * Re-fetches detail on every PR re-emission so optimistic edits made through the input
+     * handler aren't clobbered by a stale captured snapshot — the same `set_table` change
+     * that triggers PR invalidation is the change that produced the latest detail. The
+     * `uuidsByType` keyset is taken once from the initial load (exercises don't change for
+     * a finished session) and reused across re-emissions.
      */
     override fun observeDetailWithPrs(
         sessionUuid: String,
     ): Flow<DetailWithPrs?> = flow {
-        val detail = sessionRepository.getSessionDetail(sessionUuid)
-        if (detail == null) {
+        val initial = sessionRepository.getSessionDetail(sessionUuid)
+        if (initial == null) {
             emit(null)
             return@flow
         }
-        val uuidsByType = detail.exercises.associate { it.exerciseUuid to it.exerciseType }
+        val uuidsByType = initial.exercises.associate { it.exerciseUuid to it.exerciseType }
         emitAll(
             personalRecordRepository
-                .observePersonalRecords(uuidsByType)
-                .map { prMap -> DetailWithPrs(detail = detail, prMap = prMap) },
+                .observePrSetUuids(uuidsByType)
+                .map { prSetUuids ->
+                    val fresh = sessionRepository.getSessionDetail(sessionUuid) ?: initial
+                    DetailWithPrs(detail = fresh, prSetUuids = prSetUuids)
+                },
         )
     }.flowOn(ioDispatcher)
 

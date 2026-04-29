@@ -14,7 +14,6 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel.
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel.Companion.toUi
 import io.github.stslex.workeeper.feature.live_workout.R
-import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.FinishResult
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.PerformedExerciseSnapshot
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.SessionSnapshot
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
@@ -127,7 +126,6 @@ private fun Map<String, PersonalRecordDataModel?>.toUiSnapshot(
                 weight = pr.weight,
                 reps = pr.reps,
                 type = (typeByUuid[uuid] ?: ExerciseTypeDataModel.WEIGHTED).toUi(),
-                setUuid = pr.setUuid,
             )
         }
     }
@@ -196,26 +194,6 @@ internal fun State.toFinishStats(resourceWrapper: ResourceWrapper): State.Finish
         newPersonalRecords = computeNewPersonalRecords(resourceWrapper),
     )
 }
-
-internal fun FinishResult.toFinishStats(
-    state: State,
-    resourceWrapper: ResourceWrapper,
-): State.FinishStats =
-    State.FinishStats(
-        durationMillis = durationMillis,
-        durationLabel = formatElapsedDuration(durationMillis),
-        exercisesSummaryLabel = formatExerciseSummary(
-            resourceWrapper = resourceWrapper,
-            doneCount = doneCount,
-            totalCount = totalCount,
-            skippedCount = skippedCount,
-        ),
-        setsLoggedLabel = resourceWrapper.getString(
-            R.string.feature_live_workout_finish_stat_sets_count,
-            setsLogged,
-        ),
-        newPersonalRecords = state.computeNewPersonalRecords(resourceWrapper),
-    )
 
 /**
  * Walks the in-memory exercises and finds, per exercise, the best logged set; then keeps

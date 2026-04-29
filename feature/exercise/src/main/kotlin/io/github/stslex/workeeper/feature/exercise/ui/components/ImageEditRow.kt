@@ -92,13 +92,12 @@ private fun ImageThumb(
     imageDisplay: ImageDisplay,
     onClick: (() -> Unit)? = null,
 ) {
-    val clickModifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
     Box(
         modifier = Modifier
             .size(THUMB_SIZE)
             .clip(AppUi.shapes.medium)
             .background(AppUi.colors.surfaceTier1)
-            .then(clickModifier)
+            .clickable(enabled = onClick != null) { onClick?.invoke() }
             .testTag("ExerciseEditImageThumb"),
         contentAlignment = Alignment.Center,
     ) {

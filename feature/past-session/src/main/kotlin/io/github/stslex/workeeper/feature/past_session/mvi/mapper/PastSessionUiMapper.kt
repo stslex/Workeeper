@@ -6,7 +6,6 @@ import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
-import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordDataModel
 import io.github.stslex.workeeper.core.exercise.session.model.PerformedExerciseDetailDataModel
 import io.github.stslex.workeeper.core.exercise.session.model.SessionDetailDataModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
@@ -19,7 +18,7 @@ import kotlinx.collections.immutable.toImmutableList
 
 internal fun SessionDetailDataModel.toUi(
     resourceWrapper: ResourceWrapper,
-    prMap: Map<String, PersonalRecordDataModel?> = emptyMap(),
+    prSetUuids: Set<String> = emptySet(),
 ): PastSessionUiModel {
     val totalSets = exercises.sumOf { it.sets.size }
     val activeExercises = exercises.count { !it.skipped }
@@ -42,7 +41,7 @@ internal fun SessionDetailDataModel.toUi(
         durationLabel = durationLabel,
         totalsLabel = totalsLabel,
         volumeLabel = volumeLabel,
-        exercises = exercises.toUiList(prMap),
+        exercises = exercises.toUiList(prSetUuids),
     )
 }
 
@@ -80,11 +79,10 @@ private fun buildTotalsLabel(
 }
 
 private fun List<PerformedExerciseDetailDataModel>.toUiList(
-    prMap: Map<String, PersonalRecordDataModel?>,
+    prSetUuids: Set<String>,
 ): ImmutableList<PastExerciseUiModel> =
     sortedBy { it.position }
         .map { exercise ->
-            val prSetUuid = prMap[exercise.exerciseUuid]?.setUuid
             PastExerciseUiModel(
                 performedExerciseUuid = exercise.performedExerciseUuid,
                 exerciseName = exercise.exerciseName,
@@ -93,7 +91,7 @@ private fun List<PerformedExerciseDetailDataModel>.toUiList(
                 isWeighted = exercise.exerciseType == ExerciseTypeDataModel.WEIGHTED,
                 sets = exercise.sets.toUiSets(
                     performedExerciseUuid = exercise.performedExerciseUuid,
-                    prSetUuid = prSetUuid,
+                    prSetUuids = prSetUuids,
                 ),
             )
         }
@@ -101,7 +99,7 @@ private fun List<PerformedExerciseDetailDataModel>.toUiList(
 
 private fun List<SetsDataModel>.toUiSets(
     performedExerciseUuid: String,
-    prSetUuid: String?,
+    prSetUuids: Set<String>,
 ): ImmutableList<PastSetUiModel> = this
     .mapIndexed { index, set ->
         PastSetUiModel(
@@ -113,7 +111,7 @@ private fun List<SetsDataModel>.toUiSets(
             repsInput = set.reps.takeIf { it > 0 }?.toString().orEmpty(),
             weightError = false,
             repsError = false,
-            isPersonalRecord = prSetUuid != null && prSetUuid == set.uuid,
+            isPersonalRecord = set.uuid in prSetUuids,
         )
     }
     .toImmutableList()

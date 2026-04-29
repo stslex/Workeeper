@@ -27,6 +27,15 @@ Conventions:
 - finishSession now runs as a single SQL transaction; manual rollback removed.
 - `PersonalRecordRepository` extended with reactive `observe*` APIs (Room native Flow). Exercise detail and Past session subscribe; Live workout takes a one-shot session-frozen snapshot.
 
+### Fixed
+- Past session edits no longer get reverted by background PR re-emissions.
+- PR detection no longer fans out N parallel queries per session; single batch query.
+- Exercise detail PR card no longer shows a stale PR after the user toggles WEIGHTED ↔ WEIGHTLESS in edit mode.
+
+### Performance
+- Modifier instability fixed in Live workout / Past session set rows and Exercise hero / image-edit thumbnails. Reduces unnecessary recomposition + re-layout on PR-flag flips and image-clickability changes.
+- State mutation lambdas no longer perform UI mapping; mapping happens on the collector dispatcher before reaching `Main.immediate`.
+
 ### Tests
 - Smoke UI tests for all v1 list and detail screens.
 - DAO unit tests for new aggregation queries (PR, best volume, history-by-exercise) and pre-existing untested queries (`pagedActiveWithStats`, `pagedActiveWithStatsByTags`, `observeAnyActiveSession`).

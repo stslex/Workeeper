@@ -40,8 +40,31 @@ interface PersonalRecordRepository {
      * over per-exercise flows; downstream gets a fresh map each time any contributor emits.
      * The map's keyset matches [uuidsByType] exactly; values are nullable when the exercise
      * has no PR yet.
+     *
+     * Suitable only for **one-shot** uses (e.g. `firstOrNull()` to freeze a snapshot at session
+     * load); long-lived subscribers should use [observePersonalRecordsBatch] / [observePrSetUuids]
+     * to avoid the combine-of-N amplification that fires N per-entity Flows on every relevant
+     * table change.
      */
     fun observePersonalRecords(
         uuidsByType: Map<String, ExerciseTypeDataModel>,
     ): Flow<Map<String, PersonalRecordDataModel?>>
+
+    /**
+     * Long-lived batch variant of [observePersonalRecords]. Backed by a single Room query with
+     * `IN (:uuids)`; one subscription, one query plan, one cursor. Re-emits when any participating
+     * table changes. Values are non-null — exercises with no PR yet are simply absent from the map.
+     */
+    fun observePersonalRecordsBatch(
+        uuidsByType: Map<String, ExerciseTypeDataModel>,
+    ): Flow<Map<String, PersonalRecordDataModel>>
+
+    /**
+     * Projection of [observePersonalRecordsBatch] that only emits PR-holder set UUIDs. Used by
+     * consumers (e.g. Past session) that need set-uuid equality for badge rendering and never
+     * read other PR fields, so the heavier model never crosses the boundary.
+     */
+    fun observePrSetUuids(
+        uuidsByType: Map<String, ExerciseTypeDataModel>,
+    ): Flow<Set<String>>
 }

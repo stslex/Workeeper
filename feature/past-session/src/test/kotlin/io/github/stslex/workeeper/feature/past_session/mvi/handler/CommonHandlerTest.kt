@@ -7,7 +7,6 @@ import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
-import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordDataModel
 import io.github.stslex.workeeper.core.exercise.session.model.PerformedExerciseDetailDataModel
 import io.github.stslex.workeeper.core.exercise.session.model.SessionDetailDataModel
 import io.github.stslex.workeeper.feature.past_session.R
@@ -67,7 +66,7 @@ internal class CommonHandlerTest {
             store = store,
         )
         every { interactor.observeDetailWithPrs(SESSION_UUID) } returns flowOf(
-            DetailWithPrs(detail = sessionDetail(), prMap = emptyMap()),
+            DetailWithPrs(detail = sessionDetail(), prSetUuids = emptySet()),
         )
 
         handler.invoke(Action.Common.Init)
@@ -143,17 +142,8 @@ internal class CommonHandlerTest {
             sets = listOf(plainSet, prSet),
         )
         val detail = sessionDetail().copy(exercises = listOf(performed))
-        val pr = PersonalRecordDataModel(
-            sessionUuid = "session-1",
-            performedExerciseUuid = "performed-1",
-            setUuid = "set-pr",
-            weight = 100.0,
-            reps = 5,
-            type = SetsDataType.WORK,
-            finishedAt = 60_000L,
-        )
         every { interactor.observeDetailWithPrs(SESSION_UUID) } returns flowOf(
-            DetailWithPrs(detail = detail, prMap = mapOf("exercise-1" to pr)),
+            DetailWithPrs(detail = detail, prSetUuids = setOf("set-pr")),
         )
 
         handler.invoke(Action.Common.Init)

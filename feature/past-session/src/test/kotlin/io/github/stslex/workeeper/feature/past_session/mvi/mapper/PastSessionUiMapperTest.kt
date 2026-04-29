@@ -5,7 +5,6 @@ import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
-import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordDataModel
 import io.github.stslex.workeeper.core.exercise.session.model.PerformedExerciseDetailDataModel
 import io.github.stslex.workeeper.core.exercise.session.model.SessionDetailDataModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
@@ -75,19 +74,10 @@ internal class PastSessionUiMapperTest {
 
     @Test
     fun `mapper marks the PR-bearing set with isPersonalRecord`() {
-        val pr = PersonalRecordDataModel(
-            sessionUuid = "session-prev",
-            performedExerciseUuid = "performed-prev",
-            setUuid = "set-2",
-            weight = 100.0,
-            reps = 5,
-            type = SetsDataType.WORK,
-            finishedAt = 100L,
-        )
         val ui = sessionDetail(
             isAdhoc = false,
             exercises = listOf(weightedExercise(position = 0)),
-        ).toUi(resources, prMap = mapOf("exercise-2" to pr))
+        ).toUi(resources, prSetUuids = setOf("set-2"))
 
         val sets = ui.exercises.single().sets
         assertEquals(true, sets.first { it.setUuid == "set-2" }.isPersonalRecord)
@@ -95,11 +85,11 @@ internal class PastSessionUiMapperTest {
     }
 
     @Test
-    fun `mapper leaves all sets unflagged when prMap is empty`() {
+    fun `mapper leaves all sets unflagged when prSetUuids is empty`() {
         val ui = sessionDetail(
             isAdhoc = false,
             exercises = listOf(weightedExercise(position = 0)),
-        ).toUi(resources, prMap = emptyMap())
+        ).toUi(resources, prSetUuids = emptySet())
 
         ui.exercises.single().sets.forEach { assertFalse(it.isPersonalRecord) }
     }

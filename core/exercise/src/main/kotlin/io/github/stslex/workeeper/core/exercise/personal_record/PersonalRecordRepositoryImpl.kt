@@ -57,6 +57,47 @@ internal class PersonalRecordRepositoryImpl @Inject constructor(
         return combine(perExerciseFlows) { pairs -> pairs.toMap() }
     }
 
+    override fun observePersonalRecordsBatch(
+        uuidsByType: Map<String, ExerciseTypeDataModel>,
+    ): Flow<Map<String, PersonalRecordDataModel>> {
+        if (uuidsByType.isEmpty()) return flowOf(emptyMap())
+        return sessionDao
+            .observePersonalRecordsBatch(uuidsByType.keys.map(Uuid::parse))
+            .map { rows -> rows.toBestPerExercise(uuidsByType) }
+            .flowOn(ioDispatcher)
+    }
+
+    override fun observePrSetUuids(
+        uuidsByType: Map<String, ExerciseTypeDataModel>,
+    ): Flow<Set<String>> {
+        if (uuidsByType.isEmpty()) return flowOf(emptySet())
+        return sessionDao
+            .observePersonalRecordsBatch(uuidsByType.keys.map(Uuid::parse))
+            .map { rows ->
+                rows.toBestPerExercise(uuidsByType)
+                    .values
+                    .map { it.setUuid }
+                    .toSet()
+            }
+            .flowOn(ioDispatcher)
+    }
+
+    /**
+     * The DAO returns all candidate sets ordered with the heaviest-first within each exercise
+     * group. The `IN (:uuids)` query cannot encode the per-exercise `(:isWeightless = 1 OR
+     * weight IS NOT NULL)` predicate, so we filter weighted exercises' weight-null rows here
+     * — a weighted exercise's PR cannot be a weightless set.
+     */
+    private fun List<PersonalRecordRow>.toBestPerExercise(
+        uuidsByType: Map<String, ExerciseTypeDataModel>,
+    ): Map<String, PersonalRecordDataModel> = asSequence()
+        .filter { row ->
+            val type = uuidsByType[row.exerciseUuid.toString()] ?: return@filter false
+            type == ExerciseTypeDataModel.WEIGHTLESS || row.weight != null
+        }
+        .groupBy { it.exerciseUuid.toString() }
+        .mapValues { (_, group) -> group.first().toData() }
+
     private fun PersonalRecordRow.toData(): PersonalRecordDataModel = PersonalRecordDataModel(
         sessionUuid = sessionUuid.toString(),
         performedExerciseUuid = performedExerciseUuid.toString(),

@@ -2,16 +2,17 @@
 package io.github.stslex.workeeper.feature.past_session.domain
 
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
-import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordDataModel
 import io.github.stslex.workeeper.core.exercise.session.model.SessionDetailDataModel
 import kotlinx.coroutines.flow.Flow
 
 internal interface PastSessionInteractor {
 
     /**
-     * Combined session-detail + per-exercise PR map. Detail is fetched once at subscription;
-     * the PR map is observed reactively so badges refresh after edits / new finished sessions
-     * land on other screens. Returns null only when the session itself is missing.
+     * Combined session-detail + PR-holder set UUIDs. Detail is re-fetched on every PR
+     * re-emission so optimistic edits made through the input handler don't get clobbered
+     * by stale captured detail. The shape is `Set<String>` rather than a full PR map
+     * because the consumer only needs set-uuid equality for badge rendering.
+     * Returns null only when the session itself is missing.
      */
     fun observeDetailWithPrs(sessionUuid: String): Flow<DetailWithPrs?>
 
@@ -25,6 +26,6 @@ internal interface PastSessionInteractor {
 
     data class DetailWithPrs(
         val detail: SessionDetailDataModel,
-        val prMap: Map<String, PersonalRecordDataModel?>,
+        val prSetUuids: Set<String>,
     )
 }

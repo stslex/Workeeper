@@ -4,7 +4,6 @@ package io.github.stslex.workeeper.feature.past_session.domain
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
-import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordDataModel
 import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordRepository
 import io.github.stslex.workeeper.core.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.exercise.session.SetRepository
@@ -20,6 +19,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 internal class PastSessionInteractorImplTest {
@@ -44,7 +44,7 @@ internal class PastSessionInteractorImplTest {
     }
 
     @Test
-    fun `observeDetailWithPrs combines detail with PR map`() = runTest {
+    fun `observeDetailWithPrs combines fresh detail with PR set uuids`() = runTest {
         val performed = PerformedExerciseDetailDataModel(
             performedExerciseUuid = "performed-1",
             exerciseUuid = "exercise-1",
@@ -63,26 +63,17 @@ internal class PastSessionInteractorImplTest {
             finishedAt = 1_000L,
             exercises = listOf(performed),
         )
-        val pr = PersonalRecordDataModel(
-            sessionUuid = "session-prev",
-            performedExerciseUuid = "performed-prev",
-            setUuid = "set-prev",
-            weight = 105.0,
-            reps = 5,
-            type = SetsDataType.WORK,
-            finishedAt = 500L,
-        )
         coEvery { sessionRepository.getSessionDetail("session-1") } returns detail
         every {
-            personalRecordRepository.observePersonalRecords(
+            personalRecordRepository.observePrSetUuids(
                 mapOf("exercise-1" to ExerciseTypeDataModel.WEIGHTED),
             )
-        } returns flowOf(mapOf("exercise-1" to pr))
+        } returns flowOf(setOf("set-prev"))
 
         val result = interactor.observeDetailWithPrs("session-1").first()
 
         assertEquals(detail, result?.detail)
-        assertEquals(pr, result?.prMap?.get("exercise-1"))
+        assertTrue(result?.prSetUuids?.contains("set-prev") == true)
     }
 
     @Test

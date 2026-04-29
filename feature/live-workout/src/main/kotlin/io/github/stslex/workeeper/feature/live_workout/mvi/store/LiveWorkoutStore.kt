@@ -56,14 +56,14 @@ internal interface LiveWorkoutStore :
         /**
          * Pre-session PR snapshot held in State for the entire session (Q6 lock — frozen
          * snapshot scope). One entry per exercise; absent key means "no PR yet" and any
-         * non-zero candidate beats it.
+         * non-zero candidate beats it. Identity (`setUuid`) is intentionally absent — the
+         * comparator paths only need weight + reps + type.
          */
         @Stable
         data class PrSnapshotItem(
             val weight: Double?,
             val reps: Int,
             val type: ExerciseTypeUiModel,
-            val setUuid: String,
         )
 
         @Stable

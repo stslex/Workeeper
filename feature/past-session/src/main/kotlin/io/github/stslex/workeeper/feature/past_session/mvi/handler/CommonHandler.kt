@@ -26,11 +26,11 @@ internal class CommonHandler @Inject constructor(
     }
 
     /**
-     * Subscribes to a combined detail + PR-map flow. The detail load is one-shot at
-     * subscription; the PR map is reactive — every Room invalidation re-emits a new map and
-     * the mapper recomputes `isPersonalRecord` per set without re-fetching detail. Edits
-     * apply optimistically through the input handler, so the snapshot stays consistent
-     * between PR re-emissions.
+     * Subscribes to a combined detail + PR-set-uuid flow. Detail is re-fetched in the
+     * interactor on every PR re-emission so optimistic edits aren't clobbered by stale
+     * captured detail. UI mapping happens in the collector body — keeping
+     * `updateStateImmediate` reduced to pure state transformation per the State mutation
+     * discipline rule.
      */
     private fun processInit() {
         val sessionUuid = state.value.sessionUuid
@@ -43,17 +43,10 @@ internal class CommonHandler @Inject constructor(
                 }
             },
         ) { result ->
-            updateStateImmediate { current ->
-                if (result == null) {
-                    current.copy(phase = State.Phase.Error(ErrorType.SessionNotFound))
-                } else {
-                    current.copy(
-                        phase = State.Phase.Loaded(
-                            detail = result.detail.toUi(resourceWrapper, result.prMap),
-                        ),
-                    )
-                }
-            }
+            val phase = result?.let {
+                State.Phase.Loaded(detail = it.detail.toUi(resourceWrapper, it.prSetUuids))
+            } ?: State.Phase.Error(ErrorType.SessionNotFound)
+            updateStateImmediate { current -> current.copy(phase = phase) }
         }
     }
 }

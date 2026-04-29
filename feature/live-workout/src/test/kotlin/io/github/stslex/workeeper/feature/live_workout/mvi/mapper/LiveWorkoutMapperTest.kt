@@ -198,13 +198,11 @@ internal class LiveWorkoutMapperTest {
                     weight = 100.0,
                     reps = 5,
                     type = ExerciseTypeUiModel.WEIGHTED,
-                    setUuid = "set-prev-1",
                 ),
                 "ex-2" to State.PrSnapshotItem(
                     weight = null,
                     reps = 12,
                     type = ExerciseTypeUiModel.WEIGHTLESS,
-                    setUuid = "set-prev-2",
                 ),
             ).toImmutableMap(),
             planEditorTarget = null,
@@ -243,7 +241,67 @@ internal class LiveWorkoutMapperTest {
                     weight = 100.0,
                     reps = 5,
                     type = ExerciseTypeUiModel.WEIGHTED,
-                    setUuid = "set-prev",
+                ),
+            ).toImmutableMap(),
+        )
+
+        assertTrue(state.toFinishStats(res).newPersonalRecords.isEmpty())
+    }
+
+    @Test
+    fun `toFinishStats excludes a skipped exercise even if performed sets exist`() {
+        val res = mockk<ResourceWrapper>(relaxed = true)
+        val state = baseState().copy(
+            exercises = persistentListOf(
+                exerciseUi(
+                    exerciseUuid = "ex-1",
+                    name = "Bench",
+                    type = ExerciseTypeUiModel.WEIGHTED,
+                    performed = listOf(liveSet(0, 200.0, 10, isDone = true)),
+                    status = ExerciseStatusUiModel.SKIPPED,
+                ),
+            ),
+            preSessionPrSnapshot = persistentMapOf(),
+        )
+
+        assertTrue(state.toFinishStats(res).newPersonalRecords.isEmpty())
+    }
+
+    @Test
+    fun `toFinishStats excludes an exercise with no done sets`() {
+        val res = mockk<ResourceWrapper>(relaxed = true)
+        val state = baseState().copy(
+            exercises = persistentListOf(
+                exerciseUi(
+                    exerciseUuid = "ex-1",
+                    name = "Bench",
+                    type = ExerciseTypeUiModel.WEIGHTED,
+                    performed = listOf(liveSet(0, 200.0, 10, isDone = false)),
+                ),
+            ),
+            preSessionPrSnapshot = persistentMapOf(),
+        )
+
+        assertTrue(state.toFinishStats(res).newPersonalRecords.isEmpty())
+    }
+
+    @Test
+    fun `toFinishStats does not emit when the best set ties the snapshot exactly`() {
+        val res = mockk<ResourceWrapper>(relaxed = true)
+        val state = baseState().copy(
+            exercises = persistentListOf(
+                exerciseUi(
+                    exerciseUuid = "ex-1",
+                    name = "Bench",
+                    type = ExerciseTypeUiModel.WEIGHTED,
+                    performed = listOf(liveSet(0, 100.0, 5, isDone = true)),
+                ),
+            ),
+            preSessionPrSnapshot = mapOf(
+                "ex-1" to State.PrSnapshotItem(
+                    weight = 100.0,
+                    reps = 5,
+                    type = ExerciseTypeUiModel.WEIGHTED,
                 ),
             ).toImmutableMap(),
         )
@@ -275,7 +333,6 @@ internal class LiveWorkoutMapperTest {
                     weight = 100.0,
                     reps = 5,
                     type = ExerciseTypeUiModel.WEIGHTED,
-                    setUuid = "set-prev",
                 ),
             ).toImmutableMap(),
         )
@@ -319,13 +376,14 @@ internal class LiveWorkoutMapperTest {
         name: String,
         type: ExerciseTypeUiModel,
         performed: List<LiveSetUiModel>,
+        status: ExerciseStatusUiModel = ExerciseStatusUiModel.DONE,
     ): LiveExerciseUiModel = LiveExerciseUiModel(
         performedExerciseUuid = "pe-$exerciseUuid",
         exerciseUuid = exerciseUuid,
         exerciseName = name,
         exerciseType = type,
         position = 0,
-        status = ExerciseStatusUiModel.DONE,
+        status = status,
         statusLabel = "",
         planSets = persistentListOf<PlanSetUiModel>(),
         performedSets = performed.toImmutableList(),

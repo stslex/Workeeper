@@ -10,6 +10,7 @@ import kotlin.uuid.Uuid
  * Exercise detail PR block. The aggregation runs at read time; no caching layer in v2.0.
  */
 data class PersonalRecordRow(
+    @ColumnInfo(name = "exercise_uuid") val exerciseUuid: Uuid,
     @ColumnInfo(name = "session_uuid") val sessionUuid: Uuid,
     @ColumnInfo(name = "performed_exercise_uuid") val performedExerciseUuid: Uuid,
     @ColumnInfo(name = "set_uuid") val setUuid: Uuid,

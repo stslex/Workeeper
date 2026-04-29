@@ -117,7 +117,9 @@ internal class PersonalRecordRepositoryFlowTest {
     private fun sampleRow(
         weight: Double?,
         reps: Int,
+        exerciseUuid: Uuid = Uuid.random(),
     ): PersonalRecordRow = PersonalRecordRow(
+        exerciseUuid = exerciseUuid,
         sessionUuid = Uuid.random(),
         performedExerciseUuid = Uuid.random(),
         setUuid = Uuid.random(),
