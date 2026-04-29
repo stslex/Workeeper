@@ -4,7 +4,11 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
+import io.github.stslex.workeeper.core.core.coroutine.asyncMap
+import io.github.stslex.workeeper.core.core.coroutine.asyncMapIndexed
+import io.github.stslex.workeeper.core.core.coroutine.asyncScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
+import io.github.stslex.workeeper.core.database.converters.PlanSetsConverter
 import io.github.stslex.workeeper.core.database.session.SessionDao
 import io.github.stslex.workeeper.core.database.tag.TagDao
 import io.github.stslex.workeeper.core.database.tag.TagEntity
@@ -13,8 +17,10 @@ import io.github.stslex.workeeper.core.database.tag.TrainingTagEntity
 import io.github.stslex.workeeper.core.database.training.TrainingDao
 import io.github.stslex.workeeper.core.database.training.TrainingExerciseDao
 import io.github.stslex.workeeper.core.database.training.TrainingExerciseEntity
+import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.training.TrainingRepository.BulkArchiveOutcome
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -23,7 +29,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.uuid.Uuid
 
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "LongParameterList")
 @Singleton
 class TrainingRepositoryImpl @Inject constructor(
     private val dao: TrainingDao,
@@ -31,6 +37,7 @@ class TrainingRepositoryImpl @Inject constructor(
     private val tagDao: TagDao,
     private val trainingTagDao: TrainingTagDao,
     private val sessionDao: SessionDao,
+    private val exerciseRepository: ExerciseRepository,
     @IODispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : TrainingRepository {
 
@@ -45,9 +52,16 @@ class TrainingRepositoryImpl @Inject constructor(
         withContext(ioDispatcher) {
             val entity = training.toEntity()
             val existing = dao.getById(entity.uuid)
-            if (existing == null) dao.insert(entity) else dao.update(entity)
-            syncLabels(entity.uuid, training.labels)
+            if (existing == null) {
+                dao.insert(entity)
+            } else {
+                dao.update(entity)
+            }
+            val syncLabelsDeferred = async {
+                syncLabels(entity.uuid, training.labels)
+            }
             syncExercises(entity.uuid, training.exerciseUuids)
+            syncLabelsDeferred.await()
         }
     }
 
@@ -63,7 +77,8 @@ class TrainingRepositoryImpl @Inject constructor(
         val entityUuid = Uuid.parse(uuid)
         dao.getById(entityUuid)?.toData(
             labels = trainingTagDao.getTagNames(entityUuid),
-            exerciseUuids = trainingExerciseDao.getByTraining(entityUuid).map { it.exerciseUuid.toString() },
+            exerciseUuids = trainingExerciseDao.getByTraining(entityUuid)
+                .map { it.exerciseUuid.toString() },
         )
     }
 
@@ -75,16 +90,23 @@ class TrainingRepositoryImpl @Inject constructor(
             if (entity == null) {
                 TrainingDataModel(uuid = uuid, name = "", timestamp = 0L)
             } else {
+                val labelsDeferred = asyncScope {
+                    trainingTagDao.getTagNames(entity.uuid)
+                }
+                val exerciseUuidsDeferred = asyncScope {
+                    trainingExerciseDao.getByTraining(entity.uuid)
+                        .map { it.exerciseUuid.toString() }
+                }
                 entity.toData(
-                    labels = trainingTagDao.getTagNames(entity.uuid),
-                    exerciseUuids = trainingExerciseDao.getByTraining(entity.uuid).map { it.exerciseUuid.toString() },
+                    labels = labelsDeferred.await(),
+                    exerciseUuids = exerciseUuidsDeferred.await(),
                 )
             }
         }
         .flowOn(ioDispatcher)
 
     override suspend fun removeAll(uuids: List<String>) = withContext(ioDispatcher) {
-        uuids.forEach { dao.permanentDelete(Uuid.parse(it)) }
+        dao.permanentDeleteAll(uuids.map { Uuid.parse(it) })
     }
 
     override suspend fun archive(uuid: String) {
@@ -113,7 +135,8 @@ class TrainingRepositoryImpl @Inject constructor(
             pagingData.map { entity ->
                 entity.toData(
                     labels = trainingTagDao.getTagNames(entity.uuid),
-                    exerciseUuids = trainingExerciseDao.getByTraining(entity.uuid).map { it.exerciseUuid.toString() },
+                    exerciseUuids = trainingExerciseDao.getByTraining(entity.uuid)
+                        .map { it.exerciseUuid.toString() },
                 )
             }
         }
@@ -190,39 +213,56 @@ class TrainingRepositoryImpl @Inject constructor(
     private suspend fun syncLabels(trainingUuid: Uuid, labels: List<String>) {
         trainingTagDao.deleteByTraining(trainingUuid)
         if (labels.isEmpty()) return
-        val tagUuids = labels
-            .map(String::trim)
-            .filter { it.isNotEmpty() }
+        val tags = labels.filter { it.isNotBlank() }
             .distinctBy { it.lowercase() }
-            .map { name ->
-                tagDao.findByName(name)?.uuid ?: TagEntity(name = name).also { tagDao.insert(it) }.uuid
-            }
+            .asyncMap { name -> tagDao.findByName(name) ?: TagEntity(name = name) }
+
+        val tagsInsertionAwait = asyncScope {
+            tagDao.insertAll(tags)
+        }
+
         trainingTagDao.insert(
-            tagUuids.map { tagUuid ->
-                TrainingTagEntity(trainingUuid = trainingUuid, tagUuid = tagUuid)
+            tags.map { tag ->
+                TrainingTagEntity(
+                    trainingUuid = trainingUuid,
+                    tagUuid = tag.uuid
+                )
             },
         )
+        tagsInsertionAwait.await()
     }
 
     private suspend fun syncExercises(trainingUuid: Uuid, exerciseUuids: List<String>) {
         // Snapshot existing rows before truncating so we can preserve plan_sets across an
         // edit. Plans are sub-entities of (training, exercise) — replacing the position
         // map should not silently wipe them.
-        val existing = trainingExerciseDao.getByTraining(trainingUuid)
-            .associateBy { it.exerciseUuid }
+        val existing = asyncScope {
+            trainingExerciseDao.getByTraining(trainingUuid)
+                .associateBy { it.exerciseUuid }
+        }
         trainingExerciseDao.deleteByTraining(trainingUuid)
         if (exerciseUuids.isEmpty()) return
-        trainingExerciseDao.insert(
-            exerciseUuids.mapIndexed { index, raw ->
-                val exerciseUuid = Uuid.parse(raw)
-                TrainingExerciseEntity(
-                    trainingUuid = trainingUuid,
-                    exerciseUuid = exerciseUuid,
-                    position = index,
-                    planSets = existing[exerciseUuid]?.planSets,
-                )
-            },
-        )
+
+        val rows = exerciseUuids.asyncMapIndexed { index, rawUuid ->
+            val exerciseUuid = Uuid.parse(rawUuid)
+            val planSets = if (existing.await().containsKey(exerciseUuid)) {
+                // Already attached — preserve whatever the user has, including empty.
+                existing.await()[exerciseUuid]?.planSets
+            } else {
+                // New attachment — inherit the exercise's own default plan so the user
+                // doesn't have to re-enter a plan they already configured on the
+                // exercise. `containsKey` (not `?:`) keeps a deliberately-cleared empty
+                // plan empty across re-saves.
+                PlanSetsConverter.toJson(exerciseRepository.getAdhocPlan(rawUuid))
+            }
+            TrainingExerciseEntity(
+                trainingUuid = trainingUuid,
+                exerciseUuid = exerciseUuid,
+                position = index,
+                planSets = planSets,
+            )
+        }
+        trainingExerciseDao.insert(rows)
     }
 
     companion object {

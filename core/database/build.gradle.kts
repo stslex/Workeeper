@@ -9,4 +9,6 @@ dependencies {
 
     implementation(libs.kotlinx.serialization.json)
     testImplementation(libs.androidx.room.testing)
+
+    androidTestImplementation(libs.bundles.android.test)
 }

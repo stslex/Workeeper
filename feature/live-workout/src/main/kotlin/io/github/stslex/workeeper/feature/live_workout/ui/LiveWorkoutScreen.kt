@@ -169,13 +169,17 @@ private fun Body(
                 items = state.exercises,
                 key = { it.performedExerciseUuid },
             ) { exercise ->
+                // Auto-default CURRENT (not in activeUuids) stays expanded by default; any
+                // user-toggled state (including a manually-active CURRENT collapsed by
+                // tapping its header) honors the explicit set.
+                val expanded = exercise.performedExerciseUuid in state.expandedExerciseUuids ||
+                    (
+                        exercise.status == ExerciseStatusUiModel.CURRENT &&
+                            exercise.performedExerciseUuid !in state.activeExerciseUuids
+                        )
                 LiveExerciseCard(
                     exercise = exercise,
-                    expanded = exercise.status == ExerciseStatusUiModel.CURRENT ||
-                        (
-                            exercise.status == ExerciseStatusUiModel.DONE &&
-                                exercise.performedExerciseUuid in state.expandedDoneExerciseUuids
-                            ),
+                    expanded = expanded,
                     drafts = state.setDrafts,
                     consume = consume,
                 )
@@ -285,7 +289,8 @@ private fun stubState(): State = State(
         ),
     ),
     setDrafts = persistentMapOf(),
-    expandedDoneExerciseUuids = kotlinx.collections.immutable.persistentSetOf(),
+    activeExerciseUuids = kotlinx.collections.immutable.persistentSetOf(),
+    expandedExerciseUuids = kotlinx.collections.immutable.persistentSetOf(),
     preSessionPrSnapshot = persistentMapOf(),
     planEditorTarget = null,
     pendingFinishConfirm = null,

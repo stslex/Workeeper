@@ -73,10 +73,16 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
             }
         } else {
             performedRows.associate { row ->
-                row.exerciseUuid to trainingExerciseRepository.getPlan(
+                val trainingPlan = trainingExerciseRepository.getPlan(
                     trainingUuid = session.trainingUuid,
                     exerciseUuid = row.exerciseUuid,
                 )
+                // Read-time fallback: trainings created before the write-time fix may have
+                // null planSets even when the exercise has its own default. Recover here so
+                // existing user data isn't stranded. Empty plan (deliberately cleared by
+                // the user) is preserved as empty — `?:` only triggers on null.
+                val resolved = trainingPlan ?: exerciseRepository.getAdhocPlan(row.exerciseUuid)
+                row.exerciseUuid to resolved
             }
         }
         val exerciseSnapshots = performedRows

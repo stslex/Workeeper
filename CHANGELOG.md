@@ -26,11 +26,14 @@ Conventions:
 ### Changed
 - finishSession now runs as a single SQL transaction; manual rollback removed.
 - `PersonalRecordRepository` extended with reactive `observe*` APIs (Room native Flow). Exercise detail and Past session subscribe; Live workout takes a one-shot session-frozen snapshot.
+- Database migrations are no longer destructive past schema version 5. Future schema bumps must ship explicit Migration objects and migration tests; Room will refuse to boot otherwise. Pre-release schemas (v2, v3, v4) retain their destructive paths.
 
 ### Fixed
 - Past session edits no longer get reverted by background PR re-emissions.
 - PR detection no longer fans out N parallel queries per session; single batch query.
 - Exercise detail PR card no longer shows a stale PR after the user toggles WEIGHTED ↔ WEIGHTLESS in edit mode.
+- Plan from an exercise's default plan now flows into trainings that include the exercise. Both newly added exercises (write-time) and trainings that already existed without a plan (read-time) are covered. Plans the user explicitly cleared remain empty.
+- Multiple exercises can be active in parallel during a session. Tap a PENDING exercise's header to start it without finishing the current one. Useful for supersets and circuits.
 
 ### Performance
 - Modifier instability fixed in Live workout / Past session set rows and Exercise hero / image-edit thumbnails. Reduces unnecessary recomposition + re-layout on PR-flag flips and image-clickability changes.

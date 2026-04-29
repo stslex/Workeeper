@@ -152,6 +152,71 @@ internal class LiveWorkoutMapperTest {
         )
 
     @Test
+    fun `toUiList without active uuids and no done exercises marks the first non-skipped as CURRENT`() {
+        val ui = listOf(
+            pending(uuid = "pe-1", position = 0),
+            pending(uuid = "pe-2", position = 1),
+        ).toUiList(activeUuids = emptySet())
+
+        assertEquals(ExerciseStatusUiModel.CURRENT, ui[0].status)
+        assertEquals(ExerciseStatusUiModel.PENDING, ui[1].status)
+    }
+
+    @Test
+    fun `toUiList without active uuids skips done exercises and marks the next non-done as CURRENT`() {
+        val ui = listOf(
+            fullyDone(uuid = "pe-1", position = 0),
+            pending(uuid = "pe-2", position = 1),
+            pending(uuid = "pe-3", position = 2),
+        ).toUiList(activeUuids = emptySet())
+
+        assertEquals(ExerciseStatusUiModel.DONE, ui[0].status)
+        assertEquals(ExerciseStatusUiModel.CURRENT, ui[1].status)
+        assertEquals(ExerciseStatusUiModel.PENDING, ui[2].status)
+    }
+
+    @Test
+    fun `toUiList with two uuids in active set marks both as CURRENT`() {
+        val ui = listOf(
+            pending(uuid = "pe-1", position = 0),
+            pending(uuid = "pe-2", position = 1),
+            pending(uuid = "pe-3", position = 2),
+        ).toUiList(activeUuids = setOf("pe-1", "pe-3"))
+
+        assertEquals(ExerciseStatusUiModel.CURRENT, ui[0].status)
+        assertEquals(ExerciseStatusUiModel.PENDING, ui[1].status)
+        assertEquals(ExerciseStatusUiModel.CURRENT, ui[2].status)
+    }
+
+    @Test
+    fun `toUiList with one active uuid does not auto-promote any other PENDING exercise`() {
+        val ui = listOf(
+            pending(uuid = "pe-1", position = 0),
+            pending(uuid = "pe-2", position = 1),
+        ).toUiList(activeUuids = setOf("pe-2"))
+
+        // pe-1 was the previous auto-default, but the active set is non-empty so the
+        // auto-default is suppressed. pe-1 falls back to PENDING.
+        assertEquals(ExerciseStatusUiModel.PENDING, ui[0].status)
+        assertEquals(ExerciseStatusUiModel.CURRENT, ui[1].status)
+    }
+
+    @Test
+    fun `toUiList preserves SKIPPED and DONE regardless of active set`() {
+        val ui = listOf(
+            pending(uuid = "pe-1", position = 0).copy(
+                performed = pending("pe-1", 0).performed.copy(skipped = true),
+            ),
+            fullyDone(uuid = "pe-2", position = 1),
+            pending(uuid = "pe-3", position = 2),
+        ).toUiList(activeUuids = setOf("pe-1", "pe-2", "pe-3"))
+
+        assertEquals(ExerciseStatusUiModel.SKIPPED, ui[0].status)
+        assertEquals(ExerciseStatusUiModel.DONE, ui[1].status)
+        assertEquals(ExerciseStatusUiModel.CURRENT, ui[2].status)
+    }
+
+    @Test
     fun `toFinishStats emits one NewPrEntry per exercise that beats the snapshot`() {
         val res = mockk<ResourceWrapper>(relaxed = true)
         every {
@@ -192,7 +257,8 @@ internal class LiveWorkoutMapperTest {
                 ),
             ),
             setDrafts = persistentMapOf(),
-            expandedDoneExerciseUuids = persistentSetOf(),
+            activeExerciseUuids = persistentSetOf(),
+            expandedExerciseUuids = persistentSetOf(),
             preSessionPrSnapshot = mapOf(
                 "ex-1" to State.PrSnapshotItem(
                     weight = 100.0,
@@ -359,7 +425,8 @@ internal class LiveWorkoutMapperTest {
         progressLabel = "",
         exercises = persistentListOf(),
         setDrafts = persistentMapOf(),
-        expandedDoneExerciseUuids = persistentSetOf(),
+        activeExerciseUuids = persistentSetOf(),
+        expandedExerciseUuids = persistentSetOf(),
         preSessionPrSnapshot = persistentMapOf(),
         planEditorTarget = null,
         pendingFinishConfirm = null,

@@ -38,7 +38,19 @@ internal interface LiveWorkoutStore :
         val progressLabel: String,
         val exercises: ImmutableList<LiveExerciseUiModel>,
         val setDrafts: ImmutableMap<DraftKey, LiveSetUiModel>,
-        val expandedDoneExerciseUuids: ImmutableSet<String>,
+        /**
+         * UUIDs the user has explicitly tapped to start (or kept active across recompute).
+         * When non-empty, the auto-default first-CURRENT behavior is suppressed; only
+         * exercises in this set become CURRENT (alongside SKIPPED/DONE derivation).
+         * Ephemeral — resets on app background/restore.
+         */
+        val activeExerciseUuids: ImmutableSet<String>,
+        /**
+         * UUIDs the user has explicitly toggled expanded. Covers both DONE rows the user
+         * pulled open and CURRENT rows the user collapsed/re-expanded. Pruned by
+         * `recomputeStatuses` when an exercise transitions out of DONE/CURRENT.
+         */
+        val expandedExerciseUuids: ImmutableSet<String>,
         val preSessionPrSnapshot: ImmutableMap<String, PrSnapshotItem>,
         val planEditorTarget: PlanEditorTarget?,
         val pendingFinishConfirm: FinishStats?,
@@ -120,7 +132,8 @@ internal interface LiveWorkoutStore :
                 progressLabel = "",
                 exercises = persistentListOf(),
                 setDrafts = persistentMapOf(),
-                expandedDoneExerciseUuids = persistentSetOf(),
+                activeExerciseUuids = persistentSetOf(),
+                expandedExerciseUuids = persistentSetOf(),
                 preSessionPrSnapshot = persistentMapOf(),
                 planEditorTarget = null,
                 pendingFinishConfirm = null,

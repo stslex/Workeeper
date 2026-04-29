@@ -368,14 +368,46 @@ internal class ClickHandler @Inject constructor(
 
     private fun processExerciseHeaderClick(action: Action.Click.OnExerciseHeaderClick) {
         updateState { current ->
-            val exercise =
-                current.findExercise(action.performedExerciseUuid) ?: return@updateState current
-            if (exercise.status != ExerciseStatusUiModel.DONE) return@updateState current
-            val next = current.expandedDoneExerciseUuids.toMutableSet()
-            if (!next.add(action.performedExerciseUuid)) {
-                next.remove(action.performedExerciseUuid)
+            val exercise = current.findExercise(action.performedExerciseUuid)
+                ?: return@updateState current
+            when (exercise.status) {
+                ExerciseStatusUiModel.SKIPPED -> current
+                ExerciseStatusUiModel.PENDING -> {
+                    // Promote to active. Status flips to CURRENT, card expands.
+                    val activeNext = current.activeExerciseUuids.toMutableSet().apply {
+                        add(action.performedExerciseUuid)
+                    }
+                    val expandedNext = current.expandedExerciseUuids.toMutableSet().apply {
+                        add(action.performedExerciseUuid)
+                    }
+                    current.copy(
+                        activeExerciseUuids = activeNext.toImmutableSet(),
+                        expandedExerciseUuids = expandedNext.toImmutableSet(),
+                    ).recomputeStatuses()
+                }
+                ExerciseStatusUiModel.CURRENT -> {
+                    // Toggle expanded. If it's the auto-default (not yet in activeUuids),
+                    // also promote to explicit-active so the user can later collapse it.
+                    val expandedNext = current.expandedExerciseUuids.toMutableSet()
+                    if (!expandedNext.add(action.performedExerciseUuid)) {
+                        expandedNext.remove(action.performedExerciseUuid)
+                    }
+                    val activeNext = current.activeExerciseUuids.toMutableSet().apply {
+                        add(action.performedExerciseUuid)
+                    }
+                    current.copy(
+                        activeExerciseUuids = activeNext.toImmutableSet(),
+                        expandedExerciseUuids = expandedNext.toImmutableSet(),
+                    )
+                }
+                ExerciseStatusUiModel.DONE -> {
+                    val expandedNext = current.expandedExerciseUuids.toMutableSet()
+                    if (!expandedNext.add(action.performedExerciseUuid)) {
+                        expandedNext.remove(action.performedExerciseUuid)
+                    }
+                    current.copy(expandedExerciseUuids = expandedNext.toImmutableSet())
+                }
             }
-            current.copy(expandedDoneExerciseUuids = next.toImmutableSet())
         }
     }
 
@@ -519,8 +551,9 @@ internal class ClickHandler @Inject constructor(
     private fun State.markSkipped(performedExerciseUuid: String): State {
         // Reproduce the snapshot → status pipeline against the in-memory state. The
         // exercise's own `status` field is recomputed alongside everything else so the
-        // CURRENT marker walks past the now-skipped row.
-        val rebuilt = exercises.toUiListAfterSkip(performedExerciseUuid)
+        // CURRENT marker walks past the now-skipped row, while honoring the user's
+        // explicit active set.
+        val rebuilt = exercises.toUiListAfterSkip(performedExerciseUuid, activeExerciseUuids)
         return copy(exercises = rebuilt).withPresentation(resourceWrapper)
     }
 
@@ -555,7 +588,10 @@ internal class ClickHandler @Inject constructor(
             .maxByOrNull { it.position }
     }
 
-    private fun ImmutableListOfExercise.toUiListAfterSkip(skippedUuid: String): ImmutableListOfExercise =
+    private fun ImmutableListOfExercise.toUiListAfterSkip(
+        skippedUuid: String,
+        activeUuids: Set<String>,
+    ): ImmutableListOfExercise =
         map { exercise ->
             if (exercise.performedExerciseUuid == skippedUuid) {
                 exercise.copy(
@@ -564,11 +600,10 @@ internal class ClickHandler @Inject constructor(
             } else {
                 exercise
             }
-        }.toImmutableList().recomputeOnly()
+        }.toImmutableList().recomputeOnly(activeUuids)
 
-    private fun ImmutableListOfExercise.recomputeOnly(): ImmutableListOfExercise {
-        var foundCurrent = false
-        return map { exercise ->
+    private fun ImmutableListOfExercise.recomputeOnly(activeUuids: Set<String>): ImmutableListOfExercise {
+        val computed = map { exercise ->
             val planSets = exercise.planSets
             val performed = exercise.performedSets
             val skipped = exercise.status == ExerciseStatusUiModel.SKIPPED
@@ -579,13 +614,20 @@ internal class ClickHandler @Inject constructor(
                 performed.size >= planSets.size &&
                     planSets.indices.all { index -> performedByPosition[index]?.isDone == true }
             }
+            Triple(exercise, isDone, skipped)
+        }
+        // Auto-default mirrors the mapper: if no exercise is explicitly active, the first
+        // non-skipped non-done row stays CURRENT.
+        val autoCurrentUuid = if (activeUuids.isEmpty()) {
+            computed.firstOrNull { !it.third && !it.second }?.first?.performedExerciseUuid
+        } else null
+        return computed.map { (exercise, isDone, skipped) ->
             val nextStatus = when {
                 skipped -> ExerciseStatusUiModel.SKIPPED
                 isDone -> ExerciseStatusUiModel.DONE
-                !foundCurrent -> {
-                    foundCurrent = true
+                exercise.performedExerciseUuid in activeUuids ||
+                    exercise.performedExerciseUuid == autoCurrentUuid ->
                     ExerciseStatusUiModel.CURRENT
-                }
 
                 else -> ExerciseStatusUiModel.PENDING
             }
@@ -594,16 +636,21 @@ internal class ClickHandler @Inject constructor(
     }
 
     private fun State.recomputeStatuses(): State {
-        val refreshed = exercises.recomputeOnly()
-        val doneUuids = refreshed
+        val refreshed = exercises.recomputeOnly(activeExerciseUuids)
+        // Prune expanded entries that no longer correspond to a DONE or CURRENT row.
+        // SKIPPED/PENDING rows can't be expanded so any leftover entry is stale.
+        val visibleUuids = refreshed
             .asSequence()
-            .filter { it.status == ExerciseStatusUiModel.DONE }
+            .filter {
+                it.status == ExerciseStatusUiModel.DONE ||
+                    it.status == ExerciseStatusUiModel.CURRENT
+            }
             .map { it.performedExerciseUuid }
             .toSet()
         return copy(
             exercises = refreshed,
-            expandedDoneExerciseUuids = expandedDoneExerciseUuids
-                .filter { it in doneUuids }
+            expandedExerciseUuids = expandedExerciseUuids
+                .filter { it in visibleUuids }
                 .toImmutableSet(),
         ).withPresentation(resourceWrapper)
     }

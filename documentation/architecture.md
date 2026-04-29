@@ -355,13 +355,31 @@ when a runtime parameter (e.g. file name) is required.
 
 ### Room database
 
-`core/database/src/main/kotlin/io/github/stslex/workeeper/core/database/AppDatabase.kt` declares
-three entities (`ExerciseEntity`, `TrainingEntity`, `TrainingLabelEntity`), three DAOs, and
-three type converters (`UuidConverter`, `SetsTypeConverter`, `StringConverter`). The current
-schema version is 2; schemas for both versions are exported to
-`core/database/schemas/io.github.stslex.workeeper.core.database.AppDatabase/{1,2}.json`.
-The 1→2 migration lives in
-`core/database/src/main/kotlin/io/github/stslex/workeeper/core/database/migrations/Migration12.kt`.
+The schema is defined by `AppDatabase` in `core/database/.../AppDatabase.kt`. Every
+`@Entity` is registered in the `@Database(entities = [...])` array, and every
+`TypeConverter` is on `@TypeConverters` at the database level (project-wide
+converters live next to the entities they serialize, e.g.
+`PlanSetsConverter` for `List<PlanSetDataModel>?`).
+
+**Migration policy (release).** From schema version 5 onward, no destructive
+migrations. Every schema bump requires:
+
+1. An explicit `Migration(from, to)` object registered via `addMigrations(...)` on
+   the `Room.databaseBuilder` chain in `core/database/.../di/CoreDatabaseModule.kt`.
+2. A migration test in `core/database/src/androidTest/.../AppDatabaseMigrationTest.kt`
+   using Room's `MigrationTestHelper`. The test runs the migration against a seeded
+   v(N) DB and asserts the resulting v(N+1) DB has the expected shape and data.
+3. The new schema JSON committed under `core/database/schemas/<full-class>/` —
+   Room's `exportSchema = true` produces it during build.
+
+Versions 2, 3, and 4 retain their destructive-migration-from clauses
+(`fallbackToDestructiveMigrationFrom(2, 3, 4)`) — those are pre-release legacy paths
+where data loss was accepted. Do not extend that list. Bumping past v5 with no
+matching `Migration` will crash on boot (intentional safety net).
+
+`androidx.room:room-testing` is wired by the `roomLibrary` convention plugin
+(`build-logic/.../RoomLibraryConventionPlugin.kt`) as `androidTestImplementation`
+so `MigrationTestHelper` is available to migration tests.
 
 ### Repositories
 

@@ -26,9 +26,11 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableMap
 
 /**
- * Maps a domain [SessionSnapshot] into a fresh [State]. Status derivation walks the
- * exercises in position order and marks the first non-skipped, non-done exercise as
- * CURRENT — everything else after it falls through to PENDING.
+ * Maps a domain [SessionSnapshot] into a fresh [State]. Status derivation marks any
+ * exercise the user has explicitly started ([State.activeExerciseUuids]) as CURRENT;
+ * when no exercise is explicitly active (fresh session), the first non-skipped,
+ * non-done exercise auto-defaults to CURRENT so the screen always opens with a
+ * focused card.
  */
 internal fun SessionSnapshot.toState(
     nowMillis: Long,
@@ -38,7 +40,7 @@ internal fun SessionSnapshot.toState(
         it.performed.exerciseUuid to it.exerciseType
     }
     val prSnapshot = preSessionPrSnapshot.toUiSnapshot(typeByUuid)
-    val ui = exercises.toUiList(preSessionPrSnapshot)
+    val ui = exercises.toUiList(prSnapshot = preSessionPrSnapshot, activeUuids = emptySet())
     return State(
         sessionUuid = session.uuid,
         trainingUuid = session.trainingUuid,
@@ -55,7 +57,8 @@ internal fun SessionSnapshot.toState(
         progressLabel = "",
         exercises = ui,
         setDrafts = emptyMap<State.DraftKey, LiveSetUiModel>().toImmutableMap(),
-        expandedDoneExerciseUuids = persistentSetOf(),
+        activeExerciseUuids = persistentSetOf(),
+        expandedExerciseUuids = persistentSetOf(),
         preSessionPrSnapshot = prSnapshot,
         planEditorTarget = null,
         pendingFinishConfirm = null,
@@ -70,38 +73,53 @@ internal fun SessionSnapshot.toState(
 
 internal fun List<PerformedExerciseSnapshot>.toUiList(
     prSnapshot: Map<String, PersonalRecordDataModel?> = emptyMap(),
+    activeUuids: Set<String> = emptySet(),
 ): ImmutableList<LiveExerciseUiModel> {
-    var foundCurrent = false
-    return sortedBy { it.performed.position }
-        .map { snapshot ->
-            val plan = snapshot.planSets.orEmpty().map(PlanSetDataModel::toUi).toImmutableList()
-            val baseline = prSnapshot[snapshot.performed.exerciseUuid]
-            val performed = snapshot.toLiveSets(baseline)
-            val isDone = isExerciseDone(plan, performed, snapshot.performed.skipped)
-            val status = when {
-                snapshot.performed.skipped -> ExerciseStatusUiModel.SKIPPED
-                isDone -> ExerciseStatusUiModel.DONE
-                !foundCurrent -> {
-                    foundCurrent = true
-                    ExerciseStatusUiModel.CURRENT
-                }
+    val sorted = sortedBy { it.performed.position }
+    val computed = sorted.map { snapshot ->
+        val plan = snapshot.planSets.orEmpty().map(PlanSetDataModel::toUi).toImmutableList()
+        val baseline = prSnapshot[snapshot.performed.exerciseUuid]
+        val performed = snapshot.toLiveSets(baseline)
+        val isDone = isExerciseDone(plan, performed, snapshot.performed.skipped)
+        Computed(snapshot, plan, performed, isDone)
+    }
+    // Auto-default: when the user hasn't manually started anything, the first
+    // non-skipped non-done exercise becomes CURRENT so a fresh session opens with a
+    // focused card. Once the active set is non-empty, the user is in control — no
+    // implicit promotion.
+    val autoCurrentUuid = if (activeUuids.isEmpty()) {
+        computed.firstOrNull { !it.snapshot.performed.skipped && !it.isDone }
+            ?.snapshot?.performed?.uuid
+    } else null
 
-                else -> ExerciseStatusUiModel.PENDING
-            }
-            LiveExerciseUiModel(
-                performedExerciseUuid = snapshot.performed.uuid,
-                exerciseUuid = snapshot.performed.exerciseUuid,
-                exerciseName = snapshot.exerciseName,
-                exerciseType = snapshot.exerciseType.toUi(),
-                position = snapshot.performed.position,
-                status = status,
-                statusLabel = "",
-                planSets = plan,
-                performedSets = performed,
-            )
+    return computed.map { c ->
+        val uuid = c.snapshot.performed.uuid
+        val status = when {
+            c.snapshot.performed.skipped -> ExerciseStatusUiModel.SKIPPED
+            c.isDone -> ExerciseStatusUiModel.DONE
+            uuid in activeUuids || uuid == autoCurrentUuid -> ExerciseStatusUiModel.CURRENT
+            else -> ExerciseStatusUiModel.PENDING
         }
-        .toImmutableList()
+        LiveExerciseUiModel(
+            performedExerciseUuid = uuid,
+            exerciseUuid = c.snapshot.performed.exerciseUuid,
+            exerciseName = c.snapshot.exerciseName,
+            exerciseType = c.snapshot.exerciseType.toUi(),
+            position = c.snapshot.performed.position,
+            status = status,
+            statusLabel = "",
+            planSets = c.plan,
+            performedSets = c.performed,
+        )
+    }.toImmutableList()
 }
+
+private data class Computed(
+    val snapshot: PerformedExerciseSnapshot,
+    val plan: ImmutableList<PlanSetUiModel>,
+    val performed: ImmutableList<LiveSetUiModel>,
+    val isDone: Boolean,
+)
 
 private fun PerformedExerciseSnapshot.toLiveSets(
     baseline: PersonalRecordDataModel?,
