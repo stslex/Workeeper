@@ -372,10 +372,10 @@ migrations. Every schema bump requires:
 3. The new schema JSON committed under `core/database/schemas/<full-class>/` —
    Room's `exportSchema = true` produces it during build.
 
-Versions 2, 3, and 4 retain their destructive-migration-from clauses
-(`fallbackToDestructiveMigrationFrom(2, 3, 4)`) — those are pre-release legacy paths
-where data loss was accepted. Do not extend that list. Bumping past v5 with no
-matching `Migration` will crash on boot (intentional safety net).
+Versions 2, 3, and 4 were pre-release only; no users ever held those schemas, so no
+`fallbackToDestructiveMigrationFrom` clause is registered for them. The builder chain
+has no destructive fallback. Bumping past v5 with no matching `Migration` will crash on
+boot (intentional safety net).
 
 `androidx.room:room-testing` is wired by the `roomLibrary` convention plugin
 (`build-logic/.../RoomLibraryConventionPlugin.kt`) as `androidTestImplementation`

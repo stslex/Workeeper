@@ -71,6 +71,16 @@ Each tracked location should carry a `TODO(tech-debt): <category> — <ref>` mar
 
 ---
 
+## Remaining from PR #78
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟡 | [core/exercise/.../personal_record/PersonalRecordRepository.kt](../core/exercise/src/main/kotlin/io/github/stslex/workeeper/core/exercise/personal_record/PersonalRecordRepository.kt) | `observePersonalRecords(uuidsByType)` is a combine-of-N flow — N separate Room subscriptions. KDoc marks it as one-shot only, but there is no compile-time guard. Callers must use `firstOrNull()` or `getPersonalRecord`. Long-lived subscribers must use `observePersonalRecordsBatch` / `observePrSetUuids`. Consider removing from the public interface or converting to `suspend fun` to make the one-shot contract enforced. |
+| 🟢 | [core/exercise/.../session/SessionRepositoryImpl.kt `finishSessionAtomic`](../core/exercise/src/main/kotlin/io/github/stslex/workeeper/core/exercise/session/SessionRepositoryImpl.kt) | Double dispatcher switch: outer `withContext(ioDispatcher)` wraps `transition {}` which already does `withContext(ioDispatcher)`. Redundant context switch; clean up when touching this method next. |
+| 🟢 | [core/exercise/.../session/SessionRepositoryImpl.kt `groupBySession()`](../core/exercise/src/main/kotlin/io/github/stslex/workeeper/core/exercise/session/SessionRepositoryImpl.kt) | `sortedByDescending { it.finishedAt }` is a redundant O(N log N) pass — the DAO query already returns `ORDER BY sn.finished_at DESC` and `groupBy` preserves insertion order. Remove the sort. |
+
+---
+
 ## Spec-vs-Reality Drift
 
 Items where shipped behaviour diverges from what specs originally asked for. Surfaced by the 2026-04-28 audit.
