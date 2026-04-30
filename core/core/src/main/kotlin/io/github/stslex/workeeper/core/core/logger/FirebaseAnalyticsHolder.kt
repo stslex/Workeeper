@@ -9,6 +9,7 @@ object FirebaseAnalyticsHolder {
     private val analytics by lazy { Firebase.analytics }
     private val filter = EventsFilter()
 
+    @Synchronized
     fun log(event: FirebaseEvent) {
         filter(event.hashCode().toString()) {
             analytics.logEvent(event.name) {

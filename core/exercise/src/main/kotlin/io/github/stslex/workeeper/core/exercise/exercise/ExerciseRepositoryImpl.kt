@@ -169,9 +169,9 @@ internal class ExerciseRepositoryImpl @Inject constructor(
     ): List<ExerciseDataModel> = withContext(bgDispatcher) {
         val excluded = excludeUuids.map(Uuid::parse).toSet()
         dao.getAllActive()
-            .filter { entity -> entity.uuid !in excluded }
             .filter { entity ->
-                query.isBlank() || entity.name.contains(query, ignoreCase = true)
+                entity.uuid !in excluded &&
+                    (query.isBlank() || entity.name.contains(query, ignoreCase = true))
             }
             .map { it.toData() }
     }

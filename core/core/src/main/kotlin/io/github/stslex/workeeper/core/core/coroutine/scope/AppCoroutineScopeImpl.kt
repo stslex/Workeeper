@@ -6,9 +6,11 @@ import androidx.lifecycle.lifecycleScope
 import io.github.stslex.workeeper.core.core.logger.Log
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flowOn
@@ -16,12 +18,17 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.CoroutineContext
 
 class AppCoroutineScopeImpl(
     private val lifecycleOwner: LifecycleOwner,
     override val defaultDispatcher: CoroutineDispatcher,
     override val immediateDispatcher: CoroutineDispatcher,
-) : AppCoroutineScope, CoroutineScope by lifecycleOwner.lifecycleScope {
+) : AppCoroutineScope, CoroutineScope {
+
+    override val coroutineContext: CoroutineContext = SupervisorJob() +
+        CoroutineName("FeatureScope") +
+        lifecycleOwner.lifecycleScope.coroutineContext
 
     private fun exceptionHandler(
         eachDispatcher: CoroutineDispatcher?,

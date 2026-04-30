@@ -21,6 +21,7 @@ import io.github.stslex.workeeper.core.ui.mvi.store.StoreConsumer
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -109,9 +110,12 @@ open class BaseStore<S : State, A : Action, E : Event>(
     }
 
     fun dispose() {
-        disposeActions.forEach { consume(it) }
-        scope.removeObserver(lifecycleObserver)
+        disposeActions.forEach {
+            consume(it)
+        }
         allowConsumeAction.set(false)
+        scope.removeObserver(lifecycleObserver)
+        scope.cancel()
         _scope = null
     }
 
