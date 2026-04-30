@@ -1,0 +1,6 @@
+- ♻️ update database migration strategy and enhance documentation
+- ♻️ optimize event filtering with synchronized access
+- ♻️ rename DbTransition to DbTransitionRunner and update related usages
+- ♻️ streamline dispose method in BaseStore and improve observer management
+- ♻️ simplify ClickHandlerTest setup and improve store initialization
+- ♻️ improve database transaction handling and clean up code
