@@ -9,7 +9,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,7 +40,7 @@ import io.github.stslex.workeeper.feature.exercise.ui.components.PermissionDenie
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Suppress("UnusedParameter", "LongMethod", "CyclomaticComplexMethod")
 fun NavGraphBuilder.exerciseGraph(
-    sharedTransitionScope: SharedTransitionScope,
+//    sharedTransitionScope: SharedTransitionScope,
     modifier: Modifier = Modifier,
 ) {
     navComponentScreen(ExerciseFeature) { processor ->
@@ -61,7 +60,11 @@ fun NavGraphBuilder.exerciseGraph(
 
         var pendingDiscard by remember { mutableStateOf<DiscardTarget?>(null) }
         var archiveBlockedBody by remember { mutableStateOf<String?>(null) }
-        var permanentDeleteDialog by remember { mutableStateOf<Event.ShowPermanentDeleteConfirm?>(null) }
+        var permanentDeleteDialog by remember {
+            mutableStateOf<Event.ShowPermanentDeleteConfirm?>(
+                null,
+            )
+        }
         var typeChangeDialog by remember { mutableStateOf<Event.ShowTypeChangeConfirm?>(null) }
         var pendingCameraTempUri by remember { mutableStateOf<Uri?>(null) }
 

@@ -51,7 +51,7 @@ internal class CommonHandler @Inject constructor(
     }
 
     private fun observeTags() {
-        scope.launch(interactor.observeAvailableTags()) { tags ->
+        interactor.observeAvailableTags().launch { tags ->
             updateStateImmediate { current ->
                 current.copy(availableTags = tags.map { it.toUi() }.toImmutableList())
             }
@@ -59,7 +59,7 @@ internal class CommonHandler @Inject constructor(
     }
 
     private fun observeActiveSession() {
-        scope.launch(interactor.observeAnyActiveSession()) { session ->
+        interactor.observeAnyActiveSession().launch { session ->
             updateStateImmediate { current -> current.copy(activeSession = session) }
         }
     }

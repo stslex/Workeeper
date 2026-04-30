@@ -2,7 +2,6 @@
 package io.github.stslex.workeeper.feature.home.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScope
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.feature.home.di.HomeHandlerStore
 import io.github.stslex.workeeper.feature.home.domain.HomeInteractor
@@ -13,9 +12,8 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.test.TestScope
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -105,18 +103,7 @@ internal class ClickHandlerTest {
             isLoading = false,
         )
         val flow = MutableStateFlow(baseState.copy(picker = visiblePicker))
-        val store = mockk<HomeHandlerStore>(relaxed = true) {
-            every { this@mockk.state } returns flow
-            every { updateState(any()) } answers {
-                val update = firstArg<(State) -> State>()
-                flow.value = update(flow.value)
-            }
-            every { scope } returns AppCoroutineScope(
-                scope = TestScope(),
-                defaultDispatcher = Dispatchers.Unconfined,
-                immediateDispatcher = Dispatchers.Unconfined,
-            )
-        }
+        val store = newStoreWithFlow(flow)
         val handler = ClickHandler(interactor = interactor, resourceWrapper = resources, store = store)
 
         handler.invoke(Action.Click.OnPickerTrainingSelected(trainingUuid = "tpl-1"))
@@ -135,18 +122,7 @@ internal class ClickHandlerTest {
             ),
         )
         val flow = MutableStateFlow(state)
-        val store = mockk<HomeHandlerStore>(relaxed = true) {
-            every { this@mockk.state } returns flow
-            every { updateState(any()) } answers {
-                val update = firstArg<(State) -> State>()
-                flow.value = update(flow.value)
-            }
-            every { scope } returns AppCoroutineScope(
-                scope = TestScope(),
-                defaultDispatcher = Dispatchers.Unconfined,
-                immediateDispatcher = Dispatchers.Unconfined,
-            )
-        }
+        val store = newStoreWithFlow(flow)
         val handler = ClickHandler(interactor = interactor, resourceWrapper = resources, store = store)
 
         handler.invoke(Action.Click.OnConflictDismiss)
@@ -165,18 +141,7 @@ internal class ClickHandlerTest {
             ),
         )
         val flow = MutableStateFlow(state)
-        val store = mockk<HomeHandlerStore>(relaxed = true) {
-            every { this@mockk.state } returns flow
-            every { updateState(any()) } answers {
-                val update = firstArg<(State) -> State>()
-                flow.value = update(flow.value)
-            }
-            every { scope } returns AppCoroutineScope(
-                scope = TestScope(),
-                defaultDispatcher = Dispatchers.Unconfined,
-                immediateDispatcher = Dispatchers.Unconfined,
-            )
-        }
+        val store = newStoreWithFlow(flow)
         val handler = ClickHandler(interactor = interactor, resourceWrapper = resources, store = store)
 
         handler.invoke(Action.Click.OnConflictResume)
@@ -187,15 +152,26 @@ internal class ClickHandlerTest {
         assertEquals(null, flow.value.pendingConflict)
     }
 
-    private fun newStore(state: State): HomeHandlerStore {
-        val flow = MutableStateFlow(state)
-        return mockk(relaxed = true) {
+    private fun newStore(state: State): HomeHandlerStore =
+        newStoreWithFlow(MutableStateFlow(state))
+
+    private fun newStoreWithFlow(flow: MutableStateFlow<State>): HomeHandlerStore =
+        mockk(relaxed = true) {
             every { this@mockk.state } returns flow
-            every { scope } returns AppCoroutineScope(
-                scope = TestScope(),
-                defaultDispatcher = Dispatchers.Unconfined,
-                immediateDispatcher = Dispatchers.Unconfined,
-            )
+            every { updateState(any()) } answers {
+                val update = firstArg<(State) -> State>()
+                flow.value = update(flow.value)
+            }
+            every {
+                launch(
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                    any<suspend CoroutineScope.() -> Unit>(),
+                )
+            } answers {
+                mockk(relaxed = true)
+            }
         }
-    }
 }

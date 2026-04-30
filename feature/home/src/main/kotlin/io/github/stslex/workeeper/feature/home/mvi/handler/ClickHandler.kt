@@ -67,7 +67,7 @@ internal class ClickHandler @Inject constructor(
                 ),
             )
         }
-        scope.launch(interactor.observeRecentTrainings(PICKER_LIMIT)) { trainings ->
+        interactor.observeRecentTrainings(PICKER_LIMIT).launch { trainings ->
             val now = state.value.nowMillis.takeIf { it > 0L } ?: System.currentTimeMillis()
             updateStateImmediate { current ->
                 if (current.picker is State.PickerState.Visible) {

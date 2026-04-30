@@ -4,9 +4,8 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
-import androidx.room.withTransaction
 import io.github.stslex.workeeper.core.core.di.IODispatcher
-import io.github.stslex.workeeper.core.database.AppDatabase
+import io.github.stslex.workeeper.core.database.common.DbTransitionRunner
 import io.github.stslex.workeeper.core.database.converters.PlanSetsConverter
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
 import io.github.stslex.workeeper.core.database.session.HistoryByExerciseRow
@@ -42,13 +41,13 @@ import kotlin.uuid.Uuid
 @Suppress("TooManyFunctions", "LongParameterList")
 @Singleton
 internal class SessionRepositoryImpl @Inject constructor(
-    private val database: AppDatabase,
     private val dao: SessionDao,
     private val performedExerciseDao: PerformedExerciseDao,
     private val setDao: SetDao,
     private val trainingDao: TrainingDao,
     private val exerciseDao: ExerciseDao,
     private val trainingExerciseDao: TrainingExerciseDao,
+    private val transition: DbTransitionRunner,
     @IODispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : SessionRepository {
 
@@ -70,22 +69,23 @@ internal class SessionRepositoryImpl @Inject constructor(
         }
         .flowOn(ioDispatcher)
 
-    override fun observeActiveSessionWithStats(): Flow<SessionRepository.ActiveSessionWithStats?> = dao
-        .observeActiveSessionWithStats()
-        .map { row ->
-            row?.let {
-                SessionRepository.ActiveSessionWithStats(
-                    sessionUuid = it.uuid.toString(),
-                    trainingUuid = it.trainingUuid.toString(),
-                    trainingName = it.trainingName,
-                    isAdhoc = it.isAdhoc,
-                    startedAt = it.startedAt,
-                    totalCount = it.totalCount,
-                    doneCount = it.doneCount,
-                )
+    override fun observeActiveSessionWithStats(): Flow<SessionRepository.ActiveSessionWithStats?> =
+        dao
+            .observeActiveSessionWithStats()
+            .map { row ->
+                row?.let {
+                    SessionRepository.ActiveSessionWithStats(
+                        sessionUuid = it.uuid.toString(),
+                        trainingUuid = it.trainingUuid.toString(),
+                        trainingName = it.trainingName,
+                        isAdhoc = it.isAdhoc,
+                        startedAt = it.startedAt,
+                        totalCount = it.totalCount,
+                        doneCount = it.doneCount,
+                    )
+                }
             }
-        }
-        .flowOn(ioDispatcher)
+            .flowOn(ioDispatcher)
 
     override suspend fun getAnyActiveSession(): ActiveSessionInfo? = withContext(ioDispatcher) {
         dao.getActive()?.let { entity ->
@@ -115,11 +115,11 @@ internal class SessionRepositoryImpl @Inject constructor(
 
     override suspend fun getSessionDetail(
         sessionUuid: String,
-    ): SessionDetailDataModel? = database.withTransaction {
+    ): SessionDetailDataModel? = transition {
         val sessionId = Uuid.parse(sessionUuid)
-        val session = dao.getById(sessionId) ?: return@withTransaction null
-        val finishedAt = session.finishedAt ?: return@withTransaction null
-        val training = trainingDao.getById(session.trainingUuid) ?: return@withTransaction null
+        val session = dao.getById(sessionId) ?: return@transition null
+        val finishedAt = session.finishedAt ?: return@transition null
+        val training = trainingDao.getById(session.trainingUuid) ?: return@transition null
         val performed = performedExerciseDao
             .getBySession(sessionId)
             .sortedBy { it.position }
@@ -218,7 +218,8 @@ internal class SessionRepositoryImpl @Inject constructor(
     override suspend fun resumeSession(
         sessionUuid: String,
     ): SessionDataModel? = withContext(ioDispatcher) {
-        dao.getById(Uuid.parse(sessionUuid))?.takeIf { it.state == SessionStateEntity.IN_PROGRESS }?.toData()
+        dao.getById(Uuid.parse(sessionUuid))?.takeIf { it.state == SessionStateEntity.IN_PROGRESS }
+            ?.toData()
     }
 
     override suspend fun finishSession(sessionUuid: String, finishedAt: Long) {
@@ -238,9 +239,9 @@ internal class SessionRepositoryImpl @Inject constructor(
         finishedAt: Long,
         planUpdates: List<PlanUpdate>,
     ): Boolean = withContext(ioDispatcher) {
-        database.withTransaction {
+        transition {
             val current = dao.getById(Uuid.parse(sessionUuid))
-                ?: return@withTransaction false
+                ?: return@transition false
             planUpdates.forEach { update ->
                 val planJson = PlanSetsConverter.toJson(update.newPlan)
                 if (update.isAdhoc) {

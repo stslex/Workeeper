@@ -203,7 +203,6 @@ internal interface LiveWorkoutStore :
 
         sealed interface Common : Action {
             data object Init : Common
-            data object TimerTick : Common
         }
 
         @Suppress("MviActionNamingRule")

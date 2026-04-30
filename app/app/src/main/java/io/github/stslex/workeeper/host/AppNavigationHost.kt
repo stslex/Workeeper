@@ -39,37 +39,35 @@ internal fun AppNavigationHost(
             .padding(bottom = AppDimension.BottomNavBar.height)
             .systemBarsPadding()
             .background(MaterialTheme.colorScheme.background)
+
         NavHost(
             modifier = Modifier.fillMaxSize(),
             navController = navigator.navController,
             startDestination = Screen.BottomBar.Home,
         ) {
             homeGraph(
-                modifier = bottomBarModifier
-                    .testTag("HomeGraph"),
+                modifier = bottomBarModifier.testTag("HomeGraph"),
+                sharedTransitionScope = this@SharedTransitionLayout,
             )
             allTrainingsGraph(
-                modifier = bottomBarModifier
-                    .testTag("AllTrainingsGraph"),
+                modifier = bottomBarModifier.testTag("AllTrainingsGraph"),
                 sharedTransitionScope = this@SharedTransitionLayout,
             )
             allExercisesGraph(
-                modifier = bottomBarModifier
-                    .testTag("AllExercisesGraph"),
+                modifier = bottomBarModifier.testTag("AllExercisesGraph"),
                 sharedTransitionScope = this@SharedTransitionLayout,
             )
             singleTrainingsGraph(
-                modifier = Modifier
-                    .testTag("SingleTrainingGraph"),
+                modifier = Modifier.testTag("SingleTrainingGraph"),
                 sharedTransitionScope = this@SharedTransitionLayout,
             )
             exerciseGraph(
                 modifier = Modifier
                     .testTag("ExerciseGraph"),
-                sharedTransitionScope = this@SharedTransitionLayout,
             )
             liveWorkoutGraph(
                 modifier = Modifier.testTag("LiveWorkoutGraph"),
+                sharedTransitionScope = this@SharedTransitionLayout,
             )
             pastSessionGraph(
                 modifier = Modifier.testTag("PastSessionGraph"),

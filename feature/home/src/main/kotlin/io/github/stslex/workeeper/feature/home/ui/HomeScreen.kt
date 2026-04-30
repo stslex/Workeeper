@@ -40,6 +40,7 @@ internal fun HomeScreen(
     state: State,
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
+    activeSessionModifier: Modifier = Modifier,
 ) {
     androidx.compose.foundation.layout.Column(
         modifier = modifier
@@ -74,6 +75,7 @@ internal fun HomeScreen(
             else -> ListContent(
                 state = state,
                 consume = consume,
+                activeSessionModifier = activeSessionModifier,
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -101,6 +103,7 @@ private fun ListContent(
     state: State,
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
+    activeSessionModifier: Modifier = Modifier,
 ) {
     LazyColumn(
         modifier = modifier,
@@ -114,6 +117,7 @@ private fun ListContent(
             item(key = "active") {
                 ActiveSessionBanner(
                     info = session,
+                    modifier = activeSessionModifier,
                     onClick = { consume(Action.Click.OnActiveSessionClick) },
                 )
             }

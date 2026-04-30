@@ -2,12 +2,15 @@ package io.github.stslex.workeeper.core.database.di
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.withTransaction
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.database.AppDatabase
+import io.github.stslex.workeeper.core.database.common.DbTransitionRunner
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
 import io.github.stslex.workeeper.core.database.session.PerformedExerciseDao
 import io.github.stslex.workeeper.core.database.session.SessionDao
@@ -17,58 +20,73 @@ import io.github.stslex.workeeper.core.database.tag.TagDao
 import io.github.stslex.workeeper.core.database.tag.TrainingTagDao
 import io.github.stslex.workeeper.core.database.training.TrainingDao
 import io.github.stslex.workeeper.core.database.training.TrainingExerciseDao
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.withContext
 import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
 object CoreDatabaseModule {
 
-    @Suppress("MagicNumber")
     @Provides
     @Singleton
-    fun provideAppDatabase(
+    internal fun provideAppDatabase(
         @ApplicationContext context: Context,
-    ): AppDatabase = Room.databaseBuilder(
-        context,
-        AppDatabase::class.java,
-        AppDatabase.Companion.NAME,
-    )
-        .fallbackToDestructiveMigrationFrom(dropAllTables = true, 2, 3, 4)
+    ): AppDatabase = Room
+        .databaseBuilder(
+            context,
+            AppDatabase::class.java,
+            AppDatabase.NAME,
+        )
         .build()
 
     @Provides
     @Singleton
-    fun provideTrainingDao(db: AppDatabase): TrainingDao = db.trainingDao
+    internal fun provideTransition(
+        db: AppDatabase,
+        @IODispatcher ioDispatcher: CoroutineDispatcher,
+    ): DbTransitionRunner = object : DbTransitionRunner {
+        override suspend fun <T> invoke(block: suspend () -> T): T = withContext(ioDispatcher) {
+            db.withTransaction(block)
+        }
+    }
 
     @Provides
     @Singleton
-    fun provideTrainingExerciseDao(db: AppDatabase): TrainingExerciseDao = db.trainingExerciseDao
+    internal fun provideTrainingDao(db: AppDatabase): TrainingDao = db.trainingDao
 
     @Provides
     @Singleton
-    fun provideExerciseDao(db: AppDatabase): ExerciseDao = db.exerciseDao
+    internal fun provideTrainingExerciseDao(db: AppDatabase): TrainingExerciseDao =
+        db.trainingExerciseDao
 
     @Provides
     @Singleton
-    fun provideSessionDao(db: AppDatabase): SessionDao = db.sessionDao
+    internal fun provideExerciseDao(db: AppDatabase): ExerciseDao = db.exerciseDao
 
     @Provides
     @Singleton
-    fun providePerformedExerciseDao(db: AppDatabase): PerformedExerciseDao = db.performedExerciseDao
+    internal fun provideSessionDao(db: AppDatabase): SessionDao = db.sessionDao
 
     @Provides
     @Singleton
-    fun provideSetDao(db: AppDatabase): SetDao = db.setDao
+    internal fun providePerformedExerciseDao(
+        db: AppDatabase,
+    ): PerformedExerciseDao = db.performedExerciseDao
 
     @Provides
     @Singleton
-    fun provideTagDao(db: AppDatabase): TagDao = db.tagDao
+    internal fun provideSetDao(db: AppDatabase): SetDao = db.setDao
 
     @Provides
     @Singleton
-    fun provideExerciseTagDao(db: AppDatabase): ExerciseTagDao = db.exerciseTagDao
+    internal fun provideTagDao(db: AppDatabase): TagDao = db.tagDao
 
     @Provides
     @Singleton
-    fun provideTrainingTagDao(db: AppDatabase): TrainingTagDao = db.trainingTagDao
+    internal fun provideExerciseTagDao(db: AppDatabase): ExerciseTagDao = db.exerciseTagDao
+
+    @Provides
+    @Singleton
+    internal fun provideTrainingTagDao(db: AppDatabase): TrainingTagDao = db.trainingTagDao
 }

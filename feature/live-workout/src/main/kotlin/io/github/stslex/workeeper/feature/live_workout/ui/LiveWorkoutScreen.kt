@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.live_workout.ui
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -57,6 +58,7 @@ internal fun LiveWorkoutScreen(
     state: State,
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
+    activeSessionBannerModifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier
@@ -70,7 +72,11 @@ internal fun LiveWorkoutScreen(
                 modifier = Modifier.fillMaxSize(),
             )
         } else {
-            Body(state = state, consume = consume)
+            Body(
+                state = state,
+                activeSessionBannerModifier = activeSessionBannerModifier,
+                consume = consume,
+            )
         }
     }
     if (state.deleteDialogVisible) {
@@ -144,6 +150,7 @@ private fun TopBar(consume: (Action) -> Unit) {
 @Composable
 private fun Body(
     state: State,
+    @SuppressLint("ModifierParameter") activeSessionBannerModifier: Modifier = Modifier,
     consume: (Action) -> Unit,
 ) {
     Column(
@@ -157,6 +164,7 @@ private fun Body(
             elapsedLabel = state.elapsedDurationLabel,
             progressLabel = state.progressLabel,
             progress = state.progress,
+            modifier = activeSessionBannerModifier,
         )
         Spacer(Modifier.height(AppDimension.Space.md))
         LazyColumn(
