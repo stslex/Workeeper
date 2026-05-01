@@ -36,17 +36,15 @@ internal class ExerciseChartInteractorImpl @Inject constructor(
         metric: ChartMetricUiModel,
         type: ExerciseTypeUiModel,
         now: Long,
-    ): FoldResult {
+    ): FoldResult = withContext(defaultDispatcher) {
         val history = sessionRepository.getHistoryByExercise(exerciseUuid)
-        return withContext(defaultDispatcher) {
-            ExerciseChartUiMapper.bucketAndFold(
-                history = history,
-                preset = preset,
-                metric = metric,
-                exerciseType = type,
-                resourceWrapper = resourceWrapper,
-                now = now,
-            )
-        }
+        ExerciseChartUiMapper.bucketAndFold(
+            history = history,
+            preset = preset,
+            metric = metric,
+            exerciseType = type,
+            resourceWrapper = resourceWrapper,
+            now = now,
+        )
     }
 }

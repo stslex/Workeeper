@@ -77,8 +77,12 @@ interface ExerciseDao {
     suspend fun getLastTrainedExerciseUuid(): Uuid?
 
     /**
-     * Active exercises that have at least one finished session, ordered by the most recent
-     * finish. Powers the v2.2 chart picker.
+     * Active exercises that have at least one logged set in a finished session, ordered by
+     * the most recent finish. Skipped performed_exercise rows and rows without any
+     * `set_table` entries are excluded so the picker matches the scope of
+     * [io.github.stslex.workeeper.core.database.session.SessionDao.getHistoryByExercise]
+     * exactly — a picker entry never routes to an empty chart. Powers the v2.2 chart
+     * picker.
      */
     @Query(
         """
@@ -92,6 +96,10 @@ interface ExerciseDao {
         WHERE sn.state = 'FINISHED'
           AND sn.finished_at IS NOT NULL
           AND e.archived = 0
+          AND pe.skipped = 0
+          AND EXISTS (
+              SELECT 1 FROM set_table s WHERE s.performed_exercise_uuid = pe.uuid
+          )
         GROUP BY e.uuid
         ORDER BY last_finished_at DESC
         """,

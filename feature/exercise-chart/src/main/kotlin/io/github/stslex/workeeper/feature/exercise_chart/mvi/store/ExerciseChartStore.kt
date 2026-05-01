@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.feature.exercise_chart.mvi.store
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.ui.mvi.Store
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartFooterStatsUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartMetricUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPointUiModel
@@ -34,8 +35,7 @@ internal interface ExerciseChartStore : Store<State, Action, Event> {
     ) : Store.State {
 
         val showMetricToggle: Boolean
-            get() = selectedExercise?.type ==
-                io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel.WEIGHTED
+            get() = selectedExercise?.type == ExerciseTypeUiModel.WEIGHTED
 
         companion object {
 
