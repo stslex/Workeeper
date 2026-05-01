@@ -241,6 +241,22 @@ Aggregated across features. Intended as the input list for DAOs.
   Exercise detail PR card (subscribes), Past session set badges
   (subscribes via `observePersonalRecords` batch), Live workout
   pre-session snapshot (one-shot via `firstOrNull()`).
+- P5. **Last-trained exercise lookup**
+  (`ExerciseDao.getLastTrainedExerciseUuid`, v2.2). UUID of the
+  exercise from the most recent finished session — powers the v2.2
+  chart screen's default selection when entered with `null`.
+- P6. **Recently-trained exercises list**
+  (`ExerciseDao.getRecentlyTrainedExercises`, v2.2). Active exercises
+  with at least one finished session, ordered by
+  `MAX(finished_at) DESC`. Powers the chart picker.
+- P7. **Per-exercise set history**
+  (`SessionDao.getHistoryByExercise`, v2.0). Date-ordered set list
+  across finished sessions, used by Exercise detail recent block and
+  the v2.2 chart bucketer. The chart consumer reads one-shot on screen
+  entry / preset change; do not add a `Flow` variant — the consumer
+  binds to its own lifecycle, not to global aggregation invalidation
+  (see [feature-specs/v2.2-exercise-charts.md](feature-specs/v2.2-exercise-charts.md)
+  *Architectural notes*).
 
 ### Mutations
 

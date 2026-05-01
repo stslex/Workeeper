@@ -239,6 +239,8 @@ internal interface ExerciseStore : Store<State, Action, Event> {
 
             data object OnRemoveImageClick : Click
 
+            data object OnPrCardClick : Click
+
             data object OnImageSourceDialogDismiss : Click
 
             data object OnPermissionDeniedDialogDismiss : Click
@@ -273,6 +275,8 @@ internal interface ExerciseStore : Store<State, Action, Event> {
             data class OpenLiveWorkout(val sessionUuid: String) : Navigation
 
             data class OpenImageViewer(val model: String) : Navigation
+
+            data class OpenChart(val exerciseUuid: String) : Navigation
         }
     }
 

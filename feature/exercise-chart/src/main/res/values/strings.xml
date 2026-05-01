@@ -2,6 +2,8 @@
 <resources>
     <string name="feature_exercise_chart_title">Progress</string>
     <string name="feature_exercise_chart_back">Back</string>
+    <string name="feature_exercise_chart_picker_title">Select exercise</string>
+    <string name="feature_exercise_chart_picker_open">Switch exercise</string>
 
     <string name="feature_exercise_chart_metric_heaviest">Heaviest weight</string>
     <string name="feature_exercise_chart_metric_volume">Volume per set</string>

@@ -32,6 +32,7 @@ internal class NavigationHandler(
             )
 
             Action.Navigation.OpenSettings -> navigator.navTo(Screen.Settings)
+            Action.Navigation.OpenCharts -> navigator.navTo(Screen.ExerciseChart(exerciseUuid = null))
             Action.Navigation.OpenAllTrainings -> navigator.navTo(Screen.BottomBar.AllTrainings)
         }
     }

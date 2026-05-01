@@ -87,6 +87,7 @@ internal interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStor
 
         sealed interface Click : Action {
             data object OnActiveSessionClick : Click
+            data object OnChartsClick : Click
             data object OnSettingsClick : Click
             data class OnRecentSessionClick(val sessionUuid: String) : Click
             data object OnStartTrainingClick : Click
@@ -103,6 +104,7 @@ internal interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStor
             data class OpenLiveWorkoutFresh(val trainingUuid: String) : Navigation
             data class OpenPastSession(val sessionUuid: String) : Navigation
             data object OpenSettings : Navigation
+            data object OpenCharts : Navigation
             data object OpenAllTrainings : Navigation
         }
 

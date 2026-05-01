@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.core.ui.kit.components.pr
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,28 +24,34 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 
 /**
  * Personal-record card for the Exercise detail screen. Renders the heaviest set with a
- * relative date label. Tap behavior is intentionally absent in v2.1 — the chart entry
- * point lands in v2.2.
+ * relative date label. Becomes the v2.2 chart entry point when [onClick] is non-null —
+ * the visual treatment is unchanged.
  */
 @Composable
 fun PersonalRecordCard(
     displayLabel: String,
     relativeDateLabel: String,
     modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
 ) {
     val palette = AppUi.colors.record
     val shape = RoundedCornerShape(AppDimension.Radius.medium)
+    val baseModifier = modifier
+        .fillMaxWidth()
+        .clip(shape)
+        .background(palette.background)
+        .border(
+            width = AppDimension.Border.small,
+            color = palette.border,
+            shape = shape,
+        )
+    val clickableModifier = if (onClick != null) {
+        baseModifier.clickable(onClick = onClick)
+    } else {
+        baseModifier
+    }
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(shape)
-            .background(palette.background)
-            .border(
-                width = AppDimension.Border.small,
-                color = palette.border,
-                shape = shape,
-            )
-            .padding(AppDimension.cardPadding),
+        modifier = clickableModifier.padding(AppDimension.cardPadding),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
     ) {

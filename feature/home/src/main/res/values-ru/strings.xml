@@ -6,6 +6,7 @@
     <string name="feature_home_empty_headline">Готовы тренироваться</string>
     <string name="feature_home_empty_supporting">Начните тренировку, чтобы записать первую сессию</string>
     <string name="feature_home_settings">Настройки</string>
+    <string name="feature_home_charts">Прогресс</string>
 
     <string name="feature_home_start_cta_title">Начать тренировку</string>
     <string name="feature_home_start_cta_subtitle">Выберите шаблон тренировки</string>

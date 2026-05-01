@@ -84,6 +84,7 @@ internal class ClickHandler @Inject constructor(
             Action.Click.OnImageThumbnailClick -> processImageThumbnailClick()
             is Action.Click.OnImageSourceSelected -> processImageSourceSelected(action)
             Action.Click.OnRemoveImageClick -> processRemoveImageClick()
+            Action.Click.OnPrCardClick -> processPrCardClick()
             Action.Click.OnImageSourceDialogDismiss -> processImageSourceDialogDismiss()
             Action.Click.OnPermissionDeniedDialogDismiss -> processPermissionDeniedDialogDismiss()
             Action.Click.OnPermissionDeniedSettingsClick -> processPermissionDeniedSettingsClick()
@@ -668,6 +669,12 @@ internal class ClickHandler @Inject constructor(
 
     private fun processImageSourceDialogDismiss() {
         updateState { it.copy(sourceDialogVisible = false) }
+    }
+
+    private fun processPrCardClick() {
+        val uuid = state.value.uuid ?: return
+        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
+        consume(Action.Navigation.OpenChart(uuid))
     }
 
     private fun processPermissionDeniedDialogDismiss() {

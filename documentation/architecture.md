@@ -447,6 +447,18 @@ ownership. If a heavy aggregation needs to suppress wasted recomputation, cache 
 **consumer** level using `stateIn(viewModelScope, WhileSubscribed(...), initial)` — the
 StateFlow disappears with the screen and the upstream collection cancels cleanly.
 
+**Heavy-aggregation chart series (v2.2) deviate intentionally.** The per-exercise progress
+chart is a leaf surface — users open it, look, leave. It reads
+`SessionRepository.getHistoryByExercise(uuid)` *one-shot* on screen entry and re-runs the
+read on user-driven selection / preset change, not as a `Flow` subscription. A `Flow`
+variant would re-execute the heavy aggregation on every set insert / delete / edit across
+the DB (Room invalidates per table), which is wasted work for a consumer that is no longer
+observing by the time the data changes. This is the consumer-side cache pattern stated
+above, taken to its logical end: the data lives in `State`, bound to the screen's
+lifecycle, and disappears when the consumer leaves. See
+[feature-specs/v2.2-exercise-charts.md](feature-specs/v2.2-exercise-charts.md)
+*Architectural notes*.
+
 Live workout's pre-session PR snapshot is a deliberate exception: it collects the reactive
 PR Flow once via `firstOrNull()` to freeze a session-scoped baseline. Other consumers
 (Exercise detail PR card, Past session PR badges) subscribe normally.

@@ -2,6 +2,8 @@
 <resources>
     <string name="feature_exercise_chart_title">Прогресс</string>
     <string name="feature_exercise_chart_back">Назад</string>
+    <string name="feature_exercise_chart_picker_title">Выберите упражнение</string>
+    <string name="feature_exercise_chart_picker_open">Сменить упражнение</string>
 
     <string name="feature_exercise_chart_metric_heaviest">Макс. вес</string>
     <string name="feature_exercise_chart_metric_volume">Объём подхода</string>

@@ -29,6 +29,7 @@ internal class ClickHandler @Inject constructor(
     override fun invoke(action: Action.Click) {
         when (action) {
             Action.Click.OnActiveSessionClick -> processSessionClick()
+            Action.Click.OnChartsClick -> processChartsClick()
             Action.Click.OnSettingsClick -> processSettingsClick()
             is Action.Click.OnRecentSessionClick -> processRecentSessionClick(action.sessionUuid)
             Action.Click.OnStartTrainingClick -> processStartTrainingClick()
@@ -50,6 +51,11 @@ internal class ClickHandler @Inject constructor(
     private fun processSettingsClick() {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         consume(Action.Navigation.OpenSettings)
+    }
+
+    private fun processChartsClick() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        consume(Action.Navigation.OpenCharts)
     }
 
     private fun processRecentSessionClick(sessionUuid: String) {

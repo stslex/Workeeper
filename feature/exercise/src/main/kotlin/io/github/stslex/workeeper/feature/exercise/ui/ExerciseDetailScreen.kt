@@ -103,6 +103,7 @@ internal fun ExerciseDetailScreen(
                     modifier = Modifier.testTag("ExerciseDetailPersonalRecordCard"),
                     displayLabel = pr.displayLabel,
                     relativeDateLabel = pr.relativeDateLabel,
+                    onClick = { consume(Action.Click.OnPrCardClick) },
                 )
             }
             HistorySection(state = state, consume = consume)
