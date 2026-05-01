@@ -164,6 +164,7 @@ private fun Body(
         Spacer(Modifier.height(AppDimension.Space.sm))
         LiveWorkoutHeader(
             trainingNameLabel = state.trainingNameLabel,
+            namePlaceholder = state.trainingNameLabel,
             elapsedLabel = state.elapsedDurationLabel,
             progressLabel = state.progressLabel,
             progress = state.progress,

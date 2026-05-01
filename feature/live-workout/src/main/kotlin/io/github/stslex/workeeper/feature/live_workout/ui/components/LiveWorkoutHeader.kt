@@ -26,18 +26,17 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
-import io.github.stslex.workeeper.feature.live_workout.R
 
 @Composable
 internal fun LiveWorkoutHeader(
     trainingNameLabel: String,
+    namePlaceholder: String,
     elapsedLabel: String,
     progressLabel: String,
     progress: Float,
@@ -64,6 +63,7 @@ internal fun LiveWorkoutHeader(
                 if (isEditingName) {
                     EditableTrainingNameField(
                         value = nameDraft,
+                        placeholder = namePlaceholder,
                         onValueChange = onNameChange,
                         onSubmit = onNameSubmit,
                     )
@@ -115,11 +115,11 @@ internal fun LiveWorkoutHeader(
 @Composable
 private fun EditableTrainingNameField(
     value: String,
+    placeholder: String,
     onValueChange: (String) -> Unit,
     onSubmit: (String) -> Unit,
 ) {
     val focusRequester = remember { FocusRequester() }
-    val placeholder = stringResource(R.string.feature_live_workout_training_name_placeholder)
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
     Box(modifier = Modifier.fillMaxWidth()) {
         BasicTextField(
@@ -158,6 +158,7 @@ private fun LiveWorkoutHeaderLightPreview() {
     AppTheme(themeMode = ThemeMode.LIGHT) {
         LiveWorkoutHeader(
             trainingNameLabel = "Push Day",
+            namePlaceholder = "Untitled",
             elapsedLabel = "23:14",
             progressLabel = "2 of 5 done · 16 sets logged",
             progress = 0.4f,
@@ -176,6 +177,7 @@ private fun LiveWorkoutHeaderDarkPreview() {
     AppTheme(themeMode = ThemeMode.DARK) {
         LiveWorkoutHeader(
             trainingNameLabel = "Push Day",
+            namePlaceholder = "Untitled",
             elapsedLabel = "47:08",
             progressLabel = "4 of 5 done · 22 sets logged",
             progress = 0.8f,
@@ -194,6 +196,7 @@ private fun LiveWorkoutHeaderEmptyPreview() {
     AppTheme(themeMode = ThemeMode.DARK) {
         LiveWorkoutHeader(
             trainingNameLabel = "Untitled",
+            namePlaceholder = "Untitled",
             elapsedLabel = "00:12",
             progressLabel = "",
             progress = 0f,
@@ -212,6 +215,7 @@ private fun LiveWorkoutHeaderEditingPreview() {
     AppTheme(themeMode = ThemeMode.DARK) {
         LiveWorkoutHeader(
             trainingNameLabel = "Untitled",
+            namePlaceholder = "Untitled",
             elapsedLabel = "00:12",
             progressLabel = "",
             progress = 0f,
