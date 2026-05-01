@@ -136,6 +136,7 @@ fun NavGraphBuilder.liveWorkoutGraph(
             state.pendingFinishConfirm?.let { stats ->
                 FinishConfirmDialog(
                     stats = stats,
+                    onNameChange = { processor.consume(Action.Click.OnFinishNameChange(it)) },
                     onConfirm = {
                         showFinishDialog = false
                         processor.consume(Action.Click.OnFinishConfirm)

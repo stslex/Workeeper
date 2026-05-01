@@ -42,6 +42,8 @@
     <string name="feature_live_workout_finish">Finish session</string>
     <string name="feature_live_workout_finish_title">Finish session?</string>
     <string name="feature_live_workout_finish_body">Your sets will be logged and plans will update with what you actually performed.</string>
+    <string name="feature_live_workout_finish_name_label">Workout name</string>
+    <string name="feature_live_workout_finish_name_required">Name is required</string>
     <string name="feature_live_workout_finish_stat_duration">Duration</string>
     <string name="feature_live_workout_finish_stat_exercises">Exercises</string>
     <string name="feature_live_workout_finish_stat_sets">Sets logged</string>

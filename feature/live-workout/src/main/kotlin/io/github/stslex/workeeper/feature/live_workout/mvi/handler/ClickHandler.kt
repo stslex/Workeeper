@@ -58,6 +58,7 @@ internal class ClickHandler @Inject constructor(
             Action.Click.OnSkipExerciseDismiss -> processSkipExerciseDismiss()
             Action.Click.OnFinishClick -> processFinishClick()
             Action.Click.OnFinishConfirm -> processFinishConfirm()
+            is Action.Click.OnFinishNameChange -> processFinishNameChange(action)
             Action.Click.OnFinishDismiss -> processFinishDismiss()
             Action.Click.OnCancelSessionClick -> processCancelClick()
             Action.Click.OnCancelSessionConfirm -> processCancelConfirm()
@@ -426,11 +427,34 @@ internal class ClickHandler @Inject constructor(
 
     private fun processFinishConfirm() {
         sendEvent(Event.HapticImpact(HapticFeedbackType.Confirm))
-        val sessionUuid = state.value.sessionUuid ?: return
+        val current = state.value
+        val sessionUuid = current.sessionUuid ?: return
+        val stats = current.pendingFinishConfirm
+        val requiredName = stats?.nameDraft
+            ?.trim()
+            ?.takeIf { stats.requiresName }
+        if (stats?.requiresName == true && requiredName.isNullOrBlank()) {
+            val requiredError = resourceWrapper.getString(R.string.feature_live_workout_finish_name_required)
+            updateState { latest ->
+                latest.copy(
+                    pendingFinishConfirm = latest.pendingFinishConfirm?.copy(
+                        nameError = requiredError,
+                        confirmEnabled = false,
+                    ),
+                )
+            }
+            return
+        }
+        val trainingUuid = current.trainingUuid
+        if (stats?.requiresName == true && trainingUuid.isNullOrBlank()) {
+            sendError(ErrorType.FinishFailed)
+            return
+        }
         launch(
             onSuccess = { result ->
                 if (result == null) {
                     sendError(ErrorType.FinishMissingSession)
+                    updateState { it.copy(isFinishInFlight = false) }
                     return@launch
                 }
                 sendEvent(
@@ -440,9 +464,32 @@ internal class ClickHandler @Inject constructor(
                 )
                 consumeOnMain(Action.Navigation.OpenPastSession(sessionUuid = sessionUuid))
             },
-            onError = { _ -> sendError(ErrorType.FinishFailed) },
+            onError = { _ ->
+                updateState { it.copy(isFinishInFlight = false) }
+                sendError(ErrorType.FinishFailed)
+            },
         ) {
+            if (requiredName != null && trainingUuid != null) {
+                interactor.updateTrainingName(trainingUuid, requiredName)
+            }
             interactor.finishSession(sessionUuid)
+        }
+    }
+
+    private fun processFinishNameChange(action: Action.Click.OnFinishNameChange) {
+        val trimmed = action.text.trim()
+        val requiredError = resourceWrapper
+            .getString(R.string.feature_live_workout_finish_name_required)
+            .takeIf { trimmed.isBlank() }
+        updateState { latest ->
+            val current = latest.pendingFinishConfirm ?: return@updateState latest
+            latest.copy(
+                pendingFinishConfirm = current.copy(
+                    nameDraft = action.text,
+                    nameError = requiredError,
+                    confirmEnabled = trimmed.isNotBlank(),
+                ),
+            )
         }
     }
 

@@ -39,6 +39,8 @@
     <string name="feature_live_workout_finish">Завершить сессию</string>
     <string name="feature_live_workout_finish_title">Завершить сессию?</string>
     <string name="feature_live_workout_finish_body">Сеты будут записаны, планы обновятся под фактически выполненные значения.</string>
+    <string name="feature_live_workout_finish_name_label">Название тренировки</string>
+    <string name="feature_live_workout_finish_name_required">Введите название</string>
     <string name="feature_live_workout_finish_stat_duration">Длительность</string>
     <string name="feature_live_workout_finish_stat_exercises">Упражнения</string>
     <string name="feature_live_workout_finish_stat_sets">Сетов</string>

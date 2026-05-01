@@ -93,6 +93,12 @@ internal interface LiveWorkoutStore :
             val exercisesSummaryLabel: String,
             val setsLoggedLabel: String,
             val newPersonalRecords: ImmutableList<NewPrEntry>,
+            val requiresName: Boolean = false,
+            val nameDraft: String = "",
+            val nameLabel: String = "",
+            val namePlaceholder: String = "",
+            val nameError: String? = null,
+            val confirmEnabled: Boolean = true,
         ) {
 
             @Stable
@@ -250,6 +256,7 @@ internal interface LiveWorkoutStore :
             data object OnSkipExerciseDismiss : Click
             data object OnFinishClick : Click
             data object OnFinishConfirm : Click
+            data class OnFinishNameChange(val text: String) : Click
             data object OnFinishDismiss : Click
             data object OnCancelSessionClick : Click
             data object OnCancelSessionConfirm : Click

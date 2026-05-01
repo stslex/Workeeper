@@ -219,6 +219,12 @@ internal fun State.toFinishStats(resourceWrapper: ResourceWrapper): State.Finish
             setsLogged,
         ),
         newPersonalRecords = computeNewPersonalRecords(resourceWrapper),
+        requiresName = trainingName.isBlank(),
+        nameDraft = trainingName,
+        nameLabel = resourceWrapper.getString(R.string.feature_live_workout_finish_name_label),
+        namePlaceholder = resourceWrapper.getString(R.string.feature_live_workout_training_name_placeholder),
+        nameError = null,
+        confirmEnabled = trainingName.isNotBlank(),
     )
 }
 
