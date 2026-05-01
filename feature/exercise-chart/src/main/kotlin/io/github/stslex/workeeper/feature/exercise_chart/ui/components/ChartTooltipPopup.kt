@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.platform.LocalDensity
@@ -27,7 +28,6 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartTooltipUiModel
-import kotlin.math.max
 
 private val TooltipAnchorGap = AppDimension.Space.sm
 private val TooltipEdgeMargin = AppDimension.Space.sm
@@ -35,11 +35,22 @@ private val TooltipNotchWidth = 16.dp
 private val TooltipNotchHeight = 8.dp
 private val TooltipElevation = AppDimension.Elevation.small
 
+// The card uses [AppUi.shapes.medium] which is a [androidx.compose.foundation.shape.RoundedCornerShape]
+// of 10.dp; the notch must steer clear of that curve plus a small breathing margin so it
+// does not visually flatten against the rounded edge.
+private val TooltipCornerRadius = 10.dp
+private val TooltipNotchSafeMargin = 4.dp
+
 /**
  * Floating tooltip card overlaid on the chart canvas at [anchorPx]. Positioned above the
  * anchor by default, flipped below when the upper edge would be clipped, and clamped
- * horizontally so the card stays within the canvas bounds. The notch always points at the
- * anchor's X — even when the card itself is clamped to an edge.
+ * horizontally so the card stays within the canvas bounds.
+ *
+ * The notch points at the anchor's X *when* the anchor falls inside the card's safe span
+ * (everything outside the rounded-corner zone); when the card clamps to an edge and the
+ * point sits over the corner curve, the notch is dropped entirely — the visual connection
+ * is read from the card's proximity to the point, and a notch flattened against the
+ * rounded corner reads worse than no notch at all.
  *
  * The popup must be rendered inside the canvas Box (sibling to the `Canvas`) and given the
  * same modifier as the Canvas so [anchorPx] resolves into the same coordinate space. It is
@@ -53,14 +64,19 @@ internal fun ChartTooltipPopup(
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
-    val anchorGapPx = with(density) { TooltipAnchorGap.toPx() }
-    val edgeMarginPx = with(density) { TooltipEdgeMargin.toPx() }
     val notchWidthPx = with(density) { TooltipNotchWidth.toPx() }
     val notchHeightPx = with(density) { TooltipNotchHeight.toPx() }
+    val spec = TooltipLayoutSpec(
+        anchorGapPx = with(density) { TooltipAnchorGap.toPx() },
+        edgeMarginPx = with(density) { TooltipEdgeMargin.toPx() },
+        notchHeightPx = notchHeightPx,
+        cornerRadiusPx = with(density) { TooltipCornerRadius.toPx() },
+        notchSafeMarginPx = with(density) { TooltipNotchSafeMargin.toPx() },
+    )
 
     SubcomposeLayout(modifier = modifier) { constraints ->
         val canvasW = constraints.maxWidth.toFloat()
-        val maxCardWidth = (canvasW - edgeMarginPx * 2f)
+        val maxCardWidth = (canvasW - spec.edgeMarginPx * 2f)
             .coerceAtLeast(0f)
             .toInt()
         val cardConstraints = Constraints(
@@ -74,39 +90,37 @@ internal fun ChartTooltipPopup(
             TooltipCardBody(tooltip = tooltip, onClick = onClick)
         }.first().measure(cardConstraints)
 
-        val cardWidth = cardPlaceable.width.toFloat()
-        val cardHeight = cardPlaceable.height.toFloat()
-
-        val aboveTop = anchorPx.y - cardHeight - anchorGapPx - notchHeightPx
-        val flipBelow = aboveTop < edgeMarginPx
-        val cardTop = if (flipBelow) {
-            anchorPx.y + anchorGapPx + notchHeightPx
-        } else {
-            aboveTop
-        }
-        val centeredLeft = anchorPx.x - cardWidth / 2f
-        val maxLeft = max(edgeMarginPx, canvasW - cardWidth - edgeMarginPx)
-        val cardLeft = centeredLeft.coerceIn(edgeMarginPx, maxLeft)
-
-        val notchPlaceable = subcompose(TooltipSlot.Notch) {
-            TooltipNotch(pointDown = !flipBelow)
-        }.first().measure(
-            Constraints.fixed(
-                width = notchWidthPx.toInt(),
-                height = notchHeightPx.toInt(),
-            ),
+        val layout = computeTooltipLayout(
+            anchor = anchorPx,
+            canvasSize = Size(canvasW, constraints.maxHeight.toFloat()),
+            cardWidth = cardPlaceable.width.toFloat(),
+            cardHeight = cardPlaceable.height.toFloat(),
+            spec = spec,
         )
-        val notchLeft = (anchorPx.x - notchWidthPx / 2f)
-            .coerceIn(cardLeft, cardLeft + cardWidth - notchWidthPx)
-        val notchTop = if (flipBelow) {
-            cardTop - notchHeightPx
+
+        val notchPlaceable = if (layout.showNotch) {
+            subcompose(TooltipSlot.Notch) {
+                TooltipNotch(pointDown = !layout.flipBelow)
+            }.first().measure(
+                Constraints.fixed(
+                    width = notchWidthPx.toInt(),
+                    height = notchHeightPx.toInt(),
+                ),
+            )
         } else {
-            cardTop + cardHeight
+            null
         }
 
         layout(constraints.maxWidth, constraints.maxHeight) {
-            cardPlaceable.place(cardLeft.toInt(), cardTop.toInt())
-            notchPlaceable.place(notchLeft.toInt(), notchTop.toInt())
+            cardPlaceable.place(layout.cardLeft.toInt(), layout.cardTop.toInt())
+            notchPlaceable?.place(
+                x = (layout.cardLeft + layout.notchOffsetX - notchWidthPx / 2f).toInt(),
+                y = if (layout.flipBelow) {
+                    (layout.cardTop - notchHeightPx).toInt()
+                } else {
+                    (layout.cardTop + cardPlaceable.height).toInt()
+                },
+            )
         }
     }
 }

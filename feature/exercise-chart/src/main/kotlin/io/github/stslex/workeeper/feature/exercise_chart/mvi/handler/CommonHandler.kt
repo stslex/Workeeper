@@ -32,7 +32,7 @@ internal class CommonHandler @Inject constructor(
         launch(
             onSuccess = { result ->
                 val selected = result.recents.firstOrNull { it.uuid == result.targetUuid }
-                val emptyReason = when {
+                val emptyReason = when  {
                     result.recents.isEmpty() -> EmptyReason.NO_FINISHED_SESSIONS
                     selected == null && initialUuid != null -> EmptyReason.EXERCISE_NOT_FOUND
                     else -> null
