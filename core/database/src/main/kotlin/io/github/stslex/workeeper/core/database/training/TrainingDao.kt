@@ -106,6 +106,9 @@ interface TrainingDao {
     @Update
     suspend fun update(training: TrainingEntity)
 
+    @Query("UPDATE training_table SET name = :name WHERE uuid = :uuid")
+    suspend fun updateName(uuid: Uuid, name: String)
+
     @Query("UPDATE training_table SET archived = 1, archived_at = :archivedAt WHERE uuid = :uuid")
     suspend fun archive(uuid: Uuid, archivedAt: Long)
 

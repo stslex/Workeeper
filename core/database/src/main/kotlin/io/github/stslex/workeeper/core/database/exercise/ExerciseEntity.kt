@@ -12,6 +12,7 @@ import kotlin.uuid.Uuid
         Index(value = ["archived", "name"]),
         Index(value = ["archived"]),
         Index(value = ["name"], unique = true),
+        Index(value = ["is_adhoc"]),
     ],
 )
 data class ExerciseEntity(
@@ -34,4 +35,6 @@ data class ExerciseEntity(
     val archivedAt: Long?,
     @ColumnInfo(name = "last_adhoc_sets")
     val lastAdhocSets: String?,
+    @ColumnInfo(name = "is_adhoc", defaultValue = "0")
+    val isAdhoc: Boolean = false,
 )

@@ -1,0 +1,680 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 6,
+    "identityHash": "9a848458f02ef4c4ace9841b9f2e3d42",
+    "entities": [
+      {
+        "tableName": "training_table",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`uuid` TEXT NOT NULL, `name` TEXT NOT NULL, `description` TEXT, `is_adhoc` INTEGER NOT NULL DEFAULT 0, `archived` INTEGER NOT NULL DEFAULT 0, `created_at` INTEGER NOT NULL, `archived_at` INTEGER, PRIMARY KEY(`uuid`))",
+        "fields": [
+          {
+            "fieldPath": "uuid",
+            "columnName": "uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isAdhoc",
+            "columnName": "is_adhoc",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "archived",
+            "columnName": "archived",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "archivedAt",
+            "columnName": "archived_at",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "uuid"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_training_table_is_adhoc_archived_name",
+            "unique": false,
+            "columnNames": [
+              "is_adhoc",
+              "archived",
+              "name"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_training_table_is_adhoc_archived_name` ON `${TABLE_NAME}` (`is_adhoc`, `archived`, `name`)"
+          },
+          {
+            "name": "index_training_table_archived",
+            "unique": false,
+            "columnNames": [
+              "archived"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_training_table_archived` ON `${TABLE_NAME}` (`archived`)"
+          }
+        ]
+      },
+      {
+        "tableName": "training_exercise_table",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`training_uuid` TEXT NOT NULL, `exercise_uuid` TEXT NOT NULL, `position` INTEGER NOT NULL, `plan_sets` TEXT, PRIMARY KEY(`training_uuid`, `exercise_uuid`), FOREIGN KEY(`training_uuid`) REFERENCES `training_table`(`uuid`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`exercise_uuid`) REFERENCES `exercise_table`(`uuid`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "trainingUuid",
+            "columnName": "training_uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "exerciseUuid",
+            "columnName": "exercise_uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "planSets",
+            "columnName": "plan_sets",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "training_uuid",
+            "exercise_uuid"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_training_exercise_table_exercise_uuid",
+            "unique": false,
+            "columnNames": [
+              "exercise_uuid"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_training_exercise_table_exercise_uuid` ON `${TABLE_NAME}` (`exercise_uuid`)"
+          },
+          {
+            "name": "index_training_exercise_table_training_uuid_position",
+            "unique": false,
+            "columnNames": [
+              "training_uuid",
+              "position"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_training_exercise_table_training_uuid_position` ON `${TABLE_NAME}` (`training_uuid`, `position`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "training_table",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "training_uuid"
+            ],
+            "referencedColumns": [
+              "uuid"
+            ]
+          },
+          {
+            "table": "exercise_table",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "exercise_uuid"
+            ],
+            "referencedColumns": [
+              "uuid"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "exercise_table",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`uuid` TEXT NOT NULL, `name` TEXT NOT NULL COLLATE NOCASE, `type` TEXT NOT NULL, `description` TEXT, `image_path` TEXT, `archived` INTEGER NOT NULL DEFAULT 0, `created_at` INTEGER NOT NULL, `archived_at` INTEGER, `last_adhoc_sets` TEXT, `is_adhoc` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`uuid`))",
+        "fields": [
+          {
+            "fieldPath": "uuid",
+            "columnName": "uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "imagePath",
+            "columnName": "image_path",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "archived",
+            "columnName": "archived",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "archivedAt",
+            "columnName": "archived_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "lastAdhocSets",
+            "columnName": "last_adhoc_sets",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isAdhoc",
+            "columnName": "is_adhoc",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "uuid"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_exercise_table_archived_name",
+            "unique": false,
+            "columnNames": [
+              "archived",
+              "name"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_exercise_table_archived_name` ON `${TABLE_NAME}` (`archived`, `name`)"
+          },
+          {
+            "name": "index_exercise_table_archived",
+            "unique": false,
+            "columnNames": [
+              "archived"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_exercise_table_archived` ON `${TABLE_NAME}` (`archived`)"
+          },
+          {
+            "name": "index_exercise_table_name",
+            "unique": true,
+            "columnNames": [
+              "name"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_exercise_table_name` ON `${TABLE_NAME}` (`name`)"
+          },
+          {
+            "name": "index_exercise_table_is_adhoc",
+            "unique": false,
+            "columnNames": [
+              "is_adhoc"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_exercise_table_is_adhoc` ON `${TABLE_NAME}` (`is_adhoc`)"
+          }
+        ]
+      },
+      {
+        "tableName": "session_table",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`uuid` TEXT NOT NULL, `training_uuid` TEXT NOT NULL, `state` TEXT NOT NULL, `started_at` INTEGER NOT NULL, `finished_at` INTEGER, PRIMARY KEY(`uuid`), FOREIGN KEY(`training_uuid`) REFERENCES `training_table`(`uuid`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "uuid",
+            "columnName": "uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "trainingUuid",
+            "columnName": "training_uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startedAt",
+            "columnName": "started_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "finishedAt",
+            "columnName": "finished_at",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "uuid"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_session_table_training_uuid_finished_at",
+            "unique": false,
+            "columnNames": [
+              "training_uuid",
+              "finished_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_session_table_training_uuid_finished_at` ON `${TABLE_NAME}` (`training_uuid`, `finished_at`)"
+          },
+          {
+            "name": "index_session_table_state",
+            "unique": false,
+            "columnNames": [
+              "state"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_session_table_state` ON `${TABLE_NAME}` (`state`)"
+          },
+          {
+            "name": "index_session_table_finished_at",
+            "unique": false,
+            "columnNames": [
+              "finished_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_session_table_finished_at` ON `${TABLE_NAME}` (`finished_at`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "training_table",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "training_uuid"
+            ],
+            "referencedColumns": [
+              "uuid"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "performed_exercise_table",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`uuid` TEXT NOT NULL, `session_uuid` TEXT NOT NULL, `exercise_uuid` TEXT NOT NULL, `position` INTEGER NOT NULL, `skipped` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`uuid`), FOREIGN KEY(`session_uuid`) REFERENCES `session_table`(`uuid`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`exercise_uuid`) REFERENCES `exercise_table`(`uuid`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "uuid",
+            "columnName": "uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sessionUuid",
+            "columnName": "session_uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "exerciseUuid",
+            "columnName": "exercise_uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "skipped",
+            "columnName": "skipped",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "uuid"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_performed_exercise_table_session_uuid_position",
+            "unique": false,
+            "columnNames": [
+              "session_uuid",
+              "position"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_performed_exercise_table_session_uuid_position` ON `${TABLE_NAME}` (`session_uuid`, `position`)"
+          },
+          {
+            "name": "index_performed_exercise_table_exercise_uuid",
+            "unique": false,
+            "columnNames": [
+              "exercise_uuid"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_performed_exercise_table_exercise_uuid` ON `${TABLE_NAME}` (`exercise_uuid`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "session_table",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "session_uuid"
+            ],
+            "referencedColumns": [
+              "uuid"
+            ]
+          },
+          {
+            "table": "exercise_table",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "exercise_uuid"
+            ],
+            "referencedColumns": [
+              "uuid"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "set_table",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`uuid` TEXT NOT NULL, `performed_exercise_uuid` TEXT NOT NULL, `position` INTEGER NOT NULL, `reps` INTEGER NOT NULL, `weight` REAL, `type` TEXT NOT NULL, PRIMARY KEY(`uuid`), FOREIGN KEY(`performed_exercise_uuid`) REFERENCES `performed_exercise_table`(`uuid`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "uuid",
+            "columnName": "uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "performedExerciseUuid",
+            "columnName": "performed_exercise_uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reps",
+            "columnName": "reps",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "weight",
+            "columnName": "weight",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "uuid"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_set_table_performed_exercise_uuid_position",
+            "unique": false,
+            "columnNames": [
+              "performed_exercise_uuid",
+              "position"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_set_table_performed_exercise_uuid_position` ON `${TABLE_NAME}` (`performed_exercise_uuid`, `position`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "performed_exercise_table",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "performed_exercise_uuid"
+            ],
+            "referencedColumns": [
+              "uuid"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "tag_table",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`uuid` TEXT NOT NULL, `name` TEXT NOT NULL COLLATE NOCASE, PRIMARY KEY(`uuid`))",
+        "fields": [
+          {
+            "fieldPath": "uuid",
+            "columnName": "uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "uuid"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_tag_table_name",
+            "unique": true,
+            "columnNames": [
+              "name"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_tag_table_name` ON `${TABLE_NAME}` (`name`)"
+          }
+        ]
+      },
+      {
+        "tableName": "exercise_tag_table",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`exercise_uuid` TEXT NOT NULL, `tag_uuid` TEXT NOT NULL, PRIMARY KEY(`exercise_uuid`, `tag_uuid`), FOREIGN KEY(`exercise_uuid`) REFERENCES `exercise_table`(`uuid`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`tag_uuid`) REFERENCES `tag_table`(`uuid`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "exerciseUuid",
+            "columnName": "exercise_uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tagUuid",
+            "columnName": "tag_uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "exercise_uuid",
+            "tag_uuid"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_exercise_tag_table_tag_uuid_exercise_uuid",
+            "unique": false,
+            "columnNames": [
+              "tag_uuid",
+              "exercise_uuid"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_exercise_tag_table_tag_uuid_exercise_uuid` ON `${TABLE_NAME}` (`tag_uuid`, `exercise_uuid`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "exercise_table",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "exercise_uuid"
+            ],
+            "referencedColumns": [
+              "uuid"
+            ]
+          },
+          {
+            "table": "tag_table",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "tag_uuid"
+            ],
+            "referencedColumns": [
+              "uuid"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "training_tag_table",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`training_uuid` TEXT NOT NULL, `tag_uuid` TEXT NOT NULL, PRIMARY KEY(`training_uuid`, `tag_uuid`), FOREIGN KEY(`training_uuid`) REFERENCES `training_table`(`uuid`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`tag_uuid`) REFERENCES `tag_table`(`uuid`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "trainingUuid",
+            "columnName": "training_uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tagUuid",
+            "columnName": "tag_uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "training_uuid",
+            "tag_uuid"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_training_tag_table_tag_uuid_training_uuid",
+            "unique": false,
+            "columnNames": [
+              "tag_uuid",
+              "training_uuid"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_training_tag_table_tag_uuid_training_uuid` ON `${TABLE_NAME}` (`tag_uuid`, `training_uuid`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "training_table",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "training_uuid"
+            ],
+            "referencedColumns": [
+              "uuid"
+            ]
+          },
+          {
+            "table": "tag_table",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "tag_uuid"
+            ],
+            "referencedColumns": [
+              "uuid"
+            ]
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '9a848458f02ef4c4ace9841b9f2e3d42')"
+    ]
+  }
+}

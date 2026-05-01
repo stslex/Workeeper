@@ -12,6 +12,7 @@ import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.database.AppDatabase
 import io.github.stslex.workeeper.core.database.common.DbTransitionRunner
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
+import io.github.stslex.workeeper.core.database.migration.Migration6
 import io.github.stslex.workeeper.core.database.session.PerformedExerciseDao
 import io.github.stslex.workeeper.core.database.session.SessionDao
 import io.github.stslex.workeeper.core.database.session.SetDao
@@ -38,6 +39,7 @@ object CoreDatabaseModule {
             AppDatabase::class.java,
             AppDatabase.NAME,
         )
+        .addMigrations(Migration6)
         .build()
 
     @Provides

@@ -36,7 +36,7 @@ import io.github.stslex.workeeper.core.database.training.TrainingExerciseEntity
         ExerciseTagEntity::class,
         TrainingTagEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 @TypeConverters(UuidConverter::class, PlanSetsConverter::class)
