@@ -1,6 +1,7 @@
 package io.github.stslex.workeeper.core.exercise.session
 
 import androidx.paging.PagingData
+import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.HistoryEntry
 import io.github.stslex.workeeper.core.exercise.session.model.ActiveSessionInfo
 import io.github.stslex.workeeper.core.exercise.session.model.RecentSessionDataModel
@@ -108,19 +109,29 @@ interface SessionRepository {
 
     /**
      * Atomically attaches [exerciseUuid] to the active session: writes a
-     * `training_exercise_table` plan row (with `plan_sets = null` so the existing
-     * grow-but-not-shrink rule populates from logged sets on finish) and a
-     * `performed_exercise_table` row at the next position. Used both for inline-created
-     * (`is_adhoc = true`) exercises and for library picks.
+     * `training_exercise_table` plan row and a `performed_exercise_table` row at the next
+     * position. Used both for inline-created (`is_adhoc = true`) exercises and for library
+     * picks.
      *
-     * Returns the new `performed_exercise_table.uuid` so the caller can stitch the row
-     * into in-memory State without re-loading the entire session.
+     * The new plan row's `plan_sets` is seeded from `exercise.last_adhoc_sets` so the user
+     * sees their last-logged baseline as a suggestion. Inline-created exercises with no
+     * history get null and render with an empty plan, matching prior behavior. Subsequent
+     * finish-time `PlanUpdateRule` (grow-but-not-shrink) operates uniformly regardless of
+     * how `plan_sets` was initialized.
+     *
+     * Returns both the new `performed_exercise_table.uuid` and the parsed plan list so the
+     * caller can stitch the row into in-memory State without re-loading the session.
      */
     suspend fun addExerciseToActiveSession(
         sessionUuid: String,
         trainingUuid: String,
         exerciseUuid: String,
-    ): String
+    ): AddExerciseResult
+
+    data class AddExerciseResult(
+        val performedExerciseUuid: String,
+        val planSets: List<PlanSetDataModel>?,
+    )
 
     /**
      * Atomically tears down an ad-hoc session: deletes the session row, deletes the

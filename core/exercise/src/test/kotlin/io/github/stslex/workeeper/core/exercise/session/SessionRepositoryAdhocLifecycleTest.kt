@@ -11,6 +11,8 @@ import io.github.stslex.workeeper.core.database.session.SessionDao
 import io.github.stslex.workeeper.core.database.session.SessionEntity
 import io.github.stslex.workeeper.core.database.session.SessionStateEntity
 import io.github.stslex.workeeper.core.database.session.SetDao
+import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
+import io.github.stslex.workeeper.core.database.sets.SetTypeDataModel
 import io.github.stslex.workeeper.core.database.training.TrainingDao
 import io.github.stslex.workeeper.core.database.training.TrainingEntity
 import io.github.stslex.workeeper.core.database.training.TrainingExerciseDao
@@ -115,6 +117,8 @@ internal class SessionRepositoryAdhocLifecycleTest {
             val trainingId = Uuid.random()
             val sessionId = Uuid.random()
             val exerciseId = Uuid.random()
+            // No exercise history → plan_sets seeds to null, matches inline-create path.
+            coEvery { exerciseDao.getById(exerciseId) } returns null
             coEvery { trainingExerciseDao.getMaxPosition(trainingId) } returns 2
             coEvery { performedExerciseDao.getMaxPosition(sessionId) } returns 4
             val planSlot = slot<TrainingExerciseEntity>()
@@ -142,6 +146,7 @@ internal class SessionRepositoryAdhocLifecycleTest {
         val trainingId = Uuid.random()
         val sessionId = Uuid.random()
         val exerciseId = Uuid.random()
+        coEvery { exerciseDao.getById(exerciseId) } returns null
         coEvery { trainingExerciseDao.getMaxPosition(trainingId) } returns null
         coEvery { performedExerciseDao.getMaxPosition(sessionId) } returns null
         val planSlot = slot<TrainingExerciseEntity>()
@@ -164,6 +169,7 @@ internal class SessionRepositoryAdhocLifecycleTest {
         val trainingId = Uuid.random()
         val sessionId = Uuid.random()
         val libraryExerciseId = Uuid.random()
+        coEvery { exerciseDao.getById(libraryExerciseId) } returns null
         coEvery { trainingExerciseDao.getMaxPosition(trainingId) } returns null
         coEvery { performedExerciseDao.getMaxPosition(sessionId) } returns null
         coEvery { trainingExerciseDao.insert(any<TrainingExerciseEntity>()) } just Runs
@@ -187,6 +193,96 @@ internal class SessionRepositoryAdhocLifecycleTest {
         coVerify(exactly = 0) { exerciseDao.update(any()) }
         coVerify(exactly = 0) { exerciseDao.graduateAdhocForTraining(any()) }
     }
+
+    @Test
+    fun addExerciseToActiveSession_existingLibraryWithLastAdhoc_preloadsPlan() =
+        runTest(dispatcher) {
+            val trainingId = Uuid.random()
+            val sessionId = Uuid.random()
+            val exerciseId = Uuid.random()
+            val historyJson =
+                "[{\"weight\":60.0,\"reps\":8,\"type\":\"WORK\"}]"
+            coEvery { exerciseDao.getById(exerciseId) } returns adhocExerciseEntity(exerciseId)
+                .copy(name = "Bench Press", isAdhoc = false, lastAdhocSets = historyJson)
+            coEvery { trainingExerciseDao.getMaxPosition(trainingId) } returns null
+            coEvery { performedExerciseDao.getMaxPosition(sessionId) } returns null
+            val planSlot = slot<TrainingExerciseEntity>()
+            coEvery { trainingExerciseDao.insert(capture(planSlot)) } just Runs
+            coEvery { performedExerciseDao.insert(any<PerformedExerciseEntity>()) } just Runs
+
+            val result = repository.addExerciseToActiveSession(
+                sessionUuid = sessionId.toString(),
+                trainingUuid = trainingId.toString(),
+                exerciseUuid = exerciseId.toString(),
+            )
+
+            // The new training_exercise row carries the verbatim history JSON so the next
+            // session reload sees the same plan that the in-memory state already shows.
+            assertEquals(historyJson, planSlot.captured.planSets)
+            // The repository surfaces the parsed list to the caller so the picker handler
+            // can seed LiveExerciseUiModel.planSets without a second DB read.
+            assertEquals(
+                listOf(
+                    PlanSetDataModel(
+                        weight = 60.0,
+                        reps = 8,
+                        type = SetTypeDataModel.WORK,
+                    ),
+                ),
+                result.planSets,
+            )
+        }
+
+    @Test
+    fun addExerciseToActiveSession_inlineCreatedNoHistory_planSetsNull() =
+        runTest(dispatcher) {
+            val trainingId = Uuid.random()
+            val sessionId = Uuid.random()
+            val exerciseId = Uuid.random()
+            // Freshly inline-created exercise — is_adhoc = 1, no last_adhoc_sets yet.
+            coEvery { exerciseDao.getById(exerciseId) } returns adhocExerciseEntity(exerciseId)
+            coEvery { trainingExerciseDao.getMaxPosition(trainingId) } returns null
+            coEvery { performedExerciseDao.getMaxPosition(sessionId) } returns null
+            val planSlot = slot<TrainingExerciseEntity>()
+            coEvery { trainingExerciseDao.insert(capture(planSlot)) } just Runs
+            coEvery { performedExerciseDao.insert(any<PerformedExerciseEntity>()) } just Runs
+
+            val result = repository.addExerciseToActiveSession(
+                sessionUuid = sessionId.toString(),
+                trainingUuid = trainingId.toString(),
+                exerciseUuid = exerciseId.toString(),
+            )
+
+            assertEquals(null, planSlot.captured.planSets)
+            assertEquals(null, result.planSets)
+        }
+
+    @Test
+    fun addExerciseToActiveSession_libraryNoAdhocHistory_planSetsNull() =
+        runTest(dispatcher) {
+            val trainingId = Uuid.random()
+            val sessionId = Uuid.random()
+            val exerciseId = Uuid.random()
+            // Library exercise that was only used in non-adhoc trainings → last_adhoc_sets
+            // never written. The picker still surfaces it, and the insert correctly leaves
+            // plan_sets null instead of fabricating a baseline.
+            coEvery { exerciseDao.getById(exerciseId) } returns adhocExerciseEntity(exerciseId)
+                .copy(name = "Squat", isAdhoc = false, lastAdhocSets = null)
+            coEvery { trainingExerciseDao.getMaxPosition(trainingId) } returns null
+            coEvery { performedExerciseDao.getMaxPosition(sessionId) } returns null
+            val planSlot = slot<TrainingExerciseEntity>()
+            coEvery { trainingExerciseDao.insert(capture(planSlot)) } just Runs
+            coEvery { performedExerciseDao.insert(any<PerformedExerciseEntity>()) } just Runs
+
+            val result = repository.addExerciseToActiveSession(
+                sessionUuid = sessionId.toString(),
+                trainingUuid = trainingId.toString(),
+                exerciseUuid = exerciseId.toString(),
+            )
+
+            assertEquals(null, planSlot.captured.planSets)
+            assertEquals(null, result.planSets)
+        }
 
     @Test
     fun finishSession_adhocTraining_graduatesAllRows() = runTest(dispatcher) {

@@ -27,15 +27,23 @@ internal interface LiveWorkoutInteractor {
     /**
      * Atomically appends [exerciseUuid] to the active session's plan and performed list.
      * Per H1 (mid-session changes mutate the plan permanently), the plan row written here
-     * survives session finish even if no sets are logged for it. Returns the new
-     * performed-exercise UUID so the picker handler can stitch the row directly into
-     * `State.exercises` without re-loading the session.
+     * survives session finish even if no sets are logged for it. The plan row's plan_sets
+     * is seeded from `exercise.last_adhoc_sets` so picking a library row with history
+     * surfaces the user's last-logged sets as a baseline.
+     *
+     * Returns the new performed-exercise UUID and the parsed plan list so the picker
+     * handler can stitch the row directly into `State.exercises` without re-loading.
      */
     suspend fun addExerciseToActiveSession(
         sessionUuid: String,
         trainingUuid: String,
         exerciseUuid: String,
-    ): String
+    ): AddExerciseResult
+
+    data class AddExerciseResult(
+        val performedExerciseUuid: String,
+        val planSets: List<PlanSetDataModel>?,
+    )
 
     /**
      * Cancels an ad-hoc session: deletes session, training, and inline-created exercises in

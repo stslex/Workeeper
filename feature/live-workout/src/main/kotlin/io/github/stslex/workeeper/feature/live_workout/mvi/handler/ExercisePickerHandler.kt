@@ -5,10 +5,12 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordDataModel
+import io.github.stslex.workeeper.core.ui.plan_editor.mappers.toUi
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExercisePickerAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExercisePickerUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel.Companion.toUi
+import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
@@ -19,6 +21,7 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiM
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Event
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State.ExercisePickerSheetState
+import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableMap
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -174,7 +177,7 @@ internal class ExercisePickerHandler @Inject constructor(
                 sendError(ErrorType.AddExerciseFailed)
             },
         ) {
-            val performedUuid = interactor.addExerciseToActiveSession(
+            val addResult = interactor.addExerciseToActiveSession(
                 sessionUuid = sessionUuid,
                 trainingUuid = trainingUuid,
                 exerciseUuid = picked.exerciseUuid,
@@ -192,16 +195,26 @@ internal class ExercisePickerHandler @Inject constructor(
             } else {
                 null
             }
+            // Convert the seeded plan from the insert into the UI shape outside the
+            // updateState lambda — keeps the lambda pure state transformation per project
+            // convention.
+            val planUi: ImmutableList<PlanSetUiModel> =
+                addResult.planSets?.toUi() ?: persistentListOf()
             updateState { latest ->
                 val nextExercises = (
                     latest.exercises + buildPickedExerciseUi(
                         picked = picked,
-                        performedExerciseUuid = performedUuid,
+                        performedExerciseUuid = addResult.performedExerciseUuid,
                         position = latest.exercises.size,
+                        planSets = planUi,
                     )
                     ).toImmutableList()
-                val activeNext = (latest.activeExerciseUuids + performedUuid).toImmutableSet()
-                val expandedNext = (latest.expandedExerciseUuids + performedUuid).toImmutableSet()
+                val activeNext = (
+                    latest.activeExerciseUuids + addResult.performedExerciseUuid
+                    ).toImmutableSet()
+                val expandedNext = (
+                    latest.expandedExerciseUuids + addResult.performedExerciseUuid
+                    ).toImmutableSet()
                 latest.copy(
                     exercises = nextExercises,
                     activeExerciseUuids = activeNext,
@@ -223,6 +236,7 @@ internal class ExercisePickerHandler @Inject constructor(
         picked: PickedExercise,
         performedExerciseUuid: String,
         position: Int,
+        planSets: ImmutableList<PlanSetUiModel>,
     ): LiveExerciseUiModel = LiveExerciseUiModel(
         performedExerciseUuid = performedExerciseUuid,
         exerciseUuid = picked.exerciseUuid,
@@ -233,7 +247,7 @@ internal class ExercisePickerHandler @Inject constructor(
         // recompute pass will promote one to CURRENT if no explicit active set exists.
         status = ExerciseStatusUiModel.PENDING,
         statusLabel = "",
-        planSets = persistentListOf(),
+        planSets = planSets,
         performedSets = persistentListOf(),
     )
 

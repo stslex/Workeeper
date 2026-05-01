@@ -336,10 +336,15 @@ internal class SessionRepositoryImpl @Inject constructor(
         sessionUuid: String,
         trainingUuid: String,
         exerciseUuid: String,
-    ): String = transition {
+    ): SessionRepository.AddExerciseResult = transition {
         val sessionId = Uuid.parse(sessionUuid)
         val trainingId = Uuid.parse(trainingUuid)
         val exerciseId = Uuid.parse(exerciseUuid)
+        // Seed plan_sets from the exercise's last_adhoc_sets so picking a library row with
+        // history surfaces the user's last-logged sets as a baseline. Null when there's no
+        // history (fresh inline-created exercise) — caller renders an empty plan.
+        val initialPlanJson = exerciseDao.getById(exerciseId)?.lastAdhocSets
+        val parsedPlan = PlanSetsConverter.fromJson(initialPlanJson)
         val nextPlanPosition = (trainingExerciseDao.getMaxPosition(trainingId) ?: -1) + 1
         val nextPerformedPosition =
             (performedExerciseDao.getMaxPosition(sessionId) ?: -1) + 1
@@ -348,7 +353,7 @@ internal class SessionRepositoryImpl @Inject constructor(
                 trainingUuid = trainingId,
                 exerciseUuid = exerciseId,
                 position = nextPlanPosition,
-                planSets = null,
+                planSets = initialPlanJson,
             ),
         )
         val performed = PerformedExerciseEntity(
@@ -358,7 +363,10 @@ internal class SessionRepositoryImpl @Inject constructor(
             skipped = false,
         )
         performedExerciseDao.insert(performed)
-        performed.uuid.toString()
+        SessionRepository.AddExerciseResult(
+            performedExerciseUuid = performed.uuid.toString(),
+            planSets = parsedPlan,
+        )
     }
 
     override suspend fun discardAdhocSession(sessionUuid: String, trainingUuid: String) {

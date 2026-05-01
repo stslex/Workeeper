@@ -18,6 +18,7 @@ import io.github.stslex.workeeper.core.exercise.session.SetRepository
 import io.github.stslex.workeeper.core.exercise.sets.PlanUpdateRule
 import io.github.stslex.workeeper.core.exercise.training.TrainingExerciseRepository
 import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
+import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.AddExerciseResult
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.AdhocSessionResult
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.ExercisePickerEntry
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.FinishResult
@@ -259,11 +260,15 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
         sessionUuid: String,
         trainingUuid: String,
         exerciseUuid: String,
-    ): String = withContext(defaultDispatcher) {
-        sessionRepository.addExerciseToActiveSession(
+    ): AddExerciseResult = withContext(defaultDispatcher) {
+        val result = sessionRepository.addExerciseToActiveSession(
             sessionUuid = sessionUuid,
             trainingUuid = trainingUuid,
             exerciseUuid = exerciseUuid,
+        )
+        AddExerciseResult(
+            performedExerciseUuid = result.performedExerciseUuid,
+            planSets = result.planSets,
         )
     }
 

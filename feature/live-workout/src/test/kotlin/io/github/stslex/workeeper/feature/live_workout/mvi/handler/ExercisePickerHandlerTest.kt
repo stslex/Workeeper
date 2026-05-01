@@ -121,7 +121,10 @@ internal class ExercisePickerHandlerTest {
         )
         coEvery {
             interactor.addExerciseToActiveSession("session-1", "training-1", "ex-inline-1")
-        } returns "pe-inline-1"
+        } returns LiveWorkoutInteractor.AddExerciseResult(
+            performedExerciseUuid = "pe-inline-1",
+            planSets = null,
+        )
 
         val handler = ExercisePickerHandler(
             interactor = interactor,
@@ -156,7 +159,10 @@ internal class ExercisePickerHandlerTest {
         )
         coEvery {
             interactor.addExerciseToActiveSession("session-1", "training-1", "ex-library-1")
-        } returns "pe-library-1"
+        } returns LiveWorkoutInteractor.AddExerciseResult(
+            performedExerciseUuid = "pe-library-1",
+            planSets = null,
+        )
 
         val handler = ExercisePickerHandler(
             interactor = interactor,
