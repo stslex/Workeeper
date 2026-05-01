@@ -25,6 +25,9 @@ internal class NavigationHandler(
 
             is Action.Navigation.OpenImageViewer ->
                 navigator.navTo(Screen.ExerciseImage(action.model))
+
+            is Action.Navigation.OpenChart ->
+                navigator.navTo(Screen.ExerciseChart(exerciseUuid = action.exerciseUuid))
         }
     }
 }

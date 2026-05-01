@@ -6,6 +6,7 @@
     <string name="feature_home_empty_headline">Ready when you are</string>
     <string name="feature_home_empty_supporting">Start a training to log your first session</string>
     <string name="feature_home_settings">Settings</string>
+    <string name="feature_home_charts">Charts</string>
 
     <string name="feature_home_start_cta_title">Start a workout</string>
     <string name="feature_home_start_cta_subtitle">Pick a training template</string>

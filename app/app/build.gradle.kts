@@ -20,6 +20,7 @@ dependencies {
     implementation(project(":core:dataStore"))
 
     implementation(project(":feature:exercise"))
+    implementation(project(":feature:exercise-chart"))
     implementation(project(":feature:all-trainings"))
     implementation(project(":feature:all-exercises"))
     implementation(project(":feature:single-training"))

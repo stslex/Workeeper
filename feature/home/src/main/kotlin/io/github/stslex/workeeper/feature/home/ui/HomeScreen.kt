@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.QueryStats
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
@@ -51,6 +52,15 @@ internal fun HomeScreen(
         AppTopAppBar(
             title = stringResource(R.string.feature_home_title),
             actions = {
+                IconButton(
+                    onClick = { consume(Action.Click.OnChartsClick) },
+                    modifier = Modifier.testTag("HomeChartsButton"),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.QueryStats,
+                        contentDescription = stringResource(R.string.feature_home_charts),
+                    )
+                }
                 IconButton(
                     onClick = { consume(Action.Click.OnSettingsClick) },
                 ) {

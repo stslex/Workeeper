@@ -182,8 +182,16 @@ section, render `PersonalRecordCard` when `state.personalRecord !=
 null`. Pre-formatted display label ("105 × 5" weighted / "15 reps"
 weightless) plus relative date label ("12 апр", "вчера"). Driven by
 `ExerciseInteractor.observePersonalRecord(uuid, type)` collected in
-`CommonHandler` once the exercise type is known. No tap behaviour in
-v2.1; chart entry point lands in v2.2.
+`CommonHandler` once the exercise type is known.
+
+**v2.2 chart entry.** The PR card becomes a `Modifier.clickable`
+surface — visual treatment unchanged — that consumes
+`ExerciseStore.Action.Click.OnPrCardClick` →
+`Action.Navigation.OpenChart(exerciseUuid)`, navigating to
+`Screen.ExerciseChart(exerciseUuid)`. Exercises with no PR have no
+in-context chart entry from this screen; users access the chart for
+those via the Charts icon in the Home top bar + picker. See
+[v2.2-exercise-charts.md](v2.2-exercise-charts.md).
 
 #### `ExerciseHistoryRow` layout
 

@@ -5,6 +5,7 @@ import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.HistoryEntry
+import io.github.stslex.workeeper.core.exercise.exercise.model.RecentExerciseDataModel
 import kotlinx.coroutines.flow.Flow
 import kotlin.uuid.Uuid
 
@@ -71,6 +72,19 @@ interface ExerciseRepository {
     fun pagedActiveByTags(tagUuids: Set<String>): Flow<PagingData<ExerciseDataModel>>
 
     suspend fun getRecentHistory(exerciseUuid: String, limit: Int): List<HistoryEntry>
+
+    /**
+     * UUID of the exercise from the most recently finished session, or `null` when no
+     * finished sessions exist. Used by the v2.2 chart screen to pick a default selection
+     * when entered without an explicit `exerciseUuid`.
+     */
+    suspend fun getLastTrainedExerciseUuid(): String?
+
+    /**
+     * Active exercises with at least one finished session, ordered by most-recent-finished
+     * first. Powers the v2.2 chart picker.
+     */
+    suspend fun getRecentlyTrainedExercises(): List<RecentExerciseDataModel>
 
     /**
      * Returns the tag names denormalized through the `exercise_tag` join. Replaces the

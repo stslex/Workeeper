@@ -14,6 +14,10 @@ Conventions:
 ## [Unreleased]
 
 ### Added
+- Per-exercise progress chart (full screen) with date filtering presets (1M / 3M / 1Y / All) and metric toggle (Heaviest weight / Volume per set).
+- Charts entry icon on Home top bar (left of Settings).
+- PR card on Exercise detail is now tappable and opens the chart for that exercise.
+- Tap on a chart point reveals a tooltip with session details; tap on the tooltip navigates to the corresponding Past session screen.
 - Track now CTA opens Live workout with an ad-hoc training (was a stub).
 - Default plan surface in Exercise detail read mode.
 - Active session conflict modal across all Live-workout entry points.

@@ -27,7 +27,9 @@ import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository.Bulk
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository.SaveResult
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel.Companion.toData
 import io.github.stslex.workeeper.core.exercise.exercise.model.HistoryEntry
+import io.github.stslex.workeeper.core.exercise.exercise.model.RecentExerciseDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.toData
 import io.github.stslex.workeeper.core.exercise.exercise.model.toEntity
 import io.github.stslex.workeeper.core.exercise.exercise.model.toSummary
@@ -248,6 +250,22 @@ internal class ExerciseRepositoryImpl @Inject constructor(
     ): Int = withContext(bgDispatcher) {
         sessionDao.countFinishedContainingExercise(Uuid.parse(exerciseUuid))
     }
+
+    override suspend fun getLastTrainedExerciseUuid(): String? = withContext(bgDispatcher) {
+        dao.getLastTrainedExerciseUuid()?.toString()
+    }
+
+    override suspend fun getRecentlyTrainedExercises(): List<RecentExerciseDataModel> =
+        withContext(bgDispatcher) {
+            dao.getRecentlyTrainedExercises().map { row ->
+                RecentExerciseDataModel(
+                    uuid = row.uuid.toString(),
+                    name = row.name,
+                    type = row.type.toData(),
+                    lastFinishedAt = row.lastFinishedAt,
+                )
+            }
+        }
 
     override suspend fun getRecentHistory(
         exerciseUuid: String,

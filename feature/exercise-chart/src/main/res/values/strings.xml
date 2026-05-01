@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="feature_exercise_chart_title">Progress</string>
+    <string name="feature_exercise_chart_back">Back</string>
+    <string name="feature_exercise_chart_picker_title">Select exercise</string>
+    <string name="feature_exercise_chart_picker_open">Switch exercise</string>
+
+    <string name="feature_exercise_chart_metric_heaviest">Heaviest weight</string>
+    <string name="feature_exercise_chart_metric_volume">Volume per set</string>
+
+    <string name="feature_exercise_chart_preset_1m">1M</string>
+    <string name="feature_exercise_chart_preset_3m">3M</string>
+    <string name="feature_exercise_chart_preset_1y">1Y</string>
+    <string name="feature_exercise_chart_preset_all">All</string>
+
+    <string name="feature_exercise_chart_footer_min">Min: %1$s</string>
+    <string name="feature_exercise_chart_footer_max">Max: %1$s</string>
+    <string name="feature_exercise_chart_footer_last">Last: %1$s</string>
+
+    <string name="feature_exercise_chart_value_weight">%1$s kg</string>
+    <string name="feature_exercise_chart_value_weight_x_reps">%1$s kg × %2$d</string>
+    <string name="feature_exercise_chart_value_volume">%1$s kg × reps</string>
+    <plurals name="feature_exercise_chart_value_reps">
+        <item quantity="one">%d rep</item>
+        <item quantity="other">%d reps</item>
+    </plurals>
+
+    <string name="feature_exercise_chart_empty_no_sessions_title">No finished workouts yet</string>
+    <string name="feature_exercise_chart_empty_no_sessions_subtitle">Finish a session — your progress will appear here.</string>
+    <string name="feature_exercise_chart_empty_no_sessions_cta">Start a workout</string>
+
+    <string name="feature_exercise_chart_empty_not_found_title">Exercise unavailable</string>
+    <string name="feature_exercise_chart_empty_not_found_subtitle">It may be archived or have no logged sets. Pick another from the list.</string>
+    <string name="feature_exercise_chart_empty_not_found_cta">Choose exercise</string>
+
+    <string name="feature_exercise_chart_empty_no_data_title">No data for this period</string>
+    <string name="feature_exercise_chart_empty_no_data_subtitle">Try a wider date range.</string>
+
+    <plurals name="feature_exercise_chart_tooltip_set_count">
+        <item quantity="one">%d set this day</item>
+        <item quantity="other">%d sets this day</item>
+    </plurals>
+</resources>
