@@ -73,6 +73,20 @@ Each tracked location should carry a `TODO(tech-debt): <category> — <ref>` mar
 
 ---
 
+## v2.3 Quick start workout — follow-ups
+
+Items deferred from the v2.3 PR (per spec Section 10). Track here so the v2.7 ratchet pass can pick them up.
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟢 | feature/exercise/.../ExerciseInteractorImpl, feature/live-workout/.../LiveWorkoutInteractorImpl | **Track Now / Quick start UI unification** (deferred to v2.7). Both flows now share the data layer (`SessionRepository.createAdhocSession`, `discardAdhocSession`) but stay as separate UI flows. UI-layer convergence is its own refactor. |
+| 🟢 | feature/live-workout/.../mvi/handler/ | **Live workout feature module decomposition** (deferred to v2.7). `feature/live-workout` accumulated significant complexity through v2.1 (PR detection), v2.2 (chart hook), v2.3 (mid-session add, name edit, empty-finish dialog). `ExercisePickerHandler` was already split off via the `PlanEditAction`-style wrapper to keep ClickHandler from bloating; further decomposition (e.g. NameEditHandler, EmptyFinishHandler) is candidate. |
+| 🟡 | feature/live-workout/.../mvi/handler/ExercisePickerHandler.kt `addExerciseFlow` | **PR snapshot fetch failure mode telemetry** (new in v2.3). When `fetchPrSnapshotForExercise` fails for a library pick, the exercise is still added to the session and the in-moment PR badge is suppressed (degraded mode silent failure). If telemetry shows this firing often, the user-facing UX needs revisit. |
+| 🟡 | feature/live-workout/src/androidTest/ | **Mid-session add UI in instrumented tests** (deferred to v2.7). Per project policy (UI flow tests as dedicated test-coverage PRs), no androidTest landed in v2.3. The blank-init Quick start flow + picker bottom sheet + empty-finish discard cascade need smoke coverage. |
+| 🟢 | core/database/.../exercise/ExerciseDao.kt + ExerciseRepositoryImpl.createInlineAdhocExercise | **`ExerciseEntity.isAdhoc` cleanup of stale graduated rows** (deferred, monitoring). After many cycles of inline create → graduate, the library may accumulate poorly-named single-use exercises. No action in v2.3; revisit if user-facing exercise-list pruning becomes a need. |
+
+---
+
 ## Remaining from PR #78
 
 | Severity | Location | Description |
