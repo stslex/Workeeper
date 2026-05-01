@@ -63,6 +63,7 @@ internal interface LiveWorkoutStore :
         val pendingCancelConfirm: Boolean,
         val deleteDialogVisible: Boolean,
         val exercisePickerSheet: ExercisePickerSheetState,
+        val emptyFinishDialog: EmptyFinishDialogState,
         val isAddExerciseInFlight: Boolean,
         val isFinishInFlight: Boolean,
         val isLoading: Boolean,
@@ -132,6 +133,22 @@ internal interface LiveWorkoutStore :
             ) : ExercisePickerSheetState
         }
 
+        /**
+         * Empty-finish confirm dialog (E1 lock). Triggered when the user taps Finish on a
+         * session with no performed sets. Discard CTA is enabled only for ad-hoc trainings;
+         * library training sessions get a Continue-editing-only variant — we do not delete
+         * library trainings via session cancellation.
+         */
+        @Stable
+        sealed interface EmptyFinishDialogState {
+            data object Hidden : EmptyFinishDialogState
+
+            @Stable
+            data class Visible(
+                val canDiscard: Boolean,
+            ) : EmptyFinishDialogState
+        }
+
         val elapsedMillis: Long get() = (nowMillis - startedAt).coerceAtLeast(0L)
 
         val isPlanEditorDirty: Boolean
@@ -139,6 +156,16 @@ internal interface LiveWorkoutStore :
 
         val isPickerVisible: Boolean
             get() = exercisePickerSheet is ExercisePickerSheetState.Visible
+
+        val isEmptyFinishDialogVisible: Boolean
+            get() = emptyFinishDialog is EmptyFinishDialogState.Visible
+
+        /**
+         * "Empty session" predicate driving the E1 confirm dialog: no exercises at all,
+         * or every exercise has zero performed sets.
+         */
+        val isSessionEmpty: Boolean
+            get() = exercises.isEmpty() || exercises.all { it.performedSets.isEmpty() }
 
         /**
          * Throttle gate for the mid-session add-exercise CTA. False during an in-flight
@@ -155,7 +182,10 @@ internal interface LiveWorkoutStore :
          * name edit → plan-editor dirty → default back.
          */
         val interceptBack: Boolean
-            get() = isPlanEditorDirty || isTrainingNameEditing || isPickerVisible
+            get() = isPlanEditorDirty ||
+                isTrainingNameEditing ||
+                isPickerVisible ||
+                isEmptyFinishDialogVisible
 
         companion object {
 
@@ -187,6 +217,7 @@ internal interface LiveWorkoutStore :
                 pendingCancelConfirm = false,
                 deleteDialogVisible = false,
                 exercisePickerSheet = ExercisePickerSheetState.Hidden,
+                emptyFinishDialog = EmptyFinishDialogState.Hidden,
                 isAddExerciseInFlight = false,
                 isFinishInFlight = false,
                 isLoading = true,
@@ -246,6 +277,10 @@ internal interface LiveWorkoutStore :
              */
             @Suppress("MviActionNamingRule")
             data class PickerAction(val action: ExercisePickerAction) : Click
+
+            // v2.3 — empty-finish confirm dialog (E1: Discard or Continue editing).
+            data object OnEmptyFinishDiscard : Click
+            data object OnEmptyFinishContinue : Click
         }
 
         sealed interface Input : Action {

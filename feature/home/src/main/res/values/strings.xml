@@ -16,6 +16,8 @@
     <string name="feature_home_picker_title">Choose a training</string>
     <string name="feature_home_picker_see_all">See all templates</string>
     <string name="feature_home_picker_empty">No templates yet</string>
+    <string name="feature_home_picker_start_blank_title">Start blank workout</string>
+    <string name="feature_home_picker_start_blank_subtitle">Add exercises as you go</string>
 
     <string name="feature_home_conflict_unnamed">Workout</string>
     <string name="feature_home_conflict_progress_format" tools:ignore="PluralsCandidate">%1$d of %2$d exercises done</string>

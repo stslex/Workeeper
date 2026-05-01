@@ -92,6 +92,13 @@ internal interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStor
             data class OnRecentSessionClick(val sessionUuid: String) : Click
             data object OnStartTrainingClick : Click
             data class OnPickerTrainingSelected(val trainingUuid: String) : Click
+
+            // v2.3 — first row of the Start workout picker; routes to the blank-init Live
+            // workout flow without a conflict check (the Start CTA is hidden when an
+            // IN_PROGRESS session exists, so the user cannot reach this from a parallel
+            // state).
+            data object OnStartBlankClick : Click
+
             data object OnPickerSeeAllClick : Click
             data object OnPickerDismiss : Click
             data object OnConflictResume : Click
@@ -102,6 +109,7 @@ internal interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStor
         sealed interface Navigation : Action {
             data class OpenLiveWorkoutResume(val sessionUuid: String) : Navigation
             data class OpenLiveWorkoutFresh(val trainingUuid: String) : Navigation
+            data object OpenLiveWorkoutBlank : Navigation
             data class OpenPastSession(val sessionUuid: String) : Navigation
             data object OpenSettings : Navigation
             data object OpenCharts : Navigation

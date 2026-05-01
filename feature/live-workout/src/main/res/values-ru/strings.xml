@@ -80,6 +80,11 @@
     <string name="feature_live_workout_add_exercise_cta">Добавить упражнение</string>
     <string name="feature_live_workout_add_another_exercise_cta">+ Добавить еще упражнение</string>
 
+    <string name="feature_live_workout_empty_finish_title">Удалить пустую тренировку?</string>
+    <string name="feature_live_workout_empty_finish_body">В этой тренировке нет ни одного выполненного сета. Похоже, она ещё не начата.</string>
+    <string name="feature_live_workout_empty_finish_continue">Продолжить редактирование</string>
+    <string name="feature_live_workout_empty_finish_discard">Удалить</string>
+
     <string name="feature_live_workout_back">Назад</string>
     <string name="feature_live_workout_more">Меню</string>
     <string name="feature_live_workout_remove_set" tools:ignore="UnusedResources">Удалить сет</string>

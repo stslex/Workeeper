@@ -1,19 +1,27 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.home.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddCircleOutline
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -33,6 +41,7 @@ import kotlinx.collections.immutable.persistentListOf
 internal fun TrainingPickerSheet(
     state: State.PickerState.Visible,
     onSelect: (String) -> Unit,
+    onStartBlank: () -> Unit,
     onSeeAll: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -45,6 +54,8 @@ internal fun TrainingPickerSheet(
             style = AppUi.typography.titleLarge,
             color = AppUi.colors.textPrimary,
         )
+        Spacer(Modifier.height(AppDimension.Space.sm))
+        StartBlankRow(onClick = onStartBlank)
         when {
             state.isLoading -> Box(
                 modifier = Modifier
@@ -77,6 +88,46 @@ internal fun TrainingPickerSheet(
                 text = stringResource(R.string.feature_home_picker_see_all),
                 style = AppUi.typography.labelLarge,
                 color = AppUi.colors.accent,
+            )
+        }
+    }
+}
+
+@Composable
+private fun StartBlankRow(onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(AppUi.shapes.medium)
+            .background(AppUi.colors.surfaceTier0)
+            .clickable(onClick = onClick)
+            .padding(
+                horizontal = AppDimension.Space.md,
+                vertical = AppDimension.Space.md,
+            )
+            .testTag("HomePickerStartBlankRow"),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
+    ) {
+        Icon(
+            modifier = Modifier.size(AppDimension.iconMd),
+            imageVector = Icons.Default.AddCircleOutline,
+            contentDescription = null,
+            tint = AppUi.colors.accent,
+        )
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xxs),
+        ) {
+            Text(
+                text = stringResource(R.string.feature_home_picker_start_blank_title),
+                style = AppUi.typography.titleMedium,
+                color = AppUi.colors.textPrimary,
+            )
+            Text(
+                text = stringResource(R.string.feature_home_picker_start_blank_subtitle),
+                style = AppUi.typography.bodyMedium,
+                color = AppUi.colors.textSecondary,
             )
         }
     }
@@ -131,6 +182,7 @@ private fun TrainingPickerSheetLoadedLightPreview() {
                 isLoading = false,
             ),
             onSelect = {},
+            onStartBlank = {},
             onSeeAll = {},
             onDismiss = {},
         )
@@ -144,6 +196,7 @@ private fun TrainingPickerSheetLoadingDarkPreview() {
         TrainingPickerSheet(
             state = State.PickerState.Visible(templates = persistentListOf(), isLoading = true),
             onSelect = {},
+            onStartBlank = {},
             onSeeAll = {},
             onDismiss = {},
         )
@@ -157,6 +210,7 @@ private fun TrainingPickerSheetEmptyDarkPreview() {
         TrainingPickerSheet(
             state = State.PickerState.Visible(templates = persistentListOf(), isLoading = false),
             onSelect = {},
+            onStartBlank = {},
             onSeeAll = {},
             onDismiss = {},
         )

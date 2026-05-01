@@ -69,6 +69,8 @@ internal class ClickHandler @Inject constructor(
             Action.Click.OnTrainingNameDismiss -> processTrainingNameDismiss()
             Action.Click.OnAddExerciseClick -> processAddExerciseClick()
             is Action.Click.PickerAction -> pickerHandler.invoke(action.action)
+            Action.Click.OnEmptyFinishDiscard -> processEmptyFinishDiscard()
+            Action.Click.OnEmptyFinishContinue -> processEmptyFinishContinue()
         }
     }
 
@@ -87,6 +89,10 @@ internal class ClickHandler @Inject constructor(
         val current = state.value
         if (current.isPickerVisible) {
             pickerHandler.invoke(ExercisePickerAction.OnDismiss)
+            return
+        }
+        if (current.isEmptyFinishDialogVisible) {
+            processEmptyFinishContinue()
             return
         }
         if (current.isTrainingNameEditing) {
@@ -358,9 +364,60 @@ internal class ClickHandler @Inject constructor(
 
     private fun processFinishClick() {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        val stats = state.value.toFinishStats(resourceWrapper)
+        val current = state.value
+        if (current.isSessionEmpty) {
+            // E1 lock — empty-finish branches into a confirm dialog. Discard CTA is enabled
+            // only when the parent training is ad-hoc, so library training sessions get the
+            // Continue-editing-only variant.
+            updateState {
+                it.copy(
+                    emptyFinishDialog = State.EmptyFinishDialogState.Visible(
+                        canDiscard = it.isAdhoc,
+                    ),
+                )
+            }
+            return
+        }
+        val stats = current.toFinishStats(resourceWrapper)
         updateState { it.copy(pendingFinishConfirm = stats) }
         sendEvent(Event.ShowFinishConfirmDialog)
+    }
+
+    private fun processEmptyFinishContinue() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updateState { it.copy(emptyFinishDialog = State.EmptyFinishDialogState.Hidden) }
+    }
+
+    private fun processEmptyFinishDiscard() {
+        sendEvent(Event.HapticImpact(HapticFeedbackType.LongPress))
+        val current = state.value
+        val sessionUuid = current.sessionUuid
+        val trainingUuid = current.trainingUuid
+        // Defence: discard cascade only fires for ad-hoc trainings. Library sessions can't
+        // reach this path (canDiscard = false in the dialog), but we double-check before
+        // calling the cascade DAO write.
+        if (!current.isAdhoc || sessionUuid.isNullOrBlank() || trainingUuid.isNullOrBlank()) {
+            updateState { it.copy(emptyFinishDialog = State.EmptyFinishDialogState.Hidden) }
+            return
+        }
+        updateState {
+            it.copy(
+                emptyFinishDialog = State.EmptyFinishDialogState.Hidden,
+                isFinishInFlight = true,
+            )
+        }
+        launch(
+            onSuccess = { consumeOnMain(Action.Navigation.Back) },
+            onError = { _ ->
+                updateState { it.copy(isFinishInFlight = false) }
+                sendError(ErrorType.DiscardSessionFailed)
+            },
+        ) {
+            interactor.discardAdhocSession(
+                sessionUuid = sessionUuid,
+                trainingUuid = trainingUuid,
+            )
+        }
     }
 
     private fun processFinishConfirm() {

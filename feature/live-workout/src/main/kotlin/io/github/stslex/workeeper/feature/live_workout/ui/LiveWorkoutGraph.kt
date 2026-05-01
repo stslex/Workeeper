@@ -24,6 +24,7 @@ import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutFeature
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Event
+import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State.EmptyFinishDialogState
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State.ExercisePickerSheetState
 import io.github.stslex.workeeper.feature.live_workout.ui.components.FinishConfirmDialog
 
@@ -104,6 +105,30 @@ fun NavGraphBuilder.liveWorkoutGraph(
                 searchHint = stringResource(R.string.feature_live_workout_picker_search_hint),
                 isPrimaryActionEnabled = state.canAddExercise,
                 onAction = { action -> processor.consume(Action.Click.PickerAction(action)) },
+            )
+        }
+
+        (state.emptyFinishDialog as? EmptyFinishDialogState.Visible)?.let { dialog ->
+            AppDialog(
+                title = stringResource(R.string.feature_live_workout_empty_finish_title),
+                body = stringResource(R.string.feature_live_workout_empty_finish_body),
+                confirmLabel = stringResource(
+                    if (dialog.canDiscard) {
+                        R.string.feature_live_workout_empty_finish_discard
+                    } else {
+                        R.string.feature_live_workout_empty_finish_continue
+                    },
+                ),
+                dismissLabel = stringResource(R.string.feature_live_workout_empty_finish_continue),
+                destructive = dialog.canDiscard,
+                onConfirm = {
+                    if (dialog.canDiscard) {
+                        processor.consume(Action.Click.OnEmptyFinishDiscard)
+                    } else {
+                        processor.consume(Action.Click.OnEmptyFinishContinue)
+                    }
+                },
+                onDismiss = { processor.consume(Action.Click.OnEmptyFinishContinue) },
             )
         }
 
