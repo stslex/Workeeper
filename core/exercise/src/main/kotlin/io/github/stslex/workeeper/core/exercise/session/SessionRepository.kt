@@ -87,6 +87,48 @@ interface SessionRepository {
     suspend fun deleteSession(uuid: String)
 
     /**
+     * Atomically creates an ad-hoc training row + IN_PROGRESS session + one
+     * `performed_exercise` row per [exerciseUuids] entry. Returns both UUIDs so callers can
+     * navigate to the live session and tear it down later via [discardAdhocSession].
+     *
+     * The training row is created with `is_adhoc = true`; the session links to it via the
+     * non-nullable `training_uuid` FK. [exerciseUuids] may be empty for a "Start blank"
+     * Quick start session — the session is still created with no performed exercises.
+     */
+    suspend fun createAdhocSession(
+        name: String,
+        exerciseUuids: List<String>,
+    ): AdhocSessionResult
+
+    /**
+     * Atomically attaches [exerciseUuid] to the active session: writes a
+     * `training_exercise_table` plan row (with `plan_sets = null` so the existing
+     * grow-but-not-shrink rule populates from logged sets on finish) and a
+     * `performed_exercise_table` row at the next position. Used both for inline-created
+     * (`is_adhoc = true`) exercises and for library picks.
+     */
+    suspend fun addExerciseToActiveSession(
+        sessionUuid: String,
+        trainingUuid: String,
+        exerciseUuid: String,
+    )
+
+    /**
+     * Atomically tears down an ad-hoc session: deletes the session row, deletes the
+     * ad-hoc training row, and deletes any inline-created (`is_adhoc = 1`) exercise rows
+     * referenced by this training. The defence-in-depth predicate ensures library
+     * exercises picked into the session are never deleted — their `is_adhoc = 0` filters
+     * them out at the join step. Shared by Track Now Cancel and Quick start empty-finish
+     * Discard.
+     */
+    suspend fun discardAdhocSession(sessionUuid: String, trainingUuid: String)
+
+    data class AdhocSessionResult(
+        val sessionUuid: String,
+        val trainingUuid: String,
+    )
+
+    /**
      * Date-ordered history for [exerciseUuid] across finished sessions. Each emitted entry
      * groups the rows of one finished session into a single record. Used by Exercise detail
      * recent history (v2.0) and the v2.2 charts.

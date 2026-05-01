@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.feature.live_workout.domain
 import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.database.sets.SetTypeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
+import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository.InlineAdhocResult
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
@@ -402,4 +403,206 @@ internal class LiveWorkoutInteractorImplTest {
         )
         coEvery { setRepository.getByPerformedExercise("pe-1") } returns emptyList()
     }
+
+    @Test
+    fun `createAdhocSession delegates to repository and surfaces both UUIDs`() = runTest {
+        coEvery {
+            sessionRepository.createAdhocSession(
+                name = "Quick start",
+                exerciseUuids = listOf("ex-1", "ex-2"),
+            )
+        } returns SessionRepository.AdhocSessionResult(
+            sessionUuid = "session-new",
+            trainingUuid = "training-new",
+        )
+
+        val result = interactor.createAdhocSession(
+            name = "Quick start",
+            exerciseUuids = listOf("ex-1", "ex-2"),
+        )
+
+        assertEquals("session-new", result.sessionUuid)
+        assertEquals("training-new", result.trainingUuid)
+    }
+
+    @Test
+    fun `createAdhocSession with empty exercise list still produces a session`() = runTest {
+        coEvery {
+            sessionRepository.createAdhocSession(name = "", exerciseUuids = emptyList())
+        } returns SessionRepository.AdhocSessionResult(
+            sessionUuid = "blank-session",
+            trainingUuid = "blank-training",
+        )
+
+        val result = interactor.createAdhocSession(name = "", exerciseUuids = emptyList())
+
+        assertEquals("blank-session", result.sessionUuid)
+        assertEquals("blank-training", result.trainingUuid)
+    }
+
+    @Test
+    fun `addExerciseToActiveSession forwards all three UUIDs verbatim`() = runTest {
+        interactor.addExerciseToActiveSession(
+            sessionUuid = "session-1",
+            trainingUuid = "training-1",
+            exerciseUuid = "ex-mid",
+        )
+
+        coVerify(exactly = 1) {
+            sessionRepository.addExerciseToActiveSession(
+                sessionUuid = "session-1",
+                trainingUuid = "training-1",
+                exerciseUuid = "ex-mid",
+            )
+        }
+    }
+
+    @Test
+    fun `discardAdhocSession delegates to repository`() = runTest {
+        interactor.discardAdhocSession(
+            sessionUuid = "session-1",
+            trainingUuid = "training-1",
+        )
+
+        coVerify(exactly = 1) {
+            sessionRepository.discardAdhocSession(
+                sessionUuid = "session-1",
+                trainingUuid = "training-1",
+            )
+        }
+    }
+
+    @Test
+    fun `cancelSession on adhoc training cascades through discardAdhocSession`() = runTest {
+        coEvery { sessionRepository.getById("session-adhoc") } returns SessionDataModel(
+            uuid = "session-adhoc",
+            trainingUuid = "training-adhoc",
+            state = SessionStateDataModel.IN_PROGRESS,
+            startedAt = 0L,
+            finishedAt = null,
+        )
+        coEvery { trainingRepository.getTraining("training-adhoc") } returns adhocTraining(
+            uuid = "training-adhoc",
+            isAdhoc = true,
+        )
+
+        interactor.cancelSession("session-adhoc")
+
+        coVerify(exactly = 1) {
+            sessionRepository.discardAdhocSession(
+                sessionUuid = "session-adhoc",
+                trainingUuid = "training-adhoc",
+            )
+        }
+        coVerify(exactly = 0) { sessionRepository.deleteSession(any()) }
+    }
+
+    @Test
+    fun `cancelSession on library training only deletes the session`() = runTest {
+        coEvery { sessionRepository.getById("session-lib") } returns SessionDataModel(
+            uuid = "session-lib",
+            trainingUuid = "training-lib",
+            state = SessionStateDataModel.IN_PROGRESS,
+            startedAt = 0L,
+            finishedAt = null,
+        )
+        coEvery { trainingRepository.getTraining("training-lib") } returns adhocTraining(
+            uuid = "training-lib",
+            isAdhoc = false,
+        )
+
+        interactor.cancelSession("session-lib")
+
+        coVerify(exactly = 1) { sessionRepository.deleteSession("session-lib") }
+        coVerify(exactly = 0) { sessionRepository.discardAdhocSession(any(), any()) }
+    }
+
+    @Test
+    fun `createInlineAdhocExercise unwraps the repository envelope`() = runTest {
+        coEvery {
+            exerciseRepository.createInlineAdhocExercise("Skull Crushers")
+        } returns InlineAdhocResult(
+            exercise = ExerciseDataModel(
+                uuid = "ex-new",
+                name = "Skull Crushers",
+                type = ExerciseTypeDataModel.WEIGHTED,
+                description = null,
+                imagePath = null,
+                archived = false,
+                archivedAt = null,
+                timestamp = 0L,
+                lastAdhocSets = null,
+            ),
+            reusedExisting = false,
+        )
+
+        val result = interactor.createInlineAdhocExercise("Skull Crushers")
+
+        assertEquals("ex-new", result.exerciseUuid)
+        assertEquals("Skull Crushers", result.name)
+        assertEquals(ExerciseTypeDataModel.WEIGHTED, result.type)
+        assertEquals(false, result.reusedExisting)
+    }
+
+    @Test
+    fun `updateTrainingName forwards uuid and name to repository`() = runTest {
+        interactor.updateTrainingName("training-1", "Push Day")
+
+        coVerify(exactly = 1) {
+            trainingRepository.updateName("training-1", "Push Day")
+        }
+    }
+
+    @Test
+    fun `searchExercisesForPicker maps repo entries to picker-local DTOs`() = runTest {
+        coEvery {
+            exerciseRepository.searchActiveExercises(
+                query = "bench",
+                excludeUuids = setOf("ex-already-in"),
+            )
+        } returns listOf(
+            ExerciseDataModel(
+                uuid = "ex-1",
+                name = "Bench Press",
+                type = ExerciseTypeDataModel.WEIGHTED,
+                description = null,
+                imagePath = null,
+                archived = false,
+                archivedAt = null,
+                timestamp = 0L,
+                lastAdhocSets = null,
+            ),
+            ExerciseDataModel(
+                uuid = "ex-2",
+                name = "Bench Press (Incline)",
+                type = ExerciseTypeDataModel.WEIGHTED,
+                description = null,
+                imagePath = null,
+                archived = false,
+                archivedAt = null,
+                timestamp = 0L,
+                lastAdhocSets = null,
+            ),
+        )
+
+        val results = interactor.searchExercisesForPicker(
+            query = "bench",
+            excludedUuids = setOf("ex-already-in"),
+        )
+
+        assertEquals(listOf("ex-1", "ex-2"), results.map { it.uuid })
+        assertEquals(listOf("Bench Press", "Bench Press (Incline)"), results.map { it.name })
+    }
+
+    private fun adhocTraining(uuid: String, isAdhoc: Boolean): TrainingDataModel = TrainingDataModel(
+        uuid = uuid,
+        name = "Track now: Bench Press",
+        description = null,
+        isAdhoc = isAdhoc,
+        archived = false,
+        archivedAt = null,
+        timestamp = 0L,
+        labels = emptyList(),
+        exerciseUuids = emptyList(),
+    )
 }

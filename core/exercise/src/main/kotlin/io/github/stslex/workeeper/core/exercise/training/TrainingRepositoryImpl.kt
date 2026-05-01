@@ -48,6 +48,12 @@ class TrainingRepositoryImpl @Inject constructor(
         .map { pagingData -> pagingData.map { it.toData() } }
         .flowOn(ioDispatcher)
 
+    override suspend fun updateName(uuid: String, name: String) {
+        withContext(ioDispatcher) {
+            dao.updateName(Uuid.parse(uuid), name)
+        }
+    }
+
     override suspend fun updateTraining(training: TrainingChangeDataModel) {
         withContext(ioDispatcher) {
             val entity = training.toEntity()

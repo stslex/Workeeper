@@ -1,0 +1,208 @@
+// SPDX-License-Identifier: GPL-3.0-only
+package io.github.stslex.workeeper.core.exercise.session
+
+import io.github.stslex.workeeper.core.database.common.DbTransitionRunner
+import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
+import io.github.stslex.workeeper.core.database.exercise.ExerciseEntity
+import io.github.stslex.workeeper.core.database.exercise.ExerciseTypeEntity
+import io.github.stslex.workeeper.core.database.session.PerformedExerciseDao
+import io.github.stslex.workeeper.core.database.session.PerformedExerciseEntity
+import io.github.stslex.workeeper.core.database.session.SessionDao
+import io.github.stslex.workeeper.core.database.session.SessionEntity
+import io.github.stslex.workeeper.core.database.session.SetDao
+import io.github.stslex.workeeper.core.database.training.TrainingDao
+import io.github.stslex.workeeper.core.database.training.TrainingEntity
+import io.github.stslex.workeeper.core.database.training.TrainingExerciseDao
+import io.github.stslex.workeeper.core.database.training.TrainingExerciseEntity
+import io.mockk.Runs
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.just
+import io.mockk.mockk
+import io.mockk.slot
+import io.mockk.spyk
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+import kotlin.uuid.Uuid
+
+internal class SessionRepositoryAdhocLifecycleTest {
+
+    private val dispatcher = UnconfinedTestDispatcher()
+    private val sessionDao = mockk<SessionDao>(relaxed = true)
+    private val performedExerciseDao = mockk<PerformedExerciseDao>(relaxed = true)
+    private val setDao = mockk<SetDao>(relaxed = true)
+    private val trainingDao = mockk<TrainingDao>(relaxed = true)
+    private val exerciseDao = mockk<ExerciseDao>(relaxed = true)
+    private val trainingExerciseDao = mockk<TrainingExerciseDao>(relaxed = true)
+    private val transition = spyk(
+        object : DbTransitionRunner {
+            override suspend fun <T> invoke(block: suspend () -> T): T = block()
+        },
+    )
+
+    private val repository = SessionRepositoryImpl(
+        dao = sessionDao,
+        performedExerciseDao = performedExerciseDao,
+        setDao = setDao,
+        trainingDao = trainingDao,
+        exerciseDao = exerciseDao,
+        trainingExerciseDao = trainingExerciseDao,
+        transition = transition,
+        ioDispatcher = dispatcher,
+    )
+
+    @Test
+    fun `createAdhocSession inserts training with isAdhoc true and seeds plan plus performed rows`() =
+        runTest(dispatcher) {
+            val ex1 = Uuid.random()
+            val ex2 = Uuid.random()
+            val trainingSlot = slot<TrainingEntity>()
+            val planSlot = slot<List<TrainingExerciseEntity>>()
+            val sessionSlot = slot<SessionEntity>()
+            val performedSlot = slot<List<PerformedExerciseEntity>>()
+            coEvery { trainingDao.insert(capture(trainingSlot)) } just Runs
+            coEvery { trainingExerciseDao.insert(capture(planSlot)) } just Runs
+            coEvery {
+                sessionDao.startSessionWithExercises(
+                    capture(sessionSlot),
+                    capture(performedSlot),
+                )
+            } just Runs
+
+            val result = repository.createAdhocSession(
+                name = "Push Day",
+                exerciseUuids = listOf(ex1.toString(), ex2.toString()),
+            )
+
+            assertTrue(trainingSlot.captured.isAdhoc)
+            assertEquals("Push Day", trainingSlot.captured.name)
+            assertEquals(trainingSlot.captured.uuid.toString(), result.trainingUuid)
+            assertEquals(sessionSlot.captured.uuid.toString(), result.sessionUuid)
+            assertEquals(trainingSlot.captured.uuid, sessionSlot.captured.trainingUuid)
+            assertEquals(listOf(0, 1), planSlot.captured.map { it.position })
+            assertEquals(listOf(0, 1), performedSlot.captured.map { it.position })
+            assertEquals(listOf(ex1, ex2), planSlot.captured.map { it.exerciseUuid })
+            assertEquals(listOf(ex1, ex2), performedSlot.captured.map { it.exerciseUuid })
+            assertTrue(planSlot.captured.all { it.planSets == null })
+        }
+
+    @Test
+    fun `createAdhocSession with empty exercise list still creates training and session`() =
+        runTest(dispatcher) {
+            val performedSlot = slot<List<PerformedExerciseEntity>>()
+            coEvery {
+                sessionDao.startSessionWithExercises(any(), capture(performedSlot))
+            } just Runs
+
+            val result = repository.createAdhocSession(name = "", exerciseUuids = emptyList())
+
+            assertTrue(result.sessionUuid.isNotBlank())
+            assertTrue(result.trainingUuid.isNotBlank())
+            assertTrue(performedSlot.captured.isEmpty())
+            // No plan rows means trainingExerciseDao.insert should not be touched.
+            coVerify(exactly = 0) { trainingExerciseDao.insert(any<List<TrainingExerciseEntity>>()) }
+        }
+
+    @Test
+    fun `addExerciseToActiveSession appends at next position in both plan and performed tables`() =
+        runTest(dispatcher) {
+            val trainingId = Uuid.random()
+            val sessionId = Uuid.random()
+            val exerciseId = Uuid.random()
+            coEvery { trainingExerciseDao.getMaxPosition(trainingId) } returns 2
+            coEvery { performedExerciseDao.getMaxPosition(sessionId) } returns 4
+            val planSlot = slot<TrainingExerciseEntity>()
+            val performedSlot = slot<PerformedExerciseEntity>()
+            coEvery { trainingExerciseDao.insert(capture(planSlot)) } just Runs
+            coEvery { performedExerciseDao.insert(capture(performedSlot)) } just Runs
+
+            repository.addExerciseToActiveSession(
+                sessionUuid = sessionId.toString(),
+                trainingUuid = trainingId.toString(),
+                exerciseUuid = exerciseId.toString(),
+            )
+
+            assertEquals(3, planSlot.captured.position)
+            assertEquals(5, performedSlot.captured.position)
+            assertEquals(trainingId, planSlot.captured.trainingUuid)
+            assertEquals(sessionId, performedSlot.captured.sessionUuid)
+            assertEquals(exerciseId, planSlot.captured.exerciseUuid)
+            assertEquals(exerciseId, performedSlot.captured.exerciseUuid)
+            assertEquals(null, planSlot.captured.planSets)
+        }
+
+    @Test
+    fun `addExerciseToActiveSession on empty session uses position zero`() = runTest(dispatcher) {
+        val trainingId = Uuid.random()
+        val sessionId = Uuid.random()
+        val exerciseId = Uuid.random()
+        coEvery { trainingExerciseDao.getMaxPosition(trainingId) } returns null
+        coEvery { performedExerciseDao.getMaxPosition(sessionId) } returns null
+        val planSlot = slot<TrainingExerciseEntity>()
+        val performedSlot = slot<PerformedExerciseEntity>()
+        coEvery { trainingExerciseDao.insert(capture(planSlot)) } just Runs
+        coEvery { performedExerciseDao.insert(capture(performedSlot)) } just Runs
+
+        repository.addExerciseToActiveSession(
+            sessionUuid = sessionId.toString(),
+            trainingUuid = trainingId.toString(),
+            exerciseUuid = exerciseId.toString(),
+        )
+
+        assertEquals(0, planSlot.captured.position)
+        assertEquals(0, performedSlot.captured.position)
+    }
+
+    @Test
+    fun `discardAdhocSession deletes session, training and only adhoc-flagged exercises`() =
+        runTest(dispatcher) {
+            val trainingId = Uuid.random()
+            val sessionId = Uuid.random()
+            val adhocExerciseId = Uuid.random()
+            coEvery { exerciseDao.getAdhocExercisesForTraining(trainingId) } returns listOf(
+                adhocExerciseEntity(adhocExerciseId),
+            )
+
+            repository.discardAdhocSession(
+                sessionUuid = sessionId.toString(),
+                trainingUuid = trainingId.toString(),
+            )
+
+            coVerify(exactly = 1) { sessionDao.delete(sessionId) }
+            coVerify(exactly = 1) { trainingDao.permanentDelete(trainingId) }
+            coVerify(exactly = 1) { exerciseDao.deleteByUuids(listOf(adhocExerciseId)) }
+        }
+
+    @Test
+    fun `discardAdhocSession with no adhoc exercises skips the bulk delete`() =
+        runTest(dispatcher) {
+            val trainingId = Uuid.random()
+            val sessionId = Uuid.random()
+            coEvery { exerciseDao.getAdhocExercisesForTraining(trainingId) } returns emptyList()
+
+            repository.discardAdhocSession(
+                sessionUuid = sessionId.toString(),
+                trainingUuid = trainingId.toString(),
+            )
+
+            coVerify(exactly = 1) { sessionDao.delete(sessionId) }
+            coVerify(exactly = 1) { trainingDao.permanentDelete(trainingId) }
+            coVerify(exactly = 0) { exerciseDao.deleteByUuids(any()) }
+        }
+
+    private fun adhocExerciseEntity(uuid: Uuid): ExerciseEntity = ExerciseEntity(
+        uuid = uuid,
+        name = "Inline-created",
+        type = ExerciseTypeEntity.WEIGHTED,
+        description = null,
+        imagePath = null,
+        archived = false,
+        createdAt = 0L,
+        archivedAt = null,
+        lastAdhocSets = null,
+        isAdhoc = true,
+    )
+}

@@ -16,7 +16,10 @@ import io.github.stslex.workeeper.core.exercise.session.SetRepository
 import io.github.stslex.workeeper.core.exercise.sets.PlanUpdateRule
 import io.github.stslex.workeeper.core.exercise.training.TrainingExerciseRepository
 import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
+import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.AdhocSessionResult
+import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.ExercisePickerEntry
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.FinishResult
+import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.InlineAdhocResult
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.PerformedExerciseSnapshot
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.SessionSnapshot
 import kotlinx.coroutines.CoroutineDispatcher
@@ -221,8 +224,87 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
 
     override suspend fun cancelSession(sessionUuid: String) {
         withContext(defaultDispatcher) {
-            sessionRepository.deleteSession(sessionUuid)
+            val session = sessionRepository.getById(sessionUuid) ?: return@withContext
+            val training = trainingRepository.getTraining(session.trainingUuid)
+            if (training?.isAdhoc == true) {
+                // Cancel of an ad-hoc session must cascade to the training row + inline
+                // exercises. Without this, Track Now / Quick start cancel paths leak orphan
+                // training rows — the v5 → v6 migration sweeps existing leakers.
+                sessionRepository.discardAdhocSession(
+                    sessionUuid = sessionUuid,
+                    trainingUuid = session.trainingUuid,
+                )
+            } else {
+                sessionRepository.deleteSession(sessionUuid)
+            }
         }
+    }
+
+    override suspend fun createAdhocSession(
+        name: String,
+        exerciseUuids: List<String>,
+    ): AdhocSessionResult = withContext(defaultDispatcher) {
+        val result = sessionRepository.createAdhocSession(name, exerciseUuids)
+        AdhocSessionResult(
+            sessionUuid = result.sessionUuid,
+            trainingUuid = result.trainingUuid,
+        )
+    }
+
+    override suspend fun addExerciseToActiveSession(
+        sessionUuid: String,
+        trainingUuid: String,
+        exerciseUuid: String,
+    ) {
+        withContext(defaultDispatcher) {
+            sessionRepository.addExerciseToActiveSession(
+                sessionUuid = sessionUuid,
+                trainingUuid = trainingUuid,
+                exerciseUuid = exerciseUuid,
+            )
+        }
+    }
+
+    override suspend fun discardAdhocSession(sessionUuid: String, trainingUuid: String) {
+        withContext(defaultDispatcher) {
+            sessionRepository.discardAdhocSession(
+                sessionUuid = sessionUuid,
+                trainingUuid = trainingUuid,
+            )
+        }
+    }
+
+    override suspend fun createInlineAdhocExercise(
+        name: String,
+    ): InlineAdhocResult = withContext(defaultDispatcher) {
+        val result = exerciseRepository.createInlineAdhocExercise(name)
+        InlineAdhocResult(
+            exerciseUuid = result.exercise.uuid,
+            name = result.exercise.name,
+            type = result.exercise.type,
+            reusedExisting = result.reusedExisting,
+        )
+    }
+
+    override suspend fun updateTrainingName(trainingUuid: String, name: String) {
+        withContext(defaultDispatcher) {
+            trainingRepository.updateName(trainingUuid, name)
+        }
+    }
+
+    override suspend fun searchExercisesForPicker(
+        query: String,
+        excludedUuids: Set<String>,
+    ): List<ExercisePickerEntry> = withContext(defaultDispatcher) {
+        exerciseRepository
+            .searchActiveExercises(query = query, excludeUuids = excludedUuids)
+            .map { exercise ->
+                ExercisePickerEntry(
+                    uuid = exercise.uuid,
+                    name = exercise.name,
+                    type = exercise.type,
+                )
+            }
     }
 
     override suspend fun setPlanForExercise(

@@ -22,6 +22,19 @@ interface ExerciseRepository {
 
     suspend fun saveItem(item: ExerciseChangeDataModel): SaveResult
 
+    /**
+     * Inserts an `is_adhoc = 1` exercise row from a single user-typed name. Used by the
+     * inline-create flow inside the Quick start / Track Now exercise picker. Type defaults
+     * to `WEIGHTED`; description, image, and tags are not captured at create time — the
+     * user can enrich the exercise from Exercise detail after the session graduates it.
+     *
+     * If a library exercise with the same name (case-insensitive) already exists, the
+     * existing row is returned instead of raising the unique-name constraint. The caller
+     * decides whether to flag this to the user; in the picker flow we silently surface the
+     * library entry, since the user expectation is "I'll get an exercise named '<x>' added".
+     */
+    suspend fun createInlineAdhocExercise(name: String): InlineAdhocResult
+
     suspend fun getAdhocPlan(exerciseUuid: String): List<PlanSetDataModel>?
 
     suspend fun setAdhocPlan(exerciseUuid: String, planSets: List<PlanSetDataModel>?)
@@ -123,5 +136,16 @@ interface ExerciseRepository {
     data class BulkArchiveOutcome(
         val archivedCount: Int,
         val blockedNames: List<String>,
+    )
+
+    /**
+     * Result of [createInlineAdhocExercise]. The picker-side flow only needs the resulting
+     * [exercise]; the [reusedExisting] flag lets call sites measure how often an inline
+     * "create" actually surfaces a pre-existing library entry, which matters for both the
+     * Q6 baseline detection and tech-debt telemetry.
+     */
+    data class InlineAdhocResult(
+        val exercise: ExerciseDataModel,
+        val reusedExisting: Boolean,
     )
 }

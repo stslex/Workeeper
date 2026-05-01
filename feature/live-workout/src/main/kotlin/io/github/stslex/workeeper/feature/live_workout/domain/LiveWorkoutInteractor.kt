@@ -12,6 +12,60 @@ internal interface LiveWorkoutInteractor {
 
     suspend fun startSession(trainingUuid: String): String
 
+    /**
+     * Creates an ad-hoc training + IN_PROGRESS session in one transaction. Used by the
+     * v2.3 "Start blank" Quick start entry (with [exerciseUuids] empty) and shared with
+     * Track Now via the same `SessionRepository.createAdhocSession` underneath. Returns
+     * both UUIDs because the [discardAdhocSession] cleanup later needs the training UUID
+     * even after the session row is gone.
+     */
+    suspend fun createAdhocSession(
+        name: String,
+        exerciseUuids: List<String>,
+    ): AdhocSessionResult
+
+    /**
+     * Atomically appends [exerciseUuid] to the active session's plan and performed list.
+     * Per H1 (mid-session changes mutate the plan permanently), the plan row written here
+     * survives session finish even if no sets are logged for it.
+     */
+    suspend fun addExerciseToActiveSession(
+        sessionUuid: String,
+        trainingUuid: String,
+        exerciseUuid: String,
+    )
+
+    /**
+     * Cancels an ad-hoc session: deletes session, training, and inline-created exercises in
+     * one transaction. Defence-in-depth: only `is_adhoc = 1` exercises joined via the
+     * cancelled training are deleted; library exercises picked into the session are kept.
+     */
+    suspend fun discardAdhocSession(sessionUuid: String, trainingUuid: String)
+
+    /**
+     * Inserts a fresh `is_adhoc = 1` exercise from a single user-typed name, or surfaces an
+     * existing library entry when the name already matches one (case-insensitive). The
+     * caller is expected to follow up with [addExerciseToActiveSession] to attach it.
+     */
+    suspend fun createInlineAdhocExercise(name: String): InlineAdhocResult
+
+    /**
+     * Updates the editable training name header. Direct DAO update — does not retouch
+     * exercises or labels.
+     */
+    suspend fun updateTrainingName(trainingUuid: String, name: String)
+
+    /**
+     * One-shot library lookup powering the inline picker bottom sheet. Filters
+     * `is_adhoc = 0` and `archived = 0` at the DAO layer. [excludedUuids] holds the
+     * exercise UUIDs already attached to the active session so picked rows do not appear
+     * a second time.
+     */
+    suspend fun searchExercisesForPicker(
+        query: String,
+        excludedUuids: Set<String>,
+    ): List<ExercisePickerEntry>
+
     suspend fun loadSession(sessionUuid: String): SessionSnapshot?
 
     suspend fun upsertSet(
@@ -67,5 +121,29 @@ internal interface LiveWorkoutInteractor {
         val totalCount: Int,
         val skippedCount: Int,
         val setsLogged: Int,
+    )
+
+    /** Domain result of [createAdhocSession] — both UUIDs are needed for cleanup later. */
+    data class AdhocSessionResult(
+        val sessionUuid: String,
+        val trainingUuid: String,
+    )
+
+    /**
+     * Domain result of [createInlineAdhocExercise]. [reusedExisting] is `true` when the
+     * typed name matched a library entry; the picker silently surfaces it instead of
+     * raising an error.
+     */
+    data class InlineAdhocResult(
+        val exerciseUuid: String,
+        val name: String,
+        val type: ExerciseTypeDataModel,
+        val reusedExisting: Boolean,
+    )
+
+    data class ExercisePickerEntry(
+        val uuid: String,
+        val name: String,
+        val type: ExerciseTypeDataModel,
     )
 }

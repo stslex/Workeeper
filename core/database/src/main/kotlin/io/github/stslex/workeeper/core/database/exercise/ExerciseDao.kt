@@ -49,6 +49,14 @@ interface ExerciseDao {
     @Query("SELECT * FROM exercise_table WHERE uuid = :uuid")
     suspend fun getById(uuid: Uuid): ExerciseEntity?
 
+    /**
+     * Case-insensitive single-row lookup by name. Used by the inline-create flow to avoid
+     * tripping the unique-name constraint when the user types a name that already matches
+     * an existing library exercise — we surface that one rather than raising an error.
+     */
+    @Query("SELECT * FROM exercise_table WHERE name = :name COLLATE NOCASE LIMIT 1")
+    suspend fun findByName(name: String): ExerciseEntity?
+
     @Query("SELECT * FROM exercise_table WHERE uuid IN (:uuids)")
     suspend fun getByUuids(uuids: List<Uuid>): List<ExerciseEntity>
 

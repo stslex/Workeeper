@@ -18,7 +18,6 @@ import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordRe
 import io.github.stslex.workeeper.core.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.exercise.tags.TagRepository
 import io.github.stslex.workeeper.core.exercise.tags.model.TagDataModel
-import io.github.stslex.workeeper.core.exercise.training.TrainingChangeDataModel
 import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor.ArchiveResult
@@ -29,7 +28,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
-import kotlin.uuid.Uuid
 
 @Suppress("LongParameterList", "TooManyFunctions")
 @ViewModelScoped
@@ -152,26 +150,27 @@ internal class ExerciseInteractorImpl @Inject constructor(
         val exercise = exerciseRepository.getExercise(exerciseUuid)
         val trainingName = exercise?.name?.takeIf { it.isNotBlank() }
             ?: resourceWrapper.getString(R.string.feature_exercise_track_now_default_training_name)
-        val trainingUuid = Uuid.random().toString()
-        trainingRepository.updateTraining(
-            TrainingChangeDataModel(
-                uuid = trainingUuid,
-                name = trainingName,
-                isAdhoc = true,
-                timestamp = System.currentTimeMillis(),
-                exerciseUuids = listOf(exerciseUuid),
-            ),
-        )
-        val session = sessionRepository.startSessionWithExercises(
-            trainingUuid = trainingUuid,
-            exerciseUuids = listOf(exerciseUuid to 0),
-        )
-        session.uuid
+        // Shared adhoc-session helper — same code path as v2.3 Quick start. Replaces the
+        // older two-step Training upsert + session start that left orphan training rows
+        // when Track Now was cancelled (the cancel path only deleted the session).
+        sessionRepository.createAdhocSession(
+            name = trainingName,
+            exerciseUuids = listOf(exerciseUuid),
+        ).sessionUuid
     }
 
     override suspend fun deleteSession(sessionUuid: String) {
         withContext(defaultDispatcher) {
-            sessionRepository.deleteSession(sessionUuid)
+            val session = sessionRepository.getById(sessionUuid) ?: return@withContext
+            val training = trainingRepository.getTraining(session.trainingUuid)
+            if (training?.isAdhoc == true) {
+                sessionRepository.discardAdhocSession(
+                    sessionUuid = sessionUuid,
+                    trainingUuid = session.trainingUuid,
+                )
+            } else {
+                sessionRepository.deleteSession(sessionUuid)
+            }
         }
     }
 }

@@ -72,16 +72,19 @@ internal interface ExerciseInteractor {
 
     /**
      * Create an ad-hoc training that wraps [exerciseUuid] only, then start a session for it.
-     * Returns the new session uuid for navigation. The training's name defaults to the
-     * exercise name; the existing Live workout `loadSession` flow picks up
-     * `exercise.last_adhoc_sets` as the plan.
+     * Returns the new session uuid for navigation. Delegates to
+     * `SessionRepository.createAdhocSession` — same data path as v2.3 Quick start. Plan
+     * rows are persisted with `plan_sets = null`; the existing `loadSession` fallback
+     * (`exercise.last_adhoc_sets`) populates the editor.
      */
     suspend fun startTrackNowSession(exerciseUuid: String): String
 
     /**
-     * Hard-deletes the in-progress session [sessionUuid], cascading through performed_
-     * exercise + set rows via FK rules. Used by the Track now conflict resolver
-     * "Delete & start new" branch.
+     * Cancel the in-progress session [sessionUuid]. Branches on training type so an ad-hoc
+     * training created for Track Now (or v2.3 Quick start) is cascade-deleted alongside
+     * its inline-created exercises, while a library training session is just unlinked.
+     * Replaces the older session-only delete that leaked the parent ad-hoc training row —
+     * this is the bug the v5 → v6 retroactive sweep cleans up history of.
      */
     suspend fun deleteSession(sessionUuid: String)
 

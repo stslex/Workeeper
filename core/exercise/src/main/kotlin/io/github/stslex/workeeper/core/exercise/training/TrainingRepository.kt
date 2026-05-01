@@ -10,6 +10,13 @@ interface TrainingRepository {
 
     suspend fun updateTraining(training: TrainingChangeDataModel)
 
+    /**
+     * Lightweight name-only update used by the v2.3 Live workout editable header. Side-steps
+     * [updateTraining]'s exercise/label sync so a header tap does not retouch
+     * `training_exercise_table` or `training_tag_table` rows for the active session's plan.
+     */
+    suspend fun updateName(uuid: String, name: String)
+
     suspend fun removeTraining(uuid: String)
 
     suspend fun getTraining(uuid: String): TrainingDataModel?
