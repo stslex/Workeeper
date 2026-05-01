@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise_chart.ui.components
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -9,14 +8,23 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -64,8 +72,9 @@ internal fun ChartTooltipPopup(
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
-    val notchWidthPx = with(density) { TooltipNotchWidth.toPx() }
-    val notchHeightPx = with(density) { TooltipNotchHeight.toPx() }
+    val notchWidthPx = with(density) { TooltipNotchWidth.roundToPx().toFloat() }
+    val notchHeightPx = with(density) { TooltipNotchHeight.roundToPx().toFloat() }
+    val tooltipFill = AppUi.colors.surfaceTier3
     val spec = TooltipLayoutSpec(
         anchorGapPx = with(density) { TooltipAnchorGap.toPx() },
         edgeMarginPx = with(density) { TooltipEdgeMargin.toPx() },
@@ -87,7 +96,7 @@ internal fun ChartTooltipPopup(
         )
 
         val cardPlaceable = subcompose(TooltipSlot.Card) {
-            TooltipCardBody(tooltip = tooltip, onClick = onClick)
+            TooltipContent(tooltip = tooltip)
         }.first().measure(cardConstraints)
 
         val layout = computeTooltipLayout(
@@ -98,52 +107,105 @@ internal fun ChartTooltipPopup(
             spec = spec,
         )
 
-        val notchPlaceable = if (layout.showNotch) {
-            subcompose(TooltipSlot.Notch) {
-                TooltipNotch(pointDown = !layout.flipBelow)
-            }.first().measure(
-                Constraints.fixed(
-                    width = notchWidthPx.toInt(),
-                    height = notchHeightPx.toInt(),
-                ),
-            )
+        val tooltipHeight = cardPlaceable.height + if (layout.showNotch) {
+            notchHeightPx.toInt()
         } else {
-            null
+            0
         }
+        val tooltipConstraints = Constraints.fixed(
+            width = cardPlaceable.width,
+            height = tooltipHeight,
+        )
+        val tooltipPlaceable = subcompose(TooltipSlot.Tooltip) {
+            TooltipShape(
+                spec = TooltipShapeSpec(
+                    showNotch = layout.showNotch,
+                    notchPointsDown = !layout.flipBelow,
+                    notchOffsetX = layout.notchOffsetX,
+                    cornerRadiusPx = spec.cornerRadiusPx,
+                    notchHalfWidthPx = notchWidthPx / 2f,
+                    notchHeightPx = notchHeightPx,
+                    fillColor = tooltipFill,
+                ),
+                onClick = onClick,
+            ) {
+                TooltipContent(tooltip = tooltip)
+            }
+        }.first().measure(tooltipConstraints)
 
         layout(constraints.maxWidth, constraints.maxHeight) {
-            cardPlaceable.place(layout.cardLeft.toInt(), layout.cardTop.toInt())
-            notchPlaceable?.place(
-                x = (layout.cardLeft + layout.notchOffsetX - notchWidthPx / 2f).toInt(),
-                y = if (layout.flipBelow) {
-                    (layout.cardTop - notchHeightPx).toInt()
-                } else {
-                    (layout.cardTop + cardPlaceable.height).toInt()
-                },
-            )
+            val tooltipTop = if (layout.showNotch && layout.flipBelow) {
+                layout.cardTop - notchHeightPx
+            } else {
+                layout.cardTop
+            }
+            tooltipPlaceable.place(layout.cardLeft.toInt(), tooltipTop.toInt())
         }
     }
 }
 
-private enum class TooltipSlot { Card, Notch }
+private enum class TooltipSlot { Card, Tooltip }
 
 @Composable
-private fun TooltipCardBody(
-    tooltip: ChartTooltipUiModel,
+private fun TooltipShape(
+    spec: TooltipShapeSpec,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    val shape = remember(spec) { spec.toShape() }
+    val notchHeight = if (spec.showNotch) {
+        spec.notchHeightPx.toInt()
+    } else {
+        0
+    }
+
+    Layout(
+        content = content,
+        modifier = modifier
+            .shadow(
+                elevation = TooltipElevation,
+                shape = shape,
+                clip = false,
+            )
+            .background(color = spec.fillColor, shape = shape)
+            .clip(shape)
+            .clickable(onClick = onClick)
+            .testTag("ChartTooltip"),
+    ) { measurables, constraints ->
+        val contentMaxHeight = if (constraints.hasBoundedHeight) {
+            (constraints.maxHeight - notchHeight).coerceAtLeast(0)
+        } else {
+            constraints.maxHeight
+        }
+        val contentConstraints = constraints.copy(
+            minHeight = 0,
+            maxHeight = contentMaxHeight,
+        )
+        val placeable = measurables.first().measure(contentConstraints)
+        val width = placeable.width.coerceIn(constraints.minWidth, constraints.maxWidth)
+        val height = (placeable.height + notchHeight)
+            .coerceIn(constraints.minHeight, constraints.maxHeight)
+        val contentY = if (spec.showNotch && !spec.notchPointsDown) {
+            notchHeight
+        } else {
+            0
+        }
+
+        layout(width, height) {
+            placeable.place(0, contentY)
+        }
+    }
+}
+
+@Composable
+private fun TooltipContent(
+    tooltip: ChartTooltipUiModel,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier
-            .shadow(
-                elevation = TooltipElevation,
-                shape = AppUi.shapes.medium,
-            )
-            .clip(AppUi.shapes.medium)
-            .background(AppUi.colors.surfaceTier3)
-            .clickable(onClick = onClick)
-            .padding(AppDimension.cardPadding)
-            .testTag("ChartTooltip"),
+            .padding(AppDimension.cardPadding),
         verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xxs),
     ) {
         Text(
@@ -171,27 +233,196 @@ private fun TooltipCardBody(
     }
 }
 
-@Composable
-private fun TooltipNotch(
-    pointDown: Boolean,
-    modifier: Modifier = Modifier,
+@Immutable
+private data class TooltipShapeSpec(
+    val showNotch: Boolean,
+    val notchPointsDown: Boolean,
+    val notchOffsetX: Float,
+    val cornerRadiusPx: Float,
+    val notchHalfWidthPx: Float,
+    val notchHeightPx: Float,
+    val fillColor: Color,
+)
+
+private fun TooltipShapeSpec.toShape(): Shape = GenericShape { size, _ ->
+    addTooltipOutline(size = size, spec = this@toShape)
+}
+
+private fun Path.addTooltipOutline(
+    size: Size,
+    spec: TooltipShapeSpec,
 ) {
-    val fill = AppUi.colors.surfaceTier3
-    Canvas(modifier = modifier.fillMaxSize()) {
-        val path = Path().apply {
-            if (pointDown) {
-                moveTo(0f, 0f)
-                lineTo(size.width, 0f)
-                lineTo(size.width / 2f, size.height)
-            } else {
-                moveTo(0f, size.height)
-                lineTo(size.width, size.height)
-                lineTo(size.width / 2f, 0f)
-            }
-            close()
-        }
-        drawPath(path = path, color = fill)
+    if (!spec.showNotch) {
+        addRoundRect(
+            RoundRect(
+                left = 0f,
+                top = 0f,
+                right = size.width,
+                bottom = size.height,
+                cornerRadius = CornerRadius(spec.cornerRadiusPx),
+            ),
+        )
+        return
     }
+
+    val cardTop = if (spec.notchPointsDown) 0f else spec.notchHeightPx
+    val cardBottom = if (spec.notchPointsDown) {
+        size.height - spec.notchHeightPx
+    } else {
+        size.height
+    }
+    val cornerRadius = spec.cornerRadiusPx.coerceAtMost(size.width / 2f)
+        .coerceAtMost((cardBottom - cardTop) / 2f)
+
+    if (spec.notchPointsDown) {
+        addBottomNotchOutline(
+            width = size.width,
+            cardTop = cardTop,
+            cardBottom = cardBottom,
+            cornerRadius = cornerRadius,
+            notchOffsetX = spec.notchOffsetX,
+            notchHalfWidth = spec.notchHalfWidthPx,
+            notchTipY = size.height,
+        )
+    } else {
+        addTopNotchOutline(
+            width = size.width,
+            cardTop = cardTop,
+            cardBottom = cardBottom,
+            cornerRadius = cornerRadius,
+            notchOffsetX = spec.notchOffsetX,
+            notchHalfWidth = spec.notchHalfWidthPx,
+            notchTipY = 0f,
+        )
+    }
+}
+
+private fun Path.addBottomNotchOutline(
+    width: Float,
+    cardTop: Float,
+    cardBottom: Float,
+    cornerRadius: Float,
+    notchOffsetX: Float,
+    notchHalfWidth: Float,
+    notchTipY: Float,
+) {
+    moveTo(cornerRadius, cardTop)
+    lineTo(width - cornerRadius, cardTop)
+    arcTo(
+        rect = Rect(
+            left = width - 2 * cornerRadius,
+            top = cardTop,
+            right = width,
+            bottom = cardTop + 2 * cornerRadius,
+        ),
+        startAngleDegrees = -90f,
+        sweepAngleDegrees = 90f,
+        forceMoveTo = false,
+    )
+    lineTo(width, cardBottom - cornerRadius)
+    arcTo(
+        rect = Rect(
+            left = width - 2 * cornerRadius,
+            top = cardBottom - 2 * cornerRadius,
+            right = width,
+            bottom = cardBottom,
+        ),
+        startAngleDegrees = 0f,
+        sweepAngleDegrees = 90f,
+        forceMoveTo = false,
+    )
+    lineTo(notchOffsetX + notchHalfWidth, cardBottom)
+    lineTo(notchOffsetX, notchTipY)
+    lineTo(notchOffsetX - notchHalfWidth, cardBottom)
+    lineTo(cornerRadius, cardBottom)
+    arcTo(
+        rect = Rect(
+            left = 0f,
+            top = cardBottom - 2 * cornerRadius,
+            right = 2 * cornerRadius,
+            bottom = cardBottom,
+        ),
+        startAngleDegrees = 90f,
+        sweepAngleDegrees = 90f,
+        forceMoveTo = false,
+    )
+    lineTo(0f, cardTop + cornerRadius)
+    arcTo(
+        rect = Rect(
+            left = 0f,
+            top = cardTop,
+            right = 2 * cornerRadius,
+            bottom = cardTop + 2 * cornerRadius,
+        ),
+        startAngleDegrees = 180f,
+        sweepAngleDegrees = 90f,
+        forceMoveTo = false,
+    )
+    close()
+}
+
+private fun Path.addTopNotchOutline(
+    width: Float,
+    cardTop: Float,
+    cardBottom: Float,
+    cornerRadius: Float,
+    notchOffsetX: Float,
+    notchHalfWidth: Float,
+    notchTipY: Float,
+) {
+    moveTo(cornerRadius, cardTop)
+    lineTo(notchOffsetX - notchHalfWidth, cardTop)
+    lineTo(notchOffsetX, notchTipY)
+    lineTo(notchOffsetX + notchHalfWidth, cardTop)
+    lineTo(width - cornerRadius, cardTop)
+    arcTo(
+        rect = Rect(
+            left = width - 2 * cornerRadius,
+            top = cardTop,
+            right = width,
+            bottom = cardTop + 2 * cornerRadius,
+        ),
+        startAngleDegrees = -90f,
+        sweepAngleDegrees = 90f,
+        forceMoveTo = false,
+    )
+    lineTo(width, cardBottom - cornerRadius)
+    arcTo(
+        rect = Rect(
+            left = width - 2 * cornerRadius,
+            top = cardBottom - 2 * cornerRadius,
+            right = width,
+            bottom = cardBottom,
+        ),
+        startAngleDegrees = 0f,
+        sweepAngleDegrees = 90f,
+        forceMoveTo = false,
+    )
+    lineTo(cornerRadius, cardBottom)
+    arcTo(
+        rect = Rect(
+            left = 0f,
+            top = cardBottom - 2 * cornerRadius,
+            right = 2 * cornerRadius,
+            bottom = cardBottom,
+        ),
+        startAngleDegrees = 90f,
+        sweepAngleDegrees = 90f,
+        forceMoveTo = false,
+    )
+    lineTo(0f, cardTop + cornerRadius)
+    arcTo(
+        rect = Rect(
+            left = 0f,
+            top = cardTop,
+            right = 2 * cornerRadius,
+            bottom = cardTop + 2 * cornerRadius,
+        ),
+        startAngleDegrees = 180f,
+        sweepAngleDegrees = 90f,
+        forceMoveTo = false,
+    )
+    close()
 }
 
 @Suppress("MagicNumber")
