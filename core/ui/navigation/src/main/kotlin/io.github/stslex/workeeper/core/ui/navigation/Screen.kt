@@ -67,6 +67,16 @@ sealed interface Screen {
     ) : Screen
 
     /**
+     * Per-exercise progress chart (v2.2). When [exerciseUuid] is `null` the screen resolves
+     * to the user's most recently trained exercise. The picker on the chart screen lets the
+     * user switch to any other exercise that has finished-session history.
+     */
+    @Serializable
+    data class ExerciseChart(
+        val exerciseUuid: String?,
+    ) : Screen
+
+    /**
      * Full-screen image viewer. [model] is either an absolute file path
      * (`filesDir/exercise_images/<uuid>.jpg`) or a content URI string
      * (e.g. from `PickVisualMedia`); Coil resolves both transparently.

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="feature_exercise_chart_title">Прогресс</string>
+    <string name="feature_exercise_chart_back">Назад</string>
+
+    <string name="feature_exercise_chart_metric_heaviest">Макс. вес</string>
+    <string name="feature_exercise_chart_metric_volume">Объём подхода</string>
+
+    <string name="feature_exercise_chart_preset_1m">1М</string>
+    <string name="feature_exercise_chart_preset_3m">3М</string>
+    <string name="feature_exercise_chart_preset_1y">1Г</string>
+    <string name="feature_exercise_chart_preset_all">Все</string>
+
+    <string name="feature_exercise_chart_footer_min">Мин: %1$s</string>
+    <string name="feature_exercise_chart_footer_max">Макс: %1$s</string>
+    <string name="feature_exercise_chart_footer_last">Последнее: %1$s</string>
+
+    <string name="feature_exercise_chart_value_weight">%1$s кг</string>
+    <string name="feature_exercise_chart_value_weight_x_reps">%1$s кг × %2$d</string>
+    <string name="feature_exercise_chart_value_volume">%1$s кг × повт.</string>
+    <plurals name="feature_exercise_chart_value_reps">
+        <item quantity="one">%d повторение</item>
+        <item quantity="few">%d повторения</item>
+        <item quantity="many">%d повторений</item>
+        <item quantity="other">%d повторений</item>
+    </plurals>
+
+    <string name="feature_exercise_chart_empty_title">Нет данных</string>
+    <string name="feature_exercise_chart_empty_subtitle">Завершите тренировку с этим упражнением — здесь появится прогресс.</string>
+    <string name="feature_exercise_chart_empty_cta">Начать тренировку</string>
+
+    <string name="feature_exercise_chart_no_finished_sessions_title">Завершите тренировку</string>
+    <string name="feature_exercise_chart_no_finished_sessions_subtitle">После первой завершённой тренировки здесь появится прогресс.</string>
+
+    <plurals name="feature_exercise_chart_tooltip_set_count">
+        <item quantity="one">%d подход в этот день</item>
+        <item quantity="few">%d подхода в этот день</item>
+        <item quantity="many">%d подходов в этот день</item>
+        <item quantity="other">%d подходов в этот день</item>
+    </plurals>
+</resources>

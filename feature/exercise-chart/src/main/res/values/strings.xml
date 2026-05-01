@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="feature_exercise_chart_title">Progress</string>
+    <string name="feature_exercise_chart_back">Back</string>
+
+    <string name="feature_exercise_chart_metric_heaviest">Heaviest weight</string>
+    <string name="feature_exercise_chart_metric_volume">Volume per set</string>
+
+    <string name="feature_exercise_chart_preset_1m">1M</string>
+    <string name="feature_exercise_chart_preset_3m">3M</string>
+    <string name="feature_exercise_chart_preset_1y">1Y</string>
+    <string name="feature_exercise_chart_preset_all">All</string>
+
+    <string name="feature_exercise_chart_footer_min">Min: %1$s</string>
+    <string name="feature_exercise_chart_footer_max">Max: %1$s</string>
+    <string name="feature_exercise_chart_footer_last">Last: %1$s</string>
+
+    <string name="feature_exercise_chart_value_weight">%1$s kg</string>
+    <string name="feature_exercise_chart_value_weight_x_reps">%1$s kg × %2$d</string>
+    <string name="feature_exercise_chart_value_volume">%1$s kg × reps</string>
+    <plurals name="feature_exercise_chart_value_reps">
+        <item quantity="one">%d rep</item>
+        <item quantity="other">%d reps</item>
+    </plurals>
+
+    <string name="feature_exercise_chart_empty_title">No data</string>
+    <string name="feature_exercise_chart_empty_subtitle">Finish a session for this exercise — the chart will appear here.</string>
+    <string name="feature_exercise_chart_empty_cta">Start a workout</string>
+
+    <string name="feature_exercise_chart_no_finished_sessions_title">Finish a session</string>
+    <string name="feature_exercise_chart_no_finished_sessions_subtitle">Once you complete a workout, your progress will appear here.</string>
+
+    <plurals name="feature_exercise_chart_tooltip_set_count">
+        <item quantity="one">%d set this day</item>
+        <item quantity="other">%d sets this day</item>
+    </plurals>
+</resources>
