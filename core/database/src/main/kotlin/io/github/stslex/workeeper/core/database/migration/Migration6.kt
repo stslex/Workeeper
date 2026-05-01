@@ -20,7 +20,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  * `training_exercise_table` rows attached to deleted training rows cascade via the
  * existing FK on `training_uuid`; no explicit cleanup is required there.
  */
-internal object Migration6 : Migration(5, 6) {
+private const val FROM_VERSION = 5
+private const val TO_VERSION = 6
+
+internal object Migration6 : Migration(FROM_VERSION, TO_VERSION) {
 
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL(

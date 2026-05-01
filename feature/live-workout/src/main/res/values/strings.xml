@@ -77,18 +77,17 @@
 
     <!-- Editable training name header (Quick start) -->
     <string name="feature_live_workout_training_name_placeholder">Untitled</string>
-    <string name="feature_live_workout_training_name_field_hint">Workout name</string>
 
     <!-- Inline exercise picker (Quick start mid-session add) -->
     <string name="feature_live_workout_picker_search_hint">Search or create</string>
-    <string name="feature_live_workout_picker_no_match_format">No exercises match &quot;%1$s&quot;</string>
-    <string name="feature_live_workout_picker_create_format">Create &quot;%1$s&quot;</string>
+    <string name="feature_live_workout_picker_no_match_format">No exercises match “%1$s”</string>
+    <string name="feature_live_workout_picker_create_format">Create “%1$s”</string>
     <string name="feature_live_workout_add_exercise_cta">Add exercise</string>
     <string name="feature_live_workout_add_another_exercise_cta">+ Add another exercise</string>
 
     <!-- Empty-finish confirm dialog -->
     <string name="feature_live_workout_empty_finish_title">Discard empty workout?</string>
-    <string name="feature_live_workout_empty_finish_body">This workout has no logged sets. It looks like you haven\'t started yet.</string>
+    <string name="feature_live_workout_empty_finish_body">This workout has no logged sets. It looks like you haven’t started yet.</string>
     <string name="feature_live_workout_empty_finish_continue">Continue editing</string>
     <string name="feature_live_workout_empty_finish_discard">Discard</string>
 

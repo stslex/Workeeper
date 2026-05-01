@@ -29,8 +29,12 @@ import kotlinx.collections.immutable.toImmutableMap
 import kotlinx.collections.immutable.toImmutableSet
 import javax.inject.Inject
 
-@Suppress("TooManyFunctions", "LongMethod")
+@Suppress("TooManyFunctions", "LongMethod", "LargeClass")
 @ViewModelScoped
+// TODO(tech-debt): v2.7 decomposition pass — this handler legitimately gained
+// training-name + empty-finish + add-exercise dispatch in v2.3 (per spec); further
+// splits (TrainingNameHandler, EmptyFinishHandler) belong with the rest of the
+// live-workout feature decomposition.
 internal class ClickHandler @Inject constructor(
     private val interactor: LiveWorkoutInteractor,
     private val resourceWrapper: ResourceWrapper,

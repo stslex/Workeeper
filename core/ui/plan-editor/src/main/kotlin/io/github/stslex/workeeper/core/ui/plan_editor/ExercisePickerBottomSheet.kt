@@ -16,7 +16,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -34,9 +33,9 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
-import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExercisePickerAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExercisePickerUiModel
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 
@@ -215,8 +214,8 @@ private fun ExercisePickerNoMatchDarkPreview() {
         ExercisePickerBottomSheet(
             query = "skull crushers",
             results = persistentListOf(),
-            noMatchHeadline = "No exercises match \"skull crushers\"",
-            createCtaLabel = "Create \"skull crushers\"",
+            noMatchHeadline = "No exercises match “skull crushers”",
+            createCtaLabel = "Create “skull crushers”",
             searchHint = "Search or create",
             isPrimaryActionEnabled = true,
             onAction = {},
