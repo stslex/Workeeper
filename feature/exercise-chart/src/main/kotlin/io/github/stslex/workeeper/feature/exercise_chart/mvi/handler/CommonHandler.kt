@@ -10,6 +10,7 @@ import io.github.stslex.workeeper.feature.exercise_chart.di.ExerciseChartHandler
 import io.github.stslex.workeeper.feature.exercise_chart.domain.ExerciseChartInteractor
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ExercisePickerItemUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Action
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.EmptyReason
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.State
 import kotlinx.collections.immutable.toImmutableList
 import javax.inject.Inject
@@ -30,14 +31,20 @@ internal class CommonHandler @Inject constructor(
         val initialUuid = state.value.initialUuid
         launch(
             onSuccess = { result ->
-                val selected = result.recents
-                    .firstOrNull { it.uuid == result.targetUuid }
+                val selected = result.recents.firstOrNull { it.uuid == result.targetUuid }
+                val emptyReason = when {
+                    result.recents.isEmpty() -> EmptyReason.NO_FINISHED_SESSIONS
+                    selected == null && initialUuid != null -> EmptyReason.EXERCISE_NOT_FOUND
+                    else -> null
+                }
                 updateStateImmediate { current ->
                     current.copy(
                         recentExercises = result.recents.toImmutableList(),
                         selectedExercise = selected,
+                        emptyReason = emptyReason,
+                        // Stop the spinner only when we're not about to fire loadChart —
+                        // otherwise loadChart owns the false transition.
                         isLoading = selected != null,
-                        isEmpty = selected == null,
                     )
                 }
                 if (selected != null) {
@@ -51,12 +58,14 @@ internal class CommonHandler @Inject constructor(
         }
     }
 
-    fun reload() {
-        val selected = state.value.selectedExercise ?: return
-        loadChart(selected)
-    }
-
-    private fun loadChart(exercise: ExercisePickerItemUiModel) {
+    /**
+     * Re-fetch and bucket the chart for [exercise] using the current preset / metric.
+     * Toggles `isLoading` true → false around the fetch and clears any prior tooltip /
+     * `emptyReason`. On empty result, sets `EmptyReason.NO_DATA_FOR_EXERCISE`.
+     *
+     * Exposed for [ClickHandler] to call on picker / preset / metric changes.
+     */
+    fun loadChart(exercise: ExercisePickerItemUiModel) {
         val current = state.value
         launch(
             onSuccess = { result ->
@@ -64,7 +73,11 @@ internal class CommonHandler @Inject constructor(
                     it.copy(
                         points = result.points,
                         footerStats = result.footer,
-                        isEmpty = result.points.isEmpty(),
+                        emptyReason = if (result.points.isEmpty()) {
+                            EmptyReason.NO_DATA_FOR_EXERCISE
+                        } else {
+                            null
+                        },
                         isLoading = false,
                     )
                 }

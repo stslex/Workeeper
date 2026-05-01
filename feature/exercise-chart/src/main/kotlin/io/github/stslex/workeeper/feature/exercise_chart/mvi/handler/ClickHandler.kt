@@ -6,7 +6,6 @@ import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.exercise_chart.di.ExerciseChartHandlerStore
-import io.github.stslex.workeeper.feature.exercise_chart.domain.ExerciseChartInteractor
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapper
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Action
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Event
@@ -14,7 +13,7 @@ import javax.inject.Inject
 
 @ViewModelScoped
 internal class ClickHandler @Inject constructor(
-    private val interactor: ExerciseChartInteractor,
+    private val commonHandler: CommonHandler,
     private val resourceWrapper: ResourceWrapper,
     store: ExerciseChartHandlerStore,
 ) : Handler<Action.Click>, ExerciseChartHandlerStore by store {
@@ -37,17 +36,33 @@ internal class ClickHandler @Inject constructor(
     private fun processPresetSelect(action: Action.Click.OnPresetSelect) {
         val current = state.value
         if (current.preset == action.preset) return
+        val selected = current.selectedExercise ?: return
         sendEvent(Event.HapticClick(HapticFeedbackType.SegmentTick))
-        updateState { it.copy(preset = action.preset, activeTooltip = null, isLoading = true) }
-        reloadFor(current.selectedExercise?.uuid)
+        updateState {
+            it.copy(
+                preset = action.preset,
+                activeTooltip = null,
+                emptyReason = null,
+                isLoading = true,
+            )
+        }
+        commonHandler.loadChart(selected)
     }
 
     private fun processMetricSelect(action: Action.Click.OnMetricSelect) {
         val current = state.value
         if (current.metric == action.metric) return
+        val selected = current.selectedExercise ?: return
         sendEvent(Event.HapticClick(HapticFeedbackType.SegmentTick))
-        updateState { it.copy(metric = action.metric, activeTooltip = null, isLoading = true) }
-        reloadFor(current.selectedExercise?.uuid)
+        updateState {
+            it.copy(
+                metric = action.metric,
+                activeTooltip = null,
+                emptyReason = null,
+                isLoading = true,
+            )
+        }
+        commonHandler.loadChart(selected)
     }
 
     private fun processPickerItemSelect(action: Action.Click.OnPickerItemSelect) {
@@ -63,10 +78,14 @@ internal class ClickHandler @Inject constructor(
                 selectedExercise = item,
                 isPickerOpen = false,
                 activeTooltip = null,
+                // Clear EXERCISE_NOT_FOUND immediately on selection — the new selection
+                // is what's loading; loadChart will set NO_DATA_FOR_EXERCISE if the result
+                // is empty.
+                emptyReason = null,
                 isLoading = true,
             )
         }
-        reloadFor(item.uuid)
+        commonHandler.loadChart(item)
     }
 
     private fun processPointTap(action: Action.Click.OnPointTap) {
@@ -85,31 +104,5 @@ internal class ClickHandler @Inject constructor(
         val tooltip = state.value.activeTooltip ?: return
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         consume(Action.Navigation.OpenPastSession(tooltip.sessionUuid))
-    }
-
-    private fun reloadFor(exerciseUuid: String?) {
-        val current = state.value
-        val target = current.selectedExercise ?: return
-        if (exerciseUuid == null || target.uuid != exerciseUuid) return
-        launch(
-            onSuccess = { result ->
-                updateStateImmediate {
-                    it.copy(
-                        points = result.points,
-                        footerStats = result.footer,
-                        isEmpty = result.points.isEmpty(),
-                        isLoading = false,
-                    )
-                }
-            },
-        ) {
-            interactor.loadChartData(
-                exerciseUuid = target.uuid,
-                preset = state.value.preset,
-                metric = state.value.metric,
-                type = target.type,
-                now = System.currentTimeMillis(),
-            )
-        }
     }
 }

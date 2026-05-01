@@ -25,12 +25,16 @@
         <item quantity="other">%d reps</item>
     </plurals>
 
-    <string name="feature_exercise_chart_empty_title">No data</string>
-    <string name="feature_exercise_chart_empty_subtitle">Finish a session for this exercise — the chart will appear here.</string>
-    <string name="feature_exercise_chart_empty_cta">Start a workout</string>
+    <string name="feature_exercise_chart_empty_no_sessions_title">No finished workouts yet</string>
+    <string name="feature_exercise_chart_empty_no_sessions_subtitle">Finish a session — your progress will appear here.</string>
+    <string name="feature_exercise_chart_empty_no_sessions_cta">Start a workout</string>
 
-    <string name="feature_exercise_chart_no_finished_sessions_title">Finish a session</string>
-    <string name="feature_exercise_chart_no_finished_sessions_subtitle">Once you complete a workout, your progress will appear here.</string>
+    <string name="feature_exercise_chart_empty_not_found_title">Exercise unavailable</string>
+    <string name="feature_exercise_chart_empty_not_found_subtitle">It may be archived or have no logged sets. Pick another from the list.</string>
+    <string name="feature_exercise_chart_empty_not_found_cta">Choose exercise</string>
+
+    <string name="feature_exercise_chart_empty_no_data_title">No data for this period</string>
+    <string name="feature_exercise_chart_empty_no_data_subtitle">Try a wider date range.</string>
 
     <plurals name="feature_exercise_chart_tooltip_set_count">
         <item quantity="one">%d set this day</item>

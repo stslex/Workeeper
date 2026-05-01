@@ -31,6 +31,7 @@ import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPointUiM
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPresetUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ExercisePickerItemUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Action
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.EmptyReason
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.State
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartCanvas
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartEmptyState
@@ -100,7 +101,10 @@ private fun ChartTopBar(
             }
         },
         actions = {
-            if (state.recentExercises.size > 1) {
+            // Picker stays accessible whenever there is anything to pick from — including
+            // the EXERCISE_NOT_FOUND and NO_DATA_FOR_EXERCISE empty branches, where the
+            // picker is the user's recovery path.
+            if (state.isPickerAccessible) {
                 IconButton(
                     onClick = { consume(Action.Click.OnPickerOpen) },
                     modifier = Modifier.testTag("ExerciseChartPickerOpen"),
@@ -121,39 +125,64 @@ private fun ChartContent(
     consume: (Action) -> Unit,
 ) {
     when {
-        state.isLoading && state.points.isEmpty() -> Box(
+        state.isLoading && state.points.isEmpty() && state.emptyReason == null -> Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
             AppLoadingIndicator()
         }
 
-        state.selectedExercise == null -> ChartEmptyState(
+        state.emptyReason != null -> EmptyContent(state = state, consume = consume)
+
+        else -> ChartPopulated(state = state, consume = consume)
+    }
+}
+
+@Composable
+private fun EmptyContent(
+    state: State,
+    consume: (Action) -> Unit,
+) {
+    when (state.emptyReason) {
+        EmptyReason.NO_FINISHED_SESSIONS -> ChartEmptyState(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = AppDimension.Space.xl),
-            headlineRes = R.string.feature_exercise_chart_no_finished_sessions_title,
-            subtitleRes = R.string.feature_exercise_chart_no_finished_sessions_subtitle,
-            onCtaClick = { consume(Action.Click.OnEmptyCtaClick) },
+            title = stringResource(R.string.feature_exercise_chart_empty_no_sessions_title),
+            subtitle = stringResource(R.string.feature_exercise_chart_empty_no_sessions_subtitle),
+            ctaLabel = stringResource(R.string.feature_exercise_chart_empty_no_sessions_cta),
+            onCta = { consume(Action.Click.OnEmptyCtaClick) },
             testTag = "ExerciseChartNoFinishedSessions",
         )
 
-        state.isEmpty -> Column(
+        EmptyReason.EXERCISE_NOT_FOUND -> ChartEmptyState(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = AppDimension.Space.xl),
+            title = stringResource(R.string.feature_exercise_chart_empty_not_found_title),
+            subtitle = stringResource(R.string.feature_exercise_chart_empty_not_found_subtitle),
+            ctaLabel = stringResource(R.string.feature_exercise_chart_empty_not_found_cta),
+            onCta = { consume(Action.Click.OnPickerOpen) },
+            testTag = "ExerciseChartExerciseNotFound",
+        )
+
+        EmptyReason.NO_DATA_FOR_EXERCISE -> Column(
             modifier = Modifier.fillMaxSize(),
         ) {
+            // Preset row stays — the user's recovery is to widen the window. No CTA on
+            // the empty body itself, the chips at the top are the affordance.
             ChartControls(state = state, consume = consume)
             ChartEmptyState(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(top = AppDimension.Space.xl),
-                headlineRes = R.string.feature_exercise_chart_empty_title,
-                subtitleRes = R.string.feature_exercise_chart_empty_subtitle,
-                onCtaClick = { consume(Action.Click.OnEmptyCtaClick) },
-                testTag = "ExerciseChartEmpty",
+                title = stringResource(R.string.feature_exercise_chart_empty_no_data_title),
+                subtitle = stringResource(R.string.feature_exercise_chart_empty_no_data_subtitle),
+                testTag = "ExerciseChartNoDataForExercise",
             )
         }
 
-        else -> ChartPopulated(state = state, consume = consume)
+        null -> Unit
     }
 }
 
@@ -282,20 +311,14 @@ private fun ExerciseChartScreenPopulatedPreview() {
 
 @Preview
 @Composable
-private fun ExerciseChartScreenEmptyPreview() {
+private fun ExerciseChartScreenNoFinishedSessionsPreview() {
     AppTheme(themeMode = ThemeMode.DARK) {
         ExerciseChartScreen(
-            state = State.create(initialUuid = "uuid-1").copy(
+            state = State.create(initialUuid = null).copy(
                 isLoading = false,
-                isEmpty = true,
-                selectedExercise = ExercisePickerItemUiModel(
-                    "uuid-1",
-                    "Bench press",
-                    ExerciseTypeUiModel.WEIGHTED,
-                ),
-                recentExercises = persistentListOf(
-                    ExercisePickerItemUiModel("uuid-1", "Bench press", ExerciseTypeUiModel.WEIGHTED),
-                ),
+                selectedExercise = null,
+                recentExercises = persistentListOf(),
+                emptyReason = EmptyReason.NO_FINISHED_SESSIONS,
             ),
             consume = {},
         )
@@ -304,13 +327,39 @@ private fun ExerciseChartScreenEmptyPreview() {
 
 @Preview
 @Composable
-private fun ExerciseChartScreenNoFinishedSessionsPreview() {
+private fun ExerciseChartScreenExerciseNotFoundPreview() {
     AppTheme(themeMode = ThemeMode.DARK) {
         ExerciseChartScreen(
-            state = State.create(initialUuid = null).copy(
+            state = State.create(initialUuid = "missing-uuid").copy(
                 isLoading = false,
                 selectedExercise = null,
-                recentExercises = persistentListOf(),
+                recentExercises = persistentListOf(
+                    ExercisePickerItemUiModel("uuid-1", "Bench press", ExerciseTypeUiModel.WEIGHTED),
+                    ExercisePickerItemUiModel("uuid-2", "Squat", ExerciseTypeUiModel.WEIGHTED),
+                ),
+                emptyReason = EmptyReason.EXERCISE_NOT_FOUND,
+            ),
+            consume = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun ExerciseChartScreenNoDataForExercisePreview() {
+    AppTheme(themeMode = ThemeMode.DARK) {
+        ExerciseChartScreen(
+            state = State.create(initialUuid = "uuid-1").copy(
+                isLoading = false,
+                selectedExercise = ExercisePickerItemUiModel(
+                    "uuid-1",
+                    "Bench press",
+                    ExerciseTypeUiModel.WEIGHTED,
+                ),
+                recentExercises = persistentListOf(
+                    ExercisePickerItemUiModel("uuid-1", "Bench press", ExerciseTypeUiModel.WEIGHTED),
+                ),
+                emptyReason = EmptyReason.NO_DATA_FOR_EXERCISE,
             ),
             consume = {},
         )

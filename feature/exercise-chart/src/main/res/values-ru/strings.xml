@@ -27,12 +27,16 @@
         <item quantity="other">%d повторений</item>
     </plurals>
 
-    <string name="feature_exercise_chart_empty_title">Нет данных</string>
-    <string name="feature_exercise_chart_empty_subtitle">Завершите тренировку с этим упражнением — здесь появится прогресс.</string>
-    <string name="feature_exercise_chart_empty_cta">Начать тренировку</string>
+    <string name="feature_exercise_chart_empty_no_sessions_title">Нет завершённых тренировок</string>
+    <string name="feature_exercise_chart_empty_no_sessions_subtitle">Завершите тренировку — здесь появится прогресс.</string>
+    <string name="feature_exercise_chart_empty_no_sessions_cta">Начать тренировку</string>
 
-    <string name="feature_exercise_chart_no_finished_sessions_title">Завершите тренировку</string>
-    <string name="feature_exercise_chart_no_finished_sessions_subtitle">После первой завершённой тренировки здесь появится прогресс.</string>
+    <string name="feature_exercise_chart_empty_not_found_title">Упражнение недоступно</string>
+    <string name="feature_exercise_chart_empty_not_found_subtitle">Возможно, оно архивировано или подходов не было. Выберите другое из списка.</string>
+    <string name="feature_exercise_chart_empty_not_found_cta">Выбрать упражнение</string>
+
+    <string name="feature_exercise_chart_empty_no_data_title">Нет данных за выбранный период</string>
+    <string name="feature_exercise_chart_empty_no_data_subtitle">Попробуйте другой временной диапазон.</string>
 
     <plurals name="feature_exercise_chart_tooltip_set_count">
         <item quantity="one">%d подход в этот день</item>

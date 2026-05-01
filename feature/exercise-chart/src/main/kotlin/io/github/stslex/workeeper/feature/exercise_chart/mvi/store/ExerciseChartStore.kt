@@ -19,6 +19,31 @@ import kotlinx.collections.immutable.persistentListOf
 
 internal interface ExerciseChartStore : Store<State, Action, Event> {
 
+    /**
+     * Why the chart canvas is not currently rendered. Three distinct cases drive three
+     * distinct empty-state UIs and CTAs — never collapse them into a single "isEmpty"
+     * flag, the recovery action differs.
+     */
+    @Stable
+    enum class EmptyReason {
+        /** Fresh install or no finished sessions ever — no exercises to pick from. */
+        NO_FINISHED_SESSIONS,
+
+        /**
+         * `initialUuid` was provided but the exercise is not in the picker list (archived,
+         * permanently deleted, or its only performed rows are skipped / set-less). Picker
+         * stays accessible — it is the user's recovery path.
+         */
+        EXERCISE_NOT_FOUND,
+
+        /**
+         * An exercise is selected but produced zero points for the active preset window.
+         * Picker stays accessible; preset chips stay accessible — a wider window may show
+         * data.
+         */
+        NO_DATA_FOR_EXERCISE,
+    }
+
     @Stable
     data class State(
         val isLoading: Boolean,
@@ -31,11 +56,15 @@ internal interface ExerciseChartStore : Store<State, Action, Event> {
         val footerStats: ChartFooterStatsUiModel?,
         val activeTooltip: ChartTooltipUiModel?,
         val isPickerOpen: Boolean,
-        val isEmpty: Boolean,
+        val emptyReason: EmptyReason?,
     ) : Store.State {
 
         val showMetricToggle: Boolean
             get() = selectedExercise?.type == ExerciseTypeUiModel.WEIGHTED
+
+        /** Picker is hidden only when there is literally nothing to pick from. */
+        val isPickerAccessible: Boolean
+            get() = recentExercises.isNotEmpty()
 
         companion object {
 
@@ -44,13 +73,13 @@ internal interface ExerciseChartStore : Store<State, Action, Event> {
                 initialUuid = initialUuid,
                 selectedExercise = null,
                 recentExercises = persistentListOf(),
-                preset = ChartPresetUiModel.MONTHS_3,
+                preset = ChartPresetUiModel.ALL,
                 metric = ChartMetricUiModel.HEAVIEST_WEIGHT,
                 points = persistentListOf(),
                 footerStats = null,
                 activeTooltip = null,
                 isPickerOpen = false,
-                isEmpty = false,
+                emptyReason = null,
             )
         }
     }

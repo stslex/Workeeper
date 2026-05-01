@@ -4,6 +4,7 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
+import io.github.stslex.workeeper.core.core.coroutine.asyncForEach
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.database.common.DbTransitionRunner
 import io.github.stslex.workeeper.core.database.converters.PlanSetsConverter
@@ -238,33 +239,31 @@ internal class SessionRepositoryImpl @Inject constructor(
         sessionUuid: String,
         finishedAt: Long,
         planUpdates: List<PlanUpdate>,
-    ): Boolean = withContext(ioDispatcher) {
-        transition {
-            val current = dao.getById(Uuid.parse(sessionUuid))
-                ?: return@transition false
-            planUpdates.forEach { update ->
-                val planJson = PlanSetsConverter.toJson(update.newPlan)
-                if (update.isAdhoc) {
-                    exerciseDao.updateLastAdhocSets(
-                        uuid = Uuid.parse(update.exerciseUuid),
-                        lastAdhocSets = planJson,
-                    )
-                } else {
-                    trainingExerciseDao.updatePlanSets(
-                        trainingUuid = Uuid.parse(update.trainingUuid),
-                        exerciseUuid = Uuid.parse(update.exerciseUuid),
-                        planSets = planJson,
-                    )
-                }
+    ): Boolean = transition {
+        val current = dao.getById(Uuid.parse(sessionUuid))
+            ?: return@transition false
+        planUpdates.asyncForEach { update ->
+            val planJson = PlanSetsConverter.toJson(update.newPlan)
+            if (update.isAdhoc) {
+                exerciseDao.updateLastAdhocSets(
+                    uuid = Uuid.parse(update.exerciseUuid),
+                    lastAdhocSets = planJson,
+                )
+            } else {
+                trainingExerciseDao.updatePlanSets(
+                    trainingUuid = Uuid.parse(update.trainingUuid),
+                    exerciseUuid = Uuid.parse(update.exerciseUuid),
+                    planSets = planJson,
+                )
             }
-            dao.update(
-                current.copy(
-                    state = SessionStateEntity.FINISHED,
-                    finishedAt = finishedAt,
-                ),
-            )
-            true
         }
+        dao.update(
+            current.copy(
+                state = SessionStateEntity.FINISHED,
+                finishedAt = finishedAt,
+            ),
+        )
+        true
     }
 
     override suspend fun deleteSession(uuid: String) {
@@ -288,6 +287,7 @@ internal class SessionRepositoryImpl @Inject constructor(
         dao.getHistoryByExercise(Uuid.parse(exerciseUuid)).groupBySession()
     }
 
+    // Order is established by DAO query — see SessionDao.getHistoryByExercise
     private fun List<HistoryByExerciseRow>.groupBySession(): List<HistoryEntry> = this
         .groupBy { it.sessionUuid }
         .map { (_, rows) ->
@@ -297,18 +297,11 @@ internal class SessionRepositoryImpl @Inject constructor(
                 finishedAt = first.finishedAt,
                 trainingName = first.trainingName,
                 isAdhoc = first.isAdhoc,
-                sets = rows
-                    .sortedBy { it.position }
-                    .map { row ->
-                        SetSummary(
-                            weight = row.weight,
-                            reps = row.reps,
-                            type = row.setType.toData(),
-                        )
-                    },
+                sets = rows.map { row ->
+                    SetSummary(row.weight, row.reps, row.setType.toData())
+                },
             )
         }
-        .sortedByDescending { it.finishedAt }
 
     /**
      * The PagingSource emits one row per (session, set). For chart-style consumers a

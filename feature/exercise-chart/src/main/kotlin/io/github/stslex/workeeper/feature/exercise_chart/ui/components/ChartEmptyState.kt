@@ -10,32 +10,36 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.empty.AppEmptyState
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
-import io.github.stslex.workeeper.feature.exercise_chart.R
 
+/**
+ * Empty-state body for the chart screen. The CTA pair is optional — the
+ * `NO_DATA_FOR_EXERCISE` branch hides the CTA because the recovery affordance is the
+ * preset chip row that stays rendered above this state.
+ */
 @Composable
 internal fun ChartEmptyState(
-    headlineRes: Int,
-    subtitleRes: Int,
-    onCtaClick: () -> Unit,
+    title: String,
+    subtitle: String,
     modifier: Modifier = Modifier,
+    ctaLabel: String? = null,
+    onCta: (() -> Unit)? = null,
     testTag: String = "ChartEmptyState",
 ) {
     AppEmptyState(
         modifier = modifier
             .padding(AppDimension.screenEdge)
             .testTag(testTag),
-        headline = stringResource(headlineRes),
-        supportingText = stringResource(subtitleRes),
+        headline = title,
+        supportingText = subtitle,
         icon = Icons.Outlined.Inventory2,
-        actionLabel = stringResource(R.string.feature_exercise_chart_empty_cta),
-        onAction = onCtaClick,
+        actionLabel = ctaLabel.takeIf { onCta != null },
+        onAction = onCta,
     )
 }
 
@@ -50,9 +54,10 @@ private fun ChartEmptyStateLightPreview() {
             contentAlignment = Alignment.Center,
         ) {
             ChartEmptyState(
-                headlineRes = R.string.feature_exercise_chart_empty_title,
-                subtitleRes = R.string.feature_exercise_chart_empty_subtitle,
-                onCtaClick = {},
+                title = "No finished workouts yet",
+                subtitle = "Finish a session — your progress will appear here.",
+                ctaLabel = "Start a workout",
+                onCta = {},
             )
         }
     }
@@ -69,9 +74,28 @@ private fun ChartEmptyStateDarkPreview() {
             contentAlignment = Alignment.Center,
         ) {
             ChartEmptyState(
-                headlineRes = R.string.feature_exercise_chart_no_finished_sessions_title,
-                subtitleRes = R.string.feature_exercise_chart_no_finished_sessions_subtitle,
-                onCtaClick = {},
+                title = "Exercise unavailable",
+                subtitle = "It may be archived or have no logged sets. Pick another from the list.",
+                ctaLabel = "Choose exercise",
+                onCta = {},
+            )
+        }
+    }
+}
+
+@Preview
+@Composable
+private fun ChartEmptyStateNoCtaPreview() {
+    AppTheme(themeMode = ThemeMode.DARK) {
+        Box(
+            modifier = Modifier
+                .background(AppUi.colors.surfaceTier0)
+                .padding(AppDimension.Space.lg),
+            contentAlignment = Alignment.Center,
+        ) {
+            ChartEmptyState(
+                title = "No data for this period",
+                subtitle = "Try a wider date range.",
             )
         }
     }
