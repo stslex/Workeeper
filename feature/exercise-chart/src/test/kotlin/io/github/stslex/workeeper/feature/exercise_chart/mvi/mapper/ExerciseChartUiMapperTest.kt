@@ -289,6 +289,33 @@ internal class ExerciseChartUiMapperTest {
     }
 
     @Test
+    fun `volume tooltip display label includes reps count`() {
+        val point = ExerciseChartUiMapper.bucketAndFold(
+            history = listOf(
+                entry(
+                    finishedAt = utcMillis(2026, 4, 28),
+                    sessionUuid = "s1",
+                    sets = listOf(set(weight = 50.0, reps = 5)),
+                ),
+            ),
+            preset = ChartPresetUiModel.MONTHS_3,
+            metric = ChartMetricUiModel.VOLUME_PER_SET,
+            exerciseType = ExerciseTypeUiModel.WEIGHTED,
+            resourceWrapper = resources,
+            now = utcMillis(2026, 5, 1),
+            zoneId = zone,
+        ).points.first()
+        val tooltip = ExerciseChartUiMapper.toTooltip(
+            point = point,
+            exercise = ExercisePickerItemUiModel("e", "Bench", ExerciseTypeUiModel.WEIGHTED),
+            metric = ChartMetricUiModel.VOLUME_PER_SET,
+            resourceWrapper = resources,
+        )
+
+        assertTrue(tooltip.displayLabel.endsWith(";250,5)"))
+    }
+
+    @Test
     fun `tooltip lifts setCount label only when setCount greater than one`() {
         val basePoint = ExerciseChartUiMapper.bucketAndFold(
             history = listOf(
@@ -326,9 +353,9 @@ internal class ExerciseChartUiMapperTest {
     }
 
     @Test
-    fun `ALL preset with single point tightens window to plus-minus 14 days`() {
+    fun `ALL preset with single point tightens window to minimum plus-minus 3 days`() {
         // Sparse history on the ALL preset would otherwise stretch a year-old single point
-        // across the whole canvas, gluing it to the right edge. We pad ±14 days around the
+        // across the whole canvas, gluing it to the right edge. We pad ±3 days around the
         // data so the point lands roughly centred on the canvas instead.
         val pointDay = LocalDate.of(2026, 4, 20)
         val result = ExerciseChartUiMapper.bucketAndFold(
@@ -347,13 +374,13 @@ internal class ExerciseChartUiMapperTest {
             zoneId = zone,
         )
 
-        assertEquals(pointDay.minusDays(14), result.windowStartDay)
-        assertEquals(pointDay.plusDays(14), result.windowEndDay)
+        assertEquals(pointDay.minusDays(3), result.windowStartDay)
+        assertEquals(pointDay.plusDays(3), result.windowEndDay)
     }
 
     @Test
-    fun `ALL preset with two points tightens window to plus-minus 14 days around them`() {
-        val firstDay = LocalDate.of(2026, 3, 10)
+    fun `ALL preset with nearby two points uses minimum padding around them`() {
+        val firstDay = LocalDate.of(2026, 4, 18)
         val lastDay = LocalDate.of(2026, 4, 20)
         val result = ExerciseChartUiMapper.bucketAndFold(
             history = listOf(
@@ -376,8 +403,37 @@ internal class ExerciseChartUiMapperTest {
             zoneId = zone,
         )
 
-        assertEquals(firstDay.minusDays(14), result.windowStartDay)
-        assertEquals(lastDay.plusDays(14), result.windowEndDay)
+        assertEquals(firstDay.minusDays(3), result.windowStartDay)
+        assertEquals(lastDay.plusDays(3), result.windowEndDay)
+    }
+
+    @Test
+    fun `ALL preset with wider two point span pads by half span`() {
+        val firstDay = LocalDate.of(2026, 3, 21)
+        val lastDay = LocalDate.of(2026, 4, 20)
+        val result = ExerciseChartUiMapper.bucketAndFold(
+            history = listOf(
+                entry(
+                    finishedAt = utcMillis(firstDay.year, firstDay.monthValue, firstDay.dayOfMonth),
+                    sessionUuid = "early",
+                    sets = listOf(set(weight = 80.0, reps = 5)),
+                ),
+                entry(
+                    finishedAt = utcMillis(lastDay.year, lastDay.monthValue, lastDay.dayOfMonth),
+                    sessionUuid = "late",
+                    sets = listOf(set(weight = 100.0, reps = 5)),
+                ),
+            ),
+            preset = ChartPresetUiModel.ALL,
+            metric = ChartMetricUiModel.HEAVIEST_WEIGHT,
+            exerciseType = ExerciseTypeUiModel.WEIGHTED,
+            resourceWrapper = resources,
+            now = utcMillis(2026, 5, 1),
+            zoneId = zone,
+        )
+
+        assertEquals(firstDay.minusDays(15), result.windowStartDay)
+        assertEquals(lastDay.plusDays(15), result.windowEndDay)
     }
 
     @Test

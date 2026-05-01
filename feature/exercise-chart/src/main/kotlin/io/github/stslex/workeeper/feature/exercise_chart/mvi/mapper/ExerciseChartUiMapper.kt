@@ -5,7 +5,7 @@ import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.exercise.exercise.model.HistoryEntry
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.R
-import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapper.SPARSE_PADDING_DAYS
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapper.MIN_PADDING_DAYS
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapper.bucketAndFold
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapper.toTooltip
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartFooterStatsUiModel
@@ -20,6 +20,7 @@ import kotlinx.collections.immutable.toImmutableList
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 
 /**
  * Pure mapping logic for the chart screen. Two entry points:
@@ -34,11 +35,11 @@ internal object ExerciseChartUiMapper {
      * On the [ChartPresetUiModel.ALL] preset, when the exercise has only 1-2 finished
      * sessions in its full history, the natural window (`first finished_at … today`) can
      * stretch a year-old single point across the whole canvas — points cluster against the
-     * right edge and look like an outlier rather than the data they are. Tighten the window
-     * to ±[SPARSE_PADDING_DAYS] around the actual data so sparse history reads as centred
-     * data, not as noise.
+     * right edge and look like an outlier rather than the data they are. Tighten the window by
+     * padding relative to the actual data span, with at least [MIN_PADDING_DAYS] on each side,
+     * so sparse history reads as centred data, not as noise.
      */
-    private const val SPARSE_PADDING_DAYS = 14L
+    private const val MIN_PADDING_DAYS = 3L
 
     data class FoldResult(
         val points: ImmutableList<ChartPointUiModel>,
@@ -119,8 +120,8 @@ internal object ExerciseChartUiMapper {
     /**
      * Choose the time range the canvas should render. Three cases:
      *
-     * - `ALL` preset + sparse history (≤ 2 points): pad ±[SPARSE_PADDING_DAYS] around the
-     *   data so the points sit near the centre instead of glued to the right edge.
+     * - `ALL` preset + sparse history (≤ 2 points): pad relative to the data span so the
+     *   points sit near the centre instead of glued to the right edge or buried in empty space.
      * - Bounded preset (`1M` / `3M` / `1Y`): always `[preset.start, today]` — even when the
      *   user has fewer points than the window can hold, the window is what they asked for.
      * - `ALL` preset + 3+ points: `[firstPoint, today]` — natural span looks fine, no
@@ -133,10 +134,12 @@ internal object ExerciseChartUiMapper {
         today: LocalDate,
         zoneId: ZoneId,
     ): Pair<LocalDate, LocalDate> = when {
-        preset == ChartPresetUiModel.ALL && pointsByDay.size <= 2 -> {
+        preset == ChartPresetUiModel.ALL && pointsByDay.size <= 2 && pointsByDay.isNotEmpty() -> {
             val firstDay = pointsByDay.first().day
             val lastDay = pointsByDay.last().day
-            firstDay.minusDays(SPARSE_PADDING_DAYS) to lastDay.plusDays(SPARSE_PADDING_DAYS)
+            val spanDays = ChronoUnit.DAYS.between(firstDay, lastDay)
+            val paddingDays = (spanDays / 2L).coerceAtLeast(MIN_PADDING_DAYS)
+            firstDay.minusDays(paddingDays) to lastDay.plusDays(paddingDays)
         }
         else -> {
             val start = windowStartMillis
@@ -217,8 +220,9 @@ internal object ExerciseChartUiMapper {
             point.reps,
         )
         metric == ChartMetricUiModel.VOLUME_PER_SET -> resourceWrapper.getString(
-            R.string.feature_exercise_chart_value_volume,
+            R.string.feature_exercise_chart_value_weight_x_reps,
             formatNumber(point.value),
+            point.reps,
         )
         else -> resourceWrapper.getString(
             R.string.feature_exercise_chart_value_weight_x_reps,
