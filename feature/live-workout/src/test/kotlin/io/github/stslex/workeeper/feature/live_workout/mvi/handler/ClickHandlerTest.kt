@@ -14,6 +14,7 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Event
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
+import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
@@ -301,6 +302,63 @@ internal class ClickHandlerTest {
         }
     }
 
+    @Test
+    fun processTrainingNameSubmit_blankInput_doesNotPersist() = runTest {
+        val store = FakeLiveWorkoutHandlerStore(
+            baseState(doneExercise(status = ExerciseStatusUiModel.CURRENT)).copy(
+                trainingName = "Push Day",
+                trainingNameDraft = "   ",
+                trainingNameLabel = "Push Day",
+                isTrainingNameEditing = true,
+            ),
+        )
+        val handler = ClickHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            pickerHandler = pickerHandler,
+            store = store,
+        )
+
+        handler.invoke(Action.Click.OnTrainingNameSubmit("   "))
+        store.runLatestLaunch(this)
+
+        // Blank submit closes the editor but neither State nor DB carry an empty string —
+        // a previously-saved name survives on next reload.
+        assertEquals("Push Day", store.state.value.trainingName)
+        assertEquals("Push Day", store.state.value.trainingNameLabel)
+        assertEquals(false, store.state.value.isTrainingNameEditing)
+        coVerify(exactly = 0) { interactor.updateTrainingName(any(), any()) }
+    }
+
+    @Test
+    fun processTrainingNameSubmit_dbFailure_revertsState() = runTest {
+        coEvery { interactor.updateTrainingName("training-1", "New Name") } throws
+            IllegalStateException("rename failed")
+        val store = FakeLiveWorkoutHandlerStore(
+            baseState(doneExercise(status = ExerciseStatusUiModel.CURRENT)).copy(
+                trainingName = "Old Name",
+                trainingNameDraft = "Old Name",
+                trainingNameLabel = "Old Name",
+            ),
+        )
+        val handler = ClickHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            pickerHandler = pickerHandler,
+            store = store,
+        )
+
+        handler.invoke(Action.Click.OnTrainingNameSubmit("New Name"))
+        // Optimistic update lands first.
+        assertEquals("New Name", store.state.value.trainingName)
+        store.runLatestLaunch(this)
+
+        // After the interactor throws, State reverts to the pre-edit name + label so the
+        // header stops lying about a value the DB never accepted.
+        assertEquals("Old Name", store.state.value.trainingName)
+        assertEquals("Old Name", store.state.value.trainingNameLabel)
+    }
+
     private fun handlerStore(stateFlow: MutableStateFlow<State>): LiveWorkoutHandlerStore =
         mockk(relaxed = true) {
             every { state } returns stateFlow
@@ -350,6 +408,7 @@ internal class ClickHandlerTest {
 
         private val stateFlow = MutableStateFlow(initialState)
         private var latestLaunch: (suspend CoroutineScope.() -> Any?)? = null
+        private var latestOnError: (suspend (Throwable) -> Unit)? = null
 
         override val state: StateFlow<State> = stateFlow
         override val lastAction: Action? = null
@@ -382,6 +441,7 @@ internal class ClickHandlerTest {
             action: suspend CoroutineScope.() -> T,
         ): Job {
             latestLaunch = action as suspend CoroutineScope.() -> Any?
+            latestOnError = onError
             return Job()
         }
 
@@ -393,7 +453,13 @@ internal class ClickHandlerTest {
         ): Job = Job()
 
         suspend fun runLatestLaunch(scope: CoroutineScope) {
-            latestLaunch?.invoke(scope)
+            // Mirror production: catch a thrown action and route it through onError so
+            // tests can observe the same revert/error paths the real Handler would.
+            try {
+                latestLaunch?.invoke(scope)
+            } catch (throwable: Throwable) {
+                latestOnError?.invoke(throwable)
+            }
         }
     }
 }

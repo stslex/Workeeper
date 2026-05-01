@@ -128,22 +128,38 @@ internal class ClickHandler @Inject constructor(
         val trimmed = action.text.trim()
         val current = state.value
         val trainingUuid = current.trainingUuid
-        // Optimistic UI: persist trimmed value into State before the DB write so the header
-        // stops bouncing back to the old name during the suspend round trip.
-        val updatedLabel = trimmed.ifBlank {
-            resourceWrapper.getString(R.string.feature_live_workout_training_name_placeholder)
+        // Blank submit closes the editor without touching the persisted name. State is
+        // left unchanged so the header keeps showing whatever was loaded — placeholder
+        // when trainingName is blank, the saved value otherwise. Writing "" to the DB
+        // would clobber a previously-saved name on next reload.
+        if (trimmed.isBlank()) {
+            updateState { latest -> latest.copy(isTrainingNameEditing = false) }
+            return
         }
+        // Snapshot pre-edit values so a write failure can revert the optimistic update;
+        // otherwise State carries the new name while the DB still holds the old one and
+        // the next reload silently undoes the user's input.
+        val previousName = current.trainingName
+        val previousLabel = current.trainingNameLabel
         updateState { latest ->
             latest.copy(
                 trainingName = trimmed,
                 trainingNameDraft = trimmed,
-                trainingNameLabel = updatedLabel,
+                trainingNameLabel = trimmed,
                 isTrainingNameEditing = false,
             )
         }
-        if (trainingUuid.isNullOrBlank() || trimmed == current.trainingName) return
+        if (trainingUuid.isNullOrBlank() || trimmed == previousName) return
         launch(
-            onError = { _ -> sendError(ErrorType.TrainingNameSaveFailed) },
+            onError = { _ ->
+                updateState { latest ->
+                    latest.copy(
+                        trainingName = previousName,
+                        trainingNameLabel = previousLabel,
+                    )
+                }
+                sendError(ErrorType.TrainingNameSaveFailed)
+            },
         ) {
             interactor.updateTrainingName(trainingUuid, trimmed)
         }

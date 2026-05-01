@@ -98,17 +98,20 @@ interface ExerciseDao {
     suspend fun deleteByUuids(uuids: List<Uuid>)
 
     /**
-     * Flip `is_adhoc` to `0` for every exercise plan row attached to [trainingUuid]. Called
-     * inside the `finishSession` transaction so inline-created ad-hoc exercises graduate to
-     * regular library entries the moment the session is preserved.
+     * Flip `is_adhoc` to `0` for every ad-hoc exercise plan row attached to [trainingUuid].
+     * Called inside the `finishSession` transaction so inline-created ad-hoc exercises
+     * graduate to regular library entries the moment the session is preserved. The
+     * `is_adhoc = 1` predicate excludes library exercises that were merely picked into the
+     * session — they are already at `is_adhoc = 0` and would only generate redundant writes.
      */
     @Query(
         """
         UPDATE exercise_table SET is_adhoc = 0
-        WHERE uuid IN (
-            SELECT te.exercise_uuid FROM training_exercise_table te
-            WHERE te.training_uuid = :trainingUuid
-        )
+        WHERE is_adhoc = 1
+          AND uuid IN (
+              SELECT te.exercise_uuid FROM training_exercise_table te
+              WHERE te.training_uuid = :trainingUuid
+          )
         """,
     )
     suspend fun graduateAdhocForTraining(trainingUuid: Uuid)
