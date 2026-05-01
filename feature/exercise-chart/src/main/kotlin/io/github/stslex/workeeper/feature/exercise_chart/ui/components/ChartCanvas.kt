@@ -29,6 +29,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPointUiModel
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartTooltipUiModel
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -45,13 +46,16 @@ private val TapTargetRadius = AppDimension.iconMd
 private const val CHART_ASPECT_RATIO = 16f / 9f
 private const val SINGLE_POINT_PAD = 1.0
 
+@Suppress("LongParameterList")
 @Composable
 internal fun ChartCanvas(
     points: ImmutableList<ChartPointUiModel>,
+    activeTooltip: ChartTooltipUiModel?,
     windowStartDay: LocalDate,
     windowEndDay: LocalDate,
     onPointTap: (ChartPointUiModel) -> Unit,
     onCanvasTap: () -> Unit,
+    onTooltipTap: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val gridColor = AppUi.colors.borderSubtle
@@ -79,6 +83,15 @@ internal fun ChartCanvas(
     }
     val yRange = (maxY - minY).coerceAtLeast(1.0)
 
+    val pixelMap = PointPixelMap(
+        canvasSize = canvasSize,
+        axisPaddingPx = axisPaddingPx,
+        windowStartDay = windowStartDay,
+        totalDays = totalDays,
+        minY = minY,
+        yRange = yRange,
+    )
+
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -96,12 +109,7 @@ internal fun ChartCanvas(
                             val winner = findNearestPoint(
                                 points = points,
                                 tap = offset,
-                                axisPaddingPx = axisPaddingPx,
-                                size = canvasSize,
-                                windowStartDay = windowStartDay,
-                                totalDays = totalDays,
-                                minY = minY,
-                                yRange = yRange,
+                                pixelMap = pixelMap,
                                 tapRadiusPx = tapTargetRadiusPx,
                             )
                             if (winner != null) onPointTap(winner) else onCanvasTap()
@@ -113,17 +121,8 @@ internal fun ChartCanvas(
             drawGrid(axisPaddingPx, gridColor)
             if (points.isEmpty()) return@Canvas
 
-            val plotPoints = points.map { point ->
-                projectPoint(
-                    point = point,
-                    canvasSize = size,
-                    axisPaddingPx = axisPaddingPx,
-                    windowStartDay = windowStartDay,
-                    totalDays = totalDays,
-                    minY = minY,
-                    yRange = yRange,
-                )
-            }
+            val plotMap = pixelMap.copy(canvasSize = size)
+            val plotPoints = points.map(plotMap::toPx)
 
             val first = plotPoints.first()
             val last = plotPoints.last()
@@ -147,6 +146,23 @@ internal fun ChartCanvas(
                 )
             }
         }
+
+        // Canvas-local tooltip overlay. Lives inside this Box so it can position itself in
+        // the same coordinate space as the Canvas. It must NOT be lifted into the parent
+        // Column — that would make it a layout sibling and push the footer down.
+        if (activeTooltip != null && canvasSize != Size.Zero) {
+            val anchorPoint = points.firstOrNull { it.sessionUuid == activeTooltip.sessionUuid }
+            if (anchorPoint != null) {
+                ChartTooltipPopup(
+                    tooltip = activeTooltip,
+                    anchorPx = pixelMap.toPx(anchorPoint),
+                    onClick = onTooltipTap,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(CHART_ASPECT_RATIO),
+                )
+            }
+        }
     }
 }
 
@@ -162,51 +178,17 @@ private fun DrawScope.drawGrid(
     drawLine(color = color, start = Offset(left, bottom), end = Offset(right, bottom))
 }
 
-private fun projectPoint(
-    point: ChartPointUiModel,
-    canvasSize: Size,
-    axisPaddingPx: Float,
-    windowStartDay: LocalDate,
-    totalDays: Float,
-    minY: Double,
-    yRange: Double,
-): Offset {
-    val width = canvasSize.width - axisPaddingPx * 2f
-    val height = canvasSize.height - axisPaddingPx * 2f
-    val dayIndex = ChronoUnit.DAYS.between(windowStartDay, point.day).toFloat()
-    val xRatio = (dayIndex / totalDays).coerceIn(0f, 1f)
-    val yRatio = ((point.value - minY) / yRange).toFloat().coerceIn(0f, 1f)
-    return Offset(
-        x = axisPaddingPx + xRatio * width,
-        y = axisPaddingPx + height - yRatio * height,
-    )
-}
-
-@Suppress("LongParameterList")
 private fun findNearestPoint(
     points: ImmutableList<ChartPointUiModel>,
     tap: Offset,
-    axisPaddingPx: Float,
-    size: Size,
-    windowStartDay: LocalDate,
-    totalDays: Float,
-    minY: Double,
-    yRange: Double,
+    pixelMap: PointPixelMap,
     tapRadiusPx: Float,
 ): ChartPointUiModel? {
-    if (points.isEmpty() || size == Size.Zero) return null
+    if (points.isEmpty() || pixelMap.canvasSize == Size.Zero) return null
     var winner: ChartPointUiModel? = null
     var bestDistance = Float.POSITIVE_INFINITY
     points.forEach { point ->
-        val projected = projectPoint(
-            point = point,
-            canvasSize = size,
-            axisPaddingPx = axisPaddingPx,
-            windowStartDay = windowStartDay,
-            totalDays = totalDays,
-            minY = minY,
-            yRange = yRange,
-        )
+        val projected = pixelMap.toPx(point)
         val distance = max(
             (projected.x - tap.x).absoluteValue,
             (projected.y - tap.y).absoluteValue,
@@ -230,10 +212,12 @@ private fun ChartCanvasLightPreview() {
         ) {
             ChartCanvas(
                 points = previewPoints(),
+                activeTooltip = null,
                 windowStartDay = LocalDate.of(2026, 4, 1),
                 windowEndDay = LocalDate.of(2026, 5, 1),
                 onPointTap = {},
                 onCanvasTap = {},
+                onTooltipTap = {},
             )
         }
     }
@@ -250,10 +234,12 @@ private fun ChartCanvasDarkPreview() {
         ) {
             ChartCanvas(
                 points = previewPoints(),
+                activeTooltip = null,
                 windowStartDay = LocalDate.of(2026, 4, 1),
                 windowEndDay = LocalDate.of(2026, 5, 1),
                 onPointTap = {},
                 onCanvasTap = {},
+                onTooltipTap = {},
             )
         }
     }
@@ -270,10 +256,40 @@ private fun ChartCanvasEmptyPreview() {
         ) {
             ChartCanvas(
                 points = persistentListOf(),
+                activeTooltip = null,
                 windowStartDay = LocalDate.of(2026, 4, 1),
                 windowEndDay = LocalDate.of(2026, 5, 1),
                 onPointTap = {},
                 onCanvasTap = {},
+                onTooltipTap = {},
+            )
+        }
+    }
+}
+
+@Preview
+@Composable
+private fun ChartCanvasWithTooltipPreview() {
+    AppTheme(themeMode = ThemeMode.DARK) {
+        Box(
+            modifier = Modifier
+                .background(AppUi.colors.surfaceTier0)
+                .padding(AppDimension.Space.lg),
+        ) {
+            ChartCanvas(
+                points = previewPoints(),
+                activeTooltip = ChartTooltipUiModel(
+                    sessionUuid = "s3",
+                    exerciseName = "Bench press",
+                    dateLabel = "Apr 19, 2026",
+                    displayLabel = "95 kg × 5",
+                    setCountLabel = "1 set this day",
+                ),
+                windowStartDay = LocalDate.of(2026, 4, 1),
+                windowEndDay = LocalDate.of(2026, 5, 1),
+                onPointTap = {},
+                onCanvasTap = {},
+                onTooltipTap = {},
             )
         }
     }

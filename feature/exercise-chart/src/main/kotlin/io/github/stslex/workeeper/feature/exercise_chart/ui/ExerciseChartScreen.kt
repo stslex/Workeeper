@@ -28,7 +28,7 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.R
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartFooterStatsUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPointUiModel
-import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPresetUiModel
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartTooltipUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ExercisePickerItemUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Action
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.EmptyReason
@@ -36,16 +36,12 @@ import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChart
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartCanvas
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartEmptyState
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartFooterStats
-import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartTooltipOverlay
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ExercisePickerSheet
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.MetricToggle
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.PresetChipsRow
-import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
-import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneId
 
 @Composable
 internal fun ExerciseChartScreen(
@@ -191,7 +187,16 @@ private fun ChartPopulated(
     state: State,
     consume: (Action) -> Unit,
 ) {
-    val (windowStartDay, windowEndDay) = state.preset.toWindow(state.points)
+    // Window comes from FoldResult via State so the canvas reflects whatever the mapper
+    // decided — including the ±14d sparse-data tightening for the ALL preset. Falling back
+    // to the points' own min/max only matters during the brief load gap before the first
+    // FoldResult lands.
+    val windowStartDay = state.windowStartDay
+        ?: state.points.minOfOrNull { it.day }
+        ?: return
+    val windowEndDay = state.windowEndDay
+        ?: state.points.maxOfOrNull { it.day }
+        ?: return
 
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -200,17 +205,13 @@ private fun ChartPopulated(
         ChartControls(state = state, consume = consume)
         ChartCanvas(
             points = state.points,
+            activeTooltip = state.activeTooltip,
             windowStartDay = windowStartDay,
             windowEndDay = windowEndDay,
             onPointTap = { consume(Action.Click.OnPointTap(it)) },
             onCanvasTap = { consume(Action.Click.OnTooltipDismiss) },
+            onTooltipTap = { consume(Action.Click.OnTooltipTap) },
         )
-        state.activeTooltip?.let { tooltip ->
-            ChartTooltipOverlay(
-                tooltip = tooltip,
-                onTooltipClick = { consume(Action.Click.OnTooltipTap) },
-            )
-        }
         state.footerStats?.let { stats ->
             ChartFooterStats(stats = stats)
         }
@@ -238,19 +239,6 @@ private fun ChartControls(
             }
         }
     }
-}
-
-private fun ChartPresetUiModel.toWindow(
-    points: ImmutableList<ChartPointUiModel>,
-): Pair<LocalDate, LocalDate> {
-    val zone = ZoneId.systemDefault()
-    val now = System.currentTimeMillis()
-    val windowEnd = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
-    val windowStartMillis = windowStartMillis(now)
-    val rawStart = windowStartMillis?.let {
-        Instant.ofEpochMilli(it).atZone(zone).toLocalDate()
-    } ?: points.minOfOrNull { it.day } ?: windowEnd
-    return rawStart to windowEnd
 }
 
 @Preview
@@ -303,6 +291,8 @@ private fun ExerciseChartScreenPopulatedPreview() {
                     maxLabel = "Max: 105 kg",
                     lastLabel = "Last: 105 kg",
                 ),
+                windowStartDay = LocalDate.of(2026, 4, 5),
+                windowEndDay = LocalDate.of(2026, 5, 1),
             ),
             consume = {},
         )
@@ -360,6 +350,49 @@ private fun ExerciseChartScreenNoDataForExercisePreview() {
                     ExercisePickerItemUiModel("uuid-1", "Bench press", ExerciseTypeUiModel.WEIGHTED),
                 ),
                 emptyReason = EmptyReason.NO_DATA_FOR_EXERCISE,
+            ),
+            consume = {},
+        )
+    }
+}
+
+@Suppress("MagicNumber")
+@Preview
+@Composable
+private fun ExerciseChartScreenWithTooltipPreview() {
+    AppTheme(themeMode = ThemeMode.DARK) {
+        ExerciseChartScreen(
+            state = State.create(initialUuid = "uuid-1").copy(
+                isLoading = false,
+                selectedExercise = ExercisePickerItemUiModel(
+                    "uuid-1",
+                    "Bench press",
+                    ExerciseTypeUiModel.WEIGHTED,
+                ),
+                recentExercises = persistentListOf(
+                    ExercisePickerItemUiModel("uuid-1", "Bench press", ExerciseTypeUiModel.WEIGHTED),
+                    ExercisePickerItemUiModel("uuid-2", "Squat", ExerciseTypeUiModel.WEIGHTED),
+                ),
+                points = listOf(
+                    ChartPointUiModel(LocalDate.of(2026, 4, 5), 0L, 80.0, "s1", 80.0, 5, 1),
+                    ChartPointUiModel(LocalDate.of(2026, 4, 12), 0L, 90.0, "s2", 90.0, 5, 1),
+                    ChartPointUiModel(LocalDate.of(2026, 4, 19), 0L, 95.0, "s3", 95.0, 5, 1),
+                    ChartPointUiModel(LocalDate.of(2026, 4, 26), 0L, 105.0, "s4", 105.0, 3, 2),
+                ).toImmutableList(),
+                footerStats = ChartFooterStatsUiModel(
+                    minLabel = "Min: 80 kg",
+                    maxLabel = "Max: 105 kg",
+                    lastLabel = "Last: 105 kg",
+                ),
+                windowStartDay = LocalDate.of(2026, 4, 5),
+                windowEndDay = LocalDate.of(2026, 5, 1),
+                activeTooltip = ChartTooltipUiModel(
+                    sessionUuid = "s3",
+                    exerciseName = "Bench press",
+                    dateLabel = "Apr 19, 2026",
+                    displayLabel = "95 kg × 5",
+                    setCountLabel = null,
+                ),
             ),
             consume = {},
         )

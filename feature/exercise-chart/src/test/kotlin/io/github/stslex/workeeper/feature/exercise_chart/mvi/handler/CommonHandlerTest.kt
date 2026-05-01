@@ -53,7 +53,7 @@ internal class CommonHandlerTest {
         )
         coEvery { interactor.getLastTrainedExerciseUuid() } returns "uuid-1"
         coEvery { interactor.loadChartData(any(), any(), any(), any(), any()) } returns
-            FoldResult(persistentListOf(), null)
+            FoldResult(persistentListOf(), null, null, null)
 
         handler.invoke(Action.Common.Init)
 
@@ -109,7 +109,7 @@ internal class CommonHandlerTest {
         // Different from initialUuid — handler must NOT consult this when initialUuid is set.
         coEvery { interactor.getLastTrainedExerciseUuid() } returns "uuid-2"
         coEvery { interactor.loadChartData(any(), any(), any(), any(), any()) } returns
-            FoldResult(persistentListOf(), null)
+            FoldResult(persistentListOf(), null, null, null)
 
         handler.invoke(Action.Common.Init)
 
@@ -127,7 +127,7 @@ internal class CommonHandlerTest {
         )
         coEvery { interactor.getLastTrainedExerciseUuid() } returns null
         coEvery { interactor.loadChartData(any(), any(), any(), any(), any()) } returns
-            FoldResult(persistentListOf(), null)
+            FoldResult(persistentListOf(), null, null, null)
 
         handler.invoke(Action.Common.Init)
 
@@ -161,12 +161,31 @@ internal class CommonHandlerTest {
             ),
         )
         coEvery { interactor.loadChartData(any(), any(), any(), any(), any()) } returns
-            FoldResult(nonEmptyPoints, null)
+            FoldResult(
+                points = nonEmptyPoints,
+                footer = null,
+                windowStartDay = java.time.LocalDate.of(2026, 4, 28),
+                windowEndDay = java.time.LocalDate.of(2026, 5, 12),
+            )
 
         handler.invoke(Action.Common.Init)
 
         assertNull(flow.value.emptyReason)
         assertEquals(1, flow.value.points.size)
+        // The canvas window comes from the FoldResult, not from the preset alone — assert
+        // we propagated both edges so the screen does not have to recompute them.
+        assertEquals(java.time.LocalDate.of(2026, 4, 28), flow.value.windowStartDay)
+        assertEquals(java.time.LocalDate.of(2026, 5, 12), flow.value.windowEndDay)
+    }
+
+    @Test
+    fun `default state preset is ALL`() {
+        // The chart is an exploration surface; if this changes back to a bounded preset,
+        // long-dormant exercises start showing as 'no data' on open. Lock the default down.
+        assertEquals(
+            io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPresetUiModel.ALL,
+            State.create(initialUuid = null).preset,
+        )
     }
 
     /**

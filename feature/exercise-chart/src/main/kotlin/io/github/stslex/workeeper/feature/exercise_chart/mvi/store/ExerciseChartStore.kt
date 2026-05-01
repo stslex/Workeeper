@@ -16,6 +16,7 @@ import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChart
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.State
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
+import java.time.LocalDate
 
 internal interface ExerciseChartStore : Store<State, Action, Event> {
 
@@ -55,6 +56,11 @@ internal interface ExerciseChartStore : Store<State, Action, Event> {
         val points: ImmutableList<ChartPointUiModel>,
         val footerStats: ChartFooterStatsUiModel?,
         val activeTooltip: ChartTooltipUiModel?,
+        // Effective canvas window — populated from FoldResult so the canvas reflects what
+        // the mapper actually decided to render (including the ±14d sparse-data tightening).
+        // Null until the first chart load completes; null also when the result is empty.
+        val windowStartDay: LocalDate?,
+        val windowEndDay: LocalDate?,
         val isPickerOpen: Boolean,
         val emptyReason: EmptyReason?,
     ) : Store.State {
@@ -73,11 +79,17 @@ internal interface ExerciseChartStore : Store<State, Action, Event> {
                 initialUuid = initialUuid,
                 selectedExercise = null,
                 recentExercises = persistentListOf(),
+                // The chart is an exploration surface — show the full picture by default
+                // and let the user narrow with a preset chip when focusing. A 3M default
+                // hid older history and produced a "no data" branch on long-dormant
+                // exercises that actually had data.
                 preset = ChartPresetUiModel.ALL,
                 metric = ChartMetricUiModel.HEAVIEST_WEIGHT,
                 points = persistentListOf(),
                 footerStats = null,
                 activeTooltip = null,
+                windowStartDay = null,
+                windowEndDay = null,
                 isPickerOpen = false,
                 emptyReason = null,
             )

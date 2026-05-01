@@ -73,6 +73,8 @@ internal class CommonHandler @Inject constructor(
                     it.copy(
                         points = result.points,
                         footerStats = result.footer,
+                        windowStartDay = result.windowStartDay,
+                        windowEndDay = result.windowEndDay,
                         emptyReason = if (result.points.isEmpty()) {
                             EmptyReason.NO_DATA_FOR_EXERCISE
                         } else {

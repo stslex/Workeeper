@@ -326,6 +326,139 @@ internal class ExerciseChartUiMapperTest {
     }
 
     @Test
+    fun `ALL preset with single point tightens window to plus-minus 14 days`() {
+        // Sparse history on the ALL preset would otherwise stretch a year-old single point
+        // across the whole canvas, gluing it to the right edge. We pad ±14 days around the
+        // data so the point lands roughly centred on the canvas instead.
+        val pointDay = LocalDate.of(2026, 4, 20)
+        val result = ExerciseChartUiMapper.bucketAndFold(
+            history = listOf(
+                entry(
+                    finishedAt = utcMillis(pointDay.year, pointDay.monthValue, pointDay.dayOfMonth),
+                    sessionUuid = "s1",
+                    sets = listOf(set(weight = 100.0, reps = 5)),
+                ),
+            ),
+            preset = ChartPresetUiModel.ALL,
+            metric = ChartMetricUiModel.HEAVIEST_WEIGHT,
+            exerciseType = ExerciseTypeUiModel.WEIGHTED,
+            resourceWrapper = resources,
+            now = utcMillis(2026, 5, 1),
+            zoneId = zone,
+        )
+
+        assertEquals(pointDay.minusDays(14), result.windowStartDay)
+        assertEquals(pointDay.plusDays(14), result.windowEndDay)
+    }
+
+    @Test
+    fun `ALL preset with two points tightens window to plus-minus 14 days around them`() {
+        val firstDay = LocalDate.of(2026, 3, 10)
+        val lastDay = LocalDate.of(2026, 4, 20)
+        val result = ExerciseChartUiMapper.bucketAndFold(
+            history = listOf(
+                entry(
+                    finishedAt = utcMillis(firstDay.year, firstDay.monthValue, firstDay.dayOfMonth),
+                    sessionUuid = "early",
+                    sets = listOf(set(weight = 80.0, reps = 5)),
+                ),
+                entry(
+                    finishedAt = utcMillis(lastDay.year, lastDay.monthValue, lastDay.dayOfMonth),
+                    sessionUuid = "late",
+                    sets = listOf(set(weight = 100.0, reps = 5)),
+                ),
+            ),
+            preset = ChartPresetUiModel.ALL,
+            metric = ChartMetricUiModel.HEAVIEST_WEIGHT,
+            exerciseType = ExerciseTypeUiModel.WEIGHTED,
+            resourceWrapper = resources,
+            now = utcMillis(2026, 5, 1),
+            zoneId = zone,
+        )
+
+        assertEquals(firstDay.minusDays(14), result.windowStartDay)
+        assertEquals(lastDay.plusDays(14), result.windowEndDay)
+    }
+
+    @Test
+    fun `ALL preset with three or more points uses first day to today without padding`() {
+        val firstDay = LocalDate.of(2026, 3, 10)
+        val today = LocalDate.of(2026, 5, 1)
+        val result = ExerciseChartUiMapper.bucketAndFold(
+            history = listOf(
+                entry(
+                    finishedAt = utcMillis(firstDay.year, firstDay.monthValue, firstDay.dayOfMonth),
+                    sessionUuid = "s1",
+                    sets = listOf(set(weight = 80.0, reps = 5)),
+                ),
+                entry(
+                    finishedAt = utcMillis(2026, 4, 1),
+                    sessionUuid = "s2",
+                    sets = listOf(set(weight = 90.0, reps = 5)),
+                ),
+                entry(
+                    finishedAt = utcMillis(2026, 4, 20),
+                    sessionUuid = "s3",
+                    sets = listOf(set(weight = 100.0, reps = 5)),
+                ),
+            ),
+            preset = ChartPresetUiModel.ALL,
+            metric = ChartMetricUiModel.HEAVIEST_WEIGHT,
+            exerciseType = ExerciseTypeUiModel.WEIGHTED,
+            resourceWrapper = resources,
+            now = utcMillis(today.year, today.monthValue, today.dayOfMonth),
+            zoneId = zone,
+        )
+
+        assertEquals(firstDay, result.windowStartDay)
+        assertEquals(today, result.windowEndDay)
+    }
+
+    @Test
+    fun `bounded preset window is preset start to today regardless of point count`() {
+        // 1M preset with a single point inside the window: the window is what the user
+        // asked for (last 30 days), NOT the ±14-day tightening. The chip says 1M; trust it.
+        val today = LocalDate.of(2026, 5, 1)
+        val result = ExerciseChartUiMapper.bucketAndFold(
+            history = listOf(
+                entry(
+                    finishedAt = utcMillis(2026, 4, 25),
+                    sessionUuid = "in-window",
+                    sets = listOf(set(weight = 100.0, reps = 5)),
+                ),
+            ),
+            preset = ChartPresetUiModel.MONTH_1,
+            metric = ChartMetricUiModel.HEAVIEST_WEIGHT,
+            exerciseType = ExerciseTypeUiModel.WEIGHTED,
+            resourceWrapper = resources,
+            now = utcMillis(today.year, today.monthValue, today.dayOfMonth),
+            zoneId = zone,
+        )
+
+        // 1M = 30 days, so windowStart is exactly today - 30 days.
+        assertEquals(today.minusDays(30), result.windowStartDay)
+        assertEquals(today, result.windowEndDay)
+    }
+
+    @Test
+    fun `empty fold result has null window`() {
+        // Window is meaningless without points to anchor it; empty results should leave
+        // the State window null so the screen falls into the empty branch cleanly.
+        val result = ExerciseChartUiMapper.bucketAndFold(
+            history = emptyList(),
+            preset = ChartPresetUiModel.ALL,
+            metric = ChartMetricUiModel.HEAVIEST_WEIGHT,
+            exerciseType = ExerciseTypeUiModel.WEIGHTED,
+            resourceWrapper = resources,
+            now = utcMillis(2026, 5, 1),
+            zoneId = zone,
+        )
+
+        assertNull(result.windowStartDay)
+        assertNull(result.windowEndDay)
+    }
+
+    @Test
     fun `single point case still produces footer with min equal max`() {
         val result = ExerciseChartUiMapper.bucketAndFold(
             history = listOf(

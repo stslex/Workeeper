@@ -5,6 +5,9 @@ import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.exercise.exercise.model.HistoryEntry
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.R
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapper.SPARSE_PADDING_DAYS
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapper.bucketAndFold
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapper.toTooltip
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartFooterStatsUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartMetricUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPointUiModel
@@ -27,9 +30,21 @@ import java.time.ZoneId
  */
 internal object ExerciseChartUiMapper {
 
+    /**
+     * On the [ChartPresetUiModel.ALL] preset, when the exercise has only 1-2 finished
+     * sessions in its full history, the natural window (`first finished_at … today`) can
+     * stretch a year-old single point across the whole canvas — points cluster against the
+     * right edge and look like an outlier rather than the data they are. Tighten the window
+     * to ±[SPARSE_PADDING_DAYS] around the actual data so sparse history reads as centred
+     * data, not as noise.
+     */
+    private const val SPARSE_PADDING_DAYS = 14L
+
     data class FoldResult(
         val points: ImmutableList<ChartPointUiModel>,
         val footer: ChartFooterStatsUiModel?,
+        val windowStartDay: LocalDate?,
+        val windowEndDay: LocalDate?,
     )
 
     fun bucketAndFold(
@@ -41,6 +56,7 @@ internal object ExerciseChartUiMapper {
         now: Long,
         zoneId: ZoneId = ZoneId.systemDefault(),
     ): FoldResult {
+        val today = Instant.ofEpochMilli(now).atZone(zoneId).toLocalDate()
         val windowStart = preset.windowStartMillis(now)
 
         val flat = history
@@ -62,7 +78,12 @@ internal object ExerciseChartUiMapper {
             }
             .toList()
 
-        if (flat.isEmpty()) return FoldResult(persistentListOf(), null)
+        if (flat.isEmpty()) return FoldResult(
+            points = persistentListOf(),
+            footer = null,
+            windowStartDay = null,
+            windowEndDay = null,
+        )
 
         // The earliest finishedAt wins on tie, matching the v2.1 PR semantics.
         val foldComparator = compareByDescending<FlatSet> { f ->
@@ -85,10 +106,44 @@ internal object ExerciseChartUiMapper {
             }
             .sortedBy(ChartPointUiModel::day)
 
+        val (effectiveStart, effectiveEnd) = computeWindow(preset, pointsByDay, windowStart, today, zoneId)
+
         return FoldResult(
             points = pointsByDay.toImmutableList(),
             footer = pointsByDay.toFooter(metric, exerciseType, resourceWrapper),
+            windowStartDay = effectiveStart,
+            windowEndDay = effectiveEnd,
         )
+    }
+
+    /**
+     * Choose the time range the canvas should render. Three cases:
+     *
+     * - `ALL` preset + sparse history (≤ 2 points): pad ±[SPARSE_PADDING_DAYS] around the
+     *   data so the points sit near the centre instead of glued to the right edge.
+     * - Bounded preset (`1M` / `3M` / `1Y`): always `[preset.start, today]` — even when the
+     *   user has fewer points than the window can hold, the window is what they asked for.
+     * - `ALL` preset + 3+ points: `[firstPoint, today]` — natural span looks fine, no
+     *   tightening.
+     */
+    private fun computeWindow(
+        preset: ChartPresetUiModel,
+        pointsByDay: List<ChartPointUiModel>,
+        windowStartMillis: Long?,
+        today: LocalDate,
+        zoneId: ZoneId,
+    ): Pair<LocalDate, LocalDate> = when {
+        preset == ChartPresetUiModel.ALL && pointsByDay.size <= 2 -> {
+            val firstDay = pointsByDay.first().day
+            val lastDay = pointsByDay.last().day
+            firstDay.minusDays(SPARSE_PADDING_DAYS) to lastDay.plusDays(SPARSE_PADDING_DAYS)
+        }
+        else -> {
+            val start = windowStartMillis
+                ?.let { Instant.ofEpochMilli(it).atZone(zoneId).toLocalDate() }
+                ?: pointsByDay.first().day
+            start to today
+        }
     }
 
     fun toTooltip(
