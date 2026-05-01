@@ -23,6 +23,7 @@ import kotlinx.collections.immutable.ImmutableMap
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableMap
+import kotlinx.collections.immutable.toImmutableSet
 import javax.inject.Inject
 
 /**
@@ -62,7 +63,9 @@ internal class ExercisePickerHandler @Inject constructor(
      * `Action.Click.OnAddExerciseClick` fires.
      */
     fun open() {
-        val excludedUuids = state.value.exerciseUuidsInSession()
+        val current = state.value
+        val excludedUuids = current.exerciseUuidsInSession()
+        val excludedNames = current.exerciseNamesInSession()
         // Optimistic show with empty results; the search lands a tick later. Keeps the
         // sheet animation snappy.
         updateState { current ->
@@ -75,7 +78,7 @@ internal class ExercisePickerHandler @Inject constructor(
                 ),
             )
         }
-        loadResults(query = "", excludedUuids = excludedUuids)
+        loadResults(query = "", excludedUuids = excludedUuids, excludedNames = excludedNames)
     }
 
     private fun processQueryChange(query: String) {
@@ -89,7 +92,11 @@ internal class ExercisePickerHandler @Inject constructor(
                 exercisePickerSheet = visible.copy(query = query),
             )
         }
-        loadResults(query = query, excludedUuids = current.exerciseUuidsInSession())
+        loadResults(
+            query = query,
+            excludedUuids = current.exerciseUuidsInSession(),
+            excludedNames = current.exerciseNamesInSession(),
+        )
     }
 
     private fun processExerciseSelect(exerciseUuid: String) {
@@ -118,11 +125,6 @@ internal class ExercisePickerHandler @Inject constructor(
         updateState { it.copy(isAddExerciseInFlight = true) }
         launch(
             onSuccess = { result ->
-                if (result == null) {
-                    updateState { it.copy(isAddExerciseInFlight = false) }
-                    sendError(ErrorType.CreateInlineExerciseFailed)
-                    return@launch
-                }
                 // Inline-created (`is_adhoc = true`) exercises have no history → no PR fetch.
                 addExerciseFlow(
                     picked = PickedExercise(
@@ -195,8 +197,12 @@ internal class ExercisePickerHandler @Inject constructor(
                         position = latest.exercises.size,
                     )
                     ).toImmutableList()
+                val activeNext = (latest.activeExerciseUuids + performedUuid).toImmutableSet()
+                val expandedNext = (latest.expandedExerciseUuids + performedUuid).toImmutableSet()
                 latest.copy(
                     exercises = nextExercises,
+                    activeExerciseUuids = activeNext,
+                    expandedExerciseUuids = expandedNext,
                     isAddExerciseInFlight = false,
                     exercisePickerSheet = ExercisePickerSheetState.Hidden,
                     preSessionPrSnapshot = latest.preSessionPrSnapshot.mergePr(
@@ -204,7 +210,7 @@ internal class ExercisePickerHandler @Inject constructor(
                         type = picked.type,
                         pr = pr,
                     ),
-                )
+                ).recomputeStatuses(resourceWrapper)
             }
             sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         }
@@ -228,14 +234,22 @@ internal class ExercisePickerHandler @Inject constructor(
         performedSets = persistentListOf(),
     )
 
-    private fun loadResults(query: String, excludedUuids: Set<String>) {
+    private fun loadResults(
+        query: String,
+        excludedUuids: Set<String>,
+        excludedNames: Set<String>,
+    ) {
         launch {
             val rows = interactor.searchExercisesForPicker(
                 query = query,
                 excludedUuids = excludedUuids,
             )
             val pickerEntries = rows.toPickerUi()
-            val (noMatchHeadline, createCta) = derivePickerLabels(query, pickerEntries.size)
+            val (noMatchHeadline, createCta) = derivePickerLabels(
+                query = query,
+                results = pickerEntries,
+                excludedNames = excludedNames,
+            )
             updateState { latest ->
                 val visible = latest.exercisePickerSheet as? ExercisePickerSheetState.Visible
                     ?: return@updateState latest
@@ -261,21 +275,31 @@ internal class ExercisePickerHandler @Inject constructor(
         )
     }.toImmutableList()
 
-    private fun derivePickerLabels(query: String, resultCount: Int): Pair<String?, String?> {
-        if (query.isBlank() || resultCount > 0) return null to null
+    private fun derivePickerLabels(
+        query: String,
+        results: List<ExercisePickerUiModel>,
+        excludedNames: Set<String>,
+    ): Pair<String?, String?> {
+        val trimmed = query.trim()
+        val exactMatchExists = results.any { it.name.equals(trimmed, ignoreCase = true) } ||
+            excludedNames.any { it.equals(trimmed, ignoreCase = true) }
+        if (trimmed.isBlank() || exactMatchExists) return null to null
         val headline = resourceWrapper.getString(
             R.string.feature_live_workout_picker_no_match_format,
-            query,
+            trimmed,
         )
         val createCta = resourceWrapper.getString(
             R.string.feature_live_workout_picker_create_format,
-            query,
+            trimmed,
         )
         return headline to createCta
     }
 
     private fun State.exerciseUuidsInSession(): Set<String> =
         exercises.map { it.exerciseUuid }.toSet()
+
+    private fun State.exerciseNamesInSession(): Set<String> =
+        exercises.map { it.exerciseName }.toSet()
 
     private fun ImmutableMap<String, State.PrSnapshotItem>.mergePr(
         exerciseUuid: String,

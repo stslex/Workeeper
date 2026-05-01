@@ -124,13 +124,6 @@ internal class ExerciseRepositoryImpl @Inject constructor(
         name: String,
     ): InlineAdhocResult = transition {
         val trimmed = name.trim()
-        val existing = dao.findByName(trimmed)
-        if (existing != null) {
-            return@transition InlineAdhocResult(
-                exercise = existing.toData(),
-                reusedExisting = true,
-            )
-        }
         val entity = ExerciseEntity(
             name = trimmed,
             type = ExerciseTypeEntity.WEIGHTED,

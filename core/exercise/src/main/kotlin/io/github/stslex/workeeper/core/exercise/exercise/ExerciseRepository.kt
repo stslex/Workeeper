@@ -27,11 +27,6 @@ interface ExerciseRepository {
      * inline-create flow inside the Quick start / Track Now exercise picker. Type defaults
      * to `WEIGHTED`; description, image, and tags are not captured at create time — the
      * user can enrich the exercise from Exercise detail after the session graduates it.
-     *
-     * If a library exercise with the same name (case-insensitive) already exists, the
-     * existing row is returned instead of raising the unique-name constraint. The caller
-     * decides whether to flag this to the user; in the picker flow we silently surface the
-     * library entry, since the user expectation is "I'll get an exercise named '<x>' added".
      */
     suspend fun createInlineAdhocExercise(name: String): InlineAdhocResult
 
@@ -140,9 +135,8 @@ interface ExerciseRepository {
 
     /**
      * Result of [createInlineAdhocExercise]. The picker-side flow only needs the resulting
-     * [exercise]; the [reusedExisting] flag lets call sites measure how often an inline
-     * "create" actually surfaces a pre-existing library entry, which matters for both the
-     * Q6 baseline detection and tech-debt telemetry.
+     * [exercise]. [reusedExisting] is retained for call-site compatibility and is always
+     * false for inline-create rows.
      */
     data class InlineAdhocResult(
         val exercise: ExerciseDataModel,
