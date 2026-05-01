@@ -4,7 +4,6 @@ package io.github.stslex.workeeper.core.ui.plan_editor
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -46,10 +45,12 @@ import kotlinx.collections.immutable.persistentListOf
  *
  * Search-or-create UX (Q3 lock):
  *  - Empty query → show all library entries from [results].
- *  - Non-empty query with matches → filtered list, no Create CTA.
  *  - Non-empty query without matches → [noMatchHeadline] is non-null, [createCtaLabel] is
  *    non-null, both rendered as separate elements (explicit no-match indicator before
  *    Create per the spec).
+ *  - Non-empty query with partial matches → results list rendered, [createCtaLabel] is
+ *    non-null and shown below the list so the user can still create the distinct typed
+ *    name. Only an exact case-insensitive name match suppresses [createCtaLabel].
  *
  * The headline + Create label come pre-formatted from the parent so this composable does
  * not derive display text — kit composables stay locale-agnostic and stateless.
@@ -57,8 +58,9 @@ import kotlinx.collections.immutable.persistentListOf
  * @param query current search input
  * @param results filtered library list (already excludes the active session's exercises)
  * @param noMatchHeadline pre-formatted "No exercises match '{query}'" string, null when
- * matches exist
- * @param createCtaLabel pre-formatted "Create '{query}'" string, null when matches exist
+ * results is non-empty (partial matches do not warrant the no-match indicator)
+ * @param createCtaLabel pre-formatted "Create '{query}'" string, null when an exact
+ * case-insensitive match exists (DB-level dedupe would kick in)
  * @param isPrimaryActionEnabled drives the Create CTA enabled state — false while a fetch
  * is in flight (throttle for rapid double-taps)
  */
@@ -87,21 +89,22 @@ fun ExercisePickerBottomSheet(
             leadingIcon = Icons.Default.Search,
         )
         Spacer(Modifier.height(AppDimension.Space.md))
-        if (results.isEmpty() && noMatchHeadline != null) {
-            NoMatchSection(
-                headline = noMatchHeadline,
-                createCtaLabel = createCtaLabel,
-                createEnabled = isPrimaryActionEnabled,
-                onCreate = {
-                    if (createCtaLabel != null) {
-                        onAction(ExercisePickerAction.OnCreateNewExercise(query))
-                    }
-                },
-            )
-        } else {
+        if (noMatchHeadline != null) {
+            NoMatchHeadline(headline = noMatchHeadline)
+            Spacer(Modifier.height(AppDimension.Space.md))
+        }
+        if (results.isNotEmpty()) {
             ResultsList(
                 results = results,
                 onSelect = { onAction(ExercisePickerAction.OnExerciseSelect(it)) },
+            )
+        }
+        if (createCtaLabel != null) {
+            Spacer(Modifier.height(AppDimension.Space.md))
+            CreateCtaButton(
+                label = createCtaLabel,
+                enabled = isPrimaryActionEnabled,
+                onClick = { onAction(ExercisePickerAction.OnCreateNewExercise(query)) },
             )
         }
     }
@@ -152,18 +155,12 @@ private fun ExerciseRow(
 }
 
 @Composable
-private fun NoMatchSection(
-    headline: String,
-    createCtaLabel: String?,
-    createEnabled: Boolean,
-    onCreate: () -> Unit,
-) {
-    Column(
+private fun NoMatchHeadline(headline: String) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = AppDimension.Space.lg),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
+            .padding(vertical = AppDimension.Space.md),
+        horizontalArrangement = Arrangement.Center,
     ) {
         Text(
             modifier = Modifier.testTag("ExercisePickerNoMatchHeadline"),
@@ -172,16 +169,27 @@ private fun NoMatchSection(
             color = AppUi.colors.textSecondary,
             textAlign = TextAlign.Center,
         )
-        if (createCtaLabel != null) {
-            AppButton.Tertiary(
-                modifier = Modifier.testTag("ExercisePickerCreateCta"),
-                text = createCtaLabel,
-                onClick = onCreate,
-                enabled = createEnabled,
-                size = AppButtonSize.MEDIUM,
-                leadingIcon = Icons.Default.Add,
-            )
-        }
+    }
+}
+
+@Composable
+private fun CreateCtaButton(
+    label: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        AppButton.Tertiary(
+            modifier = Modifier.testTag("ExercisePickerCreateCta"),
+            text = label,
+            onClick = onClick,
+            enabled = enabled,
+            size = AppButtonSize.MEDIUM,
+            leadingIcon = Icons.Default.Add,
+        )
     }
 }
 
@@ -216,6 +224,25 @@ private fun ExercisePickerNoMatchDarkPreview() {
             results = persistentListOf(),
             noMatchHeadline = "No exercises match “skull crushers”",
             createCtaLabel = "Create “skull crushers”",
+            searchHint = "Search or create",
+            isPrimaryActionEnabled = true,
+            onAction = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun ExercisePickerPartialMatchPreview() {
+    AppTheme(themeMode = ThemeMode.LIGHT) {
+        ExercisePickerBottomSheet(
+            query = "bench",
+            results = persistentListOf(
+                ExercisePickerUiModel("u1", "Bench Press", ExerciseTypeUiModel.WEIGHTED),
+                ExercisePickerUiModel("u2", "Bench Press (Incline)", ExerciseTypeUiModel.WEIGHTED),
+            ),
+            noMatchHeadline = null,
+            createCtaLabel = "Create “bench”",
             searchHint = "Search or create",
             isPrimaryActionEnabled = true,
             onAction = {},

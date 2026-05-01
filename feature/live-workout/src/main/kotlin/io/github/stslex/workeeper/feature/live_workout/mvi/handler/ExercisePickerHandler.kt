@@ -284,17 +284,35 @@ internal class ExercisePickerHandler @Inject constructor(
         excludedNames: Set<String>,
     ): Pair<String?, String?> {
         val trimmed = query.trim()
-        val exactMatchExists = results.any { it.name.equals(trimmed, ignoreCase = true) } ||
-            excludedNames.any { it.equals(trimmed, ignoreCase = true) }
-        if (trimmed.isBlank() || exactMatchExists) return null to null
-        val headline = resourceWrapper.getString(
-            R.string.feature_live_workout_picker_no_match_format,
-            trimmed,
-        )
-        val createCta = resourceWrapper.getString(
-            R.string.feature_live_workout_picker_create_format,
-            trimmed,
-        )
+        if (trimmed.isBlank()) return null to null
+        // An exact case-insensitive match in the active session means the user already has
+        // this exercise — DB-level dedupe would surface that row instead of inserting, so
+        // both the no-match indicator and the Create CTA are suppressed.
+        val exactMatchInExcluded = excludedNames.any { it.equals(trimmed, ignoreCase = true) }
+        if (exactMatchInExcluded) return null to null
+        val exactMatchInResults = results.any { it.name.equals(trimmed, ignoreCase = true) }
+        // CTA visibility mirrors the DB-side dedupe in `createInlineAdhocExercise`: hide
+        // the Create CTA only when an exact case-insensitive name exists. Partial matches
+        // (e.g., query "жим груди" with a result "жим груди под наклоном") still allow
+        // creating the distinct typed name.
+        val createCta = if (!exactMatchInResults) {
+            resourceWrapper.getString(
+                R.string.feature_live_workout_picker_create_format,
+                trimmed,
+            )
+        } else {
+            null
+        }
+        // The no-match headline only applies when the result list is genuinely empty;
+        // showing it alongside partial matches would lie about what is on screen.
+        val headline = if (results.isEmpty()) {
+            resourceWrapper.getString(
+                R.string.feature_live_workout_picker_no_match_format,
+                trimmed,
+            )
+        } else {
+            null
+        }
         return headline to createCta
     }
 

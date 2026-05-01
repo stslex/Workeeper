@@ -176,6 +176,126 @@ internal class ExercisePickerHandlerTest {
         }
     }
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun loadResults_partialMatch_showsCreateCta() = runTest {
+        val state = MutableStateFlow(stateWithVisiblePicker())
+        coEvery {
+            interactor.searchExercisesForPicker(query = "жим груди", excludedUuids = emptySet())
+        } returns listOf(
+            LiveWorkoutInteractor.ExercisePickerEntry(
+                uuid = "u-incline",
+                name = "жим груди под наклоном",
+                type = ExerciseTypeDataModel.WEIGHTED,
+            ),
+        )
+        every {
+            resourceWrapper.getString(
+                io.github.stslex.workeeper.feature.live_workout.R.string
+                    .feature_live_workout_picker_create_format,
+                "жим груди",
+            )
+        } returns "Create \"жим груди\""
+
+        val handler = ExercisePickerHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            store = ExecutingLiveWorkoutHandlerStore(state, this),
+        )
+        handler.invoke(ExercisePickerAction.OnQueryChange("жим груди"))
+        advanceUntilIdle()
+
+        val visible = state.value.exercisePickerSheet as ExercisePickerSheetState.Visible
+        assertEquals("Create \"жим груди\"", visible.createCtaLabel)
+        // Partial-match case: noMatchHeadline must stay null because results is non-empty.
+        assertEquals(null, visible.noMatchHeadline)
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun loadResults_exactMatchCaseInsensitive_hidesCreateCta() = runTest {
+        val state = MutableStateFlow(stateWithVisiblePicker())
+        coEvery {
+            interactor.searchExercisesForPicker(query = "BENCH PRESS", excludedUuids = emptySet())
+        } returns listOf(
+            LiveWorkoutInteractor.ExercisePickerEntry(
+                uuid = "u-bench",
+                name = "Bench Press",
+                type = ExerciseTypeDataModel.WEIGHTED,
+            ),
+        )
+
+        val handler = ExercisePickerHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            store = ExecutingLiveWorkoutHandlerStore(state, this),
+        )
+        handler.invoke(ExercisePickerAction.OnQueryChange("BENCH PRESS"))
+        advanceUntilIdle()
+
+        val visible = state.value.exercisePickerSheet as ExercisePickerSheetState.Visible
+        // Exact case-insensitive match → CTA suppressed (DB-level dedupe would kick in).
+        assertEquals(null, visible.createCtaLabel)
+        assertEquals(null, visible.noMatchHeadline)
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun loadResults_emptyResults_showsHeadlineAndCta() = runTest {
+        val state = MutableStateFlow(stateWithVisiblePicker())
+        coEvery {
+            interactor.searchExercisesForPicker(query = "skull crushers", excludedUuids = emptySet())
+        } returns emptyList()
+        every {
+            resourceWrapper.getString(
+                io.github.stslex.workeeper.feature.live_workout.R.string
+                    .feature_live_workout_picker_no_match_format,
+                "skull crushers",
+            )
+        } returns "No exercises match \"skull crushers\""
+        every {
+            resourceWrapper.getString(
+                io.github.stslex.workeeper.feature.live_workout.R.string
+                    .feature_live_workout_picker_create_format,
+                "skull crushers",
+            )
+        } returns "Create \"skull crushers\""
+
+        val handler = ExercisePickerHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            store = ExecutingLiveWorkoutHandlerStore(state, this),
+        )
+        handler.invoke(ExercisePickerAction.OnQueryChange("skull crushers"))
+        advanceUntilIdle()
+
+        val visible = state.value.exercisePickerSheet as ExercisePickerSheetState.Visible
+        // Genuinely empty list — both indicators surface together (Q3: explicit no-match).
+        assertEquals("No exercises match \"skull crushers\"", visible.noMatchHeadline)
+        assertEquals("Create \"skull crushers\"", visible.createCtaLabel)
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun loadResults_blankQuery_hidesBothLabels() = runTest {
+        val state = MutableStateFlow(stateWithVisiblePicker())
+        coEvery {
+            interactor.searchExercisesForPicker(query = "   ", excludedUuids = emptySet())
+        } returns emptyList()
+
+        val handler = ExercisePickerHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            store = ExecutingLiveWorkoutHandlerStore(state, this),
+        )
+        handler.invoke(ExercisePickerAction.OnQueryChange("   "))
+        advanceUntilIdle()
+
+        val visible = state.value.exercisePickerSheet as ExercisePickerSheetState.Visible
+        assertEquals(null, visible.noMatchHeadline)
+        assertEquals(null, visible.createCtaLabel)
+    }
+
     @Test
     fun `OnExerciseSelect for an unknown uuid does nothing`() {
         val state = MutableStateFlow(
