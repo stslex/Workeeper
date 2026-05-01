@@ -7,6 +7,7 @@ import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.exercise.sets.PrComparator
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExercisePickerAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.R
@@ -33,6 +34,7 @@ import javax.inject.Inject
 internal class ClickHandler @Inject constructor(
     private val interactor: LiveWorkoutInteractor,
     private val resourceWrapper: ResourceWrapper,
+    private val pickerHandler: ExercisePickerHandler,
     store: LiveWorkoutHandlerStore,
 ) : Handler<Action.Click>, LiveWorkoutHandlerStore by store {
 
@@ -65,15 +67,28 @@ internal class ClickHandler @Inject constructor(
             is Action.Click.OnTrainingNameChange -> processTrainingNameChange(action)
             is Action.Click.OnTrainingNameSubmit -> processTrainingNameSubmit(action)
             Action.Click.OnTrainingNameDismiss -> processTrainingNameDismiss()
+            Action.Click.OnAddExerciseClick -> processAddExerciseClick()
+            is Action.Click.PickerAction -> pickerHandler.invoke(action.action)
         }
+    }
+
+    private fun processAddExerciseClick() {
+        val current = state.value
+        if (!current.canAddExercise) return
+        if (current.sessionUuid.isNullOrBlank() || current.trainingUuid.isNullOrBlank()) return
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        pickerHandler.open()
     }
 
     private fun processBackClick() {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         // Spec dismissal order: picker → empty-finish dialog → name edit → plan-editor
-        // dirty → default back. Picker + dialog will be wired in steps 6/7; for now we
-        // peel off the layers that already exist.
+        // dirty → default back.
         val current = state.value
+        if (current.isPickerVisible) {
+            pickerHandler.invoke(ExercisePickerAction.OnDismiss)
+            return
+        }
         if (current.isTrainingNameEditing) {
             // Submit on back so the keyboard dismiss flow persists changes (per A1
             // "save on blur via tap-out, IME Done, or back-dismissed keyboard").

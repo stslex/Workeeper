@@ -74,6 +74,12 @@
     <string name="feature_live_workout_training_name_placeholder">Без названия</string>
     <string name="feature_live_workout_training_name_field_hint">Название тренировки</string>
 
+    <string name="feature_live_workout_picker_search_hint">Поиск или создание</string>
+    <string name="feature_live_workout_picker_no_match_format">Нет упражнений по запросу &quot;%1$s&quot;</string>
+    <string name="feature_live_workout_picker_create_format">Создать &quot;%1$s&quot;</string>
+    <string name="feature_live_workout_add_exercise_cta">Добавить упражнение</string>
+    <string name="feature_live_workout_add_another_exercise_cta">+ Добавить еще упражнение</string>
+
     <string name="feature_live_workout_back">Назад</string>
     <string name="feature_live_workout_more">Меню</string>
     <string name="feature_live_workout_remove_set" tools:ignore="UnusedResources">Удалить сет</string>

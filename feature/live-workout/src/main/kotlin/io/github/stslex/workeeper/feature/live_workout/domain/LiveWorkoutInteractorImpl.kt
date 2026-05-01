@@ -257,14 +257,12 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
         sessionUuid: String,
         trainingUuid: String,
         exerciseUuid: String,
-    ) {
-        withContext(defaultDispatcher) {
-            sessionRepository.addExerciseToActiveSession(
-                sessionUuid = sessionUuid,
-                trainingUuid = trainingUuid,
-                exerciseUuid = exerciseUuid,
-            )
-        }
+    ): String = withContext(defaultDispatcher) {
+        sessionRepository.addExerciseToActiveSession(
+            sessionUuid = sessionUuid,
+            trainingUuid = trainingUuid,
+            exerciseUuid = exerciseUuid,
+        )
     }
 
     override suspend fun discardAdhocSession(sessionUuid: String, trainingUuid: String) {

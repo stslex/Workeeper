@@ -5,6 +5,8 @@ import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.core.ui.plan_editor.model.AppPlanEditorAction
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExercisePickerAction
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExercisePickerUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
@@ -60,6 +62,9 @@ internal interface LiveWorkoutStore :
         val pendingSkipExerciseUuid: String?,
         val pendingCancelConfirm: Boolean,
         val deleteDialogVisible: Boolean,
+        val exercisePickerSheet: ExercisePickerSheetState,
+        val isAddExerciseInFlight: Boolean,
+        val isFinishInFlight: Boolean,
         val isLoading: Boolean,
         val errorMessage: String?,
     ) : Store.State {
@@ -109,10 +114,39 @@ internal interface LiveWorkoutStore :
             val isWeighted: Boolean get() = exerciseType == ExerciseTypeUiModel.WEIGHTED
         }
 
+        /**
+         * Inline exercise picker bottom-sheet state. Display strings (no-match headline,
+         * Create CTA label) are pre-formatted in the handler so the kit composable does
+         * not derive text — keeps the picker locale-shape agnostic.
+         */
+        @Stable
+        sealed interface ExercisePickerSheetState {
+            data object Hidden : ExercisePickerSheetState
+
+            @Stable
+            data class Visible(
+                val query: String,
+                val results: ImmutableList<ExercisePickerUiModel>,
+                val noMatchHeadline: String?,
+                val createCtaLabel: String?,
+            ) : ExercisePickerSheetState
+        }
+
         val elapsedMillis: Long get() = (nowMillis - startedAt).coerceAtLeast(0L)
 
         val isPlanEditorDirty: Boolean
             get() = planEditorTarget?.let { it.draft != it.initialPlan } == true
+
+        val isPickerVisible: Boolean
+            get() = exercisePickerSheet is ExercisePickerSheetState.Visible
+
+        /**
+         * Throttle gate for the mid-session add-exercise CTA. False during an in-flight
+         * fetch (picker primary action disabled) and during the finish flow so the user
+         * cannot stack a parallel add on top of session teardown.
+         */
+        val canAddExercise: Boolean
+            get() = !isAddExerciseInFlight && !isFinishInFlight
 
         /**
          * Tracks every UI state that needs to intercept the system back gesture so the
@@ -121,7 +155,7 @@ internal interface LiveWorkoutStore :
          * name edit → plan-editor dirty → default back.
          */
         val interceptBack: Boolean
-            get() = isPlanEditorDirty || isTrainingNameEditing
+            get() = isPlanEditorDirty || isTrainingNameEditing || isPickerVisible
 
         companion object {
 
@@ -152,6 +186,9 @@ internal interface LiveWorkoutStore :
                 pendingSkipExerciseUuid = null,
                 pendingCancelConfirm = false,
                 deleteDialogVisible = false,
+                exercisePickerSheet = ExercisePickerSheetState.Hidden,
+                isAddExerciseInFlight = false,
+                isFinishInFlight = false,
                 isLoading = true,
                 errorMessage = null,
             )
@@ -197,6 +234,18 @@ internal interface LiveWorkoutStore :
             data class OnTrainingNameChange(val text: String) : Click
             data class OnTrainingNameSubmit(val text: String) : Click
             data object OnTrainingNameDismiss : Click
+
+            // v2.3 — mid-session add exercise (opens the picker sheet).
+            data object OnAddExerciseClick : Click
+
+            /**
+             * Wraps the picker bottom-sheet action surface so the feature's top-level
+             * Click variants stay flat. `ClickHandler` delegates to the dedicated
+             * `ExercisePickerHandler` when this variant fires (per the action-wrapper
+             * pattern from architecture docs).
+             */
+            @Suppress("MviActionNamingRule")
+            data class PickerAction(val action: ExercisePickerAction) : Click
         }
 
         sealed interface Input : Action {

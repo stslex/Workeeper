@@ -177,6 +177,8 @@ private fun Body(
         Spacer(Modifier.height(AppDimension.Space.md))
         if (state.exercises.isEmpty()) {
             EmptyExercisesPlaceholder(
+                onAddExerciseClick = { consume(Action.Click.OnAddExerciseClick) },
+                isAddEnabled = state.canAddExercise,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
@@ -207,6 +209,12 @@ private fun Body(
                         consume = consume,
                     )
                 }
+                item(key = "add-another-exercise-cta") {
+                    AddAnotherExerciseRow(
+                        onClick = { consume(Action.Click.OnAddExerciseClick) },
+                        enabled = state.canAddExercise,
+                    )
+                }
             }
         }
         Spacer(Modifier.height(AppDimension.Space.md))
@@ -227,7 +235,11 @@ private fun Body(
 }
 
 @Composable
-private fun EmptyExercisesPlaceholder(modifier: Modifier = Modifier) {
+private fun EmptyExercisesPlaceholder(
+    onAddExerciseClick: () -> Unit,
+    isAddEnabled: Boolean,
+    modifier: Modifier = Modifier,
+) {
     Box(
         modifier = modifier,
         contentAlignment = Alignment.Center,
@@ -235,8 +247,26 @@ private fun EmptyExercisesPlaceholder(modifier: Modifier = Modifier) {
         AppEmptyState(
             headline = stringResource(R.string.feature_live_workout_empty_headline),
             supportingText = stringResource(R.string.feature_live_workout_empty_supporting),
+            actionLabel = stringResource(R.string.feature_live_workout_add_exercise_cta)
+                .takeIf { isAddEnabled },
+            onAction = onAddExerciseClick.takeIf { isAddEnabled },
         )
     }
+}
+
+@Composable
+private fun AddAnotherExerciseRow(
+    onClick: () -> Unit,
+    enabled: Boolean,
+) {
+    AppButton.Tertiary(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("LiveWorkoutAddAnotherExerciseCta"),
+        text = stringResource(R.string.feature_live_workout_add_another_exercise_cta),
+        onClick = onClick,
+        enabled = enabled,
+    )
 }
 
 @Preview
@@ -379,6 +409,9 @@ private fun stubState(): State = State(
     pendingSkipExerciseUuid = null,
     pendingCancelConfirm = false,
     deleteDialogVisible = false,
+    exercisePickerSheet = State.ExercisePickerSheetState.Hidden,
+    isAddExerciseInFlight = false,
+    isFinishInFlight = false,
     isLoading = false,
     errorMessage = null,
 )

@@ -106,12 +106,15 @@ interface SessionRepository {
      * grow-but-not-shrink rule populates from logged sets on finish) and a
      * `performed_exercise_table` row at the next position. Used both for inline-created
      * (`is_adhoc = true`) exercises and for library picks.
+     *
+     * Returns the new `performed_exercise_table.uuid` so the caller can stitch the row
+     * into in-memory State without re-loading the entire session.
      */
     suspend fun addExerciseToActiveSession(
         sessionUuid: String,
         trainingUuid: String,
         exerciseUuid: String,
-    )
+    ): String
 
     /**
      * Atomically tears down an ad-hoc session: deletes the session row, deletes the

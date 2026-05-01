@@ -68,6 +68,9 @@ internal fun SessionSnapshot.toState(
         pendingSkipExerciseUuid = null,
         pendingCancelConfirm = false,
         deleteDialogVisible = false,
+        exercisePickerSheet = State.ExercisePickerSheetState.Hidden,
+        isAddExerciseInFlight = false,
+        isFinishInFlight = false,
         isLoading = false,
         errorMessage = null,
     ).withPresentation(resourceWrapper)

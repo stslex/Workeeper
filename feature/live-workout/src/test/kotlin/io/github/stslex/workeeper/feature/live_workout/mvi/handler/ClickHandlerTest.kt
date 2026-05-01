@@ -21,6 +21,7 @@ internal class ClickHandlerTest {
 
     private val interactor = mockk<LiveWorkoutInteractor>(relaxed = true)
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
+    private val pickerHandler = mockk<ExercisePickerHandler>(relaxed = true)
 
     @Test
     fun `OnExerciseHeaderClick toggles expansion for DONE exercises`() {
@@ -29,6 +30,7 @@ internal class ClickHandlerTest {
         val handler = ClickHandler(
             interactor = interactor,
             resourceWrapper = resourceWrapper,
+            pickerHandler = pickerHandler,
             store = store,
         )
 
@@ -52,6 +54,7 @@ internal class ClickHandlerTest {
         val handler = ClickHandler(
             interactor = interactor,
             resourceWrapper = resourceWrapper,
+            pickerHandler = pickerHandler,
             store = store,
         )
 
@@ -80,6 +83,7 @@ internal class ClickHandlerTest {
         val handler = ClickHandler(
             interactor = interactor,
             resourceWrapper = resourceWrapper,
+            pickerHandler = pickerHandler,
             store = store,
         )
 
@@ -99,6 +103,7 @@ internal class ClickHandlerTest {
         val handler = ClickHandler(
             interactor = interactor,
             resourceWrapper = resourceWrapper,
+            pickerHandler = pickerHandler,
             store = store,
         )
 
@@ -120,6 +125,7 @@ internal class ClickHandlerTest {
         val handler = ClickHandler(
             interactor = interactor,
             resourceWrapper = resourceWrapper,
+            pickerHandler = pickerHandler,
             store = store,
         )
 
@@ -138,6 +144,7 @@ internal class ClickHandlerTest {
         val handler = ClickHandler(
             interactor = interactor,
             resourceWrapper = resourceWrapper,
+            pickerHandler = pickerHandler,
             store = store,
         )
 
@@ -156,6 +163,7 @@ internal class ClickHandlerTest {
         val handler = ClickHandler(
             interactor = interactor,
             resourceWrapper = resourceWrapper,
+            pickerHandler = pickerHandler,
             store = store,
         )
 
@@ -174,6 +182,7 @@ internal class ClickHandlerTest {
         val handler = ClickHandler(
             interactor = interactor,
             resourceWrapper = resourceWrapper,
+            pickerHandler = pickerHandler,
             store = store,
         )
 

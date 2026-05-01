@@ -15,12 +15,16 @@ import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
+import androidx.compose.ui.res.stringResource
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
 import io.github.stslex.workeeper.core.ui.plan_editor.AppPlanEditor
+import io.github.stslex.workeeper.core.ui.plan_editor.ExercisePickerBottomSheet
+import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutFeature
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Event
+import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State.ExercisePickerSheetState
 import io.github.stslex.workeeper.feature.live_workout.ui.components.FinishConfirmDialog
 
 @Suppress("LongMethod", "CyclomaticComplexMethod")
@@ -88,6 +92,18 @@ fun NavGraphBuilder.liveWorkoutGraph(
                 draft = target.draft,
                 isWeighted = target.isWeighted,
                 onAction = { action -> processor.consume(Action.PlanEditAction(action)) },
+            )
+        }
+
+        (state.exercisePickerSheet as? ExercisePickerSheetState.Visible)?.let { sheet ->
+            ExercisePickerBottomSheet(
+                query = sheet.query,
+                results = sheet.results,
+                noMatchHeadline = sheet.noMatchHeadline,
+                createCtaLabel = sheet.createCtaLabel,
+                searchHint = stringResource(R.string.feature_live_workout_picker_search_hint),
+                isPrimaryActionEnabled = state.canAddExercise,
+                onAction = { action -> processor.consume(Action.Click.PickerAction(action)) },
             )
         }
 

@@ -27,13 +27,15 @@ internal interface LiveWorkoutInteractor {
     /**
      * Atomically appends [exerciseUuid] to the active session's plan and performed list.
      * Per H1 (mid-session changes mutate the plan permanently), the plan row written here
-     * survives session finish even if no sets are logged for it.
+     * survives session finish even if no sets are logged for it. Returns the new
+     * performed-exercise UUID so the picker handler can stitch the row directly into
+     * `State.exercises` without re-loading the session.
      */
     suspend fun addExerciseToActiveSession(
         sessionUuid: String,
         trainingUuid: String,
         exerciseUuid: String,
-    )
+    ): String
 
     /**
      * Cancels an ad-hoc session: deletes session, training, and inline-created exercises in

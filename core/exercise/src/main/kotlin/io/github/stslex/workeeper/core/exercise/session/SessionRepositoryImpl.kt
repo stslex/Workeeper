@@ -328,31 +328,29 @@ internal class SessionRepositoryImpl @Inject constructor(
         sessionUuid: String,
         trainingUuid: String,
         exerciseUuid: String,
-    ) {
-        transition {
-            val sessionId = Uuid.parse(sessionUuid)
-            val trainingId = Uuid.parse(trainingUuid)
-            val exerciseId = Uuid.parse(exerciseUuid)
-            val nextPlanPosition = (trainingExerciseDao.getMaxPosition(trainingId) ?: -1) + 1
-            val nextPerformedPosition =
-                (performedExerciseDao.getMaxPosition(sessionId) ?: -1) + 1
-            trainingExerciseDao.insert(
-                TrainingExerciseEntity(
-                    trainingUuid = trainingId,
-                    exerciseUuid = exerciseId,
-                    position = nextPlanPosition,
-                    planSets = null,
-                ),
-            )
-            performedExerciseDao.insert(
-                PerformedExerciseEntity(
-                    sessionUuid = sessionId,
-                    exerciseUuid = exerciseId,
-                    position = nextPerformedPosition,
-                    skipped = false,
-                ),
-            )
-        }
+    ): String = transition {
+        val sessionId = Uuid.parse(sessionUuid)
+        val trainingId = Uuid.parse(trainingUuid)
+        val exerciseId = Uuid.parse(exerciseUuid)
+        val nextPlanPosition = (trainingExerciseDao.getMaxPosition(trainingId) ?: -1) + 1
+        val nextPerformedPosition =
+            (performedExerciseDao.getMaxPosition(sessionId) ?: -1) + 1
+        trainingExerciseDao.insert(
+            TrainingExerciseEntity(
+                trainingUuid = trainingId,
+                exerciseUuid = exerciseId,
+                position = nextPlanPosition,
+                planSets = null,
+            ),
+        )
+        val performed = PerformedExerciseEntity(
+            sessionUuid = sessionId,
+            exerciseUuid = exerciseId,
+            position = nextPerformedPosition,
+            skipped = false,
+        )
+        performedExerciseDao.insert(performed)
+        performed.uuid.toString()
     }
 
     override suspend fun discardAdhocSession(sessionUuid: String, trainingUuid: String) {
