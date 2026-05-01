@@ -23,7 +23,6 @@ import io.mockk.mockk
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Test
 import kotlin.uuid.Uuid
 
@@ -56,9 +55,11 @@ internal class ExerciseRepositoryImplTest {
     private fun exerciseEntity(
         uuid: Uuid,
         imagePath: String? = null,
+        name: String = "name-$uuid",
+        isAdhoc: Boolean = false,
     ): ExerciseEntity = ExerciseEntity(
         uuid = uuid,
-        name = "name-$uuid",
+        name = name,
         type = ExerciseTypeEntity.WEIGHTED,
         description = null,
         imagePath = imagePath,
@@ -66,6 +67,7 @@ internal class ExerciseRepositoryImplTest {
         createdAt = 0L,
         archivedAt = null,
         lastAdhocSets = null,
+        isAdhoc = isAdhoc,
     )
 
     @Test
@@ -119,20 +121,58 @@ internal class ExerciseRepositoryImplTest {
     }
 
     @Test
-    fun `createInlineAdhocExercise always inserts a fresh adhoc row`() = runTest(testDispatcher) {
+    fun `createInlineAdhocExercise no collision inserts fresh adhoc`() = runTest(testDispatcher) {
         val inserted = mutableListOf<ExerciseEntity>()
+        coEvery { exerciseDao.findByName(any()) } returns null
         coEvery { exerciseDao.insert(capture(inserted)) } returns Unit
 
-        val first = repository.createInlineAdhocExercise("Skull Crushers")
-        val second = repository.createInlineAdhocExercise("Skull Crushers")
+        val result = repository.createInlineAdhocExercise("Skull Crushers")
 
-        assertEquals(false, first.reusedExisting)
-        assertEquals(false, second.reusedExisting)
-        assertEquals(2, inserted.size)
-        assertNotEquals(inserted[0].uuid, inserted[1].uuid)
-        assertEquals(true, inserted.all { it.isAdhoc })
-        coVerify(exactly = 0) { exerciseDao.findByName(any()) }
+        assertEquals(false, result.reusedExisting)
+        assertEquals(1, inserted.size)
+        assertEquals(true, inserted.single().isAdhoc)
+        assertEquals("Skull Crushers", inserted.single().name)
+        coVerify(exactly = 1) { exerciseDao.findByName("Skull Crushers") }
     }
+
+    @Test
+    fun `createInlineAdhocExercise library collision returns existing without insert`() =
+        runTest(testDispatcher) {
+            val existingUuid = Uuid.random()
+            val existing = exerciseEntity(
+                uuid = existingUuid,
+                name = "Bench Press",
+                isAdhoc = false,
+            )
+            coEvery { exerciseDao.findByName("BENCH PRESS") } returns existing
+
+            val result = repository.createInlineAdhocExercise("BENCH PRESS")
+
+            assertEquals(true, result.reusedExisting)
+            assertEquals(existingUuid.toString(), result.exercise.uuid)
+            assertEquals("Bench Press", result.exercise.name)
+            coVerify(exactly = 0) { exerciseDao.insert(any()) }
+        }
+
+    @Test
+    fun `createInlineAdhocExercise adhoc orphan collision returns existing without insert`() =
+        runTest(testDispatcher) {
+            val existingUuid = Uuid.random()
+            val orphan = exerciseEntity(
+                uuid = existingUuid,
+                name = "Cable Fly",
+                isAdhoc = true,
+            )
+            coEvery { exerciseDao.findByName("Cable Fly") } returns orphan
+
+            val result = repository.createInlineAdhocExercise("Cable Fly")
+
+            assertEquals(true, result.reusedExisting)
+            assertEquals(existingUuid.toString(), result.exercise.uuid)
+            // Existing row's is_adhoc flag is intentionally not flipped — the orphan stays
+            // an orphan and gets cleaned up by the next discard pass.
+            coVerify(exactly = 0) { exerciseDao.insert(any()) }
+        }
 
     @Test
     fun `deleteItem removes the row and the image file when imagePath set`() = runTest(testDispatcher) {

@@ -134,9 +134,10 @@ interface ExerciseRepository {
     )
 
     /**
-     * Result of [createInlineAdhocExercise]. The picker-side flow only needs the resulting
-     * [exercise]. [reusedExisting] is retained for call-site compatibility and is always
-     * false for inline-create rows.
+     * Result of [createInlineAdhocExercise]. [reusedExisting] is true when a case-insensitive
+     * name match was found and the existing row was returned without insert. The picker uses
+     * this flag to decide whether to fetch the PR baseline — reused rows have history,
+     * fresh-inserted ad-hoc rows do not.
      */
     data class InlineAdhocResult(
         val exercise: ExerciseDataModel,

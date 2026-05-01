@@ -124,6 +124,16 @@ internal class ExerciseRepositoryImpl @Inject constructor(
         name: String,
     ): InlineAdhocResult = transition {
         val trimmed = name.trim()
+        // Case-insensitive lookup before insert so a user-typed name that already maps to a
+        // library row (or a stray adhoc orphan) does not trip the UNIQUE(name) constraint.
+        // Existing row is returned untouched — `is_adhoc` is intentionally not modified.
+        val existing = dao.findByName(trimmed)
+        if (existing != null) {
+            return@transition InlineAdhocResult(
+                exercise = existing.toData(),
+                reusedExisting = true,
+            )
+        }
         val entity = ExerciseEntity(
             name = trimmed,
             type = ExerciseTypeEntity.WEIGHTED,

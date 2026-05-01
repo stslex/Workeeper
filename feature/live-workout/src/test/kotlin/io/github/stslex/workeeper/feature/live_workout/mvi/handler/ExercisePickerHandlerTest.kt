@@ -109,30 +109,19 @@ internal class ExercisePickerHandlerTest {
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     @Test
-    fun onCreateNewExercise_alwaysFreshUuid() = runTest {
+    fun onCreateNewExercise_freshAdhoc_skipsPrBaseline() = runTest {
         val state = MutableStateFlow(stateWithVisiblePicker())
         coEvery {
             interactor.createInlineAdhocExercise("Skull Crushers")
-        } returnsMany listOf(
-            LiveWorkoutInteractor.InlineAdhocResult(
-                exerciseUuid = "ex-inline-1",
-                name = "Skull Crushers",
-                type = ExerciseTypeDataModel.WEIGHTED,
-                reusedExisting = false,
-            ),
-            LiveWorkoutInteractor.InlineAdhocResult(
-                exerciseUuid = "ex-inline-2",
-                name = "Skull Crushers",
-                type = ExerciseTypeDataModel.WEIGHTED,
-                reusedExisting = false,
-            ),
+        } returns LiveWorkoutInteractor.InlineAdhocResult(
+            exerciseUuid = "ex-inline-1",
+            name = "Skull Crushers",
+            type = ExerciseTypeDataModel.WEIGHTED,
+            reusedExisting = false,
         )
         coEvery {
             interactor.addExerciseToActiveSession("session-1", "training-1", "ex-inline-1")
         } returns "pe-inline-1"
-        coEvery {
-            interactor.addExerciseToActiveSession("session-1", "training-1", "ex-inline-2")
-        } returns "pe-inline-2"
 
         val handler = ExercisePickerHandler(
             interactor = interactor,
@@ -142,15 +131,48 @@ internal class ExercisePickerHandlerTest {
 
         handler.invoke(ExercisePickerAction.OnCreateNewExercise("Skull Crushers"))
         advanceUntilIdle()
-        handler.invoke(ExercisePickerAction.OnCreateNewExercise("Skull Crushers"))
-        advanceUntilIdle()
 
         assertEquals(
-            listOf("ex-inline-1", "ex-inline-2"),
+            listOf("ex-inline-1"),
             state.value.exercises.map { it.exerciseUuid },
         )
-        coVerify(exactly = 2) {
-            interactor.createInlineAdhocExercise("Skull Crushers")
+        // reusedExisting = false → no history → PR baseline fetch is skipped.
+        coVerify(exactly = 0) {
+            interactor.fetchPrSnapshotForExercise(any(), any())
+        }
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun onCreateNewExercise_collisionWithLibrary_fetchesPrBaseline() = runTest {
+        val state = MutableStateFlow(stateWithVisiblePicker())
+        coEvery {
+            interactor.createInlineAdhocExercise("Bench Press")
+        } returns LiveWorkoutInteractor.InlineAdhocResult(
+            exerciseUuid = "ex-library-1",
+            name = "Bench Press",
+            type = ExerciseTypeDataModel.WEIGHTED,
+            reusedExisting = true,
+        )
+        coEvery {
+            interactor.addExerciseToActiveSession("session-1", "training-1", "ex-library-1")
+        } returns "pe-library-1"
+
+        val handler = ExercisePickerHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            store = ExecutingLiveWorkoutHandlerStore(state, this),
+        )
+
+        handler.invoke(ExercisePickerAction.OnCreateNewExercise("Bench Press"))
+        advanceUntilIdle()
+
+        // reusedExisting = true → existing row may have history → PR baseline is fetched.
+        coVerify(exactly = 1) {
+            interactor.fetchPrSnapshotForExercise(
+                exerciseUuid = "ex-library-1",
+                type = ExerciseTypeDataModel.WEIGHTED,
+            )
         }
     }
 

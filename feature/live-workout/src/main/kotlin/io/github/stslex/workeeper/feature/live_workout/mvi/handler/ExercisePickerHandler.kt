@@ -125,13 +125,16 @@ internal class ExercisePickerHandler @Inject constructor(
         updateState { it.copy(isAddExerciseInFlight = true) }
         launch(
             onSuccess = { result ->
-                // Inline-created (`is_adhoc = true`) exercises have no history → no PR fetch.
+                // `reusedExisting = true` means the typed name collided with a library or
+                // orphan row — that exercise has potential history, so the PR baseline is
+                // fetched. A fresh inline-created (`is_adhoc = true`) row has no history,
+                // so the snapshot is skipped.
                 addExerciseFlow(
                     picked = PickedExercise(
                         exerciseUuid = result.exerciseUuid,
                         name = result.name,
                         type = result.type.toUi(),
-                        fetchPr = false,
+                        fetchPr = result.reusedExisting,
                     ),
                     inFlightAlreadySet = true,
                 )
