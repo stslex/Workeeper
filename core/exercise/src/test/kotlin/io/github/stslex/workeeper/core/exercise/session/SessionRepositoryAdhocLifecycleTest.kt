@@ -9,6 +9,7 @@ import io.github.stslex.workeeper.core.database.session.PerformedExerciseDao
 import io.github.stslex.workeeper.core.database.session.PerformedExerciseEntity
 import io.github.stslex.workeeper.core.database.session.SessionDao
 import io.github.stslex.workeeper.core.database.session.SessionEntity
+import io.github.stslex.workeeper.core.database.session.SessionStateEntity
 import io.github.stslex.workeeper.core.database.session.SetDao
 import io.github.stslex.workeeper.core.database.training.TrainingDao
 import io.github.stslex.workeeper.core.database.training.TrainingEntity
@@ -154,6 +155,64 @@ internal class SessionRepositoryAdhocLifecycleTest {
 
         assertEquals(0, planSlot.captured.position)
         assertEquals(0, performedSlot.captured.position)
+    }
+
+    @Test
+    fun addExerciseToActiveSession_libraryExercise_doesNotFlipIsAdhoc() = runTest(dispatcher) {
+        val trainingId = Uuid.random()
+        val sessionId = Uuid.random()
+        val libraryExerciseId = Uuid.random()
+        coEvery { trainingExerciseDao.getMaxPosition(trainingId) } returns null
+        coEvery { performedExerciseDao.getMaxPosition(sessionId) } returns null
+        coEvery { trainingExerciseDao.insert(any<TrainingExerciseEntity>()) } just Runs
+        coEvery { performedExerciseDao.insert(any<PerformedExerciseEntity>()) } just Runs
+
+        repository.addExerciseToActiveSession(
+            sessionUuid = sessionId.toString(),
+            trainingUuid = trainingId.toString(),
+            exerciseUuid = libraryExerciseId.toString(),
+        )
+
+        coVerify(exactly = 1) {
+            trainingExerciseDao.insert(
+                match<TrainingExerciseEntity> {
+                    it.trainingUuid == trainingId &&
+                        it.exerciseUuid == libraryExerciseId &&
+                        it.planSets == null
+                },
+            )
+        }
+        coVerify(exactly = 0) { exerciseDao.update(any()) }
+        coVerify(exactly = 0) { exerciseDao.graduateAdhocForTraining(any()) }
+    }
+
+    @Test
+    fun finishSession_adhocTraining_graduatesAllRows() = runTest(dispatcher) {
+        val trainingId = Uuid.random()
+        val sessionId = Uuid.random()
+        val updatedSession = slot<SessionEntity>()
+        coEvery { sessionDao.getById(sessionId) } returns SessionEntity(
+            uuid = sessionId,
+            trainingUuid = trainingId,
+            state = SessionStateEntity.IN_PROGRESS,
+            startedAt = 1_000L,
+            finishedAt = null,
+        )
+        coEvery { sessionDao.update(capture(updatedSession)) } just Runs
+        coEvery { exerciseDao.graduateAdhocForTraining(trainingId) } just Runs
+        coEvery { trainingDao.graduateTraining(trainingId) } just Runs
+
+        val applied = repository.finishSessionAtomic(
+            sessionUuid = sessionId.toString(),
+            finishedAt = 2_000L,
+            planUpdates = emptyList(),
+        )
+
+        assertTrue(applied)
+        assertEquals(SessionStateEntity.FINISHED, updatedSession.captured.state)
+        assertEquals(2_000L, updatedSession.captured.finishedAt)
+        coVerify(exactly = 1) { exerciseDao.graduateAdhocForTraining(trainingId) }
+        coVerify(exactly = 1) { trainingDao.graduateTraining(trainingId) }
     }
 
     @Test

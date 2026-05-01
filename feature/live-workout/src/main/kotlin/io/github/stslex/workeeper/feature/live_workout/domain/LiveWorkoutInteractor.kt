@@ -144,9 +144,8 @@ internal interface LiveWorkoutInteractor {
     )
 
     /**
-     * Domain result of [createInlineAdhocExercise]. [reusedExisting] is `true` when the
-     * typed name matched a library entry; the picker silently surfaces it instead of
-     * raising an error.
+     * Domain result of [createInlineAdhocExercise]. [reusedExisting] is retained for
+     * compatibility with the lower repository envelope and is false for fresh inline rows.
      */
     data class InlineAdhocResult(
         val exerciseUuid: String,

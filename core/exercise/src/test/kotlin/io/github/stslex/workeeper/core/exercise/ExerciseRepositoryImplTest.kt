@@ -23,6 +23,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Test
 import kotlin.uuid.Uuid
 
@@ -115,6 +116,22 @@ internal class ExerciseRepositoryImplTest {
         )
 
         assertEquals(SaveResult.Success, result)
+    }
+
+    @Test
+    fun `createInlineAdhocExercise always inserts a fresh adhoc row`() = runTest(testDispatcher) {
+        val inserted = mutableListOf<ExerciseEntity>()
+        coEvery { exerciseDao.insert(capture(inserted)) } returns Unit
+
+        val first = repository.createInlineAdhocExercise("Skull Crushers")
+        val second = repository.createInlineAdhocExercise("Skull Crushers")
+
+        assertEquals(false, first.reusedExisting)
+        assertEquals(false, second.reusedExisting)
+        assertEquals(2, inserted.size)
+        assertNotEquals(inserted[0].uuid, inserted[1].uuid)
+        assertEquals(true, inserted.all { it.isAdhoc })
+        coVerify(exactly = 0) { exerciseDao.findByName(any()) }
     }
 
     @Test
