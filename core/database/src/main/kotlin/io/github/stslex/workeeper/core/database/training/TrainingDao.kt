@@ -109,6 +109,9 @@ interface TrainingDao {
     @Query("UPDATE training_table SET name = :name WHERE uuid = :uuid")
     suspend fun updateName(uuid: Uuid, name: String)
 
+    @Query("UPDATE training_table SET is_adhoc = 0 WHERE uuid = :uuid")
+    suspend fun graduateTraining(uuid: Uuid)
+
     @Query("UPDATE training_table SET archived = 1, archived_at = :archivedAt WHERE uuid = :uuid")
     suspend fun archive(uuid: Uuid, archivedAt: Long)
 

@@ -259,10 +259,11 @@ internal class SessionRepositoryImpl @Inject constructor(
                 )
             }
         }
-        // Adhoc lifecycle (v2.3): on finish, every exercise plan-attached to this training
-        // graduates to a regular library entry. Runs inside the same transaction as the
-        // state flip so a failed finish does not leak half-graduated rows.
+        // Adhoc lifecycle (v2.3): on finish, the training row and every exercise
+        // plan-attached to it graduate to regular library entries. Runs inside the same
+        // transaction as the state flip so a failed finish does not leak half-graduated rows.
         exerciseDao.graduateAdhocForTraining(current.trainingUuid)
+        trainingDao.graduateTraining(current.trainingUuid)
         dao.update(
             current.copy(
                 state = SessionStateEntity.FINISHED,
