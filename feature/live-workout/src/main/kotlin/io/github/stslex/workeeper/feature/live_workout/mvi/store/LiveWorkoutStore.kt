@@ -27,6 +27,8 @@ internal interface LiveWorkoutStore :
         val trainingUuid: String?,
         val trainingName: String,
         val trainingNameLabel: String,
+        val trainingNameDraft: String,
+        val isTrainingNameEditing: Boolean,
         val isAdhoc: Boolean,
         val startedAt: Long,
         val nowMillis: Long,
@@ -112,7 +114,14 @@ internal interface LiveWorkoutStore :
         val isPlanEditorDirty: Boolean
             get() = planEditorTarget?.let { it.draft != it.initialPlan } == true
 
-        val interceptBack: Boolean get() = isPlanEditorDirty
+        /**
+         * Tracks every UI state that needs to intercept the system back gesture so the
+         * Android 13+ predictive back preview stays alive everywhere else. Dismissal order
+         * is enforced by `ClickHandler.processBackClick`: picker → empty-finish dialog →
+         * name edit → plan-editor dirty → default back.
+         */
+        val interceptBack: Boolean
+            get() = isPlanEditorDirty || isTrainingNameEditing
 
         companion object {
 
@@ -121,6 +130,8 @@ internal interface LiveWorkoutStore :
                 trainingUuid = trainingUuid,
                 trainingName = "",
                 trainingNameLabel = "",
+                trainingNameDraft = "",
+                isTrainingNameEditing = false,
                 isAdhoc = false,
                 startedAt = 0L,
                 nowMillis = 0L,
@@ -180,6 +191,12 @@ internal interface LiveWorkoutStore :
             data object OnDeleteSessionDismiss : Click
             data class OnExerciseHeaderClick(val performedExerciseUuid: String) : Click
             data object OnBackClick : Click
+
+            // v2.3 — editable training-name header (save on blur, "Untitled" placeholder).
+            data object OnTrainingNameTap : Click
+            data class OnTrainingNameChange(val text: String) : Click
+            data class OnTrainingNameSubmit(val text: String) : Click
+            data object OnTrainingNameDismiss : Click
         }
 
         sealed interface Input : Action {

@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.feature.live_workout.ui
 import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -27,12 +28,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.DiscardSessionConfirmDialog
+import io.github.stslex.workeeper.core.ui.kit.components.empty.AppEmptyState
 import io.github.stslex.workeeper.core.ui.kit.components.loading.AppLoadingIndicator
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -164,33 +167,46 @@ private fun Body(
             elapsedLabel = state.elapsedDurationLabel,
             progressLabel = state.progressLabel,
             progress = state.progress,
+            isEditingName = state.isTrainingNameEditing,
+            nameDraft = state.trainingNameDraft,
+            onNameTap = { consume(Action.Click.OnTrainingNameTap) },
+            onNameChange = { consume(Action.Click.OnTrainingNameChange(it)) },
+            onNameSubmit = { consume(Action.Click.OnTrainingNameSubmit(it)) },
             modifier = activeSessionBannerModifier,
         )
         Spacer(Modifier.height(AppDimension.Space.md))
-        LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
-        ) {
-            items(
-                items = state.exercises,
-                key = { it.performedExerciseUuid },
-            ) { exercise ->
-                // Auto-default CURRENT (not in activeUuids) stays expanded by default; any
-                // user-toggled state (including a manually-active CURRENT collapsed by
-                // tapping its header) honors the explicit set.
-                val expanded = exercise.performedExerciseUuid in state.expandedExerciseUuids ||
-                    (
-                        exercise.status == ExerciseStatusUiModel.CURRENT &&
-                            exercise.performedExerciseUuid !in state.activeExerciseUuids
-                        )
-                LiveExerciseCard(
-                    exercise = exercise,
-                    expanded = expanded,
-                    drafts = state.setDrafts,
-                    consume = consume,
-                )
+        if (state.exercises.isEmpty()) {
+            EmptyExercisesPlaceholder(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
+            ) {
+                items(
+                    items = state.exercises,
+                    key = { it.performedExerciseUuid },
+                ) { exercise ->
+                    // Auto-default CURRENT (not in activeUuids) stays expanded by default; any
+                    // user-toggled state (including a manually-active CURRENT collapsed by
+                    // tapping its header) honors the explicit set.
+                    val expanded = exercise.performedExerciseUuid in state.expandedExerciseUuids ||
+                        (
+                            exercise.status == ExerciseStatusUiModel.CURRENT &&
+                                exercise.performedExerciseUuid !in state.activeExerciseUuids
+                            )
+                    LiveExerciseCard(
+                        exercise = exercise,
+                        expanded = expanded,
+                        drafts = state.setDrafts,
+                        consume = consume,
+                    )
+                }
             }
         }
         Spacer(Modifier.height(AppDimension.Space.md))
@@ -207,6 +223,61 @@ private fun Body(
                 enabled = !state.isLoading,
             )
         }
+    }
+}
+
+@Composable
+private fun EmptyExercisesPlaceholder(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center,
+    ) {
+        AppEmptyState(
+            headline = stringResource(R.string.feature_live_workout_empty_headline),
+            supportingText = stringResource(R.string.feature_live_workout_empty_supporting),
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun LiveWorkoutScreenEmptyLightPreview() {
+    AppTheme(themeMode = ThemeMode.LIGHT) {
+        LiveWorkoutScreen(
+            state = stubState().copy(
+                exercises = persistentListOf(),
+                trainingName = "",
+                trainingNameLabel = "Untitled",
+                progressLabel = "",
+                doneCount = 0,
+                totalCount = 0,
+                setsLogged = 0,
+                progress = 0f,
+                isAdhoc = true,
+            ),
+            consume = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun LiveWorkoutScreenEmptyDarkPreview() {
+    AppTheme(themeMode = ThemeMode.DARK) {
+        LiveWorkoutScreen(
+            state = stubState().copy(
+                exercises = persistentListOf(),
+                trainingName = "",
+                trainingNameLabel = "Untitled",
+                progressLabel = "",
+                doneCount = 0,
+                totalCount = 0,
+                setsLogged = 0,
+                progress = 0f,
+                isAdhoc = true,
+            ),
+            consume = {},
+        )
     }
 }
 
@@ -248,6 +319,8 @@ private fun stubState(): State = State(
     trainingUuid = "training-1",
     trainingName = "Push Day",
     trainingNameLabel = "Push Day",
+    trainingNameDraft = "Push Day",
+    isTrainingNameEditing = false,
     isAdhoc = false,
     startedAt = 0L,
     nowMillis = 23 * 60_000L + 14_000L,

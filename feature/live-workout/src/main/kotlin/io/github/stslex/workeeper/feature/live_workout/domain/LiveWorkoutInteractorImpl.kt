@@ -6,8 +6,10 @@ import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.database.sets.SetTypeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
+import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
+import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordDataModel
 import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordRepository
 import io.github.stslex.workeeper.core.exercise.session.PerformedExerciseRepository
 import io.github.stslex.workeeper.core.exercise.session.PlanUpdate
@@ -305,6 +307,16 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
                     type = exercise.type,
                 )
             }
+    }
+
+    override suspend fun fetchPrSnapshotForExercise(
+        exerciseUuid: String,
+        type: ExerciseTypeDataModel,
+    ): PersonalRecordDataModel? = withContext(defaultDispatcher) {
+        // C1 lock — single-exercise lazy fetch. PersonalRecordRepository.getPersonalRecord is
+        // a suspend hit on the same DAO query observePersonalRecord wraps, so we get the
+        // freshest baseline without holding a Flow open mid-session.
+        personalRecordRepository.getPersonalRecord(exerciseUuid, type)
     }
 
     override suspend fun setPlanForExercise(

@@ -61,13 +61,78 @@ internal class ClickHandler @Inject constructor(
             Action.Click.OnDeleteSessionDismiss -> processDeleteSessionDismiss()
             is Action.Click.OnExerciseHeaderClick -> processExerciseHeaderClick(action)
             Action.Click.OnBackClick -> processBackClick()
+            Action.Click.OnTrainingNameTap -> processTrainingNameTap()
+            is Action.Click.OnTrainingNameChange -> processTrainingNameChange(action)
+            is Action.Click.OnTrainingNameSubmit -> processTrainingNameSubmit(action)
+            Action.Click.OnTrainingNameDismiss -> processTrainingNameDismiss()
         }
     }
 
     private fun processBackClick() {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        if (state.value.isPlanEditorDirty) return
+        // Spec dismissal order: picker → empty-finish dialog → name edit → plan-editor
+        // dirty → default back. Picker + dialog will be wired in steps 6/7; for now we
+        // peel off the layers that already exist.
+        val current = state.value
+        if (current.isTrainingNameEditing) {
+            // Submit on back so the keyboard dismiss flow persists changes (per A1
+            // "save on blur via tap-out, IME Done, or back-dismissed keyboard").
+            processTrainingNameSubmit(Action.Click.OnTrainingNameSubmit(current.trainingNameDraft))
+            return
+        }
+        if (current.isPlanEditorDirty) return
         consume(Action.Navigation.Back)
+    }
+
+    private fun processTrainingNameTap() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updateState { current ->
+            current.copy(
+                isTrainingNameEditing = true,
+                trainingNameDraft = current.trainingName,
+            )
+        }
+    }
+
+    private fun processTrainingNameChange(action: Action.Click.OnTrainingNameChange) {
+        updateState { it.copy(trainingNameDraft = action.text) }
+    }
+
+    private fun processTrainingNameSubmit(action: Action.Click.OnTrainingNameSubmit) {
+        val trimmed = action.text.trim()
+        val current = state.value
+        val trainingUuid = current.trainingUuid
+        // Optimistic UI: persist trimmed value into State before the DB write so the header
+        // stops bouncing back to the old name during the suspend round trip.
+        val updatedLabel = trimmed.ifBlank {
+            resourceWrapper.getString(R.string.feature_live_workout_training_name_placeholder)
+        }
+        updateState { latest ->
+            latest.copy(
+                trainingName = trimmed,
+                trainingNameDraft = trimmed,
+                trainingNameLabel = updatedLabel,
+                isTrainingNameEditing = false,
+            )
+        }
+        if (trainingUuid.isNullOrBlank() || trimmed == current.trainingName) return
+        launch(
+            onError = { _ -> sendError(ErrorType.TrainingNameSaveFailed) },
+        ) {
+            interactor.updateTrainingName(trainingUuid, trimmed)
+        }
+    }
+
+    private fun processTrainingNameDismiss() {
+        // Revert path — used when the keyboard is dismissed without commit (we currently
+        // route every blur through Submit, so this fires only from explicit Cancel triggers
+        // a future iteration may wire up).
+        updateState { current ->
+            current.copy(
+                isTrainingNameEditing = false,
+                trainingNameDraft = current.trainingName,
+            )
+        }
     }
 
     private fun processSetMarkDone(action: Action.Click.OnSetMarkDone) {

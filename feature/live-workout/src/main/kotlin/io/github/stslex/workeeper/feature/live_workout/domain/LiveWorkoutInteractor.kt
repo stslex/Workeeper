@@ -66,6 +66,18 @@ internal interface LiveWorkoutInteractor {
         excludedUuids: Set<String>,
     ): List<ExercisePickerEntry>
 
+    /**
+     * Single-exercise lazy PR fetch used by the mid-session add-exercise handler. Returns
+     * the heaviest finished-session set for [exerciseUuid] under the [type]-aware ordering,
+     * or `null` for an exercise with no history (typical for newly inline-created entries).
+     * The handler merges the result into `State.preSessionPrSnapshot` via map-plus
+     * semantics so parallel fetches are race-safe.
+     */
+    suspend fun fetchPrSnapshotForExercise(
+        exerciseUuid: String,
+        type: ExerciseTypeDataModel,
+    ): PersonalRecordDataModel?
+
     suspend fun loadSession(sessionUuid: String): SessionSnapshot?
 
     suspend fun upsertSet(
