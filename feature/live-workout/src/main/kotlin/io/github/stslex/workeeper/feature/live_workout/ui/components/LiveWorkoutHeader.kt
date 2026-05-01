@@ -18,7 +18,10 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -120,6 +123,7 @@ private fun EditableTrainingNameField(
     onSubmit: (String) -> Unit,
 ) {
     val focusRequester = remember { FocusRequester() }
+    var wasFocused by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
     Box(modifier = Modifier.fillMaxWidth()) {
         BasicTextField(
@@ -127,7 +131,8 @@ private fun EditableTrainingNameField(
                 .fillMaxWidth()
                 .focusRequester(focusRequester)
                 .onFocusChanged { focusState ->
-                    if (!focusState.isFocused) onSubmit(value)
+                    if (wasFocused && !focusState.isFocused) onSubmit(value)
+                    wasFocused = focusState.isFocused
                 }
                 .testTag("LiveWorkoutTrainingNameField"),
             value = value,
