@@ -241,9 +241,16 @@ internal class SessionRepositoryImpl @Inject constructor(
         sessionUuid: String,
         finishedAt: Long,
         planUpdates: List<PlanUpdate>,
+        newTrainingName: String?,
     ): Boolean = transition {
         val current = dao.getById(Uuid.parse(sessionUuid))
             ?: return@transition false
+        // Pair the optional rename with the finish: same transaction, single Room batch.
+        // A throw at any point in this block rolls back the rename, plan updates,
+        // graduation, and state flip together — no half-finished named training can leak.
+        if (newTrainingName != null) {
+            trainingDao.updateName(current.trainingUuid, newTrainingName)
+        }
         planUpdates.asyncForEach { update ->
             val planJson = PlanSetsConverter.toJson(update.newPlan)
             if (update.isAdhoc) {

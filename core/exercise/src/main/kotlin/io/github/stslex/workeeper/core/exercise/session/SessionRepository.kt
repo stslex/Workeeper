@@ -77,11 +77,17 @@ interface SessionRepository {
      * + compensating-rollback path: if any mutation throws, Room rolls back the whole batch
      * and the caller observes a thrown exception. Returns false when the session row is
      * missing (e.g. already deleted).
+     *
+     * When [newTrainingName] is non-null, the training row's name is updated inside the
+     * same transaction before the session-state flip and graduation. This pairs the v2.3
+     * finish-dialog rename with the finish itself so a crash between the two writes can
+     * never leave a named-but-unfinished session or an unfinishable named training.
      */
     suspend fun finishSessionAtomic(
         sessionUuid: String,
         finishedAt: Long,
         planUpdates: List<PlanUpdate>,
+        newTrainingName: String? = null,
     ): Boolean
 
     suspend fun deleteSession(uuid: String)

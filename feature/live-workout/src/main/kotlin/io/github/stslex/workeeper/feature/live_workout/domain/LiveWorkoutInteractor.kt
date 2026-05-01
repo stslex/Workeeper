@@ -94,7 +94,18 @@ internal interface LiveWorkoutInteractor {
 
     suspend fun resetExerciseSets(performedExerciseUuid: String)
 
-    suspend fun finishSession(sessionUuid: String): FinishResult?
+    /**
+     * Finishes [sessionUuid] and applies the per-exercise plan updates atomically.
+     * When [newTrainingName] is non-null, the training rename is applied inside the same
+     * transaction as the state flip + graduation — used by the finish-dialog name-required
+     * path so the rename and finish cannot land out of order. The header-blur edit path
+     * still uses [updateTrainingName] directly because that rename is independent of any
+     * session-state change.
+     */
+    suspend fun finishSession(
+        sessionUuid: String,
+        newTrainingName: String? = null,
+    ): FinishResult?
 
     suspend fun cancelSession(sessionUuid: String)
 

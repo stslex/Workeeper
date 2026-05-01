@@ -469,10 +469,12 @@ internal class ClickHandler @Inject constructor(
                 sendError(ErrorType.FinishFailed)
             },
         ) {
-            if (requiredName != null && trainingUuid != null) {
-                interactor.updateTrainingName(trainingUuid, requiredName)
-            }
-            interactor.finishSession(sessionUuid)
+            // Rename + finish are paired inside finishSessionAtomic so a crash between
+            // the two writes can no longer leave a named-but-IN_PROGRESS session.
+            interactor.finishSession(
+                sessionUuid = sessionUuid,
+                newTrainingName = requiredName,
+            )
         }
     }
 

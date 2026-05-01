@@ -18,6 +18,7 @@ import io.github.stslex.workeeper.core.database.training.TrainingExerciseEntity
 import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.slot
@@ -25,6 +26,7 @@ import io.mockk.spyk
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.uuid.Uuid
@@ -213,6 +215,94 @@ internal class SessionRepositoryAdhocLifecycleTest {
         assertEquals(2_000L, updatedSession.captured.finishedAt)
         coVerify(exactly = 1) { exerciseDao.graduateAdhocForTraining(trainingId) }
         coVerify(exactly = 1) { trainingDao.graduateTraining(trainingId) }
+    }
+
+    @Test
+    fun finishSession_withNewName_appliesNameInsideTransaction() = runTest(dispatcher) {
+        val trainingId = Uuid.random()
+        val sessionId = Uuid.random()
+        coEvery { sessionDao.getById(sessionId) } returns SessionEntity(
+            uuid = sessionId,
+            trainingUuid = trainingId,
+            state = SessionStateEntity.IN_PROGRESS,
+            startedAt = 1_000L,
+            finishedAt = null,
+        )
+
+        val applied = repository.finishSessionAtomic(
+            sessionUuid = sessionId.toString(),
+            finishedAt = 2_000L,
+            planUpdates = emptyList(),
+            newTrainingName = "Renamed Push Day",
+        )
+
+        assertTrue(applied)
+        // Order proves rename + graduation + state flip ran in the same transition block:
+        // the updateName lands first, then graduation, then the FINISHED flip — Room
+        // rolls back the whole batch if any step throws.
+        coVerifyOrder {
+            transition.invoke(any<suspend () -> Boolean>())
+            trainingDao.updateName(trainingId, "Renamed Push Day")
+            exerciseDao.graduateAdhocForTraining(trainingId)
+            trainingDao.graduateTraining(trainingId)
+            sessionDao.update(any())
+        }
+    }
+
+    @Test
+    fun finishSession_withNullName_doesNotCallUpdateName() = runTest(dispatcher) {
+        val trainingId = Uuid.random()
+        val sessionId = Uuid.random()
+        coEvery { sessionDao.getById(sessionId) } returns SessionEntity(
+            uuid = sessionId,
+            trainingUuid = trainingId,
+            state = SessionStateEntity.IN_PROGRESS,
+            startedAt = 1_000L,
+            finishedAt = null,
+        )
+
+        val applied = repository.finishSessionAtomic(
+            sessionUuid = sessionId.toString(),
+            finishedAt = 2_000L,
+            planUpdates = emptyList(),
+            newTrainingName = null,
+        )
+
+        assertTrue(applied)
+        coVerify(exactly = 0) { trainingDao.updateName(any(), any()) }
+    }
+
+    @Test
+    fun finishSession_withNewName_failureBeforeStateFlipSkipsUpdate() = runTest(dispatcher) {
+        val trainingId = Uuid.random()
+        val sessionId = Uuid.random()
+        coEvery { sessionDao.getById(sessionId) } returns SessionEntity(
+            uuid = sessionId,
+            trainingUuid = trainingId,
+            state = SessionStateEntity.IN_PROGRESS,
+            startedAt = 1_000L,
+            finishedAt = null,
+        )
+        // Simulate a write failure after the rename but before the state flip — in
+        // production Room rolls back the entire transaction including the rename.
+        coEvery { exerciseDao.graduateAdhocForTraining(trainingId) } throws
+            IllegalStateException("graduation write failed")
+
+        assertThrows(IllegalStateException::class.java) {
+            kotlinx.coroutines.runBlocking {
+                repository.finishSessionAtomic(
+                    sessionUuid = sessionId.toString(),
+                    finishedAt = 2_000L,
+                    planUpdates = emptyList(),
+                    newTrainingName = "Half-Applied",
+                )
+            }
+        }
+
+        // The state flip never ran — the exception bubbled out of the transition block,
+        // so Room would not have committed the rename either.
+        coVerify(exactly = 0) { sessionDao.update(any()) }
+        coVerify(exactly = 0) { trainingDao.graduateTraining(any()) }
     }
 
     @Test

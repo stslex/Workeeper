@@ -144,7 +144,7 @@ internal class LiveWorkoutInteractorImplTest {
         )
         val captured = slot<List<PlanUpdate>>()
         coEvery {
-            sessionRepository.finishSessionAtomic(eq(sessionUuid), any(), capture(captured))
+            sessionRepository.finishSessionAtomic(eq(sessionUuid), any(), capture(captured), any())
         } returns true
 
         val result = interactor.finishSession(sessionUuid)
@@ -206,7 +206,7 @@ internal class LiveWorkoutInteractorImplTest {
         coEvery { exerciseRepository.getAdhocPlan("ex-1") } returns null
         val captured = slot<List<PlanUpdate>>()
         coEvery {
-            sessionRepository.finishSessionAtomic(eq(sessionUuid), any(), capture(captured))
+            sessionRepository.finishSessionAtomic(eq(sessionUuid), any(), capture(captured), any())
         } returns true
 
         interactor.finishSession(sessionUuid)
@@ -244,7 +244,7 @@ internal class LiveWorkoutInteractorImplTest {
         )
         coEvery { performedExerciseRepository.getBySession(sessionUuid) } returns emptyList()
         coEvery {
-            sessionRepository.finishSessionAtomic(any(), any(), any())
+            sessionRepository.finishSessionAtomic(any(), any(), any(), any())
         } returns false
 
         val result = interactor.finishSession(sessionUuid)

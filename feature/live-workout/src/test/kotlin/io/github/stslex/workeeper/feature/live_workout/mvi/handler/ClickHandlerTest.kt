@@ -231,7 +231,49 @@ internal class ClickHandlerTest {
 
         assertEquals("Name is required", stateFlow.value.pendingFinishConfirm?.nameError)
         coVerify(exactly = 0) { interactor.updateTrainingName(any(), any()) }
-        coVerify(exactly = 0) { interactor.finishSession(any()) }
+        coVerify(exactly = 0) { interactor.finishSession(any(), any()) }
+    }
+
+    @Test
+    fun finishSession_withRequiredName_collapsesToSingleAtomicCall() = runTest {
+        val store = FakeLiveWorkoutHandlerStore(
+            baseState(loggedExercise()).copy(
+                trainingName = "",
+                trainingNameLabel = "Untitled",
+                pendingFinishConfirm = State.FinishStats(
+                    durationMillis = 60_000L,
+                    durationLabel = "1m",
+                    exercisesSummaryLabel = "1 / 1",
+                    setsLoggedLabel = "1",
+                    newPersonalRecords = kotlinx.collections.immutable.persistentListOf(),
+                    requiresName = true,
+                    nameDraft = "Push Day",
+                    nameLabel = "Training name",
+                    namePlaceholder = "Untitled",
+                    nameError = null,
+                    confirmEnabled = true,
+                ),
+            ),
+        )
+        val handler = ClickHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            pickerHandler = pickerHandler,
+            store = store,
+        )
+
+        handler.invoke(Action.Click.OnFinishConfirm)
+        store.runLatestLaunch(this)
+
+        // Standalone updateTrainingName must NOT fire here — the rename is now folded into
+        // finishSession's transaction so a crash between the two writes is impossible.
+        coVerify(exactly = 0) { interactor.updateTrainingName(any(), any()) }
+        coVerify(exactly = 1) {
+            interactor.finishSession(
+                sessionUuid = "session-1",
+                newTrainingName = "Push Day",
+            )
+        }
     }
 
     @Test

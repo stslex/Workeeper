@@ -169,6 +169,7 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
 
     override suspend fun finishSession(
         sessionUuid: String,
+        newTrainingName: String?,
     ): FinishResult? = withContext(defaultDispatcher) {
         val session = sessionRepository.getById(sessionUuid) ?: return@withContext null
         val training = async { trainingRepository.getTraining(session.trainingUuid) }
@@ -213,6 +214,7 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
             sessionUuid = sessionUuid,
             finishedAt = finishedAt,
             planUpdates = planUpdates,
+            newTrainingName = newTrainingName,
         )
         if (!applied) return@withContext null
         FinishResult(
