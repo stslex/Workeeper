@@ -89,7 +89,8 @@ jobs:
           VERSION_CODE: ${{ steps.bump.outputs.version_code }}
         run: |
           git checkout -b "$BRANCH"
-          git commit -am "chore: bump to v.${VERSION_NAME} (code ${VERSION_CODE})"
+          git add gradle/libs.versions.toml
+          git commit -m "chore: bump to v.${VERSION_NAME} (code ${VERSION_CODE})"
 
       - name: Push release branch
         env:

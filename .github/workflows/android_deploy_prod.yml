@@ -211,7 +211,7 @@ jobs:
       - name: Generate Play changelog
         env:
           VERSION_CODE: ${{ needs.guard.outputs.version_code }}
-          HEAD_SHA: ${{ github.sha }}
+          HEAD_SHA: ${{ needs.guard.outputs.sha }}
         run: |
           # Match both old (release-vX.Y) and new (release-v.X.Y.Z) tag formats
           # so the very first migration release still has a sensible diff window.

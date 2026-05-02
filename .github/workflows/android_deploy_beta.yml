@@ -34,7 +34,11 @@ jobs:
 
       - name: Update Version
         # Bump scheme is undecided; see the disable comment on the deploy_beta job.
-        run: bash ./.github/scripts/bump_version.sh --mode=hotfix
+        # Failing loudly here prevents anyone re-enabling the workflow without
+        # first picking a beta-appropriate scheme (Issue #102).
+        run: |
+          echo "::error::Beta version bump scheme has not been chosen. Resolve Issue #102 (https://github.com/stslex/Workeeper/issues/102) and pick a --mode for bump_version.sh before re-enabling this workflow."
+          exit 1
 
       - name: Read version from toml
         id: version

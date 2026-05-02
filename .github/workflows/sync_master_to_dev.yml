@@ -19,8 +19,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: master
+          ref: dev
           fetch-depth: 0
+          token: ${{ secrets.PUSH_TOKEN }}
+
+      - name: Apply master onto the working tree
+        run: |
+          git fetch origin master
+          git reset --hard origin/master
+
       - uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.PUSH_TOKEN }}
