@@ -2,7 +2,12 @@ name: PR Guard
 
 on:
   pull_request:
-    branches: [master]
+    branches: [ master ]
+
+
+concurrency:
+  group: pr-guard-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
