@@ -8,18 +8,23 @@ import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Action
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.State
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.flow.MutableStateFlow
-import org.junit.jupiter.api.Assertions.assertTrue
+import kotlinx.coroutines.flow.emptyFlow
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 internal class CommonHandlerTest {
 
-    private val interactor = mockk<HomeInteractor>(relaxed = true)
+    private val interactor = mockk<HomeInteractor>(relaxed = true) {
+        every { observeActiveSession() } returns emptyFlow()
+        every { observeRecent(any()) } returns emptyFlow()
+    }
     private val resources = mockk<ResourceWrapper>(relaxed = true)
 
     @Test
-    fun `TimerTick updates nowMillis`() {
-        val stateFlow = MutableStateFlow(State.INITIAL.copy(isActiveLoaded = true, isRecentLoaded = true))
+    fun `Init subscribes to active session and recent flows`() {
+        val stateFlow = MutableStateFlow(State.INITIAL)
         val store = mockk<HomeHandlerStore>(relaxed = true).apply {
             every { state } returns stateFlow
             every { updateState(any()) } answers {
@@ -33,8 +38,10 @@ internal class CommonHandlerTest {
             store = store,
         )
 
-        handler.invoke(Action.Common.TimerTick)
+        handler.invoke(Action.Common.Init)
 
-        assertTrue(stateFlow.value.nowMillis > 0L)
+        verify { interactor.observeActiveSession() }
+        verify { interactor.observeRecent(any()) }
+        assertEquals(State.INITIAL, stateFlow.value)
     }
 }

@@ -16,8 +16,18 @@ internal class NavigationHandler(
         when (action) {
             Action.Navigation.Back -> navigator.popBack()
             is Action.Navigation.OpenSession -> Unit
+            is Action.Navigation.OpenLiveWorkout -> navigator.navTo(
+                Screen.LiveWorkout(
+                    sessionUuid = action.sessionUuid,
+                    trainingUuid = null,
+                ),
+            )
+
             is Action.Navigation.OpenImageViewer ->
                 navigator.navTo(Screen.ExerciseImage(action.model))
+
+            is Action.Navigation.OpenChart ->
+                navigator.navTo(Screen.ExerciseChart(exerciseUuid = action.exerciseUuid))
         }
     }
 }

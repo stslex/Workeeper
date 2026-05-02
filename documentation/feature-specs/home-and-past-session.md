@@ -630,6 +630,7 @@ sealed interface Action : Store.Action {
 
     sealed interface Click : Action {
         data object OnActiveSessionClick : Click
+        data object OnChartsClick : Click                    // v2.2: Charts icon left of Settings
         data object OnSettingsClick : Click
         data class OnRecentSessionClick(val sessionUuid: String) : Click
         data object OnStartTrainingClick : Click             // opens picker
@@ -643,6 +644,7 @@ sealed interface Action : Store.Action {
         data class OpenLiveWorkoutFresh(val trainingUuid: String) : Navigation
         data class OpenPastSession(val sessionUuid: String) : Navigation
         data object OpenSettings : Navigation
+        data object OpenCharts : Navigation                  // v2.2 → Screen.ExerciseChart(null)
         data object OpenAllTrainings : Navigation
     }
 
@@ -704,6 +706,8 @@ internal class NavigationHandler(
             is Action.Navigation.OpenPastSession ->
                 navigator.navTo(Screen.PastSession(action.sessionUuid))
             Action.Navigation.OpenSettings -> navigator.navTo(Screen.Settings)
+            Action.Navigation.OpenCharts ->
+                navigator.navTo(Screen.ExerciseChart(exerciseUuid = null))
             Action.Navigation.OpenAllTrainings -> navigator.navTo(Screen.BottomBar.AllTrainings)
         }
     }
@@ -779,6 +783,7 @@ data class State(
         val repsInput: String,
         val weightError: Boolean,
         val repsError: Boolean,
+        val isPersonalRecord: Boolean,           // v2.1 — true iff setUuid matches current PR
     )
 
     enum class ErrorType { SessionNotFound, LoadFailed }
@@ -786,6 +791,13 @@ data class State(
     val canDelete: Boolean get() = phase is Phase.Loaded
 }
 ```
+
+**v2.1 PR badge.** `PastSessionInteractor.observeDetailWithPrs(sessionUuid)` returns a
+combined `Flow<DetailWithPrs?>` that pairs the one-shot session detail with a reactive PR
+map (`observePersonalRecords` per exercise). The mapper sets `isPersonalRecord = (prMap
+[exerciseUuid]?.setUuid == set.uuid)`. Edits apply optimistically through `InputHandler`,
+so the snapshot stays consistent between PR re-emissions; when the user saves an edit, the
+underlying `set_table` change triggers Room to re-emit the PR map and the badge follows.
 
 ### Action
 

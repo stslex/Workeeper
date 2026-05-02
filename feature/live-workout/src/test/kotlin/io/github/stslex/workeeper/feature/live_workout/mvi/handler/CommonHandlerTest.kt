@@ -8,8 +8,9 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStor
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 internal class CommonHandlerTest {
@@ -18,13 +19,9 @@ internal class CommonHandlerTest {
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
 
     @Test
-    fun `TimerTick updates nowMillis when session is started`() {
+    fun `Init launches a load coroutine`() {
         val stateFlow = MutableStateFlow(
-            State.create(sessionUuid = "session-1", trainingUuid = "training-1").copy(
-                startedAt = 1L,
-                nowMillis = 1L,
-                isLoading = false,
-            ),
+            State.create(sessionUuid = "session-1", trainingUuid = "training-1"),
         )
         val store = mockk<LiveWorkoutHandlerStore>(relaxed = true).apply {
             every { state } returns stateFlow
@@ -39,8 +36,16 @@ internal class CommonHandlerTest {
             store = store,
         )
 
-        handler.invoke(Action.Common.TimerTick)
+        handler.invoke(Action.Common.Init)
 
-        assertTrue(stateFlow.value.nowMillis >= stateFlow.value.startedAt)
+        verify {
+            store.launch(
+                any(),
+                any(),
+                any(),
+                any(),
+                any<suspend CoroutineScope.() -> String?>(),
+            )
+        }
     }
 }

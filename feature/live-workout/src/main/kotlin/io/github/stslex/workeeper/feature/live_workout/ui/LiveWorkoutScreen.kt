@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.live_workout.ui
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -26,11 +28,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
+import io.github.stslex.workeeper.core.ui.kit.components.dialog.DiscardSessionConfirmDialog
+import io.github.stslex.workeeper.core.ui.kit.components.empty.AppEmptyState
 import io.github.stslex.workeeper.core.ui.kit.components.loading.AppLoadingIndicator
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -56,6 +61,7 @@ internal fun LiveWorkoutScreen(
     state: State,
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
+    activeSessionBannerModifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier
@@ -69,8 +75,28 @@ internal fun LiveWorkoutScreen(
                 modifier = Modifier.fillMaxSize(),
             )
         } else {
-            Body(state = state, consume = consume)
+            Body(
+                state = state,
+                activeSessionBannerModifier = activeSessionBannerModifier,
+                consume = consume,
+            )
         }
+    }
+    if (state.deleteDialogVisible) {
+        val sessionName = state.trainingNameLabel.takeIf { it.isNotBlank() }
+            ?: stringResource(R.string.feature_live_workout_delete_session_unnamed)
+        val progressLabel = stringResource(
+            R.string.feature_live_workout_delete_session_progress_format,
+            state.doneCount,
+            state.totalCount,
+            state.setsLogged,
+        )
+        DiscardSessionConfirmDialog(
+            sessionName = sessionName,
+            progressLabel = progressLabel,
+            onConfirmDelete = { consume(Action.Click.OnDeleteSessionConfirm) },
+            onDismiss = { consume(Action.Click.OnDeleteSessionDismiss) },
+        )
     }
 }
 
@@ -107,6 +133,18 @@ private fun TopBar(consume: (Action) -> Unit) {
                         consume(Action.Click.OnCancelSessionClick)
                     },
                 )
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = stringResource(R.string.feature_live_workout_delete_session),
+                            color = AppUi.colors.setType.failureForeground,
+                        )
+                    },
+                    onClick = {
+                        menuExpanded = false
+                        consume(Action.Click.OnDeleteSessionMenuClick)
+                    },
+                )
             }
         },
     )
@@ -115,6 +153,7 @@ private fun TopBar(consume: (Action) -> Unit) {
 @Composable
 private fun Body(
     state: State,
+    @SuppressLint("ModifierParameter") activeSessionBannerModifier: Modifier = Modifier,
     consume: (Action) -> Unit,
 ) {
     Column(
@@ -125,31 +164,58 @@ private fun Body(
         Spacer(Modifier.height(AppDimension.Space.sm))
         LiveWorkoutHeader(
             trainingNameLabel = state.trainingNameLabel,
+            namePlaceholder = stringResource(R.string.feature_live_workout_training_name_placeholder),
             elapsedLabel = state.elapsedDurationLabel,
             progressLabel = state.progressLabel,
             progress = state.progress,
+            isEditingName = state.isTrainingNameEditing,
+            nameDraft = state.trainingNameDraft,
+            onNameTap = { consume(Action.Click.OnTrainingNameTap) },
+            onNameChange = { consume(Action.Click.OnTrainingNameChange(it)) },
+            onNameSubmit = { consume(Action.Click.OnTrainingNameSubmit(it)) },
+            modifier = activeSessionBannerModifier,
         )
         Spacer(Modifier.height(AppDimension.Space.md))
-        LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
-        ) {
-            items(
-                items = state.exercises,
-                key = { it.performedExerciseUuid },
-            ) { exercise ->
-                LiveExerciseCard(
-                    exercise = exercise,
-                    expanded = exercise.status == ExerciseStatusUiModel.CURRENT ||
+        if (state.exercises.isEmpty()) {
+            EmptyExercisesPlaceholder(
+                onAddExerciseClick = { consume(Action.Click.OnAddExerciseClick) },
+                isAddEnabled = state.canAddExercise,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
+            ) {
+                items(
+                    items = state.exercises,
+                    key = { it.performedExerciseUuid },
+                ) { exercise ->
+                    // Auto-default CURRENT (not in activeUuids) stays expanded by default; any
+                    // user-toggled state (including a manually-active CURRENT collapsed by
+                    // tapping its header) honors the explicit set.
+                    val expanded = exercise.performedExerciseUuid in state.expandedExerciseUuids ||
                         (
-                            exercise.status == ExerciseStatusUiModel.DONE &&
-                                exercise.performedExerciseUuid in state.expandedDoneExerciseUuids
-                            ),
-                    drafts = state.setDrafts,
-                    consume = consume,
-                )
+                            exercise.status == ExerciseStatusUiModel.CURRENT &&
+                                exercise.performedExerciseUuid !in state.activeExerciseUuids
+                            )
+                    LiveExerciseCard(
+                        exercise = exercise,
+                        expanded = expanded,
+                        drafts = state.setDrafts,
+                        consume = consume,
+                    )
+                }
+                item(key = "add-another-exercise-cta") {
+                    AddAnotherExerciseRow(
+                        onClick = { consume(Action.Click.OnAddExerciseClick) },
+                        enabled = state.canAddExercise,
+                    )
+                }
             }
         }
         Spacer(Modifier.height(AppDimension.Space.md))
@@ -166,6 +232,83 @@ private fun Body(
                 enabled = !state.isLoading,
             )
         }
+    }
+}
+
+@Composable
+private fun EmptyExercisesPlaceholder(
+    onAddExerciseClick: () -> Unit,
+    isAddEnabled: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center,
+    ) {
+        AppEmptyState(
+            headline = stringResource(R.string.feature_live_workout_empty_headline),
+            supportingText = stringResource(R.string.feature_live_workout_empty_supporting),
+            actionLabel = stringResource(R.string.feature_live_workout_add_exercise_cta)
+                .takeIf { isAddEnabled },
+            onAction = onAddExerciseClick.takeIf { isAddEnabled },
+        )
+    }
+}
+
+@Composable
+private fun AddAnotherExerciseRow(
+    onClick: () -> Unit,
+    enabled: Boolean,
+) {
+    AppButton.Tertiary(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("LiveWorkoutAddAnotherExerciseCta"),
+        text = stringResource(R.string.feature_live_workout_add_another_exercise_cta),
+        onClick = onClick,
+        enabled = enabled,
+    )
+}
+
+@Preview
+@Composable
+private fun LiveWorkoutScreenEmptyLightPreview() {
+    AppTheme(themeMode = ThemeMode.LIGHT) {
+        LiveWorkoutScreen(
+            state = stubState().copy(
+                exercises = persistentListOf(),
+                trainingName = "",
+                trainingNameLabel = "Untitled",
+                progressLabel = "",
+                doneCount = 0,
+                totalCount = 0,
+                setsLogged = 0,
+                progress = 0f,
+                isAdhoc = true,
+            ),
+            consume = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun LiveWorkoutScreenEmptyDarkPreview() {
+    AppTheme(themeMode = ThemeMode.DARK) {
+        LiveWorkoutScreen(
+            state = stubState().copy(
+                exercises = persistentListOf(),
+                trainingName = "",
+                trainingNameLabel = "Untitled",
+                progressLabel = "",
+                doneCount = 0,
+                totalCount = 0,
+                setsLogged = 0,
+                progress = 0f,
+                isAdhoc = true,
+            ),
+            consume = {},
+        )
     }
 }
 
@@ -207,6 +350,8 @@ private fun stubState(): State = State(
     trainingUuid = "training-1",
     trainingName = "Push Day",
     trainingNameLabel = "Push Day",
+    trainingNameDraft = "Push Day",
+    isTrainingNameEditing = false,
     isAdhoc = false,
     startedAt = 0L,
     nowMillis = 23 * 60_000L + 14_000L,
@@ -256,12 +401,19 @@ private fun stubState(): State = State(
         ),
     ),
     setDrafts = persistentMapOf(),
-    expandedDoneExerciseUuids = kotlinx.collections.immutable.persistentSetOf(),
+    activeExerciseUuids = kotlinx.collections.immutable.persistentSetOf(),
+    expandedExerciseUuids = kotlinx.collections.immutable.persistentSetOf(),
+    preSessionPrSnapshot = persistentMapOf(),
     planEditorTarget = null,
     pendingFinishConfirm = null,
     pendingResetExerciseUuid = null,
     pendingSkipExerciseUuid = null,
     pendingCancelConfirm = false,
+    deleteDialogVisible = false,
+    exercisePickerSheet = State.ExercisePickerSheetState.Hidden,
+    emptyFinishDialog = State.EmptyFinishDialogState.Hidden,
+    isAddExerciseInFlight = false,
+    isFinishInFlight = false,
     isLoading = false,
     errorMessage = null,
 )

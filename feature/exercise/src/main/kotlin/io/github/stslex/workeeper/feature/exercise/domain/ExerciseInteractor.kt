@@ -6,7 +6,10 @@ import io.github.stslex.workeeper.core.core.images.model.ImageSaveResult
 import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.HistoryEntry
+import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordDataModel
+import io.github.stslex.workeeper.core.exercise.session.model.ActiveSessionInfo
 import io.github.stslex.workeeper.core.exercise.tags.model.TagDataModel
 import kotlinx.coroutines.flow.Flow
 import kotlin.uuid.Uuid
@@ -24,6 +27,16 @@ internal interface ExerciseInteractor {
     ): List<HistoryEntry>
 
     fun observeAvailableTags(): Flow<List<TagDataModel>>
+
+    /**
+     * Reactive PR for the exercise. Re-emits when finished-session sets for [exerciseUuid]
+     * change (Room invalidation). Drives the read-mode PR card; collected only when the
+     * screen is bound to an existing exercise (create mode has no uuid yet).
+     */
+    fun observePersonalRecord(
+        exerciseUuid: String,
+        type: ExerciseTypeDataModel,
+    ): Flow<PersonalRecordDataModel?>
 
     suspend fun saveExercise(snapshot: ExerciseChangeDataModel): SaveResult
 
@@ -48,6 +61,40 @@ internal interface ExerciseInteractor {
     suspend fun createTempCaptureUri(): Uri
 
     suspend fun deleteImageFile(path: String): Boolean
+
+    /**
+     * Resolve whether an active session blocks Track now. Track now always creates a fresh
+     * ad-hoc training, so the same-training silent-resume case used by Home and Training
+     * detail does not apply — any active session means the user must choose how to
+     * reconcile.
+     */
+    suspend fun resolveTrackNowConflict(): TrackNowConflict
+
+    /**
+     * Create an ad-hoc training that wraps [exerciseUuid] only, then start a session for it.
+     * Returns the new session uuid for navigation. Delegates to
+     * `SessionRepository.createAdhocSession` — same data path as v2.3 Quick start. Plan
+     * rows are persisted with `plan_sets = null`; the existing `loadSession` fallback
+     * (`exercise.last_adhoc_sets`) populates the editor.
+     */
+    suspend fun startTrackNowSession(exerciseUuid: String): String
+
+    /**
+     * Cancel the in-progress session [sessionUuid]. Branches on training type so an ad-hoc
+     * training created for Track Now (or v2.3 Quick start) is cascade-deleted alongside
+     * its inline-created exercises, while a library training session is just unlinked.
+     * Replaces the older session-only delete that leaked the parent ad-hoc training row —
+     * this is the bug the v5 → v6 retroactive sweep cleans up history of.
+     */
+    suspend fun deleteSession(sessionUuid: String)
+
+    sealed interface TrackNowConflict {
+
+        data object ProceedFresh : TrackNowConflict
+
+        data class NeedsUserChoice(val active: ActiveSessionInfo, val sessionLabel: String) :
+            TrackNowConflict
+    }
 
     sealed interface ArchiveResult {
 

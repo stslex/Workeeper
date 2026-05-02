@@ -5,6 +5,7 @@ import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.HistoryEntry
+import io.github.stslex.workeeper.core.exercise.exercise.model.RecentExerciseDataModel
 import kotlinx.coroutines.flow.Flow
 import kotlin.uuid.Uuid
 
@@ -20,6 +21,14 @@ interface ExerciseRepository {
     suspend fun getExercise(uuid: String): ExerciseDataModel?
 
     suspend fun saveItem(item: ExerciseChangeDataModel): SaveResult
+
+    /**
+     * Inserts an `is_adhoc = 1` exercise row from a single user-typed name. Used by the
+     * inline-create flow inside the Quick start / Track Now exercise picker. Type defaults
+     * to `WEIGHTED`; description, image, and tags are not captured at create time — the
+     * user can enrich the exercise from Exercise detail after the session graduates it.
+     */
+    suspend fun createInlineAdhocExercise(name: String): InlineAdhocResult
 
     suspend fun getAdhocPlan(exerciseUuid: String): List<PlanSetDataModel>?
 
@@ -73,6 +82,19 @@ interface ExerciseRepository {
     suspend fun getRecentHistory(exerciseUuid: String, limit: Int): List<HistoryEntry>
 
     /**
+     * UUID of the exercise from the most recently finished session, or `null` when no
+     * finished sessions exist. Used by the v2.2 chart screen to pick a default selection
+     * when entered without an explicit `exerciseUuid`.
+     */
+    suspend fun getLastTrainedExerciseUuid(): String?
+
+    /**
+     * Active exercises with at least one finished session, ordered by most-recent-finished
+     * first. Powers the v2.2 chart picker.
+     */
+    suspend fun getRecentlyTrainedExercises(): List<RecentExerciseDataModel>
+
+    /**
      * Returns the tag names denormalized through the `exercise_tag` join. Replaces the
      * legacy `ExerciseDataModel.labels` field; callers query this only when they actually
      * need to render tags so the Exercise data model stays untainted by join data.
@@ -109,5 +131,16 @@ interface ExerciseRepository {
     data class BulkArchiveOutcome(
         val archivedCount: Int,
         val blockedNames: List<String>,
+    )
+
+    /**
+     * Result of [createInlineAdhocExercise]. [reusedExisting] is true when a case-insensitive
+     * name match was found and the existing row was returned without insert. The picker uses
+     * this flag to decide whether to fetch the PR baseline — reused rows have history,
+     * fresh-inserted ad-hoc rows do not.
+     */
+    data class InlineAdhocResult(
+        val exercise: ExerciseDataModel,
+        val reusedExisting: Boolean,
     )
 }

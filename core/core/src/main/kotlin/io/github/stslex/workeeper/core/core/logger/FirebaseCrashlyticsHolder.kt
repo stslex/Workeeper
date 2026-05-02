@@ -10,16 +10,20 @@ object FirebaseCrashlyticsHolder {
     private const val UNRESOLVE_SCREEN_NAME = "UNRESOLVED"
 
     private val crashlytics by lazy { Firebase.crashlytics }
+    private val filter = EventsFilter()
 
+    @Synchronized
     fun log(message: String) {
-        crashlytics.log(message)
+        filter(message) { crashlytics.log(message) }
     }
 
+    @Synchronized
     fun recordException(
         throwable: Throwable,
         tag: String,
     ) {
         crashlytics.recordException(throwable) { key("TAG", tag) }
+        filter.clear()
     }
 
     fun setCustomKey(key: String, value: String) {

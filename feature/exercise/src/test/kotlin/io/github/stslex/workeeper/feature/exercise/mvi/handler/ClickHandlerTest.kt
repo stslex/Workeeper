@@ -250,13 +250,49 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `OnTrackNowClick emits Haptic and ShowTrackNowPending`() {
+    fun `OnTrackNowClick emits ContextClick haptic`() {
         val (_, store, handler) = setup()
         handler.invoke(Action.Click.OnTrackNowClick)
         val events = mutableListOf<Event>()
         verify { store.sendEvent(capture(events)) }
         assertTrue(events.any { it is Event.Haptic && it.type == HapticFeedbackType.ContextClick })
-        assertTrue(events.any { it is Event.ShowTrackNowPending })
+    }
+
+    @Test
+    fun `OnTrackNowResumeConfirm with no pending conflict is a no-op`() {
+        val (_, store, handler) = setup()
+        handler.invoke(Action.Click.OnTrackNowResumeConfirm)
+        verify(exactly = 0) { store.consume(any<Action.Navigation.OpenLiveWorkout>()) }
+    }
+
+    @Test
+    fun `OnTrackNowResumeConfirm consumes OpenLiveWorkout with active session uuid`() {
+        val (_, store, handler) = setup(
+            State.create(uuid = "uuid-1").copy(
+                pendingConflict = State.ConflictInfo(
+                    sessionUuid = "active-1",
+                    activeSessionName = "Push Day",
+                    progressLabel = "0 of 0",
+                ),
+            ),
+        )
+        handler.invoke(Action.Click.OnTrackNowResumeConfirm)
+        verify { store.consume(Action.Navigation.OpenLiveWorkout("active-1")) }
+    }
+
+    @Test
+    fun `OnTrackNowConflictDismiss clears pendingConflict`() {
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = "uuid-1").copy(
+                pendingConflict = State.ConflictInfo(
+                    sessionUuid = "active-1",
+                    activeSessionName = "Push Day",
+                    progressLabel = "0 of 0",
+                ),
+            ),
+        )
+        handler.invoke(Action.Click.OnTrackNowConflictDismiss)
+        assertNull(stateFlow.value.pendingConflict)
     }
 
     @Test

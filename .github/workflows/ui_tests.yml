@@ -14,6 +14,16 @@ on:
           - smoke
           - regression
           - all
+  workflow_call:
+    inputs:
+      test_suite:
+        type: string
+        required: true
+        description: "smoke | regression | all"
+      ref:
+        type: string
+        required: true
+        description: "Git ref to check out and test"
 
 permissions:
   contents: read
@@ -43,6 +53,8 @@ jobs:
     steps:
       - name: Checkout branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
 
       - name: Enable KVM group perms
         run: |
@@ -216,6 +228,8 @@ jobs:
     steps:
       - name: Checkout branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
 
       - name: Enable KVM group perms
         run: |

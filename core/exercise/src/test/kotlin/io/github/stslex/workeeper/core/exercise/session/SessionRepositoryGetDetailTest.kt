@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.exercise.session
 
-import androidx.room.withTransaction
-import io.github.stslex.workeeper.core.database.AppDatabase
+import io.github.stslex.workeeper.core.database.common.DbTransitionRunner
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
 import io.github.stslex.workeeper.core.database.exercise.ExerciseEntity
 import io.github.stslex.workeeper.core.database.exercise.ExerciseTypeEntity
@@ -16,53 +15,44 @@ import io.github.stslex.workeeper.core.database.session.model.SetEntity
 import io.github.stslex.workeeper.core.database.session.model.SetTypeEntity
 import io.github.stslex.workeeper.core.database.training.TrainingDao
 import io.github.stslex.workeeper.core.database.training.TrainingEntity
+import io.github.stslex.workeeper.core.database.training.TrainingExerciseDao
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
-import io.mockk.mockkStatic
-import io.mockk.unmockkStatic
+import io.mockk.spyk
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import kotlin.uuid.Uuid
 
 internal class SessionRepositoryGetDetailTest {
 
     private val dispatcher = UnconfinedTestDispatcher()
-    private val database = mockk<AppDatabase>()
     private val sessionDao = mockk<SessionDao>(relaxed = true)
     private val performedExerciseDao = mockk<PerformedExerciseDao>(relaxed = true)
     private val setDao = mockk<SetDao>(relaxed = true)
     private val trainingDao = mockk<TrainingDao>(relaxed = true)
     private val exerciseDao = mockk<ExerciseDao>(relaxed = true)
+    private val trainingExerciseDao = mockk<TrainingExerciseDao>(relaxed = true)
+    private val transition = spyk(
+        object : DbTransitionRunner {
+            override suspend fun <T> invoke(block: suspend () -> T): T = block()
+        },
+    )
 
     private val repository = SessionRepositoryImpl(
-        database = database,
         dao = sessionDao,
         performedExerciseDao = performedExerciseDao,
         setDao = setDao,
         trainingDao = trainingDao,
         exerciseDao = exerciseDao,
+        trainingExerciseDao = trainingExerciseDao,
+        transition = transition,
         ioDispatcher = dispatcher,
     )
-
-    @BeforeEach
-    fun setup() {
-        mockkStatic("androidx.room.RoomDatabaseKt")
-        coEvery { database.withTransaction<Any?>(any()) } coAnswers {
-            secondArg<suspend () -> Any?>().invoke()
-        }
-    }
-
-    @AfterEach
-    fun teardown() {
-        unmockkStatic("androidx.room.RoomDatabaseKt")
-    }
 
     @Test
     fun `getSessionDetail returns null for unknown uuid`() = runTest(dispatcher) {
@@ -103,7 +93,7 @@ internal class SessionRepositoryGetDetailTest {
 
         repository.getSessionDetail(fixture.session.uuid.toString())
 
-        coVerify(exactly = 1) { database.withTransaction<Any?>(any()) }
+        coVerify(exactly = 1) { transition.invoke<Any?>(any()) }
         coVerify(exactly = 1) { sessionDao.getById(fixture.session.uuid) }
         coVerify(exactly = 1) { trainingDao.getById(fixture.training.uuid) }
         coVerify(exactly = 1) { performedExerciseDao.getBySession(fixture.session.uuid) }

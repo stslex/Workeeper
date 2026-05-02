@@ -1,5 +1,6 @@
 package io.github.stslex.workeeper.core.ui.mvi.holders
 
+import androidx.lifecycle.Lifecycle
 import io.github.stslex.workeeper.core.core.logger.FirebaseAnalyticsHolder
 import io.github.stslex.workeeper.core.core.logger.FirebaseEvent
 import io.github.stslex.workeeper.core.ui.mvi.Store
@@ -22,6 +23,16 @@ class StoreAnalytics<A : Store.Action, E : Store.Event>(
             FirebaseEvent.Store.Event(
                 storeName = name,
                 event = event.toString(),
+            ),
+        )
+    }
+
+    fun logLifecycleEvent(event: Lifecycle.Event) {
+        FirebaseAnalyticsHolder.log(
+            FirebaseEvent.Store.Lifecycle(
+                lifecycleEvent = event.name,
+                targetState = event.targetState.name,
+                storeName = name,
             ),
         )
     }

@@ -6,6 +6,7 @@
     <string name="feature_home_empty_headline">Готовы тренироваться</string>
     <string name="feature_home_empty_supporting">Начните тренировку, чтобы записать первую сессию</string>
     <string name="feature_home_settings">Настройки</string>
+    <string name="feature_home_charts">Прогресс</string>
 
     <string name="feature_home_start_cta_title">Начать тренировку</string>
     <string name="feature_home_start_cta_subtitle">Выберите шаблон тренировки</string>
@@ -15,6 +16,11 @@
     <string name="feature_home_picker_title">Выберите тренировку</string>
     <string name="feature_home_picker_see_all">Все шаблоны</string>
     <string name="feature_home_picker_empty">Пока нет шаблонов</string>
+    <string name="feature_home_picker_start_blank_title">Пустая тренировка</string>
+    <string name="feature_home_picker_start_blank_subtitle">Добавляйте упражнения по ходу</string>
+
+    <string name="feature_home_conflict_unnamed">Тренировка</string>
+    <string name="feature_home_conflict_progress_format">%1$d из %2$d упражнений выполнено</string>
 
     <plurals name="feature_home_recent_exercises_count">
         <item quantity="one">%d упражнение</item>

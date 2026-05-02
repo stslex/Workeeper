@@ -43,6 +43,7 @@ include(":core:exercise")
 include(":core:dataStore")
 
 include(":feature:exercise")
+include(":feature:exercise-chart")
 include(":feature:all-exercises")
 include(":feature:all-trainings")
 include(":feature:single-training")

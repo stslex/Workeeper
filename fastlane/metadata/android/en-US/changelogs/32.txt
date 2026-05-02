@@ -1,0 +1,1 @@
+- ✨ ensure proper handling of active session conflicts in UI

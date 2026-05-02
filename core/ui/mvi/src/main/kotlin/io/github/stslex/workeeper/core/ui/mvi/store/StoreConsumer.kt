@@ -1,6 +1,5 @@
 package io.github.stslex.workeeper.core.ui.mvi.store
 
-import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScope
 import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.core.ui.mvi.Store.Event
@@ -19,11 +18,11 @@ interface StoreConsumer<S : State, A : Store.Action, in E : Event> {
 
     val logger: Logger
 
-    val scope: AppCoroutineScope
-
     fun sendEvent(event: E)
 
     fun consume(action: A)
+
+    suspend fun consumeOnMain(action: A)
 
     fun updateState(update: (S) -> S)
 
@@ -42,8 +41,8 @@ interface StoreConsumer<S : State, A : Store.Action, in E : Event> {
     fun <T> launch(
         onError: suspend (Throwable) -> Unit = {},
         onSuccess: suspend CoroutineScope.(T) -> Unit = {},
-        workDispatcher: CoroutineDispatcher = scope.defaultDispatcher,
-        eachDispatcher: CoroutineDispatcher = scope.defaultDispatcher,
+        workDispatcher: CoroutineDispatcher? = null,
+        eachDispatcher: CoroutineDispatcher? = null,
         action: suspend CoroutineScope.() -> T,
     ): Job
 
@@ -58,8 +57,8 @@ interface StoreConsumer<S : State, A : Store.Action, in E : Event> {
     fun <T> launch(
         flow: Flow<T>,
         onError: suspend (cause: Throwable) -> Unit = {},
-        workDispatcher: CoroutineDispatcher = scope.defaultDispatcher,
-        eachDispatcher: CoroutineDispatcher = scope.defaultDispatcher,
+        workDispatcher: CoroutineDispatcher? = null,
+        eachDispatcher: CoroutineDispatcher? = null,
         each: suspend (T) -> Unit,
     ): Job
 }

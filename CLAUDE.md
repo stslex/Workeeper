@@ -60,3 +60,28 @@ skill when the user asks for one of these tasks:
   modify them.
 - Set types live in `core/database/.../exercise/model/SetsEntityType.kt`; check the migration
   folder before changing schema.
+
+## Adhoc exercise lifecycle (v2.3+)
+
+`ExerciseEntity.isAdhoc` distinguishes inline-created (Track Now / Quick start picker)
+exercises from regular library entries. Three states drive every list query, every
+cancel/finish path, and the cascade-delete predicate.
+
+- **Create.** Inline exercise creation in the picker writes
+  `exercise_table` with `is_adhoc = 1`. The new row is **not** visible in any user-facing
+  list (`pagedActive`, `getAllActive`, `pagedActiveByTags`, `getRecentlyTrainedExercises`
+  all filter `is_adhoc = 0`). The only surface that loads it is the active session's
+  `TrainingExerciseEntity` join.
+- **Graduate.** On session finish, every plan-attached exercise flips to `is_adhoc = 0`
+  inside the `finishSessionAtomic` transaction (`exerciseDao.graduateAdhocForTraining`).
+  After graduate the row is indistinguishable from a library entry.
+- **Delete (defence-in-depth).** Cancel / empty-finish-Discard for an ad-hoc training
+  cascades through `SessionRepository.discardAdhocSession` — session + training +
+  inline-created exercise rows in one transaction. The DAO cascade-delete query
+  filters by **both** `is_adhoc = 1` **AND** join via `training_exercise_table` for the
+  cancelled training, so library exercises picked into the session (their
+  `is_adhoc = 0`) are never deleted.
+
+Rule: every new exercise list query (paged, observable, search) must filter
+`is_adhoc = 0`. The only acceptable exception is when a query needs all rows for a
+specific defensive reason — document it inline.

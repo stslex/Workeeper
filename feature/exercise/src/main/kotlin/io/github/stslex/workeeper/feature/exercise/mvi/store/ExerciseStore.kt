@@ -13,6 +13,7 @@ import io.github.stslex.workeeper.feature.exercise.mvi.model.ImageDisplay
 import io.github.stslex.workeeper.feature.exercise.mvi.model.ImageErrorType
 import io.github.stslex.workeeper.feature.exercise.mvi.model.ImageSourceUiModel
 import io.github.stslex.workeeper.feature.exercise.mvi.model.PendingImage
+import io.github.stslex.workeeper.feature.exercise.mvi.model.PersonalRecordUiModel
 import io.github.stslex.workeeper.feature.exercise.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Event
@@ -47,10 +48,21 @@ internal interface ExerciseStore : Store<State, Action, Event> {
         val pendingImage: PendingImage,
         val sourceDialogVisible: Boolean,
         val permissionDeniedDialogVisible: Boolean,
+        val pendingConflict: ConflictInfo?,
+        val personalRecord: PersonalRecordUiModel?,
     ) : Store.State {
 
         val isSaveEnabled: Boolean
             get() = name.isNotBlank()
+
+        /**
+         * Read-mode default plan surface visibility — drives the small "Default plan" card
+         * between the description block and HistorySection in [io.github.stslex.workeeper
+         * .feature.exercise.ui.ExerciseDetailScreen]. Edit mode renders the inline editor
+         * row instead, so the read-mode card stays hidden.
+         */
+        val planSummaryVisible: Boolean
+            get() = mode is Mode.Read && !adhocPlan.isNullOrEmpty()
 
         val hasChanges: Boolean
             get() = originalSnapshot?.matches(this) == false || isImageDirty
@@ -111,6 +123,18 @@ internal interface ExerciseStore : Store<State, Action, Event> {
             val draft: ImmutableList<PlanSetUiModel>,
         )
 
+        /**
+         * Snapshot of the active session that conflicts with the user's Track now request.
+         * Carried in State so the modal can survive configuration changes without
+         * re-fetching from the repository.
+         */
+        @Stable
+        data class ConflictInfo(
+            val sessionUuid: String,
+            val activeSessionName: String,
+            val progressLabel: String,
+        )
+
         companion object {
 
             fun create(uuid: String?): State = State(
@@ -137,6 +161,8 @@ internal interface ExerciseStore : Store<State, Action, Event> {
                 pendingImage = PendingImage.Unchanged,
                 sourceDialogVisible = false,
                 permissionDeniedDialogVisible = false,
+                pendingConflict = null,
+                personalRecord = null,
             )
         }
     }
@@ -162,6 +188,12 @@ internal interface ExerciseStore : Store<State, Action, Event> {
             data object OnArchiveMenuClick : Click
 
             data object OnTrackNowClick : Click
+
+            data object OnTrackNowResumeConfirm : Click
+
+            data object OnTrackNowDeleteAndStart : Click
+
+            data object OnTrackNowConflictDismiss : Click
 
             data class OnHistoryRowClick(val sessionUuid: String) : Click
 
@@ -207,6 +239,8 @@ internal interface ExerciseStore : Store<State, Action, Event> {
 
             data object OnRemoveImageClick : Click
 
+            data object OnPrCardClick : Click
+
             data object OnImageSourceDialogDismiss : Click
 
             data object OnPermissionDeniedDialogDismiss : Click
@@ -238,7 +272,11 @@ internal interface ExerciseStore : Store<State, Action, Event> {
 
             data class OpenSession(val sessionUuid: String) : Navigation
 
+            data class OpenLiveWorkout(val sessionUuid: String) : Navigation
+
             data class OpenImageViewer(val model: String) : Navigation
+
+            data class OpenChart(val exerciseUuid: String) : Navigation
         }
     }
 
@@ -253,7 +291,10 @@ internal interface ExerciseStore : Store<State, Action, Event> {
 
         data class ShowTagLimitReached(val message: String) : Event
 
-        data class ShowTrackNowPending(val message: String) : Event
+        data class ShowActiveSessionConflict(
+            val activeSessionName: String,
+            val progressLabel: String,
+        ) : Event
 
         data class ShowDiscardConfirmDialog(val target: DiscardTarget) : Event
 

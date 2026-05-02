@@ -36,11 +36,11 @@ import io.github.stslex.workeeper.core.database.training.TrainingExerciseEntity
         ExerciseTagEntity::class,
         TrainingTagEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 @TypeConverters(UuidConverter::class, PlanSetsConverter::class)
-abstract class AppDatabase : RoomDatabase() {
+internal abstract class AppDatabase : RoomDatabase() {
 
     abstract val trainingDao: TrainingDao
     abstract val trainingExerciseDao: TrainingExerciseDao

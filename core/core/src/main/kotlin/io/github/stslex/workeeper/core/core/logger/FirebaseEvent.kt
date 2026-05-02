@@ -15,7 +15,7 @@ sealed class FirebaseEvent(
     ) {
 
         data class Action(
-            val action: String,
+            private val action: String,
             private val storeName: String,
         ) : Store(
             storeName = storeName,
@@ -24,12 +24,25 @@ sealed class FirebaseEvent(
         )
 
         data class Event(
-            val event: String,
+            private val event: String,
             private val storeName: String,
         ) : Store(
             storeName = storeName,
             eventName = "event",
             params = mapOf("event" to event),
+        )
+
+        data class Lifecycle(
+            val lifecycleEvent: String,
+            val targetState: String,
+            private val storeName: String,
+        ) : Store(
+            storeName = storeName,
+            eventName = "lifecycle",
+            params = mapOf(
+                "event" to lifecycleEvent,
+                "target_state" to targetState,
+            ),
         )
     }
 

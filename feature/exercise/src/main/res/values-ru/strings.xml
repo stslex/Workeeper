@@ -4,7 +4,10 @@
     <string name="feature_exercise_detail_recent">Последнее</string>
     <string name="feature_exercise_detail_no_history">Сессий ещё не было</string>
     <string name="feature_exercise_detail_track_now">Тренировать</string>
-    <string name="feature_exercise_detail_track_now_pending">Live-тренировка появится в следующем обновлении</string>
+    <string name="feature_exercise_detail_default_plan">План по умолчанию</string>
+    <string name="feature_exercise_track_now_default_training_name">Отдельная тренировка</string>
+    <string name="feature_exercise_track_now_conflict_unnamed">Тренировка</string>
+    <string name="feature_exercise_track_now_conflict_progress_format">%1$d из %2$d упражнений выполнено</string>
     <string name="feature_exercise_detail_edit">Изменить</string>
     <string name="feature_exercise_detail_archive">В архив</string>
     <string name="feature_exercise_detail_back_description">Назад</string>
@@ -78,4 +81,8 @@
     <string name="feature_exercise_image_error_save_failed">Не удалось сохранить фото — попробуйте ещё раз</string>
     <string name="feature_exercise_image_error_load_failed">Не удалось загрузить фото</string>
     <string name="feature_exercise_image_error_decode_failed">Формат изображения не поддерживается</string>
+
+    <!-- Personal record card -->
+    <string name="feature_exercise_detail_pr_weighted_format">%1$s × %2$d</string>
+    <string name="feature_exercise_detail_pr_weightless_format">%1$d повт</string>
 </resources>

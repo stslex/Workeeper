@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.live_workout.ui.components
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,10 +17,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppNumberInput
+import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordBadge
+import io.github.stslex.workeeper.core.ui.kit.components.pr.personalRecordAccent
 import io.github.stslex.workeeper.core.ui.kit.components.setchip.AppSetTypeChip
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
@@ -44,12 +49,18 @@ internal fun LiveSetRow(
     modifier: Modifier = Modifier,
 ) {
     val rowBg = if (set.isDone) AppUi.colors.surfaceTier2 else AppUi.colors.surfaceTier1
+    val accentColor by animateColorAsState(
+        targetValue = if (set.isPersonalRecord) AppUi.colors.record.border else Color.Transparent,
+        label = "pr-accent",
+    )
+    val rowModifier = modifier
+        .fillMaxWidth()
+        .height(AppDimension.heightLg)
+        .background(rowBg)
+        .personalRecordAccent(color = accentColor)
+        .padding(horizontal = AppDimension.Space.sm)
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(AppDimension.heightLg)
-            .background(rowBg)
-            .padding(horizontal = AppDimension.Space.sm),
+        modifier = rowModifier,
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
@@ -79,13 +90,14 @@ internal fun LiveSetRow(
             )
         }
         Box(
-            modifier = if (editable) {
-                Modifier.clickable { onTypeChange(set.type.next()) }
-            } else {
-                Modifier
+            modifier = Modifier.clickable(enabled = editable) {
+                onTypeChange(set.type.next())
             },
         ) {
             AppSetTypeChip(type = set.type.toUiKitType())
+        }
+        if (set.isPersonalRecord) {
+            PersonalRecordBadge()
         }
         IconButton(
             onClick = { if (set.isDone) onUncheck() else onMarkDone() },

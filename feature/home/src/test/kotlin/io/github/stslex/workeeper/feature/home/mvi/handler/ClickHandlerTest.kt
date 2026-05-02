@@ -2,7 +2,6 @@
 package io.github.stslex.workeeper.feature.home.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScope
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.feature.home.di.HomeHandlerStore
 import io.github.stslex.workeeper.feature.home.domain.HomeInteractor
@@ -13,9 +12,8 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.test.TestScope
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -99,30 +97,81 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `OnPickerTrainingSelected consumes OpenLiveWorkoutFresh with the training uuid`() {
+    fun `OnPickerTrainingSelected hides the picker before resolving conflict`() {
         val visiblePicker = State.PickerState.Visible(
             templates = kotlinx.collections.immutable.persistentListOf(),
             isLoading = false,
         )
-        val store = newStore(baseState.copy(picker = visiblePicker))
+        val flow = MutableStateFlow(baseState.copy(picker = visiblePicker))
+        val store = newStoreWithFlow(flow)
         val handler = ClickHandler(interactor = interactor, resourceWrapper = resources, store = store)
 
         handler.invoke(Action.Click.OnPickerTrainingSelected(trainingUuid = "tpl-1"))
 
-        verify(exactly = 1) {
-            store.consume(Action.Navigation.OpenLiveWorkoutFresh(trainingUuid = "tpl-1"))
-        }
+        assertEquals(State.PickerState.Hidden, flow.value.picker)
     }
 
-    private fun newStore(state: State): HomeHandlerStore {
+    @Test
+    fun `OnConflictDismiss clears pendingConflict`() {
+        val state = baseState.copy(
+            pendingConflict = State.ConflictInfo(
+                activeSessionUuid = "session-1",
+                requestedTrainingUuid = "tpl-1",
+                activeSessionName = "Push Day",
+                progressLabel = "0 of 0",
+            ),
+        )
         val flow = MutableStateFlow(state)
-        return mockk(relaxed = true) {
-            every { this@mockk.state } returns flow
-            every { scope } returns AppCoroutineScope(
-                scope = TestScope(),
-                defaultDispatcher = Dispatchers.Unconfined,
-                immediateDispatcher = Dispatchers.Unconfined,
-            )
-        }
+        val store = newStoreWithFlow(flow)
+        val handler = ClickHandler(interactor = interactor, resourceWrapper = resources, store = store)
+
+        handler.invoke(Action.Click.OnConflictDismiss)
+
+        assertEquals(null, flow.value.pendingConflict)
     }
+
+    @Test
+    fun `OnConflictResume consumes OpenLiveWorkoutResume with the active session uuid`() {
+        val state = baseState.copy(
+            pendingConflict = State.ConflictInfo(
+                activeSessionUuid = "session-1",
+                requestedTrainingUuid = "tpl-1",
+                activeSessionName = "Push Day",
+                progressLabel = "0 of 0",
+            ),
+        )
+        val flow = MutableStateFlow(state)
+        val store = newStoreWithFlow(flow)
+        val handler = ClickHandler(interactor = interactor, resourceWrapper = resources, store = store)
+
+        handler.invoke(Action.Click.OnConflictResume)
+
+        verify(exactly = 1) {
+            store.consume(Action.Navigation.OpenLiveWorkoutResume(sessionUuid = "session-1"))
+        }
+        assertEquals(null, flow.value.pendingConflict)
+    }
+
+    private fun newStore(state: State): HomeHandlerStore =
+        newStoreWithFlow(MutableStateFlow(state))
+
+    private fun newStoreWithFlow(flow: MutableStateFlow<State>): HomeHandlerStore =
+        mockk(relaxed = true) {
+            every { this@mockk.state } returns flow
+            every { updateState(any()) } answers {
+                val update = firstArg<(State) -> State>()
+                flow.value = update(flow.value)
+            }
+            every {
+                launch(
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                    any<suspend CoroutineScope.() -> Unit>(),
+                )
+            } answers {
+                mockk(relaxed = true)
+            }
+        }
 }

@@ -1,0 +1,10 @@
+- 🐛 use dedicated placeholder string in editable header
+- 🐛 preload last_adhoc_sets on mid-session add
+- 🐛 show Create CTA on partial matches
+- 🐛 name + graduation + revert correctness sweep
+- 🐛 atomic finish + rename
+- 🐛 wire findByName + propagate reusedExisting
+- 🐛 keep header name editor open
+- 🐛 require non-empty name on finish, remove fallback
+- 🐛 editable training name header
+- 🐛 graduate ad-hoc training and exercises on finish

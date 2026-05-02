@@ -19,8 +19,8 @@ import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesSt
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Suppress("UnusedParameter", "LongMethod")
 fun NavGraphBuilder.allExercisesGraph(
-    sharedTransitionScope: SharedTransitionScope,
     modifier: Modifier = Modifier,
+    sharedTransitionScope: SharedTransitionScope,
 ) {
     navComponentScreen(AllExercisesFeature) { processor ->
         val haptic = LocalHapticFeedback.current

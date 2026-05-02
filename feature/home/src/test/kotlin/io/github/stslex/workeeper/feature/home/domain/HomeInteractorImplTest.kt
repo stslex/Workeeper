@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.home.domain
 
+import io.github.stslex.workeeper.core.exercise.session.SessionConflictResolver
 import io.github.stslex.workeeper.core.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
 import io.mockk.every
@@ -16,9 +17,11 @@ internal class HomeInteractorImplTest {
 
     private val sessionRepository = mockk<SessionRepository>(relaxed = true)
     private val trainingRepository = mockk<TrainingRepository>(relaxed = true)
+    private val sessionConflictResolver = mockk<SessionConflictResolver>(relaxed = true)
     private val interactor = HomeInteractorImpl(
         sessionRepository = sessionRepository,
         trainingRepository = trainingRepository,
+        sessionConflictResolver = sessionConflictResolver,
         defaultDispatcher = Dispatchers.Unconfined,
     )
 

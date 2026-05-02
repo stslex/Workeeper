@@ -18,7 +18,11 @@ import io.github.stslex.workeeper.feature.exercise.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import java.io.File
 import javax.inject.Inject
 
@@ -57,18 +61,18 @@ internal class CommonHandler @Inject constructor(
     }
 
     private fun observeTags() {
-        scope.launch(interactor.observeAvailableTags()) { tags ->
-            updateStateImmediate { current ->
-                current.copy(
-                    availableTags = tags.map { it.toUi() }.toImmutableList(),
-                )
-            }
+        interactor.observeAvailableTags().launch { tags ->
+            val mapped = tags.map { it.toUi() }.toImmutableList()
+            updateStateImmediate { current -> current.copy(availableTags = mapped) }
         }
     }
 
     private fun loadExercise(uuid: String) {
         launch(
-            onSuccess = { result -> updateStateImmediate { current -> current.applyLoaded(result) } },
+            onSuccess = { result ->
+                updateStateImmediate { current -> current.applyLoaded(result) }
+                if (result.exercise != null) observePersonalRecord(uuid)
+            },
         ) {
             val exercise = async { interactor.getExercise(uuid) }
             val labels = async { interactor.getLabels(uuid) }
@@ -82,6 +86,23 @@ internal class CommonHandler @Inject constructor(
                 canPermanentlyDelete = canPermanentlyDelete.await(),
                 adhocPlan = adhocPlan.await(),
             )
+        }
+    }
+
+    /**
+     * Restarts the PR collection whenever the user's selected type changes — switching
+     * WEIGHTED ↔ WEIGHTLESS in edit mode would otherwise leave the original subscription
+     * running with the stale `isWeightless` flag and re-emit a wrong PR after save.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun observePersonalRecord(uuid: String) {
+        val typeFlow = state.map { it.type.toData() }.distinctUntilChanged()
+        val flow = typeFlow.flatMapLatest { type ->
+            interactor.observePersonalRecord(uuid, type).map { record -> record to type }
+        }
+        flow.launch { (record, type) ->
+            val pr = record?.toUi(resourceWrapper, type.toUi())
+            updateStateImmediate { current -> current.copy(personalRecord = pr) }
         }
     }
 

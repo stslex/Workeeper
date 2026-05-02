@@ -13,7 +13,40 @@ Conventions:
 
 ## [Unreleased]
 
-(Nothing yet — v2 planning starts here.)
+### Added
+- Per-exercise progress chart (full screen) with date filtering presets (1M / 3M / 1Y / All) and metric toggle (Heaviest weight / Volume per set).
+- Charts entry icon on Home top bar (left of Settings).
+- PR card on Exercise detail is now tappable and opens the chart for that exercise.
+- Tap on a chart point reveals a tooltip with session details; tap on the tooltip navigates to the corresponding Past session screen.
+- Track now CTA opens Live workout with an ad-hoc training (was a stub).
+- Default plan surface in Exercise detail read mode.
+- Active session conflict modal across all Live-workout entry points.
+- Delete session option in Live workout overflow with confirm dialog.
+- Personal records: heaviest set per exercise, displayed on the Exercise detail screen.
+- In-moment PR highlight: Live-workout set rows that beat the pre-session record show an amber accent and PR badge.
+- "New personal records" block in the Live-workout finish dialog when the session bit one or more PRs.
+- PR badge on Past session set rows for sets that are the current personal record for their exercise.
+
+### Changed
+- finishSession now runs as a single SQL transaction; manual rollback removed.
+- `PersonalRecordRepository` extended with reactive `observe*` APIs (Room native Flow). Exercise detail and Past session subscribe; Live workout takes a one-shot session-frozen snapshot.
+- Database migrations are no longer destructive past schema version 5. Future schema bumps must ship explicit Migration objects and migration tests; Room will refuse to boot otherwise. Pre-release schemas (v2, v3, v4) retain their destructive paths.
+
+### Fixed
+- Past session edits no longer get reverted by background PR re-emissions.
+- PR detection no longer fans out N parallel queries per session; single batch query.
+- Exercise detail PR card no longer shows a stale PR after the user toggles WEIGHTED ↔ WEIGHTLESS in edit mode.
+- Plan from an exercise's default plan now flows into trainings that include the exercise. Both newly added exercises (write-time) and trainings that already existed without a plan (read-time) are covered. Plans the user explicitly cleared remain empty.
+- Multiple exercises can be active in parallel during a session. Tap a PENDING exercise's header to start it without finishing the current one. Useful for supersets and circuits.
+
+### Performance
+- Modifier instability fixed in Live workout / Past session set rows and Exercise hero / image-edit thumbnails. Reduces unnecessary recomposition + re-layout on PR-flag flips and image-clickability changes.
+- State mutation lambdas no longer perform UI mapping; mapping happens on the collector dispatcher before reaching `Main.immediate`.
+
+### Tests
+- Smoke UI tests for all v1 list and detail screens.
+- DAO unit tests for new aggregation queries (PR, best volume, history-by-exercise) and pre-existing untested queries (`pagedActiveWithStats`, `pagedActiveWithStatsByTags`, `observeAnyActiveSession`).
+- DAO + repository tests for the reactive PR pipeline; `PrComparator` branch coverage and finish-dialog new-PR computation.
 
 ## [1.5.0] — Image attachment — TBD
 

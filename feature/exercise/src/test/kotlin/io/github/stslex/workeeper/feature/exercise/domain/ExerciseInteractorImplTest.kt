@@ -2,16 +2,26 @@
 package io.github.stslex.workeeper.feature.exercise.domain
 
 import io.github.stslex.workeeper.core.core.images.ImageStorage
+import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
+import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
+import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordDataModel
+import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordRepository
+import io.github.stslex.workeeper.core.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.exercise.tags.TagRepository
+import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor.ArchiveResult
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor.SaveResult
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -23,10 +33,18 @@ internal class ExerciseInteractorImplTest {
     private val exerciseRepository = mockk<ExerciseRepository>(relaxed = true)
     private val tagRepository = mockk<TagRepository>(relaxed = true)
     private val imageStorage = mockk<ImageStorage>(relaxed = true)
+    private val sessionRepository = mockk<SessionRepository>(relaxed = true)
+    private val trainingRepository = mockk<TrainingRepository>(relaxed = true)
+    private val personalRecordRepository = mockk<PersonalRecordRepository>(relaxed = true)
+    private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
     private val interactor = ExerciseInteractorImpl(
         exerciseRepository = exerciseRepository,
         tagRepository = tagRepository,
         imageStorage = imageStorage,
+        sessionRepository = sessionRepository,
+        trainingRepository = trainingRepository,
+        personalRecordRepository = personalRecordRepository,
+        resourceWrapper = resourceWrapper,
         defaultDispatcher = Dispatchers.Unconfined,
     )
 
@@ -112,5 +130,27 @@ internal class ExerciseInteractorImplTest {
     fun `permanentlyDelete delegates to repository`() = runTest {
         interactor.permanentlyDelete("uuid-1")
         coVerify { exerciseRepository.permanentDelete("uuid-1") }
+    }
+
+    @Test
+    fun `observePersonalRecord forwards to repository`() = runTest {
+        val payload = PersonalRecordDataModel(
+            sessionUuid = "session",
+            performedExerciseUuid = "performed",
+            setUuid = "set",
+            weight = 100.0,
+            reps = 5,
+            type = SetsDataType.WORK,
+            finishedAt = 1_000L,
+        )
+        every {
+            personalRecordRepository.observePersonalRecord("uuid-1", ExerciseTypeDataModel.WEIGHTED)
+        } returns flowOf(payload)
+
+        val result = interactor
+            .observePersonalRecord("uuid-1", ExerciseTypeDataModel.WEIGHTED)
+            .first()
+
+        assertEquals(payload, result)
     }
 }

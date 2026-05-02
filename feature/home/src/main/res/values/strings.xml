@@ -6,6 +6,7 @@
     <string name="feature_home_empty_headline">Ready when you are</string>
     <string name="feature_home_empty_supporting">Start a training to log your first session</string>
     <string name="feature_home_settings">Settings</string>
+    <string name="feature_home_charts">Charts</string>
 
     <string name="feature_home_start_cta_title">Start a workout</string>
     <string name="feature_home_start_cta_subtitle">Pick a training template</string>
@@ -15,6 +16,11 @@
     <string name="feature_home_picker_title">Choose a training</string>
     <string name="feature_home_picker_see_all">See all templates</string>
     <string name="feature_home_picker_empty">No templates yet</string>
+    <string name="feature_home_picker_start_blank_title">Start blank workout</string>
+    <string name="feature_home_picker_start_blank_subtitle">Add exercises as you go</string>
+
+    <string name="feature_home_conflict_unnamed">Workout</string>
+    <string name="feature_home_conflict_progress_format" tools:ignore="PluralsCandidate">%1$d of %2$d exercises done</string>
 
     <plurals name="feature_home_recent_exercises_count">
         <item quantity="one">%d exercise</item>

@@ -1,0 +1,40 @@
+name: Sync master to dev
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: sync-master-to-dev
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync master to dev
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+          fetch-depth: 0
+          token: ${{ secrets.PUSH_TOKEN }}
+
+      - name: Apply master onto the working tree
+        run: |
+          git fetch origin master
+          git reset --hard origin/master
+
+      - uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.PUSH_TOKEN }}
+          base: dev
+          branch: chore/sync-master-to-dev
+          title: "chore: sync master to dev"
+          body: |
+            Auto-generated PR to propagate master changes (version bumps, hotfixes) back to dev.
+          commit-message: "chore: sync master to dev"
+          delete-branch: true

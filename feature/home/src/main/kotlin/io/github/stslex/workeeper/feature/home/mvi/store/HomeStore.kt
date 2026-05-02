@@ -19,6 +19,7 @@ internal interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStor
         val isActiveLoaded: Boolean,
         val isRecentLoaded: Boolean,
         val picker: PickerState,
+        val pendingConflict: ConflictInfo?,
     ) : Store.State {
 
         @Stable
@@ -46,6 +47,21 @@ internal interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStor
             ) : PickerState
         }
 
+        /**
+         * Pending Active session conflict awaiting user choice. The Home picker tap routes
+         * here when a different training already has an in-progress session; carrying this
+         * in State (instead of as event-only data) keeps the modal stable across config
+         * changes. `requestedTrainingUuid` lets Delete & start new resume the original
+         * Start CTA flow after the active session is gone.
+         */
+        @Stable
+        data class ConflictInfo(
+            val activeSessionUuid: String,
+            val requestedTrainingUuid: String,
+            val activeSessionName: String,
+            val progressLabel: String,
+        )
+
         val isLoading: Boolean get() = !isActiveLoaded || !isRecentLoaded
         val showStartCta: Boolean get() = activeSession == null && !isLoading
         val showRecentList: Boolean get() = recent.isNotEmpty()
@@ -61,6 +77,7 @@ internal interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStor
                 isActiveLoaded = false,
                 isRecentLoaded = false,
                 picker = PickerState.Hidden,
+                pendingConflict = null,
             )
         }
     }
@@ -70,30 +87,46 @@ internal interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStor
 
         sealed interface Click : Action {
             data object OnActiveSessionClick : Click
+            data object OnChartsClick : Click
             data object OnSettingsClick : Click
             data class OnRecentSessionClick(val sessionUuid: String) : Click
             data object OnStartTrainingClick : Click
             data class OnPickerTrainingSelected(val trainingUuid: String) : Click
+
+            // v2.3 — first row of the Start workout picker; routes to the blank-init Live
+            // workout flow without a conflict check (the Start CTA is hidden when an
+            // IN_PROGRESS session exists, so the user cannot reach this from a parallel
+            // state).
+            data object OnStartBlankClick : Click
+
             data object OnPickerSeeAllClick : Click
             data object OnPickerDismiss : Click
+            data object OnConflictResume : Click
+            data object OnConflictDeleteAndStart : Click
+            data object OnConflictDismiss : Click
         }
 
         sealed interface Navigation : Action {
             data class OpenLiveWorkoutResume(val sessionUuid: String) : Navigation
             data class OpenLiveWorkoutFresh(val trainingUuid: String) : Navigation
+            data object OpenLiveWorkoutBlank : Navigation
             data class OpenPastSession(val sessionUuid: String) : Navigation
             data object OpenSettings : Navigation
+            data object OpenCharts : Navigation
             data object OpenAllTrainings : Navigation
         }
 
         sealed interface Common : Action {
             data object Init : Common
-            data object TimerTick : Common
         }
     }
 
     @Stable
     sealed interface Event : Store.Event {
         data class HapticClick(val type: HapticFeedbackType) : Event
+        data class ShowActiveSessionConflict(
+            val activeSessionName: String,
+            val progressLabel: String,
+        ) : Event
     }
 }

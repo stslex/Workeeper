@@ -2,58 +2,154 @@ name: Android Deploy Prod
 
 on:
   workflow_dispatch:
+    inputs:
+      skip_ui_tests:
+        type: boolean
+        default: false
+        description: "Skip UI tests. Use only on retries when UI tests passed in a prior run."
 
 permissions:
   contents: write
+  pull-requests: write
+
+concurrency:
+  group: deploy-prod-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  deploy_prod:
+  guard:
+    name: Validate release branch and TOML coherence
+    runs-on: ubuntu-latest
+    outputs:
+      version_name: ${{ steps.toml.outputs.version_name }}
+      version_code: ${{ steps.toml.outputs.version_code }}
+      pr_number:    ${{ steps.pr.outputs.pr_number }}
+      sha:          ${{ steps.resolve.outputs.sha }}
+    steps:
+      - name: Validate ref is a release branch
+        id: branch
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          if [[ ! "$REF" =~ ^refs/heads/release/release-v\.([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            echo "::error::deploy_prod must be triggered on a release/release-v.X.Y.Z branch. Got: $REF"
+            exit 1
+          fi
+          version_from_branch="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}"
+          echo "version_from_branch=$version_from_branch" >> "$GITHUB_OUTPUT"
+          echo "Branch version: $version_from_branch"
 
+      - name: Checkout release branch (shallow read)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 1
+
+      - name: Pin HEAD SHA for the rest of the run
+        id: resolve
+        run: |
+          sha="$(git rev-parse HEAD)"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "Pinned SHA: $sha"
+
+      - name: Read versionName/versionCode from TOML
+        id: toml
+        run: |
+          name="$(awk -F'"' '/^versionName = "/ { print $2; exit }' gradle/libs.versions.toml)"
+          code="$(awk -F'"' '/^versionCode = "/ { print $2; exit }' gradle/libs.versions.toml)"
+          if [[ -z "$name" || -z "$code" ]]; then
+            echo "::error::Failed to read versionName/versionCode from gradle/libs.versions.toml"
+            exit 1
+          fi
+          {
+            echo "version_name=$name"
+            echo "version_code=$code"
+          } >> "$GITHUB_OUTPUT"
+          echo "TOML versionName=$name versionCode=$code"
+
+      - name: Verify branch ↔ TOML coherence
+        env:
+          BRANCH_VERSION: ${{ steps.branch.outputs.version_from_branch }}
+          TOML_VERSION:   ${{ steps.toml.outputs.version_name }}
+        run: |
+          if [[ "$BRANCH_VERSION" != "$TOML_VERSION" ]]; then
+            echo "::error::Branch version ($BRANCH_VERSION) does not match TOML versionName ($TOML_VERSION)."
+            exit 1
+          fi
+          echo "Branch ↔ TOML versions match: $TOML_VERSION"
+
+      - name: Verify versionCode is greater than master's
+        env:
+          RELEASE_CODE: ${{ steps.toml.outputs.version_code }}
+        run: |
+          git fetch --depth=1 origin master
+          master_code="$(git show origin/master:gradle/libs.versions.toml \
+            | awk -F'"' '/^versionCode = "/ { print $2; exit }')"
+          if [[ -z "$master_code" || ! "$master_code" =~ ^[0-9]+$ ]]; then
+            echo "::error::Failed to read versionCode from master's gradle/libs.versions.toml (got: '$master_code')."
+            exit 1
+          fi
+          if (( RELEASE_CODE <= master_code )); then
+            echo "::error::Release versionCode ($RELEASE_CODE) must be strictly greater than master's ($master_code). Rebase the release branch on master and re-run bump_version.sh."
+            exit 1
+          fi
+          echo "versionCode coherence OK: release=$RELEASE_CODE > master=$master_code"
+
+      - name: Find open release PR for this branch
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.PUSH_TOKEN }}
+          REF: ${{ github.ref }}
+        run: |
+          branch_name="${REF#refs/heads/}"
+          pr_number="$(gh pr list --head "$branch_name" --base master --state open --json number --jq '.[0].number // ""')"
+          if [[ -z "$pr_number" ]]; then
+            echo "::error::No open PR found for $branch_name → master."
+            exit 1
+          fi
+          echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
+          echo "Open PR: #$pr_number"
+
+  build:
+    needs: guard
+    uses: ./.github/workflows/android_build_unified.yml
+    with:
+      ref: ${{ needs.guard.outputs.sha }}
+    secrets: inherit
+
+  ui_tests:
+    needs: [guard, build]
+    if: ${{ !inputs.skip_ui_tests }}
+    uses: ./.github/workflows/ui_tests.yml
+    with:
+      test_suite: smoke
+      ref: ${{ needs.guard.outputs.sha }}
+    secrets: inherit
+
+  deploy:
+    needs: [guard, build, ui_tests]
+    if: ${{ always() && needs.build.result == 'success' && (needs.ui_tests.result == 'success' || needs.ui_tests.result == 'skipped') }}
+    name: Deploy to Play, tag, merge PR
     runs-on: ubuntu-latest
     timeout-minutes: 60
-
+    environment: production
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout release branch
+        uses: actions/checkout@v4
         with:
+          ref: ${{ needs.guard.outputs.sha }}
           fetch-depth: 0
+          token: ${{ secrets.PUSH_TOKEN }}
 
-      - run: |
-          echo "${{ secrets.KEYSTORE }}" > keystore.jks.asc
-          gpg -d --passphrase "${{ secrets.KEYSTORE_PASSPHRASE }}" --batch keystore.jks.asc > keystore.jks
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
 
-      - name: Update Version
-        run: bash ./.github/scripts/update_versions.sh
-
-      - name: Read version from toml
-        id: version
-        run: |
-          VERSION_NAME=$(awk -F '"' '/versionName = "/{print $2}' gradle/libs.versions.toml)
-          VERSION_CODE=$(awk -F '"' '/versionCode = "/{print $2}' gradle/libs.versions.toml)
-          echo "name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
-          echo "code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
-
-      - name: Get previous release tag
-        id: prev_tag
-        run: |
-          PREV_TAG=$(git describe --tags --abbrev=0 --match="release-*" 2>/dev/null || echo "")
-          if [ -z "$PREV_TAG" ]; then
-            # If no previous release tag, use first commit
-            PREV_TAG=$(git rev-list --max-parents=0 HEAD)
-          fi
-          echo "tag=$PREV_TAG" >> "$GITHUB_OUTPUT"
-          echo "Previous tag: $PREV_TAG"
-
-      - name: Generate changelogs
-        env:
-          VERSION_CODE: ${{ steps.version.outputs.code }}
-        run: |
-          FROM_TAG="${{ steps.prev_tag.outputs.tag }}"
-          TO_TAG="${{ github.sha }}"
-
-          # Generate Play Store changelog
-          bash ./.github/scripts/generate_changelog.sh "$FROM_TAG" "$TO_TAG" play "$VERSION_CODE"
-
-      - uses: ruby/setup-ruby@v1
+      - name: Set up Ruby 3.3
+        uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.3'
 
@@ -65,26 +161,18 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gems-
 
-      - name: set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: gradle
-
-      - name: Grant Permission to Execute
-        run: chmod +x gradlew
-
-      - name: Use CI-optimized Gradle properties
-        run: cp .github/properties/gradle-ci.properties gradle.properties
-
-      - name: Use CI-optimized Convention Gradle properties
-        run: cp .github/properties/gradle-convention-ci.properties build-logic/gradle.properties
-
       - name: Install bundle
         run: |
           bundle config path vendor/bundle
           bundle install --jobs 4 --retry 3
+
+      - name: Decrypt keystore
+        env:
+          KEYSTORE: ${{ secrets.KEYSTORE }}
+          KEYSTORE_PASSPHRASE: ${{ secrets.KEYSTORE_PASSPHRASE }}
+        run: |
+          echo "$KEYSTORE" > keystore.jks.asc
+          gpg -d --passphrase "$KEYSTORE_PASSPHRASE" --batch keystore.jks.asc > keystore.jks
 
       - name: Configure Keystore
         env:
@@ -111,27 +199,52 @@ jobs:
           echo "$GOOGLE_SERVICES_JSON_STORE" > app/store/google-services.json.b64
           base64 -d -i app/store/google-services.json.b64 > app/store/google-services.json
 
+      - name: Grant Permission to Execute
+        run: chmod +x gradlew
+
+      - name: Use CI-optimized Gradle properties
+        run: cp .github/properties/gradle-ci.properties gradle.properties
+
+      - name: Use CI-optimized Convention Gradle properties
+        run: cp .github/properties/gradle-convention-ci.properties build-logic/gradle.properties
+
+      - name: Generate Play changelog
+        env:
+          VERSION_CODE: ${{ needs.guard.outputs.version_code }}
+          HEAD_SHA: ${{ needs.guard.outputs.sha }}
+        run: |
+          # Match both old (release-vX.Y) and new (release-v.X.Y.Z) tag formats
+          # so the very first migration release still has a sensible diff window.
+          PREV_TAG="$(git describe --tags --abbrev=0 --match='release-*' 2>/dev/null || echo '')"
+          if [[ -z "$PREV_TAG" ]]; then
+            PREV_TAG="$(git rev-list --max-parents=0 HEAD)"
+          fi
+          echo "Generating Play changelog from $PREV_TAG to $HEAD_SHA"
+          bash ./.github/scripts/generate_changelog.sh "$PREV_TAG" "$HEAD_SHA" play "$VERSION_CODE"
+
       - name: Distribute app to Prod track 🚀
         run: bundle exec fastlane deploy
 
-      - name: Commit files
+      - name: Configure git identity
         run: |
-          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add .
-          git commit -a -m "release: v${{ steps.version.outputs.name }} (code ${{ steps.version.outputs.code }})" || echo "No changes to commit"
-          # Create an annotated tag for this release
-          TAG_NAME="release-v${{ steps.version.outputs.name }}"
-          # Avoid failure if tag already exists in repo history
-          if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
-            echo "Tag $TAG_NAME already exists; skipping create"
-          else
-            git tag -a "$TAG_NAME" -m "Release $TAG_NAME"
-          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Push changes
-        uses: ad-m/github-push-action@v0.8.0
-        with:
-          github_token: ${{ secrets.PUSH_TOKEN }}
-          branch: ${{ github.ref }}
-          tags: true
+      - name: Create and push release tag
+        env:
+          VERSION_NAME: ${{ needs.guard.outputs.version_name }}
+        run: |
+          tag="release-v.${VERSION_NAME}"
+          if git rev-parse "$tag" >/dev/null 2>&1; then
+            echo "::error::Tag $tag already exists. Manual recovery required (see release-flow.md §8.2)."
+            exit 1
+          fi
+          git tag -a "$tag" -m "Release v.${VERSION_NAME}"
+          git push origin "$tag"
+
+      - name: Merge release PR
+        env:
+          GH_TOKEN: ${{ secrets.PUSH_TOKEN }}
+          PR_NUMBER: ${{ needs.guard.outputs.pr_number }}
+          PINNED_SHA: ${{ needs.guard.outputs.sha }}
+        run: gh pr merge "$PR_NUMBER" --merge --delete-branch --match-head-commit "$PINNED_SHA"

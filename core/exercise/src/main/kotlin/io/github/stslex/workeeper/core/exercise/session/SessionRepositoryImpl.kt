@@ -4,10 +4,12 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
-import androidx.room.withTransaction
+import io.github.stslex.workeeper.core.core.coroutine.asyncForEach
 import io.github.stslex.workeeper.core.core.di.IODispatcher
-import io.github.stslex.workeeper.core.database.AppDatabase
+import io.github.stslex.workeeper.core.database.common.DbTransitionRunner
+import io.github.stslex.workeeper.core.database.converters.PlanSetsConverter
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
+import io.github.stslex.workeeper.core.database.session.HistoryByExerciseRow
 import io.github.stslex.workeeper.core.database.session.PerformedExerciseDao
 import io.github.stslex.workeeper.core.database.session.PerformedExerciseEntity
 import io.github.stslex.workeeper.core.database.session.SessionDao
@@ -15,8 +17,14 @@ import io.github.stslex.workeeper.core.database.session.SessionEntity
 import io.github.stslex.workeeper.core.database.session.SessionStateEntity
 import io.github.stslex.workeeper.core.database.session.SetDao
 import io.github.stslex.workeeper.core.database.training.TrainingDao
+import io.github.stslex.workeeper.core.database.training.TrainingEntity
+import io.github.stslex.workeeper.core.database.training.TrainingExerciseDao
+import io.github.stslex.workeeper.core.database.training.TrainingExerciseEntity
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel.Companion.toData
+import io.github.stslex.workeeper.core.exercise.exercise.model.HistoryEntry
+import io.github.stslex.workeeper.core.exercise.exercise.model.SetSummary
+import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType.Companion.toData
 import io.github.stslex.workeeper.core.exercise.exercise.model.toData
 import io.github.stslex.workeeper.core.exercise.session.model.ActiveSessionInfo
 import io.github.stslex.workeeper.core.exercise.session.model.PerformedExerciseDetailDataModel
@@ -36,12 +44,13 @@ import kotlin.uuid.Uuid
 @Suppress("TooManyFunctions", "LongParameterList")
 @Singleton
 internal class SessionRepositoryImpl @Inject constructor(
-    private val database: AppDatabase,
     private val dao: SessionDao,
     private val performedExerciseDao: PerformedExerciseDao,
     private val setDao: SetDao,
     private val trainingDao: TrainingDao,
     private val exerciseDao: ExerciseDao,
+    private val trainingExerciseDao: TrainingExerciseDao,
+    private val transition: DbTransitionRunner,
     @IODispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : SessionRepository {
 
@@ -63,22 +72,23 @@ internal class SessionRepositoryImpl @Inject constructor(
         }
         .flowOn(ioDispatcher)
 
-    override fun observeActiveSessionWithStats(): Flow<SessionRepository.ActiveSessionWithStats?> = dao
-        .observeActiveSessionWithStats()
-        .map { row ->
-            row?.let {
-                SessionRepository.ActiveSessionWithStats(
-                    sessionUuid = it.uuid.toString(),
-                    trainingUuid = it.trainingUuid.toString(),
-                    trainingName = it.trainingName,
-                    isAdhoc = it.isAdhoc,
-                    startedAt = it.startedAt,
-                    totalCount = it.totalCount,
-                    doneCount = it.doneCount,
-                )
+    override fun observeActiveSessionWithStats(): Flow<SessionRepository.ActiveSessionWithStats?> =
+        dao
+            .observeActiveSessionWithStats()
+            .map { row ->
+                row?.let {
+                    SessionRepository.ActiveSessionWithStats(
+                        sessionUuid = it.uuid.toString(),
+                        trainingUuid = it.trainingUuid.toString(),
+                        trainingName = it.trainingName,
+                        isAdhoc = it.isAdhoc,
+                        startedAt = it.startedAt,
+                        totalCount = it.totalCount,
+                        doneCount = it.doneCount,
+                    )
+                }
             }
-        }
-        .flowOn(ioDispatcher)
+            .flowOn(ioDispatcher)
 
     override suspend fun getAnyActiveSession(): ActiveSessionInfo? = withContext(ioDispatcher) {
         dao.getActive()?.let { entity ->
@@ -108,11 +118,11 @@ internal class SessionRepositoryImpl @Inject constructor(
 
     override suspend fun getSessionDetail(
         sessionUuid: String,
-    ): SessionDetailDataModel? = database.withTransaction {
+    ): SessionDetailDataModel? = transition {
         val sessionId = Uuid.parse(sessionUuid)
-        val session = dao.getById(sessionId) ?: return@withTransaction null
-        val finishedAt = session.finishedAt ?: return@withTransaction null
-        val training = trainingDao.getById(session.trainingUuid) ?: return@withTransaction null
+        val session = dao.getById(sessionId) ?: return@transition null
+        val finishedAt = session.finishedAt ?: return@transition null
+        val training = trainingDao.getById(session.trainingUuid) ?: return@transition null
         val performed = performedExerciseDao
             .getBySession(sessionId)
             .sortedBy { it.position }
@@ -211,7 +221,8 @@ internal class SessionRepositoryImpl @Inject constructor(
     override suspend fun resumeSession(
         sessionUuid: String,
     ): SessionDataModel? = withContext(ioDispatcher) {
-        dao.getById(Uuid.parse(sessionUuid))?.takeIf { it.state == SessionStateEntity.IN_PROGRESS }?.toData()
+        dao.getById(Uuid.parse(sessionUuid))?.takeIf { it.state == SessionStateEntity.IN_PROGRESS }
+            ?.toData()
     }
 
     override suspend fun finishSession(sessionUuid: String, finishedAt: Long) {
@@ -226,11 +237,207 @@ internal class SessionRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun finishSessionAtomic(
+        sessionUuid: String,
+        finishedAt: Long,
+        planUpdates: List<PlanUpdate>,
+        newTrainingName: String?,
+    ): Boolean = transition {
+        val current = dao.getById(Uuid.parse(sessionUuid))
+            ?: return@transition false
+        // Pair the optional rename with the finish: same transaction, single Room batch.
+        // A throw at any point in this block rolls back the rename, plan updates,
+        // graduation, and state flip together — no half-finished named training can leak.
+        if (newTrainingName != null) {
+            trainingDao.updateName(current.trainingUuid, newTrainingName)
+        }
+        planUpdates.asyncForEach { update ->
+            val planJson = PlanSetsConverter.toJson(update.newPlan)
+            if (update.isAdhoc) {
+                exerciseDao.updateLastAdhocSets(
+                    uuid = Uuid.parse(update.exerciseUuid),
+                    lastAdhocSets = planJson,
+                )
+            } else {
+                trainingExerciseDao.updatePlanSets(
+                    trainingUuid = Uuid.parse(update.trainingUuid),
+                    exerciseUuid = Uuid.parse(update.exerciseUuid),
+                    planSets = planJson,
+                )
+            }
+        }
+        // Adhoc lifecycle (v2.3): on finish, the training row and every exercise
+        // plan-attached to it graduate to regular library entries. Runs inside the same
+        // transaction as the state flip so a failed finish does not leak half-graduated rows.
+        exerciseDao.graduateAdhocForTraining(current.trainingUuid)
+        trainingDao.graduateTraining(current.trainingUuid)
+        dao.update(
+            current.copy(
+                state = SessionStateEntity.FINISHED,
+                finishedAt = finishedAt,
+            ),
+        )
+        true
+    }
+
     override suspend fun deleteSession(uuid: String) {
         withContext(ioDispatcher) {
             dao.delete(Uuid.parse(uuid))
         }
     }
+
+    override suspend fun createAdhocSession(
+        name: String,
+        exerciseUuids: List<String>,
+    ): SessionRepository.AdhocSessionResult = transition {
+        val now = System.currentTimeMillis()
+        val training = TrainingEntity(
+            name = name,
+            description = null,
+            isAdhoc = true,
+            archived = false,
+            createdAt = now,
+            archivedAt = null,
+        )
+        val session = SessionEntity(
+            trainingUuid = training.uuid,
+            state = SessionStateEntity.IN_PROGRESS,
+            startedAt = now,
+            finishedAt = null,
+        )
+        val planRows = exerciseUuids.mapIndexed { index, exerciseUuid ->
+            TrainingExerciseEntity(
+                trainingUuid = training.uuid,
+                exerciseUuid = Uuid.parse(exerciseUuid),
+                position = index,
+                planSets = null,
+            )
+        }
+        val performedRows = exerciseUuids.mapIndexed { index, exerciseUuid ->
+            PerformedExerciseEntity(
+                sessionUuid = session.uuid,
+                exerciseUuid = Uuid.parse(exerciseUuid),
+                position = index,
+                skipped = false,
+            )
+        }
+        trainingDao.insert(training)
+        if (planRows.isNotEmpty()) {
+            trainingExerciseDao.insert(planRows)
+        }
+        dao.startSessionWithExercises(session, performedRows)
+        SessionRepository.AdhocSessionResult(
+            sessionUuid = session.uuid.toString(),
+            trainingUuid = training.uuid.toString(),
+        )
+    }
+
+    override suspend fun addExerciseToActiveSession(
+        sessionUuid: String,
+        trainingUuid: String,
+        exerciseUuid: String,
+    ): SessionRepository.AddExerciseResult = transition {
+        val sessionId = Uuid.parse(sessionUuid)
+        val trainingId = Uuid.parse(trainingUuid)
+        val exerciseId = Uuid.parse(exerciseUuid)
+        // Seed plan_sets from the exercise's last_adhoc_sets so picking a library row with
+        // history surfaces the user's last-logged sets as a baseline. Null when there's no
+        // history (fresh inline-created exercise) — caller renders an empty plan.
+        val initialPlanJson = exerciseDao.getById(exerciseId)?.lastAdhocSets
+        val parsedPlan = PlanSetsConverter.fromJson(initialPlanJson)
+        val nextPlanPosition = (trainingExerciseDao.getMaxPosition(trainingId) ?: -1) + 1
+        val nextPerformedPosition =
+            (performedExerciseDao.getMaxPosition(sessionId) ?: -1) + 1
+        trainingExerciseDao.insert(
+            TrainingExerciseEntity(
+                trainingUuid = trainingId,
+                exerciseUuid = exerciseId,
+                position = nextPlanPosition,
+                planSets = initialPlanJson,
+            ),
+        )
+        val performed = PerformedExerciseEntity(
+            sessionUuid = sessionId,
+            exerciseUuid = exerciseId,
+            position = nextPerformedPosition,
+            skipped = false,
+        )
+        performedExerciseDao.insert(performed)
+        SessionRepository.AddExerciseResult(
+            performedExerciseUuid = performed.uuid.toString(),
+            planSets = parsedPlan,
+        )
+    }
+
+    override suspend fun discardAdhocSession(sessionUuid: String, trainingUuid: String) {
+        transition {
+            val trainingId = Uuid.parse(trainingUuid)
+            // Defence-in-depth predicate: rows must be `is_adhoc = 1` AND joined via the
+            // training being discarded. Library exercises picked into the session have
+            // `is_adhoc = 0` and so are filtered out at the join step.
+            val adhocExerciseUuids = exerciseDao
+                .getAdhocExercisesForTraining(trainingId)
+                .map { it.uuid }
+            // session_table cascades performed_exercise_table + set_table via FK on
+            // session_uuid; training_table cascades training_exercise_table via FK on
+            // training_uuid. Only the ad-hoc exercise rows need explicit cleanup.
+            dao.delete(Uuid.parse(sessionUuid))
+            trainingDao.permanentDelete(trainingId)
+            if (adhocExerciseUuids.isNotEmpty()) {
+                exerciseDao.deleteByUuids(adhocExerciseUuids)
+            }
+        }
+    }
+
+    override fun pagedHistoryByExercise(
+        exerciseUuid: String,
+    ): Flow<PagingData<HistoryEntry>> = Pager(
+        config = pagingConfig,
+        pagingSourceFactory = { dao.pagedHistoryByExercise(Uuid.parse(exerciseUuid)) },
+    ).flow
+        .map { pagingData -> pagingData.map { row -> row.toSingleEntry() } }
+        .flowOn(ioDispatcher)
+
+    override suspend fun getHistoryByExercise(
+        exerciseUuid: String,
+    ): List<HistoryEntry> = withContext(ioDispatcher) {
+        dao.getHistoryByExercise(Uuid.parse(exerciseUuid)).groupBySession()
+    }
+
+    // Order is established by DAO query — see SessionDao.getHistoryByExercise
+    private fun List<HistoryByExerciseRow>.groupBySession(): List<HistoryEntry> = this
+        .groupBy { it.sessionUuid }
+        .map { (_, rows) ->
+            val first = rows.first()
+            HistoryEntry(
+                sessionUuid = first.sessionUuid.toString(),
+                finishedAt = first.finishedAt,
+                trainingName = first.trainingName,
+                isAdhoc = first.isAdhoc,
+                sets = rows.map { row ->
+                    SetSummary(row.weight, row.reps, row.setType.toData())
+                },
+            )
+        }
+
+    /**
+     * The PagingSource emits one row per (session, set). For chart-style consumers a
+     * single-set entry is enough; the recent-history grid uses [getHistoryByExercise]
+     * (one-shot, grouped) to render multi-set summaries per session.
+     */
+    private fun HistoryByExerciseRow.toSingleEntry(): HistoryEntry = HistoryEntry(
+        sessionUuid = sessionUuid.toString(),
+        finishedAt = finishedAt,
+        trainingName = trainingName,
+        isAdhoc = isAdhoc,
+        sets = listOf(
+            SetSummary(
+                weight = weight,
+                reps = reps,
+                type = setType.toData(),
+            ),
+        ),
+    )
 
     companion object {
 

@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavGraphBuilder
+import io.github.stslex.workeeper.core.ui.kit.components.dialog.ActiveSessionConflictDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
@@ -40,7 +41,11 @@ fun NavGraphBuilder.singleTrainingsGraph(
         val discardDismiss = stringResource(R.string.feature_training_edit_discard_dismiss)
 
         var showDiscardDialog by remember { mutableStateOf(false) }
-        var permanentDeleteDialog by remember { mutableStateOf<Event.ShowPermanentDeleteConfirmDialog?>(null) }
+        var permanentDeleteDialog by remember {
+            mutableStateOf<Event.ShowPermanentDeleteConfirmDialog?>(
+                null,
+            )
+        }
 
         processor.Handle { event ->
             when (event) {
@@ -57,9 +62,7 @@ fun NavGraphBuilder.singleTrainingsGraph(
                     permanentDeleteDialog = event
                 }
 
-                is Event.ShowLiveWorkoutPending -> SnackbarManager.showSnackbar(message = event.message)
-                is Event.ShowOtherSessionActive ->
-                    SnackbarManager.showSnackbar(message = event.message)
+                is Event.ShowActiveSessionConflict -> Unit // rendered from state.pendingConflict
 
                 is Event.ShowSaveError -> SnackbarManager.showSnackbar(message = event.message)
             }
@@ -138,6 +141,15 @@ fun NavGraphBuilder.singleTrainingsGraph(
                     permanentDeleteDialog = null
                     processor.consume(Action.Click.OnPermanentDeleteDismiss)
                 },
+            )
+        }
+        state.pendingConflict?.let { info ->
+            ActiveSessionConflictDialog(
+                activeSessionName = info.activeSessionName,
+                progressLabel = info.progressLabel,
+                onResume = { processor.consume(Action.Click.OnConflictResume) },
+                onDeleteAndStartNew = { processor.consume(Action.Click.OnConflictDeleteAndStart) },
+                onCancel = { processor.consume(Action.Click.OnConflictDismiss) },
             )
         }
     }

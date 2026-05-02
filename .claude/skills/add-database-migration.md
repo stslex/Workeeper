@@ -1,6 +1,6 @@
 ---
 name: add-database-migration
-description: Bump the Room schema version on `AppDatabase`, register it in `CoreDatabaseModule` via `fallbackToDestructiveMigrationFrom(...)`, and refresh DAO tests. Until v1 ships to the Play Store with real users, schema changes use destructive migration — no `Migration` class, no preserved data.
+description: Bump the Room schema version on `AppDatabase`, write a `Migration(from, to)` object under `core/database/migrations/`, register it via `addMigrations(...)` in `CoreDatabaseModule`, add a `MigrationTestHelper`-based test in `AppDatabaseMigrationTest`, and commit the exported schema JSON. Non-destructive migration is the live policy from v5 onward.
 ---
 
 # Add a database migration
@@ -12,144 +12,63 @@ description: Bump the Room schema version on `AppDatabase`, register it in `Core
 - "Add a column / table to the database"
 - "Migrate data when the entity changes"
 
-## Current policy: destructive migration
+## Current policy: non-destructive migration
 
-For the v1 development cycle the project has **no production users**, so the data layer
-treats every schema bump as a fresh install. The current pattern is documented in
-[documentation/db-redesign.md](../../documentation/db-redesign.md#migration-strategy):
+v5 ships in the Play Store. Every schema bump from v5 onward must preserve real user
+data. The pattern is documented in
+[documentation/architecture.md → Migration policy (release)](../../documentation/architecture.md#data-layer):
 
 - `@Database(version = ...)` is bumped on
   `core/database/src/main/kotlin/io/github/stslex/workeeper/core/database/AppDatabase.kt`.
-- `CoreDatabaseModule` (`core/database/.../di/CoreDatabaseModule.kt`) wires
-  `.fallbackToDestructiveMigrationFrom(dropAllTables = true, <oldVersions...>)` on the
-  `Room.databaseBuilder`. Each prior version that ever shipped to a developer device is
-  added to the destructive list; current call site at the time of writing is
-  `fallbackToDestructiveMigrationFrom(dropAllTables = true, 2, 3)` (line 36).
-- There is **no `migrations/` directory** under
-  `core/database/src/main/kotlin/io/github/stslex/workeeper/core/database/` — no
-  `Migration<X><Y>` classes are written, no `addMigrations(...)` chain. The earlier
-  `Migration12.kt` and its enclosing folder were deleted when the destructive policy
-  landed; recreate the folder only when the [non-destructive playbook](#when-to-switch-back-to-non-destructive-migrations)
-  becomes active.
-- `core/database/converters/` keeps only `UuidConverter.kt`. The earlier `StringConverter`
-  and `SetsTypeConverter` were dropped along with the legacy entity blobs they served.
+- A `Migration(X, Y)` object lives under
+  `core/database/src/main/kotlin/io/github/stslex/workeeper/core/database/migrations/`
+  and is registered via `addMigrations(...)` on the `Room.databaseBuilder` chain in
+  `core/database/.../di/CoreDatabaseModule.kt`.
+- A migration test in
+  `core/database/src/androidTest/.../AppDatabaseMigrationTest.kt` uses Room's
+  `MigrationTestHelper` to seed a v(X) DB, run the migration, and assert the resulting
+  v(Y) DB has the expected shape and data.
+- The new schema JSON is committed under
+  `core/database/schemas/io.github.stslex.workeeper.core.database.AppDatabase/`.
+- The `Room.databaseBuilder` chain has **no destructive fallback**. Bumping past v5
+  with no matching `Migration` will crash on boot — intentional safety net.
 
-This stays the rule **until the first Play Store release with real users**. After that, every
-new version requires a real `Migration` class and an instrumented migration test. The
-"non-destructive playbook" section at the bottom captures what that looks like.
+> **Pre-release schemas v2/3/4 had no migration objects and no users.** No
+> `fallbackToDestructiveMigrationFrom` clause is registered for them. The first
+> migration that matters to real users is v5 → v6. Do not invent destructive fallback
+> entries for older versions; they are simply gone.
 
 ## Prerequisites
 
 - The current schema lives at
   `core/database/schemas/io.github.stslex.workeeper.core.database.AppDatabase/`. Released
-  versions to date: `1.json`, `2.json`, `3.json`, `4.json`. The on-disk JSON for the new
-  version is exported automatically the next time the module assembles.
+  versions to date: `1.json`, `2.json`, `3.json`, `4.json`, `5.json`. The on-disk JSON
+  for the new version is exported automatically the next time the module assembles.
 - The Room library convention plugin is applied (`build-logic/convention/src/main/kotlin/RoomLibraryConventionPlugin.kt`)
-  — it sets `schemaDirectory("$projectDir/schemas")`, exports schemas on every build, and
-  pulls in `androidx-room-testing` so DAO + migration tests have `MigrationTestHelper` available
-  if/when a real migration is needed later.
-- [documentation/architecture.md](../../documentation/architecture.md#data-layer) and
-  [documentation/db-redesign.md](../../documentation/db-redesign.md) describe the entity
-  catalog (9 entities as of v4) and the cascade rules.
+  — it sets `schemaDirectory("$projectDir/schemas")`, exports schemas on every build,
+  and pulls in `androidx-room-testing` as `androidTestImplementation` so
+  `MigrationTestHelper` is available to migration tests.
+- [documentation/architecture.md](../../documentation/architecture.md#data-layer) describes
+  the entity catalog and the cascade rules.
 
-## Step-by-step (destructive bump — current default)
+## Step-by-step (non-destructive migration)
 
-1. Decide the new schema version `Y = X + 1`. The current `X` is the `version = ...` value on
-   the `@Database` annotation in `AppDatabase.kt` (4 at the time of writing).
+1. Decide the new schema version `Y = X + 1`. The current `X` is the `version = ...`
+   value on the `@Database` annotation in `AppDatabase.kt` (5 at the time of writing —
+   the first published schema).
 
 2. Make the entity / DAO changes. Add fields, change types, add tables, etc., under
-   `core/database/src/main/kotlin/io/github/stslex/workeeper/core/database/`. New entities
-   ship in version `Y` only — there is no migration logic to write.
+   `core/database/src/main/kotlin/io/github/stslex/workeeper/core/database/`. If you
+   add a new entity, register its DAO as `abstract val ...` on `AppDatabase` and add a
+   matching `@Provides @Singleton fun provide<Name>Dao(db: AppDatabase): <Name>Dao`
+   binding in `core/database/.../di/CoreDatabaseModule.kt`.
 
 3. Bump `version = Y` on the `@Database` annotation in `AppDatabase.kt`. Leave
    `exportSchema = true` — Room writes the new `Y.json` schema during the next build.
 
-4. If you added new entities, register their DAOs as `abstract val ...` on `AppDatabase`
-   and add matching `@Provides @Singleton fun provide<Name>Dao(db: AppDatabase): <Name>Dao`
-   bindings in
-   `core/database/src/main/kotlin/io/github/stslex/workeeper/core/database/di/CoreDatabaseModule.kt`.
-
-5. Extend the destructive list in the `Room.databaseBuilder` chain in `CoreDatabaseModule`:
-
-   ```kotlin
-   Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.Companion.NAME)
-       .fallbackToDestructiveMigrationFrom(dropAllTables = true, 2, 3, X)
-       .build()
-   ```
-
-   Append the prior version number (the `X` you just bumped from). Keep the existing
-   entries; each lets a developer device with that older `app.db` reset cleanly on first
-   launch instead of crashing at Room startup.
-
-6. Build the module so Room exports the new schema:
-
-   ```bash
-   ./gradlew :core:database:assembleDebug
-   ```
-
-   Confirm `core/database/schemas/io.github.stslex.workeeper.core.database.AppDatabase/<Y>.json`
-   exists, and commit it.
-
-7. Refresh DAO unit tests. Per
-   [db-redesign.md → Tests](../../documentation/db-redesign.md#tests) destructive bumps drop
-   or rewrite the existing per-DAO tests rather than adding `MigrationTestHelper`-based ones.
-   Cover CRUD plus the indexed query paths for any new / changed DAO. There is intentionally
-   **no migration test** for a destructive bump — there is nothing to validate.
-
-8. Sweep for downstream breakage. Renamed entity columns, dropped converters, or new FK
-   cascades will surface in `core/exercise` repository code and feature stores. Compile the
-   whole project (`./gradlew assembleDebug`) and fix call sites; do not paper over with
-   shims unless the relevant feature is mid-rewrite (see the constraint note in the
-   Stage 5.1 prompt at
-   [documentation/feature-specs/settings-archive.md](../../documentation/feature-specs/settings-archive.md)).
-
-## Verification
-
-```bash
-# Compile with the new schema
-./gradlew :core:database:assembleDebug
-
-# DAO unit tests
-./gradlew :core:database:testDebugUnitTest
-
-# Whole-project compile (catches feature-side breakage)
-./gradlew assembleDebug
-
-# Static analysis on the touched files
-./gradlew :core:database:detekt :core:database:lintDebug --no-configuration-cache
-```
-
-Inspect the schema diff between `<X>.json` and `<Y>.json` before shipping — unexpected
-index, NOT NULL, or default-value differences are easier to catch by reading the JSON than
-by re-deriving them from the entity classes.
-
-## Common pitfalls
-
-- **Do not write a `Migration<X><Y>` class while destructive policy is in force.** The
-  `migrations/` package does not exist on disk. Adding one would be dead code and would
-  mislead the next contributor about whether real migration logic ran on upgrade.
-- **Do not drop the `dropAllTables = true` flag.** Without it, Room's destructive fallback
-  leaves orphaned tables that older entity definitions referenced — the next app launch can
-  fail in confusing ways.
-- **Do not drop prior versions from the destructive list.** Each entry covers a developer
-  device that may still hold that older `app.db`. Removing entries means those devices
-  crash at Room startup instead of resetting cleanly.
-- **Do not skip the schema JSON commit.** Reviewers and CI need the new `<Y>.json` to verify
-  the entity definitions exported what you expect.
-- **Do not modify a schema JSON by hand.** It is generated. If the diff looks wrong, fix
-  the entity / index / converter and re-export.
-
-## When to switch back to non-destructive migrations
-
-Once the app has shipped to the Play Store and any user has installed it, every new schema
-bump must preserve their data. The transition looks like:
-
-1. Stop adding to `fallbackToDestructiveMigrationFrom(...)`. Leave the existing list in
-   place so legacy developer devices still reset cleanly, but the new version is added via
-   `addMigrations(MIGRATION_X_Y)` instead.
-
-2. Recreate the `migrations/` package and add `MIGRATION_<X>_<Y>` at
-   `core/database/src/main/kotlin/io/github/stslex/workeeper/core/database/migrations/Migration<X><Y>.kt`:
+4. Write the migration. Create the `migrations/` package if it does not exist at
+   `core/database/src/main/kotlin/io/github/stslex/workeeper/core/database/migrations/`,
+   then add `Migration<X><Y>.kt`:
 
    ```kotlin
    val MIGRATION_X_Y = object : Migration(X, Y) {
@@ -161,30 +80,86 @@ bump must preserve their data. The transition looks like:
 
    SQLite has no `ALTER TABLE DROP COLUMN`, so column drops are done by creating
    `<table>_new`, copying rows, dropping the old table, renaming. Use parameterized
-   `db.execSQL(sql, arrayOf(...))` for any value substitution.
+   `db.execSQL(sql, arrayOf(...))` for any value substitution. Recreate indices and
+   foreign keys explicitly when rebuilding a table — Room will not infer them from the
+   old schema.
 
-3. Register it in `CoreDatabaseModule`:
+5. Register it in `CoreDatabaseModule`:
 
    ```kotlin
-   .addMigrations(MIGRATION_X_Y)
-   .fallbackToDestructiveMigrationFrom(dropAllTables = true, 2, 3, ...)
-   .build()
+   Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.Companion.NAME)
+       .addMigrations(MIGRATION_1_2, /* ... */, MIGRATION_X_Y)
+       .build()
    ```
 
-   Both calls coexist — `addMigrations` handles real upgrade paths from versions Room knows
-   about; the destructive list still catches developer-only legacy versions.
+   Append `MIGRATION_X_Y` to the existing `addMigrations(...)` call. There is no
+   `fallbackToDestructiveMigrationFrom(...)` on this chain and there should not be
+   one — a missing migration must crash on boot, not silently wipe user data.
 
-4. Add an instrumented migration test under
-   `core/database/src/test/kotlin/.../migrations/Migration<X>To<Y>Test.kt` using
-   `androidx.room.testing.MigrationTestHelper`:
+6. Add a migration test. The fixture in
+   `core/database/src/androidTest/.../AppDatabaseMigrationTest.kt` is already wired
+   with `MigrationTestHelper` — see the class KDoc for the pattern. Add a method that:
 
-   - Open the database at version `X`, populate fixture rows that exercise edge cases.
-   - Call `helper.runMigrationsAndValidate(NAME, Y, true, MIGRATION_X_Y)`.
-   - Assert that fixture rows survive (or are transformed correctly).
-   - Cover at least: typical row, empty/edge input, multiple rows.
+   - Opens the database at version `X` and inserts fixture rows that exercise edge
+     cases (typical row, empty/edge input, multiple rows, FK boundaries).
+   - Calls `helper.runMigrationsAndValidate(NAME, Y, true, MIGRATION_X_Y)`.
+   - Reopens the database at version `Y` (via the helper) and asserts that fixture
+     rows survive or are transformed correctly.
 
-5. Once shipped, never edit `MIGRATION_X_Y` again. Forward-fix in `MIGRATION_Y_(Y+1)`.
+7. Build to export the new schema JSON:
 
-This non-destructive playbook is dormant until the first Play Store release lands. Treat
-this section as the future plan, not the current one — and update this skill when the
-policy actually flips.
+   ```bash
+   ./gradlew :core:database:assembleDebug
+   ```
+
+   Confirm `core/database/schemas/io.github.stslex.workeeper.core.database.AppDatabase/<Y>.json`
+   exists, and commit it alongside the migration code. Reviewers and CI need this file
+   to verify the entity definitions exported what you expect.
+
+8. Sweep for downstream breakage. Renamed entity columns, dropped converters, or new FK
+   cascades will surface in `core/exercise` repository code and feature stores. Compile
+   the whole project (`./gradlew assembleDebug`) and fix call sites; do not paper over
+   with shims.
+
+9. Once shipped, never edit `MIGRATION_X_Y` again. Forward-fix in `MIGRATION_Y_(Y+1)`.
+
+## Verification
+
+```bash
+# Compile with the new schema
+./gradlew :core:database:assembleDebug
+
+# DAO unit tests
+./gradlew :core:database:testDebugUnitTest
+
+# Migration tests (instrumented)
+./gradlew :core:database:connectedDebugAndroidTest
+
+# Whole-project compile (catches feature-side breakage)
+./gradlew assembleDebug
+
+# Static analysis on the touched files
+./gradlew :core:database:detekt :core:database:lintDebug --no-configuration-cache
+```
+
+Inspect the schema diff between `<X>.json` and `<Y>.json` before shipping — unexpected
+index, NOT NULL, or default-value differences are easier to catch by reading the JSON
+than by re-deriving them from the entity classes.
+
+## Common pitfalls
+
+- **Do not add `fallbackToDestructiveMigrationFrom(...)` to the builder chain.** The
+  release policy is non-destructive from v5 onward. A missing or buggy migration must
+  crash on boot so it is caught in CI / pre-release testing — silently wiping user data
+  is never acceptable.
+- **Do not skip the migration test.** A migration without a `MigrationTestHelper` test
+  is unreviewable; reviewers cannot verify that fixture rows survive the SQL.
+- **Do not skip the schema JSON commit.** Reviewers and CI need the new `<Y>.json` to
+  verify the entity definitions exported what you expect.
+- **Do not modify a schema JSON by hand.** It is generated. If the diff looks wrong,
+  fix the entity / index / converter and re-export.
+- **Do not forget indices and foreign keys when rebuilding a table.** SQLite's
+  copy-and-rename pattern for column drops only carries column data — `CREATE INDEX`
+  and `FOREIGN KEY` clauses must be re-issued explicitly to match the new schema.
+- **Do not edit `MIGRATION_X_Y` after it ships.** Once a user has run it, the SQL is
+  frozen. Any further fix must land in the next migration (`MIGRATION_Y_(Y+1)`).

@@ -2,24 +2,32 @@
 package io.github.stslex.workeeper.feature.live_workout.domain
 
 import dagger.hilt.android.scopes.ViewModelScoped
-import io.github.stslex.workeeper.core.core.coroutine.asyncForEach
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.database.sets.SetTypeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
+import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
+import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordDataModel
+import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordRepository
 import io.github.stslex.workeeper.core.exercise.session.PerformedExerciseRepository
+import io.github.stslex.workeeper.core.exercise.session.PlanUpdate
 import io.github.stslex.workeeper.core.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.exercise.session.SetRepository
 import io.github.stslex.workeeper.core.exercise.sets.PlanUpdateRule
 import io.github.stslex.workeeper.core.exercise.training.TrainingExerciseRepository
 import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
+import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.AddExerciseResult
+import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.AdhocSessionResult
+import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.ExercisePickerEntry
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.FinishResult
+import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.InlineAdhocResult
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.PerformedExerciseSnapshot
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.SessionSnapshot
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
@@ -32,14 +40,9 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
     private val exerciseRepository: ExerciseRepository,
     private val trainingRepository: TrainingRepository,
     private val trainingExerciseRepository: TrainingExerciseRepository,
+    private val personalRecordRepository: PersonalRecordRepository,
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
 ) : LiveWorkoutInteractor {
-
-    private data class PlanMutation(
-        val exerciseUuid: String,
-        val oldPlan: List<PlanSetDataModel>?,
-        val newPlan: List<PlanSetDataModel>?,
-    )
 
     override suspend fun startSession(
         trainingUuid: String,
@@ -76,10 +79,16 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
             }
         } else {
             performedRows.associate { row ->
-                row.exerciseUuid to trainingExerciseRepository.getPlan(
+                val trainingPlan = trainingExerciseRepository.getPlan(
                     trainingUuid = session.trainingUuid,
                     exerciseUuid = row.exerciseUuid,
                 )
+                // Read-time fallback: trainings created before the write-time fix may have
+                // null planSets even when the exercise has its own default. Recover here so
+                // existing user data isn't stranded. Empty plan (deliberately cleared by
+                // the user) is preserved as empty — `?:` only triggers on null.
+                val resolved = trainingPlan ?: exerciseRepository.getAdhocPlan(row.exerciseUuid)
+                row.exerciseUuid to resolved
             }
         }
         val exerciseSnapshots = performedRows
@@ -102,11 +111,23 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
                     performedSetUuids = performedSets.map { it.uuid },
                 )
             }
+        // Q6 lock — pre-session snapshot scope. We collect the PR map exactly once here and
+        // then drop the underlying flow; the snapshot lives in State for the session's
+        // lifetime, immune to mid-session emissions from other places (Exercise detail edit,
+        // a finished session on another screen).
+        val uuidsByType = exerciseSnapshots.associate { snap ->
+            snap.performed.exerciseUuid to snap.exerciseType
+        }
+        val preSessionPrs = personalRecordRepository
+            .observePersonalRecords(uuidsByType)
+            .firstOrNull()
+            .orEmpty()
         SessionSnapshot(
             session = session,
             trainingName = training?.name.orEmpty(),
             isAdhoc = training?.isAdhoc == true,
             exercises = exerciseSnapshots,
+            preSessionPrSnapshot = preSessionPrs,
         )
     }
 
@@ -149,14 +170,14 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
 
     override suspend fun finishSession(
         sessionUuid: String,
+        newTrainingName: String?,
     ): FinishResult? = withContext(defaultDispatcher) {
         val session = sessionRepository.getById(sessionUuid) ?: return@withContext null
         val training = async { trainingRepository.getTraining(session.trainingUuid) }
         val performedRows = async { performedExerciseRepository.getBySession(sessionUuid) }
         val isAdhoc = training.await()?.isAdhoc == true
 
-        val planMutations = mutableListOf<PlanMutation>()
-        val appliedMutations = mutableListOf<PlanMutation>()
+        val planUpdates = mutableListOf<PlanUpdate>()
         var setsLogged = 0
         var doneCount = 0
         var skippedCount = 0
@@ -174,63 +195,133 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
             val existingPlan = if (isAdhoc) {
                 exerciseRepository.getAdhocPlan(row.exerciseUuid)
             } else {
-                trainingExerciseRepository.getPlan(
-                    trainingUuid = session.trainingUuid,
-                    exerciseUuid = row.exerciseUuid,
-                )
+                trainingExerciseRepository
+                    .getPlan(
+                        trainingUuid = session.trainingUuid,
+                        exerciseUuid = row.exerciseUuid,
+                    )
+                    ?: exerciseRepository.getAdhocPlan(row.exerciseUuid)
             }
             val nextPlan = PlanUpdateRule.update(existingPlan, performedSets)
-            planMutations += PlanMutation(
+            planUpdates += PlanUpdate(
+                trainingUuid = session.trainingUuid,
                 exerciseUuid = row.exerciseUuid,
-                oldPlan = existingPlan,
+                isAdhoc = isAdhoc,
                 newPlan = nextPlan,
             )
         }
-        runCatching {
-            planMutations.asyncForEach { mutation ->
-                if (isAdhoc) {
-                    exerciseRepository.setAdhocPlan(mutation.exerciseUuid, mutation.newPlan)
-                } else {
-                    trainingExerciseRepository.setPlan(
-                        trainingUuid = session.trainingUuid,
-                        exerciseUuid = mutation.exerciseUuid,
-                        planSets = mutation.newPlan,
-                    )
-                }
-                appliedMutations += mutation
-            }
-            val finishedAt = System.currentTimeMillis()
-            sessionRepository.finishSession(sessionUuid, finishedAt)
-            FinishResult(
-                durationMillis = finishedAt - session.startedAt,
-                doneCount = doneCount,
-                totalCount = performedRows.await().size,
-                skippedCount = skippedCount,
-                setsLogged = setsLogged,
-            )
-        }
-            .onFailure {
-                appliedMutations.asReversed().forEach { mutation ->
-                    runCatching {
-                        if (isAdhoc) {
-                            exerciseRepository.setAdhocPlan(mutation.exerciseUuid, mutation.oldPlan)
-                        } else {
-                            trainingExerciseRepository.setPlan(
-                                trainingUuid = session.trainingUuid,
-                                exerciseUuid = mutation.exerciseUuid,
-                                planSets = mutation.oldPlan,
-                            )
-                        }
-                    }
-                }
-            }
-            .getOrThrow()
+        val finishedAt = System.currentTimeMillis()
+        val applied = sessionRepository.finishSessionAtomic(
+            sessionUuid = sessionUuid,
+            finishedAt = finishedAt,
+            planUpdates = planUpdates,
+            newTrainingName = newTrainingName,
+        )
+        if (!applied) return@withContext null
+        FinishResult(
+            durationMillis = finishedAt - session.startedAt,
+            doneCount = doneCount,
+            totalCount = performedRows.await().size,
+            skippedCount = skippedCount,
+            setsLogged = setsLogged,
+        )
     }
 
     override suspend fun cancelSession(sessionUuid: String) {
         withContext(defaultDispatcher) {
-            sessionRepository.deleteSession(sessionUuid)
+            val session = sessionRepository.getById(sessionUuid) ?: return@withContext
+            val training = trainingRepository.getTraining(session.trainingUuid)
+            if (training?.isAdhoc == true) {
+                // Cancel of an ad-hoc session must cascade to the training row + inline
+                // exercises. Without this, Track Now / Quick start cancel paths leak orphan
+                // training rows — the v5 → v6 migration sweeps existing leakers.
+                sessionRepository.discardAdhocSession(
+                    sessionUuid = sessionUuid,
+                    trainingUuid = session.trainingUuid,
+                )
+            } else {
+                sessionRepository.deleteSession(sessionUuid)
+            }
         }
+    }
+
+    override suspend fun createAdhocSession(
+        name: String,
+        exerciseUuids: List<String>,
+    ): AdhocSessionResult = withContext(defaultDispatcher) {
+        val result = sessionRepository.createAdhocSession(name, exerciseUuids)
+        AdhocSessionResult(
+            sessionUuid = result.sessionUuid,
+            trainingUuid = result.trainingUuid,
+        )
+    }
+
+    override suspend fun addExerciseToActiveSession(
+        sessionUuid: String,
+        trainingUuid: String,
+        exerciseUuid: String,
+    ): AddExerciseResult = withContext(defaultDispatcher) {
+        val result = sessionRepository.addExerciseToActiveSession(
+            sessionUuid = sessionUuid,
+            trainingUuid = trainingUuid,
+            exerciseUuid = exerciseUuid,
+        )
+        AddExerciseResult(
+            performedExerciseUuid = result.performedExerciseUuid,
+            planSets = result.planSets,
+        )
+    }
+
+    override suspend fun discardAdhocSession(sessionUuid: String, trainingUuid: String) {
+        withContext(defaultDispatcher) {
+            sessionRepository.discardAdhocSession(
+                sessionUuid = sessionUuid,
+                trainingUuid = trainingUuid,
+            )
+        }
+    }
+
+    override suspend fun createInlineAdhocExercise(
+        name: String,
+    ): InlineAdhocResult = withContext(defaultDispatcher) {
+        val result = exerciseRepository.createInlineAdhocExercise(name)
+        InlineAdhocResult(
+            exerciseUuid = result.exercise.uuid,
+            name = result.exercise.name,
+            type = result.exercise.type,
+            reusedExisting = result.reusedExisting,
+        )
+    }
+
+    override suspend fun updateTrainingName(trainingUuid: String, name: String) {
+        withContext(defaultDispatcher) {
+            trainingRepository.updateName(trainingUuid, name)
+        }
+    }
+
+    override suspend fun searchExercisesForPicker(
+        query: String,
+        excludedUuids: Set<String>,
+    ): List<ExercisePickerEntry> = withContext(defaultDispatcher) {
+        exerciseRepository
+            .searchActiveExercises(query = query, excludeUuids = excludedUuids)
+            .map { exercise ->
+                ExercisePickerEntry(
+                    uuid = exercise.uuid,
+                    name = exercise.name,
+                    type = exercise.type,
+                )
+            }
+    }
+
+    override suspend fun fetchPrSnapshotForExercise(
+        exerciseUuid: String,
+        type: ExerciseTypeDataModel,
+    ): PersonalRecordDataModel? = withContext(defaultDispatcher) {
+        // C1 lock — single-exercise lazy fetch. PersonalRecordRepository.getPersonalRecord is
+        // a suspend hit on the same DAO query observePersonalRecord wraps, so we get the
+        // freshest baseline without holding a Flow open mid-session.
+        personalRecordRepository.getPersonalRecord(exerciseUuid, type)
     }
 
     override suspend fun setPlanForExercise(

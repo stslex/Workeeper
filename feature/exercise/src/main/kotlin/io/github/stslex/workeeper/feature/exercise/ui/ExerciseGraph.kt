@@ -9,7 +9,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -20,6 +19,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.core.net.toUri
 import androidx.navigation.NavGraphBuilder
+import io.github.stslex.workeeper.core.ui.kit.components.dialog.ActiveSessionConflictDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
 import io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel
@@ -40,7 +40,7 @@ import io.github.stslex.workeeper.feature.exercise.ui.components.PermissionDenie
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Suppress("UnusedParameter", "LongMethod", "CyclomaticComplexMethod")
 fun NavGraphBuilder.exerciseGraph(
-    sharedTransitionScope: SharedTransitionScope,
+//    sharedTransitionScope: SharedTransitionScope,
     modifier: Modifier = Modifier,
 ) {
     navComponentScreen(ExerciseFeature) { processor ->
@@ -60,7 +60,11 @@ fun NavGraphBuilder.exerciseGraph(
 
         var pendingDiscard by remember { mutableStateOf<DiscardTarget?>(null) }
         var archiveBlockedBody by remember { mutableStateOf<String?>(null) }
-        var permanentDeleteDialog by remember { mutableStateOf<Event.ShowPermanentDeleteConfirm?>(null) }
+        var permanentDeleteDialog by remember {
+            mutableStateOf<Event.ShowPermanentDeleteConfirm?>(
+                null,
+            )
+        }
         var typeChangeDialog by remember { mutableStateOf<Event.ShowTypeChangeConfirm?>(null) }
         var pendingCameraTempUri by remember { mutableStateOf<Uri?>(null) }
 
@@ -111,7 +115,7 @@ fun NavGraphBuilder.exerciseGraph(
                 }
 
                 is Event.ShowTagLimitReached -> SnackbarManager.showSnackbar(message = event.message)
-                is Event.ShowTrackNowPending -> SnackbarManager.showSnackbar(message = event.message)
+                is Event.ShowActiveSessionConflict -> Unit // rendered from state.pendingConflict
                 is Event.ShowDiscardConfirmDialog -> {
                     pendingDiscard = event.target
                 }
@@ -271,6 +275,17 @@ fun NavGraphBuilder.exerciseGraph(
                 onDismiss = {
                     processor.consume(Action.Click.OnPermissionDeniedDialogDismiss)
                 },
+            )
+        }
+        state.pendingConflict?.let { info ->
+            ActiveSessionConflictDialog(
+                activeSessionName = info.activeSessionName,
+                progressLabel = info.progressLabel,
+                onResume = { processor.consume(Action.Click.OnTrackNowResumeConfirm) },
+                onDeleteAndStartNew = {
+                    processor.consume(Action.Click.OnTrackNowDeleteAndStart)
+                },
+                onCancel = { processor.consume(Action.Click.OnTrackNowConflictDismiss) },
             )
         }
     }

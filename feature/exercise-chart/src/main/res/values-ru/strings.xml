@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="feature_exercise_chart_title">Прогресс</string>
+    <string name="feature_exercise_chart_back">Назад</string>
+    <string name="feature_exercise_chart_picker_title">Выберите упражнение</string>
+    <string name="feature_exercise_chart_picker_open">Сменить упражнение</string>
+
+    <string name="feature_exercise_chart_metric_heaviest">Макс. вес</string>
+    <string name="feature_exercise_chart_metric_volume">Объём подхода</string>
+
+    <string name="feature_exercise_chart_preset_1m">1М</string>
+    <string name="feature_exercise_chart_preset_3m">3М</string>
+    <string name="feature_exercise_chart_preset_1y">1Г</string>
+    <string name="feature_exercise_chart_preset_all">Все</string>
+
+    <string name="feature_exercise_chart_footer_min">Мин: %1$s</string>
+    <string name="feature_exercise_chart_footer_max">Макс: %1$s</string>
+    <string name="feature_exercise_chart_footer_last">Последнее: %1$s</string>
+
+    <string name="feature_exercise_chart_value_weight">%1$s кг</string>
+    <string name="feature_exercise_chart_value_weight_x_reps">%1$s кг × %2$d</string>
+    <string name="feature_exercise_chart_value_volume">%1$s кг × повт.</string>
+    <plurals name="feature_exercise_chart_value_reps">
+        <item quantity="one">%d повторение</item>
+        <item quantity="few">%d повторения</item>
+        <item quantity="many">%d повторений</item>
+        <item quantity="other">%d повторений</item>
+    </plurals>
+
+    <string name="feature_exercise_chart_empty_no_sessions_title">Нет завершённых тренировок</string>
+    <string name="feature_exercise_chart_empty_no_sessions_subtitle">Завершите тренировку — здесь появится прогресс.</string>
+    <string name="feature_exercise_chart_empty_no_sessions_cta">Начать тренировку</string>
+
+    <string name="feature_exercise_chart_empty_not_found_title">Упражнение недоступно</string>
+    <string name="feature_exercise_chart_empty_not_found_subtitle">Возможно, оно архивировано или подходов не было. Выберите другое из списка.</string>
+    <string name="feature_exercise_chart_empty_not_found_cta">Выбрать упражнение</string>
+
+    <string name="feature_exercise_chart_empty_no_data_title">Нет данных за выбранный период</string>
+    <string name="feature_exercise_chart_empty_no_data_subtitle">Попробуйте другой временной диапазон.</string>
+
+    <plurals name="feature_exercise_chart_tooltip_set_count">
+        <item quantity="one">%d подход в этот день</item>
+        <item quantity="few">%d подхода в этот день</item>
+        <item quantity="many">%d подходов в этот день</item>
+        <item quantity="other">%d подходов в этот день</item>
+    </plurals>
+</resources>

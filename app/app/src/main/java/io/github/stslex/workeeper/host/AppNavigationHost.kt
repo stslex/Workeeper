@@ -17,6 +17,7 @@ import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.all_exercises.ui.allExercisesGraph
 import io.github.stslex.workeeper.feature.all_trainings.ui.allTrainingsGraph
 import io.github.stslex.workeeper.feature.exercise.ui.exerciseGraph
+import io.github.stslex.workeeper.feature.exercise_chart.ui.exerciseChartGraph
 import io.github.stslex.workeeper.feature.home.ui.homeGraph
 import io.github.stslex.workeeper.feature.image_viewer.ui.imageViewerGraph
 import io.github.stslex.workeeper.feature.live_workout.ui.liveWorkoutGraph
@@ -39,37 +40,35 @@ internal fun AppNavigationHost(
             .padding(bottom = AppDimension.BottomNavBar.height)
             .systemBarsPadding()
             .background(MaterialTheme.colorScheme.background)
+
         NavHost(
             modifier = Modifier.fillMaxSize(),
             navController = navigator.navController,
             startDestination = Screen.BottomBar.Home,
         ) {
             homeGraph(
-                modifier = bottomBarModifier
-                    .testTag("HomeGraph"),
+                modifier = bottomBarModifier.testTag("HomeGraph"),
+                sharedTransitionScope = this@SharedTransitionLayout,
             )
             allTrainingsGraph(
-                modifier = bottomBarModifier
-                    .testTag("AllTrainingsGraph"),
+                modifier = bottomBarModifier.testTag("AllTrainingsGraph"),
                 sharedTransitionScope = this@SharedTransitionLayout,
             )
             allExercisesGraph(
-                modifier = bottomBarModifier
-                    .testTag("AllExercisesGraph"),
+                modifier = bottomBarModifier.testTag("AllExercisesGraph"),
                 sharedTransitionScope = this@SharedTransitionLayout,
             )
             singleTrainingsGraph(
-                modifier = Modifier
-                    .testTag("SingleTrainingGraph"),
+                modifier = Modifier.testTag("SingleTrainingGraph"),
                 sharedTransitionScope = this@SharedTransitionLayout,
             )
             exerciseGraph(
                 modifier = Modifier
                     .testTag("ExerciseGraph"),
-                sharedTransitionScope = this@SharedTransitionLayout,
             )
             liveWorkoutGraph(
                 modifier = Modifier.testTag("LiveWorkoutGraph"),
+                sharedTransitionScope = this@SharedTransitionLayout,
             )
             pastSessionGraph(
                 modifier = Modifier.testTag("PastSessionGraph"),
@@ -82,6 +81,9 @@ internal fun AppNavigationHost(
             )
             archiveGraph(
                 modifier = Modifier.testTag("ArchiveGraph"),
+            )
+            exerciseChartGraph(
+                modifier = Modifier.testTag("ExerciseChartGraph"),
             )
         }
     }

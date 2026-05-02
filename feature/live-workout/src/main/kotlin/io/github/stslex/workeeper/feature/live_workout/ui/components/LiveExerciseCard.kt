@@ -136,6 +136,7 @@ private fun ExerciseCardHeader(
                     modifier = Modifier.size(AppDimension.iconSm),
                     imageVector = Icons.Filled.MoreVert,
                     contentDescription = stringResource(R.string.feature_live_workout_more),
+                    tint = AppUi.colors.textPrimary,
                 )
             }
             DropdownMenu(
@@ -265,7 +266,8 @@ private fun buildSetRowList(
     val performedByPos = exercise.performedSets.associateBy { it.position }
     val planByPos = exercise.planSets.withIndex().associate { (idx, plan) -> idx to plan }
     return (0 until total).map { position ->
-        val draft = drafts[LiveWorkoutStore.State.DraftKey(exercise.performedExerciseUuid, position)]
+        val draft =
+            drafts[LiveWorkoutStore.State.DraftKey(exercise.performedExerciseUuid, position)]
         val performed = performedByPos[position]
         val plan = planByPos[position]
         when {
@@ -369,7 +371,13 @@ private fun previewCurrent() = LiveExerciseUiModel(
         PlanSetUiModel(weight = 102.5, reps = 5, type = SetTypeUiModel.WORK),
     ),
     performedSets = persistentListOf(
-        LiveSetUiModel(position = 0, weight = 100.0, reps = 5, type = SetTypeUiModel.WORK, isDone = true),
+        LiveSetUiModel(
+            position = 0,
+            weight = 100.0,
+            reps = 5,
+            type = SetTypeUiModel.WORK,
+            isDone = true,
+        ),
     ),
 )
 
@@ -377,9 +385,27 @@ private fun previewDone() = previewCurrent().copy(
     status = ExerciseStatusUiModel.DONE,
     statusLabel = "Completed · 3 sets",
     performedSets = persistentListOf(
-        LiveSetUiModel(position = 0, weight = 100.0, reps = 5, type = SetTypeUiModel.WORK, isDone = true),
-        LiveSetUiModel(position = 1, weight = 100.0, reps = 5, type = SetTypeUiModel.WORK, isDone = true),
-        LiveSetUiModel(position = 2, weight = 102.5, reps = 5, type = SetTypeUiModel.WORK, isDone = true),
+        LiveSetUiModel(
+            position = 0,
+            weight = 100.0,
+            reps = 5,
+            type = SetTypeUiModel.WORK,
+            isDone = true,
+        ),
+        LiveSetUiModel(
+            position = 1,
+            weight = 100.0,
+            reps = 5,
+            type = SetTypeUiModel.WORK,
+            isDone = true,
+        ),
+        LiveSetUiModel(
+            position = 2,
+            weight = 102.5,
+            reps = 5,
+            type = SetTypeUiModel.WORK,
+            isDone = true,
+        ),
     ).toImmutableList(),
 )
 

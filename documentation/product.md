@@ -224,11 +224,15 @@ notes).
   - In-the-moment: highlight when a set establishes a new PR during a
     live workout.
   - Historical: per-exercise PR display in Exercise detail.
+- **Per-exercise progress chart** *(shipped v2.2,
+  [feature-specs/v2.2-exercise-charts.md](feature-specs/v2.2-exercise-charts.md))* —
+  full-screen chart with preset windows (1M / 3M / 1Y / All) and a
+  metric toggle (heaviest weight / volume per set). Entry points: tap
+  the PR card on Exercise detail, or the Charts icon in the Home top
+  bar (left of Settings). Mini chart on Exercise detail is explicitly
+  out of scope.
 - **Stats dashboard** — aggregate progress overview reached from the
   Home achievement block.
-- **Exercise progress chart** (full screen) — per-exercise chart with
-  date filtering.
-- **Mini progress chart** on Exercise detail.
 - **Achievement block on Home** — the top "what did I just achieve"
   card.
 - **Quick notes** — capture, inbox, structure / convert flow.
@@ -274,11 +278,15 @@ forgotten and so future decisions cite this document.
 - **Tag filter semantics.** When the user picks multiple tags, does the
   filter return items matching ALL of them (intersection) or ANY of
   them (union)?
-- **PR metric set** (v2). Exactly which records to track: 1RM
-  estimate, best set at fixed reps (3RM, 5RM, 10RM), best total
-  volume in a session?
-- **Chart metrics** (v2). What goes on the per-exercise progress chart
-  by default: heaviest set, estimated 1RM, total volume?
+- **PR metric set — closed (v2.1).** PR metric is the **heaviest set**
+  per exercise (weight DESC, reps DESC, finished_at ASC; weightless =
+  reps DESC, finished_at ASC). Per-rep-bucket records (1RM / 3RM /
+  5RM / 10RM) and 1RM estimate are explicitly deferred.
+- **Chart metrics — closed (v2.2).** Y-axis defaults to **heaviest
+  weight** (matches PR semantics) with a toggle to **volume per set**
+  (`weight × reps`). Weightless exercises always plot reps and the
+  toggle is hidden. Estimated 1RM is explicitly deferred. See
+  [feature-specs/v2.2-exercise-charts.md](feature-specs/v2.2-exercise-charts.md).
 - **Multi-select trigger** (v2). Long-press vs visible toggle for
   entering multi-select mode in Trainings / Exercises lists.
 - **Empty states.** What Home, Trainings tab, and Exercises tab show

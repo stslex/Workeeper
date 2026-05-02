@@ -4,7 +4,9 @@ package io.github.stslex.workeeper.feature.home.ui.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -31,13 +33,16 @@ internal fun ActiveSessionBanner(
     modifier: Modifier = Modifier,
 ) {
     AppCard(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth(),
         onClick = onClick,
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(AppDimension.Space.md),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
+            horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.lg),
         ) {
             Icon(
                 modifier = Modifier.size(AppDimension.iconLg),
@@ -50,22 +55,20 @@ internal fun ActiveSessionBanner(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    // TODO(tech-debt-localization): Precompute fallback title and progress labels
-                    // in Home handler/interactor so UI only renders prepared strings.
                     Text(
                         modifier = Modifier.weight(1f),
                         text = info.trainingName.ifBlank { stringResource(R.string.feature_home_active_session_label) },
-                        style = AppUi.typography.titleMedium,
+                        style = AppUi.typography.titleLarge,
                         color = AppUi.colors.textPrimary,
                     )
                     Text(
                         text = "•${info.elapsedDurationLabel}",
-                        style = AppUi.typography.titleMedium,
+                        style = AppUi.typography.titleLarge,
                         color = AppUi.colors.accent,
                     )
                 }
+                Spacer(modifier = Modifier.size(AppDimension.Space.md))
                 Text(
-                    // TODO(tech-debt): UI mapping boundary — see documentation/tech-debt.md
                     text = stringResource(R.string.feature_home_active_session_label) + " · " +
                         stringResource(
                             R.string.feature_home_active_session_progress_format,

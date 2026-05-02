@@ -5,6 +5,7 @@ import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
+import io.github.stslex.workeeper.core.exercise.session.SessionConflictResolver
 import io.github.stslex.workeeper.core.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.exercise.session.model.ActiveSessionInfo
 import io.github.stslex.workeeper.core.exercise.session.model.SessionDataModel
@@ -30,6 +31,7 @@ internal class SingleTrainingInteractorImpl @Inject constructor(
     private val exerciseRepository: ExerciseRepository,
     private val tagRepository: TagRepository,
     private val sessionRepository: SessionRepository,
+    private val sessionConflictResolver: SessionConflictResolver,
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
 ) : SingleTrainingInteractor {
 
@@ -148,5 +150,17 @@ internal class SingleTrainingInteractorImpl @Inject constructor(
                     labels = exerciseRepository.getLabels(exercise.uuid),
                 )
             }
+    }
+
+    override suspend fun resolveStartSessionConflict(
+        requestedTrainingUuid: String,
+    ): SessionConflictResolver.Resolution = withContext(defaultDispatcher) {
+        sessionConflictResolver.resolve(requestedTrainingUuid)
+    }
+
+    override suspend fun deleteSession(sessionUuid: String) {
+        withContext(defaultDispatcher) {
+            sessionRepository.deleteSession(sessionUuid)
+        }
     }
 }

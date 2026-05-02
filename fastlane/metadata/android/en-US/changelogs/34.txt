@@ -1,0 +1,5 @@
+- ✨ improve session handling and enhance crashlytics logging
+- ✨ improve session handling and enhance crashlytics logging
+- ✨ resolve exercise status toggling and expand/collapse behavior in UI
+- ✨ optimize modifier stability for UI components
+- ✨ implement personal record tracking and UI enhancements

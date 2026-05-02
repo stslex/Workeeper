@@ -22,17 +22,19 @@ internal class ArchivePagingHandler @Inject constructor(
     store: ArchiveHandlerStore,
 ) : Handler<Action.Paging>, ArchiveHandlerStore by store {
 
-    val archivedExercisesPaging: PagingUiState<PagingData<ArchivedItemUi.Exercise>> = PagingUiState {
-        interactor
-            .pagedArchivedExercises()
-            .map { paging -> paging.map { item -> item.toUi(resourceWrapper) } }
-    }
+    val archivedExercisesPaging: PagingUiState<PagingData<ArchivedItemUi.Exercise>> =
+        PagingUiState {
+            interactor
+                .pagedArchivedExercises()
+                .map { paging -> paging.map { item -> item.toUi(resourceWrapper) } }
+        }
 
-    val archivedTrainingsPaging: PagingUiState<PagingData<ArchivedItemUi.Training>> = PagingUiState {
-        interactor
-            .pagedArchivedTrainings()
-            .map { paging -> paging.map { item -> item.toUi(resourceWrapper) } }
-    }
+    val archivedTrainingsPaging: PagingUiState<PagingData<ArchivedItemUi.Training>> =
+        PagingUiState {
+            interactor
+                .pagedArchivedTrainings()
+                .map { paging -> paging.map { item -> item.toUi(resourceWrapper) } }
+        }
 
     override fun invoke(action: Action.Paging) {
         when (action) {
@@ -41,11 +43,11 @@ internal class ArchivePagingHandler @Inject constructor(
     }
 
     private fun initObservers() {
-        scope.launch(interactor.observeArchivedExerciseCount()) { count ->
-            updateStateImmediate { it.copy(exerciseCount = count) }
+        interactor.observeArchivedExerciseCount().launch { count ->
+            updateState { it.copy(exerciseCount = count) }
         }
-        scope.launch(interactor.observeArchivedTrainingCount()) { count ->
-            updateStateImmediate { it.copy(trainingCount = count) }
+        interactor.observeArchivedTrainingCount().launch { count ->
+            updateState { it.copy(trainingCount = count) }
         }
     }
 }

@@ -1,9 +1,11 @@
 package io.github.stslex.workeeper.core.ui.mvi
 
 import androidx.compose.runtime.Immutable
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScope
+import io.github.stslex.workeeper.core.core.coroutine.scope.AppCoroutineScopeImpl
 import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.ui.mvi.Store.Action
 import io.github.stslex.workeeper.core.ui.mvi.Store.Event
@@ -19,6 +21,8 @@ import io.github.stslex.workeeper.core.ui.mvi.store.StoreConsumer
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +31,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -50,13 +55,16 @@ open class BaseStore<S : State, A : Action, E : Event>(
     private val storeEmitter: HandlerStoreEmitter<S, A, E>,
     private val handlerCreator: HandlerCreator<A>,
     private val initialActions: List<A> = emptyList(),
-    storeDispatchers: StoreDispatchers,
+    private val storeDispatchers: StoreDispatchers,
     val disposeActions: List<A> = emptyList(),
     val analyticsHolder: AnalyticsHolder,
     val loggerHolder: LoggerHolder,
 ) : ViewModel(), Store<S, A, E>, StoreConsumer<S, A, E> {
 
-    private val _event: MutableSharedFlow<E> = MutableSharedFlow()
+    private val _event: MutableSharedFlow<E> = MutableSharedFlow(
+        extraBufferCapacity = EVENTS_BUFFER_CAPACITY,
+        onBufferOverflow = BufferOverflow.SUSPEND,
+    )
     override val event: SharedFlow<E> = _event.asSharedFlow()
 
     private val _state: MutableStateFlow<S> = MutableStateFlow(initialState)
@@ -65,19 +73,31 @@ open class BaseStore<S : State, A : Action, E : Event>(
     private val analytics: StoreAnalytics<A, E> by lazy { analyticsHolder.create(name) }
     override val logger: Logger by lazy { loggerHolder.create(name) }
 
-    override val scope: AppCoroutineScope = AppCoroutineScope(
-        scope = viewModelScope,
-        defaultDispatcher = storeDispatchers.defaultDispatcher,
-        immediateDispatcher = storeDispatchers.mainImmediateDispatcher,
-    )
+    private var _scope: AppCoroutineScope? = null
+    private val scope: AppCoroutineScope
+        get() = requireNotNull(_scope) {
+            "Scope is not initialized for store $name. Call init() before using the store."
+        }
 
     private var _lastAction: A? = null
     override val lastAction: A?
         get() = _lastAction
 
     private val allowConsumeAction: AtomicBoolean = AtomicBoolean(false)
+    private val lifecycleObserver = LifecycleEventObserver { _, lifecycleEvent ->
+        logger.i { "lifecycleEvent: $lifecycleEvent, for store: $name" }
+        analytics.logLifecycleEvent(lifecycleEvent)
+    }
 
-    fun init() {
+    fun init(
+        currentLifecycleOwner: LifecycleOwner,
+    ) {
+        _scope = AppCoroutineScopeImpl(
+            lifecycleOwner = currentLifecycleOwner,
+            defaultDispatcher = storeDispatchers.defaultDispatcher,
+            immediateDispatcher = storeDispatchers.mainImmediateDispatcher,
+        )
+        scope.addObserver(lifecycleObserver)
         allowConsumeAction.set(true)
         initialActions.forEach { consume(it) }
     }
@@ -90,8 +110,13 @@ open class BaseStore<S : State, A : Action, E : Event>(
     }
 
     fun dispose() {
-        disposeActions.forEach { consume(it) }
+        disposeActions.forEach {
+            consume(it)
+        }
         allowConsumeAction.set(false)
+        scope.removeObserver(lifecycleObserver)
+        scope.cancel()
+        _scope = null
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -107,6 +132,12 @@ open class BaseStore<S : State, A : Action, E : Event>(
         }
         val handler = handlerCreator(action) as Handler<A>
         handler.invoke(action)
+    }
+
+    override suspend fun consumeOnMain(action: A) {
+        withContext(storeDispatchers.mainImmediateDispatcher) {
+            consume(action)
+        }
     }
 
     /**
@@ -136,9 +167,19 @@ open class BaseStore<S : State, A : Action, E : Event>(
     override fun sendEvent(event: E) {
         logger.i("sendEvent: $event")
         analytics.logEvent(event)
-        _event.tryEmit(event).also { isProcess ->
-            if (isProcess.not()) {
-                scope.launch { _event.emit(event) }
+        sendEventWithAwait(event)
+    }
+
+    @Synchronized
+    private fun sendEventWithAwait(event: E) {
+        val emitted = _event.tryEmit(event)
+        if (emitted.not()) {
+            logger.w(
+                "Event $event was try emitted: $emitted with buffer capacity ${_event.subscriptionCount.value} " +
+                    "and buffer size ${_event.replayCache.size}",
+            )
+            scope.launch {
+                _event.emit(event)
             }
         }
     }
@@ -154,10 +195,10 @@ open class BaseStore<S : State, A : Action, E : Event>(
     override fun <T> launch(
         onError: suspend (Throwable) -> Unit,
         onSuccess: suspend CoroutineScope.(T) -> Unit,
-        workDispatcher: CoroutineDispatcher,
-        eachDispatcher: CoroutineDispatcher,
+        workDispatcher: CoroutineDispatcher?,
+        eachDispatcher: CoroutineDispatcher?,
         action: suspend CoroutineScope.() -> T,
-    ) = scope.launch(
+    ): Job = scope.launch(
         onError = onError,
         workDispatcher = workDispatcher,
         eachDispatcher = eachDispatcher,
@@ -176,8 +217,8 @@ open class BaseStore<S : State, A : Action, E : Event>(
     override fun <T> launch(
         flow: Flow<T>,
         onError: suspend (cause: Throwable) -> Unit,
-        workDispatcher: CoroutineDispatcher,
-        eachDispatcher: CoroutineDispatcher,
+        workDispatcher: CoroutineDispatcher?,
+        eachDispatcher: CoroutineDispatcher?,
         each: suspend (T) -> Unit,
     ): Job = scope.launch(
         flow = flow,
@@ -189,6 +230,7 @@ open class BaseStore<S : State, A : Action, E : Event>(
 
     companion object {
 
+        private const val EVENTS_BUFFER_CAPACITY = 32
         internal const val STORE_LOGGER_PREFIX = "MVI_STORE"
     }
 }
