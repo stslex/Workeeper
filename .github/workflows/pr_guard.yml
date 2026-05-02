@@ -1,0 +1,28 @@
+name: PR Guard
+
+on:
+  pull_request:
+    branches: [ master ]
+
+
+concurrency:
+  group: pr-guard-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pr_guard:
+    name: Validate PR source branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate source branch
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          if [[ ! "$HEAD_REF" =~ ^release/release-v\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Only release/release-v.X.Y.Z branches can target master. Got: $HEAD_REF"
+            exit 1
+          fi
+          echo "Source branch OK: $HEAD_REF"
