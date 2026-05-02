@@ -16,6 +16,8 @@
     <string name="feature_home_picker_title">Выберите тренировку</string>
     <string name="feature_home_picker_see_all">Все шаблоны</string>
     <string name="feature_home_picker_empty">Пока нет шаблонов</string>
+    <string name="feature_home_picker_start_blank_title">Пустая тренировка</string>
+    <string name="feature_home_picker_start_blank_subtitle">Добавляйте упражнения по ходу</string>
 
     <string name="feature_home_conflict_unnamed">Тренировка</string>
     <string name="feature_home_conflict_progress_format">%1$d из %2$d упражнений выполнено</string>

@@ -53,7 +53,16 @@ internal class CommonHandler @Inject constructor(
     }
 
     private suspend fun createSession(trainingUuid: String?): String? {
-        if (trainingUuid.isNullOrBlank()) return null
+        if (trainingUuid.isNullOrBlank()) {
+            // Blank-init branch (v2.3 Quick start "Start blank"): both route args are null,
+            // so we mint a fresh ad-hoc training + IN_PROGRESS session with no exercises.
+            // Subsequent `loadSession` returns an empty snapshot which the screen renders as
+            // the empty state ("No exercises yet" + Add exercise CTA).
+            return interactor.createAdhocSession(
+                name = "",
+                exerciseUuids = emptyList(),
+            ).sessionUuid
+        }
         return interactor.startSession(trainingUuid)
     }
 

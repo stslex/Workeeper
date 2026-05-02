@@ -13,5 +13,9 @@ internal enum class ErrorType(val msgRes: Int) {
     FinishFailed(R.string.feature_live_workout_error_finish_failed),
     CancelFailed(R.string.feature_live_workout_error_cancel_failed),
     PlanSaveFailed(R.string.feature_live_workout_error_plan_save_failed),
+    TrainingNameSaveFailed(R.string.feature_live_workout_error_training_name_save_failed),
+    AddExerciseFailed(R.string.feature_live_workout_error_add_exercise_failed),
+    CreateInlineExerciseFailed(R.string.feature_live_workout_error_create_inline_exercise_failed),
+    DiscardSessionFailed(R.string.feature_live_workout_error_discard_session_failed),
     Unknown(R.string.feature_live_workout_error_unknown),
 }

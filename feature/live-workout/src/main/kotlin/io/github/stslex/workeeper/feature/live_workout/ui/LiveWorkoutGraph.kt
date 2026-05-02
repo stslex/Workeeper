@@ -11,16 +11,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
 import io.github.stslex.workeeper.core.ui.plan_editor.AppPlanEditor
+import io.github.stslex.workeeper.core.ui.plan_editor.ExercisePickerBottomSheet
+import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutFeature
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Event
+import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State.EmptyFinishDialogState
+import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State.ExercisePickerSheetState
 import io.github.stslex.workeeper.feature.live_workout.ui.components.FinishConfirmDialog
 
 @Suppress("LongMethod", "CyclomaticComplexMethod")
@@ -91,10 +96,47 @@ fun NavGraphBuilder.liveWorkoutGraph(
             )
         }
 
+        (state.exercisePickerSheet as? ExercisePickerSheetState.Visible)?.let { sheet ->
+            ExercisePickerBottomSheet(
+                query = sheet.query,
+                results = sheet.results,
+                noMatchHeadline = sheet.noMatchHeadline,
+                createCtaLabel = sheet.createCtaLabel,
+                searchHint = stringResource(R.string.feature_live_workout_picker_search_hint),
+                isPrimaryActionEnabled = state.canAddExercise,
+                onAction = { action -> processor.consume(Action.Click.PickerAction(action)) },
+            )
+        }
+
+        (state.emptyFinishDialog as? EmptyFinishDialogState.Visible)?.let { dialog ->
+            AppDialog(
+                title = stringResource(R.string.feature_live_workout_empty_finish_title),
+                body = stringResource(R.string.feature_live_workout_empty_finish_body),
+                confirmLabel = stringResource(
+                    if (dialog.canDiscard) {
+                        R.string.feature_live_workout_empty_finish_discard
+                    } else {
+                        R.string.feature_live_workout_empty_finish_continue
+                    },
+                ),
+                dismissLabel = stringResource(R.string.feature_live_workout_empty_finish_continue),
+                destructive = dialog.canDiscard,
+                onConfirm = {
+                    if (dialog.canDiscard) {
+                        processor.consume(Action.Click.OnEmptyFinishDiscard)
+                    } else {
+                        processor.consume(Action.Click.OnEmptyFinishContinue)
+                    }
+                },
+                onDismiss = { processor.consume(Action.Click.OnEmptyFinishContinue) },
+            )
+        }
+
         if (showFinishDialog) {
             state.pendingFinishConfirm?.let { stats ->
                 FinishConfirmDialog(
                     stats = stats,
+                    onNameChange = { processor.consume(Action.Click.OnFinishNameChange(it)) },
                     onConfirm = {
                         showFinishDialog = false
                         processor.consume(Action.Click.OnFinishConfirm)

@@ -11,17 +11,29 @@ import kotlin.uuid.Uuid
 @Dao
 interface ExerciseDao {
 
-    @Query("SELECT * FROM exercise_table WHERE archived = 0 ORDER BY name COLLATE NOCASE ASC")
+    @Query(
+        """
+        SELECT * FROM exercise_table
+        WHERE archived = 0 AND is_adhoc = 0
+        ORDER BY name COLLATE NOCASE ASC
+        """,
+    )
     fun pagedActive(): PagingSource<Int, ExerciseEntity>
 
-    @Query("SELECT * FROM exercise_table WHERE archived = 0 ORDER BY name COLLATE NOCASE ASC")
+    @Query(
+        """
+        SELECT * FROM exercise_table
+        WHERE archived = 0 AND is_adhoc = 0
+        ORDER BY name COLLATE NOCASE ASC
+        """,
+    )
     suspend fun getAllActive(): List<ExerciseEntity>
 
     @Query(
         """
         SELECT e.* FROM exercise_table e
         JOIN exercise_tag_table et ON et.exercise_uuid = e.uuid
-        WHERE e.archived = 0 AND et.tag_uuid IN (:tagUuids)
+        WHERE e.archived = 0 AND e.is_adhoc = 0 AND et.tag_uuid IN (:tagUuids)
         GROUP BY e.uuid
         ORDER BY e.name COLLATE NOCASE ASC
         """,
@@ -37,8 +49,32 @@ interface ExerciseDao {
     @Query("SELECT * FROM exercise_table WHERE uuid = :uuid")
     suspend fun getById(uuid: Uuid): ExerciseEntity?
 
+    /**
+     * Case-insensitive single-row lookup by name. Used by the inline-create flow to avoid
+     * tripping the unique-name constraint when the user types a name that already matches
+     * an existing library exercise — we surface that one rather than raising an error.
+     */
+    @Query("SELECT * FROM exercise_table WHERE name = :name COLLATE NOCASE LIMIT 1")
+    suspend fun findByName(name: String): ExerciseEntity?
+
     @Query("SELECT * FROM exercise_table WHERE uuid IN (:uuids)")
     suspend fun getByUuids(uuids: List<Uuid>): List<ExerciseEntity>
+
+    /**
+     * Ad-hoc exercises (`is_adhoc = 1`) currently joined to [trainingUuid] via the
+     * `training_exercise_table` plan rows. Used by `discardAdhocSession` to cascade-delete
+     * inline-created exercises when a Quick start / Track Now session is discarded. The
+     * defence-in-depth predicate (flag AND join) ensures library exercises just picked
+     * into the session — whose `is_adhoc` is `false` — are never deleted.
+     */
+    @Query(
+        """
+        SELECT e.* FROM exercise_table e
+        INNER JOIN training_exercise_table te ON te.exercise_uuid = e.uuid
+        WHERE te.training_uuid = :trainingUuid AND e.is_adhoc = 1
+        """,
+    )
+    suspend fun getAdhocExercisesForTraining(trainingUuid: Uuid): List<ExerciseEntity>
 
     @Insert
     suspend fun insert(exercise: ExerciseEntity)
@@ -57,6 +93,28 @@ interface ExerciseDao {
 
     @Query("DELETE FROM exercise_table WHERE uuid = :uuid")
     suspend fun permanentDelete(uuid: Uuid)
+
+    @Query("DELETE FROM exercise_table WHERE uuid IN (:uuids)")
+    suspend fun deleteByUuids(uuids: List<Uuid>)
+
+    /**
+     * Flip `is_adhoc` to `0` for every ad-hoc exercise plan row attached to [trainingUuid].
+     * Called inside the `finishSession` transaction so inline-created ad-hoc exercises
+     * graduate to regular library entries the moment the session is preserved. The
+     * `is_adhoc = 1` predicate excludes library exercises that were merely picked into the
+     * session — they are already at `is_adhoc = 0` and would only generate redundant writes.
+     */
+    @Query(
+        """
+        UPDATE exercise_table SET is_adhoc = 0
+        WHERE is_adhoc = 1
+          AND uuid IN (
+              SELECT te.exercise_uuid FROM training_exercise_table te
+              WHERE te.training_uuid = :trainingUuid
+          )
+        """,
+    )
+    suspend fun graduateAdhocForTraining(trainingUuid: Uuid)
 
     /**
      * UUID of the exercise from the most recently finished session. `null` when no finished
@@ -96,6 +154,7 @@ interface ExerciseDao {
         WHERE sn.state = 'FINISHED'
           AND sn.finished_at IS NOT NULL
           AND e.archived = 0
+          AND e.is_adhoc = 0
           AND pe.skipped = 0
           AND EXISTS (
               SELECT 1 FROM set_table s WHERE s.performed_exercise_uuid = pe.uuid

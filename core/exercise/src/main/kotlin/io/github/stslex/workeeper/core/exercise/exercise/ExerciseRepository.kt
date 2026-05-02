@@ -22,6 +22,14 @@ interface ExerciseRepository {
 
     suspend fun saveItem(item: ExerciseChangeDataModel): SaveResult
 
+    /**
+     * Inserts an `is_adhoc = 1` exercise row from a single user-typed name. Used by the
+     * inline-create flow inside the Quick start / Track Now exercise picker. Type defaults
+     * to `WEIGHTED`; description, image, and tags are not captured at create time — the
+     * user can enrich the exercise from Exercise detail after the session graduates it.
+     */
+    suspend fun createInlineAdhocExercise(name: String): InlineAdhocResult
+
     suspend fun getAdhocPlan(exerciseUuid: String): List<PlanSetDataModel>?
 
     suspend fun setAdhocPlan(exerciseUuid: String, planSets: List<PlanSetDataModel>?)
@@ -123,5 +131,16 @@ interface ExerciseRepository {
     data class BulkArchiveOutcome(
         val archivedCount: Int,
         val blockedNames: List<String>,
+    )
+
+    /**
+     * Result of [createInlineAdhocExercise]. [reusedExisting] is true when a case-insensitive
+     * name match was found and the existing row was returned without insert. The picker uses
+     * this flag to decide whether to fetch the PR baseline — reused rows have history,
+     * fresh-inserted ad-hoc rows do not.
+     */
+    data class InlineAdhocResult(
+        val exercise: ExerciseDataModel,
+        val reusedExisting: Boolean,
     )
 }

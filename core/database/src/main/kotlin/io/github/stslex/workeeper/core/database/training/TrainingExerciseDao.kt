@@ -68,6 +68,22 @@ interface TrainingExerciseDao {
     @Insert
     suspend fun insert(rows: List<TrainingExerciseEntity>)
 
+    @Insert
+    suspend fun insert(row: TrainingExerciseEntity)
+
+    /**
+     * Highest `position` currently used inside [trainingUuid], or `null` when the training has
+     * no plan rows yet. Lets the mid-session add-exercise path append at the end without
+     * reading the entire plan.
+     */
+    @Query(
+        """
+        SELECT MAX(position) FROM training_exercise_table
+        WHERE training_uuid = :trainingUuid
+        """,
+    )
+    suspend fun getMaxPosition(trainingUuid: Uuid): Int?
+
     @Query("DELETE FROM training_exercise_table WHERE training_uuid = :trainingUuid")
     suspend fun deleteByTraining(trainingUuid: Uuid)
 }

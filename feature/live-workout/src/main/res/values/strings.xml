@@ -42,6 +42,8 @@
     <string name="feature_live_workout_finish">Finish session</string>
     <string name="feature_live_workout_finish_title">Finish session?</string>
     <string name="feature_live_workout_finish_body">Your sets will be logged and plans will update with what you actually performed.</string>
+    <string name="feature_live_workout_finish_name_label">Workout name</string>
+    <string name="feature_live_workout_finish_name_required">Name is required</string>
     <string name="feature_live_workout_finish_stat_duration">Duration</string>
     <string name="feature_live_workout_finish_stat_exercises">Exercises</string>
     <string name="feature_live_workout_finish_stat_sets">Sets logged</string>
@@ -71,6 +73,26 @@
     <string name="feature_live_workout_delete_session_unnamed">Workout</string>
     <string name="feature_live_workout_delete_session_progress_format" tools:ignore="PluralsCandidate">%1$d of %2$d exercises done · %3$d sets logged</string>
 
+    <!-- Empty state (Quick start blank session) -->
+    <string name="feature_live_workout_empty_headline">No exercises yet</string>
+    <string name="feature_live_workout_empty_supporting">Add your first exercise to begin logging sets.</string>
+
+    <!-- Editable training name header (Quick start) -->
+    <string name="feature_live_workout_training_name_placeholder">Untitled</string>
+
+    <!-- Inline exercise picker (Quick start mid-session add) -->
+    <string name="feature_live_workout_picker_search_hint">Search or create</string>
+    <string name="feature_live_workout_picker_no_match_format">No exercises match “%1$s”</string>
+    <string name="feature_live_workout_picker_create_format">Create “%1$s”</string>
+    <string name="feature_live_workout_add_exercise_cta">Add exercise</string>
+    <string name="feature_live_workout_add_another_exercise_cta">+ Add another exercise</string>
+
+    <!-- Empty-finish confirm dialog -->
+    <string name="feature_live_workout_empty_finish_title">Discard empty workout?</string>
+    <string name="feature_live_workout_empty_finish_body">This workout has no logged sets. It looks like you haven’t started yet.</string>
+    <string name="feature_live_workout_empty_finish_continue">Continue editing</string>
+    <string name="feature_live_workout_empty_finish_discard">Discard</string>
+
     <!-- Misc -->
     <string name="feature_live_workout_back">Back</string>
     <string name="feature_live_workout_more">More</string>
@@ -86,5 +108,9 @@
     <string name="feature_live_workout_error_finish_failed">Could not finish session</string>
     <string name="feature_live_workout_error_cancel_failed">Could not cancel session</string>
     <string name="feature_live_workout_error_plan_save_failed">Could not save plan</string>
+    <string name="feature_live_workout_error_training_name_save_failed">Could not save workout name</string>
+    <string name="feature_live_workout_error_add_exercise_failed">Could not add exercise</string>
+    <string name="feature_live_workout_error_create_inline_exercise_failed">Could not create exercise</string>
+    <string name="feature_live_workout_error_discard_session_failed">Could not discard workout</string>
     <string name="feature_live_workout_error_unknown">Something went wrong</string>
 </resources>

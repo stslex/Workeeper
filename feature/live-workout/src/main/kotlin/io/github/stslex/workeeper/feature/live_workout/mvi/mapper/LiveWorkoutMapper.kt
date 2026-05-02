@@ -46,6 +46,8 @@ internal fun SessionSnapshot.toState(
         trainingUuid = session.trainingUuid,
         trainingName = trainingName,
         trainingNameLabel = "",
+        trainingNameDraft = trainingName,
+        isTrainingNameEditing = false,
         isAdhoc = isAdhoc,
         startedAt = session.startedAt,
         nowMillis = nowMillis.coerceAtLeast(session.startedAt),
@@ -66,6 +68,10 @@ internal fun SessionSnapshot.toState(
         pendingSkipExerciseUuid = null,
         pendingCancelConfirm = false,
         deleteDialogVisible = false,
+        exercisePickerSheet = State.ExercisePickerSheetState.Hidden,
+        emptyFinishDialog = State.EmptyFinishDialogState.Hidden,
+        isAddExerciseInFlight = false,
+        isFinishInFlight = false,
         isLoading = false,
         errorMessage = null,
     ).withPresentation(resourceWrapper)
@@ -178,7 +184,10 @@ internal fun State.withPresentation(resourceWrapper: ResourceWrapper): State {
     )
     return copy(
         trainingNameLabel = trainingName.ifBlank {
-            resourceWrapper.getString(R.string.feature_live_workout_status_no_plan)
+            // v2.3: ad-hoc / Quick start sessions can ride with no name set; the "Untitled"
+            // placeholder is the editable header's empty-state. Library trainings never
+            // surface an empty name in practice, so the fallback only fires for ad-hoc.
+            resourceWrapper.getString(R.string.feature_live_workout_training_name_placeholder)
         },
         doneCount = doneCount,
         totalCount = totalCount,
@@ -210,6 +219,12 @@ internal fun State.toFinishStats(resourceWrapper: ResourceWrapper): State.Finish
             setsLogged,
         ),
         newPersonalRecords = computeNewPersonalRecords(resourceWrapper),
+        requiresName = trainingName.isBlank(),
+        nameDraft = trainingName,
+        nameLabel = resourceWrapper.getString(R.string.feature_live_workout_finish_name_label),
+        namePlaceholder = resourceWrapper.getString(R.string.feature_live_workout_training_name_placeholder),
+        nameError = null,
+        confirmEnabled = trainingName.isNotBlank(),
     )
 }
 

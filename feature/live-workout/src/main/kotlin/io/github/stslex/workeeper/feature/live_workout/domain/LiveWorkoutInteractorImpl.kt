@@ -6,8 +6,10 @@ import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.database.sets.SetTypeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
+import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
+import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordDataModel
 import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordRepository
 import io.github.stslex.workeeper.core.exercise.session.PerformedExerciseRepository
 import io.github.stslex.workeeper.core.exercise.session.PlanUpdate
@@ -16,7 +18,11 @@ import io.github.stslex.workeeper.core.exercise.session.SetRepository
 import io.github.stslex.workeeper.core.exercise.sets.PlanUpdateRule
 import io.github.stslex.workeeper.core.exercise.training.TrainingExerciseRepository
 import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
+import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.AddExerciseResult
+import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.AdhocSessionResult
+import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.ExercisePickerEntry
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.FinishResult
+import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.InlineAdhocResult
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.PerformedExerciseSnapshot
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.SessionSnapshot
 import kotlinx.coroutines.CoroutineDispatcher
@@ -164,6 +170,7 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
 
     override suspend fun finishSession(
         sessionUuid: String,
+        newTrainingName: String?,
     ): FinishResult? = withContext(defaultDispatcher) {
         val session = sessionRepository.getById(sessionUuid) ?: return@withContext null
         val training = async { trainingRepository.getTraining(session.trainingUuid) }
@@ -208,6 +215,7 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
             sessionUuid = sessionUuid,
             finishedAt = finishedAt,
             planUpdates = planUpdates,
+            newTrainingName = newTrainingName,
         )
         if (!applied) return@withContext null
         FinishResult(
@@ -221,8 +229,99 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
 
     override suspend fun cancelSession(sessionUuid: String) {
         withContext(defaultDispatcher) {
-            sessionRepository.deleteSession(sessionUuid)
+            val session = sessionRepository.getById(sessionUuid) ?: return@withContext
+            val training = trainingRepository.getTraining(session.trainingUuid)
+            if (training?.isAdhoc == true) {
+                // Cancel of an ad-hoc session must cascade to the training row + inline
+                // exercises. Without this, Track Now / Quick start cancel paths leak orphan
+                // training rows — the v5 → v6 migration sweeps existing leakers.
+                sessionRepository.discardAdhocSession(
+                    sessionUuid = sessionUuid,
+                    trainingUuid = session.trainingUuid,
+                )
+            } else {
+                sessionRepository.deleteSession(sessionUuid)
+            }
         }
+    }
+
+    override suspend fun createAdhocSession(
+        name: String,
+        exerciseUuids: List<String>,
+    ): AdhocSessionResult = withContext(defaultDispatcher) {
+        val result = sessionRepository.createAdhocSession(name, exerciseUuids)
+        AdhocSessionResult(
+            sessionUuid = result.sessionUuid,
+            trainingUuid = result.trainingUuid,
+        )
+    }
+
+    override suspend fun addExerciseToActiveSession(
+        sessionUuid: String,
+        trainingUuid: String,
+        exerciseUuid: String,
+    ): AddExerciseResult = withContext(defaultDispatcher) {
+        val result = sessionRepository.addExerciseToActiveSession(
+            sessionUuid = sessionUuid,
+            trainingUuid = trainingUuid,
+            exerciseUuid = exerciseUuid,
+        )
+        AddExerciseResult(
+            performedExerciseUuid = result.performedExerciseUuid,
+            planSets = result.planSets,
+        )
+    }
+
+    override suspend fun discardAdhocSession(sessionUuid: String, trainingUuid: String) {
+        withContext(defaultDispatcher) {
+            sessionRepository.discardAdhocSession(
+                sessionUuid = sessionUuid,
+                trainingUuid = trainingUuid,
+            )
+        }
+    }
+
+    override suspend fun createInlineAdhocExercise(
+        name: String,
+    ): InlineAdhocResult = withContext(defaultDispatcher) {
+        val result = exerciseRepository.createInlineAdhocExercise(name)
+        InlineAdhocResult(
+            exerciseUuid = result.exercise.uuid,
+            name = result.exercise.name,
+            type = result.exercise.type,
+            reusedExisting = result.reusedExisting,
+        )
+    }
+
+    override suspend fun updateTrainingName(trainingUuid: String, name: String) {
+        withContext(defaultDispatcher) {
+            trainingRepository.updateName(trainingUuid, name)
+        }
+    }
+
+    override suspend fun searchExercisesForPicker(
+        query: String,
+        excludedUuids: Set<String>,
+    ): List<ExercisePickerEntry> = withContext(defaultDispatcher) {
+        exerciseRepository
+            .searchActiveExercises(query = query, excludeUuids = excludedUuids)
+            .map { exercise ->
+                ExercisePickerEntry(
+                    uuid = exercise.uuid,
+                    name = exercise.name,
+                    type = exercise.type,
+                )
+            }
+    }
+
+    override suspend fun fetchPrSnapshotForExercise(
+        exerciseUuid: String,
+        type: ExerciseTypeDataModel,
+    ): PersonalRecordDataModel? = withContext(defaultDispatcher) {
+        // C1 lock — single-exercise lazy fetch. PersonalRecordRepository.getPersonalRecord is
+        // a suspend hit on the same DAO query observePersonalRecord wraps, so we get the
+        // freshest baseline without holding a Flow open mid-session.
+        personalRecordRepository.getPersonalRecord(exerciseUuid, type)
     }
 
     override suspend fun setPlanForExercise(

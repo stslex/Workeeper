@@ -54,6 +54,7 @@ fun NavGraphBuilder.homeGraph(
                 onSelect = { uuid ->
                     processor.consume(Action.Click.OnPickerTrainingSelected(trainingUuid = uuid))
                 },
+                onStartBlank = { processor.consume(Action.Click.OnStartBlankClick) },
                 onSeeAll = { processor.consume(Action.Click.OnPickerSeeAllClick) },
                 onDismiss = { processor.consume(Action.Click.OnPickerDismiss) },
             )

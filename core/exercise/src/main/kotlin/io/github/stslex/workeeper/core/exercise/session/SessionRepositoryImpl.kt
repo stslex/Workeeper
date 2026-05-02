@@ -17,7 +17,9 @@ import io.github.stslex.workeeper.core.database.session.SessionEntity
 import io.github.stslex.workeeper.core.database.session.SessionStateEntity
 import io.github.stslex.workeeper.core.database.session.SetDao
 import io.github.stslex.workeeper.core.database.training.TrainingDao
+import io.github.stslex.workeeper.core.database.training.TrainingEntity
 import io.github.stslex.workeeper.core.database.training.TrainingExerciseDao
+import io.github.stslex.workeeper.core.database.training.TrainingExerciseEntity
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel.Companion.toData
 import io.github.stslex.workeeper.core.exercise.exercise.model.HistoryEntry
@@ -239,9 +241,16 @@ internal class SessionRepositoryImpl @Inject constructor(
         sessionUuid: String,
         finishedAt: Long,
         planUpdates: List<PlanUpdate>,
+        newTrainingName: String?,
     ): Boolean = transition {
         val current = dao.getById(Uuid.parse(sessionUuid))
             ?: return@transition false
+        // Pair the optional rename with the finish: same transaction, single Room batch.
+        // A throw at any point in this block rolls back the rename, plan updates,
+        // graduation, and state flip together — no half-finished named training can leak.
+        if (newTrainingName != null) {
+            trainingDao.updateName(current.trainingUuid, newTrainingName)
+        }
         planUpdates.asyncForEach { update ->
             val planJson = PlanSetsConverter.toJson(update.newPlan)
             if (update.isAdhoc) {
@@ -257,6 +266,11 @@ internal class SessionRepositoryImpl @Inject constructor(
                 )
             }
         }
+        // Adhoc lifecycle (v2.3): on finish, the training row and every exercise
+        // plan-attached to it graduate to regular library entries. Runs inside the same
+        // transaction as the state flip so a failed finish does not leak half-graduated rows.
+        exerciseDao.graduateAdhocForTraining(current.trainingUuid)
+        trainingDao.graduateTraining(current.trainingUuid)
         dao.update(
             current.copy(
                 state = SessionStateEntity.FINISHED,
@@ -269,6 +283,109 @@ internal class SessionRepositoryImpl @Inject constructor(
     override suspend fun deleteSession(uuid: String) {
         withContext(ioDispatcher) {
             dao.delete(Uuid.parse(uuid))
+        }
+    }
+
+    override suspend fun createAdhocSession(
+        name: String,
+        exerciseUuids: List<String>,
+    ): SessionRepository.AdhocSessionResult = transition {
+        val now = System.currentTimeMillis()
+        val training = TrainingEntity(
+            name = name,
+            description = null,
+            isAdhoc = true,
+            archived = false,
+            createdAt = now,
+            archivedAt = null,
+        )
+        val session = SessionEntity(
+            trainingUuid = training.uuid,
+            state = SessionStateEntity.IN_PROGRESS,
+            startedAt = now,
+            finishedAt = null,
+        )
+        val planRows = exerciseUuids.mapIndexed { index, exerciseUuid ->
+            TrainingExerciseEntity(
+                trainingUuid = training.uuid,
+                exerciseUuid = Uuid.parse(exerciseUuid),
+                position = index,
+                planSets = null,
+            )
+        }
+        val performedRows = exerciseUuids.mapIndexed { index, exerciseUuid ->
+            PerformedExerciseEntity(
+                sessionUuid = session.uuid,
+                exerciseUuid = Uuid.parse(exerciseUuid),
+                position = index,
+                skipped = false,
+            )
+        }
+        trainingDao.insert(training)
+        if (planRows.isNotEmpty()) {
+            trainingExerciseDao.insert(planRows)
+        }
+        dao.startSessionWithExercises(session, performedRows)
+        SessionRepository.AdhocSessionResult(
+            sessionUuid = session.uuid.toString(),
+            trainingUuid = training.uuid.toString(),
+        )
+    }
+
+    override suspend fun addExerciseToActiveSession(
+        sessionUuid: String,
+        trainingUuid: String,
+        exerciseUuid: String,
+    ): SessionRepository.AddExerciseResult = transition {
+        val sessionId = Uuid.parse(sessionUuid)
+        val trainingId = Uuid.parse(trainingUuid)
+        val exerciseId = Uuid.parse(exerciseUuid)
+        // Seed plan_sets from the exercise's last_adhoc_sets so picking a library row with
+        // history surfaces the user's last-logged sets as a baseline. Null when there's no
+        // history (fresh inline-created exercise) — caller renders an empty plan.
+        val initialPlanJson = exerciseDao.getById(exerciseId)?.lastAdhocSets
+        val parsedPlan = PlanSetsConverter.fromJson(initialPlanJson)
+        val nextPlanPosition = (trainingExerciseDao.getMaxPosition(trainingId) ?: -1) + 1
+        val nextPerformedPosition =
+            (performedExerciseDao.getMaxPosition(sessionId) ?: -1) + 1
+        trainingExerciseDao.insert(
+            TrainingExerciseEntity(
+                trainingUuid = trainingId,
+                exerciseUuid = exerciseId,
+                position = nextPlanPosition,
+                planSets = initialPlanJson,
+            ),
+        )
+        val performed = PerformedExerciseEntity(
+            sessionUuid = sessionId,
+            exerciseUuid = exerciseId,
+            position = nextPerformedPosition,
+            skipped = false,
+        )
+        performedExerciseDao.insert(performed)
+        SessionRepository.AddExerciseResult(
+            performedExerciseUuid = performed.uuid.toString(),
+            planSets = parsedPlan,
+        )
+    }
+
+    override suspend fun discardAdhocSession(sessionUuid: String, trainingUuid: String) {
+        transition {
+            val trainingId = Uuid.parse(trainingUuid)
+            // Defence-in-depth predicate: rows must be `is_adhoc = 1` AND joined via the
+            // training being discarded. Library exercises picked into the session have
+            // `is_adhoc = 0` and so are filtered out at the join step.
+            val adhocExerciseUuids = exerciseDao
+                .getAdhocExercisesForTraining(trainingId)
+                .map { it.uuid }
+            // session_table cascades performed_exercise_table + set_table via FK on
+            // session_uuid; training_table cascades training_exercise_table via FK on
+            // training_uuid. Only the ad-hoc exercise rows need explicit cleanup.
+            dao.delete(Uuid.parse(sessionUuid))
+            trainingDao.permanentDelete(trainingId)
+            if (adhocExerciseUuids.isNotEmpty()) {
+                exerciseDao.deleteByUuids(adhocExerciseUuids)
+            }
         }
     }
 

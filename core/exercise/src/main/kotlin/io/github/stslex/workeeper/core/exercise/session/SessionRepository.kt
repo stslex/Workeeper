@@ -1,6 +1,7 @@
 package io.github.stslex.workeeper.core.exercise.session
 
 import androidx.paging.PagingData
+import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.HistoryEntry
 import io.github.stslex.workeeper.core.exercise.session.model.ActiveSessionInfo
 import io.github.stslex.workeeper.core.exercise.session.model.RecentSessionDataModel
@@ -77,14 +78,75 @@ interface SessionRepository {
      * + compensating-rollback path: if any mutation throws, Room rolls back the whole batch
      * and the caller observes a thrown exception. Returns false when the session row is
      * missing (e.g. already deleted).
+     *
+     * When [newTrainingName] is non-null, the training row's name is updated inside the
+     * same transaction before the session-state flip and graduation. This pairs the v2.3
+     * finish-dialog rename with the finish itself so a crash between the two writes can
+     * never leave a named-but-unfinished session or an unfinishable named training.
      */
     suspend fun finishSessionAtomic(
         sessionUuid: String,
         finishedAt: Long,
         planUpdates: List<PlanUpdate>,
+        newTrainingName: String? = null,
     ): Boolean
 
     suspend fun deleteSession(uuid: String)
+
+    /**
+     * Atomically creates an ad-hoc training row + IN_PROGRESS session + one
+     * `performed_exercise` row per [exerciseUuids] entry. Returns both UUIDs so callers can
+     * navigate to the live session and tear it down later via [discardAdhocSession].
+     *
+     * The training row is created with `is_adhoc = true`; the session links to it via the
+     * non-nullable `training_uuid` FK. [exerciseUuids] may be empty for a "Start blank"
+     * Quick start session — the session is still created with no performed exercises.
+     */
+    suspend fun createAdhocSession(
+        name: String,
+        exerciseUuids: List<String>,
+    ): AdhocSessionResult
+
+    /**
+     * Atomically attaches [exerciseUuid] to the active session: writes a
+     * `training_exercise_table` plan row and a `performed_exercise_table` row at the next
+     * position. Used both for inline-created (`is_adhoc = true`) exercises and for library
+     * picks.
+     *
+     * The new plan row's `plan_sets` is seeded from `exercise.last_adhoc_sets` so the user
+     * sees their last-logged baseline as a suggestion. Inline-created exercises with no
+     * history get null and render with an empty plan, matching prior behavior. Subsequent
+     * finish-time `PlanUpdateRule` (grow-but-not-shrink) operates uniformly regardless of
+     * how `plan_sets` was initialized.
+     *
+     * Returns both the new `performed_exercise_table.uuid` and the parsed plan list so the
+     * caller can stitch the row into in-memory State without re-loading the session.
+     */
+    suspend fun addExerciseToActiveSession(
+        sessionUuid: String,
+        trainingUuid: String,
+        exerciseUuid: String,
+    ): AddExerciseResult
+
+    data class AddExerciseResult(
+        val performedExerciseUuid: String,
+        val planSets: List<PlanSetDataModel>?,
+    )
+
+    /**
+     * Atomically tears down an ad-hoc session: deletes the session row, deletes the
+     * ad-hoc training row, and deletes any inline-created (`is_adhoc = 1`) exercise rows
+     * referenced by this training. The defence-in-depth predicate ensures library
+     * exercises picked into the session are never deleted — their `is_adhoc = 0` filters
+     * them out at the join step. Shared by Track Now Cancel and Quick start empty-finish
+     * Discard.
+     */
+    suspend fun discardAdhocSession(sessionUuid: String, trainingUuid: String)
+
+    data class AdhocSessionResult(
+        val sessionUuid: String,
+        val trainingUuid: String,
+    )
 
     /**
      * Date-ordered history for [exerciseUuid] across finished sessions. Each emitted entry

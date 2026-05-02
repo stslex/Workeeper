@@ -5,6 +5,8 @@ import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.core.ui.plan_editor.model.AppPlanEditorAction
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExercisePickerAction
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExercisePickerUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
@@ -27,6 +29,8 @@ internal interface LiveWorkoutStore :
         val trainingUuid: String?,
         val trainingName: String,
         val trainingNameLabel: String,
+        val trainingNameDraft: String,
+        val isTrainingNameEditing: Boolean,
         val isAdhoc: Boolean,
         val startedAt: Long,
         val nowMillis: Long,
@@ -58,6 +62,10 @@ internal interface LiveWorkoutStore :
         val pendingSkipExerciseUuid: String?,
         val pendingCancelConfirm: Boolean,
         val deleteDialogVisible: Boolean,
+        val exercisePickerSheet: ExercisePickerSheetState,
+        val emptyFinishDialog: EmptyFinishDialogState,
+        val isAddExerciseInFlight: Boolean,
+        val isFinishInFlight: Boolean,
         val isLoading: Boolean,
         val errorMessage: String?,
     ) : Store.State {
@@ -85,6 +93,12 @@ internal interface LiveWorkoutStore :
             val exercisesSummaryLabel: String,
             val setsLoggedLabel: String,
             val newPersonalRecords: ImmutableList<NewPrEntry>,
+            val requiresName: Boolean = false,
+            val nameDraft: String = "",
+            val nameLabel: String = "",
+            val namePlaceholder: String = "",
+            val nameError: String? = null,
+            val confirmEnabled: Boolean = true,
         ) {
 
             @Stable
@@ -107,12 +121,77 @@ internal interface LiveWorkoutStore :
             val isWeighted: Boolean get() = exerciseType == ExerciseTypeUiModel.WEIGHTED
         }
 
+        /**
+         * Inline exercise picker bottom-sheet state. Display strings (no-match headline,
+         * Create CTA label) are pre-formatted in the handler so the kit composable does
+         * not derive text — keeps the picker locale-shape agnostic.
+         */
+        @Stable
+        sealed interface ExercisePickerSheetState {
+            data object Hidden : ExercisePickerSheetState
+
+            @Stable
+            data class Visible(
+                val query: String,
+                val results: ImmutableList<ExercisePickerUiModel>,
+                val noMatchHeadline: String?,
+                val createCtaLabel: String?,
+            ) : ExercisePickerSheetState
+        }
+
+        /**
+         * Empty-finish confirm dialog (E1 lock). Triggered when the user taps Finish on a
+         * session with no performed sets. Discard CTA is enabled only for ad-hoc trainings;
+         * library training sessions get a Continue-editing-only variant — we do not delete
+         * library trainings via session cancellation.
+         */
+        @Stable
+        sealed interface EmptyFinishDialogState {
+            data object Hidden : EmptyFinishDialogState
+
+            @Stable
+            data class Visible(
+                val canDiscard: Boolean,
+            ) : EmptyFinishDialogState
+        }
+
         val elapsedMillis: Long get() = (nowMillis - startedAt).coerceAtLeast(0L)
 
         val isPlanEditorDirty: Boolean
             get() = planEditorTarget?.let { it.draft != it.initialPlan } == true
 
-        val interceptBack: Boolean get() = isPlanEditorDirty
+        val isPickerVisible: Boolean
+            get() = exercisePickerSheet is ExercisePickerSheetState.Visible
+
+        val isEmptyFinishDialogVisible: Boolean
+            get() = emptyFinishDialog is EmptyFinishDialogState.Visible
+
+        /**
+         * "Empty session" predicate driving the E1 confirm dialog: no exercises at all,
+         * or every exercise has zero performed sets.
+         */
+        val isSessionEmpty: Boolean
+            get() = exercises.isEmpty() || exercises.all { it.performedSets.isEmpty() }
+
+        /**
+         * Throttle gate for the mid-session add-exercise CTA. False during an in-flight
+         * fetch (picker primary action disabled) and during the finish flow so the user
+         * cannot stack a parallel add on top of session teardown.
+         */
+        val canAddExercise: Boolean
+            get() = !isAddExerciseInFlight && !isFinishInFlight
+
+        /**
+         * Tracks every UI state that needs to intercept the system back gesture so the
+         * Android 13+ predictive back preview stays alive everywhere else. Dismissal order
+         * is enforced by `ClickHandler.processBackClick`: picker → empty-finish dialog →
+         * name edit → plan-editor dirty → default back.
+         */
+        val interceptBack: Boolean
+            get() = isPlanEditorDirty ||
+                isTrainingNameEditing ||
+                isPickerVisible ||
+                isEmptyFinishDialogVisible
 
         companion object {
 
@@ -121,6 +200,8 @@ internal interface LiveWorkoutStore :
                 trainingUuid = trainingUuid,
                 trainingName = "",
                 trainingNameLabel = "",
+                trainingNameDraft = "",
+                isTrainingNameEditing = false,
                 isAdhoc = false,
                 startedAt = 0L,
                 nowMillis = 0L,
@@ -141,6 +222,10 @@ internal interface LiveWorkoutStore :
                 pendingSkipExerciseUuid = null,
                 pendingCancelConfirm = false,
                 deleteDialogVisible = false,
+                exercisePickerSheet = ExercisePickerSheetState.Hidden,
+                emptyFinishDialog = EmptyFinishDialogState.Hidden,
+                isAddExerciseInFlight = false,
+                isFinishInFlight = false,
                 isLoading = true,
                 errorMessage = null,
             )
@@ -171,6 +256,7 @@ internal interface LiveWorkoutStore :
             data object OnSkipExerciseDismiss : Click
             data object OnFinishClick : Click
             data object OnFinishConfirm : Click
+            data class OnFinishNameChange(val text: String) : Click
             data object OnFinishDismiss : Click
             data object OnCancelSessionClick : Click
             data object OnCancelSessionConfirm : Click
@@ -180,6 +266,28 @@ internal interface LiveWorkoutStore :
             data object OnDeleteSessionDismiss : Click
             data class OnExerciseHeaderClick(val performedExerciseUuid: String) : Click
             data object OnBackClick : Click
+
+            // v2.3 — editable training-name header (save on blur, "Untitled" placeholder).
+            data object OnTrainingNameTap : Click
+            data class OnTrainingNameChange(val text: String) : Click
+            data class OnTrainingNameSubmit(val text: String) : Click
+            data object OnTrainingNameDismiss : Click
+
+            // v2.3 — mid-session add exercise (opens the picker sheet).
+            data object OnAddExerciseClick : Click
+
+            /**
+             * Wraps the picker bottom-sheet action surface so the feature's top-level
+             * Click variants stay flat. `ClickHandler` delegates to the dedicated
+             * `ExercisePickerHandler` when this variant fires (per the action-wrapper
+             * pattern from architecture docs).
+             */
+            @Suppress("MviActionNamingRule")
+            data class PickerAction(val action: ExercisePickerAction) : Click
+
+            // v2.3 — empty-finish confirm dialog (E1: Discard or Continue editing).
+            data object OnEmptyFinishDiscard : Click
+            data object OnEmptyFinishContinue : Click
         }
 
         sealed interface Input : Action {

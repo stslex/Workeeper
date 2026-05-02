@@ -39,6 +39,8 @@
     <string name="feature_live_workout_finish">Завершить сессию</string>
     <string name="feature_live_workout_finish_title">Завершить сессию?</string>
     <string name="feature_live_workout_finish_body">Сеты будут записаны, планы обновятся под фактически выполненные значения.</string>
+    <string name="feature_live_workout_finish_name_label">Название тренировки</string>
+    <string name="feature_live_workout_finish_name_required">Введите название</string>
     <string name="feature_live_workout_finish_stat_duration">Длительность</string>
     <string name="feature_live_workout_finish_stat_exercises">Упражнения</string>
     <string name="feature_live_workout_finish_stat_sets">Сетов</string>
@@ -68,6 +70,22 @@
     <string name="feature_live_workout_delete_session_unnamed">Тренировка</string>
     <string name="feature_live_workout_delete_session_progress_format">%1$d из %2$d упражнений · %3$d сетов записано</string>
 
+    <string name="feature_live_workout_empty_headline">Нет упражнений</string>
+    <string name="feature_live_workout_empty_supporting">Добавьте первое упражнение, чтобы начать запись сетов.</string>
+
+    <string name="feature_live_workout_training_name_placeholder">Без названия</string>
+
+    <string name="feature_live_workout_picker_search_hint">Поиск или создание</string>
+    <string name="feature_live_workout_picker_no_match_format">Нет упражнений по запросу «%1$s»</string>
+    <string name="feature_live_workout_picker_create_format">Создать «%1$s»</string>
+    <string name="feature_live_workout_add_exercise_cta">Добавить упражнение</string>
+    <string name="feature_live_workout_add_another_exercise_cta">+ Добавить еще упражнение</string>
+
+    <string name="feature_live_workout_empty_finish_title">Удалить пустую тренировку?</string>
+    <string name="feature_live_workout_empty_finish_body">В этой тренировке нет ни одного выполненного сета. Похоже, она ещё не начата.</string>
+    <string name="feature_live_workout_empty_finish_continue">Продолжить редактирование</string>
+    <string name="feature_live_workout_empty_finish_discard">Удалить</string>
+
     <string name="feature_live_workout_back">Назад</string>
     <string name="feature_live_workout_more">Меню</string>
     <string name="feature_live_workout_remove_set" tools:ignore="UnusedResources">Удалить сет</string>
@@ -81,5 +99,9 @@
     <string name="feature_live_workout_error_finish_failed">Не удалось завершить сессию</string>
     <string name="feature_live_workout_error_cancel_failed">Не удалось отменить сессию</string>
     <string name="feature_live_workout_error_plan_save_failed">Не удалось сохранить план</string>
+    <string name="feature_live_workout_error_training_name_save_failed">Не удалось сохранить название тренировки</string>
+    <string name="feature_live_workout_error_add_exercise_failed">Не удалось добавить упражнение</string>
+    <string name="feature_live_workout_error_create_inline_exercise_failed">Не удалось создать упражнение</string>
+    <string name="feature_live_workout_error_discard_session_failed">Не удалось отменить тренировку</string>
     <string name="feature_live_workout_error_unknown">Что-то пошло не так</string>
 </resources>

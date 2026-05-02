@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -16,10 +17,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.window.Dialog
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
+import io.github.stslex.workeeper.core.ui.kit.components.input.AppTextField
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordBadge
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
@@ -34,6 +37,7 @@ import kotlinx.collections.immutable.toImmutableList
 @Composable
 internal fun FinishConfirmDialog(
     stats: LiveWorkoutStore.State.FinishStats,
+    onNameChange: (String) -> Unit,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
@@ -57,6 +61,15 @@ internal fun FinishConfirmDialog(
                 style = AppUi.typography.bodyMedium,
                 color = AppUi.colors.textSecondary,
             )
+            if (stats.requiresName) {
+                FinishNameField(
+                    name = stats.nameDraft,
+                    label = stats.nameLabel,
+                    placeholder = stats.namePlaceholder,
+                    error = stats.nameError,
+                    onNameChange = onNameChange,
+                )
+            }
             StatRow(
                 label = stringResource(R.string.feature_live_workout_finish_stat_duration),
                 value = stats.durationLabel,
@@ -87,9 +100,39 @@ internal fun FinishConfirmDialog(
                 AppButton.Primary(
                     text = stringResource(R.string.feature_live_workout_finish_confirm),
                     onClick = onConfirm,
+                    enabled = stats.confirmEnabled,
                     size = AppButtonSize.MEDIUM,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun FinishNameField(
+    name: String,
+    label: String,
+    placeholder: String,
+    error: String?,
+    onNameChange: (String) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xs)) {
+        AppTextField(
+            value = name,
+            onValueChange = onNameChange,
+            label = label,
+            placeholder = placeholder,
+            isError = error != null,
+            keyboardOptions = KeyboardOptions(
+                imeAction = ImeAction.Done,
+            ),
+        )
+        if (error != null) {
+            Text(
+                text = error,
+                style = AppUi.typography.bodySmall,
+                color = AppUi.colors.status.error,
+            )
         }
     }
 }
@@ -169,6 +212,7 @@ private fun FinishConfirmDialogAllDoneLightPreview() {
                 setsLoggedLabel = "22",
                 newPersonalRecords = persistentListOf(),
             ),
+            onNameChange = {},
             onConfirm = {},
             onDismiss = {},
         )
@@ -187,6 +231,7 @@ private fun FinishConfirmDialogPartialDarkPreview() {
                 setsLoggedLabel = "12",
                 newPersonalRecords = persistentListOf(),
             ),
+            onNameChange = {},
             onConfirm = {},
             onDismiss = {},
         )
@@ -216,6 +261,7 @@ private fun FinishConfirmDialogWithRecordsPreview() {
                     ),
                 ).toImmutableList(),
             ),
+            onNameChange = {},
             onConfirm = {},
             onDismiss = {},
         )

@@ -27,6 +27,16 @@ internal class NavigationHandler(
                 ),
             )
 
+            Action.Navigation.OpenLiveWorkoutBlank -> navigator.navTo(
+                // Both args null → Live workout's `CommonHandler.createSession` takes the
+                // blank-init branch and mints a fresh ad-hoc session via
+                // `LiveWorkoutInteractor.createAdhocSession`.
+                Screen.LiveWorkout(
+                    sessionUuid = null,
+                    trainingUuid = null,
+                ),
+            )
+
             is Action.Navigation.OpenPastSession -> navigator.navTo(
                 Screen.PastSession(sessionUuid = action.sessionUuid),
             )

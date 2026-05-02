@@ -15,6 +15,8 @@ import io.github.stslex.workeeper.core.core.utils.CommonExt.runIfNotNull
 import io.github.stslex.workeeper.core.database.common.DbTransitionRunner
 import io.github.stslex.workeeper.core.database.converters.PlanSetsConverter
 import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
+import io.github.stslex.workeeper.core.database.exercise.ExerciseEntity
+import io.github.stslex.workeeper.core.database.exercise.ExerciseTypeEntity
 import io.github.stslex.workeeper.core.database.session.SessionDao
 import io.github.stslex.workeeper.core.database.session.SetDao
 import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
@@ -24,6 +26,7 @@ import io.github.stslex.workeeper.core.database.tag.TagDao
 import io.github.stslex.workeeper.core.database.tag.TagEntity
 import io.github.stslex.workeeper.core.database.training.TrainingExerciseDao
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository.BulkArchiveOutcome
+import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository.InlineAdhocResult
 import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository.SaveResult
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
@@ -115,6 +118,38 @@ internal class ExerciseRepositoryImpl @Inject constructor(
     ): List<PlanSetDataModel>? = withContext(bgDispatcher) {
         val entity = dao.getById(Uuid.parse(exerciseUuid)) ?: return@withContext null
         PlanSetsConverter.fromJson(entity.lastAdhocSets)
+    }
+
+    override suspend fun createInlineAdhocExercise(
+        name: String,
+    ): InlineAdhocResult = transition {
+        val trimmed = name.trim()
+        // Case-insensitive lookup before insert so a user-typed name that already maps to a
+        // library row (or a stray adhoc orphan) does not trip the UNIQUE(name) constraint.
+        // Existing row is returned untouched — `is_adhoc` is intentionally not modified.
+        val existing = dao.findByName(trimmed)
+        if (existing != null) {
+            return@transition InlineAdhocResult(
+                exercise = existing.toData(),
+                reusedExisting = true,
+            )
+        }
+        val entity = ExerciseEntity(
+            name = trimmed,
+            type = ExerciseTypeEntity.WEIGHTED,
+            description = null,
+            imagePath = null,
+            archived = false,
+            createdAt = System.currentTimeMillis(),
+            archivedAt = null,
+            lastAdhocSets = null,
+            isAdhoc = true,
+        )
+        dao.insert(entity)
+        InlineAdhocResult(
+            exercise = entity.toData(),
+            reusedExisting = false,
+        )
     }
 
     override suspend fun setAdhocPlan(

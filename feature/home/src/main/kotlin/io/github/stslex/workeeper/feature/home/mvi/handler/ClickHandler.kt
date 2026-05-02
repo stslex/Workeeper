@@ -34,6 +34,7 @@ internal class ClickHandler @Inject constructor(
             is Action.Click.OnRecentSessionClick -> processRecentSessionClick(action.sessionUuid)
             Action.Click.OnStartTrainingClick -> processStartTrainingClick()
             is Action.Click.OnPickerTrainingSelected -> processPickerSelected(action.trainingUuid)
+            Action.Click.OnStartBlankClick -> processStartBlankClick()
             Action.Click.OnPickerSeeAllClick -> processPickerSeeAll()
             Action.Click.OnPickerDismiss -> processPickerDismiss()
             Action.Click.OnConflictResume -> processConflictResume()
@@ -154,6 +155,12 @@ internal class ClickHandler @Inject constructor(
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         updateState { it.copy(picker = State.PickerState.Hidden) }
         consume(Action.Navigation.OpenAllTrainings)
+    }
+
+    private fun processStartBlankClick() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updateState { it.copy(picker = State.PickerState.Hidden) }
+        consume(Action.Navigation.OpenLiveWorkoutBlank)
     }
 
     private fun processPickerDismiss() {
