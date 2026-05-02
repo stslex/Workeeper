@@ -11,6 +11,8 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  checks: write
+  issues: read
 
 concurrency:
   group: deploy-prod-${{ github.ref }}
@@ -23,8 +25,8 @@ jobs:
     outputs:
       version_name: ${{ steps.toml.outputs.version_name }}
       version_code: ${{ steps.toml.outputs.version_code }}
-      pr_number:    ${{ steps.pr.outputs.pr_number }}
-      sha:          ${{ steps.resolve.outputs.sha }}
+      pr_number: ${{ steps.pr.outputs.pr_number }}
+      sha: ${{ steps.resolve.outputs.sha }}
     steps:
       - name: Validate ref is a release branch
         id: branch
@@ -70,7 +72,7 @@ jobs:
       - name: Verify branch ↔ TOML coherence
         env:
           BRANCH_VERSION: ${{ steps.branch.outputs.version_from_branch }}
-          TOML_VERSION:   ${{ steps.toml.outputs.version_name }}
+          TOML_VERSION: ${{ steps.toml.outputs.version_name }}
         run: |
           if [[ "$BRANCH_VERSION" != "$TOML_VERSION" ]]; then
             echo "::error::Branch version ($BRANCH_VERSION) does not match TOML versionName ($TOML_VERSION)."
@@ -118,7 +120,7 @@ jobs:
     secrets: inherit
 
   ui_tests:
-    needs: [guard, build]
+    needs: [ guard, build ]
     if: ${{ !inputs.skip_ui_tests }}
     uses: ./.github/workflows/ui_tests.yml
     with:
@@ -127,7 +129,7 @@ jobs:
     secrets: inherit
 
   deploy:
-    needs: [guard, build, ui_tests]
+    needs: [ guard, build, ui_tests ]
     if: ${{ always() && needs.build.result == 'success' && (needs.ui_tests.result == 'success' || needs.ui_tests.result == 'skipped') }}
     name: Deploy to Play, tag, merge PR
     runs-on: ubuntu-latest
