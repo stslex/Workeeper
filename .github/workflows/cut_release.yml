@@ -1,0 +1,128 @@
+name: Cut Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        type: choice
+        options:
+          - release
+          - hotfix
+        required: true
+        description: "release: bump minor (Y), cut from dev. hotfix: bump patch (Z), cut from master."
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: cut-release
+  cancel-in-progress: false
+
+jobs:
+  cut:
+    name: Cut release branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine source branch
+        id: source
+        env:
+          MODE: ${{ inputs.mode }}
+        run: |
+          case "$MODE" in
+            release) source_branch="dev" ;;
+            hotfix)  source_branch="master" ;;
+            *)
+              echo "::error::Unknown mode '$MODE'."
+              exit 1
+              ;;
+          esac
+          echo "branch=$source_branch" >> "$GITHUB_OUTPUT"
+          echo "Source branch for $MODE: $source_branch"
+
+      - name: Checkout source branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.source.outputs.branch }}
+          fetch-depth: 0
+          token: ${{ secrets.PUSH_TOKEN }}
+
+      - name: Bump version
+        id: bump
+        env:
+          MODE: ${{ inputs.mode }}
+        run: |
+          output="$(bash ./.github/scripts/bump_version.sh --mode="$MODE")"
+          echo "$output"
+          version_name="$(printf '%s\n' "$output" | awk -F'=' '/^version_name=/ { print $2; exit }')"
+          version_code="$(printf '%s\n' "$output" | awk -F'=' '/^version_code=/ { print $2; exit }')"
+          if [[ -z "$version_name" || -z "$version_code" ]]; then
+            echo "::error::bump_version.sh did not produce expected output."
+            exit 1
+          fi
+          branch="release/release-v.${version_name}"
+          {
+            echo "version_name=$version_name"
+            echo "version_code=$version_code"
+            echo "branch=$branch"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Verify release branch does not already exist
+        env:
+          BRANCH: ${{ steps.bump.outputs.branch }}
+        run: |
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            echo "::error::Branch $BRANCH already exists on origin. Delete it or pick a different version."
+            exit 1
+          fi
+          echo "Branch $BRANCH is free on origin."
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Create release branch and commit version bump
+        env:
+          BRANCH: ${{ steps.bump.outputs.branch }}
+          VERSION_NAME: ${{ steps.bump.outputs.version_name }}
+          VERSION_CODE: ${{ steps.bump.outputs.version_code }}
+        run: |
+          git checkout -b "$BRANCH"
+          git commit -am "chore: bump to v.${VERSION_NAME} (code ${VERSION_CODE})"
+
+      - name: Push release branch
+        env:
+          BRANCH: ${{ steps.bump.outputs.branch }}
+        run: git push -u origin "$BRANCH"
+
+      - name: Open release PR
+        env:
+          GH_TOKEN: ${{ secrets.PUSH_TOKEN }}
+          BRANCH: ${{ steps.bump.outputs.branch }}
+          VERSION_NAME: ${{ steps.bump.outputs.version_name }}
+          VERSION_CODE: ${{ steps.bump.outputs.version_code }}
+          MODE: ${{ inputs.mode }}
+          SOURCE_BRANCH: ${{ steps.source.outputs.branch }}
+        run: |
+          if [[ "$MODE" == "release" ]]; then
+            title="Release v.${VERSION_NAME}"
+          else
+            title="Hotfix v.${VERSION_NAME}"
+          fi
+
+          body_file="$(mktemp)"
+          {
+            echo "- Mode: \`$MODE\`"
+            echo "- Source branch: \`$SOURCE_BRANCH\`"
+            echo "- versionName: \`$VERSION_NAME\`"
+            echo "- versionCode: \`$VERSION_CODE\`"
+            echo ""
+            echo "<!-- changelog generated at deploy time -->"
+          } > "$body_file"
+
+          gh pr create \
+            --base master \
+            --head "$BRANCH" \
+            --title "$title" \
+            --body-file "$body_file"

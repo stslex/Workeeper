@@ -8,7 +8,7 @@ androidTools = "32.1.0"
 minSdk = "28"
 targetSdk = "37"
 compileSdk = "36"
-versionName = "1.36"
+versionName = "1.36.0"
 versionCode = "37"
 
 ktx = "1.17.0"
