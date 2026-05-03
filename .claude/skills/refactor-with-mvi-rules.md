@@ -36,6 +36,8 @@ description: Resolve a custom Detekt MVI-architecture rule violation by reading 
    - `MviStoreStateRule.kt`
    - `HiltScopeRule.kt` (uses `ScopeClassType.kt` for the name → annotation mapping)
    - `ComposableStateRule.kt`
+   - `DomainLayerPurityRule.kt`
+   - `DomainLayerNoUiRule.kt`
 
    Read the rule source if the message is ambiguous — it is the ground truth for what
    triggers the report. The rule set is registered in `MviArchitectureRules.kt`.
@@ -115,6 +117,18 @@ description: Resolve a custom Detekt MVI-architecture rule violation by reading 
    - **`ComposableStateRule`** — `@Composable` functions whose name ends in `Screen`
      must take a `*State` parameter and an action/event handler parameter (typically a
      `consume: (Action) -> Unit` lambda).
+
+   - **`DomainLayerPurityRule`** — replace the `core.data.*` data-model import with the
+     feature-local `*Domain` type. If the type doesn't exist yet, create it in
+     `feature/<X>/domain/model/` and add a `toDomain()` extension in
+     `feature/<X>/domain/mapper/`. Repository / Storage / Dao / Dispatcher imports under
+     `core.data.*` are intentionally allowed — the rule only flags data-shape suffixes.
+
+   - **`DomainLayerNoUiRule`** — move display string lookups (`stringResource`, `R.*`,
+     `ResourceWrapper.getString`) out of domain into the UI mapper at
+     `feature/<X>/mvi/mapper/`. Move `*UiModel` imports to UI mapper inputs/outputs only.
+     Compose annotations (`@Stable`) that ended up on a domain model belong on a
+     UI-side wrapper type in `mvi/model/` instead.
 
 3. Re-run detekt for the affected module:
 

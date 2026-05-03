@@ -3,23 +3,28 @@ package io.github.stslex.workeeper.feature.single_training.domain
 
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
-import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
-import io.github.stslex.workeeper.core.exercise.session.SessionConflictResolver
-import io.github.stslex.workeeper.core.exercise.session.SessionRepository
-import io.github.stslex.workeeper.core.exercise.session.model.ActiveSessionInfo
-import io.github.stslex.workeeper.core.exercise.session.model.SessionDataModel
-import io.github.stslex.workeeper.core.exercise.tags.TagRepository
-import io.github.stslex.workeeper.core.exercise.tags.model.TagDataModel
-import io.github.stslex.workeeper.core.exercise.training.TrainingChangeDataModel
-import io.github.stslex.workeeper.core.exercise.training.TrainingDataModel
-import io.github.stslex.workeeper.core.exercise.training.TrainingExerciseRepository
-import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
-import io.github.stslex.workeeper.feature.single_training.domain.SingleTrainingInteractor.ArchiveResult
-import io.github.stslex.workeeper.feature.single_training.domain.SingleTrainingInteractor.TrainingExerciseDetail
+import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
+import io.github.stslex.workeeper.core.data.exercise.session.SessionConflictResolver
+import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
+import io.github.stslex.workeeper.core.data.exercise.tags.TagRepository
+import io.github.stslex.workeeper.core.data.exercise.training.TrainingExerciseRepository
+import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
+import io.github.stslex.workeeper.feature.single_training.domain.mapper.toData
+import io.github.stslex.workeeper.feature.single_training.domain.mapper.toDomain
+import io.github.stslex.workeeper.feature.single_training.domain.model.ActiveSessionDomain
+import io.github.stslex.workeeper.feature.single_training.domain.model.ArchiveResult
+import io.github.stslex.workeeper.feature.single_training.domain.model.PickerExercise
+import io.github.stslex.workeeper.feature.single_training.domain.model.PlanSetDomain
+import io.github.stslex.workeeper.feature.single_training.domain.model.SessionDomain
+import io.github.stslex.workeeper.feature.single_training.domain.model.StartSessionConflict
+import io.github.stslex.workeeper.feature.single_training.domain.model.TagDomain
+import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingChangeDomain
+import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingDomain
+import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingExerciseDetail
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
@@ -37,8 +42,8 @@ internal class SingleTrainingInteractorImpl @Inject constructor(
 
     override suspend fun getTraining(
         uuid: String,
-    ): TrainingDataModel? = withContext(defaultDispatcher) {
-        trainingRepository.getTraining(uuid)
+    ): TrainingDomain? = withContext(defaultDispatcher) {
+        trainingRepository.getTraining(uuid)?.toDomain()
     }
 
     override suspend fun getTrainingExercises(
@@ -52,9 +57,9 @@ internal class SingleTrainingInteractorImpl @Inject constructor(
         rows.mapNotNull { row ->
             val exercise = exercises[row.exerciseUuid] ?: return@mapNotNull null
             TrainingExerciseDetail(
-                exercise = exercise,
+                exercise = exercise.toDomain(),
                 position = row.position,
-                planSets = row.planSets,
+                planSets = row.planSets?.map { it.toDomain() },
                 labels = exerciseRepository.getLabels(exercise.uuid),
             )
         }
@@ -69,22 +74,23 @@ internal class SingleTrainingInteractorImpl @Inject constructor(
     override suspend fun getRecentSessions(
         trainingUuid: String,
         limit: Int,
-    ): List<SessionDataModel> = withContext(defaultDispatcher) {
-        sessionRepository.getRecentFinishedByTraining(trainingUuid, limit)
+    ): List<SessionDomain> = withContext(defaultDispatcher) {
+        sessionRepository.getRecentFinishedByTraining(trainingUuid, limit).map { it.toDomain() }
     }
 
-    override fun observeAvailableTags(): Flow<List<TagDataModel>> = tagRepository
+    override fun observeAvailableTags(): Flow<List<TagDomain>> = tagRepository
         .observeAll()
+        .map { tags -> tags.map { it.toDomain() } }
         .flowOn(defaultDispatcher)
 
-    override suspend fun saveTraining(snapshot: TrainingChangeDataModel) {
+    override suspend fun saveTraining(snapshot: TrainingChangeDomain) {
         withContext(defaultDispatcher) {
-            trainingRepository.updateTraining(snapshot)
+            trainingRepository.updateTraining(snapshot.toData())
         }
     }
 
-    override suspend fun createTag(name: String): TagDataModel = withContext(defaultDispatcher) {
-        tagRepository.add(name)
+    override suspend fun createTag(name: String): TagDomain = withContext(defaultDispatcher) {
+        tagRepository.add(name).toDomain()
     }
 
     override suspend fun archive(uuid: String): ArchiveResult = withContext(defaultDispatcher) {
@@ -111,29 +117,30 @@ internal class SingleTrainingInteractorImpl @Inject constructor(
             trainingRepository.countSessionsUsing(uuid) == 0
     }
 
-    override fun observeAnyActiveSession(): Flow<ActiveSessionInfo?> = sessionRepository
+    override fun observeAnyActiveSession(): Flow<ActiveSessionDomain?> = sessionRepository
         .observeAnyActiveSession()
+        .map { it?.toDomain() }
         .flowOn(defaultDispatcher)
 
     override suspend fun setPlanForExercise(
         trainingUuid: String,
         exerciseUuid: String,
-        plan: List<PlanSetDataModel>?,
+        plan: List<PlanSetDomain>?,
     ) {
         withContext(defaultDispatcher) {
-            trainingExerciseRepository.setPlan(trainingUuid, exerciseUuid, plan)
+            trainingExerciseRepository.setPlan(trainingUuid, exerciseUuid, plan?.map { it.toData() })
         }
     }
 
     override suspend fun searchExercisesForPicker(
         query: String,
         excludeUuids: Set<String>,
-    ): List<SingleTrainingInteractor.PickerExercise> = withContext(defaultDispatcher) {
+    ): List<PickerExercise> = withContext(defaultDispatcher) {
         exerciseRepository
             .searchActiveExercises(query, excludeUuids)
             .map { exercise ->
-                SingleTrainingInteractor.PickerExercise(
-                    exercise = exercise,
+                PickerExercise(
+                    exercise = exercise.toDomain(),
                     labels = exerciseRepository.getLabels(exercise.uuid),
                 )
             }
@@ -141,12 +148,12 @@ internal class SingleTrainingInteractorImpl @Inject constructor(
 
     override suspend fun resolveExercises(
         uuids: List<String>,
-    ): List<SingleTrainingInteractor.PickerExercise> = withContext(defaultDispatcher) {
+    ): List<PickerExercise> = withContext(defaultDispatcher) {
         exerciseRepository
             .getExercisesByUuid(uuids)
             .map { exercise ->
-                SingleTrainingInteractor.PickerExercise(
-                    exercise = exercise,
+                PickerExercise(
+                    exercise = exercise.toDomain(),
                     labels = exerciseRepository.getLabels(exercise.uuid),
                 )
             }
@@ -154,8 +161,8 @@ internal class SingleTrainingInteractorImpl @Inject constructor(
 
     override suspend fun resolveStartSessionConflict(
         requestedTrainingUuid: String,
-    ): SessionConflictResolver.Resolution = withContext(defaultDispatcher) {
-        sessionConflictResolver.resolve(requestedTrainingUuid)
+    ): StartSessionConflict = withContext(defaultDispatcher) {
+        sessionConflictResolver.resolve(requestedTrainingUuid).toDomain()
     }
 
     override suspend fun deleteSession(sessionUuid: String) {

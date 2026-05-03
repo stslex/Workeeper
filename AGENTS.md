@@ -33,6 +33,38 @@ Project context for OpenAI Codex / Cursor agents (and any other tool that follow
 - [documentation/lint-rules.md](documentation/lint-rules.md) — Detekt MVI rules + Android Lint.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — contributor workflow, commit format.
 
+### Domain layer: interactors and use cases
+
+- Each feature has one Interactor injected into the Store. The Interactor
+  is the only domain-layer dependency the store sees.
+- Interactor methods that are pure repository pass-through stay in the
+  Interactor implementation, calling the repository directly. A method
+  qualifies as pass-through if it is a single repository call optionally
+  wrapped in `withContext`/`flowOn`, with no business branching.
+- Methods with non-trivial business logic — multiple repository calls,
+  conditional branching, synthesized sealed return types, multi-step
+  orchestration — extract into a single-method use case in
+  `feature/<name>/domain/usecase/`.
+- A use case is a class with one `suspend operator fun invoke(...)` (or
+  non-suspend `fun invoke` for `Flow`-returning use cases). It injects only
+  the repositories and helpers it actually uses, plus its own
+  `@DefaultDispatcher` if it does suspend work.
+- The Interactor delegates thick methods to use cases with a single line.
+  Threading (`withContext`) lives in the use case.
+- Reference implementation: `feature/exercise/.../domain/`. See
+  `ArchiveExerciseUseCase`, `ResolveTrackNowConflictUseCase`,
+  `StartTrackNowSessionUseCase`, `DeleteSessionUseCase`.
+- Public surface of interactors and use cases uses `*Domain` types,
+  never `core.data.*` types. Mapping data → domain happens in
+  `feature/<X>/domain/mapper/`. Mapping domain → ui happens in
+  `feature/<X>/mvi/mapper/`.
+- Two Detekt rules guard this boundary: `DomainLayerPurityRule` and
+  `DomainLayerNoUiRule`.
+- Display strings and resource fallbacks live in UI mappers via
+  `stringResource(R.string.*)` or `resourceWrapper.getString(...)`.
+  The domain layer never injects `ResourceWrapper` and never imports
+  `R.*`.
+
 ## Workflow recipes (`.claude/skills/`)
 
 These are Claude Code-shaped skill files. Other agents can read them as procedural recipes for

@@ -2,18 +2,18 @@
 package io.github.stslex.workeeper.feature.live_workout.mvi.mapper
 
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
-import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
-import io.github.stslex.workeeper.core.database.sets.SetTypeDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
-import io.github.stslex.workeeper.core.exercise.session.model.PerformedExerciseDataModel
-import io.github.stslex.workeeper.core.exercise.session.model.SessionDataModel
-import io.github.stslex.workeeper.core.exercise.session.model.SessionStateDataModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.R
-import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.PerformedExerciseSnapshot
-import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.SessionSnapshot
+import io.github.stslex.workeeper.feature.live_workout.domain.model.ExerciseTypeDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.model.LiveExerciseDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.model.PerformedExerciseDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.model.PlanSetDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.model.SessionDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.model.SessionSnapshotDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.model.SessionStateDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.model.SetTypeDomain
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
@@ -34,7 +34,7 @@ internal class LiveWorkoutMapperTest {
 
     @Test
     fun `mapper marks the lowest-position non-skipped non-done exercise as CURRENT`() {
-        val snapshot = SessionSnapshot(
+        val snapshot = SessionSnapshotDomain(
             session = sessionAt(1000L),
             trainingName = "Push Day",
             isAdhoc = false,
@@ -55,7 +55,7 @@ internal class LiveWorkoutMapperTest {
 
     @Test
     fun `mapper marks skipped rows as SKIPPED and walks past them for CURRENT`() {
-        val snapshot = SessionSnapshot(
+        val snapshot = SessionSnapshotDomain(
             session = sessionAt(1000L),
             trainingName = "Pull Day",
             isAdhoc = false,
@@ -77,7 +77,7 @@ internal class LiveWorkoutMapperTest {
 
     @Test
     fun `mapper preserves session start time on the resulting state`() {
-        val snapshot = SessionSnapshot(
+        val snapshot = SessionSnapshotDomain(
             session = sessionAt(startedAt = 7_000L),
             trainingName = "Push Day",
             isAdhoc = false,
@@ -94,7 +94,7 @@ internal class LiveWorkoutMapperTest {
 
     @Test
     fun `mapper treats no-plan exercise with logged sets as DONE`() {
-        val snapshot = SessionSnapshot(
+        val snapshot = SessionSnapshotDomain(
             session = sessionAt(1000L),
             trainingName = "Adhoc",
             isAdhoc = true,
@@ -102,7 +102,12 @@ internal class LiveWorkoutMapperTest {
                 pending(uuid = "pe-1", position = 0).copy(
                     planSets = null,
                     performedSets = listOf(
-                        PlanSetDataModel(weight = null, reps = 10, type = SetTypeDataModel.WORK),
+                        io.github.stslex.workeeper.feature.live_workout.domain.model.SetDomain(
+                            uuid = "set-1",
+                            weight = null,
+                            reps = 10,
+                            type = SetTypeDomain.WORK,
+                        ),
                     ),
                 ),
                 pending(uuid = "pe-2", position = 1),
@@ -116,38 +121,47 @@ internal class LiveWorkoutMapperTest {
         assertEquals(ExerciseStatusUiModel.CURRENT, state.exercises[1].status)
     }
 
-    private fun sessionAt(startedAt: Long): SessionDataModel = SessionDataModel(
+    private fun sessionAt(startedAt: Long): SessionDomain = SessionDomain(
         uuid = "session-1",
         trainingUuid = "training-1",
-        state = SessionStateDataModel.IN_PROGRESS,
+        state = SessionStateDomain.IN_PROGRESS,
         startedAt = startedAt,
         finishedAt = null,
     )
 
-    private fun pending(uuid: String, position: Int): PerformedExerciseSnapshot =
-        PerformedExerciseSnapshot(
-            performed = PerformedExerciseDataModel(
+    private fun pending(uuid: String, position: Int): LiveExerciseDomain =
+        LiveExerciseDomain(
+            performed = PerformedExerciseDomain(
                 uuid = uuid,
                 sessionUuid = "session-1",
                 exerciseUuid = "exercise-$position",
                 position = position,
                 skipped = false,
+                exerciseName = "Exercise $position",
             ),
-            exerciseName = "Exercise $position",
-            exerciseType = ExerciseTypeDataModel.WEIGHTED,
+            exerciseType = ExerciseTypeDomain.WEIGHTED,
             planSets = listOf(
-                PlanSetDataModel(weight = 100.0, reps = 5, type = SetTypeDataModel.WORK),
-                PlanSetDataModel(weight = 100.0, reps = 5, type = SetTypeDataModel.WORK),
+                PlanSetDomain(weight = 100.0, reps = 5, type = SetTypeDomain.WORK),
+                PlanSetDomain(weight = 100.0, reps = 5, type = SetTypeDomain.WORK),
             ),
             performedSets = emptyList(),
-            performedSetUuids = emptyList(),
         )
 
-    private fun fullyDone(uuid: String, position: Int): PerformedExerciseSnapshot =
+    private fun fullyDone(uuid: String, position: Int): LiveExerciseDomain =
         pending(uuid, position).copy(
             performedSets = listOf(
-                PlanSetDataModel(weight = 100.0, reps = 5, type = SetTypeDataModel.WORK),
-                PlanSetDataModel(weight = 100.0, reps = 5, type = SetTypeDataModel.WORK),
+                io.github.stslex.workeeper.feature.live_workout.domain.model.SetDomain(
+                    uuid = "set-$uuid-0",
+                    weight = 100.0,
+                    reps = 5,
+                    type = SetTypeDomain.WORK,
+                ),
+                io.github.stslex.workeeper.feature.live_workout.domain.model.SetDomain(
+                    uuid = "set-$uuid-1",
+                    weight = 100.0,
+                    reps = 5,
+                    type = SetTypeDomain.WORK,
+                ),
             ),
         )
 
@@ -195,8 +209,6 @@ internal class LiveWorkoutMapperTest {
             pending(uuid = "pe-2", position = 1),
         ).toUiList(activeUuids = setOf("pe-2"))
 
-        // pe-1 was the previous auto-default, but the active set is non-empty so the
-        // auto-default is suppressed. pe-1 falls back to PENDING.
         assertEquals(ExerciseStatusUiModel.PENDING, ui[0].status)
         assertEquals(ExerciseStatusUiModel.CURRENT, ui[1].status)
     }

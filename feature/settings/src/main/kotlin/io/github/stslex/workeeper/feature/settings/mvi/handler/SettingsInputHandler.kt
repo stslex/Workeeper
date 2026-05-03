@@ -6,6 +6,7 @@ import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.settings.di.SettingsHandlerStore
 import io.github.stslex.workeeper.feature.settings.domain.SettingsInteractor
+import io.github.stslex.workeeper.feature.settings.mvi.mapper.ThemeModeMapper.toDomain
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Action
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Event
 import javax.inject.Inject
@@ -21,7 +22,7 @@ internal class SettingsInputHandler @Inject constructor(
             is Action.Input.OnThemeChange -> {
                 sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
                 updateState { it.copy(themeMode = action.mode) }
-                launch { interactor.setThemeMode(action.mode) }
+                launch { interactor.setThemeMode(action.mode.toDomain()) }
             }
         }
     }

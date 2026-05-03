@@ -7,7 +7,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.click
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
@@ -220,6 +220,11 @@ class ExerciseChartScreenTest : BaseComposeTest() {
         composeTestRule.onNodeWithTag("ExerciseChartNoDataForExercise").assertDoesNotExist()
         // And the canvas itself must be displayed.
         composeTestRule.onNodeWithTag("ChartCanvas").assertIsDisplayed()
+
+        // TODO(#119): Fails if the point is rendered outside the canvas bounds - for
+        // example tablet landscape with a very wide canvas. We should ideally test the
+        // point position here, but for now just verify that the footer is still visible
+        // and not pushed off-screen by an excessively wide chart.
         composeTestRule.onNodeWithTag("ChartFooterStats").assertIsDisplayed()
     }
 }

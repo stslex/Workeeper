@@ -651,3 +651,7 @@ mvi-architecture:
     active: true
   ComposableStateRule:
     active: true
+  DomainLayerPurityRule:
+    active: true
+  DomainLayerNoUiRule:
+    active: true

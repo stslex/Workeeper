@@ -33,6 +33,24 @@ content in this file.
 - [documentation/lint-rules.md](documentation/lint-rules.md) — Detekt MVI rules + Android Lint.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — contributor workflow, commit format.
 
+## Domain layer
+
+- Each feature owns one Interactor injected into the Store. Interactor methods that
+  are pure repository pass-through stay in the Interactor implementation, calling the
+  repository directly. Methods with non-trivial business logic (multiple repository
+  calls, conditional branching, synthesized sealed return types, multi-step
+  orchestration) extract into a single-method use case in
+  `feature/<name>/domain/usecase/`.
+- Public surface of interactors and use cases uses `*Domain` types, never
+  `core.data.*` types. Mapping data → domain happens in
+  `feature/<X>/domain/mapper/`. Mapping domain → ui happens in
+  `feature/<X>/mvi/mapper/`.
+- Two Detekt rules guard this boundary: `DomainLayerPurityRule` and
+  `DomainLayerNoUiRule`.
+- Display strings and resource fallbacks live in UI mappers via
+  `stringResource(R.string.*)` or `resourceWrapper.getString(...)`. The domain layer
+  never injects `ResourceWrapper` and never imports `R.*`.
+
 ## Available skills
 
 Project-specific skills live under [`.claude/skills/`](.claude/skills/). Invoke the matching

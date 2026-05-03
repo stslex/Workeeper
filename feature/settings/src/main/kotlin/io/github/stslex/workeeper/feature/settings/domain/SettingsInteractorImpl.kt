@@ -10,11 +10,12 @@ import androidx.paging.map
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
-import io.github.stslex.workeeper.core.dataStore.store.CommonDataStore
-import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
-import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
-import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
+import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
+import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
+import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
+import io.github.stslex.workeeper.feature.settings.domain.mapper.toDomain
 import io.github.stslex.workeeper.feature.settings.domain.model.ArchivedItem
+import io.github.stslex.workeeper.feature.settings.domain.model.ThemeModeDomain
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
@@ -33,7 +34,10 @@ internal class SettingsInteractorImpl @Inject constructor(
 
     private val packageInfo: PackageInfo by lazy {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.packageManager.getPackageInfo(context.packageName, PackageManager.PackageInfoFlags.of(0))
+            context.packageManager.getPackageInfo(
+                context.packageName,
+                PackageManager.PackageInfoFlags.of(0),
+            )
         } else {
             @Suppress("DEPRECATION")
             context.packageManager.getPackageInfo(context.packageName, 0)
@@ -44,12 +48,12 @@ internal class SettingsInteractorImpl @Inject constructor(
 
     override fun appVersionCode(): Long = packageInfo.longVersionCode
 
-    override fun observeThemeMode(): Flow<ThemeMode> = commonDataStore.themePreference
-        .map { value -> runCatching { ThemeMode.valueOf(value) }.getOrDefault(ThemeMode.SYSTEM) }
+    override fun observeThemeMode(): Flow<ThemeModeDomain> = commonDataStore.themePreference
+        .map { value -> ThemeModeDomain.fromValue(value) }
         .flowOn(defaultDispatcher)
 
-    override suspend fun setThemeMode(mode: ThemeMode) {
-        commonDataStore.setThemePreference(mode.name)
+    override suspend fun setThemeMode(mode: ThemeModeDomain) {
+        commonDataStore.setThemePreference(mode.value)
     }
 
     override fun observeArchivedExerciseCount(): Flow<Int> = exerciseRepository
@@ -60,35 +64,37 @@ internal class SettingsInteractorImpl @Inject constructor(
         .observeArchivedCount()
         .flowOn(defaultDispatcher)
 
-    override fun pagedArchivedExercises(): Flow<PagingData<ArchivedItem.Exercise>> = exerciseRepository
-        .pagedArchived()
-        .map { pagingData ->
-            pagingData.map { exercise ->
-                ArchivedItem.Exercise(
-                    uuid = exercise.uuid,
-                    name = exercise.name,
-                    tags = exerciseRepository.getLabels(exercise.uuid),
-                    archivedAt = exercise.archivedAt ?: exercise.timestamp,
-                    type = exercise.type,
-                )
+    override fun pagedArchivedExercises(): Flow<PagingData<ArchivedItem.Exercise>> =
+        exerciseRepository
+            .pagedArchived()
+            .map { pagingData ->
+                pagingData.map { exercise ->
+                    ArchivedItem.Exercise(
+                        uuid = exercise.uuid,
+                        name = exercise.name,
+                        tags = exerciseRepository.getLabels(exercise.uuid),
+                        archivedAt = exercise.archivedAt ?: exercise.timestamp,
+                        type = exercise.type.toDomain(),
+                    )
+                }
             }
-        }
-        .flowOn(defaultDispatcher)
+            .flowOn(defaultDispatcher)
 
-    override fun pagedArchivedTrainings(): Flow<PagingData<ArchivedItem.Training>> = trainingRepository
-        .pagedArchived()
-        .map { pagingData ->
-            pagingData.map { training ->
-                ArchivedItem.Training(
-                    uuid = training.uuid,
-                    name = training.name,
-                    tags = training.labels,
-                    archivedAt = training.archivedAt ?: training.timestamp,
-                    exerciseCount = training.exerciseUuids.size,
-                )
+    override fun pagedArchivedTrainings(): Flow<PagingData<ArchivedItem.Training>> =
+        trainingRepository
+            .pagedArchived()
+            .map { pagingData ->
+                pagingData.map { training ->
+                    ArchivedItem.Training(
+                        uuid = training.uuid,
+                        name = training.name,
+                        tags = training.labels,
+                        archivedAt = training.archivedAt ?: training.timestamp,
+                        exerciseCount = training.exerciseUuids.size,
+                    )
+                }
             }
-        }
-        .flowOn(defaultDispatcher)
+            .flowOn(defaultDispatcher)
 
     override suspend fun restoreExercise(uuid: String) {
         withContext(defaultDispatcher) { exerciseRepository.restore(uuid) }

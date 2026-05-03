@@ -3,15 +3,14 @@ package io.github.stslex.workeeper.feature.exercise_chart.domain
 
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
-import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
-import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
-import io.github.stslex.workeeper.core.exercise.exercise.model.RecentExerciseDataModel
-import io.github.stslex.workeeper.core.exercise.session.SessionRepository
-import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
-import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapper
-import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapper.FoldResult
-import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartMetricUiModel
-import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPresetUiModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
+import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
+import io.github.stslex.workeeper.feature.exercise_chart.domain.mapper.toDomain
+import io.github.stslex.workeeper.feature.exercise_chart.domain.model.ChartFoldDomain
+import io.github.stslex.workeeper.feature.exercise_chart.domain.model.ChartMetricDomain
+import io.github.stslex.workeeper.feature.exercise_chart.domain.model.ChartPresetDomain
+import io.github.stslex.workeeper.feature.exercise_chart.domain.model.ExerciseTypeDomain
+import io.github.stslex.workeeper.feature.exercise_chart.domain.model.RecentExerciseDomain
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -20,30 +19,29 @@ import javax.inject.Inject
 internal class ExerciseChartInteractorImpl @Inject constructor(
     private val exerciseRepository: ExerciseRepository,
     private val sessionRepository: SessionRepository,
-    private val resourceWrapper: ResourceWrapper,
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
 ) : ExerciseChartInteractor {
 
-    override suspend fun getRecentlyTrainedExercises(): List<RecentExerciseDataModel> =
-        exerciseRepository.getRecentlyTrainedExercises()
+    override suspend fun getRecentlyTrainedExercises(): List<RecentExerciseDomain> =
+        exerciseRepository.getRecentlyTrainedExercises().map { it.toDomain() }
 
     override suspend fun getLastTrainedExerciseUuid(): String? =
         exerciseRepository.getLastTrainedExerciseUuid()
 
     override suspend fun loadChartData(
         exerciseUuid: String,
-        preset: ChartPresetUiModel,
-        metric: ChartMetricUiModel,
-        type: ExerciseTypeUiModel,
+        preset: ChartPresetDomain,
+        metric: ChartMetricDomain,
+        type: ExerciseTypeDomain,
         now: Long,
-    ): FoldResult = withContext(defaultDispatcher) {
+    ): ChartFoldDomain = withContext(defaultDispatcher) {
         val history = sessionRepository.getHistoryByExercise(exerciseUuid)
-        ExerciseChartUiMapper.bucketAndFold(
+            .map { it.toDomain() }
+        bucketAndFold(
             history = history,
             preset = preset,
             metric = metric,
             exerciseType = type,
-            resourceWrapper = resourceWrapper,
             now = now,
         )
     }

@@ -2,11 +2,11 @@
 package io.github.stslex.workeeper.feature.past_session.mvi.handler
 
 import dagger.hilt.android.scopes.ViewModelScoped
-import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.past_session.di.PastSessionHandlerStore
 import io.github.stslex.workeeper.feature.past_session.domain.PastSessionInteractor
-import io.github.stslex.workeeper.feature.past_session.mvi.mapper.toSetsDataType
+import io.github.stslex.workeeper.feature.past_session.domain.model.SetDomain
+import io.github.stslex.workeeper.feature.past_session.mvi.mapper.toDomain
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSetUiModel
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Action
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Event
@@ -123,11 +123,11 @@ internal class InputHandler @Inject constructor(
             interactor.updateSet(
                 performedExerciseUuid = set.performedExerciseUuid,
                 position = set.position,
-                set = SetsDataModel(
+                set = SetDomain(
                     uuid = set.setUuid,
                     reps = reps,
                     weight = weight,
-                    type = set.type.toSetsDataType(),
+                    type = set.type.toDomain(),
                 ),
             )
         }

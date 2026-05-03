@@ -4,8 +4,6 @@ package io.github.stslex.workeeper.feature.live_workout.mvi.handler
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
-import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
-import io.github.stslex.workeeper.core.exercise.sets.PrComparator
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExercisePickerAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
@@ -13,6 +11,9 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
+import io.github.stslex.workeeper.feature.live_workout.domain.mapper.beatsBaseline
+import io.github.stslex.workeeper.feature.live_workout.domain.model.PlanSetDomain
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.toDomain
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.toFinishStats
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.withPresentation
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ErrorType
@@ -186,10 +187,10 @@ internal class ClickHandler @Inject constructor(
             sendError(ErrorType.InvalidReps)
             return
         }
-        val planSet = PlanSetDataModel(
+        val planSet = PlanSetDomain(
             weight = seedDraft.weight,
             reps = seedDraft.reps,
-            type = seedDraft.type.toData(),
+            type = seedDraft.type.toDomain(),
         )
         // Optimistic UI: flip the row to done immediately so the checkbox tap feels snappy.
         updateState { latest ->
@@ -250,10 +251,10 @@ internal class ClickHandler @Inject constructor(
                 interactor.upsertSet(
                     performedExerciseUuid = action.performedExerciseUuid,
                     position = action.position,
-                    set = PlanSetDataModel(
+                    set = PlanSetDomain(
                         weight = performed.weight,
                         reps = performed.reps,
-                        type = action.type.toData(),
+                        type = action.type.toDomain(),
                     ),
                 )
             }
@@ -650,16 +651,15 @@ internal class ClickHandler @Inject constructor(
             val nextSets = exercise.performedSets.toMutableList()
             val existingIdx = nextSets.indexOfFirst { it.position == position }
             val baseline = preSessionPrSnapshot[exercise.exerciseUuid]
-            val candidate = PlanSetDataModel(
+            val candidate = PlanSetDomain(
                 weight = draft.weight,
                 reps = draft.reps,
-                type = draft.type.toData(),
+                type = draft.type.toDomain(),
             )
-            val isPr = PrComparator.beats(
-                candidate = candidate,
+            val isPr = candidate.beatsBaseline(
                 baselineWeight = baseline?.weight,
                 baselineReps = baseline?.reps,
-                type = exercise.exerciseType.toData(),
+                type = exercise.exerciseType.toDomain(),
                 hasBaseline = baseline != null,
             )
             val marked = draft.copy(

@@ -2,13 +2,13 @@
 package io.github.stslex.workeeper.feature.past_session.mvi.mapper
 
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
-import io.github.stslex.workeeper.core.exercise.session.model.PerformedExerciseDetailDataModel
-import io.github.stslex.workeeper.core.exercise.session.model.SessionDetailDataModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.past_session.R
+import io.github.stslex.workeeper.feature.past_session.domain.model.ExerciseTypeDomain
+import io.github.stslex.workeeper.feature.past_session.domain.model.PerformedExerciseDetailDomain
+import io.github.stslex.workeeper.feature.past_session.domain.model.SessionDetailDomain
+import io.github.stslex.workeeper.feature.past_session.domain.model.SetDomain
+import io.github.stslex.workeeper.feature.past_session.domain.model.SetTypeDomain
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -99,25 +99,25 @@ internal class PastSessionUiMapperTest {
         val ui = sessionDetail(
             isAdhoc = false,
             exercises = listOf(
-                PerformedExerciseDetailDataModel(
+                PerformedExerciseDetailDomain(
                     performedExerciseUuid = "performed-3",
                     exerciseUuid = "exercise-3",
                     exerciseName = "Bench",
-                    exerciseType = ExerciseTypeDataModel.WEIGHTED,
+                    exerciseType = ExerciseTypeDomain.WEIGHTED,
                     position = 0,
                     skipped = false,
                     sets = listOf(
-                        SetsDataModel(
+                        SetDomain(
                             uuid = "set-4",
                             reps = 5,
                             weight = 100.0,
-                            type = SetsDataType.WARM,
+                            type = SetTypeDomain.WARMUP,
                         ),
-                        SetsDataModel(
+                        SetDomain(
                             uuid = "set-5",
                             reps = 10,
                             weight = 40.0,
-                            type = SetsDataType.DROP,
+                            type = SetTypeDomain.DROP,
                         ),
                     ),
                 ),
@@ -130,8 +130,8 @@ internal class PastSessionUiMapperTest {
 
     private fun sessionDetail(
         isAdhoc: Boolean,
-        exercises: List<PerformedExerciseDetailDataModel>,
-    ) = SessionDetailDataModel(
+        exercises: List<PerformedExerciseDetailDomain>,
+    ) = SessionDetailDomain(
         sessionUuid = "session-1",
         trainingUuid = "training-1",
         trainingName = "Push Day",
@@ -141,51 +141,51 @@ internal class PastSessionUiMapperTest {
         exercises = exercises,
     )
 
-    private fun weightlessExercise(position: Int) = PerformedExerciseDetailDataModel(
+    private fun weightlessExercise(position: Int) = PerformedExerciseDetailDomain(
         performedExerciseUuid = "performed-1",
         exerciseUuid = "exercise-1",
         exerciseName = "Pull Up",
-        exerciseType = ExerciseTypeDataModel.WEIGHTLESS,
+        exerciseType = ExerciseTypeDomain.WEIGHTLESS,
         position = position,
         skipped = false,
         sets = listOf(
-            SetsDataModel(
+            SetDomain(
                 uuid = "set-1",
                 reps = 10,
                 weight = null,
-                type = SetsDataType.WORK,
+                type = SetTypeDomain.WORK,
             ),
         ),
     )
 
-    private fun weightedExercise(position: Int) = PerformedExerciseDetailDataModel(
+    private fun weightedExercise(position: Int) = PerformedExerciseDetailDomain(
         performedExerciseUuid = "performed-2",
         exerciseUuid = "exercise-2",
         exerciseName = "Bench",
-        exerciseType = ExerciseTypeDataModel.WEIGHTED,
+        exerciseType = ExerciseTypeDomain.WEIGHTED,
         position = position,
         skipped = false,
         sets = listOf(
-            SetsDataModel(
+            SetDomain(
                 uuid = "set-2",
                 reps = 5,
                 weight = 100.0,
-                type = SetsDataType.WORK,
+                type = SetTypeDomain.WORK,
             ),
-            SetsDataModel(
+            SetDomain(
                 uuid = "set-3",
                 reps = 3,
                 weight = 90.0,
-                type = SetsDataType.FAIL,
+                type = SetTypeDomain.FAILURE,
             ),
         ),
     )
 
-    private fun skippedExercise(position: Int) = PerformedExerciseDetailDataModel(
+    private fun skippedExercise(position: Int) = PerformedExerciseDetailDomain(
         performedExerciseUuid = "performed-4",
         exerciseUuid = "exercise-4",
         exerciseName = "Skipped Fly",
-        exerciseType = ExerciseTypeDataModel.WEIGHTED,
+        exerciseType = ExerciseTypeDomain.WEIGHTED,
         position = position,
         skipped = true,
         sets = emptyList(),

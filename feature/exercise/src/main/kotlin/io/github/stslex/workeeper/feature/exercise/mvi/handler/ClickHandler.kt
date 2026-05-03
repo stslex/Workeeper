@@ -12,17 +12,17 @@ import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.core.images.model.ImageSaveResult
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.utils.CommonExt.parseOrRandom
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
-import io.github.stslex.workeeper.core.ui.plan_editor.mappers.toData
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
-import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor.ArchiveResult
-import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor.SaveResult
-import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor.TrackNowConflict
+import io.github.stslex.workeeper.feature.exercise.domain.model.ArchiveResult
+import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseChangeDomain
+import io.github.stslex.workeeper.feature.exercise.domain.model.SaveResult
+import io.github.stslex.workeeper.feature.exercise.domain.model.TrackNowConflict
 import io.github.stslex.workeeper.feature.exercise.mvi.mapper.toAdhocPlanSummary
+import io.github.stslex.workeeper.feature.exercise.mvi.mapper.toDomain
 import io.github.stslex.workeeper.feature.exercise.mvi.model.ImageDisplay
 import io.github.stslex.workeeper.feature.exercise.mvi.model.ImageErrorType
 import io.github.stslex.workeeper.feature.exercise.mvi.model.ImageSourceUiModel
@@ -173,9 +173,12 @@ internal class ClickHandler @Inject constructor(
             when (val resolution = interactor.resolveTrackNowConflict()) {
                 TrackNowConflict.ProceedFresh -> startFreshTrackNow(exerciseUuid)
                 is TrackNowConflict.NeedsUserChoice -> {
+                    val sessionLabel = resolution.trainingName ?: resourceWrapper.getString(
+                        R.string.feature_exercise_track_now_conflict_unnamed,
+                    )
                     val info = ConflictInfo(
                         sessionUuid = resolution.active.sessionUuid,
-                        activeSessionName = resolution.sessionLabel,
+                        activeSessionName = sessionLabel,
                         progressLabel = resourceWrapper.getString(
                             R.string.feature_exercise_track_now_conflict_progress_format,
                             0,
@@ -195,7 +198,10 @@ internal class ClickHandler @Inject constructor(
     }
 
     private suspend fun startFreshTrackNow(exerciseUuid: String) {
-        val sessionUuid = interactor.startTrackNowSession(exerciseUuid)
+        val sessionUuid = interactor.startTrackNowSession(
+            exerciseUuid = exerciseUuid,
+            defaultName = resourceWrapper.getString(R.string.feature_exercise_track_now_default_training_name),
+        )
         consumeOnMain(Action.Navigation.OpenLiveWorkout(sessionUuid))
     }
 
@@ -272,15 +278,16 @@ internal class ClickHandler @Inject constructor(
                 ImageCommitOutcome.Unchanged -> current.imagePath
                 ImageCommitOutcome.Failed -> error("unreachable")
             }
-            val snapshot = ExerciseChangeDataModel(
+            val snapshot = ExerciseChangeDomain(
                 uuid = resolvedUuid,
                 name = current.name.trim(),
-                type = current.type.toData(),
+                type = current.type.toDomain(),
                 description = current.description.takeIf { it.isNotBlank() },
                 imagePath = finalImagePath,
+                archived = false,
                 timestamp = System.currentTimeMillis(),
                 labels = current.tags.map { it.name },
-                lastAdHocSets = current.adhocPlan?.map { it.toData() },
+                lastAdhocSets = current.adhocPlan?.map { it.toDomain() },
             )
             when (interactor.saveExercise(snapshot)) {
                 is SaveResult.Success -> {
@@ -523,9 +530,7 @@ internal class ClickHandler @Inject constructor(
             )
         }
         if (uuid == null) return
-        launch(
-            onSuccess = { Unit },
-        ) {
+        launch {
             interactor.clearWeightsFromAllPlansForExercise(uuid)
         }
     }

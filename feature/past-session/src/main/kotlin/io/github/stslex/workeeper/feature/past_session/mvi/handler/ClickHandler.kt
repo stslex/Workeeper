@@ -3,11 +3,12 @@ package io.github.stslex.workeeper.feature.past_session.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dagger.hilt.android.scopes.ViewModelScoped
-import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.past_session.di.PastSessionHandlerStore
 import io.github.stslex.workeeper.feature.past_session.domain.PastSessionInteractor
-import io.github.stslex.workeeper.feature.past_session.mvi.mapper.toSetsDataType
+import io.github.stslex.workeeper.feature.past_session.domain.model.SetDomain
+import io.github.stslex.workeeper.feature.past_session.domain.model.SetTypeDomain
+import io.github.stslex.workeeper.feature.past_session.mvi.mapper.toDomain
 import io.github.stslex.workeeper.feature.past_session.mvi.model.ErrorType
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Action
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Event
@@ -96,7 +97,7 @@ internal class ClickHandler @Inject constructor(
             setUuid = targetSet.setUuid,
             weight = weight,
             reps = reps,
-            type = action.type.toSetsDataType(),
+            type = action.type.toDomain(),
         )
     }
 
@@ -106,7 +107,7 @@ internal class ClickHandler @Inject constructor(
         setUuid: String,
         weight: Double?,
         reps: Int,
-        type: io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType,
+        type: SetTypeDomain,
     ) {
         launch(
             onError = { _ -> sendEvent(Event.SaveFailedSnackbar) },
@@ -114,7 +115,7 @@ internal class ClickHandler @Inject constructor(
             interactor.updateSet(
                 performedExerciseUuid = performedExerciseUuid,
                 position = position,
-                set = SetsDataModel(
+                set = SetDomain(
                     uuid = setUuid,
                     reps = reps,
                     weight = weight,

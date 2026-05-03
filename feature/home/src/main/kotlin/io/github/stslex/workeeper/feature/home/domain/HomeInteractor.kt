@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.home.domain
 
-import io.github.stslex.workeeper.core.exercise.session.SessionConflictResolver
-import io.github.stslex.workeeper.core.exercise.session.SessionRepository
-import io.github.stslex.workeeper.core.exercise.session.model.RecentSessionDataModel
-import io.github.stslex.workeeper.core.exercise.training.TrainingListItem
+import io.github.stslex.workeeper.feature.home.domain.model.ActiveSessionWithStatsDomain
+import io.github.stslex.workeeper.feature.home.domain.model.RecentSessionDomain
+import io.github.stslex.workeeper.feature.home.domain.model.StartSessionConflict
+import io.github.stslex.workeeper.feature.home.domain.model.TrainingListItemDomain
 import kotlinx.coroutines.flow.Flow
 
 internal interface HomeInteractor {
 
-    fun observeActiveSession(): Flow<SessionRepository.ActiveSessionWithStats?>
+    fun observeActiveSession(): Flow<ActiveSessionWithStatsDomain?>
 
-    fun observeRecent(limit: Int): Flow<List<RecentSessionDataModel>>
+    fun observeRecent(limit: Int): Flow<List<RecentSessionDomain>>
 
-    fun observeRecentTrainings(limit: Int): Flow<List<TrainingListItem>>
+    fun observeRecentTrainings(limit: Int): Flow<List<TrainingListItemDomain>>
 
     /**
      * Resolves the at-most-one-active-session invariant for the Start CTA flow. The Home
@@ -22,7 +22,7 @@ internal interface HomeInteractor {
      */
     suspend fun resolveStartConflict(
         requestedTrainingUuid: String,
-    ): SessionConflictResolver.Resolution
+    ): StartSessionConflict
 
     /** Look up a template name (used by the conflict modal label). */
     suspend fun getTrainingName(trainingUuid: String): String?

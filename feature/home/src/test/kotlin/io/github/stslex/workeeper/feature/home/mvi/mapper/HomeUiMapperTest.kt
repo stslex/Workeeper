@@ -4,10 +4,9 @@ package io.github.stslex.workeeper.feature.home.mvi.mapper
 import android.text.format.DateUtils
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
-import io.github.stslex.workeeper.core.exercise.session.model.RecentSessionDataModel
-import io.github.stslex.workeeper.core.exercise.training.TrainingDataModel
-import io.github.stslex.workeeper.core.exercise.training.TrainingListItem
 import io.github.stslex.workeeper.feature.home.R
+import io.github.stslex.workeeper.feature.home.domain.model.RecentSessionDomain
+import io.github.stslex.workeeper.feature.home.domain.model.TrainingListItemDomain
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
@@ -50,7 +49,7 @@ internal class HomeUiMapperTest {
         val nowMillis = 10 * DateUtils.MINUTE_IN_MILLIS
 
         val item = listOf(
-            RecentSessionDataModel(
+            RecentSessionDomain(
                 sessionUuid = "session-1",
                 trainingUuid = "training-1",
                 trainingName = "Ignored for adhoc",
@@ -81,7 +80,7 @@ internal class HomeUiMapperTest {
         val nowMillis = 20 * DateUtils.MINUTE_IN_MILLIS
 
         val item = listOf(
-            RecentSessionDataModel(
+            RecentSessionDomain(
                 sessionUuid = "session-2",
                 trainingUuid = "training-2",
                 trainingName = "Push Day",
@@ -103,29 +102,17 @@ internal class HomeUiMapperTest {
         val nowMillis = 2 * DateUtils.HOUR_IN_MILLIS
 
         val items = listOf(
-            TrainingListItem(
-                data = TrainingDataModel(
-                    uuid = "training-1",
-                    name = "Push Day",
-                    timestamp = 0L,
-                ),
+            TrainingListItemDomain(
+                uuid = "training-1",
+                name = "Push Day",
                 exerciseCount = 4,
                 lastSessionAt = DateUtils.HOUR_IN_MILLIS,
-                isActive = false,
-                activeSessionUuid = null,
-                activeSessionStartedAt = null,
             ),
-            TrainingListItem(
-                data = TrainingDataModel(
-                    uuid = "training-2",
-                    name = "Leg Day",
-                    timestamp = 0L,
-                ),
+            TrainingListItemDomain(
+                uuid = "training-2",
+                name = "Leg Day",
                 exerciseCount = 2,
                 lastSessionAt = null,
-                isActive = false,
-                activeSessionUuid = null,
-                activeSessionStartedAt = null,
             ),
         ).toPickerItems(nowMillis = nowMillis, resourceWrapper = resources)
 

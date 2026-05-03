@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.home.domain
 
-import io.github.stslex.workeeper.core.exercise.session.SessionConflictResolver
-import io.github.stslex.workeeper.core.exercise.session.SessionRepository
-import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
+import io.github.stslex.workeeper.core.data.exercise.session.SessionConflictResolver
+import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
+import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
+import io.github.stslex.workeeper.feature.home.domain.model.ActiveSessionWithStatsDomain
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -26,7 +27,7 @@ internal class HomeInteractorImplTest {
     )
 
     @Test
-    fun `observeActiveSession forwards repository ActiveSessionWithStats`() = runTest {
+    fun `observeActiveSession maps repository ActiveSessionWithStats to domain`() = runTest {
         val row = SessionRepository.ActiveSessionWithStats(
             sessionUuid = "session-1",
             trainingUuid = "training-1",
@@ -40,6 +41,17 @@ internal class HomeInteractorImplTest {
 
         val mapped = interactor.observeActiveSession().first()
 
-        assertEquals(row, mapped)
+        assertEquals(
+            ActiveSessionWithStatsDomain(
+                sessionUuid = "session-1",
+                trainingUuid = "training-1",
+                trainingName = "Push Day",
+                isAdhoc = false,
+                startedAt = 123L,
+                totalCount = 5,
+                doneCount = 2,
+            ),
+            mapped,
+        )
     }
 }

@@ -15,9 +15,9 @@ dependencies {
     implementation(project(":core:ui:kit"))
     implementation(project(":core:ui:navigation"))
     implementation(project(":core:ui:mvi"))
-    implementation(project(":core:database"))
-    implementation(project(":core:exercise"))
-    implementation(project(":core:dataStore"))
+    implementation(project(":core:data:database"))
+    implementation(project(":core:data:exercise"))
+    implementation(project(":core:data:dataStore"))
 
     implementation(project(":feature:exercise"))
     implementation(project(":feature:exercise-chart"))

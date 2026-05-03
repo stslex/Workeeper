@@ -4,17 +4,17 @@ package io.github.stslex.workeeper.feature.home.mvi.mapper
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
 import io.github.stslex.workeeper.core.core.time.formatRelativeTime
-import io.github.stslex.workeeper.core.exercise.session.SessionRepository
-import io.github.stslex.workeeper.core.exercise.session.model.RecentSessionDataModel
-import io.github.stslex.workeeper.core.exercise.training.TrainingListItem
 import io.github.stslex.workeeper.feature.home.R
+import io.github.stslex.workeeper.feature.home.domain.model.ActiveSessionWithStatsDomain
+import io.github.stslex.workeeper.feature.home.domain.model.RecentSessionDomain
+import io.github.stslex.workeeper.feature.home.domain.model.TrainingListItemDomain
 import io.github.stslex.workeeper.feature.home.mvi.model.PickerTrainingItem
 import io.github.stslex.workeeper.feature.home.mvi.model.RecentSessionItem
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.State.ActiveSessionInfo
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 
-internal fun SessionRepository.ActiveSessionWithStats.toUi(
+internal fun ActiveSessionWithStatsDomain.toUi(
     nowMillis: Long,
     resourceWrapper: ResourceWrapper,
 ): ActiveSessionInfo = ActiveSessionInfo(
@@ -31,7 +31,7 @@ internal fun SessionRepository.ActiveSessionWithStats.toUi(
     elapsedDurationLabel = formatElapsedDuration(nowMillis - startedAt),
 )
 
-internal fun List<RecentSessionDataModel>.toRecentItems(
+internal fun List<RecentSessionDomain>.toRecentItems(
     nowMillis: Long,
     resourceWrapper: ResourceWrapper,
 ): ImmutableList<RecentSessionItem> = map { session ->
@@ -63,13 +63,13 @@ internal fun List<RecentSessionDataModel>.toRecentItems(
     )
 }.toImmutableList()
 
-internal fun List<TrainingListItem>.toPickerItems(
+internal fun List<TrainingListItemDomain>.toPickerItems(
     nowMillis: Long,
     resourceWrapper: ResourceWrapper,
 ): ImmutableList<PickerTrainingItem> = map { training ->
     PickerTrainingItem(
-        trainingUuid = training.data.uuid,
-        name = training.data.name,
+        trainingUuid = training.uuid,
+        name = training.name,
         exerciseCountLabel = resourceWrapper.getQuantityString(
             R.plurals.feature_home_recent_exercises_count,
             training.exerciseCount,

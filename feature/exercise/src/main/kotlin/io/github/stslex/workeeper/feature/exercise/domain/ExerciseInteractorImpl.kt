@@ -6,26 +6,29 @@ import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.core.images.ImageStorage
 import io.github.stslex.workeeper.core.core.images.model.ImageSaveResult
-import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
-import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.HistoryEntry
-import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordDataModel
-import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordRepository
-import io.github.stslex.workeeper.core.exercise.session.SessionRepository
-import io.github.stslex.workeeper.core.exercise.tags.TagRepository
-import io.github.stslex.workeeper.core.exercise.tags.model.TagDataModel
-import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
-import io.github.stslex.workeeper.feature.exercise.R
-import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor.ArchiveResult
-import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor.SaveResult
-import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor.TrackNowConflict
+import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
+import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordRepository
+import io.github.stslex.workeeper.core.data.exercise.tags.TagRepository
+import io.github.stslex.workeeper.feature.exercise.domain.mapper.toData
+import io.github.stslex.workeeper.feature.exercise.domain.mapper.toDomain
+import io.github.stslex.workeeper.feature.exercise.domain.model.ArchiveResult
+import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseChangeDomain
+import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseDomain
+import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseTypeDomain
+import io.github.stslex.workeeper.feature.exercise.domain.model.HistoryEntryDomain
+import io.github.stslex.workeeper.feature.exercise.domain.model.PersonalRecordDomain
+import io.github.stslex.workeeper.feature.exercise.domain.model.PlanSetDomain
+import io.github.stslex.workeeper.feature.exercise.domain.model.SaveResult
+import io.github.stslex.workeeper.feature.exercise.domain.model.TagDomain
+import io.github.stslex.workeeper.feature.exercise.domain.model.TrackNowConflict
+import io.github.stslex.workeeper.feature.exercise.domain.usecase.ArchiveExerciseUseCase
+import io.github.stslex.workeeper.feature.exercise.domain.usecase.DeleteSessionUseCase
+import io.github.stslex.workeeper.feature.exercise.domain.usecase.ResolveTrackNowConflictUseCase
+import io.github.stslex.workeeper.feature.exercise.domain.usecase.StartTrackNowSessionUseCase
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
@@ -35,17 +38,18 @@ internal class ExerciseInteractorImpl @Inject constructor(
     private val exerciseRepository: ExerciseRepository,
     private val tagRepository: TagRepository,
     private val imageStorage: ImageStorage,
-    private val sessionRepository: SessionRepository,
-    private val trainingRepository: TrainingRepository,
     private val personalRecordRepository: PersonalRecordRepository,
-    private val resourceWrapper: ResourceWrapper,
+    private val archiveExerciseUseCase: ArchiveExerciseUseCase,
+    private val resolveTrackNowConflictUseCase: ResolveTrackNowConflictUseCase,
+    private val startTrackNowSessionUseCase: StartTrackNowSessionUseCase,
+    private val deleteSessionUseCase: DeleteSessionUseCase,
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
 ) : ExerciseInteractor {
 
     override suspend fun getExercise(
         uuid: String,
-    ): ExerciseDataModel? = withContext(defaultDispatcher) {
-        exerciseRepository.getExercise(uuid)
+    ): ExerciseDomain? = withContext(defaultDispatcher) {
+        exerciseRepository.getExercise(uuid)?.toDomain()
     }
 
     override suspend fun getLabels(
@@ -57,42 +61,36 @@ internal class ExerciseInteractorImpl @Inject constructor(
     override suspend fun getRecentHistory(
         exerciseUuid: String,
         limit: Int,
-    ): List<HistoryEntry> = withContext(defaultDispatcher) {
-        exerciseRepository.getRecentHistory(exerciseUuid, limit)
+    ): List<HistoryEntryDomain> = withContext(defaultDispatcher) {
+        exerciseRepository.getRecentHistory(exerciseUuid, limit).map { it.toDomain() }
     }
 
-    override fun observeAvailableTags(): Flow<List<TagDataModel>> = tagRepository
+    override fun observeAvailableTags(): Flow<List<TagDomain>> = tagRepository
         .observeAll()
+        .map { tags -> tags.map { it.toDomain() } }
         .flowOn(defaultDispatcher)
 
     override fun observePersonalRecord(
         exerciseUuid: String,
-        type: ExerciseTypeDataModel,
-    ): Flow<PersonalRecordDataModel?> = personalRecordRepository
-        .observePersonalRecord(exerciseUuid, type)
+        type: ExerciseTypeDomain,
+    ): Flow<PersonalRecordDomain?> = personalRecordRepository
+        .observePersonalRecord(exerciseUuid, type.toData())
+        .map { record -> record?.toDomain() }
 
     override suspend fun saveExercise(
-        snapshot: ExerciseChangeDataModel,
+        snapshot: ExerciseChangeDomain,
     ): SaveResult = withContext(defaultDispatcher) {
-        when (exerciseRepository.saveItem(snapshot)) {
+        when (exerciseRepository.saveItem(snapshot.toData())) {
             ExerciseRepository.SaveResult.Success -> SaveResult.Success(snapshot.uuid)
             ExerciseRepository.SaveResult.DuplicateName -> SaveResult.DuplicateName
         }
     }
 
-    override suspend fun createTag(name: String): TagDataModel = withContext(defaultDispatcher) {
-        tagRepository.add(name)
+    override suspend fun createTag(name: String): TagDomain = withContext(defaultDispatcher) {
+        tagRepository.add(name).toDomain()
     }
 
-    override suspend fun archive(uuid: String): ArchiveResult = withContext(defaultDispatcher) {
-        val activeTrainings = exerciseRepository.getActiveTrainingsUsing(uuid)
-        if (activeTrainings.isNotEmpty()) {
-            ArchiveResult.Blocked(activeTrainings)
-        } else {
-            exerciseRepository.archive(uuid)
-            ArchiveResult.Success
-        }
-    }
+    override suspend fun archive(uuid: String): ArchiveResult = archiveExerciseUseCase(uuid)
 
     override suspend fun restore(uuid: String) {
         withContext(defaultDispatcher) { exerciseRepository.restore(uuid) }
@@ -110,13 +108,13 @@ internal class ExerciseInteractorImpl @Inject constructor(
 
     override suspend fun getAdhocPlan(
         uuid: String,
-    ): List<PlanSetDataModel>? = withContext(defaultDispatcher) {
-        exerciseRepository.getAdhocPlan(uuid)
+    ): List<PlanSetDomain>? = withContext(defaultDispatcher) {
+        exerciseRepository.getAdhocPlan(uuid)?.map { it.toDomain() }
     }
 
-    override suspend fun setAdhocPlan(uuid: String, plan: List<PlanSetDataModel>?) {
+    override suspend fun setAdhocPlan(uuid: String, plan: List<PlanSetDomain>?) {
         withContext(defaultDispatcher) {
-            exerciseRepository.setAdhocPlan(uuid, plan)
+            exerciseRepository.setAdhocPlan(uuid, plan?.map { it.toData() })
         }
     }
 
@@ -135,42 +133,18 @@ internal class ExerciseInteractorImpl @Inject constructor(
 
     override suspend fun deleteImageFile(path: String): Boolean = imageStorage.deleteImage(path)
 
-    override suspend fun resolveTrackNowConflict(): TrackNowConflict = withContext(defaultDispatcher) {
-        val active = sessionRepository.getAnyActiveSession()
-            ?: return@withContext TrackNowConflict.ProceedFresh
-        val training = trainingRepository.getTraining(active.trainingUuid)
-        val sessionLabel = training?.name?.takeIf { it.isNotBlank() }
-            ?: resourceWrapper.getString(R.string.feature_exercise_track_now_conflict_unnamed)
-        TrackNowConflict.NeedsUserChoice(active = active, sessionLabel = sessionLabel)
-    }
+    override suspend fun resolveTrackNowConflict(): TrackNowConflict =
+        resolveTrackNowConflictUseCase()
 
     override suspend fun startTrackNowSession(
         exerciseUuid: String,
-    ): String = withContext(defaultDispatcher) {
-        val exercise = exerciseRepository.getExercise(exerciseUuid)
-        val trainingName = exercise?.name?.takeIf { it.isNotBlank() }
-            ?: resourceWrapper.getString(R.string.feature_exercise_track_now_default_training_name)
-        // Shared adhoc-session helper — same code path as v2.3 Quick start. Replaces the
-        // older two-step Training upsert + session start that left orphan training rows
-        // when Track Now was cancelled (the cancel path only deleted the session).
-        sessionRepository.createAdhocSession(
-            name = trainingName,
-            exerciseUuids = listOf(exerciseUuid),
-        ).sessionUuid
-    }
+        defaultName: String,
+    ): String = startTrackNowSessionUseCase(
+        exerciseUuid = exerciseUuid,
+        defaultName = defaultName,
+    )
 
     override suspend fun deleteSession(sessionUuid: String) {
-        withContext(defaultDispatcher) {
-            val session = sessionRepository.getById(sessionUuid) ?: return@withContext
-            val training = trainingRepository.getTraining(session.trainingUuid)
-            if (training?.isAdhoc == true) {
-                sessionRepository.discardAdhocSession(
-                    sessionUuid = sessionUuid,
-                    trainingUuid = session.trainingUuid,
-                )
-            } else {
-                sessionRepository.deleteSession(sessionUuid)
-            }
-        }
+        deleteSessionUseCase(sessionUuid)
     }
 }

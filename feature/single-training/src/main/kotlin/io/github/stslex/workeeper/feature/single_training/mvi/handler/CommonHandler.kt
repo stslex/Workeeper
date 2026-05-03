@@ -3,14 +3,13 @@ package io.github.stslex.workeeper.feature.single_training.mvi.handler
 
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
-import io.github.stslex.workeeper.core.exercise.session.model.SessionDataModel
-import io.github.stslex.workeeper.core.exercise.training.TrainingDataModel
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.mappers.formatPlanSummary
-import io.github.stslex.workeeper.core.ui.plan_editor.mappers.toUi
-import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel.Companion.toUi
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingHandlerStore
 import io.github.stslex.workeeper.feature.single_training.domain.SingleTrainingInteractor
+import io.github.stslex.workeeper.feature.single_training.domain.model.SessionDomain
+import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingDomain
+import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingExerciseDetail
 import io.github.stslex.workeeper.feature.single_training.mvi.mapper.toUi
 import io.github.stslex.workeeper.feature.single_training.mvi.model.HistorySessionItem
 import io.github.stslex.workeeper.feature.single_training.mvi.model.TagUiModel
@@ -38,7 +37,6 @@ internal class CommonHandler @Inject constructor(
         observeTags()
         observeActiveSession()
         val uuid = state.value.uuid ?: run {
-            // Create mode: no remote loading needed, just snapshot the empty form.
             updateState { current ->
                 current.copy(
                     isLoading = false,
@@ -125,8 +123,8 @@ internal class CommonHandler @Inject constructor(
         )
     }
 
-    private fun List<SessionDataModel>.toHistoryItems(
-        training: TrainingDataModel,
+    private fun List<SessionDomain>.toHistoryItems(
+        training: TrainingDomain,
     ): ImmutableList<HistorySessionItem> = mapNotNull { session ->
         val finished = session.finishedAt ?: return@mapNotNull null
         HistorySessionItem(
@@ -138,9 +136,9 @@ internal class CommonHandler @Inject constructor(
     }.toImmutableList()
 
     private data class LoadResult(
-        val training: TrainingDataModel?,
-        val exercises: List<SingleTrainingInteractor.TrainingExerciseDetail>,
-        val recentSessions: List<SessionDataModel>,
+        val training: TrainingDomain?,
+        val exercises: List<TrainingExerciseDetail>,
+        val recentSessions: List<SessionDomain>,
         val canPermanentlyDelete: Boolean,
     )
 

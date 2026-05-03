@@ -3,12 +3,12 @@ package io.github.stslex.workeeper.feature.single_training.mvi.handler
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
-import io.github.stslex.workeeper.core.ui.plan_editor.mappers.toData
 import io.github.stslex.workeeper.core.ui.plan_editor.model.AppPlanEditorAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingHandlerStore
 import io.github.stslex.workeeper.feature.single_training.domain.SingleTrainingInteractor
+import io.github.stslex.workeeper.feature.single_training.mvi.mapper.toDomain
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Event
 import kotlinx.collections.immutable.toImmutableList
@@ -116,7 +116,7 @@ internal class PlanEditActionHandler @Inject constructor(
                 interactor.setPlanForExercise(
                     trainingUuid = trainingUuid,
                     exerciseUuid = target.exerciseUuid,
-                    plan = nextPlan?.map { it.toData() },
+                    plan = nextPlan?.map { it.toDomain() },
                 )
             }
         }

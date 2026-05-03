@@ -3,28 +3,29 @@ package io.github.stslex.workeeper.feature.live_workout.domain
 
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
-import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
-import io.github.stslex.workeeper.core.database.sets.SetTypeDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
-import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordDataModel
-import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordRepository
-import io.github.stslex.workeeper.core.exercise.session.PerformedExerciseRepository
-import io.github.stslex.workeeper.core.exercise.session.PlanUpdate
-import io.github.stslex.workeeper.core.exercise.session.SessionRepository
-import io.github.stslex.workeeper.core.exercise.session.SetRepository
-import io.github.stslex.workeeper.core.exercise.sets.PlanUpdateRule
-import io.github.stslex.workeeper.core.exercise.training.TrainingExerciseRepository
-import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
-import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.AddExerciseResult
-import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.AdhocSessionResult
-import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.ExercisePickerEntry
-import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.FinishResult
-import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.InlineAdhocResult
-import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.PerformedExerciseSnapshot
-import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.SessionSnapshot
+import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
+import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordRepository
+import io.github.stslex.workeeper.core.data.exercise.session.PerformedExerciseRepository
+import io.github.stslex.workeeper.core.data.exercise.session.PlanUpdate
+import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
+import io.github.stslex.workeeper.core.data.exercise.session.SetRepository
+import io.github.stslex.workeeper.core.data.exercise.sets.PlanUpdateRule
+import io.github.stslex.workeeper.core.data.exercise.training.TrainingExerciseRepository
+import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
+import io.github.stslex.workeeper.feature.live_workout.domain.mapper.toData
+import io.github.stslex.workeeper.feature.live_workout.domain.mapper.toDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.mapper.toSetsDataType
+import io.github.stslex.workeeper.feature.live_workout.domain.model.AddExerciseResult
+import io.github.stslex.workeeper.feature.live_workout.domain.model.AdhocSessionResult
+import io.github.stslex.workeeper.feature.live_workout.domain.model.ExercisePickerEntry
+import io.github.stslex.workeeper.feature.live_workout.domain.model.ExerciseTypeDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.model.FinishResult
+import io.github.stslex.workeeper.feature.live_workout.domain.model.InlineAdhocResult
+import io.github.stslex.workeeper.feature.live_workout.domain.model.LiveExerciseDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.model.PersonalRecordDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.model.PlanSetDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.model.SessionSnapshotDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.model.SetDomain
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.firstOrNull
@@ -66,7 +67,7 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
 
     override suspend fun loadSession(
         sessionUuid: String,
-    ): SessionSnapshot? = withContext(defaultDispatcher) {
+    ): SessionSnapshotDomain? = withContext(defaultDispatcher) {
         val session = sessionRepository.getById(sessionUuid) ?: return@withContext null
         val training = trainingRepository.getTraining(session.trainingUuid)
         val performedRows = performedExerciseRepository.getBySession(sessionUuid)
@@ -96,19 +97,11 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
             .mapNotNull { row ->
                 val template = exerciseTemplates[row.exerciseUuid] ?: return@mapNotNull null
                 val performedSets = setRepository.getByPerformedExercise(row.uuid)
-                PerformedExerciseSnapshot(
-                    performed = row,
-                    exerciseName = template.name,
-                    exerciseType = template.type,
-                    planSets = planByExercise[row.exerciseUuid],
-                    performedSets = performedSets.map { set ->
-                        PlanSetDataModel(
-                            weight = set.weight,
-                            reps = set.reps,
-                            type = set.type.toPlanType(),
-                        )
-                    },
-                    performedSetUuids = performedSets.map { it.uuid },
+                LiveExerciseDomain(
+                    performed = row.toDomain(exerciseName = template.name),
+                    exerciseType = template.type.toDomain(),
+                    planSets = planByExercise[row.exerciseUuid]?.map { it.toDomain() },
+                    performedSets = performedSets.map { it.toDomain() },
                 )
             }
         // Q6 lock — pre-session snapshot scope. We collect the PR map exactly once here and
@@ -116,14 +109,15 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
         // lifetime, immune to mid-session emissions from other places (Exercise detail edit,
         // a finished session on another screen).
         val uuidsByType = exerciseSnapshots.associate { snap ->
-            snap.performed.exerciseUuid to snap.exerciseType
+            snap.performed.exerciseUuid to snap.exerciseType.toData()
         }
         val preSessionPrs = personalRecordRepository
             .observePersonalRecords(uuidsByType)
             .firstOrNull()
             .orEmpty()
-        SessionSnapshot(
-            session = session,
+            .mapValues { (_, pr) -> pr?.toDomain() }
+        SessionSnapshotDomain(
+            session = session.toDomain(),
             trainingName = training?.name.orEmpty(),
             isAdhoc = training?.isAdhoc == true,
             exercises = exerciseSnapshots,
@@ -134,7 +128,7 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
     override suspend fun upsertSet(
         performedExerciseUuid: String,
         position: Int,
-        set: PlanSetDataModel,
+        set: PlanSetDomain,
     ) {
         withContext(defaultDispatcher) {
             setRepository.upsert(
@@ -189,7 +183,7 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
             }
             val performedSets = setRepository
                 .getByPerformedExercise(row.uuid)
-                .map { it.toPlanSet() }
+                .map { it.toDomain().toPlanSet() }
             setsLogged += performedSets.size
             if (performedSets.isNotEmpty()) doneCount += 1
             val existingPlan = if (isAdhoc) {
@@ -202,7 +196,7 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
                     )
                     ?: exerciseRepository.getAdhocPlan(row.exerciseUuid)
             }
-            val nextPlan = PlanUpdateRule.update(existingPlan, performedSets)
+            val nextPlan = PlanUpdateRule.update(existingPlan, performedSets.map { it.toData() })
             planUpdates += PlanUpdate(
                 trainingUuid = session.trainingUuid,
                 exerciseUuid = row.exerciseUuid,
@@ -268,7 +262,7 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
         )
         AddExerciseResult(
             performedExerciseUuid = result.performedExerciseUuid,
-            planSets = result.planSets,
+            planSets = result.planSets?.map { it.toDomain() },
         )
     }
 
@@ -288,7 +282,7 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
         InlineAdhocResult(
             exerciseUuid = result.exercise.uuid,
             name = result.exercise.name,
-            type = result.exercise.type,
+            type = result.exercise.type.toDomain(),
             reusedExisting = result.reusedExisting,
         )
     }
@@ -309,58 +303,44 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
                 ExercisePickerEntry(
                     uuid = exercise.uuid,
                     name = exercise.name,
-                    type = exercise.type,
+                    type = exercise.type.toDomain(),
                 )
             }
     }
 
     override suspend fun fetchPrSnapshotForExercise(
         exerciseUuid: String,
-        type: ExerciseTypeDataModel,
-    ): PersonalRecordDataModel? = withContext(defaultDispatcher) {
+        type: ExerciseTypeDomain,
+    ): PersonalRecordDomain? = withContext(defaultDispatcher) {
         // C1 lock — single-exercise lazy fetch. PersonalRecordRepository.getPersonalRecord is
         // a suspend hit on the same DAO query observePersonalRecord wraps, so we get the
         // freshest baseline without holding a Flow open mid-session.
-        personalRecordRepository.getPersonalRecord(exerciseUuid, type)
+        personalRecordRepository.getPersonalRecord(exerciseUuid, type.toData())?.toDomain()
     }
 
     override suspend fun setPlanForExercise(
         trainingUuid: String,
         exerciseUuid: String,
-        plan: List<PlanSetDataModel>?,
+        plan: List<PlanSetDomain>?,
     ) {
         withContext(defaultDispatcher) {
-            trainingExerciseRepository.setPlan(trainingUuid, exerciseUuid, plan)
+            trainingExerciseRepository.setPlan(trainingUuid, exerciseUuid, plan?.map { it.toData() })
         }
     }
 
     override suspend fun setAdhocPlan(
         exerciseUuid: String,
-        plan: List<PlanSetDataModel>?,
+        plan: List<PlanSetDomain>?,
     ) {
         withContext(defaultDispatcher) {
-            exerciseRepository.setAdhocPlan(exerciseUuid, plan)
+            exerciseRepository.setAdhocPlan(exerciseUuid, plan?.map { it.toData() })
         }
     }
 
-    private fun SetsDataModel.toPlanSet(): PlanSetDataModel =
-        PlanSetDataModel(
+    private fun SetDomain.toPlanSet(): PlanSetDomain =
+        PlanSetDomain(
             weight = weight,
             reps = reps,
-            type = type.toPlanType(),
+            type = type,
         )
-}
-
-internal fun SetsDataType.toPlanType(): SetTypeDataModel = when (this) {
-    SetsDataType.WARM -> SetTypeDataModel.WARMUP
-    SetsDataType.WORK -> SetTypeDataModel.WORK
-    SetsDataType.FAIL -> SetTypeDataModel.FAILURE
-    SetsDataType.DROP -> SetTypeDataModel.DROP
-}
-
-internal fun SetTypeDataModel.toSetsDataType(): SetsDataType = when (this) {
-    SetTypeDataModel.WARMUP -> SetsDataType.WARM
-    SetTypeDataModel.WORK -> SetsDataType.WORK
-    SetTypeDataModel.FAILURE -> SetsDataType.FAIL
-    SetTypeDataModel.DROP -> SetsDataType.DROP
 }

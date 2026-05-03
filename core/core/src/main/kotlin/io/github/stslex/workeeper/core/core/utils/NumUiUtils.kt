@@ -1,25 +1,15 @@
 package io.github.stslex.workeeper.core.core.utils
 
-import java.util.Locale
+import kotlin.math.roundToLong
 
 object NumUiUtils {
 
-    private const val FORMAT_PATTERN = "%.1f"
     private const val THOUSAND_NUM = 1000
-    private const val THOUSAND_NUM_F = 1000f
+    private const val THOUSAND_NUM_D = 1000.0
+    private const val DECIMAL_SHIFT = 10.0
 
-    fun roundThousand(
-        value: Double,
-        locale: Locale,
-        pattern: String = FORMAT_PATTERN,
-    ): Double = if (value >= THOUSAND_NUM) {
-        (value / THOUSAND_NUM_F).let { roundValue ->
-            String.format(
-                locale = locale,
-                format = pattern,
-                roundValue,
-            ).toDouble()
-        }
+    fun roundThousand(value: Double): Double = if (value >= THOUSAND_NUM) {
+        (value / THOUSAND_NUM_D * DECIMAL_SHIFT).roundToLong() / DECIMAL_SHIFT
     } else {
         value
     }

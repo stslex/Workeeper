@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.past_session.domain
 
-import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
-import io.github.stslex.workeeper.core.exercise.session.model.SessionDetailDataModel
+import io.github.stslex.workeeper.feature.past_session.domain.model.DetailWithPrs
+import io.github.stslex.workeeper.feature.past_session.domain.model.SetDomain
 import kotlinx.coroutines.flow.Flow
 
 internal interface PastSessionInteractor {
@@ -19,13 +19,8 @@ internal interface PastSessionInteractor {
     suspend fun updateSet(
         performedExerciseUuid: String,
         position: Int,
-        set: SetsDataModel,
+        set: SetDomain,
     )
 
     suspend fun deleteSession(sessionUuid: String)
-
-    data class DetailWithPrs(
-        val detail: SessionDetailDataModel,
-        val prSetUuids: Set<String>,
-    )
 }

@@ -3,20 +3,20 @@ package io.github.stslex.workeeper.feature.past_session.mvi.mapper
 
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
-import io.github.stslex.workeeper.core.exercise.session.model.PerformedExerciseDetailDataModel
-import io.github.stslex.workeeper.core.exercise.session.model.SessionDetailDataModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.past_session.R
+import io.github.stslex.workeeper.feature.past_session.domain.model.ExerciseTypeDomain
+import io.github.stslex.workeeper.feature.past_session.domain.model.PerformedExerciseDetailDomain
+import io.github.stslex.workeeper.feature.past_session.domain.model.SessionDetailDomain
+import io.github.stslex.workeeper.feature.past_session.domain.model.SetDomain
+import io.github.stslex.workeeper.feature.past_session.domain.model.SetTypeDomain
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastExerciseUiModel
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSessionUiModel
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSetUiModel
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 
-internal fun SessionDetailDataModel.toUi(
+internal fun SessionDetailDomain.toUi(
     resourceWrapper: ResourceWrapper,
     prSetUuids: Set<String> = emptySet(),
 ): PastSessionUiModel {
@@ -45,12 +45,12 @@ internal fun SessionDetailDataModel.toUi(
     )
 }
 
-private fun computeVolume(exercises: List<PerformedExerciseDetailDataModel>): Double? {
+private fun computeVolume(exercises: List<PerformedExerciseDetailDomain>): Double? {
     val total = exercises
         .asSequence()
-        .filter { it.exerciseType == ExerciseTypeDataModel.WEIGHTED }
+        .filter { it.exerciseType == ExerciseTypeDomain.WEIGHTED }
         .flatMap { it.sets.asSequence() }
-        .filter { it.type == SetsDataType.WORK || it.type == SetsDataType.FAIL }
+        .filter { it.type == SetTypeDomain.WORK || it.type == SetTypeDomain.FAILURE }
         .mapNotNull { set -> set.weight?.let { weight -> weight * set.reps } }
         .sum()
     return total.takeIf { it > 0.0 }
@@ -78,7 +78,7 @@ private fun buildTotalsLabel(
     )
 }
 
-private fun List<PerformedExerciseDetailDataModel>.toUiList(
+private fun List<PerformedExerciseDetailDomain>.toUiList(
     prSetUuids: Set<String>,
 ): ImmutableList<PastExerciseUiModel> =
     sortedBy { it.position }
@@ -88,7 +88,7 @@ private fun List<PerformedExerciseDetailDataModel>.toUiList(
                 exerciseName = exercise.exerciseName,
                 position = exercise.position,
                 skipped = exercise.skipped,
-                isWeighted = exercise.exerciseType == ExerciseTypeDataModel.WEIGHTED,
+                isWeighted = exercise.exerciseType == ExerciseTypeDomain.WEIGHTED,
                 sets = exercise.sets.toUiSets(
                     performedExerciseUuid = exercise.performedExerciseUuid,
                     prSetUuids = prSetUuids,
@@ -97,7 +97,7 @@ private fun List<PerformedExerciseDetailDataModel>.toUiList(
         }
         .toImmutableList()
 
-private fun List<SetsDataModel>.toUiSets(
+private fun List<SetDomain>.toUiSets(
     performedExerciseUuid: String,
     prSetUuids: Set<String>,
 ): ImmutableList<PastSetUiModel> = this
@@ -116,18 +116,18 @@ private fun List<SetsDataModel>.toUiSets(
     }
     .toImmutableList()
 
-private fun SetsDataType.toUi(): SetTypeUiModel = when (this) {
-    SetsDataType.WARM -> SetTypeUiModel.WARMUP
-    SetsDataType.WORK -> SetTypeUiModel.WORK
-    SetsDataType.FAIL -> SetTypeUiModel.FAILURE
-    SetsDataType.DROP -> SetTypeUiModel.DROP
+internal fun SetTypeDomain.toUi(): SetTypeUiModel = when (this) {
+    SetTypeDomain.WARMUP -> SetTypeUiModel.WARMUP
+    SetTypeDomain.WORK -> SetTypeUiModel.WORK
+    SetTypeDomain.FAILURE -> SetTypeUiModel.FAILURE
+    SetTypeDomain.DROP -> SetTypeUiModel.DROP
 }
 
-internal fun SetTypeUiModel.toSetsDataType(): SetsDataType = when (this) {
-    SetTypeUiModel.WARMUP -> SetsDataType.WARM
-    SetTypeUiModel.WORK -> SetsDataType.WORK
-    SetTypeUiModel.FAILURE -> SetsDataType.FAIL
-    SetTypeUiModel.DROP -> SetsDataType.DROP
+internal fun SetTypeUiModel.toDomain(): SetTypeDomain = when (this) {
+    SetTypeUiModel.WARMUP -> SetTypeDomain.WARMUP
+    SetTypeUiModel.WORK -> SetTypeDomain.WORK
+    SetTypeUiModel.FAILURE -> SetTypeDomain.FAILURE
+    SetTypeUiModel.DROP -> SetTypeDomain.DROP
 }
 
 private const val WEIGHT_DECIMAL_FACTOR = 10.0
