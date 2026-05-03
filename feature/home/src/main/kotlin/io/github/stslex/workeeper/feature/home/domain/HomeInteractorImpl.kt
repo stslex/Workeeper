@@ -5,12 +5,16 @@ import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.data.exercise.session.SessionConflictResolver
 import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
-import io.github.stslex.workeeper.core.data.exercise.session.model.RecentSessionDataModel
-import io.github.stslex.workeeper.core.data.exercise.training.TrainingListItem
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
+import io.github.stslex.workeeper.feature.home.domain.mapper.toDomain
+import io.github.stslex.workeeper.feature.home.domain.model.ActiveSessionWithStatsDomain
+import io.github.stslex.workeeper.feature.home.domain.model.RecentSessionDomain
+import io.github.stslex.workeeper.feature.home.domain.model.StartSessionConflict
+import io.github.stslex.workeeper.feature.home.domain.model.TrainingListItemDomain
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
@@ -23,22 +27,25 @@ internal class HomeInteractorImpl @Inject constructor(
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
 ) : HomeInteractor {
 
-    override fun observeActiveSession(): Flow<SessionRepository.ActiveSessionWithStats?> =
+    override fun observeActiveSession(): Flow<ActiveSessionWithStatsDomain?> =
         sessionRepository.observeActiveSessionWithStats()
+            .map { row -> row?.toDomain() }
             .flowOn(defaultDispatcher)
 
-    override fun observeRecent(limit: Int): Flow<List<RecentSessionDataModel>> =
+    override fun observeRecent(limit: Int): Flow<List<RecentSessionDomain>> =
         sessionRepository.observeRecentWithStats(limit)
+            .map { sessions -> sessions.map { it.toDomain() } }
             .flowOn(defaultDispatcher)
 
-    override fun observeRecentTrainings(limit: Int): Flow<List<TrainingListItem>> =
+    override fun observeRecentTrainings(limit: Int): Flow<List<TrainingListItemDomain>> =
         trainingRepository.observeRecentTemplates(limit)
+            .map { trainings -> trainings.map { it.toDomain() } }
             .flowOn(defaultDispatcher)
 
     override suspend fun resolveStartConflict(
         requestedTrainingUuid: String,
-    ): SessionConflictResolver.Resolution = withContext(defaultDispatcher) {
-        sessionConflictResolver.resolve(requestedTrainingUuid)
+    ): StartSessionConflict = withContext(defaultDispatcher) {
+        sessionConflictResolver.resolve(requestedTrainingUuid).toDomain()
     }
 
     override suspend fun getTrainingName(trainingUuid: String): String? = withContext(defaultDispatcher) {
