@@ -128,6 +128,20 @@ Six stub files with `TODO(feature-rewrite-tests)` markers and zero test methods.
 
 ---
 
+## Domain model boundary
+
+Interactors and use cases currently expose `*DataModel` types directly
+(e.g. `ExerciseDataModel`, `TagDataModel`, `PlanSetDataModel`,
+`HistoryEntry`, `PersonalRecordDataModel`) in their public surface. UI
+mappers in some features import `DataModel` types directly, skipping the
+domain abstraction. Convention target: domain layer accepts and returns
+`DomainModel`-suffixed types, mapping data→domain happens in the
+interactor or use case, mapping domain→ui happens in the UI mapper.
+Migration plan to be drafted from a parallel domain-boundary audit (in
+progress).
+
+---
+
 ## v2.0 Foundations Stage — closed entries
 
 The v2.0 stage addressed the following items. They are listed here for traceability before they roll into the next audit cleanup.
