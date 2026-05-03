@@ -3,12 +3,15 @@ package io.github.stslex.workeeper.feature.live_workout.mvi.handler
 
 import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
-import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExercisePickerAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExercisePickerUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
+import io.github.stslex.workeeper.feature.live_workout.domain.model.AddExerciseResult
+import io.github.stslex.workeeper.feature.live_workout.domain.model.ExercisePickerEntry
+import io.github.stslex.workeeper.feature.live_workout.domain.model.ExerciseTypeDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.model.InlineAdhocResult
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State.ExercisePickerSheetState
 import io.mockk.coEvery
@@ -113,15 +116,15 @@ internal class ExercisePickerHandlerTest {
         val state = MutableStateFlow(stateWithVisiblePicker())
         coEvery {
             interactor.createInlineAdhocExercise("Skull Crushers")
-        } returns LiveWorkoutInteractor.InlineAdhocResult(
+        } returns InlineAdhocResult(
             exerciseUuid = "ex-inline-1",
             name = "Skull Crushers",
-            type = ExerciseTypeDataModel.WEIGHTED,
+            type = ExerciseTypeDomain.WEIGHTED,
             reusedExisting = false,
         )
         coEvery {
             interactor.addExerciseToActiveSession("session-1", "training-1", "ex-inline-1")
-        } returns LiveWorkoutInteractor.AddExerciseResult(
+        } returns AddExerciseResult(
             performedExerciseUuid = "pe-inline-1",
             planSets = null,
         )
@@ -151,15 +154,15 @@ internal class ExercisePickerHandlerTest {
         val state = MutableStateFlow(stateWithVisiblePicker())
         coEvery {
             interactor.createInlineAdhocExercise("Bench Press")
-        } returns LiveWorkoutInteractor.InlineAdhocResult(
+        } returns InlineAdhocResult(
             exerciseUuid = "ex-library-1",
             name = "Bench Press",
-            type = ExerciseTypeDataModel.WEIGHTED,
+            type = ExerciseTypeDomain.WEIGHTED,
             reusedExisting = true,
         )
         coEvery {
             interactor.addExerciseToActiveSession("session-1", "training-1", "ex-library-1")
-        } returns LiveWorkoutInteractor.AddExerciseResult(
+        } returns AddExerciseResult(
             performedExerciseUuid = "pe-library-1",
             planSets = null,
         )
@@ -177,7 +180,7 @@ internal class ExercisePickerHandlerTest {
         coVerify(exactly = 1) {
             interactor.fetchPrSnapshotForExercise(
                 exerciseUuid = "ex-library-1",
-                type = ExerciseTypeDataModel.WEIGHTED,
+                type = ExerciseTypeDomain.WEIGHTED,
             )
         }
     }
@@ -189,10 +192,10 @@ internal class ExercisePickerHandlerTest {
         coEvery {
             interactor.searchExercisesForPicker(query = "жим груди", excludedUuids = emptySet())
         } returns listOf(
-            LiveWorkoutInteractor.ExercisePickerEntry(
+            ExercisePickerEntry(
                 uuid = "u-incline",
                 name = "жим груди под наклоном",
-                type = ExerciseTypeDataModel.WEIGHTED,
+                type = ExerciseTypeDomain.WEIGHTED,
             ),
         )
         every {
@@ -224,10 +227,10 @@ internal class ExercisePickerHandlerTest {
         coEvery {
             interactor.searchExercisesForPicker(query = "BENCH PRESS", excludedUuids = emptySet())
         } returns listOf(
-            LiveWorkoutInteractor.ExercisePickerEntry(
+            ExercisePickerEntry(
                 uuid = "u-bench",
                 name = "Bench Press",
-                type = ExerciseTypeDataModel.WEIGHTED,
+                type = ExerciseTypeDomain.WEIGHTED,
             ),
         )
 

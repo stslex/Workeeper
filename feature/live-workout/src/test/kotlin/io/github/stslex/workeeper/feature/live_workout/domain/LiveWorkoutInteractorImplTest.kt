@@ -20,6 +20,9 @@ import io.github.stslex.workeeper.core.data.exercise.session.model.SessionStateD
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingDataModel
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
+import io.github.stslex.workeeper.feature.live_workout.domain.model.ExerciseTypeDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.model.PlanSetDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.model.SetTypeDomain
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -284,7 +287,10 @@ internal class LiveWorkoutInteractorImplTest {
 
         val snapshot = interactor.loadSession(sessionUuid)
 
-        assertEquals(adhoc, snapshot?.exercises?.single()?.planSets)
+        assertEquals(
+            listOf(PlanSetDomain(weight = 80.0, reps = 5, type = SetTypeDomain.WORK)),
+            snapshot?.exercises?.single()?.planSets,
+        )
     }
 
     @Test
@@ -300,7 +306,7 @@ internal class LiveWorkoutInteractorImplTest {
 
         val snapshot = interactor.loadSession(sessionUuid)
 
-        assertEquals(emptyList<PlanSetDataModel>(), snapshot?.exercises?.single()?.planSets)
+        assertEquals(emptyList<PlanSetDomain>(), snapshot?.exercises?.single()?.planSets)
         coVerify(exactly = 0) { exerciseRepository.getAdhocPlan(exerciseUuid) }
     }
 
@@ -318,7 +324,10 @@ internal class LiveWorkoutInteractorImplTest {
 
         val snapshot = interactor.loadSession(sessionUuid)
 
-        assertEquals(plan, snapshot?.exercises?.single()?.planSets)
+        assertEquals(
+            listOf(PlanSetDomain(weight = 100.0, reps = 3, type = SetTypeDomain.WORK)),
+            snapshot?.exercises?.single()?.planSets,
+        )
         coVerify(exactly = 0) { exerciseRepository.getAdhocPlan(exerciseUuid) }
     }
 
@@ -333,7 +342,10 @@ internal class LiveWorkoutInteractorImplTest {
 
         val snapshot = interactor.loadSession(sessionUuid)
 
-        assertEquals(adhoc, snapshot?.exercises?.single()?.planSets)
+        assertEquals(
+            listOf(PlanSetDomain(weight = 80.0, reps = 5, type = SetTypeDomain.WORK)),
+            snapshot?.exercises?.single()?.planSets,
+        )
         coVerify(exactly = 0) {
             trainingExerciseRepository.getPlan(any(), any())
         }
@@ -540,7 +552,7 @@ internal class LiveWorkoutInteractorImplTest {
 
         assertEquals("ex-new", result.exerciseUuid)
         assertEquals("Skull Crushers", result.name)
-        assertEquals(ExerciseTypeDataModel.WEIGHTED, result.type)
+        assertEquals(ExerciseTypeDomain.WEIGHTED, result.type)
         assertEquals(false, result.reusedExisting)
     }
 

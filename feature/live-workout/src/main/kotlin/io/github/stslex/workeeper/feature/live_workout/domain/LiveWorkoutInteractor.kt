@@ -1,11 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.live_workout.domain
 
-import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
-import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
-import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordDataModel
-import io.github.stslex.workeeper.core.data.exercise.session.model.PerformedExerciseDataModel
-import io.github.stslex.workeeper.core.data.exercise.session.model.SessionDataModel
+import io.github.stslex.workeeper.feature.live_workout.domain.model.AddExerciseResult
+import io.github.stslex.workeeper.feature.live_workout.domain.model.AdhocSessionResult
+import io.github.stslex.workeeper.feature.live_workout.domain.model.ExercisePickerEntry
+import io.github.stslex.workeeper.feature.live_workout.domain.model.ExerciseTypeDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.model.FinishResult
+import io.github.stslex.workeeper.feature.live_workout.domain.model.InlineAdhocResult
+import io.github.stslex.workeeper.feature.live_workout.domain.model.PersonalRecordDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.model.PlanSetDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.model.SessionSnapshotDomain
 
 @Suppress("TooManyFunctions")
 internal interface LiveWorkoutInteractor {
@@ -39,11 +43,6 @@ internal interface LiveWorkoutInteractor {
         trainingUuid: String,
         exerciseUuid: String,
     ): AddExerciseResult
-
-    data class AddExerciseResult(
-        val performedExerciseUuid: String,
-        val planSets: List<PlanSetDataModel>?,
-    )
 
     /**
      * Cancels an ad-hoc session: deletes session, training, and inline-created exercises in
@@ -85,15 +84,15 @@ internal interface LiveWorkoutInteractor {
      */
     suspend fun fetchPrSnapshotForExercise(
         exerciseUuid: String,
-        type: ExerciseTypeDataModel,
-    ): PersonalRecordDataModel?
+        type: ExerciseTypeDomain,
+    ): PersonalRecordDomain?
 
-    suspend fun loadSession(sessionUuid: String): SessionSnapshot?
+    suspend fun loadSession(sessionUuid: String): SessionSnapshotDomain?
 
     suspend fun upsertSet(
         performedExerciseUuid: String,
         position: Int,
-        set: PlanSetDataModel,
+        set: PlanSetDomain,
     )
 
     suspend fun deleteSet(performedExerciseUuid: String, position: Int)
@@ -120,63 +119,8 @@ internal interface LiveWorkoutInteractor {
     suspend fun setPlanForExercise(
         trainingUuid: String,
         exerciseUuid: String,
-        plan: List<PlanSetDataModel>?,
+        plan: List<PlanSetDomain>?,
     )
 
-    suspend fun setAdhocPlan(exerciseUuid: String, plan: List<PlanSetDataModel>?)
-
-    /**
-     * Captures the per-exercise PR snapshot taken once at session load. The flow underlying
-     * this map is intentionally not held open — Q6 lock requires session-frozen comparator
-     * semantics, so the snapshot does not refresh mid-session even if other screens log new
-     * sets that would otherwise bump the PR.
-     */
-    data class SessionSnapshot(
-        val session: SessionDataModel,
-        val trainingName: String,
-        val isAdhoc: Boolean,
-        val exercises: List<PerformedExerciseSnapshot>,
-        val preSessionPrSnapshot: Map<String, PersonalRecordDataModel?>,
-    )
-
-    data class PerformedExerciseSnapshot(
-        val performed: PerformedExerciseDataModel,
-        val exerciseName: String,
-        val exerciseType: ExerciseTypeDataModel,
-        val planSets: List<PlanSetDataModel>?,
-        val performedSets: List<PlanSetDataModel>,
-        val performedSetUuids: List<String>,
-    )
-
-    data class FinishResult(
-        val durationMillis: Long,
-        val doneCount: Int,
-        val totalCount: Int,
-        val skippedCount: Int,
-        val setsLogged: Int,
-    )
-
-    /** Domain result of [createAdhocSession] — both UUIDs are needed for cleanup later. */
-    data class AdhocSessionResult(
-        val sessionUuid: String,
-        val trainingUuid: String,
-    )
-
-    /**
-     * Domain result of [createInlineAdhocExercise]. [reusedExisting] is true when the typed
-     * name matched an existing exercise (library or orphan adhoc) case-insensitively and the
-     * row was returned without insert. Drives the picker handler's PR-fetch decision.
-     */
-    data class InlineAdhocResult(
-        val exerciseUuid: String,
-        val name: String,
-        val type: ExerciseTypeDataModel,
-        val reusedExisting: Boolean,
-    )
-
-    data class ExercisePickerEntry(
-        val uuid: String,
-        val name: String,
-        val type: ExerciseTypeDataModel,
-    )
+    suspend fun setAdhocPlan(exerciseUuid: String, plan: List<PlanSetDomain>?)
 }
