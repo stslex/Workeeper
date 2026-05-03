@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.feature.all_trainings.domain
 import io.github.stslex.workeeper.core.data.exercise.tags.TagRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository.BulkArchiveOutcome
+import io.github.stslex.workeeper.feature.all_trainings.domain.model.BulkArchiveResult
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -27,7 +28,7 @@ internal class AllTrainingsInteractorImplTest {
     fun `archiveTrainings delegates to repository bulkArchive`() = runTest {
         coEvery { trainingRepository.bulkArchive(any()) } returns BulkArchiveOutcome(2, emptyList())
 
-        val outcome = interactor.archiveTrainings(setOf("a", "b"))
+        val outcome: BulkArchiveResult = interactor.archiveTrainings(setOf("a", "b"))
 
         assertEquals(2, outcome.archivedCount)
         coVerify { trainingRepository.bulkArchive(setOf("a", "b")) }
