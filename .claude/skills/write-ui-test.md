@@ -56,7 +56,7 @@ Mirror the production package. Lifted directly from
 ```kotlin
 package io.github.stslex.workeeper.feature.<name_snake>
 
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stslex.workeeper.core.ui.test.BaseComposeTest
 import io.github.stslex.workeeper.core.ui.test.annotations.Smoke

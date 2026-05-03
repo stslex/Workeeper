@@ -7,7 +7,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class CommonDataStoreImpl @Inject internal constructor(
+internal class CommonDataStoreImpl @Inject internal constructor(
     storeFactory: DataStoreProviderFactory,
 ) : CommonDataStore, BaseDataStore(
     storeFactory.create(NAME),

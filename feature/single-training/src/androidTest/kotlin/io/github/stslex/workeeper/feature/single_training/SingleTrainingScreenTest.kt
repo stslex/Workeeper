@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.single_training
 
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stslex.workeeper.core.ui.test.BaseComposeTest
 import io.github.stslex.workeeper.core.ui.test.annotations.Smoke
