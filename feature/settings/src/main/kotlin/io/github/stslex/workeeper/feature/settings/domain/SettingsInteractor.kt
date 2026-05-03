@@ -2,8 +2,8 @@
 package io.github.stslex.workeeper.feature.settings.domain
 
 import androidx.paging.PagingData
-import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.feature.settings.domain.model.ArchivedItem
+import io.github.stslex.workeeper.feature.settings.domain.model.ThemeModeDomain
 import kotlinx.coroutines.flow.Flow
 
 @Suppress("TooManyFunctions")
@@ -13,9 +13,9 @@ internal interface SettingsInteractor {
 
     fun appVersionCode(): Long
 
-    fun observeThemeMode(): Flow<ThemeMode>
+    fun observeThemeMode(): Flow<ThemeModeDomain>
 
-    suspend fun setThemeMode(mode: ThemeMode)
+    suspend fun setThemeMode(mode: ThemeModeDomain)
 
     fun observeArchivedExerciseCount(): Flow<Int>
 

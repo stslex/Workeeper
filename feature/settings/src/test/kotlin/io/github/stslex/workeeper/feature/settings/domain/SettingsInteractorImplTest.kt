@@ -5,7 +5,7 @@ import android.content.Context
 import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
-import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
+import io.github.stslex.workeeper.feature.settings.domain.model.ThemeModeDomain
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -50,20 +50,20 @@ internal class SettingsInteractorImplTest {
     @Test
     fun `observeThemeMode maps stored string to ThemeMode`() = runTest(testDispatcher) {
         every { commonDataStore.themePreference } returns flowOf("DARK")
-        assertEquals(ThemeMode.DARK, interactor.observeThemeMode().first())
+        assertEquals(ThemeModeDomain.DARK, interactor.observeThemeMode().first())
     }
 
     @Test
     fun `observeThemeMode returns SYSTEM for unknown stored value`() = runTest(testDispatcher) {
         every { commonDataStore.themePreference } returns flowOf("INVALID")
-        assertEquals(ThemeMode.SYSTEM, interactor.observeThemeMode().first())
+        assertEquals(ThemeModeDomain.SYSTEM, interactor.observeThemeMode().first())
     }
 
     @Test
     fun `setThemeMode forwards enum name to data store`() = runTest(testDispatcher) {
         coEvery { commonDataStore.setThemePreference(any()) } returns Unit
-        interactor.setThemeMode(ThemeMode.LIGHT)
-        coVerify(exactly = 1) { commonDataStore.setThemePreference("LIGHT") }
+        interactor.setThemeMode(ThemeModeDomain.LIGHT)
+        coVerify(exactly = 1) { commonDataStore.setThemePreference(ThemeModeDomain.LIGHT.value) }
     }
 
     @Test
