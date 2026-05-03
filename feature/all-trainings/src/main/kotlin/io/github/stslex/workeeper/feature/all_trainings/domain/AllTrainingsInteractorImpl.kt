@@ -4,11 +4,11 @@ package io.github.stslex.workeeper.feature.all_trainings.domain
 import androidx.paging.PagingData
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
-import io.github.stslex.workeeper.core.exercise.tags.TagRepository
-import io.github.stslex.workeeper.core.exercise.tags.model.TagDataModel
-import io.github.stslex.workeeper.core.exercise.training.TrainingListItem
-import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
-import io.github.stslex.workeeper.core.exercise.training.TrainingRepository.BulkArchiveOutcome
+import io.github.stslex.workeeper.core.data.exercise.tags.TagRepository
+import io.github.stslex.workeeper.core.data.exercise.tags.model.TagDataModel
+import io.github.stslex.workeeper.core.data.exercise.training.TrainingListItem
+import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
+import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository.BulkArchiveOutcome
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn

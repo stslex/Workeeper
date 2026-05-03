@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.ui.plan_editor.model
 
-import io.github.stslex.workeeper.core.database.sets.SetTypeDataModel
+import io.github.stslex.workeeper.core.data.database.sets.SetTypeDataModel
 import io.github.stslex.workeeper.core.ui.kit.components.setchip.SetType
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel.Companion.toUi
 import org.junit.jupiter.api.Assertions.assertEquals

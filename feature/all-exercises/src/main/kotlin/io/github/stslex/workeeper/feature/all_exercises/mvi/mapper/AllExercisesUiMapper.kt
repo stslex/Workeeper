@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.all_exercises.mvi.mapper
 
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
-import io.github.stslex.workeeper.core.exercise.tags.model.TagDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseDataModel
+import io.github.stslex.workeeper.core.data.exercise.tags.model.TagDataModel
 import io.github.stslex.workeeper.feature.all_exercises.mvi.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.all_exercises.mvi.model.TagUiModel
 import kotlinx.collections.immutable.persistentListOf

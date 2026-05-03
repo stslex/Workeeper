@@ -2,8 +2,8 @@
 package io.github.stslex.workeeper.feature.exercise_chart.mvi.handler
 
 import dagger.hilt.android.scopes.ViewModelScoped
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.RecentExerciseDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.RecentExerciseDataModel
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.di.ExerciseChartHandlerStore

@@ -10,8 +10,8 @@ dependencies {
     implementation(project(":core:ui:navigation"))
     implementation(project(":core:ui:plan-editor"))
 
-    implementation(project(":core:database"))
-    implementation(project(":core:exercise"))
+    implementation(project(":core:data:database"))
+    implementation(project(":core:data:exercise"))
 
     androidTestImplementation(libs.bundles.android.test)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

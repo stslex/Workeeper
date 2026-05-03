@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.live_workout.domain
 
-import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
-import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordDataModel
-import io.github.stslex.workeeper.core.exercise.session.model.PerformedExerciseDataModel
-import io.github.stslex.workeeper.core.exercise.session.model.SessionDataModel
+import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
+import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordDataModel
+import io.github.stslex.workeeper.core.data.exercise.session.model.PerformedExerciseDataModel
+import io.github.stslex.workeeper.core.data.exercise.session.model.SessionDataModel
 
 @Suppress("TooManyFunctions")
 internal interface LiveWorkoutInteractor {

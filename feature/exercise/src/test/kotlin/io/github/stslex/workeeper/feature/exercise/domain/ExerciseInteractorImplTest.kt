@@ -3,15 +3,15 @@ package io.github.stslex.workeeper.feature.exercise.domain
 
 import io.github.stslex.workeeper.core.core.images.ImageStorage
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
-import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
-import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordDataModel
-import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordRepository
-import io.github.stslex.workeeper.core.exercise.session.SessionRepository
-import io.github.stslex.workeeper.core.exercise.tags.TagRepository
-import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
+import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseChangeDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataType
+import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordDataModel
+import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordRepository
+import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
+import io.github.stslex.workeeper.core.data.exercise.tags.TagRepository
+import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor.ArchiveResult
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor.SaveResult
 import io.mockk.coEvery

@@ -2,7 +2,7 @@
 package io.github.stslex.workeeper.feature.all_trainings.mvi.mapper
 
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
-import io.github.stslex.workeeper.core.exercise.training.TrainingListItem
+import io.github.stslex.workeeper.core.data.exercise.training.TrainingListItem
 import io.github.stslex.workeeper.feature.all_trainings.R
 import io.github.stslex.workeeper.feature.all_trainings.mvi.model.TrainingListItemUi
 import kotlinx.collections.immutable.toImmutableList

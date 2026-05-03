@@ -151,7 +151,7 @@ internal class ArchiveClickHandlerTest {
         name = "Bench",
         tags = emptyList(),
         archivedAt = 0L,
-        type = io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel.WEIGHTED,
+        type = io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel.WEIGHTED,
     )
 
     private fun assertHaptic(event: Event, expected: HapticFeedbackType) {

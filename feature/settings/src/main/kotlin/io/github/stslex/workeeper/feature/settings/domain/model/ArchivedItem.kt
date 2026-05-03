@@ -2,7 +2,7 @@
 package io.github.stslex.workeeper.feature.settings.domain.model
 
 import androidx.compose.runtime.Stable
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
 
 @Stable
 sealed interface ArchivedItem {

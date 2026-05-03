@@ -2,9 +2,9 @@
 package io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper
 
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
-import io.github.stslex.workeeper.core.exercise.exercise.model.HistoryEntry
-import io.github.stslex.workeeper.core.exercise.exercise.model.SetSummary
-import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.HistoryEntry
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetSummary
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataType
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartMetricUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPresetUiModel

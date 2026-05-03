@@ -4,7 +4,7 @@ package io.github.stslex.workeeper.feature.live_workout.mvi.handler
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
-import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordDataModel
+import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordDataModel
 import io.github.stslex.workeeper.core.ui.plan_editor.mappers.toUi
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExercisePickerAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExercisePickerUiModel

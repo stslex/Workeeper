@@ -12,7 +12,7 @@ import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.core.images.model.ImageSaveResult
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.utils.CommonExt.parseOrRandom
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.mappers.toData
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel

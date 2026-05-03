@@ -10,9 +10,9 @@ import androidx.paging.map
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
-import io.github.stslex.workeeper.core.dataStore.store.CommonDataStore
-import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
-import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
+import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
+import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
+import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.feature.settings.domain.model.ArchivedItem
 import kotlinx.coroutines.CoroutineDispatcher
