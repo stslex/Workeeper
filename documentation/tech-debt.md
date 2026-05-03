@@ -128,17 +128,16 @@ Six stub files with `TODO(feature-rewrite-tests)` markers and zero test methods.
 
 ---
 
-## Domain model boundary
+## Domain model boundary — RESOLVED
 
-Interactors and use cases currently expose `*DataModel` types directly
-(e.g. `ExerciseDataModel`, `TagDataModel`, `PlanSetDataModel`,
-`HistoryEntry`, `PersonalRecordDataModel`) in their public surface. UI
-mappers in some features import `DataModel` types directly, skipping the
-domain abstraction. Convention target: domain layer accepts and returns
-`DomainModel`-suffixed types, mapping data→domain happens in the
-interactor or use case, mapping domain→ui happens in the UI mapper.
-Migration plan to be drafted from a parallel domain-boundary audit (in
-progress).
+Migrated in the domain-model-migration PR. Every feature now declares
+its own `*Domain` types under `feature/<X>/domain/model/`; data → domain
+mapping lives in `feature/<X>/domain/mapper/`; domain → ui mapping
+lives in `feature/<X>/mvi/mapper/`. Sealed result types are extracted
+to standalone files. The `DomainLayerPurityRule` and
+`DomainLayerNoUiRule` Detekt rules guard the boundary at error
+severity. See [architecture.md → Domain model
+layer](architecture.md#domain-model-layer) for the convention.
 
 ---
 

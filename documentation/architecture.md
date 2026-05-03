@@ -351,6 +351,36 @@ when a runtime parameter (e.g. file name) is required.
   `@AndroidEntryPoint`, injects `ActivityHolderProducer`, and sets the Compose root via
   `setContent { App() }`.
 
+### Domain model layer
+
+- Each feature owns its domain model layer. Public surface of interactors
+  and use cases takes and returns `*Domain` types only.
+- `*DataModel` types from `core.data.*` are visible only inside
+  `feature/<X>/domain/mapper/<Name>DomainMapper.kt`, where they get
+  converted to `*Domain` via `toDomain()` extension functions.
+- `*UiModel` types are visible only in `feature/<X>/mvi/mapper/`, which
+  consumes `*Domain` and produces `*UiModel`.
+- Sealed result types live in `feature/<X>/domain/model/`, never nested
+  inside the interactor interface (e.g. `ArchiveResult`,
+  `TrackNowConflict`, `SaveResult`, `BulkArchiveResult`,
+  `StartSessionConflict`).
+- The domain layer never imports `androidx.compose.*`, never references
+  `R.*`, never injects `ResourceWrapper`. Display fallbacks live in UI
+  mappers, not in domain.
+- Repository INTERFACES (e.g. `ExerciseRepository`,
+  `SessionConflictResolver`) are abstractions, not data models — they
+  remain importable by interactor implementations and use cases. The
+  Detekt rule `DomainLayerPurityRule` flags imports of types matching
+  data-shape suffixes (`*DataModel`, `*Entity`, `*Dto`, etc.) and
+  packages containing `.model.`, but lets infrastructure imports through.
+- Two Detekt rules guard this boundary: `DomainLayerPurityRule`
+  (data → domain leak) and `DomainLayerNoUiRule` (UI/Compose/R/mvi →
+  domain leak). Both run at error severity; mappers under
+  `domain/mapper/` are exempt from `DomainLayerPurityRule` since their
+  job is the data → domain conversion.
+- Reference: `feature/exercise/domain/`. The pre-migration baseline is
+  recorded at `documentation/research/domain-boundary-audit-codex.md`.
+
 ## Data layer
 
 ### Room database

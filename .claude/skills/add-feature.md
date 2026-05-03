@@ -45,11 +45,20 @@ post-Stage-5.1 layout below.
 
 ## Step-by-step
 
-1. Decide whether the feature needs a domain layer. Features with non-trivial business logic
-   or their own interactor (`feature/settings/.../domain/`,
-   `feature/exercise/.../domain/`, `feature/single-training/.../domain/`) create a `domain/`
-   package. Features that only forward to repositories (`feature/all-trainings`,
-   `feature/charts`, `feature/all-exercises`) skip it.
+1. Every feature has a `domain/` package containing:
+   - `domain/<Name>Interactor.kt` and `<Name>InteractorImpl.kt`
+   - `domain/model/` with at least one `*Domain` type per concept the feature surfaces
+   - `domain/mapper/<Name>DomainMapper.kt` with `toDomain()` extensions on every
+     `core.data.*` type the interactor consumes (and `toData()` for write-side mappings)
+   - `domain/usecase/` only when the interactor has thick methods — see the use-case
+     extraction convention in [AGENTS.md](../../AGENTS.md).
+
+   The interactor's public surface uses `*Domain` types only — never `core.data.*`
+   types. Display fallbacks like "Unnamed" / "Track Now" go in the UI mapper via
+   `stringResource(R.string.*)` or `resourceWrapper.getString(R.string.*)`, not in
+   domain. See [documentation/architecture.md → Domain model
+   layer](../../documentation/architecture.md#domain-model-layer) for the contract.
+   Reference: `feature/exercise/domain/`.
 
 2. Create the module directory tree under `feature/<name>/`. Post-Stage-5.1 layout
    (mirrors `feature/settings/`):

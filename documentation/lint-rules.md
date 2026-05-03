@@ -238,6 +238,58 @@ fun HomeScreen(
 ) { ... }
 ```
 
+### `DomainLayerPurityRule`
+
+**File:** `DomainLayerPurityRule.kt` · **Severity:** Defect.
+
+Flags imports under any `feature/<X>/domain/` file that pull a `core.data.*` data
+model into the domain layer. The rule treats imports whose simple name ends in
+`DataModel`, `Entity`, `Dto`, `DataType`, etc., or whose path contains `.model.`,
+as data-shape leaks. Repository / Storage / Dao / Dispatcher imports under
+`core.data.*` are intentionally permitted — they are abstractions, not data
+shapes. Files inside `domain/mapper/` are exempt: a mapper's whole job is the
+data → domain conversion.
+
+```kotlin
+// BAD: feature/exercise/domain/ExerciseInteractor.kt
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseDataModel
+suspend fun getExercise(uuid: String): ExerciseDataModel?
+```
+
+```kotlin
+// GOOD: feature/exercise/domain/ExerciseInteractor.kt
+import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseDomain
+suspend fun getExercise(uuid: String): ExerciseDomain?
+
+// And in domain/mapper/ExerciseDomainMapper.kt (allowed):
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseDataModel
+internal fun ExerciseDataModel.toDomain(): ExerciseDomain = ...
+```
+
+### `DomainLayerNoUiRule`
+
+**File:** `DomainLayerNoUiRule.kt` · **Severity:** Defect.
+
+Flags imports under `feature/<X>/domain/` (including `domain/mapper/`) that pull
+in UI / Compose / resource / mvi types: `*UiModel`, `androidx.compose.*`, `*.R`,
+`*.R.*`, and any path containing `.ui.` or `.mvi.`. Display string lookups
+belong in UI mappers via `stringResource(R.string.*)` or
+`resourceWrapper.getString(R.string.*)`; UI model conversions belong in
+`mvi/mapper/`.
+
+```kotlin
+// BAD: feature/settings/domain/model/ArchivedItem.kt
+import androidx.compose.runtime.Stable
+@Stable
+sealed interface ArchivedItem { ... }
+```
+
+```kotlin
+// GOOD: feature/settings/domain/model/ArchivedItem.kt
+sealed interface ArchivedItem { ... }
+// The @Stable wrapper lives in feature/settings/mvi/model/ArchivedItemUi.kt.
+```
+
 ### `ScopeClassType` (helper, not a rule)
 
 `ScopeClassType.kt` is the enum that backs `HiltScopeRule`. Update its `singletonClasses` and
