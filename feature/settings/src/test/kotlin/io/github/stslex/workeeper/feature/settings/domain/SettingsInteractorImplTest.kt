@@ -2,9 +2,9 @@
 package io.github.stslex.workeeper.feature.settings.domain
 
 import android.content.Context
-import io.github.stslex.workeeper.core.dataStore.store.CommonDataStore
-import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
-import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
+import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
+import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
+import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.mockk.coEvery
 import io.mockk.coVerify

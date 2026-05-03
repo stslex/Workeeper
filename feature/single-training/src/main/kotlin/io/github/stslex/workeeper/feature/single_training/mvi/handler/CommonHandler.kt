@@ -3,8 +3,8 @@ package io.github.stslex.workeeper.feature.single_training.mvi.handler
 
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
-import io.github.stslex.workeeper.core.exercise.session.model.SessionDataModel
-import io.github.stslex.workeeper.core.exercise.training.TrainingDataModel
+import io.github.stslex.workeeper.core.data.exercise.session.model.SessionDataModel
+import io.github.stslex.workeeper.core.data.exercise.training.TrainingDataModel
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.mappers.formatPlanSummary
 import io.github.stslex.workeeper.core.ui.plan_editor.mappers.toUi

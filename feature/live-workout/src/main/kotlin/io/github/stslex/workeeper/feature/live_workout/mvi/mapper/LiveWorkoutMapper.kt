@@ -3,10 +3,10 @@ package io.github.stslex.workeeper.feature.live_workout.mvi.mapper
 
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
-import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
-import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordDataModel
-import io.github.stslex.workeeper.core.exercise.sets.PrComparator
+import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
+import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordDataModel
+import io.github.stslex.workeeper.core.data.exercise.sets.PrComparator
 import io.github.stslex.workeeper.core.ui.plan_editor.mappers.formatPlanSummary
 import io.github.stslex.workeeper.core.ui.plan_editor.mappers.toUi
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel

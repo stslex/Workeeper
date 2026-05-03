@@ -2,9 +2,9 @@
 package io.github.stslex.workeeper.feature.all_trainings.domain
 
 import androidx.paging.PagingData
-import io.github.stslex.workeeper.core.exercise.tags.model.TagDataModel
-import io.github.stslex.workeeper.core.exercise.training.TrainingListItem
-import io.github.stslex.workeeper.core.exercise.training.TrainingRepository.BulkArchiveOutcome
+import io.github.stslex.workeeper.core.data.exercise.tags.model.TagDataModel
+import io.github.stslex.workeeper.core.data.exercise.training.TrainingListItem
+import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository.BulkArchiveOutcome
 import kotlinx.coroutines.flow.Flow
 
 internal interface AllTrainingsInteractor {

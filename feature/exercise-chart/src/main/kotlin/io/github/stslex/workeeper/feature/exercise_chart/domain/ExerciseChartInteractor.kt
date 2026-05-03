@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise_chart.domain
 
-import io.github.stslex.workeeper.core.exercise.exercise.model.RecentExerciseDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.RecentExerciseDataModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapper.FoldResult
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartMetricUiModel

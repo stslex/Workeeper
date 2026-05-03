@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.single_training.domain
 
-import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
-import io.github.stslex.workeeper.core.exercise.session.SessionConflictResolver
-import io.github.stslex.workeeper.core.exercise.session.model.ActiveSessionInfo
-import io.github.stslex.workeeper.core.exercise.session.model.SessionDataModel
-import io.github.stslex.workeeper.core.exercise.tags.model.TagDataModel
-import io.github.stslex.workeeper.core.exercise.training.TrainingChangeDataModel
-import io.github.stslex.workeeper.core.exercise.training.TrainingDataModel
+import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseDataModel
+import io.github.stslex.workeeper.core.data.exercise.session.SessionConflictResolver
+import io.github.stslex.workeeper.core.data.exercise.session.model.ActiveSessionInfo
+import io.github.stslex.workeeper.core.data.exercise.session.model.SessionDataModel
+import io.github.stslex.workeeper.core.data.exercise.tags.model.TagDataModel
+import io.github.stslex.workeeper.core.data.exercise.training.TrainingChangeDataModel
+import io.github.stslex.workeeper.core.data.exercise.training.TrainingDataModel
 import kotlinx.coroutines.flow.Flow
 
 @Suppress("TooManyFunctions")

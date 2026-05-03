@@ -4,9 +4,9 @@ package io.github.stslex.workeeper.feature.home.mvi.mapper
 import android.text.format.DateUtils
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
-import io.github.stslex.workeeper.core.exercise.session.model.RecentSessionDataModel
-import io.github.stslex.workeeper.core.exercise.training.TrainingDataModel
-import io.github.stslex.workeeper.core.exercise.training.TrainingListItem
+import io.github.stslex.workeeper.core.data.exercise.session.model.RecentSessionDataModel
+import io.github.stslex.workeeper.core.data.exercise.training.TrainingDataModel
+import io.github.stslex.workeeper.core.data.exercise.training.TrainingListItem
 import io.github.stslex.workeeper.feature.home.R
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull

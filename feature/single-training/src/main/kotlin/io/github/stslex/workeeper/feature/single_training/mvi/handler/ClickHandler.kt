@@ -5,8 +5,8 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
-import io.github.stslex.workeeper.core.exercise.session.SessionConflictResolver
-import io.github.stslex.workeeper.core.exercise.training.TrainingChangeDataModel
+import io.github.stslex.workeeper.core.data.exercise.session.SessionConflictResolver
+import io.github.stslex.workeeper.core.data.exercise.training.TrainingChangeDataModel
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel.Companion.toUi
 import io.github.stslex.workeeper.feature.single_training.R

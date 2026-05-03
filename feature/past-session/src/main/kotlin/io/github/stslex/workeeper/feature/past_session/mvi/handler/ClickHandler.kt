@@ -3,7 +3,7 @@ package io.github.stslex.workeeper.feature.past_session.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dagger.hilt.android.scopes.ViewModelScoped
-import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataModel
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.past_session.di.PastSessionHandlerStore
 import io.github.stslex.workeeper.feature.past_session.domain.PastSessionInteractor
@@ -106,7 +106,7 @@ internal class ClickHandler @Inject constructor(
         setUuid: String,
         weight: Double?,
         reps: Int,
-        type: io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType,
+        type: io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataType,
     ) {
         launch(
             onError = { _ -> sendEvent(Event.SaveFailedSnackbar) },

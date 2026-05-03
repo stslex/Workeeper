@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.past_session.domain
 
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
-import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordRepository
-import io.github.stslex.workeeper.core.exercise.session.SessionRepository
-import io.github.stslex.workeeper.core.exercise.session.SetRepository
-import io.github.stslex.workeeper.core.exercise.session.model.PerformedExerciseDetailDataModel
-import io.github.stslex.workeeper.core.exercise.session.model.SessionDetailDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataType
+import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordRepository
+import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
+import io.github.stslex.workeeper.core.data.exercise.session.SetRepository
+import io.github.stslex.workeeper.core.data.exercise.session.model.PerformedExerciseDetailDataModel
+import io.github.stslex.workeeper.core.data.exercise.session.model.SessionDetailDataModel
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every

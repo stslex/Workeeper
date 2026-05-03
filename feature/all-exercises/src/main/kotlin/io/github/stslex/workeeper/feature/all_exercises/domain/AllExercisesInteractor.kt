@@ -2,8 +2,8 @@
 package io.github.stslex.workeeper.feature.all_exercises.domain
 
 import androidx.paging.PagingData
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
-import io.github.stslex.workeeper.core.exercise.tags.model.TagDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseDataModel
+import io.github.stslex.workeeper.core.data.exercise.tags.model.TagDataModel
 import kotlinx.coroutines.flow.Flow
 
 internal interface AllExercisesInteractor {
@@ -26,7 +26,7 @@ internal interface AllExercisesInteractor {
 
     suspend fun bulkArchive(
         uuids: Set<String>,
-    ): io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository.BulkArchiveOutcome
+    ): io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository.BulkArchiveOutcome
 
     suspend fun bulkPermanentDelete(uuids: Set<String>): Int
 

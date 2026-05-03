@@ -2,10 +2,10 @@
 package io.github.stslex.workeeper.feature.exercise.mvi.mapper
 
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
-import io.github.stslex.workeeper.core.exercise.exercise.model.HistoryEntry
-import io.github.stslex.workeeper.core.exercise.exercise.model.SetSummary
-import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordDataModel
-import io.github.stslex.workeeper.core.exercise.tags.model.TagDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.HistoryEntry
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetSummary
+import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordDataModel
+import io.github.stslex.workeeper.core.data.exercise.tags.model.TagDataModel
 import io.github.stslex.workeeper.core.ui.plan_editor.mappers.formatPlanSummary
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel

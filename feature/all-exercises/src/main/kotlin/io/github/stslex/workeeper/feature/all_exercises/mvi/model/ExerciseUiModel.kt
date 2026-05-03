@@ -2,7 +2,7 @@
 package io.github.stslex.workeeper.feature.all_exercises.mvi.model
 
 import androidx.compose.runtime.Stable
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
 import kotlinx.collections.immutable.ImmutableList
 
 @Stable

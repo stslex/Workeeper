@@ -1,25 +1,25 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.live_workout.domain
 
-import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
-import io.github.stslex.workeeper.core.database.sets.SetTypeDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
-import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository.InlineAdhocResult
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
-import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordRepository
-import io.github.stslex.workeeper.core.exercise.session.PerformedExerciseRepository
-import io.github.stslex.workeeper.core.exercise.session.PlanUpdate
-import io.github.stslex.workeeper.core.exercise.session.SessionRepository
-import io.github.stslex.workeeper.core.exercise.session.SetRepository
-import io.github.stslex.workeeper.core.exercise.session.model.PerformedExerciseDataModel
-import io.github.stslex.workeeper.core.exercise.session.model.SessionDataModel
-import io.github.stslex.workeeper.core.exercise.session.model.SessionStateDataModel
-import io.github.stslex.workeeper.core.exercise.training.TrainingDataModel
-import io.github.stslex.workeeper.core.exercise.training.TrainingExerciseRepository
-import io.github.stslex.workeeper.core.exercise.training.TrainingRepository
+import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
+import io.github.stslex.workeeper.core.data.database.sets.SetTypeDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
+import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository.InlineAdhocResult
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataType
+import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordRepository
+import io.github.stslex.workeeper.core.data.exercise.session.PerformedExerciseRepository
+import io.github.stslex.workeeper.core.data.exercise.session.PlanUpdate
+import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
+import io.github.stslex.workeeper.core.data.exercise.session.SetRepository
+import io.github.stslex.workeeper.core.data.exercise.session.model.PerformedExerciseDataModel
+import io.github.stslex.workeeper.core.data.exercise.session.model.SessionDataModel
+import io.github.stslex.workeeper.core.data.exercise.session.model.SessionStateDataModel
+import io.github.stslex.workeeper.core.data.exercise.training.TrainingDataModel
+import io.github.stslex.workeeper.core.data.exercise.training.TrainingExerciseRepository
+import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -58,7 +58,7 @@ internal class LiveWorkoutInteractorImplTest {
     fun `startSession reuses an in-progress session for the same training`() = runTest {
         val trainingUuid = "training-1"
         coEvery { sessionRepository.getAnyActiveSession() } returns
-            io.github.stslex.workeeper.core.exercise.session.model.ActiveSessionInfo(
+            io.github.stslex.workeeper.core.data.exercise.session.model.ActiveSessionInfo(
                 sessionUuid = "session-existing",
                 trainingUuid = trainingUuid,
                 startedAt = 0L,

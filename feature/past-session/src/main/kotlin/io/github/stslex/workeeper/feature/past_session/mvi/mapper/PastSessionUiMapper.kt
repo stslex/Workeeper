@@ -3,11 +3,11 @@ package io.github.stslex.workeeper.feature.past_session.mvi.mapper
 
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
-import io.github.stslex.workeeper.core.exercise.session.model.PerformedExerciseDetailDataModel
-import io.github.stslex.workeeper.core.exercise.session.model.SessionDetailDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataType
+import io.github.stslex.workeeper.core.data.exercise.session.model.PerformedExerciseDetailDataModel
+import io.github.stslex.workeeper.core.data.exercise.session.model.SessionDetailDataModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.past_session.R
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastExerciseUiModel
