@@ -3,30 +3,31 @@ package io.github.stslex.workeeper.feature.exercise.domain
 
 import android.net.Uri
 import io.github.stslex.workeeper.core.core.images.model.ImageSaveResult
-import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
-import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseChangeDataModel
-import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseDataModel
-import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
-import io.github.stslex.workeeper.core.data.exercise.exercise.model.HistoryEntry
-import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordDataModel
-import io.github.stslex.workeeper.core.data.exercise.session.model.ActiveSessionInfo
-import io.github.stslex.workeeper.core.data.exercise.tags.model.TagDataModel
+import io.github.stslex.workeeper.feature.exercise.domain.model.ArchiveResult
+import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseChangeDomain
+import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseDomain
+import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseTypeDomain
+import io.github.stslex.workeeper.feature.exercise.domain.model.HistoryEntryDomain
+import io.github.stslex.workeeper.feature.exercise.domain.model.PersonalRecordDomain
+import io.github.stslex.workeeper.feature.exercise.domain.model.PlanSetDomain
+import io.github.stslex.workeeper.feature.exercise.domain.model.SaveResult
+import io.github.stslex.workeeper.feature.exercise.domain.model.TagDomain
+import io.github.stslex.workeeper.feature.exercise.domain.model.TrackNowConflict
 import kotlinx.coroutines.flow.Flow
-import kotlin.uuid.Uuid
 
 @Suppress("TooManyFunctions")
 internal interface ExerciseInteractor {
 
-    suspend fun getExercise(uuid: String): ExerciseDataModel?
+    suspend fun getExercise(uuid: String): ExerciseDomain?
 
     suspend fun getLabels(exerciseUuid: String): List<String>
 
     suspend fun getRecentHistory(
         exerciseUuid: String,
         limit: Int = DEFAULT_HISTORY_LIMIT,
-    ): List<HistoryEntry>
+    ): List<HistoryEntryDomain>
 
-    fun observeAvailableTags(): Flow<List<TagDataModel>>
+    fun observeAvailableTags(): Flow<List<TagDomain>>
 
     /**
      * Reactive PR for the exercise. Re-emits when finished-session sets for [exerciseUuid]
@@ -35,12 +36,12 @@ internal interface ExerciseInteractor {
      */
     fun observePersonalRecord(
         exerciseUuid: String,
-        type: ExerciseTypeDataModel,
-    ): Flow<PersonalRecordDataModel?>
+        type: ExerciseTypeDomain,
+    ): Flow<PersonalRecordDomain?>
 
-    suspend fun saveExercise(snapshot: ExerciseChangeDataModel): SaveResult
+    suspend fun saveExercise(snapshot: ExerciseChangeDomain): SaveResult
 
-    suspend fun createTag(name: String): TagDataModel
+    suspend fun createTag(name: String): TagDomain
 
     suspend fun archive(uuid: String): ArchiveResult
 
@@ -50,9 +51,9 @@ internal interface ExerciseInteractor {
 
     suspend fun permanentlyDelete(uuid: String)
 
-    suspend fun getAdhocPlan(uuid: String): List<PlanSetDataModel>?
+    suspend fun getAdhocPlan(uuid: String): List<PlanSetDomain>?
 
-    suspend fun setAdhocPlan(uuid: String, plan: List<PlanSetDataModel>?)
+    suspend fun setAdhocPlan(uuid: String, plan: List<PlanSetDomain>?)
 
     suspend fun clearWeightsFromAllPlansForExercise(uuid: String)
 
@@ -87,28 +88,6 @@ internal interface ExerciseInteractor {
      * this is the bug the v5 → v6 retroactive sweep cleans up history of.
      */
     suspend fun deleteSession(sessionUuid: String)
-
-    sealed interface TrackNowConflict {
-
-        data object ProceedFresh : TrackNowConflict
-
-        data class NeedsUserChoice(val active: ActiveSessionInfo, val sessionLabel: String) :
-            TrackNowConflict
-    }
-
-    sealed interface ArchiveResult {
-
-        data object Success : ArchiveResult
-
-        data class Blocked(val activeTrainings: List<String>) : ArchiveResult
-    }
-
-    sealed interface SaveResult {
-
-        data class Success(val resolvedUuid: Uuid) : SaveResult
-
-        data object DuplicateName : SaveResult
-    }
 
     companion object {
 

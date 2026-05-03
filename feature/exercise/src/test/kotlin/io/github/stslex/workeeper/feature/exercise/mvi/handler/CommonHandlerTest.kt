@@ -3,9 +3,9 @@ package io.github.stslex.workeeper.feature.exercise.mvi.handler
 
 import android.net.Uri
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
-import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
+import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseTypeDomain
 import io.github.stslex.workeeper.feature.exercise.mvi.model.PendingImage
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State
@@ -21,7 +21,7 @@ internal class CommonHandlerTest {
 
     private val interactor = mockk<ExerciseInteractor>(relaxed = true).apply {
         every { observeAvailableTags() } returns flowOf(emptyList())
-        every { observePersonalRecord(any(), any<ExerciseTypeDataModel>()) } returns emptyFlow()
+        every { observePersonalRecord(any(), any<ExerciseTypeDomain>()) } returns emptyFlow()
     }
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
 

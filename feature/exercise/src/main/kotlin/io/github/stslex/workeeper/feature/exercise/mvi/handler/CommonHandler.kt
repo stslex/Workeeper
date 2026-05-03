@@ -3,15 +3,14 @@ package io.github.stslex.workeeper.feature.exercise.mvi.handler
 
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
-import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
-import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseDataModel
-import io.github.stslex.workeeper.core.data.exercise.exercise.model.HistoryEntry
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
-import io.github.stslex.workeeper.core.ui.plan_editor.mappers.toUi
-import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel.Companion.toUi
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
+import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseDomain
+import io.github.stslex.workeeper.feature.exercise.domain.model.HistoryEntryDomain
+import io.github.stslex.workeeper.feature.exercise.domain.model.PlanSetDomain
 import io.github.stslex.workeeper.feature.exercise.mvi.mapper.toAdhocPlanSummary
+import io.github.stslex.workeeper.feature.exercise.mvi.mapper.toDomain
 import io.github.stslex.workeeper.feature.exercise.mvi.mapper.toUi
 import io.github.stslex.workeeper.feature.exercise.mvi.model.PendingImage
 import io.github.stslex.workeeper.feature.exercise.mvi.model.TagUiModel
@@ -96,7 +95,7 @@ internal class CommonHandler @Inject constructor(
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun observePersonalRecord(uuid: String) {
-        val typeFlow = state.map { it.type.toData() }.distinctUntilChanged()
+        val typeFlow = state.map { it.type.toDomain() }.distinctUntilChanged()
         val flow = typeFlow.flatMapLatest { type ->
             interactor.observePersonalRecord(uuid, type).map { record -> record to type }
         }
@@ -144,10 +143,10 @@ internal class CommonHandler @Inject constructor(
     }
 
     private data class LoadResult(
-        val exercise: ExerciseDataModel?,
+        val exercise: ExerciseDomain?,
         val labels: List<String>,
-        val history: List<HistoryEntry>,
+        val history: List<HistoryEntryDomain>,
         val canPermanentlyDelete: Boolean,
-        val adhocPlan: List<PlanSetDataModel>?,
+        val adhocPlan: List<PlanSetDomain>?,
     )
 }
