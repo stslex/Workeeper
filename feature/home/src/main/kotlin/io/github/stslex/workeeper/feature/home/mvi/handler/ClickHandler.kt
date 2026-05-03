@@ -4,11 +4,11 @@ package io.github.stslex.workeeper.feature.home.mvi.handler
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
-import io.github.stslex.workeeper.core.data.exercise.session.SessionConflictResolver
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.home.R
 import io.github.stslex.workeeper.feature.home.di.HomeHandlerStore
 import io.github.stslex.workeeper.feature.home.domain.HomeInteractor
+import io.github.stslex.workeeper.feature.home.domain.model.StartSessionConflict
 import io.github.stslex.workeeper.feature.home.mvi.mapper.toPickerItems
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Action
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Event
@@ -96,15 +96,15 @@ internal class ClickHandler @Inject constructor(
         updateState { it.copy(picker = State.PickerState.Hidden) }
         launch {
             when (val resolution = interactor.resolveStartConflict(trainingUuid)) {
-                SessionConflictResolver.Resolution.ProceedFresh -> consumeOnMain(
+                StartSessionConflict.ProceedFresh -> consumeOnMain(
                     Action.Navigation.OpenLiveWorkoutFresh(trainingUuid),
                 )
 
-                is SessionConflictResolver.Resolution.SilentResume -> consumeOnMain(
+                is StartSessionConflict.SilentResume -> consumeOnMain(
                     Action.Navigation.OpenLiveWorkoutResume(resolution.sessionUuid),
                 )
 
-                is SessionConflictResolver.Resolution.NeedsUserChoice -> {
+                is StartSessionConflict.NeedsUserChoice -> {
                     val activeName = interactor.getTrainingName(resolution.active.trainingUuid)
                         ?.takeIf { it.isNotBlank() }
                         ?: resourceWrapper.getString(R.string.feature_home_conflict_unnamed)

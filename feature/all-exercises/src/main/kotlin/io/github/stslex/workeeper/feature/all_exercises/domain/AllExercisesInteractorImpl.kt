@@ -2,16 +2,20 @@
 package io.github.stslex.workeeper.feature.all_exercises.domain
 
 import androidx.paging.PagingData
+import androidx.paging.map
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
-import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.data.exercise.tags.TagRepository
-import io.github.stslex.workeeper.core.data.exercise.tags.model.TagDataModel
-import io.github.stslex.workeeper.feature.all_exercises.domain.AllExercisesInteractor.ArchiveResult
+import io.github.stslex.workeeper.feature.all_exercises.domain.mapper.toDomain
+import io.github.stslex.workeeper.feature.all_exercises.domain.model.ArchiveResult
+import io.github.stslex.workeeper.feature.all_exercises.domain.model.BulkArchiveResult
+import io.github.stslex.workeeper.feature.all_exercises.domain.model.ExerciseDomain
+import io.github.stslex.workeeper.feature.all_exercises.domain.model.TagDomain
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
@@ -24,12 +28,14 @@ internal class AllExercisesInteractorImpl @Inject constructor(
 
     override fun observeExercises(
         filterTagUuids: Set<String>,
-    ): Flow<PagingData<ExerciseDataModel>> = exerciseRepository
+    ): Flow<PagingData<ExerciseDomain>> = exerciseRepository
         .pagedActiveByTags(filterTagUuids)
+        .map { pagingData -> pagingData.map { it.toDomain() } }
         .flowOn(defaultDispatcher)
 
-    override fun observeAvailableTags(): Flow<List<TagDataModel>> = tagRepository
+    override fun observeAvailableTags(): Flow<List<TagDomain>> = tagRepository
         .observeAll()
+        .map { tags -> tags.map { it.toDomain() } }
         .flowOn(defaultDispatcher)
 
     override suspend fun archiveExercise(uuid: String): ArchiveResult = withContext(defaultDispatcher) {
@@ -58,8 +64,8 @@ internal class AllExercisesInteractorImpl @Inject constructor(
 
     override suspend fun getExercise(
         uuid: String,
-    ): ExerciseDataModel? = withContext(defaultDispatcher) {
-        exerciseRepository.getExercise(uuid)
+    ): ExerciseDomain? = withContext(defaultDispatcher) {
+        exerciseRepository.getExercise(uuid)?.toDomain()
     }
 
     override suspend fun countSessionsForExercise(
@@ -70,10 +76,9 @@ internal class AllExercisesInteractorImpl @Inject constructor(
 
     override suspend fun bulkArchive(
         uuids: Set<String>,
-    ): io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository.BulkArchiveOutcome =
-        withContext(defaultDispatcher) {
-            exerciseRepository.bulkArchive(uuids)
-        }
+    ): BulkArchiveResult = withContext(defaultDispatcher) {
+        exerciseRepository.bulkArchive(uuids).toDomain()
+    }
 
     override suspend fun bulkPermanentDelete(
         uuids: Set<String>,

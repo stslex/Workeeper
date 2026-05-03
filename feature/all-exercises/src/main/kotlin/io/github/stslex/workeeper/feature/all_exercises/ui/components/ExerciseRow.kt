@@ -36,13 +36,13 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
-import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.ui.kit.components.swipe.AppSwipeAction
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagChip
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.feature.all_exercises.R
+import io.github.stslex.workeeper.feature.all_exercises.mvi.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.all_exercises.mvi.model.ExerciseUiModel
 import kotlinx.collections.immutable.persistentListOf
 import java.io.File
@@ -207,7 +207,7 @@ private fun ExerciseRowPreview() {
         ExerciseUiModel(
             uuid = "1",
             name = "Bench press",
-            type = ExerciseTypeDataModel.WEIGHTED,
+            type = ExerciseTypeUiModel.WEIGHTED,
             tags = persistentListOf("Push", "Chest"),
             sessionCount = 12,
             imagePath = null,
@@ -215,7 +215,7 @@ private fun ExerciseRowPreview() {
         ExerciseUiModel(
             uuid = "2",
             name = "Pull-up",
-            type = ExerciseTypeDataModel.WEIGHTLESS,
+            type = ExerciseTypeUiModel.WEIGHTLESS,
             tags = persistentListOf("Pull", "Back", "Calisthenics", "Upper"),
             sessionCount = 4,
             imagePath = null,
@@ -223,7 +223,7 @@ private fun ExerciseRowPreview() {
         ExerciseUiModel(
             uuid = "3",
             name = "Squat",
-            type = ExerciseTypeDataModel.WEIGHTED,
+            type = ExerciseTypeUiModel.WEIGHTED,
             tags = persistentListOf(),
             sessionCount = 0,
             imagePath = null,

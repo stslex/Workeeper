@@ -2,8 +2,8 @@
 package io.github.stslex.workeeper.feature.all_trainings.mvi.mapper
 
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
-import io.github.stslex.workeeper.core.data.exercise.training.TrainingListItem
 import io.github.stslex.workeeper.feature.all_trainings.R
+import io.github.stslex.workeeper.feature.all_trainings.domain.model.TrainingListItemDomain
 import io.github.stslex.workeeper.feature.all_trainings.mvi.model.TrainingListItemUi
 import kotlinx.collections.immutable.toImmutableList
 
@@ -13,19 +13,19 @@ object TrainingListItemMapper {
     private const val HOUR_MS = 60 * MINUTE_MS
     private const val DAY_MS = 24 * HOUR_MS
 
-    internal fun TrainingListItem.toUi(
+    internal fun TrainingListItemDomain.toUi(
         resourceWrapper: ResourceWrapper,
         nowMillis: Long = System.currentTimeMillis(),
     ): TrainingListItemUi = TrainingListItemUi(
-        uuid = data.uuid,
-        name = data.name,
-        tags = data.labels.toImmutableList(),
+        uuid = uuid,
+        name = name,
+        tags = tags.toImmutableList(),
         exerciseCount = exerciseCount,
         isActive = isActive,
         statusLabel = statusLabel(resourceWrapper, nowMillis),
     )
 
-    private fun TrainingListItem.statusLabel(
+    private fun TrainingListItemDomain.statusLabel(
         resourceWrapper: ResourceWrapper,
         nowMillis: Long,
     ): String {

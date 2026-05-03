@@ -3,11 +3,10 @@ package io.github.stslex.workeeper.feature.exercise.domain.usecase
 
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
-import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
-import io.github.stslex.workeeper.feature.exercise.R
-import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor.TrackNowConflict
+import io.github.stslex.workeeper.feature.exercise.domain.mapper.toDomain
+import io.github.stslex.workeeper.feature.exercise.domain.model.TrackNowConflict
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -16,7 +15,6 @@ import javax.inject.Inject
 internal class ResolveTrackNowConflictUseCase @Inject constructor(
     private val sessionRepository: SessionRepository,
     private val trainingRepository: TrainingRepository,
-    private val resourceWrapper: ResourceWrapper,
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
 ) {
 
@@ -24,8 +22,9 @@ internal class ResolveTrackNowConflictUseCase @Inject constructor(
         val active = sessionRepository.getAnyActiveSession()
             ?: return@withContext TrackNowConflict.ProceedFresh
         val training = trainingRepository.getTraining(active.trainingUuid)
-        val sessionLabel = training?.name?.takeIf { it.isNotBlank() }
-            ?: resourceWrapper.getString(R.string.feature_exercise_track_now_conflict_unnamed)
-        TrackNowConflict.NeedsUserChoice(active = active, sessionLabel = sessionLabel)
+        TrackNowConflict.NeedsUserChoice(
+            active = active.toDomain(),
+            trainingName = training?.name?.takeIf { it.isNotBlank() },
+        )
     }
 }

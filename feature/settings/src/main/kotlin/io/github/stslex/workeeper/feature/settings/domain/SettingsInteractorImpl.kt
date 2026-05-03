@@ -14,6 +14,7 @@ import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
+import io.github.stslex.workeeper.feature.settings.domain.mapper.toDomain
 import io.github.stslex.workeeper.feature.settings.domain.model.ArchivedItem
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
@@ -69,7 +70,7 @@ internal class SettingsInteractorImpl @Inject constructor(
                     name = exercise.name,
                     tags = exerciseRepository.getLabels(exercise.uuid),
                     archivedAt = exercise.archivedAt ?: exercise.timestamp,
-                    type = exercise.type,
+                    type = exercise.type.toDomain(),
                 )
             }
         }

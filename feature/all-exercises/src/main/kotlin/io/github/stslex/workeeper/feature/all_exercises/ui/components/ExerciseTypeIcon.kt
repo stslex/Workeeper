@@ -13,16 +13,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import io.github.stslex.workeeper.feature.all_exercises.mvi.model.ExerciseTypeUiModel
 
 @Composable
 internal fun ExerciseTypeIcon(
-    type: ExerciseTypeDataModel,
+    type: ExerciseTypeUiModel,
     modifier: Modifier = Modifier,
 ) {
-    val isWeighted = type == ExerciseTypeDataModel.WEIGHTED
+    val isWeighted = type == ExerciseTypeUiModel.WEIGHTED
     val tint = if (isWeighted) {
         AppUi.colors.accentTintedForeground
     } else {

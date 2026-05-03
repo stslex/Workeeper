@@ -2,16 +2,19 @@
 package io.github.stslex.workeeper.feature.all_trainings.domain
 
 import androidx.paging.PagingData
+import androidx.paging.map
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.data.exercise.tags.TagRepository
-import io.github.stslex.workeeper.core.data.exercise.tags.model.TagDataModel
-import io.github.stslex.workeeper.core.data.exercise.training.TrainingListItem
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
-import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository.BulkArchiveOutcome
+import io.github.stslex.workeeper.feature.all_trainings.domain.mapper.toDomain
+import io.github.stslex.workeeper.feature.all_trainings.domain.model.BulkArchiveResult
+import io.github.stslex.workeeper.feature.all_trainings.domain.model.TagDomain
+import io.github.stslex.workeeper.feature.all_trainings.domain.model.TrainingListItemDomain
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
@@ -24,18 +27,20 @@ internal class AllTrainingsInteractorImpl @Inject constructor(
 
     override fun observeTrainings(
         filterTagUuids: Set<String>,
-    ): Flow<PagingData<TrainingListItem>> = trainingRepository
+    ): Flow<PagingData<TrainingListItemDomain>> = trainingRepository
         .pagedActiveWithStats(filterTagUuids)
+        .map { pagingData -> pagingData.map { it.toDomain() } }
         .flowOn(defaultDispatcher)
 
-    override fun observeAvailableTags(): Flow<List<TagDataModel>> = tagRepository
+    override fun observeAvailableTags(): Flow<List<TagDomain>> = tagRepository
         .observeAll()
+        .map { tags -> tags.map { it.toDomain() } }
         .flowOn(defaultDispatcher)
 
     override suspend fun archiveTrainings(
         uuids: Set<String>,
-    ): BulkArchiveOutcome = withContext(defaultDispatcher) {
-        trainingRepository.bulkArchive(uuids)
+    ): BulkArchiveResult = withContext(defaultDispatcher) {
+        trainingRepository.bulkArchive(uuids).toDomain()
     }
 
     override suspend fun deleteTrainings(

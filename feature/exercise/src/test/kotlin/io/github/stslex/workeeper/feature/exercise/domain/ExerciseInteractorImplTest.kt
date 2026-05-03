@@ -9,8 +9,11 @@ import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataType
 import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordDataModel
 import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordRepository
 import io.github.stslex.workeeper.core.data.exercise.tags.TagRepository
-import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor.ArchiveResult
-import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor.SaveResult
+import io.github.stslex.workeeper.feature.exercise.domain.model.ArchiveResult
+import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseChangeDomain
+import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseTypeDomain
+import io.github.stslex.workeeper.feature.exercise.domain.model.SaveResult
+import io.github.stslex.workeeper.feature.exercise.domain.model.SetTypeDomain
 import io.github.stslex.workeeper.feature.exercise.domain.usecase.ArchiveExerciseUseCase
 import io.github.stslex.workeeper.feature.exercise.domain.usecase.DeleteSessionUseCase
 import io.github.stslex.workeeper.feature.exercise.domain.usecase.ResolveTrackNowConflictUseCase
@@ -25,6 +28,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.uuid.Uuid
@@ -58,11 +62,16 @@ internal class ExerciseInteractorImplTest {
 
         val uuid = Uuid.random()
         val result = interactor.saveExercise(
-            ExerciseChangeDataModel(
+            ExerciseChangeDomain(
                 uuid = uuid,
                 name = "Bench",
+                type = ExerciseTypeDomain.WEIGHTED,
+                description = null,
+                imagePath = null,
+                archived = false,
                 timestamp = 0L,
-                lastAdHocSets = null,
+                labels = emptyList(),
+                lastAdhocSets = null,
             ),
         )
 
@@ -73,16 +82,21 @@ internal class ExerciseInteractorImplTest {
     }
 
     @Test
-    fun `saveExercise propagates the lastAdHocSets payload`() = runTest {
+    fun `saveExercise propagates the lastAdhocSets payload`() = runTest {
         val captured = slot<ExerciseChangeDataModel>()
         coEvery { exerciseRepository.saveItem(capture(captured)) } returns ExerciseRepository.SaveResult.Success
 
         interactor.saveExercise(
-            ExerciseChangeDataModel(
+            ExerciseChangeDomain(
                 uuid = Uuid.random(),
                 name = "Bench",
+                type = ExerciseTypeDomain.WEIGHTED,
+                description = null,
+                imagePath = null,
+                archived = false,
                 timestamp = 0L,
-                lastAdHocSets = null,
+                labels = emptyList(),
+                lastAdhocSets = null,
             ),
         )
 
@@ -94,11 +108,16 @@ internal class ExerciseInteractorImplTest {
         coEvery { exerciseRepository.saveItem(any()) } returns ExerciseRepository.SaveResult.DuplicateName
 
         val result = interactor.saveExercise(
-            ExerciseChangeDataModel(
+            ExerciseChangeDomain(
                 uuid = Uuid.random(),
                 name = "Bench",
+                type = ExerciseTypeDomain.WEIGHTED,
+                description = null,
+                imagePath = null,
+                archived = false,
                 timestamp = 0L,
-                lastAdHocSets = null,
+                labels = emptyList(),
+                lastAdhocSets = null,
             ),
         )
 
@@ -136,7 +155,7 @@ internal class ExerciseInteractorImplTest {
     }
 
     @Test
-    fun `observePersonalRecord forwards to repository`() = runTest {
+    fun `observePersonalRecord forwards to repository and maps to domain`() = runTest {
         val payload = PersonalRecordDataModel(
             sessionUuid = "session",
             performedExerciseUuid = "performed",
@@ -151,9 +170,13 @@ internal class ExerciseInteractorImplTest {
         } returns flowOf(payload)
 
         val result = interactor
-            .observePersonalRecord("uuid-1", ExerciseTypeDataModel.WEIGHTED)
+            .observePersonalRecord("uuid-1", ExerciseTypeDomain.WEIGHTED)
             .first()
 
-        assertEquals(payload, result)
+        assertNotNull(result)
+        assertEquals("session", result?.sessionUuid)
+        assertEquals(100.0, result?.weight)
+        assertEquals(5, result?.reps)
+        assertEquals(SetTypeDomain.WORK, result?.type)
     }
 }
