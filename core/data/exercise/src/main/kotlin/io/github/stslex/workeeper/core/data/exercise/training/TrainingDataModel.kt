@@ -1,6 +1,6 @@
-package io.github.stslex.workeeper.core.exercise.training
+package io.github.stslex.workeeper.core.data.exercise.training
 
-import io.github.stslex.workeeper.core.database.training.TrainingEntity
+import io.github.stslex.workeeper.core.data.database.training.TrainingEntity
 import kotlin.uuid.Uuid
 
 data class TrainingDataModel(

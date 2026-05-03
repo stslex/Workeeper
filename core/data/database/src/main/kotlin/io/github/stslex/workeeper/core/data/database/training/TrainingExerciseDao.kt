@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.core.database.training
+package io.github.stslex.workeeper.core.data.database.training
 
 import androidx.room.Dao
 import androidx.room.Insert

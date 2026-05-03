@@ -1,6 +1,6 @@
-package io.github.stslex.workeeper.core.exercise.exercise.model
+package io.github.stslex.workeeper.core.data.exercise.exercise.model
 
-import io.github.stslex.workeeper.core.database.exercise.ExerciseTypeEntity
+import io.github.stslex.workeeper.core.data.database.exercise.ExerciseTypeEntity
 
 enum class ExerciseTypeDataModel {
     WEIGHTED,

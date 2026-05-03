@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.core.database.exercise
+package io.github.stslex.workeeper.core.data.database.exercise
 
 import androidx.paging.PagingSource
 import androidx.room.Dao
@@ -138,7 +138,7 @@ interface ExerciseDao {
      * Active exercises that have at least one logged set in a finished session, ordered by
      * the most recent finish. Skipped performed_exercise rows and rows without any
      * `set_table` entries are excluded so the picker matches the scope of
-     * [io.github.stslex.workeeper.core.database.session.SessionDao.getHistoryByExercise]
+     * [io.github.stslex.workeeper.core.data.database.session.SessionDao.getHistoryByExercise]
      * exactly — a picker entry never routes to an empty chart. Powers the v2.2 chart
      * picker.
      */

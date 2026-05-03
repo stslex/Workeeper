@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.core.exercise.training
+package io.github.stslex.workeeper.core.data.exercise.training
 
-import io.github.stslex.workeeper.core.database.converters.PlanSetsConverter
-import io.github.stslex.workeeper.core.database.session.SessionDao
-import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
-import io.github.stslex.workeeper.core.database.sets.SetTypeDataModel
-import io.github.stslex.workeeper.core.database.tag.TagDao
-import io.github.stslex.workeeper.core.database.tag.TrainingTagDao
-import io.github.stslex.workeeper.core.database.training.TrainingDao
-import io.github.stslex.workeeper.core.database.training.TrainingExerciseDao
-import io.github.stslex.workeeper.core.database.training.TrainingExerciseEntity
-import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
+import io.github.stslex.workeeper.core.data.database.converters.PlanSetsConverter
+import io.github.stslex.workeeper.core.data.database.session.SessionDao
+import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
+import io.github.stslex.workeeper.core.data.database.sets.SetTypeDataModel
+import io.github.stslex.workeeper.core.data.database.tag.TagDao
+import io.github.stslex.workeeper.core.data.database.tag.TrainingTagDao
+import io.github.stslex.workeeper.core.data.database.training.TrainingDao
+import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseDao
+import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseEntity
+import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk

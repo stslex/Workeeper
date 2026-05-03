@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.core.exercise
+package io.github.stslex.workeeper.core.data.exercise
 
 import android.database.sqlite.SQLiteConstraintException
 import io.github.stslex.workeeper.core.core.images.ImageStorage
-import io.github.stslex.workeeper.core.database.common.DbTransitionRunner
-import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
-import io.github.stslex.workeeper.core.database.exercise.ExerciseEntity
-import io.github.stslex.workeeper.core.database.exercise.ExerciseTypeEntity
-import io.github.stslex.workeeper.core.database.session.SessionDao
-import io.github.stslex.workeeper.core.database.session.SetDao
-import io.github.stslex.workeeper.core.database.tag.ExerciseTagDao
-import io.github.stslex.workeeper.core.database.tag.TagDao
-import io.github.stslex.workeeper.core.database.training.TrainingExerciseDao
-import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
-import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository.SaveResult
-import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepositoryImpl
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseChangeDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
+import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
+import io.github.stslex.workeeper.core.data.database.exercise.ExerciseDao
+import io.github.stslex.workeeper.core.data.database.exercise.ExerciseEntity
+import io.github.stslex.workeeper.core.data.database.exercise.ExerciseTypeEntity
+import io.github.stslex.workeeper.core.data.database.session.SessionDao
+import io.github.stslex.workeeper.core.data.database.session.SetDao
+import io.github.stslex.workeeper.core.data.database.tag.ExerciseTagDao
+import io.github.stslex.workeeper.core.data.database.tag.TagDao
+import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseDao
+import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
+import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository.SaveResult
+import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepositoryImpl
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseChangeDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk

@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.core.database.session
+package io.github.stslex.workeeper.core.data.database.session
 
 import androidx.paging.PagingSource
 import androidx.room.Dao

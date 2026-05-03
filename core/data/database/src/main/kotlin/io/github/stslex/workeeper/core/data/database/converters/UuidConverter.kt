@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.core.database.converters
+package io.github.stslex.workeeper.core.data.database.converters
 
 import androidx.room.TypeConverter
 import kotlinx.serialization.json.Json

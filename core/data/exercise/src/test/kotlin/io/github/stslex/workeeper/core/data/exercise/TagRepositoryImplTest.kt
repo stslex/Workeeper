@@ -1,9 +1,9 @@
-package io.github.stslex.workeeper.core.exercise
+package io.github.stslex.workeeper.core.data.exercise
 
-import io.github.stslex.workeeper.core.database.tag.TagDao
-import io.github.stslex.workeeper.core.database.tag.TagEntity
-import io.github.stslex.workeeper.core.exercise.tags.TagRepository
-import io.github.stslex.workeeper.core.exercise.tags.TagRepositoryImpl
+import io.github.stslex.workeeper.core.data.database.tag.TagDao
+import io.github.stslex.workeeper.core.data.database.tag.TagEntity
+import io.github.stslex.workeeper.core.data.exercise.tags.TagRepository
+import io.github.stslex.workeeper.core.data.exercise.tags.TagRepositoryImpl
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every

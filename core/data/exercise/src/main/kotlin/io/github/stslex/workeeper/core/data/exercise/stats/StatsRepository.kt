@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.core.exercise.stats
+package io.github.stslex.workeeper.core.data.exercise.stats
 
 /**
  * Read-only access to whole-session aggregates that drive the v2.3 Achievement block and

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.core.database.session
+package io.github.stslex.workeeper.core.data.database.session
 
 import androidx.room.ColumnInfo
 import kotlin.uuid.Uuid

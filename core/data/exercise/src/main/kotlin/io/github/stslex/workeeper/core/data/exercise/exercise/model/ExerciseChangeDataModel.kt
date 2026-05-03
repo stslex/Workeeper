@@ -1,8 +1,8 @@
-package io.github.stslex.workeeper.core.exercise.exercise.model
+package io.github.stslex.workeeper.core.data.exercise.exercise.model
 
-import io.github.stslex.workeeper.core.database.converters.PlanSetsConverter
-import io.github.stslex.workeeper.core.database.exercise.ExerciseEntity
-import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
+import io.github.stslex.workeeper.core.data.database.converters.PlanSetsConverter
+import io.github.stslex.workeeper.core.data.database.exercise.ExerciseEntity
+import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
 import kotlin.uuid.Uuid
 
 data class ExerciseChangeDataModel(

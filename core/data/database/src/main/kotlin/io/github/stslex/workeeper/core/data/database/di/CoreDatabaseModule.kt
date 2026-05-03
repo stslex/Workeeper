@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.core.database.di
+package io.github.stslex.workeeper.core.data.database.di
 
 import android.content.Context
 import androidx.room.Room
@@ -9,18 +9,18 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import io.github.stslex.workeeper.core.core.di.IODispatcher
-import io.github.stslex.workeeper.core.database.AppDatabase
-import io.github.stslex.workeeper.core.database.common.DbTransitionRunner
-import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
-import io.github.stslex.workeeper.core.database.migration.Migration6
-import io.github.stslex.workeeper.core.database.session.PerformedExerciseDao
-import io.github.stslex.workeeper.core.database.session.SessionDao
-import io.github.stslex.workeeper.core.database.session.SetDao
-import io.github.stslex.workeeper.core.database.tag.ExerciseTagDao
-import io.github.stslex.workeeper.core.database.tag.TagDao
-import io.github.stslex.workeeper.core.database.tag.TrainingTagDao
-import io.github.stslex.workeeper.core.database.training.TrainingDao
-import io.github.stslex.workeeper.core.database.training.TrainingExerciseDao
+import io.github.stslex.workeeper.core.data.database.AppDatabase
+import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
+import io.github.stslex.workeeper.core.data.database.exercise.ExerciseDao
+import io.github.stslex.workeeper.core.data.database.migration.Migration6
+import io.github.stslex.workeeper.core.data.database.session.PerformedExerciseDao
+import io.github.stslex.workeeper.core.data.database.session.SessionDao
+import io.github.stslex.workeeper.core.data.database.session.SetDao
+import io.github.stslex.workeeper.core.data.database.tag.ExerciseTagDao
+import io.github.stslex.workeeper.core.data.database.tag.TagDao
+import io.github.stslex.workeeper.core.data.database.tag.TrainingTagDao
+import io.github.stslex.workeeper.core.data.database.training.TrainingDao
+import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseDao
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import javax.inject.Singleton

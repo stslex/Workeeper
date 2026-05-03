@@ -1,6 +1,6 @@
-package io.github.stslex.workeeper.core.exercise.session.model
+package io.github.stslex.workeeper.core.data.exercise.session.model
 
-import io.github.stslex.workeeper.core.database.session.SessionStateEntity
+import io.github.stslex.workeeper.core.data.database.session.SessionStateEntity
 
 enum class SessionStateDataModel {
     IN_PROGRESS,

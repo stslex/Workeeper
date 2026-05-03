@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.core.exercise.session.model
+package io.github.stslex.workeeper.core.data.exercise.session.model
 
-import io.github.stslex.workeeper.core.database.session.RecentSessionRow
+import io.github.stslex.workeeper.core.data.database.session.RecentSessionRow
 
 /**
  * Domain model for the Home recent-sessions list. Mirrors [RecentSessionRow] but exposes

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.core.exercise.sets
+package io.github.stslex.workeeper.core.data.exercise.sets
 
-import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
-import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordDataModel
+import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
+import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordDataModel
 
 /**
  * Pure-function PR comparator. Mirrors the SQL `ORDER BY` in

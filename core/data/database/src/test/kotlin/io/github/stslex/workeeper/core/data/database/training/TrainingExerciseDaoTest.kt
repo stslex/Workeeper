@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.core.database.training
+package io.github.stslex.workeeper.core.data.database.training
 
-import io.github.stslex.workeeper.core.database.BaseDatabaseTest
-import io.github.stslex.workeeper.core.database.exercise.ExerciseEntity
-import io.github.stslex.workeeper.core.database.exercise.ExerciseTypeEntity
+import io.github.stslex.workeeper.core.data.database.BaseDatabaseTest
+import io.github.stslex.workeeper.core.data.database.exercise.ExerciseEntity
+import io.github.stslex.workeeper.core.data.database.exercise.ExerciseTypeEntity
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals

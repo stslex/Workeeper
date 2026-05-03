@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.core.dataStore.core
+package io.github.stslex.workeeper.core.data.dataStore.core
 
 import android.content.Context
 import androidx.datastore.core.DataStore

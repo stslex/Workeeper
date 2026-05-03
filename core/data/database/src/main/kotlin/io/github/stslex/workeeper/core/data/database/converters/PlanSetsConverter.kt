@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.core.database.converters
+package io.github.stslex.workeeper.core.data.database.converters
 
 import androidx.room.TypeConverter
-import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
+import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
 import kotlinx.serialization.json.Json
 
 object PlanSetsConverter {

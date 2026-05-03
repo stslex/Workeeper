@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.core.exercise.exercise.model
+package io.github.stslex.workeeper.core.data.exercise.exercise.model
 
 /**
  * One picker entry for the v2.2 chart screen — an active exercise the user has trained at

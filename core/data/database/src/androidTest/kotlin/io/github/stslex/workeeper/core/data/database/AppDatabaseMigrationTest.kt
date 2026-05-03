@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.core.database
+package io.github.stslex.workeeper.core.data.database
 
 import android.database.Cursor
 import androidx.room.testing.MigrationTestHelper
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.test.platform.app.InstrumentationRegistry
-import io.github.stslex.workeeper.core.database.migration.Migration6
+import io.github.stslex.workeeper.core.data.database.migration.Migration6
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule

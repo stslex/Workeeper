@@ -1,10 +1,10 @@
-package io.github.stslex.workeeper.core.exercise.tags
+package io.github.stslex.workeeper.core.data.exercise.tags
 
 import io.github.stslex.workeeper.core.core.di.IODispatcher
-import io.github.stslex.workeeper.core.database.tag.TagDao
-import io.github.stslex.workeeper.core.database.tag.TagEntity
-import io.github.stslex.workeeper.core.exercise.tags.model.TagDataModel
-import io.github.stslex.workeeper.core.exercise.tags.model.toData
+import io.github.stslex.workeeper.core.data.database.tag.TagDao
+import io.github.stslex.workeeper.core.data.database.tag.TagEntity
+import io.github.stslex.workeeper.core.data.exercise.tags.model.TagDataModel
+import io.github.stslex.workeeper.core.data.exercise.tags.model.toData
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn

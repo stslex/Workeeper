@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.core.database.session
+package io.github.stslex.workeeper.core.data.database.session
 
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
-import io.github.stslex.workeeper.core.database.session.model.SetEntity
+import io.github.stslex.workeeper.core.data.database.session.model.SetEntity
 import kotlin.uuid.Uuid
 
 @Dao

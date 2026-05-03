@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.core.exercise.training
+package io.github.stslex.workeeper.core.data.exercise.training
 
 import androidx.paging.PagingData
 import kotlinx.coroutines.flow.Flow

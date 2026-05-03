@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.core.exercise.session
+package io.github.stslex.workeeper.core.data.exercise.session
 
-import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
+import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
 
 /**
  * One per-exercise plan write that needs to land inside the same transaction as the

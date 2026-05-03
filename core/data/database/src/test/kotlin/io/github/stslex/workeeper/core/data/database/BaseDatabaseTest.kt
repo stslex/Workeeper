@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.core.database
+package io.github.stslex.workeeper.core.data.database
 
 import android.app.Application
 import android.content.Context

@@ -1,7 +1,7 @@
-package io.github.stslex.workeeper.core.dataStore.store
+package io.github.stslex.workeeper.core.data.dataStore.store
 
-import io.github.stslex.workeeper.core.dataStore.core.BaseDataStore
-import io.github.stslex.workeeper.core.dataStore.core.DataStoreProviderFactory
+import io.github.stslex.workeeper.core.data.dataStore.core.BaseDataStore
+import io.github.stslex.workeeper.core.data.dataStore.core.DataStoreProviderFactory
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton

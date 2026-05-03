@@ -1,12 +1,12 @@
-package io.github.stslex.workeeper.core.exercise.session
+package io.github.stslex.workeeper.core.data.exercise.session
 
 import androidx.paging.PagingData
-import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.HistoryEntry
-import io.github.stslex.workeeper.core.exercise.session.model.ActiveSessionInfo
-import io.github.stslex.workeeper.core.exercise.session.model.RecentSessionDataModel
-import io.github.stslex.workeeper.core.exercise.session.model.SessionDataModel
-import io.github.stslex.workeeper.core.exercise.session.model.SessionDetailDataModel
+import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.HistoryEntry
+import io.github.stslex.workeeper.core.data.exercise.session.model.ActiveSessionInfo
+import io.github.stslex.workeeper.core.data.exercise.session.model.RecentSessionDataModel
+import io.github.stslex.workeeper.core.data.exercise.session.model.SessionDataModel
+import io.github.stslex.workeeper.core.data.exercise.session.model.SessionDetailDataModel
 import kotlinx.coroutines.flow.Flow
 
 @Suppress("TooManyFunctions")

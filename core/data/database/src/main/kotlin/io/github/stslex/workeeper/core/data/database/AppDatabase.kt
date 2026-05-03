@@ -1,28 +1,28 @@
-package io.github.stslex.workeeper.core.database
+package io.github.stslex.workeeper.core.data.database
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
-import io.github.stslex.workeeper.core.database.converters.PlanSetsConverter
-import io.github.stslex.workeeper.core.database.converters.UuidConverter
-import io.github.stslex.workeeper.core.database.exercise.ExerciseDao
-import io.github.stslex.workeeper.core.database.exercise.ExerciseEntity
-import io.github.stslex.workeeper.core.database.session.PerformedExerciseDao
-import io.github.stslex.workeeper.core.database.session.PerformedExerciseEntity
-import io.github.stslex.workeeper.core.database.session.SessionDao
-import io.github.stslex.workeeper.core.database.session.SessionEntity
-import io.github.stslex.workeeper.core.database.session.SetDao
-import io.github.stslex.workeeper.core.database.session.model.SetEntity
-import io.github.stslex.workeeper.core.database.tag.ExerciseTagDao
-import io.github.stslex.workeeper.core.database.tag.ExerciseTagEntity
-import io.github.stslex.workeeper.core.database.tag.TagDao
-import io.github.stslex.workeeper.core.database.tag.TagEntity
-import io.github.stslex.workeeper.core.database.tag.TrainingTagDao
-import io.github.stslex.workeeper.core.database.tag.TrainingTagEntity
-import io.github.stslex.workeeper.core.database.training.TrainingDao
-import io.github.stslex.workeeper.core.database.training.TrainingEntity
-import io.github.stslex.workeeper.core.database.training.TrainingExerciseDao
-import io.github.stslex.workeeper.core.database.training.TrainingExerciseEntity
+import io.github.stslex.workeeper.core.data.database.converters.PlanSetsConverter
+import io.github.stslex.workeeper.core.data.database.converters.UuidConverter
+import io.github.stslex.workeeper.core.data.database.exercise.ExerciseDao
+import io.github.stslex.workeeper.core.data.database.exercise.ExerciseEntity
+import io.github.stslex.workeeper.core.data.database.session.PerformedExerciseDao
+import io.github.stslex.workeeper.core.data.database.session.PerformedExerciseEntity
+import io.github.stslex.workeeper.core.data.database.session.SessionDao
+import io.github.stslex.workeeper.core.data.database.session.SessionEntity
+import io.github.stslex.workeeper.core.data.database.session.SetDao
+import io.github.stslex.workeeper.core.data.database.session.model.SetEntity
+import io.github.stslex.workeeper.core.data.database.tag.ExerciseTagDao
+import io.github.stslex.workeeper.core.data.database.tag.ExerciseTagEntity
+import io.github.stslex.workeeper.core.data.database.tag.TagDao
+import io.github.stslex.workeeper.core.data.database.tag.TagEntity
+import io.github.stslex.workeeper.core.data.database.tag.TrainingTagDao
+import io.github.stslex.workeeper.core.data.database.tag.TrainingTagEntity
+import io.github.stslex.workeeper.core.data.database.training.TrainingDao
+import io.github.stslex.workeeper.core.data.database.training.TrainingEntity
+import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseDao
+import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseEntity
 
 @Database(
     entities = [

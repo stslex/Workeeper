@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.core.dataStore.store
+package io.github.stslex.workeeper.core.data.dataStore.store
 
 import kotlinx.coroutines.flow.Flow
 

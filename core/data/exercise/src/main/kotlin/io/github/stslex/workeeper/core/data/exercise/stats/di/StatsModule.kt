@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.core.exercise.stats.di
+package io.github.stslex.workeeper.core.data.exercise.stats.di
 
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import io.github.stslex.workeeper.core.exercise.stats.StatsRepository
-import io.github.stslex.workeeper.core.exercise.stats.StatsRepositoryImpl
+import io.github.stslex.workeeper.core.data.exercise.stats.StatsRepository
+import io.github.stslex.workeeper.core.data.exercise.stats.StatsRepositoryImpl
 import javax.inject.Singleton
 
 @Module

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.core.exercise.personal_record
+package io.github.stslex.workeeper.core.data.exercise.personal_record
 
 import io.github.stslex.workeeper.core.core.di.IODispatcher
-import io.github.stslex.workeeper.core.database.session.PersonalRecordRow
-import io.github.stslex.workeeper.core.database.session.SessionDao
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType.Companion.toData
+import io.github.stslex.workeeper.core.data.database.session.PersonalRecordRow
+import io.github.stslex.workeeper.core.data.database.session.SessionDao
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataType.Companion.toData
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine

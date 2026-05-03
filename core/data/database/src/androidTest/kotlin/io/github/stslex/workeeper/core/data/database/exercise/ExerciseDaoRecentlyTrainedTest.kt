@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.core.database.exercise
+package io.github.stslex.workeeper.core.data.database.exercise
 
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import io.github.stslex.workeeper.core.database.AppDatabase
-import io.github.stslex.workeeper.core.database.session.PerformedExerciseEntity
-import io.github.stslex.workeeper.core.database.session.SessionEntity
-import io.github.stslex.workeeper.core.database.session.SessionStateEntity
-import io.github.stslex.workeeper.core.database.session.model.SetEntity
-import io.github.stslex.workeeper.core.database.session.model.SetTypeEntity
-import io.github.stslex.workeeper.core.database.training.TrainingEntity
+import io.github.stslex.workeeper.core.data.database.AppDatabase
+import io.github.stslex.workeeper.core.data.database.session.PerformedExerciseEntity
+import io.github.stslex.workeeper.core.data.database.session.SessionEntity
+import io.github.stslex.workeeper.core.data.database.session.SessionStateEntity
+import io.github.stslex.workeeper.core.data.database.session.model.SetEntity
+import io.github.stslex.workeeper.core.data.database.session.model.SetTypeEntity
+import io.github.stslex.workeeper.core.data.database.training.TrainingEntity
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals

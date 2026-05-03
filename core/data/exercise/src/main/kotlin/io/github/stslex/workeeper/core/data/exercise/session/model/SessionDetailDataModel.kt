@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.core.exercise.session.model
+package io.github.stslex.workeeper.core.data.exercise.session.model
 
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataModel
 
 /**
  * One-shot hierarchical view of a finished session, used by the Past session detail screen.

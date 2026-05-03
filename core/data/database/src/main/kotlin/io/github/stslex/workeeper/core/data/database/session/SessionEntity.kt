@@ -1,11 +1,11 @@
-package io.github.stslex.workeeper.core.database.session
+package io.github.stslex.workeeper.core.data.database.session
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
-import io.github.stslex.workeeper.core.database.training.TrainingEntity
+import io.github.stslex.workeeper.core.data.database.training.TrainingEntity
 import kotlin.uuid.Uuid
 
 @Entity(

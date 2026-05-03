@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.core.exercise.training
+package io.github.stslex.workeeper.core.data.exercise.training
 
-import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
+import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
 
 interface TrainingExerciseRepository {
 

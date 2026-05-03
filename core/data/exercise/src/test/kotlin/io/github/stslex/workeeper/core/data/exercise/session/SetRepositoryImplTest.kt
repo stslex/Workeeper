@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.core.exercise.session
+package io.github.stslex.workeeper.core.data.exercise.session
 
-import io.github.stslex.workeeper.core.database.session.SetDao
-import io.github.stslex.workeeper.core.database.session.model.SetEntity
-import io.github.stslex.workeeper.core.database.session.model.SetTypeEntity
-import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
+import io.github.stslex.workeeper.core.data.database.session.SetDao
+import io.github.stslex.workeeper.core.data.database.session.model.SetEntity
+import io.github.stslex.workeeper.core.data.database.session.model.SetTypeEntity
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataType
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk

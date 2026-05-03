@@ -1,6 +1,6 @@
-package io.github.stslex.workeeper.core.exercise.tags.model
+package io.github.stslex.workeeper.core.data.exercise.tags.model
 
-import io.github.stslex.workeeper.core.database.tag.TagEntity
+import io.github.stslex.workeeper.core.data.database.tag.TagEntity
 import kotlin.uuid.Uuid
 
 data class TagDataModel(

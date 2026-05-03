@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.core.database.sets
+package io.github.stslex.workeeper.core.data.database.sets
 
-import io.github.stslex.workeeper.core.database.session.model.SetTypeEntity
+import io.github.stslex.workeeper.core.data.database.session.model.SetTypeEntity
 import kotlinx.serialization.Serializable
 
 @Serializable

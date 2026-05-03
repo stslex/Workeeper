@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.core.dataStore.core
+package io.github.stslex.workeeper.core.data.dataStore.core
 
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey

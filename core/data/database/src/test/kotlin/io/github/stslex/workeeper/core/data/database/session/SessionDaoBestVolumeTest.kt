@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.core.database.session
+package io.github.stslex.workeeper.core.data.database.session
 
-import io.github.stslex.workeeper.core.database.BaseDatabaseTest
-import io.github.stslex.workeeper.core.database.exercise.ExerciseEntity
-import io.github.stslex.workeeper.core.database.exercise.ExerciseTypeEntity
-import io.github.stslex.workeeper.core.database.session.model.SetEntity
-import io.github.stslex.workeeper.core.database.session.model.SetTypeEntity
-import io.github.stslex.workeeper.core.database.training.TrainingEntity
+import io.github.stslex.workeeper.core.data.database.BaseDatabaseTest
+import io.github.stslex.workeeper.core.data.database.exercise.ExerciseEntity
+import io.github.stslex.workeeper.core.data.database.exercise.ExerciseTypeEntity
+import io.github.stslex.workeeper.core.data.database.session.model.SetEntity
+import io.github.stslex.workeeper.core.data.database.session.model.SetTypeEntity
+import io.github.stslex.workeeper.core.data.database.training.TrainingEntity
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals

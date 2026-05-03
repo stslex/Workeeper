@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.core.exercise.session.model
+package io.github.stslex.workeeper.core.data.exercise.session.model
 
 /**
  * Slim "any session is live" descriptor used by Trainings tab + Training detail to mark

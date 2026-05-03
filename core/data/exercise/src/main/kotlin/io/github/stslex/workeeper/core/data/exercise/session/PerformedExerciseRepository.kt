@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.core.exercise.session
+package io.github.stslex.workeeper.core.data.exercise.session
 
-import io.github.stslex.workeeper.core.exercise.session.model.PerformedExerciseDataModel
+import io.github.stslex.workeeper.core.data.exercise.session.model.PerformedExerciseDataModel
 
 interface PerformedExerciseRepository {
 

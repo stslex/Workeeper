@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.core.exercise.sets
+package io.github.stslex.workeeper.core.data.exercise.sets
 
-import io.github.stslex.workeeper.core.database.sets.PlanSetDataModel
-import io.github.stslex.workeeper.core.database.sets.SetTypeDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.ExerciseTypeDataModel
-import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType
-import io.github.stslex.workeeper.core.exercise.personal_record.PersonalRecordDataModel
+import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
+import io.github.stslex.workeeper.core.data.database.sets.SetTypeDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataType
+import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordDataModel
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull

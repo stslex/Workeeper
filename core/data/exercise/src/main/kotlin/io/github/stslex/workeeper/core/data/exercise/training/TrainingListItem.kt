@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.core.exercise.training
+package io.github.stslex.workeeper.core.data.exercise.training
 
-import io.github.stslex.workeeper.core.database.training.TrainingListItemRow
+import io.github.stslex.workeeper.core.data.database.training.TrainingListItemRow
 
 /**
  * Library-tab projection of a training plus its derived stats. `lastSessionAt` and the

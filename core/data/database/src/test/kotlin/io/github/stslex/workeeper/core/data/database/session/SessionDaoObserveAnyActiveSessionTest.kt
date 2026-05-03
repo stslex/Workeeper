@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.core.database.session
+package io.github.stslex.workeeper.core.data.database.session
 
-import io.github.stslex.workeeper.core.database.BaseDatabaseTest
-import io.github.stslex.workeeper.core.database.training.TrainingEntity
+import io.github.stslex.workeeper.core.data.database.BaseDatabaseTest
+import io.github.stslex.workeeper.core.data.database.training.TrainingEntity
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach

@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.core.exercise.training
+package io.github.stslex.workeeper.core.data.exercise.training
 
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
@@ -8,17 +8,17 @@ import io.github.stslex.workeeper.core.core.coroutine.asyncMap
 import io.github.stslex.workeeper.core.core.coroutine.asyncMapIndexed
 import io.github.stslex.workeeper.core.core.coroutine.asyncScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
-import io.github.stslex.workeeper.core.database.converters.PlanSetsConverter
-import io.github.stslex.workeeper.core.database.session.SessionDao
-import io.github.stslex.workeeper.core.database.tag.TagDao
-import io.github.stslex.workeeper.core.database.tag.TagEntity
-import io.github.stslex.workeeper.core.database.tag.TrainingTagDao
-import io.github.stslex.workeeper.core.database.tag.TrainingTagEntity
-import io.github.stslex.workeeper.core.database.training.TrainingDao
-import io.github.stslex.workeeper.core.database.training.TrainingExerciseDao
-import io.github.stslex.workeeper.core.database.training.TrainingExerciseEntity
-import io.github.stslex.workeeper.core.exercise.exercise.ExerciseRepository
-import io.github.stslex.workeeper.core.exercise.training.TrainingRepository.BulkArchiveOutcome
+import io.github.stslex.workeeper.core.data.database.converters.PlanSetsConverter
+import io.github.stslex.workeeper.core.data.database.session.SessionDao
+import io.github.stslex.workeeper.core.data.database.tag.TagDao
+import io.github.stslex.workeeper.core.data.database.tag.TagEntity
+import io.github.stslex.workeeper.core.data.database.tag.TrainingTagDao
+import io.github.stslex.workeeper.core.data.database.tag.TrainingTagEntity
+import io.github.stslex.workeeper.core.data.database.training.TrainingDao
+import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseDao
+import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseEntity
+import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
+import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository.BulkArchiveOutcome
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow

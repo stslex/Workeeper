@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.core.database.exercise
+package io.github.stslex.workeeper.core.data.database.exercise
 
 import android.database.sqlite.SQLiteConstraintException
 import androidx.paging.PagingSource
-import io.github.stslex.workeeper.core.database.BaseDatabaseTest
+import io.github.stslex.workeeper.core.data.database.BaseDatabaseTest
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals

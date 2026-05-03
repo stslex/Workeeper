@@ -1,6 +1,6 @@
-package io.github.stslex.workeeper.core.exercise.tags
+package io.github.stslex.workeeper.core.data.exercise.tags
 
-import io.github.stslex.workeeper.core.exercise.tags.model.TagDataModel
+import io.github.stslex.workeeper.core.data.exercise.tags.model.TagDataModel
 import kotlinx.coroutines.flow.Flow
 
 interface TagRepository {

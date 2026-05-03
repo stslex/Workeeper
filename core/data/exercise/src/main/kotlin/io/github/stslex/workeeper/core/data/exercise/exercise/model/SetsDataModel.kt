@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.core.exercise.exercise.model
+package io.github.stslex.workeeper.core.data.exercise.exercise.model
 
-import io.github.stslex.workeeper.core.database.session.model.SetEntity
-import io.github.stslex.workeeper.core.exercise.exercise.model.SetsDataType.Companion.toData
+import io.github.stslex.workeeper.core.data.database.session.model.SetEntity
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataType.Companion.toData
 import kotlin.uuid.Uuid
 
 data class SetsDataModel(

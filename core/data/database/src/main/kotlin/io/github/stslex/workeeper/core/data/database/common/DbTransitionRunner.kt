@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.core.database.common
+package io.github.stslex.workeeper.core.data.database.common
 
 interface DbTransitionRunner {
 

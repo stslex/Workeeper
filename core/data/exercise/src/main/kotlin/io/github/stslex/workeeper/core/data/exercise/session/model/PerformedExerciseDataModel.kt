@@ -1,6 +1,6 @@
-package io.github.stslex.workeeper.core.exercise.session.model
+package io.github.stslex.workeeper.core.data.exercise.session.model
 
-import io.github.stslex.workeeper.core.database.session.PerformedExerciseEntity
+import io.github.stslex.workeeper.core.data.database.session.PerformedExerciseEntity
 import kotlin.uuid.Uuid
 
 data class PerformedExerciseDataModel(
