@@ -42,6 +42,7 @@ class DomainLayerPurityRule(
         super.visitImportDirective(importDirective)
 
         val filePath = importDirective.containingKtFile.virtualFilePath
+        if (filePath.isInTestSourceSet()) return
         if (!filePath.isInFeatureDomain() || filePath.isInDomainMapper()) return
 
         val importPath = importDirective.importPath?.pathStr ?: return
@@ -65,6 +66,9 @@ class DomainLayerPurityRule(
         // Match any /feature/<X>/domain/ file regardless of nesting depth.
         return contains("/feature/") && contains("/domain/")
     }
+
+    private fun String.isInTestSourceSet(): Boolean =
+        contains("/src/test/") || contains("/src/androidTest/")
 
     private fun String.isInDomainMapper(): Boolean = contains("/domain/mapper/")
 
