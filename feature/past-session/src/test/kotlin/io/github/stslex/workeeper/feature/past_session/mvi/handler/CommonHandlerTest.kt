@@ -3,15 +3,15 @@ package io.github.stslex.workeeper.feature.past_session.mvi.handler
 
 import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
-import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
-import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataModel
-import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataType
-import io.github.stslex.workeeper.core.data.exercise.session.model.PerformedExerciseDetailDataModel
-import io.github.stslex.workeeper.core.data.exercise.session.model.SessionDetailDataModel
 import io.github.stslex.workeeper.feature.past_session.R
 import io.github.stslex.workeeper.feature.past_session.di.PastSessionHandlerStore
 import io.github.stslex.workeeper.feature.past_session.domain.PastSessionInteractor
-import io.github.stslex.workeeper.feature.past_session.domain.PastSessionInteractor.DetailWithPrs
+import io.github.stslex.workeeper.feature.past_session.domain.model.DetailWithPrs
+import io.github.stslex.workeeper.feature.past_session.domain.model.ExerciseTypeDomain
+import io.github.stslex.workeeper.feature.past_session.domain.model.PerformedExerciseDetailDomain
+import io.github.stslex.workeeper.feature.past_session.domain.model.SessionDetailDomain
+import io.github.stslex.workeeper.feature.past_session.domain.model.SetDomain
+import io.github.stslex.workeeper.feature.past_session.domain.model.SetTypeDomain
 import io.github.stslex.workeeper.feature.past_session.mvi.model.ErrorType
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Action
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Event
@@ -139,13 +139,13 @@ internal class CommonHandlerTest {
             resourceWrapper = resources,
             store = store,
         )
-        val prSet = SetsDataModel(uuid = "set-pr", reps = 5, weight = 100.0, type = SetsDataType.WORK)
-        val plainSet = SetsDataModel(uuid = "set-plain", reps = 5, weight = 80.0, type = SetsDataType.WORK)
-        val performed = PerformedExerciseDetailDataModel(
+        val prSet = SetDomain(uuid = "set-pr", reps = 5, weight = 100.0, type = SetTypeDomain.WORK)
+        val plainSet = SetDomain(uuid = "set-plain", reps = 5, weight = 80.0, type = SetTypeDomain.WORK)
+        val performed = PerformedExerciseDetailDomain(
             performedExerciseUuid = "performed-1",
             exerciseUuid = "exercise-1",
             exerciseName = "Bench",
-            exerciseType = ExerciseTypeDataModel.WEIGHTED,
+            exerciseType = ExerciseTypeDomain.WEIGHTED,
             position = 0,
             skipped = false,
             sets = listOf(plainSet, prSet),
@@ -164,7 +164,7 @@ internal class CommonHandlerTest {
         assertEquals(false, sets.first { it.setUuid == "set-plain" }.isPersonalRecord)
     }
 
-    private fun sessionDetail() = SessionDetailDataModel(
+    private fun sessionDetail() = SessionDetailDomain(
         sessionUuid = SESSION_UUID,
         trainingUuid = "training-1",
         trainingName = "Push Day",

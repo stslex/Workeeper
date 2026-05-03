@@ -2,10 +2,10 @@
 package io.github.stslex.workeeper.feature.past_session.mvi.handler
 
 import io.github.stslex.workeeper.core.core.logger.Logger
-import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataType
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.past_session.di.PastSessionHandlerStore
 import io.github.stslex.workeeper.feature.past_session.domain.PastSessionInteractor
+import io.github.stslex.workeeper.feature.past_session.domain.model.SetTypeDomain
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastExerciseUiModel
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSessionUiModel
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSetUiModel
@@ -96,7 +96,7 @@ internal class InputHandlerTest {
                     set.uuid == SET_UUID &&
                         set.reps == 8 &&
                         set.weight == 150.0 &&
-                        set.type == SetsDataType.WORK
+                        set.type == SetTypeDomain.WORK
                 },
             )
         }

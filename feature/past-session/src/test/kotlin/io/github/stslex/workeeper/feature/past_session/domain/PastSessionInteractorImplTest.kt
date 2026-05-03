@@ -9,10 +9,13 @@ import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.data.exercise.session.SetRepository
 import io.github.stslex.workeeper.core.data.exercise.session.model.PerformedExerciseDetailDataModel
 import io.github.stslex.workeeper.core.data.exercise.session.model.SessionDetailDataModel
+import io.github.stslex.workeeper.feature.past_session.domain.model.SetDomain
+import io.github.stslex.workeeper.feature.past_session.domain.model.SetTypeDomain
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
@@ -72,32 +75,38 @@ internal class PastSessionInteractorImplTest {
 
         val result = interactor.observeDetailWithPrs("session-1").first()
 
-        assertEquals(detail, result?.detail)
+        assertEquals("session-1", result?.detail?.sessionUuid)
+        assertEquals("Push Day", result?.detail?.trainingName)
         assertTrue(result?.prSetUuids?.contains("set-prev") == true)
     }
 
     @Test
-    fun `updateSet forwards to SetRepository update`() = runTest {
-        val set = SetsDataModel(
-            uuid = "set-1",
-            reps = 8,
-            weight = 100.0,
-            type = SetsDataType.WORK,
-        )
+    fun `updateSet maps domain SetDomain to data SetsDataModel and forwards`() = runTest {
+        val captured = slot<SetsDataModel>()
+        coEvery { setRepository.update(any(), any(), capture(captured)) } returns Unit
 
         interactor.updateSet(
             performedExerciseUuid = "performed-1",
             position = 2,
-            set = set,
+            set = SetDomain(
+                uuid = "set-1",
+                reps = 8,
+                weight = 100.0,
+                type = SetTypeDomain.WORK,
+            ),
         )
 
         coVerify(exactly = 1) {
             setRepository.update(
                 performedExerciseUuid = "performed-1",
                 position = 2,
-                set = set,
+                set = any(),
             )
         }
+        assertEquals("set-1", captured.captured.uuid)
+        assertEquals(8, captured.captured.reps)
+        assertEquals(100.0, captured.captured.weight)
+        assertEquals(SetsDataType.WORK, captured.captured.type)
     }
 
     @Test
