@@ -4,17 +4,17 @@ package io.github.stslex.workeeper.feature.live_workout.mvi.handler
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
-import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordDataModel
-import io.github.stslex.workeeper.core.ui.plan_editor.mappers.toUi
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExercisePickerAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExercisePickerUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
-import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel.Companion.toUi
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
-import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor.ExercisePickerEntry
+import io.github.stslex.workeeper.feature.live_workout.domain.model.ExercisePickerEntry
+import io.github.stslex.workeeper.feature.live_workout.domain.model.PersonalRecordDomain
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.toDomain
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.toUi
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ErrorType
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
@@ -185,11 +185,11 @@ internal class ExercisePickerHandler @Inject constructor(
             // Q6 + C1 lock: snapshot fetch only for library exercises with potential
             // history. Inline-created (`is_adhoc = true`) entries have no baseline so the
             // map-plus update is skipped, which keeps the in-moment PR badge suppressed.
-            val pr: PersonalRecordDataModel? = if (picked.fetchPr) {
+            val pr: PersonalRecordDomain? = if (picked.fetchPr) {
                 runCatching {
                     interactor.fetchPrSnapshotForExercise(
                         exerciseUuid = picked.exerciseUuid,
-                        type = picked.type.toData(),
+                        type = picked.type.toDomain(),
                     )
                 }.getOrNull()
             } else {
@@ -339,7 +339,7 @@ internal class ExercisePickerHandler @Inject constructor(
     private fun ImmutableMap<String, State.PrSnapshotItem>.mergePr(
         exerciseUuid: String,
         type: ExerciseTypeUiModel,
-        pr: PersonalRecordDataModel?,
+        pr: PersonalRecordDomain?,
     ): ImmutableMap<String, State.PrSnapshotItem> {
         if (pr == null) return this
         val item = State.PrSnapshotItem(

@@ -1,30 +1,32 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.single_training.domain
 
-import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
-import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseDataModel
-import io.github.stslex.workeeper.core.data.exercise.session.SessionConflictResolver
-import io.github.stslex.workeeper.core.data.exercise.session.model.ActiveSessionInfo
-import io.github.stslex.workeeper.core.data.exercise.session.model.SessionDataModel
-import io.github.stslex.workeeper.core.data.exercise.tags.model.TagDataModel
-import io.github.stslex.workeeper.core.data.exercise.training.TrainingChangeDataModel
-import io.github.stslex.workeeper.core.data.exercise.training.TrainingDataModel
+import io.github.stslex.workeeper.feature.single_training.domain.model.ActiveSessionDomain
+import io.github.stslex.workeeper.feature.single_training.domain.model.ArchiveResult
+import io.github.stslex.workeeper.feature.single_training.domain.model.PickerExercise
+import io.github.stslex.workeeper.feature.single_training.domain.model.PlanSetDomain
+import io.github.stslex.workeeper.feature.single_training.domain.model.SessionDomain
+import io.github.stslex.workeeper.feature.single_training.domain.model.StartSessionConflict
+import io.github.stslex.workeeper.feature.single_training.domain.model.TagDomain
+import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingChangeDomain
+import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingDomain
+import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingExerciseDetail
 import kotlinx.coroutines.flow.Flow
 
 @Suppress("TooManyFunctions")
 internal interface SingleTrainingInteractor {
 
-    suspend fun getTraining(uuid: String): TrainingDataModel?
+    suspend fun getTraining(uuid: String): TrainingDomain?
 
     suspend fun getTrainingExercises(trainingUuid: String): List<TrainingExerciseDetail>
 
-    suspend fun getRecentSessions(trainingUuid: String, limit: Int): List<SessionDataModel>
+    suspend fun getRecentSessions(trainingUuid: String, limit: Int): List<SessionDomain>
 
-    fun observeAvailableTags(): Flow<List<TagDataModel>>
+    fun observeAvailableTags(): Flow<List<TagDomain>>
 
-    suspend fun saveTraining(snapshot: TrainingChangeDataModel)
+    suspend fun saveTraining(snapshot: TrainingChangeDomain)
 
-    suspend fun createTag(name: String): TagDataModel
+    suspend fun createTag(name: String): TagDomain
 
     suspend fun archive(uuid: String): ArchiveResult
 
@@ -32,12 +34,12 @@ internal interface SingleTrainingInteractor {
 
     suspend fun canPermanentlyDelete(uuid: String): Boolean
 
-    fun observeAnyActiveSession(): Flow<ActiveSessionInfo?>
+    fun observeAnyActiveSession(): Flow<ActiveSessionDomain?>
 
     suspend fun setPlanForExercise(
         trainingUuid: String,
         exerciseUuid: String,
-        plan: List<PlanSetDataModel>?,
+        plan: List<PlanSetDomain>?,
     )
 
     suspend fun searchExercisesForPicker(
@@ -54,37 +56,9 @@ internal interface SingleTrainingInteractor {
      */
     suspend fun resolveStartSessionConflict(
         requestedTrainingUuid: String,
-    ): SessionConflictResolver.Resolution
+    ): StartSessionConflict
 
     suspend fun deleteSession(sessionUuid: String)
 
-    /**
-     * Picker projection: an ExerciseDataModel plus the labels denormalized through the
-     * exercise_tag join. The labels live outside the data model (per the v3 hygiene rule)
-     * so we surface them here for callers that actually want to render tags inline.
-     */
-    data class PickerExercise(
-        val exercise: ExerciseDataModel,
-        val labels: List<String>,
-    )
-
     suspend fun getLabels(exerciseUuid: String): List<String>
-
-    /**
-     * Joined training_exercise row + linked exercise template. The plan lives on the join
-     * (training_exercise.plan_sets) but the name/type/tags come from the exercise table.
-     */
-    data class TrainingExerciseDetail(
-        val exercise: ExerciseDataModel,
-        val position: Int,
-        val planSets: List<PlanSetDataModel>?,
-        val labels: List<String>,
-    )
-
-    sealed interface ArchiveResult {
-
-        data object Success : ArchiveResult
-
-        data class Blocked(val reason: String) : ArchiveResult
-    }
 }

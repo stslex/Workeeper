@@ -198,7 +198,10 @@ internal class ClickHandler @Inject constructor(
     }
 
     private suspend fun startFreshTrackNow(exerciseUuid: String) {
-        val sessionUuid = interactor.startTrackNowSession(exerciseUuid)
+        val sessionUuid = interactor.startTrackNowSession(
+            exerciseUuid = exerciseUuid,
+            defaultName = resourceWrapper.getString(R.string.feature_exercise_track_now_default_training_name),
+        )
         consumeOnMain(Action.Navigation.OpenLiveWorkout(sessionUuid))
     }
 
@@ -527,9 +530,7 @@ internal class ClickHandler @Inject constructor(
             )
         }
         if (uuid == null) return
-        launch(
-            onSuccess = { Unit },
-        ) {
+        launch {
             interactor.clearWeightsFromAllPlansForExercise(uuid)
         }
     }

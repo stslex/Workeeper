@@ -5,14 +5,14 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
-import io.github.stslex.workeeper.core.data.exercise.session.SessionConflictResolver
-import io.github.stslex.workeeper.core.data.exercise.training.TrainingChangeDataModel
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
-import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel.Companion.toUi
 import io.github.stslex.workeeper.feature.single_training.R
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingHandlerStore
 import io.github.stslex.workeeper.feature.single_training.domain.SingleTrainingInteractor
-import io.github.stslex.workeeper.feature.single_training.domain.SingleTrainingInteractor.ArchiveResult
+import io.github.stslex.workeeper.feature.single_training.domain.model.ArchiveResult
+import io.github.stslex.workeeper.feature.single_training.domain.model.StartSessionConflict
+import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingChangeDomain
+import io.github.stslex.workeeper.feature.single_training.mvi.mapper.toUi
 import io.github.stslex.workeeper.feature.single_training.mvi.model.PickerExerciseItem
 import io.github.stslex.workeeper.feature.single_training.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.single_training.mvi.model.TrainingExerciseItem
@@ -167,15 +167,15 @@ internal class ClickHandler @Inject constructor(
         val trainingUuid = current.uuid ?: return
         launch {
             when (val resolution = interactor.resolveStartSessionConflict(trainingUuid)) {
-                SessionConflictResolver.Resolution.ProceedFresh -> consumeOnMain(
+                StartSessionConflict.ProceedFresh -> consumeOnMain(
                     Action.Navigation.OpenLiveWorkout(sessionUuid = ""),
                 )
 
-                is SessionConflictResolver.Resolution.SilentResume -> consumeOnMain(
+                is StartSessionConflict.SilentResume -> consumeOnMain(
                     Action.Navigation.OpenLiveWorkout(sessionUuid = resolution.sessionUuid),
                 )
 
-                is SessionConflictResolver.Resolution.NeedsUserChoice -> {
+                is StartSessionConflict.NeedsUserChoice -> {
                     val info = State.ConflictInfo(
                         sessionUuid = resolution.active.sessionUuid,
                         activeSessionName = current.name.takeIf { it.isNotBlank() }
@@ -248,7 +248,7 @@ internal class ClickHandler @Inject constructor(
         }
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         val resolvedUuid = current.uuid?.takeIf { it.isNotBlank() } ?: Uuid.random().toString()
-        val snapshot = TrainingChangeDataModel(
+        val snapshot = TrainingChangeDomain(
             uuid = resolvedUuid,
             name = current.name.trim(),
             description = current.description.takeIf { it.isNotBlank() },

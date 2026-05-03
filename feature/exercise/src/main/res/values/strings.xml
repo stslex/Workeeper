@@ -5,7 +5,7 @@
     <string name="feature_exercise_detail_no_history">No sessions yet</string>
     <string name="feature_exercise_detail_track_now" tools:ignore="DuplicateStrings">Track now</string>
     <string name="feature_exercise_detail_default_plan">Default plan</string>
-    <string name="feature_exercise_track_now_default_training_name" tools:ignore="DuplicateStrings,UnusedResources" >Track now</string>
+    <string name="feature_exercise_track_now_default_training_name" tools:ignore="DuplicateStrings">Track now</string>
     <string name="feature_exercise_track_now_conflict_unnamed">Workout</string>
     <string name="feature_exercise_track_now_conflict_progress_format" tools:ignore="PluralsCandidate">%1$d of %2$d exercises done</string>
     <string name="feature_exercise_detail_edit">Edit</string>

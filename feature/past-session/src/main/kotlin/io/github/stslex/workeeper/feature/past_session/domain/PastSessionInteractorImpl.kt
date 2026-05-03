@@ -3,11 +3,13 @@ package io.github.stslex.workeeper.feature.past_session.domain
 
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.IODispatcher
-import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataModel
 import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordRepository
 import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.data.exercise.session.SetRepository
-import io.github.stslex.workeeper.feature.past_session.domain.PastSessionInteractor.DetailWithPrs
+import io.github.stslex.workeeper.feature.past_session.domain.mapper.toData
+import io.github.stslex.workeeper.feature.past_session.domain.mapper.toDomain
+import io.github.stslex.workeeper.feature.past_session.domain.model.DetailWithPrs
+import io.github.stslex.workeeper.feature.past_session.domain.model.SetDomain
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
@@ -45,7 +47,7 @@ internal class PastSessionInteractorImpl @Inject constructor(
                 .observePrSetUuids(uuidsByType)
                 .map { prSetUuids ->
                     val fresh = sessionRepository.getSessionDetail(sessionUuid) ?: initial
-                    DetailWithPrs(detail = fresh, prSetUuids = prSetUuids)
+                    DetailWithPrs(detail = fresh.toDomain(), prSetUuids = prSetUuids)
                 },
         )
     }.flowOn(ioDispatcher)
@@ -53,9 +55,9 @@ internal class PastSessionInteractorImpl @Inject constructor(
     override suspend fun updateSet(
         performedExerciseUuid: String,
         position: Int,
-        set: SetsDataModel,
+        set: SetDomain,
     ) {
-        setRepository.update(performedExerciseUuid, position, set)
+        setRepository.update(performedExerciseUuid, position, set.toData())
     }
 
     override suspend fun deleteSession(sessionUuid: String) {

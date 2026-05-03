@@ -78,7 +78,10 @@ internal interface ExerciseInteractor {
      * rows are persisted with `plan_sets = null`; the existing `loadSession` fallback
      * (`exercise.last_adhoc_sets`) populates the editor.
      */
-    suspend fun startTrackNowSession(exerciseUuid: String): String
+    suspend fun startTrackNowSession(
+        exerciseUuid: String,
+        defaultName: String,
+    ): String
 
     /**
      * Cancel the in-progress session [sessionUuid]. Branches on training type so an ad-hoc

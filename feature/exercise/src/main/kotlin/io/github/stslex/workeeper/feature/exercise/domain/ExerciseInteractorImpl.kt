@@ -133,11 +133,16 @@ internal class ExerciseInteractorImpl @Inject constructor(
 
     override suspend fun deleteImageFile(path: String): Boolean = imageStorage.deleteImage(path)
 
-    override suspend fun resolveTrackNowConflict(): TrackNowConflict = resolveTrackNowConflictUseCase()
+    override suspend fun resolveTrackNowConflict(): TrackNowConflict =
+        resolveTrackNowConflictUseCase()
 
     override suspend fun startTrackNowSession(
         exerciseUuid: String,
-    ): String = startTrackNowSessionUseCase(exerciseUuid)
+        defaultName: String,
+    ): String = startTrackNowSessionUseCase(
+        exerciseUuid = exerciseUuid,
+        defaultName = defaultName,
+    )
 
     override suspend fun deleteSession(sessionUuid: String) {
         deleteSessionUseCase(sessionUuid)

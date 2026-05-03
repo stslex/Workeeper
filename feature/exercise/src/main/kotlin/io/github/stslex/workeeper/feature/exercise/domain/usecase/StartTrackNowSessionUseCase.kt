@@ -16,7 +16,10 @@ internal class StartTrackNowSessionUseCase @Inject constructor(
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
 ) {
 
-    suspend operator fun invoke(exerciseUuid: String): String = withContext(defaultDispatcher) {
+    suspend operator fun invoke(
+        exerciseUuid: String,
+        defaultName: String,
+    ): String = withContext(defaultDispatcher) {
         val exercise = exerciseRepository.getExercise(exerciseUuid)
         // Pass the raw exercise.name through to the adhoc-session helper. UI surfaces
         // that display this training name handle the blank/null case via stringResource.
@@ -24,7 +27,7 @@ internal class StartTrackNowSessionUseCase @Inject constructor(
         // older two-step Training upsert + session start that left orphan training rows
         // when Track Now was cancelled (the cancel path only deleted the session).
         sessionRepository.createAdhocSession(
-            name = exercise?.name.orEmpty(),
+            name = exercise?.name.orEmpty().ifBlank { defaultName },
             exerciseUuids = listOf(exerciseUuid),
         ).sessionUuid
     }

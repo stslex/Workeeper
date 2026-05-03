@@ -6,7 +6,7 @@ import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.exercise_chart.di.ExerciseChartHandlerStore
-import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapper
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.toTooltip
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Action
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Event
 import javax.inject.Inject
@@ -90,7 +90,7 @@ internal class ClickHandler @Inject constructor(
 
     private fun processPointTap(action: Action.Click.OnPointTap) {
         val current = state.value
-        val tooltip = ExerciseChartUiMapper.toTooltip(
+        val tooltip = toTooltip(
             point = action.point,
             exercise = current.selectedExercise,
             metric = current.metric,

@@ -54,10 +54,16 @@ Project context for OpenAI Codex / Cursor agents (and any other tool that follow
 - Reference implementation: `feature/exercise/.../domain/`. See
   `ArchiveExerciseUseCase`, `ResolveTrackNowConflictUseCase`,
   `StartTrackNowSessionUseCase`, `DeleteSessionUseCase`.
-- Domain models vs data models: this convention is partially violated
-  today — interactors leak `*DataModel` types in several features. A
-  separate audit and migration plan is tracked under
-  `documentation/tech-debt.md`.
+- Public surface of interactors and use cases uses `*Domain` types,
+  never `core.data.*` types. Mapping data → domain happens in
+  `feature/<X>/domain/mapper/`. Mapping domain → ui happens in
+  `feature/<X>/mvi/mapper/`.
+- Two Detekt rules guard this boundary: `DomainLayerPurityRule` and
+  `DomainLayerNoUiRule`.
+- Display strings and resource fallbacks live in UI mappers via
+  `stringResource(R.string.*)` or `resourceWrapper.getString(...)`.
+  The domain layer never injects `ResourceWrapper` and never imports
+  `R.*`.
 
 ## Workflow recipes (`.claude/skills/`)
 

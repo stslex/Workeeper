@@ -5,12 +5,12 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
-import io.github.stslex.workeeper.core.ui.plan_editor.mappers.toData
 import io.github.stslex.workeeper.core.ui.plan_editor.model.AppPlanEditorAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.toPlanSetDomain
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.withPresentation
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ErrorType
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore
@@ -119,11 +119,11 @@ internal class PlanEditActionHandler @Inject constructor(
                 )
             },
         ) {
-            val data = nextPlan?.map { it.toData() }
+            val domainPlan = nextPlan?.map { it.toPlanSetDomain() }
             if (isAdhoc) {
-                interactor.setAdhocPlan(target.exerciseUuid, data)
+                interactor.setAdhocPlan(target.exerciseUuid, domainPlan)
             } else if (!trainingUuid.isNullOrBlank()) {
-                interactor.setPlanForExercise(trainingUuid, target.exerciseUuid, data)
+                interactor.setPlanForExercise(trainingUuid, target.exerciseUuid, domainPlan)
             }
         }
     }
