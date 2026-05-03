@@ -113,7 +113,7 @@ Items where shipped behaviour diverges from what specs originally asked for. Sur
 
 ## androidTest Coverage Gap
 
-Six stub files with `TODO(feature-rewrite-tests)` markers and zero test methods. Created during initial Stage rewrites (5.1 / 5.2 / 5.3) under the assumption tests would be filled once the smoke harness stabilised. v2.0 stage scheduled the fill-in work; remaining stubs are tracked in the v2.0 spec and addressed in their own PRs.
+Five stub files with `TODO(feature-rewrite-tests)` markers carry an `@Ignore`d placeholder method — skipped via `@Ignore` placeholder, real coverage tracked in #93. (`SettingsScreenTest.kt`, listed below, was filled with real tests in a prior PR; row kept for traceability.) Created during initial Stage rewrites (5.1 / 5.2 / 5.3) under the assumption tests would be filled once the smoke harness stabilised. v2.0 stage scheduled the fill-in work; remaining stubs are tracked in the v2.0 spec and addressed in their own PRs.
 
 | Severity | Location | Stage |
 |---|---|---|

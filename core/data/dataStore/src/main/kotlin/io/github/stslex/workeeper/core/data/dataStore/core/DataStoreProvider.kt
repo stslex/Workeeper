@@ -2,18 +2,39 @@ package io.github.stslex.workeeper.core.data.dataStore.core
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.preferencesDataStore
+import androidx.datastore.preferences.preferencesDataStoreFile
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.util.concurrent.ConcurrentHashMap
 
-class DataStoreProvider @AssistedInject constructor(
+internal class DataStoreProvider @AssistedInject constructor(
     @Assisted private val name: String,
     @ApplicationContext context: Context,
 ) {
 
-    private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = name)
+    val dataStore: DataStore<Preferences> = provideDataStore(context.applicationContext, name)
 
-    val dataStore: DataStore<Preferences> = context.dataStore
+    private companion object {
+
+        private val stores = ConcurrentHashMap<String, DataStore<Preferences>>()
+        private val lock = Any()
+
+        fun provideDataStore(context: Context, name: String): DataStore<Preferences> {
+            stores[name]?.let { return it }
+
+            synchronized(lock) {
+                stores[name]?.let { return it }
+
+                val dataStore = PreferenceDataStoreFactory.create {
+                    context.preferencesDataStoreFile(name)
+                }
+
+                stores[name] = dataStore
+                return dataStore
+            }
+        }
+    }
 }

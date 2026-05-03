@@ -7,7 +7,7 @@ import io.github.stslex.workeeper.core.core.logger.Log
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-open class BaseDataStore internal constructor(
+internal open class BaseDataStore internal constructor(
     private val storeProvider: DataStoreProvider,
 ) {
 
@@ -24,9 +24,10 @@ open class BaseDataStore internal constructor(
         }
     }
 
-    fun getString(key: String, default: String): Flow<String> = storeProvider.dataStore.data.map { prefs ->
-        prefs[stringPreferencesKey(key)] ?: default
-    }
+    fun getString(key: String, default: String): Flow<String> =
+        storeProvider.dataStore.data.map { prefs ->
+            prefs[stringPreferencesKey(key)] ?: default
+        }
 
     suspend fun updateString(key: String, value: String) {
         logger.i("Update key: $key with value: $value")
