@@ -5,11 +5,11 @@ plugins {
 dependencies {
     implementation(project(":core:core"))
 
-    implementation(project(":core:dataStore"))
+    implementation(project(":core:data:dataStore"))
     implementation(project(":core:ui:kit"))
     implementation(project(":core:ui:mvi"))
     implementation(project(":core:ui:navigation"))
-    implementation(project(":core:exercise"))
+    implementation(project(":core:data:exercise"))
 
     testImplementation(kotlin("test"))
     testImplementation(libs.androidx.paging.testing)

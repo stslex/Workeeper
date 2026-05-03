@@ -4,7 +4,7 @@ plugins {
 
 dependencies {
     implementation(project(":core:core"))
-    implementation(project(":core:database"))
+    implementation(project(":core:data:database"))
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.runtime)
