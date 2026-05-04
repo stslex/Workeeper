@@ -37,18 +37,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.card.AppCard
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordCard
+import io.github.stslex.workeeper.core.ui.kit.components.setchip.AppSetTypeChip
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagChip.Static
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
+import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.mvi.model.ImageDisplay
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State
 import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseHero
 import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseHistoryRow
+import kotlinx.collections.immutable.ImmutableList
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -112,7 +117,12 @@ internal fun ExerciseDetailScreen(
                 }
             }
             if (state.planSummaryVisible) {
-                DefaultPlanCard(planSummaryLabel = state.adhocPlanSummaryLabel)
+                state.adhocPlan?.let { plan ->
+                    DefaultPlanCard(
+                        plan = plan,
+                        isWeighted = state.type == ExerciseTypeUiModel.WEIGHTED,
+                    )
+                }
             }
             state.personalRecord?.let { pr ->
                 PersonalRecordCard(
@@ -235,23 +245,100 @@ private fun DetailLargeTopBar(
 }
 
 @Composable
-private fun DefaultPlanCard(planSummaryLabel: String) {
+private fun DefaultPlanCard(
+    plan: ImmutableList<PlanSetUiModel>,
+    isWeighted: Boolean,
+) {
     AppCard {
-        Column(verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xxs)) {
+        Column(
+            modifier = Modifier.testTag("ExerciseDetailDefaultPlanCard"),
+            verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xs),
+        ) {
             Text(
                 text = stringResource(R.string.feature_exercise_detail_default_plan),
                 style = AppUi.typography.labelSmall,
                 color = AppUi.colors.textTertiary,
             )
-            Text(
-                modifier = Modifier.testTag("ExerciseDetailDefaultPlanSummary"),
-                text = planSummaryLabel,
-                style = AppUi.typography.bodyMedium,
-                color = AppUi.colors.textPrimary,
-            )
+            // Spec E4 grid: idx | weight | reps | type-chip with tabular-nums so the
+            // numeric columns align across rows. Weight column collapses for weightless
+            // exercises (no fallback "—" cell — matches LiveSetRow's conditional column).
+            plan.forEachIndexed { index, set ->
+                DefaultPlanRow(
+                    index = index,
+                    set = set,
+                    isWeighted = isWeighted,
+                )
+            }
         }
     }
 }
+
+@Composable
+private fun DefaultPlanRow(
+    index: Int,
+    set: PlanSetUiModel,
+    isWeighted: Boolean,
+) {
+    val numberStyle = AppUi.typography.bodyMedium.copy(
+        color = AppUi.colors.textPrimary,
+        fontFeatureSettings = "tnum",
+    )
+    val indexStyle = AppUi.typography.bodyMedium.copy(
+        color = AppUi.colors.textTertiary,
+        fontFeatureSettings = "tnum",
+    )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("ExerciseDetailDefaultPlanRow_$index"),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            modifier = Modifier.size(width = INDEX_COLUMN_WIDTH, height = ROW_HEIGHT),
+            text = "${index + 1}.",
+            style = indexStyle,
+        )
+        Spacer(Modifier.size(width = COLUMN_GAP_NUMERIC, height = ROW_HEIGHT))
+        if (isWeighted) {
+            Text(
+                modifier = Modifier.weight(1f),
+                text = formatWeightCell(set.weight),
+                style = numberStyle,
+            )
+            Spacer(Modifier.size(width = COLUMN_GAP_NUMERIC, height = ROW_HEIGHT))
+        }
+        Text(
+            modifier = Modifier.weight(1f),
+            text = formatRepsCell(set.reps),
+            style = numberStyle,
+        )
+        Spacer(Modifier.size(width = COLUMN_GAP_TO_CHIP, height = ROW_HEIGHT))
+        AppSetTypeChip(type = set.type.toUiKitType())
+    }
+}
+
+@Composable
+private fun formatWeightCell(weight: Double?): String {
+    val unit = stringResource(io.github.stslex.workeeper.core.ui.kit.R.string.core_ui_kit_plan_editor_unit_kg)
+    if (weight == null) return ""
+    val formatted = if (weight % 1.0 == 0.0) {
+        weight.toLong().toString()
+    } else {
+        weight.toString().trimEnd('0').trimEnd('.')
+    }
+    return "$formatted $unit"
+}
+
+@Composable
+private fun formatRepsCell(reps: Int): String {
+    val unit = stringResource(io.github.stslex.workeeper.core.ui.kit.R.string.core_ui_kit_plan_editor_unit_reps)
+    return "$reps $unit"
+}
+
+private val INDEX_COLUMN_WIDTH = 24.dp
+private val ROW_HEIGHT = 28.dp
+private val COLUMN_GAP_NUMERIC = 14.dp
+private val COLUMN_GAP_TO_CHIP = 28.dp
 
 @Composable
 private fun HistorySection(
