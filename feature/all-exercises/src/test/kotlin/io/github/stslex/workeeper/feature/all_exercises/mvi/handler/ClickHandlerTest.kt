@@ -7,13 +7,10 @@ import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.feature.all_exercises.di.AllExercisesHandlerStore
 import io.github.stslex.workeeper.feature.all_exercises.domain.AllExercisesInteractor
-import io.github.stslex.workeeper.feature.all_exercises.domain.model.ArchiveResult
 import io.github.stslex.workeeper.feature.all_exercises.mvi.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Action
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Event
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.State
-import io.mockk.coEvery
-import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -84,30 +81,6 @@ internal class ClickHandlerTest {
         stateFlow.value = stateFlow.value.copy(activeTagFilter = persistentSetOf("tag-1", "tag-2"))
         handler.invoke(Action.Click.OnTagFilterToggle("tag-1"))
         assertEquals(setOf("tag-2"), stateFlow.value.activeTagFilter.toSet())
-    }
-
-    @Test
-    fun `OnArchiveSwipe Success emits ShowArchiveSuccess`() {
-        coEvery { interactor.archiveExercise("uuid-1") } returns ArchiveResult.Success
-        handler.invoke(Action.Click.OnArchiveSwipe(uuid = "uuid-1", name = "Bench"))
-        // Capturing is async via launch; just verify haptic
-        val captured = mutableListOf<Event>()
-        verify { store.sendEvent(capture(captured)) }
-        assertTrue(captured.any { it is Event.Haptic && it.type == HapticFeedbackType.LongPress })
-    }
-
-    @Test
-    fun `OnUndoArchive triggers restoreExercise`() {
-        coEvery { interactor.restoreExercise(any()) } returns Unit
-        handler.invoke(Action.Click.OnUndoArchive("uuid-1"))
-        // launch invokes the suspend block; in our mock the slot { } answers with mock job —
-        // verify the launch was invoked at all.
-        verify(atLeast = 1) {
-            store.launch(any(), any(), any(), any(), any<suspend CoroutineScope.() -> Unit>())
-        }
-        // restoreExercise will not actually be called here because launch is mocked, but the
-        // intention is exercised via the launch capture.
-        coVerify(exactly = 0) { interactor.restoreExercise(any()) }
     }
 
     @Test

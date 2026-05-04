@@ -8,9 +8,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -30,10 +35,8 @@ import io.github.stslex.workeeper.feature.all_exercises.R
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Action
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.State
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.State.SelectionMode
-import io.github.stslex.workeeper.feature.all_exercises.ui.components.BulkActionBar
 import io.github.stslex.workeeper.feature.all_exercises.ui.components.ExerciseRow
 import io.github.stslex.workeeper.feature.all_exercises.ui.components.ExercisesEmptyState
-import io.github.stslex.workeeper.feature.all_exercises.ui.components.SelectionTopBar
 import io.github.stslex.workeeper.feature.all_exercises.ui.components.TagFilterRow
 
 @Composable
@@ -53,7 +56,9 @@ internal fun AllExercisesScreen(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             ScreenTopBar(state = state, consume = consume)
-            if (state.availableTags.isNotEmpty() && !state.isSelecting) {
+            // TagFilterRow stays visible during selection mode (spec C4) so the list
+            // does not vertically jump when entering selection.
+            if (state.availableTags.isNotEmpty()) {
                 TagFilterRow(
                     tags = state.availableTags,
                     activeTagFilter = state.activeTagFilter,
@@ -66,8 +71,12 @@ internal fun AllExercisesScreen(
                         .fillMaxSize()
                         .testTag("AllExercisesList"),
                     contentPadding = PaddingValues(
-                        horizontal = AppDimension.screenEdge,
-                        vertical = AppDimension.Space.sm,
+                        start = AppDimension.screenEdge,
+                        end = AppDimension.screenEdge,
+                        top = AppDimension.Space.sm,
+                        // FAB clearance — heightLg covers the 56dp FAB diameter, screenEdge
+                        // is the FAB's bottom anchor padding.
+                        bottom = AppDimension.heightLg + AppDimension.screenEdge,
                     ),
                     verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
                 ) {
@@ -81,14 +90,10 @@ internal fun AllExercisesScreen(
                                 ?.contains(item.uuid) == true
                             ExerciseRow(
                                 item = item,
-                                isSelectionMode = state.isSelecting,
                                 isSelected = selected,
                                 onClick = { consume(Action.Click.OnExerciseClick(item.uuid)) },
                                 onLongPress = {
                                     consume(Action.Click.OnExerciseLongPress(item.uuid))
-                                },
-                                onArchive = {
-                                    consume(Action.Click.OnArchiveSwipe(item.uuid, item.name))
                                 },
                             )
                         }
@@ -98,26 +103,30 @@ internal fun AllExercisesScreen(
                     ExercisesEmptyState(modifier = Modifier.align(Alignment.Center))
                 }
             }
-            if (state.isSelecting) {
-                val selectionMode = state.selectionMode as SelectionMode.On
-                BulkActionBar(
-                    canDelete = selectionMode.canDeleteAll,
-                    onArchive = { consume(Action.Click.OnBulkArchive) },
-                    onDelete = { consume(Action.Click.OnBulkDelete) },
-                )
-            }
         }
-        if (!state.isSelecting) {
-            AppFAB(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(AppDimension.screenEdge)
-                    .testTag("AllExercisesFab"),
-                icon = Icons.Filled.Add,
-                contentDescription = stringResource(R.string.feature_all_exercises_fab_create),
-                onClick = { consume(Action.Click.OnFabClick) },
-            )
-        }
+        // FAB is always visible. Its icon morphs `+` ↔ trash to expose bulk delete in
+        // selection mode (spec C5).
+        val isSelecting = state.isSelecting
+        AppFAB(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(AppDimension.screenEdge)
+                .testTag("AllExercisesFab"),
+            icon = if (isSelecting) Icons.Filled.Delete else Icons.Filled.Add,
+            contentDescription = stringResource(
+                if (isSelecting) R.string.feature_all_exercises_bulk_delete
+                else R.string.feature_all_exercises_fab_create,
+            ),
+            containerColor = if (isSelecting) {
+                AppUi.colors.status.error
+            } else {
+                AppUi.colors.accent
+            },
+            onClick = {
+                if (isSelecting) consume(Action.Click.OnBulkDelete)
+                else consume(Action.Click.OnFabClick)
+            },
+        )
     }
 
     state.pendingPermanentDelete?.let { pending ->
@@ -156,16 +165,40 @@ private fun ScreenTopBar(
     consume: (Action) -> Unit,
 ) {
     val mode = state.selectionMode
-    if (mode is SelectionMode.On) {
-        SelectionTopBar(
-            selectedCount = mode.selectedUuids.size,
-            onClose = { consume(Action.Click.OnSelectionExit) },
+    val isSelecting = mode is SelectionMode.On
+    val title = if (mode is SelectionMode.On) {
+        pluralStringResource(
+            R.plurals.feature_all_exercises_selected_count,
+            mode.selectedUuids.size,
+            mode.selectedUuids.size,
         )
     } else {
-        AppTopAppBar(
-            title = stringResource(R.string.feature_all_exercises_title),
-        )
+        stringResource(R.string.feature_all_exercises_title)
     }
+    AppTopAppBar(
+        modifier = Modifier.testTag(
+            if (isSelecting) "AllExercisesSelectionTopBar" else "AllExercisesTopBar",
+        ),
+        title = title,
+        navigationIcon = if (isSelecting) {
+            {
+                IconButton(
+                    modifier = Modifier.testTag("AllExercisesSelectionTopBarClose"),
+                    onClick = { consume(Action.Click.OnSelectionExit) },
+                ) {
+                    Icon(
+                        modifier = Modifier.size(AppDimension.iconSm),
+                        imageVector = Icons.Default.Close,
+                        contentDescription = stringResource(
+                            R.string.feature_all_exercises_selection_close,
+                        ),
+                    )
+                }
+            }
+        } else {
+            null
+        },
+    )
 }
 
 private fun LazyPagingItems<*>.isEmptyAndIdle(): Boolean =
