@@ -3,9 +3,13 @@ package io.github.stslex.workeeper.feature.all_exercises.mvi.mapper
 
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.feature.all_exercises.R
+import io.github.stslex.workeeper.feature.all_exercises.domain.model.ExerciseDomain
+import io.github.stslex.workeeper.feature.all_exercises.domain.model.ExerciseListItemDomain
+import io.github.stslex.workeeper.feature.all_exercises.domain.model.ExerciseTypeDomain
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 @Suppress("MagicNumber")
@@ -157,5 +161,57 @@ internal class AllExercisesUiMapperTest {
             nowMillis = now,
         )
         assertEquals("last 15m ago", result)
+    }
+
+    @Test
+    fun `ExerciseListItemDomain toUi propagates non-zero stats into the model`() {
+        val now = 10_000_000_000L
+        val fourDaysAgo = now - 4L * 24L * 60L * 60L * 1000L
+        val item = ExerciseListItemDomain(
+            exercise = ExerciseDomain(
+                uuid = "uuid-1",
+                name = "Bench press",
+                type = ExerciseTypeDomain.WEIGHTED,
+                description = null,
+                imagePath = null,
+                archived = false,
+                archivedAt = null,
+                timestamp = 0L,
+            ),
+            tags = listOf("Push", "Chest"),
+            sessionCount = 12,
+            linkedTrainingsCount = 3,
+            lastTrainedAt = fourDaysAgo,
+        )
+        val ui = item.toUi(resourceWrapper = resourceWrapper, nowMillis = now)
+        assertEquals("uuid-1", ui.uuid)
+        assertEquals(12, ui.sessionCount)
+        assertEquals(3, ui.linkedTrainingsCount)
+        assertEquals(fourDaysAgo, ui.lastTrainedAt)
+        assertEquals("12 sessions · in 3 trainings · last 4d ago", ui.footerLabel)
+        assertEquals(listOf("Push", "Chest"), ui.tags.toList())
+    }
+
+    @Test
+    fun `ExerciseListItemDomain toUi yields empty footer when stats are absent`() {
+        val item = ExerciseListItemDomain(
+            exercise = ExerciseDomain(
+                uuid = "uuid-2",
+                name = "Pull-up",
+                type = ExerciseTypeDomain.WEIGHTLESS,
+                description = null,
+                imagePath = null,
+                archived = false,
+                archivedAt = null,
+                timestamp = 0L,
+            ),
+            tags = emptyList(),
+            sessionCount = 0,
+            linkedTrainingsCount = 0,
+            lastTrainedAt = null,
+        )
+        val ui = item.toUi(resourceWrapper = resourceWrapper)
+        assertEquals("", ui.footerLabel)
+        assertTrue(ui.tags.isEmpty())
     }
 }

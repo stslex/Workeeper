@@ -5,12 +5,18 @@ import androidx.paging.PagingData
 import io.github.stslex.workeeper.feature.all_exercises.domain.model.ArchiveResult
 import io.github.stslex.workeeper.feature.all_exercises.domain.model.BulkArchiveResult
 import io.github.stslex.workeeper.feature.all_exercises.domain.model.ExerciseDomain
+import io.github.stslex.workeeper.feature.all_exercises.domain.model.ExerciseListItemDomain
 import io.github.stslex.workeeper.feature.all_exercises.domain.model.TagDomain
 import kotlinx.coroutines.flow.Flow
 
 internal interface AllExercisesInteractor {
 
-    fun observeExercises(filterTagUuids: Set<String>): Flow<PagingData<ExerciseDomain>>
+    /**
+     * Paged active library exercises plus per-row stats (session count, linked-trainings
+     * count, last-trained timestamp) and tag labels. Footer rendering on the all-exercises
+     * list reads from this stream. (v2.4 E6.)
+     */
+    fun observeExercises(filterTagUuids: Set<String>): Flow<PagingData<ExerciseListItemDomain>>
 
     fun observeAvailableTags(): Flow<List<TagDomain>>
 

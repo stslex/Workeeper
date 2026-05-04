@@ -11,6 +11,7 @@ import io.github.stslex.workeeper.feature.all_exercises.domain.mapper.toDomain
 import io.github.stslex.workeeper.feature.all_exercises.domain.model.ArchiveResult
 import io.github.stslex.workeeper.feature.all_exercises.domain.model.BulkArchiveResult
 import io.github.stslex.workeeper.feature.all_exercises.domain.model.ExerciseDomain
+import io.github.stslex.workeeper.feature.all_exercises.domain.model.ExerciseListItemDomain
 import io.github.stslex.workeeper.feature.all_exercises.domain.model.TagDomain
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
@@ -28,8 +29,8 @@ internal class AllExercisesInteractorImpl @Inject constructor(
 
     override fun observeExercises(
         filterTagUuids: Set<String>,
-    ): Flow<PagingData<ExerciseDomain>> = exerciseRepository
-        .pagedActiveByTags(filterTagUuids)
+    ): Flow<PagingData<ExerciseListItemDomain>> = exerciseRepository
+        .pagedActiveWithStats(filterTagUuids)
         .map { pagingData -> pagingData.map { it.toDomain() } }
         .flowOn(defaultDispatcher)
 

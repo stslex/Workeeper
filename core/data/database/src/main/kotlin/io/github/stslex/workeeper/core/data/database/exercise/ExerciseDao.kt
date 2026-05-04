@@ -20,6 +20,80 @@ interface ExerciseDao {
     )
     fun pagedActive(): PagingSource<Int, ExerciseEntity>
 
+    /**
+     * Paged active library exercises joined with derived stats: session count
+     * (distinct finished sessions where the exercise was logged), linked-trainings count
+     * (distinct active templates referencing the exercise), and last-trained timestamp.
+     * Powers the v2.4 footer line on the all-exercises list. Mirror of [pagedActive] +
+     * three correlated subqueries; Room invalidates whenever any of the joined tables
+     * mutates. (v2.4 E6.)
+     */
+    @Query(
+        """
+        SELECT e.*,
+               (SELECT COUNT(DISTINCT pe.session_uuid)
+                FROM performed_exercise_table pe
+                INNER JOIN session_table sn ON sn.uuid = pe.session_uuid
+                WHERE pe.exercise_uuid = e.uuid
+                  AND sn.state = 'FINISHED'
+                  AND sn.finished_at IS NOT NULL
+                  AND pe.skipped = 0) AS session_count,
+               (SELECT COUNT(DISTINCT te.training_uuid)
+                FROM training_exercise_table te
+                INNER JOIN training_table t ON t.uuid = te.training_uuid
+                WHERE te.exercise_uuid = e.uuid
+                  AND t.archived = 0
+                  AND t.is_adhoc = 0) AS linked_trainings_count,
+               (SELECT MAX(sn.finished_at)
+                FROM session_table sn
+                INNER JOIN performed_exercise_table pe ON pe.session_uuid = sn.uuid
+                WHERE pe.exercise_uuid = e.uuid
+                  AND sn.state = 'FINISHED'
+                  AND sn.finished_at IS NOT NULL
+                  AND pe.skipped = 0) AS last_trained_at
+        FROM exercise_table e
+        WHERE e.archived = 0 AND e.is_adhoc = 0
+        ORDER BY e.name COLLATE NOCASE ASC
+        """,
+    )
+    fun pagedActiveWithStats(): PagingSource<Int, ExerciseListItemRow>
+
+    /**
+     * Same projection as [pagedActiveWithStats] filtered to exercises tagged with any of
+     * [tagUuids] (OR semantics, matches the legacy [pagedActiveByTags] contract).
+     */
+    @Query(
+        """
+        SELECT e.*,
+               (SELECT COUNT(DISTINCT pe.session_uuid)
+                FROM performed_exercise_table pe
+                INNER JOIN session_table sn ON sn.uuid = pe.session_uuid
+                WHERE pe.exercise_uuid = e.uuid
+                  AND sn.state = 'FINISHED'
+                  AND sn.finished_at IS NOT NULL
+                  AND pe.skipped = 0) AS session_count,
+               (SELECT COUNT(DISTINCT te.training_uuid)
+                FROM training_exercise_table te
+                INNER JOIN training_table t ON t.uuid = te.training_uuid
+                WHERE te.exercise_uuid = e.uuid
+                  AND t.archived = 0
+                  AND t.is_adhoc = 0) AS linked_trainings_count,
+               (SELECT MAX(sn.finished_at)
+                FROM session_table sn
+                INNER JOIN performed_exercise_table pe ON pe.session_uuid = sn.uuid
+                WHERE pe.exercise_uuid = e.uuid
+                  AND sn.state = 'FINISHED'
+                  AND sn.finished_at IS NOT NULL
+                  AND pe.skipped = 0) AS last_trained_at
+        FROM exercise_table e
+        INNER JOIN exercise_tag_table et ON et.exercise_uuid = e.uuid
+        WHERE e.archived = 0 AND e.is_adhoc = 0 AND et.tag_uuid IN (:tagUuids)
+        GROUP BY e.uuid
+        ORDER BY e.name COLLATE NOCASE ASC
+        """,
+    )
+    fun pagedActiveWithStatsByTags(tagUuids: List<Uuid>): PagingSource<Int, ExerciseListItemRow>
+
     @Query(
         """
         SELECT * FROM exercise_table

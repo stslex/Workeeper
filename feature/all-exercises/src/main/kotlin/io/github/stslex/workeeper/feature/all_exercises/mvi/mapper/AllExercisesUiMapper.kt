@@ -3,7 +3,7 @@ package io.github.stslex.workeeper.feature.all_exercises.mvi.mapper
 
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.feature.all_exercises.R
-import io.github.stslex.workeeper.feature.all_exercises.domain.model.ExerciseDomain
+import io.github.stslex.workeeper.feature.all_exercises.domain.model.ExerciseListItemDomain
 import io.github.stslex.workeeper.feature.all_exercises.domain.model.ExerciseTypeDomain
 import io.github.stslex.workeeper.feature.all_exercises.domain.model.TagDomain
 import io.github.stslex.workeeper.feature.all_exercises.mvi.model.ExerciseTypeUiModel
@@ -16,17 +16,13 @@ private const val MINUTE_MS = 60_000L
 private const val HOUR_MS = 60 * MINUTE_MS
 private const val DAY_MS = 24 * HOUR_MS
 
-internal fun ExerciseDomain.toUi(
+internal fun ExerciseListItemDomain.toUi(
     resourceWrapper: ResourceWrapper,
-    sessionCount: Int = 0,
-    linkedTrainingsCount: Int = 0,
-    lastTrainedAt: Long? = null,
-    tags: List<String> = emptyList(),
     nowMillis: Long = System.currentTimeMillis(),
 ): ExerciseUiModel = ExerciseUiModel(
-    uuid = uuid,
-    name = name,
-    type = type.toUi(),
+    uuid = exercise.uuid,
+    name = exercise.name,
+    type = exercise.type.toUi(),
     tags = if (tags.isEmpty()) persistentListOf() else tags.toImmutableList(),
     sessionCount = sessionCount,
     linkedTrainingsCount = linkedTrainingsCount,
@@ -38,7 +34,7 @@ internal fun ExerciseDomain.toUi(
         lastTrainedAt = lastTrainedAt,
         nowMillis = nowMillis,
     ),
-    imagePath = imagePath,
+    imagePath = exercise.imagePath,
 )
 
 /**

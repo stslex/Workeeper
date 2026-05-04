@@ -36,7 +36,9 @@ internal class PagingHandler @Inject constructor(
             .flatMapLatest { filter ->
                 interactor.observeExercises(filter)
                     .map { pagingData ->
-                        pagingData.map { it.toUi(resourceWrapper = resourceWrapper) }
+                        pagingData.map { item ->
+                            item.toUi(resourceWrapper = resourceWrapper)
+                        }
                     }
             }
             .flowOn(defaultDispatcher)
