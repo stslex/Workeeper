@@ -18,6 +18,7 @@ dependencies {
     implementation(project(":core:data:database"))
     implementation(project(":core:data:exercise"))
     implementation(project(":core:data:dataStore"))
+    implementation(project(":core:ui:plan-editor"))
 
     implementation(project(":feature:exercise"))
     implementation(project(":feature:exercise-chart"))

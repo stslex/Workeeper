@@ -86,6 +86,27 @@ internal class PlanUpdateRuleTest {
         assertEquals(performed, result)
     }
 
+    /**
+     * v2.4 reorder regression guard. Plan reorder is positional permutation only — same
+     * set count, no size change. The grow-but-not-shrink rule fires only at session
+     * finish when [performed] arrives; it must not be reachable from the editor's reorder
+     * path, but if a future caller wires reorder through `update` by mistake, the
+     * permutation contract still holds: the result equals the performed list (no head/
+     * tail merging).
+     */
+    @Test
+    fun `reorder permutation when performed and plan have equal size yields performed`() {
+        val a = set(weight = 60.0, reps = 10)
+        val b = set(weight = 80.0, reps = 8)
+        val c = set(weight = 100.0, reps = 5)
+        val existing = listOf(a, b, c)
+        val reorderedPerformed = listOf(c, a, b)
+
+        val result = PlanUpdateRule.update(existing, reorderedPerformed)
+
+        assertEquals(reorderedPerformed, result)
+    }
+
     private fun set(weight: Double?, reps: Int) = PlanSetDataModel(
         weight = weight,
         reps = reps,

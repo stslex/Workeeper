@@ -17,6 +17,7 @@ import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsReco
 import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen
+import io.github.stslex.workeeper.core.ui.plan_editor.ui.planEditorGraph
 import io.github.stslex.workeeper.feature.all_exercises.ui.allExercisesGraph
 import io.github.stslex.workeeper.feature.all_trainings.ui.allTrainingsGraph
 import io.github.stslex.workeeper.feature.exercise.ui.exerciseGraph
@@ -108,6 +109,11 @@ internal fun AppNavigationHost(
                 modifier = Modifier
                     .reportScreenPlace<Screen.ExerciseChart>()
                     .testTag("ExerciseChartGraph"),
+            )
+            planEditorGraph(
+                modifier = Modifier
+                    .reportScreenPlace<Screen.PlanEditor>()
+                    .testTag("PlanEditorGraph"),
             )
         }
     }
