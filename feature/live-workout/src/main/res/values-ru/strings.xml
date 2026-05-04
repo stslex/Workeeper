@@ -26,6 +26,8 @@
 
     <string name="feature_live_workout_add_set">+ Добавить сет</string>
 
+    <string name="feature_live_workout_set_type_tooltip">Нажмите, чтобы переключить: разминка → рабочий → отказ → дроп</string>
+
     <string name="feature_live_workout_reset_title">Сбросить сеты?</string>
     <string name="feature_live_workout_reset_body">Все записанные сеты этого упражнения будут удалены. Это нельзя отменить.</string>
     <string name="feature_live_workout_reset_confirm">Сбросить</string>

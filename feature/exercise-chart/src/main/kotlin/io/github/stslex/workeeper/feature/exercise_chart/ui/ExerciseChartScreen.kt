@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.outlined.SwapVert
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
@@ -19,6 +19,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.loading.AppLoadingIndicator
+import io.github.stslex.workeeper.core.ui.kit.components.tooltip.AppTooltip
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
@@ -101,14 +102,19 @@ private fun ChartTopBar(
             // the EXERCISE_NOT_FOUND and NO_DATA_FOR_EXERCISE empty branches, where the
             // picker is the user's recovery path.
             if (state.isPickerAccessible) {
-                IconButton(
-                    onClick = { consume(Action.Click.OnPickerOpen) },
-                    modifier = Modifier.testTag("ExerciseChartPickerOpen"),
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.SwapVert,
-                        contentDescription = stringResource(R.string.feature_exercise_chart_picker_open),
-                    )
+                // Tooltip on long-press explains the action — the swap icon alone has
+                // historically been opaque to users (spec 5.6, sort-button affordance).
+                val pickerLabel = stringResource(R.string.feature_exercise_chart_picker_open)
+                AppTooltip(text = pickerLabel) {
+                    IconButton(
+                        onClick = { consume(Action.Click.OnPickerOpen) },
+                        modifier = Modifier.testTag("ExerciseChartPickerOpen"),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.SwapHoriz,
+                            contentDescription = pickerLabel,
+                        )
+                    }
                 }
             }
         },

@@ -10,27 +10,26 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import io.github.stslex.workeeper.core.ui.kit.components.button.AppCheckmarkButton
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppNumberInput
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordBadge
 import io.github.stslex.workeeper.core.ui.kit.components.pr.personalRecordAccent
 import io.github.stslex.workeeper.core.ui.kit.components.setchip.AppSetTypeChip
+import io.github.stslex.workeeper.core.ui.kit.components.tooltip.AppTooltip
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
+import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
 
 private const val WEIGHT_COLUMN_FLEX = 1.2f
@@ -89,27 +88,23 @@ internal fun LiveSetRow(
                 enabled = editable && !set.isDone,
             )
         }
-        Box(
-            modifier = Modifier.clickable(enabled = editable) {
-                onTypeChange(set.type.next())
-            },
-        ) {
-            AppSetTypeChip(type = set.type.toUiKitType())
+        AppTooltip(text = stringResource(R.string.feature_live_workout_set_type_tooltip)) {
+            Box(
+                modifier = Modifier.clickable(enabled = editable) {
+                    onTypeChange(set.type.next())
+                },
+            ) {
+                AppSetTypeChip(type = set.type.toUiKitType())
+            }
         }
         if (set.isPersonalRecord) {
             PersonalRecordBadge()
         }
-        IconButton(
-            onClick = { if (set.isDone) onUncheck() else onMarkDone() },
+        AppCheckmarkButton(
+            isDone = set.isDone,
             enabled = editable,
-        ) {
-            Icon(
-                modifier = Modifier.size(AppDimension.iconMd),
-                imageVector = Icons.Filled.Check,
-                contentDescription = null,
-                tint = if (set.isDone) AppUi.colors.accent else AppUi.colors.textTertiary,
-            )
-        }
+            onToggle = { if (set.isDone) onUncheck() else onMarkDone() },
+        )
     }
 }
 

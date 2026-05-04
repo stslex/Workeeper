@@ -26,6 +26,9 @@
     <!-- Add set -->
     <string name="feature_live_workout_add_set">+ Add set</string>
 
+    <!-- Set-type chip tooltip (long-press) -->
+    <string name="feature_live_workout_set_type_tooltip">Tap to cycle: warmup → work → failure → drop</string>
+
     <!-- Reset confirmation -->
     <string name="feature_live_workout_reset_title">Reset sets?</string>
     <string name="feature_live_workout_reset_body">All logged sets for this exercise will be deleted. This cannot be undone.</string>
