@@ -40,7 +40,7 @@ import kotlin.math.max
 
 private val ChartAxisPadding = AppDimension.Space.md
 private val ChartLineWidth = AppDimension.Border.medium
-private val ChartPointRadius = AppDimension.Padding.small
+private val ChartPointRadius = AppDimension.Space.xs
 private val TapTargetRadius = AppDimension.iconMd
 
 private const val CHART_ASPECT_RATIO = 16f / 9f

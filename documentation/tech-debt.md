@@ -73,6 +73,24 @@ Each tracked location should carry a `TODO(tech-debt): <category> — <ref>` mar
 
 ---
 
+## v2.4 Design foundation — follow-ups
+
+Items deferred from the v2.4 PR (see `documentation/feature-specs/v2.4-design-foundation.md` Sections 6 / 7). The kit primitives, theme tokens, plan editor screen, list-screen reworks, chart footer fix, and DAO queries (F1, F2) all landed; remaining surface is tracked here for a follow-up PR.
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟡 | feature/all-exercises/.../mvi/handler/PagingHandler.kt | **`ExerciseUiModel.footerLabel` not yet populated from F1/F2 Flow data**. The PagingHandler maps with default arguments (`sessionCount = 0, linkedTrainingsCount = 0, lastTrainedAt = null`) so the new footer line ("N sessions · in M trainings · last Xd ago") renders empty. Step 4 added the F1 / F2 DAO observers and the mapper composes the label correctly given inputs; the missing piece is a paged-with-stats DAO row (parallel to `TrainingDao.pagedActiveWithStats`) that joins exercise + sessionCount + linkedTrainingsCount + lastTrainedAt in one query. **Trigger to act:** before v2.5 ships, since the empty footer is user-visible regression vs. spec E6. |
+| 🟡 | feature/live-workout/.../mvi/store/, ui/components/ | **Live workout drag-to-reorder + snackbar undo + PlanEditor route migration** (spec 5.4). Step 10 landed the small wins (AppCheckmarkButton, AppTooltip on chip, three-dots menu offset fix); the remaining heavyweight pieces — drag-to-reorder for exercises and inner sets via the new `ReorderableLazyListState` / `ReorderableColumnState`, snackbar-undo for set delete (D5 replace policy), and migrating "Edit plan" from sheet to the new `Screen.PlanEditor` route — are deferred. The new kit primitives and route exist and compile; the wiring is the work. |
+| 🟡 | feature/exercise/.../ui/ExerciseDetailScreen.kt | **E4 grid default plan card**. Step 8 landed `LargeTopAppBar`, conditional hero, and the inline type+tag chip row; the `DefaultPlanCard` still renders `state.adhocPlanSummaryLabel` (a single bullet-joined string). Spec calls for a 4-column grid (`idx | weight | reps | type-chip`) with `tabular-nums`. Requires `ExerciseStore.State.defaultPlan: ImmutableList<PlanSetUiModel>` plus a mapper update. |
+| 🟡 | feature/single-training/.../ui/SingleTrainingScreen.kt, feature/past-session/.../ui/PastSessionScreen.kt | **`LargeTopAppBar` adoption + PastSession structural edit** (spec 5.7). Not yet landed. PastSession also needs total-kg metric removal and structural-edit affordances (drag, set-delete with snackbar undo) — the latter shares state with the live-workout reorder/undo work. |
+| 🟢 | feature/exercise-chart/.../ui/components/ChartTooltipPopup.kt | **Chart tooltip rewrite from subcompose to coordinate-based draw** (spec 5.6). Footer overflow fix (the user-visible Russian regression) landed; the structural tooltip rewrite is a separate larger refactor. Existing `SubcomposeLayout` tooltip still functions. |
+| 🟢 | feature/exercise-chart/.../mvi/model/ChartFooterStatsUiModel.kt | **Structured min/max/last fields** (spec 5.6). Current model has `minLabel`/`maxLabel`/`lastLabel` strings; spec calls for splitting into `minTitle`/`minValue`/`minUnit` etc. so the StatColumn renders three lines (label / value / unit). Current label-string stack with `maxLines = 2 + ellipsis` already closes the user-visible Russian-overflow regression; the structured split is a subsequent refinement. |
+| 🟢 | feature/home/.../ui/components/TrainingPickerSheet.kt | **Templates picker → full-screen route** (spec 5.8 / E8). Not yet landed. Requires a new `Screen.TemplatesPicker` route, a TemplatesPickerScreen with `LargeTopAppBar` + search, and migrating the home tap from `consume(...sheet open)` to `Action.Navigation.OpenTemplatesPicker`. |
+| 🟢 | (multiple touched files) | **`AppDimension.Padding` migration sweep** (spec B1). Padding is `@Deprecated` and emits warnings on call sites. Step 13 of v2.4 was opportunistic — touched files migrated as work landed. Remaining call sites continue to compile with deprecation warnings. **Trigger to act:** v2.7 tech-debt ratchet, or earlier if drift detected. |
+| 🟢 | core/ui/plan-editor/.../mvi/store/PlanEditorStoreImpl.kt | **Snackbar undo for set-delete** (spec D5). The new PlanEditorScreen currently uses the existing immediate-delete behavior. Replacing with snackbar-undo is grouped with the live-workout snackbar-undo work above so both editor surfaces share the policy. |
+
+---
+
 ## v2.3 Quick start workout — follow-ups
 
 Items deferred from the v2.3 PR (per spec Section 10). Track here so the v2.7 ratchet pass can pick them up.
