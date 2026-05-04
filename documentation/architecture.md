@@ -782,6 +782,11 @@ across the whole graph from a single root scope. The start destination is
 to a `composable<Screen>` block under the hood (see
 `core/ui/navigation/.../Screen.kt::navScreen`).
 
+Every graph composable's `modifier` chain must include `Modifier.reportScreenPlace<Screen.X>()`
+— the `onPlaced` callback that stops the TTID, AppCreate, and ActivityCreate traces. Skipping
+it leaves all three pipelines mis-attributed for that screen. See
+[performance.md → New-screen contributor checklist](performance.md#new-screen-contributor-checklist).
+
 `NavHostControllerHolder` (`app/app/.../host/NavHostControllerHolder.kt`) tracks which
 `BottomBar` screen is current so `App.kt` can show or hide the `WorkeeperBottomAppBar` with an
 animated visibility transition.

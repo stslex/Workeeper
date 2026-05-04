@@ -16,5 +16,4 @@ object CommonExt {
         value: T?,
         block: (T) -> R,
     ): R? = if (value != null) block(value) else null
-
 }

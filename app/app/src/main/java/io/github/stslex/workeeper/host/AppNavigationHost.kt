@@ -47,7 +47,7 @@ internal fun AppNavigationHost(
         NavHost(
             modifier = Modifier.fillMaxSize(),
             navController = navigator.navController,
-            startDestination = Navigator.startDestination,
+            startDestination = Screen.BottomBar.Home,
         ) {
             homeGraph(
                 modifier = bottomBarModifier

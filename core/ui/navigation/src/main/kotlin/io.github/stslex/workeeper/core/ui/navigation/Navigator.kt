@@ -3,7 +3,6 @@ package io.github.stslex.workeeper.core.ui.navigation
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.navigation.NavHostController
-import kotlin.reflect.KClass
 
 @Stable
 interface Navigator {
@@ -24,15 +23,6 @@ interface Navigator {
      * session detail after finish).
      */
     fun replaceTo(screen: Screen)
-
-    companion object {
-
-        val startDestination: Screen
-            get() = Screen.BottomBar.Home
-
-        val startDestinationClass: KClass<out Screen>
-            get() = startDestination::class
-    }
 }
 
 val LocalNavigator = staticCompositionLocalOf<Navigator> {
