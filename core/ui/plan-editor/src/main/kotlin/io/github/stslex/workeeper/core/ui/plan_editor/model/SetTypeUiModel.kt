@@ -11,7 +11,7 @@ enum class SetTypeUiModel(
     WARMUP(R.string.core_ui_kit_plan_editor_set_type_warmup),
     WORK(R.string.core_ui_kit_plan_editor_set_type_work),
     FAILURE(R.string.core_ui_kit_plan_editor_set_type_failure),
-    DROP(R.string.core_ui_kit_plan_editor_set_type_failure),
+    DROP(R.string.core_ui_kit_plan_editor_set_type_drop),
     ;
 
     fun toData(): SetTypeDataModel = when (this) {
