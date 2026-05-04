@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.core.ui.plan_editor.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,19 +13,24 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.window.Dialog
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
-import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
-import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -38,12 +44,14 @@ import io.github.stslex.workeeper.core.ui.plan_editor.mvi.store.PlanEditorStore.
 import io.github.stslex.workeeper.core.ui.plan_editor.mvi.store.PlanEditorStore.State
 import kotlinx.collections.immutable.toImmutableList
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun PlanEditorScreen(
     state: State,
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val title = if (state.exerciseName.isBlank()) {
         stringResource(R.string.core_ui_plan_editor_screen_title_default)
     } else {
@@ -52,10 +60,18 @@ internal fun PlanEditorScreen(
     Scaffold(
         modifier = modifier
             .fillMaxSize()
+            .nestedScroll(scrollBehavior.nestedScrollConnection)
             .testTag("PlanEditorScreen"),
         topBar = {
-            AppTopAppBar(
-                title = title,
+            LargeTopAppBar(
+                scrollBehavior = scrollBehavior,
+                title = {
+                    Text(
+                        text = title,
+                        style = AppUi.typography.headlineSmall,
+                        color = AppUi.colors.textPrimary,
+                    )
+                },
                 navigationIcon = {
                     IconButton(
                         modifier = Modifier.testTag("PlanEditorBack"),
@@ -69,6 +85,13 @@ internal fun PlanEditorScreen(
                         )
                     }
                 },
+                colors = TopAppBarDefaults.largeTopAppBarColors(
+                    containerColor = AppUi.colors.surfaceTier0,
+                    scrolledContainerColor = AppUi.colors.surfaceTier0,
+                    titleContentColor = AppUi.colors.textPrimary,
+                    navigationIconContentColor = AppUi.colors.textPrimary,
+                    actionIconContentColor = AppUi.colors.textPrimary,
+                ),
             )
         },
         bottomBar = {
@@ -112,16 +135,77 @@ internal fun PlanEditorScreen(
         }
 
         if (state.confirmDiscardOpen) {
-            AppConfirmDialog(
-                title = stringResource(R.string.core_ui_plan_editor_discard_title),
-                body = stringResource(R.string.core_ui_plan_editor_discard_body),
-                impactSummary = "",
-                confirmLabel = stringResource(R.string.core_ui_plan_editor_discard_discard),
-                dismissLabel = stringResource(R.string.core_ui_plan_editor_discard_continue),
-                onConfirm = { consume(Action.Click.OnConfirmDiscard) },
-                onDismiss = { consume(Action.Click.OnDismissDiscard) },
-                modifier = Modifier.testTag("PlanEditorDiscardDialog"),
+            DiscardDialog(
+                onSave = { consume(Action.Click.OnConfirmSave) },
+                onDiscard = { consume(Action.Click.OnConfirmDiscard) },
+                onContinue = { consume(Action.Click.OnDismissDiscard) },
             )
+        }
+    }
+}
+
+/**
+ * Three-action discard dialog (v2.4 5.5 / D2): Save / Discard / Continue editing. The
+ * standard `AppConfirmDialog` only renders two actions; this dialog inlines a custom
+ * three-button row so the user can commit or abandon edits without leaving the screen
+ * twice.
+ */
+@Composable
+private fun DiscardDialog(
+    onSave: () -> Unit,
+    onDiscard: () -> Unit,
+    onContinue: () -> Unit,
+) {
+    val dialogBg = if (AppUi.colors.isDark) AppUi.colors.surfaceTier1 else AppUi.colors.surfaceTier2
+    Dialog(onDismissRequest = onContinue) {
+        Column(
+            modifier = Modifier
+                .testTag("PlanEditorDiscardDialog")
+                .clip(AppUi.shapes.medium)
+                .background(dialogBg)
+                .padding(AppDimension.Space.lg),
+            verticalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
+        ) {
+            Text(
+                text = stringResource(R.string.core_ui_plan_editor_discard_title),
+                style = AppUi.typography.titleLarge,
+                color = AppUi.colors.textPrimary,
+            )
+            Text(
+                text = stringResource(R.string.core_ui_plan_editor_discard_body),
+                style = AppUi.typography.bodyMedium,
+                color = AppUi.colors.textSecondary,
+            )
+            // FlowRow so the three buttons wrap onto a second line on narrow screens
+            // rather than overflowing horizontally. End-aligned matches the
+            // AppConfirmDialog convention.
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(
+                    space = AppDimension.Space.sm,
+                    alignment = Alignment.End,
+                ),
+                verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xs),
+            ) {
+                AppButton.Tertiary(
+                    modifier = Modifier.testTag("PlanEditorDiscardContinue"),
+                    text = stringResource(R.string.core_ui_plan_editor_discard_continue),
+                    onClick = onContinue,
+                    size = AppButtonSize.MEDIUM,
+                )
+                AppButton.Destructive(
+                    modifier = Modifier.testTag("PlanEditorDiscardDiscard"),
+                    text = stringResource(R.string.core_ui_plan_editor_discard_discard),
+                    onClick = onDiscard,
+                    size = AppButtonSize.MEDIUM,
+                )
+                AppButton.Primary(
+                    modifier = Modifier.testTag("PlanEditorDiscardSave"),
+                    text = stringResource(R.string.core_ui_plan_editor_discard_save),
+                    onClick = onSave,
+                    size = AppButtonSize.MEDIUM,
+                )
+            }
         }
     }
 }
