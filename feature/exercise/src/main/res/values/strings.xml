@@ -35,7 +35,7 @@
     <string name="feature_exercise_edit_label_tags">Tags</string>
     <string name="feature_exercise_edit_label_description">Description</string>
     <string name="feature_exercise_edit_placeholder_description">Optional notes — technique, gym-specific details</string>
-    <string name="feature_exercise_edit_tag_search_placeholder">Add tag…</string>
+    <string name="feature_exercise_edit_tag_search_placeholder">Type to filter or create new</string>
     <string name="feature_exercise_edit_tag_create_format">+ Create &#8220;%1$s&#8221;</string>
     <string name="feature_exercise_edit_tag_limit">Maximum 10 tags per exercise</string>
     <string name="feature_exercise_edit_error_name_required">Name is required</string>

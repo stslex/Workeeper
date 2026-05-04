@@ -84,7 +84,7 @@
     <string name="feature_live_workout_training_name_placeholder">Untitled</string>
 
     <!-- Inline exercise picker (Quick start mid-session add) -->
-    <string name="feature_live_workout_picker_search_hint">Search or create</string>
+    <string name="feature_live_workout_picker_search_hint">Type to filter or create new</string>
     <string name="feature_live_workout_picker_no_match_format">No exercises match “%1$s”</string>
     <string name="feature_live_workout_picker_create_format">Create “%1$s”</string>
     <string name="feature_live_workout_add_exercise_cta">Add exercise</string>

@@ -50,7 +50,7 @@
     <string name="feature_training_edit_discard_body">Your changes will be lost.</string>
     <string name="feature_training_edit_discard_confirm">Discard</string>
     <string name="feature_training_edit_discard_dismiss">Keep editing</string>
-    <string name="feature_training_edit_tag_search_placeholder">Add tag…</string>
+    <string name="feature_training_edit_tag_search_placeholder">Type to filter or create new</string>
     <string name="feature_training_edit_tag_create_format">+ Create “%1$s”</string>
 
     <!-- Exercise picker -->

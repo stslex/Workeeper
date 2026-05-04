@@ -77,7 +77,7 @@
 
     <string name="feature_live_workout_training_name_placeholder">Без названия</string>
 
-    <string name="feature_live_workout_picker_search_hint">Поиск или создание</string>
+    <string name="feature_live_workout_picker_search_hint">Введите чтобы найти или создать</string>
     <string name="feature_live_workout_picker_no_match_format">Нет упражнений по запросу «%1$s»</string>
     <string name="feature_live_workout_picker_create_format">Создать «%1$s»</string>
     <string name="feature_live_workout_add_exercise_cta">Добавить упражнение</string>
