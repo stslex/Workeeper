@@ -22,5 +22,11 @@ internal interface PastSessionInteractor {
         set: SetDomain,
     )
 
+    /**
+     * Persists a positional permutation of the sets attached to [performedExerciseUuid].
+     * [orderedSetUuids] lists the new order; position 0 is the first entry. (v2.4 5.7.)
+     */
+    suspend fun reorderSets(performedExerciseUuid: String, orderedSetUuids: List<String>)
+
     suspend fun deleteSession(sessionUuid: String)
 }

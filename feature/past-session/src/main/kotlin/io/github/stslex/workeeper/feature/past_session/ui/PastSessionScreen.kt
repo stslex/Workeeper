@@ -210,6 +210,15 @@ private fun LoadedContent(
                 onTypeChange = { setUuid, type ->
                     consume(Action.Click.OnSetTypeChange(setUuid = setUuid, type = type))
                 },
+                onSetReorder = { performedExerciseUuid, from, to ->
+                    consume(
+                        Action.Click.OnSetReorder(
+                            performedExerciseUuid = performedExerciseUuid,
+                            from = from,
+                            to = to,
+                        ),
+                    )
+                },
             )
         }
     }
@@ -281,7 +290,6 @@ private fun stubDetail(): PastSessionUiModel = PastSessionUiModel(
     finishedAtAbsoluteLabel = "Mon, Apr 27, 19:42",
     durationLabel = "47 min",
     totalsLabel = "5 exercises · 18 sets",
-    volumeLabel = "1,250 kg total",
     exercises = persistentListOf(
         PastExerciseUiModel(
             performedExerciseUuid = "pe-1",

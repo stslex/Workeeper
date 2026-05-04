@@ -130,7 +130,6 @@ internal class ClickHandlerTest {
                     finishedAtAbsoluteLabel = "Apr 28",
                     durationLabel = "01:00",
                     totalsLabel = "1 exercise · 1 set",
-                    volumeLabel = "800 kg total",
                     exercises = persistentListOf(
                         PastExerciseUiModel(
                             performedExerciseUuid = PERFORMED_EXERCISE_UUID,

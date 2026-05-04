@@ -60,6 +60,13 @@ internal class PastSessionInteractorImpl @Inject constructor(
         setRepository.update(performedExerciseUuid, position, set.toData())
     }
 
+    override suspend fun reorderSets(
+        performedExerciseUuid: String,
+        orderedSetUuids: List<String>,
+    ) {
+        setRepository.reorderSets(performedExerciseUuid, orderedSetUuids)
+    }
+
     override suspend fun deleteSession(sessionUuid: String) {
         sessionRepository.deleteSession(sessionUuid)
     }

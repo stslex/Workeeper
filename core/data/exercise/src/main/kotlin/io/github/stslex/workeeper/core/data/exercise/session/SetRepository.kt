@@ -20,6 +20,14 @@ interface SetRepository {
 
     suspend fun update(performedExerciseUuid: String, position: Int, set: SetsDataModel)
 
+    /**
+     * Rewrites positions for the sets of [performedExerciseUuid] in the order given by
+     * [orderedSetUuids]. Position 0 corresponds to `orderedSetUuids[0]`, etc. Used by the
+     * past-session structural reorder. Runs in a single repository transaction so a
+     * crash mid-update never leaves the table in a half-permuted state.
+     */
+    suspend fun reorderSets(performedExerciseUuid: String, orderedSetUuids: List<String>)
+
     suspend fun delete(uuid: String)
 
     /**

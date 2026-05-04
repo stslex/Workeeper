@@ -41,13 +41,8 @@ internal fun PastSessionHeader(
                 style = AppUi.typography.bodyMedium,
                 color = AppUi.colors.textSecondary,
             )
-            detail.volumeLabel?.let { volume ->
-                Text(
-                    text = volume,
-                    style = AppUi.typography.bodyMedium,
-                    color = AppUi.colors.textSecondary,
-                )
-            }
+            // Total-kg/volume metric removed in v2.4 5.7 — the per-set view + chart
+            // surface volume more usefully than a single rolled-up number.
         }
     }
 }
@@ -74,6 +69,5 @@ private fun stubDetail(): PastSessionUiModel = PastSessionUiModel(
     finishedAtAbsoluteLabel = "Mon, Apr 27, 19:42",
     durationLabel = "47 min",
     totalsLabel = "5 exercises · 18 sets",
-    volumeLabel = "1,250 kg total",
     exercises = persistentListOf(),
 )

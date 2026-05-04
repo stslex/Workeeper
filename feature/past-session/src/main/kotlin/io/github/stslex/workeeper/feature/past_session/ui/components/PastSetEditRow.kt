@@ -13,11 +13,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppNumberInput
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordBadge
 import io.github.stslex.workeeper.core.ui.kit.components.pr.personalRecordAccent
 import io.github.stslex.workeeper.core.ui.kit.components.setchip.AppSetTypeChip
+import io.github.stslex.workeeper.core.ui.kit.components.tooltip.AppTooltip
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
+import io.github.stslex.workeeper.feature.past_session.R
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
@@ -70,7 +73,11 @@ internal fun PastSetEditRow(
             isError = set.repsError,
         )
         if (set.isPersonalRecord) {
-            PersonalRecordBadge()
+            // Long-press the badge to surface the v2.4 PR explainer copy. Wrapping in
+            // AppTooltip keeps the tap-target visual unchanged.
+            AppTooltip(text = stringResource(R.string.feature_past_session_pr_tooltip)) {
+                PersonalRecordBadge()
+            }
         }
     }
 }

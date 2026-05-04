@@ -11,7 +11,6 @@ import io.github.stslex.workeeper.feature.past_session.domain.model.SetDomain
 import io.github.stslex.workeeper.feature.past_session.domain.model.SetTypeDomain
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -20,7 +19,6 @@ internal class PastSessionUiMapperTest {
     private val resources = object : ResourceWrapper {
         override fun getString(id: Int, vararg args: Any): String = when (id) {
             R.string.feature_past_session_adhoc_label -> "Ad-hoc workout"
-            R.string.feature_past_session_volume_label -> "${args[0]} kg total"
             R.string.feature_past_session_totals_format -> "${args[0]} · ${args[1]}"
             else -> error("Unexpected string id: $id")
         }
@@ -61,7 +59,7 @@ internal class PastSessionUiMapperTest {
         assertEquals("Apr 28", ui.finishedAtAbsoluteLabel)
         assertEquals("01:30", ui.durationLabel)
         assertEquals("2 exercises · 3 sets", ui.totalsLabel)
-        assertEquals("770 kg total", ui.volumeLabel)
+        // Total-kg/volume metric removed in v2.4 5.7 — model no longer surfaces it.
 
         assertEquals(listOf("Pull Up", "Bench", "Skipped Fly"), ui.exercises.map { it.exerciseName })
         assertEquals(false, ui.exercises[0].isWeighted)
@@ -95,7 +93,10 @@ internal class PastSessionUiMapperTest {
     }
 
     @Test
-    fun `mapper leaves volume label null when no weighted work or fail sets qualify`() {
+    fun `mapper does not surface a volume label even when weighted sets are present`() {
+        // v2.4 5.7 removed total-kg from the past-session header; the regression guard
+        // for the deprecated mapping branch lives here so future refactors keep volume
+        // out of the UI surface entirely.
         val ui = sessionDetail(
             isAdhoc = false,
             exercises = listOf(
@@ -111,13 +112,7 @@ internal class PastSessionUiMapperTest {
                             uuid = "set-4",
                             reps = 5,
                             weight = 100.0,
-                            type = SetTypeDomain.WARMUP,
-                        ),
-                        SetDomain(
-                            uuid = "set-5",
-                            reps = 10,
-                            weight = 40.0,
-                            type = SetTypeDomain.DROP,
+                            type = SetTypeDomain.WORK,
                         ),
                     ),
                 ),
@@ -125,7 +120,7 @@ internal class PastSessionUiMapperTest {
         ).toUi(resources)
 
         assertEquals("Push Day", ui.trainingName)
-        assertNull(ui.volumeLabel)
+        // PastSessionUiModel no longer carries `volumeLabel`; regression guard.
     }
 
     private fun sessionDetail(

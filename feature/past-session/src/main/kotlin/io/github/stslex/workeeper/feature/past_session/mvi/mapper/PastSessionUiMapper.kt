@@ -22,13 +22,9 @@ internal fun SessionDetailDomain.toUi(
 ): PastSessionUiModel {
     val totalSets = exercises.sumOf { it.sets.size }
     val activeExercises = exercises.count { !it.skipped }
-    val volume = computeVolume(exercises)
     val finishedAtLabel = resourceWrapper.formatMediumDate(finishedAt)
     val durationLabel = formatElapsedDuration(finishedAt - startedAt)
     val totalsLabel = buildTotalsLabel(resourceWrapper, activeExercises, totalSets)
-    val volumeLabel = volume?.let {
-        resourceWrapper.getString(R.string.feature_past_session_volume_label, formatWeight(it))
-    }
     val trainingName = if (isAdhoc) {
         resourceWrapper.getString(R.string.feature_past_session_adhoc_label)
     } else {
@@ -40,20 +36,8 @@ internal fun SessionDetailDomain.toUi(
         finishedAtAbsoluteLabel = finishedAtLabel,
         durationLabel = durationLabel,
         totalsLabel = totalsLabel,
-        volumeLabel = volumeLabel,
         exercises = exercises.toUiList(prSetUuids),
     )
-}
-
-private fun computeVolume(exercises: List<PerformedExerciseDetailDomain>): Double? {
-    val total = exercises
-        .asSequence()
-        .filter { it.exerciseType == ExerciseTypeDomain.WEIGHTED }
-        .flatMap { it.sets.asSequence() }
-        .filter { it.type == SetTypeDomain.WORK || it.type == SetTypeDomain.FAILURE }
-        .mapNotNull { set -> set.weight?.let { weight -> weight * set.reps } }
-        .sum()
-    return total.takeIf { it > 0.0 }
 }
 
 private fun buildTotalsLabel(
