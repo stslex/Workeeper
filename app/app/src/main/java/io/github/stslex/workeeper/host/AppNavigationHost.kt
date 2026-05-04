@@ -9,9 +9,12 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.testTag
 import androidx.navigation.compose.NavHost
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
+import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
+import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.all_exercises.ui.allExercisesGraph
@@ -44,47 +47,75 @@ internal fun AppNavigationHost(
         NavHost(
             modifier = Modifier.fillMaxSize(),
             navController = navigator.navController,
-            startDestination = Screen.BottomBar.Home,
+            startDestination = Navigator.startDestination,
         ) {
             homeGraph(
-                modifier = bottomBarModifier.testTag("HomeGraph"),
+                modifier = bottomBarModifier
+                    .reportScreenPlace<Screen.BottomBar.Home>()
+                    .testTag("HomeGraph"),
                 sharedTransitionScope = this@SharedTransitionLayout,
             )
             allTrainingsGraph(
-                modifier = bottomBarModifier.testTag("AllTrainingsGraph"),
+                modifier = bottomBarModifier
+                    .reportScreenPlace<Screen.BottomBar.AllTrainings>()
+                    .testTag("AllTrainingsGraph"),
                 sharedTransitionScope = this@SharedTransitionLayout,
             )
             allExercisesGraph(
-                modifier = bottomBarModifier.testTag("AllExercisesGraph"),
+                modifier = bottomBarModifier
+                    .reportScreenPlace<Screen.BottomBar.AllExercises>()
+                    .testTag("AllExercisesGraph"),
                 sharedTransitionScope = this@SharedTransitionLayout,
             )
             singleTrainingsGraph(
-                modifier = Modifier.testTag("SingleTrainingGraph"),
+                modifier = Modifier
+                    .reportScreenPlace<Screen.Training>()
+                    .testTag("SingleTrainingGraph"),
                 sharedTransitionScope = this@SharedTransitionLayout,
             )
             exerciseGraph(
                 modifier = Modifier
+                    .reportScreenPlace<Screen.Exercise>()
                     .testTag("ExerciseGraph"),
             )
             liveWorkoutGraph(
-                modifier = Modifier.testTag("LiveWorkoutGraph"),
+                modifier = Modifier
+                    .reportScreenPlace<Screen.LiveWorkout>()
+                    .testTag("LiveWorkoutGraph"),
                 sharedTransitionScope = this@SharedTransitionLayout,
             )
             pastSessionGraph(
-                modifier = Modifier.testTag("PastSessionGraph"),
+                modifier = Modifier
+                    .reportScreenPlace<Screen.PastSession>()
+                    .testTag("PastSessionGraph"),
             )
             imageViewerGraph(
-                modifier = Modifier.testTag("ImageViewerGraph"),
+                modifier = Modifier
+                    .reportScreenPlace<Screen.ExerciseImage>()
+                    .testTag("ImageViewerGraph"),
             )
             settingsGraph(
-                modifier = Modifier.testTag("SettingsGraph"),
+                modifier = Modifier
+                    .reportScreenPlace<Screen.Settings>()
+                    .testTag("SettingsGraph"),
             )
             archiveGraph(
-                modifier = Modifier.testTag("ArchiveGraph"),
+                modifier = Modifier
+                    .reportScreenPlace<Screen.Archive>()
+                    .testTag("ArchiveGraph"),
             )
             exerciseChartGraph(
-                modifier = Modifier.testTag("ExerciseChartGraph"),
+                modifier = Modifier
+                    .reportScreenPlace<Screen.ExerciseChart>()
+                    .testTag("ExerciseChartGraph"),
             )
         }
+    }
+}
+
+private inline fun <reified S : Screen> Modifier.reportScreenPlace(): Modifier {
+    val action = RecordAction.OnScreenPlaced(S::class)
+    return this.onPlaced {
+        PerformanceMetricsRecorder.process(action)
     }
 }

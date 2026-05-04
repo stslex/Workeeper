@@ -6,6 +6,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import dagger.hilt.android.AndroidEntryPoint
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
+import io.github.stslex.workeeper.core.ui.mvi.performance.FirebaseScreenRenderRecorder
+import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
+import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -18,13 +21,24 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        PerformanceMetricsRecorder.process(RecordAction.ActivityCreated(coldStart = savedInstanceState == null))
         activityProducer.produce(this)
 
-        setContent { App() }
+        setContent {
+            App()
+        }
     }
 
     override fun onDestroy() {
         super.onDestroy()
         activityProducer.produce(null)
+        FirebaseScreenRenderRecorder.clearAllTraces()
+        PerformanceMetricsRecorder.process(RecordAction.ClearTraces)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        // For correctly understand activity cold start or not
+        outState.putString("activitySave", "saved")
+        super.onSaveInstanceState(outState)
     }
 }

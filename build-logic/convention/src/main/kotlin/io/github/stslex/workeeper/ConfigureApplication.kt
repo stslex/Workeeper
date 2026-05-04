@@ -27,6 +27,7 @@ fun Project.configureApplication(
         apply(libs.findPluginId("serialization"))
         apply(libs.findPluginId("gms"))
         apply(libs.findPluginId("firebaseCrashlytics"))
+        apply(libs.findPluginId("firebasePerf"))
         apply(libs.findPluginId("ksp"))
         apply(libs.findPluginId("convention.lint"))
     }

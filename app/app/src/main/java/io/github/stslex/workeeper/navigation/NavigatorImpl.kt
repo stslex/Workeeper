@@ -2,6 +2,8 @@ package io.github.stslex.workeeper.navigation
 
 import androidx.compose.runtime.Stable
 import io.github.stslex.workeeper.core.core.logger.Log
+import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
+import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
 import io.github.stslex.workeeper.core.ui.navigation.Screen
@@ -20,6 +22,7 @@ class NavigatorImpl @Inject constructor(
         logger.d("navTo $screen")
         try {
             val currentRoute = holder.navigator.currentDestination?.route ?: return
+            PerformanceMetricsRecorder.process(RecordAction.Navigation.NavTo(screen::class))
             navController.navigate(screen) {
                 if (screen.isSingleTop) {
                     popUpTo(currentRoute) {
@@ -43,6 +46,7 @@ class NavigatorImpl @Inject constructor(
         logger.d("replaceTo $screen")
         try {
             val currentRoute = holder.navigator.currentDestination?.route ?: return
+            PerformanceMetricsRecorder.process(RecordAction.Navigation.ReplaceTo(screen::class))
             navController.navigate(screen) {
                 popUpTo(currentRoute) {
                     inclusive = true
