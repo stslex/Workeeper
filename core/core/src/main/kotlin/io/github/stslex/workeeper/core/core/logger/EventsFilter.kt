@@ -1,6 +1,6 @@
 package io.github.stslex.workeeper.core.core.logger
 
-class EventsFilter {
+internal class EventsFilter {
 
     @Volatile
     private var lastTrackedEvent: Pair<String, Long>? = null

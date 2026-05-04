@@ -31,6 +31,7 @@ Project context for OpenAI Codex / Cursor agents (and any other tool that follow
 - [documentation/testing.md](documentation/testing.md) — unit + UI test strategy.
 - [documentation/ci-cd.md](documentation/ci-cd.md) — workflows, release pipeline.
 - [documentation/lint-rules.md](documentation/lint-rules.md) — Detekt MVI rules + Android Lint.
+- [documentation/performance.md](documentation/performance.md) — Firebase Performance pipelines (TTID, Screen rendering, AppCreate / ActivityCreate).
 - [CONTRIBUTING.md](CONTRIBUTING.md) — contributor workflow, commit format.
 
 ### Domain layer: interactors and use cases
@@ -92,6 +93,10 @@ Use this mapping:
 - Compose UI smoke tests: `.claude/skills/write-ui-test.md`
 - Room schema migrations and migration tests: `.claude/skills/add-database-migration.md`
 - Refactors driven by custom MVI/Detekt rules: `.claude/skills/refactor-with-mvi-rules.md`
+- Firebase Performance / TTID / cold-start / screen-rendering trace work, and any change
+  that touches `core/ui/mvi/.../performance/` or the `Modifier.reportScreenPlace<>` wiring
+  in `AppNavigationHost`: read [documentation/performance.md](documentation/performance.md)
+  before changes.
 
 If multiple skills apply, use the most specific one first, then combine the others as needed.
 If no listed skill applies, continue with the normal repository instructions.

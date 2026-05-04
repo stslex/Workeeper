@@ -61,6 +61,10 @@ open class BaseStore<S : State, A : Action, E : Event>(
     val loggerHolder: LoggerHolder,
 ) : ViewModel(), Store<S, A, E>, StoreConsumer<S, A, E> {
 
+    init {
+        storeEmitter.setStore(this)
+    }
+
     private val _event: MutableSharedFlow<E> = MutableSharedFlow(
         extraBufferCapacity = EVENTS_BUFFER_CAPACITY,
         onBufferOverflow = BufferOverflow.SUSPEND,
@@ -100,13 +104,6 @@ open class BaseStore<S : State, A : Action, E : Event>(
         scope.addObserver(lifecycleObserver)
         allowConsumeAction.set(true)
         initialActions.forEach { consume(it) }
-    }
-
-    fun initEmitter() {
-        /*todo: check why emitter sometimes doesn't have store instance
-         *  seems that emitter recreate instance
-         *   it could be problems in StoreProcessor lifecycle creation */
-        storeEmitter.setStore(this)
     }
 
     fun dispose() {
@@ -231,6 +228,6 @@ open class BaseStore<S : State, A : Action, E : Event>(
     companion object {
 
         private const val EVENTS_BUFFER_CAPACITY = 32
-        internal const val STORE_LOGGER_PREFIX = "MVI_STORE"
+        internal const val STORE_LOGGER_PREFIX = "SCREEN_"
     }
 }

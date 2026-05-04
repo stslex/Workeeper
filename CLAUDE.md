@@ -31,6 +31,7 @@ content in this file.
 - [documentation/testing.md](documentation/testing.md) — unit + UI test strategy.
 - [documentation/ci-cd.md](documentation/ci-cd.md) — workflows, release pipeline.
 - [documentation/lint-rules.md](documentation/lint-rules.md) — Detekt MVI rules + Android Lint.
+- [documentation/performance.md](documentation/performance.md) — Firebase Performance pipelines (TTID, Screen rendering, AppCreate / ActivityCreate).
 - [CONTRIBUTING.md](CONTRIBUTING.md) — contributor workflow, commit format.
 
 ## Domain layer
