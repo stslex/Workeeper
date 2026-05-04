@@ -47,9 +47,12 @@ internal class TrainingDaoPagedActiveWithStatsTest : BaseDatabaseTest() {
         val pushUuid = Uuid.random()
         val pullUuid = Uuid.random()
         val emptyUuid = Uuid.random()
-        seedTraining(pushUuid, "Push Day", isAdhoc = false, archived = false)
-        seedTraining(pullUuid, "Pull Day", isAdhoc = false, archived = false)
-        seedTraining(emptyUuid, "Empty Day", isAdhoc = false, archived = false)
+        // v2.4 E7 sort: last-trained DESC NULLS LAST, then created DESC. Created
+        // timestamps below tie-break the two never-trained trainings (Push has an
+        // active session but no finished_at, so it counts as never-trained too).
+        seedTraining(pushUuid, "Push Day", isAdhoc = false, archived = false, createdAt = 200L)
+        seedTraining(pullUuid, "Pull Day", isAdhoc = false, archived = false, createdAt = 100L)
+        seedTraining(emptyUuid, "Empty Day", isAdhoc = false, archived = false, createdAt = 300L)
         // archived/adhoc must NOT appear in the projection.
         val archivedUuid = Uuid.random()
         val adhocUuid = Uuid.random()
@@ -85,9 +88,12 @@ internal class TrainingDaoPagedActiveWithStatsTest : BaseDatabaseTest() {
 
         val rows = loadAllRows()
 
-        // Expect alpha order over trainings (Empty Day, Pull Day, Push Day).
+        // v2.4 E7 sort:
+        //   1. Pull Day (last_session_at = 2_500L → not null, so first group)
+        //   2. Empty Day (null last_session_at, createdAt 300 — newer)
+        //   3. Push Day (null last_session_at, createdAt 200)
         assertEquals(
-            listOf("Empty Day", "Pull Day", "Push Day"),
+            listOf("Pull Day", "Empty Day", "Push Day"),
             rows.map { it.name },
         )
         val push = rows.single { it.name == "Push Day" }
@@ -153,6 +159,7 @@ internal class TrainingDaoPagedActiveWithStatsTest : BaseDatabaseTest() {
         name: String,
         isAdhoc: Boolean,
         archived: Boolean,
+        createdAt: Long = 0L,
     ) {
         trainingDao.insert(
             TrainingEntity(
@@ -161,7 +168,7 @@ internal class TrainingDaoPagedActiveWithStatsTest : BaseDatabaseTest() {
                 description = null,
                 isAdhoc = isAdhoc,
                 archived = archived,
-                createdAt = 0L,
+                createdAt = createdAt,
                 archivedAt = if (archived) 100L else null,
             ),
         )

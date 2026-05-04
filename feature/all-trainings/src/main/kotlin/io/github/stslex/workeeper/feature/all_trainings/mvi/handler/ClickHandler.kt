@@ -10,14 +10,11 @@ import io.github.stslex.workeeper.feature.all_trainings.di.AllTrainingsHandlerSt
 import io.github.stslex.workeeper.feature.all_trainings.domain.AllTrainingsInteractor
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.Action
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.Event
-import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.State
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.State.PendingBulkDelete
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.State.SelectionMode
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toPersistentSet
 import javax.inject.Inject
-
-private const val MAX_BLOCKED_NAMES = 2
 
 @Suppress("TooManyFunctions")
 @ViewModelScoped
@@ -35,7 +32,6 @@ internal class ClickHandler @Inject constructor(
             is Action.Click.OnTagFilterToggle -> processTagFilterToggle(action)
             is Action.Click.OnSelectionToggle -> processSelectionToggle(action)
             Action.Click.OnSelectionExit -> processSelectionExit()
-            Action.Click.OnBulkArchive -> processBulkArchive()
             Action.Click.OnBulkDelete -> processBulkDelete()
             Action.Click.OnBulkDeleteConfirm -> processBulkDeleteConfirm()
             Action.Click.OnBulkDeleteDismiss -> processBulkDeleteDismiss()
@@ -142,42 +138,6 @@ internal class ClickHandler @Inject constructor(
         updateState { it.copy(selectionMode = SelectionMode.Off) }
     }
 
-    private fun processBulkArchive() {
-        val mode = state.value.selectionMode as? SelectionMode.On ?: return
-        sendEvent(Event.HapticClick(HapticFeedbackType.LongPress))
-        val targets = mode.selectedUuids.toSet()
-        launch(
-            onSuccess = { outcome ->
-                updateStateImmediate { current ->
-                    current.copy(selectionMode = SelectionMode.Off)
-                }
-                if (outcome.blockedNames.isEmpty()) {
-                    sendEvent(
-                        Event.ShowBulkArchiveSuccess(
-                            message = resourceWrapper.getQuantityString(
-                                R.plurals.feature_all_trainings_bulk_archive_success,
-                                outcome.archivedCount,
-                                outcome.archivedCount,
-                            ),
-                        ),
-                    )
-                } else {
-                    sendEvent(
-                        Event.ShowBulkArchiveBlocked(
-                            message = resourceWrapper.getString(
-                                R.string.feature_all_trainings_bulk_archive_partial_format,
-                                outcome.archivedCount,
-                                outcome.blockedNames.toOverflowPreview(),
-                            ),
-                        ),
-                    )
-                }
-            },
-        ) {
-            interactor.archiveTrainings(targets)
-        }
-    }
-
     private fun processBulkDelete() {
         val mode = state.value.selectionMode as? SelectionMode.On ?: return
         if (!mode.canDeleteAll) return
@@ -216,16 +176,5 @@ internal class ClickHandler @Inject constructor(
 
     private fun processBulkDeleteDismiss() {
         updateState { current -> current.copy(pendingBulkDelete = null) }
-    }
-
-    @Suppress("unused")
-    private fun State.placeholder(): State = this
-
-    private fun List<String>.toOverflowPreview(): String {
-        val visible = take(MAX_BLOCKED_NAMES).joinToString(separator = ", ")
-        val overflow = size - MAX_BLOCKED_NAMES
-        if (overflow <= 0) return visible
-        val overflowLabel = resourceWrapper.getString(R.string.feature_all_trainings_overflow_format, overflow)
-        return "$visible, $overflowLabel"
     }
 }

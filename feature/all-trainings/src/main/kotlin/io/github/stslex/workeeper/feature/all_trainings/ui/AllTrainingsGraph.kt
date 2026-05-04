@@ -25,12 +25,6 @@ fun NavGraphBuilder.allTrainingsGraph(
         processor.Handle { event ->
             when (event) {
                 is Event.HapticClick -> haptic.performHapticFeedback(event.type)
-                is Event.ShowBulkArchiveSuccess ->
-                    SnackbarManager.showSnackbar(message = event.message)
-
-                is Event.ShowBulkArchiveBlocked ->
-                    SnackbarManager.showSnackbar(message = event.message)
-
                 is Event.ShowBulkDeleteSuccess ->
                     SnackbarManager.showSnackbar(message = event.message)
             }
