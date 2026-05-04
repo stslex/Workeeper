@@ -13,17 +13,23 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LargeTopAppBar
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.empty.AppEmptyState
 import io.github.stslex.workeeper.core.ui.kit.components.loading.AppLoadingIndicator
-import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -42,54 +48,41 @@ import io.github.stslex.workeeper.feature.past_session.ui.components.PastSession
 import kotlinx.collections.immutable.persistentListOf
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun PastSessionScreen(
     state: State,
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    Scaffold(
         modifier = modifier
             .fillMaxSize()
-            .background(AppUi.colors.surfaceTier0)
+            .nestedScroll(scrollBehavior.nestedScrollConnection)
             .testTag("PastSessionScreen"),
-    ) {
-        AppTopAppBar(
-            title = (state.phase as? State.Phase.Loaded)?.detail?.trainingName
-                ?: stringResource(R.string.feature_past_session_loading_title),
-            navigationIcon = {
-                IconButton(onClick = { consume(Action.Click.OnBackClick) }) {
-                    Icon(
-                        modifier = Modifier.size(AppDimension.iconMd),
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(KitR.string.core_ui_kit_action_back),
-                    )
-                }
-            },
-            actions = {
-                if (state.canDelete) {
-                    IconButton(onClick = { consume(Action.Click.OnDeleteClick) }) {
-                        Icon(
-                            modifier = Modifier.size(AppDimension.iconMd),
-                            imageVector = Icons.Filled.Delete,
-                            contentDescription = stringResource(R.string.feature_past_session_action_delete),
-                            tint = AppUi.colors.status.error,
-                        )
-                    }
-                }
-            },
-        )
-
+        topBar = {
+            PastSessionLargeTopBar(
+                state = state,
+                consume = consume,
+                scrollBehavior = scrollBehavior,
+            )
+        },
+        containerColor = AppUi.colors.surfaceTier0,
+    ) { contentPadding ->
         when (val phase = state.phase) {
-            State.Phase.Loading -> LoadingContent(modifier = Modifier.fillMaxSize())
+            State.Phase.Loading -> LoadingContent(
+                modifier = Modifier.fillMaxSize().background(AppUi.colors.surfaceTier0),
+            )
             is State.Phase.Error -> ErrorContent(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().background(AppUi.colors.surfaceTier0),
                 errorType = phase.errorType,
                 onRetry = { consume(Action.Click.OnRetryLoad) },
             )
 
             is State.Phase.Loaded -> LoadedContent(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().background(AppUi.colors.surfaceTier0),
+                contentPadding = contentPadding,
                 detail = phase.detail,
                 consume = consume,
             )
@@ -102,6 +95,56 @@ internal fun PastSessionScreen(
             onDismiss = { consume(Action.Click.OnDeleteDismiss) },
         )
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PastSessionLargeTopBar(
+    state: State,
+    consume: (Action) -> Unit,
+    scrollBehavior: TopAppBarScrollBehavior,
+) {
+    val title = (state.phase as? State.Phase.Loaded)?.detail?.trainingName
+        ?: stringResource(R.string.feature_past_session_loading_title)
+    LargeTopAppBar(
+        scrollBehavior = scrollBehavior,
+        modifier = Modifier.testTag("PastSessionTopBar"),
+        title = {
+            Text(
+                text = title,
+                style = AppUi.typography.headlineSmall,
+                color = AppUi.colors.textPrimary,
+            )
+        },
+        navigationIcon = {
+            IconButton(onClick = { consume(Action.Click.OnBackClick) }) {
+                Icon(
+                    modifier = Modifier.size(AppDimension.iconMd),
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(KitR.string.core_ui_kit_action_back),
+                )
+            }
+        },
+        actions = {
+            if (state.canDelete) {
+                IconButton(onClick = { consume(Action.Click.OnDeleteClick) }) {
+                    Icon(
+                        modifier = Modifier.size(AppDimension.iconMd),
+                        imageVector = Icons.Filled.Delete,
+                        contentDescription = stringResource(R.string.feature_past_session_action_delete),
+                        tint = AppUi.colors.status.error,
+                    )
+                }
+            }
+        },
+        colors = TopAppBarDefaults.largeTopAppBarColors(
+            containerColor = AppUi.colors.surfaceTier0,
+            scrolledContainerColor = AppUi.colors.surfaceTier0,
+            titleContentColor = AppUi.colors.textPrimary,
+            navigationIconContentColor = AppUi.colors.textPrimary,
+            actionIconContentColor = AppUi.colors.textPrimary,
+        ),
+    )
 }
 
 @Composable
@@ -136,13 +179,16 @@ private fun ErrorContent(
 private fun LoadedContent(
     detail: PastSessionUiModel,
     consume: (Action) -> Unit,
+    contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
         modifier = modifier,
         contentPadding = PaddingValues(
-            horizontal = AppDimension.screenEdge,
-            vertical = AppDimension.Space.md,
+            start = AppDimension.screenEdge,
+            end = AppDimension.screenEdge,
+            top = contentPadding.calculateTopPadding() + AppDimension.Space.md,
+            bottom = contentPadding.calculateBottomPadding() + AppDimension.Space.md,
         ),
         verticalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
     ) {
