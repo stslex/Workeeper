@@ -286,6 +286,16 @@ internal class ExerciseRepositoryImpl @Inject constructor(
         sessionDao.countFinishedContainingExercise(Uuid.parse(exerciseUuid))
     }
 
+    override fun observeLinkedTrainingsCount(
+        exerciseUuid: String,
+    ): Flow<Int> = dao.observeLinkedTrainingsCount(Uuid.parse(exerciseUuid))
+        .flowOn(bgDispatcher)
+
+    override fun observeLastTrainedAt(
+        exerciseUuid: String,
+    ): Flow<Long?> = dao.observeLastTrainedAt(Uuid.parse(exerciseUuid))
+        .flowOn(bgDispatcher)
+
     override suspend fun getLastTrainedExerciseUuid(): String? = withContext(bgDispatcher) {
         dao.getLastTrainedExerciseUuid()?.toString()
     }

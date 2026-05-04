@@ -210,6 +210,9 @@ private fun ExerciseRowPreview() {
             type = ExerciseTypeUiModel.WEIGHTED,
             tags = persistentListOf("Push", "Chest"),
             sessionCount = 12,
+            linkedTrainingsCount = 3,
+            lastTrainedAt = null,
+            footerLabel = "12 sessions · in 3 trainings · last 4d ago",
             imagePath = null,
         ),
         ExerciseUiModel(
@@ -218,6 +221,9 @@ private fun ExerciseRowPreview() {
             type = ExerciseTypeUiModel.WEIGHTLESS,
             tags = persistentListOf("Pull", "Back", "Calisthenics", "Upper"),
             sessionCount = 4,
+            linkedTrainingsCount = 1,
+            lastTrainedAt = null,
+            footerLabel = "4 sessions · in 1 training",
             imagePath = null,
         ),
         ExerciseUiModel(
@@ -226,6 +232,9 @@ private fun ExerciseRowPreview() {
             type = ExerciseTypeUiModel.WEIGHTED,
             tags = persistentListOf(),
             sessionCount = 0,
+            linkedTrainingsCount = 0,
+            lastTrainedAt = null,
+            footerLabel = "",
             imagePath = null,
         ),
     )

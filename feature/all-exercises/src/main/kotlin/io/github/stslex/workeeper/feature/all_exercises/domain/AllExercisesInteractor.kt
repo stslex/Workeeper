@@ -26,6 +26,18 @@ internal interface AllExercisesInteractor {
 
     suspend fun countSessionsForExercise(uuid: String): Int
 
+    /**
+     * Count of distinct active library trainings (non-archived, non-adhoc) that reference
+     * [uuid] via `training_exercise_table`. (v2.4 F1.)
+     */
+    fun observeLinkedTrainingsCount(uuid: String): Flow<Int>
+
+    /**
+     * Most recent finished session timestamp (epoch millis) for any non-skipped performed
+     * exercise referencing [uuid]; `null` when no such session exists. (v2.4 F2.)
+     */
+    fun observeLastTrainedAt(uuid: String): Flow<Long?>
+
     suspend fun bulkArchive(uuids: Set<String>): BulkArchiveResult
 
     suspend fun bulkPermanentDelete(uuids: Set<String>): Int

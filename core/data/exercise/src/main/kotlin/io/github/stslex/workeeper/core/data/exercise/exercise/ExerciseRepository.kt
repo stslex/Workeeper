@@ -77,6 +77,20 @@ interface ExerciseRepository {
 
     suspend fun countSessionsUsing(exerciseUuid: String): Int
 
+    /**
+     * Count of distinct active library trainings (non-archived, non-adhoc) referencing
+     * [exerciseUuid] via `training_exercise_table`. Surfaces as the "in M trainings"
+     * footer segment on Exercise rows. (v2.4 F1.)
+     */
+    fun observeLinkedTrainingsCount(exerciseUuid: String): Flow<Int>
+
+    /**
+     * Timestamp (epoch millis) of the most recently finished session in which a non-skipped
+     * performed-exercise referenced [exerciseUuid]. `null` when no such session exists.
+     * Surfaces as the "last Xd ago" footer segment on Exercise rows. (v2.4 F2.)
+     */
+    fun observeLastTrainedAt(exerciseUuid: String): Flow<Long?>
+
     fun pagedActiveByTags(tagUuids: Set<String>): Flow<PagingData<ExerciseDataModel>>
 
     suspend fun getRecentHistory(exerciseUuid: String, limit: Int): List<HistoryEntry>

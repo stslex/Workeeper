@@ -135,6 +135,43 @@ interface ExerciseDao {
     suspend fun getLastTrainedExerciseUuid(): Uuid?
 
     /**
+     * Number of distinct active library trainings (non-adhoc, non-archived) that include
+     * [exerciseUuid] via `training_exercise_table`. Surfaced as `linkedTrainingsCount`
+     * on the all-exercises list footer ("in M trainings"). Flow-backed; Room invalidates
+     * when either table changes. (v2.4 F1.)
+     */
+    @Query(
+        """
+        SELECT COUNT(DISTINCT te.training_uuid)
+        FROM training_exercise_table te
+        INNER JOIN training_table t ON t.uuid = te.training_uuid
+        WHERE te.exercise_uuid = :exerciseUuid
+          AND t.archived = 0
+          AND t.is_adhoc = 0
+        """,
+    )
+    fun observeLinkedTrainingsCount(exerciseUuid: Uuid): Flow<Int>
+
+    /**
+     * Timestamp of the most recently finished session that logged at least one set for
+     * [exerciseUuid] via a non-skipped performed-exercise row. `null` when no such
+     * session exists. Surfaced as `lastTrainedAt` on the all-exercises list footer
+     * ("last 4d ago"). Flow-backed. (v2.4 F2.)
+     */
+    @Query(
+        """
+        SELECT MAX(sn.finished_at)
+        FROM session_table sn
+        INNER JOIN performed_exercise_table pe ON pe.session_uuid = sn.uuid
+        WHERE pe.exercise_uuid = :exerciseUuid
+          AND sn.state = 'FINISHED'
+          AND sn.finished_at IS NOT NULL
+          AND pe.skipped = 0
+        """,
+    )
+    fun observeLastTrainedAt(exerciseUuid: Uuid): Flow<Long?>
+
+    /**
      * Active exercises that have at least one logged set in a finished session, ordered by
      * the most recent finish. Skipped performed_exercise rows and rows without any
      * `set_table` entries are excluded so the picker matches the scope of

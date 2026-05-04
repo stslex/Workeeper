@@ -5,6 +5,7 @@ import androidx.paging.PagingData
 import androidx.paging.map
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
+import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.all_exercises.di.AllExercisesHandlerStore
@@ -24,6 +25,7 @@ import io.github.stslex.workeeper.feature.all_exercises.mvi.mapper.toUi as toTag
 @ViewModelScoped
 internal class PagingHandler @Inject constructor(
     private val interactor: AllExercisesInteractor,
+    private val resourceWrapper: ResourceWrapper,
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
     store: AllExercisesHandlerStore,
 ) : Handler<Action.Paging>, AllExercisesHandlerStore by store {
@@ -33,7 +35,9 @@ internal class PagingHandler @Inject constructor(
             .distinctUntilChanged()
             .flatMapLatest { filter ->
                 interactor.observeExercises(filter)
-                    .map { pagingData -> pagingData.map { it.toUi() } }
+                    .map { pagingData ->
+                        pagingData.map { it.toUi(resourceWrapper = resourceWrapper) }
+                    }
             }
             .flowOn(defaultDispatcher)
     }

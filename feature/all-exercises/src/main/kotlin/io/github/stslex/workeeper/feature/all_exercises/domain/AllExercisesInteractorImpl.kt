@@ -74,6 +74,16 @@ internal class AllExercisesInteractorImpl @Inject constructor(
         exerciseRepository.countSessionsUsing(uuid)
     }
 
+    override fun observeLinkedTrainingsCount(
+        uuid: String,
+    ): Flow<Int> = exerciseRepository.observeLinkedTrainingsCount(uuid)
+        .flowOn(defaultDispatcher)
+
+    override fun observeLastTrainedAt(
+        uuid: String,
+    ): Flow<Long?> = exerciseRepository.observeLastTrainedAt(uuid)
+        .flowOn(defaultDispatcher)
+
     override suspend fun bulkArchive(
         uuids: Set<String>,
     ): BulkArchiveResult = withContext(defaultDispatcher) {

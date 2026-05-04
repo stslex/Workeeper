@@ -22,6 +22,26 @@
         <item quantity="other">%d sessions</item>
     </plurals>
 
+    <plurals name="feature_all_exercises_linked_trainings_count">
+        <item quantity="one">in %d training</item>
+        <item quantity="other">in %d trainings</item>
+    </plurals>
+
+    <string name="feature_all_exercises_last_trained_just_now">last just now</string>
+    <plurals name="feature_all_exercises_last_trained_minutes">
+        <item quantity="one">last %dm ago</item>
+        <item quantity="other">last %dm ago</item>
+    </plurals>
+    <plurals name="feature_all_exercises_last_trained_hours">
+        <item quantity="one">last %dh ago</item>
+        <item quantity="other">last %dh ago</item>
+    </plurals>
+    <plurals name="feature_all_exercises_last_trained_days">
+        <item quantity="one">last %dd ago</item>
+        <item quantity="other">last %dd ago</item>
+    </plurals>
+    <string name="feature_all_exercises_footer_separator">·</string>
+
     <string name="feature_all_exercises_selection_close">Close selection</string>
     <plurals name="feature_all_exercises_selected_count">
         <item quantity="one">%d selected</item>

@@ -24,6 +24,34 @@
         <item quantity="other">%d сессии</item>
     </plurals>
 
+    <plurals name="feature_all_exercises_linked_trainings_count">
+        <item quantity="one">в %d тренировке</item>
+        <item quantity="few">в %d тренировках</item>
+        <item quantity="many">в %d тренировках</item>
+        <item quantity="other">в %d тренировках</item>
+    </plurals>
+
+    <string name="feature_all_exercises_last_trained_just_now">только что</string>
+    <plurals name="feature_all_exercises_last_trained_minutes">
+        <item quantity="one">%d мин назад</item>
+        <item quantity="few">%d мин назад</item>
+        <item quantity="many">%d мин назад</item>
+        <item quantity="other">%d мин назад</item>
+    </plurals>
+    <plurals name="feature_all_exercises_last_trained_hours">
+        <item quantity="one">%d ч назад</item>
+        <item quantity="few">%d ч назад</item>
+        <item quantity="many">%d ч назад</item>
+        <item quantity="other">%d ч назад</item>
+    </plurals>
+    <plurals name="feature_all_exercises_last_trained_days">
+        <item quantity="one">%d д назад</item>
+        <item quantity="few">%d д назад</item>
+        <item quantity="many">%d д назад</item>
+        <item quantity="other">%d д назад</item>
+    </plurals>
+    <string name="feature_all_exercises_footer_separator">·</string>
+
     <string name="feature_all_exercises_selection_close">Закрыть выбор</string>
     <plurals name="feature_all_exercises_selected_count">
         <item quantity="one">выбрано %d</item>
