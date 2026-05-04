@@ -20,9 +20,13 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LargeTopAppBar
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,61 +34,73 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.card.AppCard
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordCard
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagChip.Static
-import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.feature.exercise.R
+import io.github.stslex.workeeper.feature.exercise.mvi.model.ImageDisplay
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State
 import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseHero
 import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseHistoryRow
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ExerciseDetailScreen(
     state: State,
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    Scaffold(
         modifier = modifier
             .fillMaxSize()
-            .background(AppUi.colors.surfaceTier0)
+            .nestedScroll(scrollBehavior.nestedScrollConnection)
             .testTag("ExerciseDetailScreen"),
-    ) {
-        DetailTopBar(state = state, consume = consume)
+        topBar = {
+            DetailLargeTopBar(
+                state = state,
+                consume = consume,
+                scrollBehavior = scrollBehavior,
+            )
+        },
+        bottomBar = { DetailActionBar(state = state, consume = consume) },
+        containerColor = AppUi.colors.surfaceTier0,
+    ) { contentPadding ->
         Column(
             modifier = Modifier
-                .weight(1f)
+                .fillMaxSize()
+                .padding(contentPadding)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = AppDimension.screenEdge),
             verticalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
         ) {
             Spacer(Modifier.height(AppDimension.Space.sm))
-            ExerciseHero(
-                type = state.type,
-                imageDisplay = state.effectiveImageDisplay,
-                onImageClick = { consume(Action.Click.OnImageThumbnailClick) },
-            )
-            Static(label = stringResource(state.type.labelRes))
-            Text(
-                text = state.name,
-                style = AppUi.typography.headlineSmall,
-                color = AppUi.colors.textPrimary,
-            )
-            if (state.tags.isNotEmpty()) {
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.xs),
-                    verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xxs),
-                ) {
-                    state.tags.forEach { tag -> Static(label = tag.name) }
-                }
+            // E3: hero only when a custom image is present. Placeholder dumbbell-icon
+            // hero is gone — the type chip below carries the affordance instead.
+            if (state.effectiveImageDisplay !is ImageDisplay.None) {
+                ExerciseHero(
+                    type = state.type,
+                    imageDisplay = state.effectiveImageDisplay,
+                    onImageClick = { consume(Action.Click.OnImageThumbnailClick) },
+                )
+            }
+            // Inline type + tags row directly under the top app bar — replaces the
+            // previous standalone Static + headline name combo (name lives in
+            // LargeTopAppBar now).
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.xs),
+                verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xxs),
+            ) {
+                Static(label = stringResource(state.type.labelRes))
+                state.tags.forEach { tag -> Static(label = tag.name) }
             }
             if (state.description.isNotBlank()) {
                 AppCard {
@@ -109,18 +125,27 @@ internal fun ExerciseDetailScreen(
             HistorySection(state = state, consume = consume)
             Spacer(Modifier.height(AppDimension.Space.md))
         }
-        DetailActionBar(state = state, consume = consume)
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DetailTopBar(
+private fun DetailLargeTopBar(
     state: State,
     consume: (Action) -> Unit,
+    scrollBehavior: androidx.compose.material3.TopAppBarScrollBehavior,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
-    AppTopAppBar(
-        title = "",
+    LargeTopAppBar(
+        scrollBehavior = scrollBehavior,
+        modifier = Modifier.testTag("ExerciseDetailTopBar"),
+        title = {
+            Text(
+                text = state.name,
+                style = AppUi.typography.headlineSmall,
+                color = AppUi.colors.textPrimary,
+            )
+        },
         navigationIcon = {
             IconButton(
                 modifier = Modifier.testTag("ExerciseDetailBackButton"),
@@ -199,6 +224,13 @@ private fun DetailTopBar(
                 }
             }
         },
+        colors = TopAppBarDefaults.largeTopAppBarColors(
+            containerColor = AppUi.colors.surfaceTier0,
+            scrolledContainerColor = AppUi.colors.surfaceTier0,
+            titleContentColor = AppUi.colors.textPrimary,
+            navigationIconContentColor = AppUi.colors.textPrimary,
+            actionIconContentColor = AppUi.colors.textPrimary,
+        ),
     )
 }
 
