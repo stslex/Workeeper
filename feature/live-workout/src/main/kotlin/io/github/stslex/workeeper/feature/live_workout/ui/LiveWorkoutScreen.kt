@@ -404,7 +404,6 @@ private fun stubState(): State = State(
     activeExerciseUuids = kotlinx.collections.immutable.persistentSetOf(),
     expandedExerciseUuids = kotlinx.collections.immutable.persistentSetOf(),
     preSessionPrSnapshot = persistentMapOf(),
-    planEditorTarget = null,
     pendingFinishConfirm = null,
     pendingResetExerciseUuid = null,
     pendingSkipExerciseUuid = null,

@@ -63,7 +63,6 @@ internal fun SessionSnapshotDomain.toState(
         activeExerciseUuids = persistentSetOf(),
         expandedExerciseUuids = persistentSetOf(),
         preSessionPrSnapshot = prSnapshot,
-        planEditorTarget = null,
         pendingFinishConfirm = null,
         pendingResetExerciseUuid = null,
         pendingSkipExerciseUuid = null,

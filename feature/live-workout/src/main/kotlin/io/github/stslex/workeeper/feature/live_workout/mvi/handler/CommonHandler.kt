@@ -26,6 +26,10 @@ internal class CommonHandler @Inject constructor(
     override fun invoke(action: Action.Common) {
         when (action) {
             Action.Common.Init -> processInit()
+            // Reload re-runs the session-load pipeline. Used after returning from the
+            // PlanEditor route so the LiveExerciseCard.planSets reflect the new draft.
+            // We skip session creation since this fires only on an existing session.
+            Action.Common.Reload -> processReload()
         }
     }
 
@@ -64,6 +68,24 @@ internal class CommonHandler @Inject constructor(
             ).sessionUuid
         }
         return interactor.startSession(trainingUuid)
+    }
+
+    private fun processReload() {
+        val sessionUuid = state.value.sessionUuid?.takeIf { it.isNotBlank() } ?: return
+        launch(
+            onSuccess = { snapshot ->
+                if (snapshot == null) return@launch
+                val now = System.currentTimeMillis()
+                updateStateImmediate {
+                    snapshot.toState(
+                        nowMillis = now,
+                        resourceWrapper = resourceWrapper,
+                    )
+                }
+            },
+        ) {
+            interactor.loadSession(sessionUuid)
+        }
     }
 
     private fun startTimer() {

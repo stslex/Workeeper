@@ -6,7 +6,6 @@ import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExercisePickerAction
-import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
@@ -107,7 +106,6 @@ internal class ClickHandler @Inject constructor(
             processTrainingNameSubmit(Action.Click.OnTrainingNameSubmit(current.trainingNameDraft))
             return
         }
-        if (current.isPlanEditorDirty) return
         consume(Action.Navigation.Back)
     }
 
@@ -309,21 +307,18 @@ internal class ClickHandler @Inject constructor(
 
     private fun processEditPlan(action: Action.Click.OnEditPlan) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        updateState { latest ->
-            val exercise =
-                latest.findExercise(action.performedExerciseUuid) ?: return@updateState latest
-            val initial = exercise.planSets
-            latest.copy(
-                planEditorTarget = State.PlanEditorTarget(
-                    performedExerciseUuid = exercise.performedExerciseUuid,
-                    exerciseUuid = exercise.exerciseUuid,
-                    exerciseName = exercise.exerciseName,
-                    exerciseType = exercise.exerciseType,
-                    initialPlan = initial,
-                    draft = initial,
-                ),
-            )
-        }
+        val current = state.value
+        val exercise = current.findExercise(action.performedExerciseUuid) ?: return
+        // Plan editor moved to a dedicated full-screen route in v2.4 (D1). The
+        // LiveWorkoutGraph observes a savedStateHandle flag on the previous backstack
+        // entry; on flip, it dispatches Action.Common.Reload to refresh planSets.
+        consume(
+            Action.Navigation.OpenPlanEditor(
+                performedExerciseUuid = exercise.performedExerciseUuid,
+                exerciseUuid = exercise.exerciseUuid,
+                trainingUuid = current.trainingUuid?.takeIf { !current.isAdhoc },
+            ),
+        )
     }
 
     private fun processResetSetsAsk(action: Action.Click.OnResetSets) {
@@ -820,6 +815,3 @@ internal class ClickHandler @Inject constructor(
 }
 
 private typealias ImmutableListOfExercise = kotlinx.collections.immutable.ImmutableList<LiveExerciseUiModel>
-
-@Suppress("UNUSED_PARAMETER")
-private fun PlanSetUiModel.unused() = Unit

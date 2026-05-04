@@ -115,6 +115,14 @@ internal interface PlanEditorStore : Store<State, Action, Event> {
         sealed interface Navigation : Action {
 
             data object Back : Navigation
+
+            /**
+             * Pop after a successful save. The NavigationHandler writes the
+             * `plan-editor-saved` flag to the previous backstack entry's
+             * SavedStateHandle so the caller (Live workout, Exercise detail) reloads
+             * its plan on resume. (v2.4 D1.)
+             */
+            data object BackAfterSave : Navigation
         }
     }
 

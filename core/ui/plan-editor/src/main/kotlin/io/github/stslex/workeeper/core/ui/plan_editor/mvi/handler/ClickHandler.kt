@@ -120,7 +120,10 @@ internal class ClickHandler @Inject constructor(
                 plan = plan,
             )
             updateState { it.copy(isSaving = false, initialDraft = state.value.draft) }
-            consumeOnMain(Action.Navigation.Back)
+            // BackAfterSave pops AND writes the saved-flag to the caller's backstack
+            // entry savedStateHandle so the live-workout / exercise-detail screens
+            // reload their plan-driven state on resume. (v2.4 D1.)
+            consumeOnMain(Action.Navigation.BackAfterSave)
         }
     }
 }

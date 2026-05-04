@@ -4,11 +4,9 @@ package io.github.stslex.workeeper.feature.live_workout.mvi.store
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.ui.mvi.Store
-import io.github.stslex.workeeper.core.ui.plan_editor.model.AppPlanEditorAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExercisePickerAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExercisePickerUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
-import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
@@ -56,7 +54,6 @@ internal interface LiveWorkoutStore :
          */
         val expandedExerciseUuids: ImmutableSet<String>,
         val preSessionPrSnapshot: ImmutableMap<String, PrSnapshotItem>,
-        val planEditorTarget: PlanEditorTarget?,
         val pendingFinishConfirm: FinishStats?,
         val pendingResetExerciseUuid: String?,
         val pendingSkipExerciseUuid: String?,
@@ -109,18 +106,6 @@ internal interface LiveWorkoutStore :
             )
         }
 
-        @Stable
-        data class PlanEditorTarget(
-            val performedExerciseUuid: String,
-            val exerciseUuid: String,
-            val exerciseName: String,
-            val exerciseType: ExerciseTypeUiModel,
-            val initialPlan: ImmutableList<PlanSetUiModel>,
-            val draft: ImmutableList<PlanSetUiModel>,
-        ) {
-            val isWeighted: Boolean get() = exerciseType == ExerciseTypeUiModel.WEIGHTED
-        }
-
         /**
          * Inline exercise picker bottom-sheet state. Display strings (no-match headline,
          * Create CTA label) are pre-formatted in the handler so the kit composable does
@@ -157,9 +142,6 @@ internal interface LiveWorkoutStore :
 
         val elapsedMillis: Long get() = (nowMillis - startedAt).coerceAtLeast(0L)
 
-        val isPlanEditorDirty: Boolean
-            get() = planEditorTarget?.let { it.draft != it.initialPlan } == true
-
         val isPickerVisible: Boolean
             get() = exercisePickerSheet is ExercisePickerSheetState.Visible
 
@@ -185,11 +167,12 @@ internal interface LiveWorkoutStore :
          * Tracks every UI state that needs to intercept the system back gesture so the
          * Android 13+ predictive back preview stays alive everywhere else. Dismissal order
          * is enforced by `ClickHandler.processBackClick`: picker → empty-finish dialog →
-         * name edit → plan-editor dirty → default back.
+         * name edit → default back. Plan-editor is now its own full-screen route (v2.4
+         * D1) so it owns its own BackHandler and is not part of LiveWorkout's intercept
+         * conditions.
          */
         val interceptBack: Boolean
-            get() = isPlanEditorDirty ||
-                isTrainingNameEditing ||
+            get() = isTrainingNameEditing ||
                 isPickerVisible ||
                 isEmptyFinishDialogVisible
 
@@ -216,7 +199,6 @@ internal interface LiveWorkoutStore :
                 activeExerciseUuids = persistentSetOf(),
                 expandedExerciseUuids = persistentSetOf(),
                 preSessionPrSnapshot = persistentMapOf(),
-                planEditorTarget = null,
                 pendingFinishConfirm = null,
                 pendingResetExerciseUuid = null,
                 pendingSkipExerciseUuid = null,
@@ -307,14 +289,29 @@ internal interface LiveWorkoutStore :
         sealed interface Navigation : Action {
             data object Back : Navigation
             data class OpenPastSession(val sessionUuid: String) : Navigation
+
+            /**
+             * Navigates to the full-screen plan editor (v2.4 D1). Replaces the legacy
+             * bottom-sheet editor that lived on this screen. The screen reloads its
+             * session on resume to pick up persisted edits.
+             */
+            data class OpenPlanEditor(
+                val performedExerciseUuid: String,
+                val exerciseUuid: String,
+                val trainingUuid: String?,
+            ) : Navigation
         }
 
         sealed interface Common : Action {
             data object Init : Common
-        }
 
-        @Suppress("MviActionNamingRule")
-        data class PlanEditAction(val action: AppPlanEditorAction) : Action
+            /**
+             * Triggered by the LiveWorkoutGraph after returning from the PlanEditor
+             * route with a saved-flag set. Re-runs the session-load pipeline so the
+             * new plan is reflected on the next composition.
+             */
+            data object Reload : Common
+        }
     }
 
     @Stable
