@@ -392,6 +392,8 @@ internal class ClickHandler @Inject constructor(
                 it.copy(
                     emptyFinishDialog = State.EmptyFinishDialogState.Visible(
                         canDiscard = it.isAdhoc,
+                        confirmLabel = resourceWrapper.getString(R.string.feature_live_workout_empty_finish_discard),
+                        dismissLabel = resourceWrapper.getString(R.string.feature_live_workout_empty_finish_continue),
                     ),
                 )
             }

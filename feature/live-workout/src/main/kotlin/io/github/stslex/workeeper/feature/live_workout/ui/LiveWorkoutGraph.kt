@@ -102,20 +102,14 @@ fun NavGraphBuilder.liveWorkoutGraph(
             AppDialog(
                 title = stringResource(R.string.feature_live_workout_empty_finish_title),
                 body = stringResource(R.string.feature_live_workout_empty_finish_body),
-                confirmLabel = stringResource(
-                    if (dialog.canDiscard) {
-                        R.string.feature_live_workout_empty_finish_discard
-                    } else {
-                        R.string.feature_live_workout_empty_finish_continue
-                    },
-                ),
-                dismissLabel = stringResource(R.string.feature_live_workout_empty_finish_continue),
-                destructive = dialog.canDiscard,
+                confirmLabel = dialog.confirmLabel,
+                dismissLabel = dialog.dismissLabel,
+                destructive = true,
                 onConfirm = {
                     if (dialog.canDiscard) {
                         processor.consume(Action.Click.OnEmptyFinishDiscard)
                     } else {
-                        processor.consume(Action.Click.OnEmptyFinishContinue)
+                        processor.consume(Action.Click.OnCancelSessionConfirm)
                     }
                 },
                 onDismiss = { processor.consume(Action.Click.OnEmptyFinishContinue) },
