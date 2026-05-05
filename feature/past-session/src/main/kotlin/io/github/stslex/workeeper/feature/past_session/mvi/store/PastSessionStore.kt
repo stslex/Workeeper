@@ -66,6 +66,8 @@ internal interface PastSessionStore :
                 val to: Int,
             ) : Click
 
+            data object OnDragStarted : Click
+
             data object OnRetryLoad : Click
         }
 

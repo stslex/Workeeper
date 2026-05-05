@@ -39,6 +39,7 @@ import io.github.stslex.workeeper.feature.past_session.mvi.model.ErrorType
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastExerciseUiModel
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSessionUiModel
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSetUiModel
+import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Action
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.State
 import io.github.stslex.workeeper.feature.past_session.ui.components.DeleteConfirmDialog
 import io.github.stslex.workeeper.feature.past_session.ui.components.PastExerciseCard
@@ -50,7 +51,7 @@ import io.github.stslex.workeeper.core.ui.kit.R as KitR
 @Composable
 internal fun PastSessionScreen(
     state: State,
-    consume: (PastSessionBodyAction) -> Unit,
+    consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -80,7 +81,7 @@ internal fun PastSessionScreen(
                     .fillMaxSize()
                     .background(AppUi.colors.surfaceTier0),
                 errorType = phase.errorType,
-                onRetry = { consume(PastSessionBodyAction.RetryLoad) },
+                onRetry = { consume(Action.Click.OnRetryLoad) },
             )
 
             is State.Phase.Loaded -> LoadedContent(
@@ -96,8 +97,8 @@ internal fun PastSessionScreen(
 
     if (state.deleteDialogVisible) {
         DeleteConfirmDialog(
-            onConfirm = { consume(PastSessionBodyAction.DeleteConfirm) },
-            onDismiss = { consume(PastSessionBodyAction.DeleteDismiss) },
+            onConfirm = { consume(Action.Click.OnDeleteConfirm) },
+            onDismiss = { consume(Action.Click.OnDeleteDismiss) },
         )
     }
 }
@@ -106,7 +107,7 @@ internal fun PastSessionScreen(
 @Composable
 private fun PastSessionLargeTopBar(
     state: State,
-    consume: (PastSessionBodyAction) -> Unit,
+    consume: (Action) -> Unit,
     scrollBehavior: TopAppBarScrollBehavior,
 ) {
     val title = (state.phase as? State.Phase.Loaded)?.detail?.trainingName
@@ -122,7 +123,7 @@ private fun PastSessionLargeTopBar(
             )
         },
         navigationIcon = {
-            IconButton(onClick = { consume(PastSessionBodyAction.BackClick) }) {
+            IconButton(onClick = { consume(Action.Click.OnBackClick) }) {
                 Icon(
                     modifier = Modifier.size(AppDimension.iconMd),
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -132,7 +133,7 @@ private fun PastSessionLargeTopBar(
         },
         actions = {
             if (state.canDelete) {
-                IconButton(onClick = { consume(PastSessionBodyAction.DeleteClick) }) {
+                IconButton(onClick = { consume(Action.Click.OnDeleteClick) }) {
                     Icon(
                         modifier = Modifier.size(AppDimension.iconMd),
                         imageVector = Icons.Filled.Delete,
@@ -142,11 +143,11 @@ private fun PastSessionLargeTopBar(
                 }
             }
         },
-        colors = TopAppBarDefaults.largeTopAppBarColors(
+        colors = TopAppBarDefaults.topAppBarColors(
             containerColor = AppUi.colors.surfaceTier0,
             scrolledContainerColor = AppUi.colors.surfaceTier0,
-            titleContentColor = AppUi.colors.textPrimary,
             navigationIconContentColor = AppUi.colors.textPrimary,
+            titleContentColor = AppUi.colors.textPrimary,
             actionIconContentColor = AppUi.colors.textPrimary,
         ),
     )
@@ -183,7 +184,7 @@ private fun ErrorContent(
 @Composable
 private fun LoadedContent(
     detail: PastSessionUiModel,
-    consume: (PastSessionBodyAction) -> Unit,
+    consume: (Action) -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
@@ -207,22 +208,25 @@ private fun LoadedContent(
             PastExerciseCard(
                 exercise = exercise,
                 onWeightChange = { setUuid, raw ->
-                    consume(PastSessionBodyAction.SetWeightInput(setUuid = setUuid, raw = raw))
+                    consume(Action.Input.OnSetWeightChange(setUuid = setUuid, raw = raw))
                 },
                 onRepsChange = { setUuid, raw ->
-                    consume(PastSessionBodyAction.SetRepsInput(setUuid = setUuid, raw = raw))
+                    consume(Action.Input.OnSetRepsChange(setUuid = setUuid, raw = raw))
                 },
                 onTypeChange = { setUuid, type ->
-                    consume(PastSessionBodyAction.SetTypeChange(setUuid = setUuid, type = type))
+                    consume(Action.Click.OnSetTypeChange(setUuid = setUuid, type = type))
                 },
                 onSetReorder = { performedExerciseUuid, from, to ->
                     consume(
-                        PastSessionBodyAction.SetReorder(
+                        Action.Click.OnSetReorder(
                             performedExerciseUuid = performedExerciseUuid,
                             from = from,
                             to = to,
                         ),
                     )
+                },
+                onDragStarted = {
+                    consume(Action.Click.OnDragStarted)
                 },
             )
         }

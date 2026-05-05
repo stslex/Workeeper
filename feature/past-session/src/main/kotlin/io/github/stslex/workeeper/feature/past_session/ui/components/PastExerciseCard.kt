@@ -4,13 +4,19 @@ package io.github.stslex.workeeper.feature.past_session.ui.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.LookaheadScope
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import io.github.stslex.workeeper.core.ui.kit.components.card.AppCard
 import io.github.stslex.workeeper.core.ui.kit.components.reorderable.rememberReorderableColumnState
 import io.github.stslex.workeeper.core.ui.kit.components.reorderable.reorderableColumnDragHandle
@@ -31,6 +37,7 @@ internal fun PastExerciseCard(
     onWeightChange: (String, String) -> Unit,
     onRepsChange: (String, String) -> Unit,
     onTypeChange: (String, SetTypeUiModel) -> Unit,
+    onDragStarted: () -> Unit,
     onSetReorder: (performedExerciseUuid: String, from: Int, to: Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -38,68 +45,83 @@ internal fun PastExerciseCard(
     // already a LazyColumn, so nesting another lazy scroller would break layout. The
     // non-lazy variant registers each row's measured Y bounds via onGloballyPositioned
     // and resolves the drop target against those bounds.
-    val reorderState = rememberReorderableColumnState { from, to ->
+    val reorderState = rememberReorderableColumnState(
+        onDragStarted = { onDragStarted() },
+    ) { from, to ->
         onSetReorder(exercise.performedExerciseUuid, from, to)
     }
-    AppCard(modifier = modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
+    AppCard(
+        modifier = modifier.fillMaxWidth(),
+        cardPadding = 0.dp,
+    ) {
+        LookaheadScope {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
             ) {
-                Text(
-                    text = "${exercise.position + 1}.",
-                    style = AppUi.typography.titleMedium,
-                    color = AppUi.colors.textTertiary,
-                )
-                Text(
-                    text = exercise.exerciseName,
-                    style = AppUi.typography.titleMedium,
-                    color = AppUi.colors.textPrimary,
-                )
-                if (exercise.skipped) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(AppDimension.cardPadding),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
+                ) {
                     Text(
-                        text = stringResource(R.string.feature_past_session_skipped_chip),
-                        style = AppUi.typography.labelSmall,
-                        color = AppUi.colors.status.warning,
+                        text = "${exercise.position + 1}.",
+                        style = AppUi.typography.titleMedium,
+                        color = AppUi.colors.textTertiary,
                     )
-                }
-            }
-            if (exercise.sets.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.feature_past_session_no_sets),
-                    style = AppUi.typography.bodyMedium,
-                    color = AppUi.colors.textSecondary,
-                )
-            } else {
-                exercise.sets.forEachIndexed { index, set ->
-                    PastSetEditRow(
-                        set = set,
-                        isWeighted = exercise.isWeighted,
-                        onWeightChange = { raw -> onWeightChange(set.setUuid, raw) },
-                        onRepsChange = { raw -> onRepsChange(set.setUuid, raw) },
-                        onTypeChange = { type -> onTypeChange(set.setUuid, type) },
-                        modifier = Modifier.reorderableColumnItem(
-                            state = reorderState,
-                            key = set.setUuid,
-                            index = index,
-                        ),
-                        // Long-press the trailing drag-handle icon to start a drag.
-                        // Skipped exercises stay read-only — handle is rendered for
-                        // visual consistency but the gesture detector is disabled so a
-                        // mis-targeted long-press cannot rewrite the historical record.
-                        dragHandleModifier = Modifier.reorderableColumnDragHandle(
-                            state = reorderState,
-                            key = set.setUuid,
-                            index = index,
-                            enabled = !exercise.skipped,
-                        ),
+                    Text(
+                        text = exercise.exerciseName,
+                        style = AppUi.typography.titleMedium,
+                        color = AppUi.colors.textPrimary,
                     )
+                    if (exercise.skipped) {
+                        Text(
+                            text = stringResource(R.string.feature_past_session_skipped_chip),
+                            style = AppUi.typography.labelSmall,
+                            color = AppUi.colors.status.warning,
+                        )
+                    }
                 }
+                if (exercise.sets.isEmpty()) {
+                    Text(
+                        modifier = Modifier.padding(horizontal = AppDimension.cardPadding),
+                        text = stringResource(R.string.feature_past_session_no_sets),
+                        style = AppUi.typography.bodyMedium,
+                        color = AppUi.colors.textSecondary,
+                    )
+                } else {
+                    exercise.sets.forEachIndexed { index, set ->
+                        key(set.setUuid) {
+                            PastSetEditRow(
+                                set = set,
+                                isWeighted = exercise.isWeighted,
+                                onWeightChange = { raw -> onWeightChange(set.setUuid, raw) },
+                                onRepsChange = { raw -> onRepsChange(set.setUuid, raw) },
+                                onTypeChange = { type -> onTypeChange(set.setUuid, type) },
+                                modifier = Modifier
+                                    .reorderableColumnItem(
+                                        state = reorderState,
+                                        key = set.setUuid,
+                                        index = index,
+                                    )
+                                    .padding(horizontal = AppDimension.cardPadding),
+                                // Long-press the trailing drag-handle icon to start a drag.
+                                // Skipped exercises stay read-only — handle is rendered for
+                                // visual consistency but the gesture detector is disabled so a
+                                // mis-targeted long-press cannot rewrite the historical record.
+                                dragHandleModifier = Modifier.reorderableColumnDragHandle(
+                                    state = reorderState,
+                                    key = set.setUuid,
+                                    enabled = !exercise.skipped,
+                                ),
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(AppDimension.cardPadding))
             }
         }
     }
@@ -115,6 +137,7 @@ private fun PastExerciseCardLightPreview() {
             onRepsChange = { _, _ -> },
             onTypeChange = { _, _ -> },
             onSetReorder = { _, _, _ -> },
+            onDragStarted = { },
         )
     }
 }
@@ -129,6 +152,7 @@ private fun PastExerciseCardDarkPreview() {
             onRepsChange = { _, _ -> },
             onTypeChange = { _, _ -> },
             onSetReorder = { _, _, _ -> },
+            onDragStarted = { },
         )
     }
 }
@@ -143,6 +167,7 @@ private fun PastExerciseCardSkippedPreview() {
             onRepsChange = { _, _ -> },
             onTypeChange = { _, _ -> },
             onSetReorder = { _, _, _ -> },
+            onDragStarted = { },
         )
     }
 }
