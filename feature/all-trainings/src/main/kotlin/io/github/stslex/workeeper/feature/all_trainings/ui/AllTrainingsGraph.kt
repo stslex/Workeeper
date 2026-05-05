@@ -39,7 +39,7 @@ fun NavGraphBuilder.allTrainingsGraph(
         AllTrainingsScreen(
             modifier = modifier,
             state = processor.state.value,
-            consume = processor::consume,
+            consume = { bodyAction -> processor.consume(bodyAction.toAction()) },
         )
     }
 }
