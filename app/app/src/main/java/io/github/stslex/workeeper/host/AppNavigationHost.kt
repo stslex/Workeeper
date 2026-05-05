@@ -15,7 +15,6 @@ import androidx.navigation.compose.NavHost
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
 import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
-import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.all_exercises.ui.allExercisesGraph
 import io.github.stslex.workeeper.feature.all_trainings.ui.allTrainingsGraph
@@ -25,14 +24,16 @@ import io.github.stslex.workeeper.feature.home.ui.homeGraph
 import io.github.stslex.workeeper.feature.image_viewer.ui.imageViewerGraph
 import io.github.stslex.workeeper.feature.live_workout.ui.liveWorkoutGraph
 import io.github.stslex.workeeper.feature.past_session.ui.pastSessionGraph
+import io.github.stslex.workeeper.feature.plan_editor.ui.planEditorGraph
 import io.github.stslex.workeeper.feature.settings.ui.archiveGraph
 import io.github.stslex.workeeper.feature.settings.ui.settingsGraph
 import io.github.stslex.workeeper.feature.single_training.ui.singleTrainingsGraph
+import io.github.stslex.workeeper.navigation.AppNavigator
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 internal fun AppNavigationHost(
-    navigator: Navigator,
+    navigator: AppNavigator,
     modifier: Modifier = Modifier,
 ) {
     SharedTransitionLayout(
@@ -108,6 +109,11 @@ internal fun AppNavigationHost(
                 modifier = Modifier
                     .reportScreenPlace<Screen.ExerciseChart>()
                     .testTag("ExerciseChartGraph"),
+            )
+            planEditorGraph(
+                modifier = Modifier
+                    .reportScreenPlace<Screen.PlanEditor>()
+                    .testTag("PlanEditorGraph"),
             )
         }
     }

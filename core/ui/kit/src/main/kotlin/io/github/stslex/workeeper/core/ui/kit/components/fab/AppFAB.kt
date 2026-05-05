@@ -1,5 +1,6 @@
 package io.github.stslex.workeeper.core.ui.kit.components.fab
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
@@ -9,7 +10,9 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -23,12 +26,22 @@ fun AppFAB(
     contentDescription: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    containerColor: Color = AppUi.colors.accent,
+    contentColor: Color = AppUi.colors.onAccent,
 ) {
+    val animatedContainer by animateColorAsState(
+        targetValue = containerColor,
+        label = "AppFABContainer",
+    )
+    val animatedContent by animateColorAsState(
+        targetValue = contentColor,
+        label = "AppFABContent",
+    )
     FloatingActionButton(
         modifier = modifier.size(56.dp),
         onClick = onClick,
-        containerColor = AppUi.colors.accent,
-        contentColor = AppUi.colors.onAccent,
+        containerColor = animatedContainer,
+        contentColor = animatedContent,
         shape = AppUi.shapes.medium,
         elevation = androidx.compose.material3.FloatingActionButtonDefaults.elevation(
             defaultElevation = 0.dp,

@@ -73,6 +73,25 @@ Each tracked location should carry a `TODO(tech-debt): <category> — <ref>` mar
 
 ---
 
+## v2.4 Design foundation — follow-ups
+
+Items deferred from the v2.4 PR (see `documentation/feature-specs/v2.4-design-foundation.md` Sections 6 / 7). The kit primitives, theme tokens, plan editor screen, list-screen reworks, chart footer fix, and DAO queries (F1, F2) all landed; remaining surface is tracked here for a follow-up PR.
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟡 | feature/live-workout/.../mvi/store/, ui/components/ | **Live workout drag-to-reorder + snackbar undo** (spec 5.4 partial). The follow-up commits closed the PlanEditor route migration, AppCheckmarkButton, AppTooltip on chip, and three-dots menu offset fix. Drag-to-reorder for exercises and inner sets via the new `ReorderableLazyListState` / `ReorderableColumnState`, plus snackbar-undo for set delete (D5 replace policy), are still deferred. The new kit primitives exist and compile; the wiring is the work. |
+
+| 🟡 | feature/past-session/.../ui/components/PastSetEditRow.kt | **PastSession set-delete with snackbar undo** (spec 5.7 partial). Drag-to-reorder, total-kg removal, the PR badge explainer dialog, stable column widths (PR slot reserves 56dp), removed leading accent stripe, and the explicit drag-handle icon all landed; structural set-delete with snackbar+Undo policy (D5) remains paired with the live-workout work. |
+| 🟢 | feature/exercise-chart/.../ui/components/ChartTooltipPopup.kt | **Chart tooltip rewrite from subcompose to coordinate-based draw** (spec 5.6). Footer overflow fix (the user-visible Russian regression) landed; the structural tooltip rewrite is a separate larger refactor. Existing `SubcomposeLayout` tooltip still functions. |
+| 🟢 | feature/home/.../ui/components/TrainingPickerSheet.kt | **Templates picker → full-screen route** (spec 5.8 / E8). Not yet landed. Requires a new `Screen.TemplatesPicker` route, a TemplatesPickerScreen with `LargeTopAppBar` + search, and migrating the home tap from `consume(...sheet open)` to `Action.Navigation.OpenTemplatesPicker`. |
+| 🟢 | (multiple touched files) | **`AppDimension.Padding` migration sweep** (spec B1). Padding is `@Deprecated` and emits warnings on call sites. Step 13 of v2.4 was opportunistic — touched files migrated as work landed. Remaining call sites continue to compile with deprecation warnings. **Trigger to act:** v2.7 tech-debt ratchet, or earlier if drift detected. |
+| 🟢 | core/ui/plan-editor/.../mvi/store/PlanEditorStoreImpl.kt | **Snackbar undo for set-delete** (spec D5). The new PlanEditorScreen currently uses the existing immediate-delete behavior. Replacing with snackbar-undo is grouped with the live-workout snackbar-undo work above so both editor surfaces share the policy. |
+| 🟢 | core/ui/plan-editor/.../PlanEditorBody.kt | **Plan editor drag-to-reorder** (spec 5.4 partial). The kit primitives (`reorderableColumnItem` + `reorderableColumnDragHandle` with live displacement preview) exist and ship in `core/ui/kit`; PlanEditorBody still renders a non-reorderable `forEachIndexed` loop. Migration mirrors PastExerciseCard's wiring — pass `dragHandleModifier` through PlanEditorRow with the trailing DragHandle icon. |
+| 🟢 | feature/exercise/.../ExerciseEditScreen.kt | **ExerciseEditScreen rework** (v2.4.x deferred — separate spec next round). Image+name unification, inline plan section instead of bottom-sheet, layout overhaul. Tracked here so the next ratchet pass picks it up. |
+| 🟢 | feature/exercise/.../ExerciseDetailScreen.kt | **TopBar collapsing animation feel on ExerciseDetail** — pending user clarification on whether it is a bug or perceived discomfort. Track here so the question is not lost. |
+
+---
+
 ## v2.3 Quick start workout — follow-ups
 
 Items deferred from the v2.3 PR (per spec Section 10). Track here so the v2.7 ratchet pass can pick them up.

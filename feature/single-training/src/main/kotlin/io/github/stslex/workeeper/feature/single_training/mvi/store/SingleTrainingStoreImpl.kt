@@ -16,7 +16,6 @@ import io.github.stslex.workeeper.feature.single_training.mvi.handler.ClickHandl
 import io.github.stslex.workeeper.feature.single_training.mvi.handler.CommonHandler
 import io.github.stslex.workeeper.feature.single_training.mvi.handler.InputHandler
 import io.github.stslex.workeeper.feature.single_training.mvi.handler.NavigationHandler
-import io.github.stslex.workeeper.feature.single_training.mvi.handler.PlanEditActionHandler
 import io.github.stslex.workeeper.feature.single_training.mvi.handler.SingleTrainingComponent
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Event
@@ -32,7 +31,6 @@ internal class SingleTrainingStoreImpl @AssistedInject constructor(
     handlerStore: SingleTrainingHandlerStoreImpl,
     analyticsHolder: AnalyticsHolder,
     loggerHolder: LoggerHolder,
-    planEditActionHandler: PlanEditActionHandler,
 ) : BaseStore<State, Action, Event>(
     name = NAME,
     initialState = State.create(uuid = component.data.uuid),
@@ -42,7 +40,6 @@ internal class SingleTrainingStoreImpl @AssistedInject constructor(
             is Action.Common -> commonHandler
             is Action.Click -> clickHandler
             is Action.Input -> inputHandler
-            is Action.PlanEditAction -> planEditActionHandler
         }
     },
     storeEmitter = handlerStore,

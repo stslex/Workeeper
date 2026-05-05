@@ -4,13 +4,15 @@ package io.github.stslex.workeeper.feature.single_training.mvi.handler
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
-import io.github.stslex.workeeper.core.ui.plan_editor.mappers.formatPlanSummary
+import io.github.stslex.workeeper.core.ui.navigation.NavigatorStack
+import io.github.stslex.workeeper.core.ui.navigation.Screen
+import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorUIMapper.formatPlanSummary
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingHandlerStore
 import io.github.stslex.workeeper.feature.single_training.domain.SingleTrainingInteractor
 import io.github.stslex.workeeper.feature.single_training.domain.model.SessionDomain
 import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingDomain
 import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingExerciseDetail
-import io.github.stslex.workeeper.feature.single_training.mvi.mapper.toUi
+import io.github.stslex.workeeper.feature.single_training.mvi.mapper.TagUiMapper.toUi
 import io.github.stslex.workeeper.feature.single_training.mvi.model.HistorySessionItem
 import io.github.stslex.workeeper.feature.single_training.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.single_training.mvi.model.TrainingExerciseItem
@@ -18,19 +20,32 @@ import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTraini
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import javax.inject.Inject
 
 @ViewModelScoped
 internal class CommonHandler @Inject constructor(
     private val interactor: SingleTrainingInteractor,
     private val resourceWrapper: ResourceWrapper,
+    private val navigatorStack: NavigatorStack,
     store: SingleTrainingHandlerStore,
 ) : Handler<Action.Common>, SingleTrainingHandlerStore by store {
 
     override fun invoke(action: Action.Common) {
         when (action) {
             Action.Common.Init -> processInit()
+            // Reload re-runs the training + exercise + history load pipeline so the per-
+            // row planSets / planSummary refresh after returning from the full-screen
+            // PlanEditor route. Skips the create branch (uuid == null) since there's
+            // nothing to load yet.
+            Action.Common.Reload -> processReload()
         }
+    }
+
+    private fun processReload() {
+        val uuid = state.value.uuid?.takeIf { it.isNotBlank() } ?: return
+        loadTraining(uuid)
     }
 
     private fun processInit() {
@@ -46,6 +61,17 @@ internal class CommonHandler @Inject constructor(
             return
         }
         loadTraining(uuid)
+
+        navigatorStack
+            .subscribeToStackAttr(Screen.PlanEditor.planEditorSavedAttr)
+            ?.filterNotNull()
+            ?.distinctUntilChanged()
+            ?.launch { saved ->
+                if (saved) {
+                    consume(Action.Common.Reload)
+                    navigatorStack.setCurrentStack(Screen.PlanEditor.planEditorSavedAttr)
+                }
+            }
     }
 
     private fun observeTags() {

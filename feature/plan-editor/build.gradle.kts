@@ -1,0 +1,13 @@
+plugins {
+    alias(libs.plugins.convention.composeLibrary)
+}
+
+dependencies {
+    implementation(project(":core:core"))
+    implementation(project(":core:ui:kit"))
+    implementation(project(":core:ui:mvi"))
+    implementation(project(":core:ui:navigation"))
+    implementation(project(":core:ui:plan-editor"))
+    implementation(project(":core:data:database"))
+    implementation(project(":core:data:exercise"))
+}

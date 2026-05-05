@@ -26,6 +26,9 @@
     <!-- Add set -->
     <string name="feature_live_workout_add_set">+ Add set</string>
 
+    <!-- Set-type chip tooltip (long-press) -->
+    <string name="feature_live_workout_set_type_tooltip">Tap to cycle: warmup → work → failure → drop</string>
+
     <!-- Reset confirmation -->
     <string name="feature_live_workout_reset_title">Reset sets?</string>
     <string name="feature_live_workout_reset_body">All logged sets for this exercise will be deleted. This cannot be undone.</string>
@@ -67,9 +70,9 @@
     <string name="feature_live_workout_session_overflow_cancel" tools:ignore="DuplicateStrings">Cancel session</string>
     <string name="feature_live_workout_cancel_title">Cancel session?</string>
     <string name="feature_live_workout_cancel_body">All progress will be deleted. This cannot be undone.</string>
-    <string name="feature_live_workout_cancel_confirm">Cancel session</string>
+    <string name="feature_live_workout_cancel_confirm" tools:ignore="DuplicateStrings">Cancel</string>
     <string name="feature_live_workout_cancel_dismiss" tools:ignore="DuplicateStrings">Keep going</string>
-    <string name="feature_live_workout_delete_session" tools:ignore="DuplicateStrings">Delete session</string>
+    <string name="feature_live_workout_delete_session" tools:ignore="DuplicateStrings">Delete</string>
     <string name="feature_live_workout_delete_session_unnamed">Workout</string>
     <string name="feature_live_workout_delete_session_progress_format" tools:ignore="PluralsCandidate">%1$d of %2$d exercises done · %3$d sets logged</string>
 
@@ -81,7 +84,7 @@
     <string name="feature_live_workout_training_name_placeholder">Untitled</string>
 
     <!-- Inline exercise picker (Quick start mid-session add) -->
-    <string name="feature_live_workout_picker_search_hint">Search or create</string>
+    <string name="feature_live_workout_picker_search_hint">Type to filter or create new</string>
     <string name="feature_live_workout_picker_no_match_format">No exercises match “%1$s”</string>
     <string name="feature_live_workout_picker_create_format">Create “%1$s”</string>
     <string name="feature_live_workout_add_exercise_cta">Add exercise</string>
@@ -90,7 +93,7 @@
     <!-- Empty-finish confirm dialog -->
     <string name="feature_live_workout_empty_finish_title">Discard empty workout?</string>
     <string name="feature_live_workout_empty_finish_body">This workout has no logged sets. It looks like you haven’t started yet.</string>
-    <string name="feature_live_workout_empty_finish_continue">Continue editing</string>
+    <string name="feature_live_workout_empty_finish_continue">Continue edit</string>
     <string name="feature_live_workout_empty_finish_discard">Discard</string>
 
     <!-- Misc -->

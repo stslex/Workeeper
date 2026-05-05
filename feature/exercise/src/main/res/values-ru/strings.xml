@@ -10,8 +10,6 @@
     <string name="feature_exercise_track_now_conflict_progress_format">%1$d из %2$d упражнений выполнено</string>
     <string name="feature_exercise_detail_edit">Изменить</string>
     <string name="feature_exercise_detail_archive">В архив</string>
-    <string name="feature_exercise_detail_back_description">Назад</string>
-    <string name="feature_exercise_detail_more_description">Ещё</string>
 
     <string name="feature_exercise_detail_archive_success_format">«%1$s» в архиве</string>
     <string name="feature_exercise_detail_archive_blocked_title">Нельзя архивировать</string>
@@ -36,7 +34,7 @@
     <string name="feature_exercise_edit_label_tags">Теги</string>
     <string name="feature_exercise_edit_label_description">Описание</string>
     <string name="feature_exercise_edit_placeholder_description">Заметки — техника, особенности зала</string>
-    <string name="feature_exercise_edit_tag_search_placeholder">Добавить тег…</string>
+    <string name="feature_exercise_edit_tag_search_placeholder">Введите чтобы найти или создать</string>
     <string name="feature_exercise_edit_tag_create_format">+ Создать «%1$s»</string>
     <string name="feature_exercise_edit_tag_limit">Максимум 10 тегов на упражнение</string>
     <string name="feature_exercise_edit_error_name_required">Введите название</string>

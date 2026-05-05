@@ -36,7 +36,6 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.feature.settings.R
 import io.github.stslex.workeeper.feature.settings.mvi.model.ArchivedItemUi
-import io.github.stslex.workeeper.feature.settings.mvi.store.ArchiveStore.Action
 import io.github.stslex.workeeper.feature.settings.mvi.store.ArchiveStore.Segment
 import io.github.stslex.workeeper.feature.settings.mvi.store.ArchiveStore.State
 import io.github.stslex.workeeper.feature.settings.ui.components.ArchivedItemRow
@@ -48,7 +47,7 @@ import io.github.stslex.workeeper.core.ui.kit.R as KitR
 @Composable
 internal fun ArchiveScreen(
     state: State,
-    consume: (Action) -> Unit,
+    consume: (ArchiveBodyAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val exerciseItems = remember(state.archivedExercisesPaging) {
@@ -70,7 +69,7 @@ internal fun ArchiveScreen(
             navigationIcon = {
                 IconButton(
                     modifier = Modifier.testTag("ArchiveBackButton"),
-                    onClick = { consume(Action.Navigation.Back) },
+                    onClick = { consume(ArchiveBodyAction.BackClick) },
                 ) {
                     Icon(
                         modifier = Modifier.size(AppDimension.iconMd),
@@ -94,7 +93,7 @@ internal fun ArchiveScreen(
             selected = if (state.selectedSegment == Segment.EXERCISES) 0 else 1,
             onSelectedChange = { index ->
                 val segment = if (index == 0) Segment.EXERCISES else Segment.TRAININGS
-                consume(Action.Click.OnSegmentChange(segment))
+                consume(ArchiveBodyAction.SegmentChange(segment))
             },
         )
 
@@ -128,8 +127,8 @@ internal fun ArchiveScreen(
             PermanentDeleteDialog(
                 target = target,
                 impactCount = state.pendingDeleteImpact ?: 0,
-                onConfirm = { consume(Action.Click.OnDeleteConfirm) },
-                onDismiss = { consume(Action.Click.OnDeleteDismiss) },
+                onConfirm = { consume(ArchiveBodyAction.DeleteConfirm) },
+                onDismiss = { consume(ArchiveBodyAction.DeleteDismiss) },
             )
         }
     }
@@ -138,7 +137,7 @@ internal fun ArchiveScreen(
 @Composable
 private fun ArchivedExerciseList(
     items: LazyPagingItems<ArchivedItemUi.Exercise>,
-    consume: (Action) -> Unit,
+    consume: (ArchiveBodyAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (isPagingEmpty(items.loadState, items.itemCount)) {
@@ -164,8 +163,8 @@ private fun ArchivedExerciseList(
                 ArchivedItemRow(
                     item = row.item,
                     archivedAtLabel = row.archivedAtLabel,
-                    onRestore = { consume(Action.Click.OnRestoreClick(row.item)) },
-                    onPermanentDelete = { consume(Action.Click.OnPermanentDeleteClick(row.item)) },
+                    onRestore = { consume(ArchiveBodyAction.RestoreClick(row.item)) },
+                    onPermanentDelete = { consume(ArchiveBodyAction.PermanentDeleteClick(row.item)) },
                 )
             }
         }
@@ -175,7 +174,7 @@ private fun ArchivedExerciseList(
 @Composable
 private fun ArchivedTrainingList(
     items: LazyPagingItems<ArchivedItemUi.Training>,
-    consume: (Action) -> Unit,
+    consume: (ArchiveBodyAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (isPagingEmpty(items.loadState, items.itemCount)) {
@@ -201,8 +200,8 @@ private fun ArchivedTrainingList(
                 ArchivedItemRow(
                     item = row.item,
                     archivedAtLabel = row.archivedAtLabel,
-                    onRestore = { consume(Action.Click.OnRestoreClick(row.item)) },
-                    onPermanentDelete = { consume(Action.Click.OnPermanentDeleteClick(row.item)) },
+                    onRestore = { consume(ArchiveBodyAction.RestoreClick(row.item)) },
+                    onPermanentDelete = { consume(ArchiveBodyAction.PermanentDeleteClick(row.item)) },
                 )
             }
         }

@@ -6,8 +6,8 @@ import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordRepository
 import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.data.exercise.session.SetRepository
-import io.github.stslex.workeeper.feature.past_session.domain.mapper.toData
-import io.github.stslex.workeeper.feature.past_session.domain.mapper.toDomain
+import io.github.stslex.workeeper.feature.past_session.domain.mapper.PastSessionDomainMapper.toData
+import io.github.stslex.workeeper.feature.past_session.domain.mapper.PastSessionDomainMapper.toDomain
 import io.github.stslex.workeeper.feature.past_session.domain.model.DetailWithPrs
 import io.github.stslex.workeeper.feature.past_session.domain.model.SetDomain
 import kotlinx.coroutines.CoroutineDispatcher
@@ -58,6 +58,13 @@ internal class PastSessionInteractorImpl @Inject constructor(
         set: SetDomain,
     ) {
         setRepository.update(performedExerciseUuid, position, set.toData())
+    }
+
+    override suspend fun reorderSets(
+        performedExerciseUuid: String,
+        orderedSetUuids: List<String>,
+    ) {
+        setRepository.reorderSets(performedExerciseUuid, orderedSetUuids)
     }
 
     override suspend fun deleteSession(sessionUuid: String) {

@@ -6,7 +6,7 @@ import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.past_session.di.PastSessionHandlerStore
 import io.github.stslex.workeeper.feature.past_session.domain.PastSessionInteractor
-import io.github.stslex.workeeper.feature.past_session.mvi.mapper.toUi
+import io.github.stslex.workeeper.feature.past_session.mvi.mapper.PastSessionUiMapper.toUi
 import io.github.stslex.workeeper.feature.past_session.mvi.model.ErrorType
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Action
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.State

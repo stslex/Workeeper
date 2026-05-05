@@ -6,6 +6,10 @@ import androidx.compose.ui.unit.dp
 @Suppress("unused", "TooManyFunctions")
 object AppDimension {
 
+    @Deprecated(
+        message = "Use AppDimension.Space (xxs, xs, sm, md, lg, xl, xxl, xxxl) instead.",
+        replaceWith = ReplaceWith("AppDimension.Space"),
+    )
     object Padding {
 
         val smallest = 2.dp

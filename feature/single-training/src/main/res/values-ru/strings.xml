@@ -51,7 +51,7 @@
     <string name="feature_training_edit_discard_body">Все изменения будут потеряны.</string>
     <string name="feature_training_edit_discard_confirm">Отменить</string>
     <string name="feature_training_edit_discard_dismiss">Продолжить</string>
-    <string name="feature_training_edit_tag_search_placeholder">Добавить тег…</string>
+    <string name="feature_training_edit_tag_search_placeholder">Введите чтобы найти или создать</string>
     <string name="feature_training_edit_tag_create_format">+ Создать «%1$s»</string>
 
     <!-- Exercise picker -->

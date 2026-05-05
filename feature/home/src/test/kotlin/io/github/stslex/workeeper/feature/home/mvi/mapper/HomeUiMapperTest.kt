@@ -7,6 +7,8 @@ import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
 import io.github.stslex.workeeper.feature.home.R
 import io.github.stslex.workeeper.feature.home.domain.model.RecentSessionDomain
 import io.github.stslex.workeeper.feature.home.domain.model.TrainingListItemDomain
+import io.github.stslex.workeeper.feature.home.mvi.mapper.HomeUiMapper.toPickerItems
+import io.github.stslex.workeeper.feature.home.mvi.mapper.HomeUiMapper.toRecentItems
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test

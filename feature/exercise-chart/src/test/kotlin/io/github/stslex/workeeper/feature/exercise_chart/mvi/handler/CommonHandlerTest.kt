@@ -217,5 +217,25 @@ internal class CommonHandlerTest {
                 }
                 mockk(relaxed = true)
             }
+            every {
+                store.launchDefault<Any?>(
+                    onError = any(),
+                    onSuccess = any(),
+                    action = any(),
+                )
+            } answers {
+                val onError = arg<suspend (Throwable) -> Unit>(0)
+                val onSuccess = arg<suspend CoroutineScope.(Any?) -> Unit>(1)
+                val action = arg<suspend CoroutineScope.() -> Any?>(2)
+                runBlocking {
+                    try {
+                        val result = action()
+                        onSuccess(result)
+                    } catch (t: Throwable) {
+                        onError(t)
+                    }
+                }
+                mockk(relaxed = true)
+            }
         }
 }

@@ -73,6 +73,14 @@ interface SetDao {
     @Update
     suspend fun update(set: SetEntity)
 
+    /**
+     * Rewrites the `position` column for a single set. Used by structural reorder
+     * (v2.4 5.7) to apply the new permutation one set at a time inside a batched
+     * transaction at the repository layer.
+     */
+    @Query("UPDATE set_table SET position = :position WHERE uuid = :uuid")
+    suspend fun updatePosition(uuid: Uuid, position: Int)
+
     @Query("DELETE FROM set_table WHERE uuid = :uuid")
     suspend fun delete(uuid: Uuid)
 

@@ -11,5 +11,8 @@ internal data class ExerciseUiModel(
     val type: ExerciseTypeUiModel,
     val tags: ImmutableList<String>,
     val sessionCount: Int,
+    val linkedTrainingsCount: Int,
+    val lastTrainedAt: Long?,
+    val footerLabel: String,
     val imagePath: String?,
 )

@@ -50,7 +50,6 @@ internal interface AllExercisesStore : Store<State, Action, Event> {
             @Stable
             data class On(
                 val selectedUuids: ImmutableSet<String>,
-                val canDeleteAll: Boolean,
             ) : SelectionMode
         }
 
@@ -90,10 +89,6 @@ internal interface AllExercisesStore : Store<State, Action, Event> {
 
             data class OnTagFilterToggle(val tagUuid: String) : Click
 
-            data class OnArchiveSwipe(val uuid: String, val name: String) : Click
-
-            data class OnUndoArchive(val uuid: String) : Click
-
             data object OnConfirmPermanentDelete : Click
 
             data object OnCancelPermanentDelete : Click
@@ -101,8 +96,6 @@ internal interface AllExercisesStore : Store<State, Action, Event> {
             data class OnSelectionToggle(val uuid: String) : Click
 
             data object OnSelectionExit : Click
-
-            data object OnBulkArchive : Click
 
             data object OnBulkDelete : Click
 
@@ -124,15 +117,7 @@ internal interface AllExercisesStore : Store<State, Action, Event> {
 
         data class Haptic(val type: HapticFeedbackType) : Event
 
-        data class ShowArchiveSuccess(val uuid: String, val message: String) : Event
-
-        data class ShowArchiveBlocked(val message: String) : Event
-
         data class ShowPermanentDeleteSuccess(val message: String) : Event
-
-        data class ShowBulkArchiveSuccess(val message: String) : Event
-
-        data class ShowBulkArchiveBlocked(val message: String) : Event
 
         data class ShowBulkDeleteSuccess(val message: String) : Event
     }

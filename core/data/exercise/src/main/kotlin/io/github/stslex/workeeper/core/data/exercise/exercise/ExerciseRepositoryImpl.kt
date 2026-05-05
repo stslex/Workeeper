@@ -30,6 +30,7 @@ import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository.SaveResult
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseListItem
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel.Companion.toData
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.HistoryEntry
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.RecentExerciseDataModel
@@ -286,6 +287,16 @@ internal class ExerciseRepositoryImpl @Inject constructor(
         sessionDao.countFinishedContainingExercise(Uuid.parse(exerciseUuid))
     }
 
+    override fun observeLinkedTrainingsCount(
+        exerciseUuid: String,
+    ): Flow<Int> = dao.observeLinkedTrainingsCount(Uuid.parse(exerciseUuid))
+        .flowOn(bgDispatcher)
+
+    override fun observeLastTrainedAt(
+        exerciseUuid: String,
+    ): Flow<Long?> = dao.observeLastTrainedAt(Uuid.parse(exerciseUuid))
+        .flowOn(bgDispatcher)
+
     override suspend fun getLastTrainedExerciseUuid(): String? = withContext(bgDispatcher) {
         dao.getLastTrainedExerciseUuid()?.toString()
     }
@@ -338,6 +349,32 @@ internal class ExerciseRepositoryImpl @Inject constructor(
             pagingSourceFactory = { dao.pagedActiveByTags(parsed) },
         ).flow
             .map { pagingData -> pagingData.map { it.toData() } }
+            .flowOn(bgDispatcher)
+    }
+
+    override fun pagedActiveWithStats(
+        filterTagUuids: Set<String>,
+    ): Flow<PagingData<ExerciseListItem>> {
+        val pager = if (filterTagUuids.isEmpty()) {
+            Pager(config = pagingConfig, pagingSourceFactory = dao::pagedActiveWithStats)
+        } else {
+            val parsed = filterTagUuids.map(Uuid::parse)
+            Pager(
+                config = pagingConfig,
+                pagingSourceFactory = { dao.pagedActiveWithStatsByTags(parsed) },
+            )
+        }
+        return pager.flow
+            .map { pagingData ->
+                // Tag names are denormalized per row; matches the existing pattern in
+                // TrainingRepositoryImpl.pagedActiveWithStats. Acceptable at v2.4 sizes
+                // (paged 10 rows at a time); profile if drift detected.
+                pagingData.map { row ->
+                    row.toData(
+                        tags = exerciseTagDao.getTagNames(row.exercise.uuid),
+                    )
+                }
+            }
             .flowOn(bgDispatcher)
     }
 

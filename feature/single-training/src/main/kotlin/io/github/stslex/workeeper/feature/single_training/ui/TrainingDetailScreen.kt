@@ -3,7 +3,6 @@ package io.github.stslex.workeeper.feature.single_training.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,29 +10,24 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
-import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
+import io.github.stslex.workeeper.core.ui.kit.components.topbar.DetailTopbar
+import io.github.stslex.workeeper.core.ui.kit.components.topbar.TopbarAction
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.feature.single_training.R
@@ -42,30 +36,43 @@ import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTraini
 import io.github.stslex.workeeper.feature.single_training.ui.components.TrainingExerciseRow
 import io.github.stslex.workeeper.feature.single_training.ui.components.TrainingHero
 import io.github.stslex.workeeper.feature.single_training.ui.components.TrainingHistoryRow
+import kotlinx.collections.immutable.persistentListOf
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun TrainingDetailScreen(
     state: State,
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    Scaffold(
         modifier = modifier
             .fillMaxSize()
-            .background(AppUi.colors.surfaceTier0)
+            .nestedScroll(scrollBehavior.nestedScrollConnection)
             .testTag("TrainingDetailScreen"),
-    ) {
-        DetailTopBar(state = state, consume = consume)
+        topBar = {
+            DetailLargeTopBar(
+                state = state,
+                consume = consume,
+                scrollBehavior = scrollBehavior,
+            )
+        },
+        bottomBar = { DetailActionBar(state = state, consume = consume) },
+        containerColor = AppUi.colors.surfaceTier0,
+    ) { contentPadding ->
         Column(
             modifier = Modifier
-                .weight(1f)
+                .fillMaxSize()
+                .padding(contentPadding)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = AppDimension.screenEdge),
             verticalArrangement = Arrangement.spacedBy(AppDimension.Space.lg),
         ) {
             Spacer(Modifier.height(AppDimension.Space.sm))
+            // Name lives in the LargeTopAppBar now; the hero only carries description +
+            // tag chips so the detail body is not duplicated against the collapsed bar.
             TrainingHero(
-                name = state.name,
                 description = state.description,
                 tags = state.tags,
             )
@@ -73,92 +80,45 @@ internal fun TrainingDetailScreen(
             HistorySection(state = state, consume = consume)
             Spacer(Modifier.height(AppDimension.Space.md))
         }
-        DetailActionBar(state = state, consume = consume)
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DetailTopBar(
+private fun DetailLargeTopBar(
     state: State,
     consume: (Action) -> Unit,
+    scrollBehavior: TopAppBarScrollBehavior,
 ) {
-    var menuExpanded by remember { mutableStateOf(false) }
-    AppTopAppBar(
-        title = "",
-        navigationIcon = {
-            IconButton(
-                modifier = Modifier.testTag("TrainingDetailBackButton"),
-                onClick = { consume(Action.Click.OnBackClick) },
-            ) {
-                Icon(
-                    modifier = Modifier.size(AppDimension.iconSm),
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(R.string.feature_training_detail_back),
+    val actions = remember(state.canPermanentlyDelete) {
+        persistentListOf(
+            TopbarAction(
+                titleRes = R.string.feature_training_detail_edit,
+                testTag = "TrainingDetailMenuButton",
+                onClick = { consume(Action.Click.OnEditClick) },
+            ),
+            TopbarAction(
+                titleRes = R.string.feature_training_detail_archive,
+                testTag = "TrainingDetailArchiveMenuItem",
+                onClick = { consume(Action.Click.OnArchiveClick) },
+            ),
+        ).apply {
+            if (state.canPermanentlyDelete) {
+                plus(
+                    TopbarAction(
+                        titleRes = R.string.feature_training_detail_permanent_delete,
+                        testTag = "TrainingDetailPermanentDeleteMenuItem",
+                        onClick = { consume(Action.Click.OnPermanentDeleteClick) },
+                    ),
                 )
             }
-        },
-        actions = {
-            Box {
-                IconButton(
-                    modifier = Modifier.testTag("TrainingDetailMenuButton"),
-                    onClick = { menuExpanded = true },
-                ) {
-                    Icon(
-                        modifier = Modifier.size(AppDimension.iconSm),
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = stringResource(R.string.feature_training_detail_more),
-                    )
-                }
-                DropdownMenu(
-                    expanded = menuExpanded,
-                    onDismissRequest = { menuExpanded = false },
-                    containerColor = AppUi.colors.surfaceTier2,
-                ) {
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                text = stringResource(R.string.feature_training_detail_edit),
-                                style = AppUi.typography.bodyMedium,
-                                color = AppUi.colors.textPrimary,
-                            )
-                        },
-                        onClick = {
-                            menuExpanded = false
-                            consume(Action.Click.OnEditClick)
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                text = stringResource(R.string.feature_training_detail_archive),
-                                style = AppUi.typography.bodyMedium,
-                                color = AppUi.colors.setType.failureForeground,
-                            )
-                        },
-                        onClick = {
-                            menuExpanded = false
-                            consume(Action.Click.OnArchiveClick)
-                        },
-                    )
-                    if (state.canPermanentlyDelete) {
-                        DropdownMenuItem(
-                            modifier = Modifier.testTag("TrainingDetailPermanentDeleteMenuItem"),
-                            text = {
-                                Text(
-                                    text = stringResource(R.string.feature_training_detail_permanent_delete),
-                                    style = AppUi.typography.bodyMedium,
-                                    color = AppUi.colors.setType.failureForeground,
-                                )
-                            },
-                            onClick = {
-                                menuExpanded = false
-                                consume(Action.Click.OnPermanentDeleteClick)
-                            },
-                        )
-                    }
-                }
-            }
-        },
+        }
+    }
+    DetailTopbar(
+        title = state.name,
+        onBackIconClick = { consume(Action.Click.OnBackClick) },
+        actions = actions,
+        scrollBehavior = scrollBehavior,
     )
 }
 

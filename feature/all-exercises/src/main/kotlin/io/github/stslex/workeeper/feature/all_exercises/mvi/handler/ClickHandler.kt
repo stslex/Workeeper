@@ -8,17 +8,13 @@ import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.all_exercises.R
 import io.github.stslex.workeeper.feature.all_exercises.di.AllExercisesHandlerStore
 import io.github.stslex.workeeper.feature.all_exercises.domain.AllExercisesInteractor
-import io.github.stslex.workeeper.feature.all_exercises.domain.model.ArchiveResult
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Action
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Event
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.State.PendingBulkDelete
-import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.State.PendingDelete
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.State.SelectionMode
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toPersistentSet
 import javax.inject.Inject
-
-private const val MAX_BLOCKED_TRAINING_NAMES = 2
 
 @Suppress("TooManyFunctions")
 @ViewModelScoped
@@ -34,13 +30,10 @@ internal class ClickHandler @Inject constructor(
             is Action.Click.OnExerciseLongPress -> processExerciseLongPress(action)
             Action.Click.OnFabClick -> processFabClick()
             is Action.Click.OnTagFilterToggle -> processTagFilterToggle(action)
-            is Action.Click.OnArchiveSwipe -> processArchiveSwipe(action)
-            is Action.Click.OnUndoArchive -> processUndoArchive(action)
             Action.Click.OnConfirmPermanentDelete -> processConfirmPermanentDelete()
             Action.Click.OnCancelPermanentDelete -> processCancelPermanentDelete()
             is Action.Click.OnSelectionToggle -> processSelectionToggle(action)
             Action.Click.OnSelectionExit -> processSelectionExit()
-            Action.Click.OnBulkArchive -> processBulkArchive()
             Action.Click.OnBulkDelete -> processBulkDelete()
             Action.Click.OnBulkDeleteConfirm -> processBulkDeleteConfirm()
             Action.Click.OnBulkDeleteDismiss -> processBulkDeleteDismiss()
@@ -63,7 +56,11 @@ internal class ClickHandler @Inject constructor(
             processSelectionToggle(Action.Click.OnSelectionToggle(action.uuid))
             return
         }
-        launchSelectionEnter(action.uuid)
+        updateState { current ->
+            current.copy(
+                selectionMode = SelectionMode.On(selectedUuids = persistentSetOf(action.uuid)),
+            )
+        }
     }
 
     private fun processFabClick() {
@@ -80,53 +77,6 @@ internal class ClickHandler @Inject constructor(
                 current.activeTagFilter + action.tagUuid
             }
             current.copy(activeTagFilter = next.toPersistentSet())
-        }
-    }
-
-    private fun processArchiveSwipe(action: Action.Click.OnArchiveSwipe) {
-        sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
-        launch {
-            // Unused exercises (no history, not in any active template) get a permanent
-            // delete prompt so the archive doesn't fill up with throwaway entries.
-            if (interactor.canPermanentlyDelete(action.uuid)) {
-                updateStateImmediate { current ->
-                    current.copy(
-                        pendingPermanentDelete = PendingDelete(
-                            uuid = action.uuid,
-                            name = action.name,
-                        ),
-                    )
-                }
-                return@launch
-            }
-            when (val result = interactor.archiveExercise(action.uuid)) {
-                ArchiveResult.Success ->
-                    sendEvent(
-                        Event.ShowArchiveSuccess(
-                            uuid = action.uuid,
-                            message = resourceWrapper.getString(
-                                R.string.feature_all_exercises_archive_success_format,
-                                action.name,
-                            ),
-                        ),
-                    )
-
-                is ArchiveResult.Blocked ->
-                    sendEvent(
-                        Event.ShowArchiveBlocked(
-                            message = resourceWrapper.getString(
-                                R.string.feature_all_exercises_archive_blocked_format,
-                                result.activeTrainings.toOverflowPreview(),
-                            ),
-                        ),
-                    )
-            }
-        }
-    }
-
-    private fun processUndoArchive(action: Action.Click.OnUndoArchive) {
-        launch {
-            interactor.restoreExercise(action.uuid)
         }
     }
 
@@ -156,45 +106,14 @@ internal class ClickHandler @Inject constructor(
         } else {
             mode.selectedUuids + action.uuid
         }
-        if (next.isEmpty()) {
-            updateState { it.copy(selectionMode = SelectionMode.Off) }
-            return
-        }
-        launchSelectionUpdate(next.toSet())
-    }
-
-    private fun launchSelectionUpdate(nextSelection: Set<String>) {
-        launch(
-            onSuccess = { canDeleteAll ->
-                updateStateImmediate { current ->
-                    current.copy(
-                        selectionMode = SelectionMode.On(
-                            selectedUuids = nextSelection.toPersistentSet(),
-                            canDeleteAll = canDeleteAll,
-                        ),
-                    )
-                }
-            },
-        ) {
-            interactor.canBulkPermanentDelete(nextSelection)
-        }
-    }
-
-    private fun launchSelectionEnter(seedUuid: String) {
-        val seed = persistentSetOf(seedUuid)
-        launch(
-            onSuccess = { canDeleteAll ->
-                updateStateImmediate { current ->
-                    current.copy(
-                        selectionMode = SelectionMode.On(
-                            selectedUuids = seed,
-                            canDeleteAll = canDeleteAll,
-                        ),
-                    )
-                }
-            },
-        ) {
-            interactor.canBulkPermanentDelete(seed)
+        updateState { current ->
+            if (next.isEmpty()) {
+                current.copy(selectionMode = SelectionMode.Off)
+            } else {
+                current.copy(
+                    selectionMode = SelectionMode.On(selectedUuids = next.toPersistentSet()),
+                )
+            }
         }
     }
 
@@ -204,45 +123,15 @@ internal class ClickHandler @Inject constructor(
         updateState { it.copy(selectionMode = SelectionMode.Off) }
     }
 
-    private fun processBulkArchive() {
-        val mode = state.value.selectionMode as? SelectionMode.On ?: return
-        sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
-        val targets = mode.selectedUuids.toSet()
-        launch(
-            onSuccess = { outcome ->
-                updateStateImmediate { current ->
-                    current.copy(selectionMode = SelectionMode.Off)
-                }
-                if (outcome.blockedNames.isEmpty()) {
-                    sendEvent(
-                        Event.ShowBulkArchiveSuccess(
-                            message = resourceWrapper.getQuantityString(
-                                R.plurals.feature_all_exercises_bulk_archive_success,
-                                outcome.archivedCount,
-                                outcome.archivedCount,
-                            ),
-                        ),
-                    )
-                } else {
-                    sendEvent(
-                        Event.ShowBulkArchiveBlocked(
-                            message = resourceWrapper.getString(
-                                R.string.feature_all_exercises_bulk_archive_partial_format,
-                                outcome.archivedCount,
-                                outcome.blockedNames.toOverflowPreview(),
-                            ),
-                        ),
-                    )
-                }
-            },
-        ) {
-            interactor.bulkArchive(targets)
-        }
-    }
-
+    /**
+     * Bulk-delete FAB → confirm dialog whenever at least one row is selected. The
+     * underlying call is `bulkArchive` (soft-delete), not `bulkPermanentDelete` — permanent
+     * delete requires zero session history per row, which the v2.4 selection-mode entry
+     * cannot guarantee. Archived exercises are restorable from Settings → Archive.
+     */
     private fun processBulkDelete() {
         val mode = state.value.selectionMode as? SelectionMode.On ?: return
-        if (!mode.canDeleteAll) return
+        if (mode.selectedUuids.isEmpty()) return
         sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
         updateState { current ->
             current.copy(pendingBulkDelete = PendingBulkDelete(count = mode.selectedUuids.size))
@@ -254,37 +143,34 @@ internal class ClickHandler @Inject constructor(
         sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
         val targets = mode.selectedUuids.toSet()
         launch(
-            onSuccess = { count ->
+            onSuccess = { result ->
                 updateStateImmediate { current ->
                     current.copy(
                         selectionMode = SelectionMode.Off,
                         pendingBulkDelete = null,
                     )
                 }
-                sendEvent(
-                    Event.ShowBulkDeleteSuccess(
-                        message = resourceWrapper.getQuantityString(
-                            R.plurals.feature_all_exercises_bulk_delete_success,
-                            count,
-                            count,
-                        ),
-                    ),
-                )
+                val message = if (result.blockedNames.isEmpty()) {
+                    resourceWrapper.getQuantityString(
+                        R.plurals.feature_all_exercises_bulk_archive_success,
+                        result.archivedCount,
+                        result.archivedCount,
+                    )
+                } else {
+                    resourceWrapper.getString(
+                        R.string.feature_all_exercises_bulk_archive_partial_format,
+                        result.archivedCount,
+                        result.blockedNames.joinToString(", "),
+                    )
+                }
+                sendEvent(Event.ShowBulkDeleteSuccess(message = message))
             },
         ) {
-            interactor.bulkPermanentDelete(targets)
+            interactor.bulkArchive(targets)
         }
     }
 
     private fun processBulkDeleteDismiss() {
         updateState { current -> current.copy(pendingBulkDelete = null) }
-    }
-
-    private fun List<String>.toOverflowPreview(): String {
-        val visible = take(MAX_BLOCKED_TRAINING_NAMES).joinToString(separator = ", ")
-        val overflow = size - MAX_BLOCKED_TRAINING_NAMES
-        if (overflow <= 0) return visible
-        val overflowLabel = resourceWrapper.getString(R.string.feature_all_exercises_overflow_format, overflow)
-        return "$visible, $overflowLabel"
     }
 }

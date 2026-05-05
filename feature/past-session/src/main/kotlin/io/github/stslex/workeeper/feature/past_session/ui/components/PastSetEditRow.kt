@@ -1,21 +1,30 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.past_session.ui.components
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import io.github.stslex.workeeper.core.ui.kit.R
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppNumberInput
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordBadge
-import io.github.stslex.workeeper.core.ui.kit.components.pr.personalRecordAccent
+import io.github.stslex.workeeper.core.ui.kit.components.pr.PrExplainerDialog
 import io.github.stslex.workeeper.core.ui.kit.components.setchip.AppSetTypeChip
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
@@ -27,6 +36,15 @@ import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSetUiModel
 private val WeightFieldMinWidth = 96.dp
 private val RepsFieldMinWidth = 72.dp
 
+/**
+ * Reserved width for the trailing PR slot. Always present so rows with and without a
+ * personal record share the exact same column geometry — the weight/reps inputs do not
+ * grow into the slot when the badge is absent.
+ */
+private val PrSlotWidth = 56.dp
+
+private val DragHandleSize = 24.dp
+
 @Composable
 internal fun PastSetEditRow(
     set: PastSetUiModel,
@@ -35,16 +53,11 @@ internal fun PastSetEditRow(
     onRepsChange: (String) -> Unit,
     @Suppress("UnusedParameter") onTypeChange: (SetTypeUiModel) -> Unit,
     modifier: Modifier = Modifier,
+    dragHandleModifier: Modifier = Modifier,
 ) {
-    val accentColor by animateColorAsState(
-        targetValue = if (set.isPersonalRecord) AppUi.colors.record.border else Color.Transparent,
-        label = "pr-accent",
-    )
-    val rowModifier = modifier
-        .fillMaxWidth()
-        .personalRecordAccent(color = accentColor)
+    var showExplainer by remember { mutableStateOf(false) }
     Row(
-        modifier = rowModifier,
+        modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
@@ -69,9 +82,23 @@ internal fun PastSetEditRow(
             decimals = 0,
             isError = set.repsError,
         )
-        if (set.isPersonalRecord) {
-            PersonalRecordBadge()
+        Box(
+            modifier = Modifier.width(PrSlotWidth),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (set.isPersonalRecord) {
+                PersonalRecordBadge(onClick = { showExplainer = true })
+            }
         }
+        Icon(
+            modifier = dragHandleModifier.size(DragHandleSize),
+            imageVector = Icons.Filled.DragHandle,
+            contentDescription = stringResource(R.string.core_ui_kit_reorderable_drag_handle),
+            tint = AppUi.colors.textSecondary,
+        )
+    }
+    if (showExplainer) {
+        PrExplainerDialog(onDismiss = { showExplainer = false })
     }
 }
 

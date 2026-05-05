@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.all_trainings.ui.components
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
@@ -17,11 +18,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -42,24 +42,28 @@ import kotlinx.collections.immutable.persistentListOf
 private const val MAX_INLINE_TAGS = 3
 
 @OptIn(ExperimentalComposeUiApi::class)
-@Suppress("LongParameterList", "LongMethod")
 @Composable
 internal fun TrainingRow(
     item: TrainingListItemUi,
-    isSelectionMode: Boolean,
     isSelected: Boolean,
     onClick: () -> Unit,
     onLongPress: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val backgroundColor = if (item.isActive) {
-        AppUi.colors.surfaceTier3
-    } else {
-        AppUi.colors.surfaceTier1
+    // Selected → filled accent-tinted card (spec C3). Active session takes a secondary
+    // tier accent so users can distinguish "selected for bulk action" from "actively
+    // running". Border keeps the active accent ring even when selected so we don't lose
+    // the running-session affordance.
+    val targetColor = when {
+        isSelected -> AppUi.colors.accentTintedBackground
+        item.isActive -> AppUi.colors.surfaceTier3
+        else -> AppUi.colors.surfaceTier1
     }
+    val backgroundColor by animateColorAsState(
+        targetValue = targetColor,
+        label = "TrainingRowBackground",
+    )
     val activeBorderModifier = if (item.isActive) {
-        // Accent border highlights an in-progress session; the surface tint above already
-        // visually separates the row.
         Modifier.border(
             width = AppDimension.Border.medium,
             color = AppUi.colors.accent,
@@ -92,27 +96,13 @@ internal fun TrainingRow(
             TrainingRowTagsLine(item = item)
             TrainingRowStatusLine(item = item)
         }
-        if (isSelectionMode) {
-            Checkbox(
-                modifier = Modifier
-                    .size(AppDimension.iconMd)
-                    .testTag("AllTrainingsItemCheckbox_${item.uuid}"),
-                checked = isSelected,
-                onCheckedChange = null,
-                colors = CheckboxDefaults.colors(
-                    checkedColor = AppUi.colors.accent,
-                    uncheckedColor = AppUi.colors.borderStrong,
-                    checkmarkColor = AppUi.colors.onAccent,
-                ),
-            )
-        } else {
-            Icon(
-                modifier = Modifier.size(AppDimension.iconSm),
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = stringResource(R.string.feature_all_trainings_chevron_description),
-                tint = AppUi.colors.textTertiary,
-            )
-        }
+        // Chevron always visible — selection state is conveyed by the filled card.
+        Icon(
+            modifier = Modifier.size(AppDimension.iconSm),
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = stringResource(R.string.feature_all_trainings_chevron_description),
+            tint = AppUi.colors.textTertiary,
+        )
     }
 }
 
@@ -251,7 +241,6 @@ private fun TrainingRowPreview() {
             items(sample, key = { it.uuid }) { item ->
                 TrainingRow(
                     item = item,
-                    isSelectionMode = item.uuid == "2",
                     isSelected = item.uuid == "2",
                     onClick = {},
                     onLongPress = {},

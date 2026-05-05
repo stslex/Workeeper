@@ -6,14 +6,16 @@ import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.exercise_chart.di.ExerciseChartHandlerStore
 import io.github.stslex.workeeper.feature.exercise_chart.domain.ExerciseChartInteractor
-import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.toDomain
-import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.toUi
-import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.toUiPoints
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapper.toDomain
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapper.toUi
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapper.toUiPoints
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ExercisePickerItemUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Action
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.EmptyReason
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.State
+import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.async
 import javax.inject.Inject
 
 @ViewModelScoped
@@ -31,32 +33,46 @@ internal class CommonHandler @Inject constructor(
 
     private fun processInit() {
         val initialUuid = state.value.initialUuid
-        launch(
+        launchDefault(
             onSuccess = { result ->
-                val selected = result.recents.firstOrNull { it.uuid == result.targetUuid }
-                val emptyReason = when {
-                    result.recents.isEmpty() -> EmptyReason.NO_FINISHED_SESSIONS
-                    selected == null && initialUuid != null -> EmptyReason.EXERCISE_NOT_FOUND
-                    else -> null
-                }
                 updateStateImmediate { current ->
                     current.copy(
-                        recentExercises = result.recents.toImmutableList(),
-                        selectedExercise = selected,
-                        emptyReason = emptyReason,
+                        recentExercises = result.recents,
+                        selectedExercise = result.selected,
+                        emptyReason = result.emptyReason,
                         // Stop the spinner only when we're not about to fire loadChart —
                         // otherwise loadChart owns the false transition.
-                        isLoading = selected != null,
+                        isLoading = result.isLoading,
                     )
                 }
-                if (selected != null) {
+                result.selected?.also { selected ->
                     loadChart(selected)
                 }
             },
         ) {
-            val recents = interactor.getRecentlyTrainedExercises().map { it.toUi() }
-            val resolvedUuid = initialUuid ?: interactor.getLastTrainedExerciseUuid()
-            InitResult(recents = recents, targetUuid = resolvedUuid)
+            val recentsDeferred = async {
+                interactor.getRecentlyTrainedExercises().map { it.toUi() }
+            }
+            val resolvedUuidDeferred = async {
+                initialUuid ?: interactor.getLastTrainedExerciseUuid()
+            }
+
+            val recents = recentsDeferred.await()
+            val resolvedUuid = resolvedUuidDeferred.await()
+
+            val selected = recents.firstOrNull { it.uuid == resolvedUuid }
+            val emptyReason = when {
+                recents.isEmpty() -> EmptyReason.NO_FINISHED_SESSIONS
+                selected == null && initialUuid != null -> EmptyReason.EXERCISE_NOT_FOUND
+                else -> null
+            }
+
+            InitResult(
+                selected = selected,
+                recents = recents.toImmutableList(),
+                emptyReason = emptyReason,
+                isLoading = selected != null,
+            )
         }
     }
 
@@ -71,7 +87,7 @@ internal class CommonHandler @Inject constructor(
         val current = state.value
         val metric = current.metric.toDomain()
         val type = exercise.type.toDomain()
-        launch(
+        launchDefault(
             onSuccess = { result ->
                 updateStateImmediate {
                     it.copy(
@@ -103,7 +119,9 @@ internal class CommonHandler @Inject constructor(
     private fun State.placeholder(): State = this
 
     private data class InitResult(
-        val recents: List<ExercisePickerItemUiModel>,
-        val targetUuid: String?,
+        val selected: ExercisePickerItemUiModel?,
+        val recents: ImmutableList<ExercisePickerItemUiModel>,
+        val emptyReason: EmptyReason?,
+        val isLoading: Boolean,
     )
 }

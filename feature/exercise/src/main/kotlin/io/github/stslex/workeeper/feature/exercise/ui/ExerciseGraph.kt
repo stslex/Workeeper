@@ -25,22 +25,19 @@ import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
 import io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
-import io.github.stslex.workeeper.core.ui.plan_editor.AppPlanEditor
-import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseFeature
-import io.github.stslex.workeeper.feature.exercise.mvi.model.ImageErrorType
-import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Action
-import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.DiscardTarget
-import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Event
-import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State.Mode
 import io.github.stslex.workeeper.feature.exercise.ui.components.ImageSourceDialog
 import io.github.stslex.workeeper.feature.exercise.ui.components.PermissionDeniedDialog
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageErrorType
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.DiscardTarget
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Event
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State.Mode
 
 @OptIn(ExperimentalSharedTransitionApi::class)
-@Suppress("UnusedParameter", "LongMethod", "CyclomaticComplexMethod")
+@Suppress("LongMethod", "CyclomaticComplexMethod")
 fun NavGraphBuilder.exerciseGraph(
-//    sharedTransitionScope: SharedTransitionScope,
     modifier: Modifier = Modifier,
 ) {
     navComponentScreen(ExerciseFeature) { processor ->
@@ -185,7 +182,7 @@ fun NavGraphBuilder.exerciseGraph(
             is Mode.Edit -> ExerciseEditScreen(
                 modifier = modifier,
                 state = state,
-                consume = processor::consume,
+                consume = { bodyAction -> processor.consume(bodyAction.toAction()) },
             )
         }
 
@@ -247,14 +244,6 @@ fun NavGraphBuilder.exerciseGraph(
                     typeChangeDialog = null
                     processor.consume(Action.Click.OnTypeChangeDismiss)
                 },
-            )
-        }
-        state.planEditorTarget?.let { target ->
-            AppPlanEditor(
-                exerciseName = state.name,
-                draft = target.draft,
-                isWeighted = state.type == ExerciseTypeUiModel.WEIGHTED,
-                onAction = { action -> processor.consume(Action.PlanEditorAction(action)) },
             )
         }
         if (state.sourceDialogVisible) {

@@ -26,6 +26,8 @@
 
     <string name="feature_live_workout_add_set">+ Добавить сет</string>
 
+    <string name="feature_live_workout_set_type_tooltip">Нажмите, чтобы переключить: разминка → рабочий → отказ → дроп</string>
+
     <string name="feature_live_workout_reset_title">Сбросить сеты?</string>
     <string name="feature_live_workout_reset_body">Все записанные сеты этого упражнения будут удалены. Это нельзя отменить.</string>
     <string name="feature_live_workout_reset_confirm">Сбросить</string>
@@ -64,9 +66,9 @@
     <string name="feature_live_workout_session_overflow_cancel" tools:ignore="DuplicateStrings">Отменить сессию</string>
     <string name="feature_live_workout_cancel_title">Отменить сессию?</string>
     <string name="feature_live_workout_cancel_body">Весь прогресс будет удалён. Это нельзя отменить.</string>
-    <string name="feature_live_workout_cancel_confirm">Отменить сессию</string>
+    <string name="feature_live_workout_cancel_confirm">Отменить</string>
     <string name="feature_live_workout_cancel_dismiss" tools:ignore="DuplicateStrings">Продолжить</string>
-    <string name="feature_live_workout_delete_session" tools:ignore="DuplicateStrings">Удалить сессию</string>
+    <string name="feature_live_workout_delete_session" tools:ignore="DuplicateStrings">Удалить</string>
     <string name="feature_live_workout_delete_session_unnamed">Тренировка</string>
     <string name="feature_live_workout_delete_session_progress_format">%1$d из %2$d упражнений · %3$d сетов записано</string>
 
@@ -75,7 +77,7 @@
 
     <string name="feature_live_workout_training_name_placeholder">Без названия</string>
 
-    <string name="feature_live_workout_picker_search_hint">Поиск или создание</string>
+    <string name="feature_live_workout_picker_search_hint">Введите чтобы найти или создать</string>
     <string name="feature_live_workout_picker_no_match_format">Нет упражнений по запросу «%1$s»</string>
     <string name="feature_live_workout_picker_create_format">Создать «%1$s»</string>
     <string name="feature_live_workout_add_exercise_cta">Добавить упражнение</string>
@@ -83,7 +85,7 @@
 
     <string name="feature_live_workout_empty_finish_title">Удалить пустую тренировку?</string>
     <string name="feature_live_workout_empty_finish_body">В этой тренировке нет ни одного выполненного сета. Похоже, она ещё не начата.</string>
-    <string name="feature_live_workout_empty_finish_continue">Продолжить редактирование</string>
+    <string name="feature_live_workout_empty_finish_continue" tools:ignore="DuplicateStrings">Продолжить</string>
     <string name="feature_live_workout_empty_finish_discard">Удалить</string>
 
     <string name="feature_live_workout_back">Назад</string>

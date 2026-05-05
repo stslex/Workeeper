@@ -34,35 +34,32 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import io.github.stslex.workeeper.FeatureTokens.TOP_APP_BAR_ACTION_PADDING
+import io.github.stslex.workeeper.FeatureTokens.TOP_APP_BAR_HEIGHT
 import io.github.stslex.workeeper.bottom_app_bar.WorkeeperBottomAppBar
 import io.github.stslex.workeeper.core.ui.kit.components.snackbar.AppSnackbar
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
-import io.github.stslex.workeeper.core.ui.navigation.LocalNavigator
 import io.github.stslex.workeeper.core.ui.navigation.LocalRootComponent
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.host.AppNavigationHost
-import io.github.stslex.workeeper.host.NavHostControllerHolder.Companion.rememberNavHostControllerHolder
+import io.github.stslex.workeeper.host.NavHostControllerWrapper.Companion.rememberNavHostControllerHolder
 import io.github.stslex.workeeper.navigation.NavigatorImpl
 import io.github.stslex.workeeper.navigation.RootComponentImpl
-
-private val TOP_APP_BAR_HEIGHT = 64.dp
-private val TOP_APP_BAR_ACTION_PADDING = 4.dp
 
 @Composable
 fun App() {
     val rootViewModel: AppRootViewModel = hiltViewModel()
     val themeMode by rootViewModel.themeMode.collectAsState()
+
     AppTheme(themeMode = themeMode) {
-        val navigatorHolder = rememberNavHostControllerHolder()
-        val navigator = remember(navigatorHolder) { NavigatorImpl(navigatorHolder) }
+        val navWrapper = rememberNavHostControllerHolder(rootViewModel.navigationHolderProducer)
+        val navigator = remember(navWrapper) { NavigatorImpl(rootViewModel.navigationHolder) }
         val rootComponent = remember(navigator) { RootComponentImpl(navigator) }
         CompositionLocalProvider(
-            LocalNavigator provides navigator,
             LocalRootComponent provides rootComponent,
         ) {
             val snackbarHostState = remember { SnackbarHostState() }
@@ -93,7 +90,7 @@ fun App() {
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .zIndex(1f),
-                    visible = navigatorHolder.bottomBarDestination.value != null,
+                    visible = navWrapper.bottomBarDestination.value != null,
                     enter = fadeIn(
                         tween(AppUi.motion.deliberate),
                     ) + scaleIn(
@@ -112,7 +109,7 @@ fun App() {
                     ),
                 ) {
                     WorkeeperBottomAppBar(
-                        selectedItem = navigatorHolder.bottomBarDestination,
+                        selectedItem = navWrapper.bottomBarDestination,
                     ) {
                         navigator.navTo(it.screen)
                     }
@@ -133,7 +130,7 @@ fun App() {
                         .systemBarsPadding()
                         .height(TOP_APP_BAR_HEIGHT)
                         .zIndex(1f),
-                    visible = navigatorHolder.bottomBarDestination.value != null,
+                    visible = navWrapper.bottomBarDestination.value != null,
                     enter = fadeIn(tween(AppUi.motion.deliberate)),
                     exit = fadeOut(tween(AppUi.motion.deliberate)),
                 ) {

@@ -145,7 +145,6 @@ internal class InputHandlerTest {
                     finishedAtAbsoluteLabel = "Apr 28",
                     durationLabel = "01:00",
                     totalsLabel = "1 exercise · 1 set",
-                    volumeLabel = "800 kg total",
                     exercises = persistentListOf(
                         PastExerciseUiModel(
                             performedExerciseUuid = PERFORMED_EXERCISE_UUID,
@@ -230,6 +229,16 @@ internal class InputHandlerTest {
                 .onFailure {
                     withContext(eachDispatcher ?: dispatcher) { onError(it) }
                 }
+        }
+
+        override fun <T> launchDefault(
+            onError: suspend (Throwable) -> Unit,
+            onSuccess: suspend CoroutineScope.(T) -> Unit,
+            action: suspend CoroutineScope.() -> T,
+        ): Job = testScope.launch(dispatcher) {
+            runCatching { action() }
+                .onSuccess { withContext(dispatcher) { onSuccess(it) } }
+                .onFailure { withContext(dispatcher) { onError(it) } }
         }
 
         override fun <T> Flow<T>.launch(

@@ -12,6 +12,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.card.AppCard
+import io.github.stslex.workeeper.core.ui.kit.components.reorderable.rememberReorderableColumnState
+import io.github.stslex.workeeper.core.ui.kit.components.reorderable.reorderableColumnDragHandle
+import io.github.stslex.workeeper.core.ui.kit.components.reorderable.reorderableColumnItem
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -28,8 +31,16 @@ internal fun PastExerciseCard(
     onWeightChange: (String, String) -> Unit,
     onRepsChange: (String, String) -> Unit,
     onTypeChange: (String, SetTypeUiModel) -> Unit,
+    onSetReorder: (performedExerciseUuid: String, from: Int, to: Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // ReorderableColumnState rather than ReorderableLazyColumn — the parent screen is
+    // already a LazyColumn, so nesting another lazy scroller would break layout. The
+    // non-lazy variant registers each row's measured Y bounds via onGloballyPositioned
+    // and resolves the drop target against those bounds.
+    val reorderState = rememberReorderableColumnState { from, to ->
+        onSetReorder(exercise.performedExerciseUuid, from, to)
+    }
     AppCard(modifier = modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -65,13 +76,28 @@ internal fun PastExerciseCard(
                     color = AppUi.colors.textSecondary,
                 )
             } else {
-                exercise.sets.forEach { set ->
+                exercise.sets.forEachIndexed { index, set ->
                     PastSetEditRow(
                         set = set,
                         isWeighted = exercise.isWeighted,
                         onWeightChange = { raw -> onWeightChange(set.setUuid, raw) },
                         onRepsChange = { raw -> onRepsChange(set.setUuid, raw) },
                         onTypeChange = { type -> onTypeChange(set.setUuid, type) },
+                        modifier = Modifier.reorderableColumnItem(
+                            state = reorderState,
+                            key = set.setUuid,
+                            index = index,
+                        ),
+                        // Long-press the trailing drag-handle icon to start a drag.
+                        // Skipped exercises stay read-only — handle is rendered for
+                        // visual consistency but the gesture detector is disabled so a
+                        // mis-targeted long-press cannot rewrite the historical record.
+                        dragHandleModifier = Modifier.reorderableColumnDragHandle(
+                            state = reorderState,
+                            key = set.setUuid,
+                            index = index,
+                            enabled = !exercise.skipped,
+                        ),
                     )
                 }
             }
@@ -88,6 +114,7 @@ private fun PastExerciseCardLightPreview() {
             onWeightChange = { _, _ -> },
             onRepsChange = { _, _ -> },
             onTypeChange = { _, _ -> },
+            onSetReorder = { _, _, _ -> },
         )
     }
 }
@@ -101,6 +128,7 @@ private fun PastExerciseCardDarkPreview() {
             onWeightChange = { _, _ -> },
             onRepsChange = { _, _ -> },
             onTypeChange = { _, _ -> },
+            onSetReorder = { _, _, _ -> },
         )
     }
 }
@@ -114,6 +142,7 @@ private fun PastExerciseCardSkippedPreview() {
             onWeightChange = { _, _ -> },
             onRepsChange = { _, _ -> },
             onTypeChange = { _, _ -> },
+            onSetReorder = { _, _, _ -> },
         )
     }
 }

@@ -5,11 +5,12 @@ import androidx.paging.PagingData
 import androidx.paging.map
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
+import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.all_exercises.di.AllExercisesHandlerStore
 import io.github.stslex.workeeper.feature.all_exercises.domain.AllExercisesInteractor
-import io.github.stslex.workeeper.feature.all_exercises.mvi.mapper.toUi
+import io.github.stslex.workeeper.feature.all_exercises.mvi.mapper.AllExercisesUiMapper.toUi
 import io.github.stslex.workeeper.feature.all_exercises.mvi.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Action
 import kotlinx.collections.immutable.toImmutableList
@@ -19,11 +20,12 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
-import io.github.stslex.workeeper.feature.all_exercises.mvi.mapper.toUi as toTagUi
+import io.github.stslex.workeeper.feature.all_exercises.mvi.mapper.AllExercisesUiMapper.toUi as toTagUi
 
 @ViewModelScoped
 internal class PagingHandler @Inject constructor(
     private val interactor: AllExercisesInteractor,
+    private val resourceWrapper: ResourceWrapper,
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
     store: AllExercisesHandlerStore,
 ) : Handler<Action.Paging>, AllExercisesHandlerStore by store {
@@ -33,7 +35,11 @@ internal class PagingHandler @Inject constructor(
             .distinctUntilChanged()
             .flatMapLatest { filter ->
                 interactor.observeExercises(filter)
-                    .map { pagingData -> pagingData.map { it.toUi() } }
+                    .map { pagingData ->
+                        pagingData.map { item ->
+                            item.toUi(resourceWrapper = resourceWrapper)
+                        }
+                    }
             }
             .flowOn(defaultDispatcher)
     }

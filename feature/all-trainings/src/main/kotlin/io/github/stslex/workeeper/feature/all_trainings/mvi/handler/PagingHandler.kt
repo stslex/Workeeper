@@ -20,7 +20,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
-import io.github.stslex.workeeper.feature.all_trainings.mvi.mapper.toUi as toTagUi
+import io.github.stslex.workeeper.feature.all_trainings.mvi.mapper.TagUiMapper.toUi as toTagUi
 
 @ViewModelScoped
 internal class PagingHandler @Inject constructor(

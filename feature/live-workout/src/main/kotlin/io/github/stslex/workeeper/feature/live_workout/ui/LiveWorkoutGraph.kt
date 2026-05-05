@@ -17,7 +17,6 @@ import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
-import io.github.stslex.workeeper.core.ui.plan_editor.AppPlanEditor
 import io.github.stslex.workeeper.core.ui.plan_editor.ExercisePickerBottomSheet
 import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutFeature
@@ -87,15 +86,6 @@ fun NavGraphBuilder.liveWorkoutGraph(
             },
         )
 
-        state.planEditorTarget?.let { target ->
-            AppPlanEditor(
-                exerciseName = target.exerciseName,
-                draft = target.draft,
-                isWeighted = target.isWeighted,
-                onAction = { action -> processor.consume(Action.PlanEditAction(action)) },
-            )
-        }
-
         (state.exercisePickerSheet as? ExercisePickerSheetState.Visible)?.let { sheet ->
             ExercisePickerBottomSheet(
                 query = sheet.query,
@@ -112,20 +102,14 @@ fun NavGraphBuilder.liveWorkoutGraph(
             AppDialog(
                 title = stringResource(R.string.feature_live_workout_empty_finish_title),
                 body = stringResource(R.string.feature_live_workout_empty_finish_body),
-                confirmLabel = stringResource(
-                    if (dialog.canDiscard) {
-                        R.string.feature_live_workout_empty_finish_discard
-                    } else {
-                        R.string.feature_live_workout_empty_finish_continue
-                    },
-                ),
-                dismissLabel = stringResource(R.string.feature_live_workout_empty_finish_continue),
-                destructive = dialog.canDiscard,
+                confirmLabel = dialog.confirmLabel,
+                dismissLabel = dialog.dismissLabel,
+                destructive = true,
                 onConfirm = {
                     if (dialog.canDiscard) {
                         processor.consume(Action.Click.OnEmptyFinishDiscard)
                     } else {
-                        processor.consume(Action.Click.OnEmptyFinishContinue)
+                        processor.consume(Action.Click.OnCancelSessionConfirm)
                     }
                 },
                 onDismiss = { processor.consume(Action.Click.OnEmptyFinishContinue) },

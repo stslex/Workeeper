@@ -17,7 +17,6 @@ import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
-import io.github.stslex.workeeper.core.ui.plan_editor.AppPlanEditor
 import io.github.stslex.workeeper.feature.single_training.R
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingFeature
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
@@ -68,8 +67,8 @@ fun NavGraphBuilder.singleTrainingsGraph(
             }
         }
 
-        // Intercept back when EITHER training-level edits OR plan-editor draft are dirty;
-        // the handler routes the dialog to the right surface (training vs plan) from state.
+        // Intercept back only for training-level dirty edits; the plan editor lives on
+        // its own route (Screen.PlanEditor) and owns its own dirty-state interception.
         BackHandler(enabled = processor.state.value.interceptBack) {
             processor.consume(Action.Click.OnBackClick)
         }
@@ -86,15 +85,6 @@ fun NavGraphBuilder.singleTrainingsGraph(
                 modifier = modifier,
                 state = state,
                 consume = processor::consume,
-            )
-        }
-
-        state.planEditorTarget?.let { target ->
-            AppPlanEditor(
-                exerciseName = target.exerciseName,
-                draft = target.draft,
-                isWeighted = target.isWeighted,
-                onAction = { action -> processor.consume(Action.PlanEditAction(action)) },
             )
         }
 

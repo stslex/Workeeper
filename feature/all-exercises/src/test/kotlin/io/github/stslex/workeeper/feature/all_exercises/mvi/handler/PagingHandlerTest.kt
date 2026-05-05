@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.all_exercises.mvi.handler
 
+import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.feature.all_exercises.di.AllExercisesHandlerStore
 import io.github.stslex.workeeper.feature.all_exercises.domain.AllExercisesInteractor
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Action
@@ -15,9 +16,11 @@ internal class PagingHandlerTest {
         every { observeExercises(any()) } returns flowOf(androidx.paging.PagingData.empty())
         every { observeAvailableTags() } returns flowOf(emptyList())
     }
+    private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
     private val store = mockk<AllExercisesHandlerStore>(relaxed = true)
     private val handler = PagingHandler(
         interactor = interactor,
+        resourceWrapper = resourceWrapper,
         defaultDispatcher = kotlinx.coroutines.Dispatchers.Unconfined,
         store = store,
     )

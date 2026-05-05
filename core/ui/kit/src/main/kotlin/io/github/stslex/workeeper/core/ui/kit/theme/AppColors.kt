@@ -63,10 +63,10 @@ data class AppColors(
 
 @Suppress("MagicNumber")
 fun provideDarkAppColors(): AppColors = AppColors(
-    accent = Color(0xFF4A9B8E),
+    accent = Color(0xFF6EB7AB),
     onAccent = Color(0xFF0E0F0E),
-    accentTintedBackground = Color(0xFF1F3835),
-    accentTintedForeground = Color(0xFF6EB7AB),
+    accentTintedBackground = Color(0xFF243F3B),
+    accentTintedForeground = Color(0xFF8FCBC0),
     surfaceTier0 = Color(0xFF0E0F0E),
     surfaceTier1 = Color(0xFF16171A),
     surfaceTier2 = Color(0xFF1A1B1A),

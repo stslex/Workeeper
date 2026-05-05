@@ -18,6 +18,7 @@ dependencies {
     implementation(project(":core:data:database"))
     implementation(project(":core:data:exercise"))
     implementation(project(":core:data:dataStore"))
+//    implementation(project(":core:ui:plan-editor"))
 
     implementation(project(":feature:exercise"))
     implementation(project(":feature:exercise-chart"))
@@ -29,6 +30,7 @@ dependencies {
     implementation(project(":feature:live-workout"))
     implementation(project(":feature:past-session"))
     implementation(project(":feature:image-viewer"))
+    implementation(project(":feature:plan-editor"))
 
     implementation(platform(libs.google.firebase.bom))
     implementation(libs.google.firebase.analytics)
