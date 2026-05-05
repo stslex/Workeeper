@@ -5,7 +5,7 @@ import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
-import io.github.stslex.workeeper.feature.exercise.domain.mapper.toDomain
+import io.github.stslex.workeeper.feature.exercise.domain.mapper.ExerciseDomainMapper.toDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.TrackNowConflict
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext

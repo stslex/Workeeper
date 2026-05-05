@@ -9,8 +9,8 @@ import io.github.stslex.workeeper.core.core.images.model.ImageSaveResult
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordRepository
 import io.github.stslex.workeeper.core.data.exercise.tags.TagRepository
-import io.github.stslex.workeeper.feature.exercise.domain.mapper.toData
-import io.github.stslex.workeeper.feature.exercise.domain.mapper.toDomain
+import io.github.stslex.workeeper.feature.exercise.domain.mapper.ExerciseDomainMapper.toData
+import io.github.stslex.workeeper.feature.exercise.domain.mapper.ExerciseDomainMapper.toDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.ArchiveResult
 import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseChangeDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseDomain

@@ -12,9 +12,9 @@ import io.github.stslex.workeeper.core.data.exercise.session.SetRepository
 import io.github.stslex.workeeper.core.data.exercise.sets.PlanUpdateRule
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
-import io.github.stslex.workeeper.feature.live_workout.domain.mapper.toData
-import io.github.stslex.workeeper.feature.live_workout.domain.mapper.toDomain
-import io.github.stslex.workeeper.feature.live_workout.domain.mapper.toSetsDataType
+import io.github.stslex.workeeper.feature.live_workout.domain.mapper.LiveWorkoutDomainMapper.toData
+import io.github.stslex.workeeper.feature.live_workout.domain.mapper.LiveWorkoutDomainMapper.toDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.mapper.LiveWorkoutDomainMapper.toSetsDataType
 import io.github.stslex.workeeper.feature.live_workout.domain.model.AddExerciseResult
 import io.github.stslex.workeeper.feature.live_workout.domain.model.AdhocSessionResult
 import io.github.stslex.workeeper.feature.live_workout.domain.model.ExercisePickerEntry

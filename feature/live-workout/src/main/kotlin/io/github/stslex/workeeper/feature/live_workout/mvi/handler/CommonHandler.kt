@@ -9,7 +9,7 @@ import io.github.stslex.workeeper.core.ui.navigation.NavigatorStack
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
-import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.toState
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toState
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay

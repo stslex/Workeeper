@@ -10,12 +10,12 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
-import io.github.stslex.workeeper.feature.live_workout.domain.mapper.beatsBaseline
+import io.github.stslex.workeeper.feature.live_workout.domain.mapper.LiveWorkoutDomainMapper.beatsBaseline
 import io.github.stslex.workeeper.feature.live_workout.domain.model.PlanSetDomain
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toDomain
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toFinishStats
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.withPresentation
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.StateStatusMapper
-import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.toDomain
-import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.toFinishStats
-import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.withPresentation
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ErrorType
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel

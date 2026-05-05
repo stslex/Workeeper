@@ -2,6 +2,7 @@ package io.github.stslex.workeeper.feature.live_workout.mvi.mapper
 
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.withPresentation
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore

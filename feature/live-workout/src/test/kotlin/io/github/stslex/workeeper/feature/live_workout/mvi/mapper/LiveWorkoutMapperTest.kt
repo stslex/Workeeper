@@ -14,6 +14,12 @@ import io.github.stslex.workeeper.feature.live_workout.domain.model.SessionDomai
 import io.github.stslex.workeeper.feature.live_workout.domain.model.SessionSnapshotDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.SessionStateDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.SetTypeDomain
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toDomain
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toFinishStats
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toState
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toUi
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toUiList
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.withPresentation
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel

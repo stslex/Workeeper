@@ -5,7 +5,7 @@ import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
-import io.github.stslex.workeeper.feature.exercise_chart.domain.mapper.toDomain
+import io.github.stslex.workeeper.feature.exercise_chart.domain.mapper.ExerciseChartDomainMapper.toDomain
 import io.github.stslex.workeeper.feature.exercise_chart.domain.model.ChartFoldDomain
 import io.github.stslex.workeeper.feature.exercise_chart.domain.model.ChartMetricDomain
 import io.github.stslex.workeeper.feature.exercise_chart.domain.model.ChartPresetDomain

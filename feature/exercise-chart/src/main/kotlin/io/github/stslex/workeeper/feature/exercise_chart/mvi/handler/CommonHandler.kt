@@ -6,9 +6,9 @@ import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.exercise_chart.di.ExerciseChartHandlerStore
 import io.github.stslex.workeeper.feature.exercise_chart.domain.ExerciseChartInteractor
-import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.toDomain
-import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.toUi
-import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.toUiPoints
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapper.toDomain
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapper.toUi
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapper.toUiPoints
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ExercisePickerItemUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Action
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.EmptyReason
