@@ -192,8 +192,8 @@ internal class LiveSetVisibleRowsResolverTest {
         val rows = LiveSetRowsResolver.resolveVisibleSets(exercise, persistentMapOf())
 
         assertEquals(3, rows.size)
-        assertEquals(null, rows[0].weight)
-        assertEquals(null, rows[1].weight)
+        assertEquals("position 0 is an empty placeholder before the sparse performed row", null, rows[0].weight)
+        assertEquals("position 1 is an empty placeholder before the sparse performed row", null, rows[1].weight)
         assertEquals(120.0, rows[2].weight)
         assertEquals(true, rows[2].isDone)
     }
