@@ -59,7 +59,7 @@ fun AppSetTypeChip(
 @Preview(
     name = "Dark",
     showBackground = true,
-    uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES
+    uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES,
 )
 @Composable
 private fun AppSetTypeChipPreview() {

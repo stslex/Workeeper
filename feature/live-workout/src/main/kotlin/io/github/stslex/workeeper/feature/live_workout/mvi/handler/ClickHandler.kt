@@ -261,10 +261,12 @@ internal class ClickHandler @Inject constructor(
             }
         } else {
             updateState { latest ->
-                latest.applyDraftTypeChange(
-                    action.performedExerciseUuid,
-                    action.position,
-                    newType,
+                val key = State.DraftKey(action.performedExerciseUuid, action.position)
+                val existing = latest.draftFor(action.performedExerciseUuid, action.position)
+                val newItem = key to existing.copy(type = newType)
+                val newSetDrafts = latest.setDrafts + newItem
+                latest.copy(
+                    setDrafts = newSetDrafts.toImmutableMap(),
                 )
             }
         }
@@ -715,24 +717,6 @@ internal class ClickHandler @Inject constructor(
             exercise.copy(performedSets = nextSets)
         }.toImmutableList()
         return copy(exercises = updated)
-    }
-
-    private fun State.applyDraftTypeChange(
-        performedExerciseUuid: String,
-        position: Int,
-        type: SetTypeUiModel,
-    ): State {
-        val key = State.DraftKey(performedExerciseUuid, position)
-        val existing = setDrafts[key] ?: LiveSetUiModel(
-            position = position,
-            weight = null,
-            reps = 0,
-            type = type,
-            isDone = false,
-        )
-        return copy(
-            setDrafts = (setDrafts + (key to existing.copy(type = type))).toImmutableMap(),
-        )
     }
 
     private fun State.applyResetSets(performedExerciseUuid: String): State {
