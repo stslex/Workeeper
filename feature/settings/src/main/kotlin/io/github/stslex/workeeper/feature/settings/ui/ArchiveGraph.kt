@@ -46,7 +46,7 @@ fun NavGraphBuilder.archiveGraph(
         ArchiveScreen(
             modifier = modifier,
             state = processor.state.value,
-            consume = { bodyAction -> processor.consume(bodyAction.toAction()) },
+            consume = processor::consume,
         )
     }
 }

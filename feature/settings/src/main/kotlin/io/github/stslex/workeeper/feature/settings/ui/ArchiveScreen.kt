@@ -36,6 +36,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.feature.settings.R
 import io.github.stslex.workeeper.feature.settings.mvi.model.ArchivedItemUi
+import io.github.stslex.workeeper.feature.settings.mvi.store.ArchiveStore.Action
 import io.github.stslex.workeeper.feature.settings.mvi.store.ArchiveStore.Segment
 import io.github.stslex.workeeper.feature.settings.mvi.store.ArchiveStore.State
 import io.github.stslex.workeeper.feature.settings.ui.components.ArchivedItemRow
@@ -47,7 +48,7 @@ import io.github.stslex.workeeper.core.ui.kit.R as KitR
 @Composable
 internal fun ArchiveScreen(
     state: State,
-    consume: (ArchiveBodyAction) -> Unit,
+    consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val exerciseItems = remember(state.archivedExercisesPaging) {
@@ -69,7 +70,7 @@ internal fun ArchiveScreen(
             navigationIcon = {
                 IconButton(
                     modifier = Modifier.testTag("ArchiveBackButton"),
-                    onClick = { consume(ArchiveBodyAction.BackClick) },
+                    onClick = { consume(Action.Navigation.Back) },
                 ) {
                     Icon(
                         modifier = Modifier.size(AppDimension.iconMd),
@@ -93,7 +94,7 @@ internal fun ArchiveScreen(
             selected = if (state.selectedSegment == Segment.EXERCISES) 0 else 1,
             onSelectedChange = { index ->
                 val segment = if (index == 0) Segment.EXERCISES else Segment.TRAININGS
-                consume(ArchiveBodyAction.SegmentChange(segment))
+                consume(Action.Click.OnSegmentChange(segment))
             },
         )
 
@@ -127,8 +128,8 @@ internal fun ArchiveScreen(
             PermanentDeleteDialog(
                 target = target,
                 impactCount = state.pendingDeleteImpact ?: 0,
-                onConfirm = { consume(ArchiveBodyAction.DeleteConfirm) },
-                onDismiss = { consume(ArchiveBodyAction.DeleteDismiss) },
+                onConfirm = { consume(Action.Click.OnDeleteConfirm) },
+                onDismiss = { consume(Action.Click.OnDeleteDismiss) },
             )
         }
     }
@@ -137,7 +138,7 @@ internal fun ArchiveScreen(
 @Composable
 private fun ArchivedExerciseList(
     items: LazyPagingItems<ArchivedItemUi.Exercise>,
-    consume: (ArchiveBodyAction) -> Unit,
+    consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (isPagingEmpty(items.loadState, items.itemCount)) {
@@ -151,7 +152,10 @@ private fun ArchivedExerciseList(
     }
     LazyColumn(
         modifier = modifier.testTag("ArchiveExerciseList"),
-        contentPadding = PaddingValues(horizontal = AppDimension.screenEdge, vertical = AppDimension.Space.sm),
+        contentPadding = PaddingValues(
+            horizontal = AppDimension.screenEdge,
+            vertical = AppDimension.Space.sm
+        ),
         state = rememberLazyListState(),
         verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
@@ -163,8 +167,8 @@ private fun ArchivedExerciseList(
                 ArchivedItemRow(
                     item = row.item,
                     archivedAtLabel = row.archivedAtLabel,
-                    onRestore = { consume(ArchiveBodyAction.RestoreClick(row.item)) },
-                    onPermanentDelete = { consume(ArchiveBodyAction.PermanentDeleteClick(row.item)) },
+                    onRestore = { consume(Action.Click.OnRestoreClick(row.item)) },
+                    onPermanentDelete = { consume(Action.Click.OnPermanentDeleteClick(row.item)) },
                 )
             }
         }
@@ -174,7 +178,7 @@ private fun ArchivedExerciseList(
 @Composable
 private fun ArchivedTrainingList(
     items: LazyPagingItems<ArchivedItemUi.Training>,
-    consume: (ArchiveBodyAction) -> Unit,
+    consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (isPagingEmpty(items.loadState, items.itemCount)) {
@@ -188,7 +192,10 @@ private fun ArchivedTrainingList(
     }
     LazyColumn(
         modifier = modifier.testTag("ArchiveTrainingList"),
-        contentPadding = PaddingValues(horizontal = AppDimension.screenEdge, vertical = AppDimension.Space.sm),
+        contentPadding = PaddingValues(
+            horizontal = AppDimension.screenEdge,
+            vertical = AppDimension.Space.sm
+        ),
         state = rememberLazyListState(),
         verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
@@ -200,8 +207,8 @@ private fun ArchivedTrainingList(
                 ArchivedItemRow(
                     item = row.item,
                     archivedAtLabel = row.archivedAtLabel,
-                    onRestore = { consume(ArchiveBodyAction.RestoreClick(row.item)) },
-                    onPermanentDelete = { consume(ArchiveBodyAction.PermanentDeleteClick(row.item)) },
+                    onRestore = { consume(Action.Click.OnRestoreClick(row.item)) },
+                    onPermanentDelete = { consume(Action.Click.OnPermanentDeleteClick(row.item)) },
                 )
             }
         }

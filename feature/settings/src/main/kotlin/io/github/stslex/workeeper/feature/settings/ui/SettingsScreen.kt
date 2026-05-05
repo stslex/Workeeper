@@ -23,6 +23,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.feature.settings.R
+import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Action
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.State
 import io.github.stslex.workeeper.feature.settings.ui.components.AboutBlock
 import io.github.stslex.workeeper.feature.settings.ui.components.SettingsRow
@@ -33,7 +34,7 @@ import io.github.stslex.workeeper.core.ui.kit.R as KitR
 @Composable
 internal fun SettingsScreen(
     state: State,
-    consume: (SettingsBodyAction) -> Unit,
+    consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -47,7 +48,7 @@ internal fun SettingsScreen(
             navigationIcon = {
                 IconButton(
                     modifier = Modifier.testTag("SettingsBackButton"),
-                    onClick = { consume(SettingsBodyAction.BackClick) },
+                    onClick = { consume(Action.Navigation.Back) },
                 ) {
                     Icon(
                         modifier = Modifier.size(AppDimension.iconMd),
@@ -67,22 +68,22 @@ internal fun SettingsScreen(
                 AboutBlock(
                     appVersion = state.appVersion,
                     appVersionCode = state.appVersionCode,
-                    onLicenseClick = { consume(SettingsBodyAction.LicenseClick) },
-                    onGitHubClick = { consume(SettingsBodyAction.GitHubClick) },
-                    onPrivacyClick = { consume(SettingsBodyAction.PrivacyPolicyClick) },
+                    onLicenseClick = { consume(Action.Click.OnLicenseClick) },
+                    onGitHubClick = { consume(Action.Click.OnGitHubClick) },
+                    onPrivacyClick = { consume(Action.Click.OnPrivacyPolicyClick) },
                 )
             }
             SettingsSection(title = stringResource(R.string.feature_settings_section_appearance)) {
                 ThemeSelector(
                     selected = state.themeMode,
-                    onSelectedChange = { mode -> consume(SettingsBodyAction.ThemeChange(mode)) },
+                    onSelectedChange = { mode -> consume(Action.Input.OnThemeChange(mode)) },
                 )
             }
             SettingsSection(title = stringResource(R.string.feature_settings_section_data)) {
                 SettingsRow(
                     modifier = Modifier.testTag("SettingsArchiveRow"),
                     title = stringResource(R.string.feature_archive_title),
-                    onClick = { consume(SettingsBodyAction.ArchiveClick) },
+                    onClick = { consume(Action.Click.OnArchiveClick) },
                 )
             }
         }
