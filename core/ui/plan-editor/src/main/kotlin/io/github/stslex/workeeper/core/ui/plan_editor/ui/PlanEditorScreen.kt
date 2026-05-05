@@ -201,7 +201,7 @@ private fun DiscardDialog(
                 )
                 AppButton.Primary(
                     modifier = Modifier.testTag("PlanEditorDiscardSave"),
-                    text = stringResource(R.string.core_ui_plan_editor_discard_save),
+                    text = stringResource(R.string.core_ui_plan_editor_screen_save),
                     onClick = onSave,
                     size = AppButtonSize.MEDIUM,
                 )

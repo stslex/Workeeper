@@ -4,14 +4,15 @@ package io.github.stslex.workeeper.core.ui.plan_editor.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
 import io.github.stslex.workeeper.core.ui.plan_editor.di.PlanEditorFeature
 import io.github.stslex.workeeper.core.ui.plan_editor.mvi.store.PlanEditorStore.Action
+import io.github.stslex.workeeper.core.ui.plan_editor.mvi.store.PlanEditorStore.ErrorType
 import io.github.stslex.workeeper.core.ui.plan_editor.mvi.store.PlanEditorStore.Event
 
 /**
@@ -25,15 +26,21 @@ fun NavGraphBuilder.planEditorGraph(
 ) {
     navComponentScreen(PlanEditorFeature) { processor ->
         val haptic = LocalHapticFeedback.current
-        val context = LocalContext.current
         val state by processor.state
+        // Pre-resolve error copy in composable scope so the suspend Handle lambda below
+        // does not call `Context.getString` (Lint: LocalContextGetResourceValueCall).
+        val loadFailedMessage = stringResource(ErrorType.LoadFailed.msgRes)
+        val saveFailedMessage = stringResource(ErrorType.SaveFailed.msgRes)
 
         processor.Handle { event ->
             when (event) {
                 is Event.HapticClick -> haptic.performHapticFeedback(event.type)
                 is Event.ShowError -> SnackbarManager.showSnackbar(
                     AppSnackbarModel(
-                        message = context.getString(event.type.msgRes),
+                        message = when (event.type) {
+                            ErrorType.LoadFailed -> loadFailedMessage
+                            ErrorType.SaveFailed -> saveFailedMessage
+                        },
                     ),
                 )
             }

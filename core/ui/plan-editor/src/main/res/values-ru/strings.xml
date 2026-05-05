@@ -8,7 +8,6 @@
 
     <string name="core_ui_plan_editor_discard_title">Отменить изменения?</string>
     <string name="core_ui_plan_editor_discard_body">У вас есть несохранённые правки. Сохраните, отмените или продолжите редактировать.</string>
-    <string name="core_ui_plan_editor_discard_save">Сохранить</string>
     <string name="core_ui_plan_editor_discard_discard">Отменить</string>
     <string name="core_ui_plan_editor_discard_continue">Продолжить</string>
 

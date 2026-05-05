@@ -59,7 +59,7 @@ internal class PlanEditorStoreImpl @AssistedInject constructor(
     }
 }
 
-private fun io.github.stslex.workeeper.core.ui.navigation.Screen.PlanEditor.toMode(): State.Mode {
+internal fun io.github.stslex.workeeper.core.ui.navigation.Screen.PlanEditor.toMode(): State.Mode {
     val performed = performedExerciseUuid
     val exercise = exerciseUuid
     return when {
