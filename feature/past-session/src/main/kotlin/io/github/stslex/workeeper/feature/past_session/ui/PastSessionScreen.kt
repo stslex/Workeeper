@@ -15,9 +15,9 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
@@ -70,16 +70,23 @@ internal fun PastSessionScreen(
     ) { contentPadding ->
         when (val phase = state.phase) {
             State.Phase.Loading -> LoadingContent(
-                modifier = Modifier.fillMaxSize().background(AppUi.colors.surfaceTier0),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(AppUi.colors.surfaceTier0),
             )
+
             is State.Phase.Error -> ErrorContent(
-                modifier = Modifier.fillMaxSize().background(AppUi.colors.surfaceTier0),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(AppUi.colors.surfaceTier0),
                 errorType = phase.errorType,
                 onRetry = { consume(PastSessionBodyAction.RetryLoad) },
             )
 
             is State.Phase.Loaded -> LoadedContent(
-                modifier = Modifier.fillMaxSize().background(AppUi.colors.surfaceTier0),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(AppUi.colors.surfaceTier0),
                 contentPadding = contentPadding,
                 detail = phase.detail,
                 consume = consume,
@@ -104,7 +111,7 @@ private fun PastSessionLargeTopBar(
 ) {
     val title = (state.phase as? State.Phase.Loaded)?.detail?.trainingName
         ?: stringResource(R.string.feature_past_session_loading_title)
-    LargeTopAppBar(
+    TopAppBar(
         scrollBehavior = scrollBehavior,
         modifier = Modifier.testTag("PastSessionTopBar"),
         title = {

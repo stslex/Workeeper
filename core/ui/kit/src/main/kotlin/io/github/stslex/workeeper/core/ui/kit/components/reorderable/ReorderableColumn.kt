@@ -5,7 +5,6 @@ import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
@@ -13,7 +12,6 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
 
 /**
  * Row-container modifier for a reorderable Column item. Registers the item's measured
@@ -48,7 +46,6 @@ fun Modifier.reorderableColumnItem(
         .then(
             if (isDragged) {
                 Modifier
-                    .shadow(elevation = DRAG_SHADOW_ELEVATION_DP.dp, clip = false)
                     .graphicsLayer { translationY = dragOffset }
             } else {
                 Modifier.graphicsLayer { translationY = animatedDisplacement }

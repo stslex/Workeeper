@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources xmlns:tools="http://schemas.android.com/tools">
+<resources>
     <string name="core_ui_kit_action_cancel">Отмена</string>
     <string name="core_ui_kit_action_save">Сохранить</string>
     <string name="core_ui_kit_action_back">Назад</string>
+    <string name="core_ui_kit_more_description">More</string>
 
     <string name="feature_exercise_detail_type_weighted">С весом</string>
     <string name="feature_exercise_detail_type_weightless">Без веса</string>

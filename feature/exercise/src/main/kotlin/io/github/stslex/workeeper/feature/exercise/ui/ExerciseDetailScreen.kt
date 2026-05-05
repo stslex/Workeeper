@@ -3,7 +3,6 @@ package io.github.stslex.workeeper.feature.exercise.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -15,15 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -44,6 +35,8 @@ import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordCard
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PrExplainerDialog
 import io.github.stslex.workeeper.core.ui.kit.components.setchip.AppSetTypeChip
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagChip.Static
+import io.github.stslex.workeeper.core.ui.kit.components.topbar.DetailTopbar
+import io.github.stslex.workeeper.core.ui.kit.components.topbar.TopbarAction
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
@@ -55,6 +48,8 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageDisplay
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.plus
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -151,102 +146,35 @@ private fun DetailLargeTopBar(
     consume: (Action) -> Unit,
     scrollBehavior: androidx.compose.material3.TopAppBarScrollBehavior,
 ) {
-    var menuExpanded by remember { mutableStateOf(false) }
-    LargeTopAppBar(
-        scrollBehavior = scrollBehavior,
-        modifier = Modifier.testTag("ExerciseDetailTopBar"),
-        title = {
-            Text(
-                text = state.name,
-                style = AppUi.typography.headlineSmall,
-                color = AppUi.colors.textPrimary,
-            )
-        },
-        navigationIcon = {
-            IconButton(
-                modifier = Modifier.testTag("ExerciseDetailBackButton"),
-                onClick = { consume(Action.Click.OnBackClick) },
-            ) {
-                Icon(
-                    modifier = Modifier.size(AppDimension.iconSm),
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(R.string.feature_exercise_detail_back_description),
+    val actions = remember(state.canPermanentlyDelete) {
+        persistentListOf(
+            TopbarAction(
+                titleRes = R.string.feature_exercise_detail_edit,
+                testTag = "ExerciseDetailEditMenuItem",
+                onClick = { consume(Action.Click.OnEditClick) },
+            ),
+            TopbarAction(
+                titleRes = R.string.feature_exercise_detail_archive,
+                testTag = "ExerciseDetailArchiveMenuItem",
+                onClick = { consume(Action.Click.OnArchiveMenuClick) },
+            ),
+        ).apply {
+            if (state.canPermanentlyDelete) {
+                plus(
+                    TopbarAction(
+                        titleRes = R.string.feature_exercise_detail_permanent_delete,
+                        testTag = "ExerciseDetailPermanentDeleteMenuItem",
+                        onClick = { consume(Action.Click.OnPermanentDeleteMenuClick) },
+                    )
                 )
             }
-        },
-        actions = {
-            Box {
-                IconButton(
-                    modifier = Modifier.testTag("ExerciseDetailMenuButton"),
-                    onClick = { menuExpanded = true },
-                ) {
-                    Icon(
-                        modifier = Modifier.size(AppDimension.iconSm),
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = stringResource(
-                            R.string.feature_exercise_detail_more_description,
-                        ),
-                    )
-                }
-                DropdownMenu(
-                    expanded = menuExpanded,
-                    onDismissRequest = { menuExpanded = false },
-                    containerColor = AppUi.colors.surfaceTier2,
-                ) {
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                text = stringResource(R.string.feature_exercise_detail_edit),
-                                style = AppUi.typography.bodyMedium,
-                                color = AppUi.colors.textPrimary,
-                            )
-                        },
-                        onClick = {
-                            menuExpanded = false
-                            consume(Action.Click.OnEditClick)
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                text = stringResource(R.string.feature_exercise_detail_archive),
-                                style = AppUi.typography.bodyMedium,
-                                color = AppUi.colors.setType.failureForeground,
-                            )
-                        },
-                        onClick = {
-                            menuExpanded = false
-                            consume(Action.Click.OnArchiveMenuClick)
-                        },
-                    )
-                    if (state.canPermanentlyDelete) {
-                        DropdownMenuItem(
-                            modifier = Modifier.testTag("ExerciseDetailPermanentDeleteMenuItem"),
-                            text = {
-                                Text(
-                                    text = stringResource(
-                                        R.string.feature_exercise_detail_permanent_delete,
-                                    ),
-                                    style = AppUi.typography.bodyMedium,
-                                    color = AppUi.colors.setType.failureForeground,
-                                )
-                            },
-                            onClick = {
-                                menuExpanded = false
-                                consume(Action.Click.OnPermanentDeleteMenuClick)
-                            },
-                        )
-                    }
-                }
-            }
-        },
-        colors = TopAppBarDefaults.largeTopAppBarColors(
-            containerColor = AppUi.colors.surfaceTier0,
-            scrolledContainerColor = AppUi.colors.surfaceTier0,
-            titleContentColor = AppUi.colors.textPrimary,
-            navigationIconContentColor = AppUi.colors.textPrimary,
-            actionIconContentColor = AppUi.colors.textPrimary,
-        ),
+        }
+    }
+    DetailTopbar(
+        title = state.name,
+        onBackIconClick = { consume(Action.Click.OnBackClick) },
+        actions = actions,
+        scrollBehavior = scrollBehavior,
     )
 }
 
@@ -325,7 +253,8 @@ private fun DefaultPlanRow(
 
 @Composable
 private fun formatWeightCell(weight: Double?): String {
-    val unit = stringResource(io.github.stslex.workeeper.core.ui.kit.R.string.core_ui_kit_plan_editor_unit_kg)
+    val unit =
+        stringResource(io.github.stslex.workeeper.core.ui.kit.R.string.core_ui_kit_plan_editor_unit_kg)
     if (weight == null) return ""
     val formatted = if (weight % 1.0 == 0.0) {
         weight.toLong().toString()
@@ -337,7 +266,8 @@ private fun formatWeightCell(weight: Double?): String {
 
 @Composable
 private fun formatRepsCell(reps: Int): String {
-    val unit = stringResource(io.github.stslex.workeeper.core.ui.kit.R.string.core_ui_kit_plan_editor_unit_reps)
+    val unit =
+        stringResource(io.github.stslex.workeeper.core.ui.kit.R.string.core_ui_kit_plan_editor_unit_reps)
     return "$reps $unit"
 }
 

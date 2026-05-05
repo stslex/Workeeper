@@ -5,7 +5,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -53,7 +52,7 @@ private const val WEIGHT_COLUMN_FLEX = 1.2f
  * emit [PlanEditorBodyAction] back to the parent screen which maps them to store actions.
  */
 @Composable
-fun ColumnScope.PlanEditorBody(
+fun PlanEditorBody(
     draft: ImmutableList<PlanSetUiModel>,
     isWeighted: Boolean,
     onAction: (PlanEditorBodyAction) -> Unit,
