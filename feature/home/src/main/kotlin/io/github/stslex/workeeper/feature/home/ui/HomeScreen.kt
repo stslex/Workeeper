@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.feature.home.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
@@ -43,7 +44,7 @@ internal fun HomeScreen(
     modifier: Modifier = Modifier,
     activeSessionModifier: Modifier = Modifier,
 ) {
-    androidx.compose.foundation.layout.Column(
+    Column(
         modifier = modifier
             .fillMaxSize()
             .background(AppUi.colors.surfaceTier0)

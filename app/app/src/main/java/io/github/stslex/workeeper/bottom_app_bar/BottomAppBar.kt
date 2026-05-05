@@ -4,6 +4,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
@@ -12,7 +13,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -21,10 +21,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -47,9 +49,14 @@ internal fun WorkeeperBottomAppBar(
     onItemClick: (BottomBarItem) -> Unit,
 ) {
     val hapticFeedback = LocalHapticFeedback.current
+    var animateSelectionChange by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        animateSelectionChange = false
+    }
+
     BottomAppBar(
         modifier = modifier
-            .systemBarsPadding()
             .height(AppDimension.BottomNavBar.height)
             .testTag("WorkeeperBottomAppBar"),
         contentPadding = PaddingValues(AppDimension.Padding.medium),
@@ -63,8 +70,10 @@ internal fun WorkeeperBottomAppBar(
                 titleRes = bottomBarItem.titleRes,
                 iconRes = bottomBarItem.iconRes,
                 selected = selectedItem.value == bottomBarItem,
+                animateSelectionChange = animateSelectionChange,
             ) {
                 hapticFeedback.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                animateSelectionChange = true
                 onItemClick(bottomBarItem)
             }
             if (index != BottomBarItem.entries.lastIndex) {
@@ -80,14 +89,19 @@ private fun BottomAppBarItem(
     titleRes: Int,
     iconRes: Int,
     selected: Boolean,
+    animateSelectionChange: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     @Composable
-    fun <T : Any> animationSpec(): AnimationSpec<T> = tween(
-        durationMillis = AppUi.motion.deliberate,
-        easing = FastOutSlowInEasing,
-    )
+    fun <T : Any> animationSpec(): AnimationSpec<T> = if (animateSelectionChange) {
+        tween(
+            durationMillis = AppUi.motion.deliberate,
+            easing = FastOutSlowInEasing,
+        )
+    } else {
+        snap()
+    }
 
     val containerColor by animateColorAsState(
         targetValue = if (selected) {

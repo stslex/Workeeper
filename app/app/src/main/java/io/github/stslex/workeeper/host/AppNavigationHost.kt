@@ -1,5 +1,7 @@
 package io.github.stslex.workeeper.host
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.foundation.background
@@ -29,6 +31,7 @@ import io.github.stslex.workeeper.feature.settings.ui.archiveGraph
 import io.github.stslex.workeeper.feature.settings.ui.settingsGraph
 import io.github.stslex.workeeper.feature.single_training.ui.singleTrainingsGraph
 import io.github.stslex.workeeper.navigation.AppNavigator
+import io.github.stslex.workeeper.utils.KeyboardUtils.ClearFocusOnDestinationChanged
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -45,10 +48,16 @@ internal fun AppNavigationHost(
             .systemBarsPadding()
             .background(MaterialTheme.colorScheme.background)
 
+        ClearFocusOnDestinationChanged(navigator.navController)
+
         NavHost(
             modifier = Modifier.fillMaxSize(),
             navController = navigator.navController,
             startDestination = Screen.BottomBar.Home,
+            enterTransition = { EnterTransition.None },
+            exitTransition = { ExitTransition.None },
+            popEnterTransition = { EnterTransition.None },
+            popExitTransition = { ExitTransition.None },
         ) {
             homeGraph(
                 modifier = bottomBarModifier

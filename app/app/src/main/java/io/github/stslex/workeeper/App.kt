@@ -10,7 +10,6 @@ import androidx.compose.animation.slideIn
 import androidx.compose.animation.slideOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -34,10 +33,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import io.github.stslex.workeeper.FeatureTokens.TOP_APP_BAR_ACTION_PADDING
-import io.github.stslex.workeeper.FeatureTokens.TOP_APP_BAR_HEIGHT
 import io.github.stslex.workeeper.bottom_app_bar.WorkeeperBottomAppBar
 import io.github.stslex.workeeper.core.ui.kit.components.snackbar.AppSnackbar
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
@@ -49,6 +47,9 @@ import io.github.stslex.workeeper.host.AppNavigationHost
 import io.github.stslex.workeeper.host.NavHostControllerWrapper.Companion.rememberNavHostControllerHolder
 import io.github.stslex.workeeper.navigation.NavigatorImpl
 import io.github.stslex.workeeper.navigation.RootComponentImpl
+
+private val TOP_APP_BAR_HEIGHT = 64.dp
+private val TOP_APP_BAR_ACTION_PADDING = 4.dp
 
 @Composable
 fun App() {
@@ -79,7 +80,11 @@ fun App() {
                         }
                     }
             }
-
+            WorkeeperBottomAppBar(
+                selectedItem = navWrapper.bottomBarDestination,
+            ) {
+                navigator.navTo(it.screen)
+            }
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -120,23 +125,12 @@ fun App() {
                     navigator = navigator,
                 )
 
-                // Aligned with the Material3 TopAppBar small variant: content area is
-                // 64.dp tall and actions sit vertically centered with 4.dp horizontal
-                // padding. Mirroring those values here keeps the floating settings icon
-                // visually inside the bar instead of floating above it.
-                AnimatedVisibility(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .systemBarsPadding()
-                        .height(TOP_APP_BAR_HEIGHT)
-                        .zIndex(1f),
-                    visible = navWrapper.bottomBarDestination.value != null,
-                    enter = fadeIn(tween(AppUi.motion.deliberate)),
-                    exit = fadeOut(tween(AppUi.motion.deliberate)),
-                ) {
+                if (navWrapper.bottomBarDestination.value != null) {
                     Box(
                         modifier = Modifier
-                            .fillMaxHeight()
+                            .align(Alignment.TopEnd)
+                            .systemBarsPadding()
+                            .height(TOP_APP_BAR_HEIGHT)
                             .padding(end = TOP_APP_BAR_ACTION_PADDING),
                         contentAlignment = Alignment.Center,
                     ) {
