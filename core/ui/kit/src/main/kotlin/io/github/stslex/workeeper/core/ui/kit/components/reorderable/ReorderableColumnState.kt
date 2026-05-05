@@ -17,6 +17,11 @@ import androidx.compose.runtime.setValue
  * (Compose forbids nested same-direction scroll containers). Each child registers its
  * measured Y bounds via the modifier's `onGloballyPositioned`; reorder targets are
  * resolved against those bounds.
+ *
+ * Live preview: while the user drags, [displacementFor] returns a non-zero offset for
+ * non-dragged items between the source and current target index, so siblings animate
+ * out of the way and the user sees the future order before they release. `onMove` still
+ * fires once on release with the final `(from, to)` — consumers update their list there.
  */
 @Stable
 class ReorderableColumnState internal constructor(
@@ -96,6 +101,29 @@ class ReorderableColumnState internal constructor(
 
     fun moveDown(index: Int) {
         if (index < lastKnownLastIndex) onMoveResolved(index, index + 1)
+    }
+
+    /**
+     * Y displacement (in px) for the item at [index] / [key] while another item is being
+     * dragged. Returns 0 for the dragged item itself (it uses its own translationY) and
+     * for items outside the drag span. Items inside the span between source and current
+     * target shift by exactly the dragged item's measured height so the gap "follows the
+     * finger". The animation is the caller's responsibility — wrap the value in
+     * `animateFloatAsState` at the call site.
+     */
+    fun displacementFor(index: Int, key: Any): Float {
+        if (key == draggedKey) return 0f
+        val from = draggedFromIndex
+        val to = draggedToIndex
+        if (from < 0 || to < 0 || from == to) return 0f
+        val draggedKeyVal = draggedKey ?: return 0f
+        val draggedHeight = (itemBottoms[draggedKeyVal] ?: return 0f) -
+            (itemTops[draggedKeyVal] ?: return 0f)
+        return when {
+            from < to && index in (from + 1)..to -> -draggedHeight
+            from > to && index in to until from -> draggedHeight
+            else -> 0f
+        }
     }
 
     private fun reset() {

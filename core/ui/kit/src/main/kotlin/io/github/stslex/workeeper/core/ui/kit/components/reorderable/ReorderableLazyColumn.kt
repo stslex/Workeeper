@@ -1,16 +1,24 @@
 package io.github.stslex.workeeper.core.ui.kit.components.reorderable
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
@@ -39,21 +47,50 @@ fun ReorderableLazyColumn(
     )
 }
 
+/**
+ * Row-container modifier for an item inside a [ReorderableLazyColumn]. Applies the drag
+ * visual when this row is being dragged and an animated displacement on siblings between
+ * source and target so the user sees the future order before they release. Gesture
+ * detection lives in [reorderableDragHandle].
+ */
+@Composable
+fun Modifier.reorderableLazyItem(
+    state: ReorderableLazyListState,
+    key: Any,
+    index: Int,
+): Modifier {
+    val displacement = state.displacementFor(index, key)
+    val animatedDisplacement by animateFloatAsState(
+        targetValue = displacement,
+        label = "reorderable-lazy-displacement",
+    )
+    val isDragged = state.draggedKey == key
+    val dragOffset = state.dragOffsetPx
+    return this.then(
+        if (isDragged) {
+            Modifier
+                .shadow(elevation = DRAG_SHADOW_ELEVATION_DP.dp, clip = false)
+                .graphicsLayer { translationY = dragOffset }
+        } else {
+            Modifier.graphicsLayer { translationY = animatedDisplacement }
+        },
+    )
+}
+
+/**
+ * Gesture-only modifier for the drag-handle widget inside a reorderable lazy row. Long-
+ * press starts the drag, which then tracks the finger via `onDrag`. Pair with
+ * [reorderableLazyItem] on the row container.
+ *
+ * `lastIndex` is plumbed through so the accessibility "Move down" action can no-op at
+ * the bottom of the list.
+ */
 fun Modifier.reorderableDragHandle(
     state: ReorderableLazyListState,
     key: Any,
     index: Int,
     lastIndex: Int,
 ): Modifier = this
-    .then(
-        if (state.draggedKey == key) {
-            Modifier
-                .shadow(elevation = DRAG_SHADOW_ELEVATION_DP.dp, clip = false)
-                .graphicsLayer { translationY = state.dragOffsetPx }
-        } else {
-            Modifier
-        },
-    )
     .pointerInput(state, key, index) {
         detectDragGesturesAfterLongPress(
             onDragStart = { state.onDragStart(key, index) },
@@ -101,20 +138,34 @@ private fun ReorderableLazyColumnPreview() {
                 items = items.value,
                 key = { it },
             ) { item ->
-                Text(
+                val index = items.value.indexOf(item)
+                Row(
                     modifier = Modifier
                         .animateItem()
-                        .reorderableDragHandle(
-                            state = state,
-                            key = item,
-                            index = items.value.indexOf(item),
-                            lastIndex = items.value.size - 1,
-                        )
+                        .reorderableLazyItem(state = state, key = item, index = index)
                         .background(AppUi.colors.surfaceTier1)
                         .padding(AppDimension.Space.md),
-                    text = item,
-                    color = AppUi.colors.textPrimary,
-                )
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        modifier = Modifier.padding(end = AppDimension.Space.md),
+                        text = item,
+                        color = AppUi.colors.textPrimary,
+                    )
+                    Icon(
+                        modifier = Modifier
+                            .size(AppDimension.iconSm)
+                            .reorderableDragHandle(
+                                state = state,
+                                key = item,
+                                index = index,
+                                lastIndex = items.value.size - 1,
+                            ),
+                        imageVector = Icons.Default.DragHandle,
+                        tint = AppUi.colors.textSecondary,
+                        contentDescription = null,
+                    )
+                }
             }
         }
     }

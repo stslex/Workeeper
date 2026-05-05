@@ -13,6 +13,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.card.AppCard
 import io.github.stslex.workeeper.core.ui.kit.components.reorderable.rememberReorderableColumnState
+import io.github.stslex.workeeper.core.ui.kit.components.reorderable.reorderableColumnDragHandle
 import io.github.stslex.workeeper.core.ui.kit.components.reorderable.reorderableColumnItem
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
@@ -86,9 +87,15 @@ internal fun PastExerciseCard(
                             state = reorderState,
                             key = set.setUuid,
                             index = index,
-                            // Skipped exercises stay read-only — drag handle disabled so
-                            // long-press inside the card cannot accidentally rewrite the
-                            // historical record.
+                        ),
+                        // Long-press the trailing drag-handle icon to start a drag.
+                        // Skipped exercises stay read-only — handle is rendered for
+                        // visual consistency but the gesture detector is disabled so a
+                        // mis-targeted long-press cannot rewrite the historical record.
+                        dragHandleModifier = Modifier.reorderableColumnDragHandle(
+                            state = reorderState,
+                            key = set.setUuid,
+                            index = index,
                             enabled = !exercise.skipped,
                         ),
                     )

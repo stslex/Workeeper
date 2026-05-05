@@ -34,4 +34,6 @@
     <string name="core_ui_kit_pr_explainer_title">Личный рекорд</string>
     <string name="core_ui_kit_pr_explainer_body">Самый тяжёлый подход этого упражнения за все завершённые сессии.</string>
     <string name="core_ui_kit_pr_explainer_confirm">Понятно</string>
+
+    <string name="core_ui_kit_reorderable_drag_handle">Переставить</string>
 </resources>

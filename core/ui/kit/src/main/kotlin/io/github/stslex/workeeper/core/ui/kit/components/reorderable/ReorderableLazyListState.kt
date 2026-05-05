@@ -12,6 +12,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 
+/**
+ * State driving a reorderable LazyColumn. The drop target is resolved against the lazy
+ * list's `visibleItemsInfo`, so it survives the user scrolling out the source row.
+ *
+ * Live preview: [displacementFor] returns a non-zero offset for non-dragged items
+ * between the source and current target index, so siblings animate out of the way as the
+ * drag progresses. `onMove` still fires once on release with the final `(from, to)` —
+ * consumers update their list there.
+ */
 @Stable
 class ReorderableLazyListState internal constructor(
     val listState: LazyListState,
@@ -31,6 +40,7 @@ class ReorderableLazyListState internal constructor(
         private set
 
     private var startCenterPx: Float = 0f
+    private var draggedItemSize: Int = 0
 
     val isDragging: Boolean get() = draggedKey != null
 
@@ -42,6 +52,7 @@ class ReorderableLazyListState internal constructor(
         draggedToIndex = sourceIndex
         dragOffsetPx = 0f
         startCenterPx = info.offset.toFloat() + info.size / 2f
+        draggedItemSize = info.size
     }
 
     internal fun onDrag(deltaY: Float) {
@@ -82,12 +93,30 @@ class ReorderableLazyListState internal constructor(
         if (index < lastIndex) onMoveResolved(index, index + 1)
     }
 
+    /**
+     * Y displacement (in px) for the item at [index] / [key] while another item is being
+     * dragged. See [ReorderableColumnState.displacementFor] for the semantics.
+     */
+    fun displacementFor(index: Int, key: Any): Float {
+        if (key == draggedKey) return 0f
+        val from = draggedFromIndex
+        val to = draggedToIndex
+        if (from < 0 || to < 0 || from == to) return 0f
+        if (draggedItemSize == 0) return 0f
+        return when {
+            from < to && index in (from + 1)..to -> -draggedItemSize.toFloat()
+            from > to && index in to until from -> draggedItemSize.toFloat()
+            else -> 0f
+        }
+    }
+
     private fun reset() {
         draggedKey = null
         draggedFromIndex = -1
         draggedToIndex = -1
         dragOffsetPx = 0f
         startCenterPx = 0f
+        draggedItemSize = 0
     }
 }
 
