@@ -4,7 +4,6 @@ package io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapper.toTooltip
-import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapper.toUi
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartMetricUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPointUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ExercisePickerItemUiModel

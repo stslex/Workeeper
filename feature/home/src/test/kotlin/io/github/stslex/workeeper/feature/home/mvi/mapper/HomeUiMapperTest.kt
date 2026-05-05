@@ -9,7 +9,6 @@ import io.github.stslex.workeeper.feature.home.domain.model.RecentSessionDomain
 import io.github.stslex.workeeper.feature.home.domain.model.TrainingListItemDomain
 import io.github.stslex.workeeper.feature.home.mvi.mapper.HomeUiMapper.toPickerItems
 import io.github.stslex.workeeper.feature.home.mvi.mapper.HomeUiMapper.toRecentItems
-import io.github.stslex.workeeper.feature.home.mvi.mapper.HomeUiMapper.toUi
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test

@@ -9,7 +9,6 @@ import io.github.stslex.workeeper.feature.past_session.domain.model.PerformedExe
 import io.github.stslex.workeeper.feature.past_session.domain.model.SessionDetailDomain
 import io.github.stslex.workeeper.feature.past_session.domain.model.SetDomain
 import io.github.stslex.workeeper.feature.past_session.domain.model.SetTypeDomain
-import io.github.stslex.workeeper.feature.past_session.mvi.mapper.PastSessionUiMapper.toDomain
 import io.github.stslex.workeeper.feature.past_session.mvi.mapper.PastSessionUiMapper.toUi
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
