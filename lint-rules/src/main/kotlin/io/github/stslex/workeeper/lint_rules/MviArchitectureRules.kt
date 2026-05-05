@@ -23,8 +23,8 @@ class MviArchitectureRuleSet : RuleSetProvider {
             HiltScopeRule(config),
             ComposableStateRule(config),
             DomainLayerNoUiRule(config),
-// todo: domain layer can use data models - ui (ui, domain models for mapping) <- Domain (domain, data models for mapping) <- Data (data models, entities)
-//            DomainLayerPurityRule(config),
+            DomainLayerPurityRule(config),
+            UiLayerNoDataRule(config),
         ),
     )
 }
