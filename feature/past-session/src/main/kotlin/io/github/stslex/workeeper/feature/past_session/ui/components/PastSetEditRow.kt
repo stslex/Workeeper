@@ -8,19 +8,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.res.stringResource
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppNumberInput
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordBadge
+import io.github.stslex.workeeper.core.ui.kit.components.pr.PrExplainerDialog
 import io.github.stslex.workeeper.core.ui.kit.components.pr.personalRecordAccent
 import io.github.stslex.workeeper.core.ui.kit.components.setchip.AppSetTypeChip
-import io.github.stslex.workeeper.core.ui.kit.components.tooltip.AppTooltip
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
-import io.github.stslex.workeeper.feature.past_session.R
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
@@ -39,15 +40,15 @@ internal fun PastSetEditRow(
     @Suppress("UnusedParameter") onTypeChange: (SetTypeUiModel) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var showExplainer by remember { mutableStateOf(false) }
     val accentColor by animateColorAsState(
         targetValue = if (set.isPersonalRecord) AppUi.colors.record.border else Color.Transparent,
         label = "pr-accent",
     )
-    val rowModifier = modifier
-        .fillMaxWidth()
-        .personalRecordAccent(color = accentColor)
     Row(
-        modifier = rowModifier,
+        modifier = modifier
+            .fillMaxWidth()
+            .personalRecordAccent(color = accentColor),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
@@ -73,12 +74,11 @@ internal fun PastSetEditRow(
             isError = set.repsError,
         )
         if (set.isPersonalRecord) {
-            // Long-press the badge to surface the v2.4 PR explainer copy. Wrapping in
-            // AppTooltip keeps the tap-target visual unchanged.
-            AppTooltip(text = stringResource(R.string.feature_past_session_pr_tooltip)) {
-                PersonalRecordBadge()
-            }
+            PersonalRecordBadge(onClick = { showExplainer = true })
         }
+    }
+    if (showExplainer) {
+        PrExplainerDialog(onDismiss = { showExplainer = false })
     }
 }
 

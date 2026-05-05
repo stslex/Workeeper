@@ -17,8 +17,6 @@
     <string name="feature_past_session_skipped_chip">Пропущено</string>
     <string name="feature_past_session_no_sets">Подходы не записаны</string>
 
-    <string name="feature_past_session_pr_tooltip">Личный рекорд: самый тяжёлый подход по этой метрике.</string>
-
     <string name="feature_past_session_totals_format">%1$s · %2$s</string>
 
     <plurals name="feature_past_session_exercises_count">

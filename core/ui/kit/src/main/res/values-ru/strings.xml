@@ -30,4 +30,8 @@
     <string name="core_ui_kit_discard_session_confirm_title_format">Удалить «%1$s»?</string>
     <string name="core_ui_kit_discard_session_confirm_warning">Сессия будет удалена. Отменить нельзя.</string>
     <string name="core_ui_kit_discard_session_confirm_delete">Удалить</string>
+
+    <string name="core_ui_kit_pr_explainer_title">Личный рекорд</string>
+    <string name="core_ui_kit_pr_explainer_body">Самый тяжёлый подход этого упражнения за все завершённые сессии.</string>
+    <string name="core_ui_kit_pr_explainer_confirm">Понятно</string>
 </resources>

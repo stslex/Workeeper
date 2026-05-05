@@ -33,6 +33,7 @@ fun PersonalRecordCard(
     relativeDateLabel: String,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
+    onBadgeClick: (() -> Unit)? = null,
 ) {
     val palette = AppUi.colors.record
     val shape = RoundedCornerShape(AppDimension.Radius.medium)
@@ -55,7 +56,7 @@ fun PersonalRecordCard(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
     ) {
-        PersonalRecordBadge()
+        PersonalRecordBadge(onClick = onBadgeClick)
         Spacer(modifier = Modifier.width(AppDimension.Space.xs))
         Column(
             modifier = Modifier.weight(1f),

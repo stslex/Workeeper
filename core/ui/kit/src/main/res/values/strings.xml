@@ -30,4 +30,8 @@
     <string name="core_ui_kit_discard_session_confirm_title_format">Delete %1$s?</string>
     <string name="core_ui_kit_discard_session_confirm_warning">This session will be deleted. Cannot be undone.</string>
     <string name="core_ui_kit_discard_session_confirm_delete">Delete</string>
+
+    <string name="core_ui_kit_pr_explainer_title">Personal record</string>
+    <string name="core_ui_kit_pr_explainer_body">The heaviest set of this exercise across all finished sessions.</string>
+    <string name="core_ui_kit_pr_explainer_confirm">OK</string>
 </resources>

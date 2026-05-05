@@ -17,8 +17,6 @@
     <string name="feature_past_session_skipped_chip">Skipped</string>
     <string name="feature_past_session_no_sets">No sets logged</string>
 
-    <string name="feature_past_session_pr_tooltip">Personal record: heaviest set on this metric.</string>
-
     <string name="feature_past_session_totals_format">%1$s · %2$s</string>
 
     <plurals name="feature_past_session_exercises_count">

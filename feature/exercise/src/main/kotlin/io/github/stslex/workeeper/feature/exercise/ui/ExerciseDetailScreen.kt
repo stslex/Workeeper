@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.card.AppCard
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordCard
+import io.github.stslex.workeeper.core.ui.kit.components.pr.PrExplainerDialog
 import io.github.stslex.workeeper.core.ui.kit.components.setchip.AppSetTypeChip
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagChip.Static
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -62,6 +63,7 @@ internal fun ExerciseDetailScreen(
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var showPrExplainer by remember { mutableStateOf(false) }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
         modifier = modifier
@@ -130,11 +132,15 @@ internal fun ExerciseDetailScreen(
                     displayLabel = pr.displayLabel,
                     relativeDateLabel = pr.relativeDateLabel,
                     onClick = { consume(Action.Click.OnPrCardClick) },
+                    onBadgeClick = { showPrExplainer = true },
                 )
             }
             HistorySection(state = state, consume = consume)
             Spacer(Modifier.height(AppDimension.Space.md))
         }
+    }
+    if (showPrExplainer) {
+        PrExplainerDialog(onDismiss = { showPrExplainer = false })
     }
 }
 
