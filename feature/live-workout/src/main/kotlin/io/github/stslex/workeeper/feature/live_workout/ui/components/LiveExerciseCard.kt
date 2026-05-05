@@ -235,14 +235,12 @@ private fun ExerciseCardBody(
                     }
                 },
                 onUncheck = {
-                    if (!isReadOnly) {
-                        consume(
-                            LiveWorkoutStore.Action.Click.OnSetUncheck(
-                                exercise.performedExerciseUuid,
-                                row.position,
-                            ),
-                        )
-                    }
+                    consume(
+                        LiveWorkoutStore.Action.Click.OnSetUncheck(
+                            exercise.performedExerciseUuid,
+                            row.position,
+                        ),
+                    )
                 },
                 editable = !isReadOnly,
             )

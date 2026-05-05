@@ -66,7 +66,7 @@ internal fun AppNavigationHost(
             exitTransition = {
                 fadeOut(
                     animationSpec = tween(motionDuration),
-                    targetAlpha = 0.7f,
+                    targetAlpha = 0f,
                 )
             },
         ) {
