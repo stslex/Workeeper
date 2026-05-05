@@ -34,6 +34,7 @@ import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.ui.components.ImageEditRow
 import io.github.stslex.workeeper.feature.exercise.ui.components.TagPickerInline
 import io.github.stslex.workeeper.feature.exercise.ui.components.TypeToggle
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State.Mode
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
@@ -41,7 +42,7 @@ import io.github.stslex.workeeper.core.ui.kit.R as KitR
 @Composable
 internal fun ExerciseEditScreen(
     state: State,
-    consume: (ExerciseEditBodyAction) -> Unit,
+    consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val isCreate = (state.mode as? Mode.Edit)?.isCreate == true
@@ -61,7 +62,7 @@ internal fun ExerciseEditScreen(
             navigationIcon = {
                 IconButton(
                     modifier = Modifier.testTag("ExerciseEditCloseButton"),
-                    onClick = { consume(ExerciseEditBodyAction.CancelClick) },
+                    onClick = { consume(Action.Click.OnCancelClick) },
                 ) {
                     Icon(
                         modifier = Modifier.size(AppDimension.iconSm),
@@ -85,9 +86,9 @@ internal fun ExerciseEditScreen(
                 ImageEditRow(
                     type = state.type,
                     imageDisplay = state.effectiveImageDisplay,
-                    onEditClick = { consume(ExerciseEditBodyAction.EditImageClick) },
-                    onRemoveClick = { consume(ExerciseEditBodyAction.RemoveImageClick) },
-                    onThumbClick = { consume(ExerciseEditBodyAction.ImageThumbnailClick) },
+                    onEditClick = { consume(Action.Click.OnEditImageClick) },
+                    onRemoveClick = { consume(Action.Click.OnRemoveImageClick) },
+                    onThumbClick = { consume(Action.Click.OnImageThumbnailClick) },
                 )
             }
             FormSection(label = stringResource(R.string.feature_exercise_edit_label_name)) {
@@ -101,7 +102,7 @@ internal fun ExerciseEditScreen(
                 AppTextField(
                     modifier = Modifier.testTag("ExerciseEditNameField"),
                     value = state.name,
-                    onValueChange = { consume(ExerciseEditBodyAction.NameInput(it)) },
+                    onValueChange = { consume(Action.Input.OnNameChange(it)) },
                     placeholder = stringResource(R.string.feature_exercise_edit_label_name),
                     isError = nameErrorText != null,
                 )
@@ -117,7 +118,7 @@ internal fun ExerciseEditScreen(
             FormSection(label = stringResource(R.string.feature_exercise_edit_label_type)) {
                 TypeToggle(
                     selected = state.type,
-                    onSelect = { type -> consume(ExerciseEditBodyAction.TypeSelect(type)) },
+                    onSelect = { type -> consume(Action.Click.OnTypeSelect(type)) },
                 )
             }
             FormSection(label = stringResource(R.string.feature_exercise_edit_label_tags)) {
@@ -125,10 +126,10 @@ internal fun ExerciseEditScreen(
                     selectedTags = state.tags,
                     availableTags = state.availableTags,
                     searchQuery = state.tagSearchQuery,
-                    onSearchQueryChange = { consume(ExerciseEditBodyAction.TagSearchInput(it)) },
-                    onTagToggle = { consume(ExerciseEditBodyAction.TagToggle(it)) },
-                    onTagRemove = { consume(ExerciseEditBodyAction.TagRemove(it)) },
-                    onTagCreate = { consume(ExerciseEditBodyAction.TagCreate(it)) },
+                    onSearchQueryChange = { consume(Action.Input.OnTagSearchChange(it)) },
+                    onTagToggle = { consume(Action.Click.OnTagToggle(it)) },
+                    onTagRemove = { consume(Action.Click.OnTagRemove(it)) },
+                    onTagCreate = { consume(Action.Click.OnTagCreate(it)) },
                 )
             }
             FormSection(label = stringResource(R.string.feature_exercise_edit_label_description)) {
@@ -137,7 +138,7 @@ internal fun ExerciseEditScreen(
                         .testTag("ExerciseEditDescriptionField")
                         .height(120.dp),
                     value = state.description,
-                    onValueChange = { consume(ExerciseEditBodyAction.DescriptionInput(it)) },
+                    onValueChange = { consume(Action.Input.OnDescriptionChange(it)) },
                     placeholder = stringResource(R.string.feature_exercise_edit_placeholder_description),
                     singleLine = false,
                 )
@@ -152,7 +153,7 @@ internal fun ExerciseEditScreen(
 @Composable
 private fun DefaultPlanSection(
     state: State,
-    consume: (ExerciseEditBodyAction) -> Unit,
+    consume: (Action) -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -190,7 +191,7 @@ private fun DefaultPlanSection(
                         R.string.feature_exercise_edit_plan_edit
                     },
                 ),
-                onClick = { consume(ExerciseEditBodyAction.EditPlanClick) },
+                onClick = { consume(Action.Click.OnEditPlanClick) },
                 size = AppButtonSize.SMALL,
             )
         }
@@ -219,7 +220,7 @@ private fun FormSection(
 @Composable
 private fun EditActionBar(
     state: State,
-    consume: (ExerciseEditBodyAction) -> Unit,
+    consume: (Action) -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -233,14 +234,14 @@ private fun EditActionBar(
         AppButton.Tertiary(
             modifier = Modifier.testTag("ExerciseEditCancelButton"),
             text = stringResource(KitR.string.core_ui_kit_action_cancel),
-            onClick = { consume(ExerciseEditBodyAction.CancelClick) },
+            onClick = { consume(Action.Click.OnCancelClick) },
         )
         AppButton.Primary(
             modifier = Modifier
                 .weight(1f)
                 .testTag("ExerciseEditSaveButton"),
             text = stringResource(KitR.string.core_ui_kit_action_save),
-            onClick = { consume(ExerciseEditBodyAction.SaveClick) },
+            onClick = { consume(Action.Click.OnSaveClick) },
             enabled = state.isSaveEnabled,
         )
     }

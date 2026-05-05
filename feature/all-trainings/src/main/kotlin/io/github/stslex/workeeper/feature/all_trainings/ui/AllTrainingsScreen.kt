@@ -32,6 +32,7 @@ import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.feature.all_trainings.R
+import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.Action
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.State
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.State.SelectionMode
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.TagFilterRow
@@ -41,7 +42,7 @@ import io.github.stslex.workeeper.feature.all_trainings.ui.components.TrainingsE
 @Composable
 internal fun AllTrainingsScreen(
     state: State,
-    consume: (AllTrainingsBodyAction) -> Unit,
+    consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val items = remember(state.pagingUiState) {
@@ -61,7 +62,7 @@ internal fun AllTrainingsScreen(
                 TagFilterRow(
                     tags = state.availableTags,
                     activeTagFilter = state.activeTagFilter,
-                    onToggle = { uuid -> consume(AllTrainingsBodyAction.TagFilterToggle(uuid)) },
+                    onToggle = { uuid -> consume(Action.Click.OnTagFilterToggle(uuid)) },
                 )
             }
             Box(modifier = Modifier.weight(1f)) {
@@ -91,7 +92,7 @@ internal fun AllTrainingsScreen(
             } else {
                 AppUi.colors.accent
             },
-            onClick = { consume(AllTrainingsBodyAction.FabClick) },
+            onClick = { consume(Action.Click.OnFabClick) },
         )
     }
 
@@ -105,8 +106,8 @@ internal fun AllTrainingsScreen(
             ),
             impactSummary = stringResource(R.string.feature_all_trainings_bulk_archive_impact),
             confirmLabel = stringResource(R.string.feature_all_trainings_bulk_archive),
-            onConfirm = { consume(AllTrainingsBodyAction.BulkDeleteConfirm) },
-            onDismiss = { consume(AllTrainingsBodyAction.BulkDeleteDismiss) },
+            onConfirm = { consume(Action.Click.OnBulkDeleteConfirm) },
+            onDismiss = { consume(Action.Click.OnBulkDeleteDismiss) },
         )
     }
 }
@@ -114,7 +115,7 @@ internal fun AllTrainingsScreen(
 @Composable
 private fun ScreenTopBar(
     state: State,
-    consume: (AllTrainingsBodyAction) -> Unit,
+    consume: (Action) -> Unit,
 ) {
     val mode = state.selectionMode
     val isSelecting = mode is SelectionMode.On
@@ -136,7 +137,7 @@ private fun ScreenTopBar(
             {
                 IconButton(
                     modifier = Modifier.testTag("AllTrainingsSelectionTopBarClose"),
-                    onClick = { consume(AllTrainingsBodyAction.SelectionExit) },
+                    onClick = { consume(Action.Click.OnSelectionExit) },
                 ) {
                     Icon(
                         modifier = Modifier.size(AppDimension.iconSm),
@@ -157,7 +158,7 @@ private fun ScreenTopBar(
 private fun TrainingsList(
     state: State,
     items: LazyPagingItems<*>,
-    consume: (AllTrainingsBodyAction) -> Unit,
+    consume: (Action) -> Unit,
 ) {
     @Suppress("UNCHECKED_CAST")
     val typedItems = items
@@ -183,8 +184,8 @@ private fun TrainingsList(
                 TrainingRow(
                     item = item,
                     isSelected = selectedSet?.contains(item.uuid) == true,
-                    onClick = { consume(AllTrainingsBodyAction.TrainingClick(item.uuid)) },
-                    onLongPress = { consume(AllTrainingsBodyAction.TrainingLongPress(item.uuid)) },
+                    onClick = { consume(Action.Click.OnTrainingClick(item.uuid)) },
+                    onLongPress = { consume(Action.Click.OnTrainingLongPress(item.uuid)) },
                 )
             }
         }
