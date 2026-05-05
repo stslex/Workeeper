@@ -1,9 +1,10 @@
 package io.github.stslex.workeeper.host
 
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -15,6 +16,7 @@ import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.testTag
 import androidx.navigation.compose.NavHost
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
+import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
 import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
 import io.github.stslex.workeeper.core.ui.navigation.Screen
@@ -50,14 +52,23 @@ internal fun AppNavigationHost(
 
         ClearFocusOnDestinationChanged(navigator.navController)
 
+        val motionDuration = AppUi.motion.normal
         NavHost(
             modifier = Modifier.fillMaxSize(),
             navController = navigator.navController,
             startDestination = Screen.BottomBar.Home,
-            enterTransition = { EnterTransition.None },
-            exitTransition = { ExitTransition.None },
-            popEnterTransition = { EnterTransition.None },
-            popExitTransition = { ExitTransition.None },
+            enterTransition = {
+                fadeIn(
+                    animationSpec = tween(motionDuration),
+                    initialAlpha = 0.3f,
+                )
+            },
+            exitTransition = {
+                fadeOut(
+                    animationSpec = tween(motionDuration),
+                    targetAlpha = 0.7f,
+                )
+            },
         ) {
             homeGraph(
                 modifier = bottomBarModifier

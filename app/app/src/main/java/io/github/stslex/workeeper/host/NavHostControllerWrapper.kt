@@ -37,6 +37,7 @@ class NavHostControllerWrapper private constructor(
                     controller.removeOnDestinationChangedListener(listener)
                 }
             }
+
             _navController = WeakReference(controller)
             return remember(controller) {
                 producer.produce(controller)

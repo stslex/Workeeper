@@ -1,6 +1,9 @@
 package io.github.stslex.workeeper
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -14,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
@@ -31,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -39,6 +44,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import io.github.stslex.workeeper.bottom_app_bar.WorkeeperBottomAppBar
 import io.github.stslex.workeeper.core.ui.kit.components.snackbar.AppSnackbar
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
+import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.navigation.LocalRootComponent
@@ -97,23 +103,47 @@ fun App() {
                         .zIndex(1f),
                     visible = navWrapper.bottomBarDestination.value != null,
                     enter = fadeIn(
-                        tween(AppUi.motion.deliberate),
+                        tween(AppUi.motion.normal),
                     ) + scaleIn(
-                        tween(AppUi.motion.deliberate),
+                        tween(AppUi.motion.normal),
                     ) + slideIn(
                         initialOffset = { IntOffset(0, 0) },
-                        animationSpec = tween(AppUi.motion.deliberate),
+                        animationSpec = tween(AppUi.motion.normal),
                     ),
                     exit = fadeOut(
-                        tween(AppUi.motion.deliberate),
+                        tween(AppUi.motion.normal),
                     ) + scaleOut(
-                        tween(AppUi.motion.deliberate),
+                        tween(AppUi.motion.normal),
                     ) + slideOut(
                         targetOffset = { fullSize -> IntOffset(0, fullSize.height) },
-                        animationSpec = tween(AppUi.motion.deliberate),
+                        animationSpec = tween(AppUi.motion.normal),
                     ),
                 ) {
+                    val cornerRadius by transition.animateDp(
+                        transitionSpec = {
+                            tween(
+                                durationMillis = AppUi.motion.normal,
+                                easing = FastOutSlowInEasing,
+                            )
+                        },
+                        label = "bottom-bar-corner-radius",
+                    ) { state ->
+                        when (state) {
+                            EnterExitState.PreEnter -> AppDimension.Radius.largest
+                            EnterExitState.Visible -> 0.dp
+                            EnterExitState.PostExit -> AppDimension.Radius.largest
+                        }
+                    }
+
                     WorkeeperBottomAppBar(
+                        modifier = Modifier.clip(
+                            RoundedCornerShape(
+                                topStart = cornerRadius,
+                                topEnd = cornerRadius,
+                                bottomStart = 0.dp,
+                                bottomEnd = 0.dp,
+                            ),
+                        ),
                         selectedItem = navWrapper.bottomBarDestination,
                     ) {
                         navigator.navTo(it.screen)
