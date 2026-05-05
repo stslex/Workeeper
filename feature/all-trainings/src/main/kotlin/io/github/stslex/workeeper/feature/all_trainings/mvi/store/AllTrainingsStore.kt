@@ -44,7 +44,6 @@ internal interface AllTrainingsStore : Store<State, Action, Event> {
             @Stable
             data class On(
                 val selectedUuids: ImmutableSet<String>,
-                val canDeleteAll: Boolean,
             ) : SelectionMode
         }
 

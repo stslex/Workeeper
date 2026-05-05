@@ -60,7 +60,6 @@
         <item quantity="other">выбрано %d</item>
     </plurals>
     <string name="feature_all_exercises_bulk_archive">В архив</string>
-    <string name="feature_all_exercises_bulk_delete">Удалить</string>
     <plurals name="feature_all_exercises_bulk_archive_success">
         <item quantity="one">%d упражнение в архиве</item>
         <item quantity="few">%d упражнения в архиве</item>
@@ -68,18 +67,12 @@
         <item quantity="other">%d упражнения в архиве</item>
     </plurals>
     <string name="feature_all_exercises_bulk_archive_partial_format">В архиве: %1$d, не получилось: %2$s</string>
-    <string name="feature_all_exercises_bulk_delete_confirm_title">Удалить выбранные навсегда?</string>
-    <plurals name="feature_all_exercises_bulk_delete_confirm_body">
-        <item quantity="one">%d упражнение будет удалено навсегда. Это нельзя отменить.</item>
-        <item quantity="few">%d упражнения будут удалены навсегда. Это нельзя отменить.</item>
-        <item quantity="many">%d упражнений будут удалены навсегда. Это нельзя отменить.</item>
-        <item quantity="other">%d упражнения будут удалены навсегда. Это нельзя отменить.</item>
+    <string name="feature_all_exercises_bulk_archive_confirm_title">Архивировать выбранные?</string>
+    <plurals name="feature_all_exercises_bulk_archive_confirm_body">
+        <item quantity="one">%d упражнение будет перенесено в архив. Восстановить можно в Настройках → Архив.</item>
+        <item quantity="few">%d упражнения будут перенесены в архив. Восстановить можно в Настройках → Архив.</item>
+        <item quantity="many">%d упражнений будут перенесены в архив. Восстановить можно в Настройках → Архив.</item>
+        <item quantity="other">%d упражнения будут перенесены в архив. Восстановить можно в Настройках → Архив.</item>
     </plurals>
-    <string name="feature_all_exercises_bulk_delete_impact">История не пострадает</string>
-    <plurals name="feature_all_exercises_bulk_delete_success">
-        <item quantity="one">%d упражнение удалено</item>
-        <item quantity="few">%d упражнения удалены</item>
-        <item quantity="many">%d упражнений удалены</item>
-        <item quantity="other">%d упражнения удалены</item>
-    </plurals>
+    <string name="feature_all_exercises_bulk_archive_impact">Обратимо · история сохранится</string>
 </resources>

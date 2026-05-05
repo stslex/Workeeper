@@ -7,10 +7,13 @@ import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.feature.all_trainings.di.AllTrainingsHandlerStore
 import io.github.stslex.workeeper.feature.all_trainings.domain.AllTrainingsInteractor
+import io.github.stslex.workeeper.feature.all_trainings.domain.model.BulkArchiveResult
 import io.github.stslex.workeeper.feature.all_trainings.mvi.model.TrainingListItemUi
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.Action
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.Event
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.State
+import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -20,7 +23,10 @@ import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -43,17 +49,19 @@ internal class ClickHandlerTest {
             val update = firstArg<(State) -> State>()
             stateFlow.value = update(stateFlow.value)
         }
-        every {
-            launch(
-                any(),
-                any(),
-                any(),
-                any(),
-                any<suspend CoroutineScope.() -> Unit>(),
-            )
-        } answers {
-            mockk(relaxed = true)
+        coEvery { updateStateImmediate(any<suspend (State) -> State>()) } coAnswers {
+            val update = firstArg<suspend (State) -> State>()
+            stateFlow.value = update(stateFlow.value)
         }
+        every {
+            launch<Any>(
+                any(),
+                any(),
+                any(),
+                any(),
+                any<suspend CoroutineScope.() -> Any>(),
+            )
+        } answers { mockk(relaxed = true) }
     }
 
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
@@ -94,13 +102,55 @@ internal class ClickHandlerTest {
     @Test
     fun `OnSelectionExit clears selection mode`() {
         stateFlow.value = stateFlow.value.copy(
-            selectionMode = State.SelectionMode.On(
-                selectedUuids = persistentSetOf("uuid-1"),
-                canDeleteAll = false,
-            ),
+            selectionMode = State.SelectionMode.On(selectedUuids = persistentSetOf("uuid-1")),
         )
         handler.invoke(Action.Click.OnSelectionExit)
         assertTrue(stateFlow.value.selectionMode is State.SelectionMode.Off)
+    }
+
+    @Test
+    fun `OnBulkDelete with selection opens confirm dialog`() {
+        stateFlow.value = stateFlow.value.copy(
+            selectionMode = State.SelectionMode.On(
+                selectedUuids = persistentSetOf("uuid-1", "uuid-2"),
+            ),
+        )
+        handler.invoke(Action.Click.OnBulkDelete)
+        val pending = stateFlow.value.pendingBulkDelete
+        assertNotNull(pending, "expected pendingBulkDelete to be set")
+        assertEquals(2, pending!!.count)
+    }
+
+    @Test
+    fun `OnBulkDeleteConfirm calls archiveTrainings and clears selection on success`() = runTest {
+        val targets = persistentSetOf("uuid-1", "uuid-2")
+        stateFlow.value = stateFlow.value.copy(
+            selectionMode = State.SelectionMode.On(selectedUuids = targets),
+            pendingBulkDelete = State.PendingBulkDelete(count = 2),
+        )
+        coEvery {
+            interactor.archiveTrainings(any())
+        } returns BulkArchiveResult(archivedCount = 2, blockedNames = emptyList())
+
+        val actionSlot = slot<suspend CoroutineScope.() -> BulkArchiveResult>()
+        val onSuccessSlot = slot<suspend CoroutineScope.(BulkArchiveResult) -> Unit>()
+        every {
+            store.launch(
+                onError = any(),
+                onSuccess = capture(onSuccessSlot),
+                workDispatcher = any(),
+                eachDispatcher = any(),
+                action = capture(actionSlot),
+            )
+        } returns mockk(relaxed = true)
+
+        handler.invoke(Action.Click.OnBulkDeleteConfirm)
+
+        val result = actionSlot.captured(this)
+        coVerify { interactor.archiveTrainings(setOf("uuid-1", "uuid-2")) }
+        onSuccessSlot.captured(this, result)
+        assertTrue(stateFlow.value.selectionMode is State.SelectionMode.Off)
+        assertNull(stateFlow.value.pendingBulkDelete)
     }
 
     @Test

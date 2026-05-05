@@ -84,7 +84,7 @@ internal fun AllTrainingsScreen(
                 .testTag("AllTrainingsFab"),
             icon = if (isSelecting) Icons.Filled.Delete else Icons.Filled.Add,
             contentDescription = stringResource(
-                if (isSelecting) R.string.feature_all_trainings_bulk_delete
+                if (isSelecting) R.string.feature_all_trainings_bulk_archive
                 else R.string.feature_all_trainings_fab_create,
             ),
             containerColor = if (isSelecting) {
@@ -101,14 +101,14 @@ internal fun AllTrainingsScreen(
 
     state.pendingBulkDelete?.let { pending ->
         AppConfirmDialog(
-            title = stringResource(R.string.feature_all_trainings_bulk_delete_confirm_title),
+            title = stringResource(R.string.feature_all_trainings_bulk_archive_confirm_title),
             body = pluralStringResource(
-                R.plurals.feature_all_trainings_bulk_delete_confirm_body,
+                R.plurals.feature_all_trainings_bulk_archive_confirm_body,
                 pending.count,
                 pending.count,
             ),
-            impactSummary = stringResource(R.string.feature_all_trainings_bulk_delete_impact),
-            confirmLabel = stringResource(R.string.feature_all_trainings_bulk_delete),
+            impactSummary = stringResource(R.string.feature_all_trainings_bulk_archive_impact),
+            confirmLabel = stringResource(R.string.feature_all_trainings_bulk_archive),
             onConfirm = { consume(Action.Click.OnBulkDeleteConfirm) },
             onDismiss = { consume(Action.Click.OnBulkDeleteDismiss) },
         )

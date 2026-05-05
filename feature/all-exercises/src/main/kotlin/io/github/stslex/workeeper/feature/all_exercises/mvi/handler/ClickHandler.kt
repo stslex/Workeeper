@@ -56,7 +56,11 @@ internal class ClickHandler @Inject constructor(
             processSelectionToggle(Action.Click.OnSelectionToggle(action.uuid))
             return
         }
-        launchSelectionEnter(action.uuid)
+        updateState { current ->
+            current.copy(
+                selectionMode = SelectionMode.On(selectedUuids = persistentSetOf(action.uuid)),
+            )
+        }
     }
 
     private fun processFabClick() {
@@ -102,45 +106,14 @@ internal class ClickHandler @Inject constructor(
         } else {
             mode.selectedUuids + action.uuid
         }
-        if (next.isEmpty()) {
-            updateState { it.copy(selectionMode = SelectionMode.Off) }
-            return
-        }
-        launchSelectionUpdate(next.toSet())
-    }
-
-    private fun launchSelectionUpdate(nextSelection: Set<String>) {
-        launch(
-            onSuccess = { canDeleteAll ->
-                updateStateImmediate { current ->
-                    current.copy(
-                        selectionMode = SelectionMode.On(
-                            selectedUuids = nextSelection.toPersistentSet(),
-                            canDeleteAll = canDeleteAll,
-                        ),
-                    )
-                }
-            },
-        ) {
-            interactor.canBulkPermanentDelete(nextSelection)
-        }
-    }
-
-    private fun launchSelectionEnter(seedUuid: String) {
-        val seed = persistentSetOf(seedUuid)
-        launch(
-            onSuccess = { canDeleteAll ->
-                updateStateImmediate { current ->
-                    current.copy(
-                        selectionMode = SelectionMode.On(
-                            selectedUuids = seed,
-                            canDeleteAll = canDeleteAll,
-                        ),
-                    )
-                }
-            },
-        ) {
-            interactor.canBulkPermanentDelete(seed)
+        updateState { current ->
+            if (next.isEmpty()) {
+                current.copy(selectionMode = SelectionMode.Off)
+            } else {
+                current.copy(
+                    selectionMode = SelectionMode.On(selectedUuids = next.toPersistentSet()),
+                )
+            }
         }
     }
 
@@ -150,9 +123,15 @@ internal class ClickHandler @Inject constructor(
         updateState { it.copy(selectionMode = SelectionMode.Off) }
     }
 
+    /**
+     * Bulk-delete FAB → confirm dialog whenever at least one row is selected. The
+     * underlying call is `bulkArchive` (soft-delete), not `bulkPermanentDelete` — permanent
+     * delete requires zero session history per row, which the v2.4 selection-mode entry
+     * cannot guarantee. Archived exercises are restorable from Settings → Archive.
+     */
     private fun processBulkDelete() {
         val mode = state.value.selectionMode as? SelectionMode.On ?: return
-        if (!mode.canDeleteAll) return
+        if (mode.selectedUuids.isEmpty()) return
         sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
         updateState { current ->
             current.copy(pendingBulkDelete = PendingBulkDelete(count = mode.selectedUuids.size))
@@ -164,25 +143,30 @@ internal class ClickHandler @Inject constructor(
         sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
         val targets = mode.selectedUuids.toSet()
         launch(
-            onSuccess = { count ->
+            onSuccess = { result ->
                 updateStateImmediate { current ->
                     current.copy(
                         selectionMode = SelectionMode.Off,
                         pendingBulkDelete = null,
                     )
                 }
-                sendEvent(
-                    Event.ShowBulkDeleteSuccess(
-                        message = resourceWrapper.getQuantityString(
-                            R.plurals.feature_all_exercises_bulk_delete_success,
-                            count,
-                            count,
-                        ),
-                    ),
-                )
+                val message = if (result.blockedNames.isEmpty()) {
+                    resourceWrapper.getQuantityString(
+                        R.plurals.feature_all_exercises_bulk_archive_success,
+                        result.archivedCount,
+                        result.archivedCount,
+                    )
+                } else {
+                    resourceWrapper.getString(
+                        R.string.feature_all_exercises_bulk_archive_partial_format,
+                        result.archivedCount,
+                        result.blockedNames.joinToString(", "),
+                    )
+                }
+                sendEvent(Event.ShowBulkDeleteSuccess(message = message))
             },
         ) {
-            interactor.bulkPermanentDelete(targets)
+            interactor.bulkArchive(targets)
         }
     }
 
