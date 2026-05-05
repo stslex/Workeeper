@@ -34,7 +34,6 @@ import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Event
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State.ConflictInfo
 import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State.Mode
-import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -96,12 +95,6 @@ internal class ClickHandler @Inject constructor(
     private fun processBackClick() {
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
         val current = state.value
-        // Plan editor is the inner-most surface — its draft takes priority over the
-        // form-level dirty check. Same dialog UI as form discard, different commit.
-        if (current.isPlanEditorDirty) {
-            sendEvent(Event.ShowDiscardConfirmDialog(DiscardTarget.PLAN_EDITOR))
-            return
-        }
         val mode = current.mode
         if (mode !is Mode.Edit) {
             consume(Action.Navigation.Back)
@@ -434,7 +427,6 @@ internal class ClickHandler @Inject constructor(
         when (target) {
             DiscardTarget.POP_SCREEN -> consume(Action.Navigation.Back)
             DiscardTarget.FLIP_TO_READ -> processFlipToReadMode()
-            DiscardTarget.PLAN_EDITOR -> updateState { it.copy(planEditorTarget = null) }
         }
     }
 
@@ -541,15 +533,8 @@ internal class ClickHandler @Inject constructor(
 
     private fun processEditPlanClick() {
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
-        val initial = state.value.adhocPlan ?: persistentListOf()
-        updateState {
-            it.copy(
-                planEditorTarget = State.PlanEditorTarget(
-                    initialPlan = initial,
-                    draft = initial,
-                ),
-            )
-        }
+        val uuid = state.value.uuid ?: return
+        consume(Action.Navigation.OpenPlanEditor(exerciseUuid = uuid))
     }
 
     private fun processTagToggle(action: Action.Click.OnTagToggle) {

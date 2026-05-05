@@ -30,7 +30,17 @@ internal class CommonHandler @Inject constructor(
     override fun invoke(action: Action.Common) {
         when (action) {
             Action.Common.Init -> processInit()
+            // Reload re-runs the training + exercise + history load pipeline so the per-
+            // row planSets / planSummary refresh after returning from the full-screen
+            // PlanEditor route. Skips the create branch (uuid == null) since there's
+            // nothing to load yet.
+            Action.Common.Reload -> processReload()
         }
+    }
+
+    private fun processReload() {
+        val uuid = state.value.uuid?.takeIf { it.isNotBlank() } ?: return
+        loadTraining(uuid)
     }
 
     private fun processInit() {

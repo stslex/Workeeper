@@ -35,9 +35,18 @@ internal class CommonHandler @Inject constructor(
     override fun invoke(action: Action.Common) {
         when (action) {
             Action.Common.Init -> processInit()
+            // Reload re-runs the exercise + adhoc-plan load pipeline without resetting form
+            // state. Used after returning from the full-screen PlanEditor route so the
+            // default-plan card and edit-mode plan summary reflect the just-saved draft.
+            Action.Common.Reload -> processReload()
             is Action.Common.ImagePicked -> processImagePicked(action)
             Action.Common.ImagePickCancelled -> processImagePickCancelled()
         }
+    }
+
+    private fun processReload() {
+        val uuid = state.value.uuid?.takeIf { it.isNotBlank() } ?: return
+        loadExercise(uuid)
     }
 
     private fun processImagePicked(action: Action.Common.ImagePicked) {

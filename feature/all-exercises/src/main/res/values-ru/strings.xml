@@ -5,10 +5,6 @@
     <string name="feature_all_exercises_empty_headline">Пока нет упражнений</string>
     <string name="feature_all_exercises_empty_supporting">Нажмите +, чтобы создать первое упражнение</string>
     <string name="feature_all_exercises_fab_create">Создать упражнение</string>
-    <string name="feature_all_exercises_archive_action">В архив</string>
-    <string name="feature_all_exercises_archive_success_format">«%1$s» в архиве</string>
-    <string name="feature_all_exercises_archive_undo">Отменить</string>
-    <string name="feature_all_exercises_archive_blocked_format">Нельзя архивировать — используется в: %1$s</string>
     <string name="feature_all_exercises_overflow_format">+%1$d</string>
     <string name="feature_all_exercises_chevron_description">Открыть упражнение</string>
     <string name="feature_all_exercises_permanent_delete_title">Удалить «%1$s» навсегда?</string>

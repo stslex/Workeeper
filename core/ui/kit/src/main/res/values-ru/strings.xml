@@ -13,7 +13,6 @@
     <string name="core_ui_kit_plan_editor_unit_kg">кг</string>
     <string name="core_ui_kit_plan_editor_unit_reps">повт</string>
     <string name="core_ui_kit_plan_editor_add_set">+ Добавить сет</string>
-    <string name="core_ui_kit_plan_editor_save">Сохранить план</string>
     <string name="core_ui_kit_plan_editor_remove_set">Удалить сет</string>
     <string name="core_ui_kit_plan_editor_set_type_warmup">Разминка</string>
     <string name="core_ui_kit_plan_editor_set_type_work">Рабочий</string>

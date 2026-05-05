@@ -37,7 +37,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.plan_editor.PlanEditorBody
 import io.github.stslex.workeeper.core.ui.plan_editor.PlanEditorHeader
 import io.github.stslex.workeeper.core.ui.plan_editor.R
-import io.github.stslex.workeeper.core.ui.plan_editor.model.AppPlanEditorAction
+import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorBodyAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.mvi.store.PlanEditorStore.Action
@@ -246,14 +246,14 @@ private fun PlanEditorActionBar(
     }
 }
 
-private fun AppPlanEditorAction.toStoreAction(): Action = when (this) {
-    AppPlanEditorAction.OnAddSet -> Action.Click.OnAddSet
-    AppPlanEditorAction.OnDismiss -> Action.Click.OnBackClick
-    AppPlanEditorAction.OnSave -> Action.Click.OnSave
-    is AppPlanEditorAction.OnSetRemove -> Action.Click.OnSetRemove(index)
-    is AppPlanEditorAction.OnSetRepsChange -> Action.Input.OnSetRepsChange(index, value)
-    is AppPlanEditorAction.OnSetTypeChange -> Action.Click.OnSetTypeChange(index, value)
-    is AppPlanEditorAction.OnSetWeightChange -> Action.Input.OnSetWeightChange(index, value)
+private fun PlanEditorBodyAction.toStoreAction(): Action = when (this) {
+    PlanEditorBodyAction.OnAddSet -> Action.Click.OnAddSet
+    PlanEditorBodyAction.OnDismiss -> Action.Click.OnBackClick
+    PlanEditorBodyAction.OnSave -> Action.Click.OnSave
+    is PlanEditorBodyAction.OnSetRemove -> Action.Click.OnSetRemove(index)
+    is PlanEditorBodyAction.OnSetRepsChange -> Action.Input.OnSetRepsChange(index, value)
+    is PlanEditorBodyAction.OnSetTypeChange -> Action.Click.OnSetTypeChange(index, value)
+    is PlanEditorBodyAction.OnSetWeightChange -> Action.Input.OnSetWeightChange(index, value)
 }
 
 @Preview(name = "Light", showBackground = true)

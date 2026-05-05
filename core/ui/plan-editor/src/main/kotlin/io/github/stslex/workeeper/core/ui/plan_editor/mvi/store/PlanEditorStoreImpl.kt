@@ -62,15 +62,22 @@ internal class PlanEditorStoreImpl @AssistedInject constructor(
 internal fun io.github.stslex.workeeper.core.ui.navigation.Screen.PlanEditor.toMode(): State.Mode {
     val performed = performedExerciseUuid
     val exercise = exerciseUuid
+    val training = trainingUuid
     return when {
-        performed != null && exercise != null -> State.Mode.PerformedExercise(
-            performedExerciseUuid = performed,
-            exerciseUuid = exercise,
-            trainingUuid = trainingUuid,
-        )
-        exercise != null -> State.Mode.Exercise(exerciseUuid = exercise)
-        else -> error(
+        exercise == null -> error(
             "Screen.PlanEditor must carry exerciseUuid (got performed=$performed, exercise=$exercise)",
         )
+        // Live workout (performed != null) or single-training (training != null) → backing
+        // store is `training_exercise_table.plan_sets` keyed by (trainingUuid, exerciseUuid).
+        // Live-workout's adhoc branch passes performed != null with training == null, in which
+        // case the editor falls back to `last_adhoc_sets`.
+        performed != null || !training.isNullOrBlank() -> State.Mode.PerformedExercise(
+            performedExerciseUuid = performed,
+            exerciseUuid = exercise,
+            trainingUuid = training,
+        )
+        // Exercise-detail Edit plan: no live session, no training association — saves to the
+        // exercise's own `last_adhoc_sets` row.
+        else -> State.Mode.Exercise(exerciseUuid = exercise)
     }
 }

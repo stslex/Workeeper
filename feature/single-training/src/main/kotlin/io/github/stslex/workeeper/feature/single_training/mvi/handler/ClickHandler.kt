@@ -71,13 +71,6 @@ internal class ClickHandler @Inject constructor(
     private fun processBackClick() {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         val current = state.value
-        // Plan editor is the inner-most surface — its draft takes priority over the
-        // training-level dirty check. Both share the same Event.ShowDiscardConfirmDialog
-        // surface; the OnConfirmDiscard handler routes to the right surface from state.
-        if (current.isPlanEditorDirty) {
-            sendEvent(Event.ShowDiscardConfirmDialog)
-            return
-        }
         if (current.mode !is Mode.Edit) {
             consume(Action.Navigation.Back)
             return
@@ -280,12 +273,6 @@ internal class ClickHandler @Inject constructor(
 
     private fun processConfirmDiscard() {
         sendEvent(Event.HapticClick(HapticFeedbackType.LongPress))
-        // Same OnConfirmDiscard action covers both the training-level form and the
-        // plan-editor sheet; route based on which is currently dirty.
-        if (state.value.isPlanEditorDirty) {
-            updateState { it.copy(planEditorTarget = null) }
-            return
-        }
         applyDiscard()
     }
 
@@ -393,20 +380,20 @@ internal class ClickHandler @Inject constructor(
 
     private fun processEditPlanClick(action: Action.Click.OnEditPlanClick) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        val target = state.value.exercises.firstOrNull { it.exerciseUuid == action.exerciseUuid }
+        val current = state.value
+        val target = current.exercises.firstOrNull { it.exerciseUuid == action.exerciseUuid }
             ?: return
-        val initial = target.planSets ?: persistentListOf()
-        updateState { current ->
-            current.copy(
-                planEditorTarget = State.PlanEditorTarget(
-                    exerciseUuid = target.exerciseUuid,
-                    exerciseName = target.exerciseName,
-                    exerciseType = target.exerciseType,
-                    initialPlan = initial,
-                    draft = initial,
-                ),
-            )
-        }
+        // PlanEditor needs a non-blank trainingUuid to land the saved draft on
+        // training_exercise_table.plan_sets. Editing the plan from a not-yet-persisted
+        // training would write to the exercise's last_adhoc_sets instead — silently
+        // wrong — so we no-op until the user saves the training first.
+        val trainingUuid = current.uuid?.takeIf { it.isNotBlank() } ?: return
+        consume(
+            Action.Navigation.OpenPlanEditor(
+                trainingUuid = trainingUuid,
+                exerciseUuid = target.exerciseUuid,
+            ),
+        )
     }
 
     private fun processTagToggle(action: Action.Click.OnTagToggle) {

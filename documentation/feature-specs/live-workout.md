@@ -252,7 +252,7 @@ The set is NOT persisted on every keystroke. It's persisted when:
 In CURRENT exercise card:
 - "+ Add set" button below set list — appends a new row at the next position. Default values: copy of last set if exists, else empty + WORK type.
 - Overflow ⋯ menu items:
-  - "Edit plan" — opens `AppPlanEditor` sheet for this exercise's `training_exercise.plan_sets` (or `last_adhoc_sets` for ad-hoc). Same component reused from Stage 5.3.
+  - "Edit plan" — opens `PlanEditorScreen` sheet for this exercise's `training_exercise.plan_sets` (or `last_adhoc_sets` for ad-hoc). Same component reused from Stage 5.3.
   - "Reset sets" — confirmation dialog → deletes all SetEntity rows for this performed_exercise. Sets become uncheck'd, values revert to plan-prefill.
   - "Skip exercise" — confirmation dialog → sets `performed_exercise.skipped = true`, deletes any existing sets for this exercise. Status flips to SKIPPED, card collapses.
 
@@ -445,7 +445,7 @@ interface LiveWorkoutStore : Store<State, Action, Event> {
             data class Init(val sessionUuid: String?, val trainingUuid: String?) : Common
             data object TimerTick : Common  // every 1s, updates state.nowMillis
         }
-        data class PlanEditAction(val action: AppPlanEditorAction) : Action
+        data class PlanEditAction(val action: PlanEditorBodyAction) : Action
     }
 
     @Stable
@@ -468,7 +468,7 @@ interface LiveWorkoutStore : Store<State, Action, Event> {
 - `InputHandler` — text field changes, write to setDrafts only (not DB).
 - `CommonHandler` — Init loads session + performed exercises + sets. TimerTick coroutine updates `nowMillis` once per second.
 - `NavigationHandler` — internal class with `@Inject Navigator`.
-- `PlanEditActionHandler` — receives `AppPlanEditorAction` wrapper from `core/ui/plan-editor`. Same pattern as Stage 5.3 single-training. Updates draft, on Save persists.
+- `PlanEditActionHandler` — receives `PlanEditorBodyAction` wrapper from `core/ui/plan-editor`. Same pattern as Stage 5.3 single-training. Updates draft, on Save persists.
 
 **Set persistence rule** (concrete):
 
@@ -897,7 +897,7 @@ Compose previews:
 - [ ] Haptics: light click on most actions, medium impact on set checkbox tap, medium impact on finish/skip/cancel destructive confirms.
       Core mappings shipped, but dismiss/header-click paths still skip
       haptic emission.
-- [x] Plan editor wrapper pattern (`Action.PlanEditAction(AppPlanEditorAction)`) applied to live-workout store.
+- [x] Plan editor wrapper pattern (`Action.PlanEditAction(PlanEditorBodyAction)`) applied to live-workout store.
 - [ ] Composable @Previews for every public/internal Composable.
       Preview coverage is partial, not exhaustive.
 - [x] Unit tests for handlers, interactors, mappers, new DAO queries.
@@ -911,4 +911,4 @@ Stage 5.3 must be in dev before this Code session runs. Specifically:
 - `ExerciseRepository.getAdhocPlan / setAdhocPlan` exist.
 - `PlanUpdateRule` exists.
 
-Verify with `grep -r "AppPlanEditor" --include="*.kt"` returns hits in `core/ui/plan-editor`.
+Verify with `grep -r "PlanEditorScreen" --include="*.kt"` returns hits in `core/ui/plan-editor`.

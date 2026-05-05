@@ -5,7 +5,6 @@ import android.net.Uri
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.ui.mvi.Store
-import io.github.stslex.workeeper.core.ui.plan_editor.model.AppPlanEditorAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.feature.exercise.mvi.model.HistoryUiModel
@@ -41,7 +40,6 @@ internal interface ExerciseStore : Store<State, Action, Event> {
         val canPermanentlyDelete: Boolean,
         val adhocPlan: ImmutableList<PlanSetUiModel>?,
         val adhocPlanSummaryLabel: String,
-        val planEditorTarget: PlanEditorTarget?,
         val pendingTypeChange: ExerciseTypeUiModel?,
         val imagePath: String?,
         val imageLastModified: Long,
@@ -67,9 +65,6 @@ internal interface ExerciseStore : Store<State, Action, Event> {
         val hasChanges: Boolean
             get() = originalSnapshot?.matches(this) == false || isImageDirty
 
-        val isPlanEditorDirty: Boolean
-            get() = planEditorTarget?.let { it.draft != it.initialPlan } == true
-
         val isImageDirty: Boolean
             get() = pendingImage != PendingImage.Unchanged
 
@@ -91,7 +86,7 @@ internal interface ExerciseStore : Store<State, Action, Event> {
          * natively (including the Android 13+ predictive-back preview animation).
          */
         val interceptBack: Boolean
-            get() = (mode is Mode.Edit && (hasChanges || !mode.isCreate)) || isPlanEditorDirty
+            get() = mode is Mode.Edit && (hasChanges || !mode.isCreate)
 
         @Stable
         sealed interface Mode {
@@ -114,14 +109,6 @@ internal interface ExerciseStore : Store<State, Action, Event> {
                 state.description == description &&
                 state.tags.map { it.uuid } == tagUuids
         }
-
-        @Stable
-        data class PlanEditorTarget(
-            /** Snapshot of the plan when the editor opened — used for dirty detection. */
-            val initialPlan: ImmutableList<PlanSetUiModel>,
-            /** Live draft updated on every editor field change. */
-            val draft: ImmutableList<PlanSetUiModel>,
-        )
 
         /**
          * Snapshot of the active session that conflicts with the user's Track now request.
@@ -154,7 +141,6 @@ internal interface ExerciseStore : Store<State, Action, Event> {
                 canPermanentlyDelete = false,
                 adhocPlan = null,
                 adhocPlanSummaryLabel = "",
-                planEditorTarget = null,
                 pendingTypeChange = null,
                 imagePath = null,
                 imageLastModified = 0L,
@@ -173,6 +159,14 @@ internal interface ExerciseStore : Store<State, Action, Event> {
         sealed interface Common : Action {
 
             data object Init : Common
+
+            /**
+             * Reload the exercise + adhoc plan from the repository without resetting form
+             * state. Dispatched after returning from the full-screen PlanEditor route
+             * (D1) so the read-mode default-plan card and edit-mode plan summary reflect
+             * the just-saved draft.
+             */
+            data object Reload : Common
 
             data class ImagePicked(val uri: Uri) : Common
 
@@ -254,9 +248,6 @@ internal interface ExerciseStore : Store<State, Action, Event> {
             data object OnCameraPermissionDenied : Click
         }
 
-        @Suppress("MviActionNamingRule")
-        data class PlanEditorAction(val action: AppPlanEditorAction) : Action
-
         sealed interface Input : Action {
 
             data class OnNameChange(val value: String) : Input
@@ -277,6 +268,13 @@ internal interface ExerciseStore : Store<State, Action, Event> {
             data class OpenImageViewer(val model: String) : Navigation
 
             data class OpenChart(val exerciseUuid: String) : Navigation
+
+            /**
+             * Open the full-screen plan-editor route for this exercise's default plan
+             * (D1). Returns to ExerciseDetail; the graph picks up the
+             * `plan-editor-saved` flag and dispatches [Action.Common.Reload].
+             */
+            data class OpenPlanEditor(val exerciseUuid: String) : Navigation
         }
     }
 
@@ -326,10 +324,10 @@ internal interface ExerciseStore : Store<State, Action, Event> {
     }
 
     /**
-     * Where the user is heading after confirming a discard. Lets the dialog reuse a single
-     * surface for the form-level (POP_SCREEN/FLIP_TO_READ) and plan-editor (PLAN_EDITOR)
-     * scopes — same dialog, different commit semantics.
+     * Where the user is heading after confirming a discard. The form-level discard either
+     * pops the screen (creation flow) or flips back to Read mode (edit flow); plan-editor
+     * discard is now handled by the standalone PlanEditor route, not here.
      */
     @Stable
-    enum class DiscardTarget { POP_SCREEN, FLIP_TO_READ, PLAN_EDITOR }
+    enum class DiscardTarget { POP_SCREEN, FLIP_TO_READ }
 }

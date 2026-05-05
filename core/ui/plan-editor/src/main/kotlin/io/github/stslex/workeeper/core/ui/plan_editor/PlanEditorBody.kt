@@ -38,7 +38,7 @@ import io.github.stslex.workeeper.core.ui.kit.components.setchip.AppSetTypeChip
 import io.github.stslex.workeeper.core.ui.kit.components.tooltip.AppTooltip
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
-import io.github.stslex.workeeper.core.ui.plan_editor.model.AppPlanEditorAction
+import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorBodyAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import kotlinx.collections.immutable.ImmutableList
@@ -48,16 +48,15 @@ import kotlinx.collections.immutable.ImmutableList
 private const val WEIGHT_COLUMN_FLEX = 1.2f
 
 /**
- * Pure-Composable body of the plan editor — header, set rows, and add-set button. Hostable
- * inside a bottom sheet (via [AppPlanEditor]) or a full-screen Scaffold (via the
- * `core/ui/plan-editor` `PlanEditorScreen`). All state lives upstream; field changes emit
- * [AppPlanEditorAction] back to the parent.
+ * Pure-Composable body of the plan editor — header, set rows, and add-set button. Hosted
+ * by the full-screen `PlanEditorScreen` route. All state lives upstream; field changes
+ * emit [PlanEditorBodyAction] back to the parent screen which maps them to store actions.
  */
 @Composable
 fun ColumnScope.PlanEditorBody(
     draft: ImmutableList<PlanSetUiModel>,
     isWeighted: Boolean,
-    onAction: (AppPlanEditorAction) -> Unit,
+    onAction: (PlanEditorBodyAction) -> Unit,
     setTypeTooltipText: String? = null,
 ) {
     if (draft.isEmpty()) {
@@ -65,7 +64,7 @@ fun ColumnScope.PlanEditorBody(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = AppDimension.Space.md)
-                .testTag("AppPlanEditorEmpty"),
+                .testTag("PlanEditorBodyEmpty"),
             text = stringResource(R.string.core_ui_kit_plan_editor_empty_hint),
             style = AppUi.typography.bodyMedium,
             color = AppUi.colors.textSecondary,
@@ -98,13 +97,13 @@ private fun PlanEditorRow(
     item: PlanSetUiModel,
     isWeighted: Boolean,
     setTypeTooltipText: String?,
-    onAction: (AppPlanEditorAction) -> Unit,
+    onAction: (PlanEditorBodyAction) -> Unit,
 ) {
     var typeMenuOpen by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .testTag("AppPlanEditorRow_$index"),
+            .testTag("PlanEditorBodyRow_$index"),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.xs),
     ) {
@@ -118,10 +117,10 @@ private fun PlanEditorRow(
             AppNumberInput(
                 modifier = Modifier
                     .weight(WEIGHT_COLUMN_FLEX)
-                    .testTag("AppPlanEditorRowWeight_$index"),
+                    .testTag("PlanEditorBodyRowWeight_$index"),
                 value = item.weight?.formatPlain().orEmpty(),
                 onValueChange = { raw ->
-                    onAction(AppPlanEditorAction.OnSetWeightChange(index, raw.toDoubleOrNull()))
+                    onAction(PlanEditorBodyAction.OnSetWeightChange(index, raw.toDoubleOrNull()))
                 },
                 decimals = 2,
                 suffix = stringResource(R.string.core_ui_kit_plan_editor_unit_kg),
@@ -130,10 +129,10 @@ private fun PlanEditorRow(
         AppNumberInput(
             modifier = Modifier
                 .weight(1f)
-                .testTag("AppPlanEditorRowReps_$index"),
+                .testTag("PlanEditorBodyRowReps_$index"),
             value = item.reps.takeIf { it > 0 }?.toString().orEmpty(),
             onValueChange = { raw ->
-                onAction(AppPlanEditorAction.OnSetRepsChange(index, raw.toIntOrNull() ?: 0))
+                onAction(PlanEditorBodyAction.OnSetRepsChange(index, raw.toIntOrNull() ?: 0))
             },
             decimals = 0,
             suffix = stringResource(R.string.core_ui_kit_plan_editor_unit_reps),
@@ -148,7 +147,7 @@ private fun PlanEditorRow(
                             horizontal = AppDimension.Space.xxs,
                             vertical = AppDimension.Space.xxs,
                         )
-                        .testTag("AppPlanEditorRowType_$index"),
+                        .testTag("PlanEditorBodyRowType_$index"),
                 ) {
                     AppSetTypeChip(type = item.type.toUiKitType())
                 }
@@ -165,7 +164,7 @@ private fun PlanEditorRow(
             ) {
                 SetTypeUiModel.entries.forEach { type ->
                     DropdownMenuItem(
-                        modifier = Modifier.testTag("AppPlanEditorTypeOption_${type.name}"),
+                        modifier = Modifier.testTag("PlanEditorBodyTypeOption_${type.name}"),
                         text = {
                             Text(
                                 text = stringResource(type.labelRes),
@@ -174,7 +173,7 @@ private fun PlanEditorRow(
                             )
                         },
                         onClick = {
-                            onAction(AppPlanEditorAction.OnSetTypeChange(index, type))
+                            onAction(PlanEditorBodyAction.OnSetTypeChange(index, type))
                             typeMenuOpen = false
                         },
                     )
@@ -184,8 +183,8 @@ private fun PlanEditorRow(
         IconButton(
             modifier = Modifier
                 .size(AppDimension.heightXs)
-                .testTag("AppPlanEditorRowRemove_$index"),
-            onClick = { onAction(AppPlanEditorAction.OnSetRemove(index)) },
+                .testTag("PlanEditorBodyRowRemove_$index"),
+            onClick = { onAction(PlanEditorBodyAction.OnSetRemove(index)) },
         ) {
             Icon(
                 modifier = Modifier.size(AppDimension.iconSm),

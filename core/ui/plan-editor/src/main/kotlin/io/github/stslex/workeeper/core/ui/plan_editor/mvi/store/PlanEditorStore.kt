@@ -13,9 +13,8 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 
 /**
- * Full-screen plan editor (v2.4 D1). Replaces the bottom-sheet `AppPlanEditor`. Holds the
- * draft set list, loads initial state from the repository on init, persists on save, and
- * pops back via NavigationHandler.
+ * Full-screen plan editor (v2.4 D1). Holds the draft set list, loads initial state from
+ * the repository on init, persists on save, and pops back via NavigationHandler.
  */
 internal interface PlanEditorStore : Store<State, Action, Event> {
 
@@ -44,20 +43,24 @@ internal interface PlanEditorStore : Store<State, Action, Event> {
         sealed interface Mode {
 
             /**
-             * Editing the plan attached to a performed-exercise row in a live session. When
-             * [trainingUuid] is null the exercise is ad-hoc (last_adhoc_sets is the backing
-             * store); otherwise plan_sets on training_exercise_table is the backing store.
+             * Editing the plan attached to either a performed-exercise row in a live session
+             * (live workout — [performedExerciseUuid] non-null) or to a training template row
+             * (single-training edit — [performedExerciseUuid] null, [trainingUuid] non-null).
+             * The backing store is always `plan_sets` on `training_exercise_table` keyed by
+             * `(trainingUuid, exerciseUuid)`. When [trainingUuid] is null the exercise is
+             * ad-hoc (live workout adhoc session) and the editor falls back to
+             * `last_adhoc_sets`.
              */
             @Stable
             data class PerformedExercise(
-                val performedExerciseUuid: String,
+                val performedExerciseUuid: String?,
                 val exerciseUuid: String,
                 val trainingUuid: String?,
             ) : Mode
 
             /**
-             * Editing the default plan attached to an exercise (no live session). The backing
-             * store is `exercise_table.last_adhoc_sets`.
+             * Editing the default plan attached to an exercise (no live session, no training
+             * association). The backing store is `exercise_table.last_adhoc_sets`.
              */
             @Stable
             data class Exercise(val exerciseUuid: String) : Mode

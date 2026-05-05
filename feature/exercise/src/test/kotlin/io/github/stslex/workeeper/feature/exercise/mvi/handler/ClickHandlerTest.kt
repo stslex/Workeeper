@@ -24,7 +24,6 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -152,65 +151,19 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `OnEditPlanClick stages an empty editor target when no adhoc plan`() {
-        val (stateFlow, _, handler) = setup()
+    fun `OnEditPlanClick navigates to PlanEditor route`() {
+        val (_, store, handler) = setup()
         handler.invoke(Action.Click.OnEditPlanClick)
-        val target = stateFlow.value.planEditorTarget
-        assertNotNull(target)
-        assertEquals(0, target?.draft?.size)
-        assertEquals(0, target?.initialPlan?.size)
+        verify(exactly = 1) {
+            store.consume(Action.Navigation.OpenPlanEditor(exerciseUuid = "uuid-1"))
+        }
     }
 
     @Test
-    fun `OnEditPlanClick seeds the editor draft from existing adhoc plan`() {
-        val seed = persistentListOf(
-            PlanSetUiModel(weight = 50.0, reps = 8, type = SetTypeUiModel.WORK),
-        )
-        val (stateFlow, _, handler) = setup(
-            State.create(uuid = "uuid-1").copy(adhocPlan = seed),
-        )
+    fun `OnEditPlanClick is a no-op when uuid is null`() {
+        val (_, store, handler) = setup(State.create(uuid = null))
         handler.invoke(Action.Click.OnEditPlanClick)
-        assertEquals(seed, stateFlow.value.planEditorTarget?.draft)
-        assertEquals(seed, stateFlow.value.planEditorTarget?.initialPlan)
-    }
-
-    @Test
-    fun `OnConfirmDiscard with PLAN_EDITOR closes the editor`() {
-        val (stateFlow, store, handler) = setup(
-            State.create(uuid = "uuid-1").copy(
-                planEditorTarget = State.PlanEditorTarget(
-                    initialPlan = persistentListOf(),
-                    draft = persistentListOf(
-                        PlanSetUiModel(weight = 50.0, reps = 8, type = SetTypeUiModel.WORK),
-                    ),
-                ),
-            ),
-        )
-        handler.invoke(Action.Click.OnConfirmDiscard(DiscardTarget.PLAN_EDITOR))
-        assertNull(stateFlow.value.planEditorTarget)
-        verify(exactly = 0) { store.consume(Action.Navigation.Back) }
-    }
-
-    @Test
-    fun `OnBackClick with dirty plan editor surfaces PLAN_EDITOR discard target`() {
-        val (_, store, handler) = setup(
-            State.create(uuid = "uuid-1").copy(
-                planEditorTarget = State.PlanEditorTarget(
-                    initialPlan = persistentListOf(),
-                    draft = persistentListOf(
-                        PlanSetUiModel(weight = 50.0, reps = 8, type = SetTypeUiModel.WORK),
-                    ),
-                ),
-            ),
-        )
-        handler.invoke(Action.Click.OnBackClick)
-        val events = mutableListOf<Event>()
-        verify { store.sendEvent(capture(events)) }
-        assertTrue(
-            events.any {
-                it is Event.ShowDiscardConfirmDialog && it.target == DiscardTarget.PLAN_EDITOR
-            },
-        )
+        verify(exactly = 0) { store.consume(any<Action.Navigation.OpenPlanEditor>()) }
     }
 
     @Test

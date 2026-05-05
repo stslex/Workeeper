@@ -21,7 +21,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -78,11 +77,12 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `OnEditPlanClick stages planEditorTarget from selected row`() {
+    fun `OnEditPlanClick navigates to PlanEditor route for saved training`() {
         val plan = persistentListOf(
             PlanSetUiModel(weight = 80.0, reps = 5, type = SetTypeUiModel.WORK),
         )
         stateFlow.value = stateFlow.value.copy(
+            uuid = "training-1",
             exercises = persistentListOf(
                 TrainingExerciseItem(
                     exerciseUuid = "ex-1",
@@ -96,65 +96,41 @@ internal class ClickHandlerTest {
             ),
         )
         handler.invoke(Action.Click.OnEditPlanClick("ex-1"))
-        val target = stateFlow.value.planEditorTarget
-        assertNotNull(target)
-        assertEquals("ex-1", target?.exerciseUuid)
-        assertEquals("Bench Press", target?.exerciseName)
-        assertEquals(ExerciseTypeUiModel.WEIGHTED, target?.exerciseType)
-        assertEquals(plan, target?.initialPlan)
-        assertEquals(plan, target?.draft)
+        verify(exactly = 1) {
+            store.consume(
+                Action.Navigation.OpenPlanEditor(
+                    trainingUuid = "training-1",
+                    exerciseUuid = "ex-1",
+                ),
+            )
+        }
     }
 
     @Test
     fun `OnEditPlanClick is no-op when exercise uuid is unknown`() {
-        stateFlow.value = stateFlow.value.copy(exercises = persistentListOf())
+        stateFlow.value = stateFlow.value.copy(uuid = "training-1", exercises = persistentListOf())
         handler.invoke(Action.Click.OnEditPlanClick("missing"))
-        assertEquals(null, stateFlow.value.planEditorTarget)
+        verify(exactly = 0) { store.consume(any<Action.Navigation.OpenPlanEditor>()) }
     }
 
     @Test
-    fun `OnBackClick with dirty plan editor draft surfaces ShowDiscardConfirmDialog`() {
-        val initial = persistentListOf(
-            PlanSetUiModel(weight = 60.0, reps = 8, type = SetTypeUiModel.WORK),
-        )
-        val dirty = persistentListOf(
-            PlanSetUiModel(weight = 70.0, reps = 8, type = SetTypeUiModel.WORK),
-        )
+    fun `OnEditPlanClick is no-op when training is not yet saved`() {
         stateFlow.value = stateFlow.value.copy(
-            planEditorTarget = State.PlanEditorTarget(
-                exerciseUuid = "ex-1",
-                exerciseName = "Bench",
-                exerciseType = ExerciseTypeUiModel.WEIGHTED,
-                initialPlan = initial,
-                draft = dirty,
+            uuid = null,
+            exercises = persistentListOf(
+                TrainingExerciseItem(
+                    exerciseUuid = "ex-1",
+                    exerciseName = "Bench Press",
+                    exerciseType = ExerciseTypeUiModel.WEIGHTED,
+                    tags = persistentListOf(),
+                    position = 0,
+                    planSets = persistentListOf(),
+                    planSummary = "",
+                ),
             ),
         )
-        handler.invoke(Action.Click.OnBackClick)
-        val events = mutableListOf<Event>()
-        verify { store.sendEvent(capture(events)) }
-        assertTrue(events.any { it == Event.ShowDiscardConfirmDialog })
-    }
-
-    @Test
-    fun `OnConfirmDiscard with dirty plan editor closes editor without popping`() {
-        val initial = persistentListOf(
-            PlanSetUiModel(weight = 60.0, reps = 8, type = SetTypeUiModel.WORK),
-        )
-        val dirty = persistentListOf(
-            PlanSetUiModel(weight = 70.0, reps = 8, type = SetTypeUiModel.WORK),
-        )
-        stateFlow.value = stateFlow.value.copy(
-            planEditorTarget = State.PlanEditorTarget(
-                exerciseUuid = "ex-1",
-                exerciseName = "Bench",
-                exerciseType = ExerciseTypeUiModel.WEIGHTED,
-                initialPlan = initial,
-                draft = dirty,
-            ),
-        )
-        handler.invoke(Action.Click.OnConfirmDiscard)
-        assertEquals(null, stateFlow.value.planEditorTarget)
-        verify(exactly = 0) { store.consume(Action.Navigation.Back) }
+        handler.invoke(Action.Click.OnEditPlanClick("ex-1"))
+        verify(exactly = 0) { store.consume(any<Action.Navigation.OpenPlanEditor>()) }
     }
 
     @Test

@@ -28,6 +28,14 @@ internal class NavigationHandler(
 
             is Action.Navigation.OpenChart ->
                 navigator.navTo(Screen.ExerciseChart(exerciseUuid = action.exerciseUuid))
+
+            is Action.Navigation.OpenPlanEditor -> navigator.navTo(
+                Screen.PlanEditor(
+                    performedExerciseUuid = null,
+                    exerciseUuid = action.exerciseUuid,
+                    trainingUuid = null,
+                ),
+            )
         }
     }
 }
