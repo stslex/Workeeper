@@ -182,7 +182,7 @@ fun NavGraphBuilder.exerciseGraph(
             is Mode.Edit -> ExerciseEditScreen(
                 modifier = modifier,
                 state = state,
-                consume = processor::consume,
+                consume = { bodyAction -> processor.consume(bodyAction.toAction()) },
             )
         }
 
