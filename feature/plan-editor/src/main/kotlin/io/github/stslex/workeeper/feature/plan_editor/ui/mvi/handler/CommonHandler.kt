@@ -32,7 +32,7 @@ internal class CommonHandler @Inject constructor(
             is Mode.Exercise -> mode.exerciseUuid to null
             is Mode.PerformedExercise -> mode.exerciseUuid to mode.trainingUuid
         }
-        launch(
+        launchDefault(
             onError = { sendEvent(Event.ShowError(ErrorType.LoadFailed)) },
         ) {
             val result = interactor.loadPlan(

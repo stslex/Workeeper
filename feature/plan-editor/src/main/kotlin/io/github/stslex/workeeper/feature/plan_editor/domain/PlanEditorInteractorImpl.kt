@@ -3,14 +3,13 @@ package io.github.stslex.workeeper.feature.plan_editor.domain
 
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
-import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
-import io.github.stslex.workeeper.core.data.database.sets.SetTypeDataModel
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
-import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingExerciseRepository
+import io.github.stslex.workeeper.feature.plan_editor.domain.mapper.PlanEditorDomainMapper.isWeighted
+import io.github.stslex.workeeper.feature.plan_editor.domain.mapper.PlanEditorDomainMapper.toData
+import io.github.stslex.workeeper.feature.plan_editor.domain.mapper.PlanEditorDomainMapper.toDomain
 import io.github.stslex.workeeper.feature.plan_editor.domain.model.PlanEditorLoadResult
 import io.github.stslex.workeeper.feature.plan_editor.domain.model.PlanSetDomain
-import io.github.stslex.workeeper.feature.plan_editor.domain.model.SetTypeDomain
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -35,7 +34,7 @@ internal class PlanEditorInteractorImpl @Inject constructor(
         }
         PlanEditorLoadResult.Success(
             exerciseName = exercise.name,
-            isWeighted = exercise.type == ExerciseTypeDataModel.WEIGHTED,
+            isWeighted = exercise.type.isWeighted(),
             plan = plan.map { it.toDomain() },
         )
     }
@@ -53,31 +52,5 @@ internal class PlanEditorInteractorImpl @Inject constructor(
                 trainingExerciseRepository.setPlan(trainingUuid, exerciseUuid, data)
             }
         }
-    }
-
-    private fun PlanSetDataModel.toDomain(): PlanSetDomain = PlanSetDomain(
-        weight = weight,
-        reps = reps,
-        type = type.toDomain(),
-    )
-
-    private fun PlanSetDomain.toData(): PlanSetDataModel = PlanSetDataModel(
-        weight = weight,
-        reps = reps,
-        type = type.toData(),
-    )
-
-    private fun SetTypeDataModel.toDomain(): SetTypeDomain = when (this) {
-        SetTypeDataModel.WARMUP -> SetTypeDomain.WARMUP
-        SetTypeDataModel.WORK -> SetTypeDomain.WORK
-        SetTypeDataModel.FAILURE -> SetTypeDomain.FAILURE
-        SetTypeDataModel.DROP -> SetTypeDomain.DROP
-    }
-
-    private fun SetTypeDomain.toData(): SetTypeDataModel = when (this) {
-        SetTypeDomain.WARMUP -> SetTypeDataModel.WARMUP
-        SetTypeDomain.WORK -> SetTypeDataModel.WORK
-        SetTypeDomain.FAILURE -> SetTypeDataModel.FAILURE
-        SetTypeDomain.DROP -> SetTypeDataModel.DROP
     }
 }

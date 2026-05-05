@@ -33,7 +33,7 @@ internal class CommonHandler @Inject constructor(
 
     private fun processInit() {
         val initialUuid = state.value.initialUuid
-        launch(
+        launchDefault(
             onSuccess = { result ->
                 updateStateImmediate { current ->
                     current.copy(
