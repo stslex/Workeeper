@@ -235,6 +235,7 @@ internal class ClickHandler @Inject constructor(
         val current = state.value
         val exercise = current.findExercise(action.performedExerciseUuid) ?: return
         val performed = exercise.performedSets.firstOrNull { it.position == action.position }
+        val newType = action.type.next()
         if (performed != null && performed.isDone) {
             // For a checked set, type changes are persisted immediately so the saved set
             // matches what the user sees. The optimistic UI update below keeps it instant.
@@ -242,7 +243,7 @@ internal class ClickHandler @Inject constructor(
                 latest.applySetTypeChange(
                     action.performedExerciseUuid,
                     action.position,
-                    action.type,
+                    newType,
                 )
             }
             launch(
@@ -254,7 +255,7 @@ internal class ClickHandler @Inject constructor(
                     set = PlanSetDomain(
                         weight = performed.weight,
                         reps = performed.reps,
-                        type = action.type.toDomain(),
+                        type = newType.toDomain(),
                     ),
                 )
             }
@@ -263,7 +264,7 @@ internal class ClickHandler @Inject constructor(
                 latest.applyDraftTypeChange(
                     action.performedExerciseUuid,
                     action.position,
-                    action.type,
+                    newType,
                 )
             }
         }
