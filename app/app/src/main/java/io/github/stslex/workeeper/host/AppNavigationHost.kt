@@ -2,6 +2,9 @@ package io.github.stslex.workeeper.host
 
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -13,6 +16,7 @@ import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.testTag
 import androidx.navigation.compose.NavHost
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
+import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
 import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
 import io.github.stslex.workeeper.core.ui.navigation.Screen
@@ -29,6 +33,7 @@ import io.github.stslex.workeeper.feature.settings.ui.archiveGraph
 import io.github.stslex.workeeper.feature.settings.ui.settingsGraph
 import io.github.stslex.workeeper.feature.single_training.ui.singleTrainingsGraph
 import io.github.stslex.workeeper.navigation.AppNavigator
+import io.github.stslex.workeeper.utils.KeyboardUtils.ClearFocusOnDestinationChanged
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -45,10 +50,25 @@ internal fun AppNavigationHost(
             .systemBarsPadding()
             .background(MaterialTheme.colorScheme.background)
 
+        ClearFocusOnDestinationChanged(navigator.navController)
+
+        val motionDuration = AppUi.motion.normal
         NavHost(
             modifier = Modifier.fillMaxSize(),
             navController = navigator.navController,
             startDestination = Screen.BottomBar.Home,
+            enterTransition = {
+                fadeIn(
+                    animationSpec = tween(motionDuration),
+                    initialAlpha = 0.3f,
+                )
+            },
+            exitTransition = {
+                fadeOut(
+                    animationSpec = tween(motionDuration),
+                    targetAlpha = 0f,
+                )
+            },
         ) {
             homeGraph(
                 modifier = bottomBarModifier

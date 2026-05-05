@@ -18,13 +18,24 @@ import androidx.compose.runtime.setValue
  * measured Y bounds via the modifier's `onGloballyPositioned`; reorder targets are
  * resolved against those bounds.
  *
- * Live preview: while the user drags, [displacementFor] returns a non-zero offset for
- * non-dragged items between the source and current target index, so siblings animate
- * out of the way and the user sees the future order before they release. `onMove` still
- * fires once on release with the final `(from, to)` — consumers update their list there.
+ * Live-commit semantics: as the dragged item's center crosses a neighbor's center we
+ * fire [onMoveResolved] immediately and re-anchor the offset so the finger stays on
+ * the same visual point across the swap. The list is therefore always in its actual
+ * order during drag — no preview-displacement layer that has to "undo" itself on
+ * release. On release the state simply resets; no terminal `onMoveResolved` call.
+ *
+ * Requirement: consumers must apply `onMoveResolved` synchronously (update list state
+ * before returning from the lambda). Async/throttled updates desync the crossover
+ * logic and are not supported.
+ *
+ * Sibling motion: with live-commit there is no preview displacement — non-dragged
+ * rows snap to their new layout positions when the list reorders. To get smooth
+ * slide-in for non-dragged rows, wrap the consumer Column in a `LookaheadScope` and
+ * apply `Modifier.animateBounds(scope)` to each row.
  */
 @Stable
 class ReorderableColumnState internal constructor(
+    private val onDragStartCallback: (Any) -> Unit,
     private val onMoveResolved: (from: Int, to: Int) -> Unit,
 ) {
 
@@ -33,61 +44,171 @@ class ReorderableColumnState internal constructor(
     private val itemIndices = mutableMapOf<Any, Int>()
     private val keysByIndex = mutableMapOf<Int, Any>()
 
+    private var draggedRestingTopPx: Float = 0f
+    private var draggedRestingBottomPx: Float = 0f
+    private val draggedHeightPx: Float
+        get() = draggedRestingBottomPx - draggedRestingTopPx
+
     var draggedKey: Any? by mutableStateOf(null)
         private set
 
     var draggedFromIndex: Int by mutableIntStateOf(-1)
         private set
 
-    var draggedToIndex: Int by mutableIntStateOf(-1)
-        private set
-
     var dragOffsetPx: Float by mutableFloatStateOf(0f)
         private set
 
+    /**
+     * Window-Y of the dragged item's resting center at its current index.
+     * Re-anchored after every committed adjacent swap.
+     */
     private var startCenterPx: Float = 0f
-    private var lastKnownLastIndex: Int = -1
 
     val isDragging: Boolean get() = draggedKey != null
 
-    internal fun onItemPlaced(key: Any, index: Int, top: Float, bottom: Float) {
+    internal fun onItemPlaced(
+        key: Any,
+        index: Int,
+        top: Float,
+        bottom: Float,
+    ) {
+        // During drag, boundsInWindow() for dragged item includes graphicsLayer.translationY.
+        // Do not feed transformed bounds back into crossover math.
+        if (key == draggedKey) return
+
+        val oldIndex = itemIndices[key]
+        if (oldIndex != null && oldIndex != index && keysByIndex[oldIndex] == key) {
+            keysByIndex.remove(oldIndex)
+        }
+
         itemTops[key] = top
         itemBottoms[key] = bottom
         itemIndices[key] = index
         keysByIndex[index] = key
-        if (index > lastKnownLastIndex) lastKnownLastIndex = index
     }
 
-    internal fun onDragStart(key: Any, sourceIndex: Int) {
+    internal fun onDragStart(key: Any) {
+        val sourceIndex = itemIndices[key] ?: return
         val top = itemTops[key] ?: return
         val bottom = itemBottoms[key] ?: return
+
+        onDragStartCallback(key)
+
         draggedKey = key
         draggedFromIndex = sourceIndex
-        draggedToIndex = sourceIndex
         dragOffsetPx = 0f
+
+        draggedRestingTopPx = top
+        draggedRestingBottomPx = bottom
         startCenterPx = (top + bottom) / 2f
     }
 
+    @Suppress("CyclomaticComplexMethod", "LoopWithTooManyJumpStatements")
     internal fun onDrag(deltaY: Float) {
-        if (draggedKey == null) return
+        val draggedKeyValue = draggedKey ?: return
+        if (deltaY == 0f) return
+
         dragOffsetPx += deltaY
-        val draggedCenter = startCenterPx + dragOffsetPx
-        val candidateKey = itemTops.entries
-            .firstOrNull { (k, top) ->
-                k != draggedKey &&
-                    draggedCenter >= top &&
-                    draggedCenter <= (itemBottoms[k] ?: top)
+
+        // Direction must be based on the latest gesture delta, not on total dragOffset.
+        // Otherwise after re-anchor dragOffset can change sign and immediately swap back.
+        val direction = if (deltaY > 0f) 1 else -1
+
+        var safety = MAX_SWAPS_PER_FRAME
+        while (safety-- > 0) {
+            val fingerY = startCenterPx + dragOffsetPx
+            val currentIndex = draggedFromIndex
+            val targetIndex = currentIndex + direction
+
+            val targetKey = keysByIndex[targetIndex] ?: break
+            if (targetKey == draggedKeyValue) break
+
+            val targetTop = itemTops[targetKey] ?: break
+            val targetBottom = itemBottoms[targetKey] ?: break
+            val targetCenter = (targetTop + targetBottom) / 2f
+
+            val crossed = if (direction > 0) {
+                fingerY > targetCenter
+            } else {
+                fingerY < targetCenter
             }
-            ?.key
-        candidateKey?.let { itemIndices[it]?.also { idx -> draggedToIndex = idx } }
+
+            if (!crossed) break
+
+            commitAdjacentSwap(
+                draggedKey = draggedKeyValue,
+                targetKey = targetKey,
+                currentIndex = currentIndex,
+                targetIndex = targetIndex,
+                targetTop = targetTop,
+                targetBottom = targetBottom,
+                fingerY = fingerY,
+                direction = direction,
+            )
+
+            onMoveResolved(currentIndex, targetIndex)
+        }
+    }
+
+    @Suppress("LongParameterList")
+    private fun commitAdjacentSwap(
+        draggedKey: Any,
+        targetKey: Any,
+        currentIndex: Int,
+        targetIndex: Int,
+        targetTop: Float,
+        targetBottom: Float,
+        fingerY: Float,
+        direction: Int,
+    ) {
+        val currentTop = draggedRestingTopPx
+        val currentBottom = draggedRestingBottomPx
+        val draggedHeight = draggedHeightPx
+        val targetHeight = targetBottom - targetTop
+
+        val gap = if (direction > 0) {
+            targetTop - currentBottom
+        } else {
+            currentTop - targetBottom
+        }
+
+        val newDraggedTop = if (direction > 0) {
+            currentTop + targetHeight + gap
+        } else {
+            currentTop - targetHeight - gap
+        }
+        val newDraggedBottom = newDraggedTop + draggedHeight
+        val newDraggedCenter = (newDraggedTop + newDraggedBottom) / 2f
+
+        val newTargetTop = if (direction > 0) {
+            currentTop
+        } else {
+            newDraggedBottom + gap
+        }
+        val newTargetBottom = newTargetTop + targetHeight
+
+        // Keep our local cache coherent immediately. We cannot wait for the next
+        // layout pass because the same pointer event can chain several swaps.
+        draggedRestingTopPx = newDraggedTop
+        draggedRestingBottomPx = newDraggedBottom
+
+        itemTops[draggedKey] = newDraggedTop
+        itemBottoms[draggedKey] = newDraggedBottom
+        itemIndices[draggedKey] = targetIndex
+
+        itemTops[targetKey] = newTargetTop
+        itemBottoms[targetKey] = newTargetBottom
+        itemIndices[targetKey] = currentIndex
+
+        keysByIndex[currentIndex] = targetKey
+        keysByIndex[targetIndex] = draggedKey
+
+        startCenterPx = newDraggedCenter
+        dragOffsetPx = fingerY - newDraggedCenter
+        draggedFromIndex = targetIndex
     }
 
     internal fun onDragEnd() {
-        val from = draggedFromIndex
-        val to = draggedToIndex
-        if (from >= 0 && to >= 0 && from != to) {
-            onMoveResolved(from, to)
-        }
         reset()
     }
 
@@ -96,51 +217,40 @@ class ReorderableColumnState internal constructor(
     }
 
     fun moveUp(index: Int) {
-        if (index > 0) onMoveResolved(index, index - 1)
+        if (index > 0) {
+            onMoveResolved(index, index - 1)
+        }
     }
 
     fun moveDown(index: Int) {
-        if (index < lastKnownLastIndex) onMoveResolved(index, index + 1)
-    }
-
-    /**
-     * Y displacement (in px) for the item at [index] / [key] while another item is being
-     * dragged. Returns 0 for the dragged item itself (it uses its own translationY) and
-     * for items outside the drag span. Items inside the span between source and current
-     * target shift by exactly the dragged item's measured height so the gap "follows the
-     * finger". The animation is the caller's responsibility — wrap the value in
-     * `animateFloatAsState` at the call site.
-     */
-    fun displacementFor(index: Int, key: Any): Float {
-        if (key == draggedKey) return 0f
-        val from = draggedFromIndex
-        val to = draggedToIndex
-        if (from < 0 || to < 0 || from == to) return 0f
-        val draggedKeyVal = draggedKey ?: return 0f
-        val draggedHeight = (itemBottoms[draggedKeyVal] ?: return 0f) -
-            (itemTops[draggedKeyVal] ?: return 0f)
-        return when {
-            from < to && index in (from + 1)..to -> -draggedHeight
-            from > to && index in to until from -> draggedHeight
-            else -> 0f
+        val maxIndex = keysByIndex.keys.maxOrNull() ?: return
+        if (index in 0 until maxIndex) {
+            onMoveResolved(index, index + 1)
         }
     }
 
     private fun reset() {
         draggedKey = null
         draggedFromIndex = -1
-        draggedToIndex = -1
         dragOffsetPx = 0f
         startCenterPx = 0f
+        draggedRestingTopPx = 0f
+        draggedRestingBottomPx = 0f
     }
 }
 
 @Composable
 fun rememberReorderableColumnState(
+    onDragStarted: (Any) -> Unit = {},
     onMove: (from: Int, to: Int) -> Unit,
 ): ReorderableColumnState {
     val onMoveLatest by rememberUpdatedState(onMove)
     return remember {
-        ReorderableColumnState(onMoveResolved = { from, to -> onMoveLatest(from, to) })
+        ReorderableColumnState(
+            onDragStartCallback = onDragStarted,
+            onMoveResolved = { from, to -> onMoveLatest(from, to) },
+        )
     }
 }
+
+private const val MAX_SWAPS_PER_FRAME = 32

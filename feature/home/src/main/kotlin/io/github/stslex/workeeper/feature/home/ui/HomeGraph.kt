@@ -2,9 +2,7 @@
 package io.github.stslex.workeeper.feature.home.ui
 
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.ActiveSessionConflictDialog
@@ -15,6 +13,7 @@ import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Event
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.State
 import io.github.stslex.workeeper.feature.home.ui.components.TrainingPickerSheet
 
+@Suppress("UnusedParameter")
 fun NavGraphBuilder.homeGraph(
     sharedTransitionScope: SharedTransitionScope,
     modifier: Modifier = Modifier,
@@ -36,16 +35,6 @@ fun NavGraphBuilder.homeGraph(
             modifier = modifier,
             state = state,
             consume = processor::consume,
-            activeSessionModifier = with(sharedTransitionScope) {
-                Modifier.sharedBounds(
-                    sharedContentState = sharedTransitionScope.rememberSharedContentState("activeSessionBanner"),
-                    animatedVisibilityScope = this@navComponentScreen,
-                    resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(
-                        ContentScale.FillBounds,
-                        Alignment.Center,
-                    ),
-                )
-            },
         )
 
         (state.picker as? State.PickerState.Visible)?.let { visible ->

@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -17,6 +18,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 @Composable
 fun AppCard(
     modifier: Modifier = Modifier,
+    cardPadding: Dp = AppDimension.cardPadding,
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -25,7 +27,7 @@ fun AppCard(
         .background(AppUi.colors.surfaceTier1)
     val clickable = if (onClick != null) shaped.clickable(onClick = onClick) else shaped
     Column(
-        modifier = clickable.padding(AppDimension.cardPadding),
+        modifier = clickable.padding(cardPadding),
         content = content,
     )
 }

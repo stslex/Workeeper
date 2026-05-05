@@ -91,27 +91,21 @@ internal fun LiveSetRow(
         AppTooltip(text = stringResource(R.string.feature_live_workout_set_type_tooltip)) {
             Box(
                 modifier = Modifier.clickable(enabled = editable) {
-                    onTypeChange(set.type.next())
+                    onTypeChange(set.type)
                 },
             ) {
                 AppSetTypeChip(type = set.type.toUiKitType())
             }
         }
-        if (set.isPersonalRecord) {
+        if (set.isPersonalRecord && set.isDone.not()) {
             PersonalRecordBadge()
         }
         AppCheckmarkButton(
             isDone = set.isDone,
-            enabled = editable,
+            enabled = true,
             onToggle = { if (set.isDone) onUncheck() else onMarkDone() },
         )
     }
-}
-
-private fun SetTypeUiModel.next(): SetTypeUiModel {
-    val all = SetTypeUiModel.entries
-    val nextIndex = (ordinal + 1) % all.size
-    return all[nextIndex]
 }
 
 @Preview

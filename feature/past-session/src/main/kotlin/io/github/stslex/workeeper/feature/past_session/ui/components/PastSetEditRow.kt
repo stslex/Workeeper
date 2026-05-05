@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -57,7 +58,9 @@ internal fun PastSetEditRow(
 ) {
     var showExplainer by remember { mutableStateOf(false) }
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .padding(vertical = AppDimension.Space.xs)
+            .fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {

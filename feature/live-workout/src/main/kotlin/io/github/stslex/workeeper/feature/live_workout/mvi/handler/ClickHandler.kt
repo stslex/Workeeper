@@ -235,6 +235,7 @@ internal class ClickHandler @Inject constructor(
         val current = state.value
         val exercise = current.findExercise(action.performedExerciseUuid) ?: return
         val performed = exercise.performedSets.firstOrNull { it.position == action.position }
+        val newType = action.type.next()
         if (performed != null && performed.isDone) {
             // For a checked set, type changes are persisted immediately so the saved set
             // matches what the user sees. The optimistic UI update below keeps it instant.
@@ -242,7 +243,7 @@ internal class ClickHandler @Inject constructor(
                 latest.applySetTypeChange(
                     action.performedExerciseUuid,
                     action.position,
-                    action.type,
+                    newType,
                 )
             }
             launch(
@@ -254,16 +255,18 @@ internal class ClickHandler @Inject constructor(
                     set = PlanSetDomain(
                         weight = performed.weight,
                         reps = performed.reps,
-                        type = action.type.toDomain(),
+                        type = newType.toDomain(),
                     ),
                 )
             }
         } else {
             updateState { latest ->
-                latest.applyDraftTypeChange(
-                    action.performedExerciseUuid,
-                    action.position,
-                    action.type,
+                val key = State.DraftKey(action.performedExerciseUuid, action.position)
+                val existing = latest.draftFor(action.performedExerciseUuid, action.position)
+                val newItem = key to existing.copy(type = newType)
+                val newSetDrafts = latest.setDrafts + newItem
+                latest.copy(
+                    setDrafts = newSetDrafts.toImmutableMap(),
                 )
             }
         }
@@ -714,24 +717,6 @@ internal class ClickHandler @Inject constructor(
             exercise.copy(performedSets = nextSets)
         }.toImmutableList()
         return copy(exercises = updated)
-    }
-
-    private fun State.applyDraftTypeChange(
-        performedExerciseUuid: String,
-        position: Int,
-        type: SetTypeUiModel,
-    ): State {
-        val key = State.DraftKey(performedExerciseUuid, position)
-        val existing = setDrafts[key] ?: LiveSetUiModel(
-            position = position,
-            weight = null,
-            reps = 0,
-            type = type,
-            isDone = false,
-        )
-        return copy(
-            setDrafts = (setDrafts + (key to existing.copy(type = type))).toImmutableMap(),
-        )
     }
 
     private fun State.applyResetSets(performedExerciseUuid: String): State {

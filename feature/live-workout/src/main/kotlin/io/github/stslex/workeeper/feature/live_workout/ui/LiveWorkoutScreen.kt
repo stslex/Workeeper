@@ -36,7 +36,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.DiscardSessionConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.empty.AppEmptyState
-import io.github.stslex.workeeper.core.ui.kit.components.loading.AppLoadingIndicator
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
@@ -70,17 +69,11 @@ internal fun LiveWorkoutScreen(
             .testTag("LiveWorkoutScreen"),
     ) {
         TopBar(consume = consume)
-        if (state.isLoading) {
-            AppLoadingIndicator(
-                modifier = Modifier.fillMaxSize(),
-            )
-        } else {
-            Body(
-                state = state,
-                activeSessionBannerModifier = activeSessionBannerModifier,
-                consume = consume,
-            )
-        }
+        Body(
+            state = state,
+            activeSessionBannerModifier = activeSessionBannerModifier,
+            consume = consume,
+        )
     }
     if (state.deleteDialogVisible) {
         val sessionName = state.trainingNameLabel.takeIf { it.isNotBlank() }

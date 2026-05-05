@@ -1,10 +1,13 @@
 package io.github.stslex.workeeper.core.ui.kit.components.reorderable
 
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
@@ -12,6 +15,10 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.zIndex
+import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
+import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 
 /**
  * Row-container modifier for a reorderable Column item. Registers the item's measured
@@ -30,27 +37,32 @@ fun Modifier.reorderableColumnItem(
     state: ReorderableColumnState,
     key: Any,
     index: Int,
+    tintSelected: Color = AppUi.colors.accentTintedForeground,
+    tintUnselected: Color = Color.Transparent,
+    verticalPadding: Dp = AppDimension.Space.xs,
 ): Modifier {
-    val displacement = state.displacementFor(index, key)
-    val animatedDisplacement by animateFloatAsState(
-        targetValue = displacement,
-        label = "reorderable-column-displacement",
-    )
     val isDragged = state.draggedKey == key
     val dragOffset = state.dragOffsetPx
+
+    val backgroundColor by animateColorAsState(
+        targetValue = if (isDragged) tintSelected else tintUnselected,
+        label = "reorderable-column-background",
+    )
     return this
         .onGloballyPositioned { coords ->
             val rootRect = coords.boundsInWindow()
             state.onItemPlaced(key, index, rootRect.top, rootRect.bottom)
         }
-        .then(
+        .zIndex(if (isDragged) 1f else 0f)
+        .graphicsLayer {
+            // If this item is being dragged, we want to disable the default layout-based
+            // placement and just follow the finger.
             if (isDragged) {
-                Modifier
-                    .graphicsLayer { translationY = dragOffset }
-            } else {
-                Modifier.graphicsLayer { translationY = animatedDisplacement }
-            },
-        )
+                translationY = dragOffset
+            }
+        }
+        .background(backgroundColor)
+        .padding(vertical = verticalPadding)
         .semantics {
             customActions = listOf(
                 CustomAccessibilityAction("Move up") {
@@ -75,14 +87,13 @@ fun Modifier.reorderableColumnItem(
 fun Modifier.reorderableColumnDragHandle(
     state: ReorderableColumnState,
     key: Any,
-    index: Int,
     enabled: Boolean = true,
 ): Modifier = if (!enabled) {
     this
 } else {
-    pointerInput(state, key, index) {
+    pointerInput(state, key) {
         detectDragGesturesAfterLongPress(
-            onDragStart = { state.onDragStart(key, index) },
+            onDragStart = { state.onDragStart(key) },
             onDrag = { change, dragAmount ->
                 change.consume()
                 state.onDrag(dragAmount.y)

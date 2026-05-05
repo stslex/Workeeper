@@ -1,6 +1,9 @@
 package io.github.stslex.workeeper
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -10,11 +13,11 @@ import androidx.compose.animation.slideIn
 import androidx.compose.animation.slideOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
@@ -32,15 +35,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import io.github.stslex.workeeper.FeatureTokens.TOP_APP_BAR_ACTION_PADDING
-import io.github.stslex.workeeper.FeatureTokens.TOP_APP_BAR_HEIGHT
 import io.github.stslex.workeeper.bottom_app_bar.WorkeeperBottomAppBar
 import io.github.stslex.workeeper.core.ui.kit.components.snackbar.AppSnackbar
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
+import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.navigation.LocalRootComponent
@@ -49,6 +53,9 @@ import io.github.stslex.workeeper.host.AppNavigationHost
 import io.github.stslex.workeeper.host.NavHostControllerWrapper.Companion.rememberNavHostControllerHolder
 import io.github.stslex.workeeper.navigation.NavigatorImpl
 import io.github.stslex.workeeper.navigation.RootComponentImpl
+
+private val TOP_APP_BAR_HEIGHT = 64.dp
+private val TOP_APP_BAR_ACTION_PADDING = 4.dp
 
 @Composable
 fun App() {
@@ -79,7 +86,11 @@ fun App() {
                         }
                     }
             }
-
+            WorkeeperBottomAppBar(
+                selectedItem = navWrapper.bottomBarDestination,
+            ) {
+                navigator.navTo(it.screen)
+            }
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -92,23 +103,47 @@ fun App() {
                         .zIndex(1f),
                     visible = navWrapper.bottomBarDestination.value != null,
                     enter = fadeIn(
-                        tween(AppUi.motion.deliberate),
+                        tween(AppUi.motion.normal),
                     ) + scaleIn(
-                        tween(AppUi.motion.deliberate),
+                        tween(AppUi.motion.normal),
                     ) + slideIn(
                         initialOffset = { IntOffset(0, 0) },
-                        animationSpec = tween(AppUi.motion.deliberate),
+                        animationSpec = tween(AppUi.motion.normal),
                     ),
                     exit = fadeOut(
-                        tween(AppUi.motion.deliberate),
+                        tween(AppUi.motion.normal),
                     ) + scaleOut(
-                        tween(AppUi.motion.deliberate),
+                        tween(AppUi.motion.normal),
                     ) + slideOut(
                         targetOffset = { fullSize -> IntOffset(0, fullSize.height) },
-                        animationSpec = tween(AppUi.motion.deliberate),
+                        animationSpec = tween(AppUi.motion.normal),
                     ),
                 ) {
+                    val cornerRadius by transition.animateDp(
+                        transitionSpec = {
+                            tween(
+                                durationMillis = AppUi.motion.normal,
+                                easing = FastOutSlowInEasing,
+                            )
+                        },
+                        label = "bottom-bar-corner-radius",
+                    ) { state ->
+                        when (state) {
+                            EnterExitState.PreEnter -> AppDimension.Radius.largest
+                            EnterExitState.Visible -> 0.dp
+                            EnterExitState.PostExit -> AppDimension.Radius.largest
+                        }
+                    }
+
                     WorkeeperBottomAppBar(
+                        modifier = Modifier.clip(
+                            RoundedCornerShape(
+                                topStart = cornerRadius,
+                                topEnd = cornerRadius,
+                                bottomStart = 0.dp,
+                                bottomEnd = 0.dp,
+                            ),
+                        ),
                         selectedItem = navWrapper.bottomBarDestination,
                     ) {
                         navigator.navTo(it.screen)
@@ -120,23 +155,12 @@ fun App() {
                     navigator = navigator,
                 )
 
-                // Aligned with the Material3 TopAppBar small variant: content area is
-                // 64.dp tall and actions sit vertically centered with 4.dp horizontal
-                // padding. Mirroring those values here keeps the floating settings icon
-                // visually inside the bar instead of floating above it.
-                AnimatedVisibility(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .systemBarsPadding()
-                        .height(TOP_APP_BAR_HEIGHT)
-                        .zIndex(1f),
-                    visible = navWrapper.bottomBarDestination.value != null,
-                    enter = fadeIn(tween(AppUi.motion.deliberate)),
-                    exit = fadeOut(tween(AppUi.motion.deliberate)),
-                ) {
+                if (navWrapper.bottomBarDestination.value != null) {
                     Box(
                         modifier = Modifier
-                            .fillMaxHeight()
+                            .align(Alignment.TopEnd)
+                            .systemBarsPadding()
+                            .height(TOP_APP_BAR_HEIGHT)
                             .padding(end = TOP_APP_BAR_ACTION_PADDING),
                         contentAlignment = Alignment.Center,
                     ) {

@@ -19,4 +19,6 @@ enum class SetTypeUiModel(
         FAILURE -> SetType.FAIL
         DROP -> SetType.DROP
     }
+
+    fun next(): SetTypeUiModel = entries[ordinal.inc() % entries.size]
 }
