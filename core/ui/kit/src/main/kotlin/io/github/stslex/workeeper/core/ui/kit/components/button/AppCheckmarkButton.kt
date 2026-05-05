@@ -37,11 +37,14 @@ fun AppCheckmarkButton(
     onToggle: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val accent = AppUi.colors.accent
     val transparent = Color.Transparent
-    val borderColor = if (enabled) accent else AppUi.colors.borderDefault
+    // Border stays at `accent` so the unchecked state still reads as an actionable
+    // outlined chip. The filled state intentionally uses `accentTintedForeground` so
+    // it doesn't blend with parent surfaces that draw an `accent` border (e.g. the
+    // CURRENT live-exercise card border in dark theme — v2.4 visual polish).
+    val borderColor = if (enabled) AppUi.colors.accent else AppUi.colors.borderDefault
     val fillColor by animateColorAsState(
-        targetValue = if (isDone && enabled) accent else transparent,
+        targetValue = if (isDone && enabled) AppUi.colors.accentTintedForeground else transparent,
         label = "AppCheckmarkButtonFill",
     )
     val iconTint by animateColorAsState(
