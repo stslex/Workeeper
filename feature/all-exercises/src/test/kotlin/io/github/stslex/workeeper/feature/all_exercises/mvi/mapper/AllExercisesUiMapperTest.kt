@@ -6,6 +6,8 @@ import io.github.stslex.workeeper.feature.all_exercises.R
 import io.github.stslex.workeeper.feature.all_exercises.domain.model.ExerciseDomain
 import io.github.stslex.workeeper.feature.all_exercises.domain.model.ExerciseListItemDomain
 import io.github.stslex.workeeper.feature.all_exercises.domain.model.ExerciseTypeDomain
+import io.github.stslex.workeeper.feature.all_exercises.mvi.mapper.AllExercisesUiMapper.composeFooterLabel
+import io.github.stslex.workeeper.feature.all_exercises.mvi.mapper.AllExercisesUiMapper.toUi
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals

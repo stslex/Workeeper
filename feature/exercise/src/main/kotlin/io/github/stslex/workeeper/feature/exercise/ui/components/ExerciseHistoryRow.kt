@@ -15,7 +15,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
-import io.github.stslex.workeeper.feature.exercise.mvi.model.HistoryUiModel
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.HistoryUiModel
 
 @Composable
 internal fun ExerciseHistoryRow(

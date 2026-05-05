@@ -9,20 +9,23 @@ import io.github.stslex.workeeper.feature.exercise_chart.domain.model.HistoryEnt
 import io.github.stslex.workeeper.feature.exercise_chart.domain.model.HistorySetDomain
 import io.github.stslex.workeeper.feature.exercise_chart.domain.model.RecentExerciseDomain
 
-internal fun ExerciseTypeDataModel.toDomain(): ExerciseTypeDomain = when (this) {
-    ExerciseTypeDataModel.WEIGHTED -> ExerciseTypeDomain.WEIGHTED
-    ExerciseTypeDataModel.WEIGHTLESS -> ExerciseTypeDomain.WEIGHTLESS
+internal object ExerciseChartDomainMapper {
+
+    fun ExerciseTypeDataModel.toDomain(): ExerciseTypeDomain = when (this) {
+        ExerciseTypeDataModel.WEIGHTED -> ExerciseTypeDomain.WEIGHTED
+        ExerciseTypeDataModel.WEIGHTLESS -> ExerciseTypeDomain.WEIGHTLESS
+    }
+
+    fun RecentExerciseDataModel.toDomain(): RecentExerciseDomain = RecentExerciseDomain(
+        uuid = uuid,
+        name = name,
+        type = type.toDomain(),
+        lastFinishedAt = lastFinishedAt,
+    )
+
+    fun HistoryEntry.toDomain(): HistoryEntryDomain = HistoryEntryDomain(
+        sessionUuid = sessionUuid,
+        finishedAt = finishedAt,
+        sets = sets.map { HistorySetDomain(weight = it.weight, reps = it.reps) },
+    )
 }
-
-internal fun RecentExerciseDataModel.toDomain(): RecentExerciseDomain = RecentExerciseDomain(
-    uuid = uuid,
-    name = name,
-    type = type.toDomain(),
-    lastFinishedAt = lastFinishedAt,
-)
-
-internal fun HistoryEntry.toDomain(): HistoryEntryDomain = HistoryEntryDomain(
-    sessionUuid = sessionUuid,
-    finishedAt = finishedAt,
-    sets = sets.map { HistorySetDomain(weight = it.weight, reps = it.reps) },
-)

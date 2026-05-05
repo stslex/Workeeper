@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.ui.navigation
 
 import androidx.compose.animation.AnimatedContentScope
@@ -102,7 +103,15 @@ sealed interface Screen {
         val performedExerciseUuid: String?,
         val exerciseUuid: String?,
         val trainingUuid: String?,
-    ) : Screen
+    ) : Screen {
+
+        companion object {
+
+            private const val SAVED_STATE_PLAN_EDITOR_SAVED: String = "plan-editor-saved"
+
+            val planEditorSavedAttr = SaveHandlerAttr(SAVED_STATE_PLAN_EDITOR_SAVED, false)
+        }
+    }
 
     companion object {
 

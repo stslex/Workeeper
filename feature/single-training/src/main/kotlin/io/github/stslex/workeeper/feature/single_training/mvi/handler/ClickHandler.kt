@@ -12,7 +12,7 @@ import io.github.stslex.workeeper.feature.single_training.domain.SingleTrainingI
 import io.github.stslex.workeeper.feature.single_training.domain.model.ArchiveResult
 import io.github.stslex.workeeper.feature.single_training.domain.model.StartSessionConflict
 import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingChangeDomain
-import io.github.stslex.workeeper.feature.single_training.mvi.mapper.toUi
+import io.github.stslex.workeeper.feature.single_training.mvi.mapper.TagUiMapper.toUi
 import io.github.stslex.workeeper.feature.single_training.mvi.model.PickerExerciseItem
 import io.github.stslex.workeeper.feature.single_training.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.single_training.mvi.model.TrainingExerciseItem

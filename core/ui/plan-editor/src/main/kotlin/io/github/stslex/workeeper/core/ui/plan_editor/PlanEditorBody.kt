@@ -5,7 +5,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -53,7 +52,7 @@ private const val WEIGHT_COLUMN_FLEX = 1.2f
  * emit [PlanEditorBodyAction] back to the parent screen which maps them to store actions.
  */
 @Composable
-fun ColumnScope.PlanEditorBody(
+fun PlanEditorBody(
     draft: ImmutableList<PlanSetUiModel>,
     isWeighted: Boolean,
     onAction: (PlanEditorBodyAction) -> Unit,
@@ -194,26 +193,6 @@ private fun PlanEditorRow(
             )
         }
     }
-}
-
-@Composable
-internal fun PlanEditorHeader(exerciseName: String) {
-    val title = if (exerciseName.isBlank()) {
-        stringResource(R.string.core_ui_kit_plan_editor_title_default)
-    } else {
-        stringResource(R.string.core_ui_kit_plan_editor_title_format, exerciseName)
-    }
-    Text(
-        text = title,
-        style = AppUi.typography.titleLarge,
-        color = AppUi.colors.textPrimary,
-    )
-    Text(
-        modifier = Modifier.padding(top = AppDimension.Space.xs),
-        text = stringResource(R.string.core_ui_kit_plan_editor_subtitle),
-        style = AppUi.typography.bodySmall,
-        color = AppUi.colors.textTertiary,
-    )
 }
 
 internal fun Double.formatPlain(): String = if (this % 1.0 == 0.0) {

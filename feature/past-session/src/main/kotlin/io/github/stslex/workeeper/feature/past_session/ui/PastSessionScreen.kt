@@ -15,9 +15,9 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
@@ -39,7 +39,6 @@ import io.github.stslex.workeeper.feature.past_session.mvi.model.ErrorType
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastExerciseUiModel
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSessionUiModel
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSetUiModel
-import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Action
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.State
 import io.github.stslex.workeeper.feature.past_session.ui.components.DeleteConfirmDialog
 import io.github.stslex.workeeper.feature.past_session.ui.components.PastExerciseCard
@@ -51,7 +50,7 @@ import io.github.stslex.workeeper.core.ui.kit.R as KitR
 @Composable
 internal fun PastSessionScreen(
     state: State,
-    consume: (Action) -> Unit,
+    consume: (PastSessionBodyAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -71,16 +70,23 @@ internal fun PastSessionScreen(
     ) { contentPadding ->
         when (val phase = state.phase) {
             State.Phase.Loading -> LoadingContent(
-                modifier = Modifier.fillMaxSize().background(AppUi.colors.surfaceTier0),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(AppUi.colors.surfaceTier0),
             )
+
             is State.Phase.Error -> ErrorContent(
-                modifier = Modifier.fillMaxSize().background(AppUi.colors.surfaceTier0),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(AppUi.colors.surfaceTier0),
                 errorType = phase.errorType,
-                onRetry = { consume(Action.Click.OnRetryLoad) },
+                onRetry = { consume(PastSessionBodyAction.RetryLoad) },
             )
 
             is State.Phase.Loaded -> LoadedContent(
-                modifier = Modifier.fillMaxSize().background(AppUi.colors.surfaceTier0),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(AppUi.colors.surfaceTier0),
                 contentPadding = contentPadding,
                 detail = phase.detail,
                 consume = consume,
@@ -90,8 +96,8 @@ internal fun PastSessionScreen(
 
     if (state.deleteDialogVisible) {
         DeleteConfirmDialog(
-            onConfirm = { consume(Action.Click.OnDeleteConfirm) },
-            onDismiss = { consume(Action.Click.OnDeleteDismiss) },
+            onConfirm = { consume(PastSessionBodyAction.DeleteConfirm) },
+            onDismiss = { consume(PastSessionBodyAction.DeleteDismiss) },
         )
     }
 }
@@ -100,12 +106,12 @@ internal fun PastSessionScreen(
 @Composable
 private fun PastSessionLargeTopBar(
     state: State,
-    consume: (Action) -> Unit,
+    consume: (PastSessionBodyAction) -> Unit,
     scrollBehavior: TopAppBarScrollBehavior,
 ) {
     val title = (state.phase as? State.Phase.Loaded)?.detail?.trainingName
         ?: stringResource(R.string.feature_past_session_loading_title)
-    LargeTopAppBar(
+    TopAppBar(
         scrollBehavior = scrollBehavior,
         modifier = Modifier.testTag("PastSessionTopBar"),
         title = {
@@ -116,7 +122,7 @@ private fun PastSessionLargeTopBar(
             )
         },
         navigationIcon = {
-            IconButton(onClick = { consume(Action.Click.OnBackClick) }) {
+            IconButton(onClick = { consume(PastSessionBodyAction.BackClick) }) {
                 Icon(
                     modifier = Modifier.size(AppDimension.iconMd),
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -126,7 +132,7 @@ private fun PastSessionLargeTopBar(
         },
         actions = {
             if (state.canDelete) {
-                IconButton(onClick = { consume(Action.Click.OnDeleteClick) }) {
+                IconButton(onClick = { consume(PastSessionBodyAction.DeleteClick) }) {
                     Icon(
                         modifier = Modifier.size(AppDimension.iconMd),
                         imageVector = Icons.Filled.Delete,
@@ -177,7 +183,7 @@ private fun ErrorContent(
 @Composable
 private fun LoadedContent(
     detail: PastSessionUiModel,
-    consume: (Action) -> Unit,
+    consume: (PastSessionBodyAction) -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
@@ -201,17 +207,17 @@ private fun LoadedContent(
             PastExerciseCard(
                 exercise = exercise,
                 onWeightChange = { setUuid, raw ->
-                    consume(Action.Input.OnSetWeightChange(setUuid = setUuid, raw = raw))
+                    consume(PastSessionBodyAction.SetWeightInput(setUuid = setUuid, raw = raw))
                 },
                 onRepsChange = { setUuid, raw ->
-                    consume(Action.Input.OnSetRepsChange(setUuid = setUuid, raw = raw))
+                    consume(PastSessionBodyAction.SetRepsInput(setUuid = setUuid, raw = raw))
                 },
                 onTypeChange = { setUuid, type ->
-                    consume(Action.Click.OnSetTypeChange(setUuid = setUuid, type = type))
+                    consume(PastSessionBodyAction.SetTypeChange(setUuid = setUuid, type = type))
                 },
                 onSetReorder = { performedExerciseUuid, from, to ->
                     consume(
-                        Action.Click.OnSetReorder(
+                        PastSessionBodyAction.SetReorder(
                             performedExerciseUuid = performedExerciseUuid,
                             from = from,
                             to = to,

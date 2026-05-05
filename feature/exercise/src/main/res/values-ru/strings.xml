@@ -10,8 +10,6 @@
     <string name="feature_exercise_track_now_conflict_progress_format">%1$d из %2$d упражнений выполнено</string>
     <string name="feature_exercise_detail_edit">Изменить</string>
     <string name="feature_exercise_detail_archive">В архив</string>
-    <string name="feature_exercise_detail_back_description">Назад</string>
-    <string name="feature_exercise_detail_more_description">Ещё</string>
 
     <string name="feature_exercise_detail_archive_success_format">«%1$s» в архиве</string>
     <string name="feature_exercise_detail_archive_blocked_title">Нельзя архивировать</string>

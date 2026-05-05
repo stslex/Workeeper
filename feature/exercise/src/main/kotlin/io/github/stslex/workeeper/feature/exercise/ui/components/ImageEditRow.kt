@@ -32,7 +32,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.R
-import io.github.stslex.workeeper.feature.exercise.mvi.model.ImageDisplay
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageDisplay
 
 private val THUMB_SIZE = 72.dp
 

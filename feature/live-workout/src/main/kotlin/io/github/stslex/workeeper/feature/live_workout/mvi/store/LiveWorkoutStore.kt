@@ -137,6 +137,8 @@ internal interface LiveWorkoutStore :
             @Stable
             data class Visible(
                 val canDiscard: Boolean,
+                val confirmLabel: String,
+                val dismissLabel: String,
             ) : EmptyFinishDialogState
         }
 

@@ -4,9 +4,9 @@ package io.github.stslex.workeeper.core.ui.plan_editor.model
 import androidx.compose.runtime.Stable
 
 /**
- * UI-side action emitted by [PlanEditorBody][io.github.stslex.workeeper.core.ui.plan_editor.PlanEditorBody]
+ * UI-side action emitted by [PlanEditorBody][io.github.stslex.workeeper.feature.plan_editor.PlanEditorBody]
  * back to its parent. The parent (`PlanEditorScreen`) maps each variant to the
- * corresponding store [Action][io.github.stslex.workeeper.core.ui.plan_editor.mvi.store.PlanEditorStore.Action]
+ * corresponding store [Action][io.github.stslex.workeeper.feature.plan_editor.mvi.store.PlanEditorStore.Action]
  * — keeping the body composable free of Hilt / `Store` plumbing so it stays previewable.
  */
 @Stable

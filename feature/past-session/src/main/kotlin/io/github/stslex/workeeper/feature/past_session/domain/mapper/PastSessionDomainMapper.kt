@@ -12,56 +12,59 @@ import io.github.stslex.workeeper.feature.past_session.domain.model.SessionDetai
 import io.github.stslex.workeeper.feature.past_session.domain.model.SetDomain
 import io.github.stslex.workeeper.feature.past_session.domain.model.SetTypeDomain
 
-internal fun SessionDetailDataModel.toDomain(): SessionDetailDomain = SessionDetailDomain(
-    sessionUuid = sessionUuid,
-    trainingUuid = trainingUuid,
-    trainingName = trainingName,
-    isAdhoc = isAdhoc,
-    startedAt = startedAt,
-    finishedAt = finishedAt,
-    exercises = exercises.map { it.toDomain() },
-)
+internal object PastSessionDomainMapper {
 
-internal fun PerformedExerciseDetailDataModel.toDomain(): PerformedExerciseDetailDomain =
-    PerformedExerciseDetailDomain(
-        performedExerciseUuid = performedExerciseUuid,
-        exerciseUuid = exerciseUuid,
-        exerciseName = exerciseName,
-        exerciseType = exerciseType.toDomain(),
-        position = position,
-        skipped = skipped,
-        sets = sets.map { it.toDomain() },
+    fun SessionDetailDataModel.toDomain(): SessionDetailDomain = SessionDetailDomain(
+        sessionUuid = sessionUuid,
+        trainingUuid = trainingUuid,
+        trainingName = trainingName,
+        isAdhoc = isAdhoc,
+        startedAt = startedAt,
+        finishedAt = finishedAt,
+        exercises = exercises.map { it.toDomain() },
     )
 
-internal fun ExerciseTypeDataModel.toDomain(): ExerciseTypeDomain = when (this) {
-    ExerciseTypeDataModel.WEIGHTED -> ExerciseTypeDomain.WEIGHTED
-    ExerciseTypeDataModel.WEIGHTLESS -> ExerciseTypeDomain.WEIGHTLESS
-}
+    fun PerformedExerciseDetailDataModel.toDomain(): PerformedExerciseDetailDomain =
+        PerformedExerciseDetailDomain(
+            performedExerciseUuid = performedExerciseUuid,
+            exerciseUuid = exerciseUuid,
+            exerciseName = exerciseName,
+            exerciseType = exerciseType.toDomain(),
+            position = position,
+            skipped = skipped,
+            sets = sets.map { it.toDomain() },
+        )
 
-internal fun SetsDataModel.toDomain(): SetDomain = SetDomain(
-    uuid = uuid,
-    reps = reps,
-    weight = weight,
-    type = type.toDomain(),
-)
+    fun ExerciseTypeDataModel.toDomain(): ExerciseTypeDomain = when (this) {
+        ExerciseTypeDataModel.WEIGHTED -> ExerciseTypeDomain.WEIGHTED
+        ExerciseTypeDataModel.WEIGHTLESS -> ExerciseTypeDomain.WEIGHTLESS
+    }
 
-internal fun SetsDataType.toDomain(): SetTypeDomain = when (this) {
-    SetsDataType.WARM -> SetTypeDomain.WARMUP
-    SetsDataType.WORK -> SetTypeDomain.WORK
-    SetsDataType.FAIL -> SetTypeDomain.FAILURE
-    SetsDataType.DROP -> SetTypeDomain.DROP
-}
+    fun SetsDataModel.toDomain(): SetDomain = SetDomain(
+        uuid = uuid,
+        reps = reps,
+        weight = weight,
+        type = type.toDomain(),
+    )
 
-internal fun SetDomain.toData(): SetsDataModel = SetsDataModel(
-    uuid = uuid,
-    reps = reps,
-    weight = weight,
-    type = type.toData(),
-)
+    fun SetsDataType.toDomain(): SetTypeDomain = when (this) {
+        SetsDataType.WARM -> SetTypeDomain.WARMUP
+        SetsDataType.WORK -> SetTypeDomain.WORK
+        SetsDataType.FAIL -> SetTypeDomain.FAILURE
+        SetsDataType.DROP -> SetTypeDomain.DROP
+    }
 
-internal fun SetTypeDomain.toData(): SetsDataType = when (this) {
-    SetTypeDomain.WARMUP -> SetsDataType.WARM
-    SetTypeDomain.WORK -> SetsDataType.WORK
-    SetTypeDomain.FAILURE -> SetsDataType.FAIL
-    SetTypeDomain.DROP -> SetsDataType.DROP
+    fun SetDomain.toData(): SetsDataModel = SetsDataModel(
+        uuid = uuid,
+        reps = reps,
+        weight = weight,
+        type = type.toData(),
+    )
+
+    fun SetTypeDomain.toData(): SetsDataType = when (this) {
+        SetTypeDomain.WARMUP -> SetsDataType.WARM
+        SetTypeDomain.WORK -> SetsDataType.WORK
+        SetTypeDomain.FAILURE -> SetsDataType.FAIL
+        SetTypeDomain.DROP -> SetsDataType.DROP
+    }
 }

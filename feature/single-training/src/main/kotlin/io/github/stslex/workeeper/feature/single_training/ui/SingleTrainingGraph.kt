@@ -4,8 +4,6 @@ package io.github.stslex.workeeper.feature.single_training.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -19,8 +17,6 @@ import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
-import io.github.stslex.workeeper.core.ui.navigation.LocalNavigator
-import io.github.stslex.workeeper.core.ui.plan_editor.SAVED_STATE_PLAN_EDITOR_SAVED
 import io.github.stslex.workeeper.feature.single_training.R
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingFeature
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
@@ -75,22 +71,6 @@ fun NavGraphBuilder.singleTrainingsGraph(
         // its own route (Screen.PlanEditor) and owns its own dirty-state interception.
         BackHandler(enabled = processor.state.value.interceptBack) {
             processor.consume(Action.Click.OnBackClick)
-        }
-
-        // PlanEditor return-flag: when the saved-flag flips to true on this screen's
-        // backstack entry, the user just confirmed Save inside PlanEditorScreen. Reload
-        // the training so the per-row planSummary reflects the new draft, then reset
-        // the flag so subsequent re-entries don't re-fire.
-        val navigator = LocalNavigator.current
-        val savedStateHandle = navigator.navController.currentBackStackEntry?.savedStateHandle
-        val planEditorSaved = savedStateHandle
-            ?.getStateFlow(SAVED_STATE_PLAN_EDITOR_SAVED, false)
-            ?.collectAsState()
-        LaunchedEffect(planEditorSaved?.value) {
-            if (planEditorSaved?.value == true) {
-                processor.consume(Action.Common.Reload)
-                savedStateHandle[SAVED_STATE_PLAN_EDITOR_SAVED] = false
-            }
         }
 
         val state = processor.state.value

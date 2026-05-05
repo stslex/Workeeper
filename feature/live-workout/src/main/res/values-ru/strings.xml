@@ -66,9 +66,9 @@
     <string name="feature_live_workout_session_overflow_cancel" tools:ignore="DuplicateStrings">Отменить сессию</string>
     <string name="feature_live_workout_cancel_title">Отменить сессию?</string>
     <string name="feature_live_workout_cancel_body">Весь прогресс будет удалён. Это нельзя отменить.</string>
-    <string name="feature_live_workout_cancel_confirm">Отменить сессию</string>
+    <string name="feature_live_workout_cancel_confirm">Отменить</string>
     <string name="feature_live_workout_cancel_dismiss" tools:ignore="DuplicateStrings">Продолжить</string>
-    <string name="feature_live_workout_delete_session" tools:ignore="DuplicateStrings">Удалить сессию</string>
+    <string name="feature_live_workout_delete_session" tools:ignore="DuplicateStrings">Удалить</string>
     <string name="feature_live_workout_delete_session_unnamed">Тренировка</string>
     <string name="feature_live_workout_delete_session_progress_format">%1$d из %2$d упражнений · %3$d сетов записано</string>
 
@@ -85,7 +85,7 @@
 
     <string name="feature_live_workout_empty_finish_title">Удалить пустую тренировку?</string>
     <string name="feature_live_workout_empty_finish_body">В этой тренировке нет ни одного выполненного сета. Похоже, она ещё не начата.</string>
-    <string name="feature_live_workout_empty_finish_continue">Продолжить редактирование</string>
+    <string name="feature_live_workout_empty_finish_continue" tools:ignore="DuplicateStrings">Продолжить</string>
     <string name="feature_live_workout_empty_finish_discard">Удалить</string>
 
     <string name="feature_live_workout_back">Назад</string>

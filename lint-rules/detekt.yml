@@ -655,3 +655,5 @@ mvi-architecture:
     active: true
   DomainLayerNoUiRule:
     active: true
+  UiLayerNoDataRule:
+    active: true

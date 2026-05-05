@@ -13,7 +13,7 @@ import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
-import io.github.stslex.workeeper.feature.settings.domain.mapper.toDomain
+import io.github.stslex.workeeper.feature.settings.domain.mapper.ArchivedItemDomainMapper.toDomain
 import io.github.stslex.workeeper.feature.settings.domain.model.ArchivedItem
 import io.github.stslex.workeeper.feature.settings.domain.model.ThemeModeDomain
 import kotlinx.coroutines.CoroutineDispatcher

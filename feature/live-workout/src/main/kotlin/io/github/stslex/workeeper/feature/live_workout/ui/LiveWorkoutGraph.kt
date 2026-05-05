@@ -3,8 +3,6 @@ package io.github.stslex.workeeper.feature.live_workout.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -19,9 +17,7 @@ import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
-import io.github.stslex.workeeper.core.ui.navigation.LocalNavigator
 import io.github.stslex.workeeper.core.ui.plan_editor.ExercisePickerBottomSheet
-import io.github.stslex.workeeper.core.ui.plan_editor.SAVED_STATE_PLAN_EDITOR_SAVED
 import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutFeature
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore
@@ -73,22 +69,6 @@ fun NavGraphBuilder.liveWorkoutGraph(
             processor.consume(Action.Click.OnBackClick)
         }
 
-        // PlanEditor return-flag: when the saved-flag flips to true on the LiveWorkout
-        // backstack entry, the user just confirmed Save inside PlanEditorScreen. We
-        // dispatch a Reload so LiveExerciseCard.planSets reflects the new draft, then
-        // reset the flag so subsequent re-entries don't re-fire.
-        val navigator = LocalNavigator.current
-        val savedStateHandle = navigator.navController.currentBackStackEntry?.savedStateHandle
-        val planEditorSaved = savedStateHandle
-            ?.getStateFlow(SAVED_STATE_PLAN_EDITOR_SAVED, false)
-            ?.collectAsState()
-        LaunchedEffect(planEditorSaved?.value) {
-            if (planEditorSaved?.value == true) {
-                processor.consume(Action.Common.Reload)
-                savedStateHandle[SAVED_STATE_PLAN_EDITOR_SAVED] = false
-            }
-        }
-
         val state = processor.state.value
         LiveWorkoutScreen(
             modifier = modifier,
@@ -122,20 +102,14 @@ fun NavGraphBuilder.liveWorkoutGraph(
             AppDialog(
                 title = stringResource(R.string.feature_live_workout_empty_finish_title),
                 body = stringResource(R.string.feature_live_workout_empty_finish_body),
-                confirmLabel = stringResource(
-                    if (dialog.canDiscard) {
-                        R.string.feature_live_workout_empty_finish_discard
-                    } else {
-                        R.string.feature_live_workout_empty_finish_continue
-                    },
-                ),
-                dismissLabel = stringResource(R.string.feature_live_workout_empty_finish_continue),
-                destructive = dialog.canDiscard,
+                confirmLabel = dialog.confirmLabel,
+                dismissLabel = dialog.dismissLabel,
+                destructive = true,
                 onConfirm = {
                     if (dialog.canDiscard) {
                         processor.consume(Action.Click.OnEmptyFinishDiscard)
                     } else {
-                        processor.consume(Action.Click.OnEmptyFinishContinue)
+                        processor.consume(Action.Click.OnCancelSessionConfirm)
                     }
                 },
                 onDismiss = { processor.consume(Action.Click.OnEmptyFinishContinue) },

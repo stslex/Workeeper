@@ -52,7 +52,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 open class BaseStore<S : State, A : Action, E : Event>(
     val name: String,
     initialState: S,
-    private val storeEmitter: HandlerStoreEmitter<S, A, E>,
+    storeEmitter: HandlerStoreEmitter<S, A, E>,
     private val handlerCreator: HandlerCreator<A>,
     private val initialActions: List<A> = emptyList(),
     private val storeDispatchers: StoreDispatchers,
@@ -199,6 +199,26 @@ open class BaseStore<S : State, A : Action, E : Event>(
         onError = onError,
         workDispatcher = workDispatcher,
         eachDispatcher = eachDispatcher,
+        onSuccess = onSuccess,
+        action = action,
+    )
+
+    /**
+     * Launches a coroutine and catches exceptions. The coroutine is launched on the default dispatcher.
+     * @param onError - error handler
+     * @param onSuccess - success handler
+     * @param action - action to be executed
+     * @return Job
+     * @see Job
+     * */
+    override fun <T> launchDefault(
+        onError: suspend (Throwable) -> Unit,
+        onSuccess: suspend CoroutineScope.(T) -> Unit,
+        action: suspend CoroutineScope.() -> T,
+    ): Job = scope.launch(
+        onError = onError,
+        workDispatcher = storeDispatchers.defaultDispatcher,
+        eachDispatcher = storeDispatchers.defaultDispatcher,
         onSuccess = onSuccess,
         action = action,
     )

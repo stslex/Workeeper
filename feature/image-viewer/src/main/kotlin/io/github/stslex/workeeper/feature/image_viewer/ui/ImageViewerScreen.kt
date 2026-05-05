@@ -22,7 +22,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.feature.image_viewer.R
-import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStore.Action
 import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStore.State
 import io.github.stslex.workeeper.feature.image_viewer.ui.components.ZoomableImage
 
@@ -30,7 +29,7 @@ import io.github.stslex.workeeper.feature.image_viewer.ui.components.ZoomableIma
 @Composable
 internal fun ImageViewerScreen(
     state: State,
-    consume: (Action) -> Unit,
+    consume: (ImageViewerBodyAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -44,7 +43,7 @@ internal fun ImageViewerScreen(
                 navigationIcon = {
                     IconButton(
                         modifier = Modifier.testTag("ImageViewerBackButton"),
-                        onClick = { consume(Action.Click.OnBackClick) },
+                        onClick = { consume(ImageViewerBodyAction.BackClick) },
                     ) {
                         Icon(
                             modifier = Modifier.size(AppDimension.iconSm),
@@ -78,14 +77,14 @@ internal fun ImageViewerScreen(
                 offsetY = state.offsetY,
                 onTransform = { newScale, newOffsetX, newOffsetY ->
                     consume(
-                        Action.Common.TransformChange(
+                        ImageViewerBodyAction.TransformChange(
                             scale = newScale,
                             offsetX = newOffsetX,
                             offsetY = newOffsetY,
                         ),
                     )
                 },
-                onDoubleTap = { consume(Action.Click.OnDoubleTap) },
+                onDoubleTap = { consume(ImageViewerBodyAction.DoubleTap) },
             )
         }
     }
