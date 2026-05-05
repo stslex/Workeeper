@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
@@ -23,44 +22,50 @@ import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartFooterStatsUiModel
 
 /**
- * Footer stats: three equal-weight columns with center-aligned text. The pre-v2.4
- * `Arrangement.SpaceBetween` row glued long Russian labels together
- * ("Последнее: 105 кг" overflowing into the adjacent stat); equal-weight + center +
- * `maxLines = 2 ellipsis` keeps each stat visually inside its third regardless of
- * locale length. (v2.4 5.6.)
+ * Footer stats: vertical stack, one stat per row. Title sits left, value right,
+ * baseline-aligned. Single-line, no ellipsis — values are short formatted numbers
+ * (e.g. "250 кг × повт."). The pre-v2.4 three-column row glued long Russian
+ * labels together; the vertical layout sidesteps width competition entirely. (5.6 / D.)
  */
 @Composable
 internal fun ChartFooterStats(
     stats: ChartFooterStatsUiModel,
     modifier: Modifier = Modifier,
 ) {
-    Row(
+    Column(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = AppDimension.screenEdge)
             .testTag("ChartFooterStats"),
-        horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
-        verticalAlignment = Alignment.Top,
+        verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xs),
     ) {
-        StatColumn(label = stats.minLabel)
-        StatColumn(label = stats.maxLabel)
-        StatColumn(label = stats.lastLabel)
+        StatRow(title = stats.minTitle, value = stats.minValue)
+        StatRow(title = stats.maxTitle, value = stats.maxValue)
+        StatRow(title = stats.lastTitle, value = stats.lastValue)
     }
 }
 
 @Composable
-private fun RowScope.StatColumn(label: String) {
-    Column(
-        modifier = Modifier.weight(1f),
-        horizontalAlignment = Alignment.CenterHorizontally,
+private fun StatRow(title: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(
-            text = label,
-            style = AppUi.typography.bodySmall,
+            text = title,
+            style = AppUi.typography.bodyMedium,
             color = AppUi.colors.textSecondary,
-            textAlign = TextAlign.Center,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
+            maxLines = 1,
+            overflow = TextOverflow.Clip,
+        )
+        Text(
+            text = value,
+            style = AppUi.typography.bodyMedium,
+            color = AppUi.colors.textPrimary,
+            textAlign = TextAlign.End,
+            maxLines = 1,
+            overflow = TextOverflow.Clip,
         )
     }
 }
@@ -69,16 +74,19 @@ private fun RowScope.StatColumn(label: String) {
 @Composable
 private fun ChartFooterStatsLightPreview() {
     AppTheme(themeMode = ThemeMode.LIGHT) {
-        Row(
+        Column(
             modifier = Modifier
                 .background(AppUi.colors.surfaceTier0)
                 .padding(AppDimension.Space.lg),
         ) {
             ChartFooterStats(
                 stats = ChartFooterStatsUiModel(
-                    minLabel = "Min: 80 kg",
-                    maxLabel = "Max: 110 kg",
-                    lastLabel = "Last: 105 kg",
+                    minTitle = "Min",
+                    minValue = "80 kg",
+                    maxTitle = "Max",
+                    maxValue = "110 kg",
+                    lastTitle = "Last",
+                    lastValue = "105 kg",
                 ),
             )
         }
@@ -89,16 +97,19 @@ private fun ChartFooterStatsLightPreview() {
 @Composable
 private fun ChartFooterStatsDarkPreview() {
     AppTheme(themeMode = ThemeMode.DARK) {
-        Row(
+        Column(
             modifier = Modifier
                 .background(AppUi.colors.surfaceTier0)
                 .padding(AppDimension.Space.lg),
         ) {
             ChartFooterStats(
                 stats = ChartFooterStatsUiModel(
-                    minLabel = "Мин: 80 кг",
-                    maxLabel = "Макс: 110 кг",
-                    lastLabel = "Последнее: 105 кг",
+                    minTitle = "Мин",
+                    minValue = "250 кг × повт.",
+                    maxTitle = "Макс",
+                    maxValue = "260 кг × повт.",
+                    lastTitle = "Последнее",
+                    lastValue = "255 кг × повт.",
                 ),
             )
         }

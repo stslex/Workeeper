@@ -46,18 +46,12 @@ internal fun ChartFooterStatsDomain.toUi(
     type: ExerciseTypeDomain,
     resourceWrapper: ResourceWrapper,
 ): ChartFooterStatsUiModel = ChartFooterStatsUiModel(
-    minLabel = resourceWrapper.getString(
-        R.string.feature_exercise_chart_footer_min,
-        formatMetricValue(min, type, metric, resourceWrapper),
-    ),
-    maxLabel = resourceWrapper.getString(
-        R.string.feature_exercise_chart_footer_max,
-        formatMetricValue(max, type, metric, resourceWrapper),
-    ),
-    lastLabel = resourceWrapper.getString(
-        R.string.feature_exercise_chart_footer_last,
-        formatMetricValue(last, type, metric, resourceWrapper),
-    ),
+    minTitle = resourceWrapper.getString(R.string.feature_exercise_chart_footer_min),
+    minValue = formatMetricValue(min, type, metric, resourceWrapper),
+    maxTitle = resourceWrapper.getString(R.string.feature_exercise_chart_footer_max),
+    maxValue = formatMetricValue(max, type, metric, resourceWrapper),
+    lastTitle = resourceWrapper.getString(R.string.feature_exercise_chart_footer_last),
+    lastValue = formatMetricValue(last, type, metric, resourceWrapper),
 )
 
 internal fun toTooltip(

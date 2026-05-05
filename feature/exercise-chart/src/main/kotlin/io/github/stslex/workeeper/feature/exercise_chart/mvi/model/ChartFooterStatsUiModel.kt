@@ -5,7 +5,10 @@ import androidx.compose.runtime.Stable
 
 @Stable
 internal data class ChartFooterStatsUiModel(
-    val minLabel: String,
-    val maxLabel: String,
-    val lastLabel: String,
+    val minTitle: String,
+    val minValue: String,
+    val maxTitle: String,
+    val maxValue: String,
+    val lastTitle: String,
+    val lastValue: String,
 )
