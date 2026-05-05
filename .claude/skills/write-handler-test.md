@@ -179,6 +179,50 @@ Notes:
   feature-specific reasons, instantiate with the same plain constructor — the test does
   not need to know about the `Component` superclass.
 
+## Characterization tests before behavior-preserving refactors
+
+When the next change is a refactor that moves logic between layers (handler →
+mapper, inline merge → resolver, scattered seed lookups → single helper) the right
+first step is **not** to start moving code. It is to write tests that pin down the
+**current** behavior across every input combination the refactor is supposed to
+preserve, run them green on the existing implementation, and only then refactor.
+
+This is the red-green-refactor discipline applied to behavior-preserving moves. The
+tests do not assert the new shape; they assert the observable contract — which fields
+survive a mutation, which priority resolves a conflict, which paths produce the same
+visible result. Because they run green before and after, they catch the silent
+regression where the refactor "works" structurally but quietly changes one of the
+preservation rules.
+
+When to reach for this:
+
+- A reusable Composable merges multiple state sources and you're moving the merge to
+  the mapper. Pin the priority (`source A > source B > fallback`) and the list size
+  formula across every coverage gap.
+- Multiple handlers seed a draft / overlay / pending state from different upstream
+  sources. Pin every field-preservation pair (type↔weight, type↔reps, weight↔reps,
+  edit-then-edit) before unifying the seed lookup.
+- A flow's mapping layer is being split or merged. Pin the input/output cases that
+  the mapper currently handles (including the surprising ones — empty inputs, partial
+  matches) before touching the mapper.
+
+Tactics:
+
+- For the resolver / merge layer that doesn't yet exist as a testable unit, mirror
+  the current production logic into a private helper inside the test class and assert
+  against it. After the refactor, retarget the test at the new public resolver and
+  drop the mirror — the assertions stay the same.
+- For handler-level invariants, drive `Action`s through the actual handler and assert
+  on `state.value` / mocked collaborator calls, the same as any other handler test
+  in this skill.
+- Name the tests after the invariant, not the implementation:
+  `OnSetTypeSelect_with_existing_draft_preserves_draft_weight_and_reps_when_chip_cycles`,
+  not `processSetTypeSelect_calls_existing_draft_path`.
+
+Reference: `feature/live-workout/.../mvi/handler/LiveSetDraftBehaviorTest.kt` and
+`feature/live-workout/.../mvi/mapper/LiveSetVisibleRowsResolverTest.kt` were written
+this way before the visible-row / draft-seed centralization refactor.
+
 ## Verification
 
 ```bash

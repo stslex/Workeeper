@@ -8,6 +8,7 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveSetMutator
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.StateStatusMapper
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
@@ -37,6 +38,7 @@ internal class ClickHandlerTest {
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
     private val pickerHandler = mockk<ExercisePickerHandler>(relaxed = true)
     private val statusMapper = StateStatusMapper(resourceWrapper)
+    private val setMutator = LiveSetMutator(resourceWrapper, statusMapper)
 
     @Test
     fun `OnExerciseHeaderClick toggles expansion for DONE exercises`() {
@@ -46,7 +48,7 @@ internal class ClickHandlerTest {
             interactor = interactor,
             resourceWrapper = resourceWrapper,
             pickerHandler = pickerHandler,
-            statusMapper = statusMapper,
+            setMutator = setMutator,
             store = store,
         )
 
@@ -71,7 +73,7 @@ internal class ClickHandlerTest {
             interactor = interactor,
             resourceWrapper = resourceWrapper,
             pickerHandler = pickerHandler,
-            statusMapper = statusMapper,
+            setMutator = setMutator,
             store = store,
         )
 
@@ -101,7 +103,7 @@ internal class ClickHandlerTest {
             interactor = interactor,
             resourceWrapper = resourceWrapper,
             pickerHandler = pickerHandler,
-            statusMapper = statusMapper,
+            setMutator = setMutator,
             store = store,
         )
 
@@ -122,7 +124,7 @@ internal class ClickHandlerTest {
             interactor = interactor,
             resourceWrapper = resourceWrapper,
             pickerHandler = pickerHandler,
-            statusMapper = statusMapper,
+            setMutator = setMutator,
             store = store,
         )
 
@@ -145,7 +147,7 @@ internal class ClickHandlerTest {
             interactor = interactor,
             resourceWrapper = resourceWrapper,
             pickerHandler = pickerHandler,
-            statusMapper = statusMapper,
+            setMutator = setMutator,
             store = store,
         )
 
@@ -165,7 +167,7 @@ internal class ClickHandlerTest {
             interactor = interactor,
             resourceWrapper = resourceWrapper,
             pickerHandler = pickerHandler,
-            statusMapper = statusMapper,
+            setMutator = setMutator,
             store = store,
         )
 
@@ -185,7 +187,7 @@ internal class ClickHandlerTest {
             interactor = interactor,
             resourceWrapper = resourceWrapper,
             pickerHandler = pickerHandler,
-            statusMapper = statusMapper,
+            setMutator = setMutator,
             store = store,
         )
 
@@ -205,7 +207,7 @@ internal class ClickHandlerTest {
             interactor = interactor,
             resourceWrapper = resourceWrapper,
             pickerHandler = pickerHandler,
-            statusMapper = statusMapper,
+            setMutator = setMutator,
             store = store,
         )
 
@@ -230,7 +232,7 @@ internal class ClickHandlerTest {
             interactor = interactor,
             resourceWrapper = resourceWrapper,
             pickerHandler = pickerHandler,
-            statusMapper = statusMapper,
+            setMutator = setMutator,
             store = store,
         )
 
@@ -271,7 +273,7 @@ internal class ClickHandlerTest {
             interactor = interactor,
             resourceWrapper = resourceWrapper,
             pickerHandler = pickerHandler,
-            statusMapper = statusMapper,
+            setMutator = setMutator,
             store = store,
         )
 
@@ -302,7 +304,7 @@ internal class ClickHandlerTest {
             interactor = interactor,
             resourceWrapper = resourceWrapper,
             pickerHandler = pickerHandler,
-            statusMapper = statusMapper,
+            setMutator = setMutator,
             store = store,
         )
 
@@ -329,7 +331,7 @@ internal class ClickHandlerTest {
             interactor = interactor,
             resourceWrapper = resourceWrapper,
             pickerHandler = pickerHandler,
-            statusMapper = statusMapper,
+            setMutator = setMutator,
             store = store,
         )
 
@@ -359,7 +361,7 @@ internal class ClickHandlerTest {
             interactor = interactor,
             resourceWrapper = resourceWrapper,
             pickerHandler = pickerHandler,
-            statusMapper = statusMapper,
+            setMutator = setMutator,
             store = store,
         )
 

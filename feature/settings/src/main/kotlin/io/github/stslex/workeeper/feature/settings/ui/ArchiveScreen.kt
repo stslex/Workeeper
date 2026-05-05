@@ -154,7 +154,7 @@ private fun ArchivedExerciseList(
         modifier = modifier.testTag("ArchiveExerciseList"),
         contentPadding = PaddingValues(
             horizontal = AppDimension.screenEdge,
-            vertical = AppDimension.Space.sm
+            vertical = AppDimension.Space.sm,
         ),
         state = rememberLazyListState(),
         verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
@@ -194,7 +194,7 @@ private fun ArchivedTrainingList(
         modifier = modifier.testTag("ArchiveTrainingList"),
         contentPadding = PaddingValues(
             horizontal = AppDimension.screenEdge,
-            vertical = AppDimension.Space.sm
+            vertical = AppDimension.Space.sm,
         ),
         state = rememberLazyListState(),
         verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),

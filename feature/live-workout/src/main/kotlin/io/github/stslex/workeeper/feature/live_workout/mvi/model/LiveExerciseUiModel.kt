@@ -5,6 +5,7 @@ import androidx.compose.runtime.Stable
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
 
 @Stable
 data class LiveExerciseUiModel(
@@ -17,4 +18,11 @@ data class LiveExerciseUiModel(
     val statusLabel: String,
     val planSets: ImmutableList<PlanSetUiModel>,
     val performedSets: ImmutableList<LiveSetUiModel>,
+    /**
+     * Resolved visible-row list with priority `performed > draft > plan > fallback`.
+     * Computed by `LiveSetRowsResolver` and refreshed on every state mutation that
+     * touches `performedSets`, `planSets`, or `State.setDrafts`. UI components render
+     * this list directly and must never merge sources themselves.
+     */
+    val visibleSets: ImmutableList<LiveSetUiModel> = persistentListOf(),
 )

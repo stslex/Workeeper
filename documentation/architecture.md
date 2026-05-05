@@ -1132,6 +1132,105 @@ summaries. It's invoked by handlers (e.g. `CommonHandler.TimerTick` updates
 When debt accumulates (Composables still doing shaping), tracked in
 [documentation/tech-debt.md](tech-debt.md) "UI Mapping Boundary Debt".
 
+### Source-of-truth merging belongs to mappers, not Composables
+
+A Composable that merges multiple state sources to decide what to render is doing
+state derivation, not rendering. That work belongs in the MVI mapper / state-derivation
+layer. Composables receive an already-prepared list/value and emit actions.
+
+Concretely: if your render function reaches across `performedSets`, `planSets`,
+`setDrafts`, and a fallback row to compute "what to show at position N", you have a
+state-derivation function with a `@Composable` annotation on it. It will produce silent
+data-loss bugs the moment any one of those sources is updated independently — the
+Composable's local merge rule and the handler's draft-seed rule have to stay in sync,
+and Compose offers no help with that.
+
+Bad — composable merges sources:
+
+```kotlin
+@Composable
+private fun ExerciseCardBody(
+    exercise: LiveExerciseUiModel,
+    drafts: ImmutableMap<State.DraftKey, LiveSetUiModel>,
+    /* ... */
+) {
+    val rows = buildSetRowList(exercise, drafts)        // merges performed/plan/draft/fallback
+    rows.forEach { LiveSetRow(it, /* ... */) }
+}
+```
+
+Two further smells follow from this shape:
+
+- A reusable UI component imports `Store.State.DraftKey` (or any other store-internal
+  shape). UI components must not know how the state is keyed inside the store.
+- TextField local state (`AppNumberInput`, `OutlinedTextField`) hides broken store state
+  from the user — the field keeps its typed value while the store mirror is wrong.
+  Controls that read state directly (chips, toggles, summaries) reveal the bug
+  immediately. Don't lean on TextField's local cache as a correctness signal.
+
+Good — mapper builds a flat list, composable renders it:
+
+```kotlin
+@Stable
+data class LiveExerciseUiModel(
+    /* ... */
+    val visibleSets: ImmutableList<LiveSetUiModel>,     // derived in mapper
+)
+
+@Composable
+private fun ExerciseCardBody(exercise: LiveExerciseUiModel, /* ... */) {
+    exercise.visibleSets.forEach { row ->
+        key(exercise.performedExerciseUuid, row.position) {
+            LiveSetRow(row, /* ... */)
+        }
+    }
+}
+```
+
+The visible-row priority for the live-workout exercise card is **performed > draft >
+plan > fallback**, and the resolver lives in the feature's mapper layer
+(`feature/live-workout/.../mvi/mapper/`). Any mutation that touches one of those four
+sources runs the resolver as part of the same state transition — `init` mapping,
+draft updates from `InputHandler` / `ClickHandler`, mark-done / uncheck, add set,
+reset / skip, plan-editor save reload. Composable bodies never recompute the list.
+
+### Draft seed/update invariant
+
+Editable state that has multiple upstream sources (a plan template, a performed value,
+and a user-edited draft) needs one canonical place to decide where the seed comes from
+when a draft is first created, and what fields the next edit preserves. Spreading this
+across handlers — one branch in `InputHandler.OnSetWeightChange`, another in
+`ClickHandler.OnSetTypeSelect` — is how reset bugs sneak in: the type-chip path picks
+up an empty seed while the weight-input path picks up the plan, and the two paths
+disagree about what the row "is".
+
+The rule, as applied in `feature/live-workout`:
+
+```
+draft update = current visible row seed + changed field
+```
+
+Concretely:
+
+- The seed lookup priority is **performed > draft > plan > fallback** — the same
+  priority the visible-row resolver uses, so the chip click reads the row the user
+  sees.
+- A draft update keeps every field of the seed and overwrites only the field the user
+  changed. Type chip click preserves weight + reps. Weight input preserves type +
+  reps. Reps input preserves type + weight.
+- Both `lookupSetDraftSeed(performedExerciseUuid, position)` and
+  `updateSetDraft(..., transform)` live in **one** helper file in the MVI handler
+  layer (e.g. `mvi/handler/LiveWorkoutDraftExt.kt`), and every handler that mutates
+  drafts goes through it. No handler reaches into `setDrafts` directly to decide the
+  seed.
+
+When refactoring code that already exhibits this debt — multiple seed lookups, in-UI
+merging, draft fields silently resetting — write characterization tests against the
+current behavior **before** moving the logic. The bug class is exactly the kind that
+re-grows after a clean refactor, and a green test suite that exercises every
+field-preservation pair (type↔weight, type↔reps, weight↔reps, type→type-after-edit)
+is the only durable defence.
+
 ### Specialized UI modules — `core/ui/<specialized>`
 
 Three architectural layers exist for UI code:
