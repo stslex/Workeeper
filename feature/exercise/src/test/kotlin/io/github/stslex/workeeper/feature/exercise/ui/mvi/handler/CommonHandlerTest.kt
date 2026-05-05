@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.feature.exercise.mvi.handler
+package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
 import android.net.Uri
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.core.ui.navigation.NavigatorStack
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseTypeDomain
-import io.github.stslex.workeeper.feature.exercise.mvi.model.PendingImage
-import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Action
-import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PendingImage
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,6 +25,7 @@ internal class CommonHandlerTest {
         every { observePersonalRecord(any(), any<ExerciseTypeDomain>()) } returns emptyFlow()
     }
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
+    private val navigatorStack = mockk<NavigatorStack>(relaxed = true)
 
     private fun setup(initialState: State): Pair<MutableStateFlow<State>, CommonHandler> {
         val stateFlow = MutableStateFlow(initialState)
@@ -34,7 +36,7 @@ internal class CommonHandlerTest {
                 stateFlow.value = update(stateFlow.value)
             }
         }
-        return stateFlow to CommonHandler(interactor, resourceWrapper, store)
+        return stateFlow to CommonHandler(interactor, resourceWrapper, navigatorStack, store)
     }
 
     @Test

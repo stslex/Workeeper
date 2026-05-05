@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.feature.live_workout.mvi.handler
 
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.core.ui.navigation.NavigatorStack
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
@@ -17,6 +18,7 @@ internal class CommonHandlerTest {
 
     private val interactor = mockk<LiveWorkoutInteractor>(relaxed = true)
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
+    private val navigatorStack = mockk<NavigatorStack>(relaxed = true)
 
     @Test
     fun `Init launches a load coroutine`() {
@@ -33,6 +35,7 @@ internal class CommonHandlerTest {
         val handler = CommonHandler(
             interactor = interactor,
             resourceWrapper = resourceWrapper,
+            navigatorStack = navigatorStack,
             store = store,
         )
 

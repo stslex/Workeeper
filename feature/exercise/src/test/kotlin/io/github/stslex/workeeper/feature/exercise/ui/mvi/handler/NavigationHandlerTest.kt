@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.feature.exercise.mvi.handler
+package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen
-import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Action
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.Test
@@ -23,10 +23,9 @@ internal class NavigationHandlerTest {
     }
 
     @Test
-    fun `OpenSession is wired but is a no-op until past session screen lands`() {
+    fun `OpenSession navigates to Screen PastSession with the session uuid`() {
         handler.invoke(Action.Navigation.OpenSession("session-uuid"))
-        verify(exactly = 0) { navigator.popBack() }
-        verify(exactly = 0) { navigator.navTo(any()) }
+        verify(exactly = 1) { navigator.navTo(Screen.PastSession(sessionUuid = "session-uuid")) }
     }
 
     @Test

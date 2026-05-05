@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.feature.exercise.mvi.handler
+package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
 import android.content.Context
 import android.content.pm.PackageManager
@@ -10,12 +10,13 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
-import io.github.stslex.workeeper.feature.exercise.mvi.model.TagUiModel
-import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Action
-import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.DiscardTarget
-import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Event
-import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State
-import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State.Mode
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PendingImage
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.DiscardTarget
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Event
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State.Mode
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -371,7 +372,7 @@ internal class ClickHandlerTest {
         )
         handler.invoke(Action.Click.OnRemoveImageClick)
         assertEquals(
-            io.github.stslex.workeeper.feature.exercise.mvi.model.PendingImage.RemoveExisting,
+            PendingImage.RemoveExisting,
             stateFlow.value.pendingImage,
         )
     }

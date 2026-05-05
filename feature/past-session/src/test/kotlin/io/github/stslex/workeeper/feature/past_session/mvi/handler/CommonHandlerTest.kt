@@ -217,6 +217,16 @@ internal class CommonHandlerTest {
                 }
         }
 
+        override fun <T> launchDefault(
+            onError: suspend (Throwable) -> Unit,
+            onSuccess: suspend CoroutineScope.(T) -> Unit,
+            action: suspend CoroutineScope.() -> T,
+        ): Job = testScope.launch(dispatcher) {
+            runCatching { action() }
+                .onSuccess { withContext(dispatcher) { onSuccess(it) } }
+                .onFailure { withContext(dispatcher) { onError(it) } }
+        }
+
         override fun <T> Flow<T>.launch(
             onError: suspend (cause: Throwable) -> Unit,
             workDispatcher: CoroutineDispatcher?,
