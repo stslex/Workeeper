@@ -27,7 +27,7 @@ import coil3.request.crossfade
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.R
-import io.github.stslex.workeeper.feature.exercise.mvi.model.ImageDisplay
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageDisplay
 
 @Composable
 internal fun ExerciseHero(

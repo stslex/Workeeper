@@ -23,7 +23,7 @@ import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagChip
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.feature.exercise.R
-import io.github.stslex.workeeper.feature.exercise.mvi.model.TagUiModel
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
 import kotlinx.collections.immutable.ImmutableList
 
 @Composable

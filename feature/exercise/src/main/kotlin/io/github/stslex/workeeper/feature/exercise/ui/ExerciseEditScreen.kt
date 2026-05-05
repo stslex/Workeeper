@@ -31,12 +31,12 @@ import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.feature.exercise.R
-import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Action
-import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State
-import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State.Mode
 import io.github.stslex.workeeper.feature.exercise.ui.components.ImageEditRow
 import io.github.stslex.workeeper.feature.exercise.ui.components.TagPickerInline
 import io.github.stslex.workeeper.feature.exercise.ui.components.TypeToggle
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State.Mode
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
 @Composable

@@ -9,8 +9,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,22 +25,19 @@ import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
 import io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
-import io.github.stslex.workeeper.core.ui.navigation.LocalNavigator
-import io.github.stslex.workeeper.core.ui.plan_editor.SAVED_STATE_PLAN_EDITOR_SAVED
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseFeature
-import io.github.stslex.workeeper.feature.exercise.mvi.model.ImageErrorType
-import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Action
-import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.DiscardTarget
-import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Event
-import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State.Mode
 import io.github.stslex.workeeper.feature.exercise.ui.components.ImageSourceDialog
 import io.github.stslex.workeeper.feature.exercise.ui.components.PermissionDeniedDialog
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageErrorType
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.DiscardTarget
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Event
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State.Mode
 
 @OptIn(ExperimentalSharedTransitionApi::class)
-@Suppress("UnusedParameter", "LongMethod", "CyclomaticComplexMethod")
+@Suppress("LongMethod", "CyclomaticComplexMethod")
 fun NavGraphBuilder.exerciseGraph(
-//    sharedTransitionScope: SharedTransitionScope,
     modifier: Modifier = Modifier,
 ) {
     navComponentScreen(ExerciseFeature) { processor ->
@@ -174,22 +169,6 @@ fun NavGraphBuilder.exerciseGraph(
         // taps always flow through the store regardless of interceptBack.
         BackHandler(enabled = processor.state.value.interceptBack) {
             processor.consume(Action.Click.OnBackClick)
-        }
-
-        // PlanEditor return-flag: when the saved-flag flips to true on this screen's
-        // backstack entry, the user just confirmed Save inside PlanEditorScreen. Reload
-        // the exercise + adhoc plan so the default-plan card and edit-mode summary
-        // reflect the new draft, then reset the flag.
-        val navigator = LocalNavigator.current
-        val savedStateHandle = navigator.navController.currentBackStackEntry?.savedStateHandle
-        val planEditorSaved = savedStateHandle
-            ?.getStateFlow(SAVED_STATE_PLAN_EDITOR_SAVED, false)
-            ?.collectAsState()
-        LaunchedEffect(planEditorSaved?.value) {
-            if (planEditorSaved?.value == true) {
-                processor.consume(Action.Common.Reload)
-                savedStateHandle[SAVED_STATE_PLAN_EDITOR_SAVED] = false
-            }
         }
 
         val state = processor.state.value

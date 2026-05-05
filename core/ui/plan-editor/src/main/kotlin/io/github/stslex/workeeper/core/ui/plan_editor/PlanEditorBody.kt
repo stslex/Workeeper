@@ -196,26 +196,6 @@ private fun PlanEditorRow(
     }
 }
 
-@Composable
-internal fun PlanEditorHeader(exerciseName: String) {
-    val title = if (exerciseName.isBlank()) {
-        stringResource(R.string.core_ui_kit_plan_editor_title_default)
-    } else {
-        stringResource(R.string.core_ui_kit_plan_editor_title_format, exerciseName)
-    }
-    Text(
-        text = title,
-        style = AppUi.typography.titleLarge,
-        color = AppUi.colors.textPrimary,
-    )
-    Text(
-        modifier = Modifier.padding(top = AppDimension.Space.xs),
-        text = stringResource(R.string.core_ui_kit_plan_editor_subtitle),
-        style = AppUi.typography.bodySmall,
-        color = AppUi.colors.textTertiary,
-    )
-}
-
 internal fun Double.formatPlain(): String = if (this % 1.0 == 0.0) {
     toLong().toString()
 } else {

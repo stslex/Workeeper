@@ -49,11 +49,11 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.feature.exercise.R
-import io.github.stslex.workeeper.feature.exercise.mvi.model.ImageDisplay
-import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.Action
-import io.github.stslex.workeeper.feature.exercise.mvi.store.ExerciseStore.State
 import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseHero
 import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseHistoryRow
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageDisplay
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
 import kotlinx.collections.immutable.ImmutableList
 
 @OptIn(ExperimentalMaterial3Api::class)

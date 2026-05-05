@@ -27,7 +27,7 @@ import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.feature.exercise.R
-import io.github.stslex.workeeper.feature.exercise.mvi.model.ImageSourceUiModel
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageSourceUiModel
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
 @Composable

@@ -129,11 +129,13 @@ private fun formatDisplay(
         point.reps,
         point.reps,
     )
+
     metric == ChartMetricUiModel.VOLUME_PER_SET -> resourceWrapper.getString(
         R.string.feature_exercise_chart_value_weight_x_reps,
         formatNumber(point.value),
         point.reps,
     )
+
     else -> resourceWrapper.getString(
         R.string.feature_exercise_chart_value_weight_x_reps,
         formatNumber(point.weight ?: 0.0),
@@ -152,10 +154,12 @@ private fun formatMetricValue(
         point.reps,
         point.reps,
     )
+
     metric == ChartMetricDomain.VOLUME_PER_SET -> resourceWrapper.getString(
         R.string.feature_exercise_chart_value_volume,
         formatNumber(point.value),
     )
+
     else -> resourceWrapper.getString(
         R.string.feature_exercise_chart_value_weight,
         formatNumber(point.weight ?: 0.0),

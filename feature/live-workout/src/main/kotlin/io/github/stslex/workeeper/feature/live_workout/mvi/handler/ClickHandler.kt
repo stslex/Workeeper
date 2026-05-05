@@ -12,6 +12,7 @@ import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStor
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
 import io.github.stslex.workeeper.feature.live_workout.domain.mapper.beatsBaseline
 import io.github.stslex.workeeper.feature.live_workout.domain.model.PlanSetDomain
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.StateStatusMapper
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.toDomain
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.toFinishStats
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.withPresentation
@@ -39,6 +40,7 @@ internal class ClickHandler @Inject constructor(
     private val interactor: LiveWorkoutInteractor,
     private val resourceWrapper: ResourceWrapper,
     private val pickerHandler: ExercisePickerHandler,
+    private val statusMapper: StateStatusMapper,
     store: LiveWorkoutHandlerStore,
 ) : Handler<Action.Click>, LiveWorkoutHandlerStore by store {
 
@@ -202,7 +204,7 @@ internal class ClickHandler @Inject constructor(
             onError = { _ ->
                 sendError(ErrorType.SetSaveFailed)
                 // Revert to a clean reload-shaped state by rebuilding statuses.
-                updateState { latest -> latest.recomputeStatuses(resourceWrapper) }
+                updateState { latest -> statusMapper.recomputeStatuses(latest) }
             },
         ) {
             interactor.upsertSet(
@@ -446,7 +448,8 @@ internal class ClickHandler @Inject constructor(
             ?.trim()
             ?.takeIf { stats.requiresName }
         if (stats?.requiresName == true && requiredName.isNullOrBlank()) {
-            val requiredError = resourceWrapper.getString(R.string.feature_live_workout_finish_name_required)
+            val requiredError =
+                resourceWrapper.getString(R.string.feature_live_workout_finish_name_required)
             updateState { latest ->
                 latest.copy(
                     pendingFinishConfirm = latest.pendingFinishConfirm?.copy(
@@ -585,7 +588,9 @@ internal class ClickHandler @Inject constructor(
                     current.copy(
                         activeExerciseUuids = activeNext.toImmutableSet(),
                         expandedExerciseUuids = expandedNext.toImmutableSet(),
-                    ).recomputeStatuses(resourceWrapper)
+                    ).let {
+                        statusMapper.recomputeStatuses(it)
+                    }
                 }
 
                 ExerciseStatusUiModel.CURRENT -> {
@@ -673,7 +678,9 @@ internal class ClickHandler @Inject constructor(
         return copy(
             exercises = updated,
             setDrafts = nextDrafts.toImmutableMap(),
-        ).recomputeStatuses(resourceWrapper)
+        ).let {
+            statusMapper.recomputeStatuses(it)
+        }
     }
 
     private fun State.applySetUnchecked(
@@ -687,7 +694,9 @@ internal class ClickHandler @Inject constructor(
                 .toImmutableList()
             exercise.copy(performedSets = nextSets)
         }.toImmutableList()
-        return copy(exercises = updated).recomputeStatuses(resourceWrapper)
+        return copy(exercises = updated).let {
+            statusMapper.recomputeStatuses(it)
+        }
     }
 
     private fun State.applySetTypeChange(
@@ -734,7 +743,9 @@ internal class ClickHandler @Inject constructor(
             exercises = updated,
             setDrafts = nextDrafts,
             pendingResetExerciseUuid = null,
-        ).recomputeStatuses(resourceWrapper)
+        ).let {
+            statusMapper.recomputeStatuses(it)
+        }
     }
 
     private fun State.applySkip(performedExerciseUuid: String): State {
@@ -756,7 +767,18 @@ internal class ClickHandler @Inject constructor(
         // exercise's own `status` field is recomputed alongside everything else so the
         // CURRENT marker walks past the now-skipped row, while honoring the user's
         // explicit active set.
-        val rebuilt = exercises.toUiListAfterSkip(performedExerciseUuid, activeExerciseUuids)
+        val rebuilt = exercises.map { exercise ->
+            if (exercise.performedExerciseUuid == performedExerciseUuid) {
+                exercise.copy(
+                    status = ExerciseStatusUiModel.SKIPPED,
+                )
+            } else {
+                exercise
+            }
+        }.let { items ->
+            statusMapper.recomputeOnly(items, activeExerciseUuids)
+        }
+        // todo - there are more then 3 internal wrappers for immutable lists
         return copy(exercises = rebuilt).withPresentation(resourceWrapper)
     }
 
@@ -791,20 +813,6 @@ internal class ClickHandler @Inject constructor(
             .maxByOrNull { it.position }
     }
 
-    private fun ImmutableListOfExercise.toUiListAfterSkip(
-        skippedUuid: String,
-        activeUuids: Set<String>,
-    ): ImmutableListOfExercise =
-        map { exercise ->
-            if (exercise.performedExerciseUuid == skippedUuid) {
-                exercise.copy(
-                    status = ExerciseStatusUiModel.SKIPPED,
-                )
-            } else {
-                exercise
-            }
-        }.toImmutableList().recomputeOnly(activeUuids)
-
     private fun sendError(type: ErrorType) {
         sendEvent(
             Event.ShowError(
@@ -813,5 +821,3 @@ internal class ClickHandler @Inject constructor(
         )
     }
 }
-
-private typealias ImmutableListOfExercise = kotlinx.collections.immutable.ImmutableList<LiveExerciseUiModel>

@@ -74,6 +74,16 @@ open class BaseHandlerStore<S : State, A : Action, E : Event> :
         action = action,
     )
 
+    override fun <T> launchDefault(
+        onError: suspend (Throwable) -> Unit,
+        onSuccess: suspend CoroutineScope.(T) -> Unit,
+        action: suspend CoroutineScope.() -> T,
+    ): Job = store.launchDefault(
+        onError = onError,
+        onSuccess = onSuccess,
+        action = action,
+    )
+
     override fun <T> Flow<T>.launch(
         onError: suspend (cause: Throwable) -> Unit,
         workDispatcher: CoroutineDispatcher?,

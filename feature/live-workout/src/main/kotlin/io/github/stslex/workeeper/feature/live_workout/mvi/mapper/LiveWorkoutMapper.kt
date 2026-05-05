@@ -3,8 +3,8 @@ package io.github.stslex.workeeper.feature.live_workout.mvi.mapper
 
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
-import io.github.stslex.workeeper.core.ui.plan_editor.mappers.formatPlanSummary
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
+import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorUIMapper.formatPlanSummary
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.R
@@ -181,7 +181,8 @@ internal fun State.withPresentation(resourceWrapper: ResourceWrapper): State {
     }.toImmutableList()
     val doneCount = presentedExercises.count { it.status == ExerciseStatusUiModel.DONE }
     val totalCount = presentedExercises.size
-    val setsLogged = presentedExercises.sumOf { exercise -> exercise.performedSets.count { it.isDone } }
+    val setsLogged =
+        presentedExercises.sumOf { exercise -> exercise.performedSets.count { it.isDone } }
     val safeTotal = totalCount.coerceAtLeast(1)
     val progress = (doneCount.toFloat() / safeTotal.toFloat()).coerceIn(0f, 1f)
     val setCountLabel = resourceWrapper.getQuantityString(
@@ -343,48 +344,49 @@ private fun Double.formatPrWeight(): String = if (this % 1.0 == 0.0) {
     toString().trimEnd('0').trimEnd('.')
 }
 
-private fun LiveExerciseUiModel.toStatusLabel(resourceWrapper: ResourceWrapper): String = when (status) {
-    ExerciseStatusUiModel.DONE -> {
-        val count = performedSets.count { it.isDone }
-        val setCountLabel = resourceWrapper.getQuantityString(
-            R.plurals.feature_live_workout_status_set_count,
-            count,
-            count,
-        )
-        resourceWrapper.getString(
-            R.string.feature_live_workout_status_completed_format,
-            setCountLabel,
-        )
-    }
-
-    ExerciseStatusUiModel.CURRENT -> {
-        if (planSets.isEmpty()) {
-            resourceWrapper.getString(R.string.feature_live_workout_status_no_plan)
-        } else if (performedSets.none { it.isDone }) {
-            resourceWrapper.getString(
-                R.string.feature_live_workout_status_plan_format,
-                planSets.formatPlanSummary(),
+private fun LiveExerciseUiModel.toStatusLabel(resourceWrapper: ResourceWrapper): String =
+    when (status) {
+        ExerciseStatusUiModel.DONE -> {
+            val count = performedSets.count { it.isDone }
+            val setCountLabel = resourceWrapper.getQuantityString(
+                R.plurals.feature_live_workout_status_set_count,
+                count,
+                count,
             )
-        } else {
             resourceWrapper.getString(
-                R.string.feature_live_workout_status_progress_format,
-                performedSets.count { it.isDone },
-                planSets.size,
+                R.string.feature_live_workout_status_completed_format,
+                setCountLabel,
             )
         }
-    }
 
-    ExerciseStatusUiModel.PENDING -> {
-        val summary = if (planSets.isEmpty()) {
-            resourceWrapper.getString(R.string.feature_live_workout_status_no_plan)
-        } else {
-            planSets.formatPlanSummary()
+        ExerciseStatusUiModel.CURRENT -> {
+            if (planSets.isEmpty()) {
+                resourceWrapper.getString(R.string.feature_live_workout_status_no_plan)
+            } else if (performedSets.none { it.isDone }) {
+                resourceWrapper.getString(
+                    R.string.feature_live_workout_status_plan_format,
+                    planSets.formatPlanSummary(),
+                )
+            } else {
+                resourceWrapper.getString(
+                    R.string.feature_live_workout_status_progress_format,
+                    performedSets.count { it.isDone },
+                    planSets.size,
+                )
+            }
         }
-        resourceWrapper.getString(R.string.feature_live_workout_status_plan_format, summary)
-    }
 
-    ExerciseStatusUiModel.SKIPPED -> resourceWrapper.getString(R.string.feature_live_workout_status_skipped)
-}
+        ExerciseStatusUiModel.PENDING -> {
+            val summary = if (planSets.isEmpty()) {
+                resourceWrapper.getString(R.string.feature_live_workout_status_no_plan)
+            } else {
+                planSets.formatPlanSummary()
+            }
+            resourceWrapper.getString(R.string.feature_live_workout_status_plan_format, summary)
+        }
+
+        ExerciseStatusUiModel.SKIPPED -> resourceWrapper.getString(R.string.feature_live_workout_status_skipped)
+    }
 
 private fun formatExerciseSummary(
     resourceWrapper: ResourceWrapper,
