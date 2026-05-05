@@ -109,7 +109,7 @@ private fun DetailLargeTopBar(
                         titleRes = R.string.feature_training_detail_permanent_delete,
                         testTag = "TrainingDetailPermanentDeleteMenuItem",
                         onClick = { consume(Action.Click.OnPermanentDeleteClick) },
-                    )
+                    ),
                 )
             }
         }

@@ -92,5 +92,3 @@ fun Modifier.reorderableColumnDragHandle(
         )
     }
 }
-
-private const val DRAG_SHADOW_ELEVATION_DP = 6

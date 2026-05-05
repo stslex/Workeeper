@@ -100,7 +100,7 @@ fun DetailTopbar(
             scrolledContainerColor = AppUi.colors.surfaceTier0,
             navigationIconContentColor = AppUi.colors.textPrimary,
             titleContentColor = AppUi.colors.textPrimary,
-            actionIconContentColor = AppUi.colors.textPrimary
+            actionIconContentColor = AppUi.colors.textPrimary,
         ),
     )
 }
