@@ -82,7 +82,7 @@ internal fun ImageViewerScreen(
                             scale = newScale,
                             offsetX = newOffsetX,
                             offsetY = newOffsetY,
-                        )
+                        ),
                     )
                 },
                 onDoubleTap = { consume(Action.Click.OnDoubleTap) },
