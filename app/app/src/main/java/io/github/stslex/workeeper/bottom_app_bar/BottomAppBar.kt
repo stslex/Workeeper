@@ -57,7 +57,7 @@ internal fun WorkeeperBottomAppBar(
 
     BottomAppBar(
         modifier = modifier
-            .height(AppDimension.BottomNavBar.height)
+            .height(AppDimension.BottomNavBar.heightWithInsets)
             .testTag("WorkeeperBottomAppBar"),
         contentPadding = PaddingValues(AppDimension.Padding.medium),
     ) {
