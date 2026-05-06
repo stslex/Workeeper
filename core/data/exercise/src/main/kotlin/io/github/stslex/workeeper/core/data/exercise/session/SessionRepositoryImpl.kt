@@ -5,6 +5,7 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
 import io.github.stslex.workeeper.core.core.coroutine.asyncForEach
+import io.github.stslex.workeeper.core.core.coroutine.asyncScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
 import io.github.stslex.workeeper.core.data.database.converters.PlanSetsConverter
@@ -56,11 +57,12 @@ internal class SessionRepositoryImpl @Inject constructor(
 
     override fun observeActive(): Flow<SessionDataModel?> = dao
         .observeActive()
-        .map { entity -> entity?.toData() }
         .flowOn(ioDispatcher)
+        .map { entity -> entity?.toData() }
 
     override fun observeAnyActiveSession(): Flow<ActiveSessionInfo?> = dao
         .observeAnyActiveSession()
+        .flowOn(ioDispatcher)
         .map { row ->
             row?.let {
                 ActiveSessionInfo(
@@ -70,11 +72,11 @@ internal class SessionRepositoryImpl @Inject constructor(
                 )
             }
         }
-        .flowOn(ioDispatcher)
 
     override fun observeActiveSessionWithStats(): Flow<SessionRepository.ActiveSessionWithStats?> =
         dao
             .observeActiveSessionWithStats()
+            .flowOn(ioDispatcher)
             .map { row ->
                 row?.let {
                     SessionRepository.ActiveSessionWithStats(
@@ -88,7 +90,6 @@ internal class SessionRepositoryImpl @Inject constructor(
                     )
                 }
             }
-            .flowOn(ioDispatcher)
 
     override suspend fun getAnyActiveSession(): ActiveSessionInfo? = withContext(ioDispatcher) {
         dao.getActive()?.let { entity ->
@@ -106,15 +107,15 @@ internal class SessionRepositoryImpl @Inject constructor(
 
     override fun observeRecent(limit: Int): Flow<List<SessionDataModel>> = dao
         .observeRecent(limit)
-        .map { list -> list.map { it.toData() } }
         .flowOn(ioDispatcher)
+        .map { list -> list.map { it.toData() } }
 
     override fun observeRecentWithStats(
         limit: Int,
     ): Flow<List<RecentSessionDataModel>> = dao
         .observeRecentWithStats(limit)
-        .map { rows -> rows.map { it.toData() } }
         .flowOn(ioDispatcher)
+        .map { rows -> rows.map { it.toData() } }
 
     override suspend fun getSessionDetail(
         sessionUuid: String,
@@ -160,8 +161,8 @@ internal class SessionRepositoryImpl @Inject constructor(
         config = pagingConfig,
         pagingSourceFactory = dao::pagedFinished,
     ).flow
-        .map { pagingData -> pagingData.map { it.toData() } }
         .flowOn(ioDispatcher)
+        .map { pagingData -> pagingData.map { it.toData() } }
 
     override fun pagedFinishedByTraining(
         trainingUuid: String,
@@ -169,8 +170,8 @@ internal class SessionRepositoryImpl @Inject constructor(
         config = pagingConfig,
         pagingSourceFactory = { dao.pagedFinishedByTraining(Uuid.parse(trainingUuid)) },
     ).flow
-        .map { pagingData -> pagingData.map { it.toData() } }
         .flowOn(ioDispatcher)
+        .map { pagingData -> pagingData.map { it.toData() } }
 
     override suspend fun getRecentFinishedByTraining(
         trainingUuid: String,
@@ -269,14 +270,23 @@ internal class SessionRepositoryImpl @Inject constructor(
         // Adhoc lifecycle (v2.3): on finish, the training row and every exercise
         // plan-attached to it graduate to regular library entries. Runs inside the same
         // transaction as the state flip so a failed finish does not leak half-graduated rows.
-        exerciseDao.graduateAdhocForTraining(current.trainingUuid)
-        trainingDao.graduateTraining(current.trainingUuid)
-        dao.update(
-            current.copy(
-                state = SessionStateEntity.FINISHED,
-                finishedAt = finishedAt,
-            ),
-        )
+        val exerciseAdhoc = asyncScope {
+            exerciseDao.graduateAdhocForTraining(current.trainingUuid)
+        }
+        val trainingGraduate = asyncScope {
+            trainingDao.graduateTraining(current.trainingUuid)
+        }
+        val sessionGraduate = asyncScope {
+            dao.update(
+                current.copy(
+                    state = SessionStateEntity.FINISHED,
+                    finishedAt = finishedAt,
+                ),
+            )
+        }
+        exerciseAdhoc.await()
+        trainingGraduate.await()
+        sessionGraduate.await()
         true
     }
 
