@@ -50,6 +50,9 @@ internal fun AppNavigationHost(
             .background(MaterialTheme.colorScheme.background)
 
         val motionDuration = AppUi.motion.normal
+
+        ClearFocusOnDestinationChanged(navigatorHolder)
+
         NavHost(
             modifier = Modifier.fillMaxSize(),
             navController = navigatorHolder.navController,

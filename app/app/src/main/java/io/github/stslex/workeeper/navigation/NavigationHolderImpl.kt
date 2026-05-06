@@ -10,22 +10,22 @@ import javax.inject.Inject
 class NavigationHolderImpl @Inject constructor() : NavigationHolderController {
 
     @Volatile
-    private var _navigator: NavHostController? = null
+    private var _navController: NavHostController? = null
 
     override val navController: NavHostController
-        get() = requireNotNull(_navigator) {
+        get() = requireNotNull(_navController) {
             "NavHostController is not set. Make sure to call rememberNavHostControllerHolder() in a composable scope."
         }
 
     @Synchronized
     override fun produce(controller: NavHostController) {
-        _navigator = controller
+        _navController = controller
     }
 
     @Synchronized
     override fun removeController(controller: NavHostController) {
-        if (_navigator === controller) {
-            _navigator = null
+        if (_navController === controller) {
+            _navController = null
         }
     }
 }
