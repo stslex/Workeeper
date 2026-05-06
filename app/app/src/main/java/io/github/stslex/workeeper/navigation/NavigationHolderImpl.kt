@@ -19,7 +19,7 @@ class NavigationHolderImpl @Inject constructor() : NavigationHolderController {
 
     @Synchronized
     override fun produce(controller: NavHostController) {
-        _navigator = navController
+        _navigator = controller
     }
 
     @Synchronized

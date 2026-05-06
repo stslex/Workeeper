@@ -19,20 +19,21 @@ class BottomBarNavigationListener private constructor(
 
         @Composable
         fun rememberBottomBarNavigationListener(holder: NavigatorHolder): BottomBarNavigationListener {
+            val navController = holder.navController
             val bottomBarDestination = remember {
                 mutableStateOf<BottomBarItem?>(BottomBarItem.HOME)
             }
-            DisposableEffect(holder.navController) {
+            DisposableEffect(navController) {
                 val listener = OnDestinationChangedListener { _, destination, _ ->
                     bottomBarDestination.value = destination.route?.let(BottomBarItem::getByRoute)
                 }
-                holder.navController.addOnDestinationChangedListener(listener)
+                navController.addOnDestinationChangedListener(listener)
                 onDispose {
-                    holder.navController.removeOnDestinationChangedListener(listener)
+                    navController.removeOnDestinationChangedListener(listener)
                 }
             }
 
-            return remember(holder.navController) {
+            return remember(navController) {
                 BottomBarNavigationListener(bottomBarDestination)
             }
         }
