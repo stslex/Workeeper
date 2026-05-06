@@ -96,7 +96,7 @@ internal fun LiveSetRow(
                     .let { base ->
                         if (testTagPrefix != null) base.testTag("${testTagPrefix}_TypeChip") else base
                     }
-                    .clickable(enabled = editable) { onTypeChange(set.type.next()) },
+                    .clickable(enabled = editable) { onTypeChange(set.type) },
             ) {
                 AppSetTypeChip(type = set.type.toUiKitType())
             }

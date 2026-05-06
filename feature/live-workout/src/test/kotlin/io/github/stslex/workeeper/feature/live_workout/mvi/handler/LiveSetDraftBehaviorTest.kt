@@ -57,7 +57,7 @@ internal class LiveSetDraftBehaviorTest {
         assertNotNull(draft)
         assertEquals(100.0, draft?.weight)
         assertEquals(5, draft?.reps)
-        assertEquals(SetTypeUiModel.FAILURE, draft?.type)
+        assertEquals(SetTypeUiModel.DROP, draft?.type)
         assertEquals(false, draft?.isDone)
     }
 
@@ -93,7 +93,7 @@ internal class LiveSetDraftBehaviorTest {
         assertNotNull(draft)
         assertEquals(100.0, draft?.weight)
         assertEquals(8, draft?.reps)
-        assertEquals(SetTypeUiModel.FAILURE, draft?.type)
+        assertEquals(SetTypeUiModel.DROP, draft?.type)
         assertEquals(false, draft?.isDone)
     }
 
@@ -111,7 +111,7 @@ internal class LiveSetDraftBehaviorTest {
         assertNotNull(draft)
         assertEquals(120.0, draft?.weight)
         assertEquals(5, draft?.reps)
-        assertEquals(SetTypeUiModel.FAILURE, draft?.type)
+        assertEquals(SetTypeUiModel.DROP, draft?.type)
         assertEquals(false, draft?.isDone)
     }
 
@@ -147,7 +147,7 @@ internal class LiveSetDraftBehaviorTest {
         val draft = stateFlow.value.setDrafts[State.DraftKey(PE_UUID, 0)]
         assertEquals(87.5, draft?.weight)
         assertEquals(12, draft?.reps)
-        assertEquals(SetTypeUiModel.FAILURE, draft?.type)
+        assertEquals(SetTypeUiModel.DROP, draft?.type)
     }
 
     @Test
