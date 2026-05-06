@@ -34,6 +34,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
+import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.DiscardSessionConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.empty.AppEmptyState
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
@@ -41,6 +42,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
+import io.github.stslex.workeeper.core.ui.plan_editor.ExercisePickerBottomSheet
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
@@ -48,8 +50,11 @@ import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.store.BottomSheetState
+import io.github.stslex.workeeper.feature.live_workout.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
+import io.github.stslex.workeeper.feature.live_workout.ui.components.FinishConfirmDialog
 import io.github.stslex.workeeper.feature.live_workout.ui.components.LiveExerciseCard
 import io.github.stslex.workeeper.feature.live_workout.ui.components.LiveWorkoutHeader
 import kotlinx.collections.immutable.persistentListOf
@@ -75,21 +80,88 @@ internal fun LiveWorkoutScreen(
             consume = consume,
         )
     }
-    if (state.deleteDialogVisible) {
-        val sessionName = state.trainingNameLabel.takeIf { it.isNotBlank() }
-            ?: stringResource(R.string.feature_live_workout_delete_session_unnamed)
-        val progressLabel = stringResource(
-            R.string.feature_live_workout_delete_session_progress_format,
-            state.doneCount,
-            state.totalCount,
-            state.setsLogged,
+
+    when (val sheetState = state.bottomSheetState) {
+        is BottomSheetState.ExercisePicker -> ExercisePickerBottomSheet(
+            query = sheetState.query,
+            results = sheetState.results,
+            noMatchHeadline = sheetState.noMatchHeadline,
+            createCtaLabel = sheetState.createCtaLabel,
+            searchHint = stringResource(R.string.feature_live_workout_picker_search_hint),
+            isPrimaryActionEnabled = state.canAddExercise,
+            onAction = { action -> consume(Action.DialogClick.PickerAction(action)) },
         )
-        DiscardSessionConfirmDialog(
-            sessionName = sessionName,
-            progressLabel = progressLabel,
-            onConfirmDelete = { consume(Action.Click.OnDeleteSessionConfirm) },
-            onDismiss = { consume(Action.Click.OnDeleteSessionDismiss) },
+
+        BottomSheetState.Hidden -> Unit
+    }
+
+    when (val dialog = state.dialogState) {
+        is DialogState.DeleteDialog -> DiscardSessionConfirmDialog(
+            sessionName = dialog.sessionName,
+            progressLabel = dialog.progressLabel,
+            onConfirmDelete = { consume(Action.DialogClick.OnDeleteSessionConfirm) },
+            onDismiss = { consume(Action.DialogClick.OnDeleteSessionDismiss) },
         )
+
+        is DialogState.EmptyFinish -> AppDialog(
+            title = stringResource(R.string.feature_live_workout_empty_finish_title),
+            body = stringResource(R.string.feature_live_workout_empty_finish_body),
+            confirmLabel = dialog.confirmLabel,
+            dismissLabel = dialog.dismissLabel,
+            destructive = true,
+            onConfirm = {
+                if (dialog.canDiscard) {
+                    consume(Action.DialogClick.OnEmptyFinishDiscard)
+                } else {
+                    consume(Action.DialogClick.OnCancelSessionConfirm)
+                }
+            },
+            onDismiss = { consume(Action.DialogClick.OnEmptyFinishContinue) },
+        )
+
+        is DialogState.ConfirmDialog -> {
+            AppDialog(
+                title = dialog.title,
+                body = dialog.body,
+                confirmLabel = dialog.confirmLabel,
+                dismissLabel = dialog.dismissLabel,
+                destructive = true,
+                onConfirm = {
+                    val action = when (dialog) {
+                        is DialogState.ConfirmDialog.CancelSession -> Action.DialogClick.OnCancelSessionConfirm
+                        is DialogState.ConfirmDialog.ResetSets -> Action.DialogClick.OnResetSetsConfirm(
+                            dialog.exerciseUuid,
+                        )
+
+                        is DialogState.ConfirmDialog.SkipExercise -> Action.DialogClick.OnSkipExerciseConfirm(
+                            dialog.exerciseUuid,
+                        )
+                    }
+                    consume(action)
+                },
+                onDismiss = {
+                    val action = when (dialog) {
+                        is DialogState.ConfirmDialog.CancelSession -> Action.DialogClick.OnCancelSessionDismiss
+                        is DialogState.ConfirmDialog.ResetSets -> Action.DialogClick.OnResetSetsDismiss
+                        is DialogState.ConfirmDialog.SkipExercise -> Action.DialogClick.OnSkipExerciseDismiss
+                    }
+                    consume(action)
+                },
+            )
+        }
+
+        is DialogState.FinishSession -> FinishConfirmDialog(
+            stats = dialog,
+            onNameChange = { consume(Action.DialogClick.OnFinishNameChange(it)) },
+            onConfirm = {
+                consume(Action.DialogClick.OnFinishConfirm)
+            },
+            onDismiss = {
+                consume(Action.DialogClick.OnFinishDismiss)
+            },
+        )
+
+        DialogState.Hidden -> Unit
     }
 }
 
@@ -398,15 +470,9 @@ private fun stubState(): State = State(
     activeExerciseUuids = kotlinx.collections.immutable.persistentSetOf(),
     expandedExerciseUuids = kotlinx.collections.immutable.persistentSetOf(),
     preSessionPrSnapshot = persistentMapOf(),
-    pendingFinishConfirm = null,
-    pendingResetExerciseUuid = null,
-    pendingSkipExerciseUuid = null,
-    pendingCancelConfirm = false,
-    deleteDialogVisible = false,
-    exercisePickerSheet = State.ExercisePickerSheetState.Hidden,
-    emptyFinishDialog = State.EmptyFinishDialogState.Hidden,
     isAddExerciseInFlight = false,
     isFinishInFlight = false,
     isLoading = false,
-    errorMessage = null,
+    dialogState = DialogState.Hidden,
+    bottomSheetState = BottomSheetState.Hidden,
 )

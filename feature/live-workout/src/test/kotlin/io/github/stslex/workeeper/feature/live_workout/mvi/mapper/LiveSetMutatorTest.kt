@@ -8,8 +8,10 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
 import io.mockk.mockk
+import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toImmutableMap
@@ -170,7 +172,8 @@ internal class LiveSetMutatorTest {
             ),
         )
 
-        val result = mutator.applySetTypeChange(state, PE_UUID, position = 1, type = SetTypeUiModel.FAILURE)
+        val result =
+            mutator.applySetTypeChange(state, PE_UUID, position = 1, type = SetTypeUiModel.FAILURE)
 
         val performed = result.exercises.first().performedSets
         assertEquals(SetTypeUiModel.WORK, performed[0].type)
@@ -189,10 +192,28 @@ internal class LiveSetMutatorTest {
                 ),
             ),
         ).copy(
-            pendingResetExerciseUuid = PE_UUID,
+            dialogState = DialogState.ConfirmDialog.ResetSets(
+                title = "title",
+                body = "body",
+                confirmLabel = "confirm",
+                dismissLabel = "dismiss",
+                exerciseUuid = PE_UUID,
+            ),
             setDrafts = mapOf(
-                State.DraftKey(PE_UUID, 1) to LiveSetUiModel(1, 110.0, 5, SetTypeUiModel.WORK, isDone = false),
-                State.DraftKey("OTHER", 0) to LiveSetUiModel(0, 50.0, 3, SetTypeUiModel.WARMUP, isDone = false),
+                State.DraftKey(PE_UUID, 1) to LiveSetUiModel(
+                    1,
+                    110.0,
+                    5,
+                    SetTypeUiModel.WORK,
+                    isDone = false,
+                ),
+                State.DraftKey("OTHER", 0) to LiveSetUiModel(
+                    0,
+                    50.0,
+                    3,
+                    SetTypeUiModel.WARMUP,
+                    isDone = false,
+                ),
             ).toImmutableMap(),
         )
 
@@ -201,7 +222,7 @@ internal class LiveSetMutatorTest {
         assertTrue(result.exercises.first().performedSets.isEmpty())
         assertNull(result.setDrafts[State.DraftKey(PE_UUID, 1)])
         assertNotNull(result.setDrafts[State.DraftKey("OTHER", 0)])
-        assertNull(result.pendingResetExerciseUuid)
+        assertNull((result.dialogState as? DialogState.ConfirmDialog.ResetSets)?.exerciseUuid)
     }
 
     @Test
@@ -213,9 +234,21 @@ internal class LiveSetMutatorTest {
                 ),
             ),
         ).copy(
-            pendingSkipExerciseUuid = PE_UUID,
+            dialogState = DialogState.ConfirmDialog.SkipExercise(
+                title = "title",
+                body = "body",
+                confirmLabel = "confirm",
+                dismissLabel = "dismiss",
+                exerciseUuid = PE_UUID,
+            ),
             setDrafts = persistentMapOf(
-                State.DraftKey(PE_UUID, 0) to LiveSetUiModel(0, 110.0, 5, SetTypeUiModel.WORK, isDone = false),
+                State.DraftKey(PE_UUID, 0) to LiveSetUiModel(
+                    0,
+                    110.0,
+                    5,
+                    SetTypeUiModel.WORK,
+                    isDone = false,
+                ),
             ),
         )
 
@@ -223,7 +256,7 @@ internal class LiveSetMutatorTest {
 
         assertEquals(ExerciseStatusUiModel.SKIPPED, result.exercises.first().status)
         assertTrue(result.setDrafts.isEmpty())
-        assertNull(result.pendingSkipExerciseUuid)
+        assertNull((result.dialogState as? DialogState.ConfirmDialog.SkipExercise)?.exerciseUuid)
     }
 
     @Test
@@ -271,7 +304,13 @@ internal class LiveSetMutatorTest {
             ),
         ).copy(
             setDrafts = persistentMapOf(
-                State.DraftKey(PE_UUID, 4) to LiveSetUiModel(4, 110.0, 5, SetTypeUiModel.WORK, isDone = false),
+                State.DraftKey(PE_UUID, 4) to LiveSetUiModel(
+                    4,
+                    110.0,
+                    5,
+                    SetTypeUiModel.WORK,
+                    isDone = false,
+                ),
             ),
         )
         val exercise = state.exercises.first()
@@ -292,7 +331,13 @@ internal class LiveSetMutatorTest {
             ),
         ).copy(
             setDrafts = persistentMapOf(
-                State.DraftKey(PE_UUID, 3) to LiveSetUiModel(3, 88.0, 11, SetTypeUiModel.DROP, isDone = false),
+                State.DraftKey(PE_UUID, 3) to LiveSetUiModel(
+                    3,
+                    88.0,
+                    11,
+                    SetTypeUiModel.DROP,
+                    isDone = false,
+                ),
             ),
         )
         val exercise = state.exercises.first()
@@ -341,8 +386,8 @@ internal class LiveSetMutatorTest {
     )
 
     private fun exerciseWithPlan(
-        plan: kotlinx.collections.immutable.ImmutableList<PlanSetUiModel>,
-        performed: kotlinx.collections.immutable.ImmutableList<LiveSetUiModel> = persistentListOf(),
+        plan: ImmutableList<PlanSetUiModel>,
+        performed: ImmutableList<LiveSetUiModel> = persistentListOf(),
         status: ExerciseStatusUiModel = ExerciseStatusUiModel.CURRENT,
     ): LiveExerciseUiModel = LiveExerciseUiModel(
         performedExerciseUuid = PE_UUID,

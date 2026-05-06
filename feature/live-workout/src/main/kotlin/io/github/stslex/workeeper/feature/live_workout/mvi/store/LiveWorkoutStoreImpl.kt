@@ -14,6 +14,7 @@ import io.github.stslex.workeeper.core.ui.mvi.processor.StoreFactory
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStoreImpl
 import io.github.stslex.workeeper.feature.live_workout.mvi.handler.ClickHandler
 import io.github.stslex.workeeper.feature.live_workout.mvi.handler.CommonHandler
+import io.github.stslex.workeeper.feature.live_workout.mvi.handler.DialogClickHandler
 import io.github.stslex.workeeper.feature.live_workout.mvi.handler.InputHandler
 import io.github.stslex.workeeper.feature.live_workout.mvi.handler.LiveWorkoutComponent
 import io.github.stslex.workeeper.feature.live_workout.mvi.handler.NavigationHandler
@@ -27,6 +28,7 @@ internal class LiveWorkoutStoreImpl @AssistedInject constructor(
     clickHandler: ClickHandler,
     inputHandler: InputHandler,
     commonHandler: CommonHandler,
+    dialogClickHandler: DialogClickHandler,
     storeDispatchers: StoreDispatchers,
     handlerStore: LiveWorkoutHandlerStoreImpl,
     analyticsHolder: AnalyticsHolder,
@@ -43,6 +45,7 @@ internal class LiveWorkoutStoreImpl @AssistedInject constructor(
             is Action.Common -> commonHandler
             is Action.Click -> clickHandler
             is Action.Input -> inputHandler
+            is Action.DialogClick -> dialogClickHandler
         }
     },
     storeEmitter = handlerStore,

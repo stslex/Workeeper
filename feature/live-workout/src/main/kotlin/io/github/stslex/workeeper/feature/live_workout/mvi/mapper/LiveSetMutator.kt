@@ -12,6 +12,7 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMap
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -152,7 +153,7 @@ internal class LiveSetMutator @Inject constructor(
             state.copy(
                 exercises = updated,
                 setDrafts = nextDrafts,
-                pendingResetExerciseUuid = null,
+                dialogState = DialogState.Hidden,
             ),
         )
     }
@@ -193,7 +194,7 @@ internal class LiveSetMutator @Inject constructor(
             state.copy(
                 exercises = updated,
                 setDrafts = nextDrafts,
-                pendingSkipExerciseUuid = null,
+                dialogState = DialogState.Hidden,
             ),
             performedExerciseUuid,
         )
