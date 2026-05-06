@@ -7,7 +7,6 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.navigation.NavController.OnDestinationChangedListener
-import androidx.navigation.compose.rememberNavController
 import io.github.stslex.workeeper.bottom_app_bar.BottomBarItem
 import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
 
@@ -20,21 +19,21 @@ class BottomBarNavigationListener private constructor(
 
         @Composable
         fun rememberBottomBarNavigationListener(holder: NavigatorHolder): BottomBarNavigationListener {
-            val controller = rememberNavController()
+            val navController = holder.navController
             val bottomBarDestination = remember {
                 mutableStateOf<BottomBarItem?>(BottomBarItem.HOME)
             }
-            DisposableEffect(holder.navController) {
+            DisposableEffect(navController) {
                 val listener = OnDestinationChangedListener { _, destination, _ ->
                     bottomBarDestination.value = destination.route?.let(BottomBarItem::getByRoute)
                 }
-                holder.navController.addOnDestinationChangedListener(listener)
+                navController.addOnDestinationChangedListener(listener)
                 onDispose {
-                    holder.navController.removeOnDestinationChangedListener(listener)
+                    navController.removeOnDestinationChangedListener(listener)
                 }
             }
 
-            return remember(controller) {
+            return remember(navController) {
                 BottomBarNavigationListener(bottomBarDestination)
             }
         }
