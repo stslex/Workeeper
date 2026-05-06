@@ -174,6 +174,30 @@ internal class LiveSetVisibleRowsResolverTest {
         assertEquals(100.0, rows.single().weight) // plan, not the foreign draft
     }
 
+    @Test
+    fun `performed row beyond performed list size is included by position`() {
+        val exercise = exercise(
+            plan = persistentListOf(),
+            performed = persistentListOf(
+                LiveSetUiModel(
+                    position = 2,
+                    weight = 120.0,
+                    reps = 3,
+                    type = SetTypeUiModel.WORK,
+                    isDone = true,
+                ),
+            ),
+        )
+
+        val rows = LiveSetRowsResolver.resolveVisibleSets(exercise, persistentMapOf())
+
+        assertEquals(3, rows.size)
+        assertEquals(null, rows[0].weight, "position 0 is an empty placeholder before the sparse performed row")
+        assertEquals(null, rows[1].weight, "position 1 is an empty placeholder before the sparse performed row")
+        assertEquals(120.0, rows[2].weight)
+        assertEquals(true, rows[2].isDone)
+    }
+
     private fun exercise(
         plan: kotlinx.collections.immutable.ImmutableList<PlanSetUiModel>,
         performed: kotlinx.collections.immutable.ImmutableList<LiveSetUiModel>,

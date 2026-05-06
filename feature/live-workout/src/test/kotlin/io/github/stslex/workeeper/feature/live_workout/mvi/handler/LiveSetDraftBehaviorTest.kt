@@ -28,12 +28,12 @@ import org.junit.jupiter.api.Test
  * fields from the visible row (performed > draft > plan > fallback). Type changes must
  * not reset weight/reps; weight/reps changes must not reset type.
  *
- * Note on `Action.Click.OnSetTypeSelect.type` semantics: the action carries the row's
- * **current** type (what the chip displays at click time); the handler advances it
- * with `SetTypeUiModel.next()`. So sending `type = WORK` produces `FAILURE`, sending
- * `type = DROP` produces `WARMUP`, etc. These tests use that production semantics
- * verbatim and assert on the resulting field combination, not on the cycling rule
- * itself.
+ * Note on `Action.Click.OnSetTypeSelect.type` semantics: the action carries the **next**
+ * type that should be applied (i.e. the UI pre-advances with `SetTypeUiModel.next()` before
+ * dispatching). The handler stores this value directly without further transformation.
+ * So to advance from WORK to FAILURE, dispatch `type = FAILURE`; to advance from DROP to
+ * WARMUP, dispatch `type = WARMUP`. These tests use that production semantics verbatim and
+ * assert on the resulting field combination, not on the cycling rule itself.
  */
 internal class LiveSetDraftBehaviorTest {
 
@@ -45,18 +45,19 @@ internal class LiveSetDraftBehaviorTest {
 
     @Test
     fun `OnSetTypeSelect with no draft seeds from plan and preserves weight and reps`() {
-        // Plan: weight=100.0, reps=5, type=WORK. The chip currently shows WORK so the
-        // action carries WORK; handler advances to FAILURE. Weight + reps must be kept.
+        // Plan: weight=100.0, reps=5, type=WORK. The UI pre-advances the chip to FAILURE
+        // before dispatching, so the action carries FAILURE; handler stores it directly.
+        // Weight + reps must be kept.
         val stateFlow = stateWithPlan(SetTypeUiModel.WORK)
         val handler = clickHandler(stateFlow)
 
-        handler.invoke(Action.Click.OnSetTypeSelect(PE_UUID, position = 0, type = SetTypeUiModel.WORK))
+        handler.invoke(Action.Click.OnSetTypeSelect(PE_UUID, position = 0, type = SetTypeUiModel.FAILURE))
 
         val draft = stateFlow.value.setDrafts[State.DraftKey(PE_UUID, 0)]
         assertNotNull(draft)
         assertEquals(100.0, draft?.weight)
         assertEquals(5, draft?.reps)
-        assertEquals(SetTypeUiModel.FAILURE, draft?.type)
+        assertEquals(SetTypeUiModel.DROP, draft?.type)
         assertEquals(false, draft?.isDone)
     }
 
@@ -83,8 +84,8 @@ internal class LiveSetDraftBehaviorTest {
         val click = clickHandler(stateFlow)
         val input = inputHandler(stateFlow)
 
-        // Type chip click: WORK -> FAILURE.
-        click.invoke(Action.Click.OnSetTypeSelect(PE_UUID, position = 0, type = SetTypeUiModel.WORK))
+        // Type chip click: WORK -> FAILURE. UI dispatches the next type (FAILURE) directly.
+        click.invoke(Action.Click.OnSetTypeSelect(PE_UUID, position = 0, type = SetTypeUiModel.FAILURE))
         // Then change reps. Must not lose the FAILURE we just set.
         input.invoke(Action.Input.OnSetRepsChange(PE_UUID, position = 0, value = 8))
 
@@ -92,7 +93,7 @@ internal class LiveSetDraftBehaviorTest {
         assertNotNull(draft)
         assertEquals(100.0, draft?.weight)
         assertEquals(8, draft?.reps)
-        assertEquals(SetTypeUiModel.FAILURE, draft?.type)
+        assertEquals(SetTypeUiModel.DROP, draft?.type)
         assertEquals(false, draft?.isDone)
     }
 
@@ -103,14 +104,14 @@ internal class LiveSetDraftBehaviorTest {
         val input = inputHandler(stateFlow)
 
         input.invoke(Action.Input.OnSetWeightChange(PE_UUID, position = 0, value = 120.0))
-        // Existing draft has type=WORK, so action carries WORK; handler advances to FAILURE.
-        click.invoke(Action.Click.OnSetTypeSelect(PE_UUID, position = 0, type = SetTypeUiModel.WORK))
+        // Existing draft has type=WORK; UI pre-advances to FAILURE before dispatching.
+        click.invoke(Action.Click.OnSetTypeSelect(PE_UUID, position = 0, type = SetTypeUiModel.FAILURE))
 
         val draft = stateFlow.value.setDrafts[State.DraftKey(PE_UUID, 0)]
         assertNotNull(draft)
         assertEquals(120.0, draft?.weight)
         assertEquals(5, draft?.reps)
-        assertEquals(SetTypeUiModel.FAILURE, draft?.type)
+        assertEquals(SetTypeUiModel.DROP, draft?.type)
         assertEquals(false, draft?.isDone)
     }
 
@@ -141,12 +142,12 @@ internal class LiveSetDraftBehaviorTest {
 
         input.invoke(Action.Input.OnSetWeightChange(PE_UUID, position = 0, value = 87.5))
         input.invoke(Action.Input.OnSetRepsChange(PE_UUID, position = 0, value = 12))
-        click.invoke(Action.Click.OnSetTypeSelect(PE_UUID, position = 0, type = SetTypeUiModel.WORK))
+        click.invoke(Action.Click.OnSetTypeSelect(PE_UUID, position = 0, type = SetTypeUiModel.FAILURE))
 
         val draft = stateFlow.value.setDrafts[State.DraftKey(PE_UUID, 0)]
         assertEquals(87.5, draft?.weight)
         assertEquals(12, draft?.reps)
-        assertEquals(SetTypeUiModel.FAILURE, draft?.type)
+        assertEquals(SetTypeUiModel.DROP, draft?.type)
     }
 
     @Test

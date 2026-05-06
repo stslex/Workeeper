@@ -25,13 +25,20 @@ internal object LiveSetRowsResolver {
         exercise: LiveExerciseUiModel,
         drafts: ImmutableMap<State.DraftKey, LiveSetUiModel>,
     ): ImmutableList<LiveSetUiModel> {
-        val draftPositions = drafts.keys
+        val performedTotal = exercise.performedSets
+            .maxOfOrNull { it.position + 1 }
+            ?: 0
+
+        val draftTotal = drafts.keys
+            .asSequence()
             .filter { it.performedExerciseUuid == exercise.performedExerciseUuid }
-            .map { it.position }
+            .maxOfOrNull { it.position + 1 }
+            ?: 0
+
         val total = maxOf(
             exercise.planSets.size,
-            exercise.performedSets.size,
-            (draftPositions.maxOrNull() ?: -1) + 1,
+            performedTotal,
+            draftTotal,
         )
         if (total == 0) return EMPTY
         val performedByPos = exercise.performedSets.associateBy { it.position }
