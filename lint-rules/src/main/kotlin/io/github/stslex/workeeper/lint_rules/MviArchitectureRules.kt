@@ -22,8 +22,9 @@ class MviArchitectureRuleSet : RuleSetProvider {
             MviStoreStateRule(config),
             HiltScopeRule(config),
             ComposableStateRule(config),
-            DomainLayerPurityRule(config),
             DomainLayerNoUiRule(config),
+            DomainLayerPurityRule(config),
+            UiLayerNoDataRule(config),
         ),
     )
 }

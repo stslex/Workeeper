@@ -5,10 +5,6 @@
     <string name="feature_all_exercises_empty_headline">No exercises yet</string>
     <string name="feature_all_exercises_empty_supporting">Tap + to create your first exercise</string>
     <string name="feature_all_exercises_fab_create">Create exercise</string>
-    <string name="feature_all_exercises_archive_action">Archive</string>
-    <string name="feature_all_exercises_archive_success_format">&#8216;%1$s&#8217; archived</string>
-    <string name="feature_all_exercises_archive_undo">Undo</string>
-    <string name="feature_all_exercises_archive_blocked_format">Cannot archive — used in: %1$s</string>
     <string name="feature_all_exercises_overflow_format">+%1$d</string>
     <string name="feature_all_exercises_chevron_description">Open exercise</string>
     <string name="feature_all_exercises_permanent_delete_title">Delete &#8216;%1$s&#8217; permanently?</string>
@@ -22,26 +18,41 @@
         <item quantity="other">%d sessions</item>
     </plurals>
 
+    <plurals name="feature_all_exercises_linked_trainings_count">
+        <item quantity="one">in %d training</item>
+        <item quantity="other">in %d trainings</item>
+    </plurals>
+
+    <string name="feature_all_exercises_last_trained_just_now">last just now</string>
+    <plurals name="feature_all_exercises_last_trained_minutes">
+        <item quantity="one">last %dm ago</item>
+        <item quantity="other">last %dm ago</item>
+    </plurals>
+    <plurals name="feature_all_exercises_last_trained_hours">
+        <item quantity="one">last %dh ago</item>
+        <item quantity="other">last %dh ago</item>
+    </plurals>
+    <plurals name="feature_all_exercises_last_trained_days">
+        <item quantity="one">last %dd ago</item>
+        <item quantity="other">last %dd ago</item>
+    </plurals>
+    <string name="feature_all_exercises_footer_separator">·</string>
+
     <string name="feature_all_exercises_selection_close">Close selection</string>
     <plurals name="feature_all_exercises_selected_count">
         <item quantity="one">%d selected</item>
         <item quantity="other">%d selected</item>
     </plurals>
     <string name="feature_all_exercises_bulk_archive">Archive</string>
-    <string name="feature_all_exercises_bulk_delete">Delete</string>
     <plurals name="feature_all_exercises_bulk_archive_success">
         <item quantity="one">%d exercise archived</item>
         <item quantity="other">%d exercises archived</item>
     </plurals>
     <string name="feature_all_exercises_bulk_archive_partial_format">Archived %1$d, blocked: %2$s</string>
-    <string name="feature_all_exercises_bulk_delete_confirm_title">Delete selected permanently?</string>
-    <plurals name="feature_all_exercises_bulk_delete_confirm_body">
-        <item quantity="one">%d exercise will be permanently deleted. This cannot be undone.</item>
-        <item quantity="other">%d exercises will be permanently deleted. This cannot be undone.</item>
+    <string name="feature_all_exercises_bulk_archive_confirm_title">Archive selected?</string>
+    <plurals name="feature_all_exercises_bulk_archive_confirm_body">
+        <item quantity="one">%d exercise will move to archive. Restore from Settings → Archive.</item>
+        <item quantity="other">%d exercises will move to archive. Restore from Settings → Archive.</item>
     </plurals>
-    <string name="feature_all_exercises_bulk_delete_impact">No history affected</string>
-    <plurals name="feature_all_exercises_bulk_delete_success">
-        <item quantity="one">%d exercise deleted</item>
-        <item quantity="other">%d exercises deleted</item>
-    </plurals>
+    <string name="feature_all_exercises_bulk_archive_impact">Reversible · history preserved</string>
 </resources>

@@ -4,9 +4,6 @@ package io.github.stslex.workeeper.feature.single_training.mvi.store
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.ui.mvi.Store
-import io.github.stslex.workeeper.core.ui.plan_editor.model.AppPlanEditorAction
-import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
-import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.feature.single_training.domain.model.ActiveSessionDomain
 import io.github.stslex.workeeper.feature.single_training.mvi.model.HistorySessionItem
 import io.github.stslex.workeeper.feature.single_training.mvi.model.PickerExerciseItem
@@ -36,7 +33,6 @@ internal interface SingleTrainingStore : Store<State, Action, Event> {
         val activeSession: ActiveSessionDomain?,
         val canPermanentlyDelete: Boolean,
         val originalSnapshot: Snapshot?,
-        val planEditorTarget: PlanEditorTarget?,
         val pickerState: PickerState,
         val pendingConflict: ConflictInfo?,
         val isLoading: Boolean,
@@ -49,16 +45,12 @@ internal interface SingleTrainingStore : Store<State, Action, Event> {
         val hasChanges: Boolean
             get() = originalSnapshot?.matches(this) == false
 
-        val isPlanEditorDirty: Boolean
-            get() = planEditorTarget?.let { it.draft != it.initialPlan } == true
-
         /**
-         * Intercepting back is required when EITHER training-level edits OR plan-editor
-         * draft changes are unsaved. The handler routes the back to the right discard
-         * surface based on which is dirty.
+         * Intercept back when training-level edits are unsaved. Plan-editor draft changes
+         * live on the standalone PlanEditor route now, so its dirty-state is owned there.
          */
         val interceptBack: Boolean
-            get() = (mode is Mode.Edit && hasChanges) || isPlanEditorDirty
+            get() = mode is Mode.Edit && hasChanges
 
         @Stable
         sealed interface Mode {
@@ -89,20 +81,6 @@ internal interface SingleTrainingStore : Store<State, Action, Event> {
 
         @Stable
         data class ExerciseSignature(val exerciseUuid: String, val position: Int)
-
-        @Stable
-        data class PlanEditorTarget(
-            val exerciseUuid: String,
-            val exerciseName: String,
-            val exerciseType: ExerciseTypeUiModel,
-            /** Snapshot of the plan when the editor opened — used for dirty detection. */
-            val initialPlan: ImmutableList<PlanSetUiModel>,
-            /** Live draft updated on every editor field change. */
-            val draft: ImmutableList<PlanSetUiModel>,
-        ) {
-
-            val isWeighted: Boolean get() = exerciseType == ExerciseTypeUiModel.WEIGHTED
-        }
 
         @Stable
         sealed interface PickerState {
@@ -145,7 +123,6 @@ internal interface SingleTrainingStore : Store<State, Action, Event> {
                 activeSession = null,
                 canPermanentlyDelete = false,
                 originalSnapshot = null,
-                planEditorTarget = null,
                 pickerState = PickerState.Closed,
                 pendingConflict = null,
                 isLoading = uuid != null,
@@ -160,6 +137,13 @@ internal interface SingleTrainingStore : Store<State, Action, Event> {
         sealed interface Common : Action {
 
             data object Init : Common
+
+            /**
+             * Reload the training + per-exercise plans from the repository without
+             * resetting form state. Dispatched after returning from the full-screen
+             * PlanEditor route (D1) so the exercise list reflects the just-saved draft.
+             */
+            data object Reload : Common
         }
 
         sealed interface Click : Action {
@@ -231,11 +215,6 @@ internal interface SingleTrainingStore : Store<State, Action, Event> {
             data class OnPickerSearchChange(val value: String) : Input
         }
 
-        @Suppress("MviActionNamingRule")
-        data class PlanEditAction(
-            val action: AppPlanEditorAction,
-        ) : Action
-
         sealed interface Navigation : Action {
 
             data object Back : Navigation
@@ -245,6 +224,16 @@ internal interface SingleTrainingStore : Store<State, Action, Event> {
             data class OpenSession(val sessionUuid: String) : Navigation
 
             data class OpenLiveWorkout(val sessionUuid: String) : Navigation
+
+            /**
+             * Open the full-screen plan-editor route for the given (training, exercise)
+             * pair (D1). Returns to SingleTraining; the graph picks up the
+             * `plan-editor-saved` flag and dispatches [Action.Common.Reload].
+             */
+            data class OpenPlanEditor(
+                val trainingUuid: String,
+                val exerciseUuid: String,
+            ) : Navigation
         }
     }
 

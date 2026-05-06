@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -131,39 +132,45 @@ private fun ExerciseCardHeader(
             )
         }
         if (exercise.status == ExerciseStatusUiModel.CURRENT) {
-            IconButton(onClick = { menuExpanded = true }) {
-                Icon(
-                    modifier = Modifier.size(AppDimension.iconSm),
-                    imageVector = Icons.Filled.MoreVert,
-                    contentDescription = stringResource(R.string.feature_live_workout_more),
-                    tint = AppUi.colors.textPrimary,
-                )
-            }
-            DropdownMenu(
-                expanded = menuExpanded,
-                onDismissRequest = { menuExpanded = false },
-            ) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.feature_live_workout_action_edit_plan)) },
-                    onClick = {
-                        menuExpanded = false
-                        consume(LiveWorkoutStore.Action.Click.OnEditPlan(exercise.performedExerciseUuid))
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.feature_live_workout_action_reset_sets)) },
-                    onClick = {
-                        menuExpanded = false
-                        consume(LiveWorkoutStore.Action.Click.OnResetSets(exercise.performedExerciseUuid))
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.feature_live_workout_action_skip)) },
-                    onClick = {
-                        menuExpanded = false
-                        consume(LiveWorkoutStore.Action.Click.OnSkipExercise(exercise.performedExerciseUuid))
-                    },
-                )
+            // The IconButton + DropdownMenu pair must share a single anchor Box so
+            // DropdownMenu's offset stays flush-right under the icon. Without the wrapper
+            // the menu opens against the parent Row's start edge — which is what the
+            // pre-v2.4 build did and the spec 5.4 three-dots fix closes.
+            Box {
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(
+                        modifier = Modifier.size(AppDimension.iconSm),
+                        imageVector = Icons.Filled.MoreVert,
+                        contentDescription = stringResource(R.string.feature_live_workout_more),
+                        tint = AppUi.colors.textPrimary,
+                    )
+                }
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.feature_live_workout_action_edit_plan)) },
+                        onClick = {
+                            menuExpanded = false
+                            consume(LiveWorkoutStore.Action.Click.OnEditPlan(exercise.performedExerciseUuid))
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.feature_live_workout_action_reset_sets)) },
+                        onClick = {
+                            menuExpanded = false
+                            consume(LiveWorkoutStore.Action.Click.OnResetSets(exercise.performedExerciseUuid))
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.feature_live_workout_action_skip)) },
+                        onClick = {
+                            menuExpanded = false
+                            consume(LiveWorkoutStore.Action.Click.OnSkipExercise(exercise.performedExerciseUuid))
+                        },
+                    )
+                }
             }
         }
     }
@@ -228,14 +235,12 @@ private fun ExerciseCardBody(
                     }
                 },
                 onUncheck = {
-                    if (!isReadOnly) {
-                        consume(
-                            LiveWorkoutStore.Action.Click.OnSetUncheck(
-                                exercise.performedExerciseUuid,
-                                row.position,
-                            ),
-                        )
-                    }
+                    consume(
+                        LiveWorkoutStore.Action.Click.OnSetUncheck(
+                            exercise.performedExerciseUuid,
+                            row.position,
+                        ),
+                    )
                 },
                 editable = !isReadOnly,
             )

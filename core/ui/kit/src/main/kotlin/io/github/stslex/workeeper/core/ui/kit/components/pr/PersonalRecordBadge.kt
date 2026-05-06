@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.core.ui.kit.components.pr
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
@@ -25,14 +26,26 @@ private const val PR_LABEL = "PR"
  * Compact amber pill that flags a personal record. Used in Live workout set rows, Past
  * session set rows, and the finish dialog header. Visual intentionally small enough to sit
  * inside a row without forcing extra height.
+ *
+ * Pass [onClick] to make the badge a tap target — typically used to surface
+ * [PrExplainerDialog]. When `null`, the badge is purely decorative.
  */
 @Composable
-fun PersonalRecordBadge(modifier: Modifier = Modifier) {
+fun PersonalRecordBadge(
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+) {
     val palette = AppUi.colors.record
+    val baseModifier = modifier
+        .height(18.dp)
+        .clip(RoundedCornerShape(AppDimension.Radius.smallest))
+    val tappableModifier = if (onClick != null) {
+        baseModifier.clickable(onClick = onClick)
+    } else {
+        baseModifier
+    }
     Row(
-        modifier = modifier
-            .height(18.dp)
-            .clip(RoundedCornerShape(AppDimension.Radius.smallest))
+        modifier = tappableModifier
             .background(palette.border)
             .padding(horizontal = AppDimension.Space.sm, vertical = AppDimension.Space.xxs),
         horizontalArrangement = Arrangement.Center,

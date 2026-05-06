@@ -24,91 +24,94 @@ import io.github.stslex.workeeper.feature.single_training.domain.model.TagDomain
 import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingChangeDomain
 import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingDomain
 
-internal fun TrainingDataModel.toDomain(): TrainingDomain = TrainingDomain(
-    uuid = uuid,
-    name = name,
-    description = description,
-    isAdhoc = isAdhoc,
-    archived = archived,
-    archivedAt = archivedAt,
-    timestamp = timestamp,
-    labels = labels,
-    exerciseUuids = exerciseUuids,
-)
+internal object SingleTrainingDomainMapper {
 
-internal fun TrainingChangeDomain.toData(): TrainingChangeDataModel = TrainingChangeDataModel(
-    uuid = uuid,
-    name = name,
-    description = description,
-    isAdhoc = isAdhoc,
-    archived = archived,
-    timestamp = timestamp,
-    labels = labels,
-    exerciseUuids = exerciseUuids,
-)
+    fun TrainingDataModel.toDomain(): TrainingDomain = TrainingDomain(
+        uuid = uuid,
+        name = name,
+        description = description,
+        isAdhoc = isAdhoc,
+        archived = archived,
+        archivedAt = archivedAt,
+        timestamp = timestamp,
+        labels = labels,
+        exerciseUuids = exerciseUuids,
+    )
 
-internal fun ExerciseDataModel.toDomain(): ExerciseDomain = ExerciseDomain(
-    uuid = uuid,
-    name = name,
-    type = type.toDomain(),
-    description = description,
-    imagePath = imagePath,
-)
+    fun TrainingChangeDomain.toData(): TrainingChangeDataModel = TrainingChangeDataModel(
+        uuid = uuid,
+        name = name,
+        description = description,
+        isAdhoc = isAdhoc,
+        archived = archived,
+        timestamp = timestamp,
+        labels = labels,
+        exerciseUuids = exerciseUuids,
+    )
 
-internal fun ExerciseTypeDataModel.toDomain(): ExerciseTypeDomain = when (this) {
-    ExerciseTypeDataModel.WEIGHTED -> ExerciseTypeDomain.WEIGHTED
-    ExerciseTypeDataModel.WEIGHTLESS -> ExerciseTypeDomain.WEIGHTLESS
-}
+    fun ExerciseDataModel.toDomain(): ExerciseDomain = ExerciseDomain(
+        uuid = uuid,
+        name = name,
+        type = type.toDomain(),
+        description = description,
+        imagePath = imagePath,
+    )
 
-internal fun TagDataModel.toDomain(): TagDomain = TagDomain(uuid = uuid, name = name)
+    fun ExerciseTypeDataModel.toDomain(): ExerciseTypeDomain = when (this) {
+        ExerciseTypeDataModel.WEIGHTED -> ExerciseTypeDomain.WEIGHTED
+        ExerciseTypeDataModel.WEIGHTLESS -> ExerciseTypeDomain.WEIGHTLESS
+    }
 
-internal fun SessionDataModel.toDomain(): SessionDomain = SessionDomain(
-    uuid = uuid,
-    trainingUuid = trainingUuid,
-    state = state.toDomain(),
-    startedAt = startedAt,
-    finishedAt = finishedAt,
-)
+    fun TagDataModel.toDomain(): TagDomain = TagDomain(uuid = uuid, name = name)
 
-internal fun SessionStateDataModel.toDomain(): SessionStateDomain = when (this) {
-    SessionStateDataModel.IN_PROGRESS -> SessionStateDomain.IN_PROGRESS
-    SessionStateDataModel.FINISHED -> SessionStateDomain.FINISHED
-}
+    fun SessionDataModel.toDomain(): SessionDomain = SessionDomain(
+        uuid = uuid,
+        trainingUuid = trainingUuid,
+        state = state.toDomain(),
+        startedAt = startedAt,
+        finishedAt = finishedAt,
+    )
 
-internal fun ActiveSessionInfo.toDomain(): ActiveSessionDomain = ActiveSessionDomain(
-    sessionUuid = sessionUuid,
-    trainingUuid = trainingUuid,
-    startedAt = startedAt,
-)
+    fun SessionStateDataModel.toDomain(): SessionStateDomain = when (this) {
+        SessionStateDataModel.IN_PROGRESS -> SessionStateDomain.IN_PROGRESS
+        SessionStateDataModel.FINISHED -> SessionStateDomain.FINISHED
+    }
 
-internal fun SetTypeDataModel.toDomain(): SetTypeDomain = when (this) {
-    SetTypeDataModel.WARMUP -> SetTypeDomain.WARMUP
-    SetTypeDataModel.WORK -> SetTypeDomain.WORK
-    SetTypeDataModel.FAILURE -> SetTypeDomain.FAILURE
-    SetTypeDataModel.DROP -> SetTypeDomain.DROP
-}
+    fun ActiveSessionInfo.toDomain(): ActiveSessionDomain = ActiveSessionDomain(
+        sessionUuid = sessionUuid,
+        trainingUuid = trainingUuid,
+        startedAt = startedAt,
+    )
 
-internal fun SetTypeDomain.toData(): SetTypeDataModel = when (this) {
-    SetTypeDomain.WARMUP -> SetTypeDataModel.WARMUP
-    SetTypeDomain.WORK -> SetTypeDataModel.WORK
-    SetTypeDomain.FAILURE -> SetTypeDataModel.FAILURE
-    SetTypeDomain.DROP -> SetTypeDataModel.DROP
-}
+    fun SetTypeDataModel.toDomain(): SetTypeDomain = when (this) {
+        SetTypeDataModel.WARMUP -> SetTypeDomain.WARMUP
+        SetTypeDataModel.WORK -> SetTypeDomain.WORK
+        SetTypeDataModel.FAILURE -> SetTypeDomain.FAILURE
+        SetTypeDataModel.DROP -> SetTypeDomain.DROP
+    }
 
-internal fun PlanSetDataModel.toDomain(): PlanSetDomain = PlanSetDomain(
-    weight = weight,
-    reps = reps,
-    type = type.toDomain(),
-)
+    fun SetTypeDomain.toData(): SetTypeDataModel = when (this) {
+        SetTypeDomain.WARMUP -> SetTypeDataModel.WARMUP
+        SetTypeDomain.WORK -> SetTypeDataModel.WORK
+        SetTypeDomain.FAILURE -> SetTypeDataModel.FAILURE
+        SetTypeDomain.DROP -> SetTypeDataModel.DROP
+    }
 
-internal fun PlanSetDomain.toData(): PlanSetDataModel = PlanSetDataModel(
-    weight = weight,
-    reps = reps,
-    type = type.toData(),
-)
+    fun PlanSetDataModel.toDomain(): PlanSetDomain = PlanSetDomain(
+        weight = weight,
+        reps = reps,
+        type = type.toDomain(),
+    )
 
-internal fun SessionConflictResolver.Resolution.toDomain(): StartSessionConflict = when (this) {
-    SessionConflictResolver.Resolution.ProceedFresh -> StartSessionConflict.ProceedFresh
-    is SessionConflictResolver.Resolution.SilentResume -> StartSessionConflict.SilentResume(sessionUuid)
-    is SessionConflictResolver.Resolution.NeedsUserChoice -> StartSessionConflict.NeedsUserChoice(active.toDomain())
+    fun PlanSetDomain.toData(): PlanSetDataModel = PlanSetDataModel(
+        weight = weight,
+        reps = reps,
+        type = type.toData(),
+    )
+
+    fun SessionConflictResolver.Resolution.toDomain(): StartSessionConflict = when (this) {
+        SessionConflictResolver.Resolution.ProceedFresh -> StartSessionConflict.ProceedFresh
+        is SessionConflictResolver.Resolution.SilentResume -> StartSessionConflict.SilentResume(sessionUuid)
+        is SessionConflictResolver.Resolution.NeedsUserChoice -> StartSessionConflict.NeedsUserChoice(active.toDomain())
+    }
 }

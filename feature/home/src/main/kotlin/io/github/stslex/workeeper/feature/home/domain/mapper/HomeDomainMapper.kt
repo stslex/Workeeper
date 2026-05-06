@@ -12,43 +12,46 @@ import io.github.stslex.workeeper.feature.home.domain.model.RecentSessionDomain
 import io.github.stslex.workeeper.feature.home.domain.model.StartSessionConflict
 import io.github.stslex.workeeper.feature.home.domain.model.TrainingListItemDomain
 
-internal fun SessionRepository.ActiveSessionWithStats.toDomain(): ActiveSessionWithStatsDomain =
-    ActiveSessionWithStatsDomain(
+internal object HomeDomainMapper {
+
+    fun SessionRepository.ActiveSessionWithStats.toDomain(): ActiveSessionWithStatsDomain =
+        ActiveSessionWithStatsDomain(
+            sessionUuid = sessionUuid,
+            trainingUuid = trainingUuid,
+            trainingName = trainingName,
+            isAdhoc = isAdhoc,
+            startedAt = startedAt,
+            totalCount = totalCount,
+            doneCount = doneCount,
+        )
+
+    fun RecentSessionDataModel.toDomain(): RecentSessionDomain = RecentSessionDomain(
         sessionUuid = sessionUuid,
         trainingUuid = trainingUuid,
         trainingName = trainingName,
         isAdhoc = isAdhoc,
         startedAt = startedAt,
-        totalCount = totalCount,
-        doneCount = doneCount,
+        finishedAt = finishedAt,
+        exerciseCount = exerciseCount,
+        setCount = setCount,
     )
 
-internal fun RecentSessionDataModel.toDomain(): RecentSessionDomain = RecentSessionDomain(
-    sessionUuid = sessionUuid,
-    trainingUuid = trainingUuid,
-    trainingName = trainingName,
-    isAdhoc = isAdhoc,
-    startedAt = startedAt,
-    finishedAt = finishedAt,
-    exerciseCount = exerciseCount,
-    setCount = setCount,
-)
+    fun TrainingListItem.toDomain(): TrainingListItemDomain = TrainingListItemDomain(
+        uuid = data.uuid,
+        name = data.name,
+        exerciseCount = exerciseCount,
+        lastSessionAt = lastSessionAt,
+    )
 
-internal fun TrainingListItem.toDomain(): TrainingListItemDomain = TrainingListItemDomain(
-    uuid = data.uuid,
-    name = data.name,
-    exerciseCount = exerciseCount,
-    lastSessionAt = lastSessionAt,
-)
+    fun ActiveSessionInfo.toDomain(): ActiveSessionDomain = ActiveSessionDomain(
+        sessionUuid = sessionUuid,
+        trainingUuid = trainingUuid,
+        startedAt = startedAt,
+    )
 
-internal fun ActiveSessionInfo.toDomain(): ActiveSessionDomain = ActiveSessionDomain(
-    sessionUuid = sessionUuid,
-    trainingUuid = trainingUuid,
-    startedAt = startedAt,
-)
-
-internal fun SessionConflictResolver.Resolution.toDomain(): StartSessionConflict = when (this) {
-    SessionConflictResolver.Resolution.ProceedFresh -> StartSessionConflict.ProceedFresh
-    is SessionConflictResolver.Resolution.SilentResume -> StartSessionConflict.SilentResume(sessionUuid)
-    is SessionConflictResolver.Resolution.NeedsUserChoice -> StartSessionConflict.NeedsUserChoice(active.toDomain())
+    fun SessionConflictResolver.Resolution.toDomain(): StartSessionConflict = when (this) {
+        SessionConflictResolver.Resolution.ProceedFresh -> StartSessionConflict.ProceedFresh
+        is SessionConflictResolver.Resolution.SilentResume -> StartSessionConflict.SilentResume(sessionUuid)
+        is SessionConflictResolver.Resolution.NeedsUserChoice -> StartSessionConflict.NeedsUserChoice(active.toDomain())
+    }
 }

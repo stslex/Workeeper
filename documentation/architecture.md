@@ -782,6 +782,11 @@ across the whole graph from a single root scope. The start destination is
 to a `composable<Screen>` block under the hood (see
 `core/ui/navigation/.../Screen.kt::navScreen`).
 
+Every graph composable's `modifier` chain must include `Modifier.reportScreenPlace<Screen.X>()`
+— the `onPlaced` callback that stops the TTID, AppCreate, and ActivityCreate traces. Skipping
+it leaves all three pipelines mis-attributed for that screen. See
+[performance.md → New-screen contributor checklist](performance.md#new-screen-contributor-checklist).
+
 `NavHostControllerHolder` (`app/app/.../host/NavHostControllerHolder.kt`) tracks which
 `BottomBar` screen is current so `App.kt` can show or hide the `WorkeeperBottomAppBar` with an
 animated visibility transition.
@@ -947,12 +952,11 @@ business logic, and do not hold mutable state about what they display.
 
 ```kotlin
 @Composable
-fun AppPlanEditor(
-    exerciseName: String,
+fun ColumnScope.PlanEditorBody(
     draft: ImmutableList<PlanSetUiModel>,
     isWeighted: Boolean,
-    onAction: (AppPlanEditorAction) -> Unit,
-    modifier: Modifier = Modifier,
+    onAction: (PlanEditorBodyAction) -> Unit,
+    setTypeTooltipText: String? = null,
 )
 ```
 
@@ -1154,71 +1158,58 @@ Do **not** put it in `core/ui/kit` if it has any domain coupling. The kit bounda
 strict — domain-agnostic. Specialized modules are the right slot for things that are
 "reusable but domain-aware".
 
-### Action wrapper pattern for reusable Composables
+### Body-action mapping pattern for reusable Composables
 
 When a reusable Composable (typically in `core/ui/<specialized>`) emits a non-trivial
-action surface, wrap it in a single Action variant in the consuming feature's Store
-contract rather than expanding it into many Click variants.
+action surface, define a body-local sealed action interface inside the same module and
+have the parent screen map each variant to its store's `Action`. This keeps the body
+free of `Store` plumbing and previewable in isolation.
 
 ```kotlin
-// Inside the specialized module:
+// Inside the specialized module — emitted by the reusable body:
 @Stable
-sealed interface AppPlanEditorAction {
-    @Stable data class OnSetWeightChange(val index: Int, val value: Double?) : AppPlanEditorAction
-    @Stable data class OnSetRepsChange(val index: Int, val value: Int) : AppPlanEditorAction
-    @Stable data class OnSetTypeChange(val index: Int, val value: SetTypeUiModel) : AppPlanEditorAction
-    @Stable data class OnSetRemove(val index: Int) : AppPlanEditorAction
-    @Stable object OnAddSet : AppPlanEditorAction
-    @Stable object OnDismiss : AppPlanEditorAction
-    @Stable object OnSave : AppPlanEditorAction
+sealed interface PlanEditorBodyAction {
+    @Stable data class OnSetWeightChange(val index: Int, val value: Double?) : PlanEditorBodyAction
+    @Stable data class OnSetRepsChange(val index: Int, val value: Int) : PlanEditorBodyAction
+    @Stable data class OnSetTypeChange(val index: Int, val value: SetTypeUiModel) : PlanEditorBodyAction
+    @Stable data class OnSetRemove(val index: Int) : PlanEditorBodyAction
+    @Stable data object OnAddSet : PlanEditorBodyAction
+    @Stable object OnDismiss : PlanEditorBodyAction
+    @Stable object OnSave : PlanEditorBodyAction
 }
 
-// In the feature's Store contract:
-sealed interface Action : Store.Action {
-    sealed interface Click : Action { /* feature-local clicks */ }
-    sealed interface Navigation : Action { /* navigation */ }
-    data class PlanEditAction(val action: AppPlanEditorAction) : Action
-}
-```
+// In the parent screen — `PlanEditorScreen.kt`:
+PlanEditorBody(
+    draft = state.draft,
+    isWeighted = state.isWeighted,
+    onAction = { action -> consume(action.toStoreAction()) },
+)
 
-The store's `handlerCreator` routes the wrapper to a dedicated handler:
-
-```kotlin
-when (action) {
-    is Action.Navigation     -> navigationHandler
-    is Action.Click          -> clickHandler
-    is Action.PlanEditAction -> planEditActionHandler
-}
-```
-
-The graph forwards the editor's actions verbatim:
-
-```kotlin
-state.planEditorTarget?.let { target ->
-    AppPlanEditor(
-        exerciseName = target.exerciseName,
-        draft = target.draft,
-        isWeighted = target.isWeighted,
-        onAction = { action -> processor.consume(Action.PlanEditAction(action)) },
-    )
+private fun PlanEditorBodyAction.toStoreAction(): Action = when (this) {
+    PlanEditorBodyAction.OnAddSet           -> Action.Click.OnAddSet
+    PlanEditorBodyAction.OnDismiss          -> Action.Click.OnBackClick
+    PlanEditorBodyAction.OnSave             -> Action.Click.OnSave
+    is PlanEditorBodyAction.OnSetRemove     -> Action.Click.OnSetRemove(index)
+    is PlanEditorBodyAction.OnSetRepsChange -> Action.Input.OnSetRepsChange(index, value)
+    is PlanEditorBodyAction.OnSetTypeChange -> Action.Click.OnSetTypeChange(index, value)
+    is PlanEditorBodyAction.OnSetWeightChange -> Action.Input.OnSetWeightChange(index, value)
 }
 ```
 
-Why wrap rather than expand:
+Why this pattern:
 
-1. **Action surface stays flat.** Six per-action `Click` variants would clutter the
-   feature's contract with concerns that belong to the editor module.
-2. **No translation layer in the graph.** Without a wrapper, the graph would need a
-   `toStoreAction()` mapping function. With a wrapper, it's a single line.
-3. **The editor is replaceable.** Swapping `AppPlanEditor` for a different editor
-   surface only changes the wrapper's payload type, not the surrounding Store contract.
-4. **Handler stays focused.** `PlanEditActionHandler` reads only `AppPlanEditorAction`
-   variants and operates only on plan-editor UI types. It doesn't know about the
-   feature's other Click actions.
+1. **Body stays previewable.** `PlanEditorBody` does not import any `Store` types — it
+   only knows about its own `PlanEditorBodyAction`, so `@Preview` instantiates it with a
+   trivial `onAction = {}` callback.
+2. **Mapping is co-located with the screen.** A single private `toStoreAction()` extension
+   lives next to the screen composable, which keeps the routing surface obvious to the
+   reader.
+3. **The body is replaceable.** Swapping `PlanEditorBody` for a different editor body
+   only changes the local mapping function, not the store contract.
 
-Apply this pattern when a specialized Composable emits more than 3-4 action variants.
-For 1-2 callback Composables (e.g. a single `onClick`), individual Click variants in the
-feature contract are fine.
+For action surfaces that span feature modules (where the body lives in a *feature* module
+that already owns its own store contract), the mapping is unnecessary — emit the store's
+own `Action.Click.*` variants directly.
 
 ### Collections in UI parameters
 

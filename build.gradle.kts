@@ -11,6 +11,7 @@ plugins {
     alias(libs.plugins.robolectric.junit5) apply false
     alias(libs.plugins.gms) apply false
     alias(libs.plugins.firebaseCrashlytics) apply false
+    alias(libs.plugins.firebasePerf) apply false
     alias(libs.plugins.detekt)
     alias(libs.plugins.hilt) apply false
 }
@@ -32,6 +33,7 @@ buildscript {
 
     dependencies {
         classpath(libs.google.gms)
+        classpath(libs.google.firebase.plugin.perf)
     }
 }
 

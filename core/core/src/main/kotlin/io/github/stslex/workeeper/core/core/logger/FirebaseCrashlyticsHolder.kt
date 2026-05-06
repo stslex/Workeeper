@@ -22,7 +22,11 @@ object FirebaseCrashlyticsHolder {
         throwable: Throwable,
         tag: String,
     ) {
-        crashlytics.recordException(throwable) { key("TAG", tag) }
+        filter(throwable.message.orEmpty()) {
+            crashlytics.recordException(throwable) {
+                key("TAG", tag)
+            }
+        }
         filter.clear()
     }
 

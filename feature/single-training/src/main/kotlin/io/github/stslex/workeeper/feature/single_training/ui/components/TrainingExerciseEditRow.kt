@@ -3,17 +3,14 @@ package io.github.stslex.workeeper.feature.single_training.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccessibilityNew
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DragHandle
-import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -26,8 +23,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -169,29 +164,6 @@ private fun ReorderControls(
                 tint = if (isLast) AppUi.colors.textDisabled else AppUi.colors.textSecondary,
             )
         }
-    }
-}
-
-@Composable
-private fun TypeIcon(type: ExerciseTypeDataModel) {
-    val isWeighted = type == ExerciseTypeDataModel.WEIGHTED
-    Box(
-        modifier = Modifier
-            .size(22.dp)
-            .clip(AppUi.shapes.small)
-            .background(AppUi.colors.surfaceTier4),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            modifier = Modifier.size(AppDimension.iconXs),
-            imageVector = if (isWeighted) Icons.Filled.FitnessCenter else Icons.Filled.AccessibilityNew,
-            contentDescription = null,
-            tint = if (isWeighted) {
-                AppUi.colors.accentTintedForeground
-            } else {
-                AppUi.colors.setType.warmupForeground
-            },
-        )
     }
 }
 

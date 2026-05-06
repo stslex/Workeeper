@@ -8,6 +8,7 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.StateStatusMapper
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
@@ -35,6 +36,7 @@ internal class ClickHandlerTest {
     private val interactor = mockk<LiveWorkoutInteractor>(relaxed = true)
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
     private val pickerHandler = mockk<ExercisePickerHandler>(relaxed = true)
+    private val statusMapper = StateStatusMapper(resourceWrapper)
 
     @Test
     fun `OnExerciseHeaderClick toggles expansion for DONE exercises`() {
@@ -44,6 +46,7 @@ internal class ClickHandlerTest {
             interactor = interactor,
             resourceWrapper = resourceWrapper,
             pickerHandler = pickerHandler,
+            statusMapper = statusMapper,
             store = store,
         )
 
@@ -68,6 +71,7 @@ internal class ClickHandlerTest {
             interactor = interactor,
             resourceWrapper = resourceWrapper,
             pickerHandler = pickerHandler,
+            statusMapper = statusMapper,
             store = store,
         )
 
@@ -97,6 +101,7 @@ internal class ClickHandlerTest {
             interactor = interactor,
             resourceWrapper = resourceWrapper,
             pickerHandler = pickerHandler,
+            statusMapper = statusMapper,
             store = store,
         )
 
@@ -117,6 +122,7 @@ internal class ClickHandlerTest {
             interactor = interactor,
             resourceWrapper = resourceWrapper,
             pickerHandler = pickerHandler,
+            statusMapper = statusMapper,
             store = store,
         )
 
@@ -139,6 +145,7 @@ internal class ClickHandlerTest {
             interactor = interactor,
             resourceWrapper = resourceWrapper,
             pickerHandler = pickerHandler,
+            statusMapper = statusMapper,
             store = store,
         )
 
@@ -158,6 +165,7 @@ internal class ClickHandlerTest {
             interactor = interactor,
             resourceWrapper = resourceWrapper,
             pickerHandler = pickerHandler,
+            statusMapper = statusMapper,
             store = store,
         )
 
@@ -177,6 +185,7 @@ internal class ClickHandlerTest {
             interactor = interactor,
             resourceWrapper = resourceWrapper,
             pickerHandler = pickerHandler,
+            statusMapper = statusMapper,
             store = store,
         )
 
@@ -196,6 +205,7 @@ internal class ClickHandlerTest {
             interactor = interactor,
             resourceWrapper = resourceWrapper,
             pickerHandler = pickerHandler,
+            statusMapper = statusMapper,
             store = store,
         )
 
@@ -220,6 +230,7 @@ internal class ClickHandlerTest {
             interactor = interactor,
             resourceWrapper = resourceWrapper,
             pickerHandler = pickerHandler,
+            statusMapper = statusMapper,
             store = store,
         )
 
@@ -260,6 +271,7 @@ internal class ClickHandlerTest {
             interactor = interactor,
             resourceWrapper = resourceWrapper,
             pickerHandler = pickerHandler,
+            statusMapper = statusMapper,
             store = store,
         )
 
@@ -290,6 +302,7 @@ internal class ClickHandlerTest {
             interactor = interactor,
             resourceWrapper = resourceWrapper,
             pickerHandler = pickerHandler,
+            statusMapper = statusMapper,
             store = store,
         )
 
@@ -316,6 +329,7 @@ internal class ClickHandlerTest {
             interactor = interactor,
             resourceWrapper = resourceWrapper,
             pickerHandler = pickerHandler,
+            statusMapper = statusMapper,
             store = store,
         )
 
@@ -345,6 +359,7 @@ internal class ClickHandlerTest {
             interactor = interactor,
             resourceWrapper = resourceWrapper,
             pickerHandler = pickerHandler,
+            statusMapper = statusMapper,
             store = store,
         )
 
@@ -438,6 +453,17 @@ internal class ClickHandlerTest {
             onSuccess: suspend CoroutineScope.(T) -> Unit,
             workDispatcher: CoroutineDispatcher?,
             eachDispatcher: CoroutineDispatcher?,
+            action: suspend CoroutineScope.() -> T,
+        ): Job {
+            latestLaunch = action as suspend CoroutineScope.() -> Any?
+            latestOnError = onError
+            return Job()
+        }
+
+        @Suppress("UNCHECKED_CAST")
+        override fun <T> launchDefault(
+            onError: suspend (Throwable) -> Unit,
+            onSuccess: suspend CoroutineScope.(T) -> Unit,
             action: suspend CoroutineScope.() -> T,
         ): Job {
             latestLaunch = action as suspend CoroutineScope.() -> Any?

@@ -9,8 +9,8 @@ import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.data.exercise.tags.TagRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
-import io.github.stslex.workeeper.feature.single_training.domain.mapper.toData
-import io.github.stslex.workeeper.feature.single_training.domain.mapper.toDomain
+import io.github.stslex.workeeper.feature.single_training.domain.mapper.SingleTrainingDomainMapper.toData
+import io.github.stslex.workeeper.feature.single_training.domain.mapper.SingleTrainingDomainMapper.toDomain
 import io.github.stslex.workeeper.feature.single_training.domain.model.ActiveSessionDomain
 import io.github.stslex.workeeper.feature.single_training.domain.model.ArchiveResult
 import io.github.stslex.workeeper.feature.single_training.domain.model.PickerExercise

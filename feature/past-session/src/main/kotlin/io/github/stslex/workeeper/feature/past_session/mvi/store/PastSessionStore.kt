@@ -55,6 +55,19 @@ internal interface PastSessionStore :
                 val type: SetTypeUiModel,
             ) : Click
 
+            /**
+             * Reorder request from the structural-edit drag gesture (v2.4 5.7).
+             * [from] / [to] are positional indices within [performedExerciseUuid]'s set
+             * list as displayed at drag-start time.
+             */
+            data class OnSetReorder(
+                val performedExerciseUuid: String,
+                val from: Int,
+                val to: Int,
+            ) : Click
+
+            data object OnDragStarted : Click
+
             data object OnRetryLoad : Click
         }
 

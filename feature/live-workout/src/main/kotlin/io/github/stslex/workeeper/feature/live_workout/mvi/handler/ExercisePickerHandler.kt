@@ -13,8 +13,9 @@ import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStor
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
 import io.github.stslex.workeeper.feature.live_workout.domain.model.ExercisePickerEntry
 import io.github.stslex.workeeper.feature.live_workout.domain.model.PersonalRecordDomain
-import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.toDomain
-import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.toUi
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toDomain
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toUi
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.StateStatusMapper
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ErrorType
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
@@ -41,6 +42,7 @@ import javax.inject.Inject
 internal class ExercisePickerHandler @Inject constructor(
     private val interactor: LiveWorkoutInteractor,
     private val resourceWrapper: ResourceWrapper,
+    private val statusMapper: StateStatusMapper,
     store: LiveWorkoutHandlerStore,
 ) : LiveWorkoutHandlerStore by store {
 
@@ -226,7 +228,9 @@ internal class ExercisePickerHandler @Inject constructor(
                         type = picked.type,
                         pr = pr,
                     ),
-                ).recomputeStatuses(resourceWrapper)
+                ).let {
+                    statusMapper.recomputeStatuses(it)
+                }
             }
             sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         }

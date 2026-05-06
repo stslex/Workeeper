@@ -44,7 +44,6 @@ internal interface AllTrainingsStore : Store<State, Action, Event> {
             @Stable
             data class On(
                 val selectedUuids: ImmutableSet<String>,
-                val canDeleteAll: Boolean,
             ) : SelectionMode
         }
 
@@ -87,8 +86,6 @@ internal interface AllTrainingsStore : Store<State, Action, Event> {
 
             data object OnSelectionExit : Click
 
-            data object OnBulkArchive : Click
-
             data object OnBulkDelete : Click
 
             data object OnBulkDeleteConfirm : Click
@@ -108,10 +105,6 @@ internal interface AllTrainingsStore : Store<State, Action, Event> {
     sealed interface Event : Store.Event {
 
         data class HapticClick(val type: HapticFeedbackType) : Event
-
-        data class ShowBulkArchiveSuccess(val message: String) : Event
-
-        data class ShowBulkArchiveBlocked(val message: String) : Event
 
         data class ShowBulkDeleteSuccess(val message: String) : Event
     }

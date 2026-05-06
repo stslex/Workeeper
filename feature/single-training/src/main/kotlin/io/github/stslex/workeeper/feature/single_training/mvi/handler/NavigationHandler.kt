@@ -25,6 +25,13 @@ internal class NavigationHandler(
                     trainingUuid = data.uuid,
                 ),
             )
+            is Action.Navigation.OpenPlanEditor -> navigator.navTo(
+                Screen.PlanEditor(
+                    performedExerciseUuid = null,
+                    exerciseUuid = action.exerciseUuid,
+                    trainingUuid = action.trainingUuid,
+                ),
+            )
         }
     }
 }

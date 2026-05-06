@@ -152,7 +152,10 @@ private fun ArchivedExerciseList(
     }
     LazyColumn(
         modifier = modifier.testTag("ArchiveExerciseList"),
-        contentPadding = PaddingValues(horizontal = AppDimension.screenEdge, vertical = AppDimension.Space.sm),
+        contentPadding = PaddingValues(
+            horizontal = AppDimension.screenEdge,
+            vertical = AppDimension.Space.sm,
+        ),
         state = rememberLazyListState(),
         verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
@@ -189,7 +192,10 @@ private fun ArchivedTrainingList(
     }
     LazyColumn(
         modifier = modifier.testTag("ArchiveTrainingList"),
-        contentPadding = PaddingValues(horizontal = AppDimension.screenEdge, vertical = AppDimension.Space.sm),
+        contentPadding = PaddingValues(
+            horizontal = AppDimension.screenEdge,
+            vertical = AppDimension.Space.sm,
+        ),
         state = rememberLazyListState(),
         verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {

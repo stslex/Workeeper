@@ -6,16 +6,16 @@ import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExercisePickerAction
-import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
-import io.github.stslex.workeeper.feature.live_workout.domain.mapper.beatsBaseline
+import io.github.stslex.workeeper.feature.live_workout.domain.mapper.LiveWorkoutDomainMapper.beatsBaseline
 import io.github.stslex.workeeper.feature.live_workout.domain.model.PlanSetDomain
-import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.toDomain
-import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.toFinishStats
-import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.withPresentation
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toDomain
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toFinishStats
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.withPresentation
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.StateStatusMapper
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ErrorType
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
@@ -40,6 +40,7 @@ internal class ClickHandler @Inject constructor(
     private val interactor: LiveWorkoutInteractor,
     private val resourceWrapper: ResourceWrapper,
     private val pickerHandler: ExercisePickerHandler,
+    private val statusMapper: StateStatusMapper,
     store: LiveWorkoutHandlerStore,
 ) : Handler<Action.Click>, LiveWorkoutHandlerStore by store {
 
@@ -107,7 +108,6 @@ internal class ClickHandler @Inject constructor(
             processTrainingNameSubmit(Action.Click.OnTrainingNameSubmit(current.trainingNameDraft))
             return
         }
-        if (current.isPlanEditorDirty) return
         consume(Action.Navigation.Back)
     }
 
@@ -204,7 +204,7 @@ internal class ClickHandler @Inject constructor(
             onError = { _ ->
                 sendError(ErrorType.SetSaveFailed)
                 // Revert to a clean reload-shaped state by rebuilding statuses.
-                updateState { latest -> latest.recomputeStatuses(resourceWrapper) }
+                updateState { latest -> statusMapper.recomputeStatuses(latest) }
             },
         ) {
             interactor.upsertSet(
@@ -235,6 +235,7 @@ internal class ClickHandler @Inject constructor(
         val current = state.value
         val exercise = current.findExercise(action.performedExerciseUuid) ?: return
         val performed = exercise.performedSets.firstOrNull { it.position == action.position }
+        val newType = action.type.next()
         if (performed != null && performed.isDone) {
             // For a checked set, type changes are persisted immediately so the saved set
             // matches what the user sees. The optimistic UI update below keeps it instant.
@@ -242,7 +243,7 @@ internal class ClickHandler @Inject constructor(
                 latest.applySetTypeChange(
                     action.performedExerciseUuid,
                     action.position,
-                    action.type,
+                    newType,
                 )
             }
             launch(
@@ -254,16 +255,18 @@ internal class ClickHandler @Inject constructor(
                     set = PlanSetDomain(
                         weight = performed.weight,
                         reps = performed.reps,
-                        type = action.type.toDomain(),
+                        type = newType.toDomain(),
                     ),
                 )
             }
         } else {
             updateState { latest ->
-                latest.applyDraftTypeChange(
-                    action.performedExerciseUuid,
-                    action.position,
-                    action.type,
+                val key = State.DraftKey(action.performedExerciseUuid, action.position)
+                val existing = latest.draftFor(action.performedExerciseUuid, action.position)
+                val newItem = key to existing.copy(type = newType)
+                val newSetDrafts = latest.setDrafts + newItem
+                latest.copy(
+                    setDrafts = newSetDrafts.toImmutableMap(),
                 )
             }
         }
@@ -309,21 +312,18 @@ internal class ClickHandler @Inject constructor(
 
     private fun processEditPlan(action: Action.Click.OnEditPlan) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        updateState { latest ->
-            val exercise =
-                latest.findExercise(action.performedExerciseUuid) ?: return@updateState latest
-            val initial = exercise.planSets
-            latest.copy(
-                planEditorTarget = State.PlanEditorTarget(
-                    performedExerciseUuid = exercise.performedExerciseUuid,
-                    exerciseUuid = exercise.exerciseUuid,
-                    exerciseName = exercise.exerciseName,
-                    exerciseType = exercise.exerciseType,
-                    initialPlan = initial,
-                    draft = initial,
-                ),
-            )
-        }
+        val current = state.value
+        val exercise = current.findExercise(action.performedExerciseUuid) ?: return
+        // Plan editor moved to a dedicated full-screen route in v2.4 (D1). The
+        // LiveWorkoutGraph observes a savedStateHandle flag on the previous backstack
+        // entry; on flip, it dispatches Action.Common.Reload to refresh planSets.
+        consume(
+            Action.Navigation.OpenPlanEditor(
+                performedExerciseUuid = exercise.performedExerciseUuid,
+                exerciseUuid = exercise.exerciseUuid,
+                trainingUuid = current.trainingUuid?.takeIf { !current.isAdhoc },
+            ),
+        )
     }
 
     private fun processResetSetsAsk(action: Action.Click.OnResetSets) {
@@ -395,6 +395,8 @@ internal class ClickHandler @Inject constructor(
                 it.copy(
                     emptyFinishDialog = State.EmptyFinishDialogState.Visible(
                         canDiscard = it.isAdhoc,
+                        confirmLabel = resourceWrapper.getString(R.string.feature_live_workout_empty_finish_discard),
+                        dismissLabel = resourceWrapper.getString(R.string.feature_live_workout_empty_finish_continue),
                     ),
                 )
             }
@@ -451,7 +453,8 @@ internal class ClickHandler @Inject constructor(
             ?.trim()
             ?.takeIf { stats.requiresName }
         if (stats?.requiresName == true && requiredName.isNullOrBlank()) {
-            val requiredError = resourceWrapper.getString(R.string.feature_live_workout_finish_name_required)
+            val requiredError =
+                resourceWrapper.getString(R.string.feature_live_workout_finish_name_required)
             updateState { latest ->
                 latest.copy(
                     pendingFinishConfirm = latest.pendingFinishConfirm?.copy(
@@ -590,7 +593,9 @@ internal class ClickHandler @Inject constructor(
                     current.copy(
                         activeExerciseUuids = activeNext.toImmutableSet(),
                         expandedExerciseUuids = expandedNext.toImmutableSet(),
-                    ).recomputeStatuses(resourceWrapper)
+                    ).let {
+                        statusMapper.recomputeStatuses(it)
+                    }
                 }
 
                 ExerciseStatusUiModel.CURRENT -> {
@@ -678,7 +683,9 @@ internal class ClickHandler @Inject constructor(
         return copy(
             exercises = updated,
             setDrafts = nextDrafts.toImmutableMap(),
-        ).recomputeStatuses(resourceWrapper)
+        ).let {
+            statusMapper.recomputeStatuses(it)
+        }
     }
 
     private fun State.applySetUnchecked(
@@ -692,7 +699,9 @@ internal class ClickHandler @Inject constructor(
                 .toImmutableList()
             exercise.copy(performedSets = nextSets)
         }.toImmutableList()
-        return copy(exercises = updated).recomputeStatuses(resourceWrapper)
+        return copy(exercises = updated).let {
+            statusMapper.recomputeStatuses(it)
+        }
     }
 
     private fun State.applySetTypeChange(
@@ -710,24 +719,6 @@ internal class ClickHandler @Inject constructor(
         return copy(exercises = updated)
     }
 
-    private fun State.applyDraftTypeChange(
-        performedExerciseUuid: String,
-        position: Int,
-        type: SetTypeUiModel,
-    ): State {
-        val key = State.DraftKey(performedExerciseUuid, position)
-        val existing = setDrafts[key] ?: LiveSetUiModel(
-            position = position,
-            weight = null,
-            reps = 0,
-            type = type,
-            isDone = false,
-        )
-        return copy(
-            setDrafts = (setDrafts + (key to existing.copy(type = type))).toImmutableMap(),
-        )
-    }
-
     private fun State.applyResetSets(performedExerciseUuid: String): State {
         val updated = exercises.map { exercise ->
             if (exercise.performedExerciseUuid != performedExerciseUuid) return@map exercise
@@ -739,7 +730,9 @@ internal class ClickHandler @Inject constructor(
             exercises = updated,
             setDrafts = nextDrafts,
             pendingResetExerciseUuid = null,
-        ).recomputeStatuses(resourceWrapper)
+        ).let {
+            statusMapper.recomputeStatuses(it)
+        }
     }
 
     private fun State.applySkip(performedExerciseUuid: String): State {
@@ -761,7 +754,18 @@ internal class ClickHandler @Inject constructor(
         // exercise's own `status` field is recomputed alongside everything else so the
         // CURRENT marker walks past the now-skipped row, while honoring the user's
         // explicit active set.
-        val rebuilt = exercises.toUiListAfterSkip(performedExerciseUuid, activeExerciseUuids)
+        val rebuilt = exercises.map { exercise ->
+            if (exercise.performedExerciseUuid == performedExerciseUuid) {
+                exercise.copy(
+                    status = ExerciseStatusUiModel.SKIPPED,
+                )
+            } else {
+                exercise
+            }
+        }.let { items ->
+            statusMapper.recomputeOnly(items, activeExerciseUuids)
+        }
+        // todo - there are more then 3 internal wrappers for immutable lists
         return copy(exercises = rebuilt).withPresentation(resourceWrapper)
     }
 
@@ -796,20 +800,6 @@ internal class ClickHandler @Inject constructor(
             .maxByOrNull { it.position }
     }
 
-    private fun ImmutableListOfExercise.toUiListAfterSkip(
-        skippedUuid: String,
-        activeUuids: Set<String>,
-    ): ImmutableListOfExercise =
-        map { exercise ->
-            if (exercise.performedExerciseUuid == skippedUuid) {
-                exercise.copy(
-                    status = ExerciseStatusUiModel.SKIPPED,
-                )
-            } else {
-                exercise
-            }
-        }.toImmutableList().recomputeOnly(activeUuids)
-
     private fun sendError(type: ErrorType) {
         sendEvent(
             Event.ShowError(
@@ -818,8 +808,3 @@ internal class ClickHandler @Inject constructor(
         )
     }
 }
-
-private typealias ImmutableListOfExercise = kotlinx.collections.immutable.ImmutableList<LiveExerciseUiModel>
-
-@Suppress("UNUSED_PARAMETER")
-private fun PlanSetUiModel.unused() = Unit

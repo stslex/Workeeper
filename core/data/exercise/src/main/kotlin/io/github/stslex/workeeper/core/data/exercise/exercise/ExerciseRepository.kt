@@ -4,6 +4,7 @@ import androidx.paging.PagingData
 import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseDataModel
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseListItem
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.HistoryEntry
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.RecentExerciseDataModel
 import kotlinx.coroutines.flow.Flow
@@ -77,7 +78,31 @@ interface ExerciseRepository {
 
     suspend fun countSessionsUsing(exerciseUuid: String): Int
 
+    /**
+     * Count of distinct active library trainings (non-archived, non-adhoc) referencing
+     * [exerciseUuid] via `training_exercise_table`. Surfaces as the "in M trainings"
+     * footer segment on Exercise rows. (v2.4 F1.)
+     */
+    fun observeLinkedTrainingsCount(exerciseUuid: String): Flow<Int>
+
+    /**
+     * Timestamp (epoch millis) of the most recently finished session in which a non-skipped
+     * performed-exercise referenced [exerciseUuid]. `null` when no such session exists.
+     * Surfaces as the "last Xd ago" footer segment on Exercise rows. (v2.4 F2.)
+     */
+    fun observeLastTrainedAt(exerciseUuid: String): Flow<Long?>
+
     fun pagedActiveByTags(tagUuids: Set<String>): Flow<PagingData<ExerciseDataModel>>
+
+    /**
+     * Paged active library exercises joined with derived stats: session count,
+     * linked-trainings count, last-trained timestamp, and tag names. Drives the v2.4
+     * footer on the all-exercises list. When [filterTagUuids] is non-empty, applies OR
+     * semantics (matches any of the given tags). (v2.4 E6.)
+     */
+    fun pagedActiveWithStats(
+        filterTagUuids: Set<String>,
+    ): Flow<PagingData<ExerciseListItem>>
 
     suspend fun getRecentHistory(exerciseUuid: String, limit: Int): List<HistoryEntry>
 

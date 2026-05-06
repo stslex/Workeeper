@@ -206,6 +206,11 @@ post-Stage-5.1 layout below.
     The `sharedTransitionScope` parameter is only required for graphs that participate in
     shared element transitions — see how `allTrainingsGraph` and `settingsGraph` differ.
 
+    The `modifier` you pass into the graph **must** include `Modifier.reportScreenPlace<Screen.<X>>()`
+    so the TTID / AppCreate / ActivityCreate Firebase traces stop on first display. Without it
+    those metrics will be aborted by the next navigation. See
+    [documentation/performance.md → New-screen contributor checklist](../../documentation/performance.md#new-screen-contributor-checklist).
+
 15. If the feature is bottom-bar visible, add an entry in
     `app/app/src/main/java/io/github/stslex/workeeper/bottom_app_bar/BottomBarItem.kt`.
 

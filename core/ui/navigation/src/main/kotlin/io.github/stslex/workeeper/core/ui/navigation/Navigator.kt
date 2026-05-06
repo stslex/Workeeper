@@ -1,17 +1,14 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.ui.navigation
 
 import androidx.compose.runtime.Stable
-import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.navigation.NavHostController
 
 @Stable
 interface Navigator {
 
-    val navController: NavHostController
-
     fun navTo(screen: Screen)
 
-    fun popBack()
+    fun popBack(vararg previousStackAttr: Pair<String, Any?>)
 
     /**
      * Navigate to [screen] and pop the current destination off the back stack. After this
@@ -23,8 +20,4 @@ interface Navigator {
      * session detail after finish).
      */
     fun replaceTo(screen: Screen)
-}
-
-val LocalNavigator = staticCompositionLocalOf<Navigator> {
-    error("No Navigator provided")
 }

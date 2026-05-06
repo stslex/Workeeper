@@ -6,7 +6,7 @@ import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.data.exercise.session.SessionConflictResolver
 import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
-import io.github.stslex.workeeper.feature.home.domain.mapper.toDomain
+import io.github.stslex.workeeper.feature.home.domain.mapper.HomeDomainMapper.toDomain
 import io.github.stslex.workeeper.feature.home.domain.model.ActiveSessionWithStatsDomain
 import io.github.stslex.workeeper.feature.home.domain.model.RecentSessionDomain
 import io.github.stslex.workeeper.feature.home.domain.model.StartSessionConflict

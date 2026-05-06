@@ -33,13 +33,9 @@ enum class BottomBarItem(
 
     companion object {
 
-        fun Screen?.isAppbar(): Boolean = entries.any { it.screen == this }
-
         @OptIn(InternalSerializationApi::class)
         fun getByRoute(
             route: String,
         ): BottomBarItem? = entries.find { entry -> entry.screen.isCurrentScreen(route) }
-
-        fun getByScreen(screen: Screen?): BottomBarItem? = entries.find { it.screen == screen }
     }
 }

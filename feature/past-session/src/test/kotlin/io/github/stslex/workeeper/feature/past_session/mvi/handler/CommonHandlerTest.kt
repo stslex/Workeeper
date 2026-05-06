@@ -46,7 +46,6 @@ internal class CommonHandlerTest {
     private val resources = object : ResourceWrapper {
         override fun getString(id: Int, vararg args: Any): String = when (id) {
             R.string.feature_past_session_totals_format -> "${args[0]} · ${args[1]}"
-            R.string.feature_past_session_volume_label -> "vol ${args[0]}"
             else -> error("Unexpected string id: $id")
         }
 
@@ -216,6 +215,16 @@ internal class CommonHandlerTest {
                 .onFailure {
                     withContext(eachDispatcher ?: dispatcher) { onError(it) }
                 }
+        }
+
+        override fun <T> launchDefault(
+            onError: suspend (Throwable) -> Unit,
+            onSuccess: suspend CoroutineScope.(T) -> Unit,
+            action: suspend CoroutineScope.() -> T,
+        ): Job = testScope.launch(dispatcher) {
+            runCatching { action() }
+                .onSuccess { withContext(dispatcher) { onSuccess(it) } }
+                .onFailure { withContext(dispatcher) { onError(it) } }
         }
 
         override fun <T> Flow<T>.launch(

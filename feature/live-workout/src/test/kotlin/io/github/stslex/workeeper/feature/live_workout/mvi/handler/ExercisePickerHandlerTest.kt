@@ -12,6 +12,7 @@ import io.github.stslex.workeeper.feature.live_workout.domain.model.AddExerciseR
 import io.github.stslex.workeeper.feature.live_workout.domain.model.ExercisePickerEntry
 import io.github.stslex.workeeper.feature.live_workout.domain.model.ExerciseTypeDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.InlineAdhocResult
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.StateStatusMapper
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State.ExercisePickerSheetState
 import io.mockk.coEvery
@@ -36,6 +37,7 @@ internal class ExercisePickerHandlerTest {
 
     private val interactor = mockk<LiveWorkoutInteractor>(relaxed = true)
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
+    private val statusMapper = StateStatusMapper(resourceWrapper)
 
     @Test
     fun `OnDismiss flips picker to Hidden`() {
@@ -51,7 +53,7 @@ internal class ExercisePickerHandlerTest {
         val state = MutableStateFlow(stateWithVisiblePicker())
         val store = handlerStore(state)
 
-        ExercisePickerHandler(interactor, resourceWrapper, store)
+        ExercisePickerHandler(interactor, resourceWrapper, statusMapper, store)
             .invoke(ExercisePickerAction.OnQueryChange("bench"))
 
         val visible = state.value.exercisePickerSheet as ExercisePickerSheetState.Visible
@@ -74,7 +76,7 @@ internal class ExercisePickerHandlerTest {
         )
         val store = handlerStore(state)
 
-        ExercisePickerHandler(interactor, resourceWrapper, store)
+        ExercisePickerHandler(interactor, resourceWrapper, statusMapper, store)
             .invoke(ExercisePickerAction.OnExerciseSelect("u1"))
 
         coVerify(exactly = 0) {
@@ -89,7 +91,7 @@ internal class ExercisePickerHandlerTest {
         )
         val store = handlerStore(state)
 
-        ExercisePickerHandler(interactor, resourceWrapper, store)
+        ExercisePickerHandler(interactor, resourceWrapper, statusMapper, store)
             .invoke(ExercisePickerAction.OnExerciseSelect("u1"))
 
         coVerify(exactly = 0) {
@@ -102,7 +104,7 @@ internal class ExercisePickerHandlerTest {
         val state = MutableStateFlow(stateWithVisiblePicker())
         val store = handlerStore(state)
 
-        ExercisePickerHandler(interactor, resourceWrapper, store)
+        ExercisePickerHandler(interactor, resourceWrapper, statusMapper, store)
             .invoke(ExercisePickerAction.OnCreateNewExercise("   "))
 
         coVerify(exactly = 0) {
@@ -132,6 +134,7 @@ internal class ExercisePickerHandlerTest {
         val handler = ExercisePickerHandler(
             interactor = interactor,
             resourceWrapper = resourceWrapper,
+            statusMapper = statusMapper,
             store = ExecutingLiveWorkoutHandlerStore(state, this),
         )
 
@@ -170,6 +173,7 @@ internal class ExercisePickerHandlerTest {
         val handler = ExercisePickerHandler(
             interactor = interactor,
             resourceWrapper = resourceWrapper,
+            statusMapper = statusMapper,
             store = ExecutingLiveWorkoutHandlerStore(state, this),
         )
 
@@ -209,6 +213,7 @@ internal class ExercisePickerHandlerTest {
         val handler = ExercisePickerHandler(
             interactor = interactor,
             resourceWrapper = resourceWrapper,
+            statusMapper = statusMapper,
             store = ExecutingLiveWorkoutHandlerStore(state, this),
         )
         handler.invoke(ExercisePickerAction.OnQueryChange("жим груди"))
@@ -237,6 +242,7 @@ internal class ExercisePickerHandlerTest {
         val handler = ExercisePickerHandler(
             interactor = interactor,
             resourceWrapper = resourceWrapper,
+            statusMapper = statusMapper,
             store = ExecutingLiveWorkoutHandlerStore(state, this),
         )
         handler.invoke(ExercisePickerAction.OnQueryChange("BENCH PRESS"))
@@ -273,6 +279,7 @@ internal class ExercisePickerHandlerTest {
         val handler = ExercisePickerHandler(
             interactor = interactor,
             resourceWrapper = resourceWrapper,
+            statusMapper = statusMapper,
             store = ExecutingLiveWorkoutHandlerStore(state, this),
         )
         handler.invoke(ExercisePickerAction.OnQueryChange("skull crushers"))
@@ -295,6 +302,7 @@ internal class ExercisePickerHandlerTest {
         val handler = ExercisePickerHandler(
             interactor = interactor,
             resourceWrapper = resourceWrapper,
+            statusMapper = statusMapper,
             store = ExecutingLiveWorkoutHandlerStore(state, this),
         )
         handler.invoke(ExercisePickerAction.OnQueryChange("   "))
@@ -321,7 +329,7 @@ internal class ExercisePickerHandlerTest {
         )
         val store = handlerStore(state)
 
-        ExercisePickerHandler(interactor, resourceWrapper, store)
+        ExercisePickerHandler(interactor, resourceWrapper, statusMapper, store)
             .invoke(ExercisePickerAction.OnExerciseSelect("unknown-uuid"))
 
         coVerify(exactly = 0) {
@@ -333,6 +341,7 @@ internal class ExercisePickerHandlerTest {
         ExercisePickerHandler(
             interactor = interactor,
             resourceWrapper = resourceWrapper,
+            statusMapper = statusMapper,
             store = handlerStore(stateFlow),
         )
 
@@ -384,6 +393,19 @@ internal class ExercisePickerHandlerTest {
             onSuccess: suspend CoroutineScope.(T) -> Unit,
             workDispatcher: CoroutineDispatcher?,
             eachDispatcher: CoroutineDispatcher?,
+            action: suspend CoroutineScope.() -> T,
+        ): Job = scope.launch {
+            try {
+                val result = action()
+                onSuccess(result)
+            } catch (throwable: Throwable) {
+                onError(throwable)
+            }
+        }
+
+        override fun <T> launchDefault(
+            onError: suspend (Throwable) -> Unit,
+            onSuccess: suspend CoroutineScope.(T) -> Unit,
             action: suspend CoroutineScope.() -> T,
         ): Job = scope.launch {
             try {

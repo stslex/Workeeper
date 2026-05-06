@@ -17,7 +17,6 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.handler.CommonHandler
 import io.github.stslex.workeeper.feature.live_workout.mvi.handler.InputHandler
 import io.github.stslex.workeeper.feature.live_workout.mvi.handler.LiveWorkoutComponent
 import io.github.stslex.workeeper.feature.live_workout.mvi.handler.NavigationHandler
-import io.github.stslex.workeeper.feature.live_workout.mvi.handler.PlanEditActionHandler
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Event
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
@@ -28,7 +27,6 @@ internal class LiveWorkoutStoreImpl @AssistedInject constructor(
     clickHandler: ClickHandler,
     inputHandler: InputHandler,
     commonHandler: CommonHandler,
-    planEditActionHandler: PlanEditActionHandler,
     storeDispatchers: StoreDispatchers,
     handlerStore: LiveWorkoutHandlerStoreImpl,
     analyticsHolder: AnalyticsHolder,
@@ -45,7 +43,6 @@ internal class LiveWorkoutStoreImpl @AssistedInject constructor(
             is Action.Common -> commonHandler
             is Action.Click -> clickHandler
             is Action.Input -> inputHandler
-            is Action.PlanEditAction -> planEditActionHandler
         }
     },
     storeEmitter = handlerStore,

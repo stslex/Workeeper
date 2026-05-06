@@ -9,7 +9,7 @@ import io.github.stslex.workeeper.feature.home.R
 import io.github.stslex.workeeper.feature.home.di.HomeHandlerStore
 import io.github.stslex.workeeper.feature.home.domain.HomeInteractor
 import io.github.stslex.workeeper.feature.home.domain.model.StartSessionConflict
-import io.github.stslex.workeeper.feature.home.mvi.mapper.toPickerItems
+import io.github.stslex.workeeper.feature.home.mvi.mapper.HomeUiMapper.toPickerItems
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Action
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Event
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.State

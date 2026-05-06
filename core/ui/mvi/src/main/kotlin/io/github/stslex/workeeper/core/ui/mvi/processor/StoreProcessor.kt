@@ -1,10 +1,13 @@
 package io.github.stslex.workeeper.core.ui.mvi.processor
 
+import android.app.Activity
+import androidx.activity.compose.LocalActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.rememberLifecycleOwner
 import io.github.stslex.workeeper.core.core.logger.FirebaseAnalyticsHolder
@@ -14,6 +17,7 @@ import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 import io.github.stslex.workeeper.core.ui.mvi.Store.Action
 import io.github.stslex.workeeper.core.ui.mvi.Store.Event
 import io.github.stslex.workeeper.core.ui.mvi.Store.State
+import io.github.stslex.workeeper.core.ui.mvi.performance.FirebaseScreenRenderRecorder
 import io.github.stslex.workeeper.core.ui.navigation.Component
 import io.github.stslex.workeeper.core.ui.navigation.LocalRootComponent
 import io.github.stslex.workeeper.core.ui.navigation.Screen
@@ -39,11 +43,13 @@ interface StoreProcessor<S : State, A : Action, E : Event> {
 }
 
 /**
- * StoreProcessorImpl is an implementation of the StoreProcessor interface.
- * It provides methods to consume actions and handle events in a store.
+ * Remembers and returns a [StoreProcessor] for the provided [screen].
  *
- * @param component The component associated with the store.
- * @param key An optional key for the store.
+ * The created processor is wired to the store lifecycle, initializes analytics/render tracing,
+ * and disposes store resources when the composable leaves the composition.
+ *
+ * @param screen The navigation screen used to create the component.
+ * @param key Optional key passed to [hiltViewModel] for store instance scoping.
  */
 @Composable
 inline fun <
@@ -54,30 +60,40 @@ inline fun <
     screen: Screen,
     key: String? = null,
 ): StoreProcessor<*, *, *> {
+    val currentLifecycleOwner = rememberLifecycleOwner()
     val rootComponent = LocalRootComponent.current
+    val activity = LocalActivity.current
+    val context = LocalContext.current
 
     val component = remember(screen) {
+        @Suppress("UNCHECKED_CAST")
         rootComponent.createComponent(screen) as TComponent
     }
 
-    val store = hiltViewModel<TStoreImpl, TFactory>(key = key) {
-        it.create(component)
-    }.apply { initEmitter() }
+    val store = hiltViewModel<TStoreImpl, TFactory>(key = key) { storeFactory ->
+        storeFactory.create(component)
+    }
 
-    val currentLifecycleOwner = rememberLifecycleOwner()
     DisposableEffect(store, currentLifecycleOwner) {
-        store.initEmitter()
         store.init(currentLifecycleOwner)
         FirebaseCrashlyticsHolder.setScreenName(store.name)
         FirebaseAnalyticsHolder.log(FirebaseEvent.Screen(store.name))
+
+        FirebaseScreenRenderRecorder.recordScreenTrace(
+            screenName = store.name,
+            activity = activity ?: context as? Activity,
+        )
         onDispose {
             store.dispose()
             FirebaseCrashlyticsHolder.clearScreenName()
+            FirebaseScreenRenderRecorder.stopScreenTrace(store.name)
         }
     }
+
     val actionProcessor = remember { ActionProcessor(store) }
     val effectsProcessor = remember { EffectsProcessor(store) }
     val state = remember { store.state }.collectAsState()
+
     return remember {
         StoreProcessorImpl(
             actionProcessor = actionProcessor,

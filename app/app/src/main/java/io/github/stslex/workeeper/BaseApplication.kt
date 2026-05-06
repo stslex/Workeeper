@@ -8,6 +8,8 @@ import dagger.hilt.components.SingletonComponent
 import io.github.stslex.workeeper.core.core.images.ImageStorage
 import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
 import io.github.stslex.workeeper.core.core.logger.Log
+import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
+import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -22,6 +24,7 @@ abstract class BaseApplication : Application() {
         FirebaseCrashlyticsHolder.initialize()
         Log.isLogging = isDebugLoggingAllow
         cleanupOrphanedImageTempFiles()
+        PerformanceMetricsRecorder.process(RecordAction.AppCreated)
     }
 
     private fun cleanupOrphanedImageTempFiles() {

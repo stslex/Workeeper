@@ -19,24 +19,24 @@ import io.github.stslex.workeeper.feature.single_training.mvi.model.TagUiModel
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 
+/**
+ * Hero block under the LargeTopAppBar. The training name lives in the app bar (v2.4 E1)
+ * so this composable only renders description + tag chips. Skipped entirely when neither
+ * is present.
+ */
 @Composable
 internal fun TrainingHero(
-    name: String,
     description: String,
     tags: ImmutableList<TagUiModel>,
     modifier: Modifier = Modifier,
 ) {
+    if (tags.isEmpty() && description.isBlank()) return
     Column(
         modifier = modifier
             .fillMaxWidth()
             .testTag("TrainingHero"),
         verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
-        Text(
-            text = name,
-            style = AppUi.typography.headlineSmall,
-            color = AppUi.colors.textPrimary,
-        )
         if (tags.isNotEmpty()) {
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
@@ -68,7 +68,6 @@ internal fun TrainingHero(
 private fun TrainingHeroPreview() {
     AppTheme {
         TrainingHero(
-            name = "Push day A",
             description = "Focus on bench progression. 4 weeks of linear bump.",
             tags = persistentListOf(
                 TagUiModel("1", "Push"),

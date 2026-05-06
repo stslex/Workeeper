@@ -7,7 +7,7 @@ import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.data.exercise.tags.TagRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
-import io.github.stslex.workeeper.feature.all_trainings.domain.mapper.toDomain
+import io.github.stslex.workeeper.feature.all_trainings.domain.mapper.AllTrainingsDomainMapper.toDomain
 import io.github.stslex.workeeper.feature.all_trainings.domain.model.BulkArchiveResult
 import io.github.stslex.workeeper.feature.all_trainings.domain.model.TagDomain
 import io.github.stslex.workeeper.feature.all_trainings.domain.model.TrainingListItemDomain

@@ -8,9 +8,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -30,8 +35,6 @@ import io.github.stslex.workeeper.feature.all_trainings.R
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.Action
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.State
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.State.SelectionMode
-import io.github.stslex.workeeper.feature.all_trainings.ui.components.BulkActionBar
-import io.github.stslex.workeeper.feature.all_trainings.ui.components.SelectionTopBar
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.TagFilterRow
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.TrainingRow
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.TrainingsEmptyState
@@ -54,7 +57,8 @@ internal fun AllTrainingsScreen(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             ScreenTopBar(state = state, consume = consume)
-            if (state.availableTags.isNotEmpty() && !state.isSelecting) {
+            // Tags row stays visible during selection (spec C4).
+            if (state.availableTags.isNotEmpty()) {
                 TagFilterRow(
                     tags = state.availableTags,
                     activeTagFilter = state.activeTagFilter,
@@ -71,38 +75,37 @@ internal fun AllTrainingsScreen(
                     TrainingsEmptyState(modifier = Modifier.align(Alignment.Center))
                 }
             }
-            if (state.isSelecting) {
-                val selectionMode = state.selectionMode as SelectionMode.On
-                BulkActionBar(
-                    canDelete = selectionMode.canDeleteAll,
-                    onArchive = { consume(Action.Click.OnBulkArchive) },
-                    onDelete = { consume(Action.Click.OnBulkDelete) },
-                )
-            }
         }
-        if (!state.isSelecting) {
-            AppFAB(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(AppDimension.screenEdge)
-                    .testTag("AllTrainingsFab"),
-                icon = Icons.Filled.Add,
-                contentDescription = stringResource(R.string.feature_all_trainings_fab_create),
-                onClick = { consume(Action.Click.OnFabClick) },
-            )
-        }
+        val isSelecting = state.isSelecting
+        AppFAB(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(AppDimension.screenEdge)
+                .testTag("AllTrainingsFab"),
+            icon = if (isSelecting) Icons.Filled.Delete else Icons.Filled.Add,
+            contentDescription = stringResource(
+                if (isSelecting) R.string.feature_all_trainings_bulk_archive
+                else R.string.feature_all_trainings_fab_create,
+            ),
+            containerColor = if (isSelecting) {
+                AppUi.colors.status.error
+            } else {
+                AppUi.colors.accent
+            },
+            onClick = { consume(Action.Click.OnFabClick) },
+        )
     }
 
     state.pendingBulkDelete?.let { pending ->
         AppConfirmDialog(
-            title = stringResource(R.string.feature_all_trainings_bulk_delete_confirm_title),
+            title = stringResource(R.string.feature_all_trainings_bulk_archive_confirm_title),
             body = pluralStringResource(
-                R.plurals.feature_all_trainings_bulk_delete_confirm_body,
+                R.plurals.feature_all_trainings_bulk_archive_confirm_body,
                 pending.count,
                 pending.count,
             ),
-            impactSummary = stringResource(R.string.feature_all_trainings_bulk_delete_impact),
-            confirmLabel = stringResource(R.string.feature_all_trainings_bulk_delete),
+            impactSummary = stringResource(R.string.feature_all_trainings_bulk_archive_impact),
+            confirmLabel = stringResource(R.string.feature_all_trainings_bulk_archive),
             onConfirm = { consume(Action.Click.OnBulkDeleteConfirm) },
             onDismiss = { consume(Action.Click.OnBulkDeleteDismiss) },
         )
@@ -115,16 +118,40 @@ private fun ScreenTopBar(
     consume: (Action) -> Unit,
 ) {
     val mode = state.selectionMode
-    if (mode is SelectionMode.On) {
-        SelectionTopBar(
-            selectedCount = mode.selectedUuids.size,
-            onClose = { consume(Action.Click.OnSelectionExit) },
+    val isSelecting = mode is SelectionMode.On
+    val title = if (mode is SelectionMode.On) {
+        pluralStringResource(
+            R.plurals.feature_all_trainings_selected_count,
+            mode.selectedUuids.size,
+            mode.selectedUuids.size,
         )
     } else {
-        AppTopAppBar(
-            title = stringResource(R.string.feature_all_trainings_title),
-        )
+        stringResource(R.string.feature_all_trainings_title)
     }
+    AppTopAppBar(
+        modifier = Modifier.testTag(
+            if (isSelecting) "AllTrainingsSelectionTopBar" else "AllTrainingsTopBar",
+        ),
+        title = title,
+        navigationIcon = if (isSelecting) {
+            {
+                IconButton(
+                    modifier = Modifier.testTag("AllTrainingsSelectionTopBarClose"),
+                    onClick = { consume(Action.Click.OnSelectionExit) },
+                ) {
+                    Icon(
+                        modifier = Modifier.size(AppDimension.iconSm),
+                        imageVector = Icons.Default.Close,
+                        contentDescription = stringResource(
+                            R.string.feature_all_trainings_selection_close,
+                        ),
+                    )
+                }
+            }
+        } else {
+            null
+        },
+    )
 }
 
 @Composable
@@ -142,8 +169,10 @@ private fun TrainingsList(
             .fillMaxSize()
             .testTag("AllTrainingsList"),
         contentPadding = PaddingValues(
-            horizontal = AppDimension.screenEdge,
-            vertical = AppDimension.Space.sm,
+            start = AppDimension.screenEdge,
+            end = AppDimension.screenEdge,
+            top = AppDimension.Space.sm,
+            bottom = AppDimension.heightLg + AppDimension.screenEdge,
         ),
         verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
@@ -154,7 +183,6 @@ private fun TrainingsList(
             typedItems[index]?.let { item ->
                 TrainingRow(
                     item = item,
-                    isSelectionMode = state.isSelecting,
                     isSelected = selectedSet?.contains(item.uuid) == true,
                     onClick = { consume(Action.Click.OnTrainingClick(item.uuid)) },
                     onLongPress = { consume(Action.Click.OnTrainingLongPress(item.uuid)) },

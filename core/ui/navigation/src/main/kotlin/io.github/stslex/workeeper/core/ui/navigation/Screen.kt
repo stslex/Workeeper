@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.ui.navigation
 
 import androidx.compose.animation.AnimatedContentScope
@@ -85,6 +86,32 @@ sealed interface Screen {
     data class ExerciseImage(
         val model: String,
     ) : Screen
+
+    /**
+     * Full-screen plan editor (v2.4 D1). Replaces the bottom-sheet plan editor.
+     *
+     *  - `performedExerciseUuid` non-null: edit the plan attached to a live workout's
+     *    `performed_exercise_table` row. Backed by `training_exercise_table.plan_sets`
+     *    when `trainingUuid` non-null, or by `exercise_table.last_adhoc_sets` when adhoc.
+     *  - `exerciseUuid` non-null: edit the default plan attached to an exercise (used
+     *    by Exercise detail screen "Edit default plan" action).
+     *
+     * Exactly one of the two must be non-null.
+     */
+    @Serializable
+    data class PlanEditor(
+        val performedExerciseUuid: String?,
+        val exerciseUuid: String?,
+        val trainingUuid: String?,
+    ) : Screen {
+
+        companion object {
+
+            private const val SAVED_STATE_PLAN_EDITOR_SAVED: String = "plan-editor-saved"
+
+            val planEditorSavedAttr = SaveHandlerAttr(SAVED_STATE_PLAN_EDITOR_SAVED, false)
+        }
+    }
 
     companion object {
 

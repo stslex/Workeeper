@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.core.data.exercise.session
 
 import io.github.stslex.workeeper.core.core.di.IODispatcher
+import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
 import io.github.stslex.workeeper.core.data.database.session.SetDao
 import io.github.stslex.workeeper.core.data.database.session.model.SetEntity
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataModel
@@ -18,6 +19,7 @@ import kotlin.uuid.Uuid
 @Singleton
 internal class SetRepositoryImpl @Inject constructor(
     private val dao: SetDao,
+    private val transition: DbTransitionRunner,
     @IODispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : SetRepository {
 
@@ -65,6 +67,21 @@ internal class SetRepositoryImpl @Inject constructor(
                     position = position,
                 ),
             )
+        }
+    }
+
+    override suspend fun reorderSets(
+        performedExerciseUuid: String,
+        orderedSetUuids: List<String>,
+    ) {
+        if (orderedSetUuids.isEmpty()) return
+        transition {
+            // Update each set's position to match its index in the new order. The
+            // sequential per-row UPDATE is fine — set lists are bounded (typical 3–10
+            // sets per exercise), and the transaction wrapper ensures atomicity.
+            orderedSetUuids.forEachIndexed { index, setUuid ->
+                dao.updatePosition(Uuid.parse(setUuid), index)
+            }
         }
     }
 

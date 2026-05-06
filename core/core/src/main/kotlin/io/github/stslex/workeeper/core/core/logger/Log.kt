@@ -10,9 +10,9 @@ open class Log private constructor(
 
     private val logger = object : KLogger(
         config = mutableLoggerConfigInit(listOf(platformLogWriter())),
-        tag = tag,
     ) {
-        override val tag: String get() = this@Log.tag
+
+        override val tag: String = this@Log.tag
     }
 
     override fun e(throwable: Throwable, message: String?) {
@@ -96,7 +96,7 @@ open class Log private constructor(
         )
     }
 
-    companion object : Log("AtTen") {
+    companion object : Log("Workeeper") {
 
         var isLogging: Boolean = true
 

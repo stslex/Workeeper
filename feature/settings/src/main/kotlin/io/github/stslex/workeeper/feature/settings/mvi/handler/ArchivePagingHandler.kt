@@ -9,7 +9,7 @@ import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.settings.di.ArchiveHandlerStore
 import io.github.stslex.workeeper.feature.settings.domain.SettingsInteractor
-import io.github.stslex.workeeper.feature.settings.mvi.mapper.toUi
+import io.github.stslex.workeeper.feature.settings.mvi.mapper.ArchiveUiMapper.toUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.ArchivedItemUi
 import io.github.stslex.workeeper.feature.settings.mvi.store.ArchiveStore.Action
 import kotlinx.coroutines.flow.map

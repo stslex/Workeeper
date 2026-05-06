@@ -7,8 +7,8 @@ import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.home.di.HomeHandlerStore
 import io.github.stslex.workeeper.feature.home.domain.HomeInteractor
-import io.github.stslex.workeeper.feature.home.mvi.mapper.toRecentItems
-import io.github.stslex.workeeper.feature.home.mvi.mapper.toUi
+import io.github.stslex.workeeper.feature.home.mvi.mapper.HomeUiMapper.toRecentItems
+import io.github.stslex.workeeper.feature.home.mvi.mapper.HomeUiMapper.toUi
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Action
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged

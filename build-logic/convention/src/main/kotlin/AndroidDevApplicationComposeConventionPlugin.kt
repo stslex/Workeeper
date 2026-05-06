@@ -5,8 +5,6 @@ import org.gradle.api.Project
 class AndroidDevApplicationComposeConventionPlugin : Plugin<Project> {
 
     override fun apply(target: Project) {
-        with(target) {
-            target.configureApplication(AppType.DEV)
-        }
+        target.configureApplication(AppType.DEV)
     }
 }

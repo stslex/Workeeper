@@ -7,10 +7,11 @@ import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.tags.TagRepository
-import io.github.stslex.workeeper.feature.all_exercises.domain.mapper.toDomain
+import io.github.stslex.workeeper.feature.all_exercises.domain.mapper.AllExercisesDomainMapper.toDomain
 import io.github.stslex.workeeper.feature.all_exercises.domain.model.ArchiveResult
 import io.github.stslex.workeeper.feature.all_exercises.domain.model.BulkArchiveResult
 import io.github.stslex.workeeper.feature.all_exercises.domain.model.ExerciseDomain
+import io.github.stslex.workeeper.feature.all_exercises.domain.model.ExerciseListItemDomain
 import io.github.stslex.workeeper.feature.all_exercises.domain.model.TagDomain
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
@@ -28,8 +29,8 @@ internal class AllExercisesInteractorImpl @Inject constructor(
 
     override fun observeExercises(
         filterTagUuids: Set<String>,
-    ): Flow<PagingData<ExerciseDomain>> = exerciseRepository
-        .pagedActiveByTags(filterTagUuids)
+    ): Flow<PagingData<ExerciseListItemDomain>> = exerciseRepository
+        .pagedActiveWithStats(filterTagUuids)
         .map { pagingData -> pagingData.map { it.toDomain() } }
         .flowOn(defaultDispatcher)
 
@@ -73,6 +74,16 @@ internal class AllExercisesInteractorImpl @Inject constructor(
     ): Int = withContext(defaultDispatcher) {
         exerciseRepository.countSessionsUsing(uuid)
     }
+
+    override fun observeLinkedTrainingsCount(
+        uuid: String,
+    ): Flow<Int> = exerciseRepository.observeLinkedTrainingsCount(uuid)
+        .flowOn(defaultDispatcher)
+
+    override fun observeLastTrainedAt(
+        uuid: String,
+    ): Flow<Long?> = exerciseRepository.observeLastTrainedAt(uuid)
+        .flowOn(defaultDispatcher)
 
     override suspend fun bulkArchive(
         uuids: Set<String>,

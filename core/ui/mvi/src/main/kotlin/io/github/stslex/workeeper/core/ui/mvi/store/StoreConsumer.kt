@@ -47,6 +47,20 @@ interface StoreConsumer<S : State, A : Store.Action, in E : Event> {
     ): Job
 
     /**
+     * Launches a coroutine and catches exceptions. The coroutine is launched on the default dispatcher..
+     * @param onError - error handler
+     * @param onSuccess - success handler
+     * @param action - action to be executed
+     * @return Job
+     * @see Job
+     * */
+    fun <T> launchDefault(
+        onError: suspend (Throwable) -> Unit = {},
+        onSuccess: suspend CoroutineScope.(T) -> Unit = {},
+        action: suspend CoroutineScope.() -> T,
+    ): Job
+
+    /**
      * Launches a flow and collects it in the screenModelScope. The flow is collected on the default dispatcher.
      * @param onError - error handler
      * @param each - action for each element of the flow

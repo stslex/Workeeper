@@ -5,12 +5,16 @@ import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.time.formatElapsedDuration
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
+import io.github.stslex.workeeper.core.ui.navigation.NavigatorStack
+import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
-import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.toState
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toState
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.isActive
 import javax.inject.Inject
 
@@ -18,6 +22,7 @@ import javax.inject.Inject
 internal class CommonHandler @Inject constructor(
     private val interactor: LiveWorkoutInteractor,
     private val resourceWrapper: ResourceWrapper,
+    private val navigatorStack: NavigatorStack,
     store: LiveWorkoutHandlerStore,
 ) : Handler<Action.Common>, LiveWorkoutHandlerStore by store {
 
@@ -26,6 +31,10 @@ internal class CommonHandler @Inject constructor(
     override fun invoke(action: Action.Common) {
         when (action) {
             Action.Common.Init -> processInit()
+            // Reload re-runs the session-load pipeline. Used after returning from the
+            // PlanEditor route so the LiveExerciseCard.planSets reflect the new draft.
+            // We skip session creation since this fires only on an existing session.
+            Action.Common.Reload -> processReload()
         }
     }
 
@@ -50,6 +59,17 @@ internal class CommonHandler @Inject constructor(
             val sessionUuid = current.sessionUuid ?: createSession(current.trainingUuid)
             sessionUuid?.let { interactor.loadSession(it) }
         }
+
+        navigatorStack
+            .subscribeToStackAttr(Screen.PlanEditor.planEditorSavedAttr)
+            ?.filterNotNull()
+            ?.distinctUntilChanged()
+            ?.launch { saved ->
+                if (saved) {
+                    consume(Action.Common.Reload)
+                    navigatorStack.setCurrentStack(Screen.PlanEditor.planEditorSavedAttr)
+                }
+            }
     }
 
     private suspend fun createSession(trainingUuid: String?): String? {
@@ -64,6 +84,24 @@ internal class CommonHandler @Inject constructor(
             ).sessionUuid
         }
         return interactor.startSession(trainingUuid)
+    }
+
+    private fun processReload() {
+        val sessionUuid = state.value.sessionUuid?.takeIf { it.isNotBlank() } ?: return
+        launch(
+            onSuccess = { snapshot ->
+                if (snapshot == null) return@launch
+                val now = System.currentTimeMillis()
+                updateStateImmediate {
+                    snapshot.toState(
+                        nowMillis = now,
+                        resourceWrapper = resourceWrapper,
+                    )
+                }
+            },
+        ) {
+            interactor.loadSession(sessionUuid)
+        }
     }
 
     private fun startTimer() {

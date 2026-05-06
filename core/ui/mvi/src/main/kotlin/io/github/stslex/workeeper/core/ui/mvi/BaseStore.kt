@@ -52,7 +52,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 open class BaseStore<S : State, A : Action, E : Event>(
     val name: String,
     initialState: S,
-    private val storeEmitter: HandlerStoreEmitter<S, A, E>,
+    storeEmitter: HandlerStoreEmitter<S, A, E>,
     private val handlerCreator: HandlerCreator<A>,
     private val initialActions: List<A> = emptyList(),
     private val storeDispatchers: StoreDispatchers,
@@ -60,6 +60,10 @@ open class BaseStore<S : State, A : Action, E : Event>(
     val analyticsHolder: AnalyticsHolder,
     val loggerHolder: LoggerHolder,
 ) : ViewModel(), Store<S, A, E>, StoreConsumer<S, A, E> {
+
+    init {
+        storeEmitter.setStore(this)
+    }
 
     private val _event: MutableSharedFlow<E> = MutableSharedFlow(
         extraBufferCapacity = EVENTS_BUFFER_CAPACITY,
@@ -100,13 +104,6 @@ open class BaseStore<S : State, A : Action, E : Event>(
         scope.addObserver(lifecycleObserver)
         allowConsumeAction.set(true)
         initialActions.forEach { consume(it) }
-    }
-
-    fun initEmitter() {
-        /*todo: check why emitter sometimes doesn't have store instance
-         *  seems that emitter recreate instance
-         *   it could be problems in StoreProcessor lifecycle creation */
-        storeEmitter.setStore(this)
     }
 
     fun dispose() {
@@ -207,6 +204,26 @@ open class BaseStore<S : State, A : Action, E : Event>(
     )
 
     /**
+     * Launches a coroutine and catches exceptions. The coroutine is launched on the default dispatcher.
+     * @param onError - error handler
+     * @param onSuccess - success handler
+     * @param action - action to be executed
+     * @return Job
+     * @see Job
+     * */
+    override fun <T> launchDefault(
+        onError: suspend (Throwable) -> Unit,
+        onSuccess: suspend CoroutineScope.(T) -> Unit,
+        action: suspend CoroutineScope.() -> T,
+    ): Job = scope.launch(
+        onError = onError,
+        workDispatcher = storeDispatchers.defaultDispatcher,
+        eachDispatcher = storeDispatchers.defaultDispatcher,
+        onSuccess = onSuccess,
+        action = action,
+    )
+
+    /**
      * Launches a flow and collects it in the screenModelScope. The flow is collected on the default dispatcher.
      * @param onError - error handler
      * @param each - action for each element of the flow
@@ -231,6 +248,6 @@ open class BaseStore<S : State, A : Action, E : Event>(
     companion object {
 
         private const val EVENTS_BUFFER_CAPACITY = 32
-        internal const val STORE_LOGGER_PREFIX = "MVI_STORE"
+        internal const val STORE_LOGGER_PREFIX = "SCREEN_"
     }
 }

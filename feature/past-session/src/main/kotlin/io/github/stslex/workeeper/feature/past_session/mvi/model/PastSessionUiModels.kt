@@ -17,7 +17,6 @@ data class PastSessionUiModel(
     val finishedAtAbsoluteLabel: String,
     val durationLabel: String,
     val totalsLabel: String,
-    val volumeLabel: String?,
     val exercises: ImmutableList<PastExerciseUiModel>,
 )
 

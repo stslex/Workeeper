@@ -8,12 +8,13 @@ import io.github.stslex.workeeper.feature.past_session.di.PastSessionHandlerStor
 import io.github.stslex.workeeper.feature.past_session.domain.PastSessionInteractor
 import io.github.stslex.workeeper.feature.past_session.domain.model.SetDomain
 import io.github.stslex.workeeper.feature.past_session.domain.model.SetTypeDomain
-import io.github.stslex.workeeper.feature.past_session.mvi.mapper.toDomain
+import io.github.stslex.workeeper.feature.past_session.mvi.mapper.PastSessionUiMapper.toDomain
 import io.github.stslex.workeeper.feature.past_session.mvi.model.ErrorType
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Action
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Event
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.State
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.Job
 import javax.inject.Inject
 
 @ViewModelScoped
@@ -21,6 +22,8 @@ internal class ClickHandler @Inject constructor(
     private val interactor: PastSessionInteractor,
     store: PastSessionHandlerStore,
 ) : Handler<Action.Click>, PastSessionHandlerStore by store {
+
+    private var processReorderJob: Job? = null
 
     override fun invoke(action: Action.Click) {
         when (action) {
@@ -30,7 +33,13 @@ internal class ClickHandler @Inject constructor(
             Action.Click.OnDeleteDismiss -> processDeleteDismiss()
             Action.Click.OnRetryLoad -> consume(Action.Common.Init)
             is Action.Click.OnSetTypeChange -> processSetTypeChange(action)
+            is Action.Click.OnSetReorder -> processSetReorder(action)
+            Action.Click.OnDragStarted -> processOnDragStarted()
         }
+    }
+
+    private fun processOnDragStarted() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.LongPress))
     }
 
     private fun processBack() {
@@ -121,6 +130,49 @@ internal class ClickHandler @Inject constructor(
                     weight = weight,
                     type = type,
                 ),
+            )
+        }
+    }
+
+    private fun processSetReorder(action: Action.Click.OnSetReorder) {
+        val current = state.value.phase as? State.Phase.Loaded ?: return
+        val targetExercise = current.detail.exercises
+            .firstOrNull { it.performedExerciseUuid == action.performedExerciseUuid }
+            ?: return
+        if (action.from == action.to) return
+        if (action.from !in targetExercise.sets.indices) return
+        if (action.to !in targetExercise.sets.indices) return
+
+        // Apply the permutation in memory first so the UI reflects the new order
+        // immediately. The persisted positions are derived from the new index, and
+        // each set's `position` field is rewritten to match.
+        val reorderedSets = targetExercise.sets
+            .toMutableList()
+            .apply { add(action.to, removeAt(action.from)) }
+            .mapIndexed { index, set -> set.copy(position = index) }
+            .toImmutableList()
+        val updatedDetail = current.detail.copy(
+            exercises = current.detail.exercises.map { exercise ->
+                if (exercise.performedExerciseUuid == action.performedExerciseUuid) {
+                    exercise.copy(sets = reorderedSets)
+                } else {
+                    exercise
+                }
+            }.toImmutableList(),
+        )
+        sendEvent(Event.HapticClick(HapticFeedbackType.Confirm))
+        updateState {
+            it.copy(phase = State.Phase.Loaded(detail = updatedDetail))
+        }
+        val orderedSetUuids = reorderedSets.map { it.setUuid }
+
+        processReorderJob?.cancel()
+        processReorderJob = launch(
+            onError = { _ -> sendEvent(Event.SaveFailedSnackbar) },
+        ) {
+            interactor.reorderSets(
+                performedExerciseUuid = action.performedExerciseUuid,
+                orderedSetUuids = orderedSetUuids,
             )
         }
     }

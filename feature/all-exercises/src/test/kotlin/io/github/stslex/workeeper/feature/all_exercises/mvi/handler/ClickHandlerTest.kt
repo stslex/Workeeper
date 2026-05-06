@@ -7,7 +7,7 @@ import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.feature.all_exercises.di.AllExercisesHandlerStore
 import io.github.stslex.workeeper.feature.all_exercises.domain.AllExercisesInteractor
-import io.github.stslex.workeeper.feature.all_exercises.domain.model.ArchiveResult
+import io.github.stslex.workeeper.feature.all_exercises.domain.model.BulkArchiveResult
 import io.github.stslex.workeeper.feature.all_exercises.mvi.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Action
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Event
@@ -23,7 +23,10 @@ import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -48,9 +51,19 @@ internal class ClickHandlerTest {
             val update = firstArg<(State) -> State>()
             stateFlow.value = update(stateFlow.value)
         }
-        every { launch(any(), any(), any(), any(), any<suspend CoroutineScope.() -> Unit>()) } answers {
-            mockk(relaxed = true)
+        coEvery { updateStateImmediate(any<suspend (State) -> State>()) } coAnswers {
+            val update = firstArg<suspend (State) -> State>()
+            stateFlow.value = update(stateFlow.value)
         }
+        every {
+            launch<Any>(
+                any(),
+                any(),
+                any(),
+                any(),
+                any<suspend CoroutineScope.() -> Any>(),
+            )
+        } answers { mockk(relaxed = true) }
     }
 
     private val handler = ClickHandler(interactor, resourceWrapper, store)
@@ -87,30 +100,6 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `OnArchiveSwipe Success emits ShowArchiveSuccess`() {
-        coEvery { interactor.archiveExercise("uuid-1") } returns ArchiveResult.Success
-        handler.invoke(Action.Click.OnArchiveSwipe(uuid = "uuid-1", name = "Bench"))
-        // Capturing is async via launch; just verify haptic
-        val captured = mutableListOf<Event>()
-        verify { store.sendEvent(capture(captured)) }
-        assertTrue(captured.any { it is Event.Haptic && it.type == HapticFeedbackType.LongPress })
-    }
-
-    @Test
-    fun `OnUndoArchive triggers restoreExercise`() {
-        coEvery { interactor.restoreExercise(any()) } returns Unit
-        handler.invoke(Action.Click.OnUndoArchive("uuid-1"))
-        // launch invokes the suspend block; in our mock the slot { } answers with mock job —
-        // verify the launch was invoked at all.
-        verify(atLeast = 1) {
-            store.launch(any(), any(), any(), any(), any<suspend CoroutineScope.() -> Unit>())
-        }
-        // restoreExercise will not actually be called here because launch is mocked, but the
-        // intention is exercised via the launch capture.
-        coVerify(exactly = 0) { interactor.restoreExercise(any()) }
-    }
-
-    @Test
     fun `OnCancelPermanentDelete clears pending delete`() {
         stateFlow.value = stateFlow.value.copy(
             pendingPermanentDelete = State.PendingDelete(uuid = "uuid-1", name = "Bench"),
@@ -135,6 +124,61 @@ internal class ClickHandlerTest {
         val captured = mutableListOf<Event>()
         verify { store.sendEvent(capture(captured)) }
         assertTrue(captured.any { it is Event.Haptic && it.type == HapticFeedbackType.LongPress })
+    }
+
+    @Test
+    fun `OnBulkDelete with selection opens confirm dialog`() {
+        stateFlow.value = stateFlow.value.copy(
+            selectionMode = State.SelectionMode.On(
+                selectedUuids = persistentSetOf("uuid-1", "uuid-2"),
+            ),
+        )
+        handler.invoke(Action.Click.OnBulkDelete)
+        val pending = stateFlow.value.pendingBulkDelete
+        assertNotNull(pending, "expected pendingBulkDelete to be set")
+        assertEquals(2, pending!!.count)
+    }
+
+    @Test
+    fun `OnBulkDeleteConfirm calls bulkArchive and clears selection on success`() = runTest {
+        val targets = persistentSetOf("uuid-1", "uuid-2")
+        stateFlow.value = stateFlow.value.copy(
+            selectionMode = State.SelectionMode.On(selectedUuids = targets),
+            pendingBulkDelete = State.PendingBulkDelete(count = 2),
+        )
+        coEvery {
+            interactor.bulkArchive(any())
+        } returns BulkArchiveResult(archivedCount = 2, blockedNames = emptyList())
+
+        val actionSlot = slot<suspend CoroutineScope.() -> BulkArchiveResult>()
+        val onSuccessSlot = slot<suspend CoroutineScope.(BulkArchiveResult) -> Unit>()
+        every {
+            store.launch(
+                onError = any(),
+                onSuccess = capture(onSuccessSlot),
+                workDispatcher = any(),
+                eachDispatcher = any(),
+                action = capture(actionSlot),
+            )
+        } returns mockk(relaxed = true)
+
+        handler.invoke(Action.Click.OnBulkDeleteConfirm)
+
+        val result = actionSlot.captured(this)
+        coVerify { interactor.bulkArchive(setOf("uuid-1", "uuid-2")) }
+        onSuccessSlot.captured(this, result)
+        assertTrue(stateFlow.value.selectionMode is State.SelectionMode.Off)
+        assertNull(stateFlow.value.pendingBulkDelete)
+    }
+
+    @Test
+    fun `OnBulkDeleteDismiss clears pending`() {
+        stateFlow.value = stateFlow.value.copy(
+            selectionMode = State.SelectionMode.On(selectedUuids = persistentSetOf("uuid-1")),
+            pendingBulkDelete = State.PendingBulkDelete(count = 1),
+        )
+        handler.invoke(Action.Click.OnBulkDeleteDismiss)
+        assertNull(stateFlow.value.pendingBulkDelete)
     }
 
     private fun assertHaptic(event: Event, expected: HapticFeedbackType) {

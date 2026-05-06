@@ -5,7 +5,7 @@ import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingHandlerStore
 import io.github.stslex.workeeper.feature.single_training.domain.SingleTrainingInteractor
-import io.github.stslex.workeeper.feature.single_training.mvi.mapper.toUi
+import io.github.stslex.workeeper.feature.single_training.mvi.mapper.TagUiMapper.toUi
 import io.github.stslex.workeeper.feature.single_training.mvi.model.PickerExerciseItem
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State.PickerState

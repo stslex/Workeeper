@@ -5,8 +5,6 @@ import org.gradle.api.Project
 class AndroidApplicationComposeConventionPlugin : Plugin<Project> {
 
     override fun apply(target: Project) {
-        with(target) {
-            target.configureApplication(AppType.STORE)
-        }
+        target.configureApplication(AppType.STORE)
     }
 }

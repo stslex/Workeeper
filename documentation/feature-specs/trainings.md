@@ -34,7 +34,7 @@ Plus this PR retrofits existing Exercises feature with **plan
 editor** for `exercise.last_adhoc_sets` and adds **multi-select
 mode** to feature/all-exercises (parity with Trainings).
 
-A new shared component `AppPlanEditor` is introduced in
+A new shared component `PlanEditorScreen` is introduced in
 `core/ui/kit/components/` — the modal bottom sheet for editing a
 plan, used by both Trainings and Exercises features.
 
@@ -98,13 +98,13 @@ feature/all-exercises/             — RETROFIT for multi-select
   mvi/handler/SelectionHandler.kt   — new handler
 
 feature/exercise/                  — RETROFIT for plan editor on last_adhoc_sets
-  ui/ExerciseEditScreen.kt          — new "Plan" section opens AppPlanEditor sheet
-  ui/components/                    — reference AppPlanEditor from kit
+  ui/ExerciseEditScreen.kt          — new "Plan" section opens PlanEditorScreen sheet
+  ui/components/                    — reference PlanEditorScreen from kit
   mvi/store/ExerciseStore.kt        — extend State (planSets, planEditorOpen), Action (OnPlanEdit, OnPlanSave)
   mvi/handler/ClickHandler.kt       — handle plan edit flow
 
 core/ui/kit/components/
-  + AppPlanEditor.kt                — NEW shared component, modal bottom sheet
+  + PlanEditorScreen.kt                — NEW shared component, modal bottom sheet
   + components/AppSetTypeChip.kt    — already exists, reused
 ```
 
@@ -341,7 +341,7 @@ Two visual rows packed in one container:
   detail's `TrainingExerciseRow`). Trailing affordance "edit plan"
   (if plan exists) or "add plan" (if null) is a tappable text
   button in accent color.
-- Tap "edit plan" / "add plan" → opens `AppPlanEditor` modal sheet
+- Tap "edit plan" / "add plan" → opens `PlanEditorScreen` modal sheet
   for this `(training_uuid, exercise_uuid)`.
 - Tap row body (not handle, not affordance) → no-op in v1 (could
   navigate to Exercise detail in v2; for now ambiguous so disabled).
@@ -380,9 +380,9 @@ Same pattern as Stage 5.2:
 - Dirty state → AppDialog "Discard changes?" (Confirm = exit, Dismiss = stay).
 - BackHandler conditional on `interceptBack = state.hasUnsavedChanges()`.
 
-### Plan editor sheet (`AppPlanEditor`)
+### Plan editor sheet (`PlanEditorScreen`)
 
-Shared component in `core/ui/kit/components/AppPlanEditor.kt`. Used
+Shared component in `core/ui/kit/components/PlanEditorScreen.kt`. Used
 by both Edit training and Edit exercise.
 
 Layout:
@@ -705,7 +705,7 @@ interface SingleTrainingInteractor {
 
 ### Plan persistence flow
 
-When user saves plan in `AppPlanEditor`:
+When user saves plan in `PlanEditorScreen`:
 1. Sheet emits `Action.Click.OnPlanEditorSave(planSets)` to parent store.
 2. Parent ClickHandler updates state (replaces the relevant
    `TrainingExerciseItem.planSets` in `state.exercises`).
@@ -950,7 +950,7 @@ RU mirror with same keys. Translation guidance:
 - "Discard changes?" → "Отменить изменения?"
 - "Add exercises" → "Добавить упражнения"
 
-## AppPlanEditor strings (core/ui/kit)
+## PlanEditorScreen strings (core/ui/kit)
 
 ```xml
 <string name="core_ui_kit_plan_editor_title_format">%1$s · plan</string>
@@ -1111,7 +1111,7 @@ Unit tests:
 - DAO tests for `pagedActiveWithStats`, `pagedActiveWithStatsByTags`,
   `observeAnyActiveSession`.
 - `clearWeightsFromAllPlansForExerciseTest` (DAO + interactor).
-- Component tests for `AppPlanEditor` — value entry, type chip,
+- Component tests for `PlanEditorScreen` — value entry, type chip,
   add/remove, save/cancel.
 - Plan editor parametric tests for weighted vs weightless layout.
 
@@ -1120,9 +1120,9 @@ UI: `@Smoke` stubs with `TODO(feature-rewrite-tests)`.
 Compose previews:
 - Every public/internal Composable in feature/all-trainings,
   feature/single-training, feature/exercise (retrofit), and
-  AppPlanEditor in core/ui/kit must have at least one `@Preview`,
+  PlanEditorScreen in core/ui/kit must have at least one `@Preview`,
   in both light and dark themes, with realistic stub data.
-- `AppPlanEditor` previews include weighted, weightless, and
+- `PlanEditorScreen` previews include weighted, weightless, and
   populated/empty states.
 
 ## Stage outcomes
@@ -1132,7 +1132,7 @@ Compose previews:
 - [x] Multi-select retrofit on `feature/all-exercises`.
 - [x] Plan editor + last_adhoc_sets retrofit on `feature/exercise`.
 - [x] Type change confirmation retrofit on `feature/exercise`.
-- [x] `core/ui/kit/components/AppPlanEditor.kt` new shared component.
+- [x] `core/ui/kit/components/PlanEditorScreen.kt` new shared component.
 - [x] DAO additions: `pagedActiveWithStats`, `pagedActiveWithStatsByTags`,
       `observeAnyActiveSession`.
 - [x] Interactor + repository additions per spec.
@@ -1142,7 +1142,7 @@ Compose previews:
 - [ ] Haptics emitted for every Click action. Dismiss/undo paths still
       bypass haptic emission in the shipped handlers.
 - [ ] Composable @Previews for every public/internal Composable
-      including AppPlanEditor (weighted, weightless, populated, empty).
+      including PlanEditorScreen (weighted, weightless, populated, empty).
       Preview coverage exists, but not for every public/internal
       Composable.
 - [ ] Unit tests for handlers, interactors, new DAO queries, plan

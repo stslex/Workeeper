@@ -17,6 +17,14 @@ internal class NavigationHandler(
             Action.Navigation.Back -> navigator.popBack()
             is Action.Navigation.OpenPastSession ->
                 navigator.replaceTo(Screen.PastSession(sessionUuid = action.sessionUuid))
+            is Action.Navigation.OpenPlanEditor ->
+                navigator.navTo(
+                    Screen.PlanEditor(
+                        performedExerciseUuid = action.performedExerciseUuid,
+                        exerciseUuid = action.exerciseUuid,
+                        trainingUuid = action.trainingUuid,
+                    ),
+                )
         }
     }
 }

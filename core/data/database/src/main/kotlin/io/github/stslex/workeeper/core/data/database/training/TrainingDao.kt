@@ -44,7 +44,10 @@ interface TrainingDao {
                   WHERE s.training_uuid = t.uuid AND s.state = 'IN_PROGRESS' LIMIT 1) AS active_session_started_at
         FROM training_table t
         WHERE t.archived = 0 AND t.is_adhoc = 0
-        ORDER BY t.name COLLATE NOCASE ASC
+        -- v2.4 E7: last-trained DESC NULLS LAST, then created DESC.
+        -- Trainings the user has actually run float to the top in recency order; never-
+        -- trained trainings fall to the bottom, ordered newest-created first.
+        ORDER BY (last_session_at IS NULL), last_session_at DESC, t.created_at DESC
         """,
     )
     fun pagedActiveWithStats(): PagingSource<Int, TrainingListItemRow>
@@ -65,7 +68,8 @@ interface TrainingDao {
             SELECT 1 FROM training_tag_table tt
             WHERE tt.training_uuid = t.uuid AND tt.tag_uuid IN (:tagUuids)
           )
-        ORDER BY t.name COLLATE NOCASE ASC
+        -- v2.4 E7: same sort policy as `pagedActiveWithStats`.
+        ORDER BY (last_session_at IS NULL), last_session_at DESC, t.created_at DESC
         """,
     )
     fun pagedActiveWithStatsByTags(tagUuids: List<Uuid>): PagingSource<Int, TrainingListItemRow>

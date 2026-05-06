@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.exercise.session
 
+import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
 import io.github.stslex.workeeper.core.data.database.session.SetDao
 import io.github.stslex.workeeper.core.data.database.session.model.SetEntity
 import io.github.stslex.workeeper.core.data.database.session.model.SetTypeEntity
@@ -19,8 +20,12 @@ internal class SetRepositoryImplTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
     private val dao = mockk<SetDao>(relaxed = true)
+    private val transition = object : DbTransitionRunner {
+        override suspend fun <T> invoke(block: suspend () -> T): T = block()
+    }
     private val repository = SetRepositoryImpl(
         dao = dao,
+        transition = transition,
         ioDispatcher = testDispatcher,
     )
 

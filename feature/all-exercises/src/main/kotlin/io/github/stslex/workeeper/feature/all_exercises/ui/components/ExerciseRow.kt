@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.all_exercises.ui.components
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -15,12 +16,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Archive
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -29,14 +28,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
-import io.github.stslex.workeeper.core.ui.kit.components.swipe.AppSwipeAction
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagChip
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
@@ -51,97 +48,74 @@ private const val MAX_INLINE_TAGS = 3
 private val LEADING_THUMB_SIZE = 28.dp
 
 @OptIn(ExperimentalComposeUiApi::class)
-@Suppress("LongParameterList")
 @Composable
 internal fun ExerciseRow(
     item: ExerciseUiModel,
-    isSelectionMode: Boolean,
     isSelected: Boolean,
     onClick: () -> Unit,
     onLongPress: () -> Unit,
-    onArchive: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val rowContent: @Composable () -> Unit = {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(AppUi.shapes.medium)
-                .background(AppUi.colors.surfaceTier1)
-                .combinedClickable(
-                    onClick = onClick,
-                    onLongClick = onLongPress,
-                )
-                .testTag("AllExercisesItem_${item.uuid}")
-                .padding(
-                    horizontal = AppDimension.cardPadding,
-                    vertical = AppDimension.cardPadding,
-                ),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
+    // Selected card surfaces the accent-tinted background, replacing the explicit
+    // checkbox affordance that v2.4 removes (spec C3). The unselected state uses
+    // surfaceTier1 to keep contrast against tier0 page background.
+    val targetColor = if (isSelected) {
+        AppUi.colors.accentTintedBackground
+    } else {
+        AppUi.colors.surfaceTier1
+    }
+    val backgroundColor by animateColorAsState(
+        targetValue = targetColor,
+        label = "ExerciseRowBackground",
+    )
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(AppUi.shapes.medium)
+            .background(backgroundColor)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongPress,
+            )
+            .testTag("AllExercisesItem_${item.uuid}")
+            .padding(
+                horizontal = AppDimension.cardPadding,
+                vertical = AppDimension.cardPadding,
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
+    ) {
+        ExerciseLeading(item = item)
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xxs),
         ) {
-            ExerciseLeading(item = item)
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xxs),
-            ) {
+            Text(
+                text = item.name,
+                style = AppUi.typography.bodyMedium,
+                color = AppUi.colors.textPrimary,
+            )
+            if (item.tags.isNotEmpty()) {
+                ExerciseRowTags(tags = item.tags)
+            }
+            if (item.footerLabel.isNotEmpty()) {
                 Text(
-                    text = item.name,
-                    style = AppUi.typography.bodyMedium,
-                    color = AppUi.colors.textPrimary,
-                )
-                if (item.tags.isNotEmpty()) {
-                    ExerciseRowTags(tags = item.tags)
-                }
-                Text(
-                    text = pluralStringResource(
-                        R.plurals.feature_all_exercises_session_count,
-                        item.sessionCount,
-                        item.sessionCount,
-                    ),
+                    text = item.footerLabel,
                     style = AppUi.typography.bodySmall,
                     color = AppUi.colors.textTertiary,
                 )
             }
-            if (isSelectionMode) {
-                Checkbox(
-                    modifier = Modifier
-                        .size(AppDimension.iconMd)
-                        .testTag("AllExercisesItemCheckbox_${item.uuid}"),
-                    checked = isSelected,
-                    onCheckedChange = null,
-                    colors = CheckboxDefaults.colors(
-                        checkedColor = AppUi.colors.accent,
-                        uncheckedColor = AppUi.colors.borderStrong,
-                        checkmarkColor = AppUi.colors.onAccent,
-                    ),
-                )
-            } else {
-                Icon(
-                    modifier = Modifier.size(AppDimension.iconSm),
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = stringResource(
-                        R.string.feature_all_exercises_chevron_description,
-                    ),
-                    tint = AppUi.colors.textTertiary,
-                )
-            }
         }
-    }
-
-    if (isSelectionMode) {
-        // Disable swipe-to-archive while in selection mode — bulk actions take over.
-        rowContent()
-    } else {
-        AppSwipeAction(
-            modifier = modifier.testTag("AllExercisesItemSwipe_${item.uuid}"),
-            actionIcon = Icons.Filled.Archive,
-            actionLabel = stringResource(R.string.feature_all_exercises_archive_action),
-            actionTint = AppUi.colors.status.warning,
-            onAction = onArchive,
-        ) {
-            rowContent()
-        }
+        // Chevron is always visible — the filled-card selection visual replaces the
+        // checkbox affordance entirely (spec C3).
+        Icon(
+            modifier = Modifier.size(AppDimension.iconSm),
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = stringResource(
+                R.string.feature_all_exercises_chevron_description,
+            ),
+            tint = AppUi.colors.textTertiary,
+        )
     }
 }
 
@@ -210,6 +184,9 @@ private fun ExerciseRowPreview() {
             type = ExerciseTypeUiModel.WEIGHTED,
             tags = persistentListOf("Push", "Chest"),
             sessionCount = 12,
+            linkedTrainingsCount = 3,
+            lastTrainedAt = null,
+            footerLabel = "12 sessions · in 3 trainings · last 4d ago",
             imagePath = null,
         ),
         ExerciseUiModel(
@@ -218,6 +195,9 @@ private fun ExerciseRowPreview() {
             type = ExerciseTypeUiModel.WEIGHTLESS,
             tags = persistentListOf("Pull", "Back", "Calisthenics", "Upper"),
             sessionCount = 4,
+            linkedTrainingsCount = 1,
+            lastTrainedAt = null,
+            footerLabel = "4 sessions · in 1 training",
             imagePath = null,
         ),
         ExerciseUiModel(
@@ -226,6 +206,9 @@ private fun ExerciseRowPreview() {
             type = ExerciseTypeUiModel.WEIGHTED,
             tags = persistentListOf(),
             sessionCount = 0,
+            linkedTrainingsCount = 0,
+            lastTrainedAt = null,
+            footerLabel = "",
             imagePath = null,
         ),
     )
@@ -243,11 +226,9 @@ private fun ExerciseRowPreview() {
             items(items = sample, key = { it.uuid }) { item ->
                 ExerciseRow(
                     item = item,
-                    isSelectionMode = item.uuid == "2",
                     isSelected = item.uuid == "2",
                     onClick = {},
                     onLongPress = {},
-                    onArchive = {},
                 )
             }
         }
