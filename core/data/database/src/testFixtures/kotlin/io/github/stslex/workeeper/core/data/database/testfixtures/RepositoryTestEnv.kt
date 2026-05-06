@@ -8,6 +8,7 @@ import androidx.room.withTransaction
 import androidx.test.core.app.ApplicationProvider
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
+import org.jetbrains.annotations.TestOnly
 
 /**
  * Reusable in-memory Room test environment for repository unit tests.
@@ -22,6 +23,7 @@ import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
  * `RobolectricExtension` to your test class along with
  * `@Config(application = RepositoryTestEnv.TestApplication::class, sdk = [33])`.
  */
+@TestOnly
 class RepositoryTestEnv {
 
     private val database: AppDatabase = Room
