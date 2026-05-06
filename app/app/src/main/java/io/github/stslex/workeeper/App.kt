@@ -86,11 +86,7 @@ fun App() {
                         }
                     }
             }
-            WorkeeperBottomAppBar(
-                selectedItem = navWrapper.bottomBarDestination,
-            ) {
-                navigator.navTo(it.screen)
-            }
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
