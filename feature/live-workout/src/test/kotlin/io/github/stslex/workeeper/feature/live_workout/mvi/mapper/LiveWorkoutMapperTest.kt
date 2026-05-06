@@ -13,6 +13,7 @@ import io.github.stslex.workeeper.feature.live_workout.domain.model.PlanSetDomai
 import io.github.stslex.workeeper.feature.live_workout.domain.model.SessionDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.SessionSnapshotDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.SessionStateDomain
+import io.github.stslex.workeeper.feature.live_workout.domain.model.SetDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.SetTypeDomain
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toFinishStats
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toState
@@ -20,6 +21,8 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMap
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.store.BottomSheetState
+import io.github.stslex.workeeper.feature.live_workout.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
 import io.mockk.every
 import io.mockk.mockk
@@ -105,7 +108,7 @@ internal class LiveWorkoutMapperTest {
                 pending(uuid = "pe-1", position = 0).copy(
                     planSets = null,
                     performedSets = listOf(
-                        io.github.stslex.workeeper.feature.live_workout.domain.model.SetDomain(
+                        SetDomain(
                             uuid = "set-1",
                             weight = null,
                             reps = 10,
@@ -153,13 +156,13 @@ internal class LiveWorkoutMapperTest {
     private fun fullyDone(uuid: String, position: Int): LiveExerciseDomain =
         pending(uuid, position).copy(
             performedSets = listOf(
-                io.github.stslex.workeeper.feature.live_workout.domain.model.SetDomain(
+                SetDomain(
                     uuid = "set-$uuid-0",
                     weight = 100.0,
                     reps = 5,
                     type = SetTypeDomain.WORK,
                 ),
-                io.github.stslex.workeeper.feature.live_workout.domain.model.SetDomain(
+                SetDomain(
                     uuid = "set-$uuid-1",
                     weight = 100.0,
                     reps = 5,
@@ -288,17 +291,11 @@ internal class LiveWorkoutMapperTest {
                     type = ExerciseTypeUiModel.WEIGHTLESS,
                 ),
             ).toImmutableMap(),
-            pendingFinishConfirm = null,
-            pendingResetExerciseUuid = null,
-            pendingSkipExerciseUuid = null,
-            pendingCancelConfirm = false,
-            deleteDialogVisible = false,
-            exercisePickerSheet = State.ExercisePickerSheetState.Hidden,
-            emptyFinishDialog = State.EmptyFinishDialogState.Hidden,
             isAddExerciseInFlight = false,
             isFinishInFlight = false,
             isLoading = false,
-            errorMessage = null,
+            dialogState = DialogState.Hidden,
+            bottomSheetState = BottomSheetState.Hidden,
         )
 
         val stats = state.toFinishStats(res)
@@ -450,17 +447,11 @@ internal class LiveWorkoutMapperTest {
         activeExerciseUuids = persistentSetOf(),
         expandedExerciseUuids = persistentSetOf(),
         preSessionPrSnapshot = persistentMapOf(),
-        pendingFinishConfirm = null,
-        pendingResetExerciseUuid = null,
-        pendingSkipExerciseUuid = null,
-        pendingCancelConfirm = false,
-        deleteDialogVisible = false,
-        exercisePickerSheet = State.ExercisePickerSheetState.Hidden,
-        emptyFinishDialog = State.EmptyFinishDialogState.Hidden,
         isAddExerciseInFlight = false,
         isFinishInFlight = false,
         isLoading = false,
-        errorMessage = null,
+        dialogState = DialogState.Hidden,
+        bottomSheetState = BottomSheetState.Hidden,
     )
 
     private fun exerciseUi(

@@ -21,8 +21,11 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveSetRowsRes
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.store.BottomSheetState
+import io.github.stslex.workeeper.feature.live_workout.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.ImmutableMap
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableMap
@@ -60,17 +63,11 @@ internal object LiveWorkoutMapper {
             activeExerciseUuids = persistentSetOf(),
             expandedExerciseUuids = persistentSetOf(),
             preSessionPrSnapshot = prSnapshot,
-            pendingFinishConfirm = null,
-            pendingResetExerciseUuid = null,
-            pendingSkipExerciseUuid = null,
-            pendingCancelConfirm = false,
-            deleteDialogVisible = false,
-            exercisePickerSheet = State.ExercisePickerSheetState.Hidden,
-            emptyFinishDialog = State.EmptyFinishDialogState.Hidden,
             isAddExerciseInFlight = false,
             isFinishInFlight = false,
             isLoading = false,
-            errorMessage = null,
+            dialogState = DialogState.Hidden,
+            bottomSheetState = BottomSheetState.Hidden,
         ).withPresentation(resourceWrapper)
     }
 
@@ -147,7 +144,7 @@ internal object LiveWorkoutMapper {
 
     private fun Map<String, PersonalRecordDomain?>.toUiSnapshot(
         typeByUuid: Map<String, ExerciseTypeDomain>,
-    ): kotlinx.collections.immutable.ImmutableMap<String, State.PrSnapshotItem> = entries
+    ): ImmutableMap<String, State.PrSnapshotItem> = entries
         .mapNotNull { (uuid, pr) ->
             pr?.let {
                 uuid to State.PrSnapshotItem(
@@ -209,9 +206,9 @@ internal object LiveWorkoutMapper {
         )
     }
 
-    fun State.toFinishStats(resourceWrapper: ResourceWrapper): State.FinishStats {
+    fun State.toFinishStats(resourceWrapper: ResourceWrapper): DialogState.FinishSession {
         val skippedCount = exercises.count { it.status == ExerciseStatusUiModel.SKIPPED }
-        return State.FinishStats(
+        return DialogState.FinishSession(
             durationMillis = elapsedMillis,
             durationLabel = elapsedDurationLabel,
             exercisesSummaryLabel = formatExerciseSummary(
@@ -236,7 +233,7 @@ internal object LiveWorkoutMapper {
 
     private fun State.computeNewPersonalRecords(
         resourceWrapper: ResourceWrapper,
-    ): ImmutableList<State.FinishStats.NewPrEntry> = exercises
+    ): ImmutableList<DialogState.FinishSession.NewPrEntry> = exercises
         .asSequence()
         .filter { it.status != ExerciseStatusUiModel.SKIPPED }
         .mapNotNull { it.toNewPrEntry(preSessionPrSnapshot, resourceWrapper) }
@@ -246,7 +243,7 @@ internal object LiveWorkoutMapper {
     private fun LiveExerciseUiModel.toNewPrEntry(
         snapshot: Map<String, State.PrSnapshotItem>,
         resourceWrapper: ResourceWrapper,
-    ): State.FinishStats.NewPrEntry? {
+    ): DialogState.FinishSession.NewPrEntry? {
         val performedAsPlanSets = performedSets
             .filter { it.isDone }
             .map { it.toPlanSetDomain() }
@@ -261,7 +258,7 @@ internal object LiveWorkoutMapper {
             hasBaseline = baseline != null,
         )
         if (!beatsBaseline) return null
-        return State.FinishStats.NewPrEntry(
+        return DialogState.FinishSession.NewPrEntry(
             exerciseUuid = exerciseUuid,
             exerciseName = exerciseName,
             displayLabel = formatPrLabel(

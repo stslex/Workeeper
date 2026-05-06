@@ -19,9 +19,9 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.StateStatusMap
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ErrorType
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.store.BottomSheetState
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Event
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
-import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State.ExercisePickerSheetState
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableMap
 import kotlinx.collections.immutable.persistentListOf
@@ -75,11 +75,12 @@ internal class ExercisePickerHandler @Inject constructor(
         // sheet animation snappy.
         updateState { current ->
             current.copy(
-                exercisePickerSheet = ExercisePickerSheetState.Visible(
+                bottomSheetState = BottomSheetState.ExercisePicker(
                     query = "",
                     results = persistentListOf(),
                     noMatchHeadline = null,
                     createCtaLabel = null,
+
                 ),
             )
         }
@@ -88,13 +89,14 @@ internal class ExercisePickerHandler @Inject constructor(
 
     private fun processQueryChange(query: String) {
         val current = state.value
-        val visible = current.exercisePickerSheet as? ExercisePickerSheetState.Visible
+        val visible = current.bottomSheetState as? BottomSheetState.ExercisePicker
             ?: return
+
         // Optimistic UI: surface the new query immediately so the keyboard input feels
         // immediate. Results are recomputed off-Main and merged when ready.
         updateState { latest ->
             latest.copy(
-                exercisePickerSheet = visible.copy(query = query),
+                bottomSheetState = visible.copy(query = query),
             )
         }
         loadResults(
@@ -107,7 +109,7 @@ internal class ExercisePickerHandler @Inject constructor(
     private fun processExerciseSelect(exerciseUuid: String) {
         val current = state.value
         if (!current.canAddExercise) return
-        val visible = current.exercisePickerSheet as? ExercisePickerSheetState.Visible
+        val visible = current.bottomSheetState as? BottomSheetState.ExercisePicker
             ?: return
         val picked = visible.results.firstOrNull { it.uuid == exerciseUuid } ?: return
         sendEvent(Event.HapticImpact(HapticFeedbackType.Confirm))
@@ -155,7 +157,7 @@ internal class ExercisePickerHandler @Inject constructor(
 
     private fun processDismiss() {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        updateState { it.copy(exercisePickerSheet = ExercisePickerSheetState.Hidden) }
+        updateState { it.copy(bottomSheetState = BottomSheetState.Hidden) }
     }
 
     private fun addExerciseFlow(
@@ -173,7 +175,7 @@ internal class ExercisePickerHandler @Inject constructor(
                 updateState {
                     it.copy(
                         isAddExerciseInFlight = false,
-                        exercisePickerSheet = ExercisePickerSheetState.Hidden,
+                        bottomSheetState = BottomSheetState.Hidden,
                     )
                 }
                 sendError(ErrorType.AddExerciseFailed)
@@ -222,7 +224,7 @@ internal class ExercisePickerHandler @Inject constructor(
                     activeExerciseUuids = activeNext,
                     expandedExerciseUuids = expandedNext,
                     isAddExerciseInFlight = false,
-                    exercisePickerSheet = ExercisePickerSheetState.Hidden,
+                    bottomSheetState = BottomSheetState.Hidden,
                     preSessionPrSnapshot = latest.preSessionPrSnapshot.mergePr(
                         exerciseUuid = picked.exerciseUuid,
                         type = picked.type,
@@ -272,13 +274,13 @@ internal class ExercisePickerHandler @Inject constructor(
                 excludedNames = excludedNames,
             )
             updateState { latest ->
-                val visible = latest.exercisePickerSheet as? ExercisePickerSheetState.Visible
+                val visible = latest.bottomSheetState as? BottomSheetState.ExercisePicker
                     ?: return@updateState latest
                 // Discard stale results when the user has typed a different query in the
                 // meantime — the latest in-flight load wins.
                 if (visible.query != query) return@updateState latest
                 latest.copy(
-                    exercisePickerSheet = visible.copy(
+                    bottomSheetState = visible.copy(
                         results = pickerEntries,
                         noMatchHeadline = noMatchHeadline,
                         createCtaLabel = createCta,

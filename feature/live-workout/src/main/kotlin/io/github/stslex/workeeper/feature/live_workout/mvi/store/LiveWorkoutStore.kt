@@ -5,7 +5,6 @@ import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExercisePickerAction
-import io.github.stslex.workeeper.core.ui.plan_editor.model.ExercisePickerUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
@@ -54,17 +53,11 @@ internal interface LiveWorkoutStore :
          */
         val expandedExerciseUuids: ImmutableSet<String>,
         val preSessionPrSnapshot: ImmutableMap<String, PrSnapshotItem>,
-        val pendingFinishConfirm: FinishStats?,
-        val pendingResetExerciseUuid: String?,
-        val pendingSkipExerciseUuid: String?,
-        val pendingCancelConfirm: Boolean,
-        val deleteDialogVisible: Boolean,
-        val exercisePickerSheet: ExercisePickerSheetState,
-        val emptyFinishDialog: EmptyFinishDialogState,
         val isAddExerciseInFlight: Boolean,
         val isFinishInFlight: Boolean,
         val isLoading: Boolean,
-        val errorMessage: String?,
+        val dialogState: DialogState,
+        val bottomSheetState: BottomSheetState,
     ) : Store.State {
 
         @Stable
@@ -83,72 +76,7 @@ internal interface LiveWorkoutStore :
             val type: ExerciseTypeUiModel,
         )
 
-        @Stable
-        data class FinishStats(
-            val durationMillis: Long,
-            val durationLabel: String,
-            val exercisesSummaryLabel: String,
-            val setsLoggedLabel: String,
-            val newPersonalRecords: ImmutableList<NewPrEntry>,
-            val requiresName: Boolean = false,
-            val nameDraft: String = "",
-            val nameLabel: String = "",
-            val namePlaceholder: String = "",
-            val nameError: String? = null,
-            val confirmEnabled: Boolean = true,
-        ) {
-
-            @Stable
-            data class NewPrEntry(
-                val exerciseUuid: String,
-                val exerciseName: String,
-                val displayLabel: String,
-            )
-        }
-
-        /**
-         * Inline exercise picker bottom-sheet state. Display strings (no-match headline,
-         * Create CTA label) are pre-formatted in the handler so the kit composable does
-         * not derive text — keeps the picker locale-shape agnostic.
-         */
-        @Stable
-        sealed interface ExercisePickerSheetState {
-            data object Hidden : ExercisePickerSheetState
-
-            @Stable
-            data class Visible(
-                val query: String,
-                val results: ImmutableList<ExercisePickerUiModel>,
-                val noMatchHeadline: String?,
-                val createCtaLabel: String?,
-            ) : ExercisePickerSheetState
-        }
-
-        /**
-         * Empty-finish confirm dialog (E1 lock). Triggered when the user taps Finish on a
-         * session with no performed sets. Discard CTA is enabled only for ad-hoc trainings;
-         * library training sessions get a Continue-editing-only variant — we do not delete
-         * library trainings via session cancellation.
-         */
-        @Stable
-        sealed interface EmptyFinishDialogState {
-            data object Hidden : EmptyFinishDialogState
-
-            @Stable
-            data class Visible(
-                val canDiscard: Boolean,
-                val confirmLabel: String,
-                val dismissLabel: String,
-            ) : EmptyFinishDialogState
-        }
-
         val elapsedMillis: Long get() = (nowMillis - startedAt).coerceAtLeast(0L)
-
-        val isPickerVisible: Boolean
-            get() = exercisePickerSheet is ExercisePickerSheetState.Visible
-
-        val isEmptyFinishDialogVisible: Boolean
-            get() = emptyFinishDialog is EmptyFinishDialogState.Visible
 
         /**
          * "Empty session" predicate driving the E1 confirm dialog: no exercises at all,
@@ -175,8 +103,8 @@ internal interface LiveWorkoutStore :
          */
         val interceptBack: Boolean
             get() = isTrainingNameEditing ||
-                isPickerVisible ||
-                isEmptyFinishDialogVisible
+                bottomSheetState is BottomSheetState.ExercisePicker ||
+                dialogState is DialogState.EmptyFinish
 
         companion object {
 
@@ -201,17 +129,11 @@ internal interface LiveWorkoutStore :
                 activeExerciseUuids = persistentSetOf(),
                 expandedExerciseUuids = persistentSetOf(),
                 preSessionPrSnapshot = persistentMapOf(),
-                pendingFinishConfirm = null,
-                pendingResetExerciseUuid = null,
-                pendingSkipExerciseUuid = null,
-                pendingCancelConfirm = false,
-                deleteDialogVisible = false,
-                exercisePickerSheet = ExercisePickerSheetState.Hidden,
-                emptyFinishDialog = EmptyFinishDialogState.Hidden,
                 isAddExerciseInFlight = false,
                 isFinishInFlight = false,
                 isLoading = true,
-                errorMessage = null,
+                dialogState = DialogState.Hidden,
+                bottomSheetState = BottomSheetState.Hidden,
             )
         }
     }
@@ -233,21 +155,10 @@ internal interface LiveWorkoutStore :
             data class OnAddSet(val performedExerciseUuid: String) : Click
             data class OnEditPlan(val performedExerciseUuid: String) : Click
             data class OnResetSets(val performedExerciseUuid: String) : Click
-            data class OnResetSetsConfirm(val performedExerciseUuid: String) : Click
-            data object OnResetSetsDismiss : Click
             data class OnSkipExercise(val performedExerciseUuid: String) : Click
-            data class OnSkipExerciseConfirm(val performedExerciseUuid: String) : Click
-            data object OnSkipExerciseDismiss : Click
             data object OnFinishClick : Click
-            data object OnFinishConfirm : Click
-            data class OnFinishNameChange(val text: String) : Click
-            data object OnFinishDismiss : Click
             data object OnCancelSessionClick : Click
-            data object OnCancelSessionConfirm : Click
-            data object OnCancelSessionDismiss : Click
             data object OnDeleteSessionMenuClick : Click
-            data object OnDeleteSessionConfirm : Click
-            data object OnDeleteSessionDismiss : Click
             data class OnExerciseHeaderClick(val performedExerciseUuid: String) : Click
             data object OnBackClick : Click
 
@@ -259,19 +170,32 @@ internal interface LiveWorkoutStore :
 
             // v2.3 — mid-session add exercise (opens the picker sheet).
             data object OnAddExerciseClick : Click
+        }
+
+        sealed interface DialogClick : Action {
+
+            data object OnDeleteSessionConfirm : DialogClick
+            data object OnDeleteSessionDismiss : DialogClick
+            data object OnEmptyFinishDiscard : DialogClick
+            data object OnEmptyFinishContinue : DialogClick
+            data object OnCancelSessionConfirm : DialogClick
+            data class OnResetSetsConfirm(val performedExerciseUuid: String) : DialogClick
+            data object OnResetSetsDismiss : DialogClick
+            data class OnSkipExerciseConfirm(val performedExerciseUuid: String) : DialogClick
+            data object OnCancelSessionDismiss : DialogClick
+            data object OnSkipExerciseDismiss : DialogClick
+            data object OnFinishConfirm : DialogClick
+            data object OnFinishDismiss : DialogClick
+            data class OnFinishNameChange(val text: String) : DialogClick
 
             /**
              * Wraps the picker bottom-sheet action surface so the feature's top-level
-             * Click variants stay flat. `ClickHandler` delegates to the dedicated
+             * DialogClick variants stay flat. `ClickHandler` delegates to the dedicated
              * `ExercisePickerHandler` when this variant fires (per the action-wrapper
              * pattern from architecture docs).
              */
             @Suppress("MviActionNamingRule")
-            data class PickerAction(val action: ExercisePickerAction) : Click
-
-            // v2.3 — empty-finish confirm dialog (E1: Discard or Continue editing).
-            data object OnEmptyFinishDiscard : Click
-            data object OnEmptyFinishContinue : Click
+            data class PickerAction(val action: ExercisePickerAction) : DialogClick
         }
 
         sealed interface Input : Action {
@@ -323,10 +247,6 @@ internal interface LiveWorkoutStore :
         data class HapticImpact(val type: HapticFeedbackType) : Event
         data class ShowSessionSavedSnackbar(val message: String) : Event
         data class ShowError(val message: String) : Event
-        data object ShowFinishConfirmDialog : Event
-        data class ShowResetSetsConfirmDialog(val dialog: ConfirmDialog) : Event
-        data class ShowSkipExerciseConfirmDialog(val dialog: ConfirmDialog) : Event
-        data class ShowCancelSessionConfirmDialog(val dialog: ConfirmDialog) : Event
     }
 
     @Stable

@@ -13,8 +13,8 @@ import io.github.stslex.workeeper.feature.live_workout.domain.model.ExercisePick
 import io.github.stslex.workeeper.feature.live_workout.domain.model.ExerciseTypeDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.InlineAdhocResult
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.StateStatusMapper
+import io.github.stslex.workeeper.feature.live_workout.mvi.store.BottomSheetState
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
-import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State.ExercisePickerSheetState
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -45,7 +45,7 @@ internal class ExercisePickerHandlerTest {
 
         handler(state).invoke(ExercisePickerAction.OnDismiss)
 
-        assertEquals(ExercisePickerSheetState.Hidden, state.value.exercisePickerSheet)
+        assertEquals(BottomSheetState.Hidden, state.value.bottomSheetState)
     }
 
     @Test
@@ -56,7 +56,7 @@ internal class ExercisePickerHandlerTest {
         ExercisePickerHandler(interactor, resourceWrapper, statusMapper, store)
             .invoke(ExercisePickerAction.OnQueryChange("bench"))
 
-        val visible = state.value.exercisePickerSheet as ExercisePickerSheetState.Visible
+        val visible = state.value.bottomSheetState as BottomSheetState.ExercisePicker
         assertEquals("bench", visible.query)
         verify {
             store.launch(
@@ -219,7 +219,7 @@ internal class ExercisePickerHandlerTest {
         handler.invoke(ExercisePickerAction.OnQueryChange("жим груди"))
         advanceUntilIdle()
 
-        val visible = state.value.exercisePickerSheet as ExercisePickerSheetState.Visible
+        val visible = state.value.bottomSheetState as BottomSheetState.ExercisePicker
         assertEquals("Create \"жим груди\"", visible.createCtaLabel)
         // Partial-match case: noMatchHeadline must stay null because results is non-empty.
         assertEquals(null, visible.noMatchHeadline)
@@ -248,7 +248,7 @@ internal class ExercisePickerHandlerTest {
         handler.invoke(ExercisePickerAction.OnQueryChange("BENCH PRESS"))
         advanceUntilIdle()
 
-        val visible = state.value.exercisePickerSheet as ExercisePickerSheetState.Visible
+        val visible = state.value.bottomSheetState as BottomSheetState.ExercisePicker
         // Exact case-insensitive match → CTA suppressed (DB-level dedupe would kick in).
         assertEquals(null, visible.createCtaLabel)
         assertEquals(null, visible.noMatchHeadline)
@@ -259,7 +259,10 @@ internal class ExercisePickerHandlerTest {
     fun loadResults_emptyResults_showsHeadlineAndCta() = runTest {
         val state = MutableStateFlow(stateWithVisiblePicker())
         coEvery {
-            interactor.searchExercisesForPicker(query = "skull crushers", excludedUuids = emptySet())
+            interactor.searchExercisesForPicker(
+                query = "skull crushers",
+                excludedUuids = emptySet(),
+            )
         } returns emptyList()
         every {
             resourceWrapper.getString(
@@ -285,7 +288,7 @@ internal class ExercisePickerHandlerTest {
         handler.invoke(ExercisePickerAction.OnQueryChange("skull crushers"))
         advanceUntilIdle()
 
-        val visible = state.value.exercisePickerSheet as ExercisePickerSheetState.Visible
+        val visible = state.value.bottomSheetState as BottomSheetState.ExercisePicker
         // Genuinely empty list — both indicators surface together (Q3: explicit no-match).
         assertEquals("No exercises match \"skull crushers\"", visible.noMatchHeadline)
         assertEquals("Create \"skull crushers\"", visible.createCtaLabel)
@@ -308,7 +311,7 @@ internal class ExercisePickerHandlerTest {
         handler.invoke(ExercisePickerAction.OnQueryChange("   "))
         advanceUntilIdle()
 
-        val visible = state.value.exercisePickerSheet as ExercisePickerSheetState.Visible
+        val visible = state.value.bottomSheetState as BottomSheetState.ExercisePicker
         assertEquals(null, visible.noMatchHeadline)
         assertEquals(null, visible.createCtaLabel)
     }
@@ -317,7 +320,7 @@ internal class ExercisePickerHandlerTest {
     fun `OnExerciseSelect for an unknown uuid does nothing`() {
         val state = MutableStateFlow(
             stateWithVisiblePicker().copy(
-                exercisePickerSheet = ExercisePickerSheetState.Visible(
+                bottomSheetState = BottomSheetState.ExercisePicker(
                     query = "",
                     results = persistentListOf(
                         ExercisePickerUiModel("u1", "Bench Press", ExerciseTypeUiModel.WEIGHTED),
@@ -435,7 +438,7 @@ internal class ExercisePickerHandlerTest {
         trainingUuid = "training-1",
     ).copy(
         isLoading = false,
-        exercisePickerSheet = ExercisePickerSheetState.Visible(
+        bottomSheetState = BottomSheetState.ExercisePicker(
             query = "",
             results = persistentListOf(),
             noMatchHeadline = null,
