@@ -19,6 +19,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
 import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
+import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.all_exercises.ui.allExercisesGraph
 import io.github.stslex.workeeper.feature.all_trainings.ui.allTrainingsGraph
@@ -32,13 +33,12 @@ import io.github.stslex.workeeper.feature.plan_editor.ui.planEditorGraph
 import io.github.stslex.workeeper.feature.settings.ui.archiveGraph
 import io.github.stslex.workeeper.feature.settings.ui.settingsGraph
 import io.github.stslex.workeeper.feature.single_training.ui.singleTrainingsGraph
-import io.github.stslex.workeeper.navigation.AppNavigator
 import io.github.stslex.workeeper.utils.KeyboardUtils.ClearFocusOnDestinationChanged
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 internal fun AppNavigationHost(
-    navigator: AppNavigator,
+    navigatorHolder: NavigatorHolder,
     modifier: Modifier = Modifier,
 ) {
     SharedTransitionLayout(
@@ -50,12 +50,12 @@ internal fun AppNavigationHost(
             .systemBarsPadding()
             .background(MaterialTheme.colorScheme.background)
 
-        ClearFocusOnDestinationChanged(navigator.navController)
+        ClearFocusOnDestinationChanged(navigatorHolder)
 
         val motionDuration = AppUi.motion.normal
         NavHost(
             modifier = Modifier.fillMaxSize(),
-            navController = navigator.navController,
+            navController = navigatorHolder.navController,
             startDestination = Screen.BottomBar.Home,
             enterTransition = {
                 fadeIn(

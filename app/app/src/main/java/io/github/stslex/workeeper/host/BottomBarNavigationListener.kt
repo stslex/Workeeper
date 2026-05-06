@@ -7,41 +7,35 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.navigation.NavController.OnDestinationChangedListener
-import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import io.github.stslex.workeeper.bottom_app_bar.BottomBarItem
-import io.github.stslex.workeeper.navigation.NavigationHolderProducer
-import java.lang.ref.WeakReference
+import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
 
 @Stable
-class NavHostControllerWrapper private constructor(
+class BottomBarNavigationListener private constructor(
     val bottomBarDestination: State<BottomBarItem?>,
 ) {
 
     companion object {
 
-        private var _navController: WeakReference<NavHostController>? = null
-
         @Composable
-        fun rememberNavHostControllerHolder(producer: NavigationHolderProducer): NavHostControllerWrapper {
+        fun rememberBottomBarNavigationListener(holder: NavigatorHolder): BottomBarNavigationListener {
             val controller = rememberNavController()
             val bottomBarDestination = remember {
                 mutableStateOf<BottomBarItem?>(BottomBarItem.HOME)
             }
-            DisposableEffect(controller) {
+            DisposableEffect(holder.navController) {
                 val listener = OnDestinationChangedListener { _, destination, _ ->
                     bottomBarDestination.value = destination.route?.let(BottomBarItem::getByRoute)
                 }
-                controller.addOnDestinationChangedListener(listener)
+                holder.navController.addOnDestinationChangedListener(listener)
                 onDispose {
-                    controller.removeOnDestinationChangedListener(listener)
+                    holder.navController.removeOnDestinationChangedListener(listener)
                 }
             }
 
-            _navController = WeakReference(controller)
             return remember(controller) {
-                producer.produce(controller)
-                NavHostControllerWrapper(bottomBarDestination)
+                BottomBarNavigationListener(bottomBarDestination)
             }
         }
     }

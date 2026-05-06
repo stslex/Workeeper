@@ -7,5 +7,5 @@ import androidx.navigation.NavHostController
 @Stable
 interface NavigatorHolder {
 
-    val navigator: NavHostController
+    val navController: NavHostController
 }

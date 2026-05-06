@@ -3,11 +3,16 @@ package io.github.stslex.workeeper
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.navigation.NavHostController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
+import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
-import io.github.stslex.workeeper.navigation.NavigationHolderProducer
+import io.github.stslex.workeeper.core.ui.navigation.RootComponent
+import io.github.stslex.workeeper.core.ui.navigation.Screen
+import io.github.stslex.workeeper.navigation.NavigationHolderController
+import io.github.stslex.workeeper.navigation.RootComponentImpl
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -16,9 +21,9 @@ import javax.inject.Inject
 
 @HiltViewModel
 internal class AppRootViewModel @Inject constructor(
+    private val navHostController: NavigationHolderController,
+    private val navigator: Navigator,
     commonDataStore: CommonDataStore,
-    val navigationHolder: NavigatorHolder,
-    val navigationHolderProducer: NavigationHolderProducer,
 ) : ViewModel() {
 
     val themeMode: StateFlow<ThemeMode> = commonDataStore.themePreference
@@ -28,4 +33,20 @@ internal class AppRootViewModel @Inject constructor(
             started = SharingStarted.Eagerly,
             initialValue = ThemeMode.SYSTEM,
         )
+
+    fun holdController(
+        navController: NavHostController,
+    ): NavigatorHolder = navHostController.apply {
+        produce(navController)
+    }
+
+    fun removeController() {
+        navHostController.clear()
+    }
+
+    fun createRootComponent(): RootComponent = RootComponentImpl(navigator)
+
+    fun navTo(screen: Screen) {
+        navigator.navTo(screen)
+    }
 }
