@@ -5,27 +5,27 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.navigation.NavController
-import androidx.navigation.NavHostController
+import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
 
 internal object KeyboardUtils {
 
     @Composable
     fun ClearFocusOnDestinationChanged(
-        navController: NavHostController,
+        navigatorHolder: NavigatorHolder,
     ) {
         val focusManager = LocalFocusManager.current
         val keyboardController = LocalSoftwareKeyboardController.current
 
-        DisposableEffect(navController, focusManager, keyboardController) {
+        DisposableEffect(navigatorHolder.navController, focusManager, keyboardController) {
             val listener = NavController.OnDestinationChangedListener { _, _, _ ->
                 focusManager.clearFocus(force = true)
                 keyboardController?.hide()
             }
 
-            navController.addOnDestinationChangedListener(listener)
+            navigatorHolder.navController.addOnDestinationChangedListener(listener)
 
             onDispose {
-                navController.removeOnDestinationChangedListener(listener)
+                navigatorHolder.navController.removeOnDestinationChangedListener(listener)
             }
         }
     }

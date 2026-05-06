@@ -1,5 +1,9 @@
 package io.github.stslex.workeeper.core.ui.kit.theme
 
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -64,6 +68,10 @@ object AppDimension {
     object BottomNavBar {
 
         val height = 72.dp
+
+        val heightWithInsets: Dp
+            @Composable
+            get() = height + WindowInsets.navigationBars.getBottom(LocalDensity.current).toDp
     }
 
     object Space {

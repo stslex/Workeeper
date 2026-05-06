@@ -2,24 +2,25 @@
 package io.github.stslex.workeeper.navigation
 
 import androidx.compose.runtime.Stable
+import dagger.hilt.android.scopes.ActivityRetainedScoped
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
 import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
+import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
 import io.github.stslex.workeeper.core.ui.navigation.NavigatorStack
 import io.github.stslex.workeeper.core.ui.navigation.SaveHandlerAttr
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
-import javax.inject.Singleton
 
 @Stable
-@Singleton
-class NavigatorImpl @Inject internal constructor(
+@ActivityRetainedScoped
+class NavigatorImpl @Inject constructor(
     private val holder: NavigatorHolder,
-) : AppNavigator, NavigatorStack {
+) : Navigator, NavigatorStack {
 
-    override val navController get() = holder.navigator
+    private val navController get() = holder.navController
 
     override fun navTo(screen: Screen) {
         logger.d("navTo $screen")
