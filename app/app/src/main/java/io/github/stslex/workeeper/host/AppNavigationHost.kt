@@ -33,7 +33,6 @@ import io.github.stslex.workeeper.feature.plan_editor.ui.planEditorGraph
 import io.github.stslex.workeeper.feature.settings.ui.archiveGraph
 import io.github.stslex.workeeper.feature.settings.ui.settingsGraph
 import io.github.stslex.workeeper.feature.single_training.ui.singleTrainingsGraph
-import io.github.stslex.workeeper.utils.KeyboardUtils.ClearFocusOnDestinationChanged
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -49,8 +48,6 @@ internal fun AppNavigationHost(
             .padding(bottom = AppDimension.BottomNavBar.height)
             .systemBarsPadding()
             .background(MaterialTheme.colorScheme.background)
-
-        ClearFocusOnDestinationChanged(navigatorHolder)
 
         val motionDuration = AppUi.motion.normal
         NavHost(
