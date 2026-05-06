@@ -18,12 +18,14 @@ class NavigationHolderImpl @Inject constructor() : NavigationHolderController {
         }
 
     @Synchronized
-    override fun produce(navController: NavHostController) {
+    override fun produce(controller: NavHostController) {
         _navigator = navController
     }
 
     @Synchronized
-    override fun clear() {
-        _navigator = null
+    override fun removeController(controller: NavHostController) {
+        if (_navigator === controller) {
+            _navigator = null
+        }
     }
 }

@@ -40,8 +40,8 @@ internal class AppRootViewModel @Inject constructor(
         produce(navController)
     }
 
-    fun removeController() {
-        navHostController.clear()
+    fun removeController(controller: NavHostController) {
+        navHostController.removeController(controller)
     }
 
     fun createRootComponent(): RootComponent = RootComponentImpl(navigator)

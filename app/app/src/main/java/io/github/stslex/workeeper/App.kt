@@ -68,7 +68,7 @@ fun App() {
 
         DisposableEffect(controller) {
             onDispose {
-                rootViewModel.removeController()
+                rootViewModel.removeController(controller)
             }
         }
 

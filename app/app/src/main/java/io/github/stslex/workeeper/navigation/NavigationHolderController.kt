@@ -7,7 +7,7 @@ import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
 @Stable
 interface NavigationHolderController : NavigatorHolder {
 
-    fun produce(navController: NavHostController)
+    fun produce(controller: NavHostController)
 
-    fun clear()
+    fun removeController(controller: NavHostController)
 }
