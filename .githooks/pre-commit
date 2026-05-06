@@ -1,8 +1,6 @@
 #!/bin/sh
 
 # Pre-commit hook to run linting
-# DISABLED: exit early without running checks
-exit 0
 
 echo "Running pre-commit checks..."
 
@@ -31,6 +29,10 @@ if ! ./gradlew detekt --no-configuration-cache --quiet; then
     echo "Run './gradlew detektFormat --no-configuration-cache' to auto-fix formatting issues."
     exit 1
 fi
+echo "✅ detekt checks passed!"
+
+# DISABLED: exit early without running checks
+exit 0
 
 # Run Android Lint
 echo "Running Android Lint..."

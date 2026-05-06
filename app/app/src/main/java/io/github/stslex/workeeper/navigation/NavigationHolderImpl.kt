@@ -1,33 +1,31 @@
 package io.github.stslex.workeeper.navigation
 
-import android.annotation.SuppressLint
+import androidx.compose.runtime.Stable
 import androidx.navigation.NavHostController
-import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
+import dagger.hilt.android.scopes.ActivityRetainedScoped
+import javax.inject.Inject
 
-class NavigationHolderImpl : NavigatorHolder, NavigationHolderProducer {
+@ActivityRetainedScoped
+@Stable
+class NavigationHolderImpl @Inject constructor() : NavigationHolderController {
 
-    override val navigator: NavHostController
-        get() = requireNotNull(_navigator) {
+    @Volatile
+    private var _navController: NavHostController? = null
+
+    override val navController: NavHostController
+        get() = requireNotNull(_navController) {
             "NavHostController is not set. Make sure to call rememberNavHostControllerHolder() in a composable scope."
         }
 
     @Synchronized
-    override fun produce(navController: NavHostController) {
-        _navigator = navController
+    override fun produce(controller: NavHostController) {
+        _navController = controller
     }
 
-    companion object {
-
-        /**
-         * Need to be static to avoid memory leaks, as NavHostController holds a reference to the Activity context.
-         * Using @Volatile to ensure visibility of changes across threads,
-         * as NavHostController can be accessed from different threads.
-         * Suppressing the lint warning for static field leak,
-         * as we are managing the lifecycle of NavHostController properly,
-         * and it will be set and cleared in a composable scope.
-         **/
-        @SuppressLint("StaticFieldLeak")
-        @Volatile
-        private var _navigator: NavHostController? = null
+    @Synchronized
+    override fun removeController(controller: NavHostController) {
+        if (_navController === controller) {
+            _navController = null
+        }
     }
 }

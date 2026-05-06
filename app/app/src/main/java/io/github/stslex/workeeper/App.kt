@@ -29,6 +29,7 @@ import androidx.compose.material3.SnackbarResult.ActionPerformed
 import androidx.compose.material3.SnackbarResult.Dismissed
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -41,6 +42,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.navigation.compose.rememberNavController
 import io.github.stslex.workeeper.bottom_app_bar.WorkeeperBottomAppBar
 import io.github.stslex.workeeper.core.ui.kit.components.snackbar.AppSnackbar
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
@@ -50,9 +52,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.navigation.LocalRootComponent
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.host.AppNavigationHost
-import io.github.stslex.workeeper.host.NavHostControllerWrapper.Companion.rememberNavHostControllerHolder
-import io.github.stslex.workeeper.navigation.NavigatorImpl
-import io.github.stslex.workeeper.navigation.RootComponentImpl
+import io.github.stslex.workeeper.host.BottomBarNavigationListener.Companion.rememberBottomBarNavigationListener
 
 private val TOP_APP_BAR_HEIGHT = 64.dp
 private val TOP_APP_BAR_ACTION_PADDING = 4.dp
@@ -63,9 +63,18 @@ fun App() {
     val themeMode by rootViewModel.themeMode.collectAsState()
 
     AppTheme(themeMode = themeMode) {
-        val navWrapper = rememberNavHostControllerHolder(rootViewModel.navigationHolderProducer)
-        val navigator = remember(navWrapper) { NavigatorImpl(rootViewModel.navigationHolder) }
-        val rootComponent = remember(navigator) { RootComponentImpl(navigator) }
+        val controller = rememberNavController()
+        val holder = remember(controller) { rootViewModel.holdController(controller) }
+
+        DisposableEffect(controller) {
+            onDispose {
+                rootViewModel.removeController(controller)
+            }
+        }
+
+        val navWrapper = rememberBottomBarNavigationListener(holder)
+        val rootComponent = remember(controller) { rootViewModel.createRootComponent() }
+
         CompositionLocalProvider(
             LocalRootComponent provides rootComponent,
         ) {
@@ -142,13 +151,13 @@ fun App() {
                         ),
                         selectedItem = navWrapper.bottomBarDestination,
                     ) {
-                        navigator.navTo(it.screen)
+                        rootViewModel.navTo(it.screen)
                     }
                 }
 
                 AppNavigationHost(
                     modifier = Modifier,
-                    navigator = navigator,
+                    navigatorHolder = holder,
                 )
 
                 if (navWrapper.bottomBarDestination.value != null) {
@@ -162,7 +171,7 @@ fun App() {
                     ) {
                         IconButton(
                             modifier = Modifier.testTag("AppSettingsEntry"),
-                            onClick = { navigator.navTo(Screen.Settings) },
+                            onClick = { rootViewModel.navTo(Screen.Settings) },
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Settings,
