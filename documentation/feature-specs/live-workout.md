@@ -215,6 +215,90 @@ picks the best logged set per exercise via `PrComparator.bestOf`, and adds a `Ne
 `FinishStats.newPersonalRecords` if it strictly beats the baseline. The finish dialog
 renders the resulting list as a small amber-tinted block above the action buttons.
 
+### Set draft and visible row architecture
+
+The exercise card shows one editable row per set. The row's data is derived from up to
+three sources — `performedSets`, `setDrafts`, `planSets` — plus a fallback empty row.
+Two architectural rules govern this derivation; both exist because they're easy to get
+wrong, and both have shipped regressions in the past.
+
+#### Visible row priority
+
+For every position, the visible row is selected with priority:
+
+1. **performed** wins (a saved set always overrides any draft / plan)
+2. **draft** wins over plan (the user's in-flight edit overrides the plan template)
+3. **plan** is used when no draft exists yet (pre-fill)
+4. **fallback** empty row (`weight = null`, `reps = 0`, `type = WORK`, `isDone = false`)
+   when nothing else covers the position
+
+The list length is `max(planSets.size, performedSets.size, 1 + maxDraftPosition)`, so
+drafts beyond plan / performed grow the list but do not erase plan rows beneath them.
+
+#### Where the merge runs
+
+The merge is **not** a Compose function. It runs in the MVI mapper / state-derivation
+layer alongside the rest of the per-exercise mapping. The mapper writes the resolved
+list into `LiveExerciseUiModel.visibleSets` (`ImmutableList<LiveSetUiModel>`); the
+exercise card just renders `exercise.visibleSets`.
+
+This lives in the mapper because it depends on `setDrafts`, which lives on `State`, and
+because every mutation that touches one of the four sources must re-run the merge —
+init / load mapping, weight / reps draft updates, type chip clicks, mark-done, uncheck,
+add set, reset sets, skip exercise, plan-editor save reload. Doing the merge in
+`@Composable` means each of those handlers has to also push something to State that
+forces recomposition, and forgetting one path silently breaks the row. Doing it in the
+mapper makes the dependency explicit and drives recomposition off a single
+`State.exercises` change.
+
+`LiveExerciseCard` and `LiveSetRow` must not import `LiveWorkoutStore.State.DraftKey`
+or take `setDrafts` as a parameter. UI components render the resolved list and emit
+actions; they do not see the store's internal keying.
+
+#### Draft seed/update invariant
+
+For every editable set row, every draft mutation must satisfy:
+
+```
+draft update = current visible row seed + changed field
+```
+
+Concretely:
+
+- A type-chip click must preserve the row's weight and reps.
+- A weight input change must preserve the row's type and reps.
+- A reps input change must preserve the row's type and weight.
+
+The seed lookup uses the same priority as the visible-row resolver — **performed >
+draft > plan > fallback** — so the chip click reads the row the user sees. When a
+draft already exists for the position, the next edit copies that draft and overwrites
+only the changed field; otherwise the seed is computed once from
+`performed → plan → fallback`.
+
+Both pieces (`lookupSetDraftSeed` and `updateSetDraft`) live in a single helper file
+in the MVI handler layer. `InputHandler.OnSetWeightChange`, `InputHandler.OnSetRepsChange`,
+and `ClickHandler.OnSetTypeSelect` (for not-done rows) all go through it. Handlers do
+not assemble draft entries inline.
+
+#### Why TextField local state is not a safety net
+
+`AppNumberInput` (and `OutlinedTextField` underneath) keeps a local cache of the typed
+value so the user can keep typing while the store updates. That cache hides broken
+store state — the field looks right while the draft is wrong. The chip control reads
+state directly and exposes the bug immediately. Don't treat "the input still shows
+100" as evidence that the draft is correct; assert against `state.setDrafts` and the
+resolved visible row.
+
+#### Test-first when refactoring
+
+Behavior tests for every field-preservation pair (type↔weight, type↔reps, weight↔reps,
+type→type-after-prior-edit) and the visible-row priority (performed > draft > plan >
+fallback) live in
+`feature/live-workout/src/test/kotlin/.../mvi/handler/LiveSetDraftBehaviorTest.kt`
+and `.../mvi/mapper/LiveSetVisibleRowsResolverTest.kt`. Run them green on the existing
+implementation **before** moving any draft / resolver logic; this is the only durable
+defence against the bug class.
+
 ### Set entry inline
 
 CURRENT exercise card shows all set rows inline, populated from plan (pre-filled inputs) or empty if no plan. Each row:

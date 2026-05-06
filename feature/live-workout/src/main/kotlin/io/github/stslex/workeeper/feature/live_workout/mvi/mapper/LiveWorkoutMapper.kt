@@ -17,6 +17,7 @@ import io.github.stslex.workeeper.feature.live_workout.domain.model.PlanSetDomai
 import io.github.stslex.workeeper.feature.live_workout.domain.model.SessionSnapshotDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.SetDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.SetTypeDomain
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveSetRowsResolver.withVisibleSets
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
@@ -172,7 +173,11 @@ internal object LiveWorkoutMapper {
     }
 
     fun State.withPresentation(resourceWrapper: ResourceWrapper): State {
-        val presentedExercises = exercises.map { exercise ->
+        // Recompute visible-row resolution alongside the rest of presentation. Every
+        // `withPresentation` call now lands a fresh `visibleSets` list on each
+        // exercise so handlers don't have to remember to refresh it independently.
+        val withVisible = withVisibleSets()
+        val presentedExercises = withVisible.exercises.map { exercise ->
             exercise.copy(statusLabel = exercise.toStatusLabel(resourceWrapper))
         }.toImmutableList()
         val doneCount = presentedExercises.count { it.status == ExerciseStatusUiModel.DONE }
@@ -186,7 +191,7 @@ internal object LiveWorkoutMapper {
             setsLogged,
             setsLogged,
         )
-        return copy(
+        return withVisible.copy(
             trainingNameLabel = trainingName.ifBlank {
                 resourceWrapper.getString(R.string.feature_live_workout_training_name_placeholder)
             },

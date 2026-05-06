@@ -199,7 +199,6 @@ private fun Body(
                     LiveExerciseCard(
                         exercise = exercise,
                         expanded = expanded,
-                        drafts = state.setDrafts,
                         consume = consume,
                     )
                 }
@@ -219,7 +218,9 @@ private fun Body(
             horizontalArrangement = Arrangement.End,
         ) {
             AppButton.Primary(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("LiveWorkoutFinishButton"),
                 text = stringResource(R.string.feature_live_workout_finish),
                 onClick = { consume(Action.Click.OnFinishClick) },
                 enabled = !state.isLoading,

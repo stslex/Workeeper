@@ -138,6 +138,61 @@ description: Resolve a custom Detekt MVI-architecture rule violation by reading 
 
    Iterate until the rule clears.
 
+### State derivation belongs to mappers, not Composables
+
+Not a Detekt rule yet, but the same shape of architectural fix shows up often enough
+that it belongs in this skill. A reusable Composable that merges multiple state sources
+to decide what to render — `performedSets` + `planSets` + `setDrafts` + a fallback
+row, joined inside the `@Composable` body — is doing state derivation, not rendering.
+
+Indicators:
+
+- `private fun build*RowList(/* multiple state sources */)` next to a Composable.
+- A Composable parameter typed as `ImmutableMap<Store.State.<NestedKey>, ...>`. UI
+  components do not import store-internal keying types.
+- TextField / `OutlinedTextField` local-state caches "look right" while the
+  surrounding state is wrong. Chip / toggle / summary controls that read state
+  directly reveal the bug.
+
+Conformant fix:
+
+1. Compute the merged list (or value) in the feature's `mvi/mapper/` layer, alongside
+   the rest of the per-entity mapping. Expose it as a derived field on the UI model
+   the Composable already consumes (e.g. `LiveExerciseUiModel.visibleSets:
+   ImmutableList<LiveSetUiModel>`).
+2. Make sure every state mutation that touches one of the input sources runs the
+   merge as part of the same state transition — init mapping, every handler that
+   mutates the relevant fields, and every recompute pipeline.
+3. Drop the `@Composable`-local merge and the parameter that leaked the store-internal
+   type.
+4. Add stable `key(...)` blocks around the row Composables so identity is preserved
+   when the list is rebuilt.
+
+For editable sources with a draft layer (user-edited overlay over a template), pair
+the resolver with a single seed/update helper:
+
+```
+draft update = current visible row seed + changed field
+```
+
+The seed lookup uses the same priority as the visible-row resolver. The update copies
+the existing draft (or seeds from `performed > plan > fallback` if none) and overwrites
+only the field the user changed. Centralize both lookup and update in one helper file
+(`mvi/handler/<Feature>DraftExt.kt`) and route every handler that mutates drafts
+through it — `InputHandler` weight/reps changes, `ClickHandler` type-chip clicks,
+add-set, etc.
+
+When refactoring code that already exhibits this debt, follow red-green-refactor: write
+characterization tests against the current behavior **before** moving the logic. The
+bug class (one source resetting another) re-grows after a clean refactor unless every
+field-preservation pair is covered. See
+[`write-handler-test`](write-handler-test.md) → "Characterization tests before
+behavior-preserving refactors".
+
+Reference implementation: `feature/live-workout` after the v2.7 visible-row refactor.
+See [feature-specs/live-workout.md → Set draft and visible row architecture](../../documentation/feature-specs/live-workout.md)
+and [architecture.md → Source-of-truth merging belongs to mappers](../../documentation/architecture.md).
+
 4. If the rule fired on legacy code that is genuinely out of scope for the current task,
    prefer narrowing the change to the smallest unit that satisfies the rule rather than
    adding a baseline entry. The codebase's policy
