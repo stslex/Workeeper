@@ -74,6 +74,8 @@ the same tasks:
 - [`add-feature`](.claude/skills/add-feature.md) — scaffold a new `feature/<name>` module.
 - [`write-handler-test`](.claude/skills/write-handler-test.md) — JUnit 5 unit test for an MVI
   handler or `*StoreImpl`.
+- [`write-repository-test`](.claude/skills/write-repository-test.md) — real-DB JUnit 5 unit
+  test for a `*RepositoryImpl` using the in-memory `RepositoryTestEnv` test fixture.
 - [`write-ui-test`](.claude/skills/write-ui-test.md) — `@Smoke` Compose UI test with
   `BaseComposeTest`.
 - [`add-database-migration`](.claude/skills/add-database-migration.md) — Room schema migration
@@ -90,6 +92,8 @@ Use this mapping:
 
 - New feature or `feature/<name>` module work: `.claude/skills/add-feature.md`
 - JUnit 5 tests for MVI handlers or `*StoreImpl`: `.claude/skills/write-handler-test.md`
+- Repository / data-layer unit tests against a real in-memory Room database:
+  `.claude/skills/write-repository-test.md`
 - Compose UI smoke tests: `.claude/skills/write-ui-test.md`
 - Room schema migrations and migration tests: `.claude/skills/add-database-migration.md`
 - Refactors driven by custom MVI/Detekt rules: `.claude/skills/refactor-with-mvi-rules.md`
