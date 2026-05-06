@@ -1,10 +1,12 @@
 package io.github.stslex.workeeper.navigation
 
+import androidx.compose.runtime.Stable
 import androidx.navigation.NavHostController
 import dagger.hilt.android.scopes.ActivityRetainedScoped
 import javax.inject.Inject
 
 @ActivityRetainedScoped
+@Stable
 class NavigationHolderImpl @Inject constructor() : NavigationHolderController {
 
     @Volatile
