@@ -17,7 +17,6 @@ internal class CommonHandlerTest {
 
     private val interactor = mockk<LiveWorkoutInteractor>(relaxed = true)
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
-    private val navigatorStack = mockk<NavigatorStack>(relaxed = true)
 
     @Test
     fun `Init launches a load coroutine`() {
@@ -34,7 +33,6 @@ internal class CommonHandlerTest {
         val handler = CommonHandler(
             interactor = interactor,
             resourceWrapper = resourceWrapper,
-            navigatorStack = navigatorStack,
             store = store,
         )
 

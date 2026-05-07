@@ -24,7 +24,6 @@ internal class CommonHandlerTest {
         every { observePersonalRecord(any(), any<ExerciseTypeDomain>()) } returns emptyFlow()
     }
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
-    private val navigatorStack = mockk<NavigatorStack>(relaxed = true)
 
     private fun setup(initialState: State): Pair<MutableStateFlow<State>, CommonHandler> {
         val stateFlow = MutableStateFlow(initialState)
@@ -35,7 +34,7 @@ internal class CommonHandlerTest {
                 stateFlow.value = update(stateFlow.value)
             }
         }
-        return stateFlow to CommonHandler(interactor, resourceWrapper, navigatorStack, store)
+        return stateFlow to CommonHandler(interactor, resourceWrapper, store)
     }
 
     @Test
