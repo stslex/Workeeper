@@ -125,7 +125,7 @@ Items where shipped behaviour diverges from what specs originally asked for. Sur
 |---|---|---|---|
 | 🟡 | exercises.md | "Phantom shims removed" | `TrainingDataModel.labels` and `TrainingDataModel.exerciseUuids` still present and populated by repo. Cleanup. |
 | 🟡 | exercises.md | "`pagedActiveByTags(Set<String>)` AND semantics" | Shipped uses `IN (:tagUuids)` (OR semantics). The deprecated AND-semantics query was removed as dead code; OR is intentional and remains the supported behaviour — locked decision in v2.0 spec. |
-| 🟡 | exercises.md | "Canonical NavigationHandler with `@Inject Navigator`" | All feature NavigationHandlers use the manual `Component.create(navigator, screen)` constructor pattern with `@Suppress("MviHandlerConstructorRule")`. The architecture relies on the manual pattern because handlers carry per-screen `data`. Treated as architectural; not migrated in v2.0. |
+| ✅ RESOLVED | exercises.md | "Canonical NavigationHandler with `@Inject Navigator`" | Resolved in the navigation-lifecycle PR (PR #143). All feature `NavigationHandler` classes are now `@ViewModelScoped @Inject Navigator` constructor-injected; the old `Component.create(navigator, screen)` factory pattern is gone. Route arguments enter the Store via Dagger assisted injection (`@Assisted screen: Screen.<X>`) instead of through a `Component<Screen>` subclass. The `MviHandlerConstructorRule` literal-name exemption for `NavigationHandler` is now redundant — it remains in the rule source for back-compat but new code does not rely on it. See [architecture.md → Navigation](architecture.md#navigation) for the canonical pattern. |
 | 🟡 | exercises.md, trainings.md, live-workout.md | "Haptics emitted for every Click action" | Several dismiss / undo / cancel paths bypass haptic emission. Specifically: `processUndoArchive`, `processCancelPermanentDelete`, `processBulkDeleteDismiss` in all-exercises; `processBulkDeleteDismiss` in all-trainings; dismiss handlers and done-card header expansion in live-workout. |
 | 🟡 | trainings.md, live-workout.md | "Composable `@Previews` for every public/internal Composable" | `AllTrainingsScreen`, `TrainingDetailScreen`, `TrainingEditScreen` expose internals without `@Preview`. `TrainingRow` lacks active/inactive permutations. `live-workout` is fully covered (verified). |
 
@@ -145,6 +145,58 @@ Five stub files with `TODO(feature-rewrite-tests)` markers carry an `@Ignore`d p
 | 🟡 | [feature/single-training/.../SingleTrainingScreenTest.kt](../feature/single-training/src/androidTest/kotlin/io/github/stslex/workeeper/feature/single_training/SingleTrainingScreenTest.kt) | 5.3 |
 
 **Plan:** address as a dedicated test-coverage PR after v2 stabilises. Don't try to fill in feature PRs.
+
+---
+
+## Navigation lifecycle — RESOLVED in PR #143
+
+The "stale `NavController` after activity recreation crashes navigation" class of
+bugs that shipped before `master` is closed by the navigation-lifecycle refactor.
+The architecture now strictly separates navigation **decisions** (Store/Handler
+layer, depends on `Navigator`) from navigation **execution** (App/UI bridge,
+operates on the composition-scoped `NavController` from
+`rememberNavController()`).
+
+What changed:
+
+- `NavigatorEventBus` (`@Singleton`, controller-free) replaced the old controller-
+  backed `NavigatorImpl` / `NavigationHolderController` / `NavigationHolderImpl`
+  trio. It exposes only `Navigator` (producer) and `NavigatorReceiver` (consumer)
+  interfaces over a `SharedFlow<NavigationCommand>`.
+- `NavigatorExt.NavigationEventBusSetup` (composable) collects commands keyed on
+  the current `NavController` via `LaunchedEffect(navController)` so the executor
+  rebinds on every recomposition / activity recreation. The bus instance survives;
+  the executor is per-composition.
+- `App.kt` owns `rememberNavController()` and creates the `NavigatorHolder`
+  composition-scoped via `remember(navController)`.
+- `RootComponentImpl`, `LocalRootComponent`, `LocalNavigator`, and the
+  `Component.create(navigator, screen)` factory pattern are all removed. Route
+  arguments enter the Store via Dagger assisted injection
+  (`@Assisted screen: Screen.<X>`).
+- All feature `NavigationHandler`s are `@ViewModelScoped @Inject Navigator`.
+- `Screen.PlanEditor.planEditorSavedAttr` flows through
+  `navigator.popBack(planEditorSavedAttr.toPairValue(true))` and is consumed in
+  the previous screen's graph composable via `navComponentScreenWithState` +
+  `stateHandle.getStateFlow(...).collectAsState()`. Consumers reset the flag via
+  `stateHandle.setAttrDefaultValue(...)` so re-entry does not retrigger.
+
+Verification requirements (live in test code, not docs):
+
+- `NavigatorEventBusTest` covers `navTo` / `replaceTo` / `popBack` emission shape
+  and order on the singleton bus.
+- `NavigationLifecycleRegressionTest` proves a stale-bridge → fresh-bridge handover
+  (commands emitted while no executor is attached are observed by the next
+  executor that subscribes).
+- Per-feature `NavigationHandlerTest` classes verify each `Action.Navigation.<X>`
+  branch dispatches the matching `navigator.*` call, with `Navigator` mocked.
+- Per-feature route-arg Store tests (`feature/exercise`, `feature/live-workout`,
+  `feature/single-training`) verify the `@Assisted screen` value lands in
+  `state.value` initial fields.
+
+Documented at [architecture.md → Navigation](architecture.md#navigation),
+[lint-rules.md → HiltScopeRule scope expectations](lint-rules.md#scope-expectations-for-the-navigation-layer),
+and the lifecycle-safe navigation refactor section in
+[`refactor-with-mvi-rules`](../.claude/skills/refactor-with-mvi-rules.md).
 
 ---
 

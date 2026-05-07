@@ -96,12 +96,14 @@ description: Resolve a custom Detekt MVI-architecture rule violation by reading 
    - **`MviHandlerConstructorRule`** — `*Handler` classes must have a primary constructor
      annotated `@Inject` and at least one parameter. The rule's source explicitly skips
      the literal class name `NavigationHandler`
-     (`lint-rules/.../MviHandlerConstructorRule.kt:74`), which is constructed from the
-     feature's `*Component.create(navigator)` factory rather than via Hilt — so
-     `internal class NavigationHandler(private val navigator: Navigator) : ...` is
-     conformant. Variants like `SettingsNavigationHandler` still trip the rule and require
-     `@Suppress("MviHandlerConstructorRule")`; prefer the bare `NavigationHandler` name
-     for new code.
+     (`lint-rules/.../MviHandlerConstructorRule.kt:74`) for historical reasons. The
+     **current architecture** uses normal Hilt constructor injection on every handler,
+     including `NavigationHandler` — `@ViewModelScoped @Inject Navigator` is the
+     canonical shape. New code must NOT rely on the `NavigationHandler` exemption: write
+     `@ViewModelScoped` + `@Inject` and let the rule pass on the merits. The exemption
+     remains only so legacy modules compile while they migrate. Variants like
+     `SettingsNavigationHandler` / `ArchiveNavigationHandler` follow the same shape (no
+     `@Suppress` needed when they have `@Inject`).
 
    - **`MviStoreStateRule`** — the inner `State` class of a `*Store` must be
      `data class State(...) : Store.State`.
@@ -193,6 +195,94 @@ Reference implementation: `feature/live-workout` after the v2.7 visible-row refa
 See [feature-specs/live-workout.md → Set draft and visible row architecture](../../documentation/feature-specs/live-workout.md)
 and [architecture.md → Source-of-truth merging belongs to mappers](../../documentation/architecture.md).
 
+### Lifecycle-safe navigation refactor
+
+Not a Detekt rule (yet) but a structural rule with a recurring failure mode: the
+ViewModel layer stores or transitively closes over an Android-Framework lifecycle
+object (`NavController`, `NavHostController`, `NavBackStackEntry`, `SavedStateHandle`,
+`Activity`, or `Context`). After a config change / activity recreation, the retained
+reference is stale, but the ViewModel survives — the next navigation call hits a
+detached controller and either no-ops, throws, or leaks the destroyed Activity.
+
+The rules:
+
+- **Navigation decisions belong to Store/Handler.** The Store dispatches
+  `Action.Navigation.<X>`; the feature's `NavigationHandler` calls
+  `navigator.navTo(...)` / `navigator.replaceTo(...)` / `navigator.popBack(...)`.
+- **Navigation execution belongs to the App/UI bridge.** The actual
+  `NavController.navigate(...)` / `popBackStack(...)` calls live ONLY in
+  `app/app/.../navigation/NavigatorExt.kt::NavigationEventBusSetup`. Nowhere else.
+- **`Navigator` is a command-bus abstraction.** The singleton implementation is
+  `NavigatorEventBus` (`app/app/.../navigation/NavigatorEventBus.kt`). It stores a
+  `SharedFlow<NavigationCommand>` and three emit methods. It does not store a
+  `NavController`, `NavBackStackEntry`, or `SavedStateHandle`. Anything else that
+  claims to be a `Navigator` is wrong by definition.
+- **`NavHostController`, `NavController`, `NavBackStackEntry`, `SavedStateHandle`,
+  `Activity`, and `Context` MUST NOT be retained** by any `ViewModel`, `Store`,
+  `Handler`, `Interactor`, `Mapper`, or Hilt-`@Singleton` binding. They MUST NOT be
+  passed in via constructor or function parameter to those layers.
+- **`SavedStateHandle` is composable-graph scoped.** It enters via
+  `navComponentScreenWithState(<Feature>) { stateHandle, processor -> ... }` (which
+  unwraps the **current** `NavBackStackEntry.savedStateHandle`) and is consumed in
+  place. It MUST NOT be passed into the Store, Handler, or any DI binding.
+- **`NavigatorHolder` stays composition-scoped.** It wraps a live `NavHostController`
+  and is created via `remember(navController)` in `App.kt`. It MUST NOT be promoted
+  to a singleton, cached statically, or passed through DI.
+
+The conformant fix shape, when migrating an existing screen:
+
+1. Replace whatever non-singleton "navigator" type the Store/Handler currently depends
+   on with the `Navigator` interface from `core/ui/navigation`.
+2. Constructor-inject `Navigator` (Hilt provides the singleton `NavigatorEventBus`)
+   and call `navigator.navTo(...)` / `popBack(...)` / `replaceTo(...)`.
+3. If the Store needs route arguments, expose them via `@Assisted screen: Screen.<X>`
+   (assisted injection through the screen's `StoreFactory<Screen.<X>, StoreImpl>`).
+   The Store retains only the screen's value-type fields. It does NOT retain the
+   `NavBackStackEntry` or `SavedStateHandle`.
+4. If the screen reads a navigation-result attr, do it inside the graph composable
+   via `navComponentScreenWithState(<Feature>) { stateHandle, processor -> ... }`
+   and reset the attr via `stateHandle.setAttrDefaultValue(...)` after consumption
+   so re-entry does not retrigger it.
+
+References: `feature/exercise/.../ui/mvi/handler/NavigationHandler.kt` (Hilt
+`@Inject Navigator`), `feature/exercise/.../ui/ExerciseGraph.kt` (PlanEditor
+saved-result consumption with reset), `feature/plan-editor/.../ui/mvi/handler/NavigationHandler.kt`
+(`navigator.popBack(planEditorSavedAttr.toPairValue(true))` to write the result on
+pop). The full architectural rationale is in
+[architecture.md → Navigation](../../documentation/architecture.md#navigation).
+
+#### Navigation PR review checklist
+
+When reviewing a PR that touches navigation, run through this list before approving:
+
+- [ ] No `NavController`, `NavHostController`, `NavBackStackEntry`, `SavedStateHandle`,
+      `Activity`, or `Context` field on any Store / ViewModel / Handler / Interactor.
+- [ ] No `NavController` / `NavHostController` constructor parameter on any
+      `@HiltViewModel` / `@AssistedInject` / `@ViewModelScoped` / `@Singleton`-bound
+      class.
+- [ ] No `SavedStateHandle` retained outside the composable graph block. It is
+      acceptable as a parameter to a `navComponentScreenWithState` content lambda or
+      to a private composable helper inside the graph; not as a Store/Handler field.
+- [ ] No new "navigator" type that wraps a `NavController` and is bound at
+      `@Singleton` scope. The only acceptable singleton command-bus is
+      `NavigatorEventBus`.
+- [ ] No `remember(navController) { CommandBus(...) }` pattern. The command bus is
+      a singleton; only the executor (`NavigationEventBusSetup`) is composition-scoped
+      and rebinds via `LaunchedEffect(navController)`.
+- [ ] Command bus / executor pair: the bus must outlive any Store using it; the
+      executor lives inside the App/UI bridge composition and re-collects on
+      `NavController` change.
+- [ ] No `TODO()` in navigation command handling. Every `NavigationCommand` variant
+      has a real branch in `NavigatorExt.processCommand`.
+- [ ] When a screen consumes a navigation result via `SavedStateHandle`, the consumer
+      resets the value back to its default after handling, so re-entry does not
+      retrigger the consumer.
+- [ ] Feature `NavigationHandler` carries `@ViewModelScoped` + `@Inject Navigator`.
+      No `@Suppress("MviHandlerConstructorRule")` is needed in new code.
+- [ ] No `Event.Navigate*` event was added. Navigation is `Action.Navigation.<X>`.
+- [ ] Graph composable does not call `navController.navigate(...)` /
+      `popBackStack(...)` directly.
+
 4. If the rule fired on legacy code that is genuinely out of scope for the current task,
    prefer narrowing the change to the smallest unit that satisfies the rule rather than
    adding a baseline entry. The codebase's policy
@@ -225,6 +315,16 @@ Compose UI tests (see the `write-handler-test` and `write-ui-test` skills).
 - **Do not introduce a `Navigate*` event to "fix" a navigation flow.** Add an
   `Action.Navigation.<X>` and route through the feature's `NavigationHandler` instead.
   See [architecture.md → Navigation flow (canonical pattern)](../../documentation/architecture.md#navigation-flow-canonical-pattern).
+- **Do not retain `NavController`, `NavHostController`, `NavBackStackEntry`,
+  `SavedStateHandle`, `Activity`, or `Context` in a Store / Handler / ViewModel /
+  Interactor / Mapper / Hilt singleton.** They are owned by the composition that
+  creates them. The only navigation surface allowed in those layers is the singleton
+  command-bus `Navigator` (`NavigatorEventBus`).
+- **Do not invent a Component-backed `Navigator`.** Route arguments enter the Store
+  via `@Assisted screen: Screen.<X>` (assisted injection) — the old
+  `Component<Screen>` / `RootComponent` / `Component.create(navigator)` machinery is
+  gone. Constructing a "Navigator" in the feature layer that holds onto `NavController`
+  is the regression this section exists to prevent.
 - **Do not mix scope annotations.** `HiltScopeRule` rejects `@Singleton` on a class whose
   name matches the `@ViewModelScoped` set (and vice-versa). Pick the scope that matches
   the class name; if neither fits, rename the class.

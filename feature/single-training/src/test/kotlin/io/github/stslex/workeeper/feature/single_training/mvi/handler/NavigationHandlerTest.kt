@@ -3,7 +3,6 @@ package io.github.stslex.workeeper.feature.single_training.mvi.handler
 
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen
-import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingHandlerStore
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
 import io.mockk.mockk
 import io.mockk.verify
@@ -12,8 +11,7 @@ import org.junit.jupiter.api.Test
 internal class NavigationHandlerTest {
 
     private val navigator = mockk<Navigator>(relaxed = true)
-    private val store = mockk<SingleTrainingHandlerStore>(relaxed = true)
-    private val handler = NavigationHandler(navigator = navigator, store = store)
+    private val handler = NavigationHandler(navigator = navigator)
 
     @Test
     fun `Back triggers popBack`() {
@@ -61,10 +59,21 @@ internal class NavigationHandlerTest {
     }
 
     @Test
-    fun `Init subscribes to PlanEditor saved attr on the navigator`() {
-        handler.invoke(Action.Navigation.Init)
+    fun `OpenPlanEditor navigates to Screen PlanEditor with the training scope`() {
+        handler.invoke(
+            Action.Navigation.OpenPlanEditor(
+                trainingUuid = "training-1",
+                exerciseUuid = "ex-1",
+            ),
+        )
         verify(exactly = 1) {
-            navigator.subscribeToStackAttr(Screen.PlanEditor.planEditorSavedAttr)
+            navigator.navTo(
+                Screen.PlanEditor(
+                    performedExerciseUuid = null,
+                    exerciseUuid = "ex-1",
+                    trainingUuid = "training-1",
+                ),
+            )
         }
     }
 }

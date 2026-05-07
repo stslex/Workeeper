@@ -168,8 +168,15 @@ For non-interface classes whose name ends in `Handler` and which implement an in
 name contains `Handler`:
 
 - They must declare a primary constructor.
-- The primary constructor must carry `@Inject` (the only exception is `NavigationHandler`,
-  which is constructed directly from the feature's navigation `Component`).
+- The primary constructor must carry `@Inject`. The rule's source has a literal-name
+  exemption for `NavigationHandler`
+  (`lint-rules/.../MviHandlerConstructorRule.kt:74`) for historical reasons. The
+  current architecture uses normal Hilt constructor injection on every handler,
+  including `NavigationHandler` — `@ViewModelScoped @Inject Navigator` is the
+  canonical shape (see e.g.
+  `feature/exercise/.../ui/mvi/handler/NavigationHandler.kt`,
+  `feature/home/.../mvi/handler/NavigationHandler.kt`). New code SHOULD NOT rely on
+  the exemption: write `@Inject` and let the rule pass on the merits.
 - The primary constructor must take at least one parameter.
 
 The rule skips files under `/test/`.
@@ -191,12 +198,16 @@ is nested inside a class whose name ends in `Store`:
 Walks classes that have a primary constructor annotated `@Inject` and applies a name-based
 scope policy from `ScopeClassType`:
 
-- Class name contains any of `Repository`, `DataStore`, `Database`, `StoreDispatchers` →
-  must be annotated `@Singleton`.
-- Class name contains any of `Handler`, `Store`, `Interactor`, `Mapper` →
-  must be annotated `@ViewModelScoped`.
+- Class name contains any of `Repository`, `DataStore`, `Database`, `Storage`,
+  `StoreDispatchers` → must be annotated `@Singleton`.
+- Class name contains any of `Handler`, `Interactor`, `Mapper` → must be annotated
+  `@ViewModelScoped`.
+- Class name contains `Store` (matches both `*Store` interfaces and `*StoreImpl`
+  ViewModels) → must be annotated `@HiltViewModel` (the rule's `HiltViewModelScoped`
+  enum entry maps to the `HiltViewModel` annotation, since stores implementing the
+  Store interface are constructed by Hilt's `hiltViewModel<T>()`).
 
-The rule also reports if the class carries the *other* category's annotation.
+The rule also reports if the class carries the annotation for a *different* category.
 
 Bad:
 
@@ -211,6 +222,49 @@ Good:
 @ViewModelScoped
 internal class ClickHandler @Inject constructor(...) : Handler<Action.Click> { ... }
 ```
+
+#### Scope expectations for the navigation layer
+
+The lifecycle-safe navigation architecture (see
+[architecture.md → Navigation](architecture.md#navigation)) introduces a few classes
+that the `HiltScopeRule` predicates must NOT flag:
+
+- `NavigatorEventBus`
+  (`app/app/.../navigation/NavigatorEventBus.kt`) — the singleton command-bus
+  implementation of `Navigator` and `NavigatorReceiver`. The class name carries the
+  `Bus` suffix specifically so it does not match `Repository` / `DataStore` /
+  `Database` / `Storage` / `StoreDispatchers` / `Handler` / `Interactor` / `Mapper` /
+  `Store`. `HiltScopeRule` therefore skips it (`getByName("NavigatorEventBus")`
+  returns `null`). The class IS `@Singleton`, but that annotation is provided by
+  `NavigationModule` (an `@InstallIn(SingletonComponent::class)` Hilt module that
+  binds the implementation as `Navigator`) rather than tagged on the class itself.
+- `NavigatorReceiver`
+  (`app/app/.../navigation/NavigatorReceiver.kt`) — interface only; the rule skips
+  interfaces.
+- `NavigationModule`
+  (`app/app/.../di/NavigationModule.kt`) — Hilt module class. It is not constructor
+  injected, so the rule short-circuits at the `hasInject` check.
+- Feature `NavigationHandler` classes
+  (`feature/<name>/.../mvi/handler/NavigationHandler.kt`) — `@ViewModelScoped` with
+  `@Inject Navigator`. They match the `Handler` predicate and the rule expects
+  `@ViewModelScoped`; they comply.
+- `NavigatorHolder`
+  (`core/ui/navigation/.../NavigatorHolder.kt`) — `@Stable` value class wrapping a
+  `NavHostController`. It has no `@Inject` constructor (composition-scoped via
+  `remember(navController)` in `App.kt`), so the rule short-circuits.
+
+Stores, interactors, and mappers continue to follow the standard predicates: a Store
+interface (`*Store : Store<...>`) and its `*StoreImpl` carry `@HiltViewModel`;
+interactors / handlers / mappers carry `@ViewModelScoped`; repositories / data
+stores / databases / dispatch holders carry `@Singleton`.
+
+If a future class needs singleton scope but does not match any of the singleton
+predicates, either:
+
+1. Name it with one of the existing predicate keywords (when the class genuinely is
+   a repository / storage / etc.), or
+2. Provide the binding through an `@InstallIn(SingletonComponent::class)` Hilt module
+   (the pattern `NavigationModule` uses for `NavigatorEventBus`).
 
 ### `ComposableStateRule`
 
