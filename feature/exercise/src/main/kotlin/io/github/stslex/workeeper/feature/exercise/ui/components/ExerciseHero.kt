@@ -20,11 +20,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageDisplay
@@ -93,4 +96,26 @@ private fun ExerciseTypePlaceholder(
             AppUi.colors.setType.warmupForeground
         },
     )
+}
+
+@Preview
+@Composable
+private fun ExerciseHeroWeightedPlaceholderLightPreview() {
+    AppTheme(themeMode = ThemeMode.LIGHT) {
+        ExerciseHero(
+            type = ExerciseTypeUiModel.WEIGHTED,
+            imageDisplay = ImageDisplay.None,
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun ExerciseHeroWeightlessPlaceholderDarkPreview() {
+    AppTheme(themeMode = ThemeMode.DARK) {
+        ExerciseHero(
+            type = ExerciseTypeUiModel.WEIGHTLESS,
+            imageDisplay = ImageDisplay.None,
+        )
+    }
 }

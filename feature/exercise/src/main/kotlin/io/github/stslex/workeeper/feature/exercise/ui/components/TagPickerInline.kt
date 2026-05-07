@@ -16,15 +16,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppTextField
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagChip
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
+import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
 
 @Composable
 internal fun TagPickerInline(
@@ -102,5 +106,68 @@ internal fun TagPickerInline(
                 )
             }
         }
+    }
+}
+
+@Preview
+@Composable
+private fun TagPickerInlineEmptyLightPreview() {
+    AppTheme(themeMode = ThemeMode.LIGHT) {
+        TagPickerInline(
+            selectedTags = persistentListOf(),
+            availableTags = persistentListOf(
+                TagUiModel(uuid = "t1", name = "Push"),
+                TagUiModel(uuid = "t2", name = "Pull"),
+                TagUiModel(uuid = "t3", name = "Legs"),
+            ),
+            searchQuery = "",
+            onSearchQueryChange = {},
+            onTagToggle = {},
+            onTagRemove = {},
+            onTagCreate = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun TagPickerInlineWithSelectedDarkPreview() {
+    AppTheme(themeMode = ThemeMode.DARK) {
+        TagPickerInline(
+            selectedTags = persistentListOf(
+                TagUiModel(uuid = "t1", name = "Push"),
+                TagUiModel(uuid = "t3", name = "Legs"),
+            ),
+            availableTags = persistentListOf(
+                TagUiModel(uuid = "t1", name = "Push"),
+                TagUiModel(uuid = "t2", name = "Pull"),
+                TagUiModel(uuid = "t3", name = "Legs"),
+                TagUiModel(uuid = "t4", name = "Core"),
+            ),
+            searchQuery = "",
+            onSearchQueryChange = {},
+            onTagToggle = {},
+            onTagRemove = {},
+            onTagCreate = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun TagPickerInlineWithCreatePreview() {
+    AppTheme(themeMode = ThemeMode.LIGHT) {
+        TagPickerInline(
+            selectedTags = persistentListOf(),
+            availableTags = persistentListOf(
+                TagUiModel(uuid = "t1", name = "Push"),
+                TagUiModel(uuid = "t2", name = "Pull"),
+            ),
+            searchQuery = "Cardio",
+            onSearchQueryChange = {},
+            onTagToggle = {},
+            onTagRemove = {},
+            onTagCreate = {},
+        )
     }
 }

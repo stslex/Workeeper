@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -28,6 +29,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.card.AppCard
@@ -38,18 +41,25 @@ import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagChip.Static
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.DetailTopbar
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.TopbarAction
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
+import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
+import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseHero
 import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseHistoryRow
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.HistoryUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageDisplay
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PersonalRecordUiModel
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.plus
+import kotlinx.collections.immutable.toImmutableList
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -228,9 +238,12 @@ private fun DefaultPlanRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            modifier = Modifier.size(width = INDEX_COLUMN_WIDTH, height = ROW_HEIGHT),
+            modifier = Modifier
+                .width(INDEX_COLUMN_WIDTH)
+                .align(Alignment.CenterVertically),
             text = "${index + 1}.",
             style = indexStyle,
+            textAlign = TextAlign.Start,
         )
         Spacer(Modifier.size(width = COLUMN_GAP_NUMERIC, height = ROW_HEIGHT))
         if (isWeighted) {
@@ -332,6 +345,112 @@ private fun DetailActionBar(
             modifier = Modifier.testTag("ExerciseEditButton"),
             text = stringResource(R.string.feature_exercise_detail_edit),
             onClick = { consume(Action.Click.OnEditClick) },
+        )
+    }
+}
+
+private fun detailPreviewBaseState(): State = State
+    .create(uuid = "preview-uuid")
+    .copy(mode = State.Mode.Read, name = "Bench press", isLoading = false)
+
+@Preview
+@Composable
+private fun ExerciseDetailScreenEmptyLightPreview() {
+    AppTheme(themeMode = ThemeMode.LIGHT) {
+        ExerciseDetailScreen(
+            state = detailPreviewBaseState(),
+            consume = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun ExerciseDetailScreenWithDescriptionAndTagsPreview() {
+    AppTheme(themeMode = ThemeMode.DARK) {
+        ExerciseDetailScreen(
+            state = detailPreviewBaseState().copy(
+                description = "Compound movement targeting chest, shoulders, and triceps.",
+                tags = listOf(
+                    TagUiModel(uuid = "t1", name = "Push"),
+                    TagUiModel(uuid = "t2", name = "Chest"),
+                ).toImmutableList(),
+            ),
+            consume = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun ExerciseDetailScreenWithPlanAndPrPreview() {
+    AppTheme(themeMode = ThemeMode.DARK) {
+        ExerciseDetailScreen(
+            state = detailPreviewBaseState().copy(
+                adhocPlan = listOf(
+                    PlanSetUiModel(weight = 60.0, reps = 10, type = SetTypeUiModel.WARMUP),
+                    PlanSetUiModel(weight = 80.0, reps = 8, type = SetTypeUiModel.WORK),
+                    PlanSetUiModel(weight = 90.0, reps = 6, type = SetTypeUiModel.WORK),
+                    PlanSetUiModel(weight = 95.0, reps = 4, type = SetTypeUiModel.FAILURE),
+                ).toImmutableList(),
+                personalRecord = PersonalRecordUiModel(
+                    sessionUuid = "s-pr",
+                    displayLabel = "100 × 5",
+                    relativeDateLabel = "Yesterday",
+                ),
+                tags = listOf(TagUiModel(uuid = "t1", name = "Push")).toImmutableList(),
+            ),
+            consume = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun ExerciseDetailScreenWithHistoryPreview() {
+    AppTheme(themeMode = ThemeMode.LIGHT) {
+        ExerciseDetailScreen(
+            state = detailPreviewBaseState().copy(
+                recentHistory = listOf(
+                    HistoryUiModel(
+                        sessionUuid = "s1",
+                        setsSummaryLabel = "80kg × 8 · 85kg × 6 · 90kg × 4",
+                        metaLabel = "Yesterday · 3 sets",
+                    ),
+                    HistoryUiModel(
+                        sessionUuid = "s2",
+                        setsSummaryLabel = "75kg × 10 · 80kg × 8 · 80kg × 6",
+                        metaLabel = "3 days ago · 3 sets",
+                    ),
+                ).toImmutableList(),
+                personalRecord = PersonalRecordUiModel(
+                    sessionUuid = "s-pr",
+                    displayLabel = "100 × 5",
+                    relativeDateLabel = "1 week ago",
+                ),
+            ),
+            consume = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun ExerciseDetailScreenWeightlessPreview() {
+    AppTheme(themeMode = ThemeMode.DARK) {
+        ExerciseDetailScreen(
+            state = detailPreviewBaseState().copy(
+                name = "Pull-ups",
+                type = ExerciseTypeUiModel.WEIGHTLESS,
+                description = "Bodyweight back exercise.",
+                tags = listOf(TagUiModel(uuid = "t1", name = "Pull")).toImmutableList(),
+                adhocPlan = listOf(
+                    PlanSetUiModel(weight = null, reps = 12, type = SetTypeUiModel.WORK),
+                    PlanSetUiModel(weight = null, reps = 10, type = SetTypeUiModel.WORK),
+                    PlanSetUiModel(weight = null, reps = 8, type = SetTypeUiModel.FAILURE),
+                ).toImmutableList(),
+            ),
+            consume = {},
         )
     }
 }

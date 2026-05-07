@@ -17,8 +17,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
+import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 
 @Composable
@@ -88,6 +91,28 @@ private fun TypeOption(
             text = label,
             style = AppUi.typography.labelLarge,
             color = textColor,
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun TypeToggleWeightedLightPreview() {
+    AppTheme(themeMode = ThemeMode.LIGHT) {
+        TypeToggle(
+            selected = ExerciseTypeUiModel.WEIGHTED,
+            onSelect = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun TypeToggleWeightlessDarkPreview() {
+    AppTheme(themeMode = ThemeMode.DARK) {
+        TypeToggle(
+            selected = ExerciseTypeUiModel.WEIGHTLESS,
+            onSelect = {},
         )
     }
 }

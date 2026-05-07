@@ -13,8 +13,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
+import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.HistoryUiModel
 
 @Composable
@@ -42,6 +45,36 @@ internal fun ExerciseHistoryRow(
             text = item.metaLabel,
             style = AppUi.typography.bodySmall,
             color = AppUi.colors.textTertiary,
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun ExerciseHistoryRowLightPreview() {
+    AppTheme(themeMode = ThemeMode.LIGHT) {
+        ExerciseHistoryRow(
+            item = HistoryUiModel(
+                sessionUuid = "session-1",
+                setsSummaryLabel = "80kg × 8 · 85kg × 6 · 90kg × 4",
+                metaLabel = "Yesterday · 3 sets",
+            ),
+            onClick = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun ExerciseHistoryRowDarkPreview() {
+    AppTheme(themeMode = ThemeMode.DARK) {
+        ExerciseHistoryRow(
+            item = HistoryUiModel(
+                sessionUuid = "session-2",
+                setsSummaryLabel = "12 reps · 10 reps · 8 reps",
+                metaLabel = "2 days ago · 3 sets",
+            ),
+            onClick = {},
         )
     }
 }

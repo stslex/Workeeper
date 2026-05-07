@@ -23,20 +23,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppTextField
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
+import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.ui.components.ImageEditRow
 import io.github.stslex.workeeper.feature.exercise.ui.components.TagPickerInline
 import io.github.stslex.workeeper.feature.exercise.ui.components.TypeToggle
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State.Mode
+import kotlinx.collections.immutable.toImmutableList
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
 @Composable
@@ -243,6 +249,94 @@ private fun EditActionBar(
             text = stringResource(KitR.string.core_ui_kit_action_save),
             onClick = { consume(Action.Click.OnSaveClick) },
             enabled = state.isSaveEnabled,
+        )
+    }
+}
+
+private fun editPreviewBaseState(isCreate: Boolean): State = State
+    .create(uuid = if (isCreate) null else "preview-uuid")
+    .copy(mode = Mode.Edit(isCreate = isCreate), isLoading = false)
+
+@Preview
+@Composable
+private fun ExerciseEditScreenCreateLightPreview() {
+    AppTheme(themeMode = ThemeMode.LIGHT) {
+        ExerciseEditScreen(
+            state = editPreviewBaseState(isCreate = true).copy(
+                availableTags = listOf(
+                    TagUiModel(uuid = "t1", name = "Push"),
+                    TagUiModel(uuid = "t2", name = "Pull"),
+                    TagUiModel(uuid = "t3", name = "Legs"),
+                ).toImmutableList(),
+                adhocPlanSummaryLabel = "No default plan",
+            ),
+            consume = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun ExerciseEditScreenEditWithTagsPreview() {
+    AppTheme(themeMode = ThemeMode.DARK) {
+        ExerciseEditScreen(
+            state = editPreviewBaseState(isCreate = false).copy(
+                name = "Bench press",
+                description = "Compound chest movement.",
+                tags = listOf(
+                    TagUiModel(uuid = "t1", name = "Push"),
+                    TagUiModel(uuid = "t2", name = "Chest"),
+                ).toImmutableList(),
+                availableTags = listOf(
+                    TagUiModel(uuid = "t1", name = "Push"),
+                    TagUiModel(uuid = "t2", name = "Chest"),
+                    TagUiModel(uuid = "t3", name = "Pull"),
+                    TagUiModel(uuid = "t4", name = "Legs"),
+                ).toImmutableList(),
+                adhocPlanSummaryLabel = "3 sets · 80–95kg",
+            ),
+            consume = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun ExerciseEditScreenNameErrorPreview() {
+    AppTheme(themeMode = ThemeMode.LIGHT) {
+        ExerciseEditScreen(
+            state = editPreviewBaseState(isCreate = true).copy(nameError = true),
+            consume = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun ExerciseEditScreenDuplicateNameErrorPreview() {
+    AppTheme(themeMode = ThemeMode.DARK) {
+        ExerciseEditScreen(
+            state = editPreviewBaseState(isCreate = true).copy(
+                name = "Bench press",
+                nameDuplicateError = true,
+            ),
+            consume = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun ExerciseEditScreenWeightlessPreview() {
+    AppTheme(themeMode = ThemeMode.LIGHT) {
+        ExerciseEditScreen(
+            state = editPreviewBaseState(isCreate = false).copy(
+                name = "Pull-ups",
+                type = ExerciseTypeUiModel.WEIGHTLESS,
+                description = "Bodyweight back exercise.",
+                tags = listOf(TagUiModel(uuid = "t1", name = "Pull")).toImmutableList(),
+            ),
+            consume = {},
         )
     }
 }
