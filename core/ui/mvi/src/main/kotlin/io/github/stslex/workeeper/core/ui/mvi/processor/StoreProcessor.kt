@@ -19,8 +19,6 @@ import io.github.stslex.workeeper.core.ui.mvi.Store.Action
 import io.github.stslex.workeeper.core.ui.mvi.Store.Event
 import io.github.stslex.workeeper.core.ui.mvi.Store.State
 import io.github.stslex.workeeper.core.ui.mvi.performance.FirebaseScreenRenderRecorder
-import io.github.stslex.workeeper.core.ui.navigation.Component
-import io.github.stslex.workeeper.core.ui.navigation.LocalRootComponent
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import androidx.compose.runtime.State as ComposeState
 
@@ -62,33 +60,22 @@ interface StoreProcessor<S : State, A : Action, E : Event> {
 @Composable
 inline fun <
     reified TStoreImpl : BaseStore<*, *, *>,
-    TComponent : Component<*>,
-    reified TFactory : StoreFactory<TComponent, TStoreImpl>,
+    TScreen : Screen,
+    reified TFactory : StoreFactory<TScreen, TStoreImpl>,
     > rememberStoreProcessor(
-    screen: Screen,
+    screen: TScreen,
     key: String? = null,
-): StoreProcessor<*, *, *> {
-    val rootComponent = LocalRootComponent.current
-
-    val component = remember(screen) {
-        @Suppress("UNCHECKED_CAST")
-        rootComponent.createComponent(screen) as TComponent
-    }
-
-    return rememberStoreProcessor {
-        hiltViewModel<TStoreImpl, TFactory>(key = key) { storeFactory ->
-            storeFactory.create(component)
-        }
+): StoreProcessor<*, *, *> = rememberStoreProcessor {
+    hiltViewModel<TStoreImpl, TFactory>(key = key) { storeFactory ->
+        storeFactory.create(screen)
     }
 }
 
 @Composable
 inline fun <reified TStoreImpl : BaseStore<*, *, *>> rememberStoreProcessor(
     key: String? = null,
-): StoreProcessor<*, *, *> {
-    return rememberStoreProcessor {
-        hiltViewModel<TStoreImpl>(key = key)
-    }
+): StoreProcessor<*, *, *> = rememberStoreProcessor {
+    hiltViewModel<TStoreImpl>(key = key)
 }
 
 @Composable

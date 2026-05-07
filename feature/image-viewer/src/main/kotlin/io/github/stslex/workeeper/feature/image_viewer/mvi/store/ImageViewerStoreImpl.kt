@@ -11,10 +11,10 @@ import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreFactory
+import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.image_viewer.di.ImageViewerHandlerStoreImpl
 import io.github.stslex.workeeper.feature.image_viewer.mvi.handler.ClickHandler
 import io.github.stslex.workeeper.feature.image_viewer.mvi.handler.CommonHandler
-import io.github.stslex.workeeper.feature.image_viewer.mvi.handler.ImageViewerComponent
 import io.github.stslex.workeeper.feature.image_viewer.mvi.handler.NavigationHandler
 import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStore.Action
 import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStore.Event
@@ -22,7 +22,7 @@ import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStor
 
 @HiltViewModel(assistedFactory = ImageViewerStoreImpl.Factory::class)
 internal class ImageViewerStoreImpl @AssistedInject constructor(
-    @Assisted component: ImageViewerComponent,
+    @Assisted screen: Screen.ExerciseImage,
     navigationHandler: NavigationHandler,
     clickHandler: ClickHandler,
     commonHandler: CommonHandler,
@@ -32,7 +32,7 @@ internal class ImageViewerStoreImpl @AssistedInject constructor(
     loggerHolder: LoggerHolder,
 ) : BaseStore<State, Action, Event>(
     name = NAME,
-    initialState = State.create(model = component.data.model),
+    initialState = State.create(model = screen.model),
     handlerCreator = { action ->
         when (action) {
             is Action.Navigation -> navigationHandler
@@ -48,7 +48,7 @@ internal class ImageViewerStoreImpl @AssistedInject constructor(
 ) {
 
     @AssistedFactory
-    interface Factory : StoreFactory<ImageViewerComponent, ImageViewerStoreImpl>
+    interface Factory : StoreFactory<Screen.ExerciseImage, ImageViewerStoreImpl>
 
     companion object {
 

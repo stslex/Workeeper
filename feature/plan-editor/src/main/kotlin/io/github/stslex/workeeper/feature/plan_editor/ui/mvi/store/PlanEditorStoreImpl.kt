@@ -18,14 +18,13 @@ import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.handler.CommonHandl
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.handler.EditorHandler
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.handler.InputHandler
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.handler.NavigationHandler
-import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.handler.PlanEditorComponent
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.Action
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.Event
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.State
 
 @HiltViewModel(assistedFactory = PlanEditorStoreImpl.Factory::class)
 internal class PlanEditorStoreImpl @AssistedInject constructor(
-    @Assisted component: PlanEditorComponent,
+    @Assisted screen: Screen.PlanEditor,
     navigationHandler: NavigationHandler,
     commonHandler: CommonHandler,
     clickHandler: ClickHandler,
@@ -37,7 +36,7 @@ internal class PlanEditorStoreImpl @AssistedInject constructor(
     loggerHolder: LoggerHolder,
 ) : BaseStore<State, Action, Event>(
     name = NAME,
-    initialState = State.init(component.data.toMode()),
+    initialState = State.init(screen.toMode()),
     handlerCreator = { action ->
         when (action) {
             is Action.Common -> commonHandler
@@ -55,7 +54,7 @@ internal class PlanEditorStoreImpl @AssistedInject constructor(
 ) {
 
     @AssistedFactory
-    interface Factory : StoreFactory<PlanEditorComponent, PlanEditorStoreImpl>
+    interface Factory : StoreFactory<Screen.PlanEditor, PlanEditorStoreImpl>
 
     companion object {
 

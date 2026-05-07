@@ -11,8 +11,8 @@ import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreFactory
+import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.exercise_chart.di.ExerciseChartHandlerStoreImpl
-import io.github.stslex.workeeper.feature.exercise_chart.mvi.handler.ChartComponent
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.handler.ClickHandler
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.handler.CommonHandler
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.handler.NavigationHandler
@@ -22,7 +22,7 @@ import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChart
 
 @HiltViewModel(assistedFactory = ExerciseChartStoreImpl.Factory::class)
 internal class ExerciseChartStoreImpl @AssistedInject constructor(
-    @Assisted component: ChartComponent,
+    @Assisted screen: Screen.ExerciseChart,
     navigationHandler: NavigationHandler,
     clickHandler: ClickHandler,
     commonHandler: CommonHandler,
@@ -32,7 +32,7 @@ internal class ExerciseChartStoreImpl @AssistedInject constructor(
     loggerHolder: LoggerHolder,
 ) : BaseStore<State, Action, Event>(
     name = NAME,
-    initialState = State.create(initialUuid = component.data.exerciseUuid),
+    initialState = State.create(initialUuid = screen.exerciseUuid),
     handlerCreator = { action ->
         when (action) {
             is Action.Navigation -> navigationHandler
@@ -48,7 +48,7 @@ internal class ExerciseChartStoreImpl @AssistedInject constructor(
 ) {
 
     @AssistedFactory
-    interface Factory : StoreFactory<ChartComponent, ExerciseChartStoreImpl>
+    interface Factory : StoreFactory<Screen.ExerciseChart, ExerciseChartStoreImpl>
 
     companion object {
 

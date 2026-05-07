@@ -1,9 +1,9 @@
 package io.github.stslex.workeeper.core.ui.mvi.processor
 
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
-import io.github.stslex.workeeper.core.ui.navigation.Component
+import io.github.stslex.workeeper.core.ui.navigation.Screen
 
-interface StoreFactory<TComponent : Component<*>, TStoreImpl : BaseStore<*, *, *>> {
+interface StoreFactory<TScreen : Screen, TStoreImpl : BaseStore<*, *, *>> {
 
-    fun create(component: TComponent): TStoreImpl
+    fun create(screen: TScreen): TStoreImpl
 }

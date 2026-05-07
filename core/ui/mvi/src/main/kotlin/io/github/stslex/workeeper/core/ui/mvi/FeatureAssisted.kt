@@ -6,7 +6,6 @@ import androidx.compose.runtime.Immutable
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreFactory
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
 import io.github.stslex.workeeper.core.ui.mvi.processor.rememberStoreProcessor
-import io.github.stslex.workeeper.core.ui.navigation.Component
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 
 /**
@@ -16,11 +15,7 @@ import io.github.stslex.workeeper.core.ui.navigation.Screen
  * @see [StoreProcessor]
  * */
 @Immutable
-abstract class FeatureAssisted<
-    TProcessor : StoreProcessor<*, *, *>,
-    TScreen : Screen,
-    TComponent : Component<TScreen>,
-    > {
+abstract class FeatureAssisted<TProcessor : StoreProcessor<*, *, *>, TScreen : Screen> {
 
     @Composable
     abstract fun processor(screen: TScreen): TProcessor
@@ -29,8 +24,8 @@ abstract class FeatureAssisted<
     @Composable
     inline fun <
         reified TSImpl : BaseStore<*, *, *>,
-        reified TFactory : StoreFactory<TComponent, TSImpl>,
-        > FeatureAssisted<TProcessor, TScreen, TComponent>.createProcessor(
+        reified TFactory : StoreFactory<TScreen, TSImpl>,
+        > FeatureAssisted<TProcessor, TScreen>.createProcessor(
         screen: TScreen,
-    ): TProcessor = rememberStoreProcessor<TSImpl, TComponent, TFactory>(screen) as TProcessor
+    ): TProcessor = rememberStoreProcessor<TSImpl, TScreen, TFactory>(screen) as TProcessor
 }

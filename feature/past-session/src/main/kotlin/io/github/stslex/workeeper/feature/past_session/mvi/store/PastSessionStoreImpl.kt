@@ -11,19 +11,19 @@ import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreFactory
+import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.past_session.di.PastSessionHandlerStoreImpl
 import io.github.stslex.workeeper.feature.past_session.mvi.handler.ClickHandler
 import io.github.stslex.workeeper.feature.past_session.mvi.handler.CommonHandler
 import io.github.stslex.workeeper.feature.past_session.mvi.handler.InputHandler
 import io.github.stslex.workeeper.feature.past_session.mvi.handler.NavigationHandler
-import io.github.stslex.workeeper.feature.past_session.mvi.handler.PastSessionComponent
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Action
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Event
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.State
 
 @HiltViewModel(assistedFactory = PastSessionStoreImpl.Factory::class)
 internal class PastSessionStoreImpl @AssistedInject constructor(
-    @Assisted component: PastSessionComponent,
+    @Assisted screen: Screen.PastSession,
     navigationHandler: NavigationHandler,
     clickHandler: ClickHandler,
     inputHandler: InputHandler,
@@ -34,7 +34,7 @@ internal class PastSessionStoreImpl @AssistedInject constructor(
     loggerHolder: LoggerHolder,
 ) : BaseStore<State, Action, Event>(
     name = NAME,
-    initialState = State.create(sessionUuid = component.data.sessionUuid),
+    initialState = State.create(sessionUuid = screen.sessionUuid),
     handlerCreator = { action ->
         when (action) {
             is Action.Navigation -> navigationHandler
@@ -51,7 +51,7 @@ internal class PastSessionStoreImpl @AssistedInject constructor(
 ) {
 
     @AssistedFactory
-    interface Factory : StoreFactory<PastSessionComponent, PastSessionStoreImpl>
+    interface Factory : StoreFactory<Screen.PastSession, PastSessionStoreImpl>
 
     companion object {
 

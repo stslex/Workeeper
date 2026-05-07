@@ -29,7 +29,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult.ActionPerformed
 import androidx.compose.material3.SnackbarResult.Dismissed
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -49,13 +48,11 @@ import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
-import io.github.stslex.workeeper.core.ui.navigation.LocalRootComponent
 import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.host.AppNavigationHost
 import io.github.stslex.workeeper.host.BottomBarNavigationListener.Companion.rememberBottomBarNavigationListener
 import io.github.stslex.workeeper.navigation.NavigatorExt.NavigationEventBusSetup
-import io.github.stslex.workeeper.navigation.RootComponentImpl
 
 private val TOP_APP_BAR_HEIGHT = 64.dp
 private val TOP_APP_BAR_ACTION_PADDING = 4.dp
@@ -70,128 +67,122 @@ fun App() {
         val holder = remember(navController) { NavigatorHolder(navController) }
         val navigatorEventBus = viewModel.navigatorEventBus
 
-        val navWrapper = rememberBottomBarNavigationListener(holder)
-        val rootComponent = remember(navController) { RootComponentImpl() }
+        val bottomBarNavigationListener = rememberBottomBarNavigationListener(holder)
 
-        CompositionLocalProvider(
-            LocalRootComponent provides rootComponent,
-        ) {
+        NavigationEventBusSetup(
+            navigatorHolder = holder,
+            navigator = navigatorEventBus,
+        )
 
-            NavigationEventBusSetup(
-                navigatorHolder = holder,
-                navigator = navigatorEventBus,
-            )
+        val snackbarHostState = remember { SnackbarHostState() }
 
-            val snackbarHostState = remember { SnackbarHostState() }
+        LaunchedEffect(Unit) {
+            SnackbarManager.snackbar
+                .collect { model ->
+                    val result = snackbarHostState.showSnackbar(
+                        message = model.message,
+                        actionLabel = model.actionLabel,
+                        withDismissAction = model.withDismissAction,
+                    )
+                    when (result) {
+                        ActionPerformed -> model.action()
 
-            LaunchedEffect(Unit) {
-                SnackbarManager.snackbar
-                    .collect { model ->
-                        val result = snackbarHostState.showSnackbar(
-                            message = model.message,
-                            actionLabel = model.actionLabel,
-                            withDismissAction = model.withDismissAction,
-                        )
-                        when (result) {
-                            ActionPerformed -> model.action()
-
-                            Dismissed -> Unit // No-op
-                        }
+                        Dismissed -> Unit // No-op
                     }
+                }
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .testTag("AppRoot"),
+        ) {
+            AnimatedVisibility(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .zIndex(1f),
+                visible = bottomBarNavigationListener.bottomBarDestination.value != null,
+                enter = fadeIn(
+                    tween(AppUi.motion.normal),
+                ) + scaleIn(
+                    tween(AppUi.motion.normal),
+                ) + slideIn(
+                    initialOffset = { IntOffset(0, 0) },
+                    animationSpec = tween(AppUi.motion.normal),
+                ),
+                exit = fadeOut(
+                    tween(AppUi.motion.normal),
+                ) + scaleOut(
+                    tween(AppUi.motion.normal),
+                ) + slideOut(
+                    targetOffset = { fullSize -> IntOffset(0, fullSize.height) },
+                    animationSpec = tween(AppUi.motion.normal),
+                ),
+            ) {
+                val cornerRadius by transition.animateDp(
+                    transitionSpec = {
+                        tween(
+                            durationMillis = AppUi.motion.normal,
+                            easing = FastOutSlowInEasing,
+                        )
+                    },
+                    label = "bottom-bar-corner-radius",
+                ) { state ->
+                    when (state) {
+                        EnterExitState.PreEnter -> AppDimension.Radius.largest
+                        EnterExitState.Visible -> 0.dp
+                        EnterExitState.PostExit -> AppDimension.Radius.largest
+                    }
+                }
+
+                WorkeeperBottomAppBar(
+                    modifier = Modifier.clip(
+                        RoundedCornerShape(
+                            topStart = cornerRadius,
+                            topEnd = cornerRadius,
+                            bottomStart = 0.dp,
+                            bottomEnd = 0.dp,
+                        ),
+                    ),
+                    selectedItem = bottomBarNavigationListener.bottomBarDestination,
+                ) {
+                    navigatorEventBus.navTo(it.screen)
+                }
             }
 
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background)
-                    .testTag("AppRoot"),
-            ) {
-                AnimatedVisibility(
+            AppNavigationHost(
+                modifier = Modifier,
+                navigatorHolder = holder,
+            )
+
+            if (bottomBarNavigationListener.bottomBarDestination.value != null) {
+                Box(
                     modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .zIndex(1f),
-                    visible = navWrapper.bottomBarDestination.value != null,
-                    enter = fadeIn(
-                        tween(AppUi.motion.normal),
-                    ) + scaleIn(
-                        tween(AppUi.motion.normal),
-                    ) + slideIn(
-                        initialOffset = { IntOffset(0, 0) },
-                        animationSpec = tween(AppUi.motion.normal),
-                    ),
-                    exit = fadeOut(
-                        tween(AppUi.motion.normal),
-                    ) + scaleOut(
-                        tween(AppUi.motion.normal),
-                    ) + slideOut(
-                        targetOffset = { fullSize -> IntOffset(0, fullSize.height) },
-                        animationSpec = tween(AppUi.motion.normal),
-                    ),
+                        .align(Alignment.TopEnd)
+                        .systemBarsPadding()
+                        .height(TOP_APP_BAR_HEIGHT)
+                        .padding(end = TOP_APP_BAR_ACTION_PADDING),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    val cornerRadius by transition.animateDp(
-                        transitionSpec = {
-                            tween(
-                                durationMillis = AppUi.motion.normal,
-                                easing = FastOutSlowInEasing,
-                            )
-                        },
-                        label = "bottom-bar-corner-radius",
-                    ) { state ->
-                        when (state) {
-                            EnterExitState.PreEnter -> AppDimension.Radius.largest
-                            EnterExitState.Visible -> 0.dp
-                            EnterExitState.PostExit -> AppDimension.Radius.largest
-                        }
-                    }
-
-                    WorkeeperBottomAppBar(
-                        modifier = Modifier.clip(
-                            RoundedCornerShape(
-                                topStart = cornerRadius,
-                                topEnd = cornerRadius,
-                                bottomStart = 0.dp,
-                                bottomEnd = 0.dp,
-                            ),
-                        ),
-                        selectedItem = navWrapper.bottomBarDestination,
+                    IconButton(
+                        modifier = Modifier.testTag("AppSettingsEntry"),
+                        onClick = { navigatorEventBus.navTo(Screen.Settings) },
                     ) {
-                        navigatorEventBus.navTo(it.screen)
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Settings",
+                            tint = AppUi.colors.textPrimary,
+                        )
                     }
                 }
+            }
 
-                AppNavigationHost(
-                    modifier = Modifier,
-                    navigatorHolder = holder,
-                )
-
-                if (navWrapper.bottomBarDestination.value != null) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .systemBarsPadding()
-                            .height(TOP_APP_BAR_HEIGHT)
-                            .padding(end = TOP_APP_BAR_ACTION_PADDING),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        IconButton(
-                            modifier = Modifier.testTag("AppSettingsEntry"),
-                            onClick = { navigatorEventBus.navTo(Screen.Settings) },
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Settings,
-                                contentDescription = "Settings",
-                                tint = AppUi.colors.textPrimary,
-                            )
-                        }
-                    }
-                }
-
-                SnackbarHost(
-                    modifier = Modifier.align(Alignment.BottomCenter),
-                    hostState = snackbarHostState,
-                ) { data ->
-                    AppSnackbar(snackbarData = data)
-                }
+            SnackbarHost(
+                modifier = Modifier.align(Alignment.BottomCenter),
+                hostState = snackbarHostState,
+            ) { data ->
+                AppSnackbar(snackbarData = data)
             }
         }
     }

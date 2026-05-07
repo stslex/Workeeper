@@ -23,7 +23,7 @@ inline fun <
     reified TScreen : Screen,
     TComponent : Component<TScreen>,
     > NavGraphBuilder.navComponentScreen(
-    feature: FeatureAssisted<TProcessor, TScreen, TComponent>,
+    feature: FeatureAssisted<TProcessor, TScreen>,
     crossinline content: @Composable AnimatedContentScope.(TProcessor) -> Unit,
 ) {
     navScreen<TScreen> { screen ->
@@ -36,7 +36,7 @@ inline fun <
     reified TScreen : Screen,
     TComponent : Component<TScreen>,
     > NavGraphBuilder.navComponentScreenWithState(
-    feature: FeatureAssisted<TProcessor, TScreen, TComponent>,
+    feature: FeatureAssisted<TProcessor, TScreen>,
     crossinline content: @Composable AnimatedContentScope.(SavedStateHandle, TProcessor) -> Unit,
 ) {
     navScreenWithState<TScreen> { screen, state ->
