@@ -33,7 +33,9 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
+import io.github.stslex.workeeper.core.ui.plan_editor.PlanEditorBody
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
+import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorBodyAction
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.ui.components.ImageEditRow
 import io.github.stslex.workeeper.feature.exercise.ui.components.TagPickerInline
@@ -42,6 +44,7 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State.Mode
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
@@ -161,6 +164,7 @@ private fun DefaultPlanSection(
     state: State,
     consume: (Action) -> Unit,
 ) {
+    val isCreate = (state.mode as? Mode.Edit)?.isCreate == true
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xs),
@@ -175,33 +179,67 @@ private fun DefaultPlanSection(
             style = AppUi.typography.bodySmall,
             color = AppUi.colors.textTertiary,
         )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag("ExerciseEditPlanSummary"),
-                text = state.adhocPlanSummaryLabel,
-                style = AppUi.typography.bodySmall,
-                color = AppUi.colors.textTertiary,
-            )
-            AppButton.Tertiary(
-                modifier = Modifier.testTag("ExerciseEditPlanEditButton"),
-                text = stringResource(
-                    if (state.adhocPlan.isNullOrEmpty()) {
-                        R.string.feature_exercise_edit_plan_add
-                    } else {
-                        R.string.feature_exercise_edit_plan_edit
-                    },
-                ),
-                onClick = { consume(Action.Click.OnEditPlanClick) },
-                size = AppButtonSize.SMALL,
-            )
+        if (isCreate) {
+            // Create-mode has no exercise UUID yet, so it cannot navigate to the
+            // full-screen `Screen.PlanEditor` route (which keys off `last_adhoc_sets`).
+            // Render the body inline against the in-memory `state.adhocPlan`; the
+            // existing Save path persists it via `ExerciseChangeDomain.lastAdhocSets`.
+            InlineAdhocPlanEditor(state = state, consume = consume)
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("ExerciseEditPlanSummary"),
+                    text = state.adhocPlanSummaryLabel,
+                    style = AppUi.typography.bodySmall,
+                    color = AppUi.colors.textTertiary,
+                )
+                AppButton.Tertiary(
+                    modifier = Modifier.testTag("ExerciseEditPlanEditButton"),
+                    text = stringResource(
+                        if (state.adhocPlan.isNullOrEmpty()) {
+                            R.string.feature_exercise_edit_plan_add
+                        } else {
+                            R.string.feature_exercise_edit_plan_edit
+                        },
+                    ),
+                    onClick = { consume(Action.Click.OnEditPlanClick) },
+                    size = AppButtonSize.SMALL,
+                )
+            }
         }
     }
+}
+
+@Composable
+private fun InlineAdhocPlanEditor(
+    state: State,
+    consume: (Action) -> Unit,
+) {
+    val draft = state.adhocPlan ?: persistentListOf()
+    PlanEditorBody(
+        draft = draft,
+        isWeighted = state.type == ExerciseTypeUiModel.WEIGHTED,
+        onAction = { bodyAction ->
+            consume(Action.Click.OnAdhocPlanEditorAction(bodyAction))
+        },
+        scrollable = false,
+    )
+    AppButton.Tertiary(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("ExerciseEditPlanAddSetButton"),
+        text = stringResource(KitR.string.core_ui_kit_plan_editor_add_set),
+        onClick = {
+            consume(Action.Click.OnAdhocPlanEditorAction(PlanEditorBodyAction.OnAddSet))
+        },
+        size = AppButtonSize.SMALL,
+    )
 }
 
 @Composable
