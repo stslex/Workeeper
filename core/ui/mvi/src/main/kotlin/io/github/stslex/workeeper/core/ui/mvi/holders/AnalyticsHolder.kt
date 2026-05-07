@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.ui.mvi.holders
 
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
@@ -10,5 +11,5 @@ class AnalyticsHolder @Inject constructor() {
 
     fun <A : Store.Action, E : Store.Event> create(
         name: String,
-    ) = StoreAnalytics<A, E>("${BaseStore.Companion.STORE_LOGGER_PREFIX}_$name")
+    ) = StoreAnalytics<A, E>("${BaseStore.STORE_LOGGER_PREFIX}_$name")
 }

@@ -91,17 +91,59 @@ When adding to a feature module:
 - The Store contract (`State`, `Action`, `Event`) must conform to the MVI Detekt rules:
   immutable data-class State, sealed Action / Event, and the Store interface.
 - New handlers belong in `feature/<name>/.../mvi/handler/<Category>Handler.kt`. Use
-  constructor injection with `@Inject` and annotate the class `@ViewModelScoped`.
-- Repositories, DataStores, the database, and `StoreDispatchers` are `@Singleton`. Handlers,
-  Stores, Interactors, and Mappers are `@ViewModelScoped`.
-- New routes live in `core/ui/navigation/Screen.kt`. Each route maps to a `Component<Screen>`
-  in the consuming feature.
-- Surface user feedback through Events: emit `Event.Snackbar*` or `Event.Haptic*` and let the
-  Compose layer translate them into `SnackbarManager.showSnackbar(...)` or
+  constructor injection with `@Inject` and annotate the class `@ViewModelScoped`. This
+  applies to `NavigationHandler` too — `@ViewModelScoped @Inject Navigator` is the
+  canonical shape after the lifecycle-safe navigation refactor.
+- Repositories, DataStores, the database, `Storage`, and `StoreDispatchers` are
+  `@Singleton`. Handlers, Interactors, and Mappers are `@ViewModelScoped`. Stores
+  (`*Store` interfaces and their `*StoreImpl` ViewModels) are `@HiltViewModel`, with an
+  optional assisted-factory variant for screens that need route arguments at
+  construction.
+
+### Navigation
+
+- New routes are `@Serializable` entries in
+  `core/ui/navigation/.../Screen.kt`. Route arguments are value-type fields on the
+  `data class` route (`String?`, `Long`, etc.) — never `NavController`,
+  `NavBackStackEntry`, `SavedStateHandle`, `Activity`, or `Context`.
+- Stores and `NavigationHandler`s depend on `Navigator` (the command-bus interface in
+  `core/ui/navigation`). Hilt provides the singleton implementation
+  `NavigatorEventBus` (`app/app/.../navigation/NavigatorEventBus.kt`), which stores
+  only a `SharedFlow<NavigationCommand>` and three emit methods. It holds no
+  controller.
+- The App/UI bridge — `App.kt` + `NavigatorExt.NavigationEventBusSetup` — is the
+  ONLY place AndroidX Navigation operations execute. `App.kt` owns
+  `rememberNavController()` and feeds it into the bridge through a
+  composition-scoped `NavigatorHolder`. The bridge collects commands keyed on the
+  current `NavController` via `LaunchedEffect(navController)`, so it rebinds on
+  every recomposition / activity recreation.
+- `NavHostController`, `NavController`, `NavBackStackEntry`, `SavedStateHandle`,
+  `Activity`, and `Context` MUST NOT be retained by any `ViewModel`, `Store`,
+  `Handler`, `Interactor`, `Mapper`, or Hilt-`@Singleton` binding. The only object
+  allowed to live at singleton scope is the command-only `NavigatorEventBus`.
+- `SavedStateHandle` is composable-graph scoped. Use
+  `navComponentScreenWithState(<Feature>) { stateHandle, processor -> ... }` when a
+  screen consumes a navigation result, and reset the consumed value via
+  `stateHandle.setAttrDefaultValue(<SaveHandlerAttr>)` so re-entry does not
+  retrigger the consumer.
+- Navigation decisions stay in `Action.Navigation.<X>` consumed by the feature's
+  `NavigationHandler`. Never model navigation as `Event.Navigate*`.
+
+The full architectural rationale lives in
+[documentation/architecture.md → Navigation](documentation/architecture.md#navigation),
+the lifecycle-safe navigation refactor checklist in
+[`.claude/skills/refactor-with-mvi-rules.md`](.claude/skills/refactor-with-mvi-rules.md),
+and the lint-rule scope expectations in
+[documentation/lint-rules.md → HiltScopeRule scope expectations](documentation/lint-rules.md#scope-expectations-for-the-navigation-layer).
+
+### Other surfaces
+
+- Surface user feedback through Events: emit `Event.Snackbar*` or `Event.Haptic*` and
+  let the Compose layer translate them into `SnackbarManager.showSnackbar(...)` or
   `LocalHapticFeedback.current.performHapticFeedback(...)` calls.
 
-If the feature does not already expose what you need, model the new behavior into the existing
-`Action` and `Event` surface rather than reaching around it.
+If the feature does not already expose what you need, model the new behavior into the
+existing `Action` and `Event` surface rather than reaching around it.
 
 ## Commits
 

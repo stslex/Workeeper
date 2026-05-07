@@ -4,8 +4,6 @@ package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
-import io.github.stslex.workeeper.core.ui.navigation.NavigatorStack
-import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseDomain
@@ -22,7 +20,6 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import java.io.File
@@ -32,7 +29,6 @@ import javax.inject.Inject
 internal class CommonHandler @Inject constructor(
     private val interactor: ExerciseInteractor,
     private val resourceWrapper: ResourceWrapper,
-    private val navigatorStack: NavigatorStack,
     store: ExerciseHandlerStore,
 ) : Handler<Action.Common>, ExerciseHandlerStore by store {
 
@@ -70,17 +66,6 @@ internal class CommonHandler @Inject constructor(
         observeTags()
         val uuid = state.value.uuid ?: return
         loadExercise(uuid)
-
-        navigatorStack
-            .subscribeToStackAttr(Screen.PlanEditor.planEditorSavedAttr)
-            ?.filterNotNull()
-            ?.distinctUntilChanged()
-            ?.launch { saved ->
-                if (saved) {
-                    consume(Action.Common.Reload)
-                    navigatorStack.setCurrentStack(Screen.PlanEditor.planEditorSavedAttr)
-                }
-            }
     }
 
     private fun observeTags() {

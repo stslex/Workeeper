@@ -24,48 +24,6 @@ open class Log private constructor(
         )
     }
 
-    override fun d(message: String) {
-        if (isLogging.not()) return
-        logger.d(message)
-    }
-
-    override fun d(e: Throwable, message: String) {
-        if (isLogging.not()) return
-        logger.d(message, e)
-    }
-
-    override fun d(e: Throwable, message: () -> String) {
-        if (isLogging.not()) return
-        logger.d(e) { message() }
-    }
-
-    override fun d(message: () -> String) {
-        if (isLogging.not()) return
-        logger.d { message() }
-    }
-
-    override fun i(message: String) {
-        FirebaseCrashlyticsHolder.log("$tag: $message")
-        if (isLogging.not()) return
-        logger.i(message)
-    }
-
-    override fun i(message: () -> String) {
-        FirebaseCrashlyticsHolder.log("$tag: ${message()}")
-        if (isLogging.not()) return
-        logger.i { message() }
-    }
-
-    override fun v(message: String) {
-        if (isLogging.not()) return
-        logger.v(message)
-    }
-
-    override fun v(message: () -> String) {
-        if (isLogging.not()) return
-        logger.v { message() }
-    }
-
     override fun w(message: String) {
         FirebaseCrashlyticsHolder.log("$tag: $message")
         if (isLogging.not()) return
@@ -94,6 +52,52 @@ open class Log private constructor(
             tag = tag,
             messageString = message,
         )
+    }
+
+    override fun d(message: String) {
+        FirebaseCrashlyticsHolder.log("$tag: $message")
+        if (isLogging.not()) return
+        logger.d(message)
+    }
+
+    override fun d(e: Throwable, message: String) {
+        FirebaseCrashlyticsHolder.recordException(e, "$tag: $message")
+        if (isLogging.not()) return
+        logger.d(message, e)
+    }
+
+    override fun d(e: Throwable, message: () -> String) {
+        FirebaseCrashlyticsHolder.recordException(e, "$tag: ${message()}")
+        if (isLogging.not()) return
+        logger.d(e) { message() }
+    }
+
+    override fun d(message: () -> String) {
+        FirebaseCrashlyticsHolder.log("$tag: ${message()}")
+        if (isLogging.not()) return
+        logger.d { message() }
+    }
+
+    override fun i(message: String) {
+        FirebaseCrashlyticsHolder.log("$tag: $message")
+        if (isLogging.not()) return
+        logger.i(message)
+    }
+
+    override fun i(message: () -> String) {
+        FirebaseCrashlyticsHolder.log("$tag: ${message()}")
+        if (isLogging.not()) return
+        logger.i { message() }
+    }
+
+    override fun v(message: String) {
+        if (isLogging.not()) return
+        logger.v(message)
+    }
+
+    override fun v(message: () -> String) {
+        if (isLogging.not()) return
+        logger.v { message() }
     }
 
     companion object : Log("Workeeper") {

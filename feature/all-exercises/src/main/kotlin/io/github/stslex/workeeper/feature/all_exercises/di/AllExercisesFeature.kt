@@ -5,7 +5,6 @@ import androidx.compose.runtime.Composable
 import io.github.stslex.workeeper.core.ui.mvi.Feature
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
 import io.github.stslex.workeeper.core.ui.navigation.Screen.BottomBar.AllExercises
-import io.github.stslex.workeeper.feature.all_exercises.mvi.handler.AllExercisesComponent
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Action
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Event
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.State
@@ -13,12 +12,8 @@ import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesSt
 
 internal typealias AllExercisesStoreProcessor = StoreProcessor<State, Action, Event>
 
-internal object AllExercisesFeature :
-    Feature<AllExercisesStoreProcessor, AllExercises, AllExercisesComponent>() {
+internal object AllExercisesFeature : Feature<AllExercisesStoreProcessor, AllExercises>() {
 
     @Composable
-    override fun processor(
-        screen: AllExercises,
-    ): AllExercisesStoreProcessor =
-        createProcessor<AllExercisesStoreImpl, AllExercisesStoreImpl.Factory>(screen)
+    override fun processor(): AllExercisesStoreProcessor = createProcessor<AllExercisesStoreImpl>()
 }

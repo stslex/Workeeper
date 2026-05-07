@@ -2,27 +2,23 @@
 package io.github.stslex.workeeper.feature.settings.mvi.store
 
 import androidx.annotation.VisibleForTesting
-import dagger.assisted.Assisted
-import dagger.assisted.AssistedFactory
-import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
-import io.github.stslex.workeeper.core.ui.mvi.processor.StoreFactory
 import io.github.stslex.workeeper.feature.settings.di.ArchiveHandlerStoreImpl
 import io.github.stslex.workeeper.feature.settings.mvi.handler.ArchiveClickHandler
-import io.github.stslex.workeeper.feature.settings.mvi.handler.ArchiveComponent
 import io.github.stslex.workeeper.feature.settings.mvi.handler.ArchiveNavigationHandler
 import io.github.stslex.workeeper.feature.settings.mvi.handler.ArchivePagingHandler
 import io.github.stslex.workeeper.feature.settings.mvi.store.ArchiveStore.Action
 import io.github.stslex.workeeper.feature.settings.mvi.store.ArchiveStore.Event
 import io.github.stslex.workeeper.feature.settings.mvi.store.ArchiveStore.State
+import javax.inject.Inject
 
-@HiltViewModel(assistedFactory = ArchiveStoreImpl.Factory::class)
-internal class ArchiveStoreImpl @AssistedInject constructor(
-    @Assisted component: ArchiveComponent,
+@HiltViewModel
+internal class ArchiveStoreImpl @Inject constructor(
+    navigationHandler: ArchiveNavigationHandler,
     pagingHandler: ArchivePagingHandler,
     clickHandler: ArchiveClickHandler,
     storeDispatchers: StoreDispatchers,
@@ -40,7 +36,7 @@ internal class ArchiveStoreImpl @AssistedInject constructor(
     handlerCreator = { action ->
         when (action) {
             is Action.Paging -> pagingHandler
-            is Action.Navigation -> component as ArchiveNavigationHandler
+            is Action.Navigation -> navigationHandler
             is Action.Click -> clickHandler
         }
     },
@@ -48,9 +44,6 @@ internal class ArchiveStoreImpl @AssistedInject constructor(
     analyticsHolder = analyticsHolder,
     loggerHolder = loggerHolder,
 ) {
-
-    @AssistedFactory
-    interface Factory : StoreFactory<ArchiveComponent, ArchiveStoreImpl>
 
     companion object {
 

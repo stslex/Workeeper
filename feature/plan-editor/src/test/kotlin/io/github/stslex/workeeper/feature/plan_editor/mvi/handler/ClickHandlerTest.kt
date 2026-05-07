@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.core.ui.plan_editor.mvi.handler
+package io.github.stslex.workeeper.feature.plan_editor.mvi.handler
 
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel

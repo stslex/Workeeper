@@ -4,6 +4,8 @@ package io.github.stslex.workeeper.feature.single_training.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -16,7 +18,10 @@ import io.github.stslex.workeeper.core.ui.kit.components.dialog.ActiveSessionCon
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
-import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
+import io.github.stslex.workeeper.core.ui.mvi.getStateFlow
+import io.github.stslex.workeeper.core.ui.mvi.navComponentScreenWithState
+import io.github.stslex.workeeper.core.ui.mvi.setAttrDefaultValue
+import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.single_training.R
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingFeature
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
@@ -31,7 +36,19 @@ fun NavGraphBuilder.singleTrainingsGraph(
     sharedTransitionScope: SharedTransitionScope,
     modifier: Modifier = Modifier,
 ) {
-    navComponentScreen(SingleTrainingFeature) { processor ->
+    navComponentScreenWithState(SingleTrainingFeature) { stateHandle, processor ->
+
+        val attrValue by stateHandle
+            .getStateFlow(Screen.PlanEditor.planEditorSavedAttr)
+            .collectAsState()
+
+        LaunchedEffect(attrValue) {
+            if (attrValue == true) {
+                processor.consume(Action.Common.Reload)
+                stateHandle.setAttrDefaultValue(Screen.PlanEditor.planEditorSavedAttr)
+            }
+        }
+
         val haptic = LocalHapticFeedback.current
         // TODO(tech-debt): UI mapping boundary — see documentation/tech-debt.md
         val discardTitle = stringResource(R.string.feature_training_edit_discard_title)

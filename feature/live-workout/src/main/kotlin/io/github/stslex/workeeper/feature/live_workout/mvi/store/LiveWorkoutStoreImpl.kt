@@ -11,12 +11,12 @@ import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreFactory
+import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStoreImpl
 import io.github.stslex.workeeper.feature.live_workout.mvi.handler.ClickHandler
 import io.github.stslex.workeeper.feature.live_workout.mvi.handler.CommonHandler
 import io.github.stslex.workeeper.feature.live_workout.mvi.handler.DialogClickHandler
 import io.github.stslex.workeeper.feature.live_workout.mvi.handler.InputHandler
-import io.github.stslex.workeeper.feature.live_workout.mvi.handler.LiveWorkoutComponent
 import io.github.stslex.workeeper.feature.live_workout.mvi.handler.NavigationHandler
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Event
@@ -24,7 +24,8 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStor
 
 @HiltViewModel(assistedFactory = LiveWorkoutStoreImpl.Factory::class)
 internal class LiveWorkoutStoreImpl @AssistedInject constructor(
-    @Assisted component: LiveWorkoutComponent,
+    @Assisted screen: Screen.LiveWorkout,
+    navigationHandler: NavigationHandler,
     clickHandler: ClickHandler,
     inputHandler: InputHandler,
     commonHandler: CommonHandler,
@@ -36,12 +37,12 @@ internal class LiveWorkoutStoreImpl @AssistedInject constructor(
 ) : BaseStore<State, Action, Event>(
     name = NAME,
     initialState = State.create(
-        sessionUuid = component.data.sessionUuid,
-        trainingUuid = component.data.trainingUuid,
+        sessionUuid = screen.sessionUuid,
+        trainingUuid = screen.trainingUuid,
     ),
     handlerCreator = { action ->
         when (action) {
-            is Action.Navigation -> component as NavigationHandler
+            is Action.Navigation -> navigationHandler
             is Action.Common -> commonHandler
             is Action.Click -> clickHandler
             is Action.Input -> inputHandler
@@ -56,7 +57,7 @@ internal class LiveWorkoutStoreImpl @AssistedInject constructor(
 ) {
 
     @AssistedFactory
-    interface Factory : StoreFactory<LiveWorkoutComponent, LiveWorkoutStoreImpl>
+    interface Factory : StoreFactory<Screen.LiveWorkout, LiveWorkoutStoreImpl>
 
     companion object {
 

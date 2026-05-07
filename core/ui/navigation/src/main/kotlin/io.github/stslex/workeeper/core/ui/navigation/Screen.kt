@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.core.ui.navigation
 import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.lifecycle.SavedStateHandle
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
@@ -127,5 +128,13 @@ inline fun <reified S : Screen> NavGraphBuilder.navScreen(
 ) {
     composable<S> { backStackEntry ->
         content(backStackEntry.toRoute())
+    }
+}
+
+inline fun <reified S : Screen> NavGraphBuilder.navScreenWithState(
+    noinline content: @Composable AnimatedContentScope.(S, SavedStateHandle) -> Unit,
+) {
+    composable<S> { backStackEntry ->
+        content(backStackEntry.toRoute(), backStackEntry.savedStateHandle)
     }
 }

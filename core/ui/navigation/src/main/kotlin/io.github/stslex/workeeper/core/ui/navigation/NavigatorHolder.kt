@@ -5,7 +5,6 @@ import androidx.compose.runtime.Stable
 import androidx.navigation.NavHostController
 
 @Stable
-interface NavigatorHolder {
-
-    val navController: NavHostController
-}
+class NavigatorHolder(
+    val navController: NavHostController,
+)

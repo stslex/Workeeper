@@ -125,7 +125,7 @@ Items where shipped behaviour diverges from what specs originally asked for. Sur
 |---|---|---|---|
 | 🟡 | exercises.md | "Phantom shims removed" | `TrainingDataModel.labels` and `TrainingDataModel.exerciseUuids` still present and populated by repo. Cleanup. |
 | 🟡 | exercises.md | "`pagedActiveByTags(Set<String>)` AND semantics" | Shipped uses `IN (:tagUuids)` (OR semantics). The deprecated AND-semantics query was removed as dead code; OR is intentional and remains the supported behaviour — locked decision in v2.0 spec. |
-| 🟡 | exercises.md | "Canonical NavigationHandler with `@Inject Navigator`" | All feature NavigationHandlers use the manual `Component.create(navigator, screen)` constructor pattern with `@Suppress("MviHandlerConstructorRule")`. The architecture relies on the manual pattern because handlers carry per-screen `data`. Treated as architectural; not migrated in v2.0. |
+| ✅ RESOLVED | exercises.md | "Canonical NavigationHandler with `@Inject Navigator`" | Resolved in the navigation-lifecycle PR (PR #143). All feature `NavigationHandler` classes are now `@ViewModelScoped @Inject Navigator` constructor-injected; the old `Component.create(navigator, screen)` factory pattern is gone. Route arguments enter the Store via Dagger assisted injection (`@Assisted screen: Screen.<X>`) instead of through a `Component<Screen>` subclass. The `MviHandlerConstructorRule` literal-name exemption for `NavigationHandler` is now redundant — it remains in the rule source for back-compat but new code does not rely on it. See [architecture.md → Navigation](architecture.md#navigation) for the canonical pattern. |
 | 🟡 | exercises.md, trainings.md, live-workout.md | "Haptics emitted for every Click action" | Several dismiss / undo / cancel paths bypass haptic emission. Specifically: `processUndoArchive`, `processCancelPermanentDelete`, `processBulkDeleteDismiss` in all-exercises; `processBulkDeleteDismiss` in all-trainings; dismiss handlers and done-card header expansion in live-workout. |
 | 🟡 | trainings.md, live-workout.md | "Composable `@Previews` for every public/internal Composable" | `AllTrainingsScreen`, `TrainingDetailScreen`, `TrainingEditScreen` expose internals without `@Preview`. `TrainingRow` lacks active/inactive permutations. `live-workout` is fully covered (verified). |
 
@@ -145,6 +145,86 @@ Five stub files with `TODO(feature-rewrite-tests)` markers carry an `@Ignore`d p
 | 🟡 | [feature/single-training/.../SingleTrainingScreenTest.kt](../feature/single-training/src/androidTest/kotlin/io/github/stslex/workeeper/feature/single_training/SingleTrainingScreenTest.kt) | 5.3 |
 
 **Plan:** address as a dedicated test-coverage PR after v2 stabilises. Don't try to fill in feature PRs.
+
+---
+
+## Navigation lifecycle — RESOLVED in PR #143
+
+The "stale `NavController` after activity recreation crashes navigation" class of
+bugs that shipped before `master` is closed by the navigation-lifecycle refactor.
+The architecture now strictly separates navigation **decisions** (Store/Handler
+layer, depends on `Navigator`) from navigation **execution** (App/UI bridge,
+operates on the composition-scoped `NavController` from
+`rememberNavController()`).
+
+What changed:
+
+- `NavigatorEventBus` (`@Singleton`, controller-free) replaced the old controller-
+  backed `NavigatorImpl` / `NavigationHolderController` / `NavigationHolderImpl`
+  trio. It exposes only `Navigator` (producer) and `NavigatorReceiver` (consumer)
+  interfaces over a `SharedFlow<NavigationCommand>`.
+- `NavigatorExt.NavigationEventBusSetup` (composable) collects commands keyed on
+  the current `NavController` via `LaunchedEffect(navController)` so the executor
+  rebinds on every recomposition / activity recreation. The bus instance survives;
+  the executor is per-composition.
+- `App.kt` owns `rememberNavController()` and creates the `NavigatorHolder`
+  composition-scoped via `remember(navController)`.
+- `RootComponentImpl`, `LocalRootComponent`, `LocalNavigator`, and the
+  `Component.create(navigator, screen)` factory pattern are all removed. Route
+  arguments enter the Store via Dagger assisted injection
+  (`@Assisted screen: Screen.<X>`).
+- All feature `NavigationHandler`s are `@ViewModelScoped @Inject Navigator`.
+- `Screen.PlanEditor.planEditorSavedAttr` flows through
+  `navigator.popBack(planEditorSavedAttr.toPairValue(true))` and is consumed in
+  the previous screen's graph composable via `navComponentScreenWithState` +
+  `stateHandle.getStateFlow(...).collectAsState()`. Consumers reset the flag via
+  `stateHandle.setAttrDefaultValue(...)` so re-entry does not retrigger.
+
+Verification requirements (live in test code, not docs):
+
+- `NavigatorEventBusTest` covers `navTo` / `replaceTo` / `popBack` emission shape
+  and order on the singleton bus.
+- `NavigationLifecycleRegressionTest` covers a stale-bridge → fresh-bridge handover.
+  It verifies that the bus remains usable across detach / re-attach: commands
+  emitted with no executor attached do not crash or block the bus, and commands
+  emitted **after** a fresh executor subscribes are observed by that executor.
+  The bus uses `MutableSharedFlow(replay = 0, extraBufferCapacity = 64)` and
+  intentionally does not guarantee replay of commands emitted before subscription
+  — the production bridge attaches via `LaunchedEffect(navController)` before any
+  decision-side emit can happen for that composition, so pre-subscription emits
+  are not part of the lifecycle contract.
+- Per-feature `NavigationHandlerTest` classes verify each `Action.Navigation.<X>`
+  branch dispatches the matching `navigator.*` call, with `Navigator` mocked.
+- Per-feature route-arg Store tests (`feature/exercise`, `feature/live-workout`,
+  `feature/single-training`) verify the `@Assisted screen` value lands in
+  `state.value` initial fields.
+- `app/dev/.../NavigationLifecycleRegressionTest.kt` (instrumented `@Regression`)
+  recreates `MainActivity` mid-flight and asserts that subsequent bottom-bar
+  navigation calls land on the correct destination through the freshly-bound
+  bridge.
+
+### Test gaps deferred to a follow-up (instrumentation)
+
+The following scenarios are part of the manual QA checklist below but are NOT
+yet automated because the `app/dev` instrumentation harness only navigates
+within bottom-bar destinations — it has no helpers for seeding DB rows
+(Exercise / Training / PerformedExercise) and no shared fixtures for
+detail-screen → PlanEditor flows. Adding them would require new test
+infrastructure comparable in size to the rest of this PR. **Trigger to act:**
+next PR that adds a real-DB instrumentation fixture (similar to the
+`RepositoryTestEnv` approach for unit tests).
+
+| Scenario | Status |
+|---|---|
+| Exercise detail → PlanEditor save → previous screen reload exactly once | manual |
+| SingleTraining → PlanEditor save → previous screen reload exactly once | manual |
+| LiveWorkout → PlanEditor save → previous screen reload exactly once | manual |
+| LiveWorkout finish session → `replaceTo` lands on PastSession; back does not return to finished LiveWorkout | manual |
+
+Documented at [architecture.md → Navigation](architecture.md#navigation),
+[lint-rules.md → HiltScopeRule scope expectations](lint-rules.md#scope-expectations-for-the-navigation-layer),
+and the lifecycle-safe navigation refactor section in
+[`refactor-with-mvi-rules`](../.claude/skills/refactor-with-mvi-rules.md).
 
 ---
 

@@ -16,8 +16,9 @@ The build is configured in `settings.gradle.kts`. Every module is included from 
 ### `app/`
 
 - `app/app` — shared application code: `App.kt` composable root, `MainActivity`,
-  `bottom_app_bar/`, `host/AppNavigationHost.kt`, `navigation/NavigatorImpl.kt`,
-  `navigation/RootComponentImpl.kt`, `di/NavigationModule.kt`.
+  `bottom_app_bar/`, `host/AppNavigationHost.kt`, `navigation/NavigatorEventBus.kt`,
+  `navigation/NavigationCommand.kt`, `navigation/NavigatorReceiver.kt`,
+  `navigation/NavigatorExt.kt`, `di/NavigationModule.kt`.
 - `app/dev` — debuggable development variant with its own application id and Firebase config.
 - `app/store` — release variant signed for Play Store distribution.
 
@@ -36,8 +37,10 @@ The build is configured in `settings.gradle.kts`. Every module is included from 
   (`AppSnackBar`, `BasePagingColumnItem`, `TextInputField`), shared models
   (`PropertyHolder`, `MenuItem`, `PagingUiState`), `SnackbarManager`, `ActivityHolder`.
 - `core/ui/mvi` — the MVI contract (see [MVI contract](#mvi-contract)).
-- `core/ui/navigation` — `Navigator`, `Screen`, `Component`, `RootComponent`, `LocalNavigator`,
-  `LocalRootComponent`, `navScreen` extension.
+- `core/ui/navigation` — `Navigator` (command-bus interface), `Screen` (sealed
+  `@Serializable` route catalog), `SaveHandlerAttr`, `NavigatorHolder` (Compose-scoped
+  wrapper around the current `NavHostController`), `navScreen` / `navScreenWithState`
+  `NavGraphBuilder` extensions.
 - `core/ui/test-utils` — shared test infrastructure (`BaseComposeTest`, `MockDataFactory`,
   `PagingTestUtils`, `@Smoke`, `@Regression`).
 
@@ -146,19 +149,50 @@ from background coroutines](#dispatching-navigation-from-background-coroutines).
 
 Compose talks to MVI through `StoreProcessor` (see
 `core/ui/mvi/src/main/kotlin/io/github/stslex/workeeper/core/ui/mvi/processor/StoreProcessor.kt`).
-The `rememberStoreProcessor` composable in the same file:
+Two `rememberStoreProcessor` overloads in the same file cover both store shapes:
 
-1. Resolves the navigation `Component` from `LocalRootComponent`.
-2. Obtains the Store via Hilt's `hiltViewModel<TStoreImpl, TFactory> { it.create(component) }`
-   helper, so each navigation entry gets its own ViewModel-scoped graph.
-3. Wires `init()` / `dispose()` to a `DisposableEffect` and reports screen names to Firebase
-   Crashlytics and Analytics.
-4. Returns a `StoreProcessor` exposing `state: ComposeState<S>`, `consume(action)`, and a
-   `Handle { event -> ... }` composable for one-shot side effects.
+1. Plain `Feature` — `hiltViewModel<TStoreImpl>(key)` creates a Store with no route
+   arguments (e.g. `Screen.BottomBar.Home`).
+2. `FeatureAssisted` + `StoreFactory<TScreen, TStoreImpl>` —
+   `hiltViewModel<TStoreImpl, TFactory>(key) { it.create(screen) }` injects the screen
+   route data into the Store via Dagger assisted injection. The screen object comes
+   from the current `NavBackStackEntry.toRoute()` inside the graph composable, so the
+   Store never retains a `NavBackStackEntry` itself.
 
-`Feature<TProcessor, TScreen, TComponent>` (`core/ui/mvi/.../Feature.kt`) and
-`navComponentScreen(...)` (`core/ui/mvi/.../NavComponentScreen.kt`) are the small abstractions
-each feature uses to plug its processor into the `NavGraphBuilder`.
+In both cases the helper:
+
+- Wires `init()` / `dispose()` to a `DisposableEffect` keyed on the Store and the
+  current `LifecycleOwner` so the Store's `AppCoroutineScope` follows screen lifecycle.
+- Reports the Store's screen name to `FirebaseCrashlyticsHolder`,
+  `FirebaseAnalyticsHolder`, and `FirebaseScreenRenderRecorder`.
+- Returns a `StoreProcessor` exposing `state: ComposeState<S>`, `consume(action)`, and a
+  `Handle { event -> ... }` composable for one-shot UI side effects.
+
+`Feature<TProcessor, TScreen>` (`core/ui/mvi/.../Feature.kt`) and
+`FeatureAssisted<TProcessor, TScreen>` (`core/ui/mvi/.../FeatureAssisted.kt`) are the two
+composition-time entry points each feature picks between. Their `processor()` method is
+invoked from the feature's graph composable through `navComponentScreen` /
+`navComponentScreenWithState` (`core/ui/mvi/.../NavComponentScreen.kt`).
+
+#### When to use `Feature` vs `FeatureAssisted`
+
+- **`Feature<TProcessor, TScreen>`** — the screen has no route arguments (e.g.
+  `Screen.BottomBar.Home`, `Screen.Settings`, `Screen.Archive`). The Store derives its
+  initial state from defaults / repository observations only. Construction goes through
+  the standard `@HiltViewModel` ctor.
+- **`FeatureAssisted<TProcessor, TScreen>`** — the screen carries arguments that seed
+  the initial state (e.g. `Screen.Exercise(uuid)`, `Screen.LiveWorkout(sessionUuid,
+  trainingUuid)`, `Screen.PastSession(sessionUuid)`, `Screen.PlanEditor(...)`,
+  `Screen.ExerciseChart(exerciseUuid)`, `Screen.ExerciseImage(model)`,
+  `Screen.Training(uuid)`). The Store is annotated
+  `@HiltViewModel(assistedFactory = StoreImpl.Factory::class)` and constructor-injected
+  via `@AssistedInject` with `@Assisted screen: Screen.<X>`. The matching
+  `interface Factory : StoreFactory<Screen.<X>, StoreImpl>` is the assisted factory.
+
+The screen object passed to the Store is the value parsed from the current
+`NavBackStackEntry.toRoute()` (handled by `navScreen<TScreen>`); it is NOT a
+`NavBackStackEntry`, `SavedStateHandle`, or controller reference. The Store retains
+only the screen's value-type fields it needs.
 
 ### Holders
 
@@ -246,33 +280,41 @@ Each feature module follows the same conventional shape. Using
 feature/exercise/src/main/kotlin/io/github/stslex/workeeper/feature/exercise/
 ├── di/
 │   ├── ExerciseModule.kt            # Hilt @InstallIn(ViewModelComponent::class)
-│   ├── ExerciseEntryPoint.kt        # Hilt EntryPoint when needed at composition time
 │   ├── ExerciseHandlerStore.kt      # HandlerStore facade interface
 │   ├── ExerciseHandlerStoreImpl.kt  # @ViewModelScoped BaseHandlerStore subclass
-│   └── ExerciseProcessor.kt         # Feature object exposing the StoreProcessor
+│   └── ExerciseFeature.kt           # Feature / FeatureAssisted object exposing the StoreProcessor
 ├── ui/
-│   ├── ExerciseSingleWidget.kt      # Top-level Compose widget
-│   ├── components/                  # Sub-widgets (e.g. ExerciseSetsCreateWidget)
+│   ├── ExerciseDetailScreen.kt      # Top-level Compose screen (Read mode)
+│   ├── ExerciseEditScreen.kt        # Top-level Compose screen (Edit mode)
+│   ├── ExerciseGraph.kt             # NavGraphBuilder.exerciseGraph extension
+│   ├── components/                  # Sub-widgets
 │   └── mvi/
 │       ├── store/
 │       │   ├── ExerciseStore.kt     # Contract: State, Action, Event
 │       │   └── ExerciseStoreImpl.kt # @HiltViewModel(assistedFactory=Factory::class)
-│       └── handler/
-│           ├── ClickHandler.kt
-│           ├── InputHandler.kt
-│           ├── NavigationHandler.kt
-│           ├── CommonHandler.kt
-│           └── ExerciseComponent.kt # navigation::Component subclass + Impl
+│       ├── handler/
+│       │   ├── ClickHandler.kt
+│       │   ├── InputHandler.kt
+│       │   ├── NavigationHandler.kt # @ViewModelScoped @Inject (Navigator)
+│       │   └── CommonHandler.kt
+│       ├── mapper/                  # Domain → Ui mappers
+│       └── model/                   # *UiModel types
 ```
 
-Note that `feature/exercise` and `feature/single-training` keep MVI under a `ui/mvi/` package
-while the simpler `feature/all-trainings` and `feature/all-exercises` keep it directly under
-`mvi/`. Both layouts work with the linting rules; pick the one that already exists when adding
-to an existing feature.
+Notes:
 
-`<Name>HandlerStore` interfaces and their `Impl`s live under both `mvi/` and `di/` packages in
-some features for historical reasons — the `Impl` is in `di/` because it is a Hilt binding; the
-public interface used by handlers stays close to the Store contract.
+- `feature/exercise` and `feature/single-training` keep MVI under a `ui/mvi/` package
+  while the simpler `feature/all-trainings`, `feature/all-exercises`, and `feature/home`
+  keep it directly under `mvi/`. Both layouts work with the linting rules; pick the one
+  that already exists when adding to an existing feature.
+- There is no per-feature `Component<Screen>` subclass any more. Route arguments are
+  injected directly into the Store via `@Assisted screen: Screen.<X>` (see
+  [`@HiltViewModel` and assisted factories](#hiltviewmodel-and-assisted-factories) and
+  [`Feature` vs `FeatureAssisted`](#when-to-use-feature-vs-featureassisted)).
+- `<Name>HandlerStore` interfaces and their `Impl`s live under both `mvi/` and `di/`
+  packages in some features for historical reasons — the `Impl` is in `di/` because it
+  is a Hilt binding; the public interface used by handlers stays close to the Store
+  contract.
 
 ## Dependency injection (Hilt)
 
@@ -292,8 +334,9 @@ Lives in `core/*/di/Core*Module.kt`:
   (`@MainDispatcher`, `@MainImmediateDispatcher`, `@DefaultDispatcher`, `@IODispatcher`).
 - `core/ui/mvi/.../di/StoreDispatchers.kt` is a singleton data class injecting
   `@DefaultDispatcher` and `@MainImmediateDispatcher` for use by every store.
-- `app/app/src/main/java/io/github/stslex/workeeper/di/NavigationModule.kt` binds
-  `NavigatorImpl` to `Navigator` at the application level.
+- `app/app/src/main/java/io/github/stslex/workeeper/di/NavigationModule.kt` provides the
+  `@Singleton NavigatorEventBus` and binds it as `Navigator` at the application level.
+  `NavigatorEventBus` is a controller-free command bus — see [Navigation](#navigation).
 
 Repositories, DataStores, and `AppDatabase` are `@Singleton`. `HiltScopeRule` enforces this for
 classes whose name contains `Repository`, `DataStore`, `Database`, or `StoreDispatchers`.
@@ -306,36 +349,62 @@ Each feature owns `feature/<name>/.../di/<Name>Module.kt` annotated
 - `<Name>Interactor` (where present) — `@ViewModelScoped`.
 - `<Name>HandlerStore` — `@ViewModelScoped`, implementation extends `BaseHandlerStore`.
 
-Handlers (`ClickHandler`, `InputHandler`, etc.) are `@ViewModelScoped` classes that
-constructor-inject the feature's `<Name>HandlerStoreImpl` plus any repositories they need. They
-implement `Handler<Action.<Category>>`. `MviHandlerConstructorRule` requires a primary
-constructor with `@Inject` (the only exception is `NavigationHandler`, which constructs from
-the feature's `Component` rather than via `@Inject`).
+Handlers (`ClickHandler`, `InputHandler`, `NavigationHandler`, etc.) are `@ViewModelScoped`
+classes that constructor-inject the feature's `<Name>HandlerStoreImpl` plus any
+repositories or `Navigator` they need. They implement `Handler<Action.<Category>>`.
+`MviHandlerConstructorRule` requires a primary constructor with `@Inject`. The literal
+class name `NavigationHandler` is exempt at the rule level for historical reasons, but
+the current architecture uses `@Inject Navigator` constructor injection on it
+identically to other handlers. New code should not rely on the exemption.
 
-`HiltScopeRule` enforces `@ViewModelScoped` for classes whose name contains `Handler`, `Store`,
-`Interactor`, or `Mapper`.
+`HiltScopeRule` enforces `@ViewModelScoped` for classes whose name contains `Handler`,
+`Interactor`, or `Mapper`. `*Store` interfaces (excluding `*HandlerStore`) implement
+`Store` and route through `@HiltViewModel`. Names containing `Repository`, `DataStore`,
+`Database`, `Storage`, or `StoreDispatchers` must be `@Singleton`. The
+`NavigatorEventBus` class is named with the `Bus` suffix specifically so it does not
+match any of those scope predicates — its `@Singleton` annotation is provided by
+`NavigationModule` rather than tagged on the class.
 
 ### `@HiltViewModel` and assisted factories
 
-`<Name>StoreImpl` is annotated:
+A Store that needs no route arguments is a plain `@HiltViewModel`:
 
 ```kotlin
-@HiltViewModel(assistedFactory = StoreImpl.Factory::class)
-internal class StoreImpl @AssistedInject constructor(
-    @Assisted component: <Name>Component,
-    /* handlers and singletons */
-) : BaseStore<...>(...) {
+@HiltViewModel
+internal class HomeStoreImpl @Inject constructor(
+    navigationHandler: NavigationHandler,
+    /* other handlers, dispatchers, holders */
+) : BaseStore<State, Action, Event>(/* ... */)
+```
+
+A Store that needs route arguments uses Dagger assisted-injection. The screen route is
+the assisted argument:
+
+```kotlin
+@HiltViewModel(assistedFactory = ExerciseStoreImpl.Factory::class)
+internal class ExerciseStoreImpl @AssistedInject constructor(
+    @Assisted screen: Screen.Exercise,
+    navigationHandler: NavigationHandler,
+    /* other handlers, dispatchers, holders */
+) : BaseStore<State, Action, Event>(
+    /* ... */
+    initialState = State.create(uuid = screen.uuid),
+    /* ... */
+) {
 
     @AssistedFactory
-    interface Factory : StoreFactory<<Name>Component, StoreImpl>
+    interface Factory : StoreFactory<Screen.Exercise, ExerciseStoreImpl>
 }
 ```
 
-The `StoreFactory<TComponent, TStoreImpl>` interface is defined in
-`core/ui/mvi/src/main/kotlin/io/github/stslex/workeeper/core/ui/mvi/processor/StoreFactory.kt`.
-`rememberStoreProcessor` in `core/ui/mvi/.../processor/StoreProcessor.kt` calls
-`hiltViewModel<TStoreImpl, TFactory>(key) { it.create(component) }` so the screen's
-`Component` (which carries route arguments) is injected at composition time.
+The `StoreFactory<TScreen, TStoreImpl>` interface is defined in
+`core/ui/mvi/.../processor/StoreFactory.kt`. The screen object is parsed from the
+current `NavBackStackEntry.toRoute()` by `navScreen<TScreen>` and handed to
+`rememberStoreProcessor`, which calls
+`hiltViewModel<TStoreImpl, TFactory>(key) { it.create(screen) }`. The Store retains
+only the screen's value-type fields it needs in initial state (e.g. `screen.uuid`,
+`screen.sessionUuid`, `screen.trainingUuid`); the `NavBackStackEntry` is never
+referenced by the Store.
 
 Plain `DataStoreProvider` instances are created via the assisted factory in
 `core/dataStore/src/main/kotlin/io/github/stslex/workeeper/core/dataStore/core/DataStoreProviderFactory.kt`
@@ -531,33 +600,228 @@ destructive — see [Room database](#room-database)), not in domain models.
 
 ## Navigation
 
-### Routes and the navigator
+The navigation architecture is a **lifecycle-safe command bus**. Navigation
+**decisions** live in Store/Handler layer and use the `Navigator` interface;
+navigation **execution** (the actual `NavController.navigate(...)` /
+`popBackStack()`) lives in the App/UI bridge under composition. No
+ViewModel/Store/Handler/Singleton ever retains a `NavHostController`,
+`NavController`, `NavBackStackEntry`, `SavedStateHandle`, `Activity`, or
+`Context`.
 
-- `core/ui/navigation/.../Screen.kt` defines routes as a `@Serializable sealed interface`. The
-  three bottom-bar destinations are nested under `Screen.BottomBar` (`Home`, `AllExercises`,
-  `AllTrainings`), and the two detail destinations are `Screen.Training(uuid)` and
-  `Screen.Exercise(uuid, trainingUuid)`. Bottom-bar screens declare `isSingleTop = true`.
-- `core/ui/navigation/.../Navigator.kt` is a small `Navigator` interface exposing a
-  `NavHostController`, `navTo(screen)`, and `popBack()`. `NavigatorImpl`
-  (`app/app/src/main/java/io/github/stslex/workeeper/navigation/NavigatorImpl.kt`) is a
-  `@Singleton` bound by `NavigationModule`. `LocalNavigator` makes it available via
-  `CompositionLocalProvider`.
-- `core/ui/navigation/.../Component.kt` is the per-screen DI handle. Concrete
-  `<Name>Component` types are defined in each feature's `mvi/handler/` package and carry the
-  serialized route (`data: Screen.Training`, etc.). `RootComponentImpl`
-  (`app/app/.../navigation/RootComponentImpl.kt`) creates the right `Component` for a screen and
-  is provided through `LocalRootComponent`.
+### Routes
+
+`core/ui/navigation/.../Screen.kt` defines all routes as a `@Serializable sealed
+interface`. Bottom-bar destinations are nested under `Screen.BottomBar`
+(`Home`, `AllExercises`, `AllTrainings`) and declare `isSingleTop = true`.
+Detail destinations carry route arguments as value-type fields:
+`Screen.Training(uuid)`, `Screen.Exercise(uuid)`,
+`Screen.LiveWorkout(sessionUuid, trainingUuid)`,
+`Screen.PastSession(sessionUuid)`,
+`Screen.PlanEditor(performedExerciseUuid, exerciseUuid, trainingUuid)`,
+`Screen.ExerciseChart(exerciseUuid)`, `Screen.ExerciseImage(model)`. Pure
+single-instance destinations are `data object` (`Screen.Settings`,
+`Screen.Archive`).
+
+Two `NavGraphBuilder` extensions consume these routes:
+
+- `navScreen<TScreen>(content)` — parses the route via
+  `backStackEntry.toRoute()` and hands the resulting `TScreen` value to the
+  graph composable.
+- `navScreenWithState<TScreen>(content)` — same, plus the current
+  `NavBackStackEntry.savedStateHandle` for navigation-result reads (see
+  [Navigation results via SavedStateHandle](#navigation-results-via-savedstatehandle)
+  below).
+
+### `Navigator` (command bus interface)
+
+`core/ui/navigation/.../Navigator.kt` exposes three operations and nothing
+else — no controller, no back stack:
+
+```kotlin
+interface Navigator {
+    fun navTo(screen: Screen)
+    fun popBack(vararg previousStackAttr: Pair<String, Any?>)
+    fun replaceTo(screen: Screen)
+}
+```
+
+The contract is intentionally controller-free. Stores, Handlers, Interactors,
+and any other layer that wants to make a navigation **decision** depends on
+`Navigator` only. They never know whether the underlying executor is wired or
+not — emitting a navigation command at any point is safe; it queues until the
+bridge is attached.
+
+### `NavigatorEventBus` (singleton command bus implementation)
+
+`app/app/.../navigation/NavigatorEventBus.kt` is the singleton
+implementation. It implements two interfaces:
+
+- `Navigator` — the producer side called by feature `NavigationHandler`s.
+- `NavigatorReceiver` (`commands: SharedFlow<NavigationCommand>`) — the
+  consumer side collected by the App/UI bridge.
+
+```kotlin
+@Singleton
+class NavigatorEventBus @Inject constructor() : Navigator, NavigatorReceiver {
+
+    private val _commands = MutableSharedFlow<NavigationCommand>(
+        extraBufferCapacity = 64,
+    )
+    override val commands: SharedFlow<NavigationCommand> = _commands.asSharedFlow()
+
+    override fun navTo(screen: Screen) { _commands.tryEmit(NavigationCommand.NavTo(screen)) }
+    override fun popBack(vararg previousStackAttr: Pair<String, Any?>) {
+        _commands.tryEmit(NavigationCommand.PopBack(previousStackAttr.toList()))
+    }
+    override fun replaceTo(screen: Screen) { _commands.tryEmit(NavigationCommand.ReplaceTo(screen)) }
+}
+```
+
+Why singleton:
+
+- Stores live as long as a `NavBackStackEntry`'s ViewModel scope; the bridge
+  lives as long as the current Compose composition. The bus must outlive both,
+  so a Store can emit a command at any time without coupling its lifetime to
+  the current bridge instance. The bridge re-attaches on every recomposition /
+  activity recreation and observes commands emitted **after** its
+  subscription.
+- The bus stores **no controller**. It holds a `SharedFlow` and three emit
+  methods. There is nothing for the Android Framework to leak through it.
+
+The bus uses `MutableSharedFlow(replay = 0, extraBufferCapacity = 64)`. The
+`extraBufferCapacity` lets `tryEmit` succeed without blocking when subscribers
+are slow, but it is **not a replay buffer**: emissions made while no
+subscriber is attached are not redelivered to a subscriber that attaches
+later. This matches the production lifecycle — the bridge attaches in
+`App.kt` via `LaunchedEffect(navController)` before any feature
+`NavigationHandler` could fire `Action.Navigation.<X>` for that composition,
+so pre-subscription emissions are not part of the lifecycle contract. The
+contract that **is** load-bearing: the bus stays usable across bridge
+detach / re-attach cycles, and the next bridge observes every command
+emitted after its subscription point in dispatch order.
+
+The class is annotated `@Singleton` directly and constructor-injects with
+`@Inject constructor()`. `NavigationModule`
+(`app/app/.../di/NavigationModule.kt`) additionally `@Provides @Singleton`
+the same instance as a `Navigator` binding so callers depending on the
+abstract interface receive the same singleton. The class name carries the
+`Bus` suffix on purpose so it does not match any `HiltScopeRule` predicate
+(`Repository`, `DataStore`, `Database`, `Storage`, `StoreDispatchers`,
+`Handler`, `Interactor`, `Mapper`, `Store`).
+
+`NavigationCommand` (`app/app/.../navigation/NavigationCommand.kt`) is a
+`sealed interface` with three variants — `NavTo(screen)`,
+`ReplaceTo(screen)`, `PopBack(previousStackAttr)` — corresponding 1-to-1
+with the `Navigator` operations.
+
+### App/UI bridge: `NavigatorExt.NavigationEventBusSetup`
+
+`App.kt` owns the `NavHostController`. It is created with
+`rememberNavController()` inside the composition and wrapped in a
+`NavigatorHolder` value class for type clarity:
+
+```kotlin
+@Composable
+fun App() {
+    AppTheme(themeMode = themeMode) {
+        val navController = rememberNavController()
+        val holder = remember(navController) { NavigatorHolder(navController) }
+        val navigatorEventBus = viewModel.navigatorEventBus
+
+        NavigationEventBusSetup(
+            navigatorHolder = holder,
+            navigator = navigatorEventBus,
+        )
+
+        // ... NavHost wired through AppNavigationHost(navigatorHolder = holder)
+    }
+}
+```
+
+`NavigatorExt.NavigationEventBusSetup` (`app/app/.../navigation/NavigatorExt.kt`)
+is the **only** place AndroidX Navigation operations are executed. It collects
+`navigator.commands` keyed on the current `navController` and processes each
+command:
+
+```kotlin
+@Composable
+fun NavigationEventBusSetup(
+    navigatorHolder: NavigatorHolder,
+    navigator: NavigatorReceiver,
+) {
+    val navController = navigatorHolder.navController
+    LaunchedEffect(navController) {
+        navigator.commands.collect { command ->
+            processCommand(navController, command)
+        }
+    }
+}
+```
+
+The `LaunchedEffect(navController)` is the lifecycle anchor: when the
+composition is destroyed and a new one starts (config change, activity
+recreation), the effect cancels its old collection and re-collects on the
+freshly-created `NavController`. The `NavigatorEventBus` instance is the
+same; the executor is new. The new executor observes commands emitted
+**after** it subscribes — the bus's `MutableSharedFlow(replay = 0,
+extraBufferCapacity = 64)` does not replay pre-subscription emissions.
+That trade-off is intentional: the production bridge is attached
+synchronously inside `App.kt` before any Compose-driven Store action could
+fire, so a "lost" pre-subscription navigation command would only happen if
+a long-lived background coroutine emitted while the activity was being
+recreated — and the next user-visible navigation will originate from a
+post-subscription action regardless.
+
+`processCommand` translates each `NavigationCommand` to the matching
+`navController.navigate(...)` / `popBackStack(...)` call. `popBack` writes
+its key/value pairs into
+`navController.previousBackStackEntry.savedStateHandle` before the pop, which
+is how navigation results flow back to the previous screen (see
+[Navigation results via SavedStateHandle](#navigation-results-via-savedstatehandle)).
+
+### Lifetime rules
+
+The reason the bus is split between a singleton command bus and a
+composition-scoped executor is that the AndroidX `NavController` (and
+`NavHostController`, `NavBackStackEntry`, `SavedStateHandle`) cannot be
+retained beyond the composition that owns them. Doing so leaks the
+`Activity` they were created against and crashes on `setGraph` / `navigate`
+once the underlying `NavHost` is recomposed.
+
+The rules, enforced by reading code review (no Detekt rule yet, but the
+class naming makes it greppable):
+
+- `NavHostController`, `NavController`, `NavBackStackEntry`,
+  `SavedStateHandle`, `Activity`, and `Context` MUST NOT be stored as a
+  field of any `ViewModel` / `Store` / `Handler` / `Interactor` / `Mapper`
+  class, and MUST NOT be passed into a Hilt `@Singleton`-scoped binding.
+- `NavigatorEventBus` IS allowed in singleton / ViewModel / Store / Handler
+  layers because it stores only a `SharedFlow<NavigationCommand>` and three
+  emit methods. No controller reference exists inside it.
+- `NavigatorHolder` (`core/ui/navigation/.../NavigatorHolder.kt`) wraps a
+  live `NavHostController` and MUST stay scoped to composition (created via
+  `remember(navController)` in `App.kt`). It MUST NOT be cached statically,
+  passed through DI, or stored in a `Singleton`.
+- `SavedStateHandle` MAY be passed through the composable graph / bridge
+  layer (e.g. inside a `navScreenWithState<TScreen>` content lambda) when
+  it belongs to the current `NavBackStackEntry`. It MUST NOT be retained in
+  a Store / ViewModel / Handler / DI singleton.
 
 ### Navigation flow (canonical pattern)
 
-Navigation is **always** routed through a feature's `NavigationHandler`, never through the
-graph composable directly. This keeps UI dumb (it knows nothing about routes or `Navigator`)
-and lets navigation be tested in isolation. The pattern:
+Navigation is **always** routed through a feature's `NavigationHandler`, never
+through the graph composable directly. The pattern:
 
 1. UI emits an `Action.Navigation.<Something>` via `processor.consume(...)`.
-2. The store's `handlerCreator` lambda routes that action to the feature's `NavigationHandler`.
-3. `NavigationHandler` has `Navigator` injected via Hilt DI and calls `navigator.navTo(...)` or
-   `navigator.popBack()`.
+2. The Store's `handlerCreator` lambda routes that action to the feature's
+   `NavigationHandler`.
+3. `NavigationHandler` has `Navigator` injected via Hilt DI and calls
+   `navigator.navTo(...)`, `navigator.replaceTo(...)`, or
+   `navigator.popBack(...)`. The `Navigator` is the singleton
+   `NavigatorEventBus` — emitting is pure command dispatch with no side
+   effect on `NavController`.
+4. The App/UI bridge collects the command on its current `NavController` and
+   executes it.
 
 Concretely, a feature defines:
 
@@ -572,33 +836,92 @@ sealed interface Action : Store.Action {
 }
 
 // As a separate handler class in mvi/handler/:
+@ViewModelScoped
 internal class NavigationHandler @Inject constructor(
     private val navigator: Navigator,
-) : <Feature>Component(), Handler<Action.Navigation> {
+) : Handler<Action.Navigation> {
+
     override fun invoke(action: Action.Navigation) {
         when (action) {
-            is Action.Navigation.Back -> navigator.popBack()
-            is Action.Navigation.OpenArchive -> navigator.navTo(Screen.Archive)
+            Action.Navigation.Back -> navigator.popBack()
+            Action.Navigation.OpenArchive -> navigator.navTo(Screen.Archive)
         }
     }
 }
 ```
 
-The graph composable consumes only **UI-side events** through `processor.Handle { event -> ... }`:
+The handler holds **no controller**, **no `SavedStateHandle`**, **no
+`NavBackStackEntry`** — only the `Navigator` command-bus reference. It is
+JVM-unit-testable by mocking `Navigator` and verifying the emitted method
+call.
 
-- `Event.Haptic` — translated to `LocalHapticFeedback.current.performHapticFeedback(...)`.
-- `Event.ShowExternalLink(url)` — translated to an `Intent.ACTION_VIEW` against `LocalContext`.
-- `Event.Snackbar*` — emitted to the host snackbar manager.
+The graph composable consumes only **UI-side events** through
+`processor.Handle { event -> ... }`:
+
+- `Event.Haptic*` — translated to
+  `LocalHapticFeedback.current.performHapticFeedback(...)`.
+- `Event.Show*` (e.g. `ShowExternalLink(url)`, `ShowError`,
+  `ShowDiscardConfirmDialog`) — translated to `Intent.ACTION_VIEW`,
+  `SnackbarManager.showSnackbar(...)`, or local dialog state.
 - `Event.Scroll*` — translated to a `LazyListState` scroll command in scope.
 
-The graph composable **never** reads `LocalNavigator` and **never** consumes an
-`Event.Navigate*` (such an event must not exist — it would be misnamed). `LocalNavigator`
-exists in `core/ui/navigation/Navigator.kt` so the root `App.kt` can provide a single
-`Navigator` instance into the composition tree, but the canonical read site is
-`NavigationHandler` via Hilt — not graph composables.
+The graph composable **never** calls `navController.navigate(...)` /
+`popBackStack()` directly, **never** consumes an `Event.Navigate*`
+(such an event must not exist — it would be misnamed), and **never**
+captures `NavController` outside the bridge.
 
-Reference implementation: `feature/all-trainings/ui/AllTrainingsGraph.kt` (graph) and
-`feature/all-trainings/mvi/handler/NavigationHandler.kt` (handler).
+Reference implementation: `feature/all-trainings/ui/AllTrainingsGraph.kt`
+(graph) and `feature/all-trainings/mvi/handler/NavigationHandler.kt`
+(handler). For an assisted-injected route-arg variant, see
+`feature/exercise/ui/ExerciseGraph.kt` +
+`feature/exercise/ui/mvi/handler/NavigationHandler.kt`.
+
+### Navigation results via `SavedStateHandle`
+
+Some navigation flows return a result to the previous screen — most
+notably `Screen.PlanEditor`, which sets `planEditorSavedAttr.toPairValue(true)`
+inside the popped entry's `previousBackStackEntry.savedStateHandle` so the
+previous screen knows the plan was just saved and reloads.
+
+The mechanics:
+
+1. The producer (e.g. `feature/plan-editor`'s `NavigationHandler`) calls
+   `navigator.popBack(planEditorSavedAttr.toPairValue(true))` on save. The
+   `NavigatorEventBus` emits `NavigationCommand.PopBack(listOf("plan-editor-saved" to true))`.
+2. `NavigatorExt.popBack` writes the pair into
+   `navController.previousBackStackEntry?.savedStateHandle` *before* the
+   `popBackStack()` call, so the previous entry sees the result on resume.
+3. The consumer (e.g. `ExerciseGraph`) lives inside
+   `navComponentScreenWithState(ExerciseFeature) { stateHandle, processor -> ... }`
+   — `stateHandle` is the **current** `NavBackStackEntry.savedStateHandle`
+   provided by `navScreenWithState`. It collects the flag:
+
+   ```kotlin
+   val attrValue by stateHandle
+       .getStateFlow(Screen.PlanEditor.planEditorSavedAttr)
+       .collectAsState()
+
+   LaunchedEffect(attrValue) {
+       if (attrValue == true) {
+           processor.consume(Action.Common.Reload)
+           stateHandle.setAttrDefaultValue(Screen.PlanEditor.planEditorSavedAttr)
+       }
+   }
+   ```
+
+4. After consumption, the consumer resets the flag back to its default
+   (`false`) via `setAttrDefaultValue` so re-entering the screen later does
+   not retrigger the reload.
+
+The `SavedStateHandle` lives **only** inside the composable graph block. It
+is a `NavBackStackEntry`-scoped object and must not leak into the Store,
+Handler, ViewModel, or any singleton — it is parameter-only. Helper
+extensions `getStateFlow(SaveHandlerAttr)` and `setAttrDefaultValue(...)`
+in `core/ui/mvi/.../CommonExt.kt` make the pattern type-safe with the
+attr key + default declared on `Screen.PlanEditor.Companion`.
+
+Currently `Screen.Exercise`, `Screen.Training` (single-training), and
+`Screen.LiveWorkout` consume the PlanEditor saved-result this way.
 
 #### Dispatching navigation from background coroutines
 
@@ -772,24 +1095,33 @@ Two outcomes:
 
 ### Navigation host and shared element transitions
 
-`app/app/src/main/java/io/github/stslex/workeeper/host/AppNavigationHost.kt` wraps the
-`NavHost` in a `SharedTransitionLayout` (Jetpack Compose
-`ExperimentalSharedTransitionApi`). The single shared `SharedTransitionScope` is passed to each
-feature's `<Name>Graph` extension function (`homeGraph`, `allTrainingsGraph`,
-`allExercisesGraph`, `singleTrainingsGraph`, `exerciseGraph`), so transitions can be wired
+`app/app/src/main/java/io/github/stslex/workeeper/host/AppNavigationHost.kt` receives the
+composition-scoped `NavigatorHolder` (which wraps the `rememberNavController()` created in
+`App.kt`) and wraps the `NavHost` in a `SharedTransitionLayout` (Jetpack Compose
+`ExperimentalSharedTransitionApi`). The single shared `SharedTransitionScope` is passed to
+each feature's `<Name>Graph` extension function (`homeGraph`, `allTrainingsGraph`,
+`allExercisesGraph`, `singleTrainingsGraph`, `exerciseGraph`,
+`liveWorkoutGraph`, `pastSessionGraph`, `imageViewerGraph`, `settingsGraph`,
+`archiveGraph`, `exerciseChartGraph`, `planEditorGraph`), so transitions can be wired
 across the whole graph from a single root scope. The start destination is
-`Screen.BottomBar.Home`. Each graph is added via `navComponentScreen<Feature>` which expands
-to a `composable<Screen>` block under the hood (see
-`core/ui/navigation/.../Screen.kt::navScreen`).
+`Screen.BottomBar.Home`. Each graph is added via `navComponentScreen<Feature>` /
+`navComponentScreenWithState<Feature>`, which expands to a `composable<Screen>` block
+under the hood (see `core/ui/navigation/.../Screen.kt::navScreen`).
 
-Every graph composable's `modifier` chain must include `Modifier.reportScreenPlace<Screen.X>()`
-— the `onPlaced` callback that stops the TTID, AppCreate, and ActivityCreate traces. Skipping
-it leaves all three pipelines mis-attributed for that screen. See
+Every graph composable's `modifier` chain must include
+`Modifier.reportScreenPlace<Screen.X>()` — the `onPlaced` callback that stops the TTID,
+AppCreate, and ActivityCreate traces. Skipping it leaves all three pipelines
+mis-attributed for that screen. See
 [performance.md → New-screen contributor checklist](performance.md#new-screen-contributor-checklist).
 
-`NavHostControllerHolder` (`app/app/.../host/NavHostControllerHolder.kt`) tracks which
-`BottomBar` screen is current so `App.kt` can show or hide the `WorkeeperBottomAppBar` with an
-animated visibility transition.
+`BottomBarNavigationListener` (`app/app/.../host/BottomBarNavigationListener.kt`) is a
+composition-scoped `OnDestinationChangedListener` that tracks which `BottomBar` screen is
+current so `App.kt` can show or hide the `WorkeeperBottomAppBar` with an animated
+visibility transition. It registers and disposes inside a `DisposableEffect(navController)`
+so the listener never outlives its controller.
+
+`ClearFocusOnDestinationChanged` (`app/app/.../host/ClearFocusOnDestinationChanged.kt`)
+follows the same pattern to clear keyboard focus on every navigation tick.
 
 ### Bottom navigation
 

@@ -2,7 +2,6 @@
 package io.github.stslex.workeeper.feature.image_viewer.mvi.handler
 
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
-import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStore.Action
 import io.mockk.mockk
 import io.mockk.verify
@@ -11,10 +10,7 @@ import org.junit.jupiter.api.Test
 internal class NavigationHandlerTest {
 
     private val navigator = mockk<Navigator>(relaxed = true)
-    private val handler = NavigationHandler(
-        navigator = navigator,
-        data = Screen.ExerciseImage(model = "/files/uuid-1.jpg"),
-    )
+    private val handler = NavigationHandler(navigator = navigator)
 
     @Test
     fun `Back triggers popBack`() {
