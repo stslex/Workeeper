@@ -25,7 +25,6 @@ fun NavGraphBuilder.homeGraph(
         processor.Handle { event ->
             when (event) {
                 is Event.HapticClick -> haptic.performHapticFeedback(event.type)
-                is Event.ShowActiveSessionConflict -> Unit // rendered from state.pendingConflict
             }
         }
 
