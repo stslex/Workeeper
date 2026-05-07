@@ -50,6 +50,17 @@ Each tracked location should carry a `TODO(tech-debt): <category> — <ref>` mar
 
 ---
 
+## Dialog State Discipline — follow-ups
+
+Items deferred from the dialog-state-discipline PR (see [compose-state-discipline.md → Rule 4](compose-state-discipline.md) and [architecture.md → State / Action / Event conventions](architecture.md)). Both are intentional cuts to keep the rule migration scoped.
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟡 | [feature/live-workout/.../mvi/store/LiveWorkoutStore.kt](../feature/live-workout/src/main/kotlin/io/github/stslex/workeeper/feature/live_workout/mvi/store/LiveWorkoutStore.kt), [feature/exercise/.../mvi/store/ExerciseStore.kt](../feature/exercise/src/main/kotlin/io/github/stslex/workeeper/feature/exercise/ui/mvi/store/ExerciseStore.kt), [feature/single-training/.../mvi/store/SingleTrainingStore.kt](../feature/single-training/src/main/kotlin/io/github/stslex/workeeper/feature/single_training/mvi/store/SingleTrainingStore.kt) | **`Event.ShowError(message: String)` payload shape inconsistency.** The architecture doc prescribes `Event.ShowError(type: ErrorType)` with the localized resource resolved in the graph; live-workout, exercise, and single-training instead carry a pre-resolved `String message`. Pre-existing minor inconsistency — out of scope for the dialog/sheet rule migration. **Trigger to act:** next pass that touches `Event.ShowError` in any of these features. |
+| 🟡 | (cross-cutting — every feature with a `dialogState`) | **`dialogState` is not round-tripped through `SavedStateHandle`.** Configuration changes survive (same VM-scoped store). Process death does not — a dialog open at the moment Android reclaims the process disappears on resume. The Rule 4 known-limitation note acknowledges this; round-tripping critical dialogs needs a per-feature decision (which dialog payloads are worth `Bundle`-encoding) and a `BaseStore` extension or per-store `SavedStateHandle` wiring. **Trigger to act:** user-visible report of "I had a confirm dialog open, the app got killed, and the action got abandoned." |
+
+---
+
 ## State Mutation Discipline
 
 **Rule:** `BaseStore.updateState` and `updateStateImmediate` lambdas should perform pure state transformation only — given `current`, return a copy. Mapping, formatting, and any work involving `ResourceWrapper` or domain-to-UI conversions runs *before* the lambda body. See [architecture.md → State mutation discipline](architecture.md) and the [`compose-state-discipline`](../.claude/skills/compose-state-discipline.md) skill.
