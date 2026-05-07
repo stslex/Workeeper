@@ -21,25 +21,22 @@ class NavigatorEventBus @Inject constructor() : Navigator, NavigatorReceiver {
     override val commands: SharedFlow<NavigationCommand> = _commands.asSharedFlow()
 
     override fun navTo(screen: Screen) {
-        _commands.tryEmit(NavigationCommand.NavTo(screen)).also { emitted ->
-            if (emitted.not()) {
-                log.w { "Failed to emit NavTo command for screen: $screen" }
-            }
-        }
+        consume(NavigationCommand.NavTo(screen))
     }
 
     override fun popBack(vararg previousStackAttr: Pair<String, Any?>) {
-        _commands.tryEmit(NavigationCommand.PopBack(previousStackAttr.toList())).also { emitted ->
-            if (emitted.not()) {
-                log.w { "Failed to emit PopBack command with attributes: ${previousStackAttr.joinToString()}" }
-            }
-        }
+        consume(NavigationCommand.PopBack(previousStackAttr.toList()))
     }
 
     override fun replaceTo(screen: Screen) {
-        _commands.tryEmit(NavigationCommand.ReplaceTo(screen)).also { emitted ->
+        consume(NavigationCommand.ReplaceTo(screen))
+    }
+
+    private fun consume(command: NavigationCommand) {
+        log.d { "Processing navigation command: $command" }
+        _commands.tryEmit(command).also { emitted ->
             if (emitted.not()) {
-                log.w { "Failed to emit ReplaceTo command for screen: $screen" }
+                log.w { "Failed to emit navigation command: $command" }
             }
         }
     }

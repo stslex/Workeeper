@@ -1,7 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.navigation
 
+import io.github.stslex.workeeper.core.core.logger.Log
+import io.github.stslex.workeeper.core.core.logger.Logger
 import io.github.stslex.workeeper.core.ui.navigation.Screen
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.mockkObject
+import io.mockk.unmockkObject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
@@ -9,8 +15,10 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 /**
@@ -46,6 +54,21 @@ import org.junit.jupiter.api.Test
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class NavigationLifecycleRegressionTest {
+
+    // `NavigatorEventBus` constructs a `Log.tag(...)` logger that funnels through
+    // `FirebaseCrashlyticsHolder` → `Firebase.crashlytics` on every emit. In a JVM
+    // unit test Firebase is not initialized and `Process.myPid()` is not mocked,
+    // so the real logger throws. Stub `Log.tag(...)` to return a relaxed Logger.
+    @BeforeEach
+    fun setUpLogger() {
+        mockkObject(Log)
+        every { Log.tag(any()) } returns mockk<Logger>(relaxed = true)
+    }
+
+    @AfterEach
+    fun tearDownLogger() {
+        unmockkObject(Log)
+    }
 
     @Test
     fun `bus survives across simulated bridge detach and re-attach`() = runTest {
