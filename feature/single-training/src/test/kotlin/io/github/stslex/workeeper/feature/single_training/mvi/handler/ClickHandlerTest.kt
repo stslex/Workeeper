@@ -246,7 +246,14 @@ internal class ClickHandlerTest {
             ),
         )
         handler.invoke(Action.Click.OnConflictResume)
-        verify { store.consume(Action.Navigation.OpenLiveWorkout(sessionUuid = "session-1")) }
+        verify {
+            store.consume(
+                Action.Navigation.OpenLiveWorkout(
+                    sessionUuid = "session-1",
+                    trainingUuid = null,
+                ),
+            )
+        }
         assertEquals(null, stateFlow.value.pendingConflict)
     }
 }

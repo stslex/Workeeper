@@ -2,23 +2,19 @@
 package io.github.stslex.workeeper.navigation
 
 import androidx.compose.runtime.Stable
-import dagger.hilt.android.scopes.ActivityRetainedScoped
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
 import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
-import io.github.stslex.workeeper.core.ui.navigation.NavigatorStack
 import io.github.stslex.workeeper.core.ui.navigation.SaveHandlerAttr
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import kotlinx.coroutines.flow.StateFlow
-import javax.inject.Inject
 
 @Stable
-@ActivityRetainedScoped
-class NavigatorImpl @Inject constructor(
+class NavigatorImpl(
     private val holder: NavigatorHolder,
-) : Navigator, NavigatorStack {
+) : Navigator {
 
     private val navController get() = holder.navController
 

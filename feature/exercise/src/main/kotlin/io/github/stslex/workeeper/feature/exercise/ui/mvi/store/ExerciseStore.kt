@@ -259,6 +259,8 @@ internal interface ExerciseStore : Store<State, Action, Event> {
 
         sealed interface Navigation : Action {
 
+            data object Init : Navigation
+
             data object Back : Navigation
 
             data class OpenSession(val sessionUuid: String) : Navigation

@@ -5,7 +5,8 @@ import io.github.stslex.workeeper.core.ui.navigation.Component
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 
-abstract class SingleTrainingComponent(
+class SingleTrainingComponent(
+    internal val navigator: Navigator,
     data: Screen.Training,
 ) : Component<Screen.Training>(data) {
 
@@ -14,6 +15,9 @@ abstract class SingleTrainingComponent(
         fun create(
             navigator: Navigator,
             screen: Screen.Training,
-        ): SingleTrainingComponent = NavigationHandler(navigator = navigator, data = screen)
+        ): SingleTrainingComponent = SingleTrainingComponent(
+            navigator = navigator,
+            data = screen,
+        )
     }
 }

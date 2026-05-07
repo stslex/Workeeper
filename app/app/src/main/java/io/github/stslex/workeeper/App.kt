@@ -29,7 +29,6 @@ import androidx.compose.material3.SnackbarResult.ActionPerformed
 import androidx.compose.material3.SnackbarResult.Dismissed
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -50,9 +49,12 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.navigation.LocalRootComponent
+import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.host.AppNavigationHost
 import io.github.stslex.workeeper.host.BottomBarNavigationListener.Companion.rememberBottomBarNavigationListener
+import io.github.stslex.workeeper.navigation.NavigatorImpl
+import io.github.stslex.workeeper.navigation.RootComponentImpl
 
 private val TOP_APP_BAR_HEIGHT = 64.dp
 private val TOP_APP_BAR_ACTION_PADDING = 4.dp
@@ -64,16 +66,11 @@ fun App() {
 
     AppTheme(themeMode = themeMode) {
         val controller = rememberNavController()
-        val holder = remember(controller) { rootViewModel.holdController(controller) }
-
-        DisposableEffect(controller) {
-            onDispose {
-                rootViewModel.removeController(controller)
-            }
-        }
+        val holder = remember(controller) { NavigatorHolder(controller) }
+        val navigator = remember(controller) { NavigatorImpl(holder) }
 
         val navWrapper = rememberBottomBarNavigationListener(holder)
-        val rootComponent = remember(controller) { rootViewModel.createRootComponent() }
+        val rootComponent = remember(controller) { RootComponentImpl(navigator) }
 
         CompositionLocalProvider(
             LocalRootComponent provides rootComponent,
@@ -151,7 +148,7 @@ fun App() {
                         ),
                         selectedItem = navWrapper.bottomBarDestination,
                     ) {
-                        rootViewModel.navTo(it.screen)
+                        navigator.navTo(it.screen)
                     }
                 }
 
@@ -171,7 +168,7 @@ fun App() {
                     ) {
                         IconButton(
                             modifier = Modifier.testTag("AppSettingsEntry"),
-                            onClick = { rootViewModel.navTo(Screen.Settings) },
+                            onClick = { navigator.navTo(Screen.Settings) },
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Settings,

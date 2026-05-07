@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.core.ui.navigation
 
 import androidx.compose.runtime.Stable
+import kotlinx.coroutines.flow.StateFlow
 
 @Stable
 interface Navigator {
@@ -20,4 +21,8 @@ interface Navigator {
      * session detail after finish).
      */
     fun replaceTo(screen: Screen)
+
+    fun setCurrentStack(vararg stackAttr: SaveHandlerAttr<*>)
+
+    fun <T : Any> subscribeToStackAttr(saveHandlerAttr: SaveHandlerAttr<T>): StateFlow<T?>?
 }

@@ -5,13 +5,19 @@ import io.github.stslex.workeeper.core.ui.navigation.Component
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 
-abstract class ExerciseComponent(
+class ExerciseComponent(
+    internal val navigator: Navigator,
     data: Screen.Exercise,
 ) : Component<Screen.Exercise>(data) {
 
     companion object {
 
-        fun create(navigator: Navigator, screen: Screen.Exercise): ExerciseComponent =
-            NavigationHandler(navigator = navigator, data = screen)
+        fun create(
+            navigator: Navigator,
+            screen: Screen.Exercise,
+        ): ExerciseComponent = ExerciseComponent(
+            navigator = navigator,
+            data = screen,
+        )
     }
 }

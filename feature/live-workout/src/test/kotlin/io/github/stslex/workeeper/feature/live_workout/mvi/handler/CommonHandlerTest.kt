@@ -2,7 +2,6 @@
 package io.github.stslex.workeeper.feature.live_workout.mvi.handler
 
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
-import io.github.stslex.workeeper.core.ui.navigation.NavigatorStack
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action

@@ -217,13 +217,18 @@ internal interface SingleTrainingStore : Store<State, Action, Event> {
 
         sealed interface Navigation : Action {
 
+            data object Init : Navigation
+
             data object Back : Navigation
 
             data class OpenExerciseDetail(val uuid: String) : Navigation
 
             data class OpenSession(val sessionUuid: String) : Navigation
 
-            data class OpenLiveWorkout(val sessionUuid: String) : Navigation
+            data class OpenLiveWorkout(
+                val sessionUuid: String,
+                val trainingUuid: String?,
+            ) : Navigation
 
             /**
              * Open the full-screen plan-editor route for the given (training, exercise)

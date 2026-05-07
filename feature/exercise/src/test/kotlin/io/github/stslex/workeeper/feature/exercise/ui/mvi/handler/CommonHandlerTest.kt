@@ -3,7 +3,6 @@ package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
 import android.net.Uri
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
-import io.github.stslex.workeeper.core.ui.navigation.NavigatorStack
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseTypeDomain

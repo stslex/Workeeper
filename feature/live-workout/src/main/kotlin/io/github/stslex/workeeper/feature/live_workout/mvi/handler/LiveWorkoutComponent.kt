@@ -5,7 +5,8 @@ import io.github.stslex.workeeper.core.ui.navigation.Component
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 
-abstract class LiveWorkoutComponent(
+class LiveWorkoutComponent(
+    internal val navigator: Navigator,
     data: Screen.LiveWorkout,
 ) : Component<Screen.LiveWorkout>(data) {
 
@@ -14,6 +15,9 @@ abstract class LiveWorkoutComponent(
         fun create(
             navigator: Navigator,
             screen: Screen.LiveWorkout,
-        ): LiveWorkoutComponent = NavigationHandler(navigator = navigator, data = screen)
+        ): LiveWorkoutComponent = LiveWorkoutComponent(
+            navigator = navigator,
+            data = screen,
+        )
     }
 }
