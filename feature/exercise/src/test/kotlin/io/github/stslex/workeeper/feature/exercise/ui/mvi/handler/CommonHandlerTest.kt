@@ -7,6 +7,7 @@ import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseTypeDomain
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PendingImage
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
 import io.mockk.every
@@ -56,24 +57,24 @@ internal class CommonHandlerTest {
     fun `ImagePicked sets pendingImage to NewFromUri and hides the source dialog`() {
         val uri = mockk<Uri>(relaxed = true)
         val (stateFlow, handler) = setup(
-            State.create(uuid = "uuid-1").copy(sourceDialogVisible = true),
+            State.create(uuid = "uuid-1").copy(dialogState = DialogState.ImageSourcePicker),
         )
 
         handler.invoke(Action.Common.ImagePicked(uri))
 
         assertEquals(PendingImage.NewFromUri(uri), stateFlow.value.pendingImage)
-        assertEquals(false, stateFlow.value.sourceDialogVisible)
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
     }
 
     @Test
     fun `ImagePickCancelled hides the source dialog without staging a pending image`() {
         val (stateFlow, handler) = setup(
-            State.create(uuid = "uuid-1").copy(sourceDialogVisible = true),
+            State.create(uuid = "uuid-1").copy(dialogState = DialogState.ImageSourcePicker),
         )
 
         handler.invoke(Action.Common.ImagePickCancelled)
 
         assertEquals(PendingImage.Unchanged, stateFlow.value.pendingImage)
-        assertEquals(false, stateFlow.value.sourceDialogVisible)
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
     }
 }

@@ -12,6 +12,7 @@ import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PendingImage
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.DiscardTarget
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Event
@@ -85,7 +86,7 @@ internal class ClickHandlerTest {
 
     @Test
     fun `OnTypeSelect from WEIGHTED to WEIGHTLESS with weighted plan asks for confirm`() {
-        val (stateFlow, store, handler) = setup(
+        val (stateFlow, _, handler) = setup(
             State.create(uuid = "uuid-1").copy(
                 type = ExerciseTypeUiModel.WEIGHTED,
                 adhocPlan = persistentListOf(
@@ -94,9 +95,7 @@ internal class ClickHandlerTest {
             ),
         )
         handler.invoke(Action.Click.OnTypeSelect(ExerciseTypeUiModel.WEIGHTLESS))
-        val events = mutableListOf<Event>()
-        verify { store.sendEvent(capture(events)) }
-        assertTrue(events.any { it is Event.ShowTypeChangeConfirm })
+        assertTrue(stateFlow.value.dialogState is DialogState.TypeChangeConfirm)
         assertEquals(ExerciseTypeUiModel.WEIGHTED, stateFlow.value.type)
         assertEquals(ExerciseTypeUiModel.WEIGHTLESS, stateFlow.value.pendingTypeChange)
     }
@@ -223,7 +222,7 @@ internal class ClickHandlerTest {
     fun `OnTrackNowResumeConfirm consumes OpenLiveWorkout with active session uuid`() {
         val (_, store, handler) = setup(
             State.create(uuid = "uuid-1").copy(
-                pendingConflict = State.ConflictInfo(
+                dialogState = DialogState.ActiveSessionConflict(
                     sessionUuid = "active-1",
                     activeSessionName = "Push Day",
                     progressLabel = "0 of 0",
@@ -235,10 +234,10 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `OnTrackNowConflictDismiss clears pendingConflict`() {
+    fun `OnTrackNowConflictDismiss clears the active session conflict dialog`() {
         val (stateFlow, _, handler) = setup(
             State.create(uuid = "uuid-1").copy(
-                pendingConflict = State.ConflictInfo(
+                dialogState = DialogState.ActiveSessionConflict(
                     sessionUuid = "active-1",
                     activeSessionName = "Push Day",
                     progressLabel = "0 of 0",
@@ -246,7 +245,7 @@ internal class ClickHandlerTest {
             ),
         )
         handler.invoke(Action.Click.OnTrackNowConflictDismiss)
-        assertNull(stateFlow.value.pendingConflict)
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
     }
 
     @Test
@@ -270,7 +269,7 @@ internal class ClickHandlerTest {
 
     @Test
     fun `OnCancelClick from dirty Edit on existing shows FLIP_TO_READ discard dialog`() {
-        val (_, store, handler) = setup(
+        val (stateFlow, store, handler) = setup(
             State.create(uuid = "uuid-1").copy(
                 mode = Mode.Edit(isCreate = false),
                 name = "Bench updated",
@@ -284,13 +283,9 @@ internal class ClickHandlerTest {
         )
         handler.invoke(Action.Click.OnCancelClick)
         verify(exactly = 0) { store.consume(Action.Navigation.Back) }
-        val events = mutableListOf<Event>()
-        verify { store.sendEvent(capture(events)) }
-        assertTrue(
-            events.any {
-                it is Event.ShowDiscardConfirmDialog && it.target == DiscardTarget.FLIP_TO_READ
-            },
-        )
+        val dialog = stateFlow.value.dialogState
+        assertTrue(dialog is DialogState.DiscardConfirm)
+        assertEquals(DiscardTarget.FLIP_TO_READ, (dialog as DialogState.DiscardConfirm).target)
     }
 
     @Test
@@ -342,24 +337,22 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `OnPermanentDeleteMenuClick emits ShowPermanentDeleteConfirm when eligible`() {
-        val (_, store, handler) = setup(
+    fun `OnPermanentDeleteMenuClick surfaces the PermanentDeleteConfirm dialog when eligible`() {
+        val (stateFlow, _, handler) = setup(
             State.create(uuid = "uuid-1").copy(
                 canPermanentlyDelete = true,
                 name = "Bench",
             ),
         )
         handler.invoke(Action.Click.OnPermanentDeleteMenuClick)
-        val events = mutableListOf<Event>()
-        verify { store.sendEvent(capture(events)) }
-        assertTrue(events.any { it is Event.ShowPermanentDeleteConfirm })
+        assertTrue(stateFlow.value.dialogState is DialogState.PermanentDeleteConfirm)
     }
 
     @Test
-    fun `OnEditImageClick opens the source dialog`() {
+    fun `OnEditImageClick opens the image source picker dialog`() {
         val (stateFlow, _, handler) = setup()
         handler.invoke(Action.Click.OnEditImageClick)
-        assertTrue(stateFlow.value.sourceDialogVisible)
+        assertEquals(DialogState.ImageSourcePicker, stateFlow.value.dialogState)
     }
 
     @Test
@@ -380,32 +373,32 @@ internal class ClickHandlerTest {
     @Test
     fun `OnImageSourceDialogDismiss hides the source dialog`() {
         val (stateFlow, _, handler) = setup(
-            State.create(uuid = "uuid-1").copy(sourceDialogVisible = true),
+            State.create(uuid = "uuid-1").copy(dialogState = DialogState.ImageSourcePicker),
         )
         handler.invoke(Action.Click.OnImageSourceDialogDismiss)
-        assertEquals(false, stateFlow.value.sourceDialogVisible)
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
     }
 
     @Test
     fun `OnPermissionDeniedDialogDismiss hides the permission dialog`() {
         val (stateFlow, _, handler) = setup(
-            State.create(uuid = "uuid-1").copy(permissionDeniedDialogVisible = true),
+            State.create(uuid = "uuid-1").copy(dialogState = DialogState.PermissionDenied),
         )
         handler.invoke(Action.Click.OnPermissionDeniedDialogDismiss)
-        assertEquals(false, stateFlow.value.permissionDeniedDialogVisible)
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
     }
 
     @Test
     fun `OnCameraPermissionDenied surfaces the permission denied dialog`() {
         val (stateFlow, _, handler) = setup()
         handler.invoke(Action.Click.OnCameraPermissionDenied)
-        assertTrue(stateFlow.value.permissionDeniedDialogVisible)
+        assertEquals(DialogState.PermissionDenied, stateFlow.value.dialogState)
     }
 
     @Test
     fun `OnPermissionDeniedSettingsClick emits NavigateOpenAppSettings`() {
         val (_, store, handler) = setup(
-            State.create(uuid = "uuid-1").copy(permissionDeniedDialogVisible = true),
+            State.create(uuid = "uuid-1").copy(dialogState = DialogState.PermissionDenied),
         )
         handler.invoke(Action.Click.OnPermissionDeniedSettingsClick)
         val events = mutableListOf<Event>()

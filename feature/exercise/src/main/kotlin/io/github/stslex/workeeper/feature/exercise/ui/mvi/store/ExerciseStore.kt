@@ -44,9 +44,7 @@ internal interface ExerciseStore : Store<State, Action, Event> {
         val imagePath: String?,
         val imageLastModified: Long,
         val pendingImage: PendingImage,
-        val sourceDialogVisible: Boolean,
-        val permissionDeniedDialogVisible: Boolean,
-        val pendingConflict: ConflictInfo?,
+        val dialogState: DialogState,
         val personalRecord: PersonalRecordUiModel?,
     ) : Store.State {
 
@@ -80,13 +78,15 @@ internal interface ExerciseStore : Store<State, Action, Event> {
             }
 
         /**
-         * True only when the system back gesture must surface the discard-changes dialog,
-         * or when Edit on an existing exercise must flip back to Read instead of popping.
-         * When false, BackHandler stays unsubscribed so Compose nav handles the gesture
-         * natively (including the Android 13+ predictive-back preview animation).
+         * True when the system back gesture must surface the discard-changes dialog,
+         * close an open dialog before propagating, or flip an existing exercise's Edit
+         * mode back to Read instead of popping. When false, BackHandler stays
+         * unsubscribed so Compose nav handles the gesture natively (including the
+         * Android 13+ predictive-back preview animation).
          */
         val interceptBack: Boolean
-            get() = mode is Mode.Edit && (hasChanges || !mode.isCreate)
+            get() = (mode is Mode.Edit && (hasChanges || !mode.isCreate)) ||
+                dialogState !is DialogState.Hidden
 
         @Stable
         sealed interface Mode {
@@ -109,18 +109,6 @@ internal interface ExerciseStore : Store<State, Action, Event> {
                 state.description == description &&
                 state.tags.map { it.uuid } == tagUuids
         }
-
-        /**
-         * Snapshot of the active session that conflicts with the user's Track now request.
-         * Carried in State so the modal can survive configuration changes without
-         * re-fetching from the repository.
-         */
-        @Stable
-        data class ConflictInfo(
-            val sessionUuid: String,
-            val activeSessionName: String,
-            val progressLabel: String,
-        )
 
         companion object {
 
@@ -145,9 +133,7 @@ internal interface ExerciseStore : Store<State, Action, Event> {
                 imagePath = null,
                 imageLastModified = 0L,
                 pendingImage = PendingImage.Unchanged,
-                sourceDialogVisible = false,
-                permissionDeniedDialogVisible = false,
-                pendingConflict = null,
+                dialogState = DialogState.Hidden,
                 personalRecord = null,
             )
         }
@@ -285,32 +271,9 @@ internal interface ExerciseStore : Store<State, Action, Event> {
 
         data class ShowArchiveSuccess(val uuid: String, val message: String) : Event
 
-        data class ShowArchiveBlocked(val body: String) : Event
-
         data class ShowTagLimitReached(val message: String) : Event
 
-        data class ShowActiveSessionConflict(
-            val activeSessionName: String,
-            val progressLabel: String,
-        ) : Event
-
-        data class ShowDiscardConfirmDialog(val target: DiscardTarget) : Event
-
-        data class ShowPermanentDeleteConfirm(
-            val title: String,
-            val body: String,
-            val impactSummary: String,
-            val confirmLabel: String,
-        ) : Event
-
         data class ShowPermanentDeleteSuccess(val message: String) : Event
-
-        data class ShowTypeChangeConfirm(
-            val title: String,
-            val body: String,
-            val impactSummary: String,
-            val confirmLabel: String,
-        ) : Event
 
         data class NavigateLaunchCamera(val tempUri: Uri) : Event
 

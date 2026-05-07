@@ -35,8 +35,8 @@ import io.github.stslex.workeeper.feature.exercise.di.ExerciseFeature
 import io.github.stslex.workeeper.feature.exercise.ui.components.ImageSourceDialog
 import io.github.stslex.workeeper.feature.exercise.ui.components.PermissionDeniedDialog
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageErrorType
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.DiscardTarget
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Event
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State.Mode
 
@@ -61,27 +61,16 @@ fun NavGraphBuilder.exerciseGraph(
         val haptic = LocalHapticFeedback.current
         val context = LocalContext.current
         val undoLabel = stringResource(R.string.feature_exercise_detail_archive_undo)
-        val discardTitle = stringResource(R.string.feature_exercise_edit_discard_title)
-        val discardBody = stringResource(R.string.feature_exercise_edit_discard_body)
-        val discardConfirm = stringResource(R.string.feature_exercise_edit_discard_confirm)
-        val discardDismiss = stringResource(R.string.feature_exercise_edit_discard_dismiss)
-        val archiveBlockedTitle =
-            stringResource(R.string.feature_exercise_detail_archive_blocked_title)
-        val archiveBlockedOk =
-            stringResource(R.string.feature_exercise_detail_archive_blocked_ok)
         val imageSaveFailed = stringResource(R.string.feature_exercise_image_error_save_failed)
         val imageLoadFailed = stringResource(R.string.feature_exercise_image_error_load_failed)
         val imageDecodeFailed =
             stringResource(R.string.feature_exercise_image_error_decode_failed)
 
-        var pendingDiscard by remember { mutableStateOf<DiscardTarget?>(null) }
-        var archiveBlockedBody by remember { mutableStateOf<String?>(null) }
-        var permanentDeleteDialog by remember {
-            mutableStateOf<Event.ShowPermanentDeleteConfirm?>(
-                null,
-            )
-        }
-        var typeChangeDialog by remember { mutableStateOf<Event.ShowTypeChangeConfirm?>(null) }
+        // pendingCameraTempUri is *bridge state* for the camera Activity Result Contract,
+        // not a UI dialog. The launcher's result callback needs the URI it was launched
+        // with so it can decide whether the capture succeeded; rotation between launch and
+        // result is rare in practice and recovering after process death is out of scope
+        // for this rule. Keep as a local var.
         var pendingCameraTempUri by remember { mutableStateOf<Uri?>(null) }
 
         val cameraLauncher = rememberLauncherForActivityResult(
@@ -126,26 +115,10 @@ fun NavGraphBuilder.exerciseGraph(
                     ),
                 )
 
-                is Event.ShowArchiveBlocked -> {
-                    archiveBlockedBody = event.body
-                }
-
                 is Event.ShowTagLimitReached -> SnackbarManager.showSnackbar(message = event.message)
-                is Event.ShowActiveSessionConflict -> Unit // rendered from state.pendingConflict
-                is Event.ShowDiscardConfirmDialog -> {
-                    pendingDiscard = event.target
-                }
-
-                is Event.ShowPermanentDeleteConfirm -> {
-                    permanentDeleteDialog = event
-                }
 
                 is Event.ShowPermanentDeleteSuccess ->
                     SnackbarManager.showSnackbar(message = event.message)
-
-                is Event.ShowTypeChangeConfirm -> {
-                    typeChangeDialog = event
-                }
 
                 is Event.NavigateLaunchCamera -> {
                     pendingCameraTempUri = event.tempUri
@@ -182,10 +155,11 @@ fun NavGraphBuilder.exerciseGraph(
             }
         }
 
-        // Only intercept the system back gesture when there are unsaved edits — otherwise
-        // BackHandler would shadow the Android 13+ predictive-back preview animation. The
-        // TopAppBar back arrow and Cancel button still emit OnBackClick directly so explicit
-        // taps always flow through the store regardless of interceptBack.
+        // Intercept the system back gesture for unsaved edits or open dialogs — otherwise
+        // BackHandler stays unsubscribed so Compose nav handles the gesture natively
+        // (including the Android 13+ predictive-back preview animation). The TopAppBar
+        // back arrow and Cancel button still emit OnBackClick directly so explicit taps
+        // always flow through the store regardless of interceptBack.
         BackHandler(enabled = processor.state.value.interceptBack) {
             processor.consume(Action.Click.OnBackClick)
         }
@@ -205,90 +179,61 @@ fun NavGraphBuilder.exerciseGraph(
             )
         }
 
-        pendingDiscard?.let { target ->
-            AppDialog(
-                title = discardTitle,
-                body = discardBody,
-                confirmLabel = discardConfirm,
-                dismissLabel = discardDismiss,
+        when (val dialog = state.dialogState) {
+            DialogState.Hidden -> Unit
+
+            is DialogState.DiscardConfirm -> AppDialog(
+                title = stringResource(R.string.feature_exercise_edit_discard_title),
+                body = stringResource(R.string.feature_exercise_edit_discard_body),
+                confirmLabel = stringResource(R.string.feature_exercise_edit_discard_confirm),
+                dismissLabel = stringResource(R.string.feature_exercise_edit_discard_dismiss),
                 destructive = true,
-                onConfirm = {
-                    pendingDiscard = null
-                    processor.consume(Action.Click.OnConfirmDiscard(target))
-                },
-                onDismiss = {
-                    pendingDiscard = null
-                    processor.consume(Action.Click.OnDismissDiscard)
-                },
+                onConfirm = { processor.consume(Action.Click.OnConfirmDiscard(dialog.target)) },
+                onDismiss = { processor.consume(Action.Click.OnDismissDiscard) },
             )
-        }
-        archiveBlockedBody?.let { body ->
-            AppDialog(
-                title = archiveBlockedTitle,
-                body = body,
-                confirmLabel = archiveBlockedOk,
-                onConfirm = {
-                    archiveBlockedBody = null
-                    processor.consume(Action.Click.OnDismissArchiveBlocked)
-                },
+
+            is DialogState.ArchiveBlocked -> AppDialog(
+                title = stringResource(R.string.feature_exercise_detail_archive_blocked_title),
+                body = dialog.body,
+                confirmLabel = stringResource(R.string.feature_exercise_detail_archive_blocked_ok),
+                onConfirm = { processor.consume(Action.Click.OnDismissArchiveBlocked) },
             )
-        }
-        permanentDeleteDialog?.let { dialog ->
-            AppConfirmDialog(
+
+            is DialogState.PermanentDeleteConfirm -> AppConfirmDialog(
                 title = dialog.title,
                 body = dialog.body,
                 impactSummary = dialog.impactSummary,
                 confirmLabel = dialog.confirmLabel,
-                onConfirm = {
-                    permanentDeleteDialog = null
-                    processor.consume(Action.Click.OnConfirmPermanentDelete)
-                },
-                onDismiss = {
-                    permanentDeleteDialog = null
-                    processor.consume(Action.Click.OnDismissPermanentDelete)
-                },
+                onConfirm = { processor.consume(Action.Click.OnConfirmPermanentDelete) },
+                onDismiss = { processor.consume(Action.Click.OnDismissPermanentDelete) },
             )
-        }
-        typeChangeDialog?.let { dialog ->
-            AppConfirmDialog(
+
+            is DialogState.TypeChangeConfirm -> AppConfirmDialog(
                 title = dialog.title,
                 body = dialog.body,
                 impactSummary = dialog.impactSummary,
                 confirmLabel = dialog.confirmLabel,
-                onConfirm = {
-                    typeChangeDialog = null
-                    processor.consume(Action.Click.OnTypeChangeConfirm)
-                },
-                onDismiss = {
-                    typeChangeDialog = null
-                    processor.consume(Action.Click.OnTypeChangeDismiss)
-                },
+                onConfirm = { processor.consume(Action.Click.OnTypeChangeConfirm) },
+                onDismiss = { processor.consume(Action.Click.OnTypeChangeDismiss) },
             )
-        }
-        if (state.sourceDialogVisible) {
-            ImageSourceDialog(
+
+            DialogState.ImageSourcePicker -> ImageSourceDialog(
                 onSourceSelected = { source ->
                     processor.consume(Action.Click.OnImageSourceSelected(source))
                 },
-                onDismiss = {
-                    processor.consume(Action.Click.OnImageSourceDialogDismiss)
-                },
+                onDismiss = { processor.consume(Action.Click.OnImageSourceDialogDismiss) },
             )
-        }
-        if (state.permissionDeniedDialogVisible) {
-            PermissionDeniedDialog(
+
+            DialogState.PermissionDenied -> PermissionDeniedDialog(
                 onSettingsClick = {
                     processor.consume(Action.Click.OnPermissionDeniedSettingsClick)
                 },
-                onDismiss = {
-                    processor.consume(Action.Click.OnPermissionDeniedDialogDismiss)
-                },
+                onDismiss = { processor.consume(Action.Click.OnPermissionDeniedDialogDismiss) },
             )
-        }
-        state.pendingConflict?.let { info ->
-            ActiveSessionConflictDialog(
-                activeSessionName = info.activeSessionName,
-                progressLabel = info.progressLabel,
+
+            is DialogState.ActiveSessionConflict -> ActiveSessionConflictDialog(
+                activeSessionName = dialog.activeSessionName,
+                progressLabel = dialog.progressLabel,
                 onResume = { processor.consume(Action.Click.OnTrackNowResumeConfirm) },
                 onDeleteAndStartNew = {
                     processor.consume(Action.Click.OnTrackNowDeleteAndStart)
