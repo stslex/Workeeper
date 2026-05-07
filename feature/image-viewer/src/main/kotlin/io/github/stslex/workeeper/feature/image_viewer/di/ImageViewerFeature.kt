@@ -2,7 +2,7 @@
 package io.github.stslex.workeeper.feature.image_viewer.di
 
 import androidx.compose.runtime.Composable
-import io.github.stslex.workeeper.core.ui.mvi.Feature
+import io.github.stslex.workeeper.core.ui.mvi.FeatureAssisted
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.image_viewer.mvi.handler.ImageViewerComponent
@@ -14,7 +14,7 @@ import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStor
 internal typealias ImageViewerStoreProcessor = StoreProcessor<State, Action, Event>
 
 internal object ImageViewerFeature :
-    Feature<ImageViewerStoreProcessor, Screen.ExerciseImage, ImageViewerComponent>() {
+    FeatureAssisted<ImageViewerStoreProcessor, Screen.ExerciseImage, ImageViewerComponent>() {
 
     @Composable
     override fun processor(

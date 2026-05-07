@@ -26,6 +26,7 @@ import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorSto
 @HiltViewModel(assistedFactory = PlanEditorStoreImpl.Factory::class)
 internal class PlanEditorStoreImpl @AssistedInject constructor(
     @Assisted component: PlanEditorComponent,
+    navigationHandler: NavigationHandler,
     commonHandler: CommonHandler,
     clickHandler: ClickHandler,
     inputHandler: InputHandler,
@@ -42,7 +43,7 @@ internal class PlanEditorStoreImpl @AssistedInject constructor(
             is Action.Common -> commonHandler
             is Action.Click -> clickHandler
             is Action.Input -> inputHandler
-            is Action.Navigation -> component as NavigationHandler
+            is Action.Navigation -> navigationHandler
             is Action.EditorAction -> editorHandler
         }
     },

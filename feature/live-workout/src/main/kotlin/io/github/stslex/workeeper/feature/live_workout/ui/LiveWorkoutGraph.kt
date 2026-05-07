@@ -3,12 +3,18 @@ package io.github.stslex.workeeper.feature.live_workout.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
-import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
+import io.github.stslex.workeeper.core.ui.mvi.getStateFlow
+import io.github.stslex.workeeper.core.ui.mvi.navComponentScreenWithState
+import io.github.stslex.workeeper.core.ui.mvi.setAttrDefaultValue
+import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutFeature
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Event
@@ -18,7 +24,19 @@ fun NavGraphBuilder.liveWorkoutGraph(
     sharedTransitionScope: SharedTransitionScope,
     modifier: Modifier = Modifier,
 ) {
-    navComponentScreen(LiveWorkoutFeature) { processor ->
+    navComponentScreenWithState(LiveWorkoutFeature) { stateHandle, processor ->
+
+        val attrValue by stateHandle
+            .getStateFlow(Screen.PlanEditor.planEditorSavedAttr)
+            .collectAsState()
+
+        LaunchedEffect(attrValue) {
+            if (attrValue == true) {
+                processor.consume(Action.Common.Reload)
+                stateHandle.setAttrDefaultValue(Screen.PlanEditor.planEditorSavedAttr)
+            }
+        }
+
         val haptic = LocalHapticFeedback.current
 
         processor.Handle { event ->

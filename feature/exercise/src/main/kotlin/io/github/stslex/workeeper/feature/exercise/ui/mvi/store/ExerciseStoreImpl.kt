@@ -24,7 +24,7 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.St
 @HiltViewModel(assistedFactory = ExerciseStoreImpl.Factory::class)
 internal class ExerciseStoreImpl @AssistedInject constructor(
     @Assisted component: ExerciseComponent,
-    navigationHandlerFactory: NavigationHandler.Factory,
+    navigationHandler: NavigationHandler,
     clickHandler: ClickHandler,
     inputHandler: InputHandler,
     commonHandler: CommonHandler,
@@ -37,7 +37,7 @@ internal class ExerciseStoreImpl @AssistedInject constructor(
     initialState = State.create(uuid = component.data.uuid),
     handlerCreator = { action ->
         when (action) {
-            is Action.Navigation -> navigationHandlerFactory.getOrCreate(component.navigator)
+            is Action.Navigation -> navigationHandler
             is Action.Common -> commonHandler
             is Action.Click -> clickHandler
             is Action.Input -> inputHandler
@@ -45,7 +45,7 @@ internal class ExerciseStoreImpl @AssistedInject constructor(
     },
     storeEmitter = handlerStore,
     storeDispatchers = storeDispatchers,
-    initialActions = listOf(Action.Common.Init, Action.Navigation.Init),
+    initialActions = listOf(Action.Common.Init),
     analyticsHolder = analyticsHolder,
     loggerHolder = loggerHolder,
 ) {

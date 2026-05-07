@@ -217,8 +217,6 @@ internal interface SingleTrainingStore : Store<State, Action, Event> {
 
         sealed interface Navigation : Action {
 
-            data object Init : Navigation
-
             data object Back : Navigation
 
             data class OpenExerciseDetail(val uuid: String) : Navigation

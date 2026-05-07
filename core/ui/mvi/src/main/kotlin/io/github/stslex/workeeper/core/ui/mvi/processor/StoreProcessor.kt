@@ -5,6 +5,7 @@ import androidx.activity.compose.LocalActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
@@ -22,6 +23,13 @@ import io.github.stslex.workeeper.core.ui.navigation.Component
 import io.github.stslex.workeeper.core.ui.navigation.LocalRootComponent
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import androidx.compose.runtime.State as ComposeState
+
+@Stable
+fun interface StoreCreator<TStoreImpl : BaseStore<*, *, *>> {
+
+    @Composable
+    operator fun invoke(): TStoreImpl
+}
 
 /**
  * StoreProcessor is an interface that defines the contract for processing actions and events in a store.
@@ -60,20 +68,38 @@ inline fun <
     screen: Screen,
     key: String? = null,
 ): StoreProcessor<*, *, *> {
-    val currentLifecycleOwner = rememberLifecycleOwner()
     val rootComponent = LocalRootComponent.current
-    val activity = LocalActivity.current
-    val context = LocalContext.current
 
     val component = remember(screen) {
         @Suppress("UNCHECKED_CAST")
         rootComponent.createComponent(screen) as TComponent
     }
 
-    val store = hiltViewModel<TStoreImpl, TFactory>(key = key) { storeFactory ->
-        storeFactory.create(component)
+    return rememberStoreProcessor {
+        hiltViewModel<TStoreImpl, TFactory>(key = key) { storeFactory ->
+            storeFactory.create(component)
+        }
     }
+}
 
+@Composable
+inline fun <reified TStoreImpl : BaseStore<*, *, *>> rememberStoreProcessor(
+    key: String? = null,
+): StoreProcessor<*, *, *> {
+    return rememberStoreProcessor {
+        hiltViewModel<TStoreImpl>(key = key)
+    }
+}
+
+@Composable
+inline fun <reified TStoreImpl : BaseStore<*, *, *>> rememberStoreProcessor(
+    storeCreator: StoreCreator<TStoreImpl>,
+): StoreProcessor<*, *, *> {
+    val currentLifecycleOwner = rememberLifecycleOwner()
+    val activity = LocalActivity.current
+    val context = LocalContext.current
+
+    val store = storeCreator()
     DisposableEffect(store, currentLifecycleOwner) {
         store.init(currentLifecycleOwner)
         FirebaseCrashlyticsHolder.setScreenName(store.name)

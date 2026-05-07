@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.plan_editor.ui.mvi.handler
 
+import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
-import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.core.ui.navigation.Screen.PlanEditor.Companion.planEditorSavedAttr
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.Action
+import javax.inject.Inject
 
-@Suppress("MviHandlerConstructorRule")
-internal class NavigationHandler(
+@ViewModelScoped
+internal class NavigationHandler @Inject constructor(
     private val navigator: Navigator,
-    data: Screen.PlanEditor,
-) : PlanEditorComponent(data), Handler<Action.Navigation> {
+) : Handler<Action.Navigation> {
 
     override fun invoke(action: Action.Navigation) {
         when (action) {

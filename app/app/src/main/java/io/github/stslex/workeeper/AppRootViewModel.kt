@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
+import io.github.stslex.workeeper.navigation.NavigatorEventBus
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -15,6 +16,7 @@ import javax.inject.Inject
 @HiltViewModel
 internal class AppRootViewModel @Inject constructor(
     commonDataStore: CommonDataStore,
+    val navigatorEventBus: NavigatorEventBus,
 ) : ViewModel() {
 
     val themeMode: StateFlow<ThemeMode> = commonDataStore.themePreference

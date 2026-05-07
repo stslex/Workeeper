@@ -2,7 +2,7 @@
 package io.github.stslex.workeeper.feature.live_workout.di
 
 import androidx.compose.runtime.Composable
-import io.github.stslex.workeeper.core.ui.mvi.Feature
+import io.github.stslex.workeeper.core.ui.mvi.FeatureAssisted
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.live_workout.mvi.handler.LiveWorkoutComponent
@@ -14,7 +14,7 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStor
 internal typealias LiveWorkoutStoreProcessor = StoreProcessor<State, Action, Event>
 
 internal object LiveWorkoutFeature :
-    Feature<LiveWorkoutStoreProcessor, Screen.LiveWorkout, LiveWorkoutComponent>() {
+    FeatureAssisted<LiveWorkoutStoreProcessor, Screen.LiveWorkout, LiveWorkoutComponent>() {
 
     @Composable
     override fun processor(

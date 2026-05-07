@@ -2,7 +2,7 @@
 package io.github.stslex.workeeper.feature.plan_editor.di
 
 import androidx.compose.runtime.Composable
-import io.github.stslex.workeeper.core.ui.mvi.Feature
+import io.github.stslex.workeeper.core.ui.mvi.FeatureAssisted
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.handler.PlanEditorComponent
@@ -14,7 +14,7 @@ import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorSto
 internal typealias PlanEditorStoreProcessor = StoreProcessor<State, Action, Event>
 
 internal object PlanEditorFeature :
-    Feature<PlanEditorStoreProcessor, Screen.PlanEditor, PlanEditorComponent>() {
+    FeatureAssisted<PlanEditorStoreProcessor, Screen.PlanEditor, PlanEditorComponent>() {
 
     @Composable
     override fun processor(

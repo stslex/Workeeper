@@ -213,8 +213,6 @@ internal interface LiveWorkoutStore :
         }
 
         sealed interface Navigation : Action {
-
-            data object Init : Navigation
             data object Back : Navigation
             data class OpenPastSession(val sessionUuid: String) : Navigation
 

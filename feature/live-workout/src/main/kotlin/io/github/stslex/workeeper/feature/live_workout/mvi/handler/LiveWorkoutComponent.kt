@@ -2,22 +2,6 @@
 package io.github.stslex.workeeper.feature.live_workout.mvi.handler
 
 import io.github.stslex.workeeper.core.ui.navigation.Component
-import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 
-class LiveWorkoutComponent(
-    internal val navigator: Navigator,
-    data: Screen.LiveWorkout,
-) : Component<Screen.LiveWorkout>(data) {
-
-    companion object {
-
-        fun create(
-            navigator: Navigator,
-            screen: Screen.LiveWorkout,
-        ): LiveWorkoutComponent = LiveWorkoutComponent(
-            navigator = navigator,
-            data = screen,
-        )
-    }
-}
+class LiveWorkoutComponent(data: Screen.LiveWorkout) : Component<Screen.LiveWorkout>(data)

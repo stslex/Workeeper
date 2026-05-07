@@ -25,7 +25,7 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStor
 @HiltViewModel(assistedFactory = LiveWorkoutStoreImpl.Factory::class)
 internal class LiveWorkoutStoreImpl @AssistedInject constructor(
     @Assisted component: LiveWorkoutComponent,
-    navigationHandlerFactory: NavigationHandler.Factory,
+    navigationHandler: NavigationHandler,
     clickHandler: ClickHandler,
     inputHandler: InputHandler,
     commonHandler: CommonHandler,
@@ -42,7 +42,7 @@ internal class LiveWorkoutStoreImpl @AssistedInject constructor(
     ),
     handlerCreator = { action ->
         when (action) {
-            is Action.Navigation -> navigationHandlerFactory.getOrCreate(component.navigator)
+            is Action.Navigation -> navigationHandler
             is Action.Common -> commonHandler
             is Action.Click -> clickHandler
             is Action.Input -> inputHandler
@@ -51,7 +51,7 @@ internal class LiveWorkoutStoreImpl @AssistedInject constructor(
     },
     storeEmitter = handlerStore,
     storeDispatchers = storeDispatchers,
-    initialActions = listOf(Action.Common.Init, Action.Navigation.Init),
+    initialActions = listOf(Action.Common.Init),
     analyticsHolder = analyticsHolder,
     loggerHolder = loggerHolder,
 ) {

@@ -1,24 +1,55 @@
 // SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.navigation
 
-import androidx.compose.runtime.Stable
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.navigation.NavController
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
 import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
-import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
-import io.github.stslex.workeeper.core.ui.navigation.SaveHandlerAttr
 import io.github.stslex.workeeper.core.ui.navigation.Screen
-import kotlinx.coroutines.flow.StateFlow
 
-@Stable
-class NavigatorImpl(
-    private val holder: NavigatorHolder,
-) : Navigator {
+object NavigatorExt {
 
-    private val navController get() = holder.navController
+    private const val TAG = "NAVIGATION"
 
-    override fun navTo(screen: Screen) {
+    private val logger = Log.tag(TAG)
+
+    @Composable
+    fun NavigationEventBusSetup(
+        navigatorHolder: NavigatorHolder,
+        navigator: NavigatorReceiver,
+    ) {
+        val navController = navigatorHolder.navController
+        LaunchedEffect(navController) {
+            navigator.commands.collect { command ->
+                processCommand(navController, command)
+            }
+        }
+    }
+
+    private fun processCommand(
+        navController: NavController,
+        command: NavigationCommand,
+    ) {
+        logger.i { "Processing navigation command: $command" }
+        when (command) {
+            is NavigationCommand.NavTo -> navTo(navController, command.screen)
+            is NavigationCommand.PopBack -> popBack(
+                navController,
+                command.previousStackAttr,
+            )
+
+            is NavigationCommand.ReplaceTo -> replaceTo(navController, command.screen)
+        }
+    }
+
+    private fun navTo(
+        navController: NavController,
+        screen: Screen,
+    ) {
         logger.d("navTo $screen")
         try {
             val currentRoute = navController.currentDestination?.route ?: return
@@ -37,7 +68,10 @@ class NavigatorImpl(
         }
     }
 
-    override fun popBack(vararg previousStackAttr: Pair<String, Any?>) {
+    private fun popBack(
+        navController: NavController,
+        previousStackAttr: List<Pair<String, Any?>>,
+    ) {
         logger.d {
             val attrs = previousStackAttr.joinToString { "${it.first}=${it.second}" }
             "popBack($attrs)"
@@ -51,7 +85,10 @@ class NavigatorImpl(
         navController.popBackStack()
     }
 
-    override fun replaceTo(screen: Screen) {
+    private fun replaceTo(
+        navController: NavController,
+        screen: Screen,
+    ) {
         logger.d("replaceTo $screen")
         try {
             val currentRoute = navController.currentDestination?.route ?: return
@@ -66,29 +103,5 @@ class NavigatorImpl(
         } catch (ignore: Exception) {
             logger.e(ignore, "screen: $screen")
         }
-    }
-
-    override fun setCurrentStack(vararg stackAttr: SaveHandlerAttr<*>) {
-        logger.d {
-            val attrs = stackAttr.joinToString { "${it.key}=${it.defaultValue}" }
-            "clearCurrentStack($attrs)"
-        }
-        val stateHandle = navController.currentBackStackEntry?.savedStateHandle
-        stackAttr.forEach { attr ->
-            stateHandle?.set(attr.key, attr.defaultValue)
-        }
-    }
-
-    override fun <T : Any> subscribeToStackAttr(
-        saveHandlerAttr: SaveHandlerAttr<T>,
-    ): StateFlow<T?>? = navController.currentBackStackEntry
-        ?.savedStateHandle
-        ?.getStateFlow(saveHandlerAttr.key, saveHandlerAttr.defaultValue)
-
-    companion object {
-
-        private const val TAG = "NAVIGATION"
-
-        private val logger = Log.tag(TAG)
     }
 }

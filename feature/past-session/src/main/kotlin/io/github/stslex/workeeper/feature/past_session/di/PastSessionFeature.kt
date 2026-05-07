@@ -2,7 +2,7 @@
 package io.github.stslex.workeeper.feature.past_session.di
 
 import androidx.compose.runtime.Composable
-import io.github.stslex.workeeper.core.ui.mvi.Feature
+import io.github.stslex.workeeper.core.ui.mvi.FeatureAssisted
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.past_session.mvi.handler.PastSessionComponent
@@ -14,7 +14,7 @@ import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStor
 internal typealias PastSessionStoreProcessor = StoreProcessor<State, Action, Event>
 
 internal object PastSessionFeature :
-    Feature<PastSessionStoreProcessor, Screen.PastSession, PastSessionComponent>() {
+    FeatureAssisted<PastSessionStoreProcessor, Screen.PastSession, PastSessionComponent>() {
 
     @Composable
     override fun processor(

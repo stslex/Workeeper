@@ -248,6 +248,6 @@ open class BaseStore<S : State, A : Action, E : Event>(
     companion object {
 
         private const val EVENTS_BUFFER_CAPACITY = 32
-        internal const val STORE_LOGGER_PREFIX = "SCREEN_"
+        internal const val STORE_LOGGER_PREFIX = "SCREEN"
     }
 }

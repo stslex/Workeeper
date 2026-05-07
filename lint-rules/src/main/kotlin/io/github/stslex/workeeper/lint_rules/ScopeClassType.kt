@@ -8,6 +8,9 @@ enum class ScopeClassType(
     ),
     VIEW_MODEL_SCOPED(
         annotation = "ViewModelScoped",
+    ),
+    HiltViewModelScoped(
+        annotation = "HiltViewModel",
     );
 
     companion object {
@@ -21,9 +24,12 @@ enum class ScopeClassType(
         )
         private val viewModelScopedClasses = listOf(
             "Handler",
-            "Store",
             "Interactor",
             "Mapper",
+        )
+
+        private val storeScopeClasses = listOf(
+            "Store",
         )
 
         fun getByName(
@@ -31,6 +37,7 @@ enum class ScopeClassType(
         ): ScopeClassType? = when {
             singletonClasses.any { name.contains(it) } -> SINGLETON
             viewModelScopedClasses.any { name.contains(it) } -> VIEW_MODEL_SCOPED
+            storeScopeClasses.any { name.contains(it) } -> HiltViewModelScoped
             else -> null
         }
     }

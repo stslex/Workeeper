@@ -10,5 +10,5 @@ class AnalyticsHolder @Inject constructor() {
 
     fun <A : Store.Action, E : Store.Event> create(
         name: String,
-    ) = StoreAnalytics<A, E>("${BaseStore.Companion.STORE_LOGGER_PREFIX}_$name")
+    ) = StoreAnalytics<A, E>("${BaseStore.STORE_LOGGER_PREFIX}_$name")
 }

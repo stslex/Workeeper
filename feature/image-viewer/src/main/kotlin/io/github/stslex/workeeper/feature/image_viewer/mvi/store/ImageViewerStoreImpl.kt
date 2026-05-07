@@ -23,6 +23,7 @@ import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStor
 @HiltViewModel(assistedFactory = ImageViewerStoreImpl.Factory::class)
 internal class ImageViewerStoreImpl @AssistedInject constructor(
     @Assisted component: ImageViewerComponent,
+    navigationHandler: NavigationHandler,
     clickHandler: ClickHandler,
     commonHandler: CommonHandler,
     storeDispatchers: StoreDispatchers,
@@ -34,7 +35,7 @@ internal class ImageViewerStoreImpl @AssistedInject constructor(
     initialState = State.create(model = component.data.model),
     handlerCreator = { action ->
         when (action) {
-            is Action.Navigation -> component as NavigationHandler
+            is Action.Navigation -> navigationHandler
             is Action.Common -> commonHandler
             is Action.Click -> clickHandler
         }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper
 
 import androidx.compose.animation.AnimatedVisibility
@@ -53,7 +54,7 @@ import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.host.AppNavigationHost
 import io.github.stslex.workeeper.host.BottomBarNavigationListener.Companion.rememberBottomBarNavigationListener
-import io.github.stslex.workeeper.navigation.NavigatorImpl
+import io.github.stslex.workeeper.navigation.NavigatorExt.NavigationEventBusSetup
 import io.github.stslex.workeeper.navigation.RootComponentImpl
 
 private val TOP_APP_BAR_HEIGHT = 64.dp
@@ -61,20 +62,26 @@ private val TOP_APP_BAR_ACTION_PADDING = 4.dp
 
 @Composable
 fun App() {
-    val rootViewModel: AppRootViewModel = hiltViewModel()
-    val themeMode by rootViewModel.themeMode.collectAsState()
+    val viewModel: AppRootViewModel = hiltViewModel()
+    val themeMode by viewModel.themeMode.collectAsState()
 
     AppTheme(themeMode = themeMode) {
-        val controller = rememberNavController()
-        val holder = remember(controller) { NavigatorHolder(controller) }
-        val navigator = remember(controller) { NavigatorImpl(holder) }
+        val navController = rememberNavController()
+        val holder = remember(navController) { NavigatorHolder(navController) }
+        val navigatorEventBus = viewModel.navigatorEventBus
 
         val navWrapper = rememberBottomBarNavigationListener(holder)
-        val rootComponent = remember(controller) { RootComponentImpl(navigator) }
+        val rootComponent = remember(navController) { RootComponentImpl() }
 
         CompositionLocalProvider(
             LocalRootComponent provides rootComponent,
         ) {
+
+            NavigationEventBusSetup(
+                navigatorHolder = holder,
+                navigator = navigatorEventBus,
+            )
+
             val snackbarHostState = remember { SnackbarHostState() }
 
             LaunchedEffect(Unit) {
@@ -148,7 +155,7 @@ fun App() {
                         ),
                         selectedItem = navWrapper.bottomBarDestination,
                     ) {
-                        navigator.navTo(it.screen)
+                        navigatorEventBus.navTo(it.screen)
                     }
                 }
 
@@ -168,7 +175,7 @@ fun App() {
                     ) {
                         IconButton(
                             modifier = Modifier.testTag("AppSettingsEntry"),
-                            onClick = { navigator.navTo(Screen.Settings) },
+                            onClick = { navigatorEventBus.navTo(Screen.Settings) },
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Settings,

@@ -24,7 +24,7 @@ import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTraini
 @HiltViewModel(assistedFactory = SingleTrainingStoreImpl.Factory::class)
 internal class SingleTrainingStoreImpl @AssistedInject constructor(
     @Assisted component: SingleTrainingComponent,
-    navigationHandlerFactory: NavigationHandler.Factory,
+    navigationHandler: NavigationHandler,
     clickHandler: ClickHandler,
     inputHandler: InputHandler,
     commonHandler: CommonHandler,
@@ -37,7 +37,7 @@ internal class SingleTrainingStoreImpl @AssistedInject constructor(
     initialState = State.create(uuid = component.data.uuid),
     handlerCreator = { action ->
         when (action) {
-            is Action.Navigation -> navigationHandlerFactory.getOrCreate(component.navigator)
+            is Action.Navigation -> navigationHandler
             is Action.Common -> commonHandler
             is Action.Click -> clickHandler
             is Action.Input -> inputHandler
@@ -45,7 +45,7 @@ internal class SingleTrainingStoreImpl @AssistedInject constructor(
     },
     storeEmitter = handlerStore,
     storeDispatchers = storeDispatchers,
-    initialActions = listOf(Action.Common.Init, Action.Navigation.Init),
+    initialActions = listOf(Action.Common.Init),
     analyticsHolder = analyticsHolder,
     loggerHolder = loggerHolder,
 ) {

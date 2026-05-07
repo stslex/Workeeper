@@ -24,6 +24,7 @@ import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStor
 @HiltViewModel(assistedFactory = PastSessionStoreImpl.Factory::class)
 internal class PastSessionStoreImpl @AssistedInject constructor(
     @Assisted component: PastSessionComponent,
+    navigationHandler: NavigationHandler,
     clickHandler: ClickHandler,
     inputHandler: InputHandler,
     commonHandler: CommonHandler,
@@ -36,7 +37,7 @@ internal class PastSessionStoreImpl @AssistedInject constructor(
     initialState = State.create(sessionUuid = component.data.sessionUuid),
     handlerCreator = { action ->
         when (action) {
-            is Action.Navigation -> component as NavigationHandler
+            is Action.Navigation -> navigationHandler
             is Action.Common -> commonHandler
             is Action.Click -> clickHandler
             is Action.Input -> inputHandler
