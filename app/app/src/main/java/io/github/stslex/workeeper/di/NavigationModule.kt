@@ -11,11 +11,7 @@ import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-class ActivityModule {
-
-    @Provides
-    @Singleton
-    fun provideNavigatorEventBus(): NavigatorEventBus = NavigatorEventBus()
+class NavigationModule {
 
     @Provides
     @Singleton
