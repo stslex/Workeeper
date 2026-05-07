@@ -29,14 +29,14 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.feature.live_workout.R
-import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore
+import io.github.stslex.workeeper.feature.live_workout.mvi.store.DialogState
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 
 @Composable
 internal fun FinishConfirmDialog(
-    stats: LiveWorkoutStore.State.FinishStats,
+    stats: DialogState.FinishSession,
     onNameChange: (String) -> Unit,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
@@ -158,7 +158,7 @@ private fun StatRow(label: String, value: String) {
 
 @Composable
 private fun NewPersonalRecordsSection(
-    records: ImmutableList<LiveWorkoutStore.State.FinishStats.NewPrEntry>,
+    records: ImmutableList<DialogState.FinishSession.NewPrEntry>,
 ) {
     val palette = AppUi.colors.record
     val shape = RoundedCornerShape(AppDimension.Radius.medium)
@@ -205,7 +205,7 @@ private fun NewPersonalRecordsSection(
 private fun FinishConfirmDialogAllDoneLightPreview() {
     AppTheme(themeMode = ThemeMode.LIGHT) {
         FinishConfirmDialog(
-            stats = LiveWorkoutStore.State.FinishStats(
+            stats = DialogState.FinishSession(
                 durationMillis = 47 * 60_000L + 8_000L,
                 durationLabel = "47:08",
                 exercisesSummaryLabel = "5 of 5 done",
@@ -224,7 +224,7 @@ private fun FinishConfirmDialogAllDoneLightPreview() {
 private fun FinishConfirmDialogPartialDarkPreview() {
     AppTheme(themeMode = ThemeMode.DARK) {
         FinishConfirmDialog(
-            stats = LiveWorkoutStore.State.FinishStats(
+            stats = DialogState.FinishSession(
                 durationMillis = 32 * 60_000L,
                 durationLabel = "32:00",
                 exercisesSummaryLabel = "3 of 5 done · 1 skipped",
@@ -243,18 +243,18 @@ private fun FinishConfirmDialogPartialDarkPreview() {
 private fun FinishConfirmDialogWithRecordsPreview() {
     AppTheme(themeMode = ThemeMode.LIGHT) {
         FinishConfirmDialog(
-            stats = LiveWorkoutStore.State.FinishStats(
+            stats = DialogState.FinishSession(
                 durationMillis = 47 * 60_000L,
                 durationLabel = "47:00",
                 exercisesSummaryLabel = "5 of 5 done",
                 setsLoggedLabel = "22",
                 newPersonalRecords = listOf(
-                    LiveWorkoutStore.State.FinishStats.NewPrEntry(
+                    DialogState.FinishSession.NewPrEntry(
                         exerciseUuid = "ex-1",
                         exerciseName = "Bench press",
                         displayLabel = "105 × 5",
                     ),
-                    LiveWorkoutStore.State.FinishStats.NewPrEntry(
+                    DialogState.FinishSession.NewPrEntry(
                         exerciseUuid = "ex-2",
                         exerciseName = "Pull-ups",
                         displayLabel = "15 reps",

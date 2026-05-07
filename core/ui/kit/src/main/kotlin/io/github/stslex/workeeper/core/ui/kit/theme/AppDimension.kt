@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.ui.kit.theme
 
 import androidx.compose.foundation.layout.WindowInsets
@@ -9,20 +10,6 @@ import androidx.compose.ui.unit.dp
 
 @Suppress("unused", "TooManyFunctions")
 object AppDimension {
-
-    @Deprecated(
-        message = "Use AppDimension.Space (xxs, xs, sm, md, lg, xl, xxl, xxxl) instead.",
-        replaceWith = ReplaceWith("AppDimension.Space"),
-    )
-    object Padding {
-
-        val smallest = 2.dp
-        val small = 4.dp
-        val medium = 8.dp
-        val big = 16.dp
-        val large = 32.dp
-        val largest = 64.dp
-    }
 
     object Radius {
 

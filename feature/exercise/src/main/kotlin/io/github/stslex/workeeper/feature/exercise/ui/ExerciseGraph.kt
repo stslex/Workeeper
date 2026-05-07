@@ -9,6 +9,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -24,7 +26,10 @@ import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
 import io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
-import io.github.stslex.workeeper.core.ui.mvi.navComponentScreen
+import io.github.stslex.workeeper.core.ui.mvi.getStateFlow
+import io.github.stslex.workeeper.core.ui.mvi.navComponentScreenWithState
+import io.github.stslex.workeeper.core.ui.mvi.setAttrDefaultValue
+import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseFeature
 import io.github.stslex.workeeper.feature.exercise.ui.components.ImageSourceDialog
@@ -40,7 +45,19 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.St
 fun NavGraphBuilder.exerciseGraph(
     modifier: Modifier = Modifier,
 ) {
-    navComponentScreen(ExerciseFeature) { processor ->
+    navComponentScreenWithState(ExerciseFeature) { stateHandle, processor ->
+
+        val attrValue by stateHandle
+            .getStateFlow(Screen.PlanEditor.planEditorSavedAttr)
+            .collectAsState()
+
+        LaunchedEffect(attrValue) {
+            if (attrValue == true) {
+                processor.consume(Action.Common.Reload)
+                stateHandle.setAttrDefaultValue(Screen.PlanEditor.planEditorSavedAttr)
+            }
+        }
+
         val haptic = LocalHapticFeedback.current
         val context = LocalContext.current
         val undoLabel = stringResource(R.string.feature_exercise_detail_archive_undo)
@@ -50,10 +67,12 @@ fun NavGraphBuilder.exerciseGraph(
         val discardDismiss = stringResource(R.string.feature_exercise_edit_discard_dismiss)
         val archiveBlockedTitle =
             stringResource(R.string.feature_exercise_detail_archive_blocked_title)
-        val archiveBlockedOk = stringResource(R.string.feature_exercise_detail_archive_blocked_ok)
+        val archiveBlockedOk =
+            stringResource(R.string.feature_exercise_detail_archive_blocked_ok)
         val imageSaveFailed = stringResource(R.string.feature_exercise_image_error_save_failed)
         val imageLoadFailed = stringResource(R.string.feature_exercise_image_error_load_failed)
-        val imageDecodeFailed = stringResource(R.string.feature_exercise_image_error_decode_failed)
+        val imageDecodeFailed =
+            stringResource(R.string.feature_exercise_image_error_decode_failed)
 
         var pendingDiscard by remember { mutableStateOf<DiscardTarget?>(null) }
         var archiveBlockedBody by remember { mutableStateOf<String?>(null) }

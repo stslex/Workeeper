@@ -43,6 +43,79 @@ For store-level tests, prefer covering the handler logic (smaller surface) rathe
 up the full `BaseStore` machinery. When a `BaseStore` test is necessary, use the `coroutine-test`
 library (declared in the `test` bundle) and provide test dispatchers via `StoreDispatchers`.
 
+### Testing repositories (DB-backed)
+
+**Rule:** Repository tests for DB-backed persistence MUST use a real in-memory Room database
+and verify state by reading it back through the same DAO/repository surface after the
+operation. Tests that only verify mockk DAO interactions (e.g.
+`coVerify { dao.update(...) }`) are not sufficient on their own and must not be the only
+assertion in a persistence test.
+
+Mock-DAO tests are acceptable only for tiny branch/order assertions that do not depend on
+persisted state — for example, simulating a mid-transaction failure by stubbing a single DAO
+to throw. Such tests must remain the minority and must not duplicate a real-DB test for the
+same code path.
+
+#### Test fixture
+
+The shared in-memory Room fixture lives in the database module's `testFixtures` source set:
+
+- `core/data/database/src/testFixtures/kotlin/io/github/stslex/workeeper/core/data/database/testfixtures/RepositoryTestEnv.kt`
+
+It builds an `AppDatabase` via `Room.inMemoryDatabaseBuilder`, exposes every real DAO
+(`sessionDao`, `exerciseDao`, etc.), provides a real `DbTransitionRunner` backed by
+`withTransaction`, and ships a `TestApplication` for the Robolectric `@Config`.
+
+Consumers depend on it via `testImplementation(testFixtures(project(":core:data:database")))`
+in their `build.gradle.kts` (already wired for `core/data/exercise`).
+
+#### Boilerplate
+
+```kotlin
+@ExtendWith(RobolectricExtension::class)
+@Config(application = RepositoryTestEnv.TestApplication::class, sdk = [33])
+internal class MyRepositoryImplDbTest {
+
+    private lateinit var env: RepositoryTestEnv
+    private lateinit var repository: MyRepositoryImpl
+
+    @BeforeEach
+    fun setup() {
+        env = RepositoryTestEnv()
+        repository = MyRepositoryImpl(
+            dao = env.myDao,
+            transition = env.transition,
+            ioDispatcher = UnconfinedTestDispatcher(),
+        )
+    }
+
+    @AfterEach
+    fun teardown() {
+        env.close()
+    }
+}
+```
+
+Each test must end with at least one DB-state assertion (read-back), not only a
+return-value assertion or a mockk verification.
+
+#### Canonical examples
+
+- Multi-table transactional repository:
+  `core/data/exercise/src/test/kotlin/io/github/stslex/workeeper/core/data/exercise/session/SessionRepositoryImplFinishAtomicDbTest.kt`
+  covers happy paths and a hybrid failure path that injects a throwing DAO via mockk while
+  the rest of the in-memory DB rolls back the transaction. State is read back with the real
+  DAOs.
+- Read-side repository:
+  `core/data/exercise/src/test/kotlin/io/github/stslex/workeeper/core/data/exercise/session/SessionRepositoryImplReadDbTest.kt`
+  seeds rows via DAO helpers, then asserts the repository's mapped output.
+- Single-table writer:
+  `core/data/exercise/src/test/kotlin/io/github/stslex/workeeper/core/data/exercise/tags/TagRepositoryImplDbTest.kt`
+  exercises every public method with a single round-trip per method.
+
+The DAO-test pattern (`core/data/database/src/test/.../BaseDatabaseTest.kt`) remains the
+right tool for DAO-only assertions that do not exercise repository code.
+
 ## UI tests
 
 ### Categorization with `@Smoke` and `@Regression`

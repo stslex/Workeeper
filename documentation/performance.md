@@ -7,7 +7,9 @@ console, and the obligations a feature author must meet to keep the metrics corr
 The implementation lives in `core/ui/mvi/.../performance/`. Bootstrap call sites live in
 [`BaseApplication`](../app/app/src/main/java/io/github/stslex/workeeper/BaseApplication.kt),
 [`MainActivity`](../app/app/src/main/java/io/github/stslex/workeeper/MainActivity.kt),
-[`NavigatorImpl`](../app/app/src/main/java/io/github/stslex/workeeper/navigation/NavigatorImpl.kt),
+[`NavigatorExt`](../app/app/src/main/java/io/github/stslex/workeeper/navigation/NavigatorExt.kt)
+(the App/UI bridge that consumes commands from `NavigatorEventBus` and runs them on the
+current `NavController`),
 and [`AppNavigationHost`](../app/app/src/main/java/io/github/stslex/workeeper/host/AppNavigationHost.kt).
 The screen-rendering pipeline is wired automatically inside
 [`StoreProcessor.rememberStoreProcessor`](../core/ui/mvi/src/main/kotlin/io/github/stslex/workeeper/core/ui/mvi/processor/StoreProcessor.kt).
@@ -20,9 +22,11 @@ traces. Any one of them can be invalidated by the next event without affecting t
 ### 1. TTID — Time to Initial Display
 
 - **Trace name pattern.** `TTID_<ScreenSimpleName>`.
-- **Starts at.** `Navigator.navTo(screen)` or `Navigator.replaceTo(screen)` —
-  `NavigatorImpl` dispatches `RecordAction.Navigation.NavTo` / `ReplaceTo` immediately
-  before invoking the underlying `NavController.navigate(...)`.
+- **Starts at.** `Navigator.navTo(screen)` / `Navigator.replaceTo(screen)`. The App/UI
+  bridge in [`NavigatorExt`](../app/app/src/main/java/io/github/stslex/workeeper/navigation/NavigatorExt.kt)
+  collects the corresponding `NavigationCommand` from the singleton
+  `NavigatorEventBus` and dispatches `RecordAction.Navigation.NavTo` / `ReplaceTo`
+  immediately before invoking `NavController.navigate(...)`.
 - **Stops at.** `Modifier.onPlaced { ... }` of the destination graph composable, via the
   `Modifier.reportScreenPlace<S>()` helper in `AppNavigationHost.kt`. The placed callback
   fires once the destination's root has a measured layout — the moment the user can first
@@ -129,8 +133,8 @@ PerformanceMetricsRecorder.process(action: RecordAction)
 |--------------------------------------|------------------------------------------------|
 | `AppCreated`                         | `BaseApplication.onCreate`                     |
 | `ActivityCreated(coldStart)`         | `MainActivity.onCreate`                        |
-| `Navigation.NavTo<S>(screen)`        | `NavigatorImpl.navTo`                          |
-| `Navigation.ReplaceTo<S>(screen)`    | `NavigatorImpl.replaceTo`                      |
+| `Navigation.NavTo<S>(screen)`        | `NavigatorExt.processCommand` → `navTo`        |
+| `Navigation.ReplaceTo<S>(screen)`    | `NavigatorExt.processCommand` → `replaceTo`    |
 | `OnScreenPlaced<S>(screen)`          | `Modifier.reportScreenPlace<S>()` in `AppNavigationHost` |
 | `ClearTraces`                        | `MainActivity.onDestroy`                       |
 
@@ -216,16 +220,19 @@ metrics for free as long as they go through the canonical store-processor path.
 Two adjacent navigation rules are also part of the performance contract because they
 feed `RecordAction`:
 
-1. Navigation **must** flow through `Navigator.navTo` / `Navigator.replaceTo` — these
-   are the only paths that emit `RecordAction.Navigation.*`. This is already mandatory
-   per the canonical
-   [navigation flow](architecture.md#navigation-flow-canonical-pattern); the performance
-   metrics depend on it.
+1. Navigation **must** flow through `Navigator.navTo` / `Navigator.replaceTo`. These
+   dispatch `NavigationCommand.NavTo` / `ReplaceTo` on `NavigatorEventBus`, and the
+   App/UI bridge in `NavigatorExt.processCommand` is the only place that emits
+   `RecordAction.Navigation.*` and then runs the AndroidX Navigation operation. This is
+   already mandatory per the canonical
+   [navigation flow](architecture.md#navigation-flow-canonical-pattern); the
+   performance metrics depend on it.
 2. The system back gesture (and any other "go back" surface) **must** route through
-   `Action.Navigation.PopBack` → `NavigationHandler` → `Navigator.popBack()`, never
-   directly into `navController.popBackStack()`. Direct calls bypass `NavigatorImpl` and
-   leave any in-flight TTID trace stranded — it will be aborted by the next
-   forward navigation rather than stopped at `onPlaced`.
+   `Action.Navigation.Back` → feature `NavigationHandler` → `Navigator.popBack()`,
+   never directly into `navController.popBackStack()`. Direct calls bypass the
+   `NavigatorEventBus` → `NavigatorExt` bridge and leave any in-flight TTID trace
+   stranded — it will be aborted by the next forward navigation rather than stopped at
+   `onPlaced`.
 
 For the wider back-gesture pattern (predictive back, discard dialogs) see
 [architecture.md → Back gesture handling](architecture.md#back-gesture-handling).

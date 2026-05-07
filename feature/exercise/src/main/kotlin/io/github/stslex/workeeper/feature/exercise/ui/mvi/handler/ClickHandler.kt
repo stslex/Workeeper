@@ -13,6 +13,7 @@ import io.github.stslex.workeeper.core.core.images.model.ImageSaveResult
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.utils.CommonExt.parseOrRandom
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
+import io.github.stslex.workeeper.core.ui.plan_editor.domain.PlanDraftReducer
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
@@ -34,6 +35,7 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Ev
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State.ConflictInfo
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State.Mode
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -76,6 +78,7 @@ internal class ClickHandler @Inject constructor(
             Action.Click.OnTypeChangeConfirm -> processTypeChangeConfirm()
             Action.Click.OnTypeChangeDismiss -> processTypeChangeDismiss()
             Action.Click.OnEditPlanClick -> processEditPlanClick()
+            is Action.Click.OnAdhocPlanEditorAction -> processAdhocPlanEditorAction(action)
             is Action.Click.OnTagToggle -> processTagToggle(action)
             is Action.Click.OnTagRemove -> processTagRemove(action)
             is Action.Click.OnTagCreate -> processTagCreate(action)
@@ -535,6 +538,27 @@ internal class ClickHandler @Inject constructor(
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
         val uuid = state.value.uuid ?: return
         consume(Action.Navigation.OpenPlanEditor(exerciseUuid = uuid))
+    }
+
+    private fun processAdhocPlanEditorAction(action: Action.Click.OnAdhocPlanEditorAction) {
+        val current = state.value
+        val isWeighted = current.type == ExerciseTypeUiModel.WEIGHTED
+        val nextDraft = PlanDraftReducer.reduce(
+            draft = current.adhocPlan ?: persistentListOf(),
+            action = action.action,
+            isWeighted = isWeighted,
+        )
+        // Empty draft normalizes back to null so `state.adhocPlan == null` continues to
+        // mean "no default plan attached" (the persisted shape on `last_adhoc_sets`).
+        val nextPlan = nextDraft.takeIf { it.isNotEmpty() }
+        val nextSummary = nextPlan.toAdhocPlanSummary(resourceWrapper)
+        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
+        updateState { latest ->
+            latest.copy(
+                adhocPlan = nextPlan,
+                adhocPlanSummaryLabel = nextSummary,
+            )
+        }
     }
 
     private fun processTagToggle(action: Action.Click.OnTagToggle) {

@@ -2,27 +2,23 @@
 package io.github.stslex.workeeper.feature.all_trainings.mvi.store
 
 import androidx.annotation.VisibleForTesting
-import dagger.assisted.Assisted
-import dagger.assisted.AssistedFactory
-import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
-import io.github.stslex.workeeper.core.ui.mvi.processor.StoreFactory
 import io.github.stslex.workeeper.feature.all_trainings.di.AllTrainingsHandlerStoreImpl
-import io.github.stslex.workeeper.feature.all_trainings.mvi.handler.AllTrainingsComponent
 import io.github.stslex.workeeper.feature.all_trainings.mvi.handler.ClickHandler
 import io.github.stslex.workeeper.feature.all_trainings.mvi.handler.NavigationHandler
 import io.github.stslex.workeeper.feature.all_trainings.mvi.handler.PagingHandler
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.Action
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.Event
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.State
+import javax.inject.Inject
 
-@HiltViewModel(assistedFactory = AllTrainingsStoreImpl.Factory::class)
-internal class AllTrainingsStoreImpl @AssistedInject constructor(
-    @Assisted component: AllTrainingsComponent,
+@HiltViewModel
+internal class AllTrainingsStoreImpl @Inject constructor(
+    navigationHandler: NavigationHandler,
     pagingHandler: PagingHandler,
     clickHandler: ClickHandler,
     storeDispatchers: StoreDispatchers,
@@ -34,7 +30,7 @@ internal class AllTrainingsStoreImpl @AssistedInject constructor(
     initialState = State.init(pagingUiState = pagingHandler.pagingUiState),
     handlerCreator = { action ->
         when (action) {
-            is Action.Navigation -> component as NavigationHandler
+            is Action.Navigation -> navigationHandler
             is Action.Paging -> pagingHandler
             is Action.Click -> clickHandler
         }
@@ -45,9 +41,6 @@ internal class AllTrainingsStoreImpl @AssistedInject constructor(
     analyticsHolder = analyticsHolder,
     loggerHolder = loggerHolder,
 ) {
-
-    @AssistedFactory
-    interface Factory : StoreFactory<AllTrainingsComponent, AllTrainingsStoreImpl>
 
     companion object {
 

@@ -21,11 +21,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.window.Dialog
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
+import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageSourceUiModel
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
@@ -107,6 +110,28 @@ private fun SourceOption(
             text = label,
             style = AppUi.typography.bodyMedium,
             color = AppUi.colors.textPrimary,
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun ImageSourceDialogLightPreview() {
+    AppTheme(themeMode = ThemeMode.LIGHT) {
+        ImageSourceDialog(
+            onSourceSelected = {},
+            onDismiss = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun ImageSourceDialogDarkPreview() {
+    AppTheme(themeMode = ThemeMode.DARK) {
+        ImageSourceDialog(
+            onSourceSelected = {},
+            onDismiss = {},
         )
     }
 }

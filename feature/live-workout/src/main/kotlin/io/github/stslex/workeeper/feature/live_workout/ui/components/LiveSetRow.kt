@@ -16,6 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppCheckmarkButton
@@ -46,6 +47,7 @@ internal fun LiveSetRow(
     onUncheck: () -> Unit,
     editable: Boolean,
     modifier: Modifier = Modifier,
+    testTagPrefix: String? = null,
 ) {
     val rowBg = if (set.isDone) AppUi.colors.surfaceTier2 else AppUi.colors.surfaceTier1
     val accentColor by animateColorAsState(
@@ -90,9 +92,11 @@ internal fun LiveSetRow(
         }
         AppTooltip(text = stringResource(R.string.feature_live_workout_set_type_tooltip)) {
             Box(
-                modifier = Modifier.clickable(enabled = editable) {
-                    onTypeChange(set.type)
-                },
+                modifier = Modifier
+                    .let { base ->
+                        if (testTagPrefix != null) base.testTag("${testTagPrefix}_TypeChip") else base
+                    }
+                    .clickable(enabled = editable) { onTypeChange(set.type) },
             ) {
                 AppSetTypeChip(type = set.type.toUiKitType())
             }
@@ -101,6 +105,11 @@ internal fun LiveSetRow(
             PersonalRecordBadge()
         }
         AppCheckmarkButton(
+            modifier = if (testTagPrefix != null) {
+                Modifier.testTag("${testTagPrefix}_Checkbox")
+            } else {
+                Modifier
+            },
             isDone = set.isDone,
             enabled = true,
             onToggle = { if (set.isDone) onUncheck() else onMarkDone() },

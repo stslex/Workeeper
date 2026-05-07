@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.bottom_app_bar
 
 import androidx.compose.animation.animateColorAsState
@@ -59,7 +60,7 @@ internal fun WorkeeperBottomAppBar(
         modifier = modifier
             .height(AppDimension.BottomNavBar.heightWithInsets)
             .testTag("WorkeeperBottomAppBar"),
-        contentPadding = PaddingValues(AppDimension.Padding.medium),
+        contentPadding = PaddingValues(AppDimension.Space.sm),
     ) {
         BottomBarItem.entries.forEachIndexed { index, bottomBarItem ->
             BottomAppBarItem(
@@ -77,7 +78,7 @@ internal fun WorkeeperBottomAppBar(
                 onItemClick(bottomBarItem)
             }
             if (index != BottomBarItem.entries.lastIndex) {
-                Spacer(Modifier.width(AppDimension.Padding.medium))
+                Spacer(Modifier.width(AppDimension.Space.sm))
             }
         }
     }

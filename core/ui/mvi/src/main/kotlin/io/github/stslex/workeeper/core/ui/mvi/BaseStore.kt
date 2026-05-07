@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.ui.mvi
 
 import androidx.compose.runtime.Immutable
@@ -248,6 +249,6 @@ open class BaseStore<S : State, A : Action, E : Event>(
     companion object {
 
         private const val EVENTS_BUFFER_CAPACITY = 32
-        internal const val STORE_LOGGER_PREFIX = "SCREEN_"
+        internal const val STORE_LOGGER_PREFIX = "SCREEN"
     }
 }

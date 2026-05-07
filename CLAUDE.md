@@ -62,6 +62,9 @@ skill when the user asks for one of these tasks:
 - [`write-handler-test`](.claude/skills/write-handler-test.md) — write a JUnit 5 unit test for
   an MVI handler or `*StoreImpl` using the project's mocked `HandlerStore` + `TestScope`
   pattern.
+- [`write-repository-test`](.claude/skills/write-repository-test.md) — write a real-DB JUnit
+  5 unit test for a `*RepositoryImpl` using the shared `RepositoryTestEnv` in-memory Room
+  fixture from the `core/data/database` testFixtures source set.
 - [`write-ui-test`](.claude/skills/write-ui-test.md) — write a `@Smoke` Compose UI test using
   `BaseComposeTest`, `ActionCapture`, `MockDataFactory`, and `PagingTestUtils`.
 - [`add-database-migration`](.claude/skills/add-database-migration.md) — bump the Room schema

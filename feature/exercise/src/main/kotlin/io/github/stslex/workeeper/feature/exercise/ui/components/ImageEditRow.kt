@@ -22,6 +22,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
@@ -29,7 +30,9 @@ import coil3.request.crossfade
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
+import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageDisplay
@@ -139,4 +142,32 @@ private fun ThumbPlaceholder(type: ExerciseTypeUiModel) {
             AppUi.colors.setType.warmupForeground
         },
     )
+}
+
+@Preview
+@Composable
+private fun ImageEditRowEmptyLightPreview() {
+    AppTheme(themeMode = ThemeMode.LIGHT) {
+        ImageEditRow(
+            type = ExerciseTypeUiModel.WEIGHTED,
+            imageDisplay = ImageDisplay.None,
+            onEditClick = {},
+            onRemoveClick = {},
+            onThumbClick = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun ImageEditRowEmptyWeightlessDarkPreview() {
+    AppTheme(themeMode = ThemeMode.DARK) {
+        ImageEditRow(
+            type = ExerciseTypeUiModel.WEIGHTLESS,
+            imageDisplay = ImageDisplay.None,
+            onEditClick = {},
+            onRemoveClick = {},
+            onThumbClick = {},
+        )
+    }
 }

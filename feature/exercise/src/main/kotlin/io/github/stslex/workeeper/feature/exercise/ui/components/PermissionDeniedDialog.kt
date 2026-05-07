@@ -3,7 +3,10 @@ package io.github.stslex.workeeper.feature.exercise.ui.components
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
+import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
+import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.feature.exercise.R
 
 @Composable
@@ -21,4 +24,26 @@ internal fun PermissionDeniedDialog(
         onConfirm = onSettingsClick,
         onDismiss = onDismiss,
     )
+}
+
+@Preview
+@Composable
+private fun PermissionDeniedDialogLightPreview() {
+    AppTheme(themeMode = ThemeMode.LIGHT) {
+        PermissionDeniedDialog(
+            onSettingsClick = {},
+            onDismiss = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun PermissionDeniedDialogDarkPreview() {
+    AppTheme(themeMode = ThemeMode.DARK) {
+        PermissionDeniedDialog(
+            onSettingsClick = {},
+            onDismiss = {},
+        )
+    }
 }

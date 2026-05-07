@@ -69,6 +69,7 @@ Each tracked location should carry a `TODO(tech-debt): <category> — <ref>` mar
 |---|---|---|
 | 🟡 | [feature/live-workout/.../domain/LiveWorkoutInteractorImpl.kt loadSession](../feature/live-workout/src/main/kotlin/io/github/stslex/workeeper/feature/live_workout/domain/LiveWorkoutInteractorImpl.kt) | Read-time `trainingPlan ?: exerciseRepository.getAdhocPlan(...)` fallback exists because we don't backfill old data via migration in this commit. When the next schema bump lands (with the proper Migration framework now in place — see Migration Policy in [architecture.md](architecture.md) → Room database), include a one-shot backfill: `UPDATE training_exercise_table SET plan_sets = (SELECT plan_sets FROM exercise_table WHERE exercise_table.uuid = training_exercise_table.exercise_uuid) WHERE plan_sets IS NULL`. After that, drop the runtime fallback. |
 | 🟢 | [feature/live-workout/.../mvi/handler/ClickHandler.kt recomputeOnly](../feature/live-workout/src/main/kotlin/io/github/stslex/workeeper/feature/live_workout/mvi/handler/ClickHandler.kt) + [LiveWorkoutMapper.kt toUiList](../feature/live-workout/src/main/kotlin/io/github/stslex/workeeper/feature/live_workout/mvi/mapper/LiveWorkoutMapper.kt) | Status derivation logic duplicated between mapper (initial load) and click handler (post-mutation recompute). Extract to a shared helper in a follow-up so future status semantics changes happen in one place. |
+| ✅ RESOLVED | [feature/live-workout/.../mvi/](../feature/live-workout/src/main/kotlin/io/github/stslex/workeeper/feature/live_workout/mvi/) | **Live-workout draft seed and visible-row merge centralized** (lock-in for the LiveSetRow reset class of bugs). Visible-row resolution (`performed > draft > plan > fallback`) is computed once in the MVI mapper and exposed as `LiveExerciseUiModel.visibleSets`; `LiveExerciseCard` no longer accepts `setDrafts` and no longer imports `Store.State.DraftKey`. Draft seed/update goes through a single helper (`mvi/handler/LiveWorkoutDraftExt.kt`) so type / weight / reps edits all preserve the unrelated fields from the current visible row. Behavior tests covering every field-preservation pair and the resolver priority live in `LiveSetDraftBehaviorTest.kt` and `LiveSetVisibleRowsResolverTest.kt`. See [architecture.md → Source-of-truth merging belongs to mappers](architecture.md) and [feature-specs/live-workout.md → Set draft and visible row architecture](feature-specs/live-workout.md). |
 | 🟢 | [feature/live-workout/.../mvi/store/LiveWorkoutStore.kt activeExerciseUuids](../feature/live-workout/src/main/kotlin/io/github/stslex/workeeper/feature/live_workout/mvi/store/LiveWorkoutStore.kt) | Active-set state is ephemeral — resets on app background/restore. If users complain about losing parallel state, persist via a new column on `performed_exercise_table` or session-scoped DataStore. Not blocking. |
 
 ---
@@ -87,7 +88,8 @@ Items deferred from the v2.4 PR (see `documentation/feature-specs/v2.4-design-fo
 | 🟢 | (multiple touched files) | **`AppDimension.Padding` migration sweep** (spec B1). Padding is `@Deprecated` and emits warnings on call sites. Step 13 of v2.4 was opportunistic — touched files migrated as work landed. Remaining call sites continue to compile with deprecation warnings. **Trigger to act:** v2.7 tech-debt ratchet, or earlier if drift detected. |
 | 🟢 | core/ui/plan-editor/.../mvi/store/PlanEditorStoreImpl.kt | **Snackbar undo for set-delete** (spec D5). The new PlanEditorScreen currently uses the existing immediate-delete behavior. Replacing with snackbar-undo is grouped with the live-workout snackbar-undo work above so both editor surfaces share the policy. |
 | 🟢 | core/ui/plan-editor/.../PlanEditorBody.kt | **Plan editor drag-to-reorder** (spec 5.4 partial). The kit primitives (`reorderableColumnItem` + `reorderableColumnDragHandle` with live displacement preview) exist and ship in `core/ui/kit`; PlanEditorBody still renders a non-reorderable `forEachIndexed` loop. Migration mirrors PastExerciseCard's wiring — pass `dragHandleModifier` through PlanEditorRow with the trailing DragHandle icon. |
-| 🟢 | feature/exercise/.../ExerciseEditScreen.kt | **ExerciseEditScreen rework** (v2.4.x deferred — separate spec next round). Image+name unification, inline plan section instead of bottom-sheet, layout overhaul. Tracked here so the next ratchet pass picks it up. |
+| 🟢 | feature/exercise/.../ExerciseEditScreen.kt | **ExerciseEditScreen rework** (v2.4.x deferred — separate spec next round). Inline plan section landed in v1.41 release-blocker fix (renders `PlanEditorBody(scrollable = false)` for `Mode.Edit(isCreate = true)`). Image+name unification and full layout overhaul are still pending. |
+| 🟡 | feature/exercise/.../ui/mvi/handler/ClickHandler.kt processAdhocPlanEditorAction | **Exercise create-flow plan persistence — process-death loss.** The inline plan editor used during exercise create-mode mutates `state.adhocPlan` in memory; persistence happens only on Save via `ExerciseChangeDomain.lastAdhocSets`. A process kill mid-edit loses the in-flight draft. Identical semantics to the pre-`ad117f3a` `AppPlanEditor` bottom sheet — not a regression, but a known limitation. **Fix path:** introduce a draft row in `exercise_table` (or a sibling `exercise_draft_table`) keyed by a stable client-generated UUID, restored on screen entry, deleted on Cancel/Save. Requires schema migration, DAO filter audit (every `is_adhoc = 0` query must also filter drafts), `UNIQUE(name)` workaround, and an orphan-cleanup worker. **Trigger to act:** user-reported draft loss after a process death, or when DB-draft work is otherwise prioritized. |
 | 🟢 | feature/exercise/.../ExerciseDetailScreen.kt | **TopBar collapsing animation feel on ExerciseDetail** — pending user clarification on whether it is a bug or perceived discomfort. Track here so the question is not lost. |
 
 ---
@@ -124,7 +126,7 @@ Items where shipped behaviour diverges from what specs originally asked for. Sur
 |---|---|---|---|
 | 🟡 | exercises.md | "Phantom shims removed" | `TrainingDataModel.labels` and `TrainingDataModel.exerciseUuids` still present and populated by repo. Cleanup. |
 | 🟡 | exercises.md | "`pagedActiveByTags(Set<String>)` AND semantics" | Shipped uses `IN (:tagUuids)` (OR semantics). The deprecated AND-semantics query was removed as dead code; OR is intentional and remains the supported behaviour — locked decision in v2.0 spec. |
-| 🟡 | exercises.md | "Canonical NavigationHandler with `@Inject Navigator`" | All feature NavigationHandlers use the manual `Component.create(navigator, screen)` constructor pattern with `@Suppress("MviHandlerConstructorRule")`. The architecture relies on the manual pattern because handlers carry per-screen `data`. Treated as architectural; not migrated in v2.0. |
+| ✅ RESOLVED | exercises.md | "Canonical NavigationHandler with `@Inject Navigator`" | Resolved in the navigation-lifecycle PR (PR #143). All feature `NavigationHandler` classes are now `@ViewModelScoped @Inject Navigator` constructor-injected; the old `Component.create(navigator, screen)` factory pattern is gone. Route arguments enter the Store via Dagger assisted injection (`@Assisted screen: Screen.<X>`) instead of through a `Component<Screen>` subclass. The `MviHandlerConstructorRule` literal-name exemption for `NavigationHandler` is now redundant — it remains in the rule source for back-compat but new code does not rely on it. See [architecture.md → Navigation](architecture.md#navigation) for the canonical pattern. |
 | 🟡 | exercises.md, trainings.md, live-workout.md | "Haptics emitted for every Click action" | Several dismiss / undo / cancel paths bypass haptic emission. Specifically: `processUndoArchive`, `processCancelPermanentDelete`, `processBulkDeleteDismiss` in all-exercises; `processBulkDeleteDismiss` in all-trainings; dismiss handlers and done-card header expansion in live-workout. |
 | 🟡 | trainings.md, live-workout.md | "Composable `@Previews` for every public/internal Composable" | `AllTrainingsScreen`, `TrainingDetailScreen`, `TrainingEditScreen` expose internals without `@Preview`. `TrainingRow` lacks active/inactive permutations. `live-workout` is fully covered (verified). |
 
@@ -144,6 +146,86 @@ Five stub files with `TODO(feature-rewrite-tests)` markers carry an `@Ignore`d p
 | 🟡 | [feature/single-training/.../SingleTrainingScreenTest.kt](../feature/single-training/src/androidTest/kotlin/io/github/stslex/workeeper/feature/single_training/SingleTrainingScreenTest.kt) | 5.3 |
 
 **Plan:** address as a dedicated test-coverage PR after v2 stabilises. Don't try to fill in feature PRs.
+
+---
+
+## Navigation lifecycle — RESOLVED in PR #143
+
+The "stale `NavController` after activity recreation crashes navigation" class of
+bugs that shipped before `master` is closed by the navigation-lifecycle refactor.
+The architecture now strictly separates navigation **decisions** (Store/Handler
+layer, depends on `Navigator`) from navigation **execution** (App/UI bridge,
+operates on the composition-scoped `NavController` from
+`rememberNavController()`).
+
+What changed:
+
+- `NavigatorEventBus` (`@Singleton`, controller-free) replaced the old controller-
+  backed `NavigatorImpl` / `NavigationHolderController` / `NavigationHolderImpl`
+  trio. It exposes only `Navigator` (producer) and `NavigatorReceiver` (consumer)
+  interfaces over a `SharedFlow<NavigationCommand>`.
+- `NavigatorExt.NavigationEventBusSetup` (composable) collects commands keyed on
+  the current `NavController` via `LaunchedEffect(navController)` so the executor
+  rebinds on every recomposition / activity recreation. The bus instance survives;
+  the executor is per-composition.
+- `App.kt` owns `rememberNavController()` and creates the `NavigatorHolder`
+  composition-scoped via `remember(navController)`.
+- `RootComponentImpl`, `LocalRootComponent`, `LocalNavigator`, and the
+  `Component.create(navigator, screen)` factory pattern are all removed. Route
+  arguments enter the Store via Dagger assisted injection
+  (`@Assisted screen: Screen.<X>`).
+- All feature `NavigationHandler`s are `@ViewModelScoped @Inject Navigator`.
+- `Screen.PlanEditor.planEditorSavedAttr` flows through
+  `navigator.popBack(planEditorSavedAttr.toPairValue(true))` and is consumed in
+  the previous screen's graph composable via `navComponentScreenWithState` +
+  `stateHandle.getStateFlow(...).collectAsState()`. Consumers reset the flag via
+  `stateHandle.setAttrDefaultValue(...)` so re-entry does not retrigger.
+
+Verification requirements (live in test code, not docs):
+
+- `NavigatorEventBusTest` covers `navTo` / `replaceTo` / `popBack` emission shape
+  and order on the singleton bus.
+- `NavigationLifecycleRegressionTest` covers a stale-bridge → fresh-bridge handover.
+  It verifies that the bus remains usable across detach / re-attach: commands
+  emitted with no executor attached do not crash or block the bus, and commands
+  emitted **after** a fresh executor subscribes are observed by that executor.
+  The bus uses `MutableSharedFlow(replay = 0, extraBufferCapacity = 64)` and
+  intentionally does not guarantee replay of commands emitted before subscription
+  — the production bridge attaches via `LaunchedEffect(navController)` before any
+  decision-side emit can happen for that composition, so pre-subscription emits
+  are not part of the lifecycle contract.
+- Per-feature `NavigationHandlerTest` classes verify each `Action.Navigation.<X>`
+  branch dispatches the matching `navigator.*` call, with `Navigator` mocked.
+- Per-feature route-arg Store tests (`feature/exercise`, `feature/live-workout`,
+  `feature/single-training`) verify the `@Assisted screen` value lands in
+  `state.value` initial fields.
+- `app/dev/.../NavigationLifecycleRegressionTest.kt` (instrumented `@Regression`)
+  recreates `MainActivity` mid-flight and asserts that subsequent bottom-bar
+  navigation calls land on the correct destination through the freshly-bound
+  bridge.
+
+### Test gaps deferred to a follow-up (instrumentation)
+
+The following scenarios are part of the manual QA checklist below but are NOT
+yet automated because the `app/dev` instrumentation harness only navigates
+within bottom-bar destinations — it has no helpers for seeding DB rows
+(Exercise / Training / PerformedExercise) and no shared fixtures for
+detail-screen → PlanEditor flows. Adding them would require new test
+infrastructure comparable in size to the rest of this PR. **Trigger to act:**
+next PR that adds a real-DB instrumentation fixture (similar to the
+`RepositoryTestEnv` approach for unit tests).
+
+| Scenario | Status |
+|---|---|
+| Exercise detail → PlanEditor save → previous screen reload exactly once | manual |
+| SingleTraining → PlanEditor save → previous screen reload exactly once | manual |
+| LiveWorkout → PlanEditor save → previous screen reload exactly once | manual |
+| LiveWorkout finish session → `replaceTo` lands on PastSession; back does not return to finished LiveWorkout | manual |
+
+Documented at [architecture.md → Navigation](architecture.md#navigation),
+[lint-rules.md → HiltScopeRule scope expectations](lint-rules.md#scope-expectations-for-the-navigation-layer),
+and the lifecycle-safe navigation refactor section in
+[`refactor-with-mvi-rules`](../.claude/skills/refactor-with-mvi-rules.md).
 
 ---
 

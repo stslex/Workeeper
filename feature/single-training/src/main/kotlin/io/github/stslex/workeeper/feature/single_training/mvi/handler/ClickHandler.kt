@@ -161,11 +161,17 @@ internal class ClickHandler @Inject constructor(
         launch {
             when (val resolution = interactor.resolveStartSessionConflict(trainingUuid)) {
                 StartSessionConflict.ProceedFresh -> consumeOnMain(
-                    Action.Navigation.OpenLiveWorkout(sessionUuid = ""),
+                    Action.Navigation.OpenLiveWorkout(
+                        sessionUuid = "",
+                        trainingUuid = trainingUuid,
+                    ),
                 )
 
                 is StartSessionConflict.SilentResume -> consumeOnMain(
-                    Action.Navigation.OpenLiveWorkout(sessionUuid = resolution.sessionUuid),
+                    Action.Navigation.OpenLiveWorkout(
+                        sessionUuid = resolution.sessionUuid,
+                        trainingUuid = trainingUuid,
+                    ),
                 )
 
                 is StartSessionConflict.NeedsUserChoice -> {
@@ -197,7 +203,12 @@ internal class ClickHandler @Inject constructor(
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         val info = state.value.pendingConflict ?: return
         updateState { it.copy(pendingConflict = null) }
-        consume(Action.Navigation.OpenLiveWorkout(sessionUuid = info.sessionUuid))
+        consume(
+            Action.Navigation.OpenLiveWorkout(
+                sessionUuid = info.sessionUuid,
+                trainingUuid = state.value.uuid,
+            ),
+        )
     }
 
     private fun processConflictDeleteAndStart() {
@@ -206,7 +217,12 @@ internal class ClickHandler @Inject constructor(
         updateState { it.copy(pendingConflict = null) }
         launch {
             interactor.deleteSession(info.sessionUuid)
-            consumeOnMain(Action.Navigation.OpenLiveWorkout(sessionUuid = ""))
+            consumeOnMain(
+                Action.Navigation.OpenLiveWorkout(
+                    sessionUuid = "",
+                    trainingUuid = state.value.uuid,
+                ),
+            )
         }
     }
 

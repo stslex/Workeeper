@@ -12,4 +12,5 @@ dependencies {
     implementation(libs.androidx.paging.runtime)
     implementation(libs.androidx.room.ktx)
     testImplementation(libs.androidx.paging.testing)
+    testImplementation(testFixtures(project(":core:data:database")))
 }

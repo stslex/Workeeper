@@ -9,7 +9,6 @@ import io.github.stslex.workeeper.core.data.exercise.session.PerformedExerciseRe
 import io.github.stslex.workeeper.core.data.exercise.session.PlanUpdate
 import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.data.exercise.session.SetRepository
-import io.github.stslex.workeeper.core.data.exercise.sets.PlanUpdateRule
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
 import io.github.stslex.workeeper.feature.live_workout.domain.mapper.LiveWorkoutDomainMapper.toData
@@ -196,7 +195,9 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
                     )
                     ?: exerciseRepository.getAdhocPlan(row.exerciseUuid)
             }
-            val nextPlan = PlanUpdateRule.update(existingPlan, performedSets.map { it.toData() })
+            val nextPlan = performedSets
+                .map { it.toData() }
+                .ifEmpty { existingPlan }
             planUpdates += PlanUpdate(
                 trainingUuid = session.trainingUuid,
                 exerciseUuid = row.exerciseUuid,
@@ -324,7 +325,11 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
         plan: List<PlanSetDomain>?,
     ) {
         withContext(defaultDispatcher) {
-            trainingExerciseRepository.setPlan(trainingUuid, exerciseUuid, plan?.map { it.toData() })
+            trainingExerciseRepository.setPlan(
+                trainingUuid,
+                exerciseUuid,
+                plan?.map { it.toData() },
+            )
         }
     }
 

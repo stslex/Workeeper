@@ -11,6 +11,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.core.view.WindowCompat
 
 @Composable
@@ -37,6 +38,8 @@ fun AppTheme(
     val m3Typography = remember(typography) { typography.toM3Typography() }
     val m3Shapes = remember(shapes) { shapes.toM3Shapes() }
 
+    // use to update status bar icon when orientation changes, as well as subscribe to theme changes
+    LocalConfiguration.current // subscribe to config changes
     SideEffect {
         localActivity?.window?.let { window ->
             WindowCompat.getInsetsController(window, window.decorView)

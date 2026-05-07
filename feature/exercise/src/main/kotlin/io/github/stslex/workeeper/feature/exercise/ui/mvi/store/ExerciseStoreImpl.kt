@@ -11,10 +11,10 @@ import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreFactory
+import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStoreImpl
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.ClickHandler
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.CommonHandler
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.ExerciseComponent
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.InputHandler
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.handler.NavigationHandler
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
@@ -23,7 +23,8 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.St
 
 @HiltViewModel(assistedFactory = ExerciseStoreImpl.Factory::class)
 internal class ExerciseStoreImpl @AssistedInject constructor(
-    @Assisted component: ExerciseComponent,
+    @Assisted screen: Screen.Exercise,
+    navigationHandler: NavigationHandler,
     clickHandler: ClickHandler,
     inputHandler: InputHandler,
     commonHandler: CommonHandler,
@@ -33,10 +34,10 @@ internal class ExerciseStoreImpl @AssistedInject constructor(
     loggerHolder: LoggerHolder,
 ) : BaseStore<State, Action, Event>(
     name = NAME,
-    initialState = State.create(uuid = component.data.uuid),
+    initialState = State.create(uuid = screen.uuid),
     handlerCreator = { action ->
         when (action) {
-            is Action.Navigation -> component as NavigationHandler
+            is Action.Navigation -> navigationHandler
             is Action.Common -> commonHandler
             is Action.Click -> clickHandler
             is Action.Input -> inputHandler
@@ -50,7 +51,7 @@ internal class ExerciseStoreImpl @AssistedInject constructor(
 ) {
 
     @AssistedFactory
-    interface Factory : StoreFactory<ExerciseComponent, ExerciseStoreImpl>
+    interface Factory : StoreFactory<Screen.Exercise, ExerciseStoreImpl>
 
     companion object {
 

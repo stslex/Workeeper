@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
+import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorBodyAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
@@ -432,6 +433,156 @@ internal class ClickHandlerTest {
         handler.invoke(Action.Click.OnImageThumbnailClick)
         verify(exactly = 0) { store.consume(any<Action.Navigation.OpenImageViewer>()) }
         verify(exactly = 0) { store.sendEvent(any()) }
+    }
+
+    @Test
+    fun `OnAdhocPlanEditorAction OnAddSet appends a default set to the in-memory plan`() {
+        val (stateFlow, _, handler) = setup(State.create(uuid = null))
+
+        handler.invoke(
+            Action.Click.OnAdhocPlanEditorAction(PlanEditorBodyAction.OnAddSet),
+        )
+
+        val plan = stateFlow.value.adhocPlan
+        assertEquals(1, plan?.size)
+        assertEquals(SetTypeUiModel.WORK, plan?.first()?.type)
+    }
+
+    @Test
+    fun `OnAdhocPlanEditorAction OnSetRemove on the only row normalizes the plan back to null`() {
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = null).copy(
+                adhocPlan = persistentListOf(
+                    PlanSetUiModel(weight = 80.0, reps = 8, type = SetTypeUiModel.WORK),
+                ),
+            ),
+        )
+
+        handler.invoke(
+            Action.Click.OnAdhocPlanEditorAction(PlanEditorBodyAction.OnSetRemove(0)),
+        )
+
+        // Empty draft is normalized to null so `state.adhocPlan == null` continues to mean
+        // "no default plan attached" — matches the persisted shape on `last_adhoc_sets`.
+        assertNull(stateFlow.value.adhocPlan)
+    }
+
+    @Test
+    fun `OnAdhocPlanEditorAction OnSetWeightChange routes through the reducer`() {
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = null).copy(
+                adhocPlan = persistentListOf(
+                    PlanSetUiModel(weight = 80.0, reps = 8, type = SetTypeUiModel.WORK),
+                ),
+            ),
+        )
+
+        handler.invoke(
+            Action.Click.OnAdhocPlanEditorAction(
+                PlanEditorBodyAction.OnSetWeightChange(index = 0, value = 95.0),
+            ),
+        )
+
+        assertEquals(95.0, stateFlow.value.adhocPlan?.first()?.weight)
+    }
+
+    @Test
+    fun `OnAdhocPlanEditorAction OnSetRepsChange routes through the reducer`() {
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = null).copy(
+                adhocPlan = persistentListOf(
+                    PlanSetUiModel(weight = null, reps = 5, type = SetTypeUiModel.WORK),
+                ),
+            ),
+        )
+
+        handler.invoke(
+            Action.Click.OnAdhocPlanEditorAction(
+                PlanEditorBodyAction.OnSetRepsChange(index = 0, value = 12),
+            ),
+        )
+
+        assertEquals(12, stateFlow.value.adhocPlan?.first()?.reps)
+    }
+
+    @Test
+    fun `OnAdhocPlanEditorAction OnSetTypeChange routes through the reducer`() {
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = null).copy(
+                adhocPlan = persistentListOf(
+                    PlanSetUiModel(weight = 80.0, reps = 8, type = SetTypeUiModel.WORK),
+                ),
+            ),
+        )
+
+        handler.invoke(
+            Action.Click.OnAdhocPlanEditorAction(
+                PlanEditorBodyAction.OnSetTypeChange(
+                    index = 0,
+                    value = SetTypeUiModel.FAILURE,
+                ),
+            ),
+        )
+
+        assertEquals(SetTypeUiModel.FAILURE, stateFlow.value.adhocPlan?.first()?.type)
+    }
+
+    @Test
+    fun `OnCancelClick from create-mode with edited plan surfaces POP_SCREEN discard dialog`() {
+        val (_, store, handler) = setup(
+            State.create(uuid = null).copy(
+                adhocPlan = persistentListOf(
+                    PlanSetUiModel(weight = 80.0, reps = 8, type = SetTypeUiModel.WORK),
+                ),
+                originalAdhocPlan = null,
+            ),
+        )
+
+        handler.invoke(Action.Click.OnCancelClick)
+
+        verify(exactly = 0) { store.consume(Action.Navigation.Back) }
+        val events = mutableListOf<Event>()
+        verify { store.sendEvent(capture(events)) }
+        assertTrue(
+            events.any {
+                it is Event.ShowDiscardConfirmDialog && it.target == DiscardTarget.POP_SCREEN
+            },
+        )
+    }
+
+    @Test
+    fun `OnBackClick from create-mode with edited plan surfaces POP_SCREEN discard dialog`() {
+        val (_, store, handler) = setup(
+            State.create(uuid = null).copy(
+                adhocPlan = persistentListOf(
+                    PlanSetUiModel(weight = 80.0, reps = 8, type = SetTypeUiModel.WORK),
+                ),
+                originalAdhocPlan = null,
+            ),
+        )
+
+        handler.invoke(Action.Click.OnBackClick)
+
+        verify(exactly = 0) { store.consume(Action.Navigation.Back) }
+        val events = mutableListOf<Event>()
+        verify { store.sendEvent(capture(events)) }
+        assertTrue(
+            events.any {
+                it is Event.ShowDiscardConfirmDialog && it.target == DiscardTarget.POP_SCREEN
+            },
+        )
+    }
+
+    @Test
+    fun `OnEditPlanClick still navigates to full-screen route in edit-mode for existing exercise`() {
+        // Read-mode "Edit default plan" card — preserved from the v2.4 D1 migration.
+        val (_, store, handler) = setup(State.create(uuid = "uuid-1"))
+
+        handler.invoke(Action.Click.OnEditPlanClick)
+
+        verify(exactly = 1) {
+            store.consume(Action.Navigation.OpenPlanEditor(exerciseUuid = "uuid-1"))
+        }
     }
 
     private fun assertHaptic(event: Event, expected: HapticFeedbackType) {

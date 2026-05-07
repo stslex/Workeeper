@@ -6,41 +6,29 @@ import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExercisePickerAction
-import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
-import io.github.stslex.workeeper.feature.live_workout.domain.mapper.LiveWorkoutDomainMapper.beatsBaseline
 import io.github.stslex.workeeper.feature.live_workout.domain.model.PlanSetDomain
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveSetMutator
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toDomain
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toFinishStats
-import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.withPresentation
-import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.StateStatusMapper
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ErrorType
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
-import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
-import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
-import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore
+import io.github.stslex.workeeper.feature.live_workout.mvi.store.BottomSheetState
+import io.github.stslex.workeeper.feature.live_workout.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Event
-import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
-import kotlinx.collections.immutable.persistentListOf
-import kotlinx.collections.immutable.toImmutableList
-import kotlinx.collections.immutable.toImmutableMap
 import kotlinx.collections.immutable.toImmutableSet
 import javax.inject.Inject
 
 @Suppress("TooManyFunctions", "LongMethod", "LargeClass")
 @ViewModelScoped
-// TODO(tech-debt): v2.7 decomposition pass — this handler legitimately gained
-// training-name + empty-finish + add-exercise dispatch in v2.3 (per spec); further
-// splits (TrainingNameHandler, EmptyFinishHandler) belong with the rest of the
-// live-workout feature decomposition.
 internal class ClickHandler @Inject constructor(
     private val interactor: LiveWorkoutInteractor,
     private val resourceWrapper: ResourceWrapper,
     private val pickerHandler: ExercisePickerHandler,
-    private val statusMapper: StateStatusMapper,
+    private val setMutator: LiveSetMutator,
     store: LiveWorkoutHandlerStore,
 ) : Handler<Action.Click>, LiveWorkoutHandlerStore by store {
 
@@ -53,21 +41,10 @@ internal class ClickHandler @Inject constructor(
             is Action.Click.OnAddSet -> processAddSet(action)
             is Action.Click.OnEditPlan -> processEditPlan(action)
             is Action.Click.OnResetSets -> processResetSetsAsk(action)
-            is Action.Click.OnResetSetsConfirm -> processResetSetsConfirm(action)
-            Action.Click.OnResetSetsDismiss -> processResetSetsDismiss()
             is Action.Click.OnSkipExercise -> processSkipExerciseAsk(action)
-            is Action.Click.OnSkipExerciseConfirm -> processSkipExerciseConfirm(action)
-            Action.Click.OnSkipExerciseDismiss -> processSkipExerciseDismiss()
             Action.Click.OnFinishClick -> processFinishClick()
-            Action.Click.OnFinishConfirm -> processFinishConfirm()
-            is Action.Click.OnFinishNameChange -> processFinishNameChange(action)
-            Action.Click.OnFinishDismiss -> processFinishDismiss()
             Action.Click.OnCancelSessionClick -> processCancelClick()
-            Action.Click.OnCancelSessionConfirm -> processCancelConfirm()
-            Action.Click.OnCancelSessionDismiss -> processCancelDismiss()
             Action.Click.OnDeleteSessionMenuClick -> processDeleteSessionMenuClick()
-            Action.Click.OnDeleteSessionConfirm -> processDeleteSessionConfirm()
-            Action.Click.OnDeleteSessionDismiss -> processDeleteSessionDismiss()
             is Action.Click.OnExerciseHeaderClick -> processExerciseHeaderClick(action)
             Action.Click.OnBackClick -> processBackClick()
             Action.Click.OnTrainingNameTap -> processTrainingNameTap()
@@ -75,9 +52,6 @@ internal class ClickHandler @Inject constructor(
             is Action.Click.OnTrainingNameSubmit -> processTrainingNameSubmit(action)
             Action.Click.OnTrainingNameDismiss -> processTrainingNameDismiss()
             Action.Click.OnAddExerciseClick -> processAddExerciseClick()
-            is Action.Click.PickerAction -> pickerHandler.invoke(action.action)
-            Action.Click.OnEmptyFinishDiscard -> processEmptyFinishDiscard()
-            Action.Click.OnEmptyFinishContinue -> processEmptyFinishContinue()
         }
     }
 
@@ -94,12 +68,12 @@ internal class ClickHandler @Inject constructor(
         // Spec dismissal order: picker → empty-finish dialog → name edit → plan-editor
         // dirty → default back.
         val current = state.value
-        if (current.isPickerVisible) {
+        if (current.bottomSheetState is BottomSheetState.ExercisePicker) {
             pickerHandler.invoke(ExercisePickerAction.OnDismiss)
             return
         }
-        if (current.isEmptyFinishDialogVisible) {
-            processEmptyFinishContinue()
+        if (current.dialogState is DialogState.EmptyFinish) {
+            consume(Action.DialogClick.OnEmptyFinishContinue)
             return
         }
         if (current.isTrainingNameEditing) {
@@ -181,8 +155,8 @@ internal class ClickHandler @Inject constructor(
     private fun processSetMarkDone(action: Action.Click.OnSetMarkDone) {
         sendEvent(Event.HapticImpact(HapticFeedbackType.Confirm))
         val current = state.value
-        current.findExercise(action.performedExerciseUuid) ?: return
-        val seedDraft = current.draftFor(action.performedExerciseUuid, action.position)
+        setMutator.findExercise(current, action.performedExerciseUuid) ?: return
+        val seedDraft = setMutator.draftFor(current, action.performedExerciseUuid, action.position)
         if (seedDraft.reps <= 0) {
             sendError(ErrorType.InvalidReps)
             return
@@ -194,7 +168,8 @@ internal class ClickHandler @Inject constructor(
         )
         // Optimistic UI: flip the row to done immediately so the checkbox tap feels snappy.
         updateState { latest ->
-            latest.applySetMarked(
+            setMutator.applySetMarked(
+                latest,
                 action.performedExerciseUuid,
                 action.position,
                 seedDraft,
@@ -204,7 +179,7 @@ internal class ClickHandler @Inject constructor(
             onError = { _ ->
                 sendError(ErrorType.SetSaveFailed)
                 // Revert to a clean reload-shaped state by rebuilding statuses.
-                updateState { latest -> statusMapper.recomputeStatuses(latest) }
+                updateState { latest -> setMutator.recomputeStatuses(latest) }
             },
         ) {
             interactor.upsertSet(
@@ -218,7 +193,8 @@ internal class ClickHandler @Inject constructor(
     private fun processSetUncheck(action: Action.Click.OnSetUncheck) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         updateState { latest ->
-            latest.applySetUnchecked(
+            setMutator.applySetUnchecked(
+                latest,
                 action.performedExerciseUuid,
                 action.position,
             )
@@ -233,17 +209,18 @@ internal class ClickHandler @Inject constructor(
     private fun processSetTypeSelect(action: Action.Click.OnSetTypeSelect) {
         sendEvent(Event.HapticClick(HapticFeedbackType.SegmentTick))
         val current = state.value
-        val exercise = current.findExercise(action.performedExerciseUuid) ?: return
+        val exercise = setMutator.findExercise(current, action.performedExerciseUuid) ?: return
         val performed = exercise.performedSets.firstOrNull { it.position == action.position }
-        val newType = action.type.next()
+        val nextType = action.type.next()
         if (performed != null && performed.isDone) {
             // For a checked set, type changes are persisted immediately so the saved set
             // matches what the user sees. The optimistic UI update below keeps it instant.
             updateState { latest ->
-                latest.applySetTypeChange(
+                setMutator.applySetTypeChange(
+                    latest,
                     action.performedExerciseUuid,
                     action.position,
-                    newType,
+                    nextType,
                 )
             }
             launch(
@@ -255,18 +232,16 @@ internal class ClickHandler @Inject constructor(
                     set = PlanSetDomain(
                         weight = performed.weight,
                         reps = performed.reps,
-                        type = newType.toDomain(),
+                        type = nextType.toDomain(),
                     ),
                 )
             }
         } else {
             updateState { latest ->
-                val key = State.DraftKey(action.performedExerciseUuid, action.position)
-                val existing = latest.draftFor(action.performedExerciseUuid, action.position)
-                val newItem = key to existing.copy(type = newType)
-                val newSetDrafts = latest.setDrafts + newItem
-                latest.copy(
-                    setDrafts = newSetDrafts.toImmutableMap(),
+                latest.updateSetDraft(
+                    performedExerciseUuid = action.performedExerciseUuid,
+                    position = action.position,
+                    transform = { it.copy(type = nextType) },
                 )
             }
         }
@@ -275,7 +250,8 @@ internal class ClickHandler @Inject constructor(
     private fun processSetRemove(action: Action.Click.OnSetRemove) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         updateState { latest ->
-            latest.applySetUnchecked(
+            setMutator.applySetUnchecked(
+                latest,
                 action.performedExerciseUuid,
                 action.position,
             )
@@ -289,31 +265,13 @@ internal class ClickHandler @Inject constructor(
 
     private fun processAddSet(action: Action.Click.OnAddSet) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        updateState { latest ->
-            val exercise =
-                latest.findExercise(action.performedExerciseUuid) ?: return@updateState latest
-            val nextPosition = latest.nextSetPosition(exercise)
-            val seed = latest.lastKnownSetSeed(exercise)?.copy(
-                position = nextPosition,
-                isDone = false,
-            ) ?: LiveSetUiModel(
-                position = nextPosition,
-                weight = null,
-                reps = 0,
-                type = SetTypeUiModel.WORK,
-                isDone = false,
-            )
-            val key = State.DraftKey(action.performedExerciseUuid, nextPosition)
-            latest.copy(
-                setDrafts = (latest.setDrafts + (key to seed)).toImmutableMap(),
-            )
-        }
+        updateState { latest -> setMutator.applyAddSet(latest, action.performedExerciseUuid) }
     }
 
     private fun processEditPlan(action: Action.Click.OnEditPlan) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         val current = state.value
-        val exercise = current.findExercise(action.performedExerciseUuid) ?: return
+        val exercise = setMutator.findExercise(current, action.performedExerciseUuid) ?: return
         // Plan editor moved to a dedicated full-screen route in v2.4 (D1). The
         // LiveWorkoutGraph observes a savedStateHandle flag on the previous backstack
         // entry; on flip, it dispatches Action.Common.Reload to refresh planSets.
@@ -328,60 +286,32 @@ internal class ClickHandler @Inject constructor(
 
     private fun processResetSetsAsk(action: Action.Click.OnResetSets) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        updateState { it.copy(pendingResetExerciseUuid = action.performedExerciseUuid) }
-        sendEvent(
-            Event.ShowResetSetsConfirmDialog(
-                dialog = LiveWorkoutStore.ConfirmDialog(
+        updateState {
+            it.copy(
+                dialogState = DialogState.ConfirmDialog.ResetSets(
                     title = resourceWrapper.getString(R.string.feature_live_workout_reset_title),
                     body = resourceWrapper.getString(R.string.feature_live_workout_reset_body),
                     confirmLabel = resourceWrapper.getString(R.string.feature_live_workout_reset_confirm),
                     dismissLabel = resourceWrapper.getString(R.string.feature_live_workout_reset_dismiss),
+                    exerciseUuid = action.performedExerciseUuid,
                 ),
-            ),
-        )
-    }
-
-    private fun processResetSetsConfirm(action: Action.Click.OnResetSetsConfirm) {
-        sendEvent(Event.HapticImpact(HapticFeedbackType.LongPress))
-        updateState { latest -> latest.applyResetSets(action.performedExerciseUuid) }
-        launch(
-            onError = { _ -> sendError(ErrorType.ResetFailed) },
-        ) {
-            interactor.resetExerciseSets(action.performedExerciseUuid)
+            )
         }
-    }
-
-    private fun processResetSetsDismiss() {
-        updateState { it.copy(pendingResetExerciseUuid = null) }
     }
 
     private fun processSkipExerciseAsk(action: Action.Click.OnSkipExercise) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        updateState { it.copy(pendingSkipExerciseUuid = action.performedExerciseUuid) }
-        sendEvent(
-            Event.ShowSkipExerciseConfirmDialog(
-                dialog = LiveWorkoutStore.ConfirmDialog(
+        updateState {
+            it.copy(
+                dialogState = DialogState.ConfirmDialog.SkipExercise(
                     title = resourceWrapper.getString(R.string.feature_live_workout_skip_title),
                     body = resourceWrapper.getString(R.string.feature_live_workout_skip_body),
                     confirmLabel = resourceWrapper.getString(R.string.feature_live_workout_skip_confirm),
                     dismissLabel = resourceWrapper.getString(R.string.feature_live_workout_skip_dismiss),
+                    exerciseUuid = action.performedExerciseUuid,
                 ),
-            ),
-        )
-    }
-
-    private fun processSkipExerciseConfirm(action: Action.Click.OnSkipExerciseConfirm) {
-        sendEvent(Event.HapticImpact(HapticFeedbackType.LongPress))
-        updateState { latest -> latest.applySkip(action.performedExerciseUuid) }
-        launch(
-            onError = { _ -> sendError(ErrorType.SkipFailed) },
-        ) {
-            interactor.setSkipped(action.performedExerciseUuid, skipped = true)
+            )
         }
-    }
-
-    private fun processSkipExerciseDismiss() {
-        updateState { it.copy(pendingSkipExerciseUuid = null) }
     }
 
     private fun processFinishClick() {
@@ -393,7 +323,7 @@ internal class ClickHandler @Inject constructor(
             // Continue-editing-only variant.
             updateState {
                 it.copy(
-                    emptyFinishDialog = State.EmptyFinishDialogState.Visible(
+                    dialogState = DialogState.EmptyFinish(
                         canDiscard = it.isAdhoc,
                         confirmLabel = resourceWrapper.getString(R.string.feature_live_workout_empty_finish_discard),
                         dismissLabel = resourceWrapper.getString(R.string.feature_live_workout_empty_finish_continue),
@@ -403,182 +333,51 @@ internal class ClickHandler @Inject constructor(
             return
         }
         val stats = current.toFinishStats(resourceWrapper)
-        updateState { it.copy(pendingFinishConfirm = stats) }
-        sendEvent(Event.ShowFinishConfirmDialog)
-    }
-
-    private fun processEmptyFinishContinue() {
-        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        updateState { it.copy(emptyFinishDialog = State.EmptyFinishDialogState.Hidden) }
-    }
-
-    private fun processEmptyFinishDiscard() {
-        sendEvent(Event.HapticImpact(HapticFeedbackType.LongPress))
-        val current = state.value
-        val sessionUuid = current.sessionUuid
-        val trainingUuid = current.trainingUuid
-        // Defence: discard cascade only fires for ad-hoc trainings. Library sessions can't
-        // reach this path (canDiscard = false in the dialog), but we double-check before
-        // calling the cascade DAO write.
-        if (!current.isAdhoc || sessionUuid.isNullOrBlank() || trainingUuid.isNullOrBlank()) {
-            updateState { it.copy(emptyFinishDialog = State.EmptyFinishDialogState.Hidden) }
-            return
-        }
         updateState {
             it.copy(
-                emptyFinishDialog = State.EmptyFinishDialogState.Hidden,
-                isFinishInFlight = true,
+                dialogState = stats,
             )
         }
-        launch(
-            onSuccess = { consumeOnMain(Action.Navigation.Back) },
-            onError = { _ ->
-                updateState { it.copy(isFinishInFlight = false) }
-                sendError(ErrorType.DiscardSessionFailed)
-            },
-        ) {
-            interactor.discardAdhocSession(
-                sessionUuid = sessionUuid,
-                trainingUuid = trainingUuid,
-            )
-        }
-    }
-
-    private fun processFinishConfirm() {
-        sendEvent(Event.HapticImpact(HapticFeedbackType.Confirm))
-        val current = state.value
-        val sessionUuid = current.sessionUuid ?: return
-        val stats = current.pendingFinishConfirm
-        val requiredName = stats?.nameDraft
-            ?.trim()
-            ?.takeIf { stats.requiresName }
-        if (stats?.requiresName == true && requiredName.isNullOrBlank()) {
-            val requiredError =
-                resourceWrapper.getString(R.string.feature_live_workout_finish_name_required)
-            updateState { latest ->
-                latest.copy(
-                    pendingFinishConfirm = latest.pendingFinishConfirm?.copy(
-                        nameError = requiredError,
-                        confirmEnabled = false,
-                    ),
-                )
-            }
-            return
-        }
-        val trainingUuid = current.trainingUuid
-        if (stats?.requiresName == true && trainingUuid.isNullOrBlank()) {
-            sendError(ErrorType.FinishFailed)
-            return
-        }
-        launch(
-            onSuccess = { result ->
-                if (result == null) {
-                    sendError(ErrorType.FinishMissingSession)
-                    updateState { it.copy(isFinishInFlight = false) }
-                    return@launch
-                }
-                sendEvent(
-                    Event.ShowSessionSavedSnackbar(
-                        message = resourceWrapper.getString(R.string.feature_live_workout_finish_success),
-                    ),
-                )
-                consumeOnMain(Action.Navigation.OpenPastSession(sessionUuid = sessionUuid))
-            },
-            onError = { _ ->
-                updateState { it.copy(isFinishInFlight = false) }
-                sendError(ErrorType.FinishFailed)
-            },
-        ) {
-            // Rename + finish are paired inside finishSessionAtomic so a crash between
-            // the two writes can no longer leave a named-but-IN_PROGRESS session.
-            interactor.finishSession(
-                sessionUuid = sessionUuid,
-                newTrainingName = requiredName,
-            )
-        }
-    }
-
-    private fun processFinishNameChange(action: Action.Click.OnFinishNameChange) {
-        val trimmed = action.text.trim()
-        val requiredError = resourceWrapper
-            .getString(R.string.feature_live_workout_finish_name_required)
-            .takeIf { trimmed.isBlank() }
-        updateState { latest ->
-            val current = latest.pendingFinishConfirm ?: return@updateState latest
-            latest.copy(
-                pendingFinishConfirm = current.copy(
-                    nameDraft = action.text,
-                    nameError = requiredError,
-                    confirmEnabled = trimmed.isNotBlank(),
-                ),
-            )
-        }
-    }
-
-    private fun processFinishDismiss() {
-        updateState { it.copy(pendingFinishConfirm = null) }
     }
 
     private fun processCancelClick() {
         sendEvent(Event.HapticClick(HapticFeedbackType.Confirm))
-        updateState { it.copy(pendingCancelConfirm = true) }
-        sendEvent(
-            Event.ShowCancelSessionConfirmDialog(
-                dialog = LiveWorkoutStore.ConfirmDialog(
+        updateState {
+            it.copy(
+                dialogState = DialogState.ConfirmDialog.CancelSession(
                     title = resourceWrapper.getString(R.string.feature_live_workout_cancel_title),
                     body = resourceWrapper.getString(R.string.feature_live_workout_cancel_body),
                     confirmLabel = resourceWrapper.getString(R.string.feature_live_workout_cancel_confirm),
                     dismissLabel = resourceWrapper.getString(R.string.feature_live_workout_cancel_dismiss),
                 ),
-            ),
-        )
-    }
-
-    private fun processCancelConfirm() {
-        sendEvent(Event.HapticImpact(HapticFeedbackType.LongPress))
-        val sessionUuid = state.value.sessionUuid ?: run {
-            consume(Action.Navigation.Back)
-            return
+            )
         }
-        launch(
-            onSuccess = { consumeOnMain(Action.Navigation.Back) },
-            onError = { _ -> sendError(ErrorType.CancelFailed) },
-        ) {
-            interactor.cancelSession(sessionUuid)
-        }
-    }
-
-    private fun processCancelDismiss() {
-        updateState { it.copy(pendingCancelConfirm = false) }
     }
 
     private fun processDeleteSessionMenuClick() {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        updateState { it.copy(deleteDialogVisible = true) }
-    }
 
-    private fun processDeleteSessionConfirm() {
-        val sessionUuid = state.value.sessionUuid ?: run {
-            updateState { it.copy(deleteDialogVisible = false) }
-            return
+        updateState { state ->
+            val sessionName = state.trainingNameLabel.takeIf { it.isNotBlank() }
+                ?: resourceWrapper.getString(R.string.feature_live_workout_delete_session_unnamed)
+            val progressLabel = resourceWrapper.getString(
+                R.string.feature_live_workout_delete_session_progress_format,
+                state.doneCount,
+                state.totalCount,
+                state.setsLogged,
+            )
+            state.copy(
+                dialogState = DialogState.DeleteDialog(
+                    sessionName = sessionName,
+                    progressLabel = progressLabel,
+                ),
+            )
         }
-        sendEvent(Event.HapticImpact(HapticFeedbackType.LongPress))
-        updateState { it.copy(deleteDialogVisible = false) }
-        launch(
-            onSuccess = { consumeOnMain(Action.Navigation.Back) },
-            onError = { _ -> sendError(ErrorType.CancelFailed) },
-        ) {
-            interactor.cancelSession(sessionUuid)
-        }
-    }
-
-    private fun processDeleteSessionDismiss() {
-        updateState { it.copy(deleteDialogVisible = false) }
     }
 
     private fun processExerciseHeaderClick(action: Action.Click.OnExerciseHeaderClick) {
         updateState { current ->
-            val exercise = current.findExercise(action.performedExerciseUuid)
+            val exercise = setMutator.findExercise(current, action.performedExerciseUuid)
                 ?: return@updateState current
             when (exercise.status) {
                 ExerciseStatusUiModel.SKIPPED -> current
@@ -590,12 +389,12 @@ internal class ClickHandler @Inject constructor(
                     val expandedNext = current.expandedExerciseUuids.toMutableSet().apply {
                         add(action.performedExerciseUuid)
                     }
-                    current.copy(
-                        activeExerciseUuids = activeNext.toImmutableSet(),
-                        expandedExerciseUuids = expandedNext.toImmutableSet(),
-                    ).let {
-                        statusMapper.recomputeStatuses(it)
-                    }
+                    setMutator.recomputeStatuses(
+                        current.copy(
+                            activeExerciseUuids = activeNext.toImmutableSet(),
+                            expandedExerciseUuids = expandedNext.toImmutableSet(),
+                        ),
+                    )
                 }
 
                 ExerciseStatusUiModel.CURRENT -> {
@@ -623,181 +422,6 @@ internal class ClickHandler @Inject constructor(
                 }
             }
         }
-    }
-
-    private fun State.findExercise(performedExerciseUuid: String): LiveExerciseUiModel? =
-        exercises.firstOrNull { it.performedExerciseUuid == performedExerciseUuid }
-
-    private fun State.draftFor(performedExerciseUuid: String, position: Int): LiveSetUiModel {
-        val key = State.DraftKey(performedExerciseUuid, position)
-        setDrafts[key]?.let { return it }
-        val exercise = findExercise(performedExerciseUuid)
-        val performed = exercise?.performedSets?.firstOrNull { it.position == position }
-        if (performed != null) return performed
-        val plan = exercise?.planSets?.getOrNull(position)
-        return LiveSetUiModel(
-            position = position,
-            weight = plan?.weight,
-            reps = plan?.reps ?: 0,
-            type = plan?.type ?: SetTypeUiModel.WORK,
-            isDone = false,
-        )
-    }
-
-    private fun State.applySetMarked(
-        performedExerciseUuid: String,
-        position: Int,
-        draft: LiveSetUiModel,
-    ): State {
-        val nextDrafts = setDrafts.toMutableMap()
-        nextDrafts.remove(State.DraftKey(performedExerciseUuid, position))
-        val updated = exercises.map { exercise ->
-            if (exercise.performedExerciseUuid != performedExerciseUuid) return@map exercise
-            val nextSets = exercise.performedSets.toMutableList()
-            val existingIdx = nextSets.indexOfFirst { it.position == position }
-            val baseline = preSessionPrSnapshot[exercise.exerciseUuid]
-            val candidate = PlanSetDomain(
-                weight = draft.weight,
-                reps = draft.reps,
-                type = draft.type.toDomain(),
-            )
-            val isPr = candidate.beatsBaseline(
-                baselineWeight = baseline?.weight,
-                baselineReps = baseline?.reps,
-                type = exercise.exerciseType.toDomain(),
-                hasBaseline = baseline != null,
-            )
-            val marked = draft.copy(
-                position = position,
-                isDone = true,
-                isPersonalRecord = isPr,
-            )
-            if (existingIdx >= 0) {
-                nextSets[existingIdx] = marked
-            } else {
-                nextSets.add(marked)
-                nextSets.sortBy { it.position }
-            }
-            exercise.copy(performedSets = nextSets.toImmutableList())
-        }.toImmutableList()
-        return copy(
-            exercises = updated,
-            setDrafts = nextDrafts.toImmutableMap(),
-        ).let {
-            statusMapper.recomputeStatuses(it)
-        }
-    }
-
-    private fun State.applySetUnchecked(
-        performedExerciseUuid: String,
-        position: Int,
-    ): State {
-        val updated = exercises.map { exercise ->
-            if (exercise.performedExerciseUuid != performedExerciseUuid) return@map exercise
-            val nextSets = exercise.performedSets
-                .filterNot { it.position == position }
-                .toImmutableList()
-            exercise.copy(performedSets = nextSets)
-        }.toImmutableList()
-        return copy(exercises = updated).let {
-            statusMapper.recomputeStatuses(it)
-        }
-    }
-
-    private fun State.applySetTypeChange(
-        performedExerciseUuid: String,
-        position: Int,
-        type: SetTypeUiModel,
-    ): State {
-        val updated = exercises.map { exercise ->
-            if (exercise.performedExerciseUuid != performedExerciseUuid) return@map exercise
-            val nextSets = exercise.performedSets.map { set ->
-                if (set.position == position) set.copy(type = type) else set
-            }.toImmutableList()
-            exercise.copy(performedSets = nextSets)
-        }.toImmutableList()
-        return copy(exercises = updated)
-    }
-
-    private fun State.applyResetSets(performedExerciseUuid: String): State {
-        val updated = exercises.map { exercise ->
-            if (exercise.performedExerciseUuid != performedExerciseUuid) return@map exercise
-            exercise.copy(performedSets = persistentListOf())
-        }.toImmutableList()
-        val nextDrafts = setDrafts.filterKeys { it.performedExerciseUuid != performedExerciseUuid }
-            .toImmutableMap()
-        return copy(
-            exercises = updated,
-            setDrafts = nextDrafts,
-            pendingResetExerciseUuid = null,
-        ).let {
-            statusMapper.recomputeStatuses(it)
-        }
-    }
-
-    private fun State.applySkip(performedExerciseUuid: String): State {
-        val updated = exercises.map { exercise ->
-            if (exercise.performedExerciseUuid != performedExerciseUuid) return@map exercise
-            exercise.copy(performedSets = persistentListOf())
-        }.toImmutableList()
-        val nextDrafts = setDrafts.filterKeys { it.performedExerciseUuid != performedExerciseUuid }
-            .toImmutableMap()
-        return copy(
-            exercises = updated,
-            setDrafts = nextDrafts,
-            pendingSkipExerciseUuid = null,
-        ).markSkipped(performedExerciseUuid)
-    }
-
-    private fun State.markSkipped(performedExerciseUuid: String): State {
-        // Reproduce the snapshot → status pipeline against the in-memory state. The
-        // exercise's own `status` field is recomputed alongside everything else so the
-        // CURRENT marker walks past the now-skipped row, while honoring the user's
-        // explicit active set.
-        val rebuilt = exercises.map { exercise ->
-            if (exercise.performedExerciseUuid == performedExerciseUuid) {
-                exercise.copy(
-                    status = ExerciseStatusUiModel.SKIPPED,
-                )
-            } else {
-                exercise
-            }
-        }.let { items ->
-            statusMapper.recomputeOnly(items, activeExerciseUuids)
-        }
-        // todo - there are more then 3 internal wrappers for immutable lists
-        return copy(exercises = rebuilt).withPresentation(resourceWrapper)
-    }
-
-    private fun State.nextSetPosition(exercise: LiveExerciseUiModel): Int {
-        val draftMax = setDrafts.keys
-            .filter { it.performedExerciseUuid == exercise.performedExerciseUuid }
-            .maxOfOrNull { it.position } ?: -1
-        val doneMax = exercise.performedSets.maxOfOrNull { it.position } ?: -1
-        val planMax = exercise.planSets.lastIndex
-        return maxOf(draftMax, doneMax, planMax) + 1
-    }
-
-    private fun State.lastKnownSetSeed(exercise: LiveExerciseUiModel): LiveSetUiModel? {
-        val draftMax = setDrafts
-            .filterKeys { it.performedExerciseUuid == exercise.performedExerciseUuid }
-            .maxByOrNull { it.key.position }?.value
-        val doneMax = exercise.performedSets.maxByOrNull { it.position }
-        val planMax = exercise.planSets
-            .withIndex()
-            .lastOrNull()
-            ?.let { (position, plan) ->
-                LiveSetUiModel(
-                    position = position,
-                    weight = plan.weight,
-                    reps = plan.reps,
-                    type = plan.type,
-                    isDone = false,
-                )
-            }
-        return sequenceOf(draftMax, doneMax, planMax)
-            .filterNotNull()
-            .maxByOrNull { it.position }
     }
 
     private fun sendError(type: ErrorType) {

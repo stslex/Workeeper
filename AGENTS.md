@@ -34,6 +34,32 @@ Project context for OpenAI Codex / Cursor agents (and any other tool that follow
 - [documentation/performance.md](documentation/performance.md) — Firebase Performance pipelines (TTID, Screen rendering, AppCreate / ActivityCreate).
 - [CONTRIBUTING.md](CONTRIBUTING.md) — contributor workflow, commit format.
 
+### Navigation lifecycle (post PR #143)
+
+Navigation is a **lifecycle-safe command bus**. Decisions live in Store/Handler layer
+(depend on `Navigator`); execution lives in the App/UI bridge under composition.
+
+- `Navigator` is implemented by the `@Singleton NavigatorEventBus`
+  (`app/app/.../navigation/NavigatorEventBus.kt`). It stores only a
+  `SharedFlow<NavigationCommand>` — no `NavController`.
+- `App.kt` owns `rememberNavController()`. `NavigatorExt.NavigationEventBusSetup`
+  collects commands on the current `NavController` via `LaunchedEffect(navController)`
+  and is the ONLY place AndroidX Navigation operations execute.
+- Feature `NavigationHandler`s are `@ViewModelScoped @Inject Navigator`. Route
+  arguments enter the Store via Dagger assisted injection
+  (`@Assisted screen: Screen.<X>`); there is no `Component<Screen>` subclass any more.
+- `NavHostController`, `NavController`, `NavBackStackEntry`, `SavedStateHandle`,
+  `Activity`, and `Context` MUST NOT be retained by any ViewModel / Store / Handler /
+  Interactor / Mapper / Hilt singleton.
+- `SavedStateHandle` is composable-graph scoped only — use
+  `navComponentScreenWithState(<Feature>) { stateHandle, processor -> ... }` and
+  reset consumed flags via `stateHandle.setAttrDefaultValue(<SaveHandlerAttr>)`.
+
+Full reference:
+[documentation/architecture.md → Navigation](documentation/architecture.md#navigation),
+[.claude/skills/refactor-with-mvi-rules.md → Lifecycle-safe navigation refactor](.claude/skills/refactor-with-mvi-rules.md),
+and the `add-feature` skill for the new Feature / FeatureAssisted scaffolding.
+
 ### Domain layer: interactors and use cases
 
 - Each feature has one Interactor injected into the Store. The Interactor
@@ -74,6 +100,8 @@ the same tasks:
 - [`add-feature`](.claude/skills/add-feature.md) — scaffold a new `feature/<name>` module.
 - [`write-handler-test`](.claude/skills/write-handler-test.md) — JUnit 5 unit test for an MVI
   handler or `*StoreImpl`.
+- [`write-repository-test`](.claude/skills/write-repository-test.md) — real-DB JUnit 5 unit
+  test for a `*RepositoryImpl` using the in-memory `RepositoryTestEnv` test fixture.
 - [`write-ui-test`](.claude/skills/write-ui-test.md) — `@Smoke` Compose UI test with
   `BaseComposeTest`.
 - [`add-database-migration`](.claude/skills/add-database-migration.md) — Room schema migration
@@ -90,6 +118,8 @@ Use this mapping:
 
 - New feature or `feature/<name>` module work: `.claude/skills/add-feature.md`
 - JUnit 5 tests for MVI handlers or `*StoreImpl`: `.claude/skills/write-handler-test.md`
+- Repository / data-layer unit tests against a real in-memory Room database:
+  `.claude/skills/write-repository-test.md`
 - Compose UI smoke tests: `.claude/skills/write-ui-test.md`
 - Room schema migrations and migration tests: `.claude/skills/add-database-migration.md`
 - Refactors driven by custom MVI/Detekt rules: `.claude/skills/refactor-with-mvi-rules.md`

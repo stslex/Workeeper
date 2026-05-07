@@ -135,7 +135,10 @@ Canonical references:
 ## NavigationHandler test template
 
 The full template, lifted directly from
-`feature/settings/.../SettingsNavigationHandlerTest.kt`:
+`feature/settings/.../SettingsNavigationHandlerTest.kt` and the post-navigation-lifecycle
+PR shape (`feature/exercise/.../NavigationHandlerTest.kt`,
+`feature/live-workout/.../NavigationHandlerTest.kt`,
+`feature/single-training/.../NavigationHandlerTest.kt`):
 
 ```kotlin
 package io.github.stslex.workeeper.feature.<name_snake>.mvi.handler
@@ -150,7 +153,7 @@ import org.junit.jupiter.api.Test
 internal class NavigationHandlerTest {
 
     private val navigator = mockk<Navigator>(relaxed = true)
-    private val handler = NavigationHandler(navigator)
+    private val handler = NavigationHandler(navigator = navigator)
 
     @Test
     fun `Back triggers popBack`() {
@@ -168,16 +171,85 @@ internal class NavigationHandlerTest {
 
 Notes:
 
-- `NavigationHandler` is constructed directly with the mocked `Navigator` — no Hilt graph,
-  no store, no `HandlerStore` mock. The class skips `@Inject` because
-  `MviHandlerConstructorRule` exempts the literal name `NavigationHandler` (see
-  `lint-rules/.../MviHandlerConstructorRule.kt:74`); test instantiation uses the same
-  plain constructor.
+- The handler is constructed with the mocked `Navigator` only — no Hilt graph, no
+  store, no `HandlerStore` mock, no per-screen `Component` data. After the
+  lifecycle-safe navigation refactor, `NavigationHandler` is `@ViewModelScoped @Inject
+  Navigator` like any other handler; the unit test mirrors the production constructor
+  signature directly.
 - One `@Test` per `Action.Navigation.<X>` subclass. Each verifies exactly one
-  `navigator.navTo(Screen.<X>)` or `navigator.popBack()` call, with `exactly = 1`.
-- For variants like `SettingsNavigationHandler` that nest under a `*Component` for
-  feature-specific reasons, instantiate with the same plain constructor — the test does
-  not need to know about the `Component` superclass.
+  `navigator.navTo(Screen.<X>)` / `navigator.replaceTo(Screen.<X>)` /
+  `navigator.popBack(...)` call, with `exactly = 1`. For `popBack` carrying result
+  attributes (e.g. `Screen.PlanEditor.planEditorSavedAttr.toPairValue(true)`), assert
+  on the exact pair too — see
+  `feature/plan-editor/.../mvi/handler/NavigationHandlerTest.kt`.
+- For variants (`SettingsNavigationHandler`, `ArchiveNavigationHandler`) that retain a
+  feature-specific class name, instantiate with the same `(navigator)` constructor —
+  the new architecture removed the `Component` superclass.
+
+### `NavigatorEventBus` test (singleton command bus)
+
+The `Navigator` interface is mocked in feature tests, but the singleton implementation
+itself — `app/app/.../navigation/NavigatorEventBus.kt` — has its own dedicated test that
+verifies command emission shape and ordering on its `SharedFlow`. Reference:
+`app/app/src/test/kotlin/io/github/stslex/workeeper/navigation/NavigatorEventBusTest.kt`.
+Key invariants covered there (do not duplicate in feature handler tests; assert via the
+mocked `Navigator` instead):
+
+- `navTo(screen)` emits exactly one `NavigationCommand.NavTo(screen)`.
+- `replaceTo(screen)` emits exactly one `NavigationCommand.ReplaceTo(screen)`.
+- `popBack(...)` emits exactly one `NavigationCommand.PopBack(attrsList)` preserving
+  vararg order and tolerating null values.
+- Sequential emissions arrive in dispatch order; concurrent collectors observe the
+  same hot stream.
+
+The lifecycle regression coverage
+(`app/app/.../navigation/NavigationLifecycleRegressionTest.kt`) extends this with
+"bridge detach / re-attach" scenarios that prove the singleton bus continues operating
+across a simulated activity recreation.
+
+## Characterization tests before behavior-preserving refactors
+
+When the next change is a refactor that moves logic between layers (handler →
+mapper, inline merge → resolver, scattered seed lookups → single helper) the right
+first step is **not** to start moving code. It is to write tests that pin down the
+**current** behavior across every input combination the refactor is supposed to
+preserve, run them green on the existing implementation, and only then refactor.
+
+This is the red-green-refactor discipline applied to behavior-preserving moves. The
+tests do not assert the new shape; they assert the observable contract — which fields
+survive a mutation, which priority resolves a conflict, which paths produce the same
+visible result. Because they run green before and after, they catch the silent
+regression where the refactor "works" structurally but quietly changes one of the
+preservation rules.
+
+When to reach for this:
+
+- A reusable Composable merges multiple state sources and you're moving the merge to
+  the mapper. Pin the priority (`source A > source B > fallback`) and the list size
+  formula across every coverage gap.
+- Multiple handlers seed a draft / overlay / pending state from different upstream
+  sources. Pin every field-preservation pair (type↔weight, type↔reps, weight↔reps,
+  edit-then-edit) before unifying the seed lookup.
+- A flow's mapping layer is being split or merged. Pin the input/output cases that
+  the mapper currently handles (including the surprising ones — empty inputs, partial
+  matches) before touching the mapper.
+
+Tactics:
+
+- For the resolver / merge layer that doesn't yet exist as a testable unit, mirror
+  the current production logic into a private helper inside the test class and assert
+  against it. After the refactor, retarget the test at the new public resolver and
+  drop the mirror — the assertions stay the same.
+- For handler-level invariants, drive `Action`s through the actual handler and assert
+  on `state.value` / mocked collaborator calls, the same as any other handler test
+  in this skill.
+- Name the tests after the invariant, not the implementation:
+  `OnSetTypeSelect_with_existing_draft_preserves_draft_weight_and_reps_when_chip_cycles`,
+  not `processSetTypeSelect_calls_existing_draft_path`.
+
+Reference: `feature/live-workout/.../mvi/handler/LiveSetDraftBehaviorTest.kt` and
+`feature/live-workout/.../mvi/mapper/LiveSetVisibleRowsResolverTest.kt` were written
+this way before the visible-row / draft-seed centralization refactor.
 
 ## Verification
 

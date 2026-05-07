@@ -11,8 +11,7 @@ import org.junit.jupiter.api.Test
 internal class NavigationHandlerTest {
 
     private val navigator = mockk<Navigator>(relaxed = true)
-    private val screen = Screen.LiveWorkout(sessionUuid = "session-1", trainingUuid = "training-1")
-    private val handler = NavigationHandler(navigator = navigator, data = screen)
+    private val handler = NavigationHandler(navigator = navigator)
 
     @Test
     fun `Back triggers popBack`() {
@@ -25,6 +24,46 @@ internal class NavigationHandlerTest {
         handler.invoke(Action.Navigation.OpenPastSession(sessionUuid = "session-1"))
         verify(exactly = 1) {
             navigator.replaceTo(Screen.PastSession(sessionUuid = "session-1"))
+        }
+    }
+
+    @Test
+    fun `OpenPlanEditor navigates to Screen PlanEditor with the live-workout scope`() {
+        handler.invoke(
+            Action.Navigation.OpenPlanEditor(
+                performedExerciseUuid = "performed-1",
+                exerciseUuid = "ex-1",
+                trainingUuid = "training-1",
+            ),
+        )
+        verify(exactly = 1) {
+            navigator.navTo(
+                Screen.PlanEditor(
+                    performedExerciseUuid = "performed-1",
+                    exerciseUuid = "ex-1",
+                    trainingUuid = "training-1",
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `OpenPlanEditor for an adhoc session uses null trainingUuid`() {
+        handler.invoke(
+            Action.Navigation.OpenPlanEditor(
+                performedExerciseUuid = "performed-1",
+                exerciseUuid = "ex-1",
+                trainingUuid = null,
+            ),
+        )
+        verify(exactly = 1) {
+            navigator.navTo(
+                Screen.PlanEditor(
+                    performedExerciseUuid = "performed-1",
+                    exerciseUuid = "ex-1",
+                    trainingUuid = null,
+                ),
+            )
         }
     }
 }
