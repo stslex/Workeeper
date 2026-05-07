@@ -9,5 +9,7 @@ abstract class NavigationHandlerFactory<THandler : Handler<*>>(
     @Volatile
     private var handler: THandler? = null
 
-    fun getOrCreate(navigator: Navigator): THandler = handler ?: creator(navigator)
+    fun getOrCreate(navigator: Navigator): THandler = handler ?: creator(navigator).also {
+        handler = it
+    }
 }

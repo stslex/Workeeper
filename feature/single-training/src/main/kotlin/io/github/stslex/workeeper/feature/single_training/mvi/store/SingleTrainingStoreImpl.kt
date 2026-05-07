@@ -45,7 +45,7 @@ internal class SingleTrainingStoreImpl @AssistedInject constructor(
     },
     storeEmitter = handlerStore,
     storeDispatchers = storeDispatchers,
-    initialActions = listOf(Action.Common.Init),
+    initialActions = listOf(Action.Common.Init, Action.Navigation.Init),
     analyticsHolder = analyticsHolder,
     loggerHolder = loggerHolder,
 ) {
