@@ -5,7 +5,6 @@ import androidx.compose.runtime.Composable
 import androidx.lifecycle.SavedStateHandle
 import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
-import io.github.stslex.workeeper.core.ui.navigation.Component
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.core.ui.navigation.navScreen
 import io.github.stslex.workeeper.core.ui.navigation.navScreenWithState
@@ -21,7 +20,6 @@ import io.github.stslex.workeeper.core.ui.navigation.navScreenWithState
 inline fun <
     TProcessor : StoreProcessor<*, *, *>,
     reified TScreen : Screen,
-    TComponent : Component<TScreen>,
     > NavGraphBuilder.navComponentScreen(
     feature: FeatureAssisted<TProcessor, TScreen>,
     crossinline content: @Composable AnimatedContentScope.(TProcessor) -> Unit,
@@ -34,7 +32,6 @@ inline fun <
 inline fun <
     TProcessor : StoreProcessor<*, *, *>,
     reified TScreen : Screen,
-    TComponent : Component<TScreen>,
     > NavGraphBuilder.navComponentScreenWithState(
     feature: FeatureAssisted<TProcessor, TScreen>,
     crossinline content: @Composable AnimatedContentScope.(SavedStateHandle, TProcessor) -> Unit,
