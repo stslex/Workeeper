@@ -215,6 +215,30 @@ Briefly:
   dispatch, scroll commands. **Navigation is never an Event.** Navigation flows through
   `Action.Navigation` consumed by the feature's `NavigationHandler` (see [Navigation
   flow](#navigation-flow) below).
+- **Dialogs and bottom sheets live in State**, never in `Event`. `Show*Dialog` /
+  `Show*Sheet` events are forbidden — anything that must remain visible across
+  recomposition (and configuration changes) until the user dismisses it is State.
+  - A separate sealed `DialogState` (or `BottomSheetState`) interface in the same
+    `mvi/store/` package as the feature's `Store.kt`, with `Hidden` as the default
+    `data object` and one `data class` per concrete dialog/sheet variant carrying
+    its display payload (titles, labels, IDs).
+  - The screen renders via `when (state.dialogState)` / `when (state.bottomSheetState)`.
+  - Open: handler calls `updateState { it.copy(dialogState = DialogState.X(...)) }`.
+    Close: handler calls `updateState { it.copy(dialogState = DialogState.Hidden) }`.
+  - Display strings are pre-resolved in the handler via `ResourceWrapper`
+    (consistent with the "no `R.*` in domain, no computation inside `updateState`
+    lambdas" rules) — never resolved in the Composable.
+  - The `interceptBack: Boolean` derived property (where present) reads
+    `dialogState` / `bottomSheetState` so the back gesture dismisses the topmost
+    dialog before propagating.
+  - Reference: `feature/live-workout`. Specifically `LiveWorkoutStore.State`,
+    `DialogState.kt`, `BottomSheetState.kt`, `LiveWorkoutScreen.kt`,
+    `LiveWorkoutGraph.kt`.
+  - **Known limitation.** `dialogState` lives in the in-memory `StateFlow` of
+    `BaseStore`. Configuration changes survive (same VM-scoped store). Process
+    death does not — `dialogState` is not round-tripped through `SavedStateHandle`.
+    Round-tripping critical dialogs is out of scope for the state-discipline rule
+    and tracked separately in `tech-debt.md`.
 - **Error events carry enum types, not raw strings.** When a handler needs to surface a
   user-visible error (e.g. `Event.ShowError`), the event payload is a feature-local enum
   whose variants reference a `string` resource:
@@ -860,9 +884,13 @@ The graph composable consumes only **UI-side events** through
 
 - `Event.Haptic*` — translated to
   `LocalHapticFeedback.current.performHapticFeedback(...)`.
-- `Event.Show*` (e.g. `ShowExternalLink(url)`, `ShowError`,
-  `ShowDiscardConfirmDialog`) — translated to `Intent.ACTION_VIEW`,
-  `SnackbarManager.showSnackbar(...)`, or local dialog state.
+- `Event.Show*` (e.g. `ShowExternalLink(url)`, `ShowError`) — translated to
+  `Intent.ACTION_VIEW` or `SnackbarManager.showSnackbar(...)`. `Show*` events
+  cover **fire-and-forget side effects only** — Intent dispatch, snackbar
+  text, Activity Result Contract launches. Anything that must remain visible
+  until the user dismisses it (dialogs, bottom sheets) belongs in `State`,
+  not `Event`. See "Dialogs and bottom sheets live in State" in the
+  conventions section below.
 - `Event.Scroll*` — translated to a `LazyListState` scroll command in scope.
 
 The graph composable **never** calls `navController.navigate(...)` /

@@ -107,7 +107,9 @@ the same tasks:
 - [`add-database-migration`](.claude/skills/add-database-migration.md) — Room schema migration
   + test.
 - [`refactor-with-mvi-rules`](.claude/skills/refactor-with-mvi-rules.md) — resolve a custom
-  Detekt rule violation.
+  Detekt rule violation (see also
+  [`compose-state-discipline`](.claude/skills/compose-state-discipline.md), which covers
+  Rule 4: dialogs and bottom sheets live in `State`, not `Event`).
 
 ## Required skill usage
 

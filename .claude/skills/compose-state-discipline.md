@@ -1,15 +1,18 @@
 ---
 name: compose-state-discipline
-description: Apply three project-wide rules from the v2.1 PR review — (1) don't compute inside `updateState` / `updateStateImmediate` lambdas, (2) don't toggle `Modifier` chains by condition (toggle the value a stable Modifier reads instead), (3) don't fan out N queries / N flows when one batch query gets the same result. Use when authoring or reviewing a handler that calls `updateState`, a Composable that conditionally builds a Modifier chain, or a repository that loads data for multiple entities.
+description: Apply four project-wide rules — (1) don't compute inside `updateState` / `updateStateImmediate` lambdas, (2) don't toggle `Modifier` chains by condition (toggle the value a stable Modifier reads instead), (3) don't fan out N queries / N flows when one batch query gets the same result, (4) dialogs and bottom sheets are State, not Events. Use when authoring or reviewing a handler that calls `updateState`, a Composable that conditionally builds a Modifier chain, a repository that loads data for multiple entities, or any handler / Composable rendering a dialog or bottom sheet.
 ---
 
 # Compose state discipline
 
-Three rules that emerged from the v2.1 PR review and apply project-wide:
+Four rules that apply project-wide. Rules 1–3 emerged from the v2.1 PR review; Rule 4 was
+validated in the `fix/navigation-lifecycle-problems` work and pulls dialogs/sheets out of `Event`
+so they survive recomposition and configuration changes.
 
 1. Don't compute inside `updateState` / `updateStateImmediate` lambdas.
 2. Don't toggle `Modifier` chains by condition; toggle the *value* a stable Modifier reads.
 3. Don't fan out N queries / N flows when one batch query gets the same result.
+4. Dialogs and bottom sheets are State, not Events.
 
 ---
 
@@ -20,6 +23,7 @@ Apply during code review or when authoring any feature touching:
 - A handler that calls `updateState { ... }` / `updateStateImmediate { ... }`.
 - A Composable that conditionally constructs a `Modifier` chain.
 - A repository or interactor that loads data for multiple entities at once.
+- A handler or Composable rendering a dialog or bottom sheet.
 
 ## Rule 1 — Don't compute inside `updateState` lambdas
 
@@ -242,3 +246,125 @@ in Kotlin. The SQL ordering guarantees the first row per group is the desired on
 | `firstOrNull()` on combine-of-N          | OK as-is (combine runs once then cancels)                           |
 | Long-lived `Flow<Map<...>>`              | Batch DAO `IN (:uuids)` + Kotlin `groupBy`                          |
 | Long-lived `Flow<Set<...>>` for equality | Batch DAO + project to keys, not full models                        |
+
+## Rule 4 — Dialogs and bottom sheets are State, not Events
+
+`Event` is for fire-and-forget side effects: haptic feedback, snackbar text, Intent dispatch,
+Activity Result Contract launches. Anything that must remain visible across recomposition (and
+configuration changes) until the user dismisses it belongs in `State`. `Show*Dialog` /
+`Show*Sheet` events are forbidden because the dialog visibility then lives in a local
+Composable `var ... by remember { mutableStateOf(...) }`, which loses the dialog on rotation
+and forces every test to assert on the Event rather than the rendered UI.
+
+The shape: a feature-local sealed interface in the same `mvi/store/` package as the feature's
+`Store.kt`, with `Hidden` as the default `data object` and one `data class` per concrete
+dialog/sheet variant carrying its display payload (titles, labels, IDs). The screen renders
+`when (state.dialogState)` / `when (state.bottomSheetState)`. Handlers open by setting the
+sealed variant and dismiss by setting `Hidden`. Display strings are pre-resolved in the
+handler via `ResourceWrapper`, never in the Composable.
+
+### Wrong
+
+```kotlin
+// Event triggers local Composable state — survives nothing.
+sealed interface Event : Store.Event {
+    data class ShowConfirmDelete(val title: String, val body: String) : Event
+}
+
+// In the graph:
+var deleteDialog by remember { mutableStateOf<Event.ShowConfirmDelete?>(null) }
+processor.Handle { event ->
+    when (event) {
+        is Event.ShowConfirmDelete -> { deleteDialog = event }
+    }
+}
+deleteDialog?.let { dialog ->
+    AppDialog(title = dialog.title, body = dialog.body, /* ... */)
+}
+```
+
+Rotate the device while the dialog is open: the local `var` resets to `null`, the dialog
+disappears, and the user has to recreate it. Writing a Compose UI test that rotates and
+re-asserts the dialog content fails — but writing one that asserts on
+`Event.ShowConfirmDelete` (which is wrong because tests shouldn't assert on Store internals)
+masks the real defect.
+
+### Right
+
+Mirror `feature/live-workout`:
+
+```kotlin
+// In feature/<n>/.../mvi/store/DialogState.kt
+@Stable
+internal sealed interface DialogState {
+    @Stable data object Hidden : DialogState
+    @Stable data class ConfirmDelete(
+        val title: String,
+        val body: String,
+        val confirmLabel: String,
+        val dismissLabel: String,
+    ) : DialogState
+}
+
+// In Store.State
+data class State(
+    /* ... */
+    val dialogState: DialogState = DialogState.Hidden,
+)
+
+// In the handler (open)
+val title = resourceWrapper.getString(R.string.feature_n_confirm_delete_title)
+val body = resourceWrapper.getString(R.string.feature_n_confirm_delete_body)
+val confirmLabel = resourceWrapper.getString(R.string.feature_n_confirm_delete_confirm)
+val dismissLabel = resourceWrapper.getString(R.string.feature_n_confirm_delete_dismiss)
+updateState {
+    it.copy(
+        dialogState = DialogState.ConfirmDelete(
+            title = title,
+            body = body,
+            confirmLabel = confirmLabel,
+            dismissLabel = dismissLabel,
+        ),
+    )
+}
+
+// In the handler (close)
+updateState { it.copy(dialogState = DialogState.Hidden) }
+
+// In the screen
+when (val dialog = state.dialogState) {
+    is DialogState.ConfirmDelete -> AppDialog(
+        title = dialog.title,
+        body = dialog.body,
+        confirmLabel = dialog.confirmLabel,
+        dismissLabel = dialog.dismissLabel,
+        onConfirm = { consume(Action.DialogClick.OnConfirmDelete) },
+        onDismiss = { consume(Action.DialogClick.OnDismissDelete) },
+    )
+    DialogState.Hidden -> Unit
+}
+```
+
+Strings are pre-resolved per Rule 1 (no `ResourceWrapper` calls inside `updateState` lambdas).
+The screen never holds dialog visibility in `remember`. Tests assert on `state.dialogState`,
+not on Events.
+
+If the feature has an `interceptBack: Boolean` derived flag, extend it to read
+`dialogState` / `bottomSheetState` so the system back gesture dismisses the topmost dialog
+before popping the screen.
+
+### Exempt — what genuinely stays in `Event`
+
+- `Event.Haptic*` — haptic feedback is fire-and-forget; the system call is the side effect.
+- `Event.Show*Snackbar` (and `Event.ShowError` rendered as a snackbar) — `SnackbarManager` is
+  itself event-based and snackbars are inherently transient.
+- `Event.ShowExternalLink(url)` and other `Intent.ACTION_VIEW` launches — leaving the app.
+- `Event.Navigate*` does not exist by convention; navigation is `Action.Navigation`. Activity
+  Result Contract launches (camera, gallery, permission) live in `Event` because they too are
+  one-shot system handoffs, not visible UI.
+
+### Known limitation
+
+`dialogState` lives in the in-memory `StateFlow` of `BaseStore`. Configuration changes survive
+(same VM-scoped store). Process death does not — `dialogState` is not round-tripped through
+`SavedStateHandle`. Round-tripping critical dialogs is tracked separately in `tech-debt.md`.
