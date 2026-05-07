@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.ui.kit.theme
 
 import androidx.compose.foundation.layout.WindowInsets
