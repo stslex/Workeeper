@@ -184,14 +184,42 @@ Verification requirements (live in test code, not docs):
 
 - `NavigatorEventBusTest` covers `navTo` / `replaceTo` / `popBack` emission shape
   and order on the singleton bus.
-- `NavigationLifecycleRegressionTest` proves a stale-bridge → fresh-bridge handover
-  (commands emitted while no executor is attached are observed by the next
-  executor that subscribes).
+- `NavigationLifecycleRegressionTest` covers a stale-bridge → fresh-bridge handover.
+  It verifies that the bus remains usable across detach / re-attach: commands
+  emitted with no executor attached do not crash or block the bus, and commands
+  emitted **after** a fresh executor subscribes are observed by that executor.
+  The bus uses `MutableSharedFlow(replay = 0, extraBufferCapacity = 64)` and
+  intentionally does not guarantee replay of commands emitted before subscription
+  — the production bridge attaches via `LaunchedEffect(navController)` before any
+  decision-side emit can happen for that composition, so pre-subscription emits
+  are not part of the lifecycle contract.
 - Per-feature `NavigationHandlerTest` classes verify each `Action.Navigation.<X>`
   branch dispatches the matching `navigator.*` call, with `Navigator` mocked.
 - Per-feature route-arg Store tests (`feature/exercise`, `feature/live-workout`,
   `feature/single-training`) verify the `@Assisted screen` value lands in
   `state.value` initial fields.
+- `app/dev/.../NavigationLifecycleRegressionTest.kt` (instrumented `@Regression`)
+  recreates `MainActivity` mid-flight and asserts that subsequent bottom-bar
+  navigation calls land on the correct destination through the freshly-bound
+  bridge.
+
+### Test gaps deferred to a follow-up (instrumentation)
+
+The following scenarios are part of the manual QA checklist below but are NOT
+yet automated because the `app/dev` instrumentation harness only navigates
+within bottom-bar destinations — it has no helpers for seeding DB rows
+(Exercise / Training / PerformedExercise) and no shared fixtures for
+detail-screen → PlanEditor flows. Adding them would require new test
+infrastructure comparable in size to the rest of this PR. **Trigger to act:**
+next PR that adds a real-DB instrumentation fixture (similar to the
+`RepositoryTestEnv` approach for unit tests).
+
+| Scenario | Status |
+|---|---|
+| Exercise detail → PlanEditor save → previous screen reload exactly once | manual |
+| SingleTraining → PlanEditor save → previous screen reload exactly once | manual |
+| LiveWorkout → PlanEditor save → previous screen reload exactly once | manual |
+| LiveWorkout finish session → `replaceTo` lands on PastSession; back does not return to finished LiveWorkout | manual |
 
 Documented at [architecture.md → Navigation](architecture.md#navigation),
 [lint-rules.md → HiltScopeRule scope expectations](lint-rules.md#scope-expectations-for-the-navigation-layer),

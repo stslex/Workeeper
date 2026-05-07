@@ -681,16 +681,33 @@ Why singleton:
 
 - Stores live as long as a `NavBackStackEntry`'s ViewModel scope; the bridge
   lives as long as the current Compose composition. The bus must outlive both,
-  so commands emitted by a Store survive a config change / activity recreation
-  and are picked up by the freshly-attached bridge.
+  so a Store can emit a command at any time without coupling its lifetime to
+  the current bridge instance. The bridge re-attaches on every recomposition /
+  activity recreation and observes commands emitted **after** its
+  subscription.
 - The bus stores **no controller**. It holds a `SharedFlow` and three emit
   methods. There is nothing for the Android Framework to leak through it.
 
-The class name carries the `Bus` suffix on purpose so it does not match any
-`HiltScopeRule` predicate (`Repository`, `DataStore`, `Database`, `Storage`,
-`StoreDispatchers`, `Handler`, `Interactor`, `Mapper`). `NavigationModule`
-(`app/app/.../di/NavigationModule.kt`) provides it as `@Singleton` and binds
-`Navigator` to it.
+The bus uses `MutableSharedFlow(replay = 0, extraBufferCapacity = 64)`. The
+`extraBufferCapacity` lets `tryEmit` succeed without blocking when subscribers
+are slow, but it is **not a replay buffer**: emissions made while no
+subscriber is attached are not redelivered to a subscriber that attaches
+later. This matches the production lifecycle — the bridge attaches in
+`App.kt` via `LaunchedEffect(navController)` before any feature
+`NavigationHandler` could fire `Action.Navigation.<X>` for that composition,
+so pre-subscription emissions are not part of the lifecycle contract. The
+contract that **is** load-bearing: the bus stays usable across bridge
+detach / re-attach cycles, and the next bridge observes every command
+emitted after its subscription point in dispatch order.
+
+The class is annotated `@Singleton` directly and constructor-injects with
+`@Inject constructor()`. `NavigationModule`
+(`app/app/.../di/NavigationModule.kt`) additionally `@Provides @Singleton`
+the same instance as a `Navigator` binding so callers depending on the
+abstract interface receive the same singleton. The class name carries the
+`Bus` suffix on purpose so it does not match any `HiltScopeRule` predicate
+(`Repository`, `DataStore`, `Database`, `Storage`, `StoreDispatchers`,
+`Handler`, `Interactor`, `Mapper`, `Store`).
 
 `NavigationCommand` (`app/app/.../navigation/NavigationCommand.kt`) is a
 `sealed interface` with three variants — `NavTo(screen)`,
@@ -745,8 +762,15 @@ The `LaunchedEffect(navController)` is the lifecycle anchor: when the
 composition is destroyed and a new one starts (config change, activity
 recreation), the effect cancels its old collection and re-collects on the
 freshly-created `NavController`. The `NavigatorEventBus` instance is the
-same; the executor is new. Commands emitted between bridge attach/detach
-queue in the `SharedFlow`'s 64-slot buffer.
+same; the executor is new. The new executor observes commands emitted
+**after** it subscribes — the bus's `MutableSharedFlow(replay = 0,
+extraBufferCapacity = 64)` does not replay pre-subscription emissions.
+That trade-off is intentional: the production bridge is attached
+synchronously inside `App.kt` before any Compose-driven Store action could
+fire, so a "lost" pre-subscription navigation command would only happen if
+a long-lived background coroutine emitted while the activity was being
+recreated — and the next user-visible navigation will originate from a
+post-subscription action regardless.
 
 `processCommand` translates each `NavigationCommand` to the matching
 `navController.navigate(...)` / `popBackStack(...)` call. `popBack` writes

@@ -30,13 +30,19 @@ import org.junit.jupiter.api.Test
  * controller.
  *
  * The tests below cover the JVM-observable invariants of that design:
- *  - The bus instance stays alive across "bridge detach" / "bridge re-attach" — the
- *    singleton is unchanged.
- *  - Commands emitted after a new collector attaches are observed by the new
- *    collector.
- *  - Multiple sequential collectors each see their own slice of the stream — the
- *    stream is hot, not single-shot.
- *  - Command order is preserved across collector handovers.
+ *  - The bus instance stays usable across "bridge detach" / "bridge re-attach" — the
+ *    singleton is unchanged and a fresh subscriber on the same instance receives
+ *    new emissions.
+ *  - Commands emitted **after** a new collector attaches are observed by the new
+ *    collector. Pre-subscription emissions are NOT guaranteed to be replayed:
+ *    `NavigatorEventBus` uses `MutableSharedFlow(replay = 0, extraBufferCapacity = 64)`
+ *    where the buffer absorbs `tryEmit` so it does not block, but does not redeliver
+ *    to subscribers that attach later. The production bridge attaches synchronously
+ *    inside `App.kt` before any Store action could emit for that composition, so
+ *    pre-subscription emits are not part of the lifecycle contract.
+ *  - Multiple concurrent collectors each see the same hot stream slice — the stream
+ *    is multicast, not single-shot.
+ *  - Command order is preserved within each subscriber's slice.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class NavigationLifecycleRegressionTest {
@@ -73,17 +79,18 @@ internal class NavigationLifecycleRegressionTest {
         val bus = NavigatorEventBus()
 
         // Decision-side dispatch happens while no executor is collecting (the bridge
-        // has not attached yet, e.g. activity is recreating). The 64-slot
-        // extraBufferCapacity absorbs them so emit does not suspend or fail.
+        // has not attached yet). The bus uses replay = 0 with extraBufferCapacity = 64,
+        // so `tryEmit` returns true without blocking; the emissions are NOT cached for
+        // subscribers that attach later. The load-bearing assertion is simply that
+        // the bus does not crash or get into a stuck state.
         bus.navTo(Screen.Exercise(uuid = "ex-1"))
         bus.replaceTo(Screen.PastSession(sessionUuid = "session-1"))
         bus.popBack()
 
         // A fresh subscriber attaches (mimics the bridge of a new composition) and
-        // observes the next emitted command. The pre-subscription emissions may or
-        // may not be replayed depending on buffering; the load-bearing assertion
-        // here is that the bus continues operating and delivers post-subscription
-        // emissions correctly.
+        // observes the next emission. We do NOT assert on the pre-subscription
+        // emissions — they are not guaranteed to be replayed and the production
+        // bridge attaches before any Store action could fire for that composition.
         val deferred = async(dispatcher) { bus.commands.first() }
         testScheduler.advanceUntilIdle()
         bus.navTo(Screen.BottomBar.Home)

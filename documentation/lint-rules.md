@@ -231,13 +231,26 @@ that the `HiltScopeRule` predicates must NOT flag:
 
 - `NavigatorEventBus`
   (`app/app/.../navigation/NavigatorEventBus.kt`) — the singleton command-bus
-  implementation of `Navigator` and `NavigatorReceiver`. The class name carries the
-  `Bus` suffix specifically so it does not match `Repository` / `DataStore` /
-  `Database` / `Storage` / `StoreDispatchers` / `Handler` / `Interactor` / `Mapper` /
-  `Store`. `HiltScopeRule` therefore skips it (`getByName("NavigatorEventBus")`
-  returns `null`). The class IS `@Singleton`, but that annotation is provided by
-  `NavigationModule` (an `@InstallIn(SingletonComponent::class)` Hilt module that
-  binds the implementation as `Navigator`) rather than tagged on the class itself.
+  implementation of `Navigator` and `NavigatorReceiver`. **Intentionally allowed at
+  singleton scope** because it is controller-free: the class stores only a
+  `MutableSharedFlow<NavigationCommand>` and three emit methods. There is no
+  `NavController`, `NavBackStackEntry`, `SavedStateHandle`, `Activity`, or `Context`
+  reachable through it, so promoting it to application scope leaks nothing.
+  - The class is annotated `@Singleton` directly (see
+    `NavigatorEventBus.kt:13`) and constructor-injects with `@Inject constructor()`.
+  - `NavigationModule` (`@InstallIn(SingletonComponent::class)`) additionally
+    `@Provides @Singleton fun provideNavigator(impl: NavigatorEventBus): Navigator`
+    so callers depending on the abstract `Navigator` interface receive the same
+    singleton instance.
+  - `HiltScopeRule` does **not** flag the class. The reason is purely the name:
+    `NavigatorEventBus` does not contain any of the configured `ScopeClassType`
+    predicates (`Repository` / `DataStore` / `Database` / `Storage` /
+    `StoreDispatchers` / `Handler` / `Interactor` / `Mapper` / `Store`), so
+    `ScopeClassType.getByName("NavigatorEventBus")` returns `null` and the rule
+    short-circuits. The `Bus` suffix was chosen with this rule in mind. The
+    skip is **not** because the class is "scoped only via the module" — the class
+    annotation is the load-bearing one; the module binding mirrors it for the
+    `Navigator` interface alias.
 - `NavigatorReceiver`
   (`app/app/.../navigation/NavigatorReceiver.kt`) — interface only; the rule skips
   interfaces.
