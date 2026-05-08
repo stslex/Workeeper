@@ -27,9 +27,9 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertNull
 
 internal class ClickHandlerTest {
 
@@ -69,66 +69,6 @@ internal class ClickHandlerTest {
     )
 
     @Test
-    fun `OnTypeSelect with same type is no-op`() {
-        val (_, store, handler) = setup()
-        handler.invoke(Action.Click.OnTypeSelect(ExerciseTypeUiModel.WEIGHTED))
-        verify(exactly = 0) { store.sendEvent(any()) }
-    }
-
-    @Test
-    fun `OnTypeSelect with new type emits SegmentTick haptic and updates state`() {
-        val (stateFlow, store, handler) = setup()
-        handler.invoke(Action.Click.OnTypeSelect(ExerciseTypeUiModel.WEIGHTLESS))
-        val captured = slot<Event>()
-        verify { store.sendEvent(capture(captured)) }
-        assertHaptic(captured.captured, HapticFeedbackType.SegmentTick)
-        assertEquals(ExerciseTypeUiModel.WEIGHTLESS, stateFlow.value.type)
-    }
-
-    @Test
-    fun `OnTypeSelect from WEIGHTED to WEIGHTLESS with weighted plan asks for confirm`() {
-        val (stateFlow, _, handler) = setup(
-            State.create(uuid = "uuid-1").copy(
-                type = ExerciseTypeUiModel.WEIGHTED,
-                adhocPlan = persistentListOf(
-                    PlanSetUiModel(weight = 50.0, reps = 8, type = SetTypeUiModel.WORK),
-                ),
-            ),
-        )
-        handler.invoke(Action.Click.OnTypeSelect(ExerciseTypeUiModel.WEIGHTLESS))
-        assertTrue(stateFlow.value.dialogState is DialogState.TypeChangeConfirm)
-        assertEquals(ExerciseTypeUiModel.WEIGHTED, stateFlow.value.type)
-        assertEquals(ExerciseTypeUiModel.WEIGHTLESS, stateFlow.value.pendingTypeChange)
-    }
-
-    @Test
-    fun `OnTypeChangeConfirm wipes weights from adhoc plan`() {
-        val (stateFlow, _, handler) = setup(
-            State.create(uuid = null).copy(
-                type = ExerciseTypeUiModel.WEIGHTED,
-                pendingTypeChange = ExerciseTypeUiModel.WEIGHTLESS,
-                adhocPlan = persistentListOf(
-                    PlanSetUiModel(weight = 50.0, reps = 8, type = SetTypeUiModel.WORK),
-                    PlanSetUiModel(weight = 60.0, reps = 6, type = SetTypeUiModel.FAILURE),
-                ),
-            ),
-        )
-        handler.invoke(Action.Click.OnTypeChangeConfirm)
-        assertEquals(ExerciseTypeUiModel.WEIGHTLESS, stateFlow.value.type)
-        assertEquals(null, stateFlow.value.pendingTypeChange)
-        assertTrue(stateFlow.value.adhocPlan?.all { it.weight == null } == true)
-    }
-
-    @Test
-    fun `OnTypeChangeDismiss clears pending type change`() {
-        val (stateFlow, _, handler) = setup(
-            State.create(uuid = null).copy(pendingTypeChange = ExerciseTypeUiModel.WEIGHTLESS),
-        )
-        handler.invoke(Action.Click.OnTypeChangeDismiss)
-        assertNull(stateFlow.value.pendingTypeChange)
-    }
-
-    @Test
     fun `OnSaveClick with blank name sets nameError without saving`() {
         val (stateFlow, store, handler) = setup(State.create(uuid = null).copy(name = ""))
         handler.invoke(Action.Click.OnSaveClick)
@@ -152,19 +92,52 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `OnEditPlanClick navigates to PlanEditor route`() {
+    fun `OnEditPlanClick on existing exercise navigates to PlanEditor Existing`() {
         val (_, store, handler) = setup()
         handler.invoke(Action.Click.OnEditPlanClick)
         verify(exactly = 1) {
-            store.consume(Action.Navigation.OpenPlanEditor(exerciseUuid = "uuid-1"))
+            store.consume(
+                Action.Navigation.OpenPlanEditorExisting(exerciseUuid = "uuid-1"),
+            )
         }
     }
 
     @Test
-    fun `OnEditPlanClick is a no-op when uuid is null`() {
-        val (_, store, handler) = setup(State.create(uuid = null))
+    fun `OnEditPlanClick on Draft exercise navigates with empty seed`() {
+        val (_, store, handler) = setup(
+            State.create(uuid = null).copy(type = ExerciseTypeUiModel.WEIGHTLESS),
+        )
         handler.invoke(Action.Click.OnEditPlanClick)
-        verify(exactly = 0) { store.consume(any<Action.Navigation.OpenPlanEditor>()) }
+        verify(exactly = 1) {
+            store.consume(
+                Action.Navigation.OpenPlanEditorDraft(
+                    initialType = ExerciseTypeUiModel.WEIGHTLESS,
+                    initialPlanJson = null,
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `OnEditPlanClick on Draft exercise serializes a non-empty plan into the seed`() {
+        val draft = listOf(
+            PlanSetUiModel(weight = 80.0, reps = 8, type = SetTypeUiModel.WORK),
+            PlanSetUiModel(weight = 90.0, reps = 5, type = SetTypeUiModel.WORK),
+        )
+        val (_, store, handler) = setup(
+            State.create(uuid = null).copy(
+                type = ExerciseTypeUiModel.WEIGHTED,
+                adhocPlan = persistentListOf<PlanSetUiModel>().addAll(draft),
+            ),
+        )
+        handler.invoke(Action.Click.OnEditPlanClick)
+        val captured = slot<Action.Navigation.OpenPlanEditorDraft>()
+        verify(exactly = 1) { store.consume(capture(captured)) }
+        assertEquals(ExerciseTypeUiModel.WEIGHTED, captured.captured.initialType)
+        val decoded = kotlinx.serialization.json.Json.decodeFromString<List<PlanSetUiModel>>(
+            captured.captured.initialPlanJson!!,
+        )
+        assertEquals(draft, decoded)
     }
 
     @Test
@@ -279,6 +252,7 @@ internal class ClickHandlerTest {
                     type = ExerciseTypeUiModel.WEIGHTED,
                     description = "",
                     tagUuids = emptyList(),
+                    adhocPlan = null,
                 ),
             ),
         )
@@ -309,6 +283,7 @@ internal class ClickHandlerTest {
                     type = ExerciseTypeUiModel.WEIGHTED,
                     description = "",
                     tagUuids = emptyList(),
+                    adhocPlan = null,
                 ),
             ),
         )
@@ -556,22 +531,5 @@ internal class ClickHandlerTest {
         val events = mutableListOf<Event>()
         verify { store.sendEvent(capture(events)) }
         assertTrue((store.state.value.dialogState as? DialogState.DiscardConfirm)?.target == DiscardTarget.POP_SCREEN)
-    }
-
-    @Test
-    fun `OnEditPlanClick still navigates to full-screen route in edit-mode for existing exercise`() {
-        // Read-mode "Edit default plan" card — preserved from the v2.4 D1 migration.
-        val (_, store, handler) = setup(State.create(uuid = "uuid-1"))
-
-        handler.invoke(Action.Click.OnEditPlanClick)
-
-        verify(exactly = 1) {
-            store.consume(Action.Navigation.OpenPlanEditor(exerciseUuid = "uuid-1"))
-        }
-    }
-
-    private fun assertHaptic(event: Event, expected: HapticFeedbackType) {
-        assertTrue(event is Event.Haptic, "expected Event.Haptic but got $event")
-        assertEquals(expected, (event as Event.Haptic).type)
     }
 }

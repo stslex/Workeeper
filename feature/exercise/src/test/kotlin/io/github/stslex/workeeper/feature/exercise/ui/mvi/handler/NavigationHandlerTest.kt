@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.mockk.mockk
 import io.mockk.verify
@@ -51,14 +52,32 @@ internal class NavigationHandlerTest {
     }
 
     @Test
-    fun `OpenPlanEditor navigates to Screen PlanEditor with the exercise scope`() {
-        handler.invoke(Action.Navigation.OpenPlanEditor(exerciseUuid = "ex-1"))
+    fun `OpenPlanEditorExisting navigates to Screen PlanEditor Existing with exercise scope`() {
+        handler.invoke(Action.Navigation.OpenPlanEditorExisting(exerciseUuid = "ex-1"))
         verify(exactly = 1) {
             navigator.navTo(
-                Screen.PlanEditor(
+                Screen.PlanEditor.Existing(
                     performedExerciseUuid = null,
                     exerciseUuid = "ex-1",
                     trainingUuid = null,
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `OpenPlanEditorDraft navigates to Screen PlanEditor Draft carrying the seed`() {
+        handler.invoke(
+            Action.Navigation.OpenPlanEditorDraft(
+                initialType = ExerciseTypeUiModel.WEIGHTLESS,
+                initialPlanJson = "[]",
+            ),
+        )
+        verify(exactly = 1) {
+            navigator.navTo(
+                Screen.PlanEditor.Draft(
+                    initialType = ExerciseTypeUiModel.WEIGHTLESS,
+                    initialPlanJson = "[]",
                 ),
             )
         }

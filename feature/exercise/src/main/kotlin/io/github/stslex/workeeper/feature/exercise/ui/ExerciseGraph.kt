@@ -47,14 +47,34 @@ fun NavGraphBuilder.exerciseGraph(
 ) {
     navComponentScreenWithState(ExerciseFeature) { stateHandle, processor ->
 
-        val attrValue by stateHandle
+        // Existing-mode return: PlanEditor wrote (type, plan) to disk and signaled with
+        // `planEditorSavedAttr = true`. The CommonHandler runs a *partial* reload — only
+        // (type, adhocPlan) are refreshed — so any unsaved name/description/tag/image
+        // edit on this form is preserved (this is the v1.41.0 dirty-baseline regression
+        // fix).
+        val savedAttr by stateHandle
             .getStateFlow(Screen.PlanEditor.planEditorSavedAttr)
             .collectAsState()
-
-        LaunchedEffect(attrValue) {
-            if (attrValue == true) {
-                processor.consume(Action.Common.Reload)
+        LaunchedEffect(savedAttr) {
+            if (savedAttr == true) {
+                processor.consume(Action.Common.PlanEditorExistingReturned)
                 stateHandle.setAttrDefaultValue(Screen.PlanEditor.planEditorSavedAttr)
+            }
+        }
+
+        // Draft-mode return: PlanEditor never touched the DB. The Done click pops back
+        // with the serialized PlanDraftResult JSON in `planEditorDraftResultAttr`. The
+        // CommonHandler decodes the JSON and merges (type, adhocPlan) into State without
+        // updating `originalSnapshot` — the draft is treated as an unsaved edit until the
+        // parent form's own Save fires.
+        val draftAttr by stateHandle
+            .getStateFlow(Screen.PlanEditor.planEditorDraftResultAttr)
+            .collectAsState()
+        LaunchedEffect(draftAttr) {
+            val payload = draftAttr
+            if (payload != null) {
+                processor.consume(Action.Common.PlanEditorDraftReturned(payload))
+                stateHandle.setAttrDefaultValue(Screen.PlanEditor.planEditorDraftResultAttr)
             }
         }
 
@@ -206,15 +226,6 @@ fun NavGraphBuilder.exerciseGraph(
                 confirmLabel = dialog.confirmLabel,
                 onConfirm = { processor.consume(Action.Click.OnConfirmPermanentDelete) },
                 onDismiss = { processor.consume(Action.Click.OnDismissPermanentDelete) },
-            )
-
-            is DialogState.TypeChangeConfirm -> AppConfirmDialog(
-                title = dialog.title,
-                body = dialog.body,
-                impactSummary = dialog.impactSummary,
-                confirmLabel = dialog.confirmLabel,
-                onConfirm = { processor.consume(Action.Click.OnTypeChangeConfirm) },
-                onDismiss = { processor.consume(Action.Click.OnTypeChangeDismiss) },
             )
 
             DialogState.ImageSourcePicker -> ImageSourceDialog(

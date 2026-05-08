@@ -31,6 +31,9 @@ internal class CommonHandler @Inject constructor(
         val (exerciseUuid, trainingUuid) = when (mode) {
             is Mode.Exercise -> mode.exerciseUuid to null
             is Mode.PerformedExercise -> mode.exerciseUuid to mode.trainingUuid
+            // Draft mode has no DB anchor — the seed already lives in State, so skip the
+            // load and let the editor render immediately.
+            Mode.Draft -> return
         }
         launchDefault(
             onError = { sendEvent(Event.ShowError(ErrorType.LoadFailed)) },
@@ -42,11 +45,13 @@ internal class CommonHandler @Inject constructor(
             when (result) {
                 is PlanEditorLoadResult.Success -> {
                     val draft = result.plan.map { it.toUi() }.toImmutableList()
+                    val type = result.type.toUi()
                     updateState { current ->
                         current.copy(
                             isLoading = false,
                             exerciseName = result.exerciseName,
-                            isWeighted = result.isWeighted,
+                            type = type,
+                            initialType = type,
                             initialDraft = draft,
                             draft = draft,
                         )

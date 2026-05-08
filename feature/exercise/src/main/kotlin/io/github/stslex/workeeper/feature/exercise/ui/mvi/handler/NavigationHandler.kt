@@ -37,11 +37,18 @@ internal class NavigationHandler @Inject constructor(
                 Screen.ExerciseChart(exerciseUuid = action.exerciseUuid),
             )
 
-            is Action.Navigation.OpenPlanEditor -> navigator.navTo(
-                Screen.PlanEditor(
+            is Action.Navigation.OpenPlanEditorExisting -> navigator.navTo(
+                Screen.PlanEditor.Existing(
                     performedExerciseUuid = null,
                     exerciseUuid = action.exerciseUuid,
                     trainingUuid = null,
+                ),
+            )
+
+            is Action.Navigation.OpenPlanEditorDraft -> navigator.navTo(
+                Screen.PlanEditor.Draft(
+                    initialType = action.initialType,
+                    initialPlanJson = action.initialPlanJson,
                 ),
             )
         }

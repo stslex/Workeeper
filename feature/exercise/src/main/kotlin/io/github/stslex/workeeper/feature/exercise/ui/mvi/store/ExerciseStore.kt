@@ -42,7 +42,6 @@ internal interface ExerciseStore : Store<State, Action, Event> {
         val adhocPlan: ImmutableList<PlanSetUiModel>?,
         val originalAdhocPlan: ImmutableList<PlanSetUiModel>?,
         val adhocPlanSummaryLabel: String,
-        val pendingTypeChange: ExerciseTypeUiModel?,
         val imagePath: String?,
         val imageLastModified: Long,
         val pendingImage: PendingImage,
@@ -114,12 +113,26 @@ internal interface ExerciseStore : Store<State, Action, Event> {
             val type: ExerciseTypeUiModel,
             val description: String,
             val tagUuids: List<String>,
+            val adhocPlan: ImmutableList<PlanSetUiModel>?,
         ) {
 
             fun matches(state: State): Boolean = state.name == name &&
                 state.type == type &&
                 state.description == description &&
-                state.tags.map { it.uuid } == tagUuids
+                state.tags.map { it.uuid } == tagUuids &&
+                normalizePlan(state.adhocPlan) == normalizePlan(adhocPlan)
+
+            private companion object {
+
+                /**
+                 * Treat `null` and an empty list as equal — both mean "no plan attached".
+                 * Without this, an in-flight edit that toggles between empty list and null
+                 * would falsely register as dirty.
+                 */
+                fun normalizePlan(
+                    plan: ImmutableList<PlanSetUiModel>?,
+                ): ImmutableList<PlanSetUiModel> = plan ?: persistentListOf()
+            }
         }
 
         companion object {
@@ -142,7 +155,6 @@ internal interface ExerciseStore : Store<State, Action, Event> {
                 adhocPlan = null,
                 originalAdhocPlan = null,
                 adhocPlanSummaryLabel = "",
-                pendingTypeChange = null,
                 imagePath = null,
                 imageLastModified = 0L,
                 pendingImage = PendingImage.Unchanged,
@@ -159,17 +171,26 @@ internal interface ExerciseStore : Store<State, Action, Event> {
 
             data object Init : Common
 
-            /**
-             * Reload the exercise + adhoc plan from the repository without resetting form
-             * state. Dispatched after returning from the full-screen PlanEditor route
-             * (D1) so the read-mode default-plan card and edit-mode plan summary reflect
-             * the just-saved draft.
-             */
-            data object Reload : Common
-
             data class ImagePicked(val uri: Uri) : Common
 
             data object ImagePickCancelled : Common
+
+            /**
+             * Dispatched after returning from a `Screen.PlanEditor.Existing` save (DB
+             * round-trip). The handler does a *partial* reload — only `(type, adhocPlan)`
+             * are fetched and merged into State + `originalSnapshot` — so a pending
+             * unsaved name/description/tag/image edit on the parent form is preserved.
+             */
+            data object PlanEditorExistingReturned : Common
+
+            /**
+             * Dispatched after returning from a `Screen.PlanEditor.Draft` Done. The
+             * handler decodes the [io.github.stslex.workeeper.core.ui.plan_editor.model.PlanDraftResult]
+             * JSON payload and merges `(type, adhocPlan)` into State without touching
+             * `originalSnapshot` — the draft is treated as an unsaved edit until the
+             * parent form's own Save fires.
+             */
+            data class PlanEditorDraftReturned(val resultJson: String) : Common
         }
 
         sealed interface Click : Action {
@@ -209,12 +230,6 @@ internal interface ExerciseStore : Store<State, Action, Event> {
             data object OnDismissPermanentDelete : Click
 
             data class OnUndoArchive(val uuid: String) : Click
-
-            data class OnTypeSelect(val type: ExerciseTypeUiModel) : Click
-
-            data object OnTypeChangeConfirm : Click
-
-            data object OnTypeChangeDismiss : Click
 
             data object OnEditPlanClick : Click
 
@@ -281,11 +296,26 @@ internal interface ExerciseStore : Store<State, Action, Event> {
             data class OpenChart(val exerciseUuid: String) : Navigation
 
             /**
-             * Open the full-screen plan-editor route for this exercise's default plan
-             * (D1). Returns to ExerciseDetail; the graph picks up the
-             * `plan-editor-saved` flag and dispatches [Action.Common.Reload].
+             * Open `Screen.PlanEditor.Existing` for this exercise's default plan. Used in
+             * Edit mode when the exercise already has a persisted UUID. Returns to
+             * ExerciseDetail; the graph picks up `planEditorSavedAttr` and dispatches
+             * [Action.Common.PlanEditorExistingReturned] for a partial reload of
+             * `(type, adhocPlan)`.
              */
-            data class OpenPlanEditor(val exerciseUuid: String) : Navigation
+            data class OpenPlanEditorExisting(val exerciseUuid: String) : Navigation
+
+            /**
+             * Open `Screen.PlanEditor.Draft` for an in-flight exercise that has not been
+             * persisted yet (creation flow). Returns to ExerciseEditScreen with a
+             * [io.github.stslex.workeeper.core.ui.plan_editor.model.PlanDraftResult] JSON
+             * payload via `planEditorDraftResultAttr`; the graph dispatches
+             * [Action.Common.PlanEditorDraftReturned] to merge `(type, adhocPlan)` into
+             * local state.
+             */
+            data class OpenPlanEditorDraft(
+                val initialType: ExerciseTypeUiModel,
+                val initialPlanJson: String?,
+            ) : Navigation
         }
     }
 

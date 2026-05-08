@@ -4,12 +4,21 @@ package io.github.stslex.workeeper.feature.plan_editor.domain.mapper
 import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.data.database.sets.SetTypeDataModel
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
+import io.github.stslex.workeeper.feature.plan_editor.domain.model.ExerciseTypeDomain
 import io.github.stslex.workeeper.feature.plan_editor.domain.model.PlanSetDomain
 import io.github.stslex.workeeper.feature.plan_editor.domain.model.SetTypeDomain
 
 internal object PlanEditorDomainMapper {
 
-    fun ExerciseTypeDataModel.isWeighted(): Boolean = this == ExerciseTypeDataModel.WEIGHTED
+    fun ExerciseTypeDataModel.toDomain(): ExerciseTypeDomain = when (this) {
+        ExerciseTypeDataModel.WEIGHTED -> ExerciseTypeDomain.WEIGHTED
+        ExerciseTypeDataModel.WEIGHTLESS -> ExerciseTypeDomain.WEIGHTLESS
+    }
+
+    fun ExerciseTypeDomain.toData(): ExerciseTypeDataModel = when (this) {
+        ExerciseTypeDomain.WEIGHTED -> ExerciseTypeDataModel.WEIGHTED
+        ExerciseTypeDomain.WEIGHTLESS -> ExerciseTypeDataModel.WEIGHTLESS
+    }
 
     fun PlanSetDataModel.toDomain(): PlanSetDomain = PlanSetDomain(
         weight = weight,

@@ -5,7 +5,7 @@ internal sealed interface PlanEditorLoadResult {
 
     data class Success(
         val exerciseName: String,
-        val isWeighted: Boolean,
+        val type: ExerciseTypeDomain,
         val plan: List<PlanSetDomain>,
     ) : PlanEditorLoadResult
 

@@ -12,6 +12,8 @@ import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreFactory
 import io.github.stslex.workeeper.core.ui.navigation.Screen
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
+import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorHandlerStoreImpl
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.handler.ClickHandler
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.handler.CommonHandler
@@ -21,6 +23,10 @@ import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.handler.NavigationH
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.Action
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.Event
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.State
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.Json
 
 @HiltViewModel(assistedFactory = PlanEditorStoreImpl.Factory::class)
 internal class PlanEditorStoreImpl @AssistedInject constructor(
@@ -36,7 +42,7 @@ internal class PlanEditorStoreImpl @AssistedInject constructor(
     loggerHolder: LoggerHolder,
 ) : BaseStore<State, Action, Event>(
     name = NAME,
-    initialState = State.init(screen.toMode()),
+    initialState = screen.toInitialState(),
     handlerCreator = { action ->
         when (action) {
             is Action.Common -> commonHandler
@@ -63,25 +69,56 @@ internal class PlanEditorStoreImpl @AssistedInject constructor(
     }
 }
 
-internal fun Screen.PlanEditor.toMode(): State.Mode {
-    val performed = performedExerciseUuid
-    val exercise = exerciseUuid
-    val training = trainingUuid
-    return when {
-        exercise == null -> error(
-            "Screen.PlanEditor must carry exerciseUuid (got performed=$performed, exercise=$exercise)",
-        )
-        // Live workout (performed != null) or single-training (training != null) → backing
-        // store is `training_exercise_table.plan_sets` keyed by (trainingUuid, exerciseUuid).
-        // Live-workout's adhoc branch passes performed != null with training == null, in which
-        // case the editor falls back to `last_adhoc_sets`.
-        performed != null || !training.isNullOrBlank() -> State.Mode.PerformedExercise(
-            performedExerciseUuid = performed,
-            exerciseUuid = exercise,
-            trainingUuid = training,
-        )
-        // Exercise-detail Edit plan: no live session, no training association — saves to the
-        // exercise's own `last_adhoc_sets` row.
-        else -> State.Mode.Exercise(exerciseUuid = exercise)
+internal fun Screen.PlanEditor.toMode(): State.Mode = when (this) {
+    is Screen.PlanEditor.Existing -> {
+        val performed = performedExerciseUuid
+        val exercise = exerciseUuid
+        val training = trainingUuid
+        when {
+            exercise == null -> error(
+                "Screen.PlanEditor.Existing must carry exerciseUuid (got performed=$performed, exercise=$exercise)",
+            )
+            // Live workout (performed != null) or single-training (training != null) →
+            // backing store is `training_exercise_table.plan_sets` keyed by
+            // (trainingUuid, exerciseUuid). Live-workout's adhoc branch passes
+            // performed != null with training == null, in which case the editor falls
+            // back to `last_adhoc_sets`.
+            performed != null || !training.isNullOrBlank() -> State.Mode.PerformedExercise(
+                performedExerciseUuid = performed,
+                exerciseUuid = exercise,
+                trainingUuid = training,
+            )
+            // Exercise-detail Edit plan: no live session, no training association — saves
+            // to the exercise's own `last_adhoc_sets` row plus `exercise_table.type`.
+            else -> State.Mode.Exercise(exerciseUuid = exercise)
+        }
     }
+
+    is Screen.PlanEditor.Draft -> State.Mode.Draft
+}
+
+internal fun Screen.PlanEditor.toInitialState(): State {
+    val mode = toMode()
+    val seedType = when (this) {
+        is Screen.PlanEditor.Draft -> initialType
+        // Existing modes seed type as WEIGHTED until CommonHandler.Init loads the real
+        // value from disk. The Composable doesn't render the toggle until
+        // `state.isLoading == false`, so the user never sees the placeholder.
+        is Screen.PlanEditor.Existing -> ExerciseTypeUiModel.WEIGHTED
+    }
+    val seedPlan = when (this) {
+        is Screen.PlanEditor.Draft ->
+            initialPlanJson
+                ?.let { json ->
+                    Json.decodeFromString(
+                        ListSerializer(PlanSetUiModel.serializer()),
+                        json,
+                    )
+                }
+                ?.toImmutableList()
+                ?: persistentListOf()
+
+        is Screen.PlanEditor.Existing -> persistentListOf()
+    }
+    return State.init(mode = mode, seedType = seedType, seedPlan = seedPlan)
 }

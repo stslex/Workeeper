@@ -8,6 +8,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.Serializable
@@ -89,28 +90,56 @@ sealed interface Screen {
     ) : Screen
 
     /**
-     * Full-screen plan editor (v2.4 D1). Replaces the bottom-sheet plan editor.
+     * Full-screen plan editor. Two destinations:
      *
-     *  - `performedExerciseUuid` non-null: edit the plan attached to a live workout's
-     *    `performed_exercise_table` row. Backed by `training_exercise_table.plan_sets`
-     *    when `trainingUuid` non-null, or by `exercise_table.last_adhoc_sets` when adhoc.
-     *  - `exerciseUuid` non-null: edit the default plan attached to an exercise (used
-     *    by Exercise detail screen "Edit default plan" action).
+     *  - [Existing]: edit the plan attached to a persisted exercise / performed-exercise /
+     *    training-exercise row. PlanEditor saves directly to DB and signals the caller via
+     *    [planEditorSavedAttr] = true so the caller can perform a partial reload of
+     *    `(type, plan)` (Exercise) or a full reload (Single-training, Live-workout) on
+     *    resume.
      *
-     * Exactly one of the two must be non-null.
+     *  - [Draft]: edit the plan for an in-flight exercise that is still being created
+     *    (no persisted UUID yet). PlanEditor does NOT touch the DB; on Done it pops back
+     *    with the serialized [PlanDraftResult] JSON via [planEditorDraftResultAttr]. The
+     *    caller merges the result into local state; final persistence happens on the
+     *    caller's own Save.
+     *
+     * Type ownership lives in PlanEditor for both destinations — the WEIGHTED ↔ WEIGHTLESS
+     * toggle and the type-change confirm dialog (with weight-wipe semantics) are the plan
+     * editor's responsibility.
      */
     @Serializable
-    data class PlanEditor(
-        val performedExerciseUuid: String?,
-        val exerciseUuid: String?,
-        val trainingUuid: String?,
-    ) : Screen {
+    @Stable
+    sealed interface PlanEditor : Screen {
+
+        @Serializable
+        data class Existing(
+            val performedExerciseUuid: String?,
+            val exerciseUuid: String?,
+            val trainingUuid: String?,
+        ) : PlanEditor
+
+        @Serializable
+        data class Draft(
+            val initialType: ExerciseTypeUiModel,
+            val initialPlanJson: String?,
+        ) : PlanEditor
 
         companion object {
 
             private const val SAVED_STATE_PLAN_EDITOR_SAVED: String = "plan-editor-saved"
+            private const val SAVED_STATE_PLAN_EDITOR_DRAFT_RESULT: String =
+                "plan-editor-draft-result"
 
             val planEditorSavedAttr = SaveHandlerAttr(SAVED_STATE_PLAN_EDITOR_SAVED, false)
+
+            /**
+             * Carries the serialized [PlanDraftResult] JSON back to a Draft-mode caller.
+             * Default value is `null` so the consumer's `LaunchedEffect(attrValue)` only
+             * fires after a real Done-click writes the JSON in.
+             */
+            val planEditorDraftResultAttr: SaveHandlerAttr<String> =
+                SaveHandlerAttr(SAVED_STATE_PLAN_EDITOR_DRAFT_RESULT, null)
         }
     }
 

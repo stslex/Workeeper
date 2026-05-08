@@ -34,15 +34,21 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.window.Dialog
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
+import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.plan_editor.PlanEditorBody
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.plan_editor.R
+import io.github.stslex.workeeper.feature.plan_editor.ui.components.TypeToggle
+import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.Action
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.State
+import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.State.Mode
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
@@ -58,6 +64,11 @@ internal fun PlanEditorScreen(
         stringResource(R.string.core_ui_plan_editor_screen_title_default)
     } else {
         stringResource(R.string.core_ui_plan_editor_screen_title_format, state.exerciseName)
+    }
+    val saveLabel = if (state.mode is Mode.Draft) {
+        stringResource(R.string.feature_plan_editor_action_done)
+    } else {
+        stringResource(R.string.core_ui_plan_editor_screen_save)
     }
     Scaffold(
         modifier = modifier
@@ -99,6 +110,7 @@ internal fun PlanEditorScreen(
         bottomBar = {
             PlanEditorActionBar(
                 isSaving = state.isSaving,
+                saveLabel = saveLabel,
                 onCancel = { consume(Action.Click.OnBackClick) },
                 onSave = { consume(Action.Click.OnSave) },
             )
@@ -114,6 +126,24 @@ internal fun PlanEditorScreen(
                 .verticalScroll(rememberScrollState()),
         ) {
             PlanEditorHeader(exerciseName = state.exerciseName)
+            // Type toggle is editable from PlanEditor whenever the type ownership is the
+            // editor's own concern (Mode.Exercise — owns parent exercise.type, Mode.Draft —
+            // seeds the in-flight exercise's type). Mode.PerformedExercise renders nothing
+            // here: type lives on the parent exercise and isn't editable through a
+            // training-scoped editor.
+            if (state.mode is Mode.Exercise || state.mode is Mode.Draft) {
+                Spacer(Modifier.height(AppDimension.Space.lg))
+                Text(
+                    text = stringResource(R.string.feature_plan_editor_label_type),
+                    style = AppUi.typography.labelSmall,
+                    color = AppUi.colors.textTertiary,
+                )
+                Spacer(Modifier.height(AppDimension.Space.xs))
+                TypeToggle(
+                    selected = state.type,
+                    onSelect = { type -> consume(Action.Click.OnTypeToggle(type)) },
+                )
+            }
             Spacer(Modifier.height(AppDimension.Space.lg))
             PlanEditorBody(
                 draft = state.draft,
@@ -141,6 +171,19 @@ internal fun PlanEditorScreen(
                 onSave = { consume(Action.Click.OnConfirmSave) },
                 onDiscard = { consume(Action.Click.OnConfirmDiscard) },
                 onContinue = { consume(Action.Click.OnDismissDiscard) },
+            )
+        }
+
+        when (val dialog = state.dialogState) {
+            DialogState.Hidden -> Unit
+
+            is DialogState.TypeChangeConfirm -> AppConfirmDialog(
+                title = dialog.title,
+                body = dialog.body,
+                impactSummary = dialog.impactSummary,
+                confirmLabel = dialog.confirmLabel,
+                onConfirm = { consume(Action.Click.OnTypeChangeConfirm) },
+                onDismiss = { consume(Action.Click.OnTypeChangeDismiss) },
             )
         }
     }
@@ -215,6 +258,7 @@ private fun DiscardDialog(
 @Composable
 private fun PlanEditorActionBar(
     isSaving: Boolean,
+    saveLabel: String,
     onCancel: () -> Unit,
     onSave: () -> Unit,
 ) {
@@ -240,7 +284,7 @@ private fun PlanEditorActionBar(
             modifier = Modifier
                 .weight(1f)
                 .testTag("PlanEditorSave"),
-            text = stringResource(R.string.core_ui_plan_editor_screen_save),
+            text = saveLabel,
             onClick = onSave,
             size = AppButtonSize.MEDIUM,
             enabled = !isSaving,
@@ -278,16 +322,19 @@ private fun PlanEditorScreenPreview() {
                 mode = State.Mode.Exercise(exerciseUuid = "uuid"),
                 isLoading = false,
                 exerciseName = "Bench press",
-                isWeighted = true,
-                initialDraft = listOf<PlanSetUiModel>().toImmutableList(),
+                type = ExerciseTypeUiModel.WEIGHTED,
+                initialDraft = persistentListOf(),
                 draft = listOf(
                     PlanSetUiModel(60.0, 10, SetTypeUiModel.WARMUP),
                     PlanSetUiModel(80.0, 8, SetTypeUiModel.WORK),
                     PlanSetUiModel(100.0, 5, SetTypeUiModel.WORK),
                     PlanSetUiModel(85.0, 6, SetTypeUiModel.FAILURE),
                 ).toImmutableList(),
+                initialType = ExerciseTypeUiModel.WEIGHTED,
+                pendingTypeChange = null,
                 confirmDiscardOpen = false,
                 isSaving = false,
+                dialogState = DialogState.Hidden,
             ),
             consume = {},
         )

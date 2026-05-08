@@ -39,7 +39,6 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorBodyAction
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.ui.components.ImageEditRow
 import io.github.stslex.workeeper.feature.exercise.ui.components.TagPickerInline
-import io.github.stslex.workeeper.feature.exercise.ui.components.TypeToggle
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
@@ -125,10 +124,7 @@ internal fun ExerciseEditScreen(
                 }
             }
             FormSection(label = stringResource(R.string.feature_exercise_edit_label_type)) {
-                TypeToggle(
-                    selected = state.type,
-                    onSelect = { type -> consume(Action.Click.OnTypeSelect(type)) },
-                )
+                TypeChipReadOnly(type = state.type)
             }
             FormSection(label = stringResource(R.string.feature_exercise_edit_label_tags)) {
                 TagPickerInline(
@@ -156,6 +152,31 @@ internal fun ExerciseEditScreen(
             Spacer(Modifier.height(AppDimension.Space.md))
         }
         EditActionBar(state = state, consume = consume)
+    }
+}
+
+/**
+ * Read-only display of the current WEIGHTED / WEIGHTLESS type. PlanEditor owns the type
+ * for both Existing and Draft exercises (v1.42.0); the toggle moved with it. The chip
+ * here is purely informational with a hint that the user can change the type from the
+ * plan editor.
+ */
+@Composable
+private fun TypeChipReadOnly(type: ExerciseTypeUiModel) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xxs),
+    ) {
+        Text(
+            modifier = Modifier.testTag("ExerciseTypeReadOnlyChip"),
+            text = stringResource(type.labelRes),
+            style = AppUi.typography.labelLarge,
+            color = AppUi.colors.textPrimary,
+        )
+        Text(
+            text = stringResource(R.string.feature_exercise_edit_type_chip_hint),
+            style = AppUi.typography.bodySmall,
+            color = AppUi.colors.textTertiary,
+        )
     }
 }
 

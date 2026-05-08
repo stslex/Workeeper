@@ -32,6 +32,7 @@ import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseListItem
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel.Companion.toData
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.HistoryEntry
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.RecentExerciseDataModel
@@ -173,6 +174,18 @@ internal class ExerciseRepositoryImpl @Inject constructor(
             dao.updateLastAdhocSets(
                 uuid = Uuid.parse(exerciseUuid),
                 lastAdhocSets = PlanSetsConverter.toJson(planSets),
+            )
+        }
+    }
+
+    override suspend fun setExerciseType(
+        exerciseUuid: String,
+        type: ExerciseTypeDataModel,
+    ) {
+        withContext(bgDispatcher) {
+            dao.updateType(
+                uuid = Uuid.parse(exerciseUuid),
+                type = type.toEntity(),
             )
         }
     }

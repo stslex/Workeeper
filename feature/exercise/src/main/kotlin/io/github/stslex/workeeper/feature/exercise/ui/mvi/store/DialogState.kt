@@ -39,19 +39,6 @@ internal sealed interface DialogState {
         val confirmLabel: String,
     ) : DialogState
 
-    /**
-     * "Switching to weightless will clear weights on N plan rows" confirmation. The
-     * pending target type lives in `State.pendingTypeChange` so the confirm handler
-     * knows which value to commit; this variant only carries the dialog payload.
-     */
-    @Stable
-    data class TypeChangeConfirm(
-        val title: String,
-        val body: String,
-        val impactSummary: String,
-        val confirmLabel: String,
-    ) : DialogState
-
     /** Camera-vs-Gallery picker shown after the user taps "Add image". */
     @Stable
     data object ImageSourcePicker : DialogState

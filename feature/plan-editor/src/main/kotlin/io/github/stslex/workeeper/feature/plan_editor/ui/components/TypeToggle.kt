@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.feature.exercise.ui.components
+package io.github.stslex.workeeper.feature.plan_editor.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -33,7 +33,7 @@ internal fun TypeToggle(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .testTag("ExerciseTypeToggle"),
+            .testTag("PlanEditorTypeToggle"),
         horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
         TypeOption(
@@ -42,7 +42,7 @@ internal fun TypeToggle(
             onClick = { onSelect(ExerciseTypeUiModel.WEIGHTED) },
             modifier = Modifier
                 .weight(1f)
-                .testTag("ExerciseTypeOption_WEIGHTED"),
+                .testTag("PlanEditorTypeOption_WEIGHTED"),
         )
         TypeOption(
             label = stringResource(ExerciseTypeUiModel.WEIGHTLESS.labelRes),
@@ -50,7 +50,7 @@ internal fun TypeToggle(
             onClick = { onSelect(ExerciseTypeUiModel.WEIGHTLESS) },
             modifier = Modifier
                 .weight(1f)
-                .testTag("ExerciseTypeOption_WEIGHTLESS"),
+                .testTag("PlanEditorTypeOption_WEIGHTLESS"),
         )
     }
 }
