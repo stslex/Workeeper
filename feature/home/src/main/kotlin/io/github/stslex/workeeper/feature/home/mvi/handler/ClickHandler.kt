@@ -119,12 +119,6 @@ internal class ClickHandler @Inject constructor(
                         ),
                     )
                     updateStateImmediate { it.copy(pendingConflict = info) }
-                    sendEvent(
-                        Event.ShowActiveSessionConflict(
-                            activeSessionName = info.activeSessionName,
-                            progressLabel = info.progressLabel,
-                        ),
-                    )
                 }
             }
         }

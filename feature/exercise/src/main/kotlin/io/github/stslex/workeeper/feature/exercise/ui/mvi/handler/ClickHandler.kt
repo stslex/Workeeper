@@ -29,11 +29,11 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageErrorType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageSourceUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PendingImage
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.DiscardTarget
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Event
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
-import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State.ConflictInfo
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State.Mode
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -62,17 +62,17 @@ internal class ClickHandler @Inject constructor(
             Action.Click.OnTrackNowClick -> processTrackNowClick()
             Action.Click.OnTrackNowResumeConfirm -> processTrackNowResumeConfirm()
             Action.Click.OnTrackNowDeleteAndStart -> processTrackNowDeleteAndStart()
-            Action.Click.OnTrackNowConflictDismiss -> processTrackNowConflictDismiss()
+            Action.Click.OnTrackNowConflictDismiss -> processCloseDialog()
             is Action.Click.OnHistoryRowClick -> processHistoryRowClick(action)
             Action.Click.OnSaveClick -> processSaveClick()
             Action.Click.OnCancelClick -> processCancelClick()
             is Action.Click.OnConfirmDiscard -> processConfirmDiscard(action.target)
-            Action.Click.OnDismissDiscard -> processDismissDiscard()
-            Action.Click.OnDismissArchiveBlocked -> Unit
+            Action.Click.OnDismissDiscard -> processCloseDialog()
+            Action.Click.OnDismissArchiveBlocked -> processCloseDialog()
             Action.Click.FlipToReadMode -> processFlipToReadMode()
             Action.Click.OnPermanentDeleteMenuClick -> processPermanentDeleteMenuClick()
             Action.Click.OnConfirmPermanentDelete -> processConfirmPermanentDelete()
-            Action.Click.OnDismissPermanentDelete -> Unit
+            Action.Click.OnDismissPermanentDelete -> processCloseDialog()
             is Action.Click.OnUndoArchive -> processUndoArchive(action)
             is Action.Click.OnTypeSelect -> processTypeSelect(action)
             Action.Click.OnTypeChangeConfirm -> processTypeChangeConfirm()
@@ -87,17 +87,26 @@ internal class ClickHandler @Inject constructor(
             is Action.Click.OnImageSourceSelected -> processImageSourceSelected(action)
             Action.Click.OnRemoveImageClick -> processRemoveImageClick()
             Action.Click.OnPrCardClick -> processPrCardClick()
-            Action.Click.OnImageSourceDialogDismiss -> processImageSourceDialogDismiss()
-            Action.Click.OnPermissionDeniedDialogDismiss -> processPermissionDeniedDialogDismiss()
+            Action.Click.OnImageSourceDialogDismiss -> processCloseDialog()
+            Action.Click.OnPermissionDeniedDialogDismiss -> processCloseDialog()
             Action.Click.OnPermissionDeniedSettingsClick -> processPermissionDeniedSettingsClick()
             Action.Click.RequestCameraCapture -> launchCameraCapture()
             Action.Click.OnCameraPermissionDenied -> processCameraPermissionDenied()
         }
     }
 
+    private fun processCloseDialog() {
+        updateState { it.copy(dialogState = DialogState.Hidden) }
+    }
+
     private fun processBackClick() {
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
         val current = state.value
+        // Back gesture dismisses the topmost dialog before propagating.
+        if (current.dialogState !is DialogState.Hidden) {
+            updateState { it.copy(dialogState = DialogState.Hidden) }
+            return
+        }
         val mode = current.mode
         if (mode !is Mode.Edit) {
             consume(Action.Navigation.Back)
@@ -105,7 +114,7 @@ internal class ClickHandler @Inject constructor(
         }
         val target = if (mode.isCreate) DiscardTarget.POP_SCREEN else DiscardTarget.FLIP_TO_READ
         if (current.hasChanges) {
-            sendEvent(Event.ShowDiscardConfirmDialog(target))
+            updateState { it.copy(dialogState = DialogState.DiscardConfirm(target)) }
         } else {
             applyDiscardTarget(target)
         }
@@ -148,16 +157,16 @@ internal class ClickHandler @Inject constructor(
                     }
                 }
 
-                is ArchiveResult.Blocked ->
-                    sendEvent(
-                        Event.ShowArchiveBlocked(
-                            body = resourceWrapper.getString(
-                                R.string.feature_exercise_detail_archive_blocked_body_format,
-                                name,
-                                result.activeTrainings.joinToString(", "),
-                            ),
-                        ),
+                is ArchiveResult.Blocked -> {
+                    val body = resourceWrapper.getString(
+                        R.string.feature_exercise_detail_archive_blocked_body_format,
+                        name,
+                        result.activeTrainings.joinToString(", "),
                     )
+                    updateStateImmediate {
+                        it.copy(dialogState = DialogState.ArchiveBlocked(body = body))
+                    }
+                }
             }
         }
     }
@@ -172,22 +181,21 @@ internal class ClickHandler @Inject constructor(
                     val sessionLabel = resolution.trainingName ?: resourceWrapper.getString(
                         R.string.feature_exercise_track_now_conflict_unnamed,
                     )
-                    val info = ConflictInfo(
-                        sessionUuid = resolution.active.sessionUuid,
-                        activeSessionName = sessionLabel,
-                        progressLabel = resourceWrapper.getString(
-                            R.string.feature_exercise_track_now_conflict_progress_format,
-                            0,
-                            0,
-                        ),
+                    val progressLabel = resourceWrapper.getString(
+                        R.string.feature_exercise_track_now_conflict_progress_format,
+                        0,
+                        0,
                     )
-                    updateStateImmediate { it.copy(pendingConflict = info) }
-                    sendEvent(
-                        Event.ShowActiveSessionConflict(
-                            activeSessionName = info.activeSessionName,
-                            progressLabel = info.progressLabel,
-                        ),
-                    )
+                    val sessionUuid = resolution.active.sessionUuid
+                    updateStateImmediate {
+                        it.copy(
+                            dialogState = DialogState.ActiveSessionConflict(
+                                sessionUuid = sessionUuid,
+                                activeSessionName = sessionLabel,
+                                progressLabel = progressLabel,
+                            ),
+                        )
+                    }
                 }
             }
         }
@@ -203,24 +211,21 @@ internal class ClickHandler @Inject constructor(
 
     private fun processTrackNowResumeConfirm() {
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
-        val info = state.value.pendingConflict ?: return
-        updateState { it.copy(pendingConflict = null) }
+        val info = state.value.dialogState as? DialogState.ActiveSessionConflict ?: return
+        updateState { it.copy(dialogState = DialogState.Hidden) }
         consume(Action.Navigation.OpenLiveWorkout(info.sessionUuid))
     }
 
     private fun processTrackNowDeleteAndStart() {
         sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
-        val info = state.value.pendingConflict ?: return
-        val exerciseUuid = state.value.uuid ?: return
-        updateState { it.copy(pendingConflict = null) }
+        val current = state.value
+        val info = current.dialogState as? DialogState.ActiveSessionConflict ?: return
+        val exerciseUuid = current.uuid ?: return
+        updateState { it.copy(dialogState = DialogState.Hidden) }
         launch {
             interactor.deleteSession(info.sessionUuid)
             startFreshTrackNow(exerciseUuid)
         }
-    }
-
-    private fun processTrackNowConflictDismiss() {
-        updateState { it.copy(pendingConflict = null) }
     }
 
     private fun processHistoryRowClick(action: Action.Click.OnHistoryRowClick) {
@@ -390,7 +395,7 @@ internal class ClickHandler @Inject constructor(
         }
         val target = if (mode.isCreate) DiscardTarget.POP_SCREEN else DiscardTarget.FLIP_TO_READ
         if (current.hasChanges) {
-            sendEvent(Event.ShowDiscardConfirmDialog(target))
+            updateState { it.copy(dialogState = DialogState.DiscardConfirm(target)) }
         } else {
             applyDiscardTarget(target)
         }
@@ -398,10 +403,9 @@ internal class ClickHandler @Inject constructor(
 
     private fun processConfirmDiscard(target: DiscardTarget) {
         sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
+        updateState { it.copy(dialogState = DialogState.Hidden) }
         applyDiscardTarget(target)
     }
-
-    private fun processDismissDiscard() = Unit
 
     private fun processFlipToReadMode() {
         updateState { current ->
@@ -434,28 +438,40 @@ internal class ClickHandler @Inject constructor(
     }
 
     private fun processPermanentDeleteMenuClick() {
-        if (!state.value.canPermanentlyDelete) return
+        val current = state.value
+        if (!current.canPermanentlyDelete) return
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
-        sendEvent(
-            Event.ShowPermanentDeleteConfirm(
-                title = resourceWrapper.getString(
-                    R.string.feature_exercise_detail_permanent_delete_confirm_title,
-                    state.value.name,
-                ),
-                body = resourceWrapper.getString(R.string.feature_exercise_detail_permanent_delete_confirm_body),
-                impactSummary = resourceWrapper.getString(
-                    R.string.feature_exercise_detail_permanent_delete_confirm_impact,
-                ),
-                confirmLabel = resourceWrapper.getString(
-                    R.string.feature_exercise_detail_permanent_delete_confirm_button,
-                ),
-            ),
+        // Pre-resolve display strings outside the updateState lambda — Rule 1 of
+        // compose-state-discipline.
+        val title = resourceWrapper.getString(
+            R.string.feature_exercise_detail_permanent_delete_confirm_title,
+            current.name,
         )
+        val body = resourceWrapper.getString(
+            R.string.feature_exercise_detail_permanent_delete_confirm_body,
+        )
+        val impactSummary = resourceWrapper.getString(
+            R.string.feature_exercise_detail_permanent_delete_confirm_impact,
+        )
+        val confirmLabel = resourceWrapper.getString(
+            R.string.feature_exercise_detail_permanent_delete_confirm_button,
+        )
+        updateState {
+            it.copy(
+                dialogState = DialogState.PermanentDeleteConfirm(
+                    title = title,
+                    body = body,
+                    impactSummary = impactSummary,
+                    confirmLabel = confirmLabel,
+                ),
+            )
+        }
     }
 
     private fun processConfirmPermanentDelete() {
         val uuid = state.value.uuid ?: return
         sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
+        updateState { it.copy(dialogState = DialogState.Hidden) }
         launch(
             onSuccess = {
                 sendEvent(
@@ -487,23 +503,31 @@ internal class ClickHandler @Inject constructor(
             (current.adhocPlan?.any { it.weight != null } == true)
         if (needsWeightWipe) {
             sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
-            updateState { it.copy(pendingTypeChange = action.type) }
-            sendEvent(
-                Event.ShowTypeChangeConfirm(
-                    title = resourceWrapper.getString(
-                        R.string.feature_exercise_edit_type_change_weightless_title,
-                    ),
-                    body = resourceWrapper.getString(
-                        R.string.feature_exercise_edit_type_change_weightless_body,
-                    ),
-                    impactSummary = resourceWrapper.getString(
-                        R.string.feature_exercise_edit_type_change_weightless_impact,
-                    ),
-                    confirmLabel = resourceWrapper.getString(
-                        R.string.feature_exercise_edit_type_change_weightless_confirm,
-                    ),
-                ),
+            // Pre-resolve display strings outside the updateState lambda — Rule 1 of
+            // compose-state-discipline.
+            val title = resourceWrapper.getString(
+                R.string.feature_exercise_edit_type_change_weightless_title,
             )
+            val body = resourceWrapper.getString(
+                R.string.feature_exercise_edit_type_change_weightless_body,
+            )
+            val impactSummary = resourceWrapper.getString(
+                R.string.feature_exercise_edit_type_change_weightless_impact,
+            )
+            val confirmLabel = resourceWrapper.getString(
+                R.string.feature_exercise_edit_type_change_weightless_confirm,
+            )
+            updateState {
+                it.copy(
+                    pendingTypeChange = action.type,
+                    dialogState = DialogState.TypeChangeConfirm(
+                        title = title,
+                        body = body,
+                        impactSummary = impactSummary,
+                        confirmLabel = confirmLabel,
+                    ),
+                )
+            }
             return
         }
         sendEvent(Event.Haptic(HapticFeedbackType.SegmentTick))
@@ -520,6 +544,7 @@ internal class ClickHandler @Inject constructor(
             latest.copy(
                 type = pending,
                 pendingTypeChange = null,
+                dialogState = DialogState.Hidden,
                 adhocPlan = nextPlan,
                 adhocPlanSummaryLabel = nextPlan.toAdhocPlanSummary(resourceWrapper),
             )
@@ -531,7 +556,12 @@ internal class ClickHandler @Inject constructor(
     }
 
     private fun processTypeChangeDismiss() {
-        updateState { it.copy(pendingTypeChange = null) }
+        updateState {
+            it.copy(
+                pendingTypeChange = null,
+                dialogState = DialogState.Hidden,
+            )
+        }
     }
 
     private fun processEditPlanClick() {
@@ -629,7 +659,7 @@ internal class ClickHandler @Inject constructor(
 
     private fun processEditImageClick() {
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
-        updateState { it.copy(sourceDialogVisible = true) }
+        updateState { it.copy(dialogState = DialogState.ImageSourcePicker) }
     }
 
     private fun processImageThumbnailClick() {
@@ -647,7 +677,7 @@ internal class ClickHandler @Inject constructor(
 
     private fun processImageSourceSelected(action: Action.Click.OnImageSourceSelected) {
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
-        updateState { it.copy(sourceDialogVisible = false) }
+        updateState { it.copy(dialogState = DialogState.Hidden) }
         when (action.source) {
             ImageSourceUiModel.Camera -> {
                 if (hasCameraPermission()) {
@@ -676,13 +706,9 @@ internal class ClickHandler @Inject constructor(
         updateState {
             it.copy(
                 pendingImage = PendingImage.RemoveExisting,
-                sourceDialogVisible = false,
+                dialogState = DialogState.Hidden,
             )
         }
-    }
-
-    private fun processImageSourceDialogDismiss() {
-        updateState { it.copy(sourceDialogVisible = false) }
     }
 
     private fun processPrCardClick() {
@@ -691,18 +717,14 @@ internal class ClickHandler @Inject constructor(
         consume(Action.Navigation.OpenChart(uuid))
     }
 
-    private fun processPermissionDeniedDialogDismiss() {
-        updateState { it.copy(permissionDeniedDialogVisible = false) }
-    }
-
     private fun processPermissionDeniedSettingsClick() {
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
-        updateState { it.copy(permissionDeniedDialogVisible = false) }
+        updateState { it.copy(dialogState = DialogState.Hidden) }
         sendEvent(Event.NavigateOpenAppSettings(context.packageName))
     }
 
     private fun processCameraPermissionDenied() {
-        updateState { it.copy(permissionDeniedDialogVisible = true) }
+        updateState { it.copy(dialogState = DialogState.PermissionDenied) }
     }
 
     private fun hasCameraPermission(): Boolean = ContextCompat.checkSelfPermission(

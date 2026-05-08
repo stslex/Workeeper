@@ -34,7 +34,7 @@ internal interface SingleTrainingStore : Store<State, Action, Event> {
         val canPermanentlyDelete: Boolean,
         val originalSnapshot: Snapshot?,
         val pickerState: PickerState,
-        val pendingConflict: ConflictInfo?,
+        val dialogState: DialogState,
         val isLoading: Boolean,
     ) : Store.State {
 
@@ -46,11 +46,13 @@ internal interface SingleTrainingStore : Store<State, Action, Event> {
             get() = originalSnapshot?.matches(this) == false
 
         /**
-         * Intercept back when training-level edits are unsaved. Plan-editor draft changes
-         * live on the standalone PlanEditor route now, so its dirty-state is owned there.
+         * Intercept back when training-level edits are unsaved or a dialog is open.
+         * Plan-editor draft changes live on the standalone PlanEditor route now, so its
+         * dirty-state is owned there. Dialog dismissal precedes screen pop so the back
+         * gesture closes the topmost dialog before propagating.
          */
         val interceptBack: Boolean
-            get() = mode is Mode.Edit && hasChanges
+            get() = (mode is Mode.Edit && hasChanges) || dialogState !is DialogState.Hidden
 
         @Stable
         sealed interface Mode {
@@ -95,18 +97,6 @@ internal interface SingleTrainingStore : Store<State, Action, Event> {
             ) : PickerState
         }
 
-        /**
-         * In-flight Active session conflict awaiting user choice. Carried in State so the
-         * dialog survives configuration changes and the resume/delete branch knows which
-         * session to act on.
-         */
-        @Stable
-        data class ConflictInfo(
-            val sessionUuid: String,
-            val activeSessionName: String,
-            val progressLabel: String,
-        )
-
         companion object {
 
             fun create(uuid: String?): State = State(
@@ -124,7 +114,7 @@ internal interface SingleTrainingStore : Store<State, Action, Event> {
                 canPermanentlyDelete = false,
                 originalSnapshot = null,
                 pickerState = PickerState.Closed,
-                pendingConflict = null,
+                dialogState = DialogState.Hidden,
                 isLoading = uuid != null,
             )
         }
@@ -248,20 +238,6 @@ internal interface SingleTrainingStore : Store<State, Action, Event> {
         data class ShowArchiveSuccess(val message: String) : Event
 
         data class ShowArchiveBlocked(val message: String) : Event
-
-        data object ShowDiscardConfirmDialog : Event
-
-        data class ShowPermanentDeleteConfirmDialog(
-            val title: String,
-            val body: String,
-            val impactSummary: String,
-            val confirmLabel: String,
-        ) : Event
-
-        data class ShowActiveSessionConflict(
-            val activeSessionName: String,
-            val progressLabel: String,
-        ) : Event
 
         data class ShowSaveError(val message: String) : Event
     }

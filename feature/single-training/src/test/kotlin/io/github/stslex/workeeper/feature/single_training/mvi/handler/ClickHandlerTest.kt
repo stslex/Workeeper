@@ -9,6 +9,7 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingHandlerStore
 import io.github.stslex.workeeper.feature.single_training.domain.SingleTrainingInteractor
 import io.github.stslex.workeeper.feature.single_training.mvi.model.TrainingExerciseItem
+import io.github.stslex.workeeper.feature.single_training.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Event
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State
@@ -224,22 +225,22 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `OnConflictDismiss clears pendingConflict`() {
+    fun `OnConflictDismiss clears the active session conflict dialog`() {
         stateFlow.value = stateFlow.value.copy(
-            pendingConflict = State.ConflictInfo(
+            dialogState = DialogState.ActiveSessionConflict(
                 sessionUuid = "session-1",
                 activeSessionName = "Push Day",
                 progressLabel = "0 of 0",
             ),
         )
         handler.invoke(Action.Click.OnConflictDismiss)
-        assertEquals(null, stateFlow.value.pendingConflict)
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
     }
 
     @Test
     fun `OnConflictResume consumes OpenLiveWorkout with active session uuid`() {
         stateFlow.value = stateFlow.value.copy(
-            pendingConflict = State.ConflictInfo(
+            dialogState = DialogState.ActiveSessionConflict(
                 sessionUuid = "session-1",
                 activeSessionName = "Push Day",
                 progressLabel = "0 of 0",
@@ -254,6 +255,20 @@ internal class ClickHandlerTest {
                 ),
             )
         }
-        assertEquals(null, stateFlow.value.pendingConflict)
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
+    }
+
+    @Test
+    fun `OnBackClick closes the dialog before propagating to navigation`() {
+        stateFlow.value = stateFlow.value.copy(
+            dialogState = DialogState.ActiveSessionConflict(
+                sessionUuid = "session-1",
+                activeSessionName = "Push Day",
+                progressLabel = "0 of 0",
+            ),
+        )
+        handler.invoke(Action.Click.OnBackClick)
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
+        verify(exactly = 0) { store.consume(any<Action.Navigation.Back>()) }
     }
 }

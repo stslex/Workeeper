@@ -14,6 +14,7 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.mapper.ExerciseUiMappe
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.mapper.ExerciseUiMapper.toUi
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PendingImage
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
 import kotlinx.collections.immutable.toImmutableList
@@ -53,13 +54,13 @@ internal class CommonHandler @Inject constructor(
         updateState {
             it.copy(
                 pendingImage = PendingImage.NewFromUri(action.uri),
-                sourceDialogVisible = false,
+                dialogState = DialogState.Hidden,
             )
         }
     }
 
     private fun processImagePickCancelled() {
-        updateState { it.copy(sourceDialogVisible = false) }
+        updateState { it.copy(dialogState = DialogState.Hidden) }
     }
 
     private fun processInit() {

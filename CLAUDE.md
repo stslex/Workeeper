@@ -71,7 +71,9 @@ skill when the user asks for one of these tasks:
   version, add a `MIGRATION_X_Y` object, register it in `CoreDatabaseModule`, and add a
   `MigrationTestHelper`-based test.
 - [`refactor-with-mvi-rules`](.claude/skills/refactor-with-mvi-rules.md) — resolve a custom
-  Detekt MVI / Hilt scope / Composable rule violation by applying the conformant fix.
+  Detekt MVI / Hilt scope / Composable rule violation by applying the conformant fix
+  (see also [`compose-state-discipline`](.claude/skills/compose-state-discipline.md), which
+  covers Rule 4: dialogs and bottom sheets live in `State`, not `Event`).
 
 ## Current focus
 

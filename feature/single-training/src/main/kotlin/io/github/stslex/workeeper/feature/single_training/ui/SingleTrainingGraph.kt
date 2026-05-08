@@ -7,9 +7,6 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
@@ -24,6 +21,7 @@ import io.github.stslex.workeeper.core.ui.mvi.setAttrDefaultValue
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.single_training.R
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingFeature
+import io.github.stslex.workeeper.feature.single_training.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Event
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State.Mode
@@ -50,42 +48,19 @@ fun NavGraphBuilder.singleTrainingsGraph(
         }
 
         val haptic = LocalHapticFeedback.current
-        // TODO(tech-debt): UI mapping boundary — see documentation/tech-debt.md
-        val discardTitle = stringResource(R.string.feature_training_edit_discard_title)
-        val discardBody = stringResource(R.string.feature_training_edit_discard_body)
-        val discardConfirm = stringResource(R.string.feature_training_edit_discard_confirm)
-        val discardDismiss = stringResource(R.string.feature_training_edit_discard_dismiss)
-
-        var showDiscardDialog by remember { mutableStateOf(false) }
-        var permanentDeleteDialog by remember {
-            mutableStateOf<Event.ShowPermanentDeleteConfirmDialog?>(
-                null,
-            )
-        }
 
         processor.Handle { event ->
             when (event) {
                 is Event.HapticClick -> haptic.performHapticFeedback(event.type)
-                is Event.ShowArchiveSuccess ->
-                    SnackbarManager.showSnackbar(message = event.message)
-
+                is Event.ShowArchiveSuccess -> SnackbarManager.showSnackbar(message = event.message)
                 is Event.ShowArchiveBlocked -> SnackbarManager.showSnackbar(message = event.message)
-                Event.ShowDiscardConfirmDialog -> {
-                    showDiscardDialog = true
-                }
-
-                is Event.ShowPermanentDeleteConfirmDialog -> {
-                    permanentDeleteDialog = event
-                }
-
-                is Event.ShowActiveSessionConflict -> Unit // rendered from state.pendingConflict
-
                 is Event.ShowSaveError -> SnackbarManager.showSnackbar(message = event.message)
             }
         }
 
-        // Intercept back only for training-level dirty edits; the plan editor lives on
-        // its own route (Screen.PlanEditor) and owns its own dirty-state interception.
+        // Intercept back for unsaved edits or to dismiss the topmost dialog. The plan
+        // editor lives on its own route (Screen.PlanEditor) and owns its own dirty-state
+        // interception.
         BackHandler(enabled = processor.state.value.interceptBack) {
             processor.consume(Action.Click.OnBackClick)
         }
@@ -117,43 +92,31 @@ fun NavGraphBuilder.singleTrainingsGraph(
             )
         }
 
-        if (showDiscardDialog) {
-            AppDialog(
-                title = discardTitle,
-                body = discardBody,
-                confirmLabel = discardConfirm,
-                dismissLabel = discardDismiss,
+        when (val dialog = state.dialogState) {
+            DialogState.Hidden -> Unit
+
+            DialogState.DiscardConfirm -> AppDialog(
+                title = stringResource(R.string.feature_training_edit_discard_title),
+                body = stringResource(R.string.feature_training_edit_discard_body),
+                confirmLabel = stringResource(R.string.feature_training_edit_discard_confirm),
+                dismissLabel = stringResource(R.string.feature_training_edit_discard_dismiss),
                 destructive = true,
-                onConfirm = {
-                    showDiscardDialog = false
-                    processor.consume(Action.Click.OnConfirmDiscard)
-                },
-                onDismiss = {
-                    showDiscardDialog = false
-                    processor.consume(Action.Click.OnDismissDiscard)
-                },
+                onConfirm = { processor.consume(Action.Click.OnConfirmDiscard) },
+                onDismiss = { processor.consume(Action.Click.OnDismissDiscard) },
             )
-        }
-        permanentDeleteDialog?.let { dialog ->
-            AppConfirmDialog(
+
+            is DialogState.PermanentDeleteConfirm -> AppConfirmDialog(
                 title = dialog.title,
                 body = dialog.body,
                 impactSummary = dialog.impactSummary,
                 confirmLabel = dialog.confirmLabel,
-                onConfirm = {
-                    permanentDeleteDialog = null
-                    processor.consume(Action.Click.OnPermanentDeleteConfirm)
-                },
-                onDismiss = {
-                    permanentDeleteDialog = null
-                    processor.consume(Action.Click.OnPermanentDeleteDismiss)
-                },
+                onConfirm = { processor.consume(Action.Click.OnPermanentDeleteConfirm) },
+                onDismiss = { processor.consume(Action.Click.OnPermanentDeleteDismiss) },
             )
-        }
-        state.pendingConflict?.let { info ->
-            ActiveSessionConflictDialog(
-                activeSessionName = info.activeSessionName,
-                progressLabel = info.progressLabel,
+
+            is DialogState.ActiveSessionConflict -> ActiveSessionConflictDialog(
+                activeSessionName = dialog.activeSessionName,
+                progressLabel = dialog.progressLabel,
                 onResume = { processor.consume(Action.Click.OnConflictResume) },
                 onDeleteAndStartNew = { processor.consume(Action.Click.OnConflictDeleteAndStart) },
                 onCancel = { processor.consume(Action.Click.OnConflictDismiss) },
