@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
@@ -45,7 +46,11 @@ fun AppNumberInput(
         modifier = modifier
             .clip(AppUi.shapes.small)
             .background(AppUi.colors.surfaceTier2)
-            .border(width = AppDimension.borderHairline, color = borderColor, shape = AppUi.shapes.small)
+            .border(
+                width = AppDimension.borderHairline,
+                color = borderColor,
+                shape = AppUi.shapes.small,
+            )
             .height(AppDimension.heightMd)
             .padding(horizontal = AppDimension.Space.md),
         verticalAlignment = Alignment.CenterVertically,
@@ -58,7 +63,7 @@ fun AppNumberInput(
                 singleLine = true,
                 textStyle = textStyle,
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-                cursorBrush = androidx.compose.ui.graphics.SolidColor(AppUi.colors.accent),
+                cursorBrush = SolidColor(AppUi.colors.accent),
             )
         }
         suffix?.let {
@@ -73,7 +78,11 @@ fun AppNumberInput(
 }
 
 @Preview(name = "Light", showBackground = true)
-@Preview(name = "Dark", showBackground = true, uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES)
+@Preview(
+    name = "Dark",
+    showBackground = true,
+    uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES,
+)
 @Composable
 private fun AppNumberInputPreview() {
     AppTheme {
@@ -82,7 +91,9 @@ private fun AppNumberInputPreview() {
                 .background(AppUi.colors.surfaceTier0)
                 .padding(AppDimension.Space.lg)
                 .fillMaxWidth(),
-            verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(AppDimension.Space.md),
+            verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(
+                AppDimension.Space.md,
+            ),
         ) {
             AppNumberInput(value = "120", onValueChange = {}, suffix = "kg", decimals = 1)
             AppNumberInput(value = "8", onValueChange = {}, suffix = "reps", decimals = 0)

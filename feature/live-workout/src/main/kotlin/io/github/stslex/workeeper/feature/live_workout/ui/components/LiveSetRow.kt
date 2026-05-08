@@ -28,7 +28,6 @@ import io.github.stslex.workeeper.core.ui.kit.components.tooltip.AppTooltip
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
-import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
@@ -49,9 +48,17 @@ internal fun LiveSetRow(
     modifier: Modifier = Modifier,
     testTagPrefix: String? = null,
 ) {
-    val rowBg = if (set.isDone) AppUi.colors.surfaceTier2 else AppUi.colors.surfaceTier1
+    val rowBg = if (set.isDone) {
+        AppUi.colors.surfaceTier4
+    } else {
+        AppUi.colors.surfaceTier1
+    }
     val accentColor by animateColorAsState(
-        targetValue = if (set.isPersonalRecord) AppUi.colors.record.border else Color.Transparent,
+        targetValue = if (set.isPersonalRecord) {
+            AppUi.colors.record.border
+        } else {
+            Color.Transparent
+        },
         label = "pr-accent",
     )
     val rowModifier = modifier
@@ -117,10 +124,15 @@ internal fun LiveSetRow(
     }
 }
 
-@Preview
+@Preview(
+    uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES,
+)
+@Preview(
+    uiMode = android.content.res.Configuration.UI_MODE_NIGHT_NO,
+)
 @Composable
-private fun LiveSetRowPendingLightPreview() {
-    AppTheme(themeMode = ThemeMode.LIGHT) {
+private fun LiveSetRowPendingPreview() {
+    AppTheme {
         LiveSetRow(
             set = LiveSetUiModel(0, 100.0, 5, SetTypeUiModel.WORK, isDone = false),
             isWeighted = true,
@@ -134,10 +146,15 @@ private fun LiveSetRowPendingLightPreview() {
     }
 }
 
-@Preview
+@Preview(
+    uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES,
+)
+@Preview(
+    uiMode = android.content.res.Configuration.UI_MODE_NIGHT_NO,
+)
 @Composable
 private fun LiveSetRowDonePreview() {
-    AppTheme(themeMode = ThemeMode.DARK) {
+    AppTheme {
         LiveSetRow(
             set = LiveSetUiModel(1, 100.0, 5, SetTypeUiModel.WORK, isDone = true),
             isWeighted = true,
@@ -151,10 +168,15 @@ private fun LiveSetRowDonePreview() {
     }
 }
 
-@Preview
+@Preview(
+    uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES,
+)
+@Preview(
+    uiMode = android.content.res.Configuration.UI_MODE_NIGHT_NO,
+)
 @Composable
 private fun LiveSetRowWeightlessPreview() {
-    AppTheme(themeMode = ThemeMode.DARK) {
+    AppTheme {
         LiveSetRow(
             set = LiveSetUiModel(0, null, 12, SetTypeUiModel.WARMUP, isDone = false),
             isWeighted = false,

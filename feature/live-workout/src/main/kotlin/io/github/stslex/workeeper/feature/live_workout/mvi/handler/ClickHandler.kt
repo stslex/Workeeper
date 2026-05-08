@@ -400,16 +400,27 @@ internal class ClickHandler @Inject constructor(
                 ExerciseStatusUiModel.CURRENT -> {
                     // Toggle expanded. If it's the auto-default (not yet in activeUuids),
                     // also promote to explicit-active so the user can later collapse it.
+                    val expanded = exercise.performedExerciseUuid in current.expandedExerciseUuids
+
                     val expandedNext = current.expandedExerciseUuids.toMutableSet()
-                    if (!expandedNext.add(action.performedExerciseUuid)) {
+                    if (expanded) {
                         expandedNext.remove(action.performedExerciseUuid)
+                    } else {
+                        expandedNext.add(action.performedExerciseUuid)
                     }
-                    val activeNext = current.activeExerciseUuids.toMutableSet().apply {
-                        add(action.performedExerciseUuid)
+
+                    val activeNext = current.activeExerciseUuids.toMutableSet()
+                    if (expanded && exercise.performedSets.isEmpty() && activeNext.isNotEmpty()) {
+                        activeNext.remove(action.performedExerciseUuid)
+                    } else {
+                        activeNext.add(action.performedExerciseUuid)
                     }
-                    current.copy(
-                        activeExerciseUuids = activeNext.toImmutableSet(),
-                        expandedExerciseUuids = expandedNext.toImmutableSet(),
+
+                    setMutator.recomputeStatuses(
+                        current.copy(
+                            activeExerciseUuids = activeNext.toImmutableSet(),
+                            expandedExerciseUuids = expandedNext.toImmutableSet(),
+                        ),
                     )
                 }
 

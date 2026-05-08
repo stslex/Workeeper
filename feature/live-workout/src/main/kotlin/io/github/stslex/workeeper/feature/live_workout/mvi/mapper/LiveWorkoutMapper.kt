@@ -26,9 +26,9 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableMap
-import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableMap
+import kotlinx.collections.immutable.toImmutableSet
 
 @Suppress("TooManyFunctions")
 internal object LiveWorkoutMapper {
@@ -42,6 +42,10 @@ internal object LiveWorkoutMapper {
         }
         val prSnapshot = preSessionPrSnapshot.toUiSnapshot(typeByUuid)
         val ui = exercises.toUiList(prSnapshot = preSessionPrSnapshot, activeUuids = emptySet())
+        val activeExerciseUuids = ui.filter { it.status == ExerciseStatusUiModel.CURRENT }
+            .map { it.performedExerciseUuid }
+            .toImmutableSet()
+
         return State(
             sessionUuid = session.uuid,
             trainingUuid = session.trainingUuid,
@@ -60,8 +64,8 @@ internal object LiveWorkoutMapper {
             progressLabel = "",
             exercises = ui,
             setDrafts = emptyMap<State.DraftKey, LiveSetUiModel>().toImmutableMap(),
-            activeExerciseUuids = persistentSetOf(),
-            expandedExerciseUuids = persistentSetOf(),
+            activeExerciseUuids = activeExerciseUuids,
+            expandedExerciseUuids = activeExerciseUuids,
             preSessionPrSnapshot = prSnapshot,
             isAddExerciseInFlight = false,
             isFinishInFlight = false,

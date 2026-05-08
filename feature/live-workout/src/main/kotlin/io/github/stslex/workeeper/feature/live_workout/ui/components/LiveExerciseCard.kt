@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.live_workout.ui.components
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -82,7 +84,11 @@ internal fun LiveExerciseCard(
                 shape = AppUi.shapes.medium,
             )
             .alpha(cardAlpha)
-            .padding(AppDimension.Space.md),
+            .animateContentSize(
+                animationSpec = tween(
+                    durationMillis = AppUi.motion.normal,
+                ),
+            ),
     ) {
         ExerciseCardHeader(
             exercise = exercise,
@@ -107,7 +113,10 @@ private fun ExerciseCardHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { consume(LiveWorkoutStore.Action.Click.OnExerciseHeaderClick(exercise.performedExerciseUuid)) },
+            .clickable {
+                consume(LiveWorkoutStore.Action.Click.OnExerciseHeaderClick(exercise.performedExerciseUuid))
+            }
+            .padding(AppDimension.Space.md),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
