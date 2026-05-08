@@ -26,7 +26,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-internal class ImageStorageImpl @Inject constructor(
+class ImageStorageImpl @Inject constructor(
     @ApplicationContext private val context: Context,
     @IODispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : ImageStorage {

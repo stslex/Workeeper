@@ -40,7 +40,7 @@ import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseEn
     exportSchema = true,
 )
 @TypeConverters(UuidConverter::class, PlanSetsConverter::class)
-internal abstract class AppDatabase : RoomDatabase() {
+abstract class AppDatabase : RoomDatabase() {
 
     abstract val trainingDao: TrainingDao
     abstract val trainingExerciseDao: TrainingExerciseDao

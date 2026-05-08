@@ -23,7 +23,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 private const val FROM_VERSION = 5
 private const val TO_VERSION = 6
 
-internal object Migration6 : Migration(FROM_VERSION, TO_VERSION) {
+object Migration6 : Migration(FROM_VERSION, TO_VERSION) {
 
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL(
