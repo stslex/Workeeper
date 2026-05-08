@@ -53,7 +53,7 @@ internal class InputHandlerTest {
 
         assertEquals("oops", currentSet(store).weightInput)
         assertTrue(currentSet(store).weightError)
-        coVerify(exactly = 0) { interactor.updateSet(any(), any(), any()) }
+        coVerify(exactly = 0) { interactor.updateSet(any(), any()) }
     }
 
     @Test
@@ -83,7 +83,7 @@ internal class InputHandlerTest {
         handler.invoke(Action.Input.OnSetWeightChange(setUuid = SET_UUID, raw = "150"))
 
         advanceTimeBy(299)
-        coVerify(exactly = 0) { interactor.updateSet(any(), any(), any()) }
+        coVerify(exactly = 0) { interactor.updateSet(any(), any()) }
 
         advanceTimeBy(1)
         advanceUntilIdle()
@@ -91,12 +91,12 @@ internal class InputHandlerTest {
         coVerify(exactly = 1) {
             interactor.updateSet(
                 performedExerciseUuid = PERFORMED_EXERCISE_UUID,
-                position = SET_POSITION,
                 set = match { set ->
                     set.uuid == SET_UUID &&
                         set.reps == 8 &&
                         set.weight == 150.0 &&
-                        set.type == SetTypeDomain.WORK
+                        set.type == SetTypeDomain.WORK &&
+                        set.position == SET_POSITION
                 },
             )
         }
@@ -115,7 +115,7 @@ internal class InputHandlerTest {
 
         assertEquals("12x", currentSet(store).weightInput)
         assertTrue(currentSet(store).weightError)
-        coVerify(exactly = 0) { interactor.updateSet(any(), any(), any()) }
+        coVerify(exactly = 0) { interactor.updateSet(any(), any()) }
     }
 
     @Test
@@ -123,7 +123,7 @@ internal class InputHandlerTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val store = TestStore(loadedState(), this, dispatcher)
         val handler = InputHandler(interactor = interactor, store = store)
-        coEvery { interactor.updateSet(any(), any(), any()) } throws IllegalStateException("boom")
+        coEvery { interactor.updateSet(any(), any()) } throws IllegalStateException("boom")
 
         handler.invoke(Action.Input.OnSetWeightChange(setUuid = SET_UUID, raw = "110"))
         advanceTimeBy(300)
@@ -136,28 +136,29 @@ internal class InputHandlerTest {
     private fun currentSet(store: TestStore): PastSetUiModel =
         ((store.state.value.phase as State.Phase.Loaded).detail.exercises.single().sets.single())
 
-    private fun loadedState(set: PastSetUiModel = baseSet()): State = State.create(sessionUuid = SESSION_UUID)
-        .copy(
-            phase = State.Phase.Loaded(
-                detail = PastSessionUiModel(
-                    trainingName = "Push Day",
-                    isAdhoc = false,
-                    finishedAtAbsoluteLabel = "Apr 28",
-                    durationLabel = "01:00",
-                    totalsLabel = "1 exercise · 1 set",
-                    exercises = persistentListOf(
-                        PastExerciseUiModel(
-                            performedExerciseUuid = PERFORMED_EXERCISE_UUID,
-                            exerciseName = "Bench",
-                            position = 0,
-                            skipped = false,
-                            isWeighted = true,
-                            sets = persistentListOf(set),
+    private fun loadedState(set: PastSetUiModel = baseSet()): State =
+        State.create(sessionUuid = SESSION_UUID)
+            .copy(
+                phase = State.Phase.Loaded(
+                    detail = PastSessionUiModel(
+                        trainingName = "Push Day",
+                        isAdhoc = false,
+                        finishedAtAbsoluteLabel = "Apr 28",
+                        durationLabel = "01:00",
+                        totalsLabel = "1 exercise · 1 set",
+                        exercises = persistentListOf(
+                            PastExerciseUiModel(
+                                performedExerciseUuid = PERFORMED_EXERCISE_UUID,
+                                exerciseName = "Bench",
+                                position = 0,
+                                skipped = false,
+                                isWeighted = true,
+                                sets = persistentListOf(set),
+                            ),
                         ),
                     ),
                 ),
-            ),
-        )
+            )
 
     private fun baseSet(
         weightInput: String = "100",

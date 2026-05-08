@@ -172,8 +172,20 @@ internal class LiveWorkoutInteractorImplTest {
                 ),
             )
             coEvery { setRepository.getByPerformedExercise("pe-1") } returns listOf(
-                SetsDataModel(uuid = "s-1", reps = 5, weight = 100.0, type = SetsDataType.WORK),
-                SetsDataModel(uuid = "s-2", reps = 5, weight = 100.0, type = SetsDataType.WORK),
+                SetsDataModel(
+                    uuid = "s-1",
+                    reps = 5,
+                    weight = 100.0,
+                    type = SetsDataType.WORK,
+                    position = 0,
+                ),
+                SetsDataModel(
+                    uuid = "s-2",
+                    reps = 5,
+                    weight = 100.0,
+                    type = SetsDataType.WORK,
+                    position = 1,
+                ),
             )
             coEvery { trainingExerciseRepository.getPlan(trainingUuid, "ex-1") } returns listOf(
                 PlanSetDataModel(weight = 90.0, reps = 5, type = SetTypeDataModel.WORK),
@@ -242,7 +254,13 @@ internal class LiveWorkoutInteractorImplTest {
             ),
         )
         coEvery { setRepository.getByPerformedExercise("pe-1") } returns listOf(
-            SetsDataModel(uuid = "s-1", reps = 8, weight = 50.0, type = SetsDataType.WORK),
+            SetsDataModel(
+                uuid = "s-1",
+                reps = 8,
+                weight = 50.0,
+                type = SetsDataType.WORK,
+                position = 0,
+            ),
         )
         coEvery { exerciseRepository.getAdhocPlan("ex-1") } returns null
         val captured = slot<List<PlanUpdate>>()

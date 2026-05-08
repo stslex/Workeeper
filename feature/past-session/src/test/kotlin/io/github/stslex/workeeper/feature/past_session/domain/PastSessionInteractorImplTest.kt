@@ -83,23 +83,22 @@ internal class PastSessionInteractorImplTest {
     @Test
     fun `updateSet maps domain SetDomain to data SetsDataModel and forwards`() = runTest {
         val captured = slot<SetsDataModel>()
-        coEvery { setRepository.update(any(), any(), capture(captured)) } returns Unit
+        coEvery { setRepository.update(any(), capture(captured)) } returns Unit
 
         interactor.updateSet(
             performedExerciseUuid = "performed-1",
-            position = 2,
             set = SetDomain(
                 uuid = "set-1",
                 reps = 8,
                 weight = 100.0,
                 type = SetTypeDomain.WORK,
+                position = 2,
             ),
         )
 
         coVerify(exactly = 1) {
             setRepository.update(
                 performedExerciseUuid = "performed-1",
-                position = 2,
                 set = any(),
             )
         }

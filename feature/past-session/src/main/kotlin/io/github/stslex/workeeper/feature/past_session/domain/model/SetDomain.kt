@@ -5,5 +5,6 @@ internal data class SetDomain(
     val uuid: String,
     val reps: Int,
     val weight: Double?,
+    val position: Int,
     val type: SetTypeDomain,
 )

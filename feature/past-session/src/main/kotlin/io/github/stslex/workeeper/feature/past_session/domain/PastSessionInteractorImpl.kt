@@ -54,10 +54,9 @@ internal class PastSessionInteractorImpl @Inject constructor(
 
     override suspend fun updateSet(
         performedExerciseUuid: String,
-        position: Int,
         set: SetDomain,
     ) {
-        setRepository.update(performedExerciseUuid, position, set.toData())
+        setRepository.update(performedExerciseUuid, set.toData())
     }
 
     override suspend fun reorderSets(

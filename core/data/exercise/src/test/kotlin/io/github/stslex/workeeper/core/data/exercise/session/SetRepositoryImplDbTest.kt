@@ -50,10 +50,11 @@ internal class SetRepositoryImplDbTest {
             uuid = Uuid.random().toString(),
             reps = 5,
             weight = 100.0,
+            position = 0,
             type = SetsDataType.WORK,
         )
 
-        repository.insert(performedUuid.toString(), position = 0, set = data)
+        repository.insert(performedUuid.toString(), set = data)
 
         val rows = repository.getByPerformedExercise(performedUuid.toString())
         assertEquals(1, rows.size)
@@ -67,12 +68,13 @@ internal class SetRepositoryImplDbTest {
             uuid = Uuid.random().toString(),
             reps = 5,
             weight = 80.0,
+            position = 0,
             type = SetsDataType.WORK,
         )
-        repository.insert(performedUuid.toString(), position = 0, set = original)
+        repository.insert(performedUuid.toString(), set = original)
 
         val updated = original.copy(reps = 8, weight = 95.0, type = SetsDataType.FAIL)
-        repository.update(performedUuid.toString(), position = 0, set = updated)
+        repository.update(performedUuid.toString(), set = updated)
 
         val rows = repository.getByPerformedExercise(performedUuid.toString())
         assertEquals(updated, rows.single())
@@ -84,10 +86,11 @@ internal class SetRepositoryImplDbTest {
         val initial = SetsDataModel(
             uuid = Uuid.random().toString(),
             reps = 5,
+            position = 2,
             weight = 80.0,
             type = SetsDataType.WORK,
         )
-        repository.insert(performedUuid.toString(), position = 2, set = initial)
+        repository.insert(performedUuid.toString(), set = initial)
 
         repository.upsert(
             performedExerciseUuid = performedUuid.toString(),
@@ -129,10 +132,11 @@ internal class SetRepositoryImplDbTest {
         val data = SetsDataModel(
             uuid = Uuid.random().toString(),
             reps = 5,
+            position = 0,
             weight = 80.0,
             type = SetsDataType.WORK,
         )
-        repository.insert(performedUuid.toString(), position = 0, set = data)
+        repository.insert(performedUuid.toString(), set = data)
 
         repository.delete(data.uuid)
 
@@ -144,13 +148,23 @@ internal class SetRepositoryImplDbTest {
         val performedUuid = seedPerformedExercise()
         repository.insert(
             performedUuid.toString(),
-            position = 0,
-            set = SetsDataModel(Uuid.random().toString(), 5, 100.0, SetsDataType.WORK),
+            set = SetsDataModel(
+                uuid = Uuid.random().toString(),
+                reps = 5,
+                weight = 100.0,
+                type = SetsDataType.WORK,
+                position = 0,
+            ),
         )
         repository.insert(
             performedUuid.toString(),
-            position = 1,
-            set = SetsDataModel(Uuid.random().toString(), 5, 110.0, SetsDataType.WORK),
+            set = SetsDataModel(
+                uuid = Uuid.random().toString(),
+                reps = 5,
+                weight = 110.0,
+                position = 1,
+                type = SetsDataType.WORK,
+            ),
         )
 
         repository.deleteByPerformedAndPosition(performedUuid.toString(), position = 0)
@@ -165,8 +179,14 @@ internal class SetRepositoryImplDbTest {
         val performedUuid = seedPerformedExercise()
         repository.insert(
             performedUuid.toString(),
-            position = 0,
-            set = SetsDataModel(Uuid.random().toString(), 5, 100.0, SetsDataType.WORK),
+
+            set = SetsDataModel(
+                uuid = Uuid.random().toString(),
+                reps = 5,
+                weight = 100.0,
+                position = 0,
+                type = SetsDataType.WORK,
+            ),
         )
 
         repository.deleteAllForPerformedExercise(performedUuid.toString())
@@ -183,8 +203,13 @@ internal class SetRepositoryImplDbTest {
 
             repository.insert(
                 performedUuid.toString(),
-                position = 0,
-                set = SetsDataModel(Uuid.random().toString(), 5, 100.0, SetsDataType.WORK),
+                set = SetsDataModel(
+                    uuid = Uuid.random().toString(),
+                    reps = 5,
+                    weight = 100.0,
+                    type = SetsDataType.WORK,
+                    position = 0,
+                ),
             )
 
             assertTrue(repository.hasAnyForPerformed(performedUuid.toString()))
@@ -200,18 +225,15 @@ internal class SetRepositoryImplDbTest {
             val thirdUuid = Uuid.random().toString()
             repository.insert(
                 performedUuid.toString(),
-                position = 0,
-                set = SetsDataModel(firstUuid, 5, 100.0, SetsDataType.WORK),
+                set = SetsDataModel(firstUuid, 5, 100.0, SetsDataType.WORK, 0),
             )
             repository.insert(
                 performedUuid.toString(),
-                position = 1,
-                set = SetsDataModel(secondUuid, 5, 110.0, SetsDataType.WORK),
+                set = SetsDataModel(secondUuid, 5, 110.0, SetsDataType.WORK, 1),
             )
             repository.insert(
                 performedUuid.toString(),
-                position = 2,
-                set = SetsDataModel(thirdUuid, 5, 120.0, SetsDataType.WORK),
+                set = SetsDataModel(thirdUuid, 5, 120.0, SetsDataType.WORK, 2),
             )
 
             // Reverse the order.
@@ -229,8 +251,8 @@ internal class SetRepositoryImplDbTest {
     @Test
     fun `reorderSets with an empty list is a no-op`() = runTest {
         val performedUuid = seedPerformedExercise()
-        val data = SetsDataModel(Uuid.random().toString(), 5, 100.0, SetsDataType.WORK)
-        repository.insert(performedUuid.toString(), position = 0, set = data)
+        val data = SetsDataModel(Uuid.random().toString(), 5, 100.0, SetsDataType.WORK, 0)
+        repository.insert(performedUuid.toString(), set = data)
 
         repository.reorderSets(performedUuid.toString(), orderedSetUuids = emptyList())
 
@@ -269,13 +291,16 @@ internal class SetRepositoryImplDbTest {
         runTest {
             val firstPerformed = seedPerformedExercise()
             val secondPerformed = seedPerformedExercise()
-            val firstA = SetsDataModel(Uuid.random().toString(), 5, 100.0, SetsDataType.WORK)
-            val firstB = SetsDataModel(Uuid.random().toString(), 5, 110.0, SetsDataType.WORK)
-            val secondA = SetsDataModel(Uuid.random().toString(), 8, 50.0, SetsDataType.WARM)
+            val firstA =
+                SetsDataModel(Uuid.random().toString(), 5, 100.0, SetsDataType.WORK, position = 0)
+            val firstB =
+                SetsDataModel(Uuid.random().toString(), 5, 110.0, SetsDataType.WORK, position = 1)
+            val secondA =
+                SetsDataModel(Uuid.random().toString(), 8, 50.0, SetsDataType.WARM, position = 0)
             // Insert positions out of order to verify the DAO ORDER BY survives the mapping.
-            repository.insert(firstPerformed.toString(), position = 1, set = firstB)
-            repository.insert(firstPerformed.toString(), position = 0, set = firstA)
-            repository.insert(secondPerformed.toString(), position = 0, set = secondA)
+            repository.insert(firstPerformed.toString(), set = firstB)
+            repository.insert(firstPerformed.toString(), set = firstA)
+            repository.insert(secondPerformed.toString(), set = secondA)
 
             val result = repository.getByPerformedExercises(
                 listOf(firstPerformed.toString(), secondPerformed.toString()),
@@ -298,8 +323,7 @@ internal class SetRepositoryImplDbTest {
         val withoutSets = seedPerformedExercise()
         repository.insert(
             withSets.toString(),
-            position = 0,
-            set = SetsDataModel(Uuid.random().toString(), 5, 100.0, SetsDataType.WORK),
+            set = SetsDataModel(Uuid.random().toString(), 5, 100.0, SetsDataType.WORK, 0),
         )
 
         val result = repository.getByPerformedExercises(

@@ -24,17 +24,18 @@ internal class PastSessionUiMapperTest {
             else -> error("Unexpected string id: $id")
         }
 
-        override fun getQuantityString(id: Int, quantity: Int, vararg args: Any): String = when (id) {
-            R.plurals.feature_past_session_exercises_count -> {
-                if (quantity == 1) "$quantity exercise" else "$quantity exercises"
-            }
+        override fun getQuantityString(id: Int, quantity: Int, vararg args: Any): String =
+            when (id) {
+                R.plurals.feature_past_session_exercises_count -> {
+                    if (quantity == 1) "$quantity exercise" else "$quantity exercises"
+                }
 
-            R.plurals.feature_past_session_sets_count -> {
-                if (quantity == 1) "$quantity set" else "$quantity sets"
-            }
+                R.plurals.feature_past_session_sets_count -> {
+                    if (quantity == 1) "$quantity set" else "$quantity sets"
+                }
 
-            else -> error("Unexpected plural id: $id")
-        }
+                else -> error("Unexpected plural id: $id")
+            }
 
         override fun getAbbreviatedRelativeTime(timestamp: Long, now: Long): String =
             error("Not used in PastSessionUiMapperTest")
@@ -62,13 +63,19 @@ internal class PastSessionUiMapperTest {
         assertEquals("2 exercises · 3 sets", ui.totalsLabel)
         // Total-kg/volume metric removed in v2.4 5.7 — model no longer surfaces it.
 
-        assertEquals(listOf("Pull Up", "Bench", "Skipped Fly"), ui.exercises.map { it.exerciseName })
+        assertEquals(
+            listOf("Pull Up", "Bench", "Skipped Fly"),
+            ui.exercises.map { it.exerciseName },
+        )
         assertEquals(false, ui.exercises[0].isWeighted)
         assertEquals(true, ui.exercises[1].isWeighted)
         assertEquals(true, ui.exercises[2].skipped)
         assertTrue(ui.exercises[2].sets.isEmpty())
         assertEquals(listOf(0, 1), ui.exercises[1].sets.map { it.position })
-        assertEquals(listOf(SetTypeUiModel.WORK, SetTypeUiModel.FAILURE), ui.exercises[1].sets.map { it.type })
+        assertEquals(
+            listOf(SetTypeUiModel.WORK, SetTypeUiModel.FAILURE),
+            ui.exercises[1].sets.map { it.type },
+        )
     }
 
     @Test
@@ -114,6 +121,7 @@ internal class PastSessionUiMapperTest {
                             reps = 5,
                             weight = 100.0,
                             type = SetTypeDomain.WORK,
+                            position = 0,
                         ),
                     ),
                 ),
@@ -150,6 +158,7 @@ internal class PastSessionUiMapperTest {
                 reps = 10,
                 weight = null,
                 type = SetTypeDomain.WORK,
+                position = 0,
             ),
         ),
     )
@@ -167,12 +176,14 @@ internal class PastSessionUiMapperTest {
                 reps = 5,
                 weight = 100.0,
                 type = SetTypeDomain.WORK,
+                position = 0,
             ),
             SetDomain(
                 uuid = "set-3",
                 reps = 3,
                 weight = 90.0,
                 type = SetTypeDomain.FAILURE,
+                position = 1,
             ),
         ),
     )

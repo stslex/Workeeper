@@ -10,13 +10,10 @@ data class SetsDataModel(
     val reps: Int,
     val weight: Double?,
     val type: SetsDataType,
-    val position: Int = 0,
+    val position: Int,
 )
 
-internal fun SetsDataModel.toEntity(
-    performedExerciseUuid: Uuid,
-    position: Int,
-): SetEntity = SetEntity(
+internal fun SetsDataModel.toEntity(performedExerciseUuid: Uuid): SetEntity = SetEntity(
     uuid = Uuid.parse(uuid),
     performedExerciseUuid = performedExerciseUuid,
     position = position,
