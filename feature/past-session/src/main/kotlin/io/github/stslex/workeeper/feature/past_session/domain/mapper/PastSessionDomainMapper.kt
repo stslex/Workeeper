@@ -44,6 +44,7 @@ internal object PastSessionDomainMapper {
         uuid = uuid,
         reps = reps,
         weight = weight,
+        position = position,
         type = type.toDomain(),
     )
 
@@ -58,6 +59,7 @@ internal object PastSessionDomainMapper {
         uuid = uuid,
         reps = reps,
         weight = weight,
+        position = position,
         type = type.toData(),
     )
 

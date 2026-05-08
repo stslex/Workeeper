@@ -52,14 +52,12 @@ internal class SetRepositoryImpl @Inject constructor(
 
     override suspend fun insert(
         performedExerciseUuid: String,
-        position: Int,
         set: SetsDataModel,
     ) {
         withContext(ioDispatcher) {
             dao.insert(
                 set.toEntity(
                     performedExerciseUuid = Uuid.parse(performedExerciseUuid),
-                    position = position,
                 ),
             )
         }
@@ -67,14 +65,12 @@ internal class SetRepositoryImpl @Inject constructor(
 
     override suspend fun update(
         performedExerciseUuid: String,
-        position: Int,
         set: SetsDataModel,
     ) {
         withContext(ioDispatcher) {
             dao.update(
                 set.toEntity(
                     performedExerciseUuid = Uuid.parse(performedExerciseUuid),
-                    position = position,
                 ),
             )
         }

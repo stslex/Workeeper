@@ -41,16 +41,13 @@ internal class StateStatusMapper @Inject constructor(
         activeUuids: Set<String>,
     ): ImmutableList<LiveExerciseUiModel> {
         val computed = items.map { exercise ->
-            val planSets = exercise.planSets
-            val performed = exercise.performedSets
             val skipped = exercise.status == ExerciseStatusUiModel.SKIPPED
-            val performedByPosition = performed.associateBy { it.position }
-            val isDone = !skipped && if (planSets.isEmpty()) {
-                performed.any { it.isDone }
-            } else {
-                performed.size >= planSets.size &&
-                    planSets.indices.all { index -> performedByPosition[index]?.isDone == true }
-            }
+            val isDone = ExerciseDoneRule.isDoneLive(
+                planSets = exercise.planSets,
+                performedSets = exercise.performedSets,
+                visibleSets = exercise.visibleSets,
+                skipped = skipped,
+            )
             Triple(exercise, isDone, skipped)
         }
         // Auto-default mirrors the mapper: if no exercise is explicitly active, the first

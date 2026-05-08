@@ -18,9 +18,9 @@ interface SetRepository {
     )
     suspend fun getLastFinishedSet(exerciseUuid: String): SetsDataModel?
 
-    suspend fun insert(performedExerciseUuid: String, position: Int, set: SetsDataModel)
+    suspend fun insert(performedExerciseUuid: String, set: SetsDataModel)
 
-    suspend fun update(performedExerciseUuid: String, position: Int, set: SetsDataModel)
+    suspend fun update(performedExerciseUuid: String, set: SetsDataModel)
 
     /**
      * Rewrites positions for the sets of [performedExerciseUuid] in the order given by

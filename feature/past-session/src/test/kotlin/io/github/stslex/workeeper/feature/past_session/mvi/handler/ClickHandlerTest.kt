@@ -57,25 +57,26 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `OnDeleteConfirm deletes the session closes dialog and navigates back with snackbar`() = runTest {
-        val dispatcher = StandardTestDispatcher(testScheduler)
-        val store = TestStore(loadedState(deleteDialogVisible = true), this, dispatcher)
-        val handler = ClickHandler(interactor = interactor, store = store)
+    fun `OnDeleteConfirm deletes the session closes dialog and navigates back with snackbar`() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val store = TestStore(loadedState(deleteDialogVisible = true), this, dispatcher)
+            val handler = ClickHandler(interactor = interactor, store = store)
 
-        handler.invoke(Action.Click.OnDeleteConfirm)
-        advanceUntilIdle()
+            handler.invoke(Action.Click.OnDeleteConfirm)
+            advanceUntilIdle()
 
-        coVerify(exactly = 1) { interactor.deleteSession(SESSION_UUID) }
-        assertFalse(store.state.value.deleteDialogVisible)
-        assertEquals(
-            listOf(
-                Event.HapticClick(HapticFeedbackType.Confirm),
-                Event.DeletedSnackbar,
-            ),
-            store.events,
-        )
-        assertEquals(listOf(Action.Navigation.Back), store.consumedActions)
-    }
+            coVerify(exactly = 1) { interactor.deleteSession(SESSION_UUID) }
+            assertFalse(store.state.value.deleteDialogVisible)
+            assertEquals(
+                listOf(
+                    Event.HapticClick(HapticFeedbackType.Confirm),
+                    Event.DeletedSnackbar,
+                ),
+                store.events,
+            )
+            assertEquals(listOf(Action.Navigation.Back), store.consumedActions)
+        }
 
     @Test
     fun `OnRetryLoad consumes Init`() = runTest {
@@ -107,12 +108,12 @@ internal class ClickHandlerTest {
         coVerify(exactly = 1) {
             interactor.updateSet(
                 performedExerciseUuid = PERFORMED_EXERCISE_UUID,
-                position = SET_POSITION,
                 set = match { set ->
                     set.uuid == SET_UUID &&
                         set.reps == 8 &&
                         set.weight == 100.0 &&
-                        set.type == SetTypeDomain.FAILURE
+                        set.type == SetTypeDomain.FAILURE &&
+                        set.position == SET_POSITION
                 },
             )
         }
@@ -121,41 +122,42 @@ internal class ClickHandlerTest {
     private fun currentSet(store: TestStore): PastSetUiModel =
         ((store.state.value.phase as State.Phase.Loaded).detail.exercises.single().sets.single())
 
-    private fun loadedState(deleteDialogVisible: Boolean = false): State = State.create(sessionUuid = SESSION_UUID)
-        .copy(
-            phase = State.Phase.Loaded(
-                detail = PastSessionUiModel(
-                    trainingName = "Push Day",
-                    isAdhoc = false,
-                    finishedAtAbsoluteLabel = "Apr 28",
-                    durationLabel = "01:00",
-                    totalsLabel = "1 exercise · 1 set",
-                    exercises = persistentListOf(
-                        PastExerciseUiModel(
-                            performedExerciseUuid = PERFORMED_EXERCISE_UUID,
-                            exerciseName = "Bench",
-                            position = 0,
-                            skipped = false,
-                            isWeighted = true,
-                            sets = persistentListOf(
-                                PastSetUiModel(
-                                    setUuid = SET_UUID,
-                                    performedExerciseUuid = PERFORMED_EXERCISE_UUID,
-                                    position = SET_POSITION,
-                                    type = SetTypeUiModel.WORK,
-                                    weightInput = "100",
-                                    repsInput = "8",
-                                    weightError = false,
-                                    repsError = false,
-                                    isPersonalRecord = false,
+    private fun loadedState(deleteDialogVisible: Boolean = false): State =
+        State.create(sessionUuid = SESSION_UUID)
+            .copy(
+                phase = State.Phase.Loaded(
+                    detail = PastSessionUiModel(
+                        trainingName = "Push Day",
+                        isAdhoc = false,
+                        finishedAtAbsoluteLabel = "Apr 28",
+                        durationLabel = "01:00",
+                        totalsLabel = "1 exercise · 1 set",
+                        exercises = persistentListOf(
+                            PastExerciseUiModel(
+                                performedExerciseUuid = PERFORMED_EXERCISE_UUID,
+                                exerciseName = "Bench",
+                                position = 0,
+                                skipped = false,
+                                isWeighted = true,
+                                sets = persistentListOf(
+                                    PastSetUiModel(
+                                        setUuid = SET_UUID,
+                                        performedExerciseUuid = PERFORMED_EXERCISE_UUID,
+                                        position = SET_POSITION,
+                                        type = SetTypeUiModel.WORK,
+                                        weightInput = "100",
+                                        repsInput = "8",
+                                        weightError = false,
+                                        repsError = false,
+                                        isPersonalRecord = false,
+                                    ),
                                 ),
                             ),
                         ),
                     ),
                 ),
-            ),
-            deleteDialogVisible = deleteDialogVisible,
-        )
+                deleteDialogVisible = deleteDialogVisible,
+            )
 
     private class TestStore(
         initialState: State,

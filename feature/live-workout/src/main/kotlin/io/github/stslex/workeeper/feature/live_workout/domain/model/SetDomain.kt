@@ -6,4 +6,5 @@ internal data class SetDomain(
     val weight: Double?,
     val reps: Int,
     val type: SetTypeDomain,
+    val position: Int,
 )

@@ -84,7 +84,11 @@ internal object LiveWorkoutMapper {
             val plan = snapshot.planSets.orEmpty().map { it.toUi() }.toImmutableList()
             val baseline = prSnapshot[snapshot.performed.exerciseUuid]
             val performed = snapshot.toLiveSets(baseline)
-            val isDone = isExerciseDone(plan, performed, snapshot.performed.skipped)
+            val isDone = ExerciseDoneRule.isDoneLoad(
+                planSets = plan,
+                performedSets = performed,
+                skipped = snapshot.performed.skipped,
+            )
             Computed(snapshot, plan, performed, isDone)
         }
         val autoCurrentUuid = if (activeUuids.isEmpty()) {
@@ -124,21 +128,24 @@ internal object LiveWorkoutMapper {
     private fun LiveExerciseDomain.toLiveSets(
         baseline: PersonalRecordDomain?,
     ): ImmutableList<LiveSetUiModel> =
-        performedSets.mapIndexed { index, set ->
-            LiveSetUiModel(
-                position = index,
-                weight = set.weight,
-                reps = set.reps,
-                type = set.type.toUi(),
-                isDone = true,
-                isPersonalRecord = set.toPlanSetDomain().beatsBaseline(
-                    baselineWeight = baseline?.weight,
-                    baselineReps = baseline?.reps,
-                    type = exerciseType,
-                    hasBaseline = baseline != null,
-                ),
-            )
-        }.toImmutableList()
+        performedSets
+            .map { set ->
+                LiveSetUiModel(
+                    position = set.position,
+                    weight = set.weight,
+                    reps = set.reps,
+                    type = set.type.toUi(),
+                    isDone = true,
+                    isPersonalRecord = set.toPlanSetDomain().beatsBaseline(
+                        baselineWeight = baseline?.weight,
+                        baselineReps = baseline?.reps,
+                        type = exerciseType,
+                        hasBaseline = baseline != null,
+                    ),
+                )
+            }
+            .sortedBy { it.position }
+            .toImmutableList()
 
     private fun SetDomain.toPlanSetDomain(): PlanSetDomain = PlanSetDomain(
         weight = weight,
@@ -160,18 +167,6 @@ internal object LiveWorkoutMapper {
         }
         .toMap()
         .toImmutableMap()
-
-    private fun isExerciseDone(
-        plan: ImmutableList<PlanSetUiModel>,
-        performed: ImmutableList<LiveSetUiModel>,
-        skipped: Boolean,
-    ): Boolean {
-        if (skipped) return false
-        if (plan.isEmpty()) return performed.any { it.isDone }
-        if (performed.size < plan.size) return false
-        val performedByPosition = performed.associateBy { it.position }
-        return plan.indices.all { idx -> performedByPosition[idx]?.isDone == true }
-    }
 
     fun State.withPresentation(resourceWrapper: ResourceWrapper): State {
         // Recompute visible-row resolution alongside the rest of presentation. Every

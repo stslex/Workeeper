@@ -70,7 +70,7 @@ internal fun LiveSetRow(
         .height(AppDimension.heightLg)
         .background(rowBg)
         .personalRecordAccent(color = accentColor)
-        .padding(horizontal = AppDimension.Space.sm)
+        .padding(horizontal = AppDimension.Space.md)
     Row(
         modifier = rowModifier,
         verticalAlignment = Alignment.CenterVertically,

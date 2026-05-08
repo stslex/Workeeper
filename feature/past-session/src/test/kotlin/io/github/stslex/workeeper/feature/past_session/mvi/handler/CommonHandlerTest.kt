@@ -49,11 +49,12 @@ internal class CommonHandlerTest {
             else -> error("Unexpected string id: $id")
         }
 
-        override fun getQuantityString(id: Int, quantity: Int, vararg args: Any): String = when (id) {
-            R.plurals.feature_past_session_exercises_count -> "$quantity exercises"
-            R.plurals.feature_past_session_sets_count -> "$quantity sets"
-            else -> error("Unexpected plural id: $id")
-        }
+        override fun getQuantityString(id: Int, quantity: Int, vararg args: Any): String =
+            when (id) {
+                R.plurals.feature_past_session_exercises_count -> "$quantity exercises"
+                R.plurals.feature_past_session_sets_count -> "$quantity sets"
+                else -> error("Unexpected plural id: $id")
+            }
 
         override fun getAbbreviatedRelativeTime(timestamp: Long, now: Long): String =
             error("Not used in CommonHandlerTest")
@@ -138,8 +139,20 @@ internal class CommonHandlerTest {
             resourceWrapper = resources,
             store = store,
         )
-        val prSet = SetDomain(uuid = "set-pr", reps = 5, weight = 100.0, type = SetTypeDomain.WORK)
-        val plainSet = SetDomain(uuid = "set-plain", reps = 5, weight = 80.0, type = SetTypeDomain.WORK)
+        val prSet = SetDomain(
+            uuid = "set-pr",
+            reps = 5,
+            weight = 100.0,
+            type = SetTypeDomain.WORK,
+            position = 0,
+        )
+        val plainSet = SetDomain(
+            uuid = "set-plain",
+            reps = 5,
+            weight = 80.0,
+            type = SetTypeDomain.WORK,
+            position = 1,
+        )
         val performed = PerformedExerciseDetailDomain(
             performedExerciseUuid = "performed-1",
             exerciseUuid = "exercise-1",

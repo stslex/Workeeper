@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -130,11 +131,15 @@ private fun ExerciseCardHeader(
         horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
         Text(
+            modifier = Modifier
+                .height(AppDimension.iconSm),
             text = (exercise.position + 1).toString(),
             style = AppUi.typography.labelMedium,
             color = AppUi.colors.textTertiary,
         )
-        Column(modifier = Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier.weight(1f),
+        ) {
             Text(
                 text = exercise.exerciseName,
                 style = AppUi.typography.bodyMedium,
@@ -146,46 +151,56 @@ private fun ExerciseCardHeader(
                 color = AppUi.colors.textSecondary,
             )
         }
-        if (exercise.status == ExerciseStatusUiModel.CURRENT) {
-            // The IconButton + DropdownMenu pair must share a single anchor Box so
-            // DropdownMenu's offset stays flush-right under the icon. Without the wrapper
-            // the menu opens against the parent Row's start edge — which is what the
-            // pre-v2.4 build did and the spec 5.4 three-dots fix closes.
-            Box {
-                IconButton(onClick = { menuExpanded = true }) {
-                    Icon(
-                        modifier = Modifier.size(AppDimension.iconSm),
-                        imageVector = Icons.Filled.MoreVert,
-                        contentDescription = stringResource(R.string.feature_live_workout_more),
-                        tint = AppUi.colors.textPrimary,
-                    )
-                }
-                DropdownMenu(
-                    expanded = menuExpanded,
-                    onDismissRequest = { menuExpanded = false },
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.feature_live_workout_action_edit_plan)) },
-                        onClick = {
-                            menuExpanded = false
-                            consume(LiveWorkoutStore.Action.Click.OnEditPlan(exercise.performedExerciseUuid))
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.feature_live_workout_action_reset_sets)) },
-                        onClick = {
-                            menuExpanded = false
-                            consume(LiveWorkoutStore.Action.Click.OnResetSets(exercise.performedExerciseUuid))
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.feature_live_workout_action_skip)) },
-                        onClick = {
-                            menuExpanded = false
-                            consume(LiveWorkoutStore.Action.Click.OnSkipExercise(exercise.performedExerciseUuid))
-                        },
-                    )
-                }
+        // The IconButton + DropdownMenu pair must share a single anchor Box so
+        // DropdownMenu's offset stays flush-right under the icon. Without the wrapper
+        // the menu opens against the parent Row's start edge — which is what the
+        // pre-v2.4 build did and the spec 5.4 three-dots fix closes.
+        Box {
+            IconButton(
+                onClick = {
+                    if (exercise.status == ExerciseStatusUiModel.CURRENT) {
+                        menuExpanded = true
+                    } else {
+                        consume(LiveWorkoutStore.Action.Click.OnExerciseHeaderClick(exercise.performedExerciseUuid))
+                    }
+                },
+            ) {
+                Icon(
+                    modifier = Modifier.size(AppDimension.iconSm),
+                    imageVector = Icons.Filled.MoreVert,
+                    contentDescription = stringResource(R.string.feature_live_workout_more),
+                    tint = if (exercise.status == ExerciseStatusUiModel.CURRENT) {
+                        AppUi.colors.textPrimary
+                    } else {
+                        AppUi.colors.surfaceTier1
+                    },
+                )
+            }
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false },
+            ) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.feature_live_workout_action_edit_plan)) },
+                    onClick = {
+                        menuExpanded = false
+                        consume(LiveWorkoutStore.Action.Click.OnEditPlan(exercise.performedExerciseUuid))
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.feature_live_workout_action_reset_sets)) },
+                    onClick = {
+                        menuExpanded = false
+                        consume(LiveWorkoutStore.Action.Click.OnResetSets(exercise.performedExerciseUuid))
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.feature_live_workout_action_skip)) },
+                    onClick = {
+                        menuExpanded = false
+                        consume(LiveWorkoutStore.Action.Click.OnSkipExercise(exercise.performedExerciseUuid))
+                    },
+                )
             }
         }
     }
@@ -201,7 +216,12 @@ private fun ExerciseCardBody(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = AppDimension.Space.sm),
+            .padding(top = AppDimension.Space.sm)
+            .animateContentSize(
+                animationSpec = tween(
+                    durationMillis = AppUi.motion.normal,
+                ),
+            ),
         verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xs),
     ) {
         exercise.visibleSets.forEach { row ->
@@ -261,6 +281,7 @@ private fun ExerciseCardBody(
                 )
             }
         }
+
         if (!isReadOnly) {
             AppButton.Tertiary(
                 modifier = Modifier
@@ -271,6 +292,28 @@ private fun ExerciseCardBody(
                 size = AppButtonSize.SMALL,
             )
         }
+//        AnimatedVisibility(
+//            visible = !isReadOnly,
+//            enter = expandVertically(
+//                animationSpec = tween(
+//                    durationMillis = AppUi.motion.normal,
+//                ),
+//            ),
+//            exit = shrinkVertically(
+//                animationSpec = tween(
+//                    durationMillis = AppUi.motion.normal,
+//                ),
+//            ),
+//        ) {
+//            AppButton.Tertiary(
+//                modifier = Modifier
+//                    .fillMaxWidth()
+//                    .testTag("LiveExerciseCard_AddSet_${exercise.performedExerciseUuid}"),
+//                text = stringResource(R.string.feature_live_workout_add_set),
+//                onClick = { consume(LiveWorkoutStore.Action.Click.OnAddSet(exercise.performedExerciseUuid)) },
+//                size = AppButtonSize.SMALL,
+//            )
+//        }
     }
 }
 
