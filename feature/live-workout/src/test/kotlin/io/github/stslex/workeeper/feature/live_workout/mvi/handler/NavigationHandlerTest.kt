@@ -28,7 +28,7 @@ internal class NavigationHandlerTest {
     }
 
     @Test
-    fun `OpenPlanEditor navigates to Screen PlanEditor with the live-workout scope`() {
+    fun `OpenPlanEditor navigates to Screen PlanEditor Existing with the live-workout scope`() {
         handler.invoke(
             Action.Navigation.OpenPlanEditor(
                 performedExerciseUuid = "performed-1",
@@ -38,7 +38,7 @@ internal class NavigationHandlerTest {
         )
         verify(exactly = 1) {
             navigator.navTo(
-                Screen.PlanEditor(
+                Screen.PlanEditor.Existing(
                     performedExerciseUuid = "performed-1",
                     exerciseUuid = "ex-1",
                     trainingUuid = "training-1",
@@ -58,7 +58,7 @@ internal class NavigationHandlerTest {
         )
         verify(exactly = 1) {
             navigator.navTo(
-                Screen.PlanEditor(
+                Screen.PlanEditor.Existing(
                     performedExerciseUuid = "performed-1",
                     exerciseUuid = "ex-1",
                     trainingUuid = null,

@@ -51,11 +51,8 @@
     <string name="feature_exercise_edit_plan_add">+ Добавить план</string>
     <string name="feature_exercise_edit_plan_summary_no_plan">плана пока нет</string>
 
-    <!-- Type change confirmation -->
-    <string name="feature_exercise_edit_type_change_weightless_title">Переключить на без веса?</string>
-    <string name="feature_exercise_edit_type_change_weightless_body">Значения веса из планов этого упражнения будут очищены. Это нельзя отменить.</string>
-    <string name="feature_exercise_edit_type_change_weightless_impact">Все веса в планах очищены</string>
-    <string name="feature_exercise_edit_type_change_weightless_confirm">Переключить</string>
+    <!-- Type chip — read-only on the edit form. The toggle moved into the plan editor (v1.42.0). -->
+    <string name="feature_exercise_edit_type_chip_hint">Меняется в редакторе плана</string>
 
     <!-- Edit exercise — image -->
     <string name="feature_exercise_image_edit_title">Изображение упражнения</string>

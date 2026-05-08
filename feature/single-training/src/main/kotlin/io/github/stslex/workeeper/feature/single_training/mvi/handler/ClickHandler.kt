@@ -16,6 +16,7 @@ import io.github.stslex.workeeper.feature.single_training.mvi.mapper.TagUiMapper
 import io.github.stslex.workeeper.feature.single_training.mvi.model.PickerExerciseItem
 import io.github.stslex.workeeper.feature.single_training.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.single_training.mvi.model.TrainingExerciseItem
+import io.github.stslex.workeeper.feature.single_training.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Event
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State
@@ -44,17 +45,17 @@ internal class ClickHandler @Inject constructor(
             Action.Click.OnArchiveClick -> processArchiveClick()
             Action.Click.OnPermanentDeleteClick -> processPermanentDeleteMenu()
             Action.Click.OnPermanentDeleteConfirm -> processPermanentDeleteConfirm()
-            Action.Click.OnPermanentDeleteDismiss -> Unit
+            Action.Click.OnPermanentDeleteDismiss -> processCloseDialog()
             Action.Click.OnStartSessionClick -> processStartSession()
             Action.Click.OnConflictResume -> processConflictResume()
             Action.Click.OnConflictDeleteAndStart -> processConflictDeleteAndStart()
-            Action.Click.OnConflictDismiss -> processConflictDismiss()
+            Action.Click.OnConflictDismiss -> processCloseDialog()
             is Action.Click.OnExerciseRowClick -> processExerciseRowClick(action)
             is Action.Click.OnPastSessionClick -> processPastSessionClick(action)
             Action.Click.OnSaveClick -> processSaveClick()
             Action.Click.OnCancelClick -> processBackClick()
             Action.Click.OnConfirmDiscard -> processConfirmDiscard()
-            Action.Click.OnDismissDiscard -> Unit
+            Action.Click.OnDismissDiscard -> processCloseDialog()
             Action.Click.OnAddExerciseClick -> processAddExerciseClick()
             is Action.Click.OnExerciseRemove -> processExerciseRemove(action)
             is Action.Click.OnExerciseReorder -> processExerciseReorder(action)
@@ -68,15 +69,24 @@ internal class ClickHandler @Inject constructor(
         }
     }
 
+    private fun processCloseDialog() {
+        updateState { it.copy(dialogState = DialogState.Hidden) }
+    }
+
     private fun processBackClick() {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         val current = state.value
+        // Back gesture dismisses the topmost dialog before propagating to navigation.
+        if (current.dialogState !is DialogState.Hidden) {
+            updateState { it.copy(dialogState = DialogState.Hidden) }
+            return
+        }
         if (current.mode !is Mode.Edit) {
             consume(Action.Navigation.Back)
             return
         }
         if (current.hasChanges) {
-            sendEvent(Event.ShowDiscardConfirmDialog)
+            updateState { it.copy(dialogState = DialogState.DiscardConfirm) }
         } else {
             applyDiscard()
         }
@@ -127,24 +137,36 @@ internal class ClickHandler @Inject constructor(
     }
 
     private fun processPermanentDeleteMenu() {
-        if (!state.value.canPermanentlyDelete) return
+        val current = state.value
+        if (!current.canPermanentlyDelete) return
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        sendEvent(
-            Event.ShowPermanentDeleteConfirmDialog(
-                title = resourceWrapper.getString(
-                    R.string.feature_training_detail_permanent_delete_title,
-                    state.value.name,
-                ),
-                body = resourceWrapper.getString(R.string.feature_training_detail_permanent_delete_body),
-                impactSummary = resourceWrapper.getString(R.string.feature_training_detail_permanent_delete_impact),
-                confirmLabel = resourceWrapper.getString(R.string.feature_training_detail_permanent_delete_confirm),
-            ),
+        // Pre-resolve display strings outside the updateState lambda — Rule 1 of
+        // compose-state-discipline (no ResourceWrapper calls inside the lambda body).
+        val title = resourceWrapper.getString(
+            R.string.feature_training_detail_permanent_delete_title,
+            current.name,
         )
+        val body = resourceWrapper.getString(R.string.feature_training_detail_permanent_delete_body)
+        val impactSummary =
+            resourceWrapper.getString(R.string.feature_training_detail_permanent_delete_impact)
+        val confirmLabel =
+            resourceWrapper.getString(R.string.feature_training_detail_permanent_delete_confirm)
+        updateState {
+            it.copy(
+                dialogState = DialogState.PermanentDeleteConfirm(
+                    title = title,
+                    body = body,
+                    impactSummary = impactSummary,
+                    confirmLabel = confirmLabel,
+                ),
+            )
+        }
     }
 
     private fun processPermanentDeleteConfirm() {
         val uuid = state.value.uuid ?: return
         sendEvent(Event.HapticClick(HapticFeedbackType.LongPress))
+        updateState { it.copy(dialogState = DialogState.Hidden) }
         launch(
             onSuccess = {
                 withContext(mainDispatcher) { consume(Action.Navigation.Back) }
@@ -175,25 +197,25 @@ internal class ClickHandler @Inject constructor(
                 )
 
                 is StartSessionConflict.NeedsUserChoice -> {
-                    val info = State.ConflictInfo(
-                        sessionUuid = resolution.active.sessionUuid,
-                        activeSessionName = current.name.takeIf { it.isNotBlank() }
-                            ?: resourceWrapper.getString(
-                                R.string.feature_training_detail_conflict_unnamed,
+                    val activeName = current.name.takeIf { it.isNotBlank() }
+                        ?: resourceWrapper.getString(
+                            R.string.feature_training_detail_conflict_unnamed,
+                        )
+                    val progressLabel = resourceWrapper.getString(
+                        R.string.feature_training_detail_conflict_progress_format,
+                        0,
+                        0,
+                    )
+                    val sessionUuid = resolution.active.sessionUuid
+                    updateStateImmediate {
+                        it.copy(
+                            dialogState = DialogState.ActiveSessionConflict(
+                                sessionUuid = sessionUuid,
+                                activeSessionName = activeName,
+                                progressLabel = progressLabel,
                             ),
-                        progressLabel = resourceWrapper.getString(
-                            R.string.feature_training_detail_conflict_progress_format,
-                            0,
-                            0,
-                        ),
-                    )
-                    updateStateImmediate { it.copy(pendingConflict = info) }
-                    sendEvent(
-                        Event.ShowActiveSessionConflict(
-                            activeSessionName = info.activeSessionName,
-                            progressLabel = info.progressLabel,
-                        ),
-                    )
+                        )
+                    }
                 }
             }
         }
@@ -201,20 +223,22 @@ internal class ClickHandler @Inject constructor(
 
     private fun processConflictResume() {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        val info = state.value.pendingConflict ?: return
-        updateState { it.copy(pendingConflict = null) }
+        val current = state.value
+        val info = current.dialogState as? DialogState.ActiveSessionConflict ?: return
+        updateState { it.copy(dialogState = DialogState.Hidden) }
         consume(
             Action.Navigation.OpenLiveWorkout(
                 sessionUuid = info.sessionUuid,
-                trainingUuid = state.value.uuid,
+                trainingUuid = current.uuid,
             ),
         )
     }
 
     private fun processConflictDeleteAndStart() {
         sendEvent(Event.HapticClick(HapticFeedbackType.LongPress))
-        val info = state.value.pendingConflict ?: return
-        updateState { it.copy(pendingConflict = null) }
+        val current = state.value
+        val info = current.dialogState as? DialogState.ActiveSessionConflict ?: return
+        updateState { it.copy(dialogState = DialogState.Hidden) }
         launch {
             interactor.deleteSession(info.sessionUuid)
             consumeOnMain(
@@ -224,10 +248,6 @@ internal class ClickHandler @Inject constructor(
                 ),
             )
         }
-    }
-
-    private fun processConflictDismiss() {
-        updateState { it.copy(pendingConflict = null) }
     }
 
     private fun processExerciseRowClick(action: Action.Click.OnExerciseRowClick) {
@@ -289,6 +309,7 @@ internal class ClickHandler @Inject constructor(
 
     private fun processConfirmDiscard() {
         sendEvent(Event.HapticClick(HapticFeedbackType.LongPress))
+        updateState { it.copy(dialogState = DialogState.Hidden) }
         applyDiscard()
     }
 

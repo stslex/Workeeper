@@ -123,10 +123,10 @@ internal class ClickHandler @Inject constructor(
         ) {
             interactor.updateSet(
                 performedExerciseUuid = performedExerciseUuid,
-                position = position,
                 set = SetDomain(
                     uuid = setUuid,
                     reps = reps,
+                    position = position,
                     weight = weight,
                     type = type,
                 ),

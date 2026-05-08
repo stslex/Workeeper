@@ -9,7 +9,7 @@ import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-internal abstract class ImageStorageModule {
+abstract class ImageStorageModule {
 
     @Binds
     @Singleton

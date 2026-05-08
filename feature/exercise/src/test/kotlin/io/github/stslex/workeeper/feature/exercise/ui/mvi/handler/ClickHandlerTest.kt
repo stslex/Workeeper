@@ -13,6 +13,7 @@ import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PendingImage
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.DiscardTarget
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Event
@@ -26,9 +27,9 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertNull
 
 internal class ClickHandlerTest {
 
@@ -68,68 +69,6 @@ internal class ClickHandlerTest {
     )
 
     @Test
-    fun `OnTypeSelect with same type is no-op`() {
-        val (_, store, handler) = setup()
-        handler.invoke(Action.Click.OnTypeSelect(ExerciseTypeUiModel.WEIGHTED))
-        verify(exactly = 0) { store.sendEvent(any()) }
-    }
-
-    @Test
-    fun `OnTypeSelect with new type emits SegmentTick haptic and updates state`() {
-        val (stateFlow, store, handler) = setup()
-        handler.invoke(Action.Click.OnTypeSelect(ExerciseTypeUiModel.WEIGHTLESS))
-        val captured = slot<Event>()
-        verify { store.sendEvent(capture(captured)) }
-        assertHaptic(captured.captured, HapticFeedbackType.SegmentTick)
-        assertEquals(ExerciseTypeUiModel.WEIGHTLESS, stateFlow.value.type)
-    }
-
-    @Test
-    fun `OnTypeSelect from WEIGHTED to WEIGHTLESS with weighted plan asks for confirm`() {
-        val (stateFlow, store, handler) = setup(
-            State.create(uuid = "uuid-1").copy(
-                type = ExerciseTypeUiModel.WEIGHTED,
-                adhocPlan = persistentListOf(
-                    PlanSetUiModel(weight = 50.0, reps = 8, type = SetTypeUiModel.WORK),
-                ),
-            ),
-        )
-        handler.invoke(Action.Click.OnTypeSelect(ExerciseTypeUiModel.WEIGHTLESS))
-        val events = mutableListOf<Event>()
-        verify { store.sendEvent(capture(events)) }
-        assertTrue(events.any { it is Event.ShowTypeChangeConfirm })
-        assertEquals(ExerciseTypeUiModel.WEIGHTED, stateFlow.value.type)
-        assertEquals(ExerciseTypeUiModel.WEIGHTLESS, stateFlow.value.pendingTypeChange)
-    }
-
-    @Test
-    fun `OnTypeChangeConfirm wipes weights from adhoc plan`() {
-        val (stateFlow, _, handler) = setup(
-            State.create(uuid = null).copy(
-                type = ExerciseTypeUiModel.WEIGHTED,
-                pendingTypeChange = ExerciseTypeUiModel.WEIGHTLESS,
-                adhocPlan = persistentListOf(
-                    PlanSetUiModel(weight = 50.0, reps = 8, type = SetTypeUiModel.WORK),
-                    PlanSetUiModel(weight = 60.0, reps = 6, type = SetTypeUiModel.FAILURE),
-                ),
-            ),
-        )
-        handler.invoke(Action.Click.OnTypeChangeConfirm)
-        assertEquals(ExerciseTypeUiModel.WEIGHTLESS, stateFlow.value.type)
-        assertEquals(null, stateFlow.value.pendingTypeChange)
-        assertTrue(stateFlow.value.adhocPlan?.all { it.weight == null } == true)
-    }
-
-    @Test
-    fun `OnTypeChangeDismiss clears pending type change`() {
-        val (stateFlow, _, handler) = setup(
-            State.create(uuid = null).copy(pendingTypeChange = ExerciseTypeUiModel.WEIGHTLESS),
-        )
-        handler.invoke(Action.Click.OnTypeChangeDismiss)
-        assertNull(stateFlow.value.pendingTypeChange)
-    }
-
-    @Test
     fun `OnSaveClick with blank name sets nameError without saving`() {
         val (stateFlow, store, handler) = setup(State.create(uuid = null).copy(name = ""))
         handler.invoke(Action.Click.OnSaveClick)
@@ -153,19 +92,52 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `OnEditPlanClick navigates to PlanEditor route`() {
+    fun `OnEditPlanClick on existing exercise navigates to PlanEditor Existing`() {
         val (_, store, handler) = setup()
         handler.invoke(Action.Click.OnEditPlanClick)
         verify(exactly = 1) {
-            store.consume(Action.Navigation.OpenPlanEditor(exerciseUuid = "uuid-1"))
+            store.consume(
+                Action.Navigation.OpenPlanEditorExisting(exerciseUuid = "uuid-1"),
+            )
         }
     }
 
     @Test
-    fun `OnEditPlanClick is a no-op when uuid is null`() {
-        val (_, store, handler) = setup(State.create(uuid = null))
+    fun `OnEditPlanClick on Draft exercise navigates with empty seed`() {
+        val (_, store, handler) = setup(
+            State.create(uuid = null).copy(type = ExerciseTypeUiModel.WEIGHTLESS),
+        )
         handler.invoke(Action.Click.OnEditPlanClick)
-        verify(exactly = 0) { store.consume(any<Action.Navigation.OpenPlanEditor>()) }
+        verify(exactly = 1) {
+            store.consume(
+                Action.Navigation.OpenPlanEditorDraft(
+                    initialType = ExerciseTypeUiModel.WEIGHTLESS,
+                    initialPlanJson = null,
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `OnEditPlanClick on Draft exercise serializes a non-empty plan into the seed`() {
+        val draft = listOf(
+            PlanSetUiModel(weight = 80.0, reps = 8, type = SetTypeUiModel.WORK),
+            PlanSetUiModel(weight = 90.0, reps = 5, type = SetTypeUiModel.WORK),
+        )
+        val (_, store, handler) = setup(
+            State.create(uuid = null).copy(
+                type = ExerciseTypeUiModel.WEIGHTED,
+                adhocPlan = persistentListOf<PlanSetUiModel>().addAll(draft),
+            ),
+        )
+        handler.invoke(Action.Click.OnEditPlanClick)
+        val captured = slot<Action.Navigation.OpenPlanEditorDraft>()
+        verify(exactly = 1) { store.consume(capture(captured)) }
+        assertEquals(ExerciseTypeUiModel.WEIGHTED, captured.captured.initialType)
+        val decoded = kotlinx.serialization.json.Json.decodeFromString<List<PlanSetUiModel>>(
+            captured.captured.initialPlanJson!!,
+        )
+        assertEquals(draft, decoded)
     }
 
     @Test
@@ -224,7 +196,7 @@ internal class ClickHandlerTest {
     fun `OnTrackNowResumeConfirm consumes OpenLiveWorkout with active session uuid`() {
         val (_, store, handler) = setup(
             State.create(uuid = "uuid-1").copy(
-                pendingConflict = State.ConflictInfo(
+                dialogState = DialogState.ActiveSessionConflict(
                     sessionUuid = "active-1",
                     activeSessionName = "Push Day",
                     progressLabel = "0 of 0",
@@ -236,10 +208,10 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `OnTrackNowConflictDismiss clears pendingConflict`() {
+    fun `OnTrackNowConflictDismiss clears the active session conflict dialog`() {
         val (stateFlow, _, handler) = setup(
             State.create(uuid = "uuid-1").copy(
-                pendingConflict = State.ConflictInfo(
+                dialogState = DialogState.ActiveSessionConflict(
                     sessionUuid = "active-1",
                     activeSessionName = "Push Day",
                     progressLabel = "0 of 0",
@@ -247,7 +219,7 @@ internal class ClickHandlerTest {
             ),
         )
         handler.invoke(Action.Click.OnTrackNowConflictDismiss)
-        assertNull(stateFlow.value.pendingConflict)
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
     }
 
     @Test
@@ -271,7 +243,7 @@ internal class ClickHandlerTest {
 
     @Test
     fun `OnCancelClick from dirty Edit on existing shows FLIP_TO_READ discard dialog`() {
-        val (_, store, handler) = setup(
+        val (stateFlow, store, handler) = setup(
             State.create(uuid = "uuid-1").copy(
                 mode = Mode.Edit(isCreate = false),
                 name = "Bench updated",
@@ -280,18 +252,15 @@ internal class ClickHandlerTest {
                     type = ExerciseTypeUiModel.WEIGHTED,
                     description = "",
                     tagUuids = emptyList(),
+                    adhocPlan = null,
                 ),
             ),
         )
         handler.invoke(Action.Click.OnCancelClick)
         verify(exactly = 0) { store.consume(Action.Navigation.Back) }
-        val events = mutableListOf<Event>()
-        verify { store.sendEvent(capture(events)) }
-        assertTrue(
-            events.any {
-                it is Event.ShowDiscardConfirmDialog && it.target == DiscardTarget.FLIP_TO_READ
-            },
-        )
+        val dialog = stateFlow.value.dialogState
+        assertTrue(dialog is DialogState.DiscardConfirm)
+        assertEquals(DiscardTarget.FLIP_TO_READ, (dialog as DialogState.DiscardConfirm).target)
     }
 
     @Test
@@ -314,6 +283,7 @@ internal class ClickHandlerTest {
                     type = ExerciseTypeUiModel.WEIGHTED,
                     description = "",
                     tagUuids = emptyList(),
+                    adhocPlan = null,
                 ),
             ),
         )
@@ -343,24 +313,22 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `OnPermanentDeleteMenuClick emits ShowPermanentDeleteConfirm when eligible`() {
-        val (_, store, handler) = setup(
+    fun `OnPermanentDeleteMenuClick surfaces the PermanentDeleteConfirm dialog when eligible`() {
+        val (stateFlow, _, handler) = setup(
             State.create(uuid = "uuid-1").copy(
                 canPermanentlyDelete = true,
                 name = "Bench",
             ),
         )
         handler.invoke(Action.Click.OnPermanentDeleteMenuClick)
-        val events = mutableListOf<Event>()
-        verify { store.sendEvent(capture(events)) }
-        assertTrue(events.any { it is Event.ShowPermanentDeleteConfirm })
+        assertTrue(stateFlow.value.dialogState is DialogState.PermanentDeleteConfirm)
     }
 
     @Test
-    fun `OnEditImageClick opens the source dialog`() {
+    fun `OnEditImageClick opens the image source picker dialog`() {
         val (stateFlow, _, handler) = setup()
         handler.invoke(Action.Click.OnEditImageClick)
-        assertTrue(stateFlow.value.sourceDialogVisible)
+        assertEquals(DialogState.ImageSourcePicker, stateFlow.value.dialogState)
     }
 
     @Test
@@ -381,32 +349,32 @@ internal class ClickHandlerTest {
     @Test
     fun `OnImageSourceDialogDismiss hides the source dialog`() {
         val (stateFlow, _, handler) = setup(
-            State.create(uuid = "uuid-1").copy(sourceDialogVisible = true),
+            State.create(uuid = "uuid-1").copy(dialogState = DialogState.ImageSourcePicker),
         )
         handler.invoke(Action.Click.OnImageSourceDialogDismiss)
-        assertEquals(false, stateFlow.value.sourceDialogVisible)
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
     }
 
     @Test
     fun `OnPermissionDeniedDialogDismiss hides the permission dialog`() {
         val (stateFlow, _, handler) = setup(
-            State.create(uuid = "uuid-1").copy(permissionDeniedDialogVisible = true),
+            State.create(uuid = "uuid-1").copy(dialogState = DialogState.PermissionDenied),
         )
         handler.invoke(Action.Click.OnPermissionDeniedDialogDismiss)
-        assertEquals(false, stateFlow.value.permissionDeniedDialogVisible)
+        assertEquals(DialogState.Hidden, stateFlow.value.dialogState)
     }
 
     @Test
     fun `OnCameraPermissionDenied surfaces the permission denied dialog`() {
         val (stateFlow, _, handler) = setup()
         handler.invoke(Action.Click.OnCameraPermissionDenied)
-        assertTrue(stateFlow.value.permissionDeniedDialogVisible)
+        assertEquals(DialogState.PermissionDenied, stateFlow.value.dialogState)
     }
 
     @Test
     fun `OnPermissionDeniedSettingsClick emits NavigateOpenAppSettings`() {
         val (_, store, handler) = setup(
-            State.create(uuid = "uuid-1").copy(permissionDeniedDialogVisible = true),
+            State.create(uuid = "uuid-1").copy(dialogState = DialogState.PermissionDenied),
         )
         handler.invoke(Action.Click.OnPermissionDeniedSettingsClick)
         val events = mutableListOf<Event>()
@@ -543,11 +511,7 @@ internal class ClickHandlerTest {
         verify(exactly = 0) { store.consume(Action.Navigation.Back) }
         val events = mutableListOf<Event>()
         verify { store.sendEvent(capture(events)) }
-        assertTrue(
-            events.any {
-                it is Event.ShowDiscardConfirmDialog && it.target == DiscardTarget.POP_SCREEN
-            },
-        )
+        assertTrue((store.state.value.dialogState as? DialogState.DiscardConfirm)?.target == DiscardTarget.POP_SCREEN)
     }
 
     @Test
@@ -566,27 +530,6 @@ internal class ClickHandlerTest {
         verify(exactly = 0) { store.consume(Action.Navigation.Back) }
         val events = mutableListOf<Event>()
         verify { store.sendEvent(capture(events)) }
-        assertTrue(
-            events.any {
-                it is Event.ShowDiscardConfirmDialog && it.target == DiscardTarget.POP_SCREEN
-            },
-        )
-    }
-
-    @Test
-    fun `OnEditPlanClick still navigates to full-screen route in edit-mode for existing exercise`() {
-        // Read-mode "Edit default plan" card — preserved from the v2.4 D1 migration.
-        val (_, store, handler) = setup(State.create(uuid = "uuid-1"))
-
-        handler.invoke(Action.Click.OnEditPlanClick)
-
-        verify(exactly = 1) {
-            store.consume(Action.Navigation.OpenPlanEditor(exerciseUuid = "uuid-1"))
-        }
-    }
-
-    private fun assertHaptic(event: Event, expected: HapticFeedbackType) {
-        assertTrue(event is Event.Haptic, "expected Event.Haptic but got $event")
-        assertEquals(expected, (event as Event.Haptic).type)
+        assertTrue((store.state.value.dialogState as? DialogState.DiscardConfirm)?.target == DiscardTarget.POP_SCREEN)
     }
 }

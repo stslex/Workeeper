@@ -18,7 +18,6 @@ internal interface PastSessionInteractor {
 
     suspend fun updateSet(
         performedExerciseUuid: String,
-        position: Int,
         set: SetDomain,
     )
 

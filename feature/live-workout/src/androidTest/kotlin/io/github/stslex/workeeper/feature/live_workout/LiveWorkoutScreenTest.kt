@@ -22,6 +22,7 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStor
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
 import io.github.stslex.workeeper.feature.live_workout.ui.LiveWorkoutScreen
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.persistentSetOf
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -76,10 +77,11 @@ internal class LiveWorkoutScreenTest : BaseComposeTest() {
     }
 
     @Test
-    fun type_chip_click_dispatches_OnSetTypeSelect_with_next_type() {
-        // Plan type=WORK at position 0; clicking the chip now carries the pre-computed next
-        // type (FAILURE = WORK.next()) so the handler can apply it directly. This test locks
-        // the UI half of the contract.
+    fun type_chip_click_dispatches_OnSetTypeSelect_with_current_chip_type() {
+        // Plan type=WORK at position 0; clicking the chip carries the current chip type
+        // (WORK). The handler advances via `.next()` — that side of the contract is
+        // covered by `LiveSetDraftBehaviorTest`. This test locks the UI half: the action
+        // carries the row's current type.
         val capture = createActionCapture<Action>()
         composeRule.setThemedContent {
             LiveWorkoutScreen(state = stateWithOnePlanSet(), consume = capture)
@@ -91,8 +93,8 @@ internal class LiveWorkoutScreenTest : BaseComposeTest() {
         assertEquals(PE_UUID, action.performedExerciseUuid)
         assertEquals(0, action.position)
         assertEquals(
-            "Chip click must carry the next/selected type (FAILURE = WORK.next())",
-            SetTypeUiModel.FAILURE,
+            "Chip click must carry the current row's type (WORK)",
+            SetTypeUiModel.WORK,
             action.type,
         )
     }
@@ -157,6 +159,10 @@ internal class LiveWorkoutScreenTest : BaseComposeTest() {
         totalCount = 1,
         progressLabel = "0 of 1 done",
         exercises = exercises,
+        // The card body (set rows + Add-set CTA) only renders when the exercise is in
+        // `expandedExerciseUuids`. The store seeds this from `activeExerciseUuids` at
+        // load time; the test bypasses load and must opt the row in explicitly.
+        expandedExerciseUuids = persistentSetOf(PE_UUID),
         isLoading = false,
     )
 

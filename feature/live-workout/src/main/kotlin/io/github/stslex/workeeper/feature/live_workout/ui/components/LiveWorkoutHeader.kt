@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.live_workout.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -96,6 +98,10 @@ internal fun LiveWorkoutHeader(
             )
         }
         Spacer(Modifier.height(AppDimension.Space.xs))
+        val progress by animateFloatAsState(
+            targetValue = progress,
+            animationSpec = tween(durationMillis = AppUi.motion.normal),
+        )
         Box(modifier = Modifier.fillMaxWidth()) {
             LinearProgressIndicator(
                 modifier = Modifier

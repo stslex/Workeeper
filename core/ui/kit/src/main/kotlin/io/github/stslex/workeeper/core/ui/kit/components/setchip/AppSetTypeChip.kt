@@ -1,6 +1,7 @@
 package io.github.stslex.workeeper.core.ui.kit.components.setchip
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
@@ -11,7 +12,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -39,6 +39,7 @@ fun AppSetTypeChip(
     }
     Row(
         modifier = modifier
+            .border(1.dp, foreground, AppUi.shapes.small)
             .height(18.dp)
             .widthIn(min = 28.dp)
             .clip(AppUi.shapes.small)
@@ -66,7 +67,7 @@ private fun AppSetTypeChipPreview() {
     AppTheme {
         Row(
             modifier = Modifier
-                .background(Color.Transparent)
+                .background(AppUi.colors.surfaceTier0)
                 .padding(AppDimension.Space.lg),
             horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
         ) {

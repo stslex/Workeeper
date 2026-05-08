@@ -3,13 +3,19 @@ plugins {
 }
 
 dependencies {
+    implementation(projects.core.core)
     implementation(projects.core.ui.kit)
     implementation(projects.core.ui.mvi)
+    implementation(projects.core.ui.navigation)
+
+    // Hilt — TestInstallIn lives in dagger.hilt.testing, only available via hilt.test.
+    api(libs.hilt.test)
 
     // Compose Testing
     api(libs.androidx.compose.ui.test.junit4)
     api(libs.androidx.junit)
     api(libs.androidx.test.runner)
+    api(libs.androidx.compose.activity)
 
     // Coroutines Testing
     api(libs.coroutine.test)

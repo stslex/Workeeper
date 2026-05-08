@@ -10,4 +10,6 @@ dependencies {
     implementation(project(":core:ui:plan-editor"))
     implementation(project(":core:data:database"))
     implementation(project(":core:data:exercise"))
+
+    implementation(libs.kotlinx.serialization.json)
 }

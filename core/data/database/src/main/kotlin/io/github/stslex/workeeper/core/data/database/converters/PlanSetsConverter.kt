@@ -7,11 +7,18 @@ import kotlinx.serialization.json.Json
 
 object PlanSetsConverter {
 
+    private val json by lazy {
+        Json {
+            encodeDefaults = true
+            ignoreUnknownKeys = true
+        }
+    }
+
     @TypeConverter
     fun toJson(value: List<PlanSetDataModel>?): String? =
-        value?.let { Json.encodeToString(it) }
+        value?.let { json.encodeToString(it) }
 
     @TypeConverter
     fun fromJson(value: String?): List<PlanSetDataModel>? =
-        value?.let { Json.decodeFromString(it) }
+        value?.let { json.decodeFromString(it) }
 }

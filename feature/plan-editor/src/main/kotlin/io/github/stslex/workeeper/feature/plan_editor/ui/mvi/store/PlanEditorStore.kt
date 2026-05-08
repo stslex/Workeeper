@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.ui.mvi.Store
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorBodyAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
@@ -12,11 +13,11 @@ import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorSto
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.Event
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.State
 import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.persistentListOf
 
 /**
- * Full-screen plan editor (v2.4 D1). Holds the draft set list, loads initial state from
- * the repository on init, persists on save, and pops back via NavigationHandler.
+ * Full-screen plan editor. Holds the draft set list, owns the WEIGHTED / WEIGHTLESS type,
+ * and persists either to the DB ([Mode.Existing] / [Mode.PerformedExercise]) or back to the
+ * caller as a [PlanDraftResult] payload ([Mode.Draft]).
  */
 internal interface PlanEditorStore : Store<State, Action, Event> {
 
@@ -25,21 +26,31 @@ internal interface PlanEditorStore : Store<State, Action, Event> {
         val mode: Mode,
         val isLoading: Boolean,
         val exerciseName: String,
-        val isWeighted: Boolean,
+        val type: ExerciseTypeUiModel,
         val initialDraft: ImmutableList<PlanSetUiModel>,
         val draft: ImmutableList<PlanSetUiModel>,
+        val initialType: ExerciseTypeUiModel,
+        val pendingTypeChange: ExerciseTypeUiModel?,
         val confirmDiscardOpen: Boolean,
         val isSaving: Boolean,
+        val dialogState: DialogState,
     ) : Store.State {
 
-        /** True when [draft] differs from [initialDraft]. Drives BackHandler interception. */
-        val isDirty: Boolean get() = draft != initialDraft
+        /** True when the working type or draft differ from their initial values. */
+        val isDirty: Boolean
+            get() = draft != initialDraft || type != initialType
+
+        val isWeighted: Boolean
+            get() = type == ExerciseTypeUiModel.WEIGHTED
 
         /**
-         * BackHandler intercepts only when there are unsaved edits. Clean state pops
-         * natively with predictive-back preview intact.
+         * BackHandler intercepts when there are unsaved edits OR when a dialog is open.
+         * The dialog's own back gesture closes it before propagating; clean state with no
+         * dialog stays unsubscribed so Compose nav handles the gesture natively (including
+         * the predictive-back preview animation).
          */
-        val interceptBack: Boolean get() = isDirty && !confirmDiscardOpen
+        val interceptBack: Boolean
+            get() = (isDirty && !confirmDiscardOpen) || dialogState !is DialogState.Hidden
 
         @Stable
         sealed interface Mode {
@@ -61,24 +72,41 @@ internal interface PlanEditorStore : Store<State, Action, Event> {
             ) : Mode
 
             /**
-             * Editing the default plan attached to an exercise (no live session, no training
-             * association). The backing store is `exercise_table.last_adhoc_sets`.
+             * Editing the default plan attached to a persisted exercise (no live session, no
+             * training association). The backing store is `exercise_table.last_adhoc_sets`
+             * and `exercise_table.type`.
              */
             @Stable
             data class Exercise(val exerciseUuid: String) : Mode
+
+            /**
+             * Editing a fresh draft for an exercise that is still being created (no
+             * persisted UUID yet). PlanEditor does not touch the DB; Save returns the draft
+             * to the caller via [PlanDraftResult] JSON in
+             * [io.github.stslex.workeeper.core.ui.navigation.Screen.PlanEditor.Companion.planEditorDraftResultAttr].
+             */
+            @Stable
+            data object Draft : Mode
         }
 
         companion object {
 
-            fun init(mode: Mode): State = State(
+            fun init(
+                mode: Mode,
+                seedType: ExerciseTypeUiModel,
+                seedPlan: ImmutableList<PlanSetUiModel>,
+            ): State = State(
                 mode = mode,
-                isLoading = true,
+                isLoading = mode !is Mode.Draft,
                 exerciseName = "",
-                isWeighted = true,
-                initialDraft = persistentListOf(),
-                draft = persistentListOf(),
+                type = seedType,
+                initialDraft = seedPlan,
+                draft = seedPlan,
+                initialType = seedType,
+                pendingTypeChange = null,
                 confirmDiscardOpen = false,
                 isSaving = false,
+                dialogState = DialogState.Hidden,
             )
         }
     }
@@ -98,6 +126,12 @@ internal interface PlanEditorStore : Store<State, Action, Event> {
             data class OnSetRemove(val index: Int) : Click
 
             data class OnSetTypeChange(val index: Int, val value: SetTypeUiModel) : Click
+
+            data class OnTypeToggle(val target: ExerciseTypeUiModel) : Click
+
+            data object OnTypeChangeConfirm : Click
+
+            data object OnTypeChangeDismiss : Click
 
             data object OnSave : Click
 
@@ -126,12 +160,20 @@ internal interface PlanEditorStore : Store<State, Action, Event> {
             data object Back : Navigation
 
             /**
-             * Pop after a successful save. The NavigationHandler writes the
+             * Pop after a successful save in [Mode.Existing] / [Mode.PerformedExercise] /
+             * [Mode.Exercise]. The NavigationHandler writes the
              * `plan-editor-saved` flag to the previous backstack entry's
-             * SavedStateHandle so the caller (Live workout, Exercise detail) reloads
-             * its plan on resume. (v2.4 D1.)
+             * SavedStateHandle so the caller (Live workout, Single training,
+             * Exercise detail) reloads its plan-driven state on resume.
              */
             data object BackAfterSave : Navigation
+
+            /**
+             * Pop after Done in [Mode.Draft]. Carries the serialized
+             * [io.github.stslex.workeeper.feature.plan_editor.ui.mvi.model.PlanDraftResult]
+             * JSON for the caller to merge into its local state.
+             */
+            data class BackAfterDraftSave(val resultJson: String) : Navigation
         }
     }
 

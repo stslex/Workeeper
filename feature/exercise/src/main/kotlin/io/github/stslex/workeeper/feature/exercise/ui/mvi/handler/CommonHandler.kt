@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
+import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanDraftResult
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseDomain
@@ -14,6 +15,7 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.mapper.ExerciseUiMappe
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.mapper.ExerciseUiMapper.toUi
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PendingImage
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
 import kotlinx.collections.immutable.toImmutableList
@@ -22,6 +24,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.json.Json
 import java.io.File
 import javax.inject.Inject
 
@@ -35,31 +38,24 @@ internal class CommonHandler @Inject constructor(
     override fun invoke(action: Action.Common) {
         when (action) {
             Action.Common.Init -> processInit()
-            // Reload re-runs the exercise + adhoc-plan load pipeline without resetting form
-            // state. Used after returning from the full-screen PlanEditor route so the
-            // default-plan card and edit-mode plan summary reflect the just-saved draft.
-            Action.Common.Reload -> processReload()
             is Action.Common.ImagePicked -> processImagePicked(action)
             Action.Common.ImagePickCancelled -> processImagePickCancelled()
+            Action.Common.PlanEditorExistingReturned -> processPlanEditorExistingReturned()
+            is Action.Common.PlanEditorDraftReturned -> processPlanEditorDraftReturned(action)
         }
-    }
-
-    private fun processReload() {
-        val uuid = state.value.uuid?.takeIf { it.isNotBlank() } ?: return
-        loadExercise(uuid)
     }
 
     private fun processImagePicked(action: Action.Common.ImagePicked) {
         updateState {
             it.copy(
                 pendingImage = PendingImage.NewFromUri(action.uri),
-                sourceDialogVisible = false,
+                dialogState = DialogState.Hidden,
             )
         }
     }
 
     private fun processImagePickCancelled() {
-        updateState { it.copy(sourceDialogVisible = false) }
+        updateState { it.copy(dialogState = DialogState.Hidden) }
     }
 
     private fun processInit() {
@@ -93,6 +89,64 @@ internal class CommonHandler @Inject constructor(
                 history = history.await(),
                 canPermanentlyDelete = canPermanentlyDelete.await(),
                 adhocPlan = adhocPlan.await(),
+            )
+        }
+    }
+
+    /**
+     * Existing-mode return: PlanEditor wrote `(type, last_adhoc_sets)` to disk. Pull just
+     * those two fields and merge into State + the originalSnapshot baseline so the screen
+     * doesn't think the user has unsaved type/plan edits any more, while name /
+     * description / tags / image stay exactly as the user has them on the form.
+     */
+    private fun processPlanEditorExistingReturned() {
+        val uuid = state.value.uuid?.takeIf { it.isNotBlank() } ?: return
+        launch(
+            onSuccess = { partial ->
+                if (partial.exercise == null) return@launch
+                val newType = partial.exercise.type.toUi()
+                val newPlan = partial.adhocPlan
+                    ?.map { it.toUi() }
+                    ?.toImmutableList()
+                updateStateImmediate { current ->
+                    current.copy(
+                        type = newType,
+                        adhocPlan = newPlan,
+                        adhocPlanSummaryLabel = newPlan.toAdhocPlanSummary(resourceWrapper),
+                        // Reset the dirty baseline so a subsequent Save doesn't re-mark
+                        // type/plan as dirty. Other fields stay untouched.
+                        originalSnapshot = current.originalSnapshot?.copy(
+                            type = newType,
+                            adhocPlan = newPlan,
+                        ),
+                    )
+                }
+            },
+        ) {
+            val exercise = async { interactor.getExercise(uuid) }
+            val adhocPlan = async { interactor.getAdhocPlan(uuid) }
+            PartialReload(
+                exercise = exercise.await(),
+                adhocPlan = adhocPlan.await(),
+            )
+        }
+    }
+
+    /**
+     * Draft-mode return: PlanEditor never persisted anything. Decode the JSON payload and
+     * merge `(type, adhocPlan)` into State. Do NOT update [State.originalSnapshot] —
+     * the draft is treated as an unsaved edit until the parent form's own Save fires.
+     */
+    private fun processPlanEditorDraftReturned(action: Action.Common.PlanEditorDraftReturned) {
+        val result = runCatching {
+            Json.decodeFromString(PlanDraftResult.serializer(), action.resultJson)
+        }.getOrNull() ?: return
+        val plan = result.plan.toImmutableList()
+        updateState { current ->
+            current.copy(
+                type = result.type,
+                adhocPlan = plan,
+                adhocPlanSummaryLabel = plan.toAdhocPlanSummary(resourceWrapper),
             )
         }
     }
@@ -155,6 +209,7 @@ internal class CommonHandler @Inject constructor(
                 type = exercise.type.toUi(),
                 description = exercise.description.orEmpty(),
                 tagUuids = tags.map { it.uuid },
+                adhocPlan = adhocPlan,
             ),
         )
     }
@@ -164,6 +219,11 @@ internal class CommonHandler @Inject constructor(
         val labels: List<String>,
         val history: List<HistoryEntryDomain>,
         val canPermanentlyDelete: Boolean,
+        val adhocPlan: List<PlanSetDomain>?,
+    )
+
+    private data class PartialReload(
+        val exercise: ExerciseDomain?,
         val adhocPlan: List<PlanSetDomain>?,
     )
 }

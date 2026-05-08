@@ -5,9 +5,9 @@ import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingExerciseRepository
-import io.github.stslex.workeeper.feature.plan_editor.domain.mapper.PlanEditorDomainMapper.isWeighted
 import io.github.stslex.workeeper.feature.plan_editor.domain.mapper.PlanEditorDomainMapper.toData
 import io.github.stslex.workeeper.feature.plan_editor.domain.mapper.PlanEditorDomainMapper.toDomain
+import io.github.stslex.workeeper.feature.plan_editor.domain.model.ExerciseTypeDomain
 import io.github.stslex.workeeper.feature.plan_editor.domain.model.PlanEditorLoadResult
 import io.github.stslex.workeeper.feature.plan_editor.domain.model.PlanSetDomain
 import kotlinx.coroutines.CoroutineDispatcher
@@ -34,7 +34,7 @@ internal class PlanEditorInteractorImpl @Inject constructor(
         }
         PlanEditorLoadResult.Success(
             exerciseName = exercise.name,
-            isWeighted = exercise.type.isWeighted(),
+            type = exercise.type.toDomain(),
             plan = plan.map { it.toDomain() },
         )
     }
@@ -42,13 +42,25 @@ internal class PlanEditorInteractorImpl @Inject constructor(
     override suspend fun savePlan(
         exerciseUuid: String,
         trainingUuid: String?,
+        type: ExerciseTypeDomain,
         plan: List<PlanSetDomain>?,
     ) {
         withContext(defaultDispatcher) {
             val data = plan?.map { it.toData() }
             if (trainingUuid.isNullOrBlank()) {
+                // Mode.Exercise — PlanEditor owns the type for the parent exercise. Persist
+                // the type first so a concurrent reader who hits last_adhoc_sets sees the
+                // matching `type` column. When the type flips to WEIGHTLESS, also wipe
+                // weights from every other plan_sets row that references this exercise so
+                // weighted plan values do not survive the type change.
+                exerciseRepository.setExerciseType(exerciseUuid, type.toData())
+                if (type == ExerciseTypeDomain.WEIGHTLESS) {
+                    exerciseRepository.clearWeightsFromAllPlansForExercise(exerciseUuid)
+                }
                 exerciseRepository.setAdhocPlan(exerciseUuid, data)
             } else {
+                // Mode.PerformedExercise — type lives on the parent exercise and isn't
+                // editable from a training-scoped editor. Only the plan_sets row changes.
                 trainingExerciseRepository.setPlan(trainingUuid, exerciseUuid, data)
             }
         }

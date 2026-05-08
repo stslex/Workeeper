@@ -115,14 +115,26 @@ internal class LiveSetMutator @Inject constructor(
     }
 
     fun applySetUnchecked(state: State, performedExerciseUuid: String, position: Int): State {
-        val updated = state.exercises.map { exercise ->
-            if (exercise.performedExerciseUuid != performedExerciseUuid) return@map exercise
-            val nextSets = exercise.performedSets
+        val exercise = findExercise(state, performedExerciseUuid) ?: return state
+        val performedRow = exercise.performedSets.firstOrNull { it.position == position }
+            ?: return state
+        val updated = state.exercises.map { ex ->
+            if (ex.performedExerciseUuid != performedExerciseUuid) return@map ex
+            val nextSets = ex.performedSets
                 .filterNot { it.position == position }
                 .toImmutableList()
-            exercise.copy(performedSets = nextSets)
+            ex.copy(performedSets = nextSets)
         }.toImmutableList()
-        return statusMapper.recomputeStatuses(state.copy(exercises = updated))
+        val draftKey = State.DraftKey(performedExerciseUuid, position)
+        val restoredDraft = performedRow.copy(
+            isDone = false,
+            isPersonalRecord = false,
+        )
+        val nextDrafts = (state.setDrafts + (draftKey to restoredDraft)).toImmutableMap()
+        return state.copy(
+            exercises = updated,
+            setDrafts = nextDrafts,
+        ).withVisibleSets().let { statusMapper.recomputeStatuses(it) }
     }
 
     fun applySetTypeChange(

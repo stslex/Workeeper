@@ -122,10 +122,10 @@ internal class InputHandler @Inject constructor(
             delay(DEBOUNCE_MILLIS)
             interactor.updateSet(
                 performedExerciseUuid = set.performedExerciseUuid,
-                position = set.position,
                 set = SetDomain(
                     uuid = set.setUuid,
                     reps = reps,
+                    position = set.position,
                     weight = weight,
                     type = set.type.toDomain(),
                 ),

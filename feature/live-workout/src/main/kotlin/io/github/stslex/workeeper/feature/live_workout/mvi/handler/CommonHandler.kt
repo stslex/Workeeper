@@ -36,23 +36,23 @@ internal class CommonHandler @Inject constructor(
     private fun processInit() {
         val current = state.value
         launch(
-            onSuccess = { snapshot ->
-                if (snapshot == null) {
+            onSuccess = { createdState ->
+                if (createdState == null) {
                     updateStateImmediate { it.copy(isLoading = false) }
                     return@launch
                 }
-                val now = System.currentTimeMillis()
-                updateStateImmediate {
-                    snapshot.toState(
-                        nowMillis = now,
-                        resourceWrapper = resourceWrapper,
-                    )
-                }
+                updateStateImmediate { createdState }
                 startTimer()
             },
         ) {
             val sessionUuid = current.sessionUuid ?: createSession(current.trainingUuid)
-            sessionUuid?.let { interactor.loadSession(it) }
+            val now = System.currentTimeMillis()
+            sessionUuid
+                ?.let { interactor.loadSession(it) }
+                ?.toState(
+                    nowMillis = now,
+                    resourceWrapper = resourceWrapper,
+                )
         }
     }
 
@@ -73,18 +73,16 @@ internal class CommonHandler @Inject constructor(
     private fun processReload() {
         val sessionUuid = state.value.sessionUuid?.takeIf { it.isNotBlank() } ?: return
         launch(
-            onSuccess = { snapshot ->
-                if (snapshot == null) return@launch
-                val now = System.currentTimeMillis()
-                updateStateImmediate {
-                    snapshot.toState(
-                        nowMillis = now,
-                        resourceWrapper = resourceWrapper,
-                    )
-                }
+            onSuccess = { state ->
+                if (state == null) return@launch
+                updateStateImmediate { state }
             },
         ) {
             interactor.loadSession(sessionUuid)
+                ?.toState(
+                    nowMillis = System.currentTimeMillis(),
+                    resourceWrapper = resourceWrapper,
+                )
         }
     }
 

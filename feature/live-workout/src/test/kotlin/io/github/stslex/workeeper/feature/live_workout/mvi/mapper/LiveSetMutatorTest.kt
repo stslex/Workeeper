@@ -161,6 +161,113 @@ internal class LiveSetMutatorTest {
     }
 
     @Test
+    fun `applySetUnchecked restores draft from user values when the row was a modified plan set`() {
+        // Plan position 0 was 100x5 WORK; user edited to 110x6 FAILURE before tapping done.
+        // After uncheck, the draft must mirror what the user entered — not the plan.
+        val state = stateWith(
+            exerciseWithPlan(
+                plan = persistentListOf(
+                    PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+                ),
+                performed = persistentListOf(
+                    LiveSetUiModel(
+                        position = 0,
+                        weight = 110.0,
+                        reps = 6,
+                        type = SetTypeUiModel.FAILURE,
+                        isDone = true,
+                        isPersonalRecord = true,
+                    ),
+                ),
+            ),
+        )
+
+        val result = mutator.applySetUnchecked(state, PE_UUID, position = 0)
+
+        val performed = result.exercises.first().performedSets
+        assertNull(performed.firstOrNull { it.position == 0 })
+
+        val draft = result.setDrafts[State.DraftKey(PE_UUID, 0)]
+        assertNotNull(draft)
+        assertEquals(0, draft?.position)
+        assertEquals(110.0, draft?.weight)
+        assertEquals(6, draft?.reps)
+        assertEquals(SetTypeUiModel.FAILURE, draft?.type)
+        assertEquals(false, draft?.isDone)
+        assertEquals(false, draft?.isPersonalRecord)
+    }
+
+    @Test
+    fun `applySetUnchecked restores draft from user values for a set added beyond plan via Add Set`() {
+        // No plan. User added set 0 via Add Set (drafted 80x10 WORK), tapped done.
+        // Uncheck must restore the draft with those user values, not a fallback.
+        val state = stateWith(
+            exerciseWithPlan(
+                plan = persistentListOf(),
+                performed = persistentListOf(
+                    LiveSetUiModel(
+                        position = 0,
+                        weight = 80.0,
+                        reps = 10,
+                        type = SetTypeUiModel.WORK,
+                        isDone = true,
+                    ),
+                ),
+            ),
+        )
+
+        val result = mutator.applySetUnchecked(state, PE_UUID, position = 0)
+
+        assertTrue(result.exercises.first().performedSets.isEmpty())
+
+        val draft = result.setDrafts[State.DraftKey(PE_UUID, 0)]
+        assertNotNull(draft)
+        assertEquals(0, draft?.position)
+        assertEquals(80.0, draft?.weight)
+        assertEquals(10, draft?.reps)
+        assertEquals(SetTypeUiModel.WORK, draft?.type)
+        assertEquals(false, draft?.isDone)
+        assertEquals(false, draft?.isPersonalRecord)
+    }
+
+    @Test
+    fun `applySetUnchecked returns the state unchanged when no performed set exists at the position`() {
+        // Plan exists but performed is empty — uncheck for position 0 must early-return.
+        val state = stateWith(
+            exerciseWithPlan(
+                plan = persistentListOf(
+                    PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+                ),
+            ),
+        )
+
+        val result = mutator.applySetUnchecked(state, PE_UUID, position = 0)
+
+        assertEquals(state, result)
+    }
+
+    @Test
+    fun `applySetUnchecked recomputes status from DONE to CURRENT after dropping the only done set`() {
+        // Stale status DONE; after uncheck the exercise has no done sets, so the
+        // auto-current rule (no explicit active uuids) elects it as CURRENT.
+        val state = stateWith(
+            exerciseWithPlan(
+                plan = persistentListOf(
+                    PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+                ),
+                performed = persistentListOf(
+                    LiveSetUiModel(0, 100.0, 5, SetTypeUiModel.WORK, isDone = true),
+                ),
+                status = ExerciseStatusUiModel.DONE,
+            ),
+        )
+
+        val result = mutator.applySetUnchecked(state, PE_UUID, position = 0)
+
+        assertEquals(ExerciseStatusUiModel.CURRENT, result.exercises.first().status)
+    }
+
+    @Test
     fun `applySetTypeChange rewrites the type of the targeted performed set only`() {
         val state = stateWith(
             exerciseWithPlan(

@@ -82,7 +82,11 @@ private const val BORDER_WIDTH = 2
 private const val ICON_SIZE = 20
 
 @Preview(name = "Light", showBackground = true)
-@Preview(name = "Dark", showBackground = true, uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES)
+@Preview(
+    name = "Dark",
+    showBackground = true,
+    uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES,
+)
 @Composable
 private fun AppCheckmarkButtonPreview() {
     AppTheme {

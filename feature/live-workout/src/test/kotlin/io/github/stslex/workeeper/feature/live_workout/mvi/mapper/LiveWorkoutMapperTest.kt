@@ -113,6 +113,7 @@ internal class LiveWorkoutMapperTest {
                             weight = null,
                             reps = 10,
                             type = SetTypeDomain.WORK,
+                            position = 0,
                         ),
                     ),
                 ),
@@ -161,12 +162,14 @@ internal class LiveWorkoutMapperTest {
                     weight = 100.0,
                     reps = 5,
                     type = SetTypeDomain.WORK,
+                    position = 0,
                 ),
                 SetDomain(
                     uuid = "set-$uuid-1",
                     weight = 100.0,
                     reps = 5,
                     type = SetTypeDomain.WORK,
+                    position = 1,
                 ),
             ),
         )

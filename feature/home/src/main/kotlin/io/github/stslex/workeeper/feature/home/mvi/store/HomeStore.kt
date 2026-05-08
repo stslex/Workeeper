@@ -124,9 +124,5 @@ internal interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStor
     @Stable
     sealed interface Event : Store.Event {
         data class HapticClick(val type: HapticFeedbackType) : Event
-        data class ShowActiveSessionConflict(
-            val activeSessionName: String,
-            val progressLabel: String,
-        ) : Event
     }
 }

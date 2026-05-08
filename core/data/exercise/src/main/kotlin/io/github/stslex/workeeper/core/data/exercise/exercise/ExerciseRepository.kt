@@ -5,6 +5,7 @@ import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseListItem
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.HistoryEntry
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.RecentExerciseDataModel
 import kotlinx.coroutines.flow.Flow
@@ -18,6 +19,8 @@ interface ExerciseRepository {
     fun getUniqueExercises(query: String): Flow<PagingData<ExerciseDataModel>>
 
     suspend fun getExercisesByUuid(uuids: List<String>): List<ExerciseDataModel>
+
+    suspend fun getAdhocPlans(uuids: List<String>): Map<String, List<PlanSetDataModel>?>
 
     suspend fun getExercise(uuid: String): ExerciseDataModel?
 
@@ -34,6 +37,18 @@ interface ExerciseRepository {
     suspend fun getAdhocPlan(exerciseUuid: String): List<PlanSetDataModel>?
 
     suspend fun setAdhocPlan(exerciseUuid: String, planSets: List<PlanSetDataModel>?)
+
+    /**
+     * Updates only the `type` column on `exercise_table`. The plan editor uses this when
+     * persisting a type change without rewriting the rest of the exercise row (name,
+     * description, image, tags). When `type` flips to WEIGHTLESS the caller is responsible
+     * for invoking [clearWeightsFromAllPlansForExercise] in the same Save flow so weighted
+     * plan rows do not survive the type change.
+     */
+    suspend fun setExerciseType(
+        exerciseUuid: String,
+        type: ExerciseTypeDataModel,
+    )
 
     /**
      * Wipes the `weight` column from `exercise.last_adhoc_sets` and from every

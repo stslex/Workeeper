@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.feature.plan_editor.mvi.handler
 
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
+import io.github.stslex.workeeper.core.ui.navigation.Screen.PlanEditor.Companion.planEditorDraftResultAttr
 import io.github.stslex.workeeper.core.ui.navigation.Screen.PlanEditor.Companion.planEditorSavedAttr
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.handler.NavigationHandler
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.Action
@@ -25,6 +26,15 @@ internal class NavigationHandlerTest {
         handler.invoke(Action.Navigation.BackAfterSave)
         verify(exactly = 1) {
             navigator.popBack(planEditorSavedAttr.toPairValue(true))
+        }
+    }
+
+    @Test
+    fun `BackAfterDraftSave pops with the draft-result attribute carrying the JSON payload`() {
+        val payload = "{\"type\":\"WEIGHTED\",\"plan\":[]}"
+        handler.invoke(Action.Navigation.BackAfterDraftSave(resultJson = payload))
+        verify(exactly = 1) {
+            navigator.popBack(planEditorDraftResultAttr.toPairValue(payload))
         }
     }
 }

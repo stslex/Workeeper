@@ -8,6 +8,7 @@ import io.github.stslex.workeeper.core.core.coroutine.asyncMap
 import io.github.stslex.workeeper.core.core.coroutine.asyncMapIndexed
 import io.github.stslex.workeeper.core.core.coroutine.asyncScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
+import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
 import io.github.stslex.workeeper.core.data.database.converters.PlanSetsConverter
 import io.github.stslex.workeeper.core.data.database.session.SessionDao
 import io.github.stslex.workeeper.core.data.database.tag.TagDao
@@ -39,6 +40,7 @@ class TrainingRepositoryImpl @Inject constructor(
     private val sessionDao: SessionDao,
     private val exerciseRepository: ExerciseRepository,
     @IODispatcher private val ioDispatcher: CoroutineDispatcher,
+    private val dbTransition: DbTransitionRunner,
 ) : TrainingRepository {
 
     override fun getTrainingsUnique(query: String): Flow<PagingData<TrainingDataModel>> = Pager(
@@ -79,12 +81,16 @@ class TrainingRepositoryImpl @Inject constructor(
 
     override suspend fun getTraining(
         uuid: String,
-    ): TrainingDataModel? = withContext(ioDispatcher) {
+    ): TrainingDataModel? = dbTransition {
         val entityUuid = Uuid.parse(uuid)
+        val labels = async { trainingTagDao.getTagNames(entityUuid) }
+        val exerciseUuids = async {
+            trainingExerciseDao.getByTraining(entityUuid)
+                .map { it.exerciseUuid.toString() }
+        }
         dao.getById(entityUuid)?.toData(
-            labels = trainingTagDao.getTagNames(entityUuid),
-            exerciseUuids = trainingExerciseDao.getByTraining(entityUuid)
-                .map { it.exerciseUuid.toString() },
+            labels = labels.await(),
+            exerciseUuids = exerciseUuids.await(),
         )
     }
 

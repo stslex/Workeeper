@@ -2,12 +2,13 @@
 package io.github.stslex.workeeper.core.data.database.testfixtures
 
 import android.app.Application
-import android.content.Context
 import androidx.room.Room
 import androidx.room.withTransaction
 import androidx.test.core.app.ApplicationProvider
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.coroutineScope
 import org.jetbrains.annotations.TestOnly
 
 /**
@@ -28,14 +29,25 @@ class RepositoryTestEnv {
 
     private val database: AppDatabase = Room
         .inMemoryDatabaseBuilder(
-            ApplicationProvider.getApplicationContext<Context>(),
+            ApplicationProvider.getApplicationContext(),
             AppDatabase::class.java,
         )
         .allowMainThreadQueries()
         .build()
 
     val transition: DbTransitionRunner = object : DbTransitionRunner {
-        override suspend fun <T> invoke(block: suspend () -> T): T = database.withTransaction(block)
+        // `coroutineScope` is nested INSIDE `withTransaction` so the receiver passed to
+        // `block` inherits Room's `TransactionElement` from the transaction context. Any
+        // `async {}` children launched inside `block` (e.g. `TrainingRepositoryImpl.getTraining`)
+        // therefore reuse the transaction's connection instead of contending with it on the
+        // single-connection in-memory SQLite that Robolectric provides.
+        override suspend fun <T> invoke(
+            block: suspend CoroutineScope.() -> T,
+        ): T = database.withTransaction {
+            coroutineScope {
+                block()
+            }
+        }
     }
 
     val sessionDao get() = database.sessionDao

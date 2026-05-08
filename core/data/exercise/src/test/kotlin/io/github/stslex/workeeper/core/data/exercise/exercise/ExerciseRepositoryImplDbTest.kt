@@ -3,6 +3,8 @@ package io.github.stslex.workeeper.core.data.exercise.exercise
 
 import androidx.paging.testing.asSnapshot
 import io.github.stslex.workeeper.core.core.images.ImageStorage
+import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
+import io.github.stslex.workeeper.core.data.database.exercise.ExerciseDao
 import io.github.stslex.workeeper.core.data.database.exercise.ExerciseEntity
 import io.github.stslex.workeeper.core.data.database.exercise.ExerciseTypeEntity
 import io.github.stslex.workeeper.core.data.database.session.PerformedExerciseEntity
@@ -19,7 +21,11 @@ import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkObject
+import io.mockk.spyk
+import io.mockk.unmockkObject
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -47,6 +53,11 @@ internal class ExerciseRepositoryImplDbTest {
 
     @BeforeEach
     fun setup() {
+        // `getAdhocPlans` wraps its JSON deserialisation in `traceExecutionTime`,
+        // which fans out to `Log.i { ... }` and resolves the singleton
+        // `Firebase.crashlytics`. Stub the holder so the logging path is a no-op.
+        mockkObject(FirebaseCrashlyticsHolder)
+        every { FirebaseCrashlyticsHolder.log(any()) } returns Unit
         env = RepositoryTestEnv()
         imageStorage = mockk<ImageStorage>(relaxed = true)
         repository = ExerciseRepositoryImpl(
@@ -65,6 +76,7 @@ internal class ExerciseRepositoryImplDbTest {
     @AfterEach
     fun teardown() {
         env.close()
+        unmockkObject(FirebaseCrashlyticsHolder)
     }
 
     @Test
@@ -195,6 +207,108 @@ internal class ExerciseRepositoryImplDbTest {
         repository.saveItem(exerciseChange(uuid = fresh, name = "Fresh", lastAdhoc = null))
         assertNull(repository.getAdhocPlan(fresh.toString()))
     }
+
+    @Test
+    fun `getAdhocPlans with empty input returns empty Map and does not call the DAO`() = runTest {
+        val spiedDao = spyk<ExerciseDao>(env.exerciseDao)
+        val repositoryWithSpy = ExerciseRepositoryImpl(
+            dao = spiedDao,
+            tagDao = env.tagDao,
+            exerciseTagDao = env.exerciseTagDao,
+            trainingExerciseDao = env.trainingExerciseDao,
+            sessionDao = env.sessionDao,
+            setDao = env.setDao,
+            imageStorage = imageStorage,
+            transition = env.transition,
+            bgDispatcher = UnconfinedTestDispatcher(),
+        )
+
+        val result = repositoryWithSpy.getAdhocPlans(emptyList())
+
+        assertTrue(result.isEmpty())
+        coVerify(exactly = 0) { spiedDao.getAdhocPlansBatch(any()) }
+    }
+
+    @Test
+    fun `getAdhocPlans returns a map with parsed plans, preserved nulls, and missing uuids absent`() =
+        runTest {
+            val withPlanUuid = Uuid.random()
+            val withNullPlanUuid = Uuid.random()
+            val unknownUuid = Uuid.random()
+            // Write the plan via the setter so the JSON shape exercises the converter's
+            // serialise → deserialise round-trip rather than a hand-rolled string.
+            repository.saveItem(exerciseChange(uuid = withPlanUuid, name = "Bench"))
+            val plan = listOf(
+                PlanSetDataModel(weight = 80.0, reps = 5, type = SetTypeDataModel.WORK),
+                PlanSetDataModel(weight = 90.0, reps = 4, type = SetTypeDataModel.FAILURE),
+            )
+            repository.setAdhocPlan(withPlanUuid.toString(), plan)
+            // The other row has last_adhoc_sets = null.
+            repository.saveItem(exerciseChange(uuid = withNullPlanUuid, name = "Squat"))
+
+            val result = repository.getAdhocPlans(
+                listOf(
+                    withPlanUuid.toString(),
+                    withNullPlanUuid.toString(),
+                    unknownUuid.toString(),
+                ),
+            )
+
+            // Round-trip parity: written-via-setter plan reads back exactly equal.
+            assertEquals(plan, result[withPlanUuid.toString()])
+            // Null preservation: the null column surfaces as Map value = null, and the
+            // key remains in the result so callers can distinguish "row exists but no
+            // plan" from "row not in the DB".
+            assertTrue(result.containsKey(withNullPlanUuid.toString()))
+            assertNull(result[withNullPlanUuid.toString()])
+            // Unknown uuids do not appear at all.
+            assertFalse(result.containsKey(unknownUuid.toString()))
+        }
+
+    @Test
+    fun `getAdhocPlans distinguishes a row with empty list plan from a row with null plan`() =
+        runTest {
+            val nullPlanUuid = Uuid.random()
+            val emptyPlanUuid = Uuid.random()
+            env.exerciseDao.insert(
+                ExerciseEntity(
+                    uuid = nullPlanUuid,
+                    name = "NullPlan",
+                    type = ExerciseTypeEntity.WEIGHTED,
+                    description = null,
+                    imagePath = null,
+                    archived = false,
+                    createdAt = 0L,
+                    archivedAt = null,
+                    lastAdhocSets = null,
+                ),
+            )
+            env.exerciseDao.insert(
+                ExerciseEntity(
+                    uuid = emptyPlanUuid,
+                    name = "EmptyPlan",
+                    type = ExerciseTypeEntity.WEIGHTED,
+                    description = null,
+                    imagePath = null,
+                    archived = false,
+                    createdAt = 0L,
+                    archivedAt = null,
+                    // Empty-list JSON — distinguishable from null at read time.
+                    lastAdhocSets = "[]",
+                ),
+            )
+
+            val result = repository.getAdhocPlans(
+                listOf(nullPlanUuid.toString(), emptyPlanUuid.toString()),
+            )
+
+            // Same load-bearing distinction as TrainingExerciseRepository.getPlans: the
+            // null entry is the one the loadSession fallback resolves; the empty list
+            // is preserved as empty so a deliberately-cleared plan stays empty.
+            assertNull(result[nullPlanUuid.toString()])
+            assertNotNull(result[emptyPlanUuid.toString()])
+            assertEquals(emptyList<PlanSetDataModel>(), result[emptyPlanUuid.toString()])
+        }
 
     @Test
     fun `setAdhocPlan persists the plan and clears it when null is passed`() = runTest {

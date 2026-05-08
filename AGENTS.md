@@ -92,6 +92,19 @@ and the `add-feature` skill for the new Feature / FeatureAssisted scaffolding.
   The domain layer never injects `ResourceWrapper` and never imports
   `R.*`.
 
+### Read-path pattern: batch DAO + Kotlin-side groupBy
+
+For one-shot reads that hit the same table N times, prefer a single batched DAO
+method over a per-entity loop. Convention: empty input short-circuits before the
+DAO call, the DAO returns a flat `List<*Row>` projection, and the repository
+maps it via `groupBy` / `associate` to a `Map<keyAsString, value>`. Null vs
+empty-list distinction is load-bearing — preserve nulls in the result so
+downstream consumers can decide whether to apply a fallback. Canonical
+implementations: `SetDao.getByPerformedExercises`,
+`TrainingExerciseDao.getPlanSetsBatch`, `ExerciseDao.getAdhocPlansBatch`. The
+canonical consumer is `LiveWorkoutInteractor.loadSession`. See
+[CLAUDE.md → Read-path pattern](CLAUDE.md) for the full convention.
+
 ## Workflow recipes (`.claude/skills/`)
 
 These are Claude Code-shaped skill files. Other agents can read them as procedural recipes for
@@ -107,7 +120,9 @@ the same tasks:
 - [`add-database-migration`](.claude/skills/add-database-migration.md) — Room schema migration
   + test.
 - [`refactor-with-mvi-rules`](.claude/skills/refactor-with-mvi-rules.md) — resolve a custom
-  Detekt rule violation.
+  Detekt rule violation (see also
+  [`compose-state-discipline`](.claude/skills/compose-state-discipline.md), which covers
+  Rule 4: dialogs and bottom sheets live in `State`, not `Event`).
 
 ## Required skill usage
 

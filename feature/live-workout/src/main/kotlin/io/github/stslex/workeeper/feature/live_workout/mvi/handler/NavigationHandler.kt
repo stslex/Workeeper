@@ -22,7 +22,7 @@ internal class NavigationHandler @Inject constructor(
 
             is Action.Navigation.OpenPlanEditor ->
                 navigator.navTo(
-                    Screen.PlanEditor(
+                    Screen.PlanEditor.Existing(
                         performedExerciseUuid = action.performedExerciseUuid,
                         exerciseUuid = action.exerciseUuid,
                         trainingUuid = action.trainingUuid,

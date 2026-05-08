@@ -11,6 +11,7 @@ import io.github.stslex.workeeper.core.core.coroutine.asyncMapNotNull
 import io.github.stslex.workeeper.core.core.coroutine.asyncScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.images.ImageStorage
+import io.github.stslex.workeeper.core.core.utils.CommonExt.runIf
 import io.github.stslex.workeeper.core.core.utils.CommonExt.runIfNotNull
 import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
 import io.github.stslex.workeeper.core.data.database.converters.PlanSetsConverter
@@ -31,6 +32,7 @@ import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseDataModel
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseListItem
+import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel.Companion.toData
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.HistoryEntry
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.RecentExerciseDataModel
@@ -38,6 +40,7 @@ import io.github.stslex.workeeper.core.data.exercise.exercise.model.toData
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.toEntity
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.toSummary
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -121,6 +124,16 @@ internal class ExerciseRepositoryImpl @Inject constructor(
         PlanSetsConverter.fromJson(entity.lastAdhocSets)
     }
 
+    override suspend fun getAdhocPlans(
+        uuids: List<String>,
+    ): Map<String, List<PlanSetDataModel>?> = withContext(bgDispatcher) {
+        if (uuids.isEmpty()) return@withContext emptyMap()
+        val rows = dao.getAdhocPlansBatch(uuids.map(Uuid::parse))
+        rows.associate { row ->
+            row.uuid.toString() to PlanSetsConverter.fromJson(row.lastAdhocSets)
+        }
+    }
+
     override suspend fun createInlineAdhocExercise(
         name: String,
     ): InlineAdhocResult = transition {
@@ -165,27 +178,42 @@ internal class ExerciseRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun setExerciseType(
+        exerciseUuid: String,
+        type: ExerciseTypeDataModel,
+    ) {
+        withContext(bgDispatcher) {
+            dao.updateType(
+                uuid = Uuid.parse(exerciseUuid),
+                type = type.toEntity(),
+            )
+        }
+    }
+
     override suspend fun clearWeightsFromAllPlansForExercise(exerciseUuid: String) {
         transition {
             val parsed = Uuid.parse(exerciseUuid)
             val exercise = dao.getById(parsed) ?: return@transition
             val adhoc = PlanSetsConverter.fromJson(exercise.lastAdhocSets)
             val updateDeferred = runIfNotNull(adhoc) { adhocNotNull ->
-                asyncScope {
+                async {
                     val cleared = adhocNotNull.map { it.copy(weight = null) }
                     dao.updateLastAdhocSets(parsed, PlanSetsConverter.toJson(cleared))
                 }
             }
-            trainingExerciseDao.getAllForExercise(parsed).asyncForEach { row ->
-                val parsedPlan = PlanSetsConverter.fromJson(row.planSets) ?: return@asyncForEach
-                val cleared = parsedPlan.map { it.copy(weight = null) }
-                trainingExerciseDao.updatePlanSets(
-                    trainingUuid = row.trainingUuid,
-                    exerciseUuid = row.exerciseUuid,
-                    planSets = PlanSetsConverter.toJson(cleared),
-                )
+            val getAllForExerciseDeferred = async {
+                trainingExerciseDao.getAllForExercise(parsed).asyncForEach { row ->
+                    val parsedPlan = PlanSetsConverter.fromJson(row.planSets) ?: return@asyncForEach
+                    val cleared = parsedPlan.map { it.copy(weight = null) }
+                    trainingExerciseDao.updatePlanSets(
+                        trainingUuid = row.trainingUuid,
+                        exerciseUuid = row.exerciseUuid,
+                        planSets = PlanSetsConverter.toJson(cleared),
+                    )
+                }
             }
             updateDeferred?.await()
+            getAllForExerciseDeferred.await()
         }
     }
 
@@ -207,11 +235,14 @@ internal class ExerciseRepositoryImpl @Inject constructor(
     ): List<ExerciseDataModel> = withContext(bgDispatcher) {
         val excluded = excludeUuids.map(Uuid::parse).toSet()
         dao.getAllActive()
-            .filter { entity ->
-                entity.uuid !in excluded &&
-                    (query.isBlank() || entity.name.contains(query, ignoreCase = true))
+            .mapNotNull { entity ->
+                runIf(
+                    entity.uuid !in excluded &&
+                        (query.isBlank() || entity.name.contains(query, ignoreCase = true)),
+                ) {
+                    entity.toData()
+                }
             }
-            .map { it.toData() }
     }
 
     override suspend fun deleteAllItems(uuids: List<Uuid>) {
@@ -252,9 +283,7 @@ internal class ExerciseRepositoryImpl @Inject constructor(
         trainingExerciseDao.countActiveTemplatesUsing(Uuid.parse(uuid)) == 0
     }
 
-    override suspend fun canPermanentlyDeleteImmediately(
-        uuid: String,
-    ): Boolean = transition {
+    override suspend fun canPermanentlyDeleteImmediately(uuid: String): Boolean = transition {
         val parsed = Uuid.parse(uuid)
         val countFinishedExercise = asyncScope {
             sessionDao.countFinishedContainingExercise(parsed) == 0
@@ -414,30 +443,27 @@ internal class ExerciseRepositoryImpl @Inject constructor(
         exerciseTagDao.getTagNames(exerciseUuid)
 
     private suspend fun syncLabels(exerciseUuid: Uuid, labels: List<String>) {
-        transition {
-            if (labels.isEmpty()) {
-                exerciseTagDao.deleteByExercise(exerciseUuid)
-                return@transition
-            }
-            val deleteExerciseDeferred = asyncScope {
-                exerciseTagDao.deleteByExercise(exerciseUuid)
-            }
-            val tagUuids = labels
+        if (labels.isEmpty()) {
+            exerciseTagDao.deleteByExercise(exerciseUuid)
+            return
+        }
+        val deleteExerciseDeferred = asyncScope {
+            exerciseTagDao.deleteByExercise(exerciseUuid)
+        }
+        val tagUuids = asyncScope {
+            labels
                 .map(String::trim)
                 .filter { it.isNotEmpty() }
                 .distinctBy { it.lowercase() }
                 .asyncMap { name ->
-                    tagDao.findByName(name)?.uuid ?: TagEntity(name = name).also {
+                    val tagUuid = tagDao.findByName(name)?.uuid ?: TagEntity(name = name).also {
                         tagDao.insert(it)
                     }.uuid
-                }
-            deleteExerciseDeferred.await()
-            exerciseTagDao.insert(
-                tagUuids.map { tagUuid ->
                     ExerciseTagEntity(exerciseUuid = exerciseUuid, tagUuid = tagUuid)
-                },
-            )
+                }
         }
+        deleteExerciseDeferred.await()
+        exerciseTagDao.insert(tagUuids.await())
     }
 
     companion object {
