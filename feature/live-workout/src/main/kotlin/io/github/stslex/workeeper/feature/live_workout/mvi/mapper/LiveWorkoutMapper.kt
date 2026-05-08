@@ -124,21 +124,24 @@ internal object LiveWorkoutMapper {
     private fun LiveExerciseDomain.toLiveSets(
         baseline: PersonalRecordDomain?,
     ): ImmutableList<LiveSetUiModel> =
-        performedSets.mapIndexed { index, set ->
-            LiveSetUiModel(
-                position = index,
-                weight = set.weight,
-                reps = set.reps,
-                type = set.type.toUi(),
-                isDone = true,
-                isPersonalRecord = set.toPlanSetDomain().beatsBaseline(
-                    baselineWeight = baseline?.weight,
-                    baselineReps = baseline?.reps,
-                    type = exerciseType,
-                    hasBaseline = baseline != null,
-                ),
-            )
-        }.toImmutableList()
+        performedSets
+            .map { set ->
+                LiveSetUiModel(
+                    position = set.position,
+                    weight = set.weight,
+                    reps = set.reps,
+                    type = set.type.toUi(),
+                    isDone = true,
+                    isPersonalRecord = set.toPlanSetDomain().beatsBaseline(
+                        baselineWeight = baseline?.weight,
+                        baselineReps = baseline?.reps,
+                        type = exerciseType,
+                        hasBaseline = baseline != null,
+                    ),
+                )
+            }
+            .sortedBy { it.position }
+            .toImmutableList()
 
     private fun SetDomain.toPlanSetDomain(): PlanSetDomain = PlanSetDomain(
         weight = weight,
