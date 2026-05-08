@@ -8,6 +8,7 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 
@@ -15,19 +16,46 @@ val coroutineExceptionHandler = CoroutineExceptionHandler { _, throwable ->
     Log.e(throwable)
 }
 
-suspend fun <T, R> Collection<T>.asyncMap(
+suspend fun <T, R> Iterable<T>.asyncMap(
     transform: suspend (T) -> R,
 ): List<R> = coroutineScope {
     map { item -> async { transform(item) } }
 }.awaitAll()
 
-suspend fun <T, R> Collection<T>.asyncMapNotNull(
+suspend fun <T, R> Iterable<T>.asyncMapNotNull(
     transform: suspend (T) -> R?,
 ): List<R> = coroutineScope {
     map { item -> async { transform(item) } }
 }
     .awaitAll()
     .filterNotNull()
+
+/**
+ * Runs [transform] in parallel for each element and assembles the resulting pairs into a
+ * single [Map]. Each transform launches as an `async` child of `coroutineScope`, so all
+ * calls run concurrently and the function suspends until every child completes.
+ *
+ * Duplicate keys: last-write-wins. Each transform stores its result via
+ * `mutableMap[key] = value` on a shared [MutableMap]; with concurrent execution, completion
+ * order is not deterministic, so the surviving value for any duplicated key is whichever
+ * transform happened to write last. If callers need a stable resolution, they must
+ * de-duplicate before calling.
+ */
+suspend inline fun <T, K : Any, V : Any> Iterable<T>.asyncAssociate(
+    crossinline transform: suspend (T) -> Pair<K, V>,
+): Map<K, V> {
+    val resultMap = ConcurrentHashMap<K, V>()
+    coroutineScope {
+        map { element ->
+            async {
+                transform(element).let { (key, value) ->
+                    resultMap[key] = value
+                }
+            }
+        }.awaitAll()
+    }
+    return resultMap.toMap()
+}
 
 suspend fun <T, R> Collection<T>.asyncMapIndexed(
     transform: suspend (Int, T) -> R,
@@ -46,6 +74,15 @@ suspend fun <T> asyncScope(
         block = block,
     )
 }
+
+/**
+ * Evaluates [predicate] in parallel for each element and returns `true` only when every
+ * element satisfies it. All predicates are awaited (no short-circuit) — if early termination
+ * matters, prefer the sequential `Iterable.all { ... }` instead.
+ */
+suspend inline fun <T> Iterable<T>.asyncAll(
+    crossinline predicate: suspend (T) -> Boolean,
+): Boolean = asyncMap { predicate(it) }.all { it }
 
 suspend fun <K, V, R> Map<K, V>.asyncMap(
     transform: suspend (Map.Entry<K, V>) -> R,

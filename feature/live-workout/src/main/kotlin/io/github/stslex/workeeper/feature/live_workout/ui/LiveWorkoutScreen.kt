@@ -263,11 +263,7 @@ private fun Body(
                     // Auto-default CURRENT (not in activeUuids) stays expanded by default; any
                     // user-toggled state (including a manually-active CURRENT collapsed by
                     // tapping its header) honors the explicit set.
-                    val expanded = exercise.performedExerciseUuid in state.expandedExerciseUuids ||
-                        (
-                            exercise.status == ExerciseStatusUiModel.CURRENT &&
-                                exercise.performedExerciseUuid !in state.activeExerciseUuids
-                            )
+                    val expanded = exercise.performedExerciseUuid in state.expandedExerciseUuids
                     LiveExerciseCard(
                         exercise = exercise,
                         expanded = expanded,

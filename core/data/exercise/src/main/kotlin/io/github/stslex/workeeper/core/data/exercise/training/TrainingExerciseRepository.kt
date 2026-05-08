@@ -7,6 +7,11 @@ interface TrainingExerciseRepository {
 
     suspend fun getPlan(trainingUuid: String, exerciseUuid: String): List<PlanSetDataModel>?
 
+    suspend fun getPlans(
+        trainingUuid: String,
+        exerciseUuids: List<String>,
+    ): Map<String, List<PlanSetDataModel>?>
+
     suspend fun setPlan(
         trainingUuid: String,
         exerciseUuid: String,

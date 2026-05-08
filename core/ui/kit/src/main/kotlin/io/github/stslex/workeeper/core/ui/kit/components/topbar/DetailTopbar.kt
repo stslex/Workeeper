@@ -22,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import io.github.stslex.workeeper.core.ui.kit.R
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -44,6 +45,8 @@ fun DetailTopbar(
                 text = title,
                 style = AppUi.typography.headlineSmall,
                 color = AppUi.colors.textPrimary,
+                overflow = TextOverflow.Ellipsis,
+                maxLines = 1,
             )
         },
         navigationIcon = {

@@ -53,8 +53,7 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
         if (existing != null && existing.trainingUuid == trainingUuid) {
             return@withContext existing.sessionUuid
         }
-        val rows = trainingExerciseRepository.getRowsForTraining(trainingUuid)
-        val pairs = rows
+        val pairs = trainingExerciseRepository.getRowsForTraining(trainingUuid)
             .sortedBy { it.position }
             .map { it.exerciseUuid to it.position }
         val session = sessionRepository.startSessionWithExercises(
@@ -67,40 +66,66 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
     override suspend fun loadSession(
         sessionUuid: String,
     ): SessionSnapshotDomain? = withContext(defaultDispatcher) {
-        val session = sessionRepository.getById(sessionUuid) ?: return@withContext null
-        val training = trainingRepository.getTraining(session.trainingUuid)
-        val performedRows = performedExerciseRepository.getBySession(sessionUuid)
-        val exerciseTemplates = exerciseRepository
-            .getExercisesByUuid(performedRows.map { it.exerciseUuid })
-            .associateBy { it.uuid }
-        val planByExercise = if (training?.isAdhoc == true) {
-            performedRows.associate { row ->
-                row.exerciseUuid to exerciseRepository.getAdhocPlan(row.exerciseUuid)
-            }
-        } else {
-            performedRows.associate { row ->
-                val trainingPlan = trainingExerciseRepository.getPlan(
+        val sessionDeferred = async {
+            sessionRepository.getById(sessionUuid)
+        }
+        val performedRowsDeferred = async {
+            performedExerciseRepository.getBySession(sessionUuid)
+        }
+        val session = sessionDeferred.await() ?: return@withContext null
+        val trainingDeferred = async {
+            trainingRepository.getTraining(session.trainingUuid)
+        }
+
+        val performedRows = performedRowsDeferred.await()
+
+        val planByExerciseDeferred = async {
+            val exerciseUuids = performedRows.map { it.exerciseUuid }
+            if (trainingDeferred.await()?.isAdhoc == true) {
+                exerciseRepository.getAdhocPlans(exerciseUuids)
+            } else {
+                val trainingPlans = trainingExerciseRepository.getPlans(
                     trainingUuid = session.trainingUuid,
-                    exerciseUuid = row.exerciseUuid,
+                    exerciseUuids = exerciseUuids,
                 )
-                // Read-time fallback: trainings created before the write-time fix may have
-                // null planSets even when the exercise has its own default. Recover here so
-                // existing user data isn't stranded. Empty plan (deliberately cleared by
-                // the user) is preserved as empty — `?:` only triggers on null.
-                val resolved = trainingPlan ?: exerciseRepository.getAdhocPlan(row.exerciseUuid)
-                row.exerciseUuid to resolved
+                // Read-time fallback for legacy null planSets. Resolve only for null entries
+                // (empty list = deliberately cleared by the user, preserved as empty).
+                val nullExerciseUuids = exerciseUuids.filter { trainingPlans[it] == null }
+                val fallbacks = if (nullExerciseUuids.isNotEmpty()) {
+                    exerciseRepository.getAdhocPlans(nullExerciseUuids)
+                } else {
+                    emptyMap()
+                }
+                exerciseUuids.associateWith { uuid ->
+                    trainingPlans[uuid] ?: fallbacks[uuid]
+                }
             }
         }
+
+        val exerciseTemplatesDeferred = async {
+            exerciseRepository
+                .getExercisesByUuid(performedRows.map { it.exerciseUuid })
+                .associateBy { it.uuid }
+        }
+
+        val performedSetsByPerformedDeferred = async {
+            setRepository.getByPerformedExercises(performedRows.map { it.uuid })
+        }
+
+        val exerciseTemplates = exerciseTemplatesDeferred.await()
+        val planByExercise = planByExerciseDeferred.await()
+        val performedSetsByPerformed = performedSetsByPerformedDeferred.await()
+
         val exerciseSnapshots = performedRows
             .sortedBy { it.position }
-            .mapNotNull { row ->
+            .mapNotNull { row -> // sync now — no I/O inside
                 val template = exerciseTemplates[row.exerciseUuid] ?: return@mapNotNull null
-                val performedSets = setRepository.getByPerformedExercise(row.uuid)
                 LiveExerciseDomain(
                     performed = row.toDomain(exerciseName = template.name),
                     exerciseType = template.type.toDomain(),
                     planSets = planByExercise[row.exerciseUuid]?.map { it.toDomain() },
-                    performedSets = performedSets.map { it.toDomain() },
+                    performedSets = performedSetsByPerformed[row.uuid].orEmpty()
+                        .map { it.toDomain() },
                 )
             }
         // Q6 lock — pre-session snapshot scope. We collect the PR map exactly once here and
@@ -111,10 +136,11 @@ internal class LiveWorkoutInteractorImpl @Inject constructor(
             snap.performed.exerciseUuid to snap.exerciseType.toData()
         }
         val preSessionPrs = personalRecordRepository
-            .observePersonalRecords(uuidsByType)
+            .observePersonalRecordsBatch(uuidsByType)
             .firstOrNull()
             .orEmpty()
-            .mapValues { (_, pr) -> pr?.toDomain() }
+            .mapValues { (_, pr) -> pr.toDomain() }
+        val training = trainingDeferred.await()
         SessionSnapshotDomain(
             session = session.toDomain(),
             trainingName = training?.name.orEmpty(),

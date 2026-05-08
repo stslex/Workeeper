@@ -30,6 +30,7 @@ internal class TagRepositoryImplDbTest {
         repository = TagRepositoryImpl(
             dao = env.tagDao,
             ioDispatcher = UnconfinedTestDispatcher(),
+            transitionRunner = env.transition,
         )
     }
 

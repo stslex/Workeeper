@@ -109,3 +109,36 @@ cancel/finish path, and the cascade-delete predicate.
 Rule: every new exercise list query (paged, observable, search) must filter
 `is_adhoc = 0`. The only acceptable exception is when a query needs all rows for a
 specific defensive reason — document it inline.
+
+## Read-path pattern: batch DAO + Kotlin-side groupBy
+
+For one-shot reads that hit the same table N times (one per entity in a list),
+prefer a single batched DAO method over a per-entity loop. Established examples:
+
+- `SetDao.getByPerformedExercises(uuids: List<Uuid>)` returns a flat
+  `List<SetEntity>`; the repository wraps it in `groupBy { it.performedExerciseUuid }`.
+- `TrainingExerciseDao.getPlanSetsBatch(trainingUuid, exerciseUuids)` returns
+  `List<TrainingExercisePlanRow>` (a 2-column projection with the exercise uuid
+  preserved); the repository associates by `exerciseUuid.toString()` to a `Map`.
+- `ExerciseDao.getAdhocPlansBatch(uuids)` returns `List<ExerciseAdhocPlanRow>`
+  (a 2-column projection with the exercise uuid preserved); repository associates
+  by `uuid.toString()` to a `Map`.
+
+Conventions:
+
+1. **Empty input short-circuit.** Repository methods that batch must check
+   `if (uuids.isEmpty()) return@withContext emptyMap()` before the DAO call —
+   tests assert no DAO call is made for empty input.
+2. **Null vs empty-list distinction.** When the column being read can be `null`
+   (e.g. `plan_sets`, `last_adhoc_sets`), preserve the null in the resulting Map
+   rather than filtering it out — downstream consumers (e.g. `loadSession`'s
+   read-time fallback) rely on the distinction.
+3. **Missing pairs.** Pairs that don't have a row in the DB are silently absent
+   from the result — they are NOT a Map entry with null value. The DAO query
+   uses `IN (:uuids)` semantics; only existing rows surface.
+
+Use this pattern as the first option for any new "fan out per entity" read path.
+The existing `LiveWorkoutInteractor.loadSession` is the canonical consumer:
+it parallelises three batch reads (`getPlans` / `getAdhocPlans` /
+`getByPerformedExercises`) via `async {}` then assembles a pure-Kotlin
+snapshot with no further I/O.

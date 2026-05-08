@@ -42,7 +42,7 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import kotlin.uuid.Uuid
 
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "LargeClass")
 @ViewModelScoped
 internal class ClickHandler @Inject constructor(
     private val interactor: ExerciseInteractor,

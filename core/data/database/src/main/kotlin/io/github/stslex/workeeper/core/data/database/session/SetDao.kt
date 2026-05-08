@@ -23,6 +23,17 @@ interface SetDao {
 
     @Query(
         """
+    SELECT * FROM set_table
+    WHERE performed_exercise_uuid IN (:performedExerciseUuids)
+    ORDER BY performed_exercise_uuid, position ASC
+    """,
+    )
+    suspend fun getByPerformedExercises(
+        performedExerciseUuids: List<Uuid>,
+    ): List<SetEntity>
+
+    @Query(
+        """
         SELECT * FROM set_table
         WHERE performed_exercise_uuid = :performedExerciseUuid
           AND position = :position

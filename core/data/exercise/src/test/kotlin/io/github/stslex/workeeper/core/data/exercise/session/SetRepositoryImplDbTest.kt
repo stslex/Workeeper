@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.exercise.session
 
+import io.github.stslex.workeeper.core.data.database.session.SetDao
 import io.github.stslex.workeeper.core.data.database.testfixtures.RepositoryTestEnv
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataModel
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.SetsDataType
+import io.mockk.coVerify
+import io.mockk.spyk
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
@@ -243,6 +246,71 @@ internal class SetRepositoryImplDbTest {
             val exerciseUuid = Uuid.random()
             assertNull(repository.getLastFinishedSet(exerciseUuid.toString()))
         }
+
+    @Test
+    fun `getByPerformedExercises with empty input returns empty Map and does not call the DAO`() =
+        runTest {
+            val spiedDao = spyk<SetDao>(env.setDao)
+            val repositoryWithSpy = SetRepositoryImpl(
+                dao = spiedDao,
+                transition = env.transition,
+                ioDispatcher = UnconfinedTestDispatcher(),
+            )
+
+            val result = repositoryWithSpy.getByPerformedExercises(emptyList())
+
+            assertTrue(result.isEmpty())
+            // Short-circuit: with no input, the DAO is never queried.
+            coVerify(exactly = 0) { spiedDao.getByPerformedExercises(any()) }
+        }
+
+    @Test
+    fun `getByPerformedExercises returns mapped sets keyed by stringified performed uuid`() =
+        runTest {
+            val firstPerformed = seedPerformedExercise()
+            val secondPerformed = seedPerformedExercise()
+            val firstA = SetsDataModel(Uuid.random().toString(), 5, 100.0, SetsDataType.WORK)
+            val firstB = SetsDataModel(Uuid.random().toString(), 5, 110.0, SetsDataType.WORK)
+            val secondA = SetsDataModel(Uuid.random().toString(), 8, 50.0, SetsDataType.WARM)
+            // Insert positions out of order to verify the DAO ORDER BY survives the mapping.
+            repository.insert(firstPerformed.toString(), position = 1, set = firstB)
+            repository.insert(firstPerformed.toString(), position = 0, set = firstA)
+            repository.insert(secondPerformed.toString(), position = 0, set = secondA)
+
+            val result = repository.getByPerformedExercises(
+                listOf(firstPerformed.toString(), secondPerformed.toString()),
+            )
+
+            assertEquals(setOf(firstPerformed.toString(), secondPerformed.toString()), result.keys)
+            assertEquals(
+                listOf(firstA.uuid, firstB.uuid),
+                result.getValue(firstPerformed.toString()).map { it.uuid },
+            )
+            assertEquals(
+                listOf(secondA),
+                result.getValue(secondPerformed.toString()),
+            )
+        }
+
+    @Test
+    fun `getByPerformedExercises omits performed uuids that have no sets`() = runTest {
+        val withSets = seedPerformedExercise()
+        val withoutSets = seedPerformedExercise()
+        repository.insert(
+            withSets.toString(),
+            position = 0,
+            set = SetsDataModel(Uuid.random().toString(), 5, 100.0, SetsDataType.WORK),
+        )
+
+        val result = repository.getByPerformedExercises(
+            listOf(withSets.toString(), withoutSets.toString()),
+        )
+
+        // Kotlin's `groupBy` only emits keys for entries that produced rows — uuids with
+        // zero sets are absent from the map, not present with an empty list.
+        assertEquals(setOf(withSets.toString()), result.keys)
+        assertFalse(result.containsKey(withoutSets.toString()))
+    }
 
     private suspend fun seedPerformedExercise(): Uuid {
         val training = env.seedTraining()

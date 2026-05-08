@@ -52,6 +52,7 @@ internal class TrainingRepositoryImplDbTest {
             sessionDao = env.sessionDao,
             exerciseRepository = exerciseRepository,
             ioDispatcher = UnconfinedTestDispatcher(),
+            dbTransition = env.transition,
         )
     }
 
@@ -321,6 +322,11 @@ internal class TrainingRepositoryImplDbTest {
         assertNotNull(env.trainingDao.getById(survivor))
     }
 
+    // The post-refactor `getTraining` calls `dbTransition { ... async { ... } ... }`.
+    // The testFixture's `transition` runs `coroutineScope` INSIDE `withTransaction`
+    // so the receiver passed to `block` inherits Room's `TransactionElement`; the
+    // async children launched here therefore reuse the parent's transaction connection
+    // instead of contending with it.
     @Test
     fun `getTraining returns the data model with labels and exerciseUuids`() = runTest {
         val trainingUuid = Uuid.random()
@@ -357,6 +363,60 @@ internal class TrainingRepositoryImplDbTest {
     fun `getTraining returns null when the row does not exist`() = runTest {
         assertNull(repository.getTraining(Uuid.random().toString()))
     }
+
+    @Test
+    fun `getTraining returns the data model with empty labels when the training has no tags`() =
+        runTest {
+            val trainingUuid = Uuid.random()
+            val exerciseUuid = Uuid.random()
+            seedLibraryExercise(exerciseUuid, "Bench")
+            repository.updateTraining(
+                TrainingChangeDataModel(
+                    uuid = trainingUuid.toString(),
+                    name = "Push Day",
+                    timestamp = 1L,
+                    labels = emptyList(),
+                    exerciseUuids = listOf(exerciseUuid.toString()),
+                ),
+            )
+
+            val result = repository.getTraining(trainingUuid.toString())
+
+            assertNotNull(result)
+            assertEquals("Push Day", result?.name)
+            assertEquals(emptyList<String>(), result?.labels)
+            assertEquals(listOf(exerciseUuid.toString()), result?.exerciseUuids)
+        }
+
+    @Test
+    fun `getTraining returns the data model with empty exerciseUuids when the training has no exercises`() =
+        runTest {
+            val trainingUuid = Uuid.random()
+            repository.updateTraining(
+                TrainingChangeDataModel(
+                    uuid = trainingUuid.toString(),
+                    name = "Pull Day",
+                    timestamp = 1L,
+                    labels = listOf("upper", "back"),
+                    exerciseUuids = emptyList(),
+                ),
+            )
+
+            val result = repository.getTraining(trainingUuid.toString())
+
+            assertNotNull(result)
+            assertEquals("Pull Day", result?.name)
+            assertEquals(listOf("upper", "back").sorted(), result?.labels?.sorted())
+            assertEquals(emptyList<String>(), result?.exerciseUuids)
+        }
+
+    // Atomicity of `getTraining`'s `dbTransition` block is delegated to Room's
+    // `withTransaction` and is not verifiable at the unit-test level (no observable
+    // mid-transaction side effect to interrupt). Parallelism of the two `async {}`
+    // branches is covered by construction — the DAO calls are independent and the
+    // production path uses `async {}` — but is not asserted here because the
+    // delay-based scheduling assertion would re-trip the same testFixture deadlock
+    // documented above.
 
     @Test
     fun `subscribeForTraining emits the data model and falls back to a placeholder for missing rows`() =
