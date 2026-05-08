@@ -84,7 +84,11 @@ internal object LiveWorkoutMapper {
             val plan = snapshot.planSets.orEmpty().map { it.toUi() }.toImmutableList()
             val baseline = prSnapshot[snapshot.performed.exerciseUuid]
             val performed = snapshot.toLiveSets(baseline)
-            val isDone = isExerciseDone(plan, performed, snapshot.performed.skipped)
+            val isDone = ExerciseDoneRule.isDoneLoad(
+                planSets = plan,
+                performedSets = performed,
+                skipped = snapshot.performed.skipped,
+            )
             Computed(snapshot, plan, performed, isDone)
         }
         val autoCurrentUuid = if (activeUuids.isEmpty()) {
@@ -163,18 +167,6 @@ internal object LiveWorkoutMapper {
         }
         .toMap()
         .toImmutableMap()
-
-    private fun isExerciseDone(
-        plan: ImmutableList<PlanSetUiModel>,
-        performed: ImmutableList<LiveSetUiModel>,
-        skipped: Boolean,
-    ): Boolean {
-        if (skipped) return false
-        if (plan.isEmpty()) return performed.any { it.isDone }
-        if (performed.size < plan.size) return false
-        val performedByPosition = performed.associateBy { it.position }
-        return plan.indices.all { idx -> performedByPosition[idx]?.isDone == true }
-    }
 
     fun State.withPresentation(resourceWrapper: ResourceWrapper): State {
         // Recompute visible-row resolution alongside the rest of presentation. Every
