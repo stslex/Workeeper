@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.live_workout.ui.components
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -60,15 +62,22 @@ internal fun LiveExerciseCard(
     consume: (LiveWorkoutStore.Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val borderColor = when (exercise.status) {
-        ExerciseStatusUiModel.CURRENT -> AppUi.colors.accent
-        else -> AppUi.colors.borderSubtle
-    }
-    val cardAlpha = when (exercise.status) {
-        ExerciseStatusUiModel.DONE -> DONE_ALPHA
-        ExerciseStatusUiModel.SKIPPED -> SKIPPED_ALPHA
-        else -> 1f
-    }
+    val borderColor by animateColorAsState(
+        targetValue = when (exercise.status) {
+            ExerciseStatusUiModel.CURRENT -> AppUi.colors.accent
+            else -> AppUi.colors.borderSubtle
+        },
+        animationSpec = tween(durationMillis = AppUi.motion.normal),
+    )
+
+    val cardAlpha by animateFloatAsState(
+        targetValue = when (exercise.status) {
+            ExerciseStatusUiModel.DONE -> DONE_ALPHA
+            ExerciseStatusUiModel.SKIPPED -> SKIPPED_ALPHA
+            else -> 1f
+        },
+        animationSpec = tween(durationMillis = AppUi.motion.normal),
+    )
     Column(
         modifier = modifier
             .fillMaxWidth()

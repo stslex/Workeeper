@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.feature.live_workout.ui.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -48,11 +49,14 @@ internal fun LiveSetRow(
     modifier: Modifier = Modifier,
     testTagPrefix: String? = null,
 ) {
-    val rowBg = if (set.isDone) {
-        AppUi.colors.surfaceTier4
-    } else {
-        AppUi.colors.surfaceTier1
-    }
+    val rowBg by animateColorAsState(
+        targetValue = if (set.isDone) {
+            AppUi.colors.surfaceTier4
+        } else {
+            AppUi.colors.surfaceTier1
+        },
+        animationSpec = tween(durationMillis = AppUi.motion.normal),
+    )
     val accentColor by animateColorAsState(
         targetValue = if (set.isPersonalRecord) {
             AppUi.colors.record.border
