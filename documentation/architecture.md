@@ -1642,6 +1642,46 @@ For action surfaces that span feature modules (where the body lives in a *featur
 that already owns its own store contract), the mapping is unnecessary — emit the store's
 own `Action.Click.*` variants directly.
 
+#### Shared draft transformer (`PlanDraftReducer`)
+
+The full-screen `PlanEditor` and the inline plan editor used by the exercise
+create-flow (see below) both mutate an `ImmutableList<PlanSetUiModel>` in response to
+`PlanEditorBodyAction`. To prevent drift between the two paths, set-list semantics live
+in a single pure transformer in `core/ui/plan-editor/.../domain/PlanDraftReducer.kt`:
+
+```kotlin
+object PlanDraftReducer {
+    fun reduce(
+        draft: ImmutableList<PlanSetUiModel>,
+        action: PlanEditorBodyAction,
+        isWeighted: Boolean,
+    ): ImmutableList<PlanSetUiModel>
+}
+```
+
+The reducer is pure (no coroutines, no IO, no resource access). Both
+`feature/plan-editor`'s `ClickHandler` / `InputHandler` and `feature/exercise`'s
+`ClickHandler.processAdhocPlanEditorAction` delegate to it, so adding new
+`PlanEditorBodyAction` variants only requires updating one place.
+
+#### Inline `PlanEditorBody` exception (exercise create-flow)
+
+The default rule is "plan editing always opens the full-screen `Screen.PlanEditor`
+route". The exercise create-flow (`State.create(uuid = null)`) is a deliberate
+exception: a brand-new exercise has no UUID yet, and `Screen.PlanEditor` keys off
+`exercise_table.last_adhoc_sets` which requires the row to already exist.
+
+`feature/exercise/ui/ExerciseEditScreen.kt` therefore renders `PlanEditorBody(
+scrollable = false, ...)` inline inside the form when
+`(state.mode as? Mode.Edit)?.isCreate == true`. Body actions are wrapped in
+`Action.Click.OnAdhocPlanEditorAction(action)` and the handler updates the in-memory
+`state.adhocPlan`; persistence happens on the existing Save path via
+`ExerciseChangeDomain.lastAdhocSets`. Read-mode and edit-mode-on-existing keep the
+full-screen route via `Action.Click.OnEditPlanClick → Action.Navigation.OpenPlanEditor`.
+
+Process-death recovery for the inline draft is a known limitation — see
+`tech-debt.md` for the planned DB-draft follow-up.
+
 ### Collections in UI parameters
 
 Always use `kotlinx.collections.immutable.ImmutableList` /

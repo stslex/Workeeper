@@ -50,6 +50,10 @@ private const val WEIGHT_COLUMN_FLEX = 1.2f
  * Pure-Composable body of the plan editor — header, set rows, and add-set button. Hosted
  * by the full-screen `PlanEditorScreen` route. All state lives upstream; field changes
  * emit [PlanEditorBodyAction] back to the parent screen which maps them to store actions.
+ *
+ * When [scrollable] is `false`, the internal `verticalScroll` and capped height are
+ * dropped so the body lays out naturally inside an outer scroll container — used by the
+ * exercise create-flow which embeds the body inline in an already-scrollable form.
  */
 @Composable
 fun PlanEditorBody(
@@ -57,6 +61,7 @@ fun PlanEditorBody(
     isWeighted: Boolean,
     onAction: (PlanEditorBodyAction) -> Unit,
     setTypeTooltipText: String? = null,
+    scrollable: Boolean = true,
 ) {
     if (draft.isEmpty()) {
         Text(
@@ -70,11 +75,16 @@ fun PlanEditorBody(
         )
         return
     }
-    Column(
-        modifier = Modifier
+    val columnModifier = if (scrollable) {
+        Modifier
             .fillMaxWidth()
             .heightIn(max = 360.dp)
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(rememberScrollState())
+    } else {
+        Modifier.fillMaxWidth()
+    }
+    Column(
+        modifier = columnModifier,
         verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
         draft.forEachIndexed { index, set ->

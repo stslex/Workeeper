@@ -6,6 +6,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
+import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorBodyAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.HistoryUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageDisplay
@@ -39,6 +40,7 @@ internal interface ExerciseStore : Store<State, Action, Event> {
         val isLoading: Boolean,
         val canPermanentlyDelete: Boolean,
         val adhocPlan: ImmutableList<PlanSetUiModel>?,
+        val originalAdhocPlan: ImmutableList<PlanSetUiModel>?,
         val adhocPlanSummaryLabel: String,
         val pendingTypeChange: ExerciseTypeUiModel?,
         val imagePath: String?,
@@ -63,10 +65,20 @@ internal interface ExerciseStore : Store<State, Action, Event> {
             get() = mode is Mode.Read && !adhocPlan.isNullOrEmpty()
 
         val hasChanges: Boolean
-            get() = originalSnapshot?.matches(this) == false || isImageDirty
+            get() = originalSnapshot?.matches(this) == false || isImageDirty || isAdhocPlanDirty
 
         val isImageDirty: Boolean
             get() = pendingImage != PendingImage.Unchanged
+
+        /**
+         * Compares the working ad-hoc plan against the snapshot taken at load time
+         * (or against null in create-mode). Surfaces the discard-confirm dialog when the
+         * inline plan editor has unsaved sets — without it, plan edits in create-mode
+         * silently disappear when the user hits Cancel.
+         */
+        val isAdhocPlanDirty: Boolean
+            get() = (adhocPlan ?: persistentListOf<PlanSetUiModel>()) !=
+                (originalAdhocPlan ?: persistentListOf<PlanSetUiModel>())
 
         /** What the UI should display right now — pending overrides committed. */
         val effectiveImageDisplay: ImageDisplay
@@ -140,6 +152,7 @@ internal interface ExerciseStore : Store<State, Action, Event> {
                 isLoading = uuid != null,
                 canPermanentlyDelete = false,
                 adhocPlan = null,
+                originalAdhocPlan = null,
                 adhocPlanSummaryLabel = "",
                 pendingTypeChange = null,
                 imagePath = null,
@@ -218,6 +231,18 @@ internal interface ExerciseStore : Store<State, Action, Event> {
             data object OnTypeChangeDismiss : Click
 
             data object OnEditPlanClick : Click
+
+            /**
+             * Mutates the in-memory ad-hoc plan during exercise create-mode. The new
+             * exercise has no UUID yet, so it cannot navigate to the full-screen
+             * `Screen.PlanEditor` route (which keys off `last_adhoc_sets`); instead, the
+             * inline body in `ExerciseEditScreen` emits the body action wrapped in this
+             * store action, and the handler delegates to `PlanDraftReducer`.
+             */
+            @Suppress("MviActionNamingRule")
+            data class OnAdhocPlanEditorAction(
+                val action: PlanEditorBodyAction,
+            ) : Click
 
             data class OnTagToggle(val tagUuid: String) : Click
 
