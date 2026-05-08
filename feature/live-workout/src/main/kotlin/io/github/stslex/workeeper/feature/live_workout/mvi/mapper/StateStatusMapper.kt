@@ -43,14 +43,19 @@ internal class StateStatusMapper @Inject constructor(
         val computed = items.map { exercise ->
             val planSets = exercise.planSets
             val performed = exercise.performedSets
+            val visibleSets = exercise.visibleSets
             val skipped = exercise.status == ExerciseStatusUiModel.SKIPPED
             val performedByPosition = performed.associateBy { it.position }
-            val isDone = !skipped && if (planSets.isEmpty()) {
-                performed.any { it.isDone }
-            } else {
-                performed.size >= planSets.size &&
-                    planSets.indices.all { index -> performedByPosition[index]?.isDone == true }
+
+            val expectedPositions = buildSet {
+                addAll(planSets.indices)
+                addAll(visibleSets.indices)
+                performed.forEach { add(it.position) }
             }
+            val isDone = !skipped &&
+                expectedPositions.isNotEmpty() &&
+                expectedPositions.all { index -> performedByPosition[index]?.isDone == true }
+
             Triple(exercise, isDone, skipped)
         }
         // Auto-default mirrors the mapper: if no exercise is explicitly active, the first
