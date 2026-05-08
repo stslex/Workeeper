@@ -13,6 +13,8 @@ dependencies {
     implementation(project(":core:data:database"))
     implementation(project(":core:data:exercise"))
 
+    implementation(libs.kotlinx.serialization.json)
+
     androidTestImplementation(libs.bundles.android.test)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(project(":core:ui:test-utils"))

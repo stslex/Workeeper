@@ -641,7 +641,9 @@ Detail destinations carry route arguments as value-type fields:
 `Screen.Training(uuid)`, `Screen.Exercise(uuid)`,
 `Screen.LiveWorkout(sessionUuid, trainingUuid)`,
 `Screen.PastSession(sessionUuid)`,
-`Screen.PlanEditor(performedExerciseUuid, exerciseUuid, trainingUuid)`,
+`Screen.PlanEditor.Existing(performedExerciseUuid, exerciseUuid, trainingUuid)` /
+`Screen.PlanEditor.Draft(initialType, initialPlanJson)` — see
+[Plan editor: Existing vs Draft](#plan-editor-existing-vs-draft) below,
 `Screen.ExerciseChart(exerciseUuid)`, `Screen.ExerciseImage(model)`. Pure
 single-instance destinations are `data object` (`Screen.Settings`,
 `Screen.Archive`).
@@ -931,7 +933,7 @@ The mechanics:
 
    LaunchedEffect(attrValue) {
        if (attrValue == true) {
-           processor.consume(Action.Common.Reload)
+           processor.consume(Action.Common.PlanEditorExistingReturned)
            stateHandle.setAttrDefaultValue(Screen.PlanEditor.planEditorSavedAttr)
        }
    }
@@ -950,6 +952,44 @@ attr key + default declared on `Screen.PlanEditor.Companion`.
 
 Currently `Screen.Exercise`, `Screen.Training` (single-training), and
 `Screen.LiveWorkout` consume the PlanEditor saved-result this way.
+
+### Plan editor: Existing vs Draft
+
+`Screen.PlanEditor` is a sealed interface with two destinations that share
+the same `PlanEditorStore` but differ in how they enter and exit:
+
+- **`Screen.PlanEditor.Existing(performedExerciseUuid, exerciseUuid, trainingUuid)`** —
+  the "edit a persisted plan" route. `CommonHandler.Init` reads `(type,
+  plan)` from disk via `PlanEditorInteractor.loadPlan`. On Save the editor
+  persists `(type, plan)` (Mode.Exercise also writes `exercise_table.type`
+  and runs `clearWeightsFromAllPlansForExercise` when type flips to
+  WEIGHTLESS) and pops back with `planEditorSavedAttr = true`. The caller
+  performs a *partial* reload — only `(type, adhocPlan)` are refreshed in
+  parent state — so any unsaved name/description/tag/image edit is
+  preserved (this is the v1.41.0 dirty-baseline regression fix).
+
+- **`Screen.PlanEditor.Draft(initialType, initialPlanJson)`** — the "edit a
+  plan for a brand-new exercise that has no UUID yet" route. `CommonHandler`
+  skips the DB load (`Mode.Draft` has no anchor); the seed comes straight
+  from the route args. On Done the editor encodes a `PlanDraftResult`
+  (`(type, plan)`) as JSON and pops back via `planEditorDraftResultAttr`.
+  The caller decodes the JSON and merges `(type, adhocPlan)` into local
+  state without touching `originalSnapshot` — the draft is treated as an
+  unsaved edit until the parent's own Save fires. PlanEditor.Draft never
+  writes to disk.
+
+Type ownership lives in PlanEditor for both destinations. The toggle and
+the type-change-confirm dialog (with weight-wipe semantics for
+WEIGHTED → WEIGHTLESS flips) are the plan editor's responsibility, not the
+parent form's. `Mode.PerformedExercise` (used by single-training and
+live-workout callsites) hides the toggle — the type lives on the parent
+exercise and isn't editable through a training-scoped editor.
+
+Two separate `composable<Screen.PlanEditor.Existing>` and
+`composable<Screen.PlanEditor.Draft>` destinations register inside
+`planEditorGraph`. A single composable with a polymorphic discriminator
+would also work in theory, but typed-nav route resolution on sealed
+parents has known edge cases — the two-route form is robust.
 
 #### Dispatching navigation from background coroutines
 

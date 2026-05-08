@@ -3,7 +3,9 @@ package io.github.stslex.workeeper.core.ui.plan_editor.model
 
 import io.github.stslex.workeeper.core.ui.kit.R
 import io.github.stslex.workeeper.core.ui.kit.components.setchip.SetType
+import kotlinx.serialization.Serializable
 
+@Serializable
 enum class SetTypeUiModel(
     val labelRes: Int,
 ) {

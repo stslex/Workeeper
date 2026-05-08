@@ -162,6 +162,9 @@ interface ExerciseDao {
     @Query("UPDATE exercise_table SET last_adhoc_sets = :lastAdhocSets WHERE uuid = :uuid")
     suspend fun updateLastAdhocSets(uuid: Uuid, lastAdhocSets: String?)
 
+    @Query("UPDATE exercise_table SET type = :type WHERE uuid = :uuid")
+    suspend fun updateType(uuid: Uuid, type: ExerciseTypeEntity)
+
     @Query("UPDATE exercise_table SET archived = 1, archived_at = :archivedAt WHERE uuid = :uuid")
     suspend fun archive(uuid: Uuid, archivedAt: Long)
 

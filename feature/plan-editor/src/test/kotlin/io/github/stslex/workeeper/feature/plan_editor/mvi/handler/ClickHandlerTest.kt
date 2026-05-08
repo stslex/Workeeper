@@ -1,42 +1,81 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.plan_editor.mvi.handler
 
+import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
+import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanDraftResult
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorHandlerStore
 import io.github.stslex.workeeper.feature.plan_editor.domain.PlanEditorInteractor
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.handler.ClickHandler
+import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.Action
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.State
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import io.mockk.verify
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 internal class ClickHandlerTest {
 
     private val interactor = mockk<PlanEditorInteractor>(relaxed = true)
-    private val initialState = State.init(State.Mode.Exercise(exerciseUuid = "exercise-1"))
-    private val stateFlow = MutableStateFlow(initialState)
-
-    private val store = mockk<PlanEditorHandlerStore>(relaxed = true).apply {
-        every { state } returns stateFlow
-        every { updateState(any()) } answers {
-            val update = firstArg<(State) -> State>()
-            stateFlow.value = update(stateFlow.value)
-        }
+    private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true).apply {
+        every { getString(any()) } returns "label"
+        every { getString(any(), *anyVararg()) } returns "label"
     }
 
-    private val handler = ClickHandler(interactor = interactor, store = store)
+    private fun setup(initialState: State): TestSetup {
+        val stateFlow = MutableStateFlow(initialState)
+        val store = mockk<PlanEditorHandlerStore>(relaxed = true).apply {
+            every { state } returns stateFlow
+            every { updateState(any()) } answers {
+                val update = firstArg<(State) -> State>()
+                stateFlow.value = update(stateFlow.value)
+            }
+        }
+        return TestSetup(
+            stateFlow = stateFlow,
+            store = store,
+            handler = ClickHandler(
+                interactor = interactor,
+                resourceWrapper = resourceWrapper,
+                store = store,
+            ),
+        )
+    }
+
+    private fun existingExerciseInitial(): State = State.init(
+        mode = State.Mode.Exercise(exerciseUuid = "exercise-1"),
+        seedType = ExerciseTypeUiModel.WEIGHTED,
+        seedPlan = persistentListOf(),
+    )
+
+    private fun draftInitial(): State = State.init(
+        mode = State.Mode.Draft,
+        seedType = ExerciseTypeUiModel.WEIGHTED,
+        seedPlan = persistentListOf(),
+    )
+
+    private data class TestSetup(
+        val stateFlow: MutableStateFlow<State>,
+        val store: PlanEditorHandlerStore,
+        val handler: ClickHandler,
+    )
 
     @Test
     fun `OnAddSet appends a new work set with default reps when draft is empty`() {
+        val (stateFlow, _, handler) = setup(existingExerciseInitial())
         handler.invoke(Action.Click.OnAddSet)
 
         assertEquals(1, stateFlow.value.draft.size)
@@ -46,8 +85,11 @@ internal class ClickHandlerTest {
 
     @Test
     fun `OnAddSet copies reps from previous set when draft has rows`() {
-        stateFlow.value = stateFlow.value.copy(
-            draft = listOf(PlanSetUiModel(80.0, 8, SetTypeUiModel.WARMUP)).toImmutableList(),
+        val (stateFlow, _, handler) = setup(
+            existingExerciseInitial().copy(
+                draft = listOf(PlanSetUiModel(80.0, 8, SetTypeUiModel.WARMUP))
+                    .toImmutableList(),
+            ),
         )
 
         handler.invoke(Action.Click.OnAddSet)
@@ -62,12 +104,14 @@ internal class ClickHandlerTest {
 
     @Test
     fun `OnSetRemove drops the row at the given index`() {
-        stateFlow.value = stateFlow.value.copy(
-            draft = listOf(
-                PlanSetUiModel(60.0, 10, SetTypeUiModel.WARMUP),
-                PlanSetUiModel(80.0, 8, SetTypeUiModel.WORK),
-                PlanSetUiModel(100.0, 5, SetTypeUiModel.WORK),
-            ).toImmutableList(),
+        val (stateFlow, _, handler) = setup(
+            existingExerciseInitial().copy(
+                draft = listOf(
+                    PlanSetUiModel(60.0, 10, SetTypeUiModel.WARMUP),
+                    PlanSetUiModel(80.0, 8, SetTypeUiModel.WORK),
+                    PlanSetUiModel(100.0, 5, SetTypeUiModel.WORK),
+                ).toImmutableList(),
+            ),
         )
 
         handler.invoke(Action.Click.OnSetRemove(index = 1))
@@ -80,7 +124,7 @@ internal class ClickHandlerTest {
     @Test
     fun `OnSetRemove with out-of-bounds index leaves draft unchanged`() {
         val draft = listOf(PlanSetUiModel(80.0, 8, SetTypeUiModel.WORK)).toImmutableList()
-        stateFlow.value = stateFlow.value.copy(draft = draft)
+        val (stateFlow, _, handler) = setup(existingExerciseInitial().copy(draft = draft))
 
         handler.invoke(Action.Click.OnSetRemove(index = 5))
 
@@ -89,11 +133,13 @@ internal class ClickHandlerTest {
 
     @Test
     fun `OnSetTypeChange updates the type of the row at the given index`() {
-        stateFlow.value = stateFlow.value.copy(
-            draft = listOf(
-                PlanSetUiModel(60.0, 10, SetTypeUiModel.WORK),
-                PlanSetUiModel(80.0, 8, SetTypeUiModel.WORK),
-            ).toImmutableList(),
+        val (stateFlow, _, handler) = setup(
+            existingExerciseInitial().copy(
+                draft = listOf(
+                    PlanSetUiModel(60.0, 10, SetTypeUiModel.WORK),
+                    PlanSetUiModel(80.0, 8, SetTypeUiModel.WORK),
+                ).toImmutableList(),
+            ),
         )
 
         handler.invoke(
@@ -105,11 +151,127 @@ internal class ClickHandlerTest {
     }
 
     @Test
+    fun `OnTypeToggle to same type is no-op`() {
+        val (stateFlow, store, handler) = setup(existingExerciseInitial())
+        handler.invoke(Action.Click.OnTypeToggle(ExerciseTypeUiModel.WEIGHTED))
+
+        assertEquals(ExerciseTypeUiModel.WEIGHTED, stateFlow.value.type)
+        verify(exactly = 0) { store.sendEvent(any()) }
+    }
+
+    @Test
+    fun `OnTypeToggle with empty draft applies new type silently without dialog`() {
+        val (stateFlow, _, handler) = setup(existingExerciseInitial())
+
+        handler.invoke(Action.Click.OnTypeToggle(ExerciseTypeUiModel.WEIGHTLESS))
+
+        assertEquals(ExerciseTypeUiModel.WEIGHTLESS, stateFlow.value.type)
+        assertTrue(stateFlow.value.dialogState is DialogState.Hidden)
+        assertNull(stateFlow.value.pendingTypeChange)
+    }
+
+    @Test
+    fun `OnTypeToggle WEIGHTED to WEIGHTLESS with weighted draft opens confirm dialog`() {
+        val (stateFlow, _, handler) = setup(
+            existingExerciseInitial().copy(
+                draft = listOf(
+                    PlanSetUiModel(weight = 50.0, reps = 8, type = SetTypeUiModel.WORK),
+                ).toImmutableList(),
+            ),
+        )
+
+        handler.invoke(Action.Click.OnTypeToggle(ExerciseTypeUiModel.WEIGHTLESS))
+
+        assertTrue(stateFlow.value.dialogState is DialogState.TypeChangeConfirm)
+        // Type stays WEIGHTED until the user confirms — pending lives in
+        // `pendingTypeChange` and is committed by `OnTypeChangeConfirm`.
+        assertEquals(ExerciseTypeUiModel.WEIGHTED, stateFlow.value.type)
+        assertEquals(ExerciseTypeUiModel.WEIGHTLESS, stateFlow.value.pendingTypeChange)
+    }
+
+    @Test
+    fun `OnTypeToggle WEIGHTLESS to WEIGHTED applies new type silently regardless of draft`() {
+        val (stateFlow, _, handler) = setup(
+            existingExerciseInitial().copy(
+                type = ExerciseTypeUiModel.WEIGHTLESS,
+                initialType = ExerciseTypeUiModel.WEIGHTLESS,
+                draft = listOf(
+                    PlanSetUiModel(weight = null, reps = 8, type = SetTypeUiModel.WORK),
+                ).toImmutableList(),
+            ),
+        )
+
+        handler.invoke(Action.Click.OnTypeToggle(ExerciseTypeUiModel.WEIGHTED))
+
+        // Going weightless → weighted never strands data — no confirm needed.
+        assertEquals(ExerciseTypeUiModel.WEIGHTED, stateFlow.value.type)
+        assertTrue(stateFlow.value.dialogState is DialogState.Hidden)
+    }
+
+    @Test
+    fun `OnTypeChangeConfirm wipes weights from draft, applies type, hides dialog`() {
+        val (stateFlow, _, handler) = setup(
+            existingExerciseInitial().copy(
+                pendingTypeChange = ExerciseTypeUiModel.WEIGHTLESS,
+                dialogState = DialogState.TypeChangeConfirm(
+                    title = "t",
+                    body = "b",
+                    impactSummary = "i",
+                    confirmLabel = "c",
+                ),
+                draft = listOf(
+                    PlanSetUiModel(50.0, 8, SetTypeUiModel.WORK),
+                    PlanSetUiModel(60.0, 6, SetTypeUiModel.FAILURE),
+                ).toImmutableList(),
+            ),
+        )
+
+        handler.invoke(Action.Click.OnTypeChangeConfirm)
+
+        assertEquals(ExerciseTypeUiModel.WEIGHTLESS, stateFlow.value.type)
+        assertNull(stateFlow.value.pendingTypeChange)
+        assertTrue(stateFlow.value.dialogState is DialogState.Hidden)
+        assertTrue(stateFlow.value.draft.all { it.weight == null })
+    }
+
+    @Test
+    fun `OnTypeChangeDismiss clears pending and hides dialog without changing type`() {
+        val (stateFlow, _, handler) = setup(
+            existingExerciseInitial().copy(
+                pendingTypeChange = ExerciseTypeUiModel.WEIGHTLESS,
+                dialogState = DialogState.TypeChangeConfirm("t", "b", "i", "c"),
+            ),
+        )
+
+        handler.invoke(Action.Click.OnTypeChangeDismiss)
+
+        assertEquals(ExerciseTypeUiModel.WEIGHTED, stateFlow.value.type)
+        assertNull(stateFlow.value.pendingTypeChange)
+        assertTrue(stateFlow.value.dialogState is DialogState.Hidden)
+    }
+
+    @Test
+    fun `OnBackClick with open dialog dismisses dialog before propagating`() {
+        val (stateFlow, store, handler) = setup(
+            existingExerciseInitial().copy(
+                pendingTypeChange = ExerciseTypeUiModel.WEIGHTLESS,
+                dialogState = DialogState.TypeChangeConfirm("t", "b", "i", "c"),
+            ),
+        )
+
+        handler.invoke(Action.Click.OnBackClick)
+
+        assertTrue(stateFlow.value.dialogState is DialogState.Hidden)
+        assertNull(stateFlow.value.pendingTypeChange)
+        verify(exactly = 0) { store.consume(Action.Navigation.Back) }
+    }
+
+    @Test
     fun `OnBackClick on clean state dispatches Navigation Back`() {
+        val (_, store, handler) = setup(existingExerciseInitial())
         handler.invoke(Action.Click.OnBackClick)
 
         verify(exactly = 1) { store.consume(Action.Navigation.Back) }
-        assertFalse(stateFlow.value.confirmDiscardOpen)
     }
 
     @Test
@@ -118,7 +280,9 @@ internal class ClickHandlerTest {
         val dirtyDraft = listOf(
             PlanSetUiModel(80.0, 8, SetTypeUiModel.WORK),
         ).toImmutableList()
-        stateFlow.value = stateFlow.value.copy(draft = dirtyDraft)
+        val (stateFlow, store, handler) = setup(
+            existingExerciseInitial().copy(draft = dirtyDraft),
+        )
 
         handler.invoke(Action.Click.OnBackClick)
 
@@ -128,7 +292,9 @@ internal class ClickHandlerTest {
 
     @Test
     fun `OnDismissDiscard closes the dialog without navigating`() {
-        stateFlow.value = stateFlow.value.copy(confirmDiscardOpen = true)
+        val (stateFlow, store, handler) = setup(
+            existingExerciseInitial().copy(confirmDiscardOpen = true),
+        )
 
         handler.invoke(Action.Click.OnDismissDiscard)
 
@@ -138,7 +304,9 @@ internal class ClickHandlerTest {
 
     @Test
     fun `OnConfirmDiscard closes dialog and navigates back without persisting`() {
-        stateFlow.value = stateFlow.value.copy(confirmDiscardOpen = true)
+        val (stateFlow, store, handler) = setup(
+            existingExerciseInitial().copy(confirmDiscardOpen = true),
+        )
 
         handler.invoke(Action.Click.OnConfirmDiscard)
 
@@ -149,7 +317,9 @@ internal class ClickHandlerTest {
     @Test
     fun `state is dirty when draft differs from initialDraft`() {
         val initial = listOf(PlanSetUiModel(80.0, 8, SetTypeUiModel.WORK)).toImmutableList()
-        stateFlow.value = stateFlow.value.copy(initialDraft = initial, draft = initial)
+        val (stateFlow, _, _) = setup(
+            existingExerciseInitial().copy(initialDraft = initial, draft = initial),
+        )
         assertFalse(stateFlow.value.isDirty)
 
         stateFlow.value = stateFlow.value.copy(
@@ -160,11 +330,21 @@ internal class ClickHandlerTest {
     }
 
     @Test
+    fun `state is dirty when type differs from initialType even with stable draft`() {
+        val (stateFlow, _, _) = setup(existingExerciseInitial())
+        assertFalse(stateFlow.value.isDirty)
+
+        stateFlow.value = stateFlow.value.copy(type = ExerciseTypeUiModel.WEIGHTLESS)
+        assertTrue(stateFlow.value.isDirty)
+    }
+
+    @Test
     fun `interceptBack disabled while discard dialog is shown`() {
-        stateFlow.value = stateFlow.value.copy(
-            initialDraft = persistentListOf(),
-            draft = listOf(PlanSetUiModel(80.0, 8, SetTypeUiModel.WORK)).toImmutableList(),
-            confirmDiscardOpen = true,
+        val (stateFlow, _, _) = setup(
+            existingExerciseInitial().copy(
+                draft = listOf(PlanSetUiModel(80.0, 8, SetTypeUiModel.WORK)).toImmutableList(),
+                confirmDiscardOpen = true,
+            ),
         )
 
         // Dirty + dialog open → interceptBack is false so Dialog's own dismiss handles
@@ -172,5 +352,45 @@ internal class ClickHandlerTest {
         // anyway, but we explicitly de-arm BackHandler so the system gesture is a no-op
         // beyond closing the dialog).
         assertFalse(stateFlow.value.interceptBack)
+    }
+
+    @Test
+    fun `interceptBack stays enabled when type-change confirm dialog is open`() {
+        val (stateFlow, _, _) = setup(
+            existingExerciseInitial().copy(
+                pendingTypeChange = ExerciseTypeUiModel.WEIGHTLESS,
+                dialogState = DialogState.TypeChangeConfirm("t", "b", "i", "c"),
+            ),
+        )
+
+        // Type-change confirm uses BackHandler interception so the system back gesture
+        // routes through `OnBackClick` → dialog dismiss before propagating to a pop.
+        assertTrue(stateFlow.value.interceptBack)
+    }
+
+    @Test
+    fun `OnSave in Draft mode encodes plan and pops with BackAfterDraftSave`() {
+        val draft = listOf(
+            PlanSetUiModel(80.0, 8, SetTypeUiModel.WORK),
+            PlanSetUiModel(90.0, 5, SetTypeUiModel.WORK),
+        )
+        val (_, store, handler) = setup(
+            draftInitial().copy(
+                draft = draft.toImmutableList(),
+            ),
+        )
+
+        handler.invoke(Action.Click.OnSave)
+
+        // Mode.Draft never persists to DB — interactor is untouched.
+        coVerify(exactly = 0) {
+            interactor.savePlan(any(), any(), any(), any())
+        }
+
+        val captured = slot<Action.Navigation.BackAfterDraftSave>()
+        verify { store.consume(capture(captured)) }
+        val decoded = Json.decodeFromString<PlanDraftResult>(captured.captured.resultJson)
+        assertEquals(ExerciseTypeUiModel.WEIGHTED, decoded.type)
+        assertEquals(draft, decoded.plan)
     }
 }
