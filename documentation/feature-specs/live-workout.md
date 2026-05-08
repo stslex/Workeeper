@@ -186,6 +186,31 @@ fun deriveStatuses(exercises: List<PerformedExerciseDataModel>, sets: Map<Uuid, 
 
 The simpler rule: an exercise is DONE iff all of its plan rows are checked. For exercises without a plan, "done" requires explicit user action.
 
+##### Load vs live status — `ExerciseDoneRule`
+
+The "is this exercise done" rule has two callers. The load path
+(`LiveWorkoutMapper.toUiList`, used by `SessionSnapshotDomain.toState`) replays
+persisted state and never sees draft rows; the live path
+(`StateStatusMapper.recomputeOnly`, used by every set-level mutation) does see
+drafts because the user may have typed values into a row that is not yet
+checked. Both callers route through `ExerciseDoneRule`:
+
+- `isDoneLoad(planSets, performedSets, skipped)` — `expectedPositions` is the
+  union of `planSets.indices` and the positions of `performedSets`. Used at
+  reload because no drafts exist yet.
+- `isDoneLive(planSets, performedSets, visibleSets, skipped)` — folds
+  `visibleSets.indices` into `expectedPositions` so a typed-but-unchecked
+  draft at the bottom of an adhoc card keeps the row CURRENT instead of
+  promoting it to DONE.
+
+Both functions require every position in `expectedPositions` to map to a
+performed-and-done row, and short-circuit to `false` when the set is empty
+(an exercise with no plan, no performed sets, and no drafts is never DONE).
+Position is read from the row itself — `SetDomain.position` and
+`LiveSetUiModel.position` both carry the persisted slot, so a sparse-position
+state (e.g. only the 5th set of a 5-set plan checked) round-trips through
+reload without collapsing onto position 0.
+
 #### `LiveExerciseCard` header layout
 
 Same row layout invariant from Stage 5.3 — 3 lines max:
