@@ -10,6 +10,7 @@ data class SetsDataModel(
     val reps: Int,
     val weight: Double?,
     val type: SetsDataType,
+    val position: Int = 0,
 )
 
 internal fun SetsDataModel.toEntity(
@@ -29,6 +30,7 @@ internal fun SetEntity.toData(): SetsDataModel = SetsDataModel(
     reps = reps,
     weight = weight,
     type = type.toData(),
+    position = position,
 )
 
 internal fun SetEntity.toSummary(): SetSummary = SetSummary(

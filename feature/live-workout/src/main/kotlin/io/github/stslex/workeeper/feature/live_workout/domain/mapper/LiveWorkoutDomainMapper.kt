@@ -102,6 +102,7 @@ internal object LiveWorkoutDomainMapper {
         weight = weight,
         reps = reps,
         type = type.toDomain(),
+        position = position,
     )
 
     fun PersonalRecordDataModel.toDomain(): PersonalRecordDomain = PersonalRecordDomain(
