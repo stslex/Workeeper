@@ -121,8 +121,48 @@ internal class ClickHandlerTest {
 
     @Test
     fun `OnExerciseHeaderClick on auto-default CURRENT promotes to active and toggles expanded`() {
-        val stateFlow =
-            MutableStateFlow(baseState(doneExercise(status = ExerciseStatusUiModel.CURRENT)))
+        val stateFlow = MutableStateFlow(
+            baseState(
+                exercise = doneExercise(status = ExerciseStatusUiModel.CURRENT),
+            ),
+        )
+        val store = handlerStore(stateFlow)
+        val handler = ClickHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            pickerHandler = pickerHandler,
+            setMutator = setMutator,
+            store = store,
+        )
+
+        handler.invoke(Action.Click.OnExerciseHeaderClick("pe-1"))
+
+        assertEquals(persistentSetOf("pe-1"), stateFlow.value.activeExerciseUuids)
+        assertEquals(persistentSetOf("pe-1"), stateFlow.value.expandedExerciseUuids)
+
+        // Tapping again collapses (removes from expanded), but the uuid stays in activeUuids.
+        handler.invoke(Action.Click.OnExerciseHeaderClick("pe-1"))
+        assertEquals(persistentSetOf<String>(), stateFlow.value.activeExerciseUuids)
+        assertEquals(persistentSetOf<String>(), stateFlow.value.expandedExerciseUuids)
+    }
+
+    @Test
+    fun `OnExerciseHeaderClick on auto-default CURRENT promotes to active and toggles expanded with sets`() {
+        val stateFlow = MutableStateFlow(
+            baseState(
+                exercise = doneExercise(status = ExerciseStatusUiModel.CURRENT).copy(
+                    performedSets = persistentListOf(
+                        LiveSetUiModel(
+                            position = 0,
+                            weight = 100.0,
+                            reps = 5,
+                            type = SetTypeUiModel.WORK,
+                            isDone = true,
+                        ),
+                    ),
+                ),
+            ),
+        )
         val store = handlerStore(stateFlow)
         val handler = ClickHandler(
             interactor = interactor,

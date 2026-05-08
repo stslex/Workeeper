@@ -29,6 +29,16 @@ internal class SetRepositoryImpl @Inject constructor(
         dao.getByPerformedExercise(Uuid.parse(performedExerciseUuid)).map { it.toData() }
     }
 
+    override suspend fun getByPerformedExercises(
+        performedExerciseUuids: List<String>,
+    ): Map<String, List<SetsDataModel>> = withContext(ioDispatcher) {
+        if (performedExerciseUuids.isEmpty()) return@withContext emptyMap()
+        val parsed = performedExerciseUuids.map { Uuid.parse(it) }
+        dao.getByPerformedExercises(parsed)
+            .groupBy { it.performedExerciseUuid.toString() }
+            .mapValues { (_, sets) -> sets.map { it.toData() } }
+    }
+
     @Suppress("DEPRECATION")
     @Deprecated(
         message = "v5 plan-first model: prev-set hint comes from training_exercise.plan_sets" +

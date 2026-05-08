@@ -9,6 +9,8 @@ interface SetRepository {
 
     suspend fun getByPerformedExercise(performedExerciseUuid: String): List<SetsDataModel>
 
+    suspend fun getByPerformedExercises(performedExerciseUuids: List<String>): Map<String, List<SetsDataModel>>
+
     @Deprecated(
         message = "v5 plan-first model: prev-set hint comes from training_exercise.plan_sets" +
             " or exercise.last_adhoc_sets, not from history. Kept temporarily until existing" +

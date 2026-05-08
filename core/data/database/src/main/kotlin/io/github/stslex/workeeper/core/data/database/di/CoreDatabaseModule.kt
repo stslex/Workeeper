@@ -22,6 +22,7 @@ import io.github.stslex.workeeper.core.data.database.tag.TrainingTagDao
 import io.github.stslex.workeeper.core.data.database.training.TrainingDao
 import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseDao
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.withContext
 import javax.inject.Singleton
 
@@ -48,8 +49,13 @@ object CoreDatabaseModule {
         db: AppDatabase,
         @IODispatcher ioDispatcher: CoroutineDispatcher,
     ): DbTransitionRunner = object : DbTransitionRunner {
-        override suspend fun <T> invoke(block: suspend () -> T): T = withContext(ioDispatcher) {
-            db.withTransaction(block)
+
+        override suspend fun <T> invoke(
+            block: suspend CoroutineScope.() -> T,
+        ): T = withContext(ioDispatcher) {
+            db.withTransaction {
+                block()
+            }
         }
     }
 

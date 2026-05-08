@@ -134,6 +134,9 @@ interface ExerciseDao {
     @Query("SELECT * FROM exercise_table WHERE uuid IN (:uuids)")
     suspend fun getByUuids(uuids: List<Uuid>): List<ExerciseEntity>
 
+    @Query("SELECT uuid, last_adhoc_sets FROM exercise_table WHERE uuid IN (:uuids)")
+    suspend fun getAdhocPlansBatch(uuids: List<Uuid>): List<ExerciseAdhocPlanRow>
+
     /**
      * Ad-hoc exercises (`is_adhoc = 1`) currently joined to [trainingUuid] via the
      * `training_exercise_table` plan rows. Used by `discardAdhocSession` to cascade-delete

@@ -19,6 +19,8 @@ interface ExerciseRepository {
 
     suspend fun getExercisesByUuid(uuids: List<String>): List<ExerciseDataModel>
 
+    suspend fun getAdhocPlans(uuids: List<String>): Map<String, List<PlanSetDataModel>?>
+
     suspend fun getExercise(uuid: String): ExerciseDataModel?
 
     suspend fun saveItem(item: ExerciseChangeDataModel): SaveResult

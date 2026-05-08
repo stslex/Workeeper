@@ -58,6 +58,17 @@ interface TrainingExerciseDao {
 
     @Query(
         """
+    SELECT exercise_uuid, plan_sets FROM training_exercise_table
+    WHERE training_uuid = :trainingUuid AND exercise_uuid IN (:exerciseUuids)
+    """,
+    )
+    suspend fun getPlanSetsBatch(
+        trainingUuid: Uuid,
+        exerciseUuids: List<Uuid>,
+    ): List<TrainingExercisePlanRow>
+
+    @Query(
+        """
         UPDATE training_exercise_table
         SET plan_sets = :planSets
         WHERE training_uuid = :trainingUuid AND exercise_uuid = :exerciseUuid

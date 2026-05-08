@@ -1,18 +1,28 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.exercise.training
 
+import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
 import io.github.stslex.workeeper.core.data.database.exercise.ExerciseEntity
 import io.github.stslex.workeeper.core.data.database.exercise.ExerciseTypeEntity
 import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.data.database.sets.SetTypeDataModel
 import io.github.stslex.workeeper.core.data.database.testfixtures.RepositoryTestEnv
 import io.github.stslex.workeeper.core.data.database.training.TrainingEntity
+import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseDao
 import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseEntity
+import io.mockk.coVerify
+import io.mockk.every
+import io.mockk.mockkObject
+import io.mockk.spyk
+import io.mockk.unmockkObject
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -29,6 +39,11 @@ internal class TrainingExerciseRepositoryImplDbTest {
 
     @BeforeEach
     fun setup() {
+        // `getPlan` / `getPlans` wrap their JSON deserialisation in `traceExecutionTime`,
+        // which fans out to `Log.i { ... }` and resolves the singleton `Firebase.crashlytics`.
+        // Stub the holder so the logging path is a no-op in tests.
+        mockkObject(FirebaseCrashlyticsHolder)
+        every { FirebaseCrashlyticsHolder.log(any()) } returns Unit
         env = RepositoryTestEnv()
         repository = TrainingExerciseRepositoryImpl(
             dao = env.trainingExerciseDao,
@@ -39,6 +54,7 @@ internal class TrainingExerciseRepositoryImplDbTest {
     @AfterEach
     fun teardown() {
         env.close()
+        unmockkObject(FirebaseCrashlyticsHolder)
     }
 
     @Test
@@ -122,6 +138,137 @@ internal class TrainingExerciseRepositoryImplDbTest {
             rows[1].planSets,
         )
     }
+
+    @Test
+    fun `getPlans with empty exerciseUuids returns empty Map and does not call the DAO`() =
+        runTest {
+            val spiedDao = spyk<TrainingExerciseDao>(env.trainingExerciseDao)
+            val repositoryWithSpy = TrainingExerciseRepositoryImpl(
+                dao = spiedDao,
+                ioDispatcher = UnconfinedTestDispatcher(),
+            )
+
+            val result = repositoryWithSpy.getPlans(Uuid.random().toString(), emptyList())
+
+            assertTrue(result.isEmpty())
+            coVerify(exactly = 0) { spiedDao.getPlanSetsBatch(any(), any()) }
+        }
+
+    @Test
+    fun `getPlans returns a map with non-null roundtripped plans, preserved nulls, and missing pairs absent`() =
+        runTest {
+            val trainingUuid = Uuid.random()
+            val exerciseWithPlanUuid = Uuid.random()
+            val exerciseWithNullPlanUuid = Uuid.random()
+            val exerciseNotAttachedUuid = Uuid.random()
+            seedExercise(exerciseWithPlanUuid, "Bench")
+            seedExercise(exerciseWithNullPlanUuid, "Squat")
+            seedExercise(exerciseNotAttachedUuid, "Lunge")
+            env.trainingDao.insert(
+                TrainingEntity(
+                    uuid = trainingUuid,
+                    name = "Push",
+                    description = null,
+                    isAdhoc = false,
+                    archived = false,
+                    createdAt = 0L,
+                    archivedAt = null,
+                ),
+            )
+            // Write the non-null row through `setPlan` so the JSON shape is the production
+            // path (not a hand-rolled string), which exercises serializer parity in the
+            // round-trip read.
+            env.trainingExerciseDao.insert(
+                listOf(
+                    TrainingExerciseEntity(
+                        trainingUuid = trainingUuid,
+                        exerciseUuid = exerciseWithPlanUuid,
+                        position = 0,
+                    ),
+                    TrainingExerciseEntity(
+                        trainingUuid = trainingUuid,
+                        exerciseUuid = exerciseWithNullPlanUuid,
+                        position = 1,
+                        planSets = null,
+                    ),
+                ),
+            )
+            val plan = listOf(
+                PlanSetDataModel(weight = 100.0, reps = 5, type = SetTypeDataModel.WORK),
+                PlanSetDataModel(weight = 110.0, reps = 4, type = SetTypeDataModel.WORK),
+            )
+            repository.setPlan(trainingUuid.toString(), exerciseWithPlanUuid.toString(), plan)
+
+            val result = repository.getPlans(
+                trainingUuid = trainingUuid.toString(),
+                exerciseUuids = listOf(
+                    exerciseWithPlanUuid.toString(),
+                    exerciseWithNullPlanUuid.toString(),
+                    exerciseNotAttachedUuid.toString(),
+                ),
+            )
+
+            // Roundtrip: the plan written via `setPlan` reads back identically as a parsed list.
+            assertEquals(plan, result[exerciseWithPlanUuid.toString()])
+            // Null preservation: row with null plan_sets surfaces as Map value = null.
+            assertTrue(result.containsKey(exerciseWithNullPlanUuid.toString()))
+            assertNull(result[exerciseWithNullPlanUuid.toString()])
+            // The non-existent (training, exercise) pair is silently absent.
+            assertFalse(result.containsKey(exerciseNotAttachedUuid.toString()))
+        }
+
+    @Test
+    fun `getPlans distinguishes a row with empty list plan from a row with null plan_sets`() =
+        runTest {
+            val trainingUuid = Uuid.random()
+            val nullPlanExercise = Uuid.random()
+            val emptyPlanExercise = Uuid.random()
+            seedExercise(nullPlanExercise, "NullPlan")
+            seedExercise(emptyPlanExercise, "EmptyPlan")
+            env.trainingDao.insert(
+                TrainingEntity(
+                    uuid = trainingUuid,
+                    name = "Push",
+                    description = null,
+                    isAdhoc = false,
+                    archived = false,
+                    createdAt = 0L,
+                    archivedAt = null,
+                ),
+            )
+            env.trainingExerciseDao.insert(
+                listOf(
+                    TrainingExerciseEntity(
+                        trainingUuid = trainingUuid,
+                        exerciseUuid = nullPlanExercise,
+                        position = 0,
+                        planSets = null,
+                    ),
+                    TrainingExerciseEntity(
+                        trainingUuid = trainingUuid,
+                        exerciseUuid = emptyPlanExercise,
+                        position = 1,
+                        // Empty list JSON — distinguishable from null at read time.
+                        planSets = "[]",
+                    ),
+                ),
+            )
+
+            val result = repository.getPlans(
+                trainingUuid = trainingUuid.toString(),
+                exerciseUuids = listOf(
+                    nullPlanExercise.toString(),
+                    emptyPlanExercise.toString(),
+                ),
+            )
+
+            // This distinction is load-bearing: the loadSession read-time fallback only
+            // resolves null entries. An empty-list plan must remain empty, not be
+            // replaced by an adhoc fallback. (See LiveWorkoutInteractor.loadSession.)
+            assertNull(result[nullPlanExercise.toString()])
+            assertNotNull(result[emptyPlanExercise.toString()])
+            assertEquals(emptyList<PlanSetDataModel>(), result[emptyPlanExercise.toString()])
+        }
 
     private suspend fun seedExercise(uuid: Uuid, name: String) {
         env.exerciseDao.insert(

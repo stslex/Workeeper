@@ -1,6 +1,7 @@
 package io.github.stslex.workeeper.core.data.exercise.tags
 
 import io.github.stslex.workeeper.core.core.di.IODispatcher
+import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
 import io.github.stslex.workeeper.core.data.database.tag.TagDao
 import io.github.stslex.workeeper.core.data.database.tag.TagEntity
 import io.github.stslex.workeeper.core.data.exercise.tags.model.TagDataModel
@@ -18,6 +19,7 @@ import kotlin.uuid.Uuid
 internal class TagRepositoryImpl @Inject constructor(
     private val dao: TagDao,
     @IODispatcher private val ioDispatcher: CoroutineDispatcher,
+    private val transitionRunner: DbTransitionRunner,
 ) : TagRepository {
 
     override fun observeAll(): Flow<List<TagDataModel>> = dao
@@ -34,7 +36,7 @@ internal class TagRepositoryImpl @Inject constructor(
         dao.findByName(name)?.toData()
     }
 
-    override suspend fun add(name: String): TagDataModel = withContext(ioDispatcher) {
+    override suspend fun add(name: String): TagDataModel = transitionRunner {
         val existing = dao.findByName(name)
         if (existing != null) {
             existing.toData()

@@ -25,6 +25,20 @@ internal class TrainingExerciseRepositoryImpl @Inject constructor(
         PlanSetsConverter.fromJson(raw)
     }
 
+    override suspend fun getPlans(
+        trainingUuid: String,
+        exerciseUuids: List<String>,
+    ): Map<String, List<PlanSetDataModel>?> = withContext(ioDispatcher) {
+        if (exerciseUuids.isEmpty()) return@withContext emptyMap()
+        val rows = dao.getPlanSetsBatch(
+            trainingUuid = Uuid.parse(trainingUuid),
+            exerciseUuids = exerciseUuids.map { Uuid.parse(it) },
+        )
+        rows.associate { row ->
+            row.exerciseUuid.toString() to PlanSetsConverter.fromJson(row.planSets)
+        }
+    }
+
     override suspend fun setPlan(
         trainingUuid: String,
         exerciseUuid: String,

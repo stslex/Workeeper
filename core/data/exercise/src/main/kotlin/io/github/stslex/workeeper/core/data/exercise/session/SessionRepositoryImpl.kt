@@ -34,6 +34,7 @@ import io.github.stslex.workeeper.core.data.exercise.session.model.SessionDataMo
 import io.github.stslex.workeeper.core.data.exercise.session.model.SessionDetailDataModel
 import io.github.stslex.workeeper.core.data.exercise.session.model.toData
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -121,16 +122,37 @@ internal class SessionRepositoryImpl @Inject constructor(
         sessionUuid: String,
     ): SessionDetailDataModel? = transition {
         val sessionId = Uuid.parse(sessionUuid)
-        val session = dao.getById(sessionId) ?: return@transition null
-        val finishedAt = session.finishedAt ?: return@transition null
-        val training = trainingDao.getById(session.trainingUuid) ?: return@transition null
-        val performed = performedExerciseDao
-            .getBySession(sessionId)
-            .sortedBy { it.position }
+        // performed doesn't depend on session — start in parallel with session fetch.
+        val performedDeferred = async {
+            performedExerciseDao.getBySession(sessionId).sortedBy { it.position }
+        }
+        val session = dao.getById(sessionId) ?: run {
+            performedDeferred.cancel()
+            return@transition null
+        }
+        val finishedAt = session.finishedAt ?: run {
+            performedDeferred.cancel()
+            return@transition null
+        }
+
+        // Past this point session is valid — fan out the remaining reads in parallel.
+        val trainingDeferred = async { trainingDao.getById(session.trainingUuid) }
+        val performed = performedDeferred.await()
+        val performedUuids = performed.map { it.uuid }
         val exerciseUuids = performed.map { it.exerciseUuid }.distinct()
-        val exerciseByUuid = exerciseDao
-            .getByUuids(exerciseUuids)
-            .associateBy { it.uuid }
+
+        val exerciseByUuidDeferred = async {
+            exerciseDao.getByUuids(exerciseUuids).associateBy { it.uuid }
+        }
+        val setsByPerformedDeferred = async {
+            setDao.getByPerformedExercises(performedUuids)
+                .groupBy { it.performedExerciseUuid }
+        }
+
+        val training = trainingDeferred.await() ?: return@transition null
+        val exerciseByUuid = exerciseByUuidDeferred.await()
+        val setsByPerformed = setsByPerformedDeferred.await()
+
         val exercises = performed.map { row ->
             PerformedExerciseDetailDataModel(
                 performedExerciseUuid = row.uuid.toString(),
@@ -140,12 +162,12 @@ internal class SessionRepositoryImpl @Inject constructor(
                     ?: ExerciseTypeDataModel.WEIGHTED,
                 position = row.position,
                 skipped = row.skipped,
-                sets = setDao
-                    .getByPerformedExercise(row.uuid)
+                sets = setsByPerformed[row.uuid].orEmpty()
                     .sortedBy { it.position }
                     .map { it.toData() },
             )
         }
+
         SessionDetailDataModel(
             sessionUuid = session.uuid.toString(),
             trainingUuid = session.trainingUuid.toString(),

@@ -536,11 +536,7 @@ internal class ClickHandlerTest {
         verify(exactly = 0) { store.consume(Action.Navigation.Back) }
         val events = mutableListOf<Event>()
         verify { store.sendEvent(capture(events)) }
-        assertTrue(
-            events.any {
-                it is Event.ShowDiscardConfirmDialog && it.target == DiscardTarget.POP_SCREEN
-            },
-        )
+        assertTrue((store.state.value.dialogState as? DialogState.DiscardConfirm)?.target == DiscardTarget.POP_SCREEN)
     }
 
     @Test
@@ -559,11 +555,7 @@ internal class ClickHandlerTest {
         verify(exactly = 0) { store.consume(Action.Navigation.Back) }
         val events = mutableListOf<Event>()
         verify { store.sendEvent(capture(events)) }
-        assertTrue(
-            events.any {
-                it is Event.ShowDiscardConfirmDialog && it.target == DiscardTarget.POP_SCREEN
-            },
-        )
+        assertTrue((store.state.value.dialogState as? DialogState.DiscardConfirm)?.target == DiscardTarget.POP_SCREEN)
     }
 
     @Test
