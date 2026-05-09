@@ -127,9 +127,12 @@ Every UI test class must carry exactly one of them.
 - `@Smoke` — fast, mocked-data tests using `createComposeRule()`. No Hilt, no real database, no
   full activity. Pick this for component-level checks: visibility, interactions, edge inputs,
   accessibility semantics.
-- `@Regression` — full integration tests using `createAndroidComposeRule<MainActivity>()` and
-  `@HiltAndroidTest`. Spin up the real DI container and database. Reserve for end-to-end flows
-  that span multiple features.
+- `@Regression` — full integration tests using `@HiltAndroidTest`. Two scopes:
+  - **App scope** — `createAndroidComposeRule<MainActivity>()`. Real navigation graph and
+    cross-feature flows. Lives in `app/dev/src/androidTest/...`.
+  - **Feature scope** — `createAndroidComposeRule<TestActivity>()`. A single feature graph
+    mounted inside a bare `@AndroidEntryPoint` host. Lives in
+    `feature/<name>/src/androidTest/...`. See [Feature integration tests](#feature-integration-tests).
 
 The annotation governs which suite the test runs in. The CI workflow filters on the fully
 qualified annotation name via
@@ -222,7 +225,7 @@ class MyFeatureScreenTest : BaseComposeTest() {
 }
 ```
 
-### Skeleton: regression test
+### Skeleton: regression test (app scope)
 
 ```kotlin
 @Regression
@@ -242,6 +245,160 @@ class MyFullAppTest {
     }
 }
 ```
+
+### Feature integration tests
+
+App-scope regression tests boot the whole app graph through `MainActivity`. That's
+overkill — and slow — for scenarios that exercise a single feature: form persistence,
+validation, dialog dismissal, etc. Feature integration tests mount one feature's nav
+graph inside a bare `@AndroidEntryPoint` host so the test still runs against a real
+Hilt graph and a real Room database, but without dragging the rest of the app along.
+
+#### Stack
+
+Five pieces, all wired automatically once the module's `build.gradle.kts` opts in:
+
+1. **`HiltTestApplication`** — Hilt's built-in `@HiltAndroidApp` for instrumentation.
+   Hilt forbids `@HiltAndroidApp` in library modules, so test-utils points the runner
+   at `HiltTestApplication` directly.
+2. **`WorkeeperTestRunner`** (`core/ui/test-utils/.../runner/WorkeeperTestRunner.kt`)
+   — `AndroidJUnitRunner` subclass that overrides `newApplication` to instantiate
+   `HiltTestApplication`. Each consuming module sets
+   `defaultConfig.testInstrumentationRunner` to this class.
+3. **`TestActivity`** (`core/ui/test-utils/.../TestActivity.kt`) — minimal
+   `@AndroidEntryPoint` `ComponentActivity`. Hilt scopes ViewModels to it; the test
+   calls `composeRule.setContent { ... }` to mount the feature.
+4. **`TestInfraModule`** (`core/ui/test-utils/.../di/TestInfraModule.kt`) — the
+   project-wide fake registry. `@TestInstallIn` swaps the production
+   `ImageStorageModule` for `FakeImageStorage`. Future deterministic fakes (Clock,
+   SystemFeedback, ARC launchers — see
+   `documentation/test-scenarios/exercise.md` "Test infrastructure prerequisites")
+   register here.
+5. **`TestDatabaseModule`** (`core/data/database-test/.../di/TestDatabaseModule.kt`)
+   — `@TestInstallIn(replaces = [CoreDatabaseModule::class])` provider for an
+   in-memory `AppDatabase` plus every DAO. **Keep this in lock-step with the
+   production `CoreDatabaseModule`**; adding a DAO provider in production without
+   mirroring it here surfaces at injection time as a Hilt error.
+
+For bindings owned by `app/app` production modules (e.g. `Navigator` from
+`app/app/.../NavigationModule`), feature scope can't replace them — `app/app` isn't on
+the test classpath. Each feature androidTest module supplies its own one-line
+`@Binds` from a `core/ui/test-utils` fake (see
+`feature/exercise/src/androidTest/.../testutil/FeatureExerciseTestModule.kt` for the
+canonical example using `FakeNavigator`).
+
+#### Module wiring
+
+In the consuming feature's `build.gradle.kts`:
+
+```kotlin
+android {
+    defaultConfig {
+        testInstrumentationRunner =
+            "io.github.stslex.workeeper.core.ui.test.runner.WorkeeperTestRunner"
+    }
+}
+
+dependencies {
+    androidTestImplementation(libs.bundles.android.test)
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(project(":core:ui:test-utils"))
+    androidTestImplementation(project(":core:data:database-test"))
+    kspAndroidTest(libs.hilt.compiler)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+}
+```
+
+#### File layout
+
+Test classes are grouped by scenario family. The pilot is
+`ExerciseFormBasicsTest.kt`; future Exercise scenarios join the pattern as
+`ExerciseTagsTest.kt`, `ExerciseDialogsTest.kt`, etc. Per-feature Hilt fakes (e.g. the
+`Navigator` stub binding) live under
+`feature/<name>/src/androidTest/.../testutil/`.
+
+```
+feature/<name>/src/androidTest/kotlin/io/github/stslex/workeeper/feature/<name>/
+├── <Feature><Group>Test.kt        # one @Test per scenario from the catalog
+└── testutil/
+    └── Feature<Name>TestModule.kt # per-feature Hilt @Binds (Navigator etc.)
+```
+
+#### Skeleton
+
+```kotlin
+@Regression
+@HiltAndroidTest
+@RunWith(AndroidJUnit4::class)
+internal class MyFeatureFormBasicsTest {
+
+    @get:Rule(order = 0)
+    val hiltRule = HiltAndroidRule(this)
+
+    @get:Rule(order = 1)
+    val composeRule = createAndroidComposeRule<TestActivity>()
+
+    @Inject lateinit var database: AppDatabase
+    @Inject lateinit var myDao: MyDao
+
+    @Before
+    fun setup() {
+        hiltRule.inject()
+        // Singleton AppDatabase survives across tests in the same JVM process.
+        runBlocking { database.clearAllTables() }
+    }
+
+    @Test
+    fun scenario_does_thing() {
+        composeRule.setContent {
+            val navController = rememberNavController()
+            NavHost(
+                navController = navController,
+                startDestination = Screen.MyFeature(...),
+            ) {
+                myFeatureGraph()
+            }
+        }
+
+        composeRule.onNodeWithTag("MyFieldTag").performTextInput("...")
+        composeRule.onNodeWithTag("MySaveButtonTag").performClick()
+
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            runBlocking { myDao.getCount() } == 1
+        }
+
+        // Read-back assertion against the same DAO surface.
+    }
+}
+```
+
+The pilot test is
+`feature/exercise/src/androidTest/.../ExerciseFormBasicsTest.kt`. Refer to it as the
+working reference for new feature-scope tests.
+
+#### Adding a new fake to `TestInfraModule`
+
+When a future scenario needs a deterministic fake for a type that several features
+inject (e.g. `Clock`, `SystemFeedback`):
+
+1. Add the fake under
+   `core/ui/test-utils/src/main/kotlin/io/github/stslex/workeeper/core/ui/test/fakes/`.
+2. Bind it in `TestInfraModule`. If the production binding lives in a `@Module` you can
+   reference cross-module, extend the `@TestInstallIn(replaces = [...])` list. If not,
+   add a per-feature `@InstallIn` `@Binds` in
+   `feature/<name>/src/androidTest/.../testutil/`.
+3. Update the relevant `documentation/test-scenarios/<feature>.md` under "Test
+   infrastructure prerequisites" so the next test author knows the fake exists.
+
+#### Test-tag conventions for feature integration tests
+
+The mounted screen still relies on the production composable's testTags. Add a tag
+only when a scenario actually needs to query that node — speculative tags are not
+welcome (see [Test-tag naming](#test-tag-naming)). The Exercise feature's existing
+production tags (e.g. `ExerciseEditNameField`, `ExerciseEditSaveButton`) are the
+source of truth; the names listed in
+`documentation/test-scenarios/exercise.md` track those production names rather than
+introducing parallel ones.
 
 ### Test-tag naming
 
@@ -263,7 +420,7 @@ tags (`"HomeGraph"`, `"AllTrainingsGraph"`, etc.) for cross-feature tests.
 | `feature/all-trainings` | `feature/all-trainings/src/androidTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/AllTrainingsScreenTest.kt` |
 | `feature/all-exercises` | `feature/all-exercises/src/androidTest/.../AllExercisesScreenTest.kt`, `AllExercisesScreenAccessibilityTest.kt`, `AllExercisesScreenEdgeCasesTest.kt` |
 | `feature/single-training` | `feature/single-training/src/androidTest/.../SingleTrainingScreenTest.kt` |
-| `feature/exercise` | `feature/exercise/src/androidTest/.../ExerciseScreenTest.kt` |
+| `feature/exercise` | `feature/exercise/src/androidTest/.../ExerciseScreenTest.kt`, `ExerciseFormBasicsTest.kt` |
 
 ## Running tests
 
