@@ -24,3 +24,13 @@
 
 # @Serializable and @Polymorphic are used at runtime for polymorphic serialization.
 -keepattributes RuntimeVisibleAnnotations,AnnotationDefault
+
+# Compose Navigation type-safe routes resolve enum nav-args via
+ # Class.forName(serialName) where serialName defaults to compile-time FQN.
+ # The kotlinx-serialization rules above keep `serializer()` members but allow
+ # class-name obfuscation, which breaks the Class.forName lookup on minified
+ # builds → IllegalArgumentException("Cannot find class with name ...").
+-keep @kotlinx.serialization.Serializable class ** extends java.lang.Enum {
+    *;
+}
+
