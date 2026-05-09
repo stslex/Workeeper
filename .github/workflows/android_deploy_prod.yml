@@ -7,6 +7,10 @@ on:
         type: boolean
         default: false
         description: "Skip UI tests. Use only on retries when UI tests passed in a prior run."
+      skip_buid_checks:
+        type: boolean
+        default: false
+        description: "Skip build checks. Use only on retries when build passed in a prior run."
 
 permissions:
   contents: write
@@ -114,6 +118,7 @@ jobs:
 
   build:
     needs: guard
+    if: ${{ !inputs.skip_buid_checks }}
     uses: ./.github/workflows/android_build_unified.yml
     with:
       ref: ${{ needs.guard.outputs.sha }}
@@ -130,7 +135,7 @@ jobs:
 
   deploy:
     needs: [ guard, build, ui_tests ]
-    if: ${{ always() && needs.build.result == 'success' && (needs.ui_tests.result == 'success' || needs.ui_tests.result == 'skipped') }}
+    if: ${{ always() && (needs.build.result == 'success' || needs.build.result == 'skipped') && (needs.ui_tests.result == 'success' || needs.ui_tests.result == 'skipped') }}
     name: Deploy to Play, tag, merge PR
     runs-on: ubuntu-latest
     timeout-minutes: 60
