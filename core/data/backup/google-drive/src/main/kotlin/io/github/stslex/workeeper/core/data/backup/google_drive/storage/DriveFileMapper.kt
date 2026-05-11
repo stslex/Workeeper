@@ -16,9 +16,12 @@ internal object DriveFileMapper {
 
     fun toBackupRef(file: DriveFileDto): BackupRef? {
         val raw = file.appProperties?.get(MANIFEST_APP_PROPERTY_KEY) ?: return null
-        val result = ManifestSerializer.deserialize(raw)
-        return when (result) {
-            is BackupResult.Success -> BackupRef(remoteId = file.id, manifest = result.data)
+        return when (val result = ManifestSerializer.deserialize(raw)) {
+            is BackupResult.Success -> BackupRef(
+                remoteId = file.id,
+                manifest = result.data,
+            )
+
             is BackupResult.Failure -> null
         }
     }

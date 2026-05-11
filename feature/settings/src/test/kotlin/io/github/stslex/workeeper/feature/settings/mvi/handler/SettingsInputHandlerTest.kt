@@ -20,11 +20,7 @@ import org.junit.jupiter.api.Test
 internal class SettingsInputHandlerTest {
 
     private val interactor = mockk<SettingsInteractor>(relaxed = true)
-    private val initialState = State(
-        themeMode = ThemeMode.SYSTEM,
-        appVersion = "1.0.0",
-        appVersionCode = 1,
-    )
+    private val initialState = State.initial(appVersion = "1.0.0", appVersionCode = 1)
     private val stateFlow = MutableStateFlow(initialState)
     private val store = mockk<SettingsHandlerStore>(relaxed = true).apply {
         every { state } returns stateFlow

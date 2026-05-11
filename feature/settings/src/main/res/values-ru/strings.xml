@@ -17,4 +17,26 @@
     <string name="feature_settings_about_privacy">Политика конфиденциальности</string>
 
     <string name="feature_settings_archive_entry">Архив</string>
+
+    <string name="feature_settings_backup_title">Облачная резервная копия</string>
+    <string name="feature_settings_backup_sign_in">Войти в Google Drive</string>
+    <string name="feature_settings_backup_sign_out">Выйти</string>
+    <string name="feature_settings_backup_create">Создать резервную копию</string>
+    <string name="feature_settings_backup_restore">Восстановить из резервной копии</string>
+    <string name="feature_settings_backup_restore_title">Восстановить резервную копию?</string>
+    <string name="feature_settings_backup_restore_warning">Заменит текущие данные резервной копией от %1$s (%2$s). Это действие необратимо.</string>
+    <string name="feature_settings_backup_restore_impact">Все текущие данные будут заменены</string>
+    <string name="feature_settings_backup_restore_confirm">Восстановить</string>
+    <string name="feature_settings_backup_restore_cancel">Отмена</string>
+    <string name="feature_settings_backup_created">Резервная копия создана</string>
+
+    <string name="feature_settings_backup_error_not_authenticated">Сначала войдите в Drive</string>
+    <string name="feature_settings_backup_error_network_unavailable">Нет соединения с интернетом</string>
+    <string name="feature_settings_backup_error_auth_revoked">Доступ к Drive отозван. Войдите снова.</string>
+    <string name="feature_settings_backup_error_storage_quota_exceeded">В Drive закончилось место</string>
+    <string name="feature_settings_backup_error_corrupted_backup">Файл резервной копии повреждён</string>
+    <string name="feature_settings_backup_error_schema_too_new">Резервная копия требует более новой версии приложения</string>
+    <string name="feature_settings_backup_error_io">Ошибка чтения или записи</string>
+    <string name="feature_settings_backup_error_unknown">Что-то пошло не так</string>
+    <string name="feature_settings_backup_error_no_backups_found">Нет доступных резервных копий</string>
 </resources>
