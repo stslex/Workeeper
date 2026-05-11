@@ -345,16 +345,16 @@ belong in UI mappers via `stringResource(R.string.*)` or
 `mvi/mapper/`.
 
 ```kotlin
-// BAD: feature/settings/domain/model/ArchivedItem.kt
+// BAD: feature/archive/domain/model/ArchivedItem.kt
 import androidx.compose.runtime.Stable
 @Stable
 sealed interface ArchivedItem { ... }
 ```
 
 ```kotlin
-// GOOD: feature/settings/domain/model/ArchivedItem.kt
+// GOOD: feature/archive/domain/model/ArchivedItem.kt
 sealed interface ArchivedItem { ... }
-// The @Stable wrapper lives in feature/settings/mvi/model/ArchivedItemUi.kt.
+// The @Stable wrapper lives in feature/archive/mvi/model/ArchivedItemUi.kt.
 ```
 
 ### `ScopeClassType` (helper, not a rule)

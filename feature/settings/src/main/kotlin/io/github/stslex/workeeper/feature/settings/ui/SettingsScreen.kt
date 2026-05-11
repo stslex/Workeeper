@@ -82,7 +82,7 @@ internal fun SettingsScreen(
             SettingsSection(title = stringResource(R.string.feature_settings_section_data)) {
                 SettingsRow(
                     modifier = Modifier.testTag("SettingsArchiveRow"),
-                    title = stringResource(R.string.feature_archive_title),
+                    title = stringResource(R.string.feature_settings_archive_entry),
                     onClick = { consume(Action.Click.OnArchiveClick) },
                 )
             }

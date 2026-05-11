@@ -3,8 +3,6 @@ package io.github.stslex.workeeper.feature.settings.domain
 
 import android.content.Context
 import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
-import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
-import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
 import io.github.stslex.workeeper.feature.settings.domain.model.ThemeModeDomain
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -26,8 +24,6 @@ internal class SettingsInteractorImplTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
     private val commonDataStore = mockk<CommonDataStore>(relaxed = true)
-    private val exerciseRepository = mockk<ExerciseRepository>(relaxed = true)
-    private val trainingRepository = mockk<TrainingRepository>(relaxed = true)
     private val context = mockk<Context>(relaxed = true)
 
     private lateinit var interactor: SettingsInteractor
@@ -38,8 +34,6 @@ internal class SettingsInteractorImplTest {
         interactor = SettingsInteractorImpl(
             context = context,
             commonDataStore = commonDataStore,
-            exerciseRepository = exerciseRepository,
-            trainingRepository = trainingRepository,
             defaultDispatcher = testDispatcher,
         )
     }
@@ -64,45 +58,5 @@ internal class SettingsInteractorImplTest {
         coEvery { commonDataStore.setThemePreference(any()) } returns Unit
         interactor.setThemeMode(ThemeModeDomain.LIGHT)
         coVerify(exactly = 1) { commonDataStore.setThemePreference(ThemeModeDomain.LIGHT.value) }
-    }
-
-    @Test
-    fun `restoreExercise delegates to repository`() = runTest(testDispatcher) {
-        coEvery { exerciseRepository.restore(any()) } returns Unit
-        interactor.restoreExercise("uuid-1")
-        coVerify(exactly = 1) { exerciseRepository.restore("uuid-1") }
-    }
-
-    @Test
-    fun `restoreTraining delegates to repository`() = runTest(testDispatcher) {
-        coEvery { trainingRepository.restore(any()) } returns Unit
-        interactor.restoreTraining("uuid-2")
-        coVerify(exactly = 1) { trainingRepository.restore("uuid-2") }
-    }
-
-    @Test
-    fun `permanentlyDeleteExercise delegates to repository`() = runTest(testDispatcher) {
-        coEvery { exerciseRepository.permanentDelete(any()) } returns Unit
-        interactor.permanentlyDeleteExercise("uuid-3")
-        coVerify(exactly = 1) { exerciseRepository.permanentDelete("uuid-3") }
-    }
-
-    @Test
-    fun `permanentlyDeleteTraining delegates to repository`() = runTest(testDispatcher) {
-        coEvery { trainingRepository.permanentDelete(any()) } returns Unit
-        interactor.permanentlyDeleteTraining("uuid-4")
-        coVerify(exactly = 1) { trainingRepository.permanentDelete("uuid-4") }
-    }
-
-    @Test
-    fun `countExerciseSessions delegates to repository`() = runTest(testDispatcher) {
-        coEvery { exerciseRepository.countSessionsUsing("uuid-5") } returns 7
-        assertEquals(7, interactor.countExerciseSessions("uuid-5"))
-    }
-
-    @Test
-    fun `countTrainingSessions delegates to repository`() = runTest(testDispatcher) {
-        coEvery { trainingRepository.countSessionsUsing("uuid-6") } returns 3
-        assertEquals(3, interactor.countTrainingSessions("uuid-6"))
     }
 }
