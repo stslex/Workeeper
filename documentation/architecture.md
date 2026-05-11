@@ -49,8 +49,8 @@ The build is configured in `settings.gradle.kts`. Every module is included from 
 Each feature is a self-contained module that owns a Store, Handlers, DI, and a Compose entry
 point. Current feature modules live under `feature/`, including `feature/home`,
 `feature/all-trainings`, `feature/all-exercises`, `feature/single-training`,
-`feature/exercise`, `feature/live-workout`, `feature/past-session`, and
-`feature/settings`. Feature contents are detailed in [features.md](features.md); their
+`feature/exercise`, `feature/live-workout`, `feature/past-session`,
+`feature/settings`, and `feature/archive`. Feature contents are detailed in [features.md](features.md); their
 conventional layout is described under [Per-feature MVI layout](#per-feature-mvi-layout).
 
 ### `build-logic/`

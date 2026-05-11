@@ -17,7 +17,7 @@ Each tracked location should carry a `TODO(tech-debt): <category> — <ref>` mar
 
 | Severity | Location | Description |
 |---|---|---|
-| 🟢 | [feature/settings/.../ui/ArchiveGraph.kt](../feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/ui/ArchiveGraph.kt) | Snackbar templates (`restoredTemplate.format(event.item.name)`) substituted in graph. Should be pre-formatted; event payload should carry the ready string. |
+| 🟢 | [feature/archive/.../ui/ArchiveGraph.kt](../feature/archive/src/main/kotlin/io/github/stslex/workeeper/feature/archive/ui/ArchiveGraph.kt) | Snackbar templates (`restoredTemplate.format(event.item.name)`) substituted in graph. Should be pre-formatted; event payload should carry the ready string. |
 | 🟢 | [feature/exercise/.../ui/ExerciseGraph.kt](../feature/exercise/src/main/kotlin/io/github/stslex/workeeper/feature/exercise/ui/ExerciseGraph.kt) | `Event.ShowImageError` → `when (event.errorType) { ... }` shaping in graph. Move to mapper or carry resolved message in the event itself. |
 | 🟢 | [feature/single-training/.../ui/SingleTrainingGraph.kt](../feature/single-training/src/main/kotlin/io/github/stslex/workeeper/feature/single_training/ui/SingleTrainingGraph.kt) | Discard-dialog title/body strings still chosen in graph. Push to state or to event payload. |
 | 🟢 | [feature/home/.../ui/components/ActiveSessionBanner.kt](../feature/home/src/main/kotlin/io/github/stslex/workeeper/feature/home/ui/components/ActiveSessionBanner.kt) | Concatenation `stringResource(label) + " · " + stringResource(progress)` in composable. Pre-format full label in `HomeUiMapper`. |
@@ -150,7 +150,7 @@ Five stub files with `TODO(feature-rewrite-tests)` markers carry an `@Ignore`d p
 | Severity | Location | Stage |
 |---|---|---|
 | 🟡 | [feature/settings/.../SettingsScreenTest.kt](../feature/settings/src/androidTest/kotlin/io/github/stslex/workeeper/feature/settings/SettingsScreenTest.kt) | 5.1 |
-| 🟡 | [feature/settings/.../ArchiveScreenTest.kt](../feature/settings/src/androidTest/kotlin/io/github/stslex/workeeper/feature/settings/ArchiveScreenTest.kt) | 5.1 |
+| 🟡 | [feature/archive/.../ArchiveScreenTest.kt](../feature/archive/src/androidTest/kotlin/io/github/stslex/workeeper/feature/archive/ArchiveScreenTest.kt) | 5.1 |
 | 🟡 | [feature/all-exercises/.../AllExercisesScreenTest.kt](../feature/all-exercises/src/androidTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/AllExercisesScreenTest.kt) | 5.2 |
 | 🟡 | [feature/exercise/.../ExerciseScreenTest.kt](../feature/exercise/src/androidTest/kotlin/io/github/stslex/workeeper/feature/exercise/ExerciseScreenTest.kt) | 5.2 |
 | 🟡 | [feature/all-trainings/.../AllTrainingsScreenTest.kt](../feature/all-trainings/src/androidTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/AllTrainingsScreenTest.kt) | 5.3 |
