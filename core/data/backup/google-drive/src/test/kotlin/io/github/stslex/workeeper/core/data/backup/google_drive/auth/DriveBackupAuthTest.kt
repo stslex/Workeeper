@@ -16,6 +16,14 @@ import io.github.stslex.workeeper.core.data.backup.api.model.Account
 import io.github.stslex.workeeper.core.data.backup.api.model.AuthState
 import io.github.stslex.workeeper.core.data.backup.api.model.SignInResult
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.client.engine.mock.respondError
+import io.ktor.client.engine.mock.toByteArray
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -51,9 +59,14 @@ internal class DriveBackupAuthTest {
 
     private val authorizationClient = mockk<AuthorizationClient>()
 
-    private fun newAuth() = DriveBackupAuth(
+    private fun noOpHttpClient(): HttpClient = HttpClient(
+        MockEngine { respond("", HttpStatusCode.OK) },
+    ) { expectSuccess = true }
+
+    private fun newAuth(httpClient: HttpClient = noOpHttpClient()) = DriveBackupAuth(
         authorizationClient = authorizationClient,
         accountStore = accountStore,
+        httpClient = httpClient,
         dispatcher = UnconfinedTestDispatcher(),
     )
 
@@ -147,14 +160,79 @@ internal class DriveBackupAuthTest {
     }
 
     @Test
-    fun `signOut clears accountStore and returns Success`() = runTest {
-        accountFlow.value = Account(email = "x@y.com", displayName = null)
-        val driveAuth = newAuth()
+    fun `signOut with successful revoke POSTs token to revoke endpoint and clears account`() =
+        runTest {
+            accountFlow.value = Account(email = "x@y.com", displayName = null)
+            val authResult = mockk<AuthorizationResult> {
+                every { hasResolution() } returns false
+                every { accessToken } returns "live-token"
+            }
+            every { authorizationClient.authorize(any()) } returns Tasks.forResult(authResult)
 
-        val result = driveAuth.signOut()
+            val capturedRequests = mutableListOf<Pair<String, String>>()
+            val httpClient = HttpClient(
+                MockEngine { request ->
+                    capturedRequests += request.url.toString() to
+                        String(request.body.toByteArray())
+                    respond(
+                        content = "",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                },
+            ) { expectSuccess = true }
+
+            val result = newAuth(httpClient).signOut()
+
+            assertEquals(BackupResult.Success(Unit), result)
+            coVerify { accountStore.clear() }
+            assertEquals(1, capturedRequests.size, "expected exactly one HTTP call")
+            val (url, body) = capturedRequests.single()
+            assertTrue(
+                url.contains("oauth2.googleapis.com/revoke"),
+                "expected revoke endpoint, got $url",
+            )
+            assertTrue(body.contains("token=live-token"), "expected token in body, got $body")
+        }
+
+    @Test
+    fun `signOut clears account even when remote revoke returns 4xx`() = runTest {
+        accountFlow.value = Account(email = "x@y.com", displayName = null)
+        val authResult = mockk<AuthorizationResult> {
+            every { hasResolution() } returns false
+            every { accessToken } returns "already-invalid"
+        }
+        every { authorizationClient.authorize(any()) } returns Tasks.forResult(authResult)
+
+        val httpClient = HttpClient(
+            MockEngine { respondError(HttpStatusCode.BadRequest) },
+        ) { expectSuccess = true }
+
+        val result = newAuth(httpClient).signOut()
 
         assertEquals(BackupResult.Success(Unit), result)
         coVerify { accountStore.clear() }
+    }
+
+    @Test
+    fun `signOut clears account and skips revoke when silent authorize fails`() = runTest {
+        accountFlow.value = Account(email = "x@y.com", displayName = null)
+        every { authorizationClient.authorize(any()) } returns
+            Tasks.forException(ApiException(Status.RESULT_INTERNAL_ERROR))
+
+        val callCount = java.util.concurrent.atomic.AtomicInteger(0)
+        val httpClient = HttpClient(
+            MockEngine {
+                callCount.incrementAndGet()
+                respond("", HttpStatusCode.OK)
+            },
+        ) { expectSuccess = true }
+
+        val result = newAuth(httpClient).signOut()
+
+        assertEquals(BackupResult.Success(Unit), result)
+        coVerify { accountStore.clear() }
+        assertEquals(0, callCount.get(), "no HTTP call when silent authorize fails")
     }
 
     @Test

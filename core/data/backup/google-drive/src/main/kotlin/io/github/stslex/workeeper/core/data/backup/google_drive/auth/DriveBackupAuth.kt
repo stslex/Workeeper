@@ -6,6 +6,7 @@ import com.google.android.gms.auth.api.identity.AuthorizationRequest
 import com.google.android.gms.auth.api.identity.AuthorizationResult
 import com.google.android.gms.common.api.Scope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
+import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.model.Account
@@ -13,6 +14,9 @@ import io.github.stslex.workeeper.core.data.backup.api.model.AuthState
 import io.github.stslex.workeeper.core.data.backup.api.model.SignInResult
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.backup.google_drive.error.DriveErrorMapper
+import io.ktor.client.HttpClient
+import io.ktor.client.request.forms.submitForm
+import io.ktor.http.parameters
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -32,18 +36,16 @@ import javax.inject.Singleton
  * the `drive.appdata` scope. Local account state lives in [AccountDataStore];
  * tokens are never stored — see `DriveAuthTokenProvider` for the per-request
  * fetch path.
- *
- * Sign-out is local-only in v1: we clear the account record and let the server
- * token expire naturally (typically <= 60 minutes). Calling Google's `/revoke`
- * endpoint is a follow-up; users can also revoke via Google Account settings.
  */
 @Singleton
 internal class DriveBackupAuth @Inject constructor(
     private val authorizationClient: AuthorizationClient,
     private val accountStore: AccountDataStore,
+    private val httpClient: HttpClient,
     @IODispatcher private val dispatcher: CoroutineDispatcher,
 ) : BackupAuth {
 
+    private val logger = Log.tag("DriveBackupAuth")
     private val authScope = CoroutineScope(SupervisorJob() + dispatcher)
     private val mutableState = MutableStateFlow<AuthState>(AuthState.SignedOut)
 
@@ -86,9 +88,38 @@ internal class DriveBackupAuth @Inject constructor(
             )
         }
 
+    /**
+     * Revokes Google authorization (best-effort, via the OAuth2 revoke endpoint)
+     * and clears local account state. Local clear succeeds even if remote revoke
+     * fails (network unavailable, token already invalid, silent token unavailable).
+     * Always returns [BackupResult.Success].
+     */
     override suspend fun signOut(): BackupResult<Unit> = withContext(dispatcher) {
+        fetchSilentToken()?.let { revokeRemote(it) }
         accountStore.clear()
         BackupResult.Success(Unit)
+    }
+
+    /**
+     * Attempts a silent `authorize` to retrieve the current access token. Returns
+     * `null` if the call fails (no network, GMS not available) or if Drive demands
+     * a UI resolution — in either case there is no token to revoke.
+     */
+    private suspend fun fetchSilentToken(): String? = runCatching {
+        val request = AuthorizationRequest.builder()
+            .setRequestedScopes(listOf(Scope(DRIVE_APPDATA_SCOPE)))
+            .build()
+        val result = authorizationClient.authorize(request).await()
+        if (result.hasResolution()) null else result.accessToken
+    }.getOrNull()
+
+    private suspend fun revokeRemote(token: String) {
+        runCatching {
+            httpClient.submitForm(
+                url = REVOKE_ENDPOINT,
+                formParameters = parameters { append("token", token) },
+            )
+        }.onFailure { logger.w("revoke failed: ${it.message.orEmpty()}") }
     }
 
     private suspend fun resolveSignIn(result: AuthorizationResult): SignInResult {
@@ -117,5 +148,6 @@ internal class DriveBackupAuth @Inject constructor(
     private companion object {
         const val DRIVE_APPDATA_SCOPE = "https://www.googleapis.com/auth/drive.appdata"
         const val PLACEHOLDER_EMAIL = "drive_account"
+        const val REVOKE_ENDPOINT = "https://oauth2.googleapis.com/revoke"
     }
 }
