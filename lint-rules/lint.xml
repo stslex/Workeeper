@@ -173,4 +173,11 @@
     <!-- Deprecation -->
     <issue id="Deprecated" severity="warning" />
     <issue id="ObsoleteSdkInt" severity="warning" />
+
+    <!-- Third-party JVM-only references that are dead-code on Android -->
+    <!-- Ktor utils references java.lang.management for an IntellijIdeaDebugDetector
+         shim that is never invoked at runtime on Android. -->
+    <issue id="InvalidPackage">
+        <ignore regexp=".*ktor.*"/>
+    </issue>
 </lint>
