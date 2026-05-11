@@ -10,6 +10,7 @@ android {
 
 dependencies {
     implementation(project(":core:core"))
+    implementation(project(":core:data:backup:api"))
 
     implementation(libs.kotlinx.serialization.json)
     testImplementation(libs.androidx.room.testing)
