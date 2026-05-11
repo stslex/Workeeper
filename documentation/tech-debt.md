@@ -253,6 +253,14 @@ layer](architecture.md#domain-model-layer) for the convention.
 
 ---
 
+## Backup integrations
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟢 | [core/data/backup/google-drive/.../auth/DriveAuthTokenProvider.kt](../core/data/backup/google-drive/src/main/kotlin/io/github/stslex/workeeper/core/data/backup/google_drive/auth/DriveAuthTokenProvider.kt) | **Token fetch caching.** Every Drive HTTP call invokes `AuthorizationClient.authorize().await()` to retrieve the access token. GMS likely caches internally but this is undocumented. **Trigger to revisit:** real-device measurement of 2nd+ `authorize().await()` calls. If consistently >200ms, add an in-memory access token cache with TTL ~50 minutes (access tokens live 60 minutes). **Mitigation effort if needed:** ~15 LoC + 1 unit test. |
+
+---
+
 ## v2.0 Foundations Stage — closed entries
 
 The v2.0 stage addressed the following items. They are listed here for traceability before they roll into the next audit cleanup.
