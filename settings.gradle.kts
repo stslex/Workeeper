@@ -42,6 +42,7 @@ include(":core:data:database-test")
 include(":core:data:exercise")
 include(":core:data:dataStore")
 include(":core:data:backup:api")
+include(":core:data:backup:google-drive")
 include(":core:ui:plan-editor")
 
 include(":feature:exercise")
