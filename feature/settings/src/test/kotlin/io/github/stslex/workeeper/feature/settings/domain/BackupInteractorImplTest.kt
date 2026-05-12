@@ -14,6 +14,7 @@ import io.github.stslex.workeeper.core.data.backup.api.model.BackupRef
 import io.github.stslex.workeeper.core.data.backup.api.model.SignInResult
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
+import io.github.stslex.workeeper.feature.settings.domain.model.AccountDomain
 import io.github.stslex.workeeper.feature.settings.domain.model.BackupSummaryDomain
 import io.github.stslex.workeeper.feature.settings.domain.model.SignInOutcomeDomain
 import io.mockk.coEvery
@@ -252,7 +253,9 @@ internal class BackupInteractorImplTest {
                 downloadCaptured.captured.writeText("payload")
                 BackupResult.Success(ref.manifest)
             }
-            coEvery { snapshotProvider.restoreFromSnapshot(any()) } returns BackupResult.Success(Unit)
+            coEvery { snapshotProvider.restoreFromSnapshot(any()) } returns BackupResult.Success(
+                Unit,
+            )
 
             val result = interactor.restoreLatest()
 
@@ -283,15 +286,16 @@ internal class BackupInteractorImplTest {
         }
 
     @Test
-    fun `completeSignIn maps api Success of Account to Success of Unit`() = runTest(testDispatcher) {
-        val intent = mockk<Intent>(relaxed = true)
-        coEvery { backupAuth.completeSignIn(intent) } returns BackupResult.Success(
-            Account(email = "a@b.com", displayName = "A"),
-        )
-        val result = interactor.completeSignIn(intent)
-        assertTrue(result is BackupResult.Success)
-        assertEquals(Unit, (result as BackupResult.Success).data)
-    }
+    fun `completeSignIn maps api Success of Account to Success of Unit`() =
+        runTest(testDispatcher) {
+            val intent = mockk<Intent>(relaxed = true)
+            val expectedAccount = AccountDomain(email = "a@b.com", displayName = "A")
+            coEvery { backupAuth.completeSignIn(intent) } returns
+                BackupResult.Success(Account(email = "a@b.com", displayName = "A"))
+            val result = interactor.completeSignIn(intent)
+            assertTrue(result is BackupResult.Success)
+            assertEquals(expectedAccount, (result as BackupResult.Success).data)
+        }
 
     @Test
     fun `completeSignIn propagates Failure`() = runTest(testDispatcher) {

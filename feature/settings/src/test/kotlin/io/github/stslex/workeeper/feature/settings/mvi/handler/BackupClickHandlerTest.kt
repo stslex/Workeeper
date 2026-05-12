@@ -38,6 +38,7 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.io.IOException
 
 internal class BackupClickHandlerTest {
 
@@ -130,7 +131,8 @@ internal class BackupClickHandlerTest {
     fun `HandleAuthResult Success emits no events (auth flow drives state)`() =
         runTest(testDispatcher) {
             val intent = mockk<Intent>(relaxed = true)
-            coEvery { interactor.completeSignIn(intent) } returns BackupResult.Success(Unit)
+            val expectedAccount = AccountDomain(email = "a@b.com", displayName = "A")
+            coEvery { interactor.completeSignIn(intent) } returns BackupResult.Success(expectedAccount)
             handler.invoke(Action.Backup.HandleAuthResult(intent))
             assertTrue(store.events.isEmpty())
         }
@@ -257,7 +259,7 @@ internal class BackupClickHandlerTest {
     fun `ConfirmRestore Failure emits ShowBackupError and resets to Idle`() =
         runTest(testDispatcher) {
             coEvery { interactor.restoreLatest() } returns BackupResult.Failure(
-                BackupError.Io(java.io.IOException("disk")),
+                BackupError.Io(IOException("disk")),
             )
             handler.invoke(Action.Backup.ConfirmRestore)
             assertEquals(BackupOperationUi.Idle, store.stateFlow.value.backupOperation)
