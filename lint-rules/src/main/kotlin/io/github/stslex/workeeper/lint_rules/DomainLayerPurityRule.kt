@@ -23,9 +23,16 @@ import org.jetbrains.kotlin.psi.KtImportDirective
  * scope (V1/V3/V6) covers types in public surface, not transitive
  * dependencies.
  *
- * Files inside `feature/<X>/domain/mapper/` are exempt: a mapper's
- * job is to convert from data to domain, so the data import is the
- * contract.
+ * Two exemptions apply:
+ *
+ *  1. Files inside `feature/<X>/domain/mapper/` are exempt — a mapper's
+ *     job is to convert from data to domain, so the data import is the
+ *     contract.
+ *  2. Imports from `core.data.<feature>.api.*` submodules are exempt —
+ *     `core/data/<X>/api/` modules are the public contract surface
+ *     shared across the codebase (analogous to a multi-module Maven
+ *     api / impl split). Types under `.api.` (including `.api.model.*`)
+ *     are intentionally consumable from any layer.
  */
 class DomainLayerPurityRule(
     config: Config = Config.empty,
@@ -47,6 +54,7 @@ class DomainLayerPurityRule(
 
         val importPath = importDirective.importPath?.pathStr ?: return
         if (!importPath.startsWith(CORE_DATA_PREFIX)) return
+        if (importPath.isFromApiSubmodule()) return
 
         if (!importPath.isDataModelLike()) return
 
@@ -71,6 +79,18 @@ class DomainLayerPurityRule(
         contains("/src/test/") || contains("/src/androidTest/")
 
     private fun String.isInDomainMapper(): Boolean = contains("/domain/mapper/")
+
+    /**
+     * Matches imports under `core.data.<feature>.api.*` — the second segment
+     * after the [CORE_DATA_PREFIX] strip is `api`. The package convention
+     * mirrors the module path `:core:data:<feature>:api/`, so this is a
+     * structural check, not a substring search.
+     */
+    private fun String.isFromApiSubmodule(): Boolean {
+        val suffix = removePrefix(CORE_DATA_PREFIX)
+        val segments = suffix.split('.')
+        return segments.getOrNull(1) == "api"
+    }
 
     private fun String.isDataModelLike(): Boolean {
         // Heuristic: suffix-based detection for the known data-shape patterns

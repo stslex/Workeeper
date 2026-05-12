@@ -17,4 +17,26 @@
     <string name="feature_settings_about_privacy">Privacy Policy</string>
 
     <string name="feature_settings_archive_entry">Archive</string>
+
+    <string name="feature_settings_backup_title">Cloud backup</string>
+    <string name="feature_settings_backup_sign_in">Sign in to Google Drive</string>
+    <string name="feature_settings_backup_sign_out">Sign out</string>
+    <string name="feature_settings_backup_create">Backup now</string>
+    <string name="feature_settings_backup_restore">Restore from backup</string>
+    <string name="feature_settings_backup_restore_title">Restore backup?</string>
+    <string name="feature_settings_backup_restore_warning">Replaces your current data with the backup from %1$s (%2$s). This cannot be undone.</string>
+    <string name="feature_settings_backup_restore_impact">All current data will be replaced</string>
+    <string name="feature_settings_backup_restore_confirm">Restore</string>
+    <string name="feature_settings_backup_restore_cancel">Cancel</string>
+    <string name="feature_settings_backup_created">Backup created</string>
+
+    <string name="feature_settings_backup_error_not_authenticated">Sign in to Drive first</string>
+    <string name="feature_settings_backup_error_network_unavailable">No internet connection</string>
+    <string name="feature_settings_backup_error_auth_revoked">Drive access revoked. Sign in again.</string>
+    <string name="feature_settings_backup_error_storage_quota_exceeded">Drive storage is full</string>
+    <string name="feature_settings_backup_error_corrupted_backup">Backup file is corrupted</string>
+    <string name="feature_settings_backup_error_schema_too_new">Backup needs a newer app version</string>
+    <string name="feature_settings_backup_error_io">Read/write error</string>
+    <string name="feature_settings_backup_error_unknown">Something went wrong</string>
+    <string name="feature_settings_backup_error_no_backups_found">No backups available</string>
 </resources>

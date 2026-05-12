@@ -314,8 +314,20 @@ model into the domain layer. The rule treats imports whose simple name ends in
 `DataModel`, `Entity`, `Dto`, `DataType`, etc., or whose path contains `.model.`,
 as data-shape leaks. Repository / Storage / Dao / Dispatcher imports under
 `core.data.*` are intentionally permitted — they are abstractions, not data
-shapes. Files inside `domain/mapper/` are exempt: a mapper's whole job is the
-data → domain conversion.
+shapes.
+
+Two exemptions apply:
+
+1. **`domain/mapper/`** — files inside `feature/<X>/domain/mapper/` are exempt;
+   a mapper's whole job is the data → domain conversion, so importing data
+   shapes there is the contract.
+2. **`core.data.<feature>.api.*` submodules** — imports from any
+   `core/data/<X>/api/` module are exempt. These modules are the public
+   contract surface that feature code depends on directly (analogous to a
+   multi-module Maven api/impl split — see `:core:data:backup:api` for the
+   established pattern). Types under `.api.*`, including `.api.model.*`, are
+   intentionally consumable from the domain layer; the api-vs-impl split is
+   itself the architectural boundary.
 
 ```kotlin
 // BAD: feature/exercise/domain/ExerciseInteractor.kt
@@ -331,6 +343,19 @@ suspend fun getExercise(uuid: String): ExerciseDomain?
 // And in domain/mapper/ExerciseDomainMapper.kt (allowed):
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseDataModel
 internal fun ExerciseDataModel.toDomain(): ExerciseDomain = ...
+```
+
+```kotlin
+// GOOD: feature/settings/domain/BackupInteractorImpl.kt — api submodule import
+// is allowed because the second segment after core.data. is "api".
+import io.github.stslex.workeeper.core.data.backup.api.model.BackupManifest
+
+internal class BackupInteractorImpl(...) {
+    suspend fun create(): BackupResult<Unit> {
+        val manifest = BackupManifest(...)
+        return storage.uploadBackup(file, manifest)
+    }
+}
 ```
 
 ### `DomainLayerNoUiRule`

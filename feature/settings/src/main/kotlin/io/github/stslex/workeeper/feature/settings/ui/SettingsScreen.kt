@@ -21,11 +21,16 @@ import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
-import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.feature.settings.R
+import io.github.stslex.workeeper.feature.settings.mvi.model.BackupAuthUi
+import io.github.stslex.workeeper.feature.settings.mvi.model.BackupOperationUi
+import io.github.stslex.workeeper.feature.settings.mvi.model.RestoreConfirmationUi
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Action
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.State
 import io.github.stslex.workeeper.feature.settings.ui.components.AboutBlock
+import io.github.stslex.workeeper.feature.settings.ui.components.BackupSection
+import io.github.stslex.workeeper.feature.settings.ui.components.RestoreConfirmationDialog
+import io.github.stslex.workeeper.feature.settings.ui.components.SettingsBackupState
 import io.github.stslex.workeeper.feature.settings.ui.components.SettingsRow
 import io.github.stslex.workeeper.feature.settings.ui.components.SettingsSection
 import io.github.stslex.workeeper.feature.settings.ui.components.ThemeSelector
@@ -79,6 +84,13 @@ internal fun SettingsScreen(
                     onSelectedChange = { mode -> consume(Action.Input.OnThemeChange(mode)) },
                 )
             }
+            BackupSection(
+                state = SettingsBackupState(
+                    auth = state.backupAuth,
+                    operation = state.backupOperation,
+                ),
+                onAction = { consume(it) },
+            )
             SettingsSection(title = stringResource(R.string.feature_settings_section_data)) {
                 SettingsRow(
                     modifier = Modifier.testTag("SettingsArchiveRow"),
@@ -87,6 +99,12 @@ internal fun SettingsScreen(
                 )
             }
         }
+    }
+    state.restoreConfirmation?.let { confirmation ->
+        RestoreConfirmationDialog(
+            state = confirmation,
+            onAction = { consume(it) },
+        )
     }
 }
 
@@ -97,14 +115,50 @@ internal fun SettingsScreen(
     uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES,
 )
 @Composable
-private fun SettingsScreenPreview() {
+private fun SettingsScreenNotAuthenticatedPreview() {
     AppTheme {
         SettingsScreen(
-            state = State(
-                themeMode = ThemeMode.SYSTEM,
-                appVersion = "1.0.0",
-                appVersionCode = 15,
-            ),
+            state = State.initial(appVersion = "1.0.0", appVersionCode = 15),
+            consume = {},
+        )
+    }
+}
+
+@Preview(name = "Authenticated", showBackground = true)
+@Composable
+private fun SettingsScreenAuthenticatedPreview() {
+    AppTheme {
+        SettingsScreen(
+            state = State.initial(appVersion = "1.0.0", appVersionCode = 15)
+                .copy(
+                    backupAuth = BackupAuthUi.Authenticated(
+                        email = "user@example.com",
+                        displayName = "User",
+                    ),
+                ),
+            consume = {},
+        )
+    }
+}
+
+@Preview(name = "Restoring with dialog", showBackground = true)
+@Composable
+private fun SettingsScreenRestoreDialogPreview() {
+    AppTheme {
+        SettingsScreen(
+            state = State.initial(appVersion = "1.0.0", appVersionCode = 15)
+                .copy(
+                    backupAuth = BackupAuthUi.Authenticated(
+                        email = "user@example.com",
+                        displayName = null,
+                    ),
+                    backupOperation = BackupOperationUi.Idle,
+                    restoreConfirmation = RestoreConfirmationUi(
+                        createdAtFormatted = "May 8, 2026, 09:32",
+                        sizeFormatted = "1.4 MB",
+                        appVersion = "1.0.0",
+                    ),
+                ),
             consume = {},
         )
     }

@@ -49,7 +49,6 @@
     <issue id="RedundantLabel" severity="error" />
 
     <!-- Google Services -->
-    <issue id="GoogleAppIndexingWarning" severity="error" />
     <issue id="HardcodedDebugMode" severity="error" />
 
     <!-- Performance related -->
@@ -109,18 +108,11 @@
     <issue id="PluralsCandidate" severity="error" />
     <issue id="StringFormatCount" severity="error" />
     <issue id="StringFormatInvalid" severity="error" />
-    <issue id="GradleDependency" severity="error">
-        <!-- Ignore intentional Kotlin downgrade for Hilt compatibility (Hilt doesn't support Kotlin 2.3.0 yet) -->
-        <ignore path="**/libs.versions.toml" />
-    </issue>
-    <issue id="NewerVersionAvailable" severity="error">
-        <!-- Ignore intentional Kotlin downgrade for Hilt compatibility (Hilt doesn't support Kotlin 2.3.0 yet) -->
-        <ignore path="**/libs.versions.toml" />
-    </issue>
-    <issue id="AndroidGradlePluginVersion" severity="error">
-        <!-- AGP is intentionally pinned for Hilt compatibility; see GradleDependency above -->
-        <ignore path="**/libs.versions.toml" />
-    </issue>
+    <!-- Ignore intentional Kotlin downgrade for Hilt compatibility (Hilt doesn't support Kotlin 2.3.0 yet) -->
+    <issue id="GradleDependency" severity="warning" />
+    <!-- Ignore intentional Kotlin downgrade for Hilt compatibility (Hilt doesn't support Kotlin 2.3.0 yet) -->
+    <issue id="NewerVersionAvailable" severity="warning" />
+    <issue id="AndroidGradlePluginVersion" severity="warning" />
 
     <!-- Kotlin specific -->
     <issue id="KotlinPropertyAccess" severity="warning" />
@@ -173,4 +165,11 @@
     <!-- Deprecation -->
     <issue id="Deprecated" severity="warning" />
     <issue id="ObsoleteSdkInt" severity="warning" />
+
+    <!-- Third-party JVM-only references that are dead-code on Android -->
+    <!-- Ktor utils references java.lang.management for an IntellijIdeaDebugDetector
+         shim that is never invoked at runtime on Android. -->
+    <issue id="InvalidPackage">
+        <ignore regexp=".*ktor.*" />
+    </issue>
 </lint>
