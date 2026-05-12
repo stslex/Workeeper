@@ -8,11 +8,12 @@ import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.model.BackupManifest
 import io.github.stslex.workeeper.core.data.backup.api.model.BackupRef
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
+import io.github.stslex.workeeper.core.data.backup.google_drive.auth.TokenInvalidator
 import io.github.stslex.workeeper.core.data.backup.google_drive.error.DriveErrorMapper
-import io.github.stslex.workeeper.core.data.backup.google_drive.manifest.ManifestSerializer
+import io.github.stslex.workeeper.core.data.backup.google_drive.error.DriveException
+import io.github.stslex.workeeper.core.data.backup.google_drive.manifest.ManifestPropertiesMapper
 import io.github.stslex.workeeper.core.data.backup.google_drive.network.DriveApi
 import io.github.stslex.workeeper.core.data.backup.google_drive.network.DriveFileMetadataDto
-import io.github.stslex.workeeper.core.data.backup.google_drive.storage.DriveFileMapper.MANIFEST_APP_PROPERTY_KEY
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -24,10 +25,17 @@ import kotlin.math.abs
  * `BackupStorage` impl over Drive v3 `appdata` files. Mapping (`DriveFileMapper`)
  * and rotation logic (`RotationPolicy`) live in sibling stateless objects so the
  * impl stays focused on orchestration + error mapping.
+ *
+ * Every Drive HTTP call goes through [withTokenRefreshOn401], which catches the
+ * typed `DriveException.AuthRevoked` raised by `DriveAuthPlugin` on a 401
+ * response, invalidates both the DataStore-cached and GMS-cached bearer tokens,
+ * and retries the call once. The retry uses a freshly-issued token from
+ * `authorize()`; a second 401 propagates and maps to `BackupError.AuthRevoked`.
  */
 @Singleton
 internal class DriveBackupStorage @Inject constructor(
     private val driveApi: DriveApi,
+    private val tokenInvalidator: TokenInvalidator,
     @IODispatcher private val dispatcher: CoroutineDispatcher,
 ) : BackupStorage {
 
@@ -35,7 +43,7 @@ internal class DriveBackupStorage @Inject constructor(
 
     override suspend fun listBackups(): BackupResult<List<BackupRef>> = withContext(dispatcher) {
         runCatching {
-            driveApi.listFiles()
+            withTokenRefreshOn401 { driveApi.listFiles() }
                 .mapNotNull(DriveFileMapper::toBackupRef)
                 .sortedByDescending { it.manifest.createdAtEpochMs }
         }.fold(
@@ -53,11 +61,9 @@ internal class DriveBackupStorage @Inject constructor(
                 name = buildBackupName(manifest),
                 parents = listOf(APP_DATA_FOLDER),
                 mimeType = SQLITE_MIME_TYPE,
-                appProperties = mapOf(
-                    MANIFEST_APP_PROPERTY_KEY to ManifestSerializer.serialize(manifest),
-                ),
+                appProperties = ManifestPropertiesMapper.toAppProperties(manifest),
             )
-            val driveFile = driveApi.uploadMultipart(metadata, dbFile)
+            val driveFile = withTokenRefreshOn401 { driveApi.uploadMultipart(metadata, dbFile) }
             val newRef = BackupRef(remoteId = driveFile.id, manifest = manifest)
             rotate()
             newRef
@@ -72,7 +78,7 @@ internal class DriveBackupStorage @Inject constructor(
         target: File,
     ): BackupResult<BackupManifest> = withContext(dispatcher) {
         runCatching {
-            driveApi.downloadFile(ref.remoteId, target)
+            withTokenRefreshOn401 { driveApi.downloadFile(ref.remoteId, target) }
         }.fold(
             onSuccess = { written -> verifySize(written, ref.manifest) },
             onFailure = { BackupResult.Failure(DriveErrorMapper.toBackupError(it)) },
@@ -82,7 +88,7 @@ internal class DriveBackupStorage @Inject constructor(
     override suspend fun deleteBackup(ref: BackupRef): BackupResult<Unit> =
         withContext(dispatcher) {
             runCatching {
-                driveApi.deleteFile(ref.remoteId)
+                withTokenRefreshOn401 { driveApi.deleteFile(ref.remoteId) }
             }.fold(
                 onSuccess = { BackupResult.Success(Unit) },
                 onFailure = { BackupResult.Failure(DriveErrorMapper.toBackupError(it)) },
@@ -97,13 +103,28 @@ internal class DriveBackupStorage @Inject constructor(
      */
     private suspend fun rotate() {
         runCatching {
-            val current = driveApi.listFiles().mapNotNull(DriveFileMapper::toBackupRef)
+            val current = withTokenRefreshOn401 { driveApi.listFiles() }
+                .mapNotNull(DriveFileMapper::toBackupRef)
             val toDelete = RotationPolicy.refsToDelete(current, BackupConstants.MAX_BACKUPS)
             toDelete.forEach { ref ->
-                runCatching { driveApi.deleteFile(ref.remoteId) }
+                runCatching { withTokenRefreshOn401 { driveApi.deleteFile(ref.remoteId) } }
                     .onFailure { logger.e(it, "rotation: delete ${ref.remoteId} failed") }
             }
         }.onFailure { logger.e(it, "rotation: list failed") }
+    }
+
+    /**
+     * Runs [block]; on `DriveException.AuthRevoked` (Drive returned 401), clears
+     * the bearer token from both the DataStore cache and the GMS local cache,
+     * then retries [block] once. A second AuthRevoked propagates — the upper
+     * layer maps it to `BackupError.AuthRevoked`.
+     */
+    private suspend fun <T> withTokenRefreshOn401(block: suspend () -> T): T = try {
+        block()
+    } catch (firstFailure: DriveException.AuthRevoked) {
+        logger.w(firstFailure) { "401 — invalidating token and retrying once" }
+        tokenInvalidator.invalidate()
+        block()
     }
 
     private fun verifySize(

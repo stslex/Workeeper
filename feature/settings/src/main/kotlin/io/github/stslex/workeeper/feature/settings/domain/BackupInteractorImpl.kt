@@ -16,6 +16,7 @@ import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
 import io.github.stslex.workeeper.feature.settings.domain.mapper.BackupDomainMapper.toDomain
 import io.github.stslex.workeeper.feature.settings.domain.mapper.BackupDomainMapper.toSummary
+import io.github.stslex.workeeper.feature.settings.domain.model.AccountDomain
 import io.github.stslex.workeeper.feature.settings.domain.model.BackupAuthDomain
 import io.github.stslex.workeeper.feature.settings.domain.model.BackupSummaryDomain
 import io.github.stslex.workeeper.feature.settings.domain.model.SignInOutcomeDomain
@@ -39,8 +40,10 @@ internal class BackupInteractorImpl @Inject constructor(
 
     override suspend fun signIn(): SignInOutcomeDomain = backupAuth.signIn().toDomain()
 
-    override suspend fun completeSignIn(resultIntent: Intent?): BackupResult<Unit> =
-        backupAuth.completeSignIn(resultIntent).mapSuccess { }
+    override suspend fun completeSignIn(resultIntent: Intent?): BackupResult<AccountDomain> =
+        backupAuth.completeSignIn(resultIntent).mapSuccess {
+            it.toDomain()
+        }
 
     override suspend fun signOut(): BackupResult<Unit> = backupAuth.signOut()
 
@@ -85,7 +88,8 @@ internal class BackupInteractorImpl @Inject constructor(
             )
         }
 
-        val tempFile = File.createTempFile(TEMP_RESTORE_PREFIX, TEMP_BACKUP_SUFFIX, context.cacheDir)
+        val tempFile =
+            File.createTempFile(TEMP_RESTORE_PREFIX, TEMP_BACKUP_SUFFIX, context.cacheDir)
         try {
             val download = backupStorage.downloadBackup(ref, tempFile)
             if (download is BackupResult.Failure) return@withContext download

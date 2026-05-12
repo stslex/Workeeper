@@ -19,6 +19,7 @@ internal val DriveAuthPlugin = createClientPlugin("DriveAuth", ::DriveAuthPlugin
     }
 
     onRequest { request, _ ->
+        if (request.headers.contains(HttpHeaders.Authorization)) return@onRequest
         val token = provider.currentToken()
         if (token != null) {
             request.headers.append(HttpHeaders.Authorization, "Bearer $token")

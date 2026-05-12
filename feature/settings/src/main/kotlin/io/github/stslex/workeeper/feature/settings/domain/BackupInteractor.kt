@@ -2,6 +2,7 @@ package io.github.stslex.workeeper.feature.settings.domain
 
 import android.content.Intent
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
+import io.github.stslex.workeeper.feature.settings.domain.model.AccountDomain
 import io.github.stslex.workeeper.feature.settings.domain.model.BackupAuthDomain
 import io.github.stslex.workeeper.feature.settings.domain.model.BackupSummaryDomain
 import io.github.stslex.workeeper.feature.settings.domain.model.SignInOutcomeDomain
@@ -13,7 +14,7 @@ internal interface BackupInteractor {
 
     suspend fun signIn(): SignInOutcomeDomain
 
-    suspend fun completeSignIn(resultIntent: Intent?): BackupResult<Unit>
+    suspend fun completeSignIn(resultIntent: Intent?): BackupResult<AccountDomain>
 
     suspend fun signOut(): BackupResult<Unit>
 

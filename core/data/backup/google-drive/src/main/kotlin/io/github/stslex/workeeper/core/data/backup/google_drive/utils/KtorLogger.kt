@@ -1,4 +1,4 @@
-package io.github.stslex.workeeper.core.data.backup.google_drive.di
+package io.github.stslex.workeeper.core.data.backup.google_drive.utils
 
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.ktor.client.plugins.logging.Logger

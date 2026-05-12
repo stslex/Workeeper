@@ -7,11 +7,16 @@ import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.model.BackupManifest
 import io.github.stslex.workeeper.core.data.backup.api.model.BackupRef
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
-import io.github.stslex.workeeper.core.data.backup.google_drive.manifest.ManifestSerializer
+import io.github.stslex.workeeper.core.data.backup.google_drive.auth.TokenInvalidator
+import io.github.stslex.workeeper.core.data.backup.google_drive.error.DriveException
+import io.github.stslex.workeeper.core.data.backup.google_drive.manifest.ManifestPropertiesMapper
+import io.github.stslex.workeeper.core.data.backup.google_drive.manifest.ManifestPropertiesMapper.KEY_APP_VERSION
+import io.github.stslex.workeeper.core.data.backup.google_drive.manifest.ManifestPropertiesMapper.KEY_CREATED_AT_EPOCH_MS
+import io.github.stslex.workeeper.core.data.backup.google_drive.manifest.ManifestPropertiesMapper.KEY_DB_FILE_SIZE_BYTES
+import io.github.stslex.workeeper.core.data.backup.google_drive.manifest.ManifestPropertiesMapper.KEY_DB_SCHEMA_VERSION
 import io.github.stslex.workeeper.core.data.backup.google_drive.network.DriveApi
 import io.github.stslex.workeeper.core.data.backup.google_drive.network.DriveFileDto
 import io.github.stslex.workeeper.core.data.backup.google_drive.network.DriveFileMetadataDto
-import io.github.stslex.workeeper.core.data.backup.google_drive.storage.DriveFileMapper.MANIFEST_APP_PROPERTY_KEY
 import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -38,13 +43,16 @@ internal class DriveBackupStorageTest {
     class TestApplication : Application()
 
     private lateinit var driveApi: DriveApi
+    private lateinit var tokenInvalidator: TokenInvalidator
     private lateinit var storage: DriveBackupStorage
 
     @BeforeEach
     fun setup() {
         driveApi = mockk(relaxed = false)
+        tokenInvalidator = mockk(relaxed = true)
         storage = DriveBackupStorage(
             driveApi = driveApi,
+            tokenInvalidator = tokenInvalidator,
             dispatcher = UnconfinedTestDispatcher(),
         )
     }
@@ -100,8 +108,13 @@ internal class DriveBackupStorageTest {
                 match { meta: DriveFileMetadataDto ->
                     meta.name == "${BackupConstants.FILE_PREFIX}1000${BackupConstants.DB_FILE_SUFFIX}" &&
                         meta.parents == listOf("appDataFolder") &&
-                        meta.appProperties[MANIFEST_APP_PROPERTY_KEY] ==
-                        ManifestSerializer.serialize(manifest)
+                        meta.appProperties[KEY_APP_VERSION] == manifest.appVersion &&
+                        meta.appProperties[KEY_DB_SCHEMA_VERSION] ==
+                        manifest.dbSchemaVersion.toString() &&
+                        meta.appProperties[KEY_CREATED_AT_EPOCH_MS] ==
+                        manifest.createdAtEpochMs.toString() &&
+                        meta.appProperties[KEY_DB_FILE_SIZE_BYTES] ==
+                        manifest.dbFileSizeBytes.toString()
                 },
                 eq(dbFile),
             )
@@ -209,6 +222,77 @@ internal class DriveBackupStorageTest {
         assertEquals(BackupError.NetworkUnavailable, (result as BackupResult.Failure).error)
     }
 
+    @Test
+    fun `uploadBackup retries once after 401 and succeeds on second call`() = runTest {
+        val manifest = manifestAt(1_000L)
+        val dbFile = tempFile()
+        coEvery { driveApi.uploadMultipart(any(), any()) } throws
+            DriveException.AuthRevoked("first 401") andThen driveFileDto(id = "fresh-id")
+        coEvery { driveApi.listFiles() } returns emptyList()
+
+        val result = storage.uploadBackup(dbFile, manifest)
+
+        assertTrue(result is BackupResult.Success, "upload must succeed on retry; got $result")
+        assertEquals("fresh-id", (result as BackupResult.Success).data.remoteId)
+        coVerify(exactly = 1) { tokenInvalidator.invalidate() }
+        coVerify(exactly = 2) { driveApi.uploadMultipart(any(), any()) }
+    }
+
+    @Test
+    fun `uploadBackup second 401 propagates as AuthRevoked`() = runTest {
+        val manifest = manifestAt(1_000L)
+        val dbFile = tempFile()
+        coEvery { driveApi.uploadMultipart(any(), any()) } throws
+            DriveException.AuthRevoked("first 401") andThenThrows
+            DriveException.AuthRevoked("second 401")
+
+        val result = storage.uploadBackup(dbFile, manifest)
+
+        assertTrue(result is BackupResult.Failure)
+        assertEquals(BackupError.AuthRevoked, (result as BackupResult.Failure).error)
+        coVerify(exactly = 1) { tokenInvalidator.invalidate() }
+        coVerify(exactly = 2) { driveApi.uploadMultipart(any(), any()) }
+    }
+
+    @Test
+    fun `listBackups retries once after 401 and succeeds on second call`() = runTest {
+        coEvery { driveApi.listFiles() } throws DriveException.AuthRevoked("401") andThen
+            listOf(driveFileWithManifest("a", manifestAt(100L)))
+
+        val result = storage.listBackups()
+
+        assertTrue(result is BackupResult.Success)
+        assertEquals(1, (result as BackupResult.Success).data.size)
+        coVerify(exactly = 1) { tokenInvalidator.invalidate() }
+        coVerify(exactly = 2) { driveApi.listFiles() }
+    }
+
+    @Test
+    fun `deleteBackup retries once after 401 and succeeds`() = runTest {
+        coEvery { driveApi.deleteFile("rid") } throws DriveException.AuthRevoked("401") andThen
+            Unit
+
+        val result = storage.deleteBackup(BackupRef("rid", manifestAt(0L)))
+
+        assertEquals(BackupResult.Success(Unit), result)
+        coVerify(exactly = 1) { tokenInvalidator.invalidate() }
+        coVerify(exactly = 2) { driveApi.deleteFile("rid") }
+    }
+
+    @Test
+    fun `downloadBackup retries once after 401 and succeeds`() = runTest {
+        val ref = BackupRef("rid", manifestAt(0L).copy(dbFileSizeBytes = 7L))
+        val dbFile = tempFile()
+        coEvery { driveApi.downloadFile("rid", dbFile) } throws
+            DriveException.AuthRevoked("401") andThen 7L
+
+        val result = storage.downloadBackup(ref, dbFile)
+
+        assertTrue(result is BackupResult.Success)
+        coVerify(exactly = 1) { tokenInvalidator.invalidate() }
+        coVerify(exactly = 2) { driveApi.downloadFile("rid", dbFile) }
+    }
+
     private fun manifestAt(t: Long): BackupManifest = BackupManifest(
         appVersion = "1.43.0",
         dbSchemaVersion = 6,
@@ -225,9 +309,7 @@ internal class DriveBackupStorageTest {
         name = "${BackupConstants.FILE_PREFIX}$id${BackupConstants.DB_FILE_SUFFIX}",
         createdTime = null,
         size = null,
-        appProperties = manifest?.let {
-            mapOf(MANIFEST_APP_PROPERTY_KEY to ManifestSerializer.serialize(it))
-        },
+        appProperties = manifest?.let(ManifestPropertiesMapper::toAppProperties),
     )
 
     private fun driveFileWithManifest(id: String, manifest: BackupManifest): DriveFileDto =

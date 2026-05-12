@@ -7,8 +7,10 @@ import android.content.Intent
 import android.content.IntentSender
 import com.google.android.gms.auth.api.identity.AuthorizationClient
 import com.google.android.gms.auth.api.identity.AuthorizationResult
+import com.google.android.gms.auth.api.identity.RevokeAccessRequest
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.Scope
 import com.google.android.gms.common.api.Status
 import com.google.android.gms.tasks.Tasks
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
@@ -16,18 +18,11 @@ import io.github.stslex.workeeper.core.data.backup.api.model.Account
 import io.github.stslex.workeeper.core.data.backup.api.model.AuthState
 import io.github.stslex.workeeper.core.data.backup.api.model.SignInResult
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.mock.MockEngine
-import io.ktor.client.engine.mock.respond
-import io.ktor.client.engine.mock.respondError
-import io.ktor.client.engine.mock.toByteArray
-import io.ktor.http.HttpHeaders
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.headersOf
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -55,23 +50,23 @@ internal class DriveBackupAuthTest {
             accountFlow.value = firstArg()
         }
         coEvery { it.clear() } coAnswers { accountFlow.value = null }
+        coEvery { it.token() } returns null
     }
 
     private val authorizationClient = mockk<AuthorizationClient>()
+    private val userInfoFetcher = mockk<UserInfoFetcher> {
+        coEvery { fetch(any()) } returns null
+    }
 
-    private fun noOpHttpClient(): HttpClient = HttpClient(
-        MockEngine { respond("", HttpStatusCode.OK) },
-    ) { expectSuccess = true }
-
-    private fun newAuth(httpClient: HttpClient = noOpHttpClient()) = DriveBackupAuth(
+    private fun newAuth() = DriveBackupAuth(
         authorizationClient = authorizationClient,
         accountStore = accountStore,
-        httpClient = httpClient,
+        userInfoFetcher = userInfoFetcher,
         dispatcher = UnconfinedTestDispatcher(),
     )
 
     @Test
-    fun `signIn happy path returns Success and persists account`() = runTest {
+    fun `signIn happy path returns Success with GSA-derived email when userinfo null`() = runTest {
         val gsa = mockk<GoogleSignInAccount> {
             every { email } returns "user@example.com"
             every { displayName } returns "User One"
@@ -79,11 +74,11 @@ internal class DriveBackupAuthTest {
         val authResult = mockk<AuthorizationResult> {
             every { hasResolution() } returns false
             every { toGoogleSignInAccount() } returns gsa
+            every { accessToken } returns null
         }
         every { authorizationClient.authorize(any()) } returns Tasks.forResult(authResult)
 
-        val driveAuth = newAuth()
-        val result = driveAuth.signIn()
+        val result = newAuth().signIn()
 
         assertTrue(result is SignInResult.Success, "expected Success, got $result")
         assertEquals(
@@ -91,6 +86,116 @@ internal class DriveBackupAuthTest {
             (result as SignInResult.Success).account,
         )
         coVerify { accountStore.setAccount(result.account) }
+    }
+
+    @Test
+    fun `signIn requests all three scopes (drive_appdata + userinfo email + userinfo profile)`() =
+        runTest {
+            val authResult = mockk<AuthorizationResult> {
+                every { hasResolution() } returns false
+                every { toGoogleSignInAccount() } returns null
+                every { accessToken } returns null
+            }
+            val captured = slot<com.google.android.gms.auth.api.identity.AuthorizationRequest>()
+            every { authorizationClient.authorize(capture(captured)) } returns
+                Tasks.forResult(authResult)
+
+            newAuth().signIn()
+
+            val scopes = captured.captured.requestedScopes.map(Scope::getScopeUri).toSet()
+            assertEquals(
+                setOf(
+                    DriveAuthScopes.DRIVE_APPDATA,
+                    DriveAuthScopes.USERINFO_EMAIL,
+                    DriveAuthScopes.USERINFO_PROFILE,
+                ),
+                scopes,
+            )
+        }
+
+    @Test
+    fun `signIn success with access token persists token via setToken`() = runTest {
+        val gsa = mockk<GoogleSignInAccount> {
+            every { email } returns "user@example.com"
+            every { displayName } returns null
+        }
+        val authResult = mockk<AuthorizationResult> {
+            every { hasResolution() } returns false
+            every { toGoogleSignInAccount() } returns gsa
+            every { accessToken } returns "live-token-abc"
+        }
+        every { authorizationClient.authorize(any()) } returns Tasks.forResult(authResult)
+
+        newAuth().signIn()
+
+        coVerify(exactly = 1) {
+            accountStore.setToken(
+                token = "live-token-abc",
+                expiresAtEpochMs = any(),
+            )
+        }
+    }
+
+    @Test
+    fun `signIn fetches userinfo when access token present and prefers its email + name`() =
+        runTest {
+            val gsa = mockk<GoogleSignInAccount> {
+                every { email } returns "stale@example.com"
+                every { displayName } returns "Stale Name"
+            }
+            val authResult = mockk<AuthorizationResult> {
+                every { hasResolution() } returns false
+                every { toGoogleSignInAccount() } returns gsa
+                every { accessToken } returns "live-token"
+            }
+            every { authorizationClient.authorize(any()) } returns Tasks.forResult(authResult)
+            coEvery { userInfoFetcher.fetch("live-token") } returns UserInfo(
+                email = "real@example.com",
+                name = "Real Name",
+            )
+
+            val result = newAuth().signIn()
+
+            assertTrue(result is SignInResult.Success)
+            assertEquals(
+                Account(email = "real@example.com", displayName = "Real Name"),
+                (result as SignInResult.Success).account,
+            )
+        }
+
+    @Test
+    fun `signIn does not fetch userinfo when access token is null`() = runTest {
+        val authResult = mockk<AuthorizationResult> {
+            every { hasResolution() } returns false
+            every { toGoogleSignInAccount() } returns mockk {
+                every { email } returns "x@y.com"
+                every { displayName } returns null
+            }
+            every { accessToken } returns null
+        }
+        every { authorizationClient.authorize(any()) } returns Tasks.forResult(authResult)
+
+        newAuth().signIn()
+
+        coVerify(exactly = 0) { userInfoFetcher.fetch(any()) }
+    }
+
+    @Test
+    fun `signIn falls back to placeholder when neither userinfo nor GSA has email`() = runTest {
+        val authResult = mockk<AuthorizationResult> {
+            every { hasResolution() } returns false
+            every { toGoogleSignInAccount() } returns null
+            every { accessToken } returns null
+        }
+        every { authorizationClient.authorize(any()) } returns Tasks.forResult(authResult)
+
+        val result = newAuth().signIn()
+
+        assertTrue(result is SignInResult.Success)
+        assertEquals(
+            "drive_account",
+            (result as SignInResult.Success).account.email,
+        )
     }
 
     @Test
@@ -105,8 +210,7 @@ internal class DriveBackupAuthTest {
         }
         every { authorizationClient.authorize(any()) } returns Tasks.forResult(authResult)
 
-        val driveAuth = newAuth()
-        val result = driveAuth.signIn()
+        val result = newAuth().signIn()
 
         assertTrue(result is SignInResult.NeedsResolution, "expected NeedsResolution, got $result")
         assertEquals(intentSender, (result as SignInResult.NeedsResolution).intentSender)
@@ -118,11 +222,9 @@ internal class DriveBackupAuthTest {
         every { authorizationClient.authorize(any()) } returns
             Tasks.forException(ApiException(Status.RESULT_INTERNAL_ERROR))
 
-        val driveAuth = newAuth()
-        val result = driveAuth.signIn()
+        val result = newAuth().signIn()
 
         assertTrue(result is SignInResult.Failure, "expected Failure, got $result")
-        // ApiException is mapped to BackupError.Unknown via DriveErrorMapper (not a typed Drive case).
         assertNotNull((result as SignInResult.Failure).error)
     }
 
@@ -135,11 +237,11 @@ internal class DriveBackupAuthTest {
         }
         val authResult = mockk<AuthorizationResult> {
             every { toGoogleSignInAccount() } returns gsa
+            every { accessToken } returns null
         }
         every { authorizationClient.getAuthorizationResultFromIntent(intent) } returns authResult
 
-        val driveAuth = newAuth()
-        val result = driveAuth.completeSignIn(intent)
+        val result = newAuth().completeSignIn(intent)
 
         assertTrue(result is BackupResult.Success, "expected Success, got $result")
         assertEquals(
@@ -147,6 +249,51 @@ internal class DriveBackupAuthTest {
             (result as BackupResult.Success).data,
         )
         coVerify { accountStore.setAccount(result.data) }
+    }
+
+    @Test
+    fun `completeSignIn with access token persists token via setToken`() = runTest {
+        val intent = mockk<Intent>()
+        val gsa = mockk<GoogleSignInAccount> {
+            every { email } returns "resolved@example.com"
+            every { displayName } returns null
+        }
+        val authResult = mockk<AuthorizationResult> {
+            every { toGoogleSignInAccount() } returns gsa
+            every { accessToken } returns "resolved-token-xyz"
+        }
+        every { authorizationClient.getAuthorizationResultFromIntent(intent) } returns authResult
+
+        newAuth().completeSignIn(intent)
+
+        coVerify(exactly = 1) {
+            accountStore.setToken(
+                token = "resolved-token-xyz",
+                expiresAtEpochMs = any(),
+            )
+        }
+    }
+
+    @Test
+    fun `completeSignIn uses userinfo email when fetcher succeeds`() = runTest {
+        val intent = mockk<Intent>()
+        val authResult = mockk<AuthorizationResult> {
+            every { toGoogleSignInAccount() } returns null
+            every { accessToken } returns "resolved-token"
+        }
+        every { authorizationClient.getAuthorizationResultFromIntent(intent) } returns authResult
+        coEvery { userInfoFetcher.fetch("resolved-token") } returns UserInfo(
+            email = "userinfo@example.com",
+            name = "From Userinfo",
+        )
+
+        val result = newAuth().completeSignIn(intent)
+
+        assertTrue(result is BackupResult.Success)
+        assertEquals(
+            Account(email = "userinfo@example.com", displayName = "From Userinfo"),
+            (result as BackupResult.Success).data,
+        )
     }
 
     @Test
@@ -160,79 +307,39 @@ internal class DriveBackupAuthTest {
     }
 
     @Test
-    fun `signOut with successful revoke POSTs token to revoke endpoint and clears account`() =
-        runTest {
-            accountFlow.value = Account(email = "x@y.com", displayName = null)
-            val authResult = mockk<AuthorizationResult> {
-                every { hasResolution() } returns false
-                every { accessToken } returns "live-token"
-            }
-            every { authorizationClient.authorize(any()) } returns Tasks.forResult(authResult)
-
-            val capturedRequests = mutableListOf<Pair<String, String>>()
-            val httpClient = HttpClient(
-                MockEngine { request ->
-                    capturedRequests += request.url.toString() to
-                        String(request.body.toByteArray())
-                    respond(
-                        content = "",
-                        status = HttpStatusCode.OK,
-                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
-                    )
-                },
-            ) { expectSuccess = true }
-
-            val result = newAuth(httpClient).signOut()
-
-            assertEquals(BackupResult.Success(Unit), result)
-            coVerify { accountStore.clear() }
-            assertEquals(1, capturedRequests.size, "expected exactly one HTTP call")
-            val (url, body) = capturedRequests.single()
-            assertTrue(
-                url.contains("oauth2.googleapis.com/revoke"),
-                "expected revoke endpoint, got $url",
-            )
-            assertTrue(body.contains("token=live-token"), "expected token in body, got $body")
-        }
-
-    @Test
-    fun `signOut clears account even when remote revoke returns 4xx`() = runTest {
+    fun `signOut calls authorizationClient revokeAccess with all scopes`() = runTest {
         accountFlow.value = Account(email = "x@y.com", displayName = null)
-        val authResult = mockk<AuthorizationResult> {
-            every { hasResolution() } returns false
-            every { accessToken } returns "already-invalid"
-        }
-        every { authorizationClient.authorize(any()) } returns Tasks.forResult(authResult)
+        val captured = slot<RevokeAccessRequest>()
+        every { authorizationClient.revokeAccess(capture(captured)) } returns
+            Tasks.forResult(null)
 
-        val httpClient = HttpClient(
-            MockEngine { respondError(HttpStatusCode.BadRequest) },
-        ) { expectSuccess = true }
-
-        val result = newAuth(httpClient).signOut()
+        val result = newAuth().signOut()
 
         assertEquals(BackupResult.Success(Unit), result)
+        val scopes = captured.captured.scopes.map(Scope::getScopeUri).toSet()
+        assertEquals(
+            setOf(
+                DriveAuthScopes.DRIVE_APPDATA,
+                DriveAuthScopes.USERINFO_EMAIL,
+                DriveAuthScopes.USERINFO_PROFILE,
+            ),
+            scopes,
+        )
+        coVerify { accountStore.clearToken() }
         coVerify { accountStore.clear() }
     }
 
     @Test
-    fun `signOut clears account and skips revoke when silent authorize fails`() = runTest {
+    fun `signOut clears local store even when revokeAccess fails`() = runTest {
         accountFlow.value = Account(email = "x@y.com", displayName = null)
-        every { authorizationClient.authorize(any()) } returns
+        every { authorizationClient.revokeAccess(any()) } returns
             Tasks.forException(ApiException(Status.RESULT_INTERNAL_ERROR))
 
-        val callCount = java.util.concurrent.atomic.AtomicInteger(0)
-        val httpClient = HttpClient(
-            MockEngine {
-                callCount.incrementAndGet()
-                respond("", HttpStatusCode.OK)
-            },
-        ) { expectSuccess = true }
-
-        val result = newAuth(httpClient).signOut()
+        val result = newAuth().signOut()
 
         assertEquals(BackupResult.Success(Unit), result)
+        coVerify { accountStore.clearToken() }
         coVerify { accountStore.clear() }
-        assertEquals(0, callCount.get(), "no HTTP call when silent authorize fails")
     }
 
     @Test

@@ -55,7 +55,7 @@ detekt = "1.23.8"
 detektCompose = "0.5.3"
 
 ktor = "3.4.3"
-playServicesAuth = "21.2.0"
+playServicesAuth = "21.5.1"
 
 # decompose dependencies
 essenty = "2.5.0"

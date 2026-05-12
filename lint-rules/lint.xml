@@ -49,7 +49,6 @@
     <issue id="RedundantLabel" severity="error" />
 
     <!-- Google Services -->
-    <issue id="GoogleAppIndexingWarning" severity="error" />
     <issue id="HardcodedDebugMode" severity="error" />
 
     <!-- Performance related -->

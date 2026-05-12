@@ -8,13 +8,11 @@ import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.settings.di.SettingsHandlerStore
 import io.github.stslex.workeeper.feature.settings.domain.BackupInteractor
-import io.github.stslex.workeeper.feature.settings.domain.model.BackupSummaryDomain
 import io.github.stslex.workeeper.feature.settings.domain.model.SignInOutcomeDomain
 import io.github.stslex.workeeper.feature.settings.mvi.mapper.BackupUiMapper.toConfirmation
 import io.github.stslex.workeeper.feature.settings.mvi.mapper.BackupUiMapper.toUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupErrorUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupOperationUi
-import io.github.stslex.workeeper.feature.settings.mvi.model.RestoreConfirmationUi
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Action
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Event
 import kotlinx.coroutines.flow.map
@@ -51,44 +49,120 @@ internal class BackupClickHandler @Inject constructor(
     private fun signIn() {
         updateState { current -> current.copy(backupOperation = BackupOperationUi.SigningIn) }
         launchDefault(
-            onError = { emitUnknownErrorAndIdle() },
+            onError = { emitUnknownErrorAndIdle(it) },
+            onSuccess = { result ->
+                when (result) {
+                    SignInOutcomeDomain.Success -> {
+                        updateStateImmediate { current -> current.copy(backupOperation = BackupOperationUi.Idle) }
+                    }
+
+                    is SignInOutcomeDomain.NeedsResolution -> {
+                        updateStateImmediate { current -> current.copy(backupOperation = BackupOperationUi.Idle) }
+                        sendEvent(Event.AuthResolutionRequested(result.intentSender))
+                    }
+
+                    is SignInOutcomeDomain.Failure -> {
+                        val errorUi = result.error.toUi()
+                        updateStateImmediate { current -> current.copy(backupOperation = BackupOperationUi.Idle) }
+                        sendEvent(Event.ShowBackupError(errorUi))
+                    }
+                }
+            },
         ) {
-            applySignInOutcome(interactor.signIn())
+            interactor.signIn()
         }
     }
 
     private fun handleAuthResult(resultIntent: android.content.Intent?) {
         launchDefault(
-            onError = { emitUnknownErrorAndIdle() },
+            onError = { emitUnknownErrorAndIdle(it) },
+            onSuccess = { result ->
+                when (result) {
+                    is BackupResult.Success -> {
+                        logger.i { "Sign-in successful for account: ${result.data}" }
+                    }
+
+                    is BackupResult.Failure -> {
+                        val errorUi = result.error.toUi()
+                        sendEvent(Event.ShowBackupError(errorUi))
+                    }
+                }
+            },
         ) {
-            applyCompleteSignInResult(interactor.completeSignIn(resultIntent))
+            interactor.completeSignIn(resultIntent)
         }
     }
 
     private fun signOut() {
         updateState { current -> current.copy(backupOperation = BackupOperationUi.SigningOut) }
         launchDefault(
-            onError = { emitUnknownErrorAndIdle() },
+            onError = { emitUnknownErrorAndIdle(it) },
+            onSuccess = { result ->
+                val errorUi = (result as? BackupResult.Failure)?.error?.toUi()
+                updateStateImmediate { current -> current.copy(backupOperation = BackupOperationUi.Idle) }
+                if (errorUi != null) sendEvent(Event.ShowBackupError(errorUi))
+            },
         ) {
-            applyUnitResultAsIdle(interactor.signOut())
+            interactor.signOut()
         }
     }
 
     private fun createBackup() {
         updateState { current -> current.copy(backupOperation = BackupOperationUi.CreatingBackup) }
         launchDefault(
-            onError = { emitUnknownErrorAndIdle() },
+            onError = { emitUnknownErrorAndIdle(it) },
+            onSuccess = { result ->
+                when (result) {
+                    is BackupResult.Success -> {
+                        updateStateImmediate { current -> current.copy(backupOperation = BackupOperationUi.Idle) }
+                        sendEvent(Event.ShowBackupCreated)
+                    }
+
+                    is BackupResult.Failure -> {
+                        val errorUi = result.error.toUi()
+                        updateState { current -> current.copy(backupOperation = BackupOperationUi.Idle) }
+                        sendEvent(Event.ShowBackupError(errorUi))
+                    }
+                }
+            },
         ) {
-            applyCreateBackupResult(interactor.createBackup())
+            interactor.createBackup()
         }
     }
 
     private fun requestRestore() {
         updateState { current -> current.copy(backupOperation = BackupOperationUi.FetchingBackups) }
         launchDefault(
-            onError = { emitUnknownErrorAndIdle() },
+            onError = { emitUnknownErrorAndIdle(it) },
+            onSuccess = { result ->
+                when (result) {
+                    is BackupResult.Success -> {
+                        val summary = result.data
+                        if (summary == null) {
+                            updateStateImmediate { current ->
+                                current.copy(backupOperation = BackupOperationUi.Idle)
+                            }
+                            sendEvent(Event.ShowBackupError(BackupErrorUi.NO_BACKUPS_FOUND))
+                        } else {
+                            val confirmation = summary.toConfirmation(context)
+                            updateStateImmediate { current ->
+                                current.copy(
+                                    backupOperation = BackupOperationUi.Idle,
+                                    restoreConfirmation = confirmation,
+                                )
+                            }
+                        }
+                    }
+
+                    is BackupResult.Failure -> {
+                        val errorUi = result.error.toUi()
+                        updateStateImmediate { current -> current.copy(backupOperation = BackupOperationUi.Idle) }
+                        sendEvent(Event.ShowBackupError(errorUi))
+                    }
+                }
+            },
         ) {
-            applyListLatestResult(interactor.listLatestBackup())
+            interactor.listLatestBackup()
         }
     }
 
@@ -104,105 +178,25 @@ internal class BackupClickHandler @Inject constructor(
             )
         }
         launchDefault(
-            onError = { emitUnknownErrorAndIdle() },
-        ) {
-            applyRestoreResult(interactor.restoreLatest())
-        }
-    }
-
-    private fun applySignInOutcome(outcome: SignInOutcomeDomain) {
-        when (outcome) {
-            SignInOutcomeDomain.Success -> {
-                updateState { current -> current.copy(backupOperation = BackupOperationUi.Idle) }
-            }
-
-            is SignInOutcomeDomain.NeedsResolution -> {
-                updateState { current -> current.copy(backupOperation = BackupOperationUi.Idle) }
-                sendEvent(Event.AuthResolutionRequested(outcome.intentSender))
-            }
-
-            is SignInOutcomeDomain.Failure -> {
-                val errorUi = outcome.error.toUi()
-                updateState { current -> current.copy(backupOperation = BackupOperationUi.Idle) }
-                sendEvent(Event.ShowBackupError(errorUi))
-            }
-        }
-    }
-
-    private fun applyCompleteSignInResult(result: BackupResult<Unit>) {
-        when (result) {
-            is BackupResult.Success -> Unit // authState flow drives the UI update.
-            is BackupResult.Failure -> {
-                val errorUi = result.error.toUi()
-                sendEvent(Event.ShowBackupError(errorUi))
-            }
-        }
-    }
-
-    private fun applyUnitResultAsIdle(result: BackupResult<Unit>) {
-        val errorUi = (result as? BackupResult.Failure)?.let {
-            it.error.toUi()
-        }
-        updateState { current -> current.copy(backupOperation = BackupOperationUi.Idle) }
-        if (errorUi != null) sendEvent(Event.ShowBackupError(errorUi))
-    }
-
-    private fun applyCreateBackupResult(result: BackupResult<Unit>) {
-        when (result) {
-            is BackupResult.Success -> {
-                updateState { current -> current.copy(backupOperation = BackupOperationUi.Idle) }
-                sendEvent(Event.ShowBackupCreated)
-            }
-
-            is BackupResult.Failure -> {
-                val errorUi = result.error.toUi()
-                updateState { current -> current.copy(backupOperation = BackupOperationUi.Idle) }
-                sendEvent(Event.ShowBackupError(errorUi))
-            }
-        }
-    }
-
-    private fun applyListLatestResult(result: BackupResult<BackupSummaryDomain?>) {
-        when (result) {
-            is BackupResult.Success -> {
-                val summary = result.data
-                if (summary == null) {
-                    updateState { current ->
-                        current.copy(backupOperation = BackupOperationUi.Idle)
-                    }
-                    sendEvent(Event.ShowBackupError(BackupErrorUi.NO_BACKUPS_FOUND))
-                } else {
-                    val confirmation: RestoreConfirmationUi = summary.toConfirmation(context)
-                    updateState { current ->
-                        current.copy(
-                            backupOperation = BackupOperationUi.Idle,
-                            restoreConfirmation = confirmation,
-                        )
+            onError = { emitUnknownErrorAndIdle(it) },
+            onSuccess = { result ->
+                when (result) {
+                    is BackupResult.Success -> sendEvent(Event.AppRestartRequested)
+                    is BackupResult.Failure -> {
+                        val errorUi = result.error.toUi()
+                        updateStateImmediate { current -> current.copy(backupOperation = BackupOperationUi.Idle) }
+                        sendEvent(Event.ShowBackupError(errorUi))
                     }
                 }
-            }
-
-            is BackupResult.Failure -> {
-                val errorUi = result.error.toUi()
-                updateState { current -> current.copy(backupOperation = BackupOperationUi.Idle) }
-                sendEvent(Event.ShowBackupError(errorUi))
-            }
+            },
+        ) {
+            interactor.restoreLatest()
         }
     }
 
-    private fun applyRestoreResult(result: BackupResult<Unit>) {
-        when (result) {
-            is BackupResult.Success -> sendEvent(Event.AppRestartRequested)
-            is BackupResult.Failure -> {
-                val errorUi = result.error.toUi()
-                updateState { current -> current.copy(backupOperation = BackupOperationUi.Idle) }
-                sendEvent(Event.ShowBackupError(errorUi))
-            }
-        }
-    }
-
-    private fun emitUnknownErrorAndIdle() {
-        updateState { current -> current.copy(backupOperation = BackupOperationUi.Idle) }
+    private suspend fun emitUnknownErrorAndIdle(e: Throwable) {
+        logger.e(e, "Unknown error during backup operation")
+        updateStateImmediate { current -> current.copy(backupOperation = BackupOperationUi.Idle) }
         sendEvent(Event.ShowBackupError(BackupErrorUi.UNKNOWN))
     }
 }

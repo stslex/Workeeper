@@ -4,7 +4,7 @@ import android.content.Intent
 import com.google.android.gms.auth.api.identity.AuthorizationClient
 import com.google.android.gms.auth.api.identity.AuthorizationRequest
 import com.google.android.gms.auth.api.identity.AuthorizationResult
-import com.google.android.gms.common.api.Scope
+import com.google.android.gms.auth.api.identity.RevokeAccessRequest
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
@@ -14,9 +14,6 @@ import io.github.stslex.workeeper.core.data.backup.api.model.AuthState
 import io.github.stslex.workeeper.core.data.backup.api.model.SignInResult
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.backup.google_drive.error.DriveErrorMapper
-import io.ktor.client.HttpClient
-import io.ktor.client.request.forms.submitForm
-import io.ktor.http.parameters
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -33,19 +30,33 @@ import javax.inject.Singleton
 
 /**
  * `BackupAuth` implementation backed by GMS Identity's `AuthorizationClient` for
- * the `drive.appdata` scope. Local account state lives in [AccountDataStore];
- * tokens are never stored — see `DriveAuthTokenProvider` for the per-request
- * fetch path.
+ * the scopes declared in [DriveAuthScopes]. Local account + token state lives in
+ * [AccountDataStore].
+ *
+ * The access token returned by `AuthorizationResult.accessToken` is captured at
+ * sign-in time (silent `signIn` success path and `completeSignIn` after a
+ * resolution flow) and persisted via [AccountDataStore.setToken] so
+ * `DriveAuthTokenProvider` serves it on subsequent Drive HTTP calls without
+ * issuing a fresh `authorize()`. The cached token is dropped explicitly on
+ * `signOut`; revocation goes through `AuthorizationClient.revokeAccess` rather
+ * than the OAuth2 revoke HTTP endpoint, because only the GMS path also clears
+ * the GMS-local token cache — a server-side-only revoke leaves a stale cached
+ * grant that the next silent `signIn` happily reuses and Drive then rejects.
+ *
+ * Identity (email + display name) comes from a follow-up call to the
+ * `oauth2/v3/userinfo` endpoint via [UserInfoFetcher]; `AuthorizationResult`
+ * itself only carries the token. Userinfo failures degrade to the
+ * `GoogleSignInAccount`-derived email when present, then to a placeholder.
  */
 @Singleton
 internal class DriveBackupAuth @Inject constructor(
     private val authorizationClient: AuthorizationClient,
     private val accountStore: AccountDataStore,
-    private val httpClient: HttpClient,
+    private val userInfoFetcher: UserInfoFetcher,
     @IODispatcher private val dispatcher: CoroutineDispatcher,
 ) : BackupAuth {
 
-    private val logger = Log.tag("DriveBackupAuth")
+    private val logger = Log.tag(TAG)
     private val authScope = CoroutineScope(SupervisorJob() + dispatcher)
     private val mutableState = MutableStateFlow<AuthState>(AuthState.SignedOut)
 
@@ -61,13 +72,17 @@ internal class DriveBackupAuth @Inject constructor(
     override suspend fun signIn(): SignInResult = withContext(dispatcher) {
         runCatching {
             val request = AuthorizationRequest.builder()
-                .setRequestedScopes(listOf(Scope(DRIVE_APPDATA_SCOPE)))
+                .setRequestedScopes(DriveAuthScopes.ALL)
                 .build()
             authorizationClient.authorize(request).await()
-        }.fold(
-            onSuccess = { result -> resolveSignIn(result) },
-            onFailure = { SignInResult.Failure(DriveErrorMapper.toBackupError(it)) },
-        )
+        }
+            .onFailure { e ->
+                logger.e(e, "signIn failed")
+            }
+            .fold(
+                onSuccess = { result -> resolveSignIn(result) },
+                onFailure = { SignInResult.Failure(DriveErrorMapper.toBackupError(it)) },
+            )
     }
 
     override suspend fun completeSignIn(intentData: Intent?): BackupResult<Account> =
@@ -79,47 +94,52 @@ internal class DriveBackupAuth @Inject constructor(
             }
             runCatching {
                 val result = authorizationClient.getAuthorizationResultFromIntent(intentData)
-                val account = result.toAccount()
+                captureAccessToken(result)
+                val account = result.toAccount(fetchUserInfo(result.accessToken))
                 accountStore.setAccount(account)
                 account
-            }.fold(
-                onSuccess = { BackupResult.Success(it) },
-                onFailure = { BackupResult.Failure(DriveErrorMapper.toBackupError(it)) },
-            )
+            }
+                .onFailure { e ->
+                    logger.e(e, "completeSignIn failed")
+                }
+                .fold(
+                    onSuccess = { BackupResult.Success(it) },
+                    onFailure = { BackupResult.Failure(DriveErrorMapper.toBackupError(it)) },
+                )
         }
 
     /**
-     * Revokes Google authorization (best-effort, via the OAuth2 revoke endpoint)
-     * and clears local account state. Local clear succeeds even if remote revoke
-     * fails (network unavailable, token already invalid, silent token unavailable).
-     * Always returns [BackupResult.Success].
+     * Revokes Google authorization via `AuthorizationClient.revokeAccess` (which
+     * ALSO clears the GMS-local token cache) and clears local account state.
+     * Local clear succeeds even if the remote revoke fails (network unavailable,
+     * grant already invalid, GMS unavailable). Always returns
+     * [BackupResult.Success].
      */
     override suspend fun signOut(): BackupResult<Unit> = withContext(dispatcher) {
-        fetchSilentToken()?.let { revokeRemote(it) }
+        val revokeRequest = RevokeAccessRequest.builder()
+            .setScopes(DriveAuthScopes.ALL)
+            .build()
+        runCatching {
+            authorizationClient.revokeAccess(revokeRequest).await()
+        }.onFailure { t ->
+            logger.w(t) { "revokeAccess failed (best-effort)" }
+        }
+        accountStore.clearToken()
         accountStore.clear()
         BackupResult.Success(Unit)
     }
 
-    /**
-     * Attempts a silent `authorize` to retrieve the current access token. Returns
-     * `null` if the call fails (no network, GMS not available) or if Drive demands
-     * a UI resolution — in either case there is no token to revoke.
-     */
-    private suspend fun fetchSilentToken(): String? = runCatching {
-        val request = AuthorizationRequest.builder()
-            .setRequestedScopes(listOf(Scope(DRIVE_APPDATA_SCOPE)))
-            .build()
-        val result = authorizationClient.authorize(request).await()
-        if (result.hasResolution()) null else result.accessToken
-    }.getOrNull()
+    private suspend fun captureAccessToken(result: AuthorizationResult) {
+        val token = result.accessToken ?: return
+        accountStore.setToken(
+            token = token,
+            expiresAtEpochMs = System.currentTimeMillis() + TOKEN_TTL_MS,
+        )
+    }
 
-    private suspend fun revokeRemote(token: String) {
-        runCatching {
-            httpClient.submitForm(
-                url = REVOKE_ENDPOINT,
-                formParameters = parameters { append("token", token) },
-            )
-        }.onFailure { logger.w("revoke failed: ${it.message.orEmpty()}") }
+    private suspend fun fetchUserInfo(accessToken: String?): UserInfo? {
+        val token = accessToken ?: return null
+        return userInfoFetcher.fetch(token)
     }
 
     private suspend fun resolveSignIn(result: AuthorizationResult): SignInResult {
@@ -132,22 +152,22 @@ internal class DriveBackupAuth @Inject constructor(
                 )
             return SignInResult.NeedsResolution(pendingIntent.intentSender)
         }
-        val account = result.toAccount()
+        captureAccessToken(result)
+        val account = result.toAccount(fetchUserInfo(result.accessToken))
         accountStore.setAccount(account)
         return SignInResult.Success(account)
     }
 
-    private fun AuthorizationResult.toAccount(): Account {
+    private fun AuthorizationResult.toAccount(userInfo: UserInfo?): Account {
         val gsa = toGoogleSignInAccount()
         return Account(
-            email = gsa?.email ?: PLACEHOLDER_EMAIL,
-            displayName = gsa?.displayName,
+            email = userInfo?.email ?: gsa?.email ?: PLACEHOLDER_EMAIL,
+            displayName = userInfo?.name ?: gsa?.displayName,
         )
     }
 
     private companion object {
-        const val DRIVE_APPDATA_SCOPE = "https://www.googleapis.com/auth/drive.appdata"
+        const val TAG = "DriveBackupAuth"
         const val PLACEHOLDER_EMAIL = "drive_account"
-        const val REVOKE_ENDPOINT = "https://oauth2.googleapis.com/revoke"
     }
 }

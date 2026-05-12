@@ -2,9 +2,10 @@ package io.github.stslex.workeeper.core.data.backup.google_drive.auth
 
 import com.google.android.gms.auth.api.identity.AuthorizationClient
 import com.google.android.gms.auth.api.identity.AuthorizationRequest
-import com.google.android.gms.common.api.Scope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
+import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.data.backup.google_drive.network.AuthTokenProvider
+import io.github.stslex.workeeper.core.data.backup.google_drive.utils.KtorLogger
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.tasks.await
@@ -13,13 +14,15 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * `AuthTokenProvider` impl that asks GMS Identity for a fresh access token on
- * every call when an account is signed in. Returns `null` (treated as
- * `BackupError.NotAuthenticated` by the network layer) when no account is stored.
+ * `AuthTokenProvider` impl that prefers the cached access token captured at
+ * sign-in / `completeSignIn` time (see [AccountDataStore.setToken]) and falls
+ * back to a silent `authorize()` only when the cache is empty or expired.
  *
- * Token fetched on each call; GMS internal cache assumed. See
- * `documentation/tech-debt.md` → "DriveAuthTokenProvider — token fetch caching"
- * for the revisit conditions.
+ * Returns `null` (treated as `BackupError.NotAuthenticated` by the network
+ * layer) when no account is stored OR when both the cache and the silent
+ * `authorize()` fail to yield a usable token. The Part 1 diagnostic log line
+ * (`KtorLogger.TAG`) stays in place through Part 2 so cache hit / miss /
+ * refresh behaviour is visible in logcat during verification.
  */
 @Singleton
 internal class DriveAuthTokenProvider @Inject constructor(
@@ -32,15 +35,38 @@ internal class DriveAuthTokenProvider @Inject constructor(
         if (accountStore.observeAccount().first() == null) {
             return@withContext null
         }
-        runCatching {
-            val request = AuthorizationRequest.builder()
-                .setRequestedScopes(listOf(Scope(DRIVE_APPDATA_SCOPE)))
-                .build()
-            authorizationClient.authorize(request).await().accessToken
-        }.getOrNull()
+        val cached = accountStore.token()
+        if (cached != null && System.currentTimeMillis() < cached.expiresAtEpochMs) {
+            return@withContext cached.token
+        }
+        refreshTokenFromGms()
     }
 
-    private companion object {
-        const val DRIVE_APPDATA_SCOPE = "https://www.googleapis.com/auth/drive.appdata"
+    private suspend fun refreshTokenFromGms(): String? {
+        val request = AuthorizationRequest.builder()
+            .setRequestedScopes(DriveAuthScopes.ALL)
+            .build()
+        val result = try {
+            authorizationClient.authorize(request).await()
+        } catch (@Suppress("TooGenericExceptionCaught") t: Throwable) {
+            Log.tag(KtorLogger.TAG).e(t, "authorize() threw")
+            return null
+        }
+        Log.tag(KtorLogger.TAG).d(
+            "authorize result: hasResolution=${result.hasResolution()}, " +
+                "tokenPresent=${result.accessToken != null}, " +
+                "grantedScopes=${result.grantedScopes}",
+        )
+        val token = result.accessToken
+        if (token != null) {
+            accountStore.setToken(
+                token = token,
+                expiresAtEpochMs = System.currentTimeMillis() + TOKEN_TTL_MS,
+            )
+        } else {
+            Log.tag(KtorLogger.TAG)
+                .w("authorize() returned null token (resolution required or revoked)")
+        }
+        return token
     }
 }
