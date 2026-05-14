@@ -234,6 +234,12 @@ Briefly:
   - Reference: `feature/live-workout`. Specifically `LiveWorkoutStore.State`,
     `DialogState.kt`, `BottomSheetState.kt`, `LiveWorkoutScreen.kt`,
     `LiveWorkoutGraph.kt`.
+  - **Hard rule for two-or-more dialogs on one screen.** The shape above is
+    mandatory; independent `*Visible: Boolean` / `*Confirmation: <X>?` flags are
+    forbidden because they admit invalid combinations at the type level. Naming
+    (`DialogState` unqualified, `Hidden` default), handler/test conventions, and
+    common pitfalls are codified in the [`mvi-dialog-state`](../.claude/skills/mvi-dialog-state.md)
+    skill, which is the authoritative reference for this shape.
   - **Known limitation.** `dialogState` lives in the in-memory `StateFlow` of
     `BaseStore`. Configuration changes survive (same VM-scoped store). Process
     death does not — `dialogState` is not round-tripped through `SavedStateHandle`.

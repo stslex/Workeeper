@@ -74,6 +74,9 @@ skill when the user asks for one of these tasks:
   Detekt MVI / Hilt scope / Composable rule violation by applying the conformant fix
   (see also [`compose-state-discipline`](.claude/skills/compose-state-discipline.md), which
   covers Rule 4: dialogs and bottom sheets live in `State`, not `Event`).
+- [`mvi-dialog-state`](.claude/skills/mvi-dialog-state.md) — model two-or-more dialogs /
+  bottom sheets on one screen as a single sealed `dialogState: DialogState` on `Store.State`,
+  with `Hidden` as the default variant. Drill-down of Rule 4 of `compose-state-discipline`.
 
 ## Current focus
 

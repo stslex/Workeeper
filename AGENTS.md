@@ -123,6 +123,8 @@ the same tasks:
   Detekt rule violation (see also
   [`compose-state-discipline`](.claude/skills/compose-state-discipline.md), which covers
   Rule 4: dialogs and bottom sheets live in `State`, not `Event`).
+- [`mvi-dialog-state`](.claude/skills/mvi-dialog-state.md) — model two-or-more modals on one
+  screen as a single sealed `dialogState: DialogState` on State (drill-down of Rule 4).
 
 ## Required skill usage
 
@@ -138,6 +140,8 @@ Use this mapping:
 - Compose UI smoke tests: `.claude/skills/write-ui-test.md`
 - Room schema migrations and migration tests: `.claude/skills/add-database-migration.md`
 - Refactors driven by custom MVI/Detekt rules: `.claude/skills/refactor-with-mvi-rules.md`
+- Adding a second dialog/bottom sheet to a screen, or any screen with two-or-more
+  modals: `.claude/skills/mvi-dialog-state.md`
 - Firebase Performance / TTID / cold-start / screen-rendering trace work, and any change
   that touches `core/ui/mvi/.../performance/` or the `Modifier.reportScreenPlace<>` wiring
   in `AppNavigationHost`: read [documentation/performance.md](documentation/performance.md)
