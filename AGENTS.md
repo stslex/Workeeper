@@ -146,6 +146,11 @@ Use this mapping:
   that touches `core/ui/mvi/.../performance/` or the `Modifier.reportScreenPlace<>` wiring
   in `AppNavigationHost`: read [documentation/performance.md](documentation/performance.md)
   before changes.
+- Drive backup / restore / auto-backup scheduling / Drive authentication work, and any
+  change that touches `core/data/backup/*` or the backup section of `feature/settings`:
+  read [documentation/feature-specs/backup.md](documentation/feature-specs/backup.md)
+  first, then [`.claude/skills/mvi-dialog-state.md`](.claude/skills/mvi-dialog-state.md)
+  for state-shape work on the new `FrequencyPicker` variant.
 
 If multiple skills apply, use the most specific one first, then combine the others as needed.
 If no listed skill applies, continue with the normal repository instructions.
