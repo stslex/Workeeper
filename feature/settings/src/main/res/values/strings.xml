@@ -39,4 +39,20 @@
     <string name="feature_settings_backup_error_io">Read/write error</string>
     <string name="feature_settings_backup_error_unknown">Something went wrong</string>
     <string name="feature_settings_backup_error_no_backups_found">No backups available</string>
+
+    <string name="feature_settings_backup_sign_out_title">Sign out of Google Drive?</string>
+    <string name="feature_settings_backup_sign_out_body">Auto-backups will stop. Existing backups in Drive will remain and can be restored after signing in again.</string>
+    <string name="feature_settings_backup_sign_out_impact">Auto-backups will stop</string>
+
+    <string name="feature_settings_backup_info_last_backup_never">Never backed up</string>
+    <string name="feature_settings_backup_info_last_backup_format">Last backup: %1$s</string>
+    <string name="feature_settings_backup_info_count_zero">No backups yet</string>
+
+    <string name="feature_settings_backup_restore_in_progress">Restoring backup…</string>
+    <string name="feature_settings_backup_restore_completed">Restore complete. Restarting app…</string>
+
+    <plurals name="feature_settings_backup_info_count">
+        <item quantity="one">%d backup stored</item>
+        <item quantity="other">%d backups stored</item>
+    </plurals>
 </resources>

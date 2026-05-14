@@ -8,7 +8,7 @@ import io.github.stslex.workeeper.feature.settings.domain.model.BackupAuthDomain
 import io.github.stslex.workeeper.feature.settings.domain.model.BackupSummaryDomain
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupAuthUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupErrorUi
-import io.github.stslex.workeeper.feature.settings.mvi.model.RestoreConfirmationUi
+import io.github.stslex.workeeper.feature.settings.mvi.store.DialogState
 import java.text.DateFormat
 import java.util.Date
 
@@ -22,14 +22,13 @@ internal object BackupUiMapper {
         )
     }
 
-    fun BackupSummaryDomain.toConfirmation(context: Context): RestoreConfirmationUi =
-        RestoreConfirmationUi(
+    fun BackupSummaryDomain.toConfirmation(context: Context): DialogState.RestoreConfirmation =
+        DialogState.RestoreConfirmation(
             createdAtFormatted = DateFormat.getDateTimeInstance(
                 DateFormat.MEDIUM,
                 DateFormat.SHORT,
             ).format(Date(createdAtEpochMs)),
             sizeFormatted = Formatter.formatShortFileSize(context, sizeBytes),
-            appVersion = appVersion,
         )
 
     fun BackupError.toUi(): BackupErrorUi = when (this) {

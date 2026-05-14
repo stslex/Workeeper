@@ -10,6 +10,7 @@ import androidx.compose.ui.res.stringResource
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.feature.settings.R
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupAuthUi
+import io.github.stslex.workeeper.feature.settings.mvi.model.BackupInfoUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupOperationUi
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Action
 
@@ -29,7 +30,12 @@ internal fun BackupSection(
         ) {
             when (state.auth) {
                 BackupAuthUi.NotAuthenticated -> NotAuthenticatedBlock(state.operation, onAction)
-                is BackupAuthUi.Authenticated -> AuthenticatedBlock(state.auth, state.operation, onAction)
+                is BackupAuthUi.Authenticated -> AuthenticatedBlock(
+                    auth = state.auth,
+                    operation = state.operation,
+                    info = state.info,
+                    onAction = onAction,
+                )
             }
         }
     }
@@ -52,9 +58,16 @@ private fun NotAuthenticatedBlock(
 private fun AuthenticatedBlock(
     auth: BackupAuthUi.Authenticated,
     operation: BackupOperationUi,
+    info: BackupInfoUi?,
     onAction: (Action.Backup) -> Unit,
 ) {
     AccountInfoRow(email = auth.email, displayName = auth.displayName)
+    if (info != null) {
+        BackupInfoRow(
+            lastBackupText = info.lastBackupText,
+            backupCountText = info.backupCountText,
+        )
+    }
     BackupButtonRow(
         title = stringResource(R.string.feature_settings_backup_create),
         onClick = { onAction(Action.Backup.CreateBackup) },
@@ -70,7 +83,7 @@ private fun AuthenticatedBlock(
     )
     BackupButtonRow(
         title = stringResource(R.string.feature_settings_backup_sign_out),
-        onClick = { onAction(Action.Backup.SignOut) },
+        onClick = { onAction(Action.Backup.RequestSignOut) },
         enabled = !operation.isInProgress,
         isLoading = operation == BackupOperationUi.SigningOut,
     )
