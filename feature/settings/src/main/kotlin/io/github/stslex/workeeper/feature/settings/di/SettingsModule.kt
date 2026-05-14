@@ -6,6 +6,8 @@ import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.android.components.ViewModelComponent
 import dagger.hilt.android.scopes.ViewModelScoped
+import io.github.stslex.workeeper.feature.settings.domain.BackupInteractor
+import io.github.stslex.workeeper.feature.settings.domain.BackupInteractorImpl
 import io.github.stslex.workeeper.feature.settings.domain.SettingsInteractor
 import io.github.stslex.workeeper.feature.settings.domain.SettingsInteractorImpl
 
@@ -16,6 +18,10 @@ internal interface SettingsModule {
     @Binds
     @ViewModelScoped
     fun bindInteractor(impl: SettingsInteractorImpl): SettingsInteractor
+
+    @Binds
+    @ViewModelScoped
+    fun bindBackupInteractor(impl: BackupInteractorImpl): BackupInteractor
 
     @Binds
     @ViewModelScoped

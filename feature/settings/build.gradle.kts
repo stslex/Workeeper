@@ -10,6 +10,8 @@ dependencies {
     implementation(project(":core:ui:mvi"))
     implementation(project(":core:ui:navigation"))
     implementation(project(":core:data:exercise"))
+    implementation(project(":core:data:backup:api"))
+    implementation(project(":core:data:database"))
 
     testImplementation(kotlin("test"))
     testImplementation(libs.androidx.paging.testing)

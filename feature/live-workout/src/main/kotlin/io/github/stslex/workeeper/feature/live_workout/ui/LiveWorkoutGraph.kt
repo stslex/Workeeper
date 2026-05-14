@@ -9,7 +9,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.navigation.NavGraphBuilder
-import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.getStateFlow
 import io.github.stslex.workeeper.core.ui.mvi.navComponentScreenWithState
@@ -40,7 +39,6 @@ fun NavGraphBuilder.liveWorkoutGraph(
         val haptic = LocalHapticFeedback.current
 
         processor.Handle { event ->
-            Log.tag("MVI_STORE_LiveWorkout").i { "Received event: $event" }
             when (event) {
                 is Event.HapticClick -> haptic.performHapticFeedback(event.type)
                 is Event.HapticImpact -> haptic.performHapticFeedback(event.type)

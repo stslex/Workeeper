@@ -24,6 +24,7 @@ import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.all_exercises.ui.allExercisesGraph
 import io.github.stslex.workeeper.feature.all_trainings.ui.allTrainingsGraph
+import io.github.stslex.workeeper.feature.archive.ui.archiveGraph
 import io.github.stslex.workeeper.feature.exercise.ui.exerciseGraph
 import io.github.stslex.workeeper.feature.exercise_chart.ui.exerciseChartGraph
 import io.github.stslex.workeeper.feature.home.ui.homeGraph
@@ -31,7 +32,6 @@ import io.github.stslex.workeeper.feature.image_viewer.ui.imageViewerGraph
 import io.github.stslex.workeeper.feature.live_workout.ui.liveWorkoutGraph
 import io.github.stslex.workeeper.feature.past_session.ui.pastSessionGraph
 import io.github.stslex.workeeper.feature.plan_editor.ui.planEditorGraph
-import io.github.stslex.workeeper.feature.settings.ui.archiveGraph
 import io.github.stslex.workeeper.feature.settings.ui.settingsGraph
 import io.github.stslex.workeeper.feature.single_training.ui.singleTrainingsGraph
 
@@ -47,6 +47,11 @@ internal fun AppNavigationHost(
         val bottomBarModifier = Modifier
             .fillMaxSize()
             .padding(bottom = AppDimension.BottomNavBar.height)
+            .systemBarsPadding()
+            .background(MaterialTheme.colorScheme.background)
+
+        val standardModifier = Modifier
+            .fillMaxSize()
             .systemBarsPadding()
             .background(MaterialTheme.colorScheme.background)
 
@@ -90,49 +95,49 @@ internal fun AppNavigationHost(
                 sharedTransitionScope = this@SharedTransitionLayout,
             )
             singleTrainingsGraph(
-                modifier = Modifier
+                modifier = standardModifier
                     .reportScreenPlace<Screen.Training>()
                     .testTag("SingleTrainingGraph"),
                 sharedTransitionScope = this@SharedTransitionLayout,
             )
             exerciseGraph(
-                modifier = Modifier
+                modifier = standardModifier
                     .reportScreenPlace<Screen.Exercise>()
                     .testTag("ExerciseGraph"),
             )
             liveWorkoutGraph(
-                modifier = Modifier
+                modifier = standardModifier
                     .reportScreenPlace<Screen.LiveWorkout>()
                     .testTag("LiveWorkoutGraph"),
                 sharedTransitionScope = this@SharedTransitionLayout,
             )
             pastSessionGraph(
-                modifier = Modifier
+                modifier = standardModifier
                     .reportScreenPlace<Screen.PastSession>()
                     .testTag("PastSessionGraph"),
             )
             imageViewerGraph(
-                modifier = Modifier
+                modifier = standardModifier
                     .reportScreenPlace<Screen.ExerciseImage>()
                     .testTag("ImageViewerGraph"),
             )
             settingsGraph(
-                modifier = Modifier
+                modifier = standardModifier
                     .reportScreenPlace<Screen.Settings>()
                     .testTag("SettingsGraph"),
             )
             archiveGraph(
-                modifier = Modifier
+                modifier = standardModifier
                     .reportScreenPlace<Screen.Archive>()
                     .testTag("ArchiveGraph"),
             )
             exerciseChartGraph(
-                modifier = Modifier
+                modifier = standardModifier
                     .reportScreenPlace<Screen.ExerciseChart>()
                     .testTag("ExerciseChartGraph"),
             )
             planEditorGraph(
-                modifier = Modifier
+                modifier = standardModifier
                     .reportScreenPlace<Screen.PlanEditor>()
                     .testTag("PlanEditorGraph"),
             )

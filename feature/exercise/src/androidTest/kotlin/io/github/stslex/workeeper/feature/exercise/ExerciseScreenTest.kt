@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.feature.exercise
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
@@ -44,8 +45,8 @@ class ExerciseScreenTest : BaseComposeTest() {
 
         // Empty plan in create-mode shows the body's empty hint, not the legacy
         // "Add plan" button (`ExerciseEditPlanEditButton`).
-        composeTestRule.onNodeWithTag("PlanEditorBodyEmpty").assertIsDisplayed()
-        composeTestRule.onNodeWithTag("ExerciseEditPlanAddSetButton").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("PlanEditorBodyEmpty").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithTag("ExerciseEditPlanAddSetButton").performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithTag("ExerciseEditPlanEditButton").assertDoesNotExist()
     }
 
@@ -64,9 +65,9 @@ class ExerciseScreenTest : BaseComposeTest() {
             }
         }
 
-        composeTestRule.onNodeWithTag("PlanEditorBodyRow_0").assertIsDisplayed()
-        composeTestRule.onNodeWithTag("PlanEditorBodyRow_1").assertIsDisplayed()
-        composeTestRule.onNodeWithTag("ExerciseEditPlanAddSetButton").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("PlanEditorBodyRow_0").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithTag("PlanEditorBodyRow_1").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithTag("ExerciseEditPlanAddSetButton").performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -79,7 +80,7 @@ class ExerciseScreenTest : BaseComposeTest() {
 
         // Edit-mode for an existing exercise still routes to the full-screen
         // PlanEditor route via the legacy summary + button surface.
-        composeTestRule.onNodeWithTag("ExerciseEditPlanEditButton").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("ExerciseEditPlanEditButton").performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithTag("ExerciseEditPlanAddSetButton").assertDoesNotExist()
         composeTestRule.onNodeWithTag("PlanEditorBodyEmpty").assertDoesNotExist()
     }

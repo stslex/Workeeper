@@ -17,7 +17,7 @@ Each tracked location should carry a `TODO(tech-debt): <category> — <ref>` mar
 
 | Severity | Location | Description |
 |---|---|---|
-| 🟢 | [feature/settings/.../ui/ArchiveGraph.kt](../feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/ui/ArchiveGraph.kt) | Snackbar templates (`restoredTemplate.format(event.item.name)`) substituted in graph. Should be pre-formatted; event payload should carry the ready string. |
+| 🟢 | [feature/archive/.../ui/ArchiveGraph.kt](../feature/archive/src/main/kotlin/io/github/stslex/workeeper/feature/archive/ui/ArchiveGraph.kt) | Snackbar templates (`restoredTemplate.format(event.item.name)`) substituted in graph. Should be pre-formatted; event payload should carry the ready string. |
 | 🟢 | [feature/exercise/.../ui/ExerciseGraph.kt](../feature/exercise/src/main/kotlin/io/github/stslex/workeeper/feature/exercise/ui/ExerciseGraph.kt) | `Event.ShowImageError` → `when (event.errorType) { ... }` shaping in graph. Move to mapper or carry resolved message in the event itself. |
 | 🟢 | [feature/single-training/.../ui/SingleTrainingGraph.kt](../feature/single-training/src/main/kotlin/io/github/stslex/workeeper/feature/single_training/ui/SingleTrainingGraph.kt) | Discard-dialog title/body strings still chosen in graph. Push to state or to event payload. |
 | 🟢 | [feature/home/.../ui/components/ActiveSessionBanner.kt](../feature/home/src/main/kotlin/io/github/stslex/workeeper/feature/home/ui/components/ActiveSessionBanner.kt) | Concatenation `stringResource(label) + " · " + stringResource(progress)` in composable. Pre-format full label in `HomeUiMapper`. |
@@ -150,7 +150,7 @@ Five stub files with `TODO(feature-rewrite-tests)` markers carry an `@Ignore`d p
 | Severity | Location | Stage |
 |---|---|---|
 | 🟡 | [feature/settings/.../SettingsScreenTest.kt](../feature/settings/src/androidTest/kotlin/io/github/stslex/workeeper/feature/settings/SettingsScreenTest.kt) | 5.1 |
-| 🟡 | [feature/settings/.../ArchiveScreenTest.kt](../feature/settings/src/androidTest/kotlin/io/github/stslex/workeeper/feature/settings/ArchiveScreenTest.kt) | 5.1 |
+| 🟡 | [feature/archive/.../ArchiveScreenTest.kt](../feature/archive/src/androidTest/kotlin/io/github/stslex/workeeper/feature/archive/ArchiveScreenTest.kt) | 5.1 |
 | 🟡 | [feature/all-exercises/.../AllExercisesScreenTest.kt](../feature/all-exercises/src/androidTest/kotlin/io/github/stslex/workeeper/feature/all_exercises/AllExercisesScreenTest.kt) | 5.2 |
 | 🟡 | [feature/exercise/.../ExerciseScreenTest.kt](../feature/exercise/src/androidTest/kotlin/io/github/stslex/workeeper/feature/exercise/ExerciseScreenTest.kt) | 5.2 |
 | 🟡 | [feature/all-trainings/.../AllTrainingsScreenTest.kt](../feature/all-trainings/src/androidTest/kotlin/io/github/stslex/workeeper/feature/all_trainings/AllTrainingsScreenTest.kt) | 5.3 |
@@ -250,6 +250,17 @@ to standalone files. The `DomainLayerPurityRule` and
 `DomainLayerNoUiRule` Detekt rules guard the boundary at error
 severity. See [architecture.md → Domain model
 layer](architecture.md#domain-model-layer) for the convention.
+
+---
+
+## Backup integrations
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟢 | [core/data/backup/google-drive/.../auth/DriveAuthTokenProvider.kt](../core/data/backup/google-drive/src/main/kotlin/io/github/stslex/workeeper/core/data/backup/google_drive/auth/DriveAuthTokenProvider.kt) | **Token fetch caching.** Every Drive HTTP call invokes `AuthorizationClient.authorize().await()` to retrieve the access token. GMS likely caches internally but this is undocumented. **Trigger to revisit:** real-device measurement of 2nd+ `authorize().await()` calls. If consistently >200ms, add an in-memory access token cache with TTL ~50 minutes (access tokens live 60 minutes). **Mitigation effort if needed:** ~15 LoC + 1 unit test. |
+| 🟡 | [feature/settings/.../domain/BackupInteractorImpl.kt restoreLatest](../feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/domain/BackupInteractorImpl.kt) | **v1 restore is latest-only.** No picker UI; `restoreLatest()` always picks the first entry from `BackupStorage.listBackups()` (newest). `Action.Backup.RequestRestore` surfaces a single `RestoreConfirmationUi` for the latest. **Trigger to act:** v1.1 spec or first user request to roll back to an older backup. **Fix path:** add a picker bottom sheet driven from `RequestRestore`, list all summaries via a new domain query, and route selection back as `Action.Backup.ConfirmRestoreFor(remoteId)` (split out from `ConfirmRestore`). |
+| ✅ RESOLVED | [feature/settings/.../domain/BackupInteractorImpl.kt](../feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/domain/BackupInteractorImpl.kt), [feature/settings/.../domain/mapper/BackupDomainMapper.kt](../feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/domain/mapper/BackupDomainMapper.kt) | **`BackupManifest` import workaround.** During PR 4 the `DomainLayerPurityRule` flagged `import core.data.backup.api.model.BackupManifest` in `BackupInteractorImpl`, so manifest construction was routed through a `BackupDomainMapper.buildManifest(...)` factory and the impl relied on type inference to avoid the import. The rule has since been extended to exempt `core.data.<feature>.api.*` submodules (see [lint-rules.md → DomainLayerPurityRule](lint-rules.md#domainlayerpurityrule)); the impl now imports `BackupManifest` directly and the factory has been removed. |
+| 🟡 | [core/data/backup/google-drive/.../auth/DriveAuthTokenProvider.kt `refreshTokenFromGms`](../core/data/backup/google-drive/src/main/kotlin/io/github/stslex/workeeper/core/data/backup/google_drive/auth/DriveAuthTokenProvider.kt) | **Diagnostic Part-1 logging carried through Part-2 fix and the appProperties split.** `refreshTokenFromGms()` emits `Log.d("authorize result: hasResolution=…, tokenPresent=…, grantedScopes=…")` on every silent re-auth attempt to make cache-miss / refresh behaviour visible during verification of the token-cache fix and the per-field `appProperties` upload. **Trigger to act:** once upload + restore are confirmed working on a real device against Drive (single round-trip, no resolution loop, restore confirmation populated with date/size), drop the `Log.d` line and keep only the `Log.w("authorize() returned null token …")` warning for the actionable failure mode. |
 
 ---
 

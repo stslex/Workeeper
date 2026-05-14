@@ -18,6 +18,7 @@ dependencies {
     implementation(project(":core:data:database"))
     implementation(project(":core:data:exercise"))
     implementation(project(":core:data:dataStore"))
+    implementation(project(":core:data:backup:google-drive"))
 //    implementation(project(":core:ui:plan-editor"))
 
     implementation(project(":feature:exercise"))
@@ -26,6 +27,7 @@ dependencies {
     implementation(project(":feature:all-exercises"))
     implementation(project(":feature:single-training"))
     implementation(project(":feature:settings"))
+    implementation(project(":feature:archive"))
     implementation(project(":feature:home"))
     implementation(project(":feature:live-workout"))
     implementation(project(":feature:past-session"))
