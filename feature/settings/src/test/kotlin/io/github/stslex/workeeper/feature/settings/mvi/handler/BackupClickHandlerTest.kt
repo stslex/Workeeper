@@ -189,6 +189,45 @@ internal class BackupClickHandlerTest {
         }
 
     @Test
+    fun `SignIn PartialGrant emits MISSING_REQUIRED_SCOPE and stays Idle`() =
+        runTest(testDispatcher) {
+            coEvery { interactor.signIn() } returns SignInOutcomeDomain.PartialGrant
+
+            handler.invoke(Action.Backup.SignIn)
+
+            assertEquals(BackupOperationUi.Idle, store.stateFlow.value.backupOperation)
+            assertEquals(
+                BackupAuthUi.NotAuthenticated,
+                store.stateFlow.value.backupAuth,
+                "partial grant must not flip backupAuth into Authenticated",
+            )
+            val event = store.events.single()
+            assertTrue(event is Event.ShowBackupError)
+            assertEquals(
+                BackupErrorUi.MISSING_REQUIRED_SCOPE,
+                (event as Event.ShowBackupError).error,
+            )
+        }
+
+    @Test
+    fun `HandleAuthResult Failure(MissingRequiredScope) emits MISSING_REQUIRED_SCOPE`() =
+        runTest(testDispatcher) {
+            val intent = mockk<Intent>(relaxed = true)
+            coEvery { interactor.completeSignIn(intent) } returns BackupResult.Failure(
+                BackupError.MissingRequiredScope,
+            )
+
+            handler.invoke(Action.Backup.HandleAuthResult(intent))
+
+            val event = store.events.single()
+            assertTrue(event is Event.ShowBackupError)
+            assertEquals(
+                BackupErrorUi.MISSING_REQUIRED_SCOPE,
+                (event as Event.ShowBackupError).error,
+            )
+        }
+
+    @Test
     fun `SignIn Failure emits ShowBackupError with mapped enum`() = runTest(testDispatcher) {
         coEvery { interactor.signIn() } returns SignInOutcomeDomain.Failure(
             BackupError.NetworkUnavailable,

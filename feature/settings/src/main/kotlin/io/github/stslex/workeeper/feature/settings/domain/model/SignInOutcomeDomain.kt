@@ -9,5 +9,7 @@ internal sealed interface SignInOutcomeDomain {
 
     data class NeedsResolution(val intentSender: IntentSender) : SignInOutcomeDomain
 
+    data object PartialGrant : SignInOutcomeDomain
+
     data class Failure(val error: BackupError) : SignInOutcomeDomain
 }

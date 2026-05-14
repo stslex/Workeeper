@@ -24,4 +24,17 @@ internal object DriveAuthScopes {
         Scope(USERINFO_EMAIL),
         Scope(USERINFO_PROFILE),
     )
+
+    /**
+     * Scopes the backup feature cannot operate without. Userinfo scopes are NOT
+     * here — declining them only degrades account display (handled in
+     * `DriveBackupAuth.toAccount` via the placeholder email fallback), but the
+     * feature still works. Only `drive.appdata` blocks all storage operations,
+     * so partial-grant detection in `DriveBackupAuth` checks for its absence.
+     *
+     * Kept as an explicit constant rather than derived (e.g. `ALL.first()`) so
+     * the required set is obvious at the call site and future scopes can be
+     * promoted to required without touching ordering.
+     */
+    val REQUIRED: List<String> = listOf(DRIVE_APPDATA)
 }

@@ -144,6 +144,13 @@ internal class BackupClickHandler @Inject constructor(
                         sendEvent(Event.AuthResolutionRequested(result.intentSender))
                     }
 
+                    SignInOutcomeDomain.PartialGrant -> {
+                        updateStateImmediate { current ->
+                            current.copy(backupOperation = BackupOperationUi.Idle)
+                        }
+                        sendEvent(Event.ShowBackupError(BackupErrorUi.MISSING_REQUIRED_SCOPE))
+                    }
+
                     is SignInOutcomeDomain.Failure -> {
                         val errorUi = result.error.toUi()
                         updateStateImmediate { current ->

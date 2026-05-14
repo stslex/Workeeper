@@ -20,6 +20,14 @@ sealed interface BackupError {
      */
     data object AuthRevoked : BackupError
 
+    /**
+     * User passed the consent screen but did not grant a hard-required scope (e.g.
+     * `drive.appdata`). Terminal — distinct from [AuthRevoked] in that no token was
+     * ever cached, and from [NotAuthenticated] in that a fresh sign-in attempt MUST
+     * re-show the consent screen rather than silently reuse a partial grant.
+     */
+    data object MissingRequiredScope : BackupError
+
     /** Remote storage quota for this account is full. Non-retryable without user action. */
     data object StorageQuotaExceeded : BackupError
 

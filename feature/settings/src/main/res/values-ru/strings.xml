@@ -33,6 +33,7 @@
     <string name="feature_settings_backup_error_not_authenticated">Сначала войдите в Drive</string>
     <string name="feature_settings_backup_error_network_unavailable">Нет соединения с интернетом</string>
     <string name="feature_settings_backup_error_auth_revoked">Доступ к Drive отозван. Войдите снова.</string>
+    <string name="feature_settings_backup_error_missing_required_scope">Доступ к Google Drive не предоставлен. Войдите снова и разрешите доступ к Drive — экран согласия появится ещё раз.</string>
     <string name="feature_settings_backup_error_storage_quota_exceeded">В Drive закончилось место</string>
     <string name="feature_settings_backup_error_corrupted_backup">Файл резервной копии повреждён</string>
     <string name="feature_settings_backup_error_schema_too_new">Резервная копия требует более новой версии приложения</string>

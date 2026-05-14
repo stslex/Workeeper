@@ -23,6 +23,7 @@ enum class BackupErrorCode {
     SchemaTooNew,
     Io,
     Unknown,
+    MissingRequiredScope,
     ;
 
     companion object {
@@ -31,6 +32,7 @@ enum class BackupErrorCode {
             BackupError.NotAuthenticated -> NotAuthenticated
             BackupError.NetworkUnavailable -> NetworkUnavailable
             BackupError.AuthRevoked -> AuthRevoked
+            BackupError.MissingRequiredScope -> MissingRequiredScope
             BackupError.StorageQuotaExceeded -> StorageQuotaExceeded
             is BackupError.CorruptedBackup -> CorruptedBackup
             is BackupError.SchemaTooNew -> SchemaTooNew

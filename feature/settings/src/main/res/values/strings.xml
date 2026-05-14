@@ -33,6 +33,7 @@
     <string name="feature_settings_backup_error_not_authenticated">Sign in to Drive first</string>
     <string name="feature_settings_backup_error_network_unavailable">No internet connection</string>
     <string name="feature_settings_backup_error_auth_revoked">Drive access revoked. Sign in again.</string>
+    <string name="feature_settings_backup_error_missing_required_scope">Drive access wasn\'t granted. Sign in again and allow Drive access — you\'ll see the consent screen once more.</string>
     <string name="feature_settings_backup_error_storage_quota_exceeded">Drive storage is full</string>
     <string name="feature_settings_backup_error_corrupted_backup">Backup file is corrupted</string>
     <string name="feature_settings_backup_error_schema_too_new">Backup needs a newer app version</string>

@@ -216,6 +216,20 @@ both caches via `DriveTokenInvalidator` and retries the call once. A second
   the result only when userinfo fetch fails; if that also fails, persist the
   placeholder `"drive_account"` string. See
   `DriveBackupAuth.toAccount(userInfo)`.
+- **Partial grant (user unchecked `drive.appdata` on the consent screen).**
+  `AuthorizationResult` comes back with a non-null `accessToken` but a
+  `grantedScopes` set that omits a required scope. `DriveBackupAuth` checks
+  `grantedScopes` against `DriveAuthScopes.REQUIRED` **before** caching the
+  token in `AccountDataStore` or calling `setAccount`, so the auth state
+  never flips to `Authenticated` in this branch. Recovery: the impl calls
+  `AuthorizationClient.clearToken(...)` on the just-issued bad token so the
+  next `signIn` re-shows the consent screen instead of silently reusing the
+  partial grant, then returns `SignInResult.PartialGrant` (silent path) or
+  `BackupResult.Failure(BackupError.MissingRequiredScope)` (resolution path).
+  The UI shows an explicit "Drive access wasn't granted — sign in again" 
+  snackbar via `BackupErrorUi.MISSING_REQUIRED_SCOPE`. `userinfo.email` and
+  `userinfo.profile` are NOT in `REQUIRED` — declining them only forces the
+  placeholder display fallback in `toAccount`.
 
 ## Backup storage
 
@@ -554,6 +568,7 @@ UI surfaces each variant via `BackupErrorUi` + a localized string resource.
 | `NotAuthenticated` | `DriveAuthTokenProvider.currentToken()` returns `null` | `Result.failure()` (terminal — periodic stays cancelled) | snackbar via `BackupErrorUi.NOT_AUTHENTICATED` |
 | `NetworkUnavailable` | `IOException` from Ktor, no connectivity | `Result.retry()` (exponential backoff) | snackbar via `BackupErrorUi.NETWORK_UNAVAILABLE` |
 | `AuthRevoked` | Drive 401 after the token-refresh retry; or Drive 403 with `Forbidden` | `Result.failure()` + `cancelPeriodic` + `showAuthPaused` | banner + persistent notification |
+| `MissingRequiredScope` | Consent screen returned a token but `grantedScopes` excludes `drive.appdata`; detected at the data boundary before any token is cached | n/a (sign-in path only — periodic never reaches this) | snackbar via `BackupErrorUi.MISSING_REQUIRED_SCOPE` with explicit retry copy |
 | `StorageQuotaExceeded` | Drive 403 with `quotaExceeded` / `userRateLimitExceeded` reason in the body | `Result.failure()` (non-retryable without user action) | snackbar via `BackupErrorUi.STORAGE_QUOTA_EXCEEDED` |
 | `CorruptedBackup(reason)` | SQLite magic header mismatch on restore; manifest parse failure | `Result.retry()` (other paths) | snackbar via `BackupErrorUi.CORRUPTED_BACKUP` |
 | `SchemaTooNew(backupSchema, appSchema)` | `peekSnapshotSchemaVersion` > current schema | n/a (restore path) | snackbar via `BackupErrorUi.SCHEMA_TOO_NEW` |

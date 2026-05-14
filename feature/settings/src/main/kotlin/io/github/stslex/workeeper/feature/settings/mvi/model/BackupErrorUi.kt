@@ -8,6 +8,7 @@ internal enum class BackupErrorUi(@StringRes val messageRes: Int) {
     NOT_AUTHENTICATED(R.string.feature_settings_backup_error_not_authenticated),
     NETWORK_UNAVAILABLE(R.string.feature_settings_backup_error_network_unavailable),
     AUTH_REVOKED(R.string.feature_settings_backup_error_auth_revoked),
+    MISSING_REQUIRED_SCOPE(R.string.feature_settings_backup_error_missing_required_scope),
     STORAGE_QUOTA_EXCEEDED(R.string.feature_settings_backup_error_storage_quota_exceeded),
     CORRUPTED_BACKUP(R.string.feature_settings_backup_error_corrupted_backup),
     SCHEMA_TOO_NEW(R.string.feature_settings_backup_error_schema_too_new),
