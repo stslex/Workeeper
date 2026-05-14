@@ -39,4 +39,22 @@
     <string name="feature_settings_backup_error_io">Ошибка чтения или записи</string>
     <string name="feature_settings_backup_error_unknown">Что-то пошло не так</string>
     <string name="feature_settings_backup_error_no_backups_found">Нет доступных резервных копий</string>
+
+    <string name="feature_settings_backup_sign_out_title">Выйти из Google Drive?</string>
+    <string name="feature_settings_backup_sign_out_body">Автоматические резервные копии остановятся. Существующие копии в Drive сохранятся, их можно будет восстановить после повторного входа.</string>
+    <string name="feature_settings_backup_sign_out_impact">Автоматические резервные копии остановятся</string>
+
+    <string name="feature_settings_backup_info_last_backup_never">Резервных копий ещё нет</string>
+    <string name="feature_settings_backup_info_last_backup_format">Последняя копия: %1$s</string>
+    <string name="feature_settings_backup_info_count_zero">Ещё нет резервных копий</string>
+
+    <string name="feature_settings_backup_restore_in_progress">Восстановление резервной копии…</string>
+    <string name="feature_settings_backup_restore_completed">Восстановление завершено. Перезапуск приложения…</string>
+
+    <plurals name="feature_settings_backup_info_count">
+        <item quantity="one">Сохранена %d копия</item>
+        <item quantity="few">Сохранены %d копии</item>
+        <item quantity="many">Сохранено %d копий</item>
+        <item quantity="other">Сохранено %d копий</item>
+    </plurals>
 </resources>

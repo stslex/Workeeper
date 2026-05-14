@@ -209,6 +209,38 @@ internal class BackupInteractorImplTest {
     }
 
     @Test
+    fun `listBackups maps every ref to summary preserving order`() = runTest(testDispatcher) {
+        val newer = makeRef(createdAt = 200L, schema = 5, size = 1024L, appVersion = "1.2.3")
+        val older = makeRef(createdAt = 100L, schema = 5, size = 512L, appVersion = "1.2.0")
+        coEvery { backupStorage.listBackups() } returns BackupResult.Success(listOf(newer, older))
+
+        val result = interactor.listBackups()
+
+        assertTrue(result is BackupResult.Success)
+        val summaries = (result as BackupResult.Success).data
+        assertEquals(2, summaries.size)
+        assertEquals(200L, summaries[0].createdAtEpochMs)
+        assertEquals(100L, summaries[1].createdAtEpochMs)
+    }
+
+    @Test
+    fun `listBackups returns empty list when no backups`() = runTest(testDispatcher) {
+        coEvery { backupStorage.listBackups() } returns BackupResult.Success(emptyList())
+        val result = interactor.listBackups()
+        assertTrue(result is BackupResult.Success)
+        assertTrue((result as BackupResult.Success).data.isEmpty())
+    }
+
+    @Test
+    fun `listBackups propagates Failure`() = runTest(testDispatcher) {
+        val error = BackupError.NetworkUnavailable
+        coEvery { backupStorage.listBackups() } returns BackupResult.Failure(error)
+        val result = interactor.listBackups()
+        assertTrue(result is BackupResult.Failure)
+        assertSame(error, (result as BackupResult.Failure).error)
+    }
+
+    @Test
     fun `restoreLatest with no backups returns CorruptedBackup and skips download`() =
         runTest(testDispatcher) {
             coEvery { backupStorage.listBackups() } returns BackupResult.Success(emptyList())

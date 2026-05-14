@@ -9,12 +9,18 @@ import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.settings.di.SettingsHandlerStore
 import io.github.stslex.workeeper.feature.settings.domain.BackupInteractor
 import io.github.stslex.workeeper.feature.settings.domain.model.SignInOutcomeDomain
+import io.github.stslex.workeeper.feature.settings.mvi.mapper.BackupDateMapper
 import io.github.stslex.workeeper.feature.settings.mvi.mapper.BackupUiMapper.toConfirmation
 import io.github.stslex.workeeper.feature.settings.mvi.mapper.BackupUiMapper.toUi
+import io.github.stslex.workeeper.feature.settings.mvi.model.BackupAuthUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupErrorUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupOperationUi
+import io.github.stslex.workeeper.feature.settings.mvi.model.RestoreProgressUi
+import io.github.stslex.workeeper.feature.settings.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Action
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Event
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
@@ -30,11 +36,14 @@ internal class BackupClickHandler @Inject constructor(
             Action.Backup.ObserveAuth -> observeAuth()
             Action.Backup.SignIn -> signIn()
             is Action.Backup.HandleAuthResult -> handleAuthResult(action.resultIntent)
-            Action.Backup.SignOut -> signOut()
+            Action.Backup.RequestSignOut -> requestSignOut()
+            Action.Backup.DismissSignOutConfirmation -> dismissSignOutConfirmation()
+            Action.Backup.ConfirmSignOut -> confirmSignOut()
             Action.Backup.CreateBackup -> createBackup()
             Action.Backup.RequestRestore -> requestRestore()
             Action.Backup.ConfirmRestore -> confirmRestore()
             Action.Backup.DismissRestoreDialog -> dismissRestoreDialog()
+            Action.Backup.LoadBackupList -> loadBackupList()
         }
     }
 
@@ -42,7 +51,13 @@ internal class BackupClickHandler @Inject constructor(
         interactor.authState
             .map { it.toUi() }
             .launch { ui ->
+                val previousAuth = state.value.backupAuth
                 updateState { current -> current.copy(backupAuth = ui) }
+                if (ui is BackupAuthUi.Authenticated && previousAuth !is BackupAuthUi.Authenticated) {
+                    loadBackupList()
+                } else if (ui is BackupAuthUi.NotAuthenticated) {
+                    updateState { current -> current.copy(backupInfo = null) }
+                }
             }
     }
 
@@ -93,8 +108,21 @@ internal class BackupClickHandler @Inject constructor(
         }
     }
 
-    private fun signOut() {
-        updateState { current -> current.copy(backupOperation = BackupOperationUi.SigningOut) }
+    private fun requestSignOut() {
+        updateState { current -> current.copy(dialogState = DialogState.SignOutConfirmation) }
+    }
+
+    private fun dismissSignOutConfirmation() {
+        updateState { current -> current.copy(dialogState = DialogState.Hidden) }
+    }
+
+    private fun confirmSignOut() {
+        updateState { current ->
+            current.copy(
+                dialogState = DialogState.Hidden,
+                backupOperation = BackupOperationUi.SigningOut,
+            )
+        }
         launchDefault(
             onError = { emitUnknownErrorAndIdle(it) },
             onSuccess = { result ->
@@ -116,6 +144,7 @@ internal class BackupClickHandler @Inject constructor(
                     is BackupResult.Success -> {
                         updateStateImmediate { current -> current.copy(backupOperation = BackupOperationUi.Idle) }
                         sendEvent(Event.ShowBackupCreated)
+                        loadBackupList()
                     }
 
                     is BackupResult.Failure -> {
@@ -148,7 +177,7 @@ internal class BackupClickHandler @Inject constructor(
                             updateStateImmediate { current ->
                                 current.copy(
                                     backupOperation = BackupOperationUi.Idle,
-                                    restoreConfirmation = confirmation,
+                                    dialogState = confirmation,
                                 )
                             }
                         }
@@ -167,24 +196,45 @@ internal class BackupClickHandler @Inject constructor(
     }
 
     private fun dismissRestoreDialog() {
-        updateState { current -> current.copy(restoreConfirmation = null) }
+        updateState { current -> current.copy(dialogState = DialogState.Hidden) }
     }
 
     private fun confirmRestore() {
         updateState { current ->
             current.copy(
-                restoreConfirmation = null,
+                dialogState = DialogState.Hidden,
                 backupOperation = BackupOperationUi.Restoring,
+                restoreProgress = RestoreProgressUi.Restoring,
             )
         }
         launchDefault(
-            onError = { emitUnknownErrorAndIdle(it) },
+            onError = { e ->
+                logger.e(e, "Unknown error during restore operation")
+                updateStateImmediate { current ->
+                    current.copy(
+                        backupOperation = BackupOperationUi.Idle,
+                        restoreProgress = RestoreProgressUi.Idle,
+                    )
+                }
+                sendEvent(Event.ShowBackupError(BackupErrorUi.UNKNOWN))
+            },
             onSuccess = { result ->
                 when (result) {
-                    is BackupResult.Success -> sendEvent(Event.AppRestartRequested)
+                    is BackupResult.Success -> {
+                        updateStateImmediate { current ->
+                            current.copy(restoreProgress = RestoreProgressUi.Completed)
+                        }
+                        scheduleAppRestart()
+                    }
+
                     is BackupResult.Failure -> {
                         val errorUi = result.error.toUi()
-                        updateStateImmediate { current -> current.copy(backupOperation = BackupOperationUi.Idle) }
+                        updateStateImmediate { current ->
+                            current.copy(
+                                backupOperation = BackupOperationUi.Idle,
+                                restoreProgress = RestoreProgressUi.Idle,
+                            )
+                        }
                         sendEvent(Event.ShowBackupError(errorUi))
                     }
                 }
@@ -194,9 +244,40 @@ internal class BackupClickHandler @Inject constructor(
         }
     }
 
+    private fun scheduleAppRestart() {
+        flowOf(Unit).launch {
+            delay(RESTART_DELAY_MS)
+            sendEvent(Event.AppRestartRequested)
+        }
+    }
+
+    private fun loadBackupList() {
+        launchDefault(
+            onError = { e -> logger.e(e, "Failed to load backup list") },
+            onSuccess = { result ->
+                when (result) {
+                    is BackupResult.Success -> {
+                        val info = BackupDateMapper.toInfo(result.data, context)
+                        updateStateImmediate { current -> current.copy(backupInfo = info) }
+                    }
+
+                    is BackupResult.Failure -> {
+                        logger.w { "Failed to load backup list: ${result.error}" }
+                    }
+                }
+            },
+        ) {
+            interactor.listBackups()
+        }
+    }
+
     private suspend fun emitUnknownErrorAndIdle(e: Throwable) {
         logger.e(e, "Unknown error during backup operation")
         updateStateImmediate { current -> current.copy(backupOperation = BackupOperationUi.Idle) }
         sendEvent(Event.ShowBackupError(BackupErrorUi.UNKNOWN))
+    }
+
+    private companion object {
+        const val RESTART_DELAY_MS = 2_000L
     }
 }

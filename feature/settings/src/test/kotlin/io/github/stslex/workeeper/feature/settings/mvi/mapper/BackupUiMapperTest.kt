@@ -67,7 +67,7 @@ internal class BackupUiMapperTest {
     }
 
     @Test
-    fun `toConfirmation preserves appVersion and emits non-empty formatted fields`() {
+    fun `toConfirmation emits non-empty formatted fields`() {
         mockkStatic(Formatter::class)
         every { Formatter.formatShortFileSize(any(), any()) } returns "1.0 KB"
         val context = mockk<Context>(relaxed = true)
@@ -78,7 +78,6 @@ internal class BackupUiMapperTest {
             schemaVersion = 5,
         )
         val ui = summary.toConfirmation(context)
-        assertEquals("1.2.3", ui.appVersion)
         assertEquals("1.0 KB", ui.sizeFormatted)
         assertTrue(ui.createdAtFormatted.isNotEmpty())
     }

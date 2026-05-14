@@ -68,6 +68,9 @@ internal class BackupInteractorImpl @Inject constructor(
     override suspend fun listLatestBackup(): BackupResult<BackupSummaryDomain?> =
         backupStorage.listBackups().mapSuccess { refs -> refs.firstOrNull()?.toSummary() }
 
+    override suspend fun listBackups(): BackupResult<List<BackupSummaryDomain>> =
+        backupStorage.listBackups().mapSuccess { refs -> refs.map { it.toSummary() } }
+
     override suspend fun restoreLatest(): BackupResult<Unit> = withContext(dispatcher) {
         val ref = when (val listResult = backupStorage.listBackups()) {
             is BackupResult.Success -> listResult.data.firstOrNull()

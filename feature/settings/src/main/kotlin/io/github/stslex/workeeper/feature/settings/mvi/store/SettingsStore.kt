@@ -9,8 +9,9 @@ import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupAuthUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupErrorUi
+import io.github.stslex.workeeper.feature.settings.mvi.model.BackupInfoUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupOperationUi
-import io.github.stslex.workeeper.feature.settings.mvi.model.RestoreConfirmationUi
+import io.github.stslex.workeeper.feature.settings.mvi.model.RestoreProgressUi
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Action
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Event
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.State
@@ -24,7 +25,9 @@ internal interface SettingsStore : Store<State, Action, Event> {
         val appVersionCode: Int,
         val backupAuth: BackupAuthUi,
         val backupOperation: BackupOperationUi,
-        val restoreConfirmation: RestoreConfirmationUi?,
+        val dialogState: DialogState,
+        val backupInfo: BackupInfoUi?,
+        val restoreProgress: RestoreProgressUi,
     ) : Store.State {
 
         companion object {
@@ -38,7 +41,9 @@ internal interface SettingsStore : Store<State, Action, Event> {
                 appVersionCode = appVersionCode,
                 backupAuth = BackupAuthUi.NotAuthenticated,
                 backupOperation = BackupOperationUi.Idle,
-                restoreConfirmation = null,
+                dialogState = DialogState.Hidden,
+                backupInfo = null,
+                restoreProgress = RestoreProgressUi.Idle,
             )
         }
     }
@@ -76,11 +81,14 @@ internal interface SettingsStore : Store<State, Action, Event> {
             data object ObserveAuth : Backup
             data object SignIn : Backup
             data class HandleAuthResult(val resultIntent: Intent?) : Backup
-            data object SignOut : Backup
+            data object RequestSignOut : Backup
+            data object ConfirmSignOut : Backup
+            data object DismissSignOutConfirmation : Backup
             data object CreateBackup : Backup
             data object RequestRestore : Backup
             data object ConfirmRestore : Backup
             data object DismissRestoreDialog : Backup
+            data object LoadBackupList : Backup
         }
     }
 

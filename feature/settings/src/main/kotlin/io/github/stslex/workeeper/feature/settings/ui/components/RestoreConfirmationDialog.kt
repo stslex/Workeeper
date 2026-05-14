@@ -5,12 +5,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
 import io.github.stslex.workeeper.feature.settings.R
-import io.github.stslex.workeeper.feature.settings.mvi.model.RestoreConfirmationUi
+import io.github.stslex.workeeper.feature.settings.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Action
 
 @Composable
 internal fun RestoreConfirmationDialog(
-    state: RestoreConfirmationUi,
+    state: DialogState.RestoreConfirmation,
     onAction: (Action.Backup) -> Unit,
 ) {
     AppConfirmDialog(

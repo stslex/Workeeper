@@ -22,6 +22,8 @@ internal interface BackupInteractor {
 
     suspend fun listLatestBackup(): BackupResult<BackupSummaryDomain?>
 
+    suspend fun listBackups(): BackupResult<List<BackupSummaryDomain>>
+
     /**
      * Restores the most recent backup available for the signed-in account. v1 surfaces
      * latest only — no picker UI. A v1.1 follow-up will introduce a picker driven from
