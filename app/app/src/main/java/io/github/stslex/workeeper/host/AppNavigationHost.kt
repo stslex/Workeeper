@@ -50,6 +50,11 @@ internal fun AppNavigationHost(
             .systemBarsPadding()
             .background(MaterialTheme.colorScheme.background)
 
+        val standardModifier = Modifier
+            .fillMaxSize()
+            .systemBarsPadding()
+            .background(MaterialTheme.colorScheme.background)
+
         val motionDuration = AppUi.motion.normal
 
         ClearFocusOnDestinationChanged(navigatorHolder)
@@ -90,49 +95,49 @@ internal fun AppNavigationHost(
                 sharedTransitionScope = this@SharedTransitionLayout,
             )
             singleTrainingsGraph(
-                modifier = Modifier
+                modifier = standardModifier
                     .reportScreenPlace<Screen.Training>()
                     .testTag("SingleTrainingGraph"),
                 sharedTransitionScope = this@SharedTransitionLayout,
             )
             exerciseGraph(
-                modifier = Modifier
+                modifier = standardModifier
                     .reportScreenPlace<Screen.Exercise>()
                     .testTag("ExerciseGraph"),
             )
             liveWorkoutGraph(
-                modifier = Modifier
+                modifier = standardModifier
                     .reportScreenPlace<Screen.LiveWorkout>()
                     .testTag("LiveWorkoutGraph"),
                 sharedTransitionScope = this@SharedTransitionLayout,
             )
             pastSessionGraph(
-                modifier = Modifier
+                modifier = standardModifier
                     .reportScreenPlace<Screen.PastSession>()
                     .testTag("PastSessionGraph"),
             )
             imageViewerGraph(
-                modifier = Modifier
+                modifier = standardModifier
                     .reportScreenPlace<Screen.ExerciseImage>()
                     .testTag("ImageViewerGraph"),
             )
             settingsGraph(
-                modifier = Modifier
+                modifier = standardModifier
                     .reportScreenPlace<Screen.Settings>()
                     .testTag("SettingsGraph"),
             )
             archiveGraph(
-                modifier = Modifier
+                modifier = standardModifier
                     .reportScreenPlace<Screen.Archive>()
                     .testTag("ArchiveGraph"),
             )
             exerciseChartGraph(
-                modifier = Modifier
+                modifier = standardModifier
                     .reportScreenPlace<Screen.ExerciseChart>()
                     .testTag("ExerciseChartGraph"),
             )
             planEditorGraph(
-                modifier = Modifier
+                modifier = standardModifier
                     .reportScreenPlace<Screen.PlanEditor>()
                     .testTag("PlanEditorGraph"),
             )
