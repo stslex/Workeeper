@@ -32,6 +32,7 @@ import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Actio
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.State
 import io.github.stslex.workeeper.feature.settings.ui.components.AboutBlock
 import io.github.stslex.workeeper.feature.settings.ui.components.BackupSection
+import io.github.stslex.workeeper.feature.settings.ui.components.FrequencyPickerBottomSheet
 import io.github.stslex.workeeper.feature.settings.ui.components.RestoreConfirmationDialog
 import io.github.stslex.workeeper.feature.settings.ui.components.RestoreProgressOverlay
 import io.github.stslex.workeeper.feature.settings.ui.components.SettingsBackupState
@@ -95,6 +96,7 @@ internal fun SettingsScreen(
                         auth = state.backupAuth,
                         operation = state.backupOperation,
                         info = state.backupInfo,
+                        preferences = state.backupPreferences,
                     ),
                     onAction = { consume(it) },
                 )
@@ -114,6 +116,10 @@ internal fun SettingsScreen(
                 onAction = { consume(it) },
             )
             DialogState.SignOutConfirmation -> SignOutConfirmationDialog(
+                onAction = { consume(it) },
+            )
+            is DialogState.FrequencyPicker -> FrequencyPickerBottomSheet(
+                state = dialog,
                 onAction = { consume(it) },
             )
         }

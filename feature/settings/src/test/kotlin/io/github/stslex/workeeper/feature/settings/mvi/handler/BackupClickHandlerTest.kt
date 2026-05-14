@@ -9,6 +9,12 @@ import android.text.format.DateUtils
 import android.text.format.Formatter
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
+import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
+import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupWorkInfo
+import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupErrorCode
+import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferences
+import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
+import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupSchedule
 import io.github.stslex.workeeper.feature.settings.R
 import io.github.stslex.workeeper.feature.settings.domain.BackupInteractor
 import io.github.stslex.workeeper.feature.settings.domain.model.AccountDomain
@@ -18,6 +24,7 @@ import io.github.stslex.workeeper.feature.settings.domain.model.SignInOutcomeDom
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupAuthUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupErrorUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupOperationUi
+import io.github.stslex.workeeper.feature.settings.mvi.model.BackupScheduleUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.RestoreProgressUi
 import io.github.stslex.workeeper.feature.settings.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Action
@@ -50,8 +57,29 @@ internal class BackupClickHandlerTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
     private val authFlow = MutableStateFlow<BackupAuthDomain>(BackupAuthDomain.NotAuthenticated)
+    private val preferencesFlow = MutableStateFlow(BackupPreferences.DEFAULT)
+    private val periodicStatusFlow = MutableStateFlow<List<AutoBackupWorkInfo>>(emptyList())
     private val interactor = mockk<BackupInteractor>(relaxed = true).apply {
         every { authState } returns authFlow
+    }
+    private val preferencesRepository = mockk<BackupPreferencesRepository>(relaxed = true).apply {
+        every { observe() } returns preferencesFlow
+        coEvery { setSchedule(any()) } coAnswers {
+            preferencesFlow.value = preferencesFlow.value.copy(schedule = firstArg())
+        }
+        coEvery { setAllowOnMobileData(any()) } coAnswers {
+            preferencesFlow.value = preferencesFlow.value.copy(allowOnMobileData = firstArg())
+        }
+        coEvery { setAutoBackupBootstrapped(any()) } coAnswers {
+            preferencesFlow.value = preferencesFlow.value.copy(autoBackupBootstrapped = firstArg())
+        }
+        coEvery { setLastError(any()) } coAnswers {
+            preferencesFlow.value = preferencesFlow.value.copy(lastError = firstArg())
+        }
+    }
+    private val autoBackupController = mockk<AutoBackupController>(relaxed = true).apply {
+        every { observePeriodicStatus() } returns periodicStatusFlow
+        every { observeOneTimeStatus() } returns MutableStateFlow(emptyList())
     }
     private val resources = mockk<Resources>(relaxed = true).apply {
         every {
@@ -76,7 +104,13 @@ internal class BackupClickHandlerTest {
         every { DateUtils.getRelativeTimeSpanString(any(), any(), any(), any()) } returns "2 hours ago"
         coEvery { interactor.listBackups() } returns BackupResult.Success(emptyList())
         store = FakeSettingsHandlerStore(testDispatcher)
-        handler = BackupClickHandler(interactor, context, store)
+        handler = BackupClickHandler(
+            interactor = interactor,
+            preferencesRepository = preferencesRepository,
+            autoBackupController = autoBackupController,
+            context = context,
+            store = store,
+        )
     }
 
     @AfterEach
@@ -415,5 +449,182 @@ internal class BackupClickHandlerTest {
         coEvery { interactor.signIn() } returns SignInOutcomeDomain.Success
         handler.invoke(Action.Backup.SignIn)
         coVerify(exactly = 1) { interactor.signIn() }
+    }
+
+    @Test
+    fun `OpenFrequencyPicker sets dialogState to FrequencyPicker carrying current prefs`() =
+        runTest(testDispatcher) {
+            preferencesFlow.value = preferencesFlow.value.copy(
+                schedule = BackupSchedule.Daily,
+                allowOnMobileData = true,
+            )
+            handler.invoke(Action.Backup.ObservePreferences)
+
+            handler.invoke(Action.Backup.OpenFrequencyPicker)
+
+            val dialog = store.stateFlow.value.dialogState
+            assertTrue(dialog is DialogState.FrequencyPicker)
+            assertEquals(BackupScheduleUi.DAILY, (dialog as DialogState.FrequencyPicker).selectedSchedule)
+            assertTrue(dialog.allowOnMobileData)
+        }
+
+    @Test
+    fun `DismissFrequencyPicker flips dialogState to Hidden`() = runTest(testDispatcher) {
+        store.stateFlow.value = store.stateFlow.value.copy(
+            dialogState = DialogState.FrequencyPicker(
+                selectedSchedule = BackupScheduleUi.WEEKLY,
+                allowOnMobileData = false,
+            ),
+        )
+
+        handler.invoke(Action.Backup.DismissFrequencyPicker)
+
+        assertEquals(DialogState.Hidden, store.stateFlow.value.dialogState)
+    }
+
+    @Test
+    fun `SaveFrequency Daily false updates repo and schedules periodic`() =
+        runTest(testDispatcher) {
+            handler.invoke(
+                Action.Backup.SaveFrequency(
+                    schedule = BackupScheduleUi.DAILY,
+                    allowOnMobileData = false,
+                ),
+            )
+
+            coVerify { preferencesRepository.setSchedule(BackupSchedule.Daily) }
+            coVerify { preferencesRepository.setAllowOnMobileData(false) }
+            coVerify {
+                autoBackupController.schedulePeriodic(
+                    match { it.schedule == BackupSchedule.Daily && !it.allowOnMobileData },
+                )
+            }
+            coVerify(exactly = 0) { autoBackupController.cancelPeriodic() }
+            assertEquals(DialogState.Hidden, store.stateFlow.value.dialogState)
+        }
+
+    @Test
+    fun `SaveFrequency ManualOnly cancels periodic and does not schedule`() =
+        runTest(testDispatcher) {
+            handler.invoke(
+                Action.Backup.SaveFrequency(
+                    schedule = BackupScheduleUi.MANUAL_ONLY,
+                    allowOnMobileData = false,
+                ),
+            )
+
+            coVerify { autoBackupController.cancelPeriodic() }
+            coVerify(exactly = 0) { autoBackupController.schedulePeriodic(any()) }
+        }
+
+    @Test
+    fun `UpdateFrequencyPickerSelection updates dialog selected fields without committing`() =
+        runTest(testDispatcher) {
+            store.stateFlow.value = store.stateFlow.value.copy(
+                dialogState = DialogState.FrequencyPicker(
+                    selectedSchedule = BackupScheduleUi.WEEKLY,
+                    allowOnMobileData = false,
+                ),
+            )
+
+            handler.invoke(
+                Action.Backup.UpdateFrequencyPickerSelection(
+                    schedule = BackupScheduleUi.DAILY,
+                    allowOnMobileData = true,
+                ),
+            )
+
+            val dialog = store.stateFlow.value.dialogState as DialogState.FrequencyPicker
+            assertEquals(BackupScheduleUi.DAILY, dialog.selectedSchedule)
+            assertTrue(dialog.allowOnMobileData)
+            coVerify(exactly = 0) { preferencesRepository.setSchedule(any()) }
+            coVerify(exactly = 0) { autoBackupController.schedulePeriodic(any()) }
+        }
+
+    @Test
+    fun `first-sign-in bootstrap sets defaults schedules periodic enqueues one-time emits snackbar`() =
+        runTest(testDispatcher) {
+            preferencesFlow.value = preferencesFlow.value.copy(autoBackupBootstrapped = false)
+
+            handler.invoke(Action.Backup.ObserveAuth)
+            authFlow.value = BackupAuthDomain.Authenticated(
+                AccountDomain("first@example.com", "First"),
+            )
+
+            coVerify { preferencesRepository.setSchedule(BackupSchedule.Weekly) }
+            coVerify { preferencesRepository.setAllowOnMobileData(false) }
+            coVerify { preferencesRepository.setAutoBackupBootstrapped(true) }
+            coVerify { autoBackupController.schedulePeriodic(any()) }
+            coVerify { autoBackupController.enqueueOneTime() }
+            assertTrue(
+                store.events.any { it is Event.ShowAutoBackupEnabledSnackbarRequested },
+                "expected ShowAutoBackupEnabledSnackbarRequested in $${store.events}",
+            )
+        }
+
+    @Test
+    fun `re-sign-in after bootstrap does NOT emit snackbar but does rehydrate periodic`() =
+        runTest(testDispatcher) {
+            preferencesFlow.value = preferencesFlow.value.copy(
+                autoBackupBootstrapped = true,
+                schedule = BackupSchedule.Daily,
+            )
+
+            handler.invoke(Action.Backup.ObserveAuth)
+            authFlow.value = BackupAuthDomain.Authenticated(
+                AccountDomain("repeat@example.com", "Repeat"),
+            )
+
+            coVerify(exactly = 0) { preferencesRepository.setAutoBackupBootstrapped(true) }
+            coVerify { autoBackupController.schedulePeriodic(any()) }
+            coVerify(exactly = 0) { autoBackupController.enqueueOneTime() }
+            assertTrue(
+                store.events.none { it is Event.ShowAutoBackupEnabledSnackbarRequested },
+                "snackbar should NOT be re-emitted after bootstrap",
+            )
+        }
+
+    @Test
+    fun `re-sign-in clears AuthRevoked lastError`() = runTest(testDispatcher) {
+        preferencesFlow.value = preferencesFlow.value.copy(
+            autoBackupBootstrapped = true,
+            schedule = BackupSchedule.Weekly,
+            lastError = BackupErrorCode.AuthRevoked,
+        )
+
+        handler.invoke(Action.Backup.ObserveAuth)
+        authFlow.value = BackupAuthDomain.Authenticated(
+            AccountDomain("rehydrate@example.com", "Rehydrate"),
+        )
+
+        coVerify { preferencesRepository.setLastError(null) }
+    }
+
+    @Test
+    fun `ObservePreferences populates state backupPreferences with mapped data`() =
+        runTest(testDispatcher) {
+            preferencesFlow.value = preferencesFlow.value.copy(
+                schedule = BackupSchedule.Weekly,
+                allowOnMobileData = true,
+                lastError = BackupErrorCode.AuthRevoked,
+            )
+
+            handler.invoke(Action.Backup.ObservePreferences)
+
+            val ui = store.stateFlow.value.backupPreferences
+            assertNotNull(ui)
+            assertEquals(BackupScheduleUi.WEEKLY, ui!!.schedule)
+            assertTrue(ui.allowOnMobileData)
+            assertTrue(ui.isAuthPaused)
+        }
+
+    @Test
+    fun `ConfirmSignOut cancels periodic before signing out`() = runTest(testDispatcher) {
+        coEvery { interactor.signOut() } returns BackupResult.Success(Unit)
+
+        handler.invoke(Action.Backup.ConfirmSignOut)
+
+        coVerify { autoBackupController.cancelPeriodic() }
+        coVerify { interactor.signOut() }
     }
 }

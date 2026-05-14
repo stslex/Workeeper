@@ -27,6 +27,10 @@ fun NavGraphBuilder.settingsGraph(
         val context = LocalContext.current
         val haptic = LocalHapticFeedback.current
         val backupCreatedMessage = stringResource(R.string.feature_settings_backup_created)
+        val autoBackupEnabledMessage =
+            stringResource(R.string.feature_settings_backup_auto_enabled_default)
+        val autoBackupEnabledAction =
+            stringResource(R.string.feature_settings_backup_auto_enabled_change_action)
         val backupErrorMessages = backupErrorMessages()
 
         val authResolutionLauncher = rememberLauncherForActivityResult(
@@ -59,6 +63,12 @@ fun NavGraphBuilder.settingsGraph(
                 Event.ShowBackupCreated -> SnackbarManager.showSnackbar(backupCreatedMessage)
 
                 Event.AppRestartRequested -> restartApp(context)
+
+                Event.ShowAutoBackupEnabledSnackbarRequested -> SnackbarManager.showSnackbar(
+                    message = autoBackupEnabledMessage,
+                    actionLabel = autoBackupEnabledAction,
+                    action = { processor.consume(Action.Backup.OpenFrequencyPicker) },
+                )
             }
         }
 

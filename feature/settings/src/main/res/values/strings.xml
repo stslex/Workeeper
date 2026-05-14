@@ -55,4 +55,20 @@
         <item quantity="one">%d backup stored</item>
         <item quantity="other">%d backups stored</item>
     </plurals>
+
+    <!-- Auto-backup scheduling -->
+    <string name="feature_settings_backup_frequency_daily">Daily</string>
+    <string name="feature_settings_backup_frequency_weekly">Weekly</string>
+    <string name="feature_settings_backup_frequency_manual_only">Manual only</string>
+    <string name="feature_settings_backup_frequency_picker_title">Backup frequency</string>
+    <string name="feature_settings_backup_frequency_picker_save">Save</string>
+    <string name="feature_settings_backup_allow_mobile_data_label">Allow on mobile data</string>
+    <string name="feature_settings_backup_allow_mobile_data_caption">Backups will use mobile data when Wi-Fi unavailable</string>
+    <string name="feature_settings_backup_auto_row_label">Auto-backup: %1$s</string>
+    <string name="feature_settings_backup_auto_next_backup">Next backup: %1$s</string>
+    <string name="feature_settings_backup_auto_paused_banner_title">Auto-backup paused</string>
+    <string name="feature_settings_backup_auto_paused_banner_body">Sign in to Google Drive again to resume.</string>
+    <string name="feature_settings_backup_auto_paused_banner_action">Sign in</string>
+    <string name="feature_settings_backup_auto_enabled_default">Auto-backup enabled, weekly</string>
+    <string name="feature_settings_backup_auto_enabled_change_action">Change</string>
 </resources>

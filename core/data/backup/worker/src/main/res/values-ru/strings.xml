@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="core_backup_worker_notification_channel_name">Состояние резервного копирования</string>
+    <string name="core_backup_worker_notification_paused_title">Автоматическое копирование приостановлено</string>
+    <string name="core_backup_worker_notification_paused_body">Войдите в Google Drive снова, чтобы возобновить автоматическое копирование</string>
+</resources>

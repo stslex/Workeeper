@@ -57,4 +57,20 @@
         <item quantity="many">Сохранено %d копий</item>
         <item quantity="other">Сохранено %d копий</item>
     </plurals>
+
+    <!-- Auto-backup scheduling -->
+    <string name="feature_settings_backup_frequency_daily">Ежедневно</string>
+    <string name="feature_settings_backup_frequency_weekly">Еженедельно</string>
+    <string name="feature_settings_backup_frequency_manual_only">Только вручную</string>
+    <string name="feature_settings_backup_frequency_picker_title">Частота резервного копирования</string>
+    <string name="feature_settings_backup_frequency_picker_save">Сохранить</string>
+    <string name="feature_settings_backup_allow_mobile_data_label">Разрешить мобильные данные</string>
+    <string name="feature_settings_backup_allow_mobile_data_caption">Резервные копии будут использовать мобильные данные при отсутствии Wi-Fi</string>
+    <string name="feature_settings_backup_auto_row_label">Авто-копирование: %1$s</string>
+    <string name="feature_settings_backup_auto_next_backup">Следующая копия: %1$s</string>
+    <string name="feature_settings_backup_auto_paused_banner_title">Авто-копирование приостановлено</string>
+    <string name="feature_settings_backup_auto_paused_banner_body">Войдите в Google Drive снова, чтобы возобновить.</string>
+    <string name="feature_settings_backup_auto_paused_banner_action">Войти</string>
+    <string name="feature_settings_backup_auto_enabled_default">Авто-копирование включено, еженедельно</string>
+    <string name="feature_settings_backup_auto_enabled_change_action">Изменить</string>
 </resources>

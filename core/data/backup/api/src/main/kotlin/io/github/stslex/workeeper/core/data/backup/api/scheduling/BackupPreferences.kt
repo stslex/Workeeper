@@ -1,0 +1,39 @@
+package io.github.stslex.workeeper.core.data.backup.api.scheduling
+
+/**
+ * Snapshot of the persisted auto-backup settings and last-attempt status. Single
+ * source of truth for the auto-backup banner / "Next backup" line / paused state
+ * — both the worker and the settings UI read from [BackupPreferencesRepository]
+ * and derive their display from this shape.
+ *
+ * [lastError] is `null` when the last attempt succeeded or there has been no
+ * attempt yet ([lastAttemptAtEpochMs] == 0L); a non-null value means the latest
+ * attempt failed and has not yet been superseded by a success.
+ *
+ * [autoBackupBootstrapped] flips to true the first time a sign-in success path
+ * has scheduled the initial Weekly periodic work + the one-shot immediate
+ * backup. The flag is load-bearing for the first-sign-in flow — once set, the
+ * "Auto-backup enabled, weekly" snackbar must NOT be emitted again on
+ * subsequent sign-ins.
+ */
+data class BackupPreferences(
+    val schedule: BackupSchedule,
+    val allowOnMobileData: Boolean,
+    val lastAttemptAtEpochMs: Long,
+    val lastSuccessAtEpochMs: Long,
+    val lastError: BackupErrorCode?,
+    val autoBackupBootstrapped: Boolean,
+) {
+
+    companion object {
+
+        val DEFAULT: BackupPreferences = BackupPreferences(
+            schedule = BackupSchedule.Weekly,
+            allowOnMobileData = false,
+            lastAttemptAtEpochMs = 0L,
+            lastSuccessAtEpochMs = 0L,
+            lastError = null,
+            autoBackupBootstrapped = false,
+        )
+    }
+}

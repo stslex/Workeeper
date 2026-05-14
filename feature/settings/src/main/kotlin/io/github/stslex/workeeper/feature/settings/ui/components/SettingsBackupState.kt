@@ -5,10 +5,12 @@ import androidx.compose.runtime.Immutable
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupAuthUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupInfoUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupOperationUi
+import io.github.stslex.workeeper.feature.settings.mvi.model.BackupPreferencesUi
 
 @Immutable
 internal data class SettingsBackupState(
     val auth: BackupAuthUi,
     val operation: BackupOperationUi,
     val info: BackupInfoUi?,
+    val preferences: BackupPreferencesUi?,
 )

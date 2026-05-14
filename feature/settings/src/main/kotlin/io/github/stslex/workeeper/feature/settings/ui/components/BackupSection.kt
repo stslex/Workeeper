@@ -12,6 +12,8 @@ import io.github.stslex.workeeper.feature.settings.R
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupAuthUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupInfoUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupOperationUi
+import io.github.stslex.workeeper.feature.settings.mvi.model.BackupPreferencesUi
+import io.github.stslex.workeeper.feature.settings.mvi.model.BackupScheduleUi
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Action
 
 @Composable
@@ -34,6 +36,7 @@ internal fun BackupSection(
                     auth = state.auth,
                     operation = state.operation,
                     info = state.info,
+                    preferences = state.preferences,
                     onAction = onAction,
                 )
             }
@@ -59,13 +62,30 @@ private fun AuthenticatedBlock(
     auth: BackupAuthUi.Authenticated,
     operation: BackupOperationUi,
     info: BackupInfoUi?,
+    preferences: BackupPreferencesUi?,
     onAction: (Action.Backup) -> Unit,
 ) {
     AccountInfoRow(email = auth.email, displayName = auth.displayName)
+    if (preferences?.isAuthPaused == true) {
+        AuthPausedBanner(onSignInClick = { onAction(Action.Backup.SignIn) })
+    }
     if (info != null) {
         BackupInfoRow(
             lastBackupText = info.lastBackupText,
             backupCountText = info.backupCountText,
+        )
+    }
+    if (preferences != null) {
+        AutoBackupRow(
+            schedule = preferences.schedule,
+            nextBackupText = preferences.nextBackupText,
+            onClick = { onAction(Action.Backup.OpenFrequencyPicker) },
+        )
+    } else {
+        AutoBackupRow(
+            schedule = BackupScheduleUi.WEEKLY,
+            nextBackupText = null,
+            onClick = { onAction(Action.Backup.OpenFrequencyPicker) },
         )
     }
     BackupButtonRow(

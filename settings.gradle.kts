@@ -43,6 +43,8 @@ include(":core:data:exercise")
 include(":core:data:dataStore")
 include(":core:data:backup:api")
 include(":core:data:backup:google-drive")
+include(":core:data:backup:scheduling")
+include(":core:data:backup:worker")
 include(":core:ui:plan-editor")
 
 include(":feature:exercise")

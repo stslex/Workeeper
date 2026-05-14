@@ -48,7 +48,11 @@ internal class SettingsStoreImpl @Inject constructor(
             is Action.Backup -> backupClickHandler
         }
     },
-    initialActions = listOf(Action.Paging.Init, Action.Backup.ObserveAuth),
+    initialActions = listOf(
+        Action.Paging.Init,
+        Action.Backup.ObserveAuth,
+        Action.Backup.ObservePreferences,
+    ),
     analyticsHolder = analyticsHolder,
     loggerHolder = loggerHolder,
 ) {
