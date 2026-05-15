@@ -5,11 +5,16 @@
     <string name="app_dialog_restore_success_body">Данные восстановлены из резервной копии от %1$s. При необходимости вы можете вернуться к предыдущим данным в настройках.</string>
     <string name="app_dialog_restore_success_body_no_previous">Данные восстановлены из резервной копии от %1$s.</string>
     <string name="app_dialog_restore_success_confirm">ОК</string>
+    <string name="app_dialog_restore_success_undo_action">Откатить восстановление</string>
 
     <!-- RestoreFailure -->
     <string name="app_dialog_restore_failure_title">Не удалось восстановить</string>
     <string name="app_dialog_restore_failure_body">Ваши данные сохранены. Причина: %1$s. Сообщите об ошибке, чтобы мы могли её исправить.</string>
     <string name="app_dialog_restore_failure_confirm">ОК</string>
+    <string name="app_dialog_restore_failure_report_action">Сообщить</string>
+    <string name="app_dialog_restore_failure_export_action">Экспорт диагностики</string>
+    <string name="app_dialog_restore_failure_share_chooser">Поделиться диагностикой</string>
+    <string name="app_dialog_restore_failure_report_title">Ошибка восстановления</string>
 
     <!-- UndoRestoreConfirmation -->
     <string name="app_dialog_undo_restore_confirmation_title">Отменить последнее восстановление?</string>

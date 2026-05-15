@@ -8,6 +8,7 @@ import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.database.AppDatabase
+import io.github.stslex.workeeper.core.data.database.migration.MIGRATIONS
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -106,6 +107,9 @@ internal class DatabaseSnapshotProviderImpl @Inject constructor(
         }
 
     override fun hasPreRestoreBackup(): Boolean = preRestoreBackupFile().exists()
+
+    override fun availableMigrationsLabel(): String =
+        MIGRATIONS.joinToString(",") { "${it.startVersion}→${it.endVersion}" }
 
     override suspend fun deletePreRestoreBackup() {
         withContext(dispatcher) { preRestoreBackupFile().delete() }

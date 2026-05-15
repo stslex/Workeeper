@@ -120,6 +120,14 @@ interface DatabaseSnapshotProvider {
     fun hasPreRestoreBackup(): Boolean
 
     /**
+     * Formatted "from→to" pairs of every registered migration, joined with
+     * commas (e.g. `"5→6,6→7"`). Used by Crashlytics non-fatals and the
+     * diagnostic export to record the available migration set without
+     * exposing the internal MIGRATIONS array outside the database module.
+     */
+    fun availableMigrationsLabel(): String
+
+    /**
      * Deletes the preserved `cache/pre_restore_backup.db` without applying
      * it. Used after Scenario 1 failure-path rollback consumes the file
      * (rollback already moved it; this just guarantees the slot is empty

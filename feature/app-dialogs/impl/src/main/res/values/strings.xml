@@ -5,11 +5,16 @@
     <string name="app_dialog_restore_success_body">Your data was restored from a backup dated %1$s. You can revert to your previous data in Settings if needed.</string>
     <string name="app_dialog_restore_success_body_no_previous">Your data was restored from a backup dated %1$s.</string>
     <string name="app_dialog_restore_success_confirm">OK</string>
+    <string name="app_dialog_restore_success_undo_action">Undo restore</string>
 
     <!-- RestoreFailure -->
     <string name="app_dialog_restore_failure_title">Restore failed</string>
     <string name="app_dialog_restore_failure_body">Your data is intact. Reason: %1$s. Please report this issue so we can fix it.</string>
     <string name="app_dialog_restore_failure_confirm">OK</string>
+    <string name="app_dialog_restore_failure_report_action">Report</string>
+    <string name="app_dialog_restore_failure_export_action">Export diagnostics</string>
+    <string name="app_dialog_restore_failure_share_chooser">Share diagnostics</string>
+    <string name="app_dialog_restore_failure_report_title">Restore failed</string>
 
     <!-- UndoRestoreConfirmation -->
     <string name="app_dialog_undo_restore_confirmation_title">Undo last restore?</string>

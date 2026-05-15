@@ -27,7 +27,14 @@ class AppDialogHostContentTest {
     fun nullCurrentRendersNothing() {
         composeTestRule.setContent {
             AppTheme {
-                AppDialogHostContent(current = null, onDismiss = {})
+                AppDialogHostContent(
+                    current = null,
+                    onDismiss = {},
+                    onUndoRestoreRequest = {},
+                    onConfirmUndo = {},
+                    onReport = {},
+                    onExportDiagnostics = {},
+                )
             }
         }
         composeTestRule.onAllNodesWithText("Restore complete").assertCountEquals(0)
@@ -35,7 +42,7 @@ class AppDialogHostContentTest {
     }
 
     @Test
-    fun restoreSuccessRendersWithTitle() {
+    fun restoreSuccessRendersWithTitleAndUndoActionWhenPreviousAvailable() {
         composeTestRule.setContent {
             AppTheme {
                 AppDialogHostContent(
@@ -44,49 +51,158 @@ class AppDialogHostContentTest {
                         previousVersionAvailable = true,
                     ),
                     onDismiss = {},
+                    onUndoRestoreRequest = {},
+                    onConfirmUndo = {},
+                    onReport = {},
+                    onExportDiagnostics = {},
                 )
             }
         }
         composeTestRule.onNodeWithText("Restore complete").assertIsDisplayed()
         composeTestRule.onNodeWithText("OK").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Undo restore").assertIsDisplayed()
     }
 
     @Test
-    fun restoreFailureRendersAndInvokesDismissOnConfirm() {
-        val captured = mutableStateOf<AppDialog?>(null)
-        val variant = AppDialog.RestoreFailure(reason = BackupErrorCode.MissingMigrationPath)
+    fun restoreSuccessHidesUndoActionWhenNoPreviousAvailable() {
         composeTestRule.setContent {
             AppTheme {
-                AppDialogHostContent(current = variant, onDismiss = { captured.value = it })
+                AppDialogHostContent(
+                    current = AppDialog.RestoreSuccess(
+                        restoredAtEpochMs = 1_700_000_000_000L,
+                        previousVersionAvailable = false,
+                    ),
+                    onDismiss = {},
+                    onUndoRestoreRequest = {},
+                    onConfirmUndo = {},
+                    onReport = {},
+                    onExportDiagnostics = {},
+                )
             }
         }
-        composeTestRule.onNodeWithText("Restore failed").assertIsDisplayed()
-        composeTestRule.onNodeWithText("OK").performClick()
+        composeTestRule.onAllNodesWithText("Undo restore").assertCountEquals(0)
+    }
+
+    @Test
+    fun restoreSuccessUndoTapInvokesOnUndoRestoreRequest() {
+        val captured = mutableStateOf<AppDialog.RestoreSuccess?>(null)
+        val variant = AppDialog.RestoreSuccess(
+            restoredAtEpochMs = 1_700_000_000_000L,
+            previousVersionAvailable = true,
+        )
+        composeTestRule.setContent {
+            AppTheme {
+                AppDialogHostContent(
+                    current = variant,
+                    onDismiss = {},
+                    onUndoRestoreRequest = { captured.value = it },
+                    onConfirmUndo = {},
+                    onReport = {},
+                    onExportDiagnostics = {},
+                )
+            }
+        }
+        composeTestRule.onNodeWithText("Undo restore").performClick()
         assertEquals(variant, captured.value)
     }
 
     @Test
-    fun undoRestoreConfirmationRendersBothButtons() {
+    fun restoreFailureRendersThreeButtonsAndInvokesDismissOnConfirm() {
+        val capturedDismiss = mutableStateOf<AppDialog?>(null)
+        val variant = AppDialog.RestoreFailure(reason = BackupErrorCode.MissingMigrationPath)
         composeTestRule.setContent {
             AppTheme {
                 AppDialogHostContent(
-                    current = AppDialog.UndoRestoreConfirmation(
-                        originalDataDateEpochMs = 1_700_000_000_000L,
-                    ),
+                    current = variant,
+                    onDismiss = { capturedDismiss.value = it },
+                    onUndoRestoreRequest = {},
+                    onConfirmUndo = {},
+                    onReport = {},
+                    onExportDiagnostics = {},
+                )
+            }
+        }
+        composeTestRule.onNodeWithText("Restore failed").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Report").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Export diagnostics").assertIsDisplayed()
+        composeTestRule.onNodeWithText("OK").assertIsDisplayed().performClick()
+        assertEquals(variant, capturedDismiss.value)
+    }
+
+    @Test
+    fun restoreFailureReportTapInvokesOnReport() {
+        val captured = mutableStateOf<AppDialog.RestoreFailure?>(null)
+        val variant = AppDialog.RestoreFailure(reason = BackupErrorCode.Unknown)
+        composeTestRule.setContent {
+            AppTheme {
+                AppDialogHostContent(
+                    current = variant,
                     onDismiss = {},
+                    onUndoRestoreRequest = {},
+                    onConfirmUndo = {},
+                    onReport = { captured.value = it },
+                    onExportDiagnostics = {},
+                )
+            }
+        }
+        composeTestRule.onNodeWithText("Report").performClick()
+        assertEquals(variant, captured.value)
+    }
+
+    @Test
+    fun restoreFailureExportTapInvokesOnExportDiagnostics() {
+        val captured = mutableStateOf<AppDialog.RestoreFailure?>(null)
+        val variant = AppDialog.RestoreFailure(reason = BackupErrorCode.Unknown)
+        composeTestRule.setContent {
+            AppTheme {
+                AppDialogHostContent(
+                    current = variant,
+                    onDismiss = {},
+                    onUndoRestoreRequest = {},
+                    onConfirmUndo = {},
+                    onReport = {},
+                    onExportDiagnostics = { captured.value = it },
+                )
+            }
+        }
+        composeTestRule.onNodeWithText("Export diagnostics").performClick()
+        assertEquals(variant, captured.value)
+    }
+
+    @Test
+    fun undoRestoreConfirmationRendersBothButtonsAndConfirmInvokesCallback() {
+        val captured = mutableStateOf<AppDialog.UndoRestoreConfirmation?>(null)
+        val variant = AppDialog.UndoRestoreConfirmation(originalDataDateEpochMs = 1_700_000_000_000L)
+        composeTestRule.setContent {
+            AppTheme {
+                AppDialogHostContent(
+                    current = variant,
+                    onDismiss = {},
+                    onUndoRestoreRequest = {},
+                    onConfirmUndo = { captured.value = it },
+                    onReport = {},
+                    onExportDiagnostics = {},
                 )
             }
         }
         composeTestRule.onNodeWithText("Undo last restore?").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Undo restore").assertIsDisplayed()
         composeTestRule.onNodeWithText("Cancel").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Undo restore").assertIsDisplayed().performClick()
+        assertEquals(variant, captured.value)
     }
 
     @Test
     fun undoRestoreSuccessRendersTitle() {
         composeTestRule.setContent {
             AppTheme {
-                AppDialogHostContent(current = AppDialog.UndoRestoreSuccess, onDismiss = {})
+                AppDialogHostContent(
+                    current = AppDialog.UndoRestoreSuccess,
+                    onDismiss = {},
+                    onUndoRestoreRequest = {},
+                    onConfirmUndo = {},
+                    onReport = {},
+                    onExportDiagnostics = {},
+                )
             }
         }
         composeTestRule.onNodeWithText("Reverted").assertIsDisplayed()

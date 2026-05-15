@@ -3,4 +3,7 @@
     <files-path
         name="exercise_images"
         path="exercise_images/" />
+    <cache-path
+        name="recovery_diagnostics"
+        path="recovery_diagnostics/" />
 </paths>
