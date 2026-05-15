@@ -59,5 +59,6 @@ include(":feature:live-workout")
 include(":feature:past-session")
 include(":feature:image-viewer")
 include(":feature:plan-editor")
+include(":feature:app-dialogs:api")
 
 include(":lint-rules")
