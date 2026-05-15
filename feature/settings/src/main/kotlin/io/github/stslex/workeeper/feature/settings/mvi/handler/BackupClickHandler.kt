@@ -363,8 +363,15 @@ internal class BackupClickHandler @Inject constructor(
             onSuccess = { result ->
                 when (result) {
                     is BackupResult.Success -> {
+                        // Reset backupOperation alongside restoreProgress so the
+                        // UI isn't locked in the Restoring state if scheduleAppRestart
+                        // is aborted or delayed — e.g. process held in background,
+                        // navigation pushes a different screen, debugger pauses.
                         updateStateImmediate { current ->
-                            current.copy(restoreProgress = RestoreProgressUi.Completed)
+                            current.copy(
+                                backupOperation = BackupOperationUi.Idle,
+                                restoreProgress = RestoreProgressUi.Completed,
+                            )
                         }
                         scheduleAppRestart()
                     }

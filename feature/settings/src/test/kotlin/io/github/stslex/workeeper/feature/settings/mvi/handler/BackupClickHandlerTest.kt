@@ -491,6 +491,12 @@ internal class BackupClickHandlerTest {
 
             assertEquals(DialogState.Hidden, store.stateFlow.value.dialogState)
             assertEquals(RestoreProgressUi.Completed, store.stateFlow.value.restoreProgress)
+            assertEquals(
+                BackupOperationUi.Idle,
+                store.stateFlow.value.backupOperation,
+                "backupOperation must reset to Idle alongside restoreProgress so the UI " +
+                    "is not locked in the Restoring state if the restart is aborted",
+            )
             assertTrue(
                 store.consumedActions.isEmpty(),
                 "RestartApp should not be consumed before delay completes",
