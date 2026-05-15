@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="bottom_bar_label_home">Главная</string>
-    <string name="bottom_bar_label_trainings">Тренировки</string>">
+    <string name="bottom_bar_label_trainings">Тренировки</string>
     <string name="bottom_bar_label_exercises">Упражнения</string>
 
     <!-- RecoveryActivity (Scenario 2 startup migration failure) -->

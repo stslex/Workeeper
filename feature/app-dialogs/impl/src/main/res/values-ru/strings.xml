@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <!-- RestoreSuccess -->
     <string name="app_dialog_restore_success_title">Восстановление завершено</string>
     <string name="app_dialog_restore_success_body">Данные восстановлены из резервной копии от %1$s. При необходимости вы можете вернуться к предыдущим данным в настройках.</string>
     <string name="app_dialog_restore_success_body_no_previous">Данные восстановлены из резервной копии от %1$s.</string>
-    <string name="app_dialog_restore_success_confirm">ОК</string>
+    <string name="app_dialog_restore_success_confirm" tools:ignore="DuplicateStrings">ОК</string>
     <string name="app_dialog_restore_success_undo_action">Откатить восстановление</string>
 
     <!-- RestoreFailure -->
     <string name="app_dialog_restore_failure_title">Не удалось восстановить</string>
     <string name="app_dialog_restore_failure_body">Ваши данные сохранены. Причина: %1$s. Сообщите об ошибке, чтобы мы могли её исправить.</string>
-    <string name="app_dialog_restore_failure_confirm">ОК</string>
+    <string name="app_dialog_restore_failure_confirm" tools:ignore="DuplicateStrings">ОК</string>
     <string name="app_dialog_restore_failure_report_action">Сообщить</string>
     <string name="app_dialog_restore_failure_export_action">Экспорт диагностики</string>
     <string name="app_dialog_restore_failure_share_chooser">Поделиться диагностикой</string>
@@ -25,5 +25,5 @@
     <!-- UndoRestoreSuccess -->
     <string name="app_dialog_undo_restore_success_title">Возврат выполнен</string>
     <string name="app_dialog_undo_restore_success_body">Данные восстановлены к предыдущему состоянию.</string>
-    <string name="app_dialog_undo_restore_success_confirm">ОК</string>
+    <string name="app_dialog_undo_restore_success_confirm" tools:ignore="DuplicateStrings">ОК</string>
 </resources>
