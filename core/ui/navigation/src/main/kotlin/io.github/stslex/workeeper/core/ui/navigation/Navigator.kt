@@ -20,4 +20,6 @@ interface Navigator {
      * session detail after finish).
      */
     fun replaceTo(screen: Screen)
+
+    fun restartApp()
 }

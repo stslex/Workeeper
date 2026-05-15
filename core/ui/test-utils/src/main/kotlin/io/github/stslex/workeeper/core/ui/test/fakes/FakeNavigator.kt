@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.ui.test.fakes
 
+import io.github.stslex.workeeper.core.ui.navigation.NavCommand
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import java.util.concurrent.CopyOnWriteArrayList
@@ -19,28 +20,26 @@ import javax.inject.Singleton
 @Singleton
 class FakeNavigator @Inject constructor() : Navigator {
 
-    private val _commands: MutableList<Command> = CopyOnWriteArrayList()
-    val commands: List<Command> get() = _commands.toList()
+    private val _commands: MutableList<NavCommand> = CopyOnWriteArrayList()
+    val commands: List<NavCommand> get() = _commands.toList()
 
     override fun navTo(screen: Screen) {
-        _commands += Command.NavTo(screen)
+        _commands += NavCommand.NavTo(screen)
     }
 
     override fun popBack(vararg previousStackAttr: Pair<String, Any?>) {
-        _commands += Command.PopBack(previousStackAttr.toList())
+        _commands += NavCommand.PopBack(previousStackAttr.toList())
     }
 
     override fun replaceTo(screen: Screen) {
-        _commands += Command.ReplaceTo(screen)
+        _commands += NavCommand.ReplaceTo(screen)
     }
 
     fun reset() {
         _commands.clear()
     }
 
-    sealed interface Command {
-        data class NavTo(val screen: Screen) : Command
-        data class ReplaceTo(val screen: Screen) : Command
-        data class PopBack(val attrs: List<Pair<String, Any?>>) : Command
+    override fun restartApp() {
+        _commands += NavCommand.RestartApp
     }
 }

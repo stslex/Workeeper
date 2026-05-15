@@ -17,6 +17,7 @@ internal class SettingsNavigationHandler @Inject constructor(
         when (action) {
             Action.Navigation.Back -> navigator.popBack()
             Action.Navigation.OpenArchive -> navigator.navTo(Screen.Archive)
+            Action.Navigation.RestartApp -> navigator.restartApp()
         }
     }
 }

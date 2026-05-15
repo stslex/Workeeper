@@ -62,8 +62,6 @@ fun NavGraphBuilder.settingsGraph(
 
                 Event.ShowBackupCreated -> SnackbarManager.showSnackbar(backupCreatedMessage)
 
-                Event.AppRestartRequested -> restartApp(context)
-
                 Event.ShowAutoBackupEnabledSnackbarRequested -> SnackbarManager.showSnackbar(
                     message = autoBackupEnabledMessage,
                     actionLabel = autoBackupEnabledAction,

@@ -24,7 +24,7 @@ traces. Any one of them can be invalidated by the next event without affecting t
 - **Trace name pattern.** `TTID_<ScreenSimpleName>`.
 - **Starts at.** `Navigator.navTo(screen)` / `Navigator.replaceTo(screen)`. The App/UI
   bridge in [`NavigatorExt`](../app/app/src/main/java/io/github/stslex/workeeper/navigation/NavigatorExt.kt)
-  collects the corresponding `NavigationCommand` from the singleton
+  collects the corresponding `NavCommand` from the singleton
   `NavigatorEventBus` and dispatches `RecordAction.Navigation.NavTo` / `ReplaceTo`
   immediately before invoking `NavController.navigate(...)`.
 - **Stops at.** `Modifier.onPlaced { ... }` of the destination graph composable, via the
@@ -221,7 +221,7 @@ Two adjacent navigation rules are also part of the performance contract because 
 feed `RecordAction`:
 
 1. Navigation **must** flow through `Navigator.navTo` / `Navigator.replaceTo`. These
-   dispatch `NavigationCommand.NavTo` / `ReplaceTo` on `NavigatorEventBus`, and the
+   dispatch `NavCommand.NavTo` / `ReplaceTo` on `NavigatorEventBus`, and the
    App/UI bridge in `NavigatorExt.processCommand` is the only place that emits
    `RecordAction.Navigation.*` and then runs the AndroidX Navigation operation. This is
    already mandatory per the canonical

@@ -78,6 +78,8 @@ internal interface SettingsStore : Store<State, Action, Event> {
             data object Back : Navigation
 
             data object OpenArchive : Navigation
+
+            data object RestartApp : Navigation
         }
 
         sealed interface Backup : Action {
@@ -100,6 +102,7 @@ internal interface SettingsStore : Store<State, Action, Event> {
                 val schedule: BackupScheduleUi,
                 val allowOnMobileData: Boolean,
             ) : Backup
+
             data class UpdateFrequencyPickerSelection(
                 val schedule: BackupScheduleUi,
                 val allowOnMobileData: Boolean,
@@ -119,8 +122,6 @@ internal interface SettingsStore : Store<State, Action, Event> {
         data class ShowBackupError(val error: BackupErrorUi) : Event
 
         data object ShowBackupCreated : Event
-
-        data object AppRestartRequested : Event
 
         data object ShowAutoBackupEnabledSnackbarRequested : Event
     }

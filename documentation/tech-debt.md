@@ -175,7 +175,7 @@ What changed:
 - `NavigatorEventBus` (`@Singleton`, controller-free) replaced the old controller-
   backed `NavigatorImpl` / `NavigationHolderController` / `NavigationHolderImpl`
   trio. It exposes only `Navigator` (producer) and `NavigatorReceiver` (consumer)
-  interfaces over a `SharedFlow<NavigationCommand>`.
+  interfaces over a `SharedFlow<NavCommand>`.
 - `NavigatorExt.NavigationEventBusSetup` (composable) collects commands keyed on
   the current `NavController` via `LaunchedEffect(navController)` so the executor
   rebinds on every recomposition / activity recreation. The bus instance survives;

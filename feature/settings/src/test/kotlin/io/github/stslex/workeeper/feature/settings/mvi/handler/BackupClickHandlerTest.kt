@@ -404,7 +404,7 @@ internal class BackupClickHandlerTest {
     }
 
     @Test
-    fun `ConfirmRestore Success sets Completed then emits AppRestartRequested after delay`() =
+    fun `ConfirmRestore Success sets Completed then consumes RestartApp after delay`() =
         runTest(testDispatcher) {
             coEvery { interactor.restoreLatest() } returns BackupResult.Success(Unit)
             store.stateFlow.value = store.stateFlow.value.copy(
@@ -419,14 +419,14 @@ internal class BackupClickHandlerTest {
             assertEquals(DialogState.Hidden, store.stateFlow.value.dialogState)
             assertEquals(RestoreProgressUi.Completed, store.stateFlow.value.restoreProgress)
             assertTrue(
-                store.events.isEmpty(),
-                "AppRestartRequested should not be emitted before delay completes",
+                store.consumedActions.isEmpty(),
+                "RestartApp should not be consumed before delay completes",
             )
 
             advanceTimeBy(2_001L)
             runCurrent()
 
-            assertEquals(Event.AppRestartRequested, store.events.single())
+            assertEquals(Action.Navigation.RestartApp, store.consumedActions.single())
         }
 
     @Test

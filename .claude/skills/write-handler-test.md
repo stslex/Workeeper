@@ -195,9 +195,9 @@ verifies command emission shape and ordering on its `SharedFlow`. Reference:
 Key invariants covered there (do not duplicate in feature handler tests; assert via the
 mocked `Navigator` instead):
 
-- `navTo(screen)` emits exactly one `NavigationCommand.NavTo(screen)`.
-- `replaceTo(screen)` emits exactly one `NavigationCommand.ReplaceTo(screen)`.
-- `popBack(...)` emits exactly one `NavigationCommand.PopBack(attrsList)` preserving
+- `navTo(screen)` emits exactly one `NavCommand.NavTo(screen)`.
+- `replaceTo(screen)` emits exactly one `NavCommand.ReplaceTo(screen)`.
+- `popBack(...)` emits exactly one `NavCommand.PopBack(attrsList)` preserving
   vararg order and tolerating null values.
 - Sequential emissions arrive in dispatch order; concurrent collectors observe the
   same hot stream.

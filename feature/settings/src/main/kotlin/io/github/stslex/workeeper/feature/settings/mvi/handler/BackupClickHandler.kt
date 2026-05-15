@@ -17,7 +17,6 @@ import io.github.stslex.workeeper.feature.settings.domain.model.SignInOutcomeDom
 import io.github.stslex.workeeper.feature.settings.mvi.mapper.BackupDateMapper
 import io.github.stslex.workeeper.feature.settings.mvi.mapper.BackupPreferencesUiMapper
 import io.github.stslex.workeeper.feature.settings.mvi.mapper.BackupPreferencesUiMapper.toDomain
-import io.github.stslex.workeeper.feature.settings.mvi.mapper.BackupPreferencesUiMapper.toUi
 import io.github.stslex.workeeper.feature.settings.mvi.mapper.BackupUiMapper.toConfirmation
 import io.github.stslex.workeeper.feature.settings.mvi.mapper.BackupUiMapper.toUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupAuthUi
@@ -64,6 +63,7 @@ internal class BackupClickHandler @Inject constructor(
                 action.schedule,
                 action.allowOnMobileData,
             )
+
             is Action.Backup.UpdateFrequencyPickerSelection -> updateFrequencyPickerSelection(
                 action.schedule,
                 action.allowOnMobileData,
@@ -83,11 +83,13 @@ internal class BackupClickHandler @Inject constructor(
                         loadBackupList()
                         bootstrapOrRehydrate()
                     }
+
                     ui is BackupAuthUi.NotAuthenticated -> {
                         updateState { current ->
                             current.copy(backupInfo = null, backupPreferences = null)
                         }
                     }
+
                     else -> Unit
                 }
             }
@@ -333,7 +335,7 @@ internal class BackupClickHandler @Inject constructor(
     private fun scheduleAppRestart() {
         flowOf(Unit).launch {
             delay(RESTART_DELAY_MS)
-            sendEvent(Event.AppRestartRequested)
+            consume(Action.Navigation.RestartApp)
         }
     }
 

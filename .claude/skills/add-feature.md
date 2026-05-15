@@ -377,9 +377,9 @@ The shape:
 2. The `StoreImpl.handlerCreator` routes that action to the feature's
    `NavigationHandler` (typically `is Action.Navigation -> navigationHandler`).
 3. `NavigationHandler` calls `navigator.navTo(Screen.X)`, `navigator.replaceTo(Screen.X)`,
-   or `navigator.popBack(...)`.
+   `navigator.popBack(...)`, or `navigator.restartApp()`.
 4. `NavigatorEventBus` (the singleton implementation of `Navigator`) emits a
-   `NavigationCommand` on its internal `SharedFlow`.
+   `NavCommand` on its internal `SharedFlow`.
 5. The App/UI bridge (`NavigatorExt.NavigationEventBusSetup`) collects the command
    keyed on the current `NavController` and executes the AndroidX Navigation operation.
 

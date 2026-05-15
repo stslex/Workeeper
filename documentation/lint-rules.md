@@ -233,7 +233,7 @@ that the `HiltScopeRule` predicates must NOT flag:
   (`app/app/.../navigation/NavigatorEventBus.kt`) — the singleton command-bus
   implementation of `Navigator` and `NavigatorReceiver`. **Intentionally allowed at
   singleton scope** because it is controller-free: the class stores only a
-  `MutableSharedFlow<NavigationCommand>` and three emit methods. There is no
+  `MutableSharedFlow<NavCommand>` and four emit methods. There is no
   `NavController`, `NavBackStackEntry`, `SavedStateHandle`, `Activity`, or `Context`
   reachable through it, so promoting it to application scope leaks nothing.
   - The class is annotated `@Singleton` directly (see
