@@ -151,6 +151,12 @@ Use this mapping:
   read [documentation/feature-specs/backup.md](documentation/feature-specs/backup.md)
   first, then [`.claude/skills/mvi-dialog-state.md`](.claude/skills/mvi-dialog-state.md)
   for state-shape work on the new `FrequencyPicker` variant.
+- Cross-feature dialog work — anything that touches `feature/app-dialogs/*`,
+  `AppDialogStore`, `AppDialogHost`, `AppDialog` catalog, the `pending_*` DataStore
+  keys, or the `AppConfirmationDialog` generic Composable in `core/ui/kit`:
+  read [documentation/feature-specs/app-dialogs.md](documentation/feature-specs/app-dialogs.md)
+  first, then [`.claude/skills/app-dialogs-pattern.md`](.claude/skills/app-dialogs-pattern.md)
+  for the seven-step recipe when adding a new `AppDialog` variant.
 
 If multiple skills apply, use the most specific one first, then combine the others as needed.
 If no listed skill applies, continue with the normal repository instructions.
