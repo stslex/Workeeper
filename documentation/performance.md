@@ -237,6 +237,50 @@ feed `RecordAction`:
 For the wider back-gesture pattern (predictive back, discard dialogs) see
 [architecture.md → Back gesture handling](architecture.md#back-gesture-handling).
 
+## Recovery pre-flight: `runBlocking` on the main thread
+
+`BaseApplication.onCreate.handleRecoveryPreflightChain` invokes two `runBlocking`
+blocks before `RecordAction.AppCreated` fires. Both are intentional, both add fixed
+overhead to every cold start, and the tradeoff is documented here so the cost is
+visible to anyone reading the AppCreate trace.
+
+What the blocks do:
+
+1. `restoreRecoveryCoordinator().handlePostRestoreLaunch()` — one DataStore read of
+   the `restore_in_progress` flag. On a healthy install (no restore in progress)
+   the read returns `false` and the block exits immediately. The only paths that
+   do more work are the post-restart Restore happy path (dialog publish + flag
+   clear) and the rollback path (which terminates the process anyway).
+2. `startupMigrationCoordinator().checkAndRouteOrProceed()` — one
+   `PRAGMA user_version` peek via `DatabaseSnapshotProvider.peekSnapshotSchemaVersion`
+   (direct SQLite open, no Room). When the schema matches the current code,
+   the call returns `Proceed` with no further work. When it doesn't, one extra
+   file copy (`preserveDbBeforeMigration`) lands the snapshot for the recovery
+   export. Scenario 2 itself never returns to `BaseApplication.onCreate` — the
+   coordinator caches the routing decision and `MainActivity` reads it.
+
+Why `runBlocking`, not a fire-and-forget coroutine:
+
+The recovery decision must be in hand BEFORE `MainActivity.setContent` runs.
+Dispatching to a background coroutine and gating `setContent` on its completion
+would either (a) flash the main UI before the recovery routing takes effect, or
+(b) require a loader screen that hides the real first frame. Both regress the
+AppCreate trace's user-perceptible meaning. The blocking work is bounded —
+DataStore read + SQLite peek + (only on the unhappy path) one file copy — so
+the steady-state cost is small and predictable.
+
+Why no dedicated Firebase Perf trace around the chain:
+
+The existing `PerformanceMetricsRecorder` machinery is keyed off `RecordAction`
+sealed variants and `PerformanceRecorder.RecordType` enum entries. Adding an
+ad-hoc trace would mean a new `RecordType` and a paired `RecordAction.*` —
+infrastructure cost out of proportion to "is this slow?". The pre-flight blocks
+contribute to `AppCreate_App` already (they run inside `BaseApplication.onCreate`,
+before the AppCreated start). If a regression were to appear, it would show up
+in `AppCreate_App` — which already paginates by per-cold-start row in the Firebase
+console — and the next step would be either to add a dedicated trace then, or to
+move the blocks behind a deferred initializer.
+
 ## Tech debt
 
 Outstanding items affecting the performance metrics infrastructure are tracked under
