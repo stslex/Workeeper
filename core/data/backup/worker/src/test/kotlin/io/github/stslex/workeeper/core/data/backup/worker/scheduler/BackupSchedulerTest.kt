@@ -11,7 +11,11 @@ import androidx.work.WorkManager
 import androidx.work.testing.SynchronousExecutor
 import androidx.work.testing.WorkManagerTestInitHelper
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferences
+import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupSchedule
+import io.mockk.every
+import io.mockk.mockk
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -31,6 +35,10 @@ internal class BackupSchedulerTest {
 
     private lateinit var context: Context
     private lateinit var scheduler: BackupScheduler
+    private val preferencesFlow = MutableStateFlow(BackupPreferences.DEFAULT)
+    private val preferencesRepository = mockk<BackupPreferencesRepository>(relaxed = true).apply {
+        every { observe() } returns preferencesFlow
+    }
 
     @BeforeEach
     fun setUp() {
@@ -39,7 +47,7 @@ internal class BackupSchedulerTest {
             .setExecutor(SynchronousExecutor())
             .build()
         WorkManagerTestInitHelper.initializeTestWorkManager(context, config)
-        scheduler = BackupScheduler(context)
+        scheduler = BackupScheduler(context, preferencesRepository)
     }
 
     @Test
@@ -148,6 +156,55 @@ internal class BackupSchedulerTest {
     }
 
     @Test
+    fun `enqueueOneTime applies UNMETERED constraint when mobile data is disallowed`() =
+        runTest {
+            preferencesFlow.value = BackupPreferences.DEFAULT.copy(allowOnMobileData = false)
+            scheduler.enqueueOneTime()
+
+            val info = WorkManager.getInstance(context)
+                .getWorkInfosForUniqueWork(UNIQUE_ONE_TIME_NAME)
+                .get()
+                .single()
+            assertEquals(NetworkType.UNMETERED, info.constraints.requiredNetworkType)
+        }
+
+    @Test
+    fun `enqueueOneTime applies CONNECTED constraint when mobile data is allowed`() =
+        runTest {
+            preferencesFlow.value = BackupPreferences.DEFAULT.copy(allowOnMobileData = true)
+            scheduler.enqueueOneTime()
+
+            val info = WorkManager.getInstance(context)
+                .getWorkInfosForUniqueWork(UNIQUE_ONE_TIME_NAME)
+                .get()
+                .single()
+            assertEquals(NetworkType.CONNECTED, info.constraints.requiredNetworkType)
+        }
+
+    @Test
+    fun `enqueueOneTime cancels work scheduled under the legacy unique name`() = runTest {
+        // Pre-populate the legacy name with a long-running periodic so its state
+        // is observable post-cancel.
+        WorkManager.getInstance(context).enqueueUniqueWork(
+            "manual_backup",
+            androidx.work.ExistingWorkPolicy.REPLACE,
+            androidx.work.OneTimeWorkRequestBuilder<io.github.stslex.workeeper.core.data.backup.worker.BackupWorker>()
+                .setInitialDelay(1, TimeUnit.DAYS)
+                .build(),
+        )
+
+        scheduler.enqueueOneTime()
+
+        val legacyInfos = WorkManager.getInstance(context)
+            .getWorkInfosForUniqueWork("manual_backup")
+            .get()
+        assertTrue(
+            legacyInfos.all { it.state == WorkInfo.State.CANCELLED },
+            "legacy unique-work must be cancelled by enqueueOneTime; got $legacyInfos",
+        )
+    }
+
+    @Test
     fun `cancelPeriodic leaves one-time work untouched`() = runTest {
         scheduler.schedulePeriodic(
             BackupPreferences.DEFAULT.copy(schedule = BackupSchedule.Daily),
@@ -187,6 +244,6 @@ internal class BackupSchedulerTest {
 
     private companion object {
         const val UNIQUE_PERIODIC_NAME = "auto_backup"
-        const val UNIQUE_ONE_TIME_NAME = "manual_backup"
+        const val UNIQUE_ONE_TIME_NAME = "one_time_backup"
     }
 }

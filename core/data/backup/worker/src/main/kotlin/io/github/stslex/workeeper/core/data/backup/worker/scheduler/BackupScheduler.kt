@@ -14,9 +14,11 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupWorkInfo
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferences
+import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupSchedule
 import io.github.stslex.workeeper.core.data.backup.worker.BackupWorker
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -25,6 +27,7 @@ import javax.inject.Singleton
 @Singleton
 internal class BackupScheduler @Inject constructor(
     @ApplicationContext context: Context,
+    private val preferencesRepository: BackupPreferencesRepository,
 ) : AutoBackupController {
 
     private val workManager: WorkManager = WorkManager.getInstance(context)
@@ -39,9 +42,7 @@ internal class BackupScheduler @Inject constructor(
             }
         }
         val constraints = Constraints.Builder()
-            .setRequiredNetworkType(
-                if (preferences.allowOnMobileData) NetworkType.CONNECTED else NetworkType.UNMETERED,
-            )
+            .setRequiredNetworkType(preferences.networkType())
             .setRequiresBatteryNotLow(true)
             .build()
 
@@ -66,7 +67,20 @@ internal class BackupScheduler @Inject constructor(
     }
 
     override suspend fun enqueueOneTime() {
-        val request = OneTimeWorkRequestBuilder<BackupWorker>().build()
+        // One-shot cleanup: cancel any work scheduled under the previous unique
+        // name ("manual_backup"). Renaming a WorkManager unique name does not
+        // migrate the in-flight work — without this, the old unique work would
+        // linger until system cleanup. Cancelling a nonexistent name is a no-op,
+        // so this is safe to keep across releases.
+        workManager.cancelUniqueWork(LEGACY_ONE_TIME_NAME)
+
+        val prefs = preferencesRepository.observe().first()
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(prefs.networkType())
+            .build()
+        val request = OneTimeWorkRequestBuilder<BackupWorker>()
+            .setConstraints(constraints)
+            .build()
         workManager.enqueueUniqueWork(
             UNIQUE_ONE_TIME_NAME,
             ExistingWorkPolicy.KEEP,
@@ -82,9 +96,13 @@ internal class BackupScheduler @Inject constructor(
         .getWorkInfosForUniqueWorkFlow(UNIQUE_ONE_TIME_NAME)
         .map { infos -> infos.map(WorkInfo::toAutoBackupInfo) }
 
+    private fun BackupPreferences.networkType(): NetworkType =
+        if (allowOnMobileData) NetworkType.CONNECTED else NetworkType.UNMETERED
+
     private companion object {
         const val UNIQUE_PERIODIC_NAME = "auto_backup"
-        const val UNIQUE_ONE_TIME_NAME = "manual_backup"
+        const val UNIQUE_ONE_TIME_NAME = "one_time_backup"
+        const val LEGACY_ONE_TIME_NAME = "manual_backup"
         const val DAILY_INTERVAL_DAYS = 1L
         const val WEEKLY_INTERVAL_DAYS = 7L
         const val BACKOFF_HOURS = 1L
