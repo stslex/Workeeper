@@ -6,4 +6,7 @@
     <cache-path
         name="recovery_diagnostics"
         path="recovery_diagnostics/" />
+    <cache-path
+        name="pre_migration_backup"
+        path="pre_migration_backup.db" />
 </paths>
