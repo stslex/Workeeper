@@ -72,4 +72,60 @@ interface DatabaseSnapshotProvider {
      * when [source] cannot be opened or queried as SQLite.
      */
     suspend fun peekSnapshotSchemaVersion(source: File): BackupResult<Int>
+
+    /**
+     * Copies the live database to `cache/pre_restore_backup.db` before a Restore
+     * replaces it. Used both as the automatic rollback target if the post-restart
+     * Room migration fails (Scenario 1) and as the source for user-initiated
+     * undo (Scenario 3). Overwrites any previously preserved snapshot — only
+     * one slot is kept at a time.
+     *
+     * Issues `PRAGMA wal_checkpoint(TRUNCATE)` first so the preserved file is
+     * self-contained; the WAL/SHM sidecars on the live database are unaffected.
+     *
+     * Returns the preserved [File] on success, or [BackupResult.Failure] with
+     * [io.github.stslex.workeeper.core.data.backup.api.error.BackupError.Io]
+     * when the checkpoint or file copy fails. The caller treats failure as
+     * "do not proceed with the restore" — there is no point swapping in a new
+     * database we cannot roll back from.
+     *
+     * Spec: `documentation/feature-specs/backup-recovery.md` →
+     * "Storage lifecycle of preserved DB files".
+     */
+    suspend fun preserveCurrentDb(): BackupResult<File>
+
+    /**
+     * Atomically replaces the live database with the contents of the most
+     * recently preserved `pre_restore_backup.db`. Cleans up `-wal` / `-shm`
+     * sidecars, closes the in-process Room handle, and renames the preserved
+     * file into the live database slot. Used by both the Scenario 1 automatic
+     * rollback (migration failure after restore) and the Scenario 3
+     * user-initiated undo.
+     *
+     * After success, the preserved file no longer exists (it was renamed
+     * into the live slot). The caller MUST restart the app — the Room graph
+     * is stale.
+     *
+     * Returns [BackupResult.Failure] with
+     * [io.github.stslex.workeeper.core.data.backup.api.error.BackupError.CorruptedBackup]
+     * if no preserved file exists, or `.Io` if the swap fails.
+     */
+    suspend fun rollbackToPreRestoreBackup(): BackupResult<Unit>
+
+    /**
+     * Whether a `cache/pre_restore_backup.db` exists. Cheap file-existence
+     * check used by Settings to decide whether to render the
+     * "Revert last restore" row.
+     */
+    fun hasPreRestoreBackup(): Boolean
+
+    /**
+     * Deletes the preserved `cache/pre_restore_backup.db` without applying
+     * it. Used after Scenario 1 failure-path rollback consumes the file
+     * (rollback already moved it; this just guarantees the slot is empty
+     * even on partial failure) and as a defensive cleanup on app updates.
+     *
+     * No-op when the file does not exist.
+     */
+    suspend fun deletePreRestoreBackup()
 }

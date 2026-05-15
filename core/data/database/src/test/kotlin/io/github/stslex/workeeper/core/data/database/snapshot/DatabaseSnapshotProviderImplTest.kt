@@ -14,6 +14,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -55,6 +56,8 @@ internal class DatabaseSnapshotProviderImplTest {
         // Clean up any snapshots written into the databases dir.
         val dbDir = context.getDatabasePath(AppDatabase.NAME).parentFile
         dbDir?.listFiles()?.forEach { it.delete() }
+        // Clean preserved snapshots written into cacheDir.
+        context.cacheDir.listFiles()?.forEach { it.delete() }
     }
 
     @Test
@@ -229,5 +232,92 @@ internal class DatabaseSnapshotProviderImplTest {
         } finally {
             restored.close()
         }
+    }
+
+    @Test
+    fun `preserveCurrentDb writes a file in cacheDir that hasPreRestoreBackup detects`() =
+        runTest {
+            database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "PreserveMe"))
+
+            val result = provider.preserveCurrentDb()
+            assertTrue(result is BackupResult.Success, "expected Success, got $result")
+            val preservedFile = (result as BackupResult.Success).data
+
+            assertTrue(preservedFile.exists(), "preserved file should exist on disk")
+            assertEquals(context.cacheDir, preservedFile.parentFile)
+            assertTrue(provider.hasPreRestoreBackup())
+        }
+
+    @Test
+    fun `preserveCurrentDb produces a self-contained SQLite snapshot at the live schema`() =
+        runTest {
+            database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "PreservedRow"))
+            val result = provider.preserveCurrentDb()
+            assertTrue(result is BackupResult.Success)
+            val preserved = (result as BackupResult.Success).data
+
+            // The preserved file must be a valid SQLite database at the same
+            // schema version as the live db (WAL checkpointed, no missing pages).
+            val peek = provider.peekSnapshotSchemaVersion(preserved)
+            assertTrue(peek is BackupResult.Success, "peek should succeed on preserved file")
+            assertEquals(provider.currentSchemaVersion(), (peek as BackupResult.Success).data)
+        }
+
+    @Test
+    fun `rollbackToPreRestoreBackup with no preserved file returns CorruptedBackup`() = runTest {
+        assertFalse(provider.hasPreRestoreBackup())
+        val result = provider.rollbackToPreRestoreBackup()
+        assertTrue(result is BackupResult.Failure)
+        assertTrue((result as BackupResult.Failure).error is BackupError.CorruptedBackup)
+    }
+
+    @Test
+    fun `rollbackToPreRestoreBackup swaps live db with preserved contents and consumes file`() =
+        runTest {
+            database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "BeforeRestore"))
+            assertTrue(provider.preserveCurrentDb() is BackupResult.Success)
+
+            // Simulate a restore: mutate the live db so it differs from the preserved snapshot.
+            database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "AfterRestore"))
+            assertEquals(
+                setOf("BeforeRestore", "AfterRestore"),
+                database.tagDao.observeAll().first().map { it.name }.toSet(),
+            )
+
+            assertEquals(BackupResult.Success(Unit), provider.rollbackToPreRestoreBackup())
+
+            // Preserved file consumed.
+            assertFalse(provider.hasPreRestoreBackup())
+
+            // Live db reverts to pre-restore state.
+            val restored = Room
+                .databaseBuilder(context, AppDatabase::class.java, AppDatabase.NAME)
+                .allowMainThreadQueries()
+                .build()
+            try {
+                assertEquals(
+                    setOf("BeforeRestore"),
+                    restored.tagDao.observeAll().first().map { it.name }.toSet(),
+                )
+            } finally {
+                restored.close()
+            }
+        }
+
+    @Test
+    fun `deletePreRestoreBackup removes the file when present`() = runTest {
+        assertTrue(provider.preserveCurrentDb() is BackupResult.Success)
+        assertTrue(provider.hasPreRestoreBackup())
+
+        provider.deletePreRestoreBackup()
+        assertFalse(provider.hasPreRestoreBackup())
+    }
+
+    @Test
+    fun `deletePreRestoreBackup is a no-op when no file exists`() = runTest {
+        assertFalse(provider.hasPreRestoreBackup())
+        // Just verify no exception.
+        provider.deletePreRestoreBackup()
+        assertFalse(provider.hasPreRestoreBackup())
     }
 }

@@ -61,6 +61,58 @@ internal class DatabaseSnapshotProviderImpl @Inject constructor(
             }
         }
 
+    override suspend fun preserveCurrentDb(): BackupResult<File> = withContext(dispatcher) {
+        val target = preRestoreBackupFile()
+        try {
+            appDatabase.openHelper.writableDatabase
+                .query("PRAGMA wal_checkpoint(TRUNCATE)")
+                .use { cursor -> cursor.moveToFirst() }
+            val source = context.getDatabasePath(AppDatabase.NAME)
+            target.parentFile?.mkdirs()
+            source.copyTo(target, overwrite = true)
+            BackupResult.Success(target)
+        } catch (e: IOException) {
+            target.delete()
+            BackupResult.Failure(BackupError.Io(e))
+        }
+    }
+
+    override suspend fun rollbackToPreRestoreBackup(): BackupResult<Unit> =
+        withContext(dispatcher) {
+            val source = preRestoreBackupFile()
+            if (!source.exists()) {
+                return@withContext BackupResult.Failure(
+                    BackupError.CorruptedBackup(reason = "no pre-restore backup to roll back to"),
+                )
+            }
+            try {
+                appDatabase.close()
+                val target = context.getDatabasePath(AppDatabase.NAME)
+                val parent = target.parentFile
+                    ?: throw IOException("database parent dir missing")
+                File(parent, "${AppDatabase.NAME}-wal").delete()
+                File(parent, "${AppDatabase.NAME}-shm").delete()
+                val tmp = File(parent, "${AppDatabase.NAME}.tmp")
+                source.copyTo(tmp, overwrite = true)
+                if (!tmp.renameTo(target)) {
+                    tmp.delete()
+                    throw IOException("atomic rename failed")
+                }
+                source.delete()
+                BackupResult.Success(Unit)
+            } catch (e: IOException) {
+                BackupResult.Failure(BackupError.Io(e))
+            }
+        }
+
+    override fun hasPreRestoreBackup(): Boolean = preRestoreBackupFile().exists()
+
+    override suspend fun deletePreRestoreBackup() {
+        withContext(dispatcher) { preRestoreBackupFile().delete() }
+    }
+
+    private fun preRestoreBackupFile(): File = File(context.cacheDir, PRE_RESTORE_BACKUP_NAME)
+
     override suspend fun restoreFromSnapshot(source: File): BackupResult<Unit> =
         withContext(dispatcher) {
             val magicResult = verifySqliteMagic(source)
@@ -115,6 +167,7 @@ internal class DatabaseSnapshotProviderImpl @Inject constructor(
 
     private companion object {
         const val SQLITE_HEADER_SIZE = 16
+        const val PRE_RESTORE_BACKUP_NAME = "pre_restore_backup.db"
         val SQLITE_MAGIC: ByteArray =
             "SQLite format 3".toByteArray(Charsets.US_ASCII) + 0x00.toByte()
     }
