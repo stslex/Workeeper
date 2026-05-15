@@ -26,4 +26,16 @@
     <string name="app_dialog_undo_restore_success_title">Возврат выполнен</string>
     <string name="app_dialog_undo_restore_success_body">Данные восстановлены к предыдущему состоянию.</string>
     <string name="app_dialog_undo_restore_success_confirm" tools:ignore="DuplicateStrings">ОК</string>
+
+    <!-- RestoreFailure reasons (BackupErrorCode → user-readable text) -->
+    <string name="app_dialog_restore_failure_reason_not_authenticated">не выполнен вход</string>
+    <string name="app_dialog_restore_failure_reason_network_unavailable">нет подключения к сети</string>
+    <string name="app_dialog_restore_failure_reason_auth_revoked">доступ к Google-аккаунту был отозван</string>
+    <string name="app_dialog_restore_failure_reason_missing_required_scope">не предоставлен доступ к Drive</string>
+    <string name="app_dialog_restore_failure_reason_storage_quota_exceeded">место в Drive закончилось</string>
+    <string name="app_dialog_restore_failure_reason_corrupted_backup">файл резервной копии повреждён</string>
+    <string name="app_dialog_restore_failure_reason_schema_too_new">резервная копия создана более новой версией приложения</string>
+    <string name="app_dialog_restore_failure_reason_missing_migration_path">нет пути миграции к этой версии приложения</string>
+    <string name="app_dialog_restore_failure_reason_io">произошла ошибка чтения или записи</string>
+    <string name="app_dialog_restore_failure_reason_unknown">произошла непредвиденная ошибка</string>
 </resources>

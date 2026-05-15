@@ -26,4 +26,16 @@
     <string name="app_dialog_undo_restore_success_title">Reverted</string>
     <string name="app_dialog_undo_restore_success_body">Your data has been restored to the previous state.</string>
     <string name="app_dialog_undo_restore_success_confirm" tools:ignore="DuplicateStrings">OK</string>
+
+    <!-- RestoreFailure reasons (BackupErrorCode → user-readable text) -->
+    <string name="app_dialog_restore_failure_reason_not_authenticated">not signed in</string>
+    <string name="app_dialog_restore_failure_reason_network_unavailable">no network</string>
+    <string name="app_dialog_restore_failure_reason_auth_revoked">Google account access was revoked</string>
+    <string name="app_dialog_restore_failure_reason_missing_required_scope">Drive access was not granted</string>
+    <string name="app_dialog_restore_failure_reason_storage_quota_exceeded">Drive storage is full</string>
+    <string name="app_dialog_restore_failure_reason_corrupted_backup">the backup file is corrupted</string>
+    <string name="app_dialog_restore_failure_reason_schema_too_new">the backup was created by a newer app version</string>
+    <string name="app_dialog_restore_failure_reason_missing_migration_path">no migration path to this app version</string>
+    <string name="app_dialog_restore_failure_reason_io">a read or write error occurred</string>
+    <string name="app_dialog_restore_failure_reason_unknown">an unexpected error occurred</string>
 </resources>

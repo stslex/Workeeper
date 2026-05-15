@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.app_dialogs.impl.ui
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupErrorCode
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -62,7 +64,7 @@ internal fun RestoreFailureDialog(
             Text(
                 text = stringResource(
                     R.string.app_dialog_restore_failure_body,
-                    dialog.reason.name,
+                    stringResource(dialog.reason.toReasonStringRes()),
                 ),
                 style = AppUi.typography.bodyMedium,
                 color = AppUi.colors.textSecondary,
@@ -92,4 +94,21 @@ internal fun RestoreFailureDialog(
             }
         }
     }
+}
+
+@StringRes
+private fun BackupErrorCode.toReasonStringRes(): Int = when (this) {
+    BackupErrorCode.NotAuthenticated -> R.string.app_dialog_restore_failure_reason_not_authenticated
+    BackupErrorCode.NetworkUnavailable -> R.string.app_dialog_restore_failure_reason_network_unavailable
+    BackupErrorCode.AuthRevoked -> R.string.app_dialog_restore_failure_reason_auth_revoked
+    BackupErrorCode.MissingRequiredScope ->
+        R.string.app_dialog_restore_failure_reason_missing_required_scope
+    BackupErrorCode.StorageQuotaExceeded ->
+        R.string.app_dialog_restore_failure_reason_storage_quota_exceeded
+    BackupErrorCode.CorruptedBackup -> R.string.app_dialog_restore_failure_reason_corrupted_backup
+    BackupErrorCode.SchemaTooNew -> R.string.app_dialog_restore_failure_reason_schema_too_new
+    BackupErrorCode.MissingMigrationPath ->
+        R.string.app_dialog_restore_failure_reason_missing_migration_path
+    BackupErrorCode.Io -> R.string.app_dialog_restore_failure_reason_io
+    BackupErrorCode.Unknown -> R.string.app_dialog_restore_failure_reason_unknown
 }
