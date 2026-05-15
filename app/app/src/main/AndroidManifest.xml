@@ -30,6 +30,16 @@
             </intent-filter>
         </activity>
 
+        <!--
+        Scenario 2 fallback launcher. Started by MainActivity when the
+        StartupMigrationCoordinator pre-flight returns RouteToRecovery; the
+        user never lands here through the normal launcher icon (no
+        intent-filter), so a healthy install never sees this surface.
+        -->
+        <activity
+            android:name="io.github.stslex.workeeper.recovery.RecoveryActivity"
+            android:exported="false" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

@@ -19,7 +19,7 @@ import javax.inject.Singleton
  * [RestoreRecoveryCoordinator] (which owns the file swap + restart), reads
  * the preserved-data date from [RestoreStateRepository] for the undo
  * confirmation publish, and exports diagnostics via
- * [RestoreDiagnosticsExporter]. The host calls these methods from its
+ * [RecoveryDiagnosticsExporter]. The host calls these methods from its
  * Compose layer via the `AppDialogActionsEntryPoint`.
  *
  * The "performUndoRestore" path restarts the app on success — the call
@@ -31,7 +31,7 @@ internal class AppDialogActionsImpl @Inject constructor(
     private val coordinator: RestoreRecoveryCoordinator,
     private val restoreStateRepository: RestoreStateRepository,
     private val appDialogPublisher: AppDialogPublisher,
-    private val diagnosticsExporter: RestoreDiagnosticsExporter,
+    private val diagnosticsExporter: RecoveryDiagnosticsExporter,
 ) : AppDialogActions {
 
     override suspend fun performUndoRestore() {

@@ -3,4 +3,15 @@
     <string name="bottom_bar_label_home">Главная</string>
     <string name="bottom_bar_label_trainings">Тренировки</string>">
     <string name="bottom_bar_label_exercises">Упражнения</string>
+
+    <!-- RecoveryActivity (Scenario 2 startup migration failure) -->
+    <string name="recovery_title">Требуется обновление приложения</string>
+    <string name="recovery_body">Файл с вашими данными создан в версии, которую эта сборка не может прочитать. Ваши данные сохранены на устройстве. Обновите приложение или экспортируйте необработанные данные для резервной копии.</string>
+    <string name="recovery_update_app">Обновить приложение</string>
+    <string name="recovery_export_data">Экспорт данных</string>
+    <string name="recovery_report_issue">Сообщить</string>
+    <string name="recovery_export_diagnostics">Экспорт диагностики</string>
+    <string name="recovery_export_data_chooser">Поделиться данными</string>
+    <string name="recovery_export_diagnostics_chooser">Поделиться диагностикой</string>
+    <string name="recovery_report_title">Ошибка миграции при запуске</string>
 </resources>

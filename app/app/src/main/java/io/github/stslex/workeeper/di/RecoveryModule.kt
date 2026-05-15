@@ -13,7 +13,7 @@ import javax.inject.Singleton
  * App-graph wiring for the restore-recovery surface. Binds the
  * cross-feature [AppDialogActions] producer interface to the implementation
  * that reaches across `RestoreRecoveryCoordinator`,
- * `RestoreStateRepository`, `RestoreDiagnosticsExporter`, and
+ * `RestoreStateRepository`, `RecoveryDiagnosticsExporter`, and
  * `AppDialogPublisher`.
  */
 @Module
