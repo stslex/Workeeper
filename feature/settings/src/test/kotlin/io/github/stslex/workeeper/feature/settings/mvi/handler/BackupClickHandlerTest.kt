@@ -178,12 +178,43 @@ internal class BackupClickHandlerTest {
     }
 
     @Test
-    fun `SignIn Success flips operation to Idle and emits no events`() = runTest(testDispatcher) {
-        coEvery { interactor.signIn() } returns SignInOutcomeDomain.Success
-        handler.invoke(Action.Backup.SignIn)
-        assertEquals(BackupOperationUi.Idle, store.stateFlow.value.backupOperation)
-        assertTrue(store.events.isEmpty(), "Success path emits no events")
-    }
+    fun `SignIn Success flips operation to Idle and rehydrates auto-backup`() =
+        runTest(testDispatcher) {
+            // Pin steady-state so the rehydrate branch (not bootstrap) is exercised; the
+            // bootstrap-from-SignIn scenario is covered by its own test below.
+            preferencesFlow.value = preferencesFlow.value.copy(
+                autoBackupBootstrapped = true,
+                schedule = BackupSchedule.Weekly,
+            )
+            coEvery { interactor.signIn() } returns SignInOutcomeDomain.Success
+
+            handler.invoke(Action.Backup.SignIn)
+
+            assertEquals(BackupOperationUi.Idle, store.stateFlow.value.backupOperation)
+            coVerify { autoBackupController.schedulePeriodic(any()) }
+            assertTrue(
+                store.events.none { it is Event.ShowAutoBackupEnabledSnackbarRequested },
+                "steady-state rehydrate must not re-emit the bootstrap snackbar",
+            )
+        }
+
+    @Test
+    fun `SignIn Success when not bootstrapped triggers bootstrap (snackbar + one-time)`() =
+        runTest(testDispatcher) {
+            preferencesFlow.value = preferencesFlow.value.copy(autoBackupBootstrapped = false)
+            coEvery { interactor.signIn() } returns SignInOutcomeDomain.Success
+
+            handler.invoke(Action.Backup.SignIn)
+
+            coVerify { preferencesRepository.setAutoBackupBootstrapped(true) }
+            coVerify { autoBackupController.schedulePeriodic(any()) }
+            coVerify { autoBackupController.enqueueOneTime() }
+            assertTrue(
+                store.events.any { it is Event.ShowAutoBackupEnabledSnackbarRequested },
+                "first-sign-in bootstrap snackbar must fire from SignIn path even when " +
+                    "observeAuth does not see an auth-state transition",
+            )
+        }
 
     @Test
     fun `SignIn NeedsResolution emits AuthResolutionRequested with same intentSender`() =
@@ -263,13 +294,44 @@ internal class BackupClickHandlerTest {
     }
 
     @Test
-    fun `HandleAuthResult Success emits no events (auth flow drives state)`() =
+    fun `HandleAuthResult Success flips to Idle and rehydrates auto-backup`() =
         runTest(testDispatcher) {
+            preferencesFlow.value = preferencesFlow.value.copy(
+                autoBackupBootstrapped = true,
+                schedule = BackupSchedule.Weekly,
+            )
             val intent = mockk<Intent>(relaxed = true)
             val expectedAccount = AccountDomain(email = "a@b.com", displayName = "A")
             coEvery { interactor.completeSignIn(intent) } returns BackupResult.Success(expectedAccount)
+
             handler.invoke(Action.Backup.HandleAuthResult(intent))
-            assertTrue(store.events.isEmpty())
+
+            assertEquals(BackupOperationUi.Idle, store.stateFlow.value.backupOperation)
+            coVerify { autoBackupController.schedulePeriodic(any()) }
+            assertTrue(
+                store.events.none { it is Event.ShowAutoBackupEnabledSnackbarRequested },
+                "steady-state rehydrate must not re-emit the bootstrap snackbar",
+            )
+        }
+
+    @Test
+    fun `HandleAuthResult Success when not bootstrapped triggers bootstrap`() =
+        runTest(testDispatcher) {
+            preferencesFlow.value = preferencesFlow.value.copy(autoBackupBootstrapped = false)
+            val intent = mockk<Intent>(relaxed = true)
+            coEvery { interactor.completeSignIn(intent) } returns BackupResult.Success(
+                AccountDomain("first@example.com", "First"),
+            )
+
+            handler.invoke(Action.Backup.HandleAuthResult(intent))
+
+            coVerify { preferencesRepository.setAutoBackupBootstrapped(true) }
+            coVerify { autoBackupController.schedulePeriodic(any()) }
+            coVerify { autoBackupController.enqueueOneTime() }
+            assertTrue(
+                store.events.any { it is Event.ShowAutoBackupEnabledSnackbarRequested },
+                "first-sign-in via auth-resolution path must trigger bootstrap snackbar",
+            )
         }
 
     @Test

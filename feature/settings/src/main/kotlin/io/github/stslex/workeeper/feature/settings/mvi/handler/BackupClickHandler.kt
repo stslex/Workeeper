@@ -186,6 +186,7 @@ internal class BackupClickHandler @Inject constructor(
                         updateStateImmediate { current ->
                             current.copy(backupOperation = BackupOperationUi.Idle)
                         }
+                        launchDefault { bootstrapOrRehydrate() }
                     }
 
                     is SignInOutcomeDomain.NeedsResolution -> {
@@ -223,6 +224,10 @@ internal class BackupClickHandler @Inject constructor(
                 when (result) {
                     is BackupResult.Success -> {
                         logger.i { "Sign-in successful for account: ${result.data}" }
+                        updateStateImmediate { current ->
+                            current.copy(backupOperation = BackupOperationUi.Idle)
+                        }
+                        launchDefault { bootstrapOrRehydrate() }
                     }
 
                     is BackupResult.Failure -> {
