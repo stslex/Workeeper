@@ -22,6 +22,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
+import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -278,6 +279,7 @@ internal class BackupInteractorImplTest {
             val ref = makeRef(schema = 4)
             coEvery { backupStorage.listBackups() } returns BackupResult.Success(listOf(ref))
             coEvery { snapshotProvider.currentSchemaVersion() } returns 5
+            every { snapshotProvider.hasMigrationPath(from = 4, to = 5) } returns true
             val downloadCaptured = slot<File>()
             coEvery {
                 backupStorage.downloadBackup(any(), capture(downloadCaptured))
@@ -298,11 +300,56 @@ internal class BackupInteractorImplTest {
         }
 
     @Test
+    fun `restoreLatest with no migration path returns MissingMigrationPath`() =
+        runTest(testDispatcher) {
+            val ref = makeRef(schema = 4)
+            coEvery { backupStorage.listBackups() } returns BackupResult.Success(listOf(ref))
+            coEvery { snapshotProvider.currentSchemaVersion() } returns 5
+            every { snapshotProvider.hasMigrationPath(from = 4, to = 5) } returns false
+
+            val result = interactor.restoreLatest()
+
+            assertTrue(result is BackupResult.Failure)
+            val error = (result as BackupResult.Failure).error
+            assertTrue(error is BackupError.MissingMigrationPath)
+            assertEquals(4, (error as BackupError.MissingMigrationPath).backupSchemaVersion)
+            assertEquals(5, error.appSchemaVersion)
+            coVerify(exactly = 0) { backupStorage.downloadBackup(any(), any()) }
+            coVerify(exactly = 0) { snapshotProvider.restoreFromSnapshot(any()) }
+        }
+
+    @Test
+    fun `restoreLatest with equal schema versions skips migration path check`() =
+        runTest(testDispatcher) {
+            // backup schema == current: no migration needed, the check should not
+            // be consulted at all (the `<` guard short-circuits).
+            val ref = makeRef(schema = 5)
+            coEvery { backupStorage.listBackups() } returns BackupResult.Success(listOf(ref))
+            coEvery { snapshotProvider.currentSchemaVersion() } returns 5
+            val downloadCaptured = slot<File>()
+            coEvery {
+                backupStorage.downloadBackup(any(), capture(downloadCaptured))
+            } answers {
+                downloadCaptured.captured.writeText("payload")
+                BackupResult.Success(ref.manifest)
+            }
+            coEvery { snapshotProvider.restoreFromSnapshot(any()) } returns BackupResult.Success(
+                Unit,
+            )
+
+            val result = interactor.restoreLatest()
+
+            assertTrue(result is BackupResult.Success)
+            verify(exactly = 0) { snapshotProvider.hasMigrationPath(any(), any()) }
+        }
+
+    @Test
     fun `restoreLatest download failure cleans temp file and does not restore`() =
         runTest(testDispatcher) {
             val ref = makeRef(schema = 4)
             coEvery { backupStorage.listBackups() } returns BackupResult.Success(listOf(ref))
             coEvery { snapshotProvider.currentSchemaVersion() } returns 5
+            every { snapshotProvider.hasMigrationPath(from = 4, to = 5) } returns true
             val downloadCaptured = slot<File>()
             val ioError = BackupError.Io(java.io.IOException("download failed"))
             coEvery {

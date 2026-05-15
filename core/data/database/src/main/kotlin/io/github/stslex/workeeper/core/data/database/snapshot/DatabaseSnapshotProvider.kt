@@ -54,6 +54,17 @@ interface DatabaseSnapshotProvider {
     suspend fun currentSchemaVersion(): Int
 
     /**
+     * Whether the registered Room migration graph contains a sequence of edges
+     * that can migrate a database from [from] to [to]. Reads from the same
+     * `MIGRATIONS` array that the live `Room.databaseBuilder` is wired with, so
+     * pre-restore checks and the runtime behavior agree by construction.
+     *
+     * Returns `true` for the trivial case `from == to`; returns `false` for
+     * downgrades (`from > to`) and for forward gaps with no chain.
+     */
+    fun hasMigrationPath(from: Int, to: Int): Boolean
+
+    /**
      * Reads `PRAGMA user_version` from [source] without going through Room.
      *
      * Returns [BackupResult.Failure] with

@@ -82,10 +82,21 @@ internal class BackupInteractorImpl @Inject constructor(
         }
 
         val currentSchemaVersion = snapshotProvider.currentSchemaVersion()
-        if (ref.manifest.dbSchemaVersion > currentSchemaVersion) {
+        val backupSchemaVersion = ref.manifest.dbSchemaVersion
+        if (backupSchemaVersion > currentSchemaVersion) {
             return@withContext BackupResult.Failure(
                 BackupError.BackupTooNew(
-                    backupSchemaVersion = ref.manifest.dbSchemaVersion,
+                    backupSchemaVersion = backupSchemaVersion,
+                    appSchemaVersion = currentSchemaVersion,
+                ),
+            )
+        }
+        if (backupSchemaVersion < currentSchemaVersion &&
+            !snapshotProvider.hasMigrationPath(from = backupSchemaVersion, to = currentSchemaVersion)
+        ) {
+            return@withContext BackupResult.Failure(
+                BackupError.MissingMigrationPath(
+                    backupSchemaVersion = backupSchemaVersion,
                     appSchemaVersion = currentSchemaVersion,
                 ),
             )

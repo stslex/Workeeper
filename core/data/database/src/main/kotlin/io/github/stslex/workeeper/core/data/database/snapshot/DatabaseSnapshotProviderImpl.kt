@@ -14,6 +14,7 @@ import java.io.File
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
+import io.github.stslex.workeeper.core.data.database.migration.hasMigrationPath as registryHasMigrationPath
 
 @Singleton
 internal class DatabaseSnapshotProviderImpl @Inject constructor(
@@ -39,6 +40,9 @@ internal class DatabaseSnapshotProviderImpl @Inject constructor(
     override suspend fun currentSchemaVersion(): Int = withContext(dispatcher) {
         appDatabase.openHelper.readableDatabase.version
     }
+
+    override fun hasMigrationPath(from: Int, to: Int): Boolean =
+        registryHasMigrationPath(from = from, to = to)
 
     override suspend fun peekSnapshotSchemaVersion(source: File): BackupResult<Int> =
         withContext(dispatcher) {
