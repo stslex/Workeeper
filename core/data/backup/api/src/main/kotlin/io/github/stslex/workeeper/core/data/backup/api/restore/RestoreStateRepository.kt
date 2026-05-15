@@ -31,7 +31,16 @@ interface RestoreStateRepository {
      */
     suspend fun markRestoreInProgress(context: RestoreInProgressContext)
 
-    /** Read-and-clear-style accessor used during the post-restart pre-flight. */
+    /**
+     * Returns the persisted [RestoreInProgressContext] when a restore is in
+     * progress, or `null` otherwise.
+     *
+     * **Read-only.** Callers MUST explicitly invoke [clearRestoreInProgress]
+     * after handling the context — typically at the end of the post-restart
+     * pre-flight branch that consumed it (success or rollback). Leaving the
+     * context set across a normal app session causes the pre-flight to re-run
+     * its in-progress logic on every cold start.
+     */
     suspend fun getRestoreInProgressContext(): RestoreInProgressContext?
 
     /**
