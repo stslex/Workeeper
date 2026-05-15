@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- RestoreSuccess -->
+    <string name="app_dialog_restore_success_title">Restore complete</string>
+    <string name="app_dialog_restore_success_body">Your data was restored from a backup dated %1$s. You can revert to your previous data in Settings if needed.</string>
+    <string name="app_dialog_restore_success_body_no_previous">Your data was restored from a backup dated %1$s.</string>
+    <string name="app_dialog_restore_success_confirm">OK</string>
+
+    <!-- RestoreFailure -->
+    <string name="app_dialog_restore_failure_title">Restore failed</string>
+    <string name="app_dialog_restore_failure_body">Your data is intact. Reason: %1$s. Please report this issue so we can fix it.</string>
+    <string name="app_dialog_restore_failure_confirm">OK</string>
+
+    <!-- UndoRestoreConfirmation -->
+    <string name="app_dialog_undo_restore_confirmation_title">Undo last restore?</string>
+    <string name="app_dialog_undo_restore_confirmation_body">Your data will revert to the state it was in on %1$s. This cannot be undone.</string>
+    <string name="app_dialog_undo_restore_confirmation_confirm">Undo restore</string>
+    <string name="app_dialog_undo_restore_confirmation_cancel">Cancel</string>
+
+    <!-- UndoRestoreSuccess -->
+    <string name="app_dialog_undo_restore_success_title">Reverted</string>
+    <string name="app_dialog_undo_restore_success_body">Your data has been restored to the previous state.</string>
+    <string name="app_dialog_undo_restore_success_confirm">OK</string>
+</resources>

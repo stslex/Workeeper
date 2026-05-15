@@ -60,5 +60,6 @@ include(":feature:past-session")
 include(":feature:image-viewer")
 include(":feature:plan-editor")
 include(":feature:app-dialogs:api")
+include(":feature:app-dialogs:impl")
 
 include(":lint-rules")

@@ -129,6 +129,16 @@ typed metadata keys. Adding a new dialog type =
 The pattern is documented in
 [`.claude/skills/app-dialogs-pattern.md`](../../.claude/skills/app-dialogs-pattern.md).
 
+### Key naming stability
+
+`AppDialogKeys` names are wire format: they live on user devices in
+`app_dialogs_prefs.preferences_pb` and survive every app update. Adding new
+keys for new variants is safe (existing users simply have no value for the
+new key, which decodes as `null`/`false` — the correct "no pending dialog"
+default). **Renaming an existing key requires the deprecation path
+described in `AppDialogKeys.kt`'s class KDoc** — drop a rename and any user
+mid-flow loses their pending dialog on update.
+
 ## Priority ordering
 
 When multiple flags are set simultaneously, `AppDialogStore` resolves the

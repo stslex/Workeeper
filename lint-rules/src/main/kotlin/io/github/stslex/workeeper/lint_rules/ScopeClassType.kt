@@ -22,6 +22,11 @@ enum class ScopeClassType(
             "Database",
             "Storage",
             "StoreDispatchers",
+            // app-scoped, DataStore-backed cross-feature dialog catalog.
+            // The only Store in the codebase that lives at SingletonComponent
+            // scope — see documentation/lint-rules.md → HiltScopeRule and
+            // documentation/feature-specs/app-dialogs.md → DI table.
+            "AppDialogStore",
         )
         private val viewModelScopedClasses = listOf(
             "Handler",

@@ -199,7 +199,7 @@ Walks classes that have a primary constructor annotated `@Inject` and applies a 
 scope policy from `ScopeClassType`:
 
 - Class name contains any of `Repository`, `DataStore`, `Database`, `Storage`,
-  `StoreDispatchers` → must be annotated `@Singleton`.
+  `StoreDispatchers`, or the explicit `AppDialogStore` exception → must be annotated `@Singleton`.
 - Class name contains any of `Handler`, `Interactor`, `Mapper` → must be annotated
   `@ViewModelScoped`.
 - Class name contains `Store` (matches both `*Store` interfaces and `*StoreImpl`
@@ -270,6 +270,20 @@ Stores, interactors, and mappers continue to follow the standard predicates: a S
 interface (`*Store : Store<...>`) and its `*StoreImpl` carry `@HiltViewModel`;
 interactors / handlers / mappers carry `@ViewModelScoped`; repositories / data
 stores / databases / dispatch holders carry `@Singleton`.
+
+#### Exception: `AppDialogStore`
+
+`AppDialogStore` (`feature/app-dialogs/impl/.../store/AppDialogStore.kt`) is the
+single cross-feature, DataStore-backed dialog catalog and lives at
+application scope. It carries the `Store` suffix because callers (and
+`AppDialogHost`) consume it as a "store of pending dialogs", but it is **not**
+a feature MVI store implementing `Store<S, A, E>`; it is a DataStore writer.
+`ScopeClassType.singletonClasses` contains the explicit string
+`AppDialogStore` so the rule maps the class to `@Singleton` rather than to
+`@HiltViewModel`. See
+[feature-specs/app-dialogs.md → DI](feature-specs/app-dialogs.md) for the
+broader rationale (a single writer of every `pending_*` key, surviving
+process restart).
 
 If a future class needs singleton scope but does not match any of the singleton
 predicates, either:

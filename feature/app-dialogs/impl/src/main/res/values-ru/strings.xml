@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- RestoreSuccess -->
+    <string name="app_dialog_restore_success_title">Восстановление завершено</string>
+    <string name="app_dialog_restore_success_body">Данные восстановлены из резервной копии от %1$s. При необходимости вы можете вернуться к предыдущим данным в настройках.</string>
+    <string name="app_dialog_restore_success_body_no_previous">Данные восстановлены из резервной копии от %1$s.</string>
+    <string name="app_dialog_restore_success_confirm">ОК</string>
+
+    <!-- RestoreFailure -->
+    <string name="app_dialog_restore_failure_title">Не удалось восстановить</string>
+    <string name="app_dialog_restore_failure_body">Ваши данные сохранены. Причина: %1$s. Сообщите об ошибке, чтобы мы могли её исправить.</string>
+    <string name="app_dialog_restore_failure_confirm">ОК</string>
+
+    <!-- UndoRestoreConfirmation -->
+    <string name="app_dialog_undo_restore_confirmation_title">Отменить последнее восстановление?</string>
+    <string name="app_dialog_undo_restore_confirmation_body">Данные вернутся к состоянию на %1$s. Это действие необратимо.</string>
+    <string name="app_dialog_undo_restore_confirmation_confirm">Отменить восстановление</string>
+    <string name="app_dialog_undo_restore_confirmation_cancel">Отмена</string>
+
+    <!-- UndoRestoreSuccess -->
+    <string name="app_dialog_undo_restore_success_title">Возврат выполнен</string>
+    <string name="app_dialog_undo_restore_success_body">Данные восстановлены к предыдущему состоянию.</string>
+    <string name="app_dialog_undo_restore_success_confirm">ОК</string>
+</resources>
