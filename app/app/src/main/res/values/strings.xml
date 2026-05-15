@@ -2,7 +2,7 @@
     <string name="app_name" translatable="false">Workeeper</string>
 
     <string name="bottom_bar_label_home">Home</string>
-    <string name="bottom_bar_label_trainings">Trainings</string>">
+    <string name="bottom_bar_label_trainings">Trainings</string>
     <string name="bottom_bar_label_exercises">Exercises</string>
 
     <!-- RecoveryActivity (Scenario 2 startup migration failure) -->
