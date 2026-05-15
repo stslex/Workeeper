@@ -350,6 +350,40 @@ internal class DatabaseSnapshotProviderImplTest {
     }
 
     @Test
+    fun `preserveDbBeforeMigration runs wal_checkpoint via direct SQLite`() = runTest {
+        // Seed a row and confirm the WAL sidecar carries unsynced bytes before
+        // the snapshot runs — pre-condition for the checkpoint path to do work.
+        database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "PreCheckpoint"))
+        val dbDir = requireNotNull(context.getDatabasePath(AppDatabase.NAME).parentFile)
+        val walFile = File(dbDir, "${AppDatabase.NAME}-wal")
+        assertTrue(walFile.exists(), "WAL sidecar must exist after DAO write")
+        assertTrue(
+            walFile.length() > 0L,
+            "WAL must contain unsynced bytes pre-snapshot; was ${walFile.length()}",
+        )
+        // Close Room — the checkpoint inside preserveDbBeforeMigration must work
+        // through a direct SQLite open, not through the (closed) Room helper.
+        database.close()
+
+        val preserved = provider.preserveDbBeforeMigration()
+        assertNotNull(preserved)
+
+        // The row must round-trip through the snapshot. Read via direct SQLite —
+        // Room.databaseBuilder resolves paths against the databases dir, not the
+        // cacheDir location where the snapshot lives.
+        val snapshotDb = android.database.sqlite.SQLiteDatabase.openDatabase(
+            preserved!!.absolutePath,
+            null,
+            android.database.sqlite.SQLiteDatabase.OPEN_READONLY,
+        )
+        val names = snapshotDb.rawQuery("SELECT name FROM tag_table", null).use { cursor ->
+            buildSet { while (cursor.moveToNext()) add(cursor.getString(0)) }
+        }
+        snapshotDb.close()
+        assertEquals(setOf("PreCheckpoint"), names)
+    }
+
+    @Test
     fun `getPreMigrationBackupFile returns the file when present and null when absent`() =
         runTest {
             assertEquals(null, provider.getPreMigrationBackupFile())
