@@ -26,20 +26,39 @@ wipes the user's data" failure mode that exists in the current build.
 
 ## Status
 
-- **Scenarios 1 and 3 shipped.** The pre-restore compatibility checks
-  (PR-B), the `feature/app-dialogs` infrastructure (PR-C), the post-restart
-  pre-flight + automatic rollback + Crashlytics non-fatal + diagnostic
-  export (PR-D), and the user-initiated undo of the last successful restore
-  (PR-D) are all live. The four `AppDialog` variants are wired with
-  concrete actions: Report issue (GitHub), Export diagnostics
-  (FileProvider share), Undo restore (file swap + restart).
-- **Scenario 2 planned.** Startup migration failure recovery via a
-  dedicated `RecoveryActivity` is the next PR; the
-  `fallbackToDestructiveMigration*` removal landed with PR-B (verified
-  absent — every migration failure now routes to Scenario 1 or, once PR-E
-  lands, Scenario 2).
-- See [app-dialogs.md](app-dialogs.md) for the cross-feature dialog
-  surface.
+**Shipped end-to-end.** The pre-restore compatibility checks (PR-B), the
+`feature/app-dialogs` infrastructure (PR-C), the restore-time recovery +
+user-initiated undo flows (PR-D), and the startup migration failure
+recovery (PR-E) are all live. Every migration failure now routes to one of
+three deterministic recovery paths — silent data wipe is no longer reachable
+in any code path.
+
+- **Scenario 1** (restore-time) — pre-flight in
+  [`RestoreRecoveryCoordinator`](../../app/app/src/main/java/io/github/stslex/workeeper/recovery/RestoreRecoveryCoordinator.kt),
+  triggered from
+  [`BaseApplication.onCreate`](../../app/app/src/main/java/io/github/stslex/workeeper/BaseApplication.kt).
+  Automatic rollback to `cache/pre_restore_backup.db` on Room migration
+  failure; `AppDialog.RestoreSuccess` / `RestoreFailure` published via
+  DataStore so it surfaces after restart on any destination.
+- **Scenario 2** (startup) — pre-flight in
+  [`StartupMigrationCoordinator`](../../app/app/src/main/java/io/github/stslex/workeeper/recovery/StartupMigrationCoordinator.kt),
+  triggered from
+  [`BaseApplication.onCreate`](../../app/app/src/main/java/io/github/stslex/workeeper/BaseApplication.kt)
+  when `restore_in_progress` is false. Routes to the Room-free
+  [`RecoveryActivity`](../../app/app/src/main/java/io/github/stslex/workeeper/recovery/RecoveryActivity.kt)
+  on `APP_DOWNGRADE` / `NO_MIGRATION_PATH` / `CANNOT_PEEK_LIVE_DB`.
+- **Scenario 3** (user-initiated undo) — the Settings "Revert last restore"
+  row in
+  [`BackupSection`](../../feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/ui/components/BackupSection.kt)
+  publishes `AppDialog.UndoRestoreConfirmation`;
+  [`RestoreRecoveryCoordinator.performUndoRestore`](../../app/app/src/main/java/io/github/stslex/workeeper/recovery/RestoreRecoveryCoordinator.kt)
+  swaps + restarts.
+- The four `AppDialog` variants and the cross-feature publisher live in
+  [`feature/app-dialogs`](../../feature/app-dialogs/) — see
+  [app-dialogs.md](app-dialogs.md).
+- `fallbackToDestructiveMigration*` is intentionally absent from the Room
+  builder (verified by PR-B). Every migration failure routes to Scenario 1
+  or Scenario 2; silent data wipe is gone.
 
 ## Scope
 
@@ -162,23 +181,61 @@ Room cannot migrate the user's existing database because the code-side
 schema bumped without a registered migration. This is a developer error;
 the user did nothing wrong.
 
+**Implementation status:** shipped. Pre-flight in
+[`StartupMigrationCoordinator`](../../app/app/src/main/java/io/github/stslex/workeeper/recovery/StartupMigrationCoordinator.kt)
+called from
+[`BaseApplication.onCreate`](../../app/app/src/main/java/io/github/stslex/workeeper/BaseApplication.kt)
+after the Scenario 1 check returns no-op. Routes to
+[`RecoveryActivity`](../../app/app/src/main/java/io/github/stslex/workeeper/recovery/RecoveryActivity.kt)
+via a `MainActivity.onCreate` check on
+[`StartupMigrationCoordinator.lastDecision`](../../app/app/src/main/java/io/github/stslex/workeeper/recovery/StartupMigrationCoordinator.kt).
+
+**Implementation deviates from the literal spec** in two ways, both
+documented in the coordinator KDoc:
+
+1. **The pre-flight does not trigger Room migration.** It peeks the live
+   `PRAGMA user_version` via the Room-free `SQLiteDatabase.openDatabase`
+   and consults the registered `hasMigrationPath`. A migration is trusted
+   if it is registered; a registered-but-buggy migration still surfaces
+   as a Room exception on first DAO call (narrower failure mode than
+   missing-migration, which PR-B's `MigrationsRegistryTest` catches
+   pre-merge).
+2. **The pre-Room snapshot is written lazily, only on the
+   `RouteToRecovery` branch.** The live db is pristine at that point
+   (Room never opened it on this launch), so the snapshot captures the
+   same bytes the spec asks for, without paying the file-copy cost on
+   every normal launch.
+
 Flow:
 
-1. **Application.onCreate** reads `restore_in_progress` flag → `false`.
-2. **Pre-Room snapshot.** Save current `<db>` → `cache/pre_migration_backup.db`
-   before any Room initialization. The Scenario 2 pre-flight runs on every
-   normal launch, not only on suspected-failure launches — the cost is one
-   file copy (~170 KB at current schema) once per launch, and there is no
-   way to predict whether migration will succeed without trying it.
-3. **Migration-path check.** Compute
-   `hasMigrationPath(detectedDbVersion, currentCodeVersion)`:
-   - **Path valid.** Initialize Room normally. On successful open, delete
-     `pre_migration_backup.db`. Continue to main app.
-   - **Path missing OR Room initialization throws** anyway (e.g. a
-     registered migration crashes at runtime). Route to `RecoveryActivity`
-     instead of `MainActivity`. The preserved `.db` is still in
-     `cache/pre_migration_backup.db` and accessible to RecoveryActivity for
-     export.
+1. **Application.onCreate** reads `restore_in_progress` flag → `false`
+   (the Scenario 1 path runs first and short-circuits here when
+   it returns `NoOp`).
+2. **Schema peek.** `peekSnapshotSchemaVersion` reads the live db's
+   `user_version` via `SQLiteDatabase.openDatabase` — no Room init, no
+   migration trigger.
+3. **Decide.** Four branches, exhaustive over
+   `StartupMigrationFailureReason`:
+   - `db == code` → `Proceed`. Delete any stale `pre_migration_backup.db`
+     from a previous launch.
+   - `db > code` → `RouteToRecovery(APP_DOWNGRADE)`. Preserve snapshot,
+     record Crashlytics non-fatal.
+   - `db < code` + `hasMigrationPath = true` → `Proceed`. Room handles the
+     migration lazily on first DAO access.
+   - `db < code` + `hasMigrationPath = false` → `RouteToRecovery(NO_MIGRATION_PATH)`.
+     Preserve snapshot, record Crashlytics non-fatal.
+   - Peek throws → `RouteToRecovery(CANNOT_PEEK_LIVE_DB)`. Preserve
+     snapshot best-effort, record Crashlytics non-fatal.
+4. **MainActivity.onCreate** reads `coordinator.lastDecision`. On
+   `RouteToRecovery`, finishes itself and launches `RecoveryActivity`
+   (the brief MainActivity frame is acceptable for a rare developer-error
+   path; explicitly chosen over `PackageManager.setComponentEnabledSetting`
+   launcher swaps because the latter has known OEM-ROM flakiness).
+5. **RecoveryActivity** is Room-free — it injects `DatabaseSnapshotProvider`
+   and `RecoveryDiagnosticsExporter` but only calls Room-free methods
+   (`getPreMigrationBackupFile`, `availableMigrationsLabel`,
+   `exportStartupMigrationFailure`). `Room.databaseBuilder.build()` is
+   lazy, so this is safe — no migration fires until a DAO call happens.
 
 `RecoveryActivity` lives in `app/app` (not in a feature module — it must
 work without Room and without any feature DI graph that depends on Room).
