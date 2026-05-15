@@ -4,13 +4,17 @@ package io.github.stslex.workeeper.feature.settings.mvi.handler
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.scopes.ViewModelScoped
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupErrorCode
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferences
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupSchedule
+import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
+import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
+import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.settings.di.SettingsHandlerStore
 import io.github.stslex.workeeper.feature.settings.domain.BackupInteractor
 import io.github.stslex.workeeper.feature.settings.domain.model.SignInOutcomeDomain
@@ -39,6 +43,9 @@ internal class BackupClickHandler @Inject constructor(
     private val interactor: BackupInteractor,
     private val preferencesRepository: BackupPreferencesRepository,
     private val autoBackupController: AutoBackupController,
+    private val restoreStateRepository: RestoreStateRepository,
+    private val snapshotProvider: DatabaseSnapshotProvider,
+    private val appDialogPublisher: AppDialogPublisher,
     @ApplicationContext private val context: Context,
     store: SettingsHandlerStore,
 ) : Handler<Action.Backup>, SettingsHandlerStore by store {
@@ -47,6 +54,8 @@ internal class BackupClickHandler @Inject constructor(
         when (action) {
             Action.Backup.ObserveAuth -> observeAuth()
             Action.Backup.ObservePreferences -> observePreferences()
+            Action.Backup.ObserveRestoreState -> observeRestoreState()
+            Action.Backup.RequestRevertLastRestore -> requestRevertLastRestore()
             Action.Backup.SignIn -> signIn()
             is Action.Backup.HandleAuthResult -> handleAuthResult(action.resultIntent)
             Action.Backup.RequestSignOut -> requestSignOut()
@@ -67,6 +76,46 @@ internal class BackupClickHandler @Inject constructor(
             is Action.Backup.UpdateFrequencyPickerSelection -> updateFrequencyPickerSelection(
                 action.schedule,
                 action.allowOnMobileData,
+            )
+        }
+    }
+
+    /**
+     * Visibility for the "Revert last restore" row needs **both** the
+     * `pre_restore_backup_available` DataStore flag (intent: undo slot was set
+     * by the last successful Restore) and the actual `cache/pre_restore_backup.db`
+     * file. The file lives in `cacheDir`, which Android can reclaim under
+     * storage pressure — the flag would survive while the file is gone, and a
+     * row tap would land in a silent-failure path inside the coordinator.
+     *
+     * Combining both signals here hides the row immediately when the file is
+     * evicted, and self-heals the DataStore flag to keep the two sources in
+     * sync. Defence-in-depth still lives in
+     * `RestoreRecoveryCoordinator.performUndoRestore` for the race window
+     * between observation and tap.
+     */
+    private fun observeRestoreState() {
+        restoreStateRepository.observePreRestoreBackupAvailable()
+            .launch { flagged ->
+                val fileExists = snapshotProvider.hasPreRestoreBackup()
+                if (flagged && !fileExists) {
+                    restoreStateRepository.clearPreRestoreBackupAvailable()
+                }
+                updateState { current ->
+                    current.copy(canRevertLastRestore = flagged && fileExists)
+                }
+            }
+    }
+
+    private fun requestRevertLastRestore() {
+        launchDefault(
+            onError = { e -> logger.e(e, "Failed to publish UndoRestoreConfirmation") },
+            onSuccess = { },
+        ) {
+            val originalDate = restoreStateRepository.getPreRestoreOriginalDate()
+                ?: return@launchDefault
+            appDialogPublisher.publish(
+                AppDialog.UndoRestoreConfirmation(originalDataDateEpochMs = originalDate),
             )
         }
     }

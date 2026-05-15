@@ -37,6 +37,7 @@ internal fun BackupSection(
                     operation = state.operation,
                     info = state.info,
                     preferences = state.preferences,
+                    canRevertLastRestore = state.canRevertLastRestore,
                     onAction = onAction,
                 )
             }
@@ -63,6 +64,7 @@ private fun AuthenticatedBlock(
     operation: BackupOperationUi,
     info: BackupInfoUi?,
     preferences: BackupPreferencesUi?,
+    canRevertLastRestore: Boolean,
     onAction: (Action.Backup) -> Unit,
 ) {
     AccountInfoRow(email = auth.email, displayName = auth.displayName)
@@ -101,6 +103,14 @@ private fun AuthenticatedBlock(
         isLoading = operation == BackupOperationUi.FetchingBackups ||
             operation == BackupOperationUi.Restoring,
     )
+    if (canRevertLastRestore) {
+        BackupButtonRow(
+            title = stringResource(R.string.feature_settings_backup_revert_last_restore_label),
+            onClick = { onAction(Action.Backup.RequestRevertLastRestore) },
+            enabled = !operation.isInProgress,
+            isLoading = false,
+        )
+    }
     BackupButtonRow(
         title = stringResource(R.string.feature_settings_backup_sign_out),
         onClick = { onAction(Action.Backup.RequestSignOut) },

@@ -97,6 +97,7 @@ internal fun SettingsScreen(
                         operation = state.backupOperation,
                         info = state.backupInfo,
                         preferences = state.backupPreferences,
+                        canRevertLastRestore = state.canRevertLastRestore,
                     ),
                     onAction = { consume(it) },
                 )

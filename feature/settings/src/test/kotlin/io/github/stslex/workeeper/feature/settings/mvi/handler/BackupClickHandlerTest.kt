@@ -8,6 +8,7 @@ import android.content.res.Resources
 import android.text.format.DateUtils
 import android.text.format.Formatter
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupWorkInfo
@@ -15,6 +16,8 @@ import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupErrorCod
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferences
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupSchedule
+import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
+import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.settings.R
 import io.github.stslex.workeeper.feature.settings.domain.BackupInteractor
 import io.github.stslex.workeeper.feature.settings.domain.model.AccountDomain
@@ -92,6 +95,11 @@ internal class BackupClickHandlerTest {
         every { getString(R.string.feature_settings_backup_info_count_zero) } returns "No backups yet"
         every { getString(R.string.feature_settings_backup_info_last_backup_format, any()) } returns "Last backup: X"
     }
+    private val restoreStateRepository = mockk<RestoreStateRepository>(relaxed = true)
+    private val snapshotProvider = mockk<DatabaseSnapshotProvider>(relaxed = true).apply {
+        every { hasPreRestoreBackup() } returns true
+    }
+    private val appDialogPublisher = mockk<AppDialogPublisher>(relaxed = true)
     private lateinit var store: FakeSettingsHandlerStore
     private lateinit var handler: BackupClickHandler
 
@@ -108,6 +116,9 @@ internal class BackupClickHandlerTest {
             interactor = interactor,
             preferencesRepository = preferencesRepository,
             autoBackupController = autoBackupController,
+            restoreStateRepository = restoreStateRepository,
+            snapshotProvider = snapshotProvider,
+            appDialogPublisher = appDialogPublisher,
             context = context,
             store = store,
         )
@@ -666,4 +677,70 @@ internal class BackupClickHandlerTest {
         coVerify { autoBackupController.cancelPeriodic() }
         coVerify { interactor.signOut() }
     }
+
+    @Test
+    fun `ObserveRestoreState pipes preserved-backup availability into canRevertLastRestore`() =
+        runTest(testDispatcher) {
+            val availabilityFlow = MutableStateFlow(false)
+            every {
+                restoreStateRepository.observePreRestoreBackupAvailable()
+            } returns availabilityFlow
+            every { snapshotProvider.hasPreRestoreBackup() } returns true
+
+            handler.invoke(Action.Backup.ObserveRestoreState)
+            runCurrent()
+            assertEquals(false, store.stateFlow.value.canRevertLastRestore)
+
+            availabilityFlow.value = true
+            runCurrent()
+            assertEquals(true, store.stateFlow.value.canRevertLastRestore)
+
+            availabilityFlow.value = false
+            runCurrent()
+            assertEquals(false, store.stateFlow.value.canRevertLastRestore)
+        }
+
+    @Test
+    fun `ObserveRestoreState hides row and clears flag when cache evicted preserved file`() =
+        runTest(testDispatcher) {
+            val availabilityFlow = MutableStateFlow(true)
+            every {
+                restoreStateRepository.observePreRestoreBackupAvailable()
+            } returns availabilityFlow
+            // DataStore flag says available, but the file is gone (cache eviction).
+            every { snapshotProvider.hasPreRestoreBackup() } returns false
+
+            handler.invoke(Action.Backup.ObserveRestoreState)
+            runCurrent()
+
+            assertEquals(false, store.stateFlow.value.canRevertLastRestore)
+            coVerify(exactly = 1) { restoreStateRepository.clearPreRestoreBackupAvailable() }
+        }
+
+    @Test
+    fun `RequestRevertLastRestore publishes UndoRestoreConfirmation with persisted date`() =
+        runTest(testDispatcher) {
+            coEvery { restoreStateRepository.getPreRestoreOriginalDate() } returns 1_700_000_000_000L
+
+            handler.invoke(Action.Backup.RequestRevertLastRestore)
+            runCurrent()
+
+            coVerify(exactly = 1) {
+                appDialogPublisher.publish(
+                    io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
+                        .UndoRestoreConfirmation(originalDataDateEpochMs = 1_700_000_000_000L),
+                )
+            }
+        }
+
+    @Test
+    fun `RequestRevertLastRestore is a no-op when no original date is persisted`() =
+        runTest(testDispatcher) {
+            coEvery { restoreStateRepository.getPreRestoreOriginalDate() } returns null
+
+            handler.invoke(Action.Backup.RequestRevertLastRestore)
+            runCurrent()
+
+            coVerify(exactly = 0) { appDialogPublisher.publish(any()) }
+        }
 }

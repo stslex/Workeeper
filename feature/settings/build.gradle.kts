@@ -12,6 +12,7 @@ dependencies {
     implementation(project(":core:data:exercise"))
     implementation(project(":core:data:backup:api"))
     implementation(project(":core:data:database"))
+    implementation(project(":feature:app-dialogs:api"))
 
     testImplementation(kotlin("test"))
     testImplementation(libs.androidx.paging.testing)

@@ -23,6 +23,7 @@
     <string name="feature_settings_backup_sign_out">Sign out</string>
     <string name="feature_settings_backup_create">Backup now</string>
     <string name="feature_settings_backup_restore">Restore from backup</string>
+    <string name="feature_settings_backup_revert_last_restore_label">Revert last restore</string>
     <string name="feature_settings_backup_restore_title">Restore backup?</string>
     <string name="feature_settings_backup_restore_warning">Replaces your current data with the backup from %1$s (%2$s). This cannot be undone.</string>
     <string name="feature_settings_backup_restore_impact">All current data will be replaced</string>

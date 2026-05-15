@@ -52,6 +52,7 @@ internal class SettingsStoreImpl @Inject constructor(
         Action.Paging.Init,
         Action.Backup.ObserveAuth,
         Action.Backup.ObservePreferences,
+        Action.Backup.ObserveRestoreState,
     ),
     analyticsHolder = analyticsHolder,
     loggerHolder = loggerHolder,

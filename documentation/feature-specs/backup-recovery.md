@@ -26,15 +26,20 @@ wipes the user's data" failure mode that exists in the current build.
 
 ## Status
 
-- Planned. No code shipped.
-- Depends on `feature/app-dialogs` for the four dialog variants
-  (`RestoreSuccess`, `RestoreFailure`, `UndoRestoreConfirmation`,
-  `UndoRestoreSuccess`) — see [app-dialogs.md](app-dialogs.md).
-- Removes the existing `fallbackToDestructiveMigration*` calls from
-  `AppDatabase.Builder` (see
-  [tech-debt.md → Schema Migration Debt](../tech-debt.md#schema-migration-debt)).
-  Every migration failure routes to Scenario 1 or Scenario 2; silent data
-  wipe is gone.
+- **Scenarios 1 and 3 shipped.** The pre-restore compatibility checks
+  (PR-B), the `feature/app-dialogs` infrastructure (PR-C), the post-restart
+  pre-flight + automatic rollback + Crashlytics non-fatal + diagnostic
+  export (PR-D), and the user-initiated undo of the last successful restore
+  (PR-D) are all live. The four `AppDialog` variants are wired with
+  concrete actions: Report issue (GitHub), Export diagnostics
+  (FileProvider share), Undo restore (file swap + restart).
+- **Scenario 2 planned.** Startup migration failure recovery via a
+  dedicated `RecoveryActivity` is the next PR; the
+  `fallbackToDestructiveMigration*` removal landed with PR-B (verified
+  absent — every migration failure now routes to Scenario 1 or, once PR-E
+  lands, Scenario 2).
+- See [app-dialogs.md](app-dialogs.md) for the cross-feature dialog
+  surface.
 
 ## Scope
 
@@ -98,15 +103,24 @@ branches.
 Trigger: user explicitly tapped Restore, backup file was atomically swapped
 in, app restarted, Room migration crashes during subsequent open.
 
+**Implementation status:** shipped. Live in
+[`BackupInteractorImpl.restoreLatest`](../../feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/domain/BackupInteractorImpl.kt)
+(pre-restore save + flag) and
+[`RestoreRecoveryCoordinator.handlePostRestoreLaunch`](../../app/app/src/main/java/io/github/stslex/workeeper/recovery/RestoreRecoveryCoordinator.kt)
+(post-restart pre-flight + rollback + publish + restart).
+[`BaseApplication.onCreate`](../../app/app/src/main/java/io/github/stslex/workeeper/BaseApplication.kt)
+invokes the coordinator via a Hilt `EntryPoint`.
+
 Flow:
 
-1. **Pre-restore** (before file replace). `BackupClickHandler.confirmRestore`
-   flow:
-   1. Save current `<db>` → `cache/pre_restore_backup.db` via a
-      file-copy helper in `DatabaseSnapshotProvider`.
-   2. Write DataStore flag `restore_in_progress = true` plus metadata
-      (`restore_in_progress_backup_version: Int`,
-      `restore_in_progress_initiated_at_epoch_ms: Long`).
+1. **Pre-restore** (before file replace).
+   [`BackupInteractorImpl.restoreLatest`](../../feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/domain/BackupInteractorImpl.kt):
+   1. Save current `<db>` → `cache/pre_restore_backup.db` via
+      [`DatabaseSnapshotProvider.preserveCurrentDb`](../../core/data/database/src/main/kotlin/io/github/stslex/workeeper/core/data/database/snapshot/DatabaseSnapshotProvider.kt).
+   2. Write DataStore flag `restore_in_progress = true` plus the manifest
+      context (`backupSchemaVersion`, `backupCreatedAtEpochMs`,
+      `backupAppVersion`, `startedAtEpochMs`) via
+      [`RestoreStateRepository.markRestoreInProgress`](../../core/data/backup/api/src/main/kotlin/io/github/stslex/workeeper/core/data/backup/api/restore/RestoreStateRepository.kt).
    3. Existing `restoreFromSnapshot` (delete WAL/SHM sidecars, atomic
       rename — see
       [backup.md → Restore flow](backup.md#restore-flow)).
@@ -183,6 +197,19 @@ Room-dependent module — keep its strings either in `app/app/.../res/` or
 in a Room-free shared module.
 
 ### Scenario 3 — user-initiated undo of last successful restore
+
+**Implementation status:** shipped. The Settings "Revert last restore" row
+is rendered in
+[`BackupSection.AuthenticatedBlock`](../../feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/ui/components/BackupSection.kt)
+when `state.canRevertLastRestore` is true.
+[`BackupClickHandler.observeRestoreState`](../../feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/mvi/handler/BackupClickHandler.kt)
+subscribes to `RestoreStateRepository.observePreRestoreBackupAvailable()`
+and pushes the result into state. The tap publishes
+`AppDialog.UndoRestoreConfirmation`; the confirm callback in
+`AppDialogHost` calls
+[`RestoreRecoveryCoordinator.performUndoRestore`](../../app/app/src/main/java/io/github/stslex/workeeper/recovery/RestoreRecoveryCoordinator.kt)
+which file-swaps and restarts. The post-restart `UndoRestoreSuccess` dialog
+survives via DataStore.
 
 After a successful Scenario 1 happy path, `pre_restore_backup.db` is
 preserved. Settings exposes a new row "Revert last restore" while the file

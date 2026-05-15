@@ -13,4 +13,5 @@ internal data class SettingsBackupState(
     val operation: BackupOperationUi,
     val info: BackupInfoUi?,
     val preferences: BackupPreferencesUi?,
+    val canRevertLastRestore: Boolean,
 )

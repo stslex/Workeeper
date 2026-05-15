@@ -31,6 +31,7 @@ internal interface SettingsStore : Store<State, Action, Event> {
         val backupInfo: BackupInfoUi?,
         val backupPreferences: BackupPreferencesUi?,
         val restoreProgress: RestoreProgressUi,
+        val canRevertLastRestore: Boolean,
     ) : Store.State {
 
         companion object {
@@ -48,6 +49,7 @@ internal interface SettingsStore : Store<State, Action, Event> {
                 backupInfo = null,
                 backupPreferences = null,
                 restoreProgress = RestoreProgressUi.Idle,
+                canRevertLastRestore = false,
             )
         }
     }
@@ -86,6 +88,8 @@ internal interface SettingsStore : Store<State, Action, Event> {
 
             data object ObserveAuth : Backup
             data object ObservePreferences : Backup
+            data object ObserveRestoreState : Backup
+            data object RequestRevertLastRestore : Backup
             data object SignIn : Backup
             data class HandleAuthResult(val resultIntent: Intent?) : Backup
             data object RequestSignOut : Backup

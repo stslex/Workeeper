@@ -23,6 +23,7 @@
     <string name="feature_settings_backup_sign_out">Выйти</string>
     <string name="feature_settings_backup_create">Создать резервную копию</string>
     <string name="feature_settings_backup_restore">Восстановить из резервной копии</string>
+    <string name="feature_settings_backup_revert_last_restore_label">Откатить последнее восстановление</string>
     <string name="feature_settings_backup_restore_title">Восстановить резервную копию?</string>
     <string name="feature_settings_backup_restore_warning">Заменит текущие данные резервной копией от %1$s (%2$s). Это действие необратимо.</string>
     <string name="feature_settings_backup_restore_impact">Все текущие данные будут заменены</string>
