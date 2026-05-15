@@ -23,6 +23,12 @@ without touching the feature module.
 - Auto-backup scheduling (Daily / Weekly / ManualOnly + allow-on-mobile-data
   toggle) and the first-sign-in bootstrap (immediate one-time backup + snackbar
   + Weekly periodic) are shipped.
+- **Upcoming**: schema-migration safety net and user-initiated undo of last
+  restore land via the recovery work — see
+  [backup-recovery.md](backup-recovery.md). The v1 restore path described here
+  remains the foundation; recovery extends it with pre-restore migration-path
+  checks, automatic rollback on migration crash, and a preserved-`.db`-backed
+  undo slot.
 - `BackupError.AuthRevoked` cancels the periodic work, raises a persistent
   low-importance notification, and reflects an "Auto-backup paused" banner in
   Settings until re-sign-in.
@@ -574,6 +580,8 @@ UI surfaces each variant via `BackupErrorUi` + a localized string resource.
 | `SchemaTooNew(backupSchema, appSchema)` | `peekSnapshotSchemaVersion` > current schema | n/a (restore path) | snackbar via `BackupErrorUi.SCHEMA_TOO_NEW` |
 | `Io(cause)` | Snapshot capture `IOException`; Drive 5xx | `Result.retry()` | snackbar via `BackupErrorUi.IO_ERROR` |
 | `Unknown(cause)` | Any uncategorized `Throwable` | `Result.retry()` | snackbar via `BackupErrorUi.UNKNOWN` |
+| `BackupTooNew` *(planned, recovery)* | Pre-restore: `backup.schemaVersion > currentCodeSchemaVersion`. Same surface as `SchemaTooNew` today, renamed in the recovery work for consistency with the recovery-aware error table. | n/a (restore path) | Restore confirmation disabled; "Update the app to restore this backup" — details in [backup-recovery.md → Error taxonomy additions](backup-recovery.md#error-taxonomy-additions). |
+| `MissingMigrationPath` *(planned, recovery)* | Pre-restore: `hasMigrationPath(backup.schemaVersion, currentCodeSchemaVersion)` returns false. | n/a (restore path) | Restore confirmation disabled; "Backup from older version that this app build cannot migrate" — details in [backup-recovery.md → Error taxonomy additions](backup-recovery.md#error-taxonomy-additions). |
 
 The mapping is implemented in three places that must stay in sync:
 
@@ -607,7 +615,11 @@ Decisions locked in for v1, with rationale.
   moment of confirm (a second list call inside `restoreLatest()` so a
   concurrent upload on another device wins). Picker UI is the v1.1
   follow-up — tracked in [tech-debt.md](../tech-debt.md) → "Backup
-  integrations".
+  integrations". A complementary safety net — pre-restore migration-path
+  checks, automatic rollback on Room migration failure, and user-initiated
+  undo of the last successful restore — is the scope of
+  [backup-recovery.md](backup-recovery.md) and ships independently of the
+  picker work.
 - **Drive only.** No self-hosted backend, no Dropbox, no iCloud (Workeeper
   is Android-only). The api/impl split inside `core/data/backup/` keeps the
   door open for additional providers in their own modules without touching

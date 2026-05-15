@@ -157,6 +157,16 @@ Use this mapping:
   read [documentation/feature-specs/app-dialogs.md](documentation/feature-specs/app-dialogs.md)
   first, then [`.claude/skills/app-dialogs-pattern.md`](.claude/skills/app-dialogs-pattern.md)
   for the seven-step recipe when adding a new `AppDialog` variant.
+- Backup recovery work — anything that touches the restore-time migration
+  rollback, the user-initiated undo of last restore, the `RecoveryActivity`,
+  the `MIGRATIONS` introspection helper (`hasMigrationPath`), the pre-restore
+  compatibility checks, or the removal of `fallbackToDestructiveMigration*`
+  from Room: read
+  [documentation/feature-specs/backup-recovery.md](documentation/feature-specs/backup-recovery.md)
+  first, then [documentation/feature-specs/backup.md](documentation/feature-specs/backup.md)
+  for the v1 flow it extends and
+  [documentation/feature-specs/app-dialogs.md](documentation/feature-specs/app-dialogs.md)
+  for the cross-feature dialog catalog the recovery flows publish into.
 
 If multiple skills apply, use the most specific one first, then combine the others as needed.
 If no listed skill applies, continue with the normal repository instructions.
