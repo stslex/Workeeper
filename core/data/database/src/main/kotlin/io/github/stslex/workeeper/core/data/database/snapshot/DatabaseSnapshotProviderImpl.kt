@@ -111,6 +111,32 @@ internal class DatabaseSnapshotProviderImpl @Inject constructor(
     override fun availableMigrationsLabel(): String =
         MIGRATIONS.joinToString(",") { "${it.startVersion}→${it.endVersion}" }
 
+    override suspend fun preserveDbBeforeMigration(): File? = withContext(dispatcher) {
+        val source = context.getDatabasePath(AppDatabase.NAME)
+        if (!source.exists()) return@withContext null
+        val target = preMigrationBackupFile()
+        try {
+            target.parentFile?.mkdirs()
+            source.copyTo(target, overwrite = true)
+            target
+        } catch (e: IOException) {
+            target.delete()
+            null
+        }
+    }
+
+    override fun hasPreMigrationBackup(): Boolean = preMigrationBackupFile().exists()
+
+    override fun getPreMigrationBackupFile(): File? =
+        preMigrationBackupFile().takeIf { it.exists() }
+
+    override suspend fun deletePreMigrationBackup() {
+        withContext(dispatcher) { preMigrationBackupFile().delete() }
+    }
+
+    private fun preMigrationBackupFile(): File =
+        File(context.cacheDir, PRE_MIGRATION_BACKUP_NAME)
+
     override suspend fun deletePreRestoreBackup() {
         withContext(dispatcher) { preRestoreBackupFile().delete() }
     }
@@ -172,6 +198,7 @@ internal class DatabaseSnapshotProviderImpl @Inject constructor(
     private companion object {
         const val SQLITE_HEADER_SIZE = 16
         const val PRE_RESTORE_BACKUP_NAME = "pre_restore_backup.db"
+        const val PRE_MIGRATION_BACKUP_NAME = "pre_migration_backup.db"
         val SQLITE_MAGIC: ByteArray =
             "SQLite format 3".toByteArray(Charsets.US_ASCII) + 0x00.toByte()
     }

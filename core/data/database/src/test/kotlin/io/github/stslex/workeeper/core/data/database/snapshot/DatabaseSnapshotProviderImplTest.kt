@@ -320,4 +320,88 @@ internal class DatabaseSnapshotProviderImplTest {
         provider.deletePreRestoreBackup()
         assertFalse(provider.hasPreRestoreBackup())
     }
+
+    @Test
+    fun `preserveDbBeforeMigration copies the live db file into cacheDir without Room`() =
+        runTest {
+            // Seed a row via Room so the live .db file has content on disk.
+            database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "PreMigration"))
+            // Close Room so the file is not open exclusively (mirrors Scenario 2
+            // pre-flight: Room has not yet been opened on this launch).
+            database.close()
+
+            val preserved = provider.preserveDbBeforeMigration()
+            assertNotNull(preserved)
+            assertTrue(preserved!!.exists())
+            assertEquals(context.cacheDir, preserved.parentFile)
+            assertTrue(provider.hasPreMigrationBackup())
+            // The preserved file is a valid SQLite database (peek opens it
+            // standalone without Room).
+            val peek = provider.peekSnapshotSchemaVersion(preserved)
+            assertTrue(peek is BackupResult.Success, "preserved file must be valid SQLite")
+        }
+
+    @Test
+    fun `preserveDbBeforeMigration returns null when no live db file exists`() = runTest {
+        database.close()
+        context.deleteDatabase(AppDatabase.NAME)
+        assertEquals(null, provider.preserveDbBeforeMigration())
+        assertFalse(provider.hasPreMigrationBackup())
+    }
+
+    @Test
+    fun `getPreMigrationBackupFile returns the file when present and null when absent`() =
+        runTest {
+            assertEquals(null, provider.getPreMigrationBackupFile())
+
+            database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "ForExport"))
+            database.close()
+            assertNotNull(provider.preserveDbBeforeMigration())
+
+            val file = provider.getPreMigrationBackupFile()
+            assertNotNull(file)
+            assertTrue(file!!.exists())
+        }
+
+    @Test
+    fun `deletePreMigrationBackup removes the file and is idempotent`() = runTest {
+        // Force the .db file onto disk via an insert before closing Room.
+        database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "ToDelete"))
+        database.close()
+        assertNotNull(provider.preserveDbBeforeMigration())
+        assertTrue(provider.hasPreMigrationBackup())
+
+        provider.deletePreMigrationBackup()
+        assertFalse(provider.hasPreMigrationBackup())
+
+        // Idempotent — second call no-ops without exception.
+        provider.deletePreMigrationBackup()
+        assertFalse(provider.hasPreMigrationBackup())
+    }
+
+    @Test
+    fun `pre_migration and pre_restore slots have independent lifecycles`() = runTest {
+        database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "Independence"))
+        // Scenario 1: preserve pre-restore (must run while Room is open — uses
+        // the live appDatabase to WAL-checkpoint).
+        assertTrue(provider.preserveCurrentDb() is BackupResult.Success)
+        // Scenario 2: preserve pre-migration via direct copy (close Room first).
+        database.close()
+        assertNotNull(provider.preserveDbBeforeMigration())
+
+        assertTrue(provider.hasPreRestoreBackup())
+        assertTrue(provider.hasPreMigrationBackup())
+
+        // Deleting pre-migration does not affect pre-restore.
+        provider.deletePreMigrationBackup()
+        assertFalse(provider.hasPreMigrationBackup())
+        assertTrue(provider.hasPreRestoreBackup())
+
+        // Inverse direction: re-create pre-migration, delete pre-restore, both
+        // remain independent.
+        assertNotNull(provider.preserveDbBeforeMigration())
+        provider.deletePreRestoreBackup()
+        assertFalse(provider.hasPreRestoreBackup())
+        assertTrue(provider.hasPreMigrationBackup())
+    }
 }

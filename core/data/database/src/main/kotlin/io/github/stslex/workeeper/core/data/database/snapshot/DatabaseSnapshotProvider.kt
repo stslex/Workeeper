@@ -136,4 +136,42 @@ interface DatabaseSnapshotProvider {
      * No-op when the file does not exist.
      */
     suspend fun deletePreRestoreBackup()
+
+    /**
+     * Copies the live database file to `cache/pre_migration_backup.db`
+     * directly via `File.copyTo`, without going through Room. This is the
+     * Scenario 2 safety net: when `Application.onCreate` decides to route
+     * the user to `RecoveryActivity` (developer-error migration path), the
+     * live `.db` is still pristine because Room was never opened — the
+     * direct copy captures that state for the user to export.
+     *
+     * Distinct from [preserveCurrentDb] (Scenario 1):
+     * - Runs **before** Room init, so it cannot WAL-checkpoint (would force
+     *   Room to open the database and migrate). Any unflushed WAL pages
+     *   from the previous app run are not in the snapshot; this is
+     *   acceptable because the realistic Scenario 2 case is "app updated
+     *   without registering a migration" — the previous launch closed
+     *   cleanly, WAL is already merged.
+     * - Lives at a different cache path (`pre_migration_backup.db`) with an
+     *   independent lifecycle (consumed by `RecoveryActivity` export, not
+     *   by automatic rollback).
+     *
+     * Returns the preserved file on success, `null` if the live database
+     * file does not exist (fresh install, no Scenario 2 to recover from)
+     * or the copy fails (logged best-effort; the caller still routes to
+     * recovery without the snapshot).
+     */
+    suspend fun preserveDbBeforeMigration(): File?
+
+    /** Whether `cache/pre_migration_backup.db` exists on disk. */
+    fun hasPreMigrationBackup(): Boolean
+
+    /**
+     * Returns the preserved `cache/pre_migration_backup.db` File for
+     * `RecoveryActivity`'s "Export raw data" action, or `null` if absent.
+     */
+    fun getPreMigrationBackupFile(): File?
+
+    /** Deletes `cache/pre_migration_backup.db`. No-op when absent. */
+    suspend fun deletePreMigrationBackup()
 }
