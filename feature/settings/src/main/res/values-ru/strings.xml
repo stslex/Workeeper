@@ -36,7 +36,8 @@
     <string name="feature_settings_backup_error_missing_required_scope">Доступ к Google Drive не предоставлен. Войдите снова и разрешите доступ к Drive — экран согласия появится ещё раз.</string>
     <string name="feature_settings_backup_error_storage_quota_exceeded">В Drive закончилось место</string>
     <string name="feature_settings_backup_error_corrupted_backup">Файл резервной копии повреждён</string>
-    <string name="feature_settings_backup_error_schema_too_new">Резервная копия требует более новой версии приложения</string>
+    <string name="feature_settings_backup_error_backup_too_new">Эта резервная копия из более новой версии приложения. Обновите Workeeper, чтобы её восстановить.</string>
+    <string name="feature_settings_backup_error_missing_migration_path">Эта резервная копия из старой версии, которую эта сборка приложения не может мигрировать. Обновите приложение или используйте более новую копию.</string>
     <string name="feature_settings_backup_error_io">Ошибка чтения или записи</string>
     <string name="feature_settings_backup_error_unknown">Что-то пошло не так</string>
     <string name="feature_settings_backup_error_no_backups_found">Нет доступных резервных копий</string>

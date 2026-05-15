@@ -255,7 +255,7 @@ internal class BackupInteractorImplTest {
         }
 
     @Test
-    fun `restoreLatest with backup schema newer than current returns SchemaTooNew`() =
+    fun `restoreLatest with backup schema newer than current returns BackupTooNew`() =
         runTest(testDispatcher) {
             val ref = makeRef(schema = 9)
             coEvery { backupStorage.listBackups() } returns BackupResult.Success(listOf(ref))
@@ -265,8 +265,8 @@ internal class BackupInteractorImplTest {
 
             assertTrue(result is BackupResult.Failure)
             val error = (result as BackupResult.Failure).error
-            assertTrue(error is BackupError.SchemaTooNew)
-            assertEquals(9, (error as BackupError.SchemaTooNew).backupSchemaVersion)
+            assertTrue(error is BackupError.BackupTooNew)
+            assertEquals(9, (error as BackupError.BackupTooNew).backupSchemaVersion)
             assertEquals(5, error.appSchemaVersion)
             coVerify(exactly = 0) { backupStorage.downloadBackup(any(), any()) }
             coVerify(exactly = 0) { snapshotProvider.restoreFromSnapshot(any()) }

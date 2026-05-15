@@ -43,7 +43,18 @@ sealed interface BackupError {
      * one shipped with the installed app. Restoring would risk data loss, so the
      * caller must surface an "update the app to restore" prompt.
      */
-    data class SchemaTooNew(
+    data class BackupTooNew(
+        val backupSchemaVersion: Int,
+        val appSchemaVersion: Int,
+    ) : BackupError
+
+    /**
+     * Backup's schema version is ≤ the current code's schema, but the registered
+     * migration graph has no path from `backupSchemaVersion` to `appSchemaVersion`.
+     * Distinct from [BackupTooNew] (backup newer than code) and [CorruptedBackup]
+     * (manifest unreadable / SQLite magic mismatch).
+     */
+    data class MissingMigrationPath(
         val backupSchemaVersion: Int,
         val appSchemaVersion: Int,
     ) : BackupError

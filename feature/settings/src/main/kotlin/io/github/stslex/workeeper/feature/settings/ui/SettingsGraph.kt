@@ -85,13 +85,15 @@ private fun backupErrorMessages(): Map<BackupErrorUi, String> {
     val authRevoked = stringResource(R.string.feature_settings_backup_error_auth_revoked)
     val quota = stringResource(R.string.feature_settings_backup_error_storage_quota_exceeded)
     val corrupted = stringResource(R.string.feature_settings_backup_error_corrupted_backup)
-    val schemaTooNew = stringResource(R.string.feature_settings_backup_error_schema_too_new)
+    val backupTooNew = stringResource(R.string.feature_settings_backup_error_backup_too_new)
+    val missingMigrationPath =
+        stringResource(R.string.feature_settings_backup_error_missing_migration_path)
     val io = stringResource(R.string.feature_settings_backup_error_io)
     val unknown = stringResource(R.string.feature_settings_backup_error_unknown)
     val noBackups = stringResource(R.string.feature_settings_backup_error_no_backups_found)
     return remember(
         notAuthenticated, network, authRevoked, quota, corrupted,
-        schemaTooNew, io, unknown, noBackups,
+        backupTooNew, missingMigrationPath, io, unknown, noBackups,
     ) {
         mapOf(
             BackupErrorUi.NOT_AUTHENTICATED to notAuthenticated,
@@ -99,7 +101,8 @@ private fun backupErrorMessages(): Map<BackupErrorUi, String> {
             BackupErrorUi.AUTH_REVOKED to authRevoked,
             BackupErrorUi.STORAGE_QUOTA_EXCEEDED to quota,
             BackupErrorUi.CORRUPTED_BACKUP to corrupted,
-            BackupErrorUi.SCHEMA_TOO_NEW to schemaTooNew,
+            BackupErrorUi.BACKUP_TOO_NEW to backupTooNew,
+            BackupErrorUi.MISSING_MIGRATION_PATH to missingMigrationPath,
             BackupErrorUi.IO_ERROR to io,
             BackupErrorUi.UNKNOWN to unknown,
             BackupErrorUi.NO_BACKUPS_FOUND to noBackups,

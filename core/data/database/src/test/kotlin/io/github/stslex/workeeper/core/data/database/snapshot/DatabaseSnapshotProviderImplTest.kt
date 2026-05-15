@@ -177,7 +177,7 @@ internal class DatabaseSnapshotProviderImplTest {
     }
 
     @Test
-    fun `restoreFromSnapshot returns SchemaTooNew when source schema is newer`() = runTest {
+    fun `restoreFromSnapshot returns BackupTooNew when source schema is newer`() = runTest {
         val dbDir = requireNotNull(context.getDatabasePath(AppDatabase.NAME).parentFile)
         // Capture a valid snapshot first.
         database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "anything"))
@@ -194,10 +194,10 @@ internal class DatabaseSnapshotProviderImplTest {
         assertTrue(result is BackupResult.Failure)
         val error = (result as BackupResult.Failure).error
         assertTrue(
-            error is BackupError.SchemaTooNew,
-            "expected SchemaTooNew, got $error",
+            error is BackupError.BackupTooNew,
+            "expected BackupTooNew, got $error",
         )
-        assertEquals(futureVersion, (error as BackupError.SchemaTooNew).backupSchemaVersion)
+        assertEquals(futureVersion, (error as BackupError.BackupTooNew).backupSchemaVersion)
     }
 
     @Test

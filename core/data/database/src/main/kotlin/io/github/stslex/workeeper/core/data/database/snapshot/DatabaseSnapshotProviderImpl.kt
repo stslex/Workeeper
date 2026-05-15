@@ -69,7 +69,7 @@ internal class DatabaseSnapshotProviderImpl @Inject constructor(
             val currentVersion = appDatabase.openHelper.readableDatabase.version
             if (sourceVersion > currentVersion) {
                 return@withContext BackupResult.Failure(
-                    BackupError.SchemaTooNew(
+                    BackupError.BackupTooNew(
                         backupSchemaVersion = sourceVersion,
                         appSchemaVersion = currentVersion,
                     ),

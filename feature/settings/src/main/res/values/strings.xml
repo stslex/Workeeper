@@ -36,7 +36,8 @@
     <string name="feature_settings_backup_error_missing_required_scope">Drive access wasn’t granted. Sign in again and allow Drive access — you’ll see the consent screen once more.</string>
     <string name="feature_settings_backup_error_storage_quota_exceeded">Drive storage is full</string>
     <string name="feature_settings_backup_error_corrupted_backup">Backup file is corrupted</string>
-    <string name="feature_settings_backup_error_schema_too_new">Backup needs a newer app version</string>
+    <string name="feature_settings_backup_error_backup_too_new">This backup is from a newer version of the app. Update Workeeper to restore it.</string>
+    <string name="feature_settings_backup_error_missing_migration_path">This backup is from an older version that this app build cannot migrate. Try updating the app or use a newer backup.</string>
     <string name="feature_settings_backup_error_io">Read/write error</string>
     <string name="feature_settings_backup_error_unknown">Something went wrong</string>
     <string name="feature_settings_backup_error_no_backups_found">No backups available</string>

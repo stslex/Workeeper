@@ -38,7 +38,8 @@ internal object BackupUiMapper {
         BackupError.MissingRequiredScope -> BackupErrorUi.MISSING_REQUIRED_SCOPE
         BackupError.StorageQuotaExceeded -> BackupErrorUi.STORAGE_QUOTA_EXCEEDED
         is BackupError.CorruptedBackup -> BackupErrorUi.CORRUPTED_BACKUP
-        is BackupError.SchemaTooNew -> BackupErrorUi.SCHEMA_TOO_NEW
+        is BackupError.BackupTooNew -> BackupErrorUi.BACKUP_TOO_NEW
+        is BackupError.MissingMigrationPath -> BackupErrorUi.MISSING_MIGRATION_PATH
         is BackupError.Io -> BackupErrorUi.IO_ERROR
         is BackupError.Unknown -> BackupErrorUi.UNKNOWN
     }

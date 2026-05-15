@@ -35,7 +35,7 @@ interface DatabaseSnapshotProvider {
      *
      * The call (1) validates the SQLite magic header on [source], (2) compares its
      * schema version against the running app's via [peekSnapshotSchemaVersion] —
-     * returning [io.github.stslex.workeeper.core.data.backup.api.error.BackupError.SchemaTooNew]
+     * returning [io.github.stslex.workeeper.core.data.backup.api.error.BackupError.BackupTooNew]
      * if [source] is newer — (3) closes the live `AppDatabase`, (4) deletes the
      * `-wal` and `-shm` sidecars, and (5) atomically replaces the main `.db` via a
      * same-directory temp file + rename.

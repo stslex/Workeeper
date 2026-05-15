@@ -84,7 +84,7 @@ internal class BackupInteractorImpl @Inject constructor(
         val currentSchemaVersion = snapshotProvider.currentSchemaVersion()
         if (ref.manifest.dbSchemaVersion > currentSchemaVersion) {
             return@withContext BackupResult.Failure(
-                BackupError.SchemaTooNew(
+                BackupError.BackupTooNew(
                     backupSchemaVersion = ref.manifest.dbSchemaVersion,
                     appSchemaVersion = currentSchemaVersion,
                 ),
