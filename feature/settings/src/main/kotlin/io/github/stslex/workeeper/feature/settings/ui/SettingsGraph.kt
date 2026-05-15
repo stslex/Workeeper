@@ -57,7 +57,9 @@ fun NavGraphBuilder.settingsGraph(
                 }
 
                 is Event.ShowBackupError -> {
-                    SnackbarManager.showSnackbar(backupErrorMessages.getValue(event.error))
+                    val message = backupErrorMessages[event.error]
+                        ?: backupErrorMessages.getValue(BackupErrorUi.UNKNOWN)
+                    SnackbarManager.showSnackbar(message)
                 }
 
                 Event.ShowBackupCreated -> SnackbarManager.showSnackbar(backupCreatedMessage)
@@ -83,6 +85,8 @@ private fun backupErrorMessages(): Map<BackupErrorUi, String> {
     val notAuthenticated = stringResource(R.string.feature_settings_backup_error_not_authenticated)
     val network = stringResource(R.string.feature_settings_backup_error_network_unavailable)
     val authRevoked = stringResource(R.string.feature_settings_backup_error_auth_revoked)
+    val missingRequiredScope =
+        stringResource(R.string.feature_settings_backup_error_missing_required_scope)
     val quota = stringResource(R.string.feature_settings_backup_error_storage_quota_exceeded)
     val corrupted = stringResource(R.string.feature_settings_backup_error_corrupted_backup)
     val backupTooNew = stringResource(R.string.feature_settings_backup_error_backup_too_new)
@@ -92,13 +96,14 @@ private fun backupErrorMessages(): Map<BackupErrorUi, String> {
     val unknown = stringResource(R.string.feature_settings_backup_error_unknown)
     val noBackups = stringResource(R.string.feature_settings_backup_error_no_backups_found)
     return remember(
-        notAuthenticated, network, authRevoked, quota, corrupted,
+        notAuthenticated, network, authRevoked, missingRequiredScope, quota, corrupted,
         backupTooNew, missingMigrationPath, io, unknown, noBackups,
     ) {
         mapOf(
             BackupErrorUi.NOT_AUTHENTICATED to notAuthenticated,
             BackupErrorUi.NETWORK_UNAVAILABLE to network,
             BackupErrorUi.AUTH_REVOKED to authRevoked,
+            BackupErrorUi.MISSING_REQUIRED_SCOPE to missingRequiredScope,
             BackupErrorUi.STORAGE_QUOTA_EXCEEDED to quota,
             BackupErrorUi.CORRUPTED_BACKUP to corrupted,
             BackupErrorUi.BACKUP_TOO_NEW to backupTooNew,
