@@ -12,6 +12,8 @@ import io.github.stslex.workeeper.core.data.backup.api.model.AuthState
 import io.github.stslex.workeeper.core.data.backup.api.model.BackupManifest
 import io.github.stslex.workeeper.core.data.backup.api.model.BackupRef
 import io.github.stslex.workeeper.core.data.backup.api.model.SignInResult
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreInProgressContext
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
 import io.github.stslex.workeeper.feature.settings.domain.model.AccountDomain
@@ -19,6 +21,7 @@ import io.github.stslex.workeeper.feature.settings.domain.model.BackupSummaryDom
 import io.github.stslex.workeeper.feature.settings.domain.model.SignInOutcomeDomain
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -46,6 +49,7 @@ internal class BackupInteractorImplTest {
     private val backupAuth = mockk<BackupAuth>(relaxed = true)
     private val backupStorage = mockk<BackupStorage>(relaxed = true)
     private val snapshotProvider = mockk<DatabaseSnapshotProvider>(relaxed = true)
+    private val restoreStateRepository = mockk<RestoreStateRepository>(relaxed = true)
     private val context = mockk<Context>(relaxed = true)
     private val packageManager = mockk<android.content.pm.PackageManager>(relaxed = true)
     private val packageInfo = android.content.pm.PackageInfo().apply {
@@ -71,10 +75,14 @@ internal class BackupInteractorImplTest {
             )
         } returns packageInfo
         every { backupAuth.state } returns MutableStateFlow(AuthState.SignedOut)
+        coEvery { snapshotProvider.preserveCurrentDb() } returns BackupResult.Success(
+            File(cacheDir, "pre_restore_backup.db"),
+        )
         interactor = BackupInteractorImpl(
             backupAuth = backupAuth,
             backupStorage = backupStorage,
             snapshotProvider = snapshotProvider,
+            restoreStateRepository = restoreStateRepository,
             context = context,
             dispatcher = testDispatcher,
         )
@@ -274,9 +282,13 @@ internal class BackupInteractorImplTest {
         }
 
     @Test
-    fun `restoreLatest happy path downloads then restores then cleans temp file`() =
+    fun `restoreLatest happy path preserves then downloads then restores then cleans temp file`() =
         runTest(testDispatcher) {
-            val ref = makeRef(schema = 4)
+            val ref = makeRef(
+                schema = 4,
+                createdAt = 1_700_000_000_000L,
+                appVersion = "1.0.0",
+            )
             coEvery { backupStorage.listBackups() } returns BackupResult.Success(listOf(ref))
             coEvery { snapshotProvider.currentSchemaVersion() } returns 5
             every { snapshotProvider.hasMigrationPath(from = 4, to = 5) } returns true
@@ -290,13 +302,73 @@ internal class BackupInteractorImplTest {
             coEvery { snapshotProvider.restoreFromSnapshot(any()) } returns BackupResult.Success(
                 Unit,
             )
+            val contextSlot = slot<RestoreInProgressContext>()
+            coEvery {
+                restoreStateRepository.markRestoreInProgress(capture(contextSlot))
+            } returns Unit
 
             val result = interactor.restoreLatest()
 
             assertTrue(result is BackupResult.Success)
-            coVerify(exactly = 1) { backupStorage.downloadBackup(ref, any()) }
-            coVerify(exactly = 1) { snapshotProvider.restoreFromSnapshot(any()) }
+            // Preserve + mark happen BEFORE download + restore commit.
+            coVerifyOrder {
+                snapshotProvider.preserveCurrentDb()
+                restoreStateRepository.markRestoreInProgress(any())
+                backupStorage.downloadBackup(ref, any())
+                snapshotProvider.restoreFromSnapshot(any())
+            }
+            // On success the preserved file is kept for Application pre-flight + undo.
+            coVerify(exactly = 0) { snapshotProvider.deletePreRestoreBackup() }
+            coVerify(exactly = 0) { restoreStateRepository.clearRestoreInProgress() }
+            assertEquals(4, contextSlot.captured.backupSchemaVersion)
+            assertEquals(1_700_000_000_000L, contextSlot.captured.backupCreatedAtEpochMs)
+            assertEquals("1.0.0", contextSlot.captured.backupAppVersion)
+            assertTrue(contextSlot.captured.startedAtEpochMs > 0)
             assertFalse(downloadCaptured.captured.exists(), "temp file should be deleted")
+        }
+
+    @Test
+    fun `restoreLatest preserveCurrentDb failure short-circuits before download`() =
+        runTest(testDispatcher) {
+            val ref = makeRef(schema = 4)
+            coEvery { backupStorage.listBackups() } returns BackupResult.Success(listOf(ref))
+            coEvery { snapshotProvider.currentSchemaVersion() } returns 5
+            every { snapshotProvider.hasMigrationPath(from = 4, to = 5) } returns true
+            val ioError = BackupError.Io(java.io.IOException("disk full"))
+            coEvery {
+                snapshotProvider.preserveCurrentDb()
+            } returns BackupResult.Failure(ioError)
+
+            val result = interactor.restoreLatest()
+
+            assertTrue(result is BackupResult.Failure)
+            assertSame(ioError, (result as BackupResult.Failure).error)
+            coVerify(exactly = 0) { backupStorage.downloadBackup(any(), any()) }
+            coVerify(exactly = 0) { snapshotProvider.restoreFromSnapshot(any()) }
+            coVerify(exactly = 0) { restoreStateRepository.markRestoreInProgress(any()) }
+        }
+
+    @Test
+    fun `restoreFromSnapshot failure after preserve cleans up preserved file and flag`() =
+        runTest(testDispatcher) {
+            val ref = makeRef(schema = 4)
+            coEvery { backupStorage.listBackups() } returns BackupResult.Success(listOf(ref))
+            coEvery { snapshotProvider.currentSchemaVersion() } returns 5
+            every { snapshotProvider.hasMigrationPath(from = 4, to = 5) } returns true
+            coEvery { backupStorage.downloadBackup(any(), any()) } returns BackupResult.Success(
+                ref.manifest,
+            )
+            val corrupted = BackupError.CorruptedBackup("magic mismatch")
+            coEvery { snapshotProvider.restoreFromSnapshot(any()) } returns BackupResult.Failure(
+                corrupted,
+            )
+
+            val result = interactor.restoreLatest()
+
+            assertTrue(result is BackupResult.Failure)
+            assertSame(corrupted, (result as BackupResult.Failure).error)
+            coVerify(exactly = 1) { snapshotProvider.deletePreRestoreBackup() }
+            coVerify(exactly = 1) { restoreStateRepository.clearRestoreInProgress() }
         }
 
     @Test
@@ -344,7 +416,7 @@ internal class BackupInteractorImplTest {
         }
 
     @Test
-    fun `restoreLatest download failure cleans temp file and does not restore`() =
+    fun `restoreLatest download failure cleans preserved snapshot and flag and temp file`() =
         runTest(testDispatcher) {
             val ref = makeRef(schema = 4)
             coEvery { backupStorage.listBackups() } returns BackupResult.Success(listOf(ref))
@@ -361,6 +433,10 @@ internal class BackupInteractorImplTest {
             assertTrue(result is BackupResult.Failure)
             assertSame(ioError, (result as BackupResult.Failure).error)
             coVerify(exactly = 0) { snapshotProvider.restoreFromSnapshot(any()) }
+            // Pre-swap failure: live db never changed, so just clean the preserved
+            // snapshot + DataStore flag.
+            coVerify(exactly = 1) { snapshotProvider.deletePreRestoreBackup() }
+            coVerify(exactly = 1) { restoreStateRepository.clearRestoreInProgress() }
             assertFalse(downloadCaptured.captured.exists(), "temp file should be deleted")
         }
 

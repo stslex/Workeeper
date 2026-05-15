@@ -12,6 +12,8 @@ import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.model.BackupManifest
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreInProgressContext
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
 import io.github.stslex.workeeper.feature.settings.domain.mapper.BackupDomainMapper.toDomain
@@ -32,6 +34,7 @@ internal class BackupInteractorImpl @Inject constructor(
     private val backupAuth: BackupAuth,
     private val backupStorage: BackupStorage,
     private val snapshotProvider: DatabaseSnapshotProvider,
+    private val restoreStateRepository: RestoreStateRepository,
     @ApplicationContext private val context: Context,
     @IODispatcher private val dispatcher: CoroutineDispatcher,
 ) : BackupInteractor {
@@ -102,15 +105,50 @@ internal class BackupInteractorImpl @Inject constructor(
             )
         }
 
+        // Preserve the live database so the post-restart pre-flight (Scenario 1)
+        // and any later user-initiated undo (Scenario 3) have something to roll
+        // back to. Mark restore_in_progress with the manifest payload so the
+        // pre-flight can attach Crashlytics keys / diagnostics if rollback fires.
+        when (val preserved = snapshotProvider.preserveCurrentDb()) {
+            is BackupResult.Success -> Unit
+            is BackupResult.Failure -> return@withContext preserved
+        }
+        restoreStateRepository.markRestoreInProgress(
+            RestoreInProgressContext(
+                backupSchemaVersion = backupSchemaVersion,
+                backupCreatedAtEpochMs = ref.manifest.createdAtEpochMs,
+                backupAppVersion = ref.manifest.appVersion,
+                startedAtEpochMs = System.currentTimeMillis(),
+            ),
+        )
+
         val tempFile =
             File.createTempFile(TEMP_RESTORE_PREFIX, TEMP_BACKUP_SUFFIX, context.cacheDir)
         try {
             val download = backupStorage.downloadBackup(ref, tempFile)
-            if (download is BackupResult.Failure) return@withContext download
-            snapshotProvider.restoreFromSnapshot(tempFile)
+            if (download is BackupResult.Failure) {
+                rollbackPreSwapFailure()
+                return@withContext download
+            }
+            val snapshotResult = snapshotProvider.restoreFromSnapshot(tempFile)
+            if (snapshotResult is BackupResult.Failure) {
+                rollbackPreSwapFailure()
+            }
+            snapshotResult
         } finally {
             tempFile.delete()
         }
+    }
+
+    /**
+     * Clean up the preserved snapshot + DataStore flag when the restore fails
+     * **before** `restoreFromSnapshot` commits the swap. The live database was
+     * never mutated, so file-level rollback is unnecessary — just delete the
+     * now-stale preserved snapshot and clear the in-progress flag.
+     */
+    private suspend fun rollbackPreSwapFailure() {
+        snapshotProvider.deletePreRestoreBackup()
+        restoreStateRepository.clearRestoreInProgress()
     }
 
     private fun readVersionName(): String {
