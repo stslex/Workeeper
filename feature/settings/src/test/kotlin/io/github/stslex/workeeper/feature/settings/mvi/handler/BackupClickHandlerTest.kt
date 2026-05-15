@@ -616,6 +616,42 @@ internal class BackupClickHandlerTest {
         }
 
     @Test
+    fun `SaveFrequency preserves persisted non-sentinel fields in scheduled snapshot`() =
+        runTest(testDispatcher) {
+            preferencesFlow.value = BackupPreferences.DEFAULT.copy(
+                schedule = BackupSchedule.Weekly,
+                allowOnMobileData = false,
+                autoBackupBootstrapped = true,
+                lastAttemptAtEpochMs = 1_700_000_000_000L,
+                lastSuccessAtEpochMs = 1_700_000_000_000L,
+                lastError = BackupErrorCode.NetworkUnavailable,
+            )
+
+            handler.invoke(
+                Action.Backup.SaveFrequency(
+                    schedule = BackupScheduleUi.DAILY,
+                    allowOnMobileData = true,
+                ),
+            )
+
+            // The snapshot handed to schedulePeriodic must carry the persisted
+            // non-sentinel fields; DEFAULT-based construction would have zeroed
+            // them out.
+            coVerify {
+                autoBackupController.schedulePeriodic(
+                    match { snapshot ->
+                        snapshot.schedule == BackupSchedule.Daily &&
+                            snapshot.allowOnMobileData &&
+                            snapshot.autoBackupBootstrapped &&
+                            snapshot.lastAttemptAtEpochMs == 1_700_000_000_000L &&
+                            snapshot.lastSuccessAtEpochMs == 1_700_000_000_000L &&
+                            snapshot.lastError == BackupErrorCode.NetworkUnavailable
+                    },
+                )
+            }
+        }
+
+    @Test
     fun `SaveFrequency ManualOnly cancels periodic and does not schedule`() =
         runTest(testDispatcher) {
             handler.invoke(

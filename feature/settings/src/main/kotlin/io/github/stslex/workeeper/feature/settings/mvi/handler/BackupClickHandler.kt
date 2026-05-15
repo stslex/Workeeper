@@ -457,12 +457,21 @@ internal class BackupClickHandler @Inject constructor(
             onError = { e -> logger.e(e, "Failed to save frequency") },
             onSuccess = { },
         ) {
-            preferencesRepository.setSchedule(domainSchedule)
-            preferencesRepository.setAllowOnMobileData(allowOnMobileData)
-            val updated = BackupPreferences.DEFAULT.copy(
+            // Read the current preferences before overlaying the two settings the
+            // user just edited. `BackupPreferences.DEFAULT.copy(...)` would have
+            // silently passed sentinel values for the other fields
+            // (lastAttempt/lastSuccess/lastError/autoBackupBootstrapped) into
+            // schedulePeriodic. It only consumes schedule + allowOnMobileData
+            // today, but the snapshot it receives should reflect persisted state
+            // either way — otherwise future readers of the snapshot field will
+            // hit the same hazard.
+            val current = preferencesRepository.observe().first()
+            val updated = current.copy(
                 schedule = domainSchedule,
                 allowOnMobileData = allowOnMobileData,
             )
+            preferencesRepository.setSchedule(domainSchedule)
+            preferencesRepository.setAllowOnMobileData(allowOnMobileData)
             if (domainSchedule == BackupSchedule.ManualOnly) {
                 autoBackupController.cancelPeriodic()
             } else {
