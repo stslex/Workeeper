@@ -39,6 +39,8 @@ dependencies {
     implementation(project(":feature:past-session"))
     implementation(project(":feature:image-viewer"))
     implementation(project(":feature:plan-editor"))
+    implementation(project(":feature:app-dialogs:api"))
+    implementation(project(":feature:app-dialogs:impl"))
 
     implementation(platform(libs.google.firebase.bom))
     implementation(libs.google.firebase.analytics)
