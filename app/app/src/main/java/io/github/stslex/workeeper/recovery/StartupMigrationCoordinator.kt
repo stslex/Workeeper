@@ -105,7 +105,23 @@ internal class StartupMigrationCoordinator @Inject constructor(
 
     private val logger = Log.tag("StartupMigrationCoordinator")
 
+    /**
+     * The most recent [checkAndRouteOrProceed] result, cached so
+     * `MainActivity.onCreate` can read it without re-running the pre-flight
+     * (the check ran once already in `BaseApplication.onCreate`). `null`
+     * means the check has not run yet on this process.
+     */
+    @Volatile
+    var lastDecision: StartupCheck? = null
+        private set
+
     suspend fun checkAndRouteOrProceed(): StartupCheck {
+        val decision = computeDecision()
+        lastDecision = decision
+        return decision
+    }
+
+    private suspend fun computeDecision(): StartupCheck {
         val liveDb = context.getDatabasePath(AppDatabase.NAME)
         if (!liveDb.exists()) {
             // Fresh install — no database file yet. Room creates one at the
