@@ -13,7 +13,6 @@ import io.github.stslex.workeeper.feature.settings.mvi.model.BackupAuthUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupInfoUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupOperationUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupPreferencesUi
-import io.github.stslex.workeeper.feature.settings.mvi.model.BackupScheduleUi
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Action
 
 @Composable
@@ -77,16 +76,14 @@ private fun AuthenticatedBlock(
             backupCountText = info.backupCountText,
         )
     }
+    // AutoBackupRow stays hidden until the persisted preferences are observed
+    // — otherwise users whose schedule != Weekly would see a brief flash of the
+    // hard-coded default. The row will appear on the same recomposition that
+    // ObservePreferences emits its first snapshot.
     if (preferences != null) {
         AutoBackupRow(
             schedule = preferences.schedule,
             nextBackupText = preferences.nextBackupText,
-            onClick = { onAction(Action.Backup.OpenFrequencyPicker) },
-        )
-    } else {
-        AutoBackupRow(
-            schedule = BackupScheduleUi.WEEKLY,
-            nextBackupText = null,
             onClick = { onAction(Action.Backup.OpenFrequencyPicker) },
         )
     }
