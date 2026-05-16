@@ -7,12 +7,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
+import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
+import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.feature.settings.R
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupAuthUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupInfoUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupOperationUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupPreferencesUi
+import io.github.stslex.workeeper.feature.settings.mvi.model.BackupScheduleUi
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Action
 
 @Composable
@@ -66,15 +70,12 @@ private fun AuthenticatedBlock(
     canRevertLastRestore: Boolean,
     onAction: (Action.Backup) -> Unit,
 ) {
-    AccountInfoRow(email = auth.email, displayName = auth.displayName)
+    AccountInfoRow(
+        email = auth.email,
+        displayName = auth.displayName,
+    )
     if (preferences?.isAuthPaused == true) {
         AuthPausedBanner(onSignInClick = { onAction(Action.Backup.SignIn) })
-    }
-    if (info != null) {
-        BackupInfoRow(
-            lastBackupText = info.lastBackupText,
-            backupCountText = info.backupCountText,
-        )
     }
     // AutoBackupRow stays hidden until the persisted preferences are observed
     // — otherwise users whose schedule != Daily would see a brief flash of the
@@ -114,4 +115,111 @@ private fun AuthenticatedBlock(
         enabled = !operation.isInProgress,
         isLoading = operation == BackupOperationUi.SigningOut,
     )
+    if (info != null) {
+        BackupInfoRow(
+            lastBackupText = info.lastBackupText,
+            backupCountText = info.backupCountText,
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun BackupSectionNotAuthenticatedPreview() {
+    AppTheme(themeMode = ThemeMode.LIGHT) {
+        BackupSection(
+            state = SettingsBackupState(
+                auth = BackupAuthUi.NotAuthenticated,
+                operation = BackupOperationUi.Idle,
+                info = null,
+                preferences = null,
+                canRevertLastRestore = false,
+            ),
+            onAction = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun BackupSectionAuthenticatedLightPreview() {
+    AppTheme(themeMode = ThemeMode.LIGHT) {
+        BackupSection(
+            state = SettingsBackupState(
+                auth = BackupAuthUi.Authenticated(
+                    email = "user@example.com",
+                    displayName = "Sample User",
+                ),
+                operation = BackupOperationUi.Idle,
+                info = BackupInfoUi(
+                    lastBackupText = "Today, 09:42",
+                    backupCountText = "12 backups",
+                ),
+                preferences = BackupPreferencesUi(
+                    schedule = BackupScheduleUi.DAILY,
+                    allowOnMobileData = false,
+                    nextBackupText = "in 23 hours",
+                    isAuthPaused = false,
+                ),
+                canRevertLastRestore = true,
+            ),
+            onAction = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun BackupSectionAuthenticatedDarkPreview() {
+    AppTheme(themeMode = ThemeMode.DARK) {
+        BackupSection(
+            state = SettingsBackupState(
+                auth = BackupAuthUi.Authenticated(
+                    email = "user@example.com",
+                    displayName = "Sample User",
+                ),
+                operation = BackupOperationUi.Idle,
+                info = BackupInfoUi(
+                    lastBackupText = "Today, 09:42",
+                    backupCountText = "12 backups",
+                ),
+                preferences = BackupPreferencesUi(
+                    schedule = BackupScheduleUi.DAILY,
+                    allowOnMobileData = false,
+                    nextBackupText = "in 23 hours",
+                    isAuthPaused = false,
+                ),
+                canRevertLastRestore = true,
+            ),
+            onAction = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun BackupSectionAuthPausedPreview() {
+    AppTheme(themeMode = ThemeMode.LIGHT) {
+        BackupSection(
+            state = SettingsBackupState(
+                auth = BackupAuthUi.Authenticated(
+                    email = "user@example.com",
+                    displayName = "Sample User",
+                ),
+                operation = BackupOperationUi.Idle,
+                info = BackupInfoUi(
+                    lastBackupText = "Yesterday, 18:01",
+                    backupCountText = "12 backups",
+                ),
+                preferences = BackupPreferencesUi(
+                    schedule = BackupScheduleUi.DAILY,
+                    allowOnMobileData = false,
+                    nextBackupText = null,
+                    isAuthPaused = true,
+                ),
+                canRevertLastRestore = false,
+            ),
+            onAction = {},
+        )
+    }
 }
