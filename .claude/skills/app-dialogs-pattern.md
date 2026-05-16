@@ -34,10 +34,29 @@ It is **not** the screen-scoped per-feature dialog state covered by
   flags or set sibling flags. If you need a typed return into feature A,
   feature A should own the dialog and use the screen-scoped pattern.
 
-## The seven steps
+## The eight steps
 
 Adding a new variant is mechanical. The catalog table in
 `app-dialogs.md` and the priority list update in the same PR — do not split.
+
+The layering is:
+
+- **data/** — `AppDialogRepository[Impl]` (DataStore writes/reads) +
+  `AppDialogKeys`.
+- **domain/** — `AppDialogResolver` (pure priority walk).
+- **mvi/store/** — `AppDialogStore[Impl]` (`@HiltViewModel BaseStore`) +
+  `AppDialogHandlerStore[Impl]`.
+- **mvi/handler/** — `Observe`/`Publish`/`Dismiss`/`UserActionHandler`
+  (`@ViewModelScoped`).
+- **ui/** — one Composable file per variant; `AppDialogHost` +
+  `AppDialogHostContent` dispatch the right render branch.
+- **publisher/** — `AppDialogPublisherImpl` (`@Singleton` facade over
+  Repository).
+- **observer/** — `AppDialogObserverImpl` (`@Singleton`) for cross-feature
+  user-choice reaction.
+
+Adding a variant touches data + domain + mvi (handlers branch on the new
+flag) + ui (new Composable file) + the api (if you add a new user action).
 
 ### 1. Define the sealed variant
 
@@ -68,7 +87,7 @@ sealed interface AppDialog {
 
 ### 2. Define DataStore Preference keys
 
-In `feature/app-dialogs/impl/.../store/AppDialogKeys.kt`:
+In `feature/app-dialogs/impl/.../data/AppDialogKeys.kt`:
 
 ```kotlin
 internal object AppDialogKeys {
@@ -88,9 +107,10 @@ preferences key matching the field type
 
 ### 3. Insert into the priority list
 
-In `feature/app-dialogs/impl/.../store/AppDialogStoreImpl.kt`'s
-`currentDialog` resolution, add the new variant **at the right priority
-level**. The current order (from spec):
+In `feature/app-dialogs/impl/.../domain/AppDialogResolver.kt`'s priority
+walk, add the new variant **at the right priority level**. Also add the
+write-flags / clear-flags / is-already-pending branches in
+`AppDialogRepositoryImpl`. The current order (from spec):
 
 1. `RestoreFailure` — critical
 2. `RestoreSuccess` — informational
@@ -110,24 +130,16 @@ The shape of the resolution is a fixed `when` chain over flag reads — do
 variant. The literal chain is the same line count and surfaces the choice in
 code review.
 
-### 4. Add the render branch in `AppDialogHost`
+### 4. Add a per-variant Composable file + render branch
 
-In `feature/app-dialogs/impl/.../ui/AppDialogHost.kt`:
-
-```kotlin
-when (val dialog = currentDialog) {
-    null -> Unit
-    // existing branches ...
-    is AppDialog.<Name> -> render<Name>(dialog)
-}
-```
-
-The render function delegates to `AppConfirmationDialog` from `core/ui/kit`
-whenever the variant follows the "title + body + 1-2 buttons" shape:
+Create `feature/app-dialogs/impl/.../ui/<Name>Dialog.kt`:
 
 ```kotlin
 @Composable
-private fun render<Name>(dialog: AppDialog.<Name>) {
+internal fun <Name>Dialog(
+    dialog: AppDialog.<Name>,
+    dispatch: (AppDialogStore.Action) -> Unit,
+) {
     AppConfirmationDialog(
         title = stringResource(R.string.dialog_<name>_title),
         body = stringResource(R.string.dialog_<name>_body, dialog.<field>),
@@ -138,15 +150,48 @@ private fun render<Name>(dialog: AppDialog.<Name>) {
             dismissOnBackPress = <true|false>,
             dismissOnClickOutside = false,  // always false in this catalog
         ),
-        onConfirm = { store.dismiss(dialog.id) },
-        onDismiss = { store.dismiss(dialog.id) },
+        onConfirm = {
+            dispatch(AppDialogStore.Action.UserAction(dialog, AppDialogUserAction.Acknowledge))
+        },
+        onDismiss = {
+            dispatch(AppDialogStore.Action.Dismiss(dialog))
+        },
     )
 }
 ```
 
-Variants with non-standard chrome (e.g. three action buttons in a column,
-icon + body, etc.) own their own Composable but still call
-`store.dismiss(dialog.id)` on any path that clears the flag.
+Add a `@Preview` per visual state (Light/Dark, payload variations) in the
+same file — follow the `RestoreSuccessDialog` /
+`UndoRestoreConfirmationDialog` precedent.
+
+Then add the dispatch branch in
+`feature/app-dialogs/impl/.../ui/AppDialogHostContent.kt`:
+
+```kotlin
+when (val current = state.current) {
+    null -> Unit
+    // existing branches ...
+    is AppDialog.<Name> -> <Name>Dialog(dialog = current, dispatch = dispatch)
+}
+```
+
+The dispatch lambda is `(AppDialogStore.Action) -> Unit`. The
+Composable does **not** receive typed callbacks like `onUndoRequested` —
+every user gesture goes through `Action.UserAction(dialog, action)` (or
+`Action.Dismiss(dialog)` for implicit back-press dismiss). Variants with
+non-standard chrome (e.g. three action buttons in a column, icon + body)
+own their own Composable but still dispatch via `Action.UserAction`.
+
+### 4.5. Add new `AppDialogUserAction` variants if needed
+
+If the new variant introduces a button shape not covered by the existing
+`Acknowledge` / `RequestUndo` / `ConfirmUndo` / `Cancel` / `Report` /
+`ExportDiagnostics` enum entries, add one in
+`feature/app-dialogs/api/.../model/AppDialogUserAction.kt`. The consuming
+feature (the one that reacts to the user's choice) then observes
+`AppDialogObserver.observeUserActions()` and adds a `when`-branch on the
+new `AppDialogUserChoice(dialog, action)` shape. The consumer's `@Singleton`
+handler is the reactor; the host stays generic.
 
 ### 5. Declare the dismiss policy
 
@@ -190,27 +235,55 @@ table. Cross-link the producing feature spec.
 
 ## Single source of truth — the invariant
 
-**Never** mutate in-memory state to show or hide a dialog. The only writes
-are:
+Two stacked sources of truth:
 
-- `AppDialogPublisher.publish(dialog)` → translates the variant into a flag
-  set, writes the flag set in one `edit { ... }` block.
-- `AppDialogStore.dismiss(variantId)` → clears the flag set for that
-  variant in one `edit { ... }` block.
+- **Persistence truth.** Every pending dialog lives in DataStore Preferences.
+  The only writer is `AppDialogRepositoryImpl`. There are exactly three
+  write entry points, each inside its own `edit { … }` block:
+  - `publish(dialog)` — translates the variant into a flag set.
+  - `dismiss(dialog)` — clears the flag set.
+  - `recordUserChoice(choice)` — appends the user's action to a transient
+    record consumed by `AppDialogObserver`.
+- **Runtime truth.** `AppDialogStore.State.current` is the Activity-scoped
+  projection of the repository flow. The Host renders `state.value`, not
+  DataStore directly.
 
-The Composable observes `currentDialog: Flow<AppDialog?>` via
-`collectAsStateWithLifecycle`. Every render is a derived projection over
-DataStore reads. If you find yourself adding a `MutableStateFlow<AppDialog?>`
-inside the store impl, you have left the pattern — go back and rewrite.
+If you find yourself adding a `MutableStateFlow<AppDialog?>` inside the
+Store, you have left the pattern — go back and rewrite. The Store derives
+its State from the repository via `Action.Observe`; there is no parallel
+in-memory queue.
 
 The reason this is load-bearing:
 
 - Backup recovery's primary case is "show this dialog after a process
-  restart". An in-memory mutation is wiped by the process kill.
-- One writer means audit trails are simple — `git grep edit\\s*{` finds every
-  flag write in one place.
+  restart". An in-memory mutation is wiped by the process kill; the
+  DataStore record survives, the Store re-projects on re-launch.
+- One writer means audit trails are simple — `git grep "edit\\s*{"`
+  inside `data/` finds every flag write in one place.
 - Reactive view means no manual "tell the UI to re-render" call from the
-  store impl. The flow does it.
+  Store. The Repository flow does it.
+- Cross-feature consumers (`feature/recovery`, future features) read
+  `AppDialogObserver.observeUserActions()` — backed by the same repository
+  record, NOT by the Activity-scoped Store. A `@Singleton` cannot inject
+  an Activity-scoped `@HiltViewModel`, so the observer is the right scope-
+  matching surface.
+
+## Host mount-site invariant
+
+`AppDialogHost` must be composed **as a sibling of** `NavHost` in `App.kt`,
+not inside any NavHost destination. The Store is resolved via
+`AppDialogFeature.processor()` (a screen-less `AppFeature` in
+`core/ui/mvi`) which calls `rememberStoreProcessor<AppDialogStoreImpl>()`
+→ `hiltViewModel<AppDialogStoreImpl>()`. `LocalViewModelStoreOwner` at the
+sibling-of-NavHost depth resolves to the host `ComponentActivity`, which
+scopes the Store to the Activity (NOT to a `NavBackStackEntry`).
+
+Moving the `AppDialogHost()` call inside `NavHost` silently rescopes the
+Store to the current destination — no compile error, behaviour breaks at
+runtime (a dialog published from another destination would not be picked
+up by the destination-scoped Store). The mount site carries an in-code
+comment explaining this; add a similar comment if you introduce another
+app-root mount.
 
 ## Where to read next
 
