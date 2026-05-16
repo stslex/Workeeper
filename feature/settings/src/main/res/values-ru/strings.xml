@@ -23,6 +23,7 @@
     <string name="feature_settings_backup_sign_out">Выйти</string>
     <string name="feature_settings_backup_create">Создать резервную копию</string>
     <string name="feature_settings_backup_restore">Восстановить из резервной копии</string>
+    <string name="feature_settings_backup_revert_last_restore_label">Откатить последнее восстановление</string>
     <string name="feature_settings_backup_restore_title">Восстановить резервную копию?</string>
     <string name="feature_settings_backup_restore_warning">Заменит текущие данные резервной копией от %1$s (%2$s). Это действие необратимо.</string>
     <string name="feature_settings_backup_restore_impact">Все текущие данные будут заменены</string>
@@ -33,9 +34,11 @@
     <string name="feature_settings_backup_error_not_authenticated">Сначала войдите в Drive</string>
     <string name="feature_settings_backup_error_network_unavailable">Нет соединения с интернетом</string>
     <string name="feature_settings_backup_error_auth_revoked">Доступ к Drive отозван. Войдите снова.</string>
+    <string name="feature_settings_backup_error_missing_required_scope">Доступ к Google Drive не предоставлен. Войдите снова и разрешите доступ к Drive — экран согласия появится ещё раз.</string>
     <string name="feature_settings_backup_error_storage_quota_exceeded">В Drive закончилось место</string>
     <string name="feature_settings_backup_error_corrupted_backup">Файл резервной копии повреждён</string>
-    <string name="feature_settings_backup_error_schema_too_new">Резервная копия требует более новой версии приложения</string>
+    <string name="feature_settings_backup_error_backup_too_new">Эта резервная копия из более новой версии приложения. Обновите Workeeper, чтобы её восстановить.</string>
+    <string name="feature_settings_backup_error_missing_migration_path">Эта резервная копия из старой версии, которую эта сборка приложения не может мигрировать. Обновите приложение или используйте более новую копию.</string>
     <string name="feature_settings_backup_error_io">Ошибка чтения или записи</string>
     <string name="feature_settings_backup_error_unknown">Что-то пошло не так</string>
     <string name="feature_settings_backup_error_no_backups_found">Нет доступных резервных копий</string>
@@ -57,4 +60,20 @@
         <item quantity="many">Сохранено %d копий</item>
         <item quantity="other">Сохранено %d копий</item>
     </plurals>
+
+    <!-- Auto-backup scheduling -->
+    <string name="feature_settings_backup_frequency_daily">Ежедневно</string>
+    <string name="feature_settings_backup_frequency_weekly">Еженедельно</string>
+    <string name="feature_settings_backup_frequency_manual_only">Только вручную</string>
+    <string name="feature_settings_backup_frequency_picker_title">Частота резервного копирования</string>
+    <string name="feature_settings_backup_frequency_picker_save">Сохранить</string>
+    <string name="feature_settings_backup_allow_mobile_data_label">Разрешить мобильные данные</string>
+    <string name="feature_settings_backup_allow_mobile_data_caption">Резервные копии будут использовать мобильные данные при отсутствии Wi-Fi</string>
+    <string name="feature_settings_backup_auto_row_label">Авто-копирование: %1$s</string>
+    <string name="feature_settings_backup_auto_next_backup">Следующая копия: %1$s</string>
+    <string name="feature_settings_backup_auto_paused_banner_title">Авто-копирование приостановлено</string>
+    <string name="feature_settings_backup_auto_paused_banner_body">Войдите в Google Drive снова, чтобы возобновить.</string>
+    <string name="feature_settings_backup_auto_paused_banner_action">Войти</string>
+    <string name="feature_settings_backup_auto_enabled_default">Авто-копирование включено, ежедневно</string>
+    <string name="feature_settings_backup_auto_enabled_change_action">Изменить</string>
 </resources>

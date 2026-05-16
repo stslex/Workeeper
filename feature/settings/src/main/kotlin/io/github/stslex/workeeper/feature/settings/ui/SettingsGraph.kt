@@ -27,6 +27,10 @@ fun NavGraphBuilder.settingsGraph(
         val context = LocalContext.current
         val haptic = LocalHapticFeedback.current
         val backupCreatedMessage = stringResource(R.string.feature_settings_backup_created)
+        val autoBackupEnabledMessage =
+            stringResource(R.string.feature_settings_backup_auto_enabled_default)
+        val autoBackupEnabledAction =
+            stringResource(R.string.feature_settings_backup_auto_enabled_change_action)
         val backupErrorMessages = backupErrorMessages()
 
         val authResolutionLauncher = rememberLauncherForActivityResult(
@@ -53,12 +57,18 @@ fun NavGraphBuilder.settingsGraph(
                 }
 
                 is Event.ShowBackupError -> {
-                    SnackbarManager.showSnackbar(backupErrorMessages.getValue(event.error))
+                    val message = backupErrorMessages[event.error]
+                        ?: backupErrorMessages.getValue(BackupErrorUi.UNKNOWN)
+                    SnackbarManager.showSnackbar(message)
                 }
 
                 Event.ShowBackupCreated -> SnackbarManager.showSnackbar(backupCreatedMessage)
 
-                Event.AppRestartRequested -> restartApp(context)
+                Event.ShowAutoBackupEnabledSnackbarRequested -> SnackbarManager.showSnackbar(
+                    message = autoBackupEnabledMessage,
+                    actionLabel = autoBackupEnabledAction,
+                    action = { processor.consume(Action.Backup.OpenFrequencyPicker) },
+                )
             }
         }
 
@@ -75,23 +85,29 @@ private fun backupErrorMessages(): Map<BackupErrorUi, String> {
     val notAuthenticated = stringResource(R.string.feature_settings_backup_error_not_authenticated)
     val network = stringResource(R.string.feature_settings_backup_error_network_unavailable)
     val authRevoked = stringResource(R.string.feature_settings_backup_error_auth_revoked)
+    val missingRequiredScope =
+        stringResource(R.string.feature_settings_backup_error_missing_required_scope)
     val quota = stringResource(R.string.feature_settings_backup_error_storage_quota_exceeded)
     val corrupted = stringResource(R.string.feature_settings_backup_error_corrupted_backup)
-    val schemaTooNew = stringResource(R.string.feature_settings_backup_error_schema_too_new)
+    val backupTooNew = stringResource(R.string.feature_settings_backup_error_backup_too_new)
+    val missingMigrationPath =
+        stringResource(R.string.feature_settings_backup_error_missing_migration_path)
     val io = stringResource(R.string.feature_settings_backup_error_io)
     val unknown = stringResource(R.string.feature_settings_backup_error_unknown)
     val noBackups = stringResource(R.string.feature_settings_backup_error_no_backups_found)
     return remember(
-        notAuthenticated, network, authRevoked, quota, corrupted,
-        schemaTooNew, io, unknown, noBackups,
+        notAuthenticated, network, authRevoked, missingRequiredScope, quota, corrupted,
+        backupTooNew, missingMigrationPath, io, unknown, noBackups,
     ) {
         mapOf(
             BackupErrorUi.NOT_AUTHENTICATED to notAuthenticated,
             BackupErrorUi.NETWORK_UNAVAILABLE to network,
             BackupErrorUi.AUTH_REVOKED to authRevoked,
+            BackupErrorUi.MISSING_REQUIRED_SCOPE to missingRequiredScope,
             BackupErrorUi.STORAGE_QUOTA_EXCEEDED to quota,
             BackupErrorUi.CORRUPTED_BACKUP to corrupted,
-            BackupErrorUi.SCHEMA_TOO_NEW to schemaTooNew,
+            BackupErrorUi.BACKUP_TOO_NEW to backupTooNew,
+            BackupErrorUi.MISSING_MIGRATION_PATH to missingMigrationPath,
             BackupErrorUi.IO_ERROR to io,
             BackupErrorUi.UNKNOWN to unknown,
             BackupErrorUi.NO_BACKUPS_FOUND to noBackups,

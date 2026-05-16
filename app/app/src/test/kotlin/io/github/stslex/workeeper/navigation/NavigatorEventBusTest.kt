@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.navigation
 
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.core.logger.Logger
+import io.github.stslex.workeeper.core.ui.navigation.NavCommand
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.mockk.every
 import io.mockk.mockk
@@ -22,9 +23,9 @@ import org.junit.jupiter.api.Test
 
 /**
  * Verifies the singleton command-bus contract:
- *  - `navTo(screen)` emits exactly one `NavigationCommand.NavTo(screen)`.
- *  - `replaceTo(screen)` emits exactly one `NavigationCommand.ReplaceTo(screen)`.
- *  - `popBack(...)` emits exactly one `NavigationCommand.PopBack(attrsList)` carrying
+ *  - `navTo(screen)` emits exactly one `NavCommand.NavTo(screen)`.
+ *  - `replaceTo(screen)` emits exactly one `NavCommand.ReplaceTo(screen)`.
+ *  - `popBack(...)` emits exactly one `NavCommand.PopBack(attrsList)` carrying
  *    every key/value pair in vararg order.
  *  - Multiple emissions arrive on the receiver in the order they were dispatched.
  *
@@ -63,7 +64,7 @@ internal class NavigatorEventBusTest {
         testScheduler.advanceUntilIdle()
         bus.navTo(screen)
 
-        assertEquals(NavigationCommand.NavTo(screen), collector.await())
+        assertEquals(NavCommand.NavTo(screen), collector.await())
     }
 
     @Test
@@ -76,7 +77,7 @@ internal class NavigatorEventBusTest {
         testScheduler.advanceUntilIdle()
         bus.navTo(screen)
 
-        assertEquals(NavigationCommand.NavTo(screen), collector.await())
+        assertEquals(NavCommand.NavTo(screen), collector.await())
     }
 
     @Test
@@ -89,7 +90,7 @@ internal class NavigatorEventBusTest {
         testScheduler.advanceUntilIdle()
         bus.replaceTo(screen)
 
-        assertEquals(NavigationCommand.ReplaceTo(screen), collector.await())
+        assertEquals(NavCommand.ReplaceTo(screen), collector.await())
     }
 
     @Test
@@ -101,7 +102,7 @@ internal class NavigatorEventBusTest {
         testScheduler.advanceUntilIdle()
         bus.popBack()
 
-        assertEquals(NavigationCommand.PopBack(emptyList()), collector.await())
+        assertEquals(NavCommand.PopBack(emptyList()), collector.await())
     }
 
     @Test
@@ -116,7 +117,7 @@ internal class NavigatorEventBusTest {
         bus.popBack(firstAttr, secondAttr)
 
         assertEquals(
-            NavigationCommand.PopBack(listOf(firstAttr, secondAttr)),
+            NavCommand.PopBack(listOf(firstAttr, secondAttr)),
             collector.await(),
         )
     }
@@ -131,7 +132,7 @@ internal class NavigatorEventBusTest {
         testScheduler.advanceUntilIdle()
         bus.popBack(attr)
 
-        assertEquals(NavigationCommand.PopBack(listOf(attr)), collector.await())
+        assertEquals(NavCommand.PopBack(listOf(attr)), collector.await())
     }
 
     @Test
@@ -150,9 +151,9 @@ internal class NavigatorEventBusTest {
 
         assertEquals(
             listOf(
-                NavigationCommand.NavTo(firstScreen),
-                NavigationCommand.ReplaceTo(secondScreen),
-                NavigationCommand.PopBack(emptyList()),
+                NavCommand.NavTo(firstScreen),
+                NavCommand.ReplaceTo(secondScreen),
+                NavCommand.PopBack(emptyList()),
             ),
             collector.await(),
         )

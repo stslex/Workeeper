@@ -33,6 +33,7 @@ internal class FakeSettingsHandlerStore(
     val stateFlow: MutableStateFlow<State> =
         MutableStateFlow(State.initial(appVersion = "1.0.0", appVersionCode = 1))
     val events: MutableList<Event> = mutableListOf()
+    val consumedActions: MutableList<Action> = mutableListOf()
 
     private val eventBus = MutableSharedFlow<Event>(extraBufferCapacity = 64)
     private val collectorScope = CoroutineScope(Job() + dispatcher)
@@ -50,9 +51,13 @@ internal class FakeSettingsHandlerStore(
         eventBus.tryEmit(event)
     }
 
-    override fun consume(action: Action) = Unit
+    override fun consume(action: Action) {
+        consumedActions += action
+    }
 
-    override suspend fun consumeOnMain(action: Action) = Unit
+    override suspend fun consumeOnMain(action: Action) {
+        consumedActions += action
+    }
 
     override fun updateState(update: (State) -> State) {
         stateFlow.value = update(stateFlow.value)

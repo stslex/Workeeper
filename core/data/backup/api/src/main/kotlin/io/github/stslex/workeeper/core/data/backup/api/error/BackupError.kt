@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.backup.api.error
 
 /**
@@ -20,6 +21,14 @@ sealed interface BackupError {
      */
     data object AuthRevoked : BackupError
 
+    /**
+     * User passed the consent screen but did not grant a hard-required scope (e.g.
+     * `drive.appdata`). Terminal — distinct from [AuthRevoked] in that no token was
+     * ever cached, and from [NotAuthenticated] in that a fresh sign-in attempt MUST
+     * re-show the consent screen rather than silently reuse a partial grant.
+     */
+    data object MissingRequiredScope : BackupError
+
     /** Remote storage quota for this account is full. Non-retryable without user action. */
     data object StorageQuotaExceeded : BackupError
 
@@ -35,7 +44,18 @@ sealed interface BackupError {
      * one shipped with the installed app. Restoring would risk data loss, so the
      * caller must surface an "update the app to restore" prompt.
      */
-    data class SchemaTooNew(
+    data class BackupTooNew(
+        val backupSchemaVersion: Int,
+        val appSchemaVersion: Int,
+    ) : BackupError
+
+    /**
+     * Backup's schema version is ≤ the current code's schema, but the registered
+     * migration graph has no path from `backupSchemaVersion` to `appSchemaVersion`.
+     * Distinct from [BackupTooNew] (backup newer than code) and [CorruptedBackup]
+     * (manifest unreadable / SQLite magic mismatch).
+     */
+    data class MissingMigrationPath(
         val backupSchemaVersion: Int,
         val appSchemaVersion: Int,
     ) : BackupError

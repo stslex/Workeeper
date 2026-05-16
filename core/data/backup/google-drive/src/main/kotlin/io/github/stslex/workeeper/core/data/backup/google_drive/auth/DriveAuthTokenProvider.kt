@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.backup.google_drive.auth
 
 import com.google.android.gms.auth.api.identity.AuthorizationClient
@@ -20,9 +21,9 @@ import javax.inject.Singleton
  *
  * Returns `null` (treated as `BackupError.NotAuthenticated` by the network
  * layer) when no account is stored OR when both the cache and the silent
- * `authorize()` fail to yield a usable token. The Part 1 diagnostic log line
- * (`KtorLogger.TAG`) stays in place through Part 2 so cache hit / miss /
- * refresh behaviour is visible in logcat during verification.
+ * `authorize()` fail to yield a usable token. Failure modes are surfaced at
+ * warning ([Log.w] on null-token refresh) and error ([Log.e] on `authorize()`
+ * throwing) levels only — no debug-level diagnostic logging in production.
  */
 @Singleton
 internal class DriveAuthTokenProvider @Inject constructor(
@@ -52,11 +53,6 @@ internal class DriveAuthTokenProvider @Inject constructor(
             Log.tag(KtorLogger.TAG).e(t, "authorize() threw")
             return null
         }
-        Log.tag(KtorLogger.TAG).d(
-            "authorize result: hasResolution=${result.hasResolution()}, " +
-                "tokenPresent=${result.accessToken != null}, " +
-                "grantedScopes=${result.grantedScopes}",
-        )
         val token = result.accessToken
         if (token != null) {
             accountStore.setToken(

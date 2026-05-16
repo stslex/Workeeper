@@ -50,6 +50,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
 import io.github.stslex.workeeper.core.ui.navigation.Screen
+import io.github.stslex.workeeper.feature.app_dialogs.impl.ui.AppDialogHost
 import io.github.stslex.workeeper.host.AppNavigationHost
 import io.github.stslex.workeeper.host.BottomBarNavigationListener.Companion.rememberBottomBarNavigationListener
 import io.github.stslex.workeeper.navigation.NavigatorExt.NavigationEventBusSetup
@@ -184,6 +185,14 @@ fun App() {
             ) { data ->
                 AppSnackbar(snackbarData = data)
             }
+
+            // Sibling of AppNavigationHost (not a child of any destination) so the
+            // dialog appears regardless of the current route and survives
+            // navigation. Its state lives in DataStore — surviving process
+            // restart is the load-bearing property.
+            // See documentation/feature-specs/app-dialogs.md → "AppDialogHost
+            // mounting".
+            AppDialogHost()
         }
     }
 }

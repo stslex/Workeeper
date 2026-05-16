@@ -46,6 +46,21 @@ object FirebaseCrashlyticsHolder {
         sink.setCustomKey(key, value)
     }
 
+    fun setCustomKey(key: String, value: Int) {
+        val sink = crashlytics ?: return
+        sink.setCustomKey(key, value)
+    }
+
+    fun setCustomKey(key: String, value: Long) {
+        val sink = crashlytics ?: return
+        sink.setCustomKey(key, value)
+    }
+
+    fun setCustomKey(key: String, value: Boolean) {
+        val sink = crashlytics ?: return
+        sink.setCustomKey(key, value)
+    }
+
     fun setScreenName(name: String) {
         setCustomKey(SCREEN_NAME_KEY, name)
     }

@@ -17,8 +17,8 @@ The build is configured in `settings.gradle.kts`. Every module is included from 
 
 - `app/app` — shared application code: `App.kt` composable root, `MainActivity`,
   `bottom_app_bar/`, `host/AppNavigationHost.kt`, `navigation/NavigatorEventBus.kt`,
-  `navigation/NavigationCommand.kt`, `navigation/NavigatorReceiver.kt`,
-  `navigation/NavigatorExt.kt`, `di/NavigationModule.kt`.
+  `navigation/NavigatorReceiver.kt`, `navigation/NavigatorExt.kt`,
+  `di/NavigationModule.kt`.
 - `app/dev` — debuggable development variant with its own application id and Firebase config.
 - `app/store` — release variant signed for Play Store distribution.
 
@@ -37,10 +37,11 @@ The build is configured in `settings.gradle.kts`. Every module is included from 
   (`AppSnackBar`, `BasePagingColumnItem`, `TextInputField`), shared models
   (`PropertyHolder`, `MenuItem`, `PagingUiState`), `SnackbarManager`, `ActivityHolder`.
 - `core/ui/mvi` — the MVI contract (see [MVI contract](#mvi-contract)).
-- `core/ui/navigation` — `Navigator` (command-bus interface), `Screen` (sealed
-  `@Serializable` route catalog), `SaveHandlerAttr`, `NavigatorHolder` (Compose-scoped
-  wrapper around the current `NavHostController`), `navScreen` / `navScreenWithState`
-  `NavGraphBuilder` extensions.
+- `core/ui/navigation` — `Navigator` (command-bus interface), `NavCommand` (sealed
+  command set emitted on the bus), `Screen` (sealed `@Serializable` route catalog),
+  `SaveHandlerAttr`, `NavigatorHolder` (Compose-scoped wrapper around the current
+  `NavHostController`), `navScreen` / `navScreenWithState` `NavGraphBuilder`
+  extensions.
 - `core/ui/test-utils` — shared test infrastructure (`BaseComposeTest`, `MockDataFactory`,
   `PagingTestUtils`, `@Smoke`, `@Regression`).
 
@@ -666,7 +667,7 @@ Two `NavGraphBuilder` extensions consume these routes:
 
 ### `Navigator` (command bus interface)
 
-`core/ui/navigation/.../Navigator.kt` exposes three operations and nothing
+`core/ui/navigation/.../Navigator.kt` exposes four operations and nothing
 else — no controller, no back stack:
 
 ```kotlin
@@ -674,6 +675,7 @@ interface Navigator {
     fun navTo(screen: Screen)
     fun popBack(vararg previousStackAttr: Pair<String, Any?>)
     fun replaceTo(screen: Screen)
+    fun restartApp()
 }
 ```
 
@@ -683,29 +685,39 @@ and any other layer that wants to make a navigation **decision** depends on
 not — emitting a navigation command at any point is safe; it queues until the
 bridge is attached.
 
+`restartApp()` is the destructive variant: the bus emits
+`NavCommand.RestartApp`, and the App/UI bridge cold-starts the app from a
+fresh process (clears the task stack, finishes the activity affinity, calls
+`Runtime.exit(0)`). It exists because some operations (e.g. a Room database
+file swap after a Drive backup restore) invalidate the in-process DAO graph
+and singletons, and the only safe recovery is a full process restart. Feature
+code never imports `Context` or `Intent` to do this — it just calls
+`navigator.restartApp()` like any other command.
+
 ### `NavigatorEventBus` (singleton command bus implementation)
 
 `app/app/.../navigation/NavigatorEventBus.kt` is the singleton
 implementation. It implements two interfaces:
 
 - `Navigator` — the producer side called by feature `NavigationHandler`s.
-- `NavigatorReceiver` (`commands: SharedFlow<NavigationCommand>`) — the
+- `NavigatorReceiver` (`commands: SharedFlow<NavCommand>`) — the
   consumer side collected by the App/UI bridge.
 
 ```kotlin
 @Singleton
 class NavigatorEventBus @Inject constructor() : Navigator, NavigatorReceiver {
 
-    private val _commands = MutableSharedFlow<NavigationCommand>(
+    private val _commands = MutableSharedFlow<NavCommand>(
         extraBufferCapacity = 64,
     )
-    override val commands: SharedFlow<NavigationCommand> = _commands.asSharedFlow()
+    override val commands: SharedFlow<NavCommand> = _commands.asSharedFlow()
 
-    override fun navTo(screen: Screen) { _commands.tryEmit(NavigationCommand.NavTo(screen)) }
+    override fun navTo(screen: Screen) { _commands.tryEmit(NavCommand.NavTo(screen)) }
     override fun popBack(vararg previousStackAttr: Pair<String, Any?>) {
-        _commands.tryEmit(NavigationCommand.PopBack(previousStackAttr.toList()))
+        _commands.tryEmit(NavCommand.PopBack(previousStackAttr.toList()))
     }
-    override fun replaceTo(screen: Screen) { _commands.tryEmit(NavigationCommand.ReplaceTo(screen)) }
+    override fun replaceTo(screen: Screen) { _commands.tryEmit(NavCommand.ReplaceTo(screen)) }
+    override fun restartApp() { _commands.tryEmit(NavCommand.RestartApp) }
 }
 ```
 
@@ -741,10 +753,12 @@ abstract interface receive the same singleton. The class name carries the
 (`Repository`, `DataStore`, `Database`, `Storage`, `StoreDispatchers`,
 `Handler`, `Interactor`, `Mapper`, `Store`).
 
-`NavigationCommand` (`app/app/.../navigation/NavigationCommand.kt`) is a
-`sealed interface` with three variants — `NavTo(screen)`,
-`ReplaceTo(screen)`, `PopBack(previousStackAttr)` — corresponding 1-to-1
-with the `Navigator` operations.
+`NavCommand` (`core/ui/navigation/.../NavCommand.kt`) is a
+`sealed interface` with four variants — `NavTo(screen)`,
+`ReplaceTo(screen)`, `PopBack(attrs)`, and `RestartApp` — corresponding
+1-to-1 with the `Navigator` operations. Living in `core/ui/navigation`
+(next to `Navigator`) lets the bus, the bridge, and any test double share
+the same sealed surface without crossing the `app/app` module boundary.
 
 ### App/UI bridge: `NavigatorExt.NavigationEventBusSetup`
 
@@ -804,12 +818,19 @@ a long-lived background coroutine emitted while the activity was being
 recreated — and the next user-visible navigation will originate from a
 post-subscription action regardless.
 
-`processCommand` translates each `NavigationCommand` to the matching
+`processCommand` translates each `NavCommand` to the matching
 `navController.navigate(...)` / `popBackStack(...)` call. `popBack` writes
 its key/value pairs into
 `navController.previousBackStackEntry.savedStateHandle` before the pop, which
 is how navigation results flow back to the previous screen (see
 [Navigation results via SavedStateHandle](#navigation-results-via-savedstatehandle)).
+`NavCommand.RestartApp` is the one branch that does not call into
+`NavController`: it reads `LocalContext.current` (captured at bridge attach)
+to launch a fresh `MAIN/LAUNCHER` intent with
+`FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_CLEAR_TASK`, finishes the activity
+affinity, and calls `Runtime.getRuntime().exit(0)`. The bridge is the only
+place that holds `Context` for the navigation pipeline; no feature module
+imports `Context` for restart purposes.
 
 ### Lifetime rules
 
@@ -828,7 +849,7 @@ class naming makes it greppable):
   field of any `ViewModel` / `Store` / `Handler` / `Interactor` / `Mapper`
   class, and MUST NOT be passed into a Hilt `@Singleton`-scoped binding.
 - `NavigatorEventBus` IS allowed in singleton / ViewModel / Store / Handler
-  layers because it stores only a `SharedFlow<NavigationCommand>` and three
+  layers because it stores only a `SharedFlow<NavCommand>` and the four
   emit methods. No controller reference exists inside it.
 - `NavigatorHolder` (`core/ui/navigation/.../NavigatorHolder.kt`) wraps a
   live `NavHostController` and MUST stay scoped to composition (created via
@@ -848,8 +869,8 @@ through the graph composable directly. The pattern:
 2. The Store's `handlerCreator` lambda routes that action to the feature's
    `NavigationHandler`.
 3. `NavigationHandler` has `Navigator` injected via Hilt DI and calls
-   `navigator.navTo(...)`, `navigator.replaceTo(...)`, or
-   `navigator.popBack(...)`. The `Navigator` is the singleton
+   `navigator.navTo(...)`, `navigator.replaceTo(...)`, `navigator.popBack(...)`,
+   or `navigator.restartApp()`. The `Navigator` is the singleton
    `NavigatorEventBus` — emitting is pure command dispatch with no side
    effect on `NavController`.
 4. The App/UI bridge collects the command on its current `NavController` and
@@ -912,6 +933,57 @@ Reference implementation: `feature/all-trainings/ui/AllTrainingsGraph.kt`
 `feature/exercise/ui/ExerciseGraph.kt` +
 `feature/exercise/ui/mvi/handler/NavigationHandler.kt`.
 
+### Destructive app-restart through the bus
+
+Some operations invalidate the in-process Singleton graph (Room DAOs, cached
+repository state, observed Flows). The canonical case is a Drive backup
+restore that swaps the live database file via
+`DatabaseSnapshotProvider.restoreFromSnapshot` — after the swap, every
+already-resolved DAO points at a stale file handle, so only a cold start
+recovers correctness.
+
+The pattern routes this through the same command bus as any other navigation
+decision instead of through a feature-local helper:
+
+1. The feature's domain/MVI layer (e.g. `BackupClickHandler` after a
+   successful restore) emits `Action.Navigation.RestartApp` via
+   `consume(Action.Navigation.RestartApp)` — typically wrapped in a
+   `delay(RESTART_DELAY_MS)` so the success snackbar / "Completed" UI state
+   has a chance to render.
+2. The feature's `NavigationHandler` adds a single `when` branch:
+
+   ```kotlin
+   Action.Navigation.RestartApp -> navigator.restartApp()
+   ```
+
+3. `NavigatorEventBus.restartApp()` emits `NavCommand.RestartApp`.
+4. `NavigatorExt.processCommand` handles the `RestartApp` branch by relaunching
+   the package's launch intent (`FLAG_ACTIVITY_NEW_TASK | CLEAR_TASK`),
+   finishing the activity affinity, and calling `Runtime.getRuntime().exit(0)`.
+
+What this pattern replaces — and why:
+
+- An older revision shipped a feature-local `restartApp(context: Context)`
+  helper invoked from `SettingsGraph.kt` in response to an
+  `Event.AppRestartRequested`. That pushed an `Activity`/`Context`
+  dependency into a feature module and forked the "execute a side effect
+  that touches the framework" surface in two: most navigation went through
+  the bus, restart went through an Event. Promoting restart into
+  `Navigator.restartApp()` re-unifies the surface: every navigation-shaped
+  side effect — including process restart — is a `NavCommand` translated
+  by `NavigatorExt`, and no feature module imports `Context` /
+  `Runtime` / `Intent` for navigation purposes.
+- `Event.AppRestartRequested` is intentionally not part of the contract —
+  app restart is a navigation **decision**, not a UI-side effect. Encoding it
+  as an `Action.Navigation` variant means the same MVI rules apply
+  (Handler-routed, JVM-unit-testable by mocking `Navigator`).
+
+Reference implementation:
+`feature/settings/.../mvi/handler/BackupClickHandler.kt::scheduleAppRestart`
+(producer), `feature/settings/.../mvi/handler/SettingsNavigationHandler.kt`
+(router), and `app/app/.../navigation/NavigatorExt.kt::restartApp`
+(executor).
+
 ### Navigation results via `SavedStateHandle`
 
 Some navigation flows return a result to the previous screen — most
@@ -923,7 +995,7 @@ The mechanics:
 
 1. The producer (e.g. `feature/plan-editor`'s `NavigationHandler`) calls
    `navigator.popBack(planEditorSavedAttr.toPairValue(true))` on save. The
-   `NavigatorEventBus` emits `NavigationCommand.PopBack(listOf("plan-editor-saved" to true))`.
+   `NavigatorEventBus` emits `NavCommand.PopBack(listOf("plan-editor-saved" to true))`.
 2. `NavigatorExt.popBack` writes the pair into
    `navController.previousBackStackEntry?.savedStateHandle` *before* the
    `popBackStack()` call, so the previous entry sees the result on resume.

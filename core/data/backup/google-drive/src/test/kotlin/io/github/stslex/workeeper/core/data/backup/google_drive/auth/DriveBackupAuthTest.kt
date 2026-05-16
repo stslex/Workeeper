@@ -73,6 +73,11 @@ internal class DriveBackupAuthTest {
         }
         val authResult = mockk<AuthorizationResult> {
             every { hasResolution() } returns false
+            every { grantedScopes } returns listOf(
+                DriveAuthScopes.DRIVE_APPDATA,
+                DriveAuthScopes.USERINFO_EMAIL,
+                DriveAuthScopes.USERINFO_PROFILE,
+            )
             every { toGoogleSignInAccount() } returns gsa
             every { accessToken } returns null
         }
@@ -93,6 +98,11 @@ internal class DriveBackupAuthTest {
         runTest {
             val authResult = mockk<AuthorizationResult> {
                 every { hasResolution() } returns false
+                every { grantedScopes } returns listOf(
+                    DriveAuthScopes.DRIVE_APPDATA,
+                    DriveAuthScopes.USERINFO_EMAIL,
+                    DriveAuthScopes.USERINFO_PROFILE,
+                )
                 every { toGoogleSignInAccount() } returns null
                 every { accessToken } returns null
             }
@@ -121,6 +131,11 @@ internal class DriveBackupAuthTest {
         }
         val authResult = mockk<AuthorizationResult> {
             every { hasResolution() } returns false
+            every { grantedScopes } returns listOf(
+                DriveAuthScopes.DRIVE_APPDATA,
+                DriveAuthScopes.USERINFO_EMAIL,
+                DriveAuthScopes.USERINFO_PROFILE,
+            )
             every { toGoogleSignInAccount() } returns gsa
             every { accessToken } returns "live-token-abc"
         }
@@ -145,6 +160,11 @@ internal class DriveBackupAuthTest {
             }
             val authResult = mockk<AuthorizationResult> {
                 every { hasResolution() } returns false
+                every { grantedScopes } returns listOf(
+                    DriveAuthScopes.DRIVE_APPDATA,
+                    DriveAuthScopes.USERINFO_EMAIL,
+                    DriveAuthScopes.USERINFO_PROFILE,
+                )
                 every { toGoogleSignInAccount() } returns gsa
                 every { accessToken } returns "live-token"
             }
@@ -167,6 +187,11 @@ internal class DriveBackupAuthTest {
     fun `signIn does not fetch userinfo when access token is null`() = runTest {
         val authResult = mockk<AuthorizationResult> {
             every { hasResolution() } returns false
+            every { grantedScopes } returns listOf(
+                DriveAuthScopes.DRIVE_APPDATA,
+                DriveAuthScopes.USERINFO_EMAIL,
+                DriveAuthScopes.USERINFO_PROFILE,
+            )
             every { toGoogleSignInAccount() } returns mockk {
                 every { email } returns "x@y.com"
                 every { displayName } returns null
@@ -184,6 +209,11 @@ internal class DriveBackupAuthTest {
     fun `signIn falls back to placeholder when neither userinfo nor GSA has email`() = runTest {
         val authResult = mockk<AuthorizationResult> {
             every { hasResolution() } returns false
+            every { grantedScopes } returns listOf(
+                DriveAuthScopes.DRIVE_APPDATA,
+                DriveAuthScopes.USERINFO_EMAIL,
+                DriveAuthScopes.USERINFO_PROFILE,
+            )
             every { toGoogleSignInAccount() } returns null
             every { accessToken } returns null
         }
@@ -236,6 +266,11 @@ internal class DriveBackupAuthTest {
             every { displayName } returns null
         }
         val authResult = mockk<AuthorizationResult> {
+            every { grantedScopes } returns listOf(
+                DriveAuthScopes.DRIVE_APPDATA,
+                DriveAuthScopes.USERINFO_EMAIL,
+                DriveAuthScopes.USERINFO_PROFILE,
+            )
             every { toGoogleSignInAccount() } returns gsa
             every { accessToken } returns null
         }
@@ -259,6 +294,11 @@ internal class DriveBackupAuthTest {
             every { displayName } returns null
         }
         val authResult = mockk<AuthorizationResult> {
+            every { grantedScopes } returns listOf(
+                DriveAuthScopes.DRIVE_APPDATA,
+                DriveAuthScopes.USERINFO_EMAIL,
+                DriveAuthScopes.USERINFO_PROFILE,
+            )
             every { toGoogleSignInAccount() } returns gsa
             every { accessToken } returns "resolved-token-xyz"
         }
@@ -278,6 +318,11 @@ internal class DriveBackupAuthTest {
     fun `completeSignIn uses userinfo email when fetcher succeeds`() = runTest {
         val intent = mockk<Intent>()
         val authResult = mockk<AuthorizationResult> {
+            every { grantedScopes } returns listOf(
+                DriveAuthScopes.DRIVE_APPDATA,
+                DriveAuthScopes.USERINFO_EMAIL,
+                DriveAuthScopes.USERINFO_PROFILE,
+            )
             every { toGoogleSignInAccount() } returns null
             every { accessToken } returns "resolved-token"
         }
@@ -340,6 +385,98 @@ internal class DriveBackupAuthTest {
         assertEquals(BackupResult.Success(Unit), result)
         coVerify { accountStore.clearToken() }
         coVerify { accountStore.clear() }
+    }
+
+    @Test
+    fun `signIn returns PartialGrant when grantedScopes excludes drive_appdata`() = runTest {
+        val authResult = mockk<AuthorizationResult> {
+            every { hasResolution() } returns false
+            every { grantedScopes } returns listOf(
+                DriveAuthScopes.USERINFO_EMAIL,
+                DriveAuthScopes.USERINFO_PROFILE,
+            )
+            every { accessToken } returns "partial-grant-token"
+        }
+        every { authorizationClient.authorize(any()) } returns Tasks.forResult(authResult)
+        every { authorizationClient.clearToken(any()) } returns Tasks.forResult(null)
+
+        val result = newAuth().signIn()
+
+        assertTrue(result is SignInResult.PartialGrant, "expected PartialGrant, got $result")
+        assertEquals(
+            listOf(DriveAuthScopes.DRIVE_APPDATA),
+            (result as SignInResult.PartialGrant).missingScopes,
+        )
+        coVerify(exactly = 0) { accountStore.setAccount(any()) }
+        coVerify(exactly = 0) { accountStore.setToken(any(), any()) }
+        val cleared = slot<com.google.android.gms.auth.api.identity.ClearTokenRequest>()
+        coVerify(exactly = 1) { authorizationClient.clearToken(capture(cleared)) }
+        assertEquals("partial-grant-token", cleared.captured.token)
+    }
+
+    @Test
+    fun `signIn returns Success when only drive_appdata granted (userinfo soft-required)`() =
+        runTest {
+            val authResult = mockk<AuthorizationResult> {
+                every { hasResolution() } returns false
+                every { grantedScopes } returns listOf(DriveAuthScopes.DRIVE_APPDATA)
+                every { toGoogleSignInAccount() } returns null
+                every { accessToken } returns "live-token"
+            }
+            every { authorizationClient.authorize(any()) } returns Tasks.forResult(authResult)
+
+            val result = newAuth().signIn()
+
+            assertTrue(result is SignInResult.Success, "expected Success, got $result")
+            assertEquals(
+                "drive_account",
+                (result as SignInResult.Success).account.email,
+            )
+            coVerify(exactly = 1) { accountStore.setAccount(result.account) }
+        }
+
+    @Test
+    fun `completeSignIn returns MissingRequiredScope when grantedScopes excludes drive_appdata`() =
+        runTest {
+            val intent = mockk<Intent>()
+            val authResult = mockk<AuthorizationResult> {
+                every { grantedScopes } returns listOf(DriveAuthScopes.USERINFO_EMAIL)
+                every { accessToken } returns "partial-token-resolved"
+            }
+            every { authorizationClient.getAuthorizationResultFromIntent(intent) } returns
+                authResult
+            every { authorizationClient.clearToken(any()) } returns Tasks.forResult(null)
+
+            val result = newAuth().completeSignIn(intent)
+
+            assertTrue(result is BackupResult.Failure, "expected Failure, got $result")
+            assertEquals(
+                BackupError.MissingRequiredScope,
+                (result as BackupResult.Failure).error,
+            )
+            coVerify(exactly = 0) { accountStore.setAccount(any()) }
+            coVerify(exactly = 0) { accountStore.setToken(any(), any()) }
+            val cleared = slot<com.google.android.gms.auth.api.identity.ClearTokenRequest>()
+            coVerify(exactly = 1) { authorizationClient.clearToken(capture(cleared)) }
+            assertEquals("partial-token-resolved", cleared.captured.token)
+        }
+
+    @Test
+    fun `partial-grant clearToken failure does not block PartialGrant propagation`() = runTest {
+        val authResult = mockk<AuthorizationResult> {
+            every { hasResolution() } returns false
+            every { grantedScopes } returns emptyList()
+            every { accessToken } returns "partial-grant-token"
+        }
+        every { authorizationClient.authorize(any()) } returns Tasks.forResult(authResult)
+        every { authorizationClient.clearToken(any()) } returns
+            Tasks.forException(ApiException(Status.RESULT_INTERNAL_ERROR))
+
+        val result = newAuth().signIn()
+
+        assertTrue(result is SignInResult.PartialGrant, "expected PartialGrant, got $result")
+        coVerify(exactly = 0) { accountStore.setAccount(any()) }
+        coVerify(exactly = 0) { accountStore.setToken(any(), any()) }
     }
 
     @Test

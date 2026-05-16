@@ -14,6 +14,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -55,6 +56,8 @@ internal class DatabaseSnapshotProviderImplTest {
         // Clean up any snapshots written into the databases dir.
         val dbDir = context.getDatabasePath(AppDatabase.NAME).parentFile
         dbDir?.listFiles()?.forEach { it.delete() }
+        // Clean preserved snapshots written into cacheDir.
+        context.cacheDir.listFiles()?.forEach { it.delete() }
     }
 
     @Test
@@ -177,7 +180,7 @@ internal class DatabaseSnapshotProviderImplTest {
     }
 
     @Test
-    fun `restoreFromSnapshot returns SchemaTooNew when source schema is newer`() = runTest {
+    fun `restoreFromSnapshot returns BackupTooNew when source schema is newer`() = runTest {
         val dbDir = requireNotNull(context.getDatabasePath(AppDatabase.NAME).parentFile)
         // Capture a valid snapshot first.
         database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "anything"))
@@ -194,10 +197,10 @@ internal class DatabaseSnapshotProviderImplTest {
         assertTrue(result is BackupResult.Failure)
         val error = (result as BackupResult.Failure).error
         assertTrue(
-            error is BackupError.SchemaTooNew,
-            "expected SchemaTooNew, got $error",
+            error is BackupError.BackupTooNew,
+            "expected BackupTooNew, got $error",
         )
-        assertEquals(futureVersion, (error as BackupError.SchemaTooNew).backupSchemaVersion)
+        assertEquals(futureVersion, (error as BackupError.BackupTooNew).backupSchemaVersion)
     }
 
     @Test
@@ -229,5 +232,210 @@ internal class DatabaseSnapshotProviderImplTest {
         } finally {
             restored.close()
         }
+    }
+
+    @Test
+    fun `preserveCurrentDb writes a file in cacheDir that hasPreRestoreBackup detects`() =
+        runTest {
+            database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "PreserveMe"))
+
+            val result = provider.preserveCurrentDb()
+            assertTrue(result is BackupResult.Success, "expected Success, got $result")
+            val preservedFile = (result as BackupResult.Success).data
+
+            assertTrue(preservedFile.exists(), "preserved file should exist on disk")
+            assertEquals(context.cacheDir, preservedFile.parentFile)
+            assertTrue(provider.hasPreRestoreBackup())
+        }
+
+    @Test
+    fun `preserveCurrentDb produces a self-contained SQLite snapshot at the live schema`() =
+        runTest {
+            database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "PreservedRow"))
+            val result = provider.preserveCurrentDb()
+            assertTrue(result is BackupResult.Success)
+            val preserved = (result as BackupResult.Success).data
+
+            // The preserved file must be a valid SQLite database at the same
+            // schema version as the live db (WAL checkpointed, no missing pages).
+            val peek = provider.peekSnapshotSchemaVersion(preserved)
+            assertTrue(peek is BackupResult.Success, "peek should succeed on preserved file")
+            assertEquals(provider.currentSchemaVersion(), (peek as BackupResult.Success).data)
+        }
+
+    @Test
+    fun `rollbackToPreRestoreBackup with no preserved file returns CorruptedBackup`() = runTest {
+        assertFalse(provider.hasPreRestoreBackup())
+        val result = provider.rollbackToPreRestoreBackup()
+        assertTrue(result is BackupResult.Failure)
+        assertTrue((result as BackupResult.Failure).error is BackupError.CorruptedBackup)
+    }
+
+    @Test
+    fun `rollbackToPreRestoreBackup swaps live db with preserved contents and consumes file`() =
+        runTest {
+            database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "BeforeRestore"))
+            assertTrue(provider.preserveCurrentDb() is BackupResult.Success)
+
+            // Simulate a restore: mutate the live db so it differs from the preserved snapshot.
+            database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "AfterRestore"))
+            assertEquals(
+                setOf("BeforeRestore", "AfterRestore"),
+                database.tagDao.observeAll().first().map { it.name }.toSet(),
+            )
+
+            assertEquals(BackupResult.Success(Unit), provider.rollbackToPreRestoreBackup())
+
+            // Preserved file consumed.
+            assertFalse(provider.hasPreRestoreBackup())
+
+            // Live db reverts to pre-restore state.
+            val restored = Room
+                .databaseBuilder(context, AppDatabase::class.java, AppDatabase.NAME)
+                .allowMainThreadQueries()
+                .build()
+            try {
+                assertEquals(
+                    setOf("BeforeRestore"),
+                    restored.tagDao.observeAll().first().map { it.name }.toSet(),
+                )
+            } finally {
+                restored.close()
+            }
+        }
+
+    @Test
+    fun `deletePreRestoreBackup removes the file when present`() = runTest {
+        assertTrue(provider.preserveCurrentDb() is BackupResult.Success)
+        assertTrue(provider.hasPreRestoreBackup())
+
+        provider.deletePreRestoreBackup()
+        assertFalse(provider.hasPreRestoreBackup())
+    }
+
+    @Test
+    fun `deletePreRestoreBackup is a no-op when no file exists`() = runTest {
+        assertFalse(provider.hasPreRestoreBackup())
+        // Just verify no exception.
+        provider.deletePreRestoreBackup()
+        assertFalse(provider.hasPreRestoreBackup())
+    }
+
+    @Test
+    fun `preserveDbBeforeMigration copies the live db file into cacheDir without Room`() =
+        runTest {
+            // Seed a row via Room so the live .db file has content on disk.
+            database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "PreMigration"))
+            // Close Room so the file is not open exclusively (mirrors Scenario 2
+            // pre-flight: Room has not yet been opened on this launch).
+            database.close()
+
+            val preserved = provider.preserveDbBeforeMigration()
+            assertNotNull(preserved)
+            assertTrue(preserved!!.exists())
+            assertEquals(context.cacheDir, preserved.parentFile)
+            assertTrue(provider.hasPreMigrationBackup())
+            // The preserved file is a valid SQLite database (peek opens it
+            // standalone without Room).
+            val peek = provider.peekSnapshotSchemaVersion(preserved)
+            assertTrue(peek is BackupResult.Success, "preserved file must be valid SQLite")
+        }
+
+    @Test
+    fun `preserveDbBeforeMigration returns null when no live db file exists`() = runTest {
+        database.close()
+        context.deleteDatabase(AppDatabase.NAME)
+        assertEquals(null, provider.preserveDbBeforeMigration())
+        assertFalse(provider.hasPreMigrationBackup())
+    }
+
+    @Test
+    fun `preserveDbBeforeMigration runs wal_checkpoint via direct SQLite`() = runTest {
+        // Seed a row and confirm the WAL sidecar carries unsynced bytes before
+        // the snapshot runs — pre-condition for the checkpoint path to do work.
+        database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "PreCheckpoint"))
+        val dbDir = requireNotNull(context.getDatabasePath(AppDatabase.NAME).parentFile)
+        val walFile = File(dbDir, "${AppDatabase.NAME}-wal")
+        assertTrue(walFile.exists(), "WAL sidecar must exist after DAO write")
+        assertTrue(
+            walFile.length() > 0L,
+            "WAL must contain unsynced bytes pre-snapshot; was ${walFile.length()}",
+        )
+        // Close Room — the checkpoint inside preserveDbBeforeMigration must work
+        // through a direct SQLite open, not through the (closed) Room helper.
+        database.close()
+
+        val preserved = provider.preserveDbBeforeMigration()
+        assertNotNull(preserved)
+
+        // The row must round-trip through the snapshot. Read via direct SQLite —
+        // Room.databaseBuilder resolves paths against the databases dir, not the
+        // cacheDir location where the snapshot lives.
+        val snapshotDb = android.database.sqlite.SQLiteDatabase.openDatabase(
+            preserved!!.absolutePath,
+            null,
+            android.database.sqlite.SQLiteDatabase.OPEN_READONLY,
+        )
+        val names = snapshotDb.rawQuery("SELECT name FROM tag_table", null).use { cursor ->
+            buildSet { while (cursor.moveToNext()) add(cursor.getString(0)) }
+        }
+        snapshotDb.close()
+        assertEquals(setOf("PreCheckpoint"), names)
+    }
+
+    @Test
+    fun `getPreMigrationBackupFile returns the file when present and null when absent`() =
+        runTest {
+            assertEquals(null, provider.getPreMigrationBackupFile())
+
+            database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "ForExport"))
+            database.close()
+            assertNotNull(provider.preserveDbBeforeMigration())
+
+            val file = provider.getPreMigrationBackupFile()
+            assertNotNull(file)
+            assertTrue(file!!.exists())
+        }
+
+    @Test
+    fun `deletePreMigrationBackup removes the file and is idempotent`() = runTest {
+        // Force the .db file onto disk via an insert before closing Room.
+        database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "ToDelete"))
+        database.close()
+        assertNotNull(provider.preserveDbBeforeMigration())
+        assertTrue(provider.hasPreMigrationBackup())
+
+        provider.deletePreMigrationBackup()
+        assertFalse(provider.hasPreMigrationBackup())
+
+        // Idempotent — second call no-ops without exception.
+        provider.deletePreMigrationBackup()
+        assertFalse(provider.hasPreMigrationBackup())
+    }
+
+    @Test
+    fun `pre_migration and pre_restore slots have independent lifecycles`() = runTest {
+        database.tagDao.insert(TagEntity(uuid = Uuid.random(), name = "Independence"))
+        // Scenario 1: preserve pre-restore (must run while Room is open — uses
+        // the live appDatabase to WAL-checkpoint).
+        assertTrue(provider.preserveCurrentDb() is BackupResult.Success)
+        // Scenario 2: preserve pre-migration via direct copy (close Room first).
+        database.close()
+        assertNotNull(provider.preserveDbBeforeMigration())
+
+        assertTrue(provider.hasPreRestoreBackup())
+        assertTrue(provider.hasPreMigrationBackup())
+
+        // Deleting pre-migration does not affect pre-restore.
+        provider.deletePreMigrationBackup()
+        assertFalse(provider.hasPreMigrationBackup())
+        assertTrue(provider.hasPreRestoreBackup())
+
+        // Inverse direction: re-create pre-migration, delete pre-restore, both
+        // remain independent.
+        assertNotNull(provider.preserveDbBeforeMigration())
+        provider.deletePreRestoreBackup()
+        assertFalse(provider.hasPreRestoreBackup())
+        assertTrue(provider.hasPreMigrationBackup())
     }
 }

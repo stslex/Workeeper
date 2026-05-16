@@ -54,10 +54,13 @@ internal class BackupUiMapperTest {
             BackupError.NotAuthenticated to BackupErrorUi.NOT_AUTHENTICATED,
             BackupError.NetworkUnavailable to BackupErrorUi.NETWORK_UNAVAILABLE,
             BackupError.AuthRevoked to BackupErrorUi.AUTH_REVOKED,
+            BackupError.MissingRequiredScope to BackupErrorUi.MISSING_REQUIRED_SCOPE,
             BackupError.StorageQuotaExceeded to BackupErrorUi.STORAGE_QUOTA_EXCEEDED,
             BackupError.CorruptedBackup("dummy") to BackupErrorUi.CORRUPTED_BACKUP,
-            BackupError.SchemaTooNew(backupSchemaVersion = 6, appSchemaVersion = 5)
-                to BackupErrorUi.SCHEMA_TOO_NEW,
+            BackupError.BackupTooNew(backupSchemaVersion = 6, appSchemaVersion = 5)
+                to BackupErrorUi.BACKUP_TOO_NEW,
+            BackupError.MissingMigrationPath(backupSchemaVersion = 3, appSchemaVersion = 5)
+                to BackupErrorUi.MISSING_MIGRATION_PATH,
             BackupError.Io(java.io.IOException("io")) to BackupErrorUi.IO_ERROR,
             BackupError.Unknown(RuntimeException("u")) to BackupErrorUi.UNKNOWN,
         )
