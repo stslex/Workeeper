@@ -23,6 +23,7 @@
     <string name="feature_settings_backup_sign_out">Sign out</string>
     <string name="feature_settings_backup_create">Backup now</string>
     <string name="feature_settings_backup_restore">Restore from backup</string>
+    <string name="feature_settings_backup_revert_last_restore_label">Revert last restore</string>
     <string name="feature_settings_backup_restore_title">Restore backup?</string>
     <string name="feature_settings_backup_restore_warning">Replaces your current data with the backup from %1$s (%2$s). This cannot be undone.</string>
     <string name="feature_settings_backup_restore_impact">All current data will be replaced</string>
@@ -33,9 +34,11 @@
     <string name="feature_settings_backup_error_not_authenticated">Sign in to Drive first</string>
     <string name="feature_settings_backup_error_network_unavailable">No internet connection</string>
     <string name="feature_settings_backup_error_auth_revoked">Drive access revoked. Sign in again.</string>
+    <string name="feature_settings_backup_error_missing_required_scope">Drive access wasn’t granted. Sign in again and allow Drive access — you’ll see the consent screen once more.</string>
     <string name="feature_settings_backup_error_storage_quota_exceeded">Drive storage is full</string>
     <string name="feature_settings_backup_error_corrupted_backup">Backup file is corrupted</string>
-    <string name="feature_settings_backup_error_schema_too_new">Backup needs a newer app version</string>
+    <string name="feature_settings_backup_error_backup_too_new">This backup is from a newer version of the app. Update Workeeper to restore it.</string>
+    <string name="feature_settings_backup_error_missing_migration_path">This backup is from an older version that this app build cannot migrate. Try updating the app or use a newer backup.</string>
     <string name="feature_settings_backup_error_io">Read/write error</string>
     <string name="feature_settings_backup_error_unknown">Something went wrong</string>
     <string name="feature_settings_backup_error_no_backups_found">No backups available</string>
@@ -55,4 +58,20 @@
         <item quantity="one">%d backup stored</item>
         <item quantity="other">%d backups stored</item>
     </plurals>
+
+    <!-- Auto-backup scheduling -->
+    <string name="feature_settings_backup_frequency_daily">Daily</string>
+    <string name="feature_settings_backup_frequency_weekly">Weekly</string>
+    <string name="feature_settings_backup_frequency_manual_only">Manual only</string>
+    <string name="feature_settings_backup_frequency_picker_title">Backup frequency</string>
+    <string name="feature_settings_backup_frequency_picker_save">Save</string>
+    <string name="feature_settings_backup_allow_mobile_data_label">Allow on mobile data</string>
+    <string name="feature_settings_backup_allow_mobile_data_caption">Backups will use mobile data when Wi-Fi unavailable</string>
+    <string name="feature_settings_backup_auto_row_label">Auto-backup: %1$s</string>
+    <string name="feature_settings_backup_auto_next_backup">Next backup: %1$s</string>
+    <string name="feature_settings_backup_auto_paused_banner_title">Auto-backup paused</string>
+    <string name="feature_settings_backup_auto_paused_banner_body">Sign in to Google Drive again to resume.</string>
+    <string name="feature_settings_backup_auto_paused_banner_action">Sign in</string>
+    <string name="feature_settings_backup_auto_enabled_default">Auto-backup enabled, daily</string>
+    <string name="feature_settings_backup_auto_enabled_change_action">Change</string>
 </resources>

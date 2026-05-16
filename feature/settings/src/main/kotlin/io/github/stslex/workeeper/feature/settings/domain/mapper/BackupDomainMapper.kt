@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.settings.domain.mapper
 
 import io.github.stslex.workeeper.core.data.backup.api.model.Account
@@ -31,6 +32,7 @@ internal object BackupDomainMapper {
     fun SignInResult.toDomain(): SignInOutcomeDomain = when (this) {
         is SignInResult.Success -> SignInOutcomeDomain.Success
         is SignInResult.NeedsResolution -> SignInOutcomeDomain.NeedsResolution(intentSender)
+        is SignInResult.PartialGrant -> SignInOutcomeDomain.PartialGrant
         is SignInResult.Failure -> SignInOutcomeDomain.Failure(error)
     }
 }

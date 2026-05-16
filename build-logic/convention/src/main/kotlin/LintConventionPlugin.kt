@@ -1,5 +1,6 @@
 import AppExt.findPluginId
 import AppExt.libs
+import com.android.build.api.dsl.ApplicationExtension
 import com.android.build.api.dsl.CommonExtension
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -45,6 +46,20 @@ class LintConventionPlugin : Plugin<Project> {
                 xmlOutput = file("build/reports/lint-results.xml")
                 sarifOutput = file("build/reports/lint-results.sarif")
             }
+
+            // RemoveWorkManagerInitializer runs per application module and does
+            // not see the directive when it is contributed via the shared
+            // :app:app library manifest. The AGP merger applies it correctly at
+            // the application-level merge (verified in merged_manifest output).
+            // Disable only on application modules — adding it to every module
+            // (e.g. via lint.xml or the CommonExtension above) trips
+            // UnknownIssueId in library modules that don't depend on
+            // androidx.work. See documentation/feature-specs/backup.md →
+            // WorkManager setup.
+            extensions.findByType(ApplicationExtension::class.java)
+                ?.lint
+                ?.disable
+                ?.add("RemoveWorkManagerInitializer")
 
             // Configure detekt for each module
             afterEvaluate {

@@ -7,6 +7,7 @@ import io.github.stslex.workeeper.core.data.database.converters.PlanSetsConverte
 import io.github.stslex.workeeper.core.data.database.converters.UuidConverter
 import io.github.stslex.workeeper.core.data.database.exercise.ExerciseDao
 import io.github.stslex.workeeper.core.data.database.exercise.ExerciseEntity
+import io.github.stslex.workeeper.core.data.database.migration.APP_DATABASE_VERSION
 import io.github.stslex.workeeper.core.data.database.session.PerformedExerciseDao
 import io.github.stslex.workeeper.core.data.database.session.PerformedExerciseEntity
 import io.github.stslex.workeeper.core.data.database.session.SessionDao
@@ -36,7 +37,7 @@ import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseEn
         ExerciseTagEntity::class,
         TrainingTagEntity::class,
     ],
-    version = 6,
+    version = APP_DATABASE_VERSION,
     exportSchema = true,
 )
 @TypeConverters(UuidConverter::class, PlanSetsConverter::class)

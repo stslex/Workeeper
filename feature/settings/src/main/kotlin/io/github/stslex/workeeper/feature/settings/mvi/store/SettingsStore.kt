@@ -11,6 +11,8 @@ import io.github.stslex.workeeper.feature.settings.mvi.model.BackupAuthUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupErrorUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupInfoUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupOperationUi
+import io.github.stslex.workeeper.feature.settings.mvi.model.BackupPreferencesUi
+import io.github.stslex.workeeper.feature.settings.mvi.model.BackupScheduleUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.RestoreProgressUi
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Action
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Event
@@ -27,7 +29,9 @@ internal interface SettingsStore : Store<State, Action, Event> {
         val backupOperation: BackupOperationUi,
         val dialogState: DialogState,
         val backupInfo: BackupInfoUi?,
+        val backupPreferences: BackupPreferencesUi?,
         val restoreProgress: RestoreProgressUi,
+        val canRevertLastRestore: Boolean,
     ) : Store.State {
 
         companion object {
@@ -43,7 +47,9 @@ internal interface SettingsStore : Store<State, Action, Event> {
                 backupOperation = BackupOperationUi.Idle,
                 dialogState = DialogState.Hidden,
                 backupInfo = null,
+                backupPreferences = null,
                 restoreProgress = RestoreProgressUi.Idle,
+                canRevertLastRestore = false,
             )
         }
     }
@@ -74,11 +80,16 @@ internal interface SettingsStore : Store<State, Action, Event> {
             data object Back : Navigation
 
             data object OpenArchive : Navigation
+
+            data object RestartApp : Navigation
         }
 
         sealed interface Backup : Action {
 
             data object ObserveAuth : Backup
+            data object ObservePreferences : Backup
+            data object ObserveRestoreState : Backup
+            data object RequestRevertLastRestore : Backup
             data object SignIn : Backup
             data class HandleAuthResult(val resultIntent: Intent?) : Backup
             data object RequestSignOut : Backup
@@ -89,6 +100,17 @@ internal interface SettingsStore : Store<State, Action, Event> {
             data object ConfirmRestore : Backup
             data object DismissRestoreDialog : Backup
             data object LoadBackupList : Backup
+            data object OpenFrequencyPicker : Backup
+            data object DismissFrequencyPicker : Backup
+            data class SaveFrequency(
+                val schedule: BackupScheduleUi,
+                val allowOnMobileData: Boolean,
+            ) : Backup
+
+            data class UpdateFrequencyPickerSelection(
+                val schedule: BackupScheduleUi,
+                val allowOnMobileData: Boolean,
+            ) : Backup
         }
     }
 
@@ -105,6 +127,6 @@ internal interface SettingsStore : Store<State, Action, Event> {
 
         data object ShowBackupCreated : Event
 
-        data object AppRestartRequested : Event
+        data object ShowAutoBackupEnabledSnackbarRequested : Event
     }
 }

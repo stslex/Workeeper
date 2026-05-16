@@ -30,6 +30,16 @@
             </intent-filter>
         </activity>
 
+        <!--
+        Scenario 2 fallback launcher. Started by MainActivity when the
+        StartupMigrationCoordinator pre-flight returns RouteToRecovery; the
+        user never lands here through the normal launcher icon (no
+        intent-filter), so a healthy install never sees this surface.
+        -->
+        <activity
+            android:name="io.github.stslex.workeeper.recovery.RecoveryActivity"
+            android:exported="false" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -38,6 +48,36 @@
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_provider_paths" />
+        </provider>
+
+        <!--
+          androidx.work.WorkManagerInitializer is intentionally removed.
+          WorkManager uses on-demand initialization via BaseApplication's
+          Configuration.Provider + HiltWorkerFactory (see BaseApplication.kt
+          and documentation/feature-specs/backup.md → WorkManager setup).
+          Restoring the default initializer would create a WorkManager without
+          Hilt's worker factory, breaking @AssistedInject construction of
+          BackupWorker. This is the Google-documented Hilt + WorkManager
+          integration pattern.
+
+          Declared once in this shared main manifest rather than duplicated
+          across each flavor manifest because both flavors are intentionally
+          identical re: WorkManager init. Android lint's
+          RemoveWorkManagerInitializer check runs per application module and
+          does not see directives contributed via a library manifest, so it
+          is suppressed in lint-rules/lint.xml; the AGP manifest merger
+          applies this directive correctly at the application-level merge
+          (verified in app/dev/build/.../merged_manifest/...).
+        -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
         </provider>
 
     </application>

@@ -8,8 +8,8 @@ androidTools = "32.1.0"
 minSdk = "28"
 targetSdk = "37"
 compileSdk = "36"
-versionName = "1.44.0"
-versionCode = "45"
+versionName = "1.45.0"
+versionCode = "46"
 
 ktx = "1.17.0"
 material = "1.13.0"
@@ -30,6 +30,8 @@ fbPerf = "2.0.2"
 
 hilt = "2.59.2"
 hiltCompose = "1.3.0"
+hiltWork = "1.3.0"
+workManager = "2.10.0"
 
 mockk = "1.14.7"
 junit = "5.13.4"
@@ -151,6 +153,11 @@ hilt-compiler = { group = "com.google.dagger", name = "hilt-compiler", version.r
 hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hiltCompose" }
 hilt-gradlePlugin = { group = "com.google.dagger", name = "hilt-android-gradle-plugin", version.ref = "hilt" }
 hilt-test = { group = "com.google.dagger", name = "hilt-android-testing", version.ref = "hilt" }
+
+androidx-hilt-work = { group = "androidx.hilt", name = "hilt-work", version.ref = "hiltWork" }
+androidx-hilt-compiler = { group = "androidx.hilt", name = "hilt-compiler", version.ref = "hiltWork" }
+androidx-work-runtime = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workManager" }
+androidx-work-testing = { group = "androidx.work", name = "work-testing", version.ref = "workManager" }
 
 coroutine-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutineTest" }
 coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "coroutines" }

@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.feature.settings.mvi.store
 
 import androidx.compose.runtime.Stable
+import io.github.stslex.workeeper.feature.settings.mvi.model.BackupScheduleUi
 
 @Stable
 internal sealed interface DialogState {
@@ -17,4 +18,10 @@ internal sealed interface DialogState {
 
     @Stable
     data object SignOutConfirmation : DialogState
+
+    @Stable
+    data class FrequencyPicker(
+        val selectedSchedule: BackupScheduleUi,
+        val allowOnMobileData: Boolean,
+    ) : DialogState
 }

@@ -123,6 +123,8 @@ the same tasks:
   Detekt rule violation (see also
   [`compose-state-discipline`](.claude/skills/compose-state-discipline.md), which covers
   Rule 4: dialogs and bottom sheets live in `State`, not `Event`).
+- [`mvi-dialog-state`](.claude/skills/mvi-dialog-state.md) — model two-or-more modals on one
+  screen as a single sealed `dialogState: DialogState` on State (drill-down of Rule 4).
 
 ## Required skill usage
 
@@ -138,10 +140,33 @@ Use this mapping:
 - Compose UI smoke tests: `.claude/skills/write-ui-test.md`
 - Room schema migrations and migration tests: `.claude/skills/add-database-migration.md`
 - Refactors driven by custom MVI/Detekt rules: `.claude/skills/refactor-with-mvi-rules.md`
+- Adding a second dialog/bottom sheet to a screen, or any screen with two-or-more
+  modals: `.claude/skills/mvi-dialog-state.md`
 - Firebase Performance / TTID / cold-start / screen-rendering trace work, and any change
   that touches `core/ui/mvi/.../performance/` or the `Modifier.reportScreenPlace<>` wiring
   in `AppNavigationHost`: read [documentation/performance.md](documentation/performance.md)
   before changes.
+- Drive backup / restore / auto-backup scheduling / Drive authentication work, and any
+  change that touches `core/data/backup/*` or the backup section of `feature/settings`:
+  read [documentation/feature-specs/backup.md](documentation/feature-specs/backup.md)
+  first, then [`.claude/skills/mvi-dialog-state.md`](.claude/skills/mvi-dialog-state.md)
+  for state-shape work on the new `FrequencyPicker` variant.
+- Cross-feature dialog work — anything that touches `feature/app-dialogs/*`,
+  `AppDialogStore`, `AppDialogHost`, `AppDialog` catalog, the `pending_*` DataStore
+  keys, or the `AppConfirmationDialog` generic Composable in `core/ui/kit`:
+  read [documentation/feature-specs/app-dialogs.md](documentation/feature-specs/app-dialogs.md)
+  first, then [`.claude/skills/app-dialogs-pattern.md`](.claude/skills/app-dialogs-pattern.md)
+  for the seven-step recipe when adding a new `AppDialog` variant.
+- Backup recovery work — anything that touches the restore-time migration
+  rollback, the user-initiated undo of last restore, the `RecoveryActivity`,
+  the `MIGRATIONS` introspection helper (`hasMigrationPath`), the pre-restore
+  compatibility checks, or the removal of `fallbackToDestructiveMigration*`
+  from Room: read
+  [documentation/feature-specs/backup-recovery.md](documentation/feature-specs/backup-recovery.md)
+  first, then [documentation/feature-specs/backup.md](documentation/feature-specs/backup.md)
+  for the v1 flow it extends and
+  [documentation/feature-specs/app-dialogs.md](documentation/feature-specs/app-dialogs.md)
+  for the cross-feature dialog catalog the recovery flows publish into.
 
 If multiple skills apply, use the most specific one first, then combine the others as needed.
 If no listed skill applies, continue with the normal repository instructions.

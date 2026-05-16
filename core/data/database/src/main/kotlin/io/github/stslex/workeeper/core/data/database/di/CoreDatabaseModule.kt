@@ -12,7 +12,7 @@ import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
 import io.github.stslex.workeeper.core.data.database.exercise.ExerciseDao
-import io.github.stslex.workeeper.core.data.database.migration.Migration6
+import io.github.stslex.workeeper.core.data.database.migration.MIGRATIONS
 import io.github.stslex.workeeper.core.data.database.session.PerformedExerciseDao
 import io.github.stslex.workeeper.core.data.database.session.SessionDao
 import io.github.stslex.workeeper.core.data.database.session.SetDao
@@ -40,7 +40,10 @@ object CoreDatabaseModule {
             AppDatabase::class.java,
             AppDatabase.NAME,
         )
-        .addMigrations(Migration6)
+        // No fallbackToDestructiveMigration*. Migration failure routes to the
+        // recovery flows in documentation/feature-specs/backup-recovery.md
+        // (Scenarios 1 and 2); silent data wipe is never an option.
+        .apply { MIGRATIONS.forEach { addMigrations(it) } }
         .build()
 
     @Provides

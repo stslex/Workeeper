@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.navigation
 
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.core.logger.Logger
+import io.github.stslex.workeeper.core.ui.navigation.NavCommand
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.mockk.every
 import io.mockk.mockk
@@ -32,7 +33,7 @@ import org.junit.jupiter.api.Test
  * `NavController` and either no-oped or crashed.
  *
  * The fixed architecture splits decisions and execution: the singleton
- * `NavigatorEventBus` stores only a `SharedFlow<NavigationCommand>` (no controller),
+ * `NavigatorEventBus` stores only a `SharedFlow<NavCommand>` (no controller),
  * and `NavigatorExt.NavigationEventBusSetup` collects the flow inside a
  * `LaunchedEffect(navController)` that re-binds when the composition gets a fresh
  * controller.
@@ -81,7 +82,7 @@ internal class NavigationLifecycleRegressionTest {
         testScheduler.advanceUntilIdle()
         bus.navTo(Screen.Exercise(uuid = "ex-1"))
         val firstCommand = bridge1.await()
-        assertEquals(NavigationCommand.NavTo(Screen.Exercise(uuid = "ex-1")), firstCommand)
+        assertEquals(NavCommand.NavTo(Screen.Exercise(uuid = "ex-1")), firstCommand)
 
         // Activity recreation: a new bridge subscribes on the SAME bus instance.
         val bridge2 = async(dispatcher) { bus.commands.first() }
@@ -90,7 +91,7 @@ internal class NavigationLifecycleRegressionTest {
         val secondCommand = bridge2.await()
 
         assertEquals(
-            NavigationCommand.NavTo(Screen.PastSession(sessionUuid = "session-1")),
+            NavCommand.NavTo(Screen.PastSession(sessionUuid = "session-1")),
             secondCommand,
             "Bridge re-collection on the same singleton bus must observe newly-emitted commands.",
         )
@@ -118,7 +119,7 @@ internal class NavigationLifecycleRegressionTest {
         testScheduler.advanceUntilIdle()
         bus.navTo(Screen.BottomBar.Home)
 
-        assertEquals(NavigationCommand.NavTo(Screen.BottomBar.Home), deferred.await())
+        assertEquals(NavCommand.NavTo(Screen.BottomBar.Home), deferred.await())
     }
 
     @Test
@@ -136,8 +137,8 @@ internal class NavigationLifecycleRegressionTest {
         bus.replaceTo(Screen.PastSession(sessionUuid = "session-1"))
 
         val expected = listOf(
-            NavigationCommand.NavTo(Screen.Exercise(uuid = "ex-1")),
-            NavigationCommand.ReplaceTo(Screen.PastSession(sessionUuid = "session-1")),
+            NavCommand.NavTo(Screen.Exercise(uuid = "ex-1")),
+            NavCommand.ReplaceTo(Screen.PastSession(sessionUuid = "session-1")),
         )
         assertEquals(expected, firstFlow.await())
         assertEquals(expected, secondFlow.await())
@@ -165,15 +166,15 @@ internal class NavigationLifecycleRegressionTest {
 
         assertEquals(
             listOf(
-                NavigationCommand.NavTo(Screen.BottomBar.Home),
-                NavigationCommand.NavTo(Screen.BottomBar.AllTrainings),
+                NavCommand.NavTo(Screen.BottomBar.Home),
+                NavCommand.NavTo(Screen.BottomBar.AllTrainings),
             ),
             firstObserved,
         )
         assertEquals(
             listOf(
-                NavigationCommand.NavTo(Screen.Exercise(uuid = "ex-2")),
-                NavigationCommand.PopBack(emptyList()),
+                NavCommand.NavTo(Screen.Exercise(uuid = "ex-2")),
+                NavCommand.PopBack(emptyList()),
             ),
             secondObserved,
         )

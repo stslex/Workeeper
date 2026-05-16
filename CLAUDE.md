@@ -32,6 +32,8 @@ content in this file.
 - [documentation/ci-cd.md](documentation/ci-cd.md) — workflows, release pipeline.
 - [documentation/lint-rules.md](documentation/lint-rules.md) — Detekt MVI rules + Android Lint.
 - [documentation/performance.md](documentation/performance.md) — Firebase Performance pipelines (TTID, Screen rendering, AppCreate / ActivityCreate).
+- [documentation/feature-specs/backup.md](documentation/feature-specs/backup.md) — Drive backup + restore + auto-backup scheduling: architecture, auth flow, scheduling, Cloud Console setup, error taxonomy, troubleshooting.
+- [documentation/feature-specs/app-dialogs.md](documentation/feature-specs/app-dialogs.md) — Cross-feature process-survival dialog catalog (`AppDialog`, `AppDialogStore`, `AppDialogHost`, DataStore-backed `pending_*` flags). Planned alongside backup-recovery.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — contributor workflow, commit format.
 
 ## Domain layer
@@ -74,6 +76,13 @@ skill when the user asks for one of these tasks:
   Detekt MVI / Hilt scope / Composable rule violation by applying the conformant fix
   (see also [`compose-state-discipline`](.claude/skills/compose-state-discipline.md), which
   covers Rule 4: dialogs and bottom sheets live in `State`, not `Event`).
+- [`mvi-dialog-state`](.claude/skills/mvi-dialog-state.md) — model two-or-more dialogs /
+  bottom sheets on one screen as a single sealed `dialogState: DialogState` on `Store.State`,
+  with `Hidden` as the default variant. Drill-down of Rule 4 of `compose-state-discipline`.
+- [`app-dialogs-pattern`](.claude/skills/app-dialogs-pattern.md) — add a new variant to
+  the cross-feature `AppDialog` catalog (sealed variant + DataStore keys + priority slot
+  + render branch + dismiss policy + strings + catalog table). Use for process-survival
+  / destination-independent dialogs; for screen-scoped modals use `mvi-dialog-state`.
 
 ## Current focus
 

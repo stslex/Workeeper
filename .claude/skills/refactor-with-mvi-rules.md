@@ -208,15 +208,17 @@ The rules:
 
 - **Navigation decisions belong to Store/Handler.** The Store dispatches
   `Action.Navigation.<X>`; the feature's `NavigationHandler` calls
-  `navigator.navTo(...)` / `navigator.replaceTo(...)` / `navigator.popBack(...)`.
+  `navigator.navTo(...)` / `navigator.replaceTo(...)` / `navigator.popBack(...)` /
+  `navigator.restartApp()`.
 - **Navigation execution belongs to the App/UI bridge.** The actual
-  `NavController.navigate(...)` / `popBackStack(...)` calls live ONLY in
-  `app/app/.../navigation/NavigatorExt.kt::NavigationEventBusSetup`. Nowhere else.
+  `NavController.navigate(...)` / `popBackStack(...)` / process-restart calls live
+  ONLY in `app/app/.../navigation/NavigatorExt.kt::NavigationEventBusSetup`.
+  Nowhere else.
 - **`Navigator` is a command-bus abstraction.** The singleton implementation is
   `NavigatorEventBus` (`app/app/.../navigation/NavigatorEventBus.kt`). It stores a
-  `SharedFlow<NavigationCommand>` and three emit methods. It does not store a
-  `NavController`, `NavBackStackEntry`, or `SavedStateHandle`. Anything else that
-  claims to be a `Navigator` is wrong by definition.
+  `SharedFlow<NavCommand>` and four emit methods. It does not store a
+  `NavController`, `NavBackStackEntry`, `SavedStateHandle`, `Context`, or
+  `Activity`. Anything else that claims to be a `Navigator` is wrong by definition.
 - **`NavHostController`, `NavController`, `NavBackStackEntry`, `SavedStateHandle`,
   `Activity`, and `Context` MUST NOT be retained** by any `ViewModel`, `Store`,
   `Handler`, `Interactor`, `Mapper`, or Hilt-`@Singleton` binding. They MUST NOT be
@@ -272,7 +274,7 @@ When reviewing a PR that touches navigation, run through this list before approv
 - [ ] Command bus / executor pair: the bus must outlive any Store using it; the
       executor lives inside the App/UI bridge composition and re-collects on
       `NavController` change.
-- [ ] No `TODO()` in navigation command handling. Every `NavigationCommand` variant
+- [ ] No `TODO()` in navigation command handling. Every `NavCommand` variant
       has a real branch in `NavigatorExt.processCommand`.
 - [ ] When a screen consumes a navigation result via `SavedStateHandle`, the consumer
       resets the value back to its default after handling, so re-entry does not

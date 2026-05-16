@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.navigation
 
 import io.github.stslex.workeeper.core.core.logger.Log
+import io.github.stslex.workeeper.core.ui.navigation.NavCommand
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -15,24 +16,28 @@ class NavigatorEventBus @Inject constructor() : Navigator, NavigatorReceiver {
 
     private val log = Log.tag(TAG)
 
-    private val _commands = MutableSharedFlow<NavigationCommand>(
+    private val _commands = MutableSharedFlow<NavCommand>(
         extraBufferCapacity = 64,
     )
-    override val commands: SharedFlow<NavigationCommand> = _commands.asSharedFlow()
+    override val commands: SharedFlow<NavCommand> = _commands.asSharedFlow()
 
     override fun navTo(screen: Screen) {
-        consume(NavigationCommand.NavTo(screen))
+        consume(NavCommand.NavTo(screen))
     }
 
     override fun popBack(vararg previousStackAttr: Pair<String, Any?>) {
-        consume(NavigationCommand.PopBack(previousStackAttr.toList()))
+        consume(NavCommand.PopBack(previousStackAttr.toList()))
     }
 
     override fun replaceTo(screen: Screen) {
-        consume(NavigationCommand.ReplaceTo(screen))
+        consume(NavCommand.ReplaceTo(screen))
     }
 
-    private fun consume(command: NavigationCommand) {
+    override fun restartApp() {
+        consume(NavCommand.RestartApp)
+    }
+
+    private fun consume(command: NavCommand) {
         log.d { "Processing navigation command: $command" }
         _commands.tryEmit(command).also { emitted ->
             if (emitted.not()) {

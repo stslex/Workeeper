@@ -1,9 +1,11 @@
+// SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.backup.google_drive.auth
 
 import android.content.Intent
 import com.google.android.gms.auth.api.identity.AuthorizationClient
 import com.google.android.gms.auth.api.identity.AuthorizationRequest
 import com.google.android.gms.auth.api.identity.AuthorizationResult
+import com.google.android.gms.auth.api.identity.ClearTokenRequest
 import com.google.android.gms.auth.api.identity.RevokeAccessRequest
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.logger.Log
@@ -93,17 +95,27 @@ internal class DriveBackupAuth @Inject constructor(
                 )
             }
             runCatching {
-                val result = authorizationClient.getAuthorizationResultFromIntent(intentData)
-                captureAccessToken(result)
-                val account = result.toAccount(fetchUserInfo(result.accessToken))
-                accountStore.setAccount(account)
-                account
+                authorizationClient.getAuthorizationResultFromIntent(intentData)
             }
                 .onFailure { e ->
                     logger.e(e, "completeSignIn failed")
                 }
                 .fold(
-                    onSuccess = { BackupResult.Success(it) },
+                    onSuccess = { result ->
+                        val missing = result.missingRequiredScopes()
+                        if (missing.isNotEmpty()) {
+                            logger.w {
+                                "completeSignIn partial grant; missing=$missing"
+                            }
+                            clearTokenBestEffort(result.accessToken)
+                            BackupResult.Failure(BackupError.MissingRequiredScope)
+                        } else {
+                            captureAccessToken(result)
+                            val account = result.toAccount(fetchUserInfo(result.accessToken))
+                            accountStore.setAccount(account)
+                            BackupResult.Success(account)
+                        }
+                    },
                     onFailure = { BackupResult.Failure(DriveErrorMapper.toBackupError(it)) },
                 )
         }
@@ -152,10 +164,32 @@ internal class DriveBackupAuth @Inject constructor(
                 )
             return SignInResult.NeedsResolution(pendingIntent.intentSender)
         }
+        val missing = result.missingRequiredScopes()
+        if (missing.isNotEmpty()) {
+            logger.w { "signIn silent-success partial grant; missing=$missing" }
+            clearTokenBestEffort(result.accessToken)
+            return SignInResult.PartialGrant(missing)
+        }
         captureAccessToken(result)
         val account = result.toAccount(fetchUserInfo(result.accessToken))
         accountStore.setAccount(account)
         return SignInResult.Success(account)
+    }
+
+    private fun AuthorizationResult.missingRequiredScopes(): List<String> {
+        val granted: List<String> = grantedScopes.orEmpty()
+        return DriveAuthScopes.REQUIRED.filterNot { granted.contains(it) }
+    }
+
+    private suspend fun clearTokenBestEffort(badToken: String?) {
+        if (badToken == null) return
+        runCatching {
+            authorizationClient
+                .clearToken(ClearTokenRequest.builder().setToken(badToken).build())
+                .await()
+        }.onFailure { t ->
+            logger.w(t) { "clearToken on partial grant failed (best-effort)" }
+        }
     }
 
     private fun AuthorizationResult.toAccount(userInfo: UserInfo?): Account {

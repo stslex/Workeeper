@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="core_backup_worker_notification_channel_name">Backup status</string>
+    <string name="core_backup_worker_notification_paused_title">Auto-backup paused</string>
+    <string name="core_backup_worker_notification_paused_body">Sign in to Google Drive again to resume auto-backup</string>
+</resources>

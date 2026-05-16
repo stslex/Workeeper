@@ -172,4 +172,11 @@
     <issue id="InvalidPackage">
         <ignore regexp=".*ktor.*" />
     </issue>
+
+    <!-- RemoveWorkManagerInitializer is disabled in
+         build-logic/.../LintConventionPlugin.kt for ApplicationExtension
+         modules only. Adding it here (or to every module via the lint DSL's
+         `disable` set) trips UnknownIssueId in library modules that don't
+         depend on androidx.work. See documentation/feature-specs/backup.md →
+         WorkManager setup. -->
 </lint>
