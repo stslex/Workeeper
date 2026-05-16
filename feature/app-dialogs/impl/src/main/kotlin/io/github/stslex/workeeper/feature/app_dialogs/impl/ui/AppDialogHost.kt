@@ -10,21 +10,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.window.DialogProperties
 import androidx.core.net.toUri
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
-import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmationDialog
 import io.github.stslex.workeeper.feature.app_dialogs.api.actions.AppDialogActions
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.impl.R
 import io.github.stslex.workeeper.feature.app_dialogs.impl.store.AppDialogStore
 import kotlinx.coroutines.launch
-import java.text.DateFormat
-import java.util.Date
 
 /**
  * Renders the currently-pending [AppDialog] above every navigation destination.
@@ -150,80 +145,6 @@ private fun shareDiagnostics(context: Context, uri: Uri) {
 
 private const val GITHUB_ISSUE_BASE_URL = "https://github.com/stslex/Workeeper/issues/new"
 private const val GITHUB_ISSUE_LABELS = "bug,migration"
-
-@Composable
-private fun RestoreSuccessDialog(
-    dialog: AppDialog.RestoreSuccess,
-    onAcknowledge: () -> Unit,
-    onUndoRestore: () -> Unit,
-) {
-    val formattedDate = remember(dialog.restoredAtEpochMs) {
-        formatMediumDate(dialog.restoredAtEpochMs)
-    }
-    val body = if (dialog.previousVersionAvailable) {
-        stringResource(R.string.app_dialog_restore_success_body, formattedDate)
-    } else {
-        stringResource(R.string.app_dialog_restore_success_body_no_previous, formattedDate)
-    }
-    AppConfirmationDialog(
-        title = stringResource(R.string.app_dialog_restore_success_title),
-        body = body,
-        confirmLabel = stringResource(R.string.app_dialog_restore_success_confirm),
-        onConfirm = onAcknowledge,
-        dismissLabel = if (dialog.previousVersionAvailable) {
-            stringResource(R.string.app_dialog_restore_success_undo_action)
-        } else null,
-        onDismiss = if (dialog.previousVersionAvailable) onUndoRestore else onAcknowledge,
-        properties = DialogProperties(
-            dismissOnBackPress = true,
-            dismissOnClickOutside = false,
-        ),
-    )
-}
-
-@Composable
-private fun UndoRestoreConfirmationDialog(
-    dialog: AppDialog.UndoRestoreConfirmation,
-    onConfirm: () -> Unit,
-    onCancel: () -> Unit,
-) {
-    val formattedDate = remember(dialog.originalDataDateEpochMs) {
-        formatMediumDate(dialog.originalDataDateEpochMs)
-    }
-    AppConfirmationDialog(
-        title = stringResource(R.string.app_dialog_undo_restore_confirmation_title),
-        body = stringResource(
-            R.string.app_dialog_undo_restore_confirmation_body,
-            formattedDate,
-        ),
-        confirmLabel = stringResource(R.string.app_dialog_undo_restore_confirmation_confirm),
-        onConfirm = onConfirm,
-        dismissLabel = stringResource(R.string.app_dialog_undo_restore_confirmation_cancel),
-        onDismiss = onCancel,
-        isDestructive = true,
-        properties = DialogProperties(
-            dismissOnBackPress = true,
-            dismissOnClickOutside = false,
-        ),
-    )
-}
-
-@Composable
-private fun UndoRestoreSuccessDialog(onAcknowledge: () -> Unit) {
-    AppConfirmationDialog(
-        title = stringResource(R.string.app_dialog_undo_restore_success_title),
-        body = stringResource(R.string.app_dialog_undo_restore_success_body),
-        confirmLabel = stringResource(R.string.app_dialog_undo_restore_success_confirm),
-        onConfirm = onAcknowledge,
-        properties = DialogProperties(
-            dismissOnBackPress = true,
-            dismissOnClickOutside = false,
-        ),
-    )
-}
-
-private fun formatMediumDate(epochMs: Long): String =
-    DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(epochMs))
 
 @EntryPoint
 @InstallIn(SingletonComponent::class)
