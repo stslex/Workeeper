@@ -58,7 +58,7 @@ internal class AppDialogActionsImpl @Inject constructor(
             // for the diagnostic export.
             context = restoreStateRepository.getRestoreInProgressContext(),
             appVersionName = info.versionName.orEmpty(),
-            appVersionCode = readPackageInfoVersionCode(info),
+            appVersionCode = info.longVersionCode,
         )
     }
 
@@ -75,13 +75,5 @@ internal class AppDialogActionsImpl @Inject constructor(
         } else {
             @Suppress("DEPRECATION")
             context.packageManager.getPackageInfo(context.packageName, 0)
-        }
-
-    private fun readPackageInfoVersionCode(info: PackageInfo): Long =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            info.longVersionCode
-        } else {
-            @Suppress("DEPRECATION")
-            info.versionCode.toLong()
         }
 }

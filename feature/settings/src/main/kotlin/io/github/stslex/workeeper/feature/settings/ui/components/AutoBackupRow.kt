@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.settings.ui.components
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import io.github.stslex.workeeper.core.ui.kit.components.list.AppListItem
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -30,33 +30,33 @@ internal fun AutoBackupRow(
         R.string.feature_settings_backup_auto_row_label,
         stringResource(schedule.labelRes()),
     )
-    Column(
+    val supportingText = if (nextBackupText != null && schedule != BackupScheduleUi.MANUAL_ONLY) {
+        stringResource(
+            R.string.feature_settings_backup_auto_next_backup,
+            nextBackupText,
+        )
+    } else {
+        null
+    }
+    AppListItem(
         modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
             .padding(
                 horizontal = AppDimension.screenEdge,
                 vertical = AppDimension.Space.sm,
             )
             .testTag("AutoBackupRow"),
-        verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xxs),
-    ) {
-        Text(
-            text = scheduleLabel,
-            style = AppUi.typography.bodyMedium,
-            color = AppUi.colors.textPrimary,
-        )
-        if (nextBackupText != null && schedule != BackupScheduleUi.MANUAL_ONLY) {
-            Text(
-                text = stringResource(
-                    R.string.feature_settings_backup_auto_next_backup,
-                    nextBackupText,
-                ),
-                style = AppUi.typography.bodySmall,
-                color = AppUi.colors.textTertiary,
+        headline = scheduleLabel,
+        supportingText = supportingText,
+        onClick = onClick,
+        trailingContent = {
+            Icon(
+                modifier = Modifier.size(AppDimension.iconSm),
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = AppUi.colors.textTertiary,
             )
-        }
-    }
+        },
+    )
 }
 
 private fun BackupScheduleUi.labelRes(): Int = when (this) {
