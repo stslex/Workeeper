@@ -356,8 +356,9 @@ because a rotation cleanup failed.
 
 WorkManager is initialized **on-demand** via `Configuration.Provider`
 implemented on `BaseApplication`. The standard `WorkManagerInitializer`
-manifest provider is suppressed via the `androidx.startup` tombstone in both
-`app/dev/AndroidManifest.xml` and `app/store/AndroidManifest.xml`. The
+manifest provider is suppressed via the `androidx.startup` tombstone in
+`app/app/src/main/AndroidManifest.xml`; the manifest merger applies this to
+both `dev` and `store` flavors, so the suppression is declared once. The
 `HiltWorkerFactory` is `@Inject`-ed into `BaseApplication` and supplied to
 the WorkManager configuration so `@HiltWorker`-annotated workers can use
 `@AssistedInject` constructor injection.
@@ -366,7 +367,7 @@ Reviewers occasionally flag the manifest tombstone as a missing initializer;
 it is **intentional**. Restoring the default `WorkManagerInitializer` would
 create a WorkManager instance without Hilt's worker factory, which would in
 turn break `@AssistedInject` construction of `BackupWorker` at enqueue time.
-The flavor manifests carry a comment in-place explaining the choice; see
+The main manifest carries a comment in-place explaining the choice; see
 also Google's docs on Hilt + WorkManager integration.
 
 Two unique work names live in parallel and are intentionally independent:

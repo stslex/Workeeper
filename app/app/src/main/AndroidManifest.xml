@@ -50,6 +50,27 @@
                 android:resource="@xml/file_provider_paths" />
         </provider>
 
+        <!--
+          androidx.work.WorkManagerInitializer is intentionally removed.
+          WorkManager uses on-demand initialization via BaseApplication's
+          Configuration.Provider + HiltWorkerFactory (see BaseApplication.kt
+          and documentation/feature-specs/backup.md → WorkManager setup).
+          Restoring the default initializer would create a WorkManager without
+          Hilt's worker factory, breaking @AssistedInject construction of
+          BackupWorker. This is the Google-documented Hilt + WorkManager
+          integration pattern.
+        -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
+
     </application>
 
 </manifest>
