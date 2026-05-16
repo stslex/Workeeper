@@ -357,24 +357,25 @@ because a rotation cleanup failed.
 WorkManager is initialized **on-demand** via `Configuration.Provider`
 implemented on `BaseApplication`. The standard `WorkManagerInitializer`
 manifest provider is suppressed via the `androidx.startup` tombstone in
-both `app/dev/src/main/AndroidManifest.xml` and
-`app/store/src/main/AndroidManifest.xml`. The
+`app/app/src/main/AndroidManifest.xml`; the manifest merger applies this to
+both `dev` and `store` flavors, so the suppression is declared once. The
 `HiltWorkerFactory` is `@Inject`-ed into `BaseApplication` and supplied to
 the WorkManager configuration so `@HiltWorker`-annotated workers can use
 `@AssistedInject` constructor injection.
 
-The directive is duplicated across the two flavor manifests rather than
-declared once in the shared `app/app/src/main/AndroidManifest.xml` because
 Android lint's `RemoveWorkManagerInitializer` check runs per application
-module and does not see the directive when it is contributed by a library
-module's manifest. Each application module therefore needs the directive in
-its own manifest source for lint to consider the initializer suppressed.
+module and does not recognise directives contributed by a library
+manifest, so it would falsely flag both flavors as missing the removal.
+The check is therefore suppressed centrally in `lint-rules/lint.xml`.
+Manifest-merger output is the source of truth — the merged manifests in
+`app/dev/build/.../merged_manifest/...` and `app/store/.../` confirm that
+`WorkManagerInitializer` is correctly absent from the assembled apps.
 
 Reviewers occasionally flag the manifest tombstone as a missing initializer;
 it is **intentional**. Restoring the default `WorkManagerInitializer` would
 create a WorkManager instance without Hilt's worker factory, which would in
 turn break `@AssistedInject` construction of `BackupWorker` at enqueue time.
-Each flavor manifest carries a comment in-place explaining the choice; see
+The main manifest carries a comment in-place explaining the choice; see
 also Google's docs on Hilt + WorkManager integration.
 
 Two unique work names live in parallel and are intentionally independent:

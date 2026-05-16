@@ -18,6 +18,15 @@ class LintConventionPlugin : Plugin<Project> {
                 // Main lint configuration (includes centralized suppressions)
                 lintConfig = rootProject.file("lint-rules/lint.xml")
 
+                // RemoveWorkManagerInitializer runs per application module and
+                // does not see the directive when it is contributed via the
+                // shared :app:app library manifest. The AGP merger applies it
+                // correctly at the application-level merge. Disable here (in
+                // build-logic) rather than in lint.xml so library modules that
+                // don't depend on androidx.work do not trip UnknownIssueId.
+                // See documentation/feature-specs/backup.md → WorkManager setup.
+                disable.add("RemoveWorkManagerInitializer")
+
                 // Report configuration
                 htmlReport = true
                 xmlReport = true
