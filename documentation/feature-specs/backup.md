@@ -9,7 +9,7 @@ shipped surface and the load-bearing decisions behind it.
 Drive backup runs from `feature/settings` and persists a full SQLite snapshot of
 the user's workout database to the user's own Google Drive `drive.appdata`
 folder. Sign-in is one-shot via GMS `AuthorizationClient`; after that, backups
-fire automatically on a user-configurable schedule (Weekly by default) plus an
+fire automatically on a user-configurable schedule (Daily by default) plus an
 immediate one-time backup after the first successful sign-in. Restore replaces
 the live database with a downloaded snapshot and restarts the app. The api
 layer (`core/data/backup/api`) is provider-neutral; the only concrete impl
@@ -22,7 +22,7 @@ without touching the feature module.
   shipped, with full localization (EN + RU) and Compose previews.
 - Auto-backup scheduling (Daily / Weekly / ManualOnly + allow-on-mobile-data
   toggle) and the first-sign-in bootstrap (immediate one-time backup + snackbar
-  + Weekly periodic) are shipped.
+  + Daily periodic) are shipped.
 - **Upcoming**: schema-migration safety net and user-initiated undo of last
   restore land via the recovery work — see
   [backup-recovery.md](backup-recovery.md). The v1 restore path described here
@@ -412,7 +412,7 @@ Persisted in DataStore Preferences via
 
 | Key | Type | Default |
 |---|---|---|
-| `schedule` | `String` (`BackupSchedule.name`) | `Weekly` |
+| `schedule` | `String` (`BackupSchedule.name`) | `Daily` |
 | `allow_on_mobile_data` | `Boolean` | `false` |
 | `last_attempt_at` | `Long` (epoch ms) | `0` |
 | `last_success_at` | `Long` (epoch ms) | `0` |
@@ -431,7 +431,7 @@ On the auth flow's transition from `NotAuthenticated` to `Authenticated`,
 `BackupPreferences.autoBackupBootstrapped`:
 
 - **First run** (`bootstrapped == false`):
-  1. Write defaults: `schedule = Weekly`, `allowOnMobileData = false`.
+  1. Write defaults: `schedule = Daily`, `allowOnMobileData = false`.
   2. Flip `autoBackupBootstrapped = true`.
   3. `schedulePeriodic(BackupPreferences.DEFAULT)`.
   4. `enqueueOneTime()` — the immediate first backup.

@@ -74,6 +74,6 @@
     <string name="feature_settings_backup_auto_paused_banner_title">Авто-копирование приостановлено</string>
     <string name="feature_settings_backup_auto_paused_banner_body">Войдите в Google Drive снова, чтобы возобновить.</string>
     <string name="feature_settings_backup_auto_paused_banner_action">Войти</string>
-    <string name="feature_settings_backup_auto_enabled_default">Авто-копирование включено, еженедельно</string>
+    <string name="feature_settings_backup_auto_enabled_default">Авто-копирование включено, ежедневно</string>
     <string name="feature_settings_backup_auto_enabled_change_action">Изменить</string>
 </resources>

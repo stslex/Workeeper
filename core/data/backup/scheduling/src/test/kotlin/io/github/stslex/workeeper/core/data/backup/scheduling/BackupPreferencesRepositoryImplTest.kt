@@ -46,7 +46,7 @@ internal class BackupPreferencesRepositoryImplTest {
     fun `initial read returns defaults`() = runTest {
         val prefs = repo.observe().first()
         assertEquals(BackupPreferences.DEFAULT, prefs)
-        assertEquals(BackupSchedule.Weekly, prefs.schedule)
+        assertEquals(BackupSchedule.Daily, prefs.schedule)
         assertFalse(prefs.allowOnMobileData)
         assertEquals(0L, prefs.lastAttemptAtEpochMs)
         assertEquals(0L, prefs.lastSuccessAtEpochMs)
@@ -93,7 +93,7 @@ internal class BackupPreferencesRepositoryImplTest {
 
     @Test
     fun `setSchedule emits updated value on subsequent collect`() = runTest {
-        assertEquals(BackupSchedule.Weekly, repo.observe().first().schedule)
+        assertEquals(BackupSchedule.Daily, repo.observe().first().schedule)
 
         repo.setSchedule(BackupSchedule.ManualOnly)
 

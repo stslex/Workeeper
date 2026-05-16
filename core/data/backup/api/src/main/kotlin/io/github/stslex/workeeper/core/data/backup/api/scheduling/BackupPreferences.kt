@@ -12,9 +12,9 @@ package io.github.stslex.workeeper.core.data.backup.api.scheduling
  * attempt failed and has not yet been superseded by a success.
  *
  * [autoBackupBootstrapped] flips to true the first time a sign-in success path
- * has scheduled the initial Weekly periodic work + the one-shot immediate
+ * has scheduled the initial Daily periodic work + the one-shot immediate
  * backup. The flag is load-bearing for the first-sign-in flow — once set, the
- * "Auto-backup enabled, weekly" snackbar must NOT be emitted again on
+ * "Auto-backup enabled, daily" snackbar must NOT be emitted again on
  * subsequent sign-ins.
  */
 data class BackupPreferences(
@@ -29,7 +29,7 @@ data class BackupPreferences(
     companion object {
 
         val DEFAULT: BackupPreferences = BackupPreferences(
-            schedule = BackupSchedule.Weekly,
+            schedule = BackupSchedule.Daily,
             allowOnMobileData = false,
             lastAttemptAtEpochMs = 0L,
             lastSuccessAtEpochMs = 0L,

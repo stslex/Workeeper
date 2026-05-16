@@ -77,7 +77,7 @@ private fun AuthenticatedBlock(
         )
     }
     // AutoBackupRow stays hidden until the persisted preferences are observed
-    // — otherwise users whose schedule != Weekly would see a brief flash of the
+    // — otherwise users whose schedule != Daily would see a brief flash of the
     // hard-coded default. The row will appear on the same recomposition that
     // ObservePreferences emits its first snapshot.
     if (preferences != null) {

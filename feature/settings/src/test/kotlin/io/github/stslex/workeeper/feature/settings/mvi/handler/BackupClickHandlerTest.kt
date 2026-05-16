@@ -184,7 +184,7 @@ internal class BackupClickHandlerTest {
             // bootstrap-from-SignIn scenario is covered by its own test below.
             preferencesFlow.value = preferencesFlow.value.copy(
                 autoBackupBootstrapped = true,
-                schedule = BackupSchedule.Weekly,
+                schedule = BackupSchedule.Daily,
             )
             coEvery { interactor.signIn() } returns SignInOutcomeDomain.Success
 
@@ -298,7 +298,7 @@ internal class BackupClickHandlerTest {
         runTest(testDispatcher) {
             preferencesFlow.value = preferencesFlow.value.copy(
                 autoBackupBootstrapped = true,
-                schedule = BackupSchedule.Weekly,
+                schedule = BackupSchedule.Daily,
             )
             val intent = mockk<Intent>(relaxed = true)
             val expectedAccount = AccountDomain(email = "a@b.com", displayName = "A")
@@ -705,7 +705,7 @@ internal class BackupClickHandlerTest {
                 AccountDomain("first@example.com", "First"),
             )
 
-            coVerify { preferencesRepository.setSchedule(BackupSchedule.Weekly) }
+            coVerify { preferencesRepository.setSchedule(BackupSchedule.Daily) }
             coVerify { preferencesRepository.setAllowOnMobileData(false) }
             coVerify { preferencesRepository.setAutoBackupBootstrapped(true) }
             coVerify { autoBackupController.schedulePeriodic(any()) }

@@ -162,7 +162,7 @@ internal class BackupClickHandler @Inject constructor(
     private suspend fun bootstrapOrRehydrate() {
         val prefs = preferencesRepository.observe().first()
         if (!prefs.autoBackupBootstrapped) {
-            preferencesRepository.setSchedule(BackupSchedule.Weekly)
+            preferencesRepository.setSchedule(BackupSchedule.Daily)
             preferencesRepository.setAllowOnMobileData(false)
             preferencesRepository.setAutoBackupBootstrapped(true)
             autoBackupController.schedulePeriodic(BackupPreferences.DEFAULT)
