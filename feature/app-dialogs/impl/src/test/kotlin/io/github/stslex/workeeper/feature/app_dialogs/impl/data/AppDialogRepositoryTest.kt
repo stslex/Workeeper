@@ -86,20 +86,13 @@ internal class AppDialogRepositoryTest {
     }
 
     @Test
-    fun `RestoreFailure outranks RestoreSuccess via priority order`() = runTest {
-        repository.publish(AppDialog.RestoreSuccess(restoredAtEpochMs = 100L, previousVersionAvailable = false))
-        repository.publish(AppDialog.RestoreFailure(reason = BackupErrorCode.Unknown))
-        val current = repository.currentDialog.first()
-        assertEquals(BackupErrorCode.Unknown, (current as AppDialog.RestoreFailure).reason)
-    }
-
-    @Test
-    fun `dismissing RestoreFailure reveals the still-pending RestoreSuccess`() = runTest {
+    fun `dismiss clears only the named variant's flags`() = runTest {
         val success = AppDialog.RestoreSuccess(restoredAtEpochMs = 100L, previousVersionAvailable = true)
         val failure = AppDialog.RestoreFailure(reason = BackupErrorCode.Unknown)
+        // Both pending — priority resolution is covered by AppDialogResolverTest.
+        // This test pins that dismiss(failure) does not also clear success's flags.
         repository.publish(success)
         repository.publish(failure)
-        assertEquals(failure, repository.currentDialog.first())
         repository.dismiss(failure)
         assertEquals(success, repository.currentDialog.first())
     }
@@ -141,19 +134,4 @@ internal class AppDialogRepositoryTest {
     // enforces singleton-per-file at runtime. Cross-restart persistence is the
     // DataStore library's responsibility; the publish-then-read tests above
     // exercise the same persistence path through the file storage layer.
-
-    @Test
-    fun `RestoreSuccess priority is below RestoreFailure and above UndoRestoreSuccess`() = runTest {
-        val success = AppDialog.RestoreSuccess(restoredAtEpochMs = 100L, previousVersionAvailable = false)
-        repository.publish(success)
-        repository.publish(AppDialog.UndoRestoreSuccess)
-        assertEquals(success, repository.currentDialog.first())
-    }
-
-    @Test
-    fun `UndoRestoreSuccess outranks UndoRestoreConfirmation`() = runTest {
-        repository.publish(AppDialog.UndoRestoreConfirmation(originalDataDateEpochMs = 50L))
-        repository.publish(AppDialog.UndoRestoreSuccess)
-        assertSame(AppDialog.UndoRestoreSuccess, repository.currentDialog.first())
-    }
 }

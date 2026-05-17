@@ -9,9 +9,9 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.preferencesDataStoreFile
 import dagger.hilt.android.qualifiers.ApplicationContext
-import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupErrorCode
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
+import io.github.stslex.workeeper.feature.app_dialogs.impl.domain.AppDialogResolver
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -49,11 +49,11 @@ internal class AppDialogRepository @Inject constructor(
 
     /**
      * Reactive view of the currently-pending top-priority dialog. Re-emits on
-     * every DataStore write; emits `null` when no flag is set. Collected by
-     * `AppDialogHost` via `collectAsStateWithLifecycle`.
+     * every DataStore write; emits `null` when no flag is set. Priority is
+     * resolved by [AppDialogResolver]; this repository only owns persistence.
      */
     val currentDialog: Flow<AppDialog?> = dataStore.data
-        .map(::resolveCurrentDialog)
+        .map { prefs -> AppDialogResolver(prefs) }
         .distinctUntilChanged()
 
     override suspend fun publish(dialog: AppDialog) {
@@ -71,46 +71,6 @@ internal class AppDialogRepository @Inject constructor(
     suspend fun dismiss(dialog: AppDialog) {
         dataStore.edit { prefs -> prefs.clearFlags(dialog) }
     }
-
-    /**
-     * Priority resolution walks the catalog in a fixed order. The order is
-     * intentionally a literal `when` chain rather than a sortable list so that
-     * priority changes surface in code review.
-     *
-     * Priority (highest first): `RestoreFailure` (critical — must
-     * acknowledge), `RestoreSuccess` (informational), `UndoRestoreSuccess`
-     * (informational), `UndoRestoreConfirmation` (user-initiated, least
-     * urgent).
-     */
-    private fun resolveCurrentDialog(prefs: Preferences): AppDialog? = when {
-        prefs[AppDialogKeys.PENDING_RESTORE_FAILURE] == true -> readRestoreFailure(prefs)
-        prefs[AppDialogKeys.PENDING_RESTORE_SUCCESS] == true -> readRestoreSuccess(prefs)
-        prefs[AppDialogKeys.PENDING_UNDO_RESTORE_SUCCESS] == true -> AppDialog.UndoRestoreSuccess
-        prefs[AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION] == true ->
-            readUndoRestoreConfirmation(prefs)
-        else -> null
-    }
-
-    private fun readRestoreFailure(prefs: Preferences): AppDialog.RestoreFailure {
-        val raw = prefs[AppDialogKeys.PENDING_RESTORE_FAILURE_REASON]
-        val reason = raw
-            ?.let { name -> runCatching { BackupErrorCode.valueOf(name) }.getOrNull() }
-            ?: BackupErrorCode.Unknown
-        return AppDialog.RestoreFailure(reason = reason)
-    }
-
-    private fun readRestoreSuccess(prefs: Preferences): AppDialog.RestoreSuccess =
-        AppDialog.RestoreSuccess(
-            restoredAtEpochMs = prefs[AppDialogKeys.PENDING_RESTORE_SUCCESS_AT_EPOCH_MS] ?: 0L,
-            previousVersionAvailable =
-            prefs[AppDialogKeys.PENDING_RESTORE_SUCCESS_HAS_PREVIOUS] ?: false,
-        )
-
-    private fun readUndoRestoreConfirmation(prefs: Preferences): AppDialog.UndoRestoreConfirmation =
-        AppDialog.UndoRestoreConfirmation(
-            originalDataDateEpochMs =
-            prefs[AppDialogKeys.PENDING_UNDO_RESTORE_CONFIRMATION_ORIGINAL_AT_EPOCH_MS] ?: 0L,
-        )
 
     private fun Preferences.isAlreadyPending(dialog: AppDialog): Boolean = when (dialog) {
         is AppDialog.RestoreFailure -> this[AppDialogKeys.PENDING_RESTORE_FAILURE] == true
