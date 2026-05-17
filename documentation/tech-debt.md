@@ -63,6 +63,23 @@ Items deferred from the dialog-state-discipline PR (see [compose-state-disciplin
 
 ---
 
+## Phase B (App Dialogs / Recovery) — follow-ups
+
+Items deferred from the Phase B app-dialogs re-architecture (see
+[feature-specs/app-dialogs.md](feature-specs/app-dialogs.md) and the
+Phase B commit chain `56c4f1b1..5d858445`). The layered MVI rewrite,
+`AppDialogObserver` transient-signal contract, uniform dismiss-after
+ordering, and the `UndoRestoreOutcome` gate against case-b silent
+failure all landed; the items below are explicitly out-of-scope for
+that phase and tracked here for the next phase.
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟡 | [app/app/.../recovery/RestoreDialogChoiceObserver.kt `handleUndoConfirmation`](../app/app/src/main/java/io/github/stslex/workeeper/recovery/RestoreDialogChoiceObserver.kt) ↔ [feature/app-dialogs/api/.../model/AppDialog.kt](../feature/app-dialogs/api/src/main/kotlin/io/github/stslex/workeeper/feature/app_dialogs/api/model/AppDialog.kt) | **No in-flow `UndoRestoreFailure` dialog variant for case-b IO errors.** When `coordinator.performUndoRestore()` returns `UndoRestoreOutcome.IoFailure` the handler intentionally does NOT call `acknowledgeReaction(dialog)` — the existing `UndoRestoreConfirmation` dialog stays visible so the user sees the reaction did not complete and can re-tap (a transient IO error often succeeds on retry). The current UX surface is "the dialog you just confirmed is still here" — implicit and minimal but not explanatory. A dedicated `AppDialog.UndoRestoreFailure(reason)` variant would surface "Undo failed: <reason>, retry?" with explicit Retry / Cancel buttons and let the user choose explicitly. **Fix path:** add the variant to the api catalog, render branch in `AppDialogHostContent`, persisted `pending_undo_restore_failure_*` keys in `AppDialogKeys`, priority slot in `AppDialogResolver`, and switch the IoFailure branch in `RestoreDialogChoiceObserver` from "keep current dialog" to "publish UndoRestoreFailure + acknowledge UndoRestoreConfirmation". This is **explicitly the next-phase work** — it needs the `feature/recovery` module extraction so the new variant's consumer-side handler lives alongside the other recovery consumers. **Trigger to act:** `feature/recovery` extraction phase, OR earlier if telemetry shows the IoFailure path firing meaningfully often (suggests transient errors are common in the wild). |
+| 🟢 | [lint-rules/.../MviActionNamingRule.kt:32-41](../lint-rules/src/main/kotlin/io/github/stslex/workeeper/lint_rules/MviActionNamingRule.kt) | **`MviActionNamingRule` is over-broad on leaf data classes inside a sealed `Action` parent.** The rule fires `Action class 'X' should be sealed class or interface` on ANY class whose name ends in `"Action"` — it cannot distinguish the outer sealed parent (correctly enforced) from a leaf `data class` nested inside one (also correct MVI shape). Surfaced during Phase B C4 when the spec's `Action.UserAction(dialog, action)` collided with the rule; worked around by renaming to `Action.Choose`. The codebase convention is descriptive-noun leaves (`Action.Click`, `Action.Init`, `Action.Backup.SignIn`), so the workaround matches existing style — but the rule still has the wrong shape for any future case where `"*Action"` is the natural leaf name. **Fix path:** add `parentSealedInterfaceName == "Action"` short-circuit before the sealed-class report — a nested `data class` whose enclosing class is itself a sealed `Action` parent is by definition fine. **Trigger to act:** another collision lands (a future feature wants `Action.UserAction`-style leaf naming and the spec rejects the `Choose`-style rename), or during the next lint-rules audit pass. |
+
+---
+
 ## State Mutation Discipline
 
 **Rule:** `BaseStore.updateState` and `updateStateImmediate` lambdas should perform pure state transformation only — given `current`, return a copy. Mapping, formatting, and any work involving `ResourceWrapper` or domain-to-UI conversions runs *before* the lambda body. See [architecture.md → State mutation discipline](architecture.md) and the [`compose-state-discipline`](../.claude/skills/compose-state-discipline.md) skill.
