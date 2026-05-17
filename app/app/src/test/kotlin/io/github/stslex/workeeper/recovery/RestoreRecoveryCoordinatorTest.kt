@@ -16,7 +16,6 @@ import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -126,19 +125,19 @@ internal class RestoreRecoveryCoordinatorTest {
         }
 
     @Test
-    fun `performUndoRestore returns false when no preserved backup exists`() = runTest {
+    fun `performUndoRestore returns FileMissing when no preserved backup exists`() = runTest {
         every { snapshotProvider.hasPreRestoreBackup() } returns false
 
         val result = coordinator.performUndoRestore()
 
-        assertFalse(result)
+        assertEquals(UndoRestoreOutcome.FileMissing, result)
         coVerify(exactly = 0) { snapshotProvider.rollbackToPreRestoreBackup() }
         coVerify(exactly = 1) { restoreStateRepository.clearPreRestoreBackupAvailable() }
         coVerify(exactly = 0) { appDialogPublisher.publish(any()) }
     }
 
     @Test
-    fun `performUndoRestore returns false when rollback file swap fails`() = runTest {
+    fun `performUndoRestore returns IoFailure when rollback file swap fails`() = runTest {
         every { snapshotProvider.hasPreRestoreBackup() } returns true
         coEvery {
             snapshotProvider.rollbackToPreRestoreBackup()
@@ -146,8 +145,11 @@ internal class RestoreRecoveryCoordinatorTest {
 
         val result = coordinator.performUndoRestore()
 
-        assertFalse(result)
+        assertEquals(UndoRestoreOutcome.IoFailure, result)
         coVerify(exactly = 0) { appDialogPublisher.publish(any()) }
+        // pre_restore_backup_available stays set on IoFailure so the user
+        // can retry from Settings → "Revert last restore".
+        coVerify(exactly = 0) { restoreStateRepository.clearPreRestoreBackupAvailable() }
     }
 
     @Test
@@ -160,7 +162,7 @@ internal class RestoreRecoveryCoordinatorTest {
 
             val result = coordinator.performUndoRestore()
 
-            assertTrue(result)
+            assertEquals(UndoRestoreOutcome.Succeeded, result)
             coVerify(exactly = 1) { restoreStateRepository.clearPreRestoreBackupAvailable() }
             coVerify(exactly = 1) { appDialogPublisher.publish(AppDialog.UndoRestoreSuccess) }
         }

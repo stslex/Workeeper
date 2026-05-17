@@ -78,28 +78,41 @@ internal class RestoreRecoveryCoordinator @Inject constructor(
     }
 
     /**
-     * Runs the Scenario 3 undo. Returns `true` if the rollback completed
-     * (caller should restart the app immediately); `false` when nothing was
-     * preserved (no-op; defensive — the UI should not surface the option in
-     * that case).
+     * Runs the Scenario 3 undo. The outcome distinguishes three cases:
+     *
+     *  - [UndoRestoreOutcome.Succeeded] — rollback completed; caller should
+     *    restart the app immediately.
+     *  - [UndoRestoreOutcome.FileMissing] — `pre_restore_backup.db` was
+     *    absent (cache eviction OR already consumed by a prior call). No
+     *    swap happened; nothing more is possible. The defensive
+     *    `pre_restore_backup_available` clear runs.
+     *  - [UndoRestoreOutcome.IoFailure] — the file existed but the atomic
+     *    rename failed (e.g. disk full). The file is still at its original
+     *    location; `pre_restore_backup_available` stays set so the user can
+     *    retry from Settings.
+     *
+     * Callers (notably the consumer-side `RestoreDialogChoiceObserver`)
+     * gate the `acknowledgeReaction` dismiss on
+     * `Succeeded || FileMissing` — `IoFailure` keeps the dialog visible
+     * so the user sees the reaction did not complete and can re-tap.
      */
-    suspend fun performUndoRestore(): Boolean {
+    suspend fun performUndoRestore(): UndoRestoreOutcome {
         if (!snapshotProvider.hasPreRestoreBackup()) {
             // Defensive: the UI gates this behind observePreRestoreBackupAvailable,
             // but the file could be gone (cache eviction).
             restoreStateRepository.clearPreRestoreBackupAvailable()
-            return false
+            return UndoRestoreOutcome.FileMissing
         }
         when (val rollback = snapshotProvider.rollbackToPreRestoreBackup()) {
             is BackupResult.Success -> Unit
             is BackupResult.Failure -> {
                 logger.w { "Undo restore rollback failed: ${rollback.error}" }
-                return false
+                return UndoRestoreOutcome.IoFailure
             }
         }
         restoreStateRepository.clearPreRestoreBackupAvailable()
         appDialogPublisher.publish(AppDialog.UndoRestoreSuccess)
-        return true
+        return UndoRestoreOutcome.Succeeded
     }
 
     private suspend fun handleRestoreSuccess(context: RestoreInProgressContext) {

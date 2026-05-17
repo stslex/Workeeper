@@ -51,10 +51,20 @@ import io.github.stslex.workeeper.feature.app_dialogs.impl.R as AppDialogsR
  * silent-failure window where the dialog disappears, the user perceives
  * the success path, but the rollback did not happen.
  *
- * For `performUndoRestore` specifically, `restartApp()` only runs on
- * `succeeded = true`; in the re-tap case where the file was already
- * consumed, `succeeded = false` and we skip the restart (the app is
- * already running on the rolled-back data).
+ * For `performUndoRestore` specifically, the outcome is a three-way
+ * [UndoRestoreOutcome]:
+ *
+ *  - [UndoRestoreOutcome.Succeeded] → acknowledge + restart.
+ *  - [UndoRestoreOutcome.FileMissing] → acknowledge (no further user-driven
+ *    action can succeed; safe to dismiss).
+ *  - [UndoRestoreOutcome.IoFailure] → do NOT acknowledge (the dialog stays
+ *    visible so the user sees the reaction did not complete and can re-tap;
+ *    `pre_restore_backup.db` is still on disk and Settings → "Revert last
+ *    restore" remains available as a parallel retry path).
+ *
+ * The gate (`outcome != IoFailure`) is what closes the case-b silent-
+ * failure window — without it, an IO-error rollback would dismiss the
+ * dialog while the user's data was never actually rolled back.
  */
 @Singleton
 internal class RestoreDialogChoiceObserver @Inject constructor(
@@ -133,11 +143,17 @@ internal class RestoreDialogChoiceObserver @Inject constructor(
     ) {
         when (action) {
             AppDialogUserAction.ConfirmUndo -> {
-                // Dismiss-AFTER (uniform). Side-effect first; acknowledgeReaction
-                // after — see the class KDoc and feature-spec for the rationale.
-                val succeeded = coordinator.performUndoRestore()
-                observer.acknowledgeReaction(dialog)
-                if (succeeded) coordinator.restartApp()
+                // Dismiss-AFTER (uniform). Side-effect first; acknowledge only
+                // when the outcome is one we can dismiss the dialog on. IoFailure
+                // keeps the dialog visible so the user sees the reaction did NOT
+                // complete and can re-tap — anything else (success OR the file
+                // already being gone) means no further user-driven action could
+                // accomplish anything new, so the dialog is safe to dismiss.
+                val outcome = coordinator.performUndoRestore()
+                if (outcome != UndoRestoreOutcome.IoFailure) {
+                    observer.acknowledgeReaction(dialog)
+                }
+                if (outcome == UndoRestoreOutcome.Succeeded) coordinator.restartApp()
             }
 
             AppDialogUserAction.Cancel -> observer.acknowledgeReaction(dialog)
