@@ -7,14 +7,18 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.components.ViewModelComponent
 import dagger.hilt.android.scopes.ViewModelScoped
 import dagger.hilt.components.SingletonComponent
+import io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObserver
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepository
+import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImpl
 import javax.inject.Singleton
 
 /**
  * Application-graph bindings for app-dialogs. Producer-side [AppDialogPublisher]
- * binds to the singleton [AppDialogRepository]; producers and consumers share
- * the DataStore writer — no second instance, no in-memory fork.
+ * binds to the singleton [AppDialogRepository]; consumer-side
+ * [AppDialogObserver] binds to [AppDialogObserverImpl] over the same
+ * repository. Producer + consumer share the persistence layer — no second
+ * instance, no in-memory fork.
  */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -23,6 +27,10 @@ internal abstract class AppDialogsModule {
     @Binds
     @Singleton
     abstract fun bindAppDialogPublisher(impl: AppDialogRepository): AppDialogPublisher
+
+    @Binds
+    @Singleton
+    abstract fun bindAppDialogObserver(impl: AppDialogObserverImpl): AppDialogObserver
 }
 
 /**
