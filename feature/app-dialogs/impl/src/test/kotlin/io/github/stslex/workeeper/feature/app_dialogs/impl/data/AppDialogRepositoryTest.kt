@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.feature.app_dialogs.impl.store
+package io.github.stslex.workeeper.feature.app_dialogs.impl.data
 
 import android.app.Application
 import android.content.Context
@@ -20,29 +20,29 @@ import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 
 @ExtendWith(RobolectricExtension::class)
-@Config(application = AppDialogStoreTest.TestApplication::class, sdk = [33])
-internal class AppDialogStoreTest {
+@Config(application = AppDialogRepositoryTest.TestApplication::class, sdk = [33])
+internal class AppDialogRepositoryTest {
 
     class TestApplication : Application()
 
     private lateinit var context: Context
-    private lateinit var store: AppDialogStore
+    private lateinit var repository: AppDialogRepository
 
     @BeforeEach
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
-        context.preferencesDataStoreFile(AppDialogStore.PREFS_NAME).delete()
-        store = AppDialogStore(context)
+        context.preferencesDataStoreFile(AppDialogRepository.PREFS_NAME).delete()
+        repository = AppDialogRepository(context)
     }
 
     @AfterEach
     fun tearDown() {
-        context.preferencesDataStoreFile(AppDialogStore.PREFS_NAME).delete()
+        context.preferencesDataStoreFile(AppDialogRepository.PREFS_NAME).delete()
     }
 
     @Test
     fun `currentDialog is null when no flag is set`() = runTest {
-        assertNull(store.currentDialog.first())
+        assertNull(repository.currentDialog.first())
     }
 
     @Test
@@ -51,45 +51,45 @@ internal class AppDialogStoreTest {
             restoredAtEpochMs = 1_700_000_000_000L,
             previousVersionAvailable = true,
         )
-        store.publish(expected)
-        assertEquals(expected, store.currentDialog.first())
+        repository.publish(expected)
+        assertEquals(expected, repository.currentDialog.first())
     }
 
     @Test
     fun `publish RestoreFailure surfaces the variant with reason`() = runTest {
         val expected = AppDialog.RestoreFailure(reason = BackupErrorCode.MissingMigrationPath)
-        store.publish(expected)
-        assertEquals(expected, store.currentDialog.first())
+        repository.publish(expected)
+        assertEquals(expected, repository.currentDialog.first())
     }
 
     @Test
     fun `publish UndoRestoreConfirmation surfaces with date`() = runTest {
         val expected = AppDialog.UndoRestoreConfirmation(originalDataDateEpochMs = 1_650_000_000_000L)
-        store.publish(expected)
-        assertEquals(expected, store.currentDialog.first())
+        repository.publish(expected)
+        assertEquals(expected, repository.currentDialog.first())
     }
 
     @Test
     fun `publish UndoRestoreSuccess surfaces the data object`() = runTest {
-        store.publish(AppDialog.UndoRestoreSuccess)
-        assertSame(AppDialog.UndoRestoreSuccess, store.currentDialog.first())
+        repository.publish(AppDialog.UndoRestoreSuccess)
+        assertSame(AppDialog.UndoRestoreSuccess, repository.currentDialog.first())
     }
 
     @Test
     fun `publish RestoreSuccess twice keeps the first payload`() = runTest {
         val first = AppDialog.RestoreSuccess(restoredAtEpochMs = 100L, previousVersionAvailable = true)
         val second = AppDialog.RestoreSuccess(restoredAtEpochMs = 200L, previousVersionAvailable = false)
-        store.publish(first)
-        store.publish(second)
+        repository.publish(first)
+        repository.publish(second)
         // Dedup: first wins; second is silently dropped.
-        assertEquals(first, store.currentDialog.first())
+        assertEquals(first, repository.currentDialog.first())
     }
 
     @Test
     fun `RestoreFailure outranks RestoreSuccess via priority order`() = runTest {
-        store.publish(AppDialog.RestoreSuccess(restoredAtEpochMs = 100L, previousVersionAvailable = false))
-        store.publish(AppDialog.RestoreFailure(reason = BackupErrorCode.Unknown))
-        val current = store.currentDialog.first()
+        repository.publish(AppDialog.RestoreSuccess(restoredAtEpochMs = 100L, previousVersionAvailable = false))
+        repository.publish(AppDialog.RestoreFailure(reason = BackupErrorCode.Unknown))
+        val current = repository.currentDialog.first()
         assertEquals(BackupErrorCode.Unknown, (current as AppDialog.RestoreFailure).reason)
     }
 
@@ -97,19 +97,19 @@ internal class AppDialogStoreTest {
     fun `dismissing RestoreFailure reveals the still-pending RestoreSuccess`() = runTest {
         val success = AppDialog.RestoreSuccess(restoredAtEpochMs = 100L, previousVersionAvailable = true)
         val failure = AppDialog.RestoreFailure(reason = BackupErrorCode.Unknown)
-        store.publish(success)
-        store.publish(failure)
-        assertEquals(failure, store.currentDialog.first())
-        store.dismiss(failure)
-        assertEquals(success, store.currentDialog.first())
+        repository.publish(success)
+        repository.publish(failure)
+        assertEquals(failure, repository.currentDialog.first())
+        repository.dismiss(failure)
+        assertEquals(success, repository.currentDialog.first())
     }
 
     @Test
     fun `dismiss the only pending variant emits null`() = runTest {
         val dialog = AppDialog.RestoreSuccess(restoredAtEpochMs = 100L, previousVersionAvailable = false)
-        store.publish(dialog)
-        store.dismiss(dialog)
-        assertNull(store.currentDialog.first())
+        repository.publish(dialog)
+        repository.dismiss(dialog)
+        assertNull(repository.currentDialog.first())
     }
 
     @Test
@@ -117,23 +117,23 @@ internal class AppDialogStoreTest {
         runTest {
             val failure = AppDialog.RestoreFailure(reason = BackupErrorCode.Unknown)
             val success = AppDialog.RestoreSuccess(restoredAtEpochMs = 1L, previousVersionAvailable = false)
-            store.publish(failure)
-            store.publish(success)
+            repository.publish(failure)
+            repository.publish(success)
             // Failure still wins priority, but the success payload should be persisted
             // (verifiable after dismissing failure).
-            store.dismiss(failure)
-            assertEquals(success, store.currentDialog.first())
+            repository.dismiss(failure)
+            assertEquals(success, repository.currentDialog.first())
         }
 
     @Test
     fun `publish then dismiss then publish same variant succeeds (flag was cleared)`() = runTest {
         val first = AppDialog.RestoreSuccess(restoredAtEpochMs = 100L, previousVersionAvailable = true)
         val second = AppDialog.RestoreSuccess(restoredAtEpochMs = 200L, previousVersionAvailable = false)
-        store.publish(first)
-        store.dismiss(first)
-        store.publish(second)
+        repository.publish(first)
+        repository.dismiss(first)
+        repository.publish(second)
         // Cleared between the two publishes — second now wins.
-        assertEquals(second, store.currentDialog.first())
+        assertEquals(second, repository.currentDialog.first())
     }
 
     // Note: a "process restart" simulation test would require cancelling the
@@ -145,15 +145,15 @@ internal class AppDialogStoreTest {
     @Test
     fun `RestoreSuccess priority is below RestoreFailure and above UndoRestoreSuccess`() = runTest {
         val success = AppDialog.RestoreSuccess(restoredAtEpochMs = 100L, previousVersionAvailable = false)
-        store.publish(success)
-        store.publish(AppDialog.UndoRestoreSuccess)
-        assertEquals(success, store.currentDialog.first())
+        repository.publish(success)
+        repository.publish(AppDialog.UndoRestoreSuccess)
+        assertEquals(success, repository.currentDialog.first())
     }
 
     @Test
     fun `UndoRestoreSuccess outranks UndoRestoreConfirmation`() = runTest {
-        store.publish(AppDialog.UndoRestoreConfirmation(originalDataDateEpochMs = 50L))
-        store.publish(AppDialog.UndoRestoreSuccess)
-        assertSame(AppDialog.UndoRestoreSuccess, store.currentDialog.first())
+        repository.publish(AppDialog.UndoRestoreConfirmation(originalDataDateEpochMs = 50L))
+        repository.publish(AppDialog.UndoRestoreSuccess)
+        assertSame(AppDialog.UndoRestoreSuccess, repository.currentDialog.first())
     }
 }

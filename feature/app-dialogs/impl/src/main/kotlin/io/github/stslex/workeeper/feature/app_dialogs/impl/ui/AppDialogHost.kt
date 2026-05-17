@@ -18,7 +18,7 @@ import dagger.hilt.components.SingletonComponent
 import io.github.stslex.workeeper.feature.app_dialogs.api.actions.AppDialogActions
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.impl.R
-import io.github.stslex.workeeper.feature.app_dialogs.impl.store.AppDialogStore
+import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepository
 import kotlinx.coroutines.launch
 
 /**
@@ -26,10 +26,10 @@ import kotlinx.coroutines.launch
  *
  * Mounting site: `App.kt`, inside `AppTheme`, in the same root `Box` as
  * `AppNavigationHost`. The host holds no state of its own; everything is
- * derived from [AppDialogStore.currentDialog]. Dismiss = clear flags in
+ * derived from [AppDialogRepository.currentDialog]. Dismiss = clear flags in
  * DataStore → flow re-emits → recompose.
  *
- * `AppDialogStore` is an application-scope singleton, so it is reached via
+ * The repository is an application-scope singleton, so it is reached via
  * an `EntryPoint` rather than `hiltViewModel`. The composable creates no
  * `ViewModel` of its own.
  *
@@ -44,33 +44,33 @@ fun AppDialogHost() {
     val entryPoint = remember(context) {
         EntryPointAccessors.fromApplication<AppDialogHostEntryPoint>(context.applicationContext)
     }
-    val store = remember(entryPoint) { entryPoint.appDialogStore() }
+    val repository = remember(entryPoint) { entryPoint.appDialogRepository() }
     val actions = remember(entryPoint) { entryPoint.appDialogActions() }
     val scope = rememberCoroutineScope()
-    val current by store.currentDialog.collectAsState(initial = null)
+    val current by repository.currentDialog.collectAsState(initial = null)
     AppDialogHostContent(
         current = current,
-        onDismiss = { dialog -> scope.launch { store.dismiss(dialog) } },
+        onDismiss = { dialog -> scope.launch { repository.dismiss(dialog) } },
         onUndoRestoreRequest = { dialog ->
             scope.launch {
                 actions.publishUndoConfirmation()
-                store.dismiss(dialog)
+                repository.dismiss(dialog)
             }
         },
         onConfirmUndo = { dialog ->
             scope.launch {
-                store.dismiss(dialog)
+                repository.dismiss(dialog)
                 actions.performUndoRestore()
             }
         },
         onReport = { dialog ->
-            scope.launch { store.dismiss(dialog) }
+            scope.launch { repository.dismiss(dialog) }
             openReportIssue(context)
         },
         onExportDiagnostics = { dialog ->
             scope.launch {
                 val uri = actions.exportRestoreDiagnostics()
-                store.dismiss(dialog)
+                repository.dismiss(dialog)
                 if (uri != null) shareDiagnostics(context, uri)
             }
         },
@@ -149,6 +149,6 @@ private const val GITHUB_ISSUE_LABELS = "bug,migration"
 @EntryPoint
 @InstallIn(SingletonComponent::class)
 internal interface AppDialogHostEntryPoint {
-    fun appDialogStore(): AppDialogStore
+    fun appDialogRepository(): AppDialogRepository
     fun appDialogActions(): AppDialogActions
 }

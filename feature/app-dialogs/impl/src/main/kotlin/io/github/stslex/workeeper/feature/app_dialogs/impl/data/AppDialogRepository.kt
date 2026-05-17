@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.feature.app_dialogs.impl.store
+package io.github.stslex.workeeper.feature.app_dialogs.impl.data
 
 import android.content.Context
 import androidx.datastore.core.DataStore
@@ -19,10 +19,11 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Single writer of every `pending_*` flag in the `app_dialogs_prefs` DataStore.
+ * Single writer of every `pending_*` flag in the `app_dialogs_prefs` DataStore
+ * and the persistence layer of the cross-feature `AppDialog` mechanism.
  * Implements [AppDialogPublisher] for producers; the impl-only [dismiss] entry
- * point is used by `AppDialogHost` after a user action acknowledges or cancels
- * a dialog.
+ * point is used by `AppDialogHost` (and, after the MVI rewrite, by the
+ * `DismissHandler` / `UserActionHandler` inside `AppDialogStore`).
  *
  * State is derived from DataStore on every read — no in-memory queue, no
  * `MutableStateFlow<AppDialog?>` field. This is load-bearing: backup recovery's
@@ -30,14 +31,13 @@ import javax.inject.Singleton
  * in-memory queue would not survive (see
  * `documentation/feature-specs/app-dialogs.md` → "Single source of truth").
  *
- * Annotated `@Singleton` despite the `Store` suffix that the lint rule
- * normally maps to `@HiltViewModel`. This is the **only** `Store` in the
- * codebase that lives at application scope; the rule explicitly allows it
- * via the `AppDialogStore` entry in `ScopeClassType.singletonClasses`. See
- * `documentation/lint-rules.md` → `HiltScopeRule` for the rationale.
+ * Naming: `Repository` suffix maps to `@Singleton` through the standard
+ * `HiltScopeRule` predicate (`ScopeClassType.singletonClasses` contains
+ * `"Repository"`) — no carve-out. The historical `AppDialogStore` carve-out
+ * is removed in the same refactor that introduces this class.
  */
 @Singleton
-internal class AppDialogStore @Inject constructor(
+internal class AppDialogRepository @Inject constructor(
     @ApplicationContext context: Context,
 ) : AppDialogPublisher {
 

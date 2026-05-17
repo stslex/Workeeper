@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.feature.app_dialogs.impl.store
+package io.github.stslex.workeeper.feature.app_dialogs.impl.data
 
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
@@ -11,10 +11,10 @@ import androidx.datastore.preferences.core.stringPreferencesKey
  * Naming convention: `pending_<dialog_id>` for the primary boolean flag,
  * `pending_<dialog_id>_<field>` for each metadata field. Keys are grouped per
  * variant; the same group is written together inside the `dataStore.edit { }`
- * block in `AppDialogStore.publish`, and cleared together in `dismiss`.
+ * block in `AppDialogRepository.publish`, and cleared together in `dismiss`.
  *
  * Adding a new variant: append its primary boolean key + metadata keys here,
- * then update `AppDialogStore`'s `resolveCurrentDialog` / `writeFlags` /
+ * then update `AppDialogRepository`'s `resolveCurrentDialog` / `writeFlags` /
  * `clearFlags` / `isAlreadyPending` to handle the new sealed-type branch.
  * See `.claude/skills/app-dialogs-pattern.md`.
  *
