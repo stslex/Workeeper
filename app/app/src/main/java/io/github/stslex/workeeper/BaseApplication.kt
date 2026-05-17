@@ -13,6 +13,7 @@ import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
 import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
+import io.github.stslex.workeeper.recovery.RestoreDialogChoiceObserver
 import io.github.stslex.workeeper.recovery.RestoreRecoveryCoordinator
 import io.github.stslex.workeeper.recovery.StartupMigrationCoordinator
 import kotlinx.coroutines.CoroutineScope
@@ -40,6 +41,7 @@ abstract class BaseApplication : Application(), Configuration.Provider {
         Log.isLogging = isDebugLoggingAllow
         handleRecoveryPreflightChain()
         cleanupOrphanedImageTempFiles()
+        bootstrapAppDialogObserver()
         PerformanceMetricsRecorder.process(RecordAction.AppCreated)
     }
 
@@ -107,6 +109,25 @@ abstract class BaseApplication : Application(), Configuration.Provider {
         }
     }
 
+    /**
+     * Eagerly construct the `@Singleton` cross-feature dialog reactor so its
+     * `init { observer.observeUserActions()...launchIn(scope) }` registers a
+     * subscriber on the SharedFlow BEFORE MainActivity.onCreate runs. Lazy
+     * @Singleton construction would mean the first user dispatch fires on
+     * zero subscribers and is lost (same failure class as the rehydrate bug
+     * we're explicitly avoiding). The return value is intentionally
+     * discarded — the side-effect of construction is what we want.
+     *
+     * Same EntryPoint pattern as [RecoveryEntryPoint] and
+     * [ImageStorageEntryPoint]; see those for the established convention.
+     */
+    private fun bootstrapAppDialogObserver() {
+        EntryPointAccessors.fromApplication(
+            this,
+            AppDialogObserverBootstrapEntryPoint::class.java,
+        ).restoreDialogChoiceObserver()
+    }
+
     @EntryPoint
     @InstallIn(SingletonComponent::class)
     internal interface ImageStorageEntryPoint {
@@ -118,5 +139,11 @@ abstract class BaseApplication : Application(), Configuration.Provider {
     internal interface RecoveryEntryPoint {
         fun restoreRecoveryCoordinator(): RestoreRecoveryCoordinator
         fun startupMigrationCoordinator(): StartupMigrationCoordinator
+    }
+
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
+    internal interface AppDialogObserverBootstrapEntryPoint {
+        fun restoreDialogChoiceObserver(): RestoreDialogChoiceObserver
     }
 }
