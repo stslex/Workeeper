@@ -42,4 +42,8 @@ class FakeNavigator @Inject constructor() : Navigator {
     override fun restartApp() {
         _commands += NavCommand.RestartApp
     }
+
+    override fun openRecovery() {
+        _commands += NavCommand.OpenRecovery
+    }
 }

@@ -37,6 +37,10 @@ class NavigatorEventBus @Inject constructor() : Navigator, NavigatorReceiver {
         consume(NavCommand.RestartApp)
     }
 
+    override fun openRecovery() {
+        consume(NavCommand.OpenRecovery)
+    }
+
     private fun consume(command: NavCommand) {
         log.d { "Processing navigation command: $command" }
         _commands.tryEmit(command).also { emitted ->

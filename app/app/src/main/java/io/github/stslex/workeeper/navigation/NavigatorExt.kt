@@ -14,6 +14,7 @@ import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
 import io.github.stslex.workeeper.core.ui.navigation.NavCommand
 import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
 import io.github.stslex.workeeper.core.ui.navigation.Screen
+import io.github.stslex.workeeper.feature.recovery.RecoveryActivity
 
 object NavigatorExt {
 
@@ -51,6 +52,7 @@ object NavigatorExt {
 
             is NavCommand.ReplaceTo -> replaceTo(navController, command.screen)
             NavCommand.RestartApp -> restartApp(context)
+            NavCommand.OpenRecovery -> openRecovery(context)
         }
     }
 
@@ -120,5 +122,11 @@ object NavigatorExt {
         context.startActivity(intent)
         if (context is Activity) context.finishAffinity()
         Runtime.getRuntime().exit(0)
+    }
+
+    private fun openRecovery(context: Context) {
+        val intent = Intent(context, RecoveryActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(intent)
     }
 }
