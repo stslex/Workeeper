@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.recovery
+package io.github.stslex.workeeper.feature.recovery.diagnostics
 
 import android.content.Context
 import android.content.pm.PackageManager
@@ -7,6 +7,7 @@ import android.os.Build
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
+import io.github.stslex.workeeper.feature.recovery.domain.StartupMigrationFailureReason
 import javax.inject.Inject
 import javax.inject.Singleton
 

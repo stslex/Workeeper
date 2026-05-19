@@ -13,9 +13,9 @@ import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
 import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
-import io.github.stslex.workeeper.recovery.RestoreDialogChoiceObserver
-import io.github.stslex.workeeper.recovery.RestoreRecoveryCoordinator
-import io.github.stslex.workeeper.recovery.StartupMigrationCoordinator
+import io.github.stslex.workeeper.feature.recovery.boot.AppDialogObserverBootstrapEntryPoint
+import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
+import io.github.stslex.workeeper.feature.recovery.domain.StartupMigrationCoordinator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -125,7 +125,7 @@ abstract class BaseApplication : Application(), Configuration.Provider {
         EntryPointAccessors.fromApplication(
             this,
             AppDialogObserverBootstrapEntryPoint::class.java,
-        ).restoreDialogChoiceObserver()
+        ).recoveryBootstrap()
     }
 
     @EntryPoint
@@ -139,11 +139,5 @@ abstract class BaseApplication : Application(), Configuration.Provider {
     internal interface RecoveryEntryPoint {
         fun restoreRecoveryCoordinator(): RestoreRecoveryCoordinator
         fun startupMigrationCoordinator(): StartupMigrationCoordinator
-    }
-
-    @EntryPoint
-    @InstallIn(SingletonComponent::class)
-    internal interface AppDialogObserverBootstrapEntryPoint {
-        fun restoreDialogChoiceObserver(): RestoreDialogChoiceObserver
     }
 }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.recovery
+package io.github.stslex.workeeper.feature.recovery.domain
 
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -8,6 +8,7 @@ import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.migration.APP_DATABASE_VERSION
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
+import io.github.stslex.workeeper.feature.recovery.diagnostics.StartupMigrationReporter
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -16,7 +17,7 @@ import javax.inject.Singleton
  * Discriminator for the routing decision the [StartupMigrationCoordinator]
  * returns to `BaseApplication.onCreate`.
  */
-internal sealed interface StartupCheck {
+sealed interface StartupCheck {
 
     /**
      * Live database is at the current code's schema, or at an older schema
@@ -34,7 +35,7 @@ internal sealed interface StartupCheck {
 }
 
 /** Why the pre-flight is routing to `RecoveryActivity`. Drives Crashlytics keys + UI copy. */
-internal enum class StartupMigrationFailureReason {
+enum class StartupMigrationFailureReason {
 
     /**
      * Live db's `user_version` is higher than [APP_DATABASE_VERSION] — the
@@ -97,7 +98,7 @@ internal enum class StartupMigrationFailureReason {
  * Spec: `documentation/feature-specs/backup-recovery.md` → "Scenario 2".
  */
 @Singleton
-internal class StartupMigrationCoordinator @Inject constructor(
+class StartupMigrationCoordinator @Inject internal constructor(
     @ApplicationContext private val context: Context,
     private val snapshotProvider: DatabaseSnapshotProvider,
     private val reporter: StartupMigrationReporter,

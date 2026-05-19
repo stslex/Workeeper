@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.recovery
+package io.github.stslex.workeeper.feature.recovery
 
 import android.content.ActivityNotFoundException
 import android.content.Intent
@@ -25,13 +25,13 @@ import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import dagger.hilt.android.AndroidEntryPoint
-import io.github.stslex.workeeper.app.app.R
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import io.github.stslex.workeeper.feature.recovery.diagnostics.RecoveryDiagnosticsExporter
 import kotlinx.coroutines.launch
 import java.io.File
 import javax.inject.Inject
@@ -63,11 +63,11 @@ import javax.inject.Inject
  * | Export diagnostics | Writes a `.txt` via `RecoveryDiagnosticsExporter` and launches `ACTION_SEND`. |
  */
 @AndroidEntryPoint
-internal class RecoveryActivity : ComponentActivity() {
+class RecoveryActivity : ComponentActivity() {
 
-    @Inject lateinit var snapshotProvider: DatabaseSnapshotProvider
+    @Inject internal lateinit var snapshotProvider: DatabaseSnapshotProvider
 
-    @Inject lateinit var diagnosticsExporter: RecoveryDiagnosticsExporter
+    @Inject internal lateinit var diagnosticsExporter: RecoveryDiagnosticsExporter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

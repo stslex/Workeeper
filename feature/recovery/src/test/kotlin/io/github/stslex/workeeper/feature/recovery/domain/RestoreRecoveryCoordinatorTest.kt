@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.recovery
+package io.github.stslex.workeeper.feature.recovery.domain
 
 import android.content.Context
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
@@ -9,6 +9,7 @@ import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
+import io.github.stslex.workeeper.feature.recovery.diagnostics.RestoreRecoveryReporter
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every

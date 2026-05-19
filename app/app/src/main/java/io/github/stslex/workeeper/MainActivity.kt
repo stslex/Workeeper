@@ -13,9 +13,9 @@ import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolde
 import io.github.stslex.workeeper.core.ui.mvi.performance.FirebaseScreenRenderRecorder
 import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
 import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
-import io.github.stslex.workeeper.recovery.RecoveryActivity
-import io.github.stslex.workeeper.recovery.StartupCheck
-import io.github.stslex.workeeper.recovery.StartupMigrationCoordinator
+import io.github.stslex.workeeper.feature.recovery.RecoveryActivity
+import io.github.stslex.workeeper.feature.recovery.domain.StartupCheck
+import io.github.stslex.workeeper.feature.recovery.domain.StartupMigrationCoordinator
 import javax.inject.Inject
 
 @AndroidEntryPoint

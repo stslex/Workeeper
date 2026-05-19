@@ -4,15 +4,4 @@
     <string name="bottom_bar_label_home">Home</string>
     <string name="bottom_bar_label_trainings">Trainings</string>
     <string name="bottom_bar_label_exercises">Exercises</string>
-
-    <!-- RecoveryActivity (Scenario 2 startup migration failure) -->
-    <string name="recovery_title">App update needed</string>
-    <string name="recovery_body">Your data file is from a version this app build cannot read. Your data is safe on this device. Please update the app, or export your raw data to back it up.</string>
-    <string name="recovery_update_app">Update app</string>
-    <string name="recovery_export_data">Export raw data</string>
-    <string name="recovery_report_issue">Report issue</string>
-    <string name="recovery_export_diagnostics">Export diagnostics</string>
-    <string name="recovery_export_data_chooser">Share raw data</string>
-    <string name="recovery_export_diagnostics_chooser">Share diagnostics</string>
-    <string name="recovery_report_title">Startup migration failure</string>
 </resources>

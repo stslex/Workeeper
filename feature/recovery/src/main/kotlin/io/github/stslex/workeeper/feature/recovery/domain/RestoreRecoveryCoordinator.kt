@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.recovery
+package io.github.stslex.workeeper.feature.recovery.domain
 
 import android.app.Activity
 import android.content.Context
@@ -15,6 +15,7 @@ import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
+import io.github.stslex.workeeper.feature.recovery.diagnostics.RestoreRecoveryReporter
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -48,7 +49,7 @@ import javax.inject.Singleton
  * `NavigatorExt.restartApp(context)` path.
  */
 @Singleton
-internal class RestoreRecoveryCoordinator @Inject constructor(
+class RestoreRecoveryCoordinator @Inject internal constructor(
     @ApplicationContext private val context: Context,
     private val snapshotProvider: DatabaseSnapshotProvider,
     private val restoreStateRepository: RestoreStateRepository,
@@ -96,7 +97,7 @@ internal class RestoreRecoveryCoordinator @Inject constructor(
      * `Succeeded || FileMissing` — `IoFailure` keeps the dialog visible
      * so the user sees the reaction did not complete and can re-tap.
      */
-    suspend fun performUndoRestore(): UndoRestoreOutcome {
+    internal suspend fun performUndoRestore(): UndoRestoreOutcome {
         if (!snapshotProvider.hasPreRestoreBackup()) {
             // Defensive: the UI gates this behind observePreRestoreBackupAvailable,
             // but the file could be gone (cache eviction).

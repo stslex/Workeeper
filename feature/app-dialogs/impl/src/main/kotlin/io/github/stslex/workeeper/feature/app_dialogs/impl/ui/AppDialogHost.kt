@@ -25,7 +25,7 @@ import io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.store.AppDialogSt
  *
  * Choice dispatch: button taps fire `Action.Choose(dialog, action)`. The
  * Store's `ChooseHandler` emits the choice into `AppDialogObserver`; a
- * `@Singleton` consumer (currently `app/app/.../recovery/RestoreDialogChoiceObserver`)
+ * `@Singleton` consumer (currently `feature/recovery/.../RestoreDialogChoiceObserver`)
  * runs the side-effect and acknowledges the reaction, which dismisses the
  * dialog. The host never clears flags itself.
  */

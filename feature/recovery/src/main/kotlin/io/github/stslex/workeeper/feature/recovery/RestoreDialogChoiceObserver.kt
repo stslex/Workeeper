@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.recovery
+package io.github.stslex.workeeper.feature.recovery
 
 import android.content.Context
 import android.content.Intent
@@ -16,6 +16,10 @@ import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialogUserAct
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialogUserChoice
 import io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObserver
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
+import io.github.stslex.workeeper.feature.recovery.boot.RecoveryBootstrap
+import io.github.stslex.workeeper.feature.recovery.diagnostics.RecoveryDiagnosticsExporter
+import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
+import io.github.stslex.workeeper.feature.recovery.domain.UndoRestoreOutcome
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -23,7 +27,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import javax.inject.Inject
 import javax.inject.Singleton
-import io.github.stslex.workeeper.feature.app_dialogs.impl.R as AppDialogsR
+import io.github.stslex.workeeper.feature.recovery.R as RecoveryR
 
 /**
  * Consumer-side reactor for the cross-feature `AppDialog` choices. Replaces
@@ -74,7 +78,7 @@ internal class RestoreDialogChoiceObserver @Inject constructor(
     private val restoreStateRepository: RestoreStateRepository,
     private val appDialogPublisher: AppDialogPublisher,
     private val diagnosticsExporter: RecoveryDiagnosticsExporter,
-) {
+) : RecoveryBootstrap {
 
     private val logger = Log.tag(TAG)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -180,7 +184,7 @@ internal class RestoreDialogChoiceObserver @Inject constructor(
     }
 
     private fun openReportIssue() {
-        val title = Uri.encode(context.getString(AppDialogsR.string.app_dialog_restore_failure_report_title))
+        val title = Uri.encode(context.getString(RecoveryR.string.recovery_restore_failure_report_title))
         val labels = Uri.encode(GITHUB_ISSUE_LABELS)
         val url = "$GITHUB_ISSUE_BASE_URL?title=$title&labels=$labels"
         runCatching {
@@ -199,7 +203,7 @@ internal class RestoreDialogChoiceObserver @Inject constructor(
         }
         val chooser = Intent.createChooser(
             send,
-            context.getString(AppDialogsR.string.app_dialog_restore_failure_share_chooser),
+            context.getString(RecoveryR.string.recovery_restore_failure_share_chooser),
         ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         runCatching { context.startActivity(chooser) }
     }
