@@ -46,7 +46,8 @@ The layering is:
 - **domain/** — `AppDialogResolver` (pure priority walk).
 - **mvi/store/** — `AppDialogStore[Impl]` (`@HiltViewModel BaseStore`) +
   `AppDialogHandlerStore[Impl]`.
-- **mvi/handler/** — `Observe`/`Publish`/`Dismiss`/`UserActionHandler`
+- **mvi/handler/** — `AppDialogRepoHandler` (`Action.RepoAction` sub-tree:
+  Observe/Publish/Dismiss) + `ChooseHandler` (`Action.Choose`)
   (`@ViewModelScoped`).
 - **ui/** — one Composable file per variant; `AppDialogHost` +
   `AppDialogHostContent` dispatch the right render branch.
@@ -55,8 +56,15 @@ The layering is:
 - **observer/** — `AppDialogObserverImpl` (`@Singleton`) for cross-feature
   user-choice reaction.
 
-Adding a variant touches data + domain + mvi (handlers branch on the new
-flag) + ui (new Composable file) + the api (if you add a new user action).
+Adding a variant touches data + domain + ui (new Composable file) + the api
+(if you add a new user action). The MVI handlers do NOT need changes for a
+new variant — `AppDialogRepoHandler` routes `Action.RepoAction` to the
+repository, and the repository's `when` branches are the only
+variant-aware code. If a future refactor adds a new repo-touching Action
+type (beyond Observe/Publish/Dismiss), add it to the `Action.RepoAction`
+sealed sub-interface and add a branch in `AppDialogRepoHandler`'s `when`.
+If it's a user-driven choice, add it at top level next to `Choose` and
+wire its own handler.
 
 ### 1. Define the sealed variant
 
@@ -151,10 +159,10 @@ internal fun <Name>Dialog(
             dismissOnClickOutside = false,  // always false in this catalog
         ),
         onConfirm = {
-            dispatch(AppDialogStore.Action.UserAction(dialog, AppDialogUserAction.Acknowledge))
+            dispatch(AppDialogStore.Action.Choose(dialog, AppDialogUserAction.Acknowledge))
         },
         onDismiss = {
-            dispatch(AppDialogStore.Action.Dismiss(dialog))
+            dispatch(AppDialogStore.Action.RepoAction.Dismiss(dialog))
         },
     )
 }
@@ -177,10 +185,11 @@ when (val current = state.current) {
 
 The dispatch lambda is `(AppDialogStore.Action) -> Unit`. The
 Composable does **not** receive typed callbacks like `onUndoRequested` —
-every user gesture goes through `Action.UserAction(dialog, action)` (or
-`Action.Dismiss(dialog)` for implicit back-press dismiss). Variants with
-non-standard chrome (e.g. three action buttons in a column, icon + body)
-own their own Composable but still dispatch via `Action.UserAction`.
+every user gesture goes through `Action.Choose(dialog, action)` (or
+`Action.RepoAction.Dismiss(dialog)` for implicit back-press dismiss).
+Variants with non-standard chrome (e.g. three action buttons in a column,
+icon + body) own their own Composable but still dispatch via
+`Action.Choose`.
 
 ### 4.5. Add new `AppDialogUserAction` variants if needed
 
@@ -250,7 +259,7 @@ Two stacked sources of truth:
 
 If you find yourself adding a `MutableStateFlow<AppDialog?>` inside the
 Store, you have left the pattern — go back and rewrite. The Store derives
-its State from the repository via `Action.Observe`; there is no parallel
+its State from the repository via `Action.RepoAction.Observe`; there is no parallel
 in-memory queue.
 
 The reason this is load-bearing:

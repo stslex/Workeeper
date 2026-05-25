@@ -56,15 +56,20 @@ internal interface AppDialogStore : Store<State, Action, Event> {
             data object Observe : RepoAction
 
             /**
-             * Producer-driven publish path. Used by the `AppDialogPublisher`
-             * facade (a `@Singleton` over the repository) and, internally, by
-             * the cross-feature observer-side reactors.
+             * Store-mediated publish. Currently unused — the `@Singleton`
+             * `AppDialogPublisher` facade bypasses the Store and calls
+             * `repository.publish()` directly. Kept as a surface point for
+             * any future caller that needs the publish to be observable in
+             * State before the dialog renders.
              */
             data class Publish(val dialog: AppDialog) : RepoAction
 
             /**
-             * Implicit dismiss (e.g. back-press on a dialog whose dismiss policy
-             * allows it). Clears the variant's flag set in the repository.
+             * Store-mediated dismiss. Currently unused — the `@Singleton`
+             * `AppDialogObserver.acknowledgeReaction()` bypasses the Store
+             * and calls `repository.dismiss()` directly. Kept for future
+             * callers that need dismiss to route through the Store's
+             * instrumentation (analytics, logging).
              */
             data class Dismiss(val dialog: AppDialog) : RepoAction
         }

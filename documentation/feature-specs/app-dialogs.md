@@ -71,7 +71,7 @@ acknowledges them.
 - Internationalization-aware ordering: priority is a property of the variant,
   not of the user locale.
 - Direct callbacks from dialog action buttons into the producing feature.
-  The host dispatches `Action.UserAction(dialog, choice)` to the Store; the
+  The host dispatches `Action.Choose(dialog, choice)` to the Store; the
   Store records the choice in the persisted flag set and the producing
   feature's own `@Singleton` handler reacts by observing
   `AppDialogObserver.observeUserActions()`. There is no typed callback
@@ -84,7 +84,7 @@ acknowledges them.
 | Module | Purpose |
 |---|---|
 | `feature/app-dialogs/api` | Provider-neutral contracts: `AppDialog` sealed types, `AppDialogUserAction` (enum of choices the user can tap on any variant), `AppDialogUserChoice` (data class pairing a variant with the action the user picked), `AppDialogPublisher`, `AppDialogObserver`. Producer features depend on this module only. |
-| `feature/app-dialogs/impl` | Layered MVI implementation. **data/** — `AppDialogRepository[Impl]` + `AppDialogKeys`. **domain/** — `AppDialogResolver`. **mvi/store/** — `AppDialogStore[Impl]` (`@HiltViewModel`) + `AppDialogHandlerStore[Impl]`. **mvi/handler/** — `Observe`/`Publish`/`Dismiss`/`UserAction` handlers. **ui/** — `AppDialogHost`, `AppDialogHostContent`, one Composable file per variant. **publisher/** — `AppDialogPublisherImpl` (`@Singleton` facade over the repository). **observer/** — `AppDialogObserverImpl` (`@Singleton` over the repository). Bound at the app graph; consumer features do not depend on impl. |
+| `feature/app-dialogs/impl` | Layered MVI implementation. **data/** — `AppDialogRepository[Impl]` + `AppDialogKeys`. **domain/** — `AppDialogResolver`. **mvi/store/** — `AppDialogStore[Impl]` (`@HiltViewModel`) + `AppDialogHandlerStore[Impl]`. **mvi/handler/** — `AppDialogRepoHandler` (`Action.RepoAction` sub-tree: Observe/Publish/Dismiss) + `ChooseHandler` (`Action.Choose`). **ui/** — `AppDialogHost`, `AppDialogHostContent`, one Composable file per variant. **publisher/** — `AppDialogPublisherImpl` (`@Singleton` facade over the repository). **observer/** — `AppDialogObserverImpl` (`@Singleton` over the repository). Bound at the app graph; consumer features do not depend on impl. |
 | `core/ui/kit` | `AppConfirmationDialog` generic Composable. Per-variant composables in `feature/app-dialogs/impl/ui` delegate to it for consistent chrome. |
 
 The api/impl split mirrors the convention used by `core/data/backup/*`: a
@@ -119,10 +119,10 @@ The reasoning is:
   wiped; a DataStore-backed flag survives.
 - **One writer.** `AppDialogRepositoryImpl` is the only writer for
   `pending_*` keys. Dismiss is the only consumer-driven write; it goes
-  through the repository via `Action.Dismiss` → `DismissHandler`.
+  through the repository via `Action.RepoAction.Dismiss` → `AppDialogRepoHandler`.
 - **Reactive view.** `repository.observe(): Flow<AppDialog?>` combines flag
   reads through `AppDialogResolver` and emits the single highest-priority
-  variant. `AppDialogStore` collects this flow inside `Action.Observe` and
+  variant. `AppDialogStore` collects this flow inside `Action.RepoAction.Observe` and
   updates `State`. Setting any flag causes the flow to re-emit; clearing
   all flags causes it to emit `null` and the Host composes nothing.
 
@@ -140,11 +140,12 @@ if multiple are pending).
 |       State.current  : AppDialog?                                  |
 |       State.lastUserChoice : AppDialogUserChoice?  (transient)     |
 |     Handlers (@ViewModelScoped):                                   |
-|       ObserveHandler   — repository.observe() → State.current      |
-|       PublishHandler   — Action.Publish(dialog) → repository write |
-|       DismissHandler   — Action.Dismiss(dialog) → repository clear |
-|       UserActionHandler — Action.UserAction(dialog, action)        |
-|             → records choice, then dismisses                       |
+|       AppDialogRepoHandler — Action.RepoAction sub-tree            |
+|         Observe  → repository.currentDialog → State.current        |
+|         Publish  → repository.publish (currently no dispatcher)    |
+|         Dismiss  → repository.dismiss (currently no dispatcher)    |
+|       ChooseHandler — Action.Choose(dialog, action)                |
+|             → emits choice to observer, does NOT dismiss           |
 +--------------------------------------------------------------------+
                               ▲                ▲
                               │                │
@@ -390,7 +391,7 @@ export / report inline) observe an `AppDialogObserver` interface:
 interface AppDialogObserver {
 
     /**
-     * Stream of user-action choices recorded by `UserActionHandler`. Each
+     * Stream of user-action choices emitted by `ChooseHandler`. Each
      * emission carries the variant the user was looking at and the action
      * they tapped. Backed by a DataStore-persisted "last choice" record
      * that the host clears after the consumer has had a chance to react,
@@ -416,7 +417,7 @@ not by the Activity-scoped Store. The rationale is scope: a `@Singleton`
 in another feature (`feature/recovery`'s `RestoreDialogChoiceObserver`, for example) cannot
 inject the Activity-scoped `@HiltViewModel` Store. The observer reads from
 the repository's persisted user-choice record, which is the same source
-the Store's `UserActionHandler` writes to. Single source of truth holds.
+the Store's `ChooseHandler` writes to. Single source of truth holds.
 
 Consumers (one per producing feature) inject `AppDialogObserver` and
 launch a long-lived collector. They are responsible for branching on
@@ -468,13 +469,14 @@ The host:
   `LocalViewModelStoreOwner`) is reused unchanged from the
   existing `AppRootViewModel` Activity-scoped VM (see
   [`App.kt:63`](../../app/app/src/main/java/io/github/stslex/workeeper/App.kt)).
-- Dispatches `Action.Observe` once on mount to subscribe to the repository
-  flow and project it into State.
+- Dispatches `Action.RepoAction.Observe` once on mount to subscribe to the
+  repository flow and project it into State.
 - Reads `state.value.current: AppDialog?`. When `null`, composes nothing —
   there is no scrim, no placeholder. When non-null, dispatches on the
   variant and renders the appropriate Composable file
-  (`ui/<Name>Dialog.kt`). Buttons dispatch `Action.UserAction(dialog,
-  action)` to the Store; the Store records the choice and then dismisses.
+  (`ui/<Name>Dialog.kt`). Buttons dispatch `Action.Choose(dialog,
+  action)` to the Store; the `ChooseHandler` emits the choice to the
+  observer; the consumer-side reactor dismisses after its side-effect.
 - Holds **no state of its own**. Every render decision is derived from
   `state.value`. No `EntryPointAccessors`. No free `scope.launch { … }`
   with embedded logic. No typed callbacks into producer features.
@@ -534,10 +536,8 @@ Handler routing (`AppDialogStoreImpl.handlerCreator`):
 
 | Action | Handler |
 |---|---|
-| `Action.Observe` | `ObserveHandler` (`@ViewModelScoped`) |
-| `Action.Publish` | `PublishHandler` (`@ViewModelScoped`) |
-| `Action.Dismiss` | `DismissHandler` (`@ViewModelScoped`) |
-| `Action.UserAction` | `UserActionHandler` (`@ViewModelScoped`) |
+| `is Action.RepoAction` | `AppDialogRepoHandler` (`@ViewModelScoped`) |
+| `is Action.Choose` | `ChooseHandler` (`@ViewModelScoped`) |
 
 Per-feature reaction to user choices is **NOT** in the Store's handler
 graph — it lives in the consuming feature's own `@Singleton` handler that
@@ -581,7 +581,7 @@ deferred to a follow-up PR — see
 | `AppDialogResolver` | pure (no `@Inject`) | Static priority walk. No state. |
 | `AppDialogStore` interface / `AppDialogStoreImpl` | `@HiltViewModel` | Activity-scoped via `hiltViewModel<AppDialogStoreImpl>()` at App root. Standard `Store`-suffix → `@HiltViewModel` mapping per [`HiltScopeRule`](../lint-rules.md#hiltscoperule). **No carve-out** — this is a regular MVI Store. |
 | `AppDialogHandlerStoreImpl` | `@ViewModelScoped` | Standard `BaseHandlerStore` bridge. |
-| `Observe` / `Publish` / `Dismiss` / `UserActionHandler` | `@ViewModelScoped` | Handler-suffix → `@ViewModelScoped` per `HiltScopeRule`. |
+| `AppDialogRepoHandler` / `ChooseHandler` | `@ViewModelScoped` | Handler-suffix → `@ViewModelScoped` per `HiltScopeRule`. |
 | `AppDialogPublisher` / `AppDialogPublisherImpl` | `@Singleton` (`@Binds`) | Thin facade over the repository. |
 | `AppDialogObserver` / `AppDialogObserverImpl` | `@Singleton` (`@Binds`) | Cross-feature observation surface, backed by the repository. |
 | `AppDialogHost` | Stateless Composable | Resolves the Store via `rememberStoreProcessor<AppDialogStoreImpl>()`. No `EntryPointAccessors`. |
