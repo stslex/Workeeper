@@ -170,7 +170,7 @@ if multiple are pending).
 |   AppDialogObserver (@Singleton)                                   |
 |     observeUserActions(): Flow<AppDialogUserChoice>                |
 |     — backed by repository, NOT by the Activity-scoped Store, so   |
-|     other @Singletons (e.g. feature/recovery handlers) can inject  |
+|     other @Singletons (e.g. feature/recovery's observer) can inject|
 |     it without scope-mismatch.                                     |
 +--------------------------------------------------------------------+
 ```
@@ -382,8 +382,8 @@ share the same DataStore writer.
 ## Cross-feature observation
 
 Consumer features that need to react to the user's dialog choice (e.g.
-`feature/recovery`'s undo / export / report handlers) observe an
-`AppDialogObserver` interface:
+`feature/recovery`'s `RestoreDialogChoiceObserver`, which handles undo /
+export / report inline) observe an `AppDialogObserver` interface:
 
 ```kotlin
 // feature/app-dialogs/api/.../observer/AppDialogObserver.kt
@@ -413,7 +413,7 @@ that any variant can present:
 
 `AppDialogObserverImpl` is `@Singleton` and is **backed by the repository**,
 not by the Activity-scoped Store. The rationale is scope: a `@Singleton`
-in another feature (`feature/recovery`'s undo handler, for example) cannot
+in another feature (`feature/recovery`'s `RestoreDialogChoiceObserver`, for example) cannot
 inject the Activity-scoped `@HiltViewModel` Store. The observer reads from
 the repository's persisted user-choice record, which is the same source
 the Store's `UserActionHandler` writes to. Single source of truth holds.
@@ -603,7 +603,7 @@ that does not need an exception.
 
 - [backup-recovery.md](backup-recovery.md) — primary consumer of the initial
   AppDialog catalog. Documents which producer raises which variant under
-  which conditions, and which `feature/recovery` handler reacts to each
+  which conditions, and which `feature/recovery` observer reacts to each
   user choice via `AppDialogObserver`.
 - [`.claude/skills/app-dialogs-pattern.md`](../../.claude/skills/app-dialogs-pattern.md)
   — the procedural recipe for adding a new variant.

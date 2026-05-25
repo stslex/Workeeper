@@ -38,15 +38,19 @@ import javax.inject.Singleton
  *   [AppDialog.UndoRestoreSuccess] (the dialog survives the restart that
  *   immediately follows), and asks the caller to restart the app.
  *
- * The coordinator lives in `app/app` because it is the only module that
+ * The coordinator lives in `feature/recovery` and is the only module that
  * has direct access to all four collaborators ([RestoreStateRepository],
  * [DatabaseSnapshotProvider], [AppDialogPublisher], [RestoreRecoveryReporter])
  * at SingletonComponent scope.
  *
- * App restart is **not** performed inline — both flows return a
- * [PreflightOutcome] / `Boolean` and the caller (Application bootstrap or
- * the host EntryPoint) drives the actual restart via the existing
- * `NavigatorExt.restartApp(context)` path.
+ * App restart is **not** performed inline by [handlePostRestoreLaunch] —
+ * it returns a [PreflightOutcome] and the caller (`BaseApplication.onCreate`)
+ * calls [restartApp] on this coordinator when the outcome is
+ * [PreflightOutcome.RestoreRolledBack]. Same for [performUndoRestore]'s
+ * [UndoRestoreOutcome.Succeeded] outcome on the consumer side
+ * ([RestoreDialogChoiceObserver][io.github.stslex.workeeper.feature.recovery.RestoreDialogChoiceObserver]).
+ * The [restartApp] method here is a non-Composable parallel to
+ * `NavigatorExt.restartApp(context)` — see its own KDoc.
  */
 @Singleton
 class RestoreRecoveryCoordinator @Inject internal constructor(

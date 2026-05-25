@@ -34,7 +34,7 @@ three deterministic recovery paths — silent data wipe is no longer reachable
 in any code path.
 
 - **Scenario 1** (restore-time) — pre-flight in
-  [`RestoreRecoveryCoordinator`](../../app/app/src/main/java/io/github/stslex/workeeper/recovery/RestoreRecoveryCoordinator.kt),
+  [`RestoreRecoveryCoordinator`](../../feature/recovery/src/main/kotlin/io/github/stslex/workeeper/feature/recovery/domain/RestoreRecoveryCoordinator.kt),
   triggered from
   [`BaseApplication.onCreate`](../../app/app/src/main/java/io/github/stslex/workeeper/BaseApplication.kt).
   Automatic rollback to `cache/pre_restore_backup.db` on Room migration
@@ -51,10 +51,11 @@ in any code path.
   row in
   [`BackupSection`](../../feature/settings/src/main/kotlin/io/github/stslex/workeeper/feature/settings/ui/components/BackupSection.kt)
   publishes `AppDialog.UndoRestoreConfirmation`. `feature/recovery`'s
-  `UndoActionHandler` (`@Singleton`, observes
+  `RestoreDialogChoiceObserver` (`@Singleton`, observes
   `AppDialogObserver.observeUserActions()`) reacts to the user's
   ConfirmUndo choice by calling `RestoreRecoveryCoordinator.performUndoRestore`
-  (file swap) and dispatching `NavCommand.RestartApp`.
+  (file swap) and then `RestoreRecoveryCoordinator.restartApp()` directly
+  (non-Composable call site — see "Restart contract / OpenRecovery contract").
 - The four `AppDialog` variants and the cross-feature publisher live in
   [`feature/app-dialogs`](../../feature/app-dialogs/) — see
   [app-dialogs.md](app-dialogs.md).
@@ -196,10 +197,10 @@ the user did nothing wrong.
 [`BaseApplication.onCreate`](../../app/app/src/main/java/io/github/stslex/workeeper/BaseApplication.kt)
 after the Scenario 1 check returns no-op. Routes to `RecoveryActivity`
 (also in `feature/recovery`) via a `MainActivity.onCreate` check on
-`StartupMigrationCoordinator.lastDecision`. The route itself dispatches
-`NavCommand.OpenRecovery` through the navigator — `NavigatorExt`'s
-`processCommand` launches the `RecoveryActivity` FQCN. MainActivity does
-not import the activity class directly.
+`StartupMigrationCoordinator.lastDecision`. MainActivity launches
+RecoveryActivity directly via Intent because the call site fires before
+`setContent { App() }` — `NavCommand.OpenRecovery` is reserved for
+in-composition callers per `Navigator.openRecovery()` KDoc.
 
 **Implementation deviates from the literal spec** in two ways, both
 documented in the coordinator KDoc:
@@ -238,13 +239,12 @@ Flow:
    - Peek throws → `RouteToRecovery(CANNOT_PEEK_LIVE_DB)`. Preserve
      snapshot best-effort, record Crashlytics non-fatal.
 4. **MainActivity.onCreate** reads `coordinator.lastDecision`. On
-   `RouteToRecovery`, dispatches `NavCommand.OpenRecovery` through the
-   navigator and finishes itself. `NavigatorExt.processCommand` resolves the
-   command by launching the `RecoveryActivity` FQCN
-   (`io.github.stslex.workeeper.feature.recovery.RecoveryActivity`). The
-   brief MainActivity frame is acceptable for a rare developer-error path;
-   explicitly chosen over `PackageManager.setComponentEnabledSetting`
-   launcher swaps because the latter has known OEM-ROM flakiness.
+   `RouteToRecovery`, launches `RecoveryActivity` directly via Intent
+   (bootstrap-context — see "Implementation status" above) and finishes
+   itself. The brief MainActivity frame is acceptable for a rare
+   developer-error path; explicitly chosen over
+   `PackageManager.setComponentEnabledSetting` launcher swaps because the
+   latter has known OEM-ROM flakiness.
 5. **RecoveryActivity** is Room-free — it injects `DatabaseSnapshotProvider`
    and `RecoveryDiagnosticsExporter` but only calls Room-free methods
    (`getPreMigrationBackupFile`, `availableMigrationsLabel`,
@@ -301,11 +301,12 @@ and pushes the result into state. The tap publishes
 `AppDialog.UndoRestoreConfirmation` via `AppDialogPublisher`. When the
 user confirms, `AppDialogHost` dispatches `Action.UserAction(dialog,
 AppDialogUserAction.ConfirmUndo)` to the Store, which records the choice.
-`feature/recovery`'s `UndoActionHandler` (`@Singleton`, observes
+`feature/recovery`'s `RestoreDialogChoiceObserver` (`@Singleton`, observes
 `AppDialogObserver.observeUserActions()`) reacts: calls
 `RestoreRecoveryCoordinator.performUndoRestore` for the file swap, then
-dispatches `Action.Navigation.RestartApp` to its own `NavigationHandler`
-which calls `navigator.restartApp()`. The post-restart `UndoRestoreSuccess`
+calls `RestoreRecoveryCoordinator.restartApp()` directly (in-class
+Intent-launch path; non-Composable call site, same Option Y as the
+bootstrap restart in Scenario 1). The post-restart `UndoRestoreSuccess`
 dialog survives via DataStore. No code path inside `AppDialogHost` calls
 the coordinator directly — the host is generic and the reaction is owned
 by `feature/recovery`.
@@ -329,7 +330,7 @@ Flow:
 4. **User confirms.** The dialog dispatches `Action.UserAction(
    UndoRestoreConfirmation, AppDialogUserAction.ConfirmUndo)` to
    `AppDialogStore`. The Store records the choice via `recordUserChoice`
-   on the repository. `feature/recovery`'s `UndoActionHandler`
+   on the repository. `feature/recovery`'s `RestoreDialogChoiceObserver`
    (`@Singleton`, observes
    `AppDialogObserver.observeUserActions()`) sees the choice and:
    1. Calls `RestoreRecoveryCoordinator.performUndoRestore()`, which:
@@ -337,9 +338,10 @@ Flow:
       - Deletes the preserved file (consumed).
       - Clears the preserved-backup-available marker.
       - `AppDialogPublisher.publish(UndoRestoreSuccess)`.
-   2. On success, dispatches `Action.Navigation.RestartApp` to its sibling
-      `NavigationHandler`, which calls `navigator.restartApp()` → the
-      single `NavCommand.RestartApp` path.
+   2. On `UndoRestoreOutcome.Succeeded`, calls
+      `RestoreRecoveryCoordinator.restartApp()` directly (in-class
+      Intent-launch path; non-Composable call site, same Option Y as the
+      bootstrap restart in Scenario 1).
 5. **Next startup.** Normal launch (Scenario 1 flag was already false; no
    migration drama because we are swapping back to the user's pre-restore
    schema which is by definition the same one we successfully migrated
@@ -357,7 +359,7 @@ rather than direct callbacks because the App Dialog mechanism has no typed
 return channel by design (see
 [app-dialogs.md → Cross-feature observation](app-dialogs.md#cross-feature-observation)).
 The producer (Settings click on "Revert last restore") publishes the
-confirmation; `feature/recovery`'s `UndoActionHandler` observes
+confirmation; `feature/recovery`'s `RestoreDialogChoiceObserver` observes
 `AppDialogObserver.observeUserActions()` and continues the flow when it
 sees `AppDialogUserChoice(dialog = UndoRestoreConfirmation, action = ConfirmUndo)`.
 
@@ -385,24 +387,34 @@ recovery-extracts itself from app/app).
 
 | Old responsibility | New owner |
 |---|---|
-| `performUndoRestore()` | `feature/recovery/mvi/handler/UndoActionHandler` reacting to `AppDialogObserver` → `RestoreRecoveryCoordinator.performUndoRestore()` |
+| `performUndoRestore()` | `feature/recovery/RestoreDialogChoiceObserver.handleUndoConfirmation` reacting to `AppDialogObserver` → `RestoreRecoveryCoordinator.performUndoRestore()` |
 | `publishUndoConfirmation()` | Already in `feature/settings/.../BackupClickHandler.requestRevertLastRestore` (the publishing producer is the click site; recovery does not need its own publish entry point) |
-| `exportRestoreDiagnostics()` | `feature/recovery/mvi/handler/ExportDiagnosticsHandler` reacting to `AppDialogObserver` → `RecoveryDiagnosticsExporter.exportRestoreFailure(...)` → `NavigationHandler.shareDiagnostics(uri)` |
-| `restartApp()` | DELETED. All restart goes through `NavCommand.RestartApp`. The bootstrap path (`BaseApplication.onCreate` after Scenario 1 rollback) dispatches the command via the navigator EntryPoint. |
-| `openReportIssue(context)` free function in host | `feature/recovery/mvi/handler/NavigationHandler.openIssueTracker()` — wraps `Intent.ACTION_VIEW` with `@ApplicationContext` injected |
-| `shareDiagnostics(context, uri)` free function in host | `feature/recovery/mvi/handler/NavigationHandler.shareDiagnostics(uri)` — wraps `Intent.ACTION_SEND` chooser with `@ApplicationContext` injected |
+| `exportRestoreDiagnostics()` | `feature/recovery/RestoreDialogChoiceObserver.exportRestoreDiagnostics` reacting to `AppDialogObserver` → `RecoveryDiagnosticsExporter.exportRestoreFailure(...)` → `RestoreDialogChoiceObserver.shareDiagnostics(uri)` |
+| `restartApp()` | Settings/Scenario-3 producer side dispatches `NavCommand.RestartApp` through `Navigator`. Bootstrap (`BaseApplication.onCreate` after Scenario 1 rollback) and consumer-side (`RestoreDialogChoiceObserver` after `UndoRestoreOutcome.Succeeded`) call `RestoreRecoveryCoordinator.restartApp()` directly — Option Y: the `MutableSharedFlow(replay = 0)` bus drops emissions with no live subscriber, so non-Composable call sites must go direct-Intent. |
+| `openReportIssue(context)` free function in host | `feature/recovery/RestoreDialogChoiceObserver.openReportIssue` — wraps `Intent.ACTION_VIEW` with `@ApplicationContext` injected |
+| `shareDiagnostics(context, uri)` free function in host | `feature/recovery/RestoreDialogChoiceObserver.shareDiagnostics` — wraps `Intent.ACTION_SEND` chooser with `@ApplicationContext` injected |
 
-`feature/recovery`'s `NavigationHandler` consumes `Navigator` for the
-in-app commands (`RestartApp`, `OpenRecovery`) and `@ApplicationContext`
-for the external-Intent side effects (issue tracker, share). The
+`feature/recovery`'s `RestoreDialogChoiceObserver` injects only
+`@ApplicationContext` for all side effects: restart goes through
+`RestoreRecoveryCoordinator.restartApp()` (in-class Intent-launch);
+issue tracker and share chooser are inline private methods. The
 `Navigator` interface stays UI-neutral — it does NOT learn about issue
 trackers or share chooser intents; those are recovery-specific and live
 inside the recovery feature.
 
+The canonical project NavigationHandler pattern is Store-tied (consumes
+`Action.Navigation.*` from a feature's MVI Store flow). `feature/recovery`
+is intentionally Store-less per Phase 0 — there is no Store to dispatch
+through — so the consumer-side reactor is shaped as a SharedFlow Observer
+with `@ApplicationContext` injection instead. This is a deliberate
+divergence from the canonical pattern, not an oversight.
+
 ### NavCommand additions
 
-The navigation surface gains `NavCommand.OpenRecovery` so launching
-RecoveryActivity is not hardcoded inside `MainActivity`:
+The navigation surface gains `NavCommand.OpenRecovery` so in-composition
+callers can launch `RecoveryActivity` through the bus (the bootstrap path
+in `MainActivity.onCreate` still launches directly via Intent — see
+Scenario 2 "Implementation status" above for the Option Y rationale):
 
 ```kotlin
 sealed interface NavCommand {
@@ -693,9 +705,16 @@ Issue title template (RU): `Ошибка миграции в версии X.Y.Z`
   The "sibling" placement is load-bearing: it scopes the
   `@HiltViewModel AppDialogStore` to the host Activity rather than to a
   navigation destination.
-- New `RecoveryActivity` class in `app/app/.../recovery/RecoveryActivity.kt`.
-  Manifest-declared with its own `<activity>` entry. Launched directly from
-  `Application.onCreate` when Scenario 2 path triggers.
+- Manifest `<activity>` entry for `RecoveryActivity` stays in
+  `app/app/src/main/AndroidManifest.xml` referencing the FQCN
+  `io.github.stslex.workeeper.feature.recovery.RecoveryActivity`. Launched
+  directly via Intent from `MainActivity.onCreate` when the Scenario 2 path
+  triggers (bootstrap-context — see "NavCommand additions" above).
+
+`feature/recovery`:
+
+- New `RecoveryActivity` class in
+  `feature/recovery/src/main/kotlin/io/github/stslex/workeeper/feature/recovery/RecoveryActivity.kt`.
 
 `core/data/database` (or wherever `DatabaseSnapshotProvider` lives):
 

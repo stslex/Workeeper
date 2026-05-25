@@ -38,8 +38,8 @@ import javax.inject.Inject
 
 /**
  * Room-free fallback launcher for Scenario 2 (startup migration failure).
- * Hosted by `app/app` because it must run without any Hilt graph entry
- * that touches `AppDatabase`.
+ * Hosted by `feature/recovery` because it must run without any Hilt graph
+ * entry that touches `AppDatabase`.
  *
  * **DB-free invariant**: this activity only calls methods on its injected
  * collaborators that operate on file paths or pure-Kotlin data
