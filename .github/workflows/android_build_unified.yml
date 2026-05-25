@@ -96,14 +96,14 @@ jobs:
             gradle-build-cache-${{ runner.os }}-
           save-always: true
 
+      - name: Build with Gradle
+        run: ./gradlew assembleDebug --full-stacktrace
+
       - name: Run detekt
         run: ./gradlew detekt --full-stacktrace
 
       - name: Run Android Lint
         run: ./gradlew lintDebug --no-configuration-cache --full-stacktrace
-
-      - name: Build with Gradle
-        run: ./gradlew build -x test --full-stacktrace
 
       - name: Run Unit Tests
         run: ./gradlew testDebugUnitTest --full-stacktrace
