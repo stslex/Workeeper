@@ -30,7 +30,7 @@ import io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.store.AppDialogSt
 internal interface AppDialogStore : Store<State, Action, Event> {
 
     /**
-     * The current pending dialog as projected by `ObserveHandler` from
+     * The current pending dialog as projected by `AppDialogRepoHandler` from
      * `AppDialogRepository.currentDialog`. `null` means "no flag set" and the
      * Host composes nothing.
      */
@@ -44,15 +44,30 @@ internal interface AppDialogStore : Store<State, Action, Event> {
 
     sealed interface Action : Store.Action {
 
-        /** Subscribe to the repository flow. Dispatched as an `initialAction`. */
-        data object Observe : Action
-
         /**
-         * Producer-driven publish path. Used by the `AppDialogPublisher`
-         * facade (a `@Singleton` over the repository) and, internally, by
-         * the cross-feature observer-side reactors.
+         * Repository-side mutations and observation. Grouped so
+         * `AppDialogRepoHandler` implements `Handler<Action.RepoAction>`
+         * with compile-time exhaustiveness over the three repo-touching
+         * branches, without seeing [Choose].
          */
-        data class Publish(val dialog: AppDialog) : Action
+        sealed interface RepoAction : Action {
+
+            /** Subscribe to the repository flow. Dispatched as an `initialAction`. */
+            data object Observe : RepoAction
+
+            /**
+             * Producer-driven publish path. Used by the `AppDialogPublisher`
+             * facade (a `@Singleton` over the repository) and, internally, by
+             * the cross-feature observer-side reactors.
+             */
+            data class Publish(val dialog: AppDialog) : RepoAction
+
+            /**
+             * Implicit dismiss (e.g. back-press on a dialog whose dismiss policy
+             * allows it). Clears the variant's flag set in the repository.
+             */
+            data class Dismiss(val dialog: AppDialog) : RepoAction
+        }
 
         /**
          * The Host emits this when the user taps any button on the
@@ -69,12 +84,6 @@ internal interface AppDialogStore : Store<State, Action, Event> {
             val dialog: AppDialog,
             val action: AppDialogUserAction,
         ) : Action
-
-        /**
-         * Implicit dismiss (e.g. back-press on a dialog whose dismiss policy
-         * allows it). Clears the variant's flag set in the repository.
-         */
-        data class Dismiss(val dialog: AppDialog) : Action
     }
 
     /** No events in v1 — every user-visible outcome flows through State. */

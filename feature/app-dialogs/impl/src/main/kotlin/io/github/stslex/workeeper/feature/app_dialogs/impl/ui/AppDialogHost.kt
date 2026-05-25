@@ -12,7 +12,7 @@ import io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.store.AppDialogSt
  * Mounting site: `App.kt`, inside `AppTheme`, in the same root `Box` as
  * `AppNavigationHost`. The host holds no state of its own; everything is
  * derived from `AppDialogStore.State.current`, which the Store's
- * `ObserveHandler` projects from `AppDialogRepository.currentDialog`.
+ * `AppDialogRepoHandler` projects from `AppDialogRepository.currentDialog`.
  *
  * The Store is obtained via the screen-less [AppDialogFeature] composition
  * entry. Because `App.kt` mounts this host as a sibling of `NavHost`,
