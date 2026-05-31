@@ -37,15 +37,16 @@ import javax.inject.Singleton
  * is removed in the same refactor that introduces this class.
  */
 @Singleton
-internal class AppDialogRepository @Inject constructor(
-    @ApplicationContext context: Context,
+internal class AppDialogRepository internal constructor(
+    private val dataStore: DataStore<Preferences>,
 ) : AppDialogPublisher {
 
-    private val dataStore: DataStore<Preferences> by lazy {
+    @Inject
+    constructor(@ApplicationContext context: Context) : this(
         PreferenceDataStoreFactory.create {
             context.preferencesDataStoreFile(PREFS_NAME)
-        }
-    }
+        },
+    )
 
     /**
      * Reactive view of the currently-pending top-priority dialog. Re-emits on

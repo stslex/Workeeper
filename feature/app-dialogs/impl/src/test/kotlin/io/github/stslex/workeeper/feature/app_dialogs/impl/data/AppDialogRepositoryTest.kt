@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.app_dialogs.impl.data
 
-import android.app.Application
-import android.content.Context
-import androidx.datastore.preferences.preferencesDataStoreFile
-import androidx.test.core.app.ApplicationProvider
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupErrorCode
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
@@ -15,29 +16,26 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
-import org.robolectric.annotation.Config
-import tech.apter.junit.jupiter.robolectric.RobolectricExtension
+import java.io.File
 
-@ExtendWith(RobolectricExtension::class)
-@Config(application = AppDialogRepositoryTest.TestApplication::class, sdk = [33])
 internal class AppDialogRepositoryTest {
 
-    class TestApplication : Application()
-
-    private lateinit var context: Context
+    private lateinit var dataStoreScope: CoroutineScope
+    private lateinit var tempFile: File
     private lateinit var repository: AppDialogRepository
 
     @BeforeEach
     fun setUp() {
-        context = ApplicationProvider.getApplicationContext()
-        context.preferencesDataStoreFile(AppDialogRepository.PREFS_NAME).delete()
-        repository = AppDialogRepository(context)
+        tempFile = File.createTempFile("app_dialogs_", ".preferences_pb").also { it.delete() }
+        dataStoreScope = CoroutineScope(Dispatchers.IO + Job())
+        val dataStore = PreferenceDataStoreFactory.create(scope = dataStoreScope) { tempFile }
+        repository = AppDialogRepository(dataStore)
     }
 
     @AfterEach
     fun tearDown() {
-        context.preferencesDataStoreFile(AppDialogRepository.PREFS_NAME).delete()
+        dataStoreScope.cancel()
+        tempFile.delete()
     }
 
     @Test
