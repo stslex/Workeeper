@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Build
 import androidx.core.net.toUri
 import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
@@ -20,8 +21,8 @@ import io.github.stslex.workeeper.feature.recovery.boot.RecoveryBootstrap
 import io.github.stslex.workeeper.feature.recovery.diagnostics.RecoveryDiagnosticsExporter
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
 import io.github.stslex.workeeper.feature.recovery.domain.UndoRestoreOutcome
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -78,10 +79,11 @@ internal class RestoreDialogChoiceObserver @Inject constructor(
     private val restoreStateRepository: RestoreStateRepository,
     private val appDialogPublisher: AppDialogPublisher,
     private val diagnosticsExporter: RecoveryDiagnosticsExporter,
+    @DefaultDispatcher private val dispatcher: CoroutineDispatcher,
 ) : RecoveryBootstrap {
 
     private val logger = Log.tag(TAG)
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val scope = CoroutineScope(SupervisorJob() + dispatcher)
 
     init {
         observer.observeUserActions()
@@ -112,8 +114,9 @@ internal class RestoreDialogChoiceObserver @Inject constructor(
         when (action) {
             AppDialogUserAction.Acknowledge -> observer.acknowledgeReaction(dialog)
             AppDialogUserAction.RequestUndo -> {
-                publishUndoConfirmation()
-                observer.acknowledgeReaction(dialog)
+                if (publishUndoConfirmation()) {
+                    observer.acknowledgeReaction(dialog)
+                }
             }
 
             else -> Unit
@@ -166,11 +169,25 @@ internal class RestoreDialogChoiceObserver @Inject constructor(
         }
     }
 
-    private suspend fun publishUndoConfirmation() {
-        val originalDate = restoreStateRepository.getPreRestoreOriginalDate() ?: return
+    /**
+     * Publishes [AppDialog.UndoRestoreConfirmation] and returns whether it was
+     * published. Returns `false` without publishing when the preserved backup
+     * was evicted between [AppDialog.RestoreSuccess] being shown and the user
+     * tapping "Undo restore" (`getPreRestoreOriginalDate()` is `null`). In that
+     * case the caller must NOT acknowledge `RestoreSuccess`: dismissing it would
+     * silently destroy the user's only undo entry point. Keeping `RestoreSuccess`
+     * visible is the same choice already made for [UndoRestoreOutcome.IoFailure].
+     */
+    private suspend fun publishUndoConfirmation(): Boolean {
+        val originalDate = restoreStateRepository.getPreRestoreOriginalDate()
+        if (originalDate == null) {
+            logger.w { "Undo confirmation not published: pre-restore original date is missing" }
+            return false
+        }
         appDialogPublisher.publish(
             AppDialog.UndoRestoreConfirmation(originalDataDateEpochMs = originalDate),
         )
+        return true
     }
 
     private suspend fun exportRestoreDiagnostics(): Uri? {
