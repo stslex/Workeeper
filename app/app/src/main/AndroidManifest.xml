@@ -37,7 +37,7 @@
         intent-filter), so a healthy install never sees this surface.
         -->
         <activity
-            android:name="io.github.stslex.workeeper.recovery.RecoveryActivity"
+            android:name="io.github.stslex.workeeper.feature.recovery.RecoveryActivity"
             android:exported="false" />
 
         <provider

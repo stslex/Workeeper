@@ -13,8 +13,6 @@
     <string name="app_dialog_restore_failure_confirm" tools:ignore="DuplicateStrings">OK</string>
     <string name="app_dialog_restore_failure_report_action">Report</string>
     <string name="app_dialog_restore_failure_export_action">Export diagnostics</string>
-    <string name="app_dialog_restore_failure_share_chooser">Share diagnostics</string>
-    <string name="app_dialog_restore_failure_report_title" tools:ignore="DuplicateStrings">Restore failed</string>
 
     <!-- UndoRestoreConfirmation -->
     <string name="app_dialog_undo_restore_confirmation_title">Undo last restore?</string>

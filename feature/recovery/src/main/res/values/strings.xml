@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+        Strings for the Scenario 2 RecoveryActivity surface and the
+        Scenario 1 dialog reactor's external-intent paths (issue tracker,
+        share chooser). See documentation/feature-specs/backup-recovery.md.
+    -->
+
+    <string name="recovery_title">App update needed</string>
+    <string name="recovery_body">Your data file is from a version this app build cannot read. Your data is safe on this device. Please update the app, or export your raw data to back it up.</string>
+    <string name="recovery_update_app">Update app</string>
+    <string name="recovery_export_data">Export raw data</string>
+    <string name="recovery_report_issue">Report issue</string>
+    <string name="recovery_export_diagnostics">Export diagnostics</string>
+    <string name="recovery_export_data_chooser">Share raw data</string>
+    <string name="recovery_export_diagnostics_chooser" tools:ignore="DuplicateStrings">Share diagnostics</string>
+    <string name="recovery_report_title">Startup migration failure</string>
+
+    <!--
+        Scenario 1 intent-side strings (relocated from feature/app-dialogs/impl
+        during the recovery-boundary refactor, renamed from
+        app_dialog_restore_failure_* → recovery_restore_failure_* for namespace
+        consistency).
+    -->
+    <string name="recovery_restore_failure_share_chooser" tools:ignore="DuplicateStrings">Share diagnostics</string>
+    <string name="recovery_restore_failure_report_title" tools:ignore="DuplicateStrings">Restore failed</string>
+
+</resources>

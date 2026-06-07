@@ -136,6 +136,18 @@ internal class NavigatorEventBusTest {
     }
 
     @Test
+    fun `openRecovery emits OpenRecovery command`() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val bus = NavigatorEventBus()
+
+        val collector = async(dispatcher) { bus.commands.first() }
+        testScheduler.advanceUntilIdle()
+        bus.openRecovery()
+
+        assertEquals(NavCommand.OpenRecovery, collector.await())
+    }
+
+    @Test
     fun `multiple emissions are observed in dispatch order`() = runTest {
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
         val bus = NavigatorEventBus()

@@ -5,6 +5,7 @@ plugins {
 dependencies {
     implementation(project(":core:core"))
     implementation(project(":core:ui:kit"))
+    implementation(project(":core:ui:mvi"))
     implementation(project(":core:data:backup:api"))
     implementation(project(":feature:app-dialogs:api"))
 

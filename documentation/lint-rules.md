@@ -199,7 +199,7 @@ Walks classes that have a primary constructor annotated `@Inject` and applies a 
 scope policy from `ScopeClassType`:
 
 - Class name contains any of `Repository`, `DataStore`, `Database`, `Storage`,
-  `StoreDispatchers`, or the explicit `AppDialogStore` exception → must be annotated `@Singleton`.
+  or `StoreDispatchers` → must be annotated `@Singleton`.
 - Class name contains any of `Handler`, `Interactor`, `Mapper` → must be annotated
   `@ViewModelScoped`.
 - Class name contains `Store` (matches both `*Store` interfaces and `*StoreImpl`
@@ -271,27 +271,49 @@ interface (`*Store : Store<...>`) and its `*StoreImpl` carry `@HiltViewModel`;
 interactors / handlers / mappers carry `@ViewModelScoped`; repositories / data
 stores / databases / dispatch holders carry `@Singleton`.
 
-#### Exception: `AppDialogStore`
+#### Historical note: removed `AppDialogStore` carve-out
 
-`AppDialogStore` (`feature/app-dialogs/impl/.../store/AppDialogStore.kt`) is the
-single cross-feature, DataStore-backed dialog catalog and lives at
-application scope. It carries the `Store` suffix because callers (and
-`AppDialogHost`) consume it as a "store of pending dialogs", but it is **not**
-a feature MVI store implementing `Store<S, A, E>`; it is a DataStore writer.
-`ScopeClassType.singletonClasses` contains the explicit string
-`AppDialogStore` so the rule maps the class to `@Singleton` rather than to
-`@HiltViewModel`. See
-[feature-specs/app-dialogs.md → DI](feature-specs/app-dialogs.md) for the
-broader rationale (a single writer of every `pending_*` key, surviving
-process restart).
+Earlier versions of `ScopeClassType.singletonClasses` contained the
+explicit string `"AppDialogStore"` so the rule would map that class to
+`@Singleton` rather than to the default `Store → @HiltViewModel`. The
+carve-out has been **deleted**.
 
-If a future class needs singleton scope but does not match any of the singleton
-predicates, either:
+The carve-out existed because the original `AppDialogStore` was a
+DataStore writer wearing a `*Store` suffix — it had no `State`/`Action`/
+`Event`/Handler graph and was bound at `SingletonComponent` to back the
+cross-feature dialog catalog. The naming was misleading: it was a
+repository, not a Store.
 
-1. Name it with one of the existing predicate keywords (when the class genuinely is
-   a repository / storage / etc.), or
-2. Provide the binding through an `@InstallIn(SingletonComponent::class)` Hilt module
-   (the pattern `NavigationModule` uses for `NavigatorEventBus`).
+The app-dialogs re-architecture splits that misnomer:
+
+- `AppDialogRepository` (in `feature/app-dialogs/impl/data/`) — the
+  `@Singleton` DataStore writer. The `Repository` suffix already maps to
+  `@Singleton` via `ScopeClassType.singletonClasses`.
+- `AppDialogStore` (in `feature/app-dialogs/impl/mvi/store/`) — a genuine
+  `@HiltViewModel BaseStore<State, Action, Event>`. Activity-scoped at
+  runtime by virtue of being obtained at the App root (sibling of
+  `NavHost`), not by a Hilt-level scope override. The class follows the
+  default `Store → @HiltViewModel` rule with no exception.
+
+After the rewrite there is no `Store`-suffixed class anywhere in the
+project that wants singleton scope. The `singletonClasses` predicate list
+returns to "Repository / DataStore / Database / Storage / StoreDispatchers"
+— the same shape it had before app-dialogs landed.
+
+If a future class needs singleton scope but does not match any of the
+singleton predicates, either:
+
+1. Name it with one of the existing predicate keywords (when the class
+   genuinely is a repository / storage / etc.), or
+2. Provide the binding through an `@InstallIn(SingletonComponent::class)`
+   Hilt module (the pattern `NavigationModule` uses for `NavigatorEventBus`).
+
+If a future class is a Store-shaped MVI surface that needs to outlive
+ViewModel scope (e.g. another cross-feature app-root component), follow
+the app-dialogs pattern: implement a normal `@HiltViewModel BaseStore` and
+obtain it via the screen-less `AppFeature` composition entry at the App
+root — `LocalViewModelStoreOwner` does the rest. **Do not add a new
+`singletonClasses` carve-out.**
 
 ### `ComposableStateRule`
 
