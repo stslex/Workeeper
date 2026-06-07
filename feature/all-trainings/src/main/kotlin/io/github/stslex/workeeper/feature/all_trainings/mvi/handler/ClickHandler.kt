@@ -32,7 +32,6 @@ internal class ClickHandler @Inject constructor(
             is Action.Click.OnTagFilterToggle -> processTagFilterToggle(action)
             is Action.Click.OnSelectionToggle -> processSelectionToggle(action)
             Action.Click.OnSelectionExit -> processSelectionExit()
-            Action.Click.OnBulkDelete -> processBulkDelete()
             Action.Click.OnBulkDeleteConfirm -> processBulkDeleteConfirm()
             Action.Click.OnBulkDeleteDismiss -> processBulkDeleteDismiss()
         }
@@ -62,8 +61,19 @@ internal class ClickHandler @Inject constructor(
     }
 
     private fun processFabClick() {
-        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        consume(Action.Navigation.OpenCreate)
+        val selectedUuid: Set<String> = (state.value.selectionMode as? SelectionMode.On)
+            ?.selectedUuids
+            .orEmpty()
+
+        if (selectedUuid.isEmpty()) {
+            sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+            consume(Action.Navigation.OpenCreate)
+        } else {
+            sendEvent(Event.HapticClick(HapticFeedbackType.LongPress))
+            updateState { current ->
+                current.copy(pendingBulkDelete = PendingBulkDelete(count = selectedUuid.size))
+            }
+        }
     }
 
     private fun processTagFilterToggle(action: Action.Click.OnTagFilterToggle) {
@@ -101,20 +111,6 @@ internal class ClickHandler @Inject constructor(
         if (!state.value.isSelecting) return
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         updateState { it.copy(selectionMode = SelectionMode.Off) }
-    }
-
-    /**
-     * Bulk-delete FAB → confirm dialog whenever at least one row is selected. The
-     * underlying call is `archiveTrainings` (soft-delete) — permanent delete remains a
-     * single-row action accessed from the training detail menu.
-     */
-    private fun processBulkDelete() {
-        val mode = state.value.selectionMode as? SelectionMode.On ?: return
-        if (mode.selectedUuids.isEmpty()) return
-        sendEvent(Event.HapticClick(HapticFeedbackType.LongPress))
-        updateState { current ->
-            current.copy(pendingBulkDelete = PendingBulkDelete(count = mode.selectedUuids.size))
-        }
     }
 
     private fun processBulkDeleteConfirm() {

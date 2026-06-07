@@ -25,7 +25,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -87,6 +86,21 @@ internal class ClickHandlerTest {
     }
 
     @Test
+    fun `OnFabClick with selection emits LongPress haptic and sets pendingBulkDelete`() {
+        stateFlow.value = stateFlow.value.copy(
+            selectionMode = State.SelectionMode.On(
+                selectedUuids = persistentSetOf("uuid-1", "uuid-2"),
+            ),
+        )
+        handler.invoke(Action.Click.OnFabClick)
+        val captured = slot<Event>()
+        verify { store.sendEvent(capture(captured)) }
+        assertHaptic(captured.captured, HapticFeedbackType.LongPress)
+        verify(exactly = 0) { store.consume(any()) }
+        assertEquals(2, stateFlow.value.pendingBulkDelete?.count)
+    }
+
+    @Test
     fun `OnTagFilterToggle adds tag when not selected`() {
         handler.invoke(Action.Click.OnTagFilterToggle("tag-1"))
         assertEquals(setOf("tag-1"), stateFlow.value.activeTagFilter.toSet())
@@ -106,19 +120,6 @@ internal class ClickHandlerTest {
         )
         handler.invoke(Action.Click.OnSelectionExit)
         assertTrue(stateFlow.value.selectionMode is State.SelectionMode.Off)
-    }
-
-    @Test
-    fun `OnBulkDelete with selection opens confirm dialog`() {
-        stateFlow.value = stateFlow.value.copy(
-            selectionMode = State.SelectionMode.On(
-                selectedUuids = persistentSetOf("uuid-1", "uuid-2"),
-            ),
-        )
-        handler.invoke(Action.Click.OnBulkDelete)
-        val pending = stateFlow.value.pendingBulkDelete
-        assertNotNull(pending, "expected pendingBulkDelete to be set")
-        assertEquals(2, pending!!.count)
     }
 
     @Test
