@@ -86,8 +86,6 @@ internal interface AllTrainingsStore : Store<State, Action, Event> {
 
             data object OnSelectionExit : Click
 
-            data object OnBulkDelete : Click
-
             data object OnBulkDeleteConfirm : Click
 
             data object OnBulkDeleteDismiss : Click
