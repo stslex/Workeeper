@@ -14,8 +14,9 @@ import androidx.datastore.preferences.core.stringPreferencesKey
  * block in `AppDialogRepository.publish`, and cleared together in `dismiss`.
  *
  * Adding a new variant: append its primary boolean key + metadata keys here,
- * then update `AppDialogRepository`'s `resolveCurrentDialog` / `writeFlags` /
- * `clearFlags` / `isAlreadyPending` to handle the new sealed-type branch.
+ * then add the new sealed-type branch to `AppDialogResolver` (the priority walk
+ * mapping flags → the top-priority `AppDialog`) and to `AppDialogRepository`'s
+ * `writeFlags` / `clearFlags` / `isAlreadyPending`.
  * See `.claude/skills/app-dialogs-pattern.md`.
  *
  * **Key names are WIRE FORMAT.** Never rename an existing key — users with
