@@ -22,4 +22,22 @@ interface Navigator {
     fun replaceTo(screen: Screen)
 
     fun restartApp()
+
+    /**
+     * Launch the Scenario 2 fallback `RecoveryActivity` (FQCN in
+     * `feature/recovery`, manifest entry in `app/app`). The current
+     * [Activity][android.app.Activity] should `finish()` after dispatching;
+     * the fresh task replaces the current one via `FLAG_ACTIVITY_NEW_TASK`.
+     *
+     * **Bootstrap-context caveat.** This method dispatches via the
+     * `NavCommand.OpenRecovery` flow, which is only processed by the
+     * composable-mounted `NavigationEventBusSetup`. Callers running BEFORE
+     * any UI composition (notably `MainActivity.onCreate`'s
+     * Scenario 2 routing branch — fires before `setContent { App() }`)
+     * MUST use a direct `Intent` launch instead — the `MutableSharedFlow(
+     * replay = 0)` will silently drop an emission with no attached subscriber.
+     * See `documentation/feature-specs/backup-recovery.md` → "OpenRecovery
+     * contract".
+     */
+    fun openRecovery()
 }

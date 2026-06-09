@@ -41,6 +41,7 @@ dependencies {
     implementation(project(":feature:plan-editor"))
     implementation(project(":feature:app-dialogs:api"))
     implementation(project(":feature:app-dialogs:impl"))
+    implementation(project(":feature:recovery"))
 
     implementation(platform(libs.google.firebase.bom))
     implementation(libs.google.firebase.analytics)

@@ -13,9 +13,9 @@ import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolde
 import io.github.stslex.workeeper.core.ui.mvi.performance.FirebaseScreenRenderRecorder
 import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
 import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
-import io.github.stslex.workeeper.recovery.RecoveryActivity
-import io.github.stslex.workeeper.recovery.StartupCheck
-import io.github.stslex.workeeper.recovery.StartupMigrationCoordinator
+import io.github.stslex.workeeper.feature.recovery.RecoveryActivity
+import io.github.stslex.workeeper.feature.recovery.domain.StartupCheck
+import io.github.stslex.workeeper.feature.recovery.domain.StartupMigrationCoordinator
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -37,12 +37,24 @@ class MainActivity : ComponentActivity() {
         // Scenario 2 routing — `BaseApplication.onCreate` already ran the
         // startup pre-flight and cached the decision on the coordinator.
         // If the decision was RouteToRecovery, finish this activity and
-        // launch `RecoveryActivity` instead of mounting the NavHost. The
-        // brief MainActivity frame is acceptable for a rare developer-error
-        // path; we explicitly avoid `PackageManager.setComponentEnabledSetting`
-        // launcher swaps because they have known OEM-ROM flakiness.
+        // launch `RecoveryActivity` directly via Intent. The brief MainActivity
+        // frame is acceptable for a rare developer-error path; we explicitly
+        // avoid `PackageManager.setComponentEnabledSetting` launcher swaps
+        // because they have known OEM-ROM flakiness.
+        //
+        // Bootstrap-context dispatch: we launch RecoveryActivity directly
+        // rather than through `Navigator.openRecovery()` (the `NavCommand.OpenRecovery`
+        // flow path) because this call site fires BEFORE `setContent { App() }`
+        // composes `NavigationEventBusSetup`. The bus is `MutableSharedFlow(
+        // replay = 0)`; an emit with no subscriber attached is dropped, so
+        // routing through `Navigator.openRecovery()` here would deterministically
+        // lose the signal. Same Option Y split as the bootstrap restart path —
+        // see `backup-recovery.md` → "Restart contract / OpenRecovery contract".
         if (startupMigrationCoordinator.lastDecision is StartupCheck.RouteToRecovery) {
-            startActivity(Intent(this, RecoveryActivity::class.java))
+            startActivity(
+                Intent(this, RecoveryActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
             finish()
             return
         }

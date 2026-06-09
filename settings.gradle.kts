@@ -61,5 +61,6 @@ include(":feature:image-viewer")
 include(":feature:plan-editor")
 include(":feature:app-dialogs:api")
 include(":feature:app-dialogs:impl")
+include(":feature:recovery")
 
 include(":lint-rules")
