@@ -124,8 +124,7 @@ internal class DriveBackupAuth @Inject constructor(
                             clearTokenBestEffort(result.accessToken)
                             BackupResult.Failure(BackupError.MissingRequiredScope)
                         } else {
-                            captureAccessToken(result)
-                            accountStore.setDriveFileGranted(result.isDriveFileGranted())
+                            persistTokenAndGrant(result)
                             val account = result.toAccount(fetchUserInfo(result.accessToken))
                             accountStore.setAccount(account)
                             BackupResult.Success(account)
@@ -156,12 +155,29 @@ internal class DriveBackupAuth @Inject constructor(
         BackupResult.Success(Unit)
     }
 
-    private suspend fun captureAccessToken(result: AuthorizationResult) {
-        val token = result.accessToken ?: return
-        accountStore.setToken(
-            token = token,
-            expiresAtEpochMs = System.currentTimeMillis() + TOKEN_TTL_MS,
-        )
+    /**
+     * Persists the authorize result's `drive.file` grant and access token consistently.
+     *
+     * A success result can carry a newly granted scope but no fresh access token (GMS returns a
+     * null token when it deems a cached credential sufficient). The grant is written FIRST, so a
+     * concurrent [DriveAuthTokenProvider] refresh that misses the token cache requests the correct
+     * scope set. Then: cache a fresh token if one came back; otherwise, if `drive.file` is now
+     * granted, drop any cached token — it predates the grant and may be appdata-only, so serving
+     * it would 403 the visible-Drive upload until its ~50-min TTL expires. Dropping it forces
+     * [DriveAuthTokenProvider] to refresh a `drive.file`-capable token on the next Drive call.
+     */
+    private suspend fun persistTokenAndGrant(result: AuthorizationResult) {
+        val driveFileGranted = result.isDriveFileGranted()
+        accountStore.setDriveFileGranted(driveFileGranted)
+        val freshToken = result.accessToken
+        when {
+            freshToken != null -> accountStore.setToken(
+                token = freshToken,
+                expiresAtEpochMs = System.currentTimeMillis() + TOKEN_TTL_MS,
+            )
+
+            driveFileGranted -> accountStore.clearToken()
+        }
     }
 
     private suspend fun fetchUserInfo(accessToken: String?): UserInfo? {
@@ -185,8 +201,7 @@ internal class DriveBackupAuth @Inject constructor(
             clearTokenBestEffort(result.accessToken)
             return SignInResult.PartialGrant(missing)
         }
-        captureAccessToken(result)
-        accountStore.setDriveFileGranted(result.isDriveFileGranted())
+        persistTokenAndGrant(result)
         val account = result.toAccount(fetchUserInfo(result.accessToken))
         accountStore.setAccount(account)
         return SignInResult.Success(account)

@@ -521,7 +521,38 @@ internal class DriveBackupAuthTest {
         val scopes = captured.captured.requestedScopes.map(Scope::getScopeUri).toSet()
         assertTrue(scopes.contains(DriveAuthScopes.DRIVE_FILE), "expected drive.file requested, got $scopes")
         coVerify { accountStore.setDriveFileGranted(true) }
+        // Fresh token present -> cache it, never clear.
+        coVerify(exactly = 1) { accountStore.setToken(token = "tok", expiresAtEpochMs = any()) }
+        coVerify(exactly = 0) { accountStore.clearToken() }
     }
+
+    @Test
+    fun `requestDriveFileAccess clears stale cached token when drive_file granted with no fresh token`() =
+        runTest {
+            // GMS can return a Success that grants drive.file but carries no access token (it
+            // deems a cached credential sufficient). The cached token predates the grant and may
+            // be appdata-only, so it must be dropped to force a drive.file-capable refresh rather
+            // than 403 the visible-Drive upload until its TTL expires.
+            val authResult = mockk<AuthorizationResult> {
+                every { hasResolution() } returns false
+                every { grantedScopes } returns listOf(
+                    DriveAuthScopes.DRIVE_APPDATA,
+                    DriveAuthScopes.USERINFO_EMAIL,
+                    DriveAuthScopes.USERINFO_PROFILE,
+                    DriveAuthScopes.DRIVE_FILE,
+                )
+                every { toGoogleSignInAccount() } returns null
+                every { accessToken } returns null
+            }
+            every { authorizationClient.authorize(any()) } returns Tasks.forResult(authResult)
+
+            val result = newAuth().requestDriveFileAccess()
+
+            assertTrue(result is SignInResult.Success, "expected Success, got $result")
+            coVerify { accountStore.setDriveFileGranted(true) }
+            coVerify(exactly = 1) { accountStore.clearToken() }
+            coVerify(exactly = 0) { accountStore.setToken(any(), any()) }
+        }
 
     @Test
     fun `completeSignIn persists driveFileGranted true when drive_file granted`() = runTest {
