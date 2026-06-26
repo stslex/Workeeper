@@ -44,7 +44,7 @@ internal class DriveBackupStorage @Inject constructor(
 
     override suspend fun listBackups(): BackupResult<List<BackupRef>> = withContext(dispatcher) {
         runCatching {
-            withTokenRefreshOn401 { driveApi.listFiles() }
+            withTokenRefreshOn401 { driveApi.listFiles(spaces = APP_DATA_FOLDER, query = LIST_QUERY) }
                 .mapNotNull(DriveFileMapper::toBackupRef)
                 .sortedByDescending { it.manifest.createdAtEpochMs }
         }.fold(
@@ -104,7 +104,7 @@ internal class DriveBackupStorage @Inject constructor(
      */
     private suspend fun rotate() {
         runCatching {
-            val current = withTokenRefreshOn401 { driveApi.listFiles() }
+            val current = withTokenRefreshOn401 { driveApi.listFiles(spaces = APP_DATA_FOLDER, query = LIST_QUERY) }
                 .mapNotNull(DriveFileMapper::toBackupRef)
             val toDelete = RotationPolicy.refsToDelete(current, BackupConstants.MAX_BACKUPS)
             toDelete.forEach { ref ->
@@ -151,5 +151,8 @@ internal class DriveBackupStorage @Inject constructor(
         const val APP_DATA_FOLDER = "appDataFolder"
         const val SQLITE_MIME_TYPE = "application/x-sqlite3"
         const val SIZE_TOLERANCE_BYTES = 16L
+
+        /** `appDataFolder` listing query for our backup files (mirrors the upload naming). */
+        const val LIST_QUERY = "name contains '${BackupConstants.FILE_PREFIX}' and trashed=false"
     }
 }
