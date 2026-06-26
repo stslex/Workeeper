@@ -15,6 +15,17 @@ internal interface BackupInteractor {
 
     suspend fun signIn(): SignInOutcomeDomain
 
+    /**
+     * Requests the optional `drive.file` (visible-Drive) scope on the already-connected
+     * account — the incremental grant for AI export. Does NOT start a fresh sign-in. Same
+     * [SignInOutcomeDomain] contract as [signIn]; the resolution result (if any) is forwarded
+     * via [completeSignIn], exactly like sign-in.
+     */
+    suspend fun requestDriveFileAccess(): SignInOutcomeDomain
+
+    /** One-shot read of whether `drive.file` is currently granted (post-grant reconciliation). */
+    suspend fun isDriveFileGranted(): Boolean
+
     suspend fun completeSignIn(resultIntent: Intent?): BackupResult<AccountDomain>
 
     suspend fun signOut(): BackupResult<Unit>

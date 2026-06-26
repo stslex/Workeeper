@@ -26,6 +26,7 @@ import io.github.stslex.workeeper.feature.settings.domain.model.BackupSummaryDom
 import io.github.stslex.workeeper.feature.settings.domain.model.SignInOutcomeDomain
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -45,6 +46,12 @@ internal class BackupInteractorImpl @Inject constructor(
     override val authState: Flow<BackupAuthDomain> = backupAuth.state.map { it.toDomain() }
 
     override suspend fun signIn(): SignInOutcomeDomain = backupAuth.signIn().toDomain()
+
+    override suspend fun requestDriveFileAccess(): SignInOutcomeDomain =
+        backupAuth.requestDriveFileAccess().toDomain()
+
+    override suspend fun isDriveFileGranted(): Boolean =
+        backupAuth.observeDriveFileGranted().first()
 
     override suspend fun completeSignIn(resultIntent: Intent?): BackupResult<AccountDomain> =
         backupAuth.completeSignIn(resultIntent).mapSuccess {

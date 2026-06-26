@@ -29,6 +29,7 @@ import io.mockk.slot
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -110,6 +111,24 @@ internal class BackupInteractorImplTest {
 
             assertTrue(result is BackupResult.Success, "binary result must be unaffected, got $result")
         }
+
+    @Test
+    fun `requestDriveFileAccess maps NeedsResolution from backupAuth`() = runTest(testDispatcher) {
+        val sender = mockk<IntentSender>(relaxed = true)
+        coEvery { backupAuth.requestDriveFileAccess() } returns SignInResult.NeedsResolution(sender)
+
+        val outcome = interactor.requestDriveFileAccess()
+
+        assertTrue(outcome is SignInOutcomeDomain.NeedsResolution)
+        assertSame(sender, (outcome as SignInOutcomeDomain.NeedsResolution).intentSender)
+    }
+
+    @Test
+    fun `isDriveFileGranted reflects the backupAuth grant flow`() = runTest(testDispatcher) {
+        every { backupAuth.observeDriveFileGranted() } returns flowOf(true)
+
+        assertTrue(interactor.isDriveFileGranted())
+    }
 
     @Test
     fun `signIn Success returns SignInOutcomeDomain Success`() = runTest(testDispatcher) {
