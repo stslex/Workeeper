@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.database.export
 
+import androidx.room.withTransaction
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.exercise.ExerciseEntity
@@ -43,22 +44,32 @@ internal class DatabaseJsonExporterImpl @Inject constructor(
         deviceModel: String?,
         exportedAtEpochMs: Long,
     ): ByteArray = withContext(dispatcher) {
-        val exercises = database.exerciseDao.getAll()
-        val trainings = database.trainingDao.getAll()
-        val index = buildIndex(exercises, trainings)
-        val snapshot = WorkoutExportDto(
-            schemaVersion = EXPORT_SCHEMA_VERSION,
-            exportedAt = WorkoutExportMapper.epochToIso(exportedAtEpochMs),
-            source = SourceExportDto(
-                appVersion = appVersion,
-                dbSchemaVersion = database.openHelper.readableDatabase.version,
-                deviceModel = deviceModel,
-            ),
-            exercises = exercises.map { entity ->
-                WorkoutExportMapper.exercise(entity, index.tagsByExercise[entity.uuid].orEmpty())
-            },
-            trainings = trainings.map { training -> buildTraining(training, index) },
-        )
+        // Process-stable (only changes on migration at open); read once, outside the transaction.
+        val dbSchemaVersion = database.openHelper.readableDatabase.version
+        // One consistent snapshot: every table read + the in-memory index build runs inside a
+        // single Room transaction. The export is fire-and-forget (spec D2) so it can overlap live
+        // workout edits; without the transaction each DAO call would observe its own snapshot and
+        // an interleaved insert could surface a child row whose parent/name row was not read (e.g.
+        // `exerciseNameByUuid` falling back to ""). The transaction pins all reads to one state.
+        val snapshot = database.withTransaction {
+            val exercises = database.exerciseDao.getAll()
+            val trainings = database.trainingDao.getAll()
+            val index = buildIndex(exercises, trainings)
+            WorkoutExportDto(
+                schemaVersion = EXPORT_SCHEMA_VERSION,
+                exportedAt = WorkoutExportMapper.epochToIso(exportedAtEpochMs),
+                source = SourceExportDto(
+                    appVersion = appVersion,
+                    dbSchemaVersion = dbSchemaVersion,
+                    deviceModel = deviceModel,
+                ),
+                exercises = exercises.map { entity ->
+                    WorkoutExportMapper.exercise(entity, index.tagsByExercise[entity.uuid].orEmpty())
+                },
+                trainings = trainings.map { training -> buildTraining(training, index) },
+            )
+        }
+        // Encode outside the transaction — pure CPU, no DB access; keeps the transaction short.
         json.encodeToString(snapshot).toByteArray(Charsets.UTF_8)
     }
 
