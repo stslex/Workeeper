@@ -18,7 +18,7 @@ import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 /**
  * Covers the training-side unfiltered bulk readers used by the AI snapshot export:
  * [TrainingDao.getAll] (must include adhoc + archived), [TrainingExerciseDao.getAll]
- * (plan rows in order), and [TrainingTagDao.getTagNamesForTrainings] (batch names).
+ * (plan rows in order), and [TrainingTagDao.getAllTrainingTagNames] (full-table batch names).
  */
 @ExtendWith(RobolectricExtension::class)
 @Config(application = BaseDatabaseTest.TestApplication::class, sdk = [33])
@@ -73,7 +73,7 @@ internal class TrainingDaoGetAllTest : BaseDatabaseTest() {
     }
 
     @Test
-    fun `getTagNamesForTrainings groups denormalized names by training`() = runTest {
+    fun `getAllTrainingTagNames groups denormalized names by training`() = runTest {
         val legs = training(name = "Legs")
         val push = training(name = "Push")
         listOf(legs, push).forEach { trainingDao.insert(it) }
@@ -89,7 +89,7 @@ internal class TrainingDaoGetAllTest : BaseDatabaseTest() {
         )
 
         val byTraining = trainingTagDao
-            .getTagNamesForTrainings(listOf(legs.uuid, push.uuid))
+            .getAllTrainingTagNames()
             .groupBy({ it.trainingUuid }, { it.name })
 
         assertEquals(listOf("barbell", "heavy"), byTraining.getValue(legs.uuid))

@@ -6,8 +6,8 @@ import kotlin.uuid.Uuid
 
 /**
  * Batch projection: one (training, tag-name) pair. Returned by
- * [TrainingTagDao.getTagNamesForTrainings] so the snapshot exporter resolves
- * denormalized tag names for many trainings in a single query, then groups by
+ * [TrainingTagDao.getAllTrainingTagNames] so the snapshot exporter resolves
+ * denormalized tag names for every training in a single full-table query, then groups by
  * [trainingUuid] in memory. Mirrors the `TrainingExercisePlanRow` batch pattern.
  */
 data class TrainingTagNameRow(

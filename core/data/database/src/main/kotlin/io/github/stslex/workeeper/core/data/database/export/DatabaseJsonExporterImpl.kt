@@ -54,7 +54,7 @@ internal class DatabaseJsonExporterImpl @Inject constructor(
         val snapshot = database.withTransaction {
             val exercises = database.exerciseDao.getAll()
             val trainings = database.trainingDao.getAll()
-            val index = buildIndex(exercises, trainings)
+            val index = buildIndex(exercises)
             WorkoutExportDto(
                 schemaVersion = EXPORT_SCHEMA_VERSION,
                 exportedAt = WorkoutExportMapper.epochToIso(exportedAtEpochMs),
@@ -73,33 +73,19 @@ internal class DatabaseJsonExporterImpl @Inject constructor(
         json.encodeToString(snapshot).toByteArray(Charsets.UTF_8)
     }
 
-    private suspend fun buildIndex(
-        exercises: List<ExerciseEntity>,
-        trainings: List<TrainingEntity>,
-    ): ExportIndex {
-        val exerciseUuids = exercises.map { it.uuid }
-        val trainingUuids = trainings.map { it.uuid }
-        return ExportIndex(
-            exerciseNameByUuid = exercises.associate { it.uuid to it.name },
-            // Batch readers render `IN ()` for an empty list (SQLite syntax error) — short-circuit.
-            tagsByExercise = if (exerciseUuids.isEmpty()) {
-                emptyMap()
-            } else {
-                database.exerciseTagDao.getTagNamesForExercises(exerciseUuids)
-                    .groupBy({ it.exerciseUuid }, { it.name })
-            },
-            tagsByTraining = if (trainingUuids.isEmpty()) {
-                emptyMap()
-            } else {
-                database.trainingTagDao.getTagNamesForTrainings(trainingUuids)
-                    .groupBy({ it.trainingUuid }, { it.name })
-            },
-            planByTraining = database.trainingExerciseDao.getAll().groupBy { it.trainingUuid },
-            sessionsByTraining = database.sessionDao.getAll().groupBy { it.trainingUuid },
-            performedBySession = database.performedExerciseDao.getAll().groupBy { it.sessionUuid },
-            setsByPerformed = database.setDao.getAll().groupBy { it.performedExerciseUuid },
-        )
-    }
+    private suspend fun buildIndex(exercises: List<ExerciseEntity>): ExportIndex = ExportIndex(
+        exerciseNameByUuid = exercises.associate { it.uuid to it.name },
+        // Full-table tag joins (no uuid binding) — cannot hit SQLITE_MAX_VARIABLE_NUMBER, and
+        // consistent with the unfiltered getAll() readers below.
+        tagsByExercise = database.exerciseTagDao.getAllExerciseTagNames()
+            .groupBy({ it.exerciseUuid }, { it.name }),
+        tagsByTraining = database.trainingTagDao.getAllTrainingTagNames()
+            .groupBy({ it.trainingUuid }, { it.name }),
+        planByTraining = database.trainingExerciseDao.getAll().groupBy { it.trainingUuid },
+        sessionsByTraining = database.sessionDao.getAll().groupBy { it.trainingUuid },
+        performedBySession = database.performedExerciseDao.getAll().groupBy { it.sessionUuid },
+        setsByPerformed = database.setDao.getAll().groupBy { it.performedExerciseUuid },
+    )
 
     private fun buildTraining(training: TrainingEntity, index: ExportIndex): TrainingExportDto {
         val plan = index.planByTraining[training.uuid].orEmpty().map { row ->
