@@ -285,6 +285,10 @@ Summary-tier (`summary.json` aggregates) · diff/incremental export · reading t
 app · CSV/other formats · per-exercise files · snapshot encryption · sharing UI. Summary-tier is the
 first thing to revisit when `full.json` stops fitting an LLM context.
 
+**Size levers for the large-DB tail (§6), in order of cheapness.** (1) Drop `prettyPrint`: the
+exporter pretty-prints for human-readability, so compacting roughly halves the whitespace overhead at
+zero data loss — the cheapest first lever. (2) Then introduce the deferred summary-tier.
+
 ## 10. Open items to confirm in discovery (CC, Phase 0)
 
 1. Unfiltered per-entity DAO read methods exist (or must be added) — required for D6 (§4.1).
