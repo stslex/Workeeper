@@ -11,6 +11,7 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
+import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.model.BackupManifest
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
@@ -50,6 +51,7 @@ internal class BackupWorker @AssistedInject constructor(
     private val preferences: BackupPreferencesRepository,
     private val autoBackupController: AutoBackupController,
     private val notificationHelper: BackupNotificationHelper,
+    private val snapshotExportRunner: SnapshotExportRunner,
 ) : CoroutineWorker(appContext, workerParams) {
 
     private val logger = Log.tag(TAG)
@@ -60,7 +62,11 @@ internal class BackupWorker @AssistedInject constructor(
 
         val tempFile = File.createTempFile(TEMP_PREFIX, TEMP_SUFFIX, applicationContext.cacheDir)
         return try {
-            executeBackup(tempFile)
+            val result = executeBackup(tempFile)
+            // Best-effort AI snapshot AFTER the binary backup, independent of its outcome.
+            // Wrapped so a runner fault can never affect the worker Result; D2 decoupling.
+            runCatching { snapshotExportRunner.runIfEligible() }
+            result
         } finally {
             tempFile.delete()
         }

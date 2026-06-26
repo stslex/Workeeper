@@ -11,6 +11,7 @@ import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
+import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.model.BackupManifest
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreInProgressContext
@@ -36,6 +37,7 @@ internal class BackupInteractorImpl @Inject constructor(
     private val backupStorage: BackupStorage,
     private val snapshotProvider: DatabaseSnapshotProvider,
     private val restoreStateRepository: RestoreStateRepository,
+    private val snapshotExportRunner: SnapshotExportRunner,
     @ApplicationContext private val context: Context,
     @IODispatcher private val dispatcher: CoroutineDispatcher,
 ) : BackupInteractor {
@@ -52,10 +54,18 @@ internal class BackupInteractorImpl @Inject constructor(
     override suspend fun signOut(): BackupResult<Unit> = backupAuth.signOut()
 
     override suspend fun createBackup(): BackupResult<Unit> = withContext(dispatcher) {
+        val result = createBinaryBackup()
+        // Best-effort AI snapshot AFTER the binary backup. Wrapped so a runner fault can never
+        // affect the binary result (the runner also swallows internally); D2 decoupling.
+        runCatching { snapshotExportRunner.runIfEligible() }
+        result
+    }
+
+    private suspend fun createBinaryBackup(): BackupResult<Unit> {
         val tempFile = File.createTempFile(TEMP_BACKUP_PREFIX, TEMP_BACKUP_SUFFIX, context.cacheDir)
-        try {
+        return try {
             val capture = snapshotProvider.captureSnapshot(tempFile)
-            if (capture is BackupResult.Failure) return@withContext capture
+            if (capture is BackupResult.Failure) return capture
             val manifest = BackupManifest(
                 appVersion = readVersionName(),
                 dbSchemaVersion = snapshotProvider.currentSchemaVersion(),

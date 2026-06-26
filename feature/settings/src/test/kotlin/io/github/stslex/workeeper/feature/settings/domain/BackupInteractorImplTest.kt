@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.IntentSender
 import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
+import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.model.Account
 import io.github.stslex.workeeper.core.data.backup.api.model.AuthState
@@ -50,6 +51,7 @@ internal class BackupInteractorImplTest {
     private val backupStorage = mockk<BackupStorage>(relaxed = true)
     private val snapshotProvider = mockk<DatabaseSnapshotProvider>(relaxed = true)
     private val restoreStateRepository = mockk<RestoreStateRepository>(relaxed = true)
+    private val snapshotExportRunner = mockk<SnapshotExportRunner>(relaxed = true)
     private val context = mockk<Context>(relaxed = true)
     private val packageManager = mockk<android.content.pm.PackageManager>(relaxed = true)
     private val packageInfo = android.content.pm.PackageInfo().apply {
@@ -83,6 +85,7 @@ internal class BackupInteractorImplTest {
             backupStorage = backupStorage,
             snapshotProvider = snapshotProvider,
             restoreStateRepository = restoreStateRepository,
+            snapshotExportRunner = snapshotExportRunner,
             context = context,
             dispatcher = testDispatcher,
         )
@@ -90,6 +93,23 @@ internal class BackupInteractorImplTest {
 
     @AfterEach
     fun tearDown() = Dispatchers.resetMain()
+
+    @Test
+    fun `createBackup returns the binary result even when the snapshot runner throws`() =
+        runTest(testDispatcher) {
+            val captured = slot<File>()
+            coEvery { snapshotProvider.captureSnapshot(capture(captured)) } answers {
+                captured.captured.writeText("data")
+                BackupResult.Success(Unit)
+            }
+            coEvery { snapshotProvider.currentSchemaVersion() } returns 5
+            coEvery { backupStorage.uploadBackup(any(), any()) } returns BackupResult.Success(makeRef())
+            coEvery { snapshotExportRunner.runIfEligible() } throws RuntimeException("runner blew up")
+
+            val result = interactor.createBackup()
+
+            assertTrue(result is BackupResult.Success, "binary result must be unaffected, got $result")
+        }
 
     @Test
     fun `signIn Success returns SignInOutcomeDomain Success`() = runTest(testDispatcher) {

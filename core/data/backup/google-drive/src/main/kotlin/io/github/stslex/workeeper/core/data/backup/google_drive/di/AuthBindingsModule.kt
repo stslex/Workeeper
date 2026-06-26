@@ -7,7 +7,9 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
+import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
 import io.github.stslex.workeeper.core.data.backup.api.SnapshotStorage
+import io.github.stslex.workeeper.core.data.backup.google_drive.SnapshotExportRunnerImpl
 import io.github.stslex.workeeper.core.data.backup.google_drive.auth.AccountDataStore
 import io.github.stslex.workeeper.core.data.backup.google_drive.auth.AccountDataStoreImpl
 import io.github.stslex.workeeper.core.data.backup.google_drive.auth.DriveAuthTokenProvider
@@ -34,6 +36,10 @@ internal interface AuthBindingsModule {
     @Binds
     @Singleton
     fun bindSnapshotStorage(impl: DriveSnapshotStorage): SnapshotStorage
+
+    @Binds
+    @Singleton
+    fun bindSnapshotExportRunner(impl: SnapshotExportRunnerImpl): SnapshotExportRunner
 
     @Binds
     @Singleton
