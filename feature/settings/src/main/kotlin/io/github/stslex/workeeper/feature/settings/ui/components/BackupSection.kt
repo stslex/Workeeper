@@ -89,6 +89,7 @@ private fun AuthenticatedBlock(
         )
         AiExportRow(
             enabled = preferences.aiExportEnabled,
+            inProgress = operation == BackupOperationUi.TogglingAiExport,
             onToggle = { onAction(Action.Backup.ToggleAiExport(it)) },
         )
     }

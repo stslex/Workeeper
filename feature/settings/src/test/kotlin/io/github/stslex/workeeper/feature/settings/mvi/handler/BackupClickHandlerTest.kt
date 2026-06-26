@@ -319,6 +319,37 @@ internal class BackupClickHandlerTest {
         }
 
     @Test
+    fun `ToggleAiExport on marks the operation in-flight until the resolution completes`() =
+        runTest(testDispatcher) {
+            coEvery { interactor.requestDriveFileAccess() } returns
+                SignInOutcomeDomain.NeedsResolution(mockk(relaxed = true))
+
+            handler.invoke(Action.Backup.ToggleAiExport(true))
+
+            assertEquals(
+                BackupOperationUi.TogglingAiExport,
+                store.stateFlow.value.backupOperation,
+            )
+        }
+
+    @Test
+    fun `ToggleAiExport ignores a re-entrant enable while a grant is already in flight`() =
+        runTest(testDispatcher) {
+            coEvery { interactor.requestDriveFileAccess() } returns
+                SignInOutcomeDomain.NeedsResolution(mockk(relaxed = true))
+
+            handler.invoke(Action.Backup.ToggleAiExport(true)) // in flight, awaiting resolution
+            handler.invoke(Action.Backup.ToggleAiExport(true)) // re-entrant: must be ignored
+
+            assertEquals(
+                BackupOperationUi.TogglingAiExport,
+                store.stateFlow.value.backupOperation,
+            )
+            coVerify(exactly = 1) { interactor.requestDriveFileAccess() }
+            assertEquals(1, store.events.count { it is Event.AuthResolutionRequested })
+        }
+
+    @Test
     fun `SignIn PartialGrant emits MISSING_REQUIRED_SCOPE and stays Idle`() =
         runTest(testDispatcher) {
             coEvery { interactor.signIn() } returns SignInOutcomeDomain.PartialGrant
