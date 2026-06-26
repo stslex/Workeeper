@@ -10,9 +10,12 @@ package io.github.stslex.workeeper.core.data.backup.api
 interface SnapshotExportRunner {
 
     /**
-     * No-op unless the AI-export toggle is on AND `drive.file` is granted. When eligible,
-     * builds the JSON snapshot and uploads it. Never throws: unexpected errors are recorded
-     * as Crashlytics non-fatals, transient ones are logged only.
+     * Fire-and-forget: launches the export on an app-scoped coroutine and returns immediately,
+     * so it never blocks or delays the binary backup (D2) — the manual UI and the worker
+     * `Result` no longer wait on visible-Drive latency. No-op unless the AI-export toggle is on
+     * AND `drive.file` is granted. Best-effort: the detached work never throws (unexpected errors
+     * → Crashlytics non-fatal, transient ones log-only), and if the process dies before it
+     * finishes the next backup re-exports.
      */
-    suspend fun runIfEligible()
+    fun runIfEligible()
 }

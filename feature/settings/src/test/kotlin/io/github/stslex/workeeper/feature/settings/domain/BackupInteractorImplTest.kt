@@ -105,7 +105,7 @@ internal class BackupInteractorImplTest {
             }
             coEvery { snapshotProvider.currentSchemaVersion() } returns 5
             coEvery { backupStorage.uploadBackup(any(), any()) } returns BackupResult.Success(makeRef())
-            coEvery { snapshotExportRunner.runIfEligible() } throws RuntimeException("runner blew up")
+            every { snapshotExportRunner.runIfEligible() } throws RuntimeException("runner blew up")
 
             val result = interactor.createBackup()
 

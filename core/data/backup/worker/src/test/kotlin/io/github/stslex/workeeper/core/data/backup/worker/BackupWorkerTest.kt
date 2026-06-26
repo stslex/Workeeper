@@ -19,6 +19,7 @@ import io.github.stslex.workeeper.core.data.backup.worker.notification.BackupNot
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.runBlocking
@@ -82,7 +83,7 @@ internal class BackupWorkerTest {
                 ),
             ),
         )
-        coEvery { snapshotExportRunner.runIfEligible() } throws RuntimeException("runner blew up")
+        every { snapshotExportRunner.runIfEligible() } throws RuntimeException("runner blew up")
 
         val result = makeWorker().doWork()
 

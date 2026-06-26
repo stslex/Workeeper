@@ -13,6 +13,9 @@ internal interface BackupInteractor {
 
     val authState: Flow<BackupAuthDomain>
 
+    /** Hot stream of the `drive.file` grant; drives the AI-export toggle's effective state. */
+    val driveFileGranted: Flow<Boolean>
+
     suspend fun signIn(): SignInOutcomeDomain
 
     /**

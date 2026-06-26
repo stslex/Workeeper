@@ -159,13 +159,16 @@ internal class BackupClickHandler @Inject constructor(
         combine(
             preferencesRepository.observe(),
             autoBackupController.observePeriodicStatus(),
-        ) { prefs, infos -> prefs to infos }
-            .launch { (prefs, infos) ->
-                val ui = BackupPreferencesUiMapper.toUi(
-                    prefs = prefs,
-                    periodicInfos = infos,
-                    now = System.currentTimeMillis(),
-                )
+            interactor.driveFileGranted,
+        ) { prefs, infos, driveFileGranted ->
+            BackupPreferencesUiMapper.toUi(
+                prefs = prefs,
+                periodicInfos = infos,
+                now = System.currentTimeMillis(),
+                driveFileGranted = driveFileGranted,
+            )
+        }
+            .launch { ui ->
                 updateState { current -> current.copy(backupPreferences = ui) }
             }
     }

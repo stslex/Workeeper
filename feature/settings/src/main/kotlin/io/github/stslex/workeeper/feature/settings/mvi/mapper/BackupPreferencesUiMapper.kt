@@ -27,12 +27,17 @@ internal object BackupPreferencesUiMapper {
         prefs: BackupPreferences,
         periodicInfos: List<AutoBackupWorkInfo>,
         now: Long,
+        driveFileGranted: Boolean,
     ): BackupPreferencesUi = BackupPreferencesUi(
         schedule = prefs.schedule.toUi(),
         allowOnMobileData = prefs.allowOnMobileData,
         nextBackupText = nextBackupText(prefs.schedule, periodicInfos, now),
         isAuthPaused = prefs.lastError == BackupErrorCode.AuthRevoked,
-        aiExportEnabled = prefs.aiExportEnabled,
+        // Effective state: the persisted opt-in is meaningless without the live drive.file grant
+        // (re-derived on every silent refresh), so gate the displayed toggle on BOTH. Prevents a
+        // stale "on" switch after sign-out/sign-in or an external revocation, and makes
+        // re-tapping the row re-request the grant.
+        aiExportEnabled = prefs.aiExportEnabled && driveFileGranted,
     )
 
     private fun nextBackupText(

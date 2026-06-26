@@ -62,8 +62,10 @@ internal class BackupClickHandlerTest {
     private val authFlow = MutableStateFlow<BackupAuthDomain>(BackupAuthDomain.NotAuthenticated)
     private val preferencesFlow = MutableStateFlow(BackupPreferences.DEFAULT)
     private val periodicStatusFlow = MutableStateFlow<List<AutoBackupWorkInfo>>(emptyList())
+    private val driveFileGrantedFlow = MutableStateFlow(true)
     private val interactor = mockk<BackupInteractor>(relaxed = true).apply {
         every { authState } returns authFlow
+        every { driveFileGranted } returns driveFileGrantedFlow
     }
     private val preferencesRepository = mockk<BackupPreferencesRepository>(relaxed = true).apply {
         every { observe() } returns preferencesFlow
@@ -228,6 +230,25 @@ internal class BackupClickHandlerTest {
             val event = store.events.single()
             assertTrue(event is Event.AuthResolutionRequested)
             assertSame(sender, (event as Event.AuthResolutionRequested).intentSender)
+        }
+
+    @Test
+    fun `ObservePreferences gates aiExportEnabled on the drive_file grant`() =
+        runTest(testDispatcher) {
+            preferencesFlow.value = preferencesFlow.value.copy(aiExportEnabled = true)
+            driveFileGrantedFlow.value = false
+
+            handler.invoke(Action.Backup.ObservePreferences)
+
+            assertEquals(
+                false,
+                store.stateFlow.value.backupPreferences?.aiExportEnabled,
+                "toggle must read off when drive.file is not granted, even if the pref is on",
+            )
+
+            driveFileGrantedFlow.value = true
+
+            assertEquals(true, store.stateFlow.value.backupPreferences?.aiExportEnabled)
         }
 
     @Test

@@ -15,8 +15,10 @@ import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
 import io.github.stslex.workeeper.core.data.database.export.DatabaseJsonExporter
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -39,23 +41,31 @@ internal class SnapshotExportRunnerImpl @Inject constructor(
 
     private val logger = Log.tag(TAG)
 
-    override suspend fun runIfEligible() {
-        withContext(dispatcher) {
-            runCatching {
-                if (!isEligible()) return@runCatching
-                val json = exporter.export(
-                    appVersion = readVersionName(),
-                    deviceModel = Build.MODEL,
-                    exportedAtEpochMs = System.currentTimeMillis(),
-                )
-                when (val result = snapshotStorage.uploadSnapshot(json)) {
-                    is BackupResult.Success -> Unit
-                    is BackupResult.Failure -> handleFailure(result.error)
-                }
-            }.onFailure { t ->
-                // Unexpected throwable (e.g. serialization / DB-read bug). Record + swallow.
-                logger.e(t, "AI snapshot export threw")
+    // App-lifetime scope so the export runs DETACHED from the binary backup: the trigger
+    // (manual createBackup / BackupWorker.doWork) returns immediately and is never delayed by
+    // the DB-export + visible-Drive upload. Best-effort — if the process is reclaimed before it
+    // finishes, the next backup re-exports (losing a snapshot loses nothing recoverable).
+    private val scope = CoroutineScope(SupervisorJob() + dispatcher)
+
+    override fun runIfEligible() {
+        scope.launch { runExport() }
+    }
+
+    private suspend fun runExport() {
+        runCatching {
+            if (!isEligible()) return@runCatching
+            val json = exporter.export(
+                appVersion = readVersionName(),
+                deviceModel = Build.MODEL,
+                exportedAtEpochMs = System.currentTimeMillis(),
+            )
+            when (val result = snapshotStorage.uploadSnapshot(json)) {
+                is BackupResult.Success -> Unit
+                is BackupResult.Failure -> handleFailure(result.error)
             }
+        }.onFailure { t ->
+            // Unexpected throwable (e.g. serialization / DB-read bug). Record + swallow.
+            logger.e(t, "AI snapshot export threw")
         }
     }
 

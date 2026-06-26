@@ -45,6 +45,8 @@ internal class BackupInteractorImpl @Inject constructor(
 
     override val authState: Flow<BackupAuthDomain> = backupAuth.state.map { it.toDomain() }
 
+    override val driveFileGranted: Flow<Boolean> get() = backupAuth.observeDriveFileGranted()
+
     override suspend fun signIn(): SignInOutcomeDomain = backupAuth.signIn().toDomain()
 
     override suspend fun requestDriveFileAccess(): SignInOutcomeDomain =
