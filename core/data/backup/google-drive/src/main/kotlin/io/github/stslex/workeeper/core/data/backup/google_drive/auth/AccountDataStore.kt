@@ -46,4 +46,15 @@ internal interface AccountDataStore {
 
     /** Removes only the stored token. No-op when no token is stored. */
     suspend fun clearToken()
+
+    /**
+     * The cached id of the visible-Drive `Workeeper/` folder used by the AI snapshot,
+     * or `null` if not yet resolved. Cached here (rather than a new component) because
+     * this is already the singleton Drive-state store; [clear] drops it with everything
+     * else on sign-out.
+     */
+    suspend fun snapshotFolderId(): String?
+
+    /** Caches the snapshot folder id; pass `null` to drop a stale id (e.g. after a 404). */
+    suspend fun setSnapshotFolderId(id: String?)
 }

@@ -106,7 +106,9 @@ internal class DriveBackupStorage @Inject constructor(
         runCatching {
             val current = withTokenRefreshOn401 { driveApi.listFiles(spaces = APP_DATA_FOLDER, query = LIST_QUERY) }
                 .mapNotNull(DriveFileMapper::toBackupRef)
-            val toDelete = RotationPolicy.refsToDelete(current, BackupConstants.MAX_BACKUPS)
+            val toDelete = RotationPolicy.refsToDelete(current, BackupConstants.MAX_BACKUPS) {
+                it.manifest.createdAtEpochMs
+            }
             toDelete.forEach { ref ->
                 runCatching { withTokenRefreshOn401 { driveApi.deleteFile(ref.remoteId) } }
                     .onFailure { logger.e(it, "rotation: delete ${ref.remoteId} failed") }

@@ -67,6 +67,18 @@ internal class AccountDataStoreImpl @Inject constructor(
         }
     }
 
+    override suspend fun snapshotFolderId(): String? = dataStore.data.first()[KEY_SNAPSHOT_FOLDER_ID]
+
+    override suspend fun setSnapshotFolderId(id: String?) {
+        dataStore.edit { prefs ->
+            if (id == null) {
+                prefs.remove(KEY_SNAPSHOT_FOLDER_ID)
+            } else {
+                prefs[KEY_SNAPSHOT_FOLDER_ID] = id
+            }
+        }
+    }
+
     private fun accountFromPrefs(prefs: Preferences): Account? {
         val email = prefs[KEY_EMAIL] ?: return null
         return Account(email = email, displayName = prefs[KEY_DISPLAY_NAME])
@@ -78,5 +90,6 @@ internal class AccountDataStoreImpl @Inject constructor(
         val KEY_DISPLAY_NAME = stringPreferencesKey("display_name")
         val KEY_TOKEN = stringPreferencesKey("access_token")
         val KEY_TOKEN_EXPIRES_AT = longPreferencesKey("access_token_expires_at")
+        val KEY_SNAPSHOT_FOLDER_ID = stringPreferencesKey("snapshot_folder_id")
     }
 }

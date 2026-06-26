@@ -12,13 +12,13 @@ internal class RotationPolicyTest {
     @Test
     fun `refsToDelete returns empty when size is below cap`() {
         val refs = listOf(ref("a", 100L), ref("b", 200L))
-        assertTrue(RotationPolicy.refsToDelete(refs, max = 3).isEmpty())
+        assertTrue(RotationPolicy.refsToDelete(refs, max = 3) { it.manifest.createdAtEpochMs }.isEmpty())
     }
 
     @Test
     fun `refsToDelete returns empty when size equals cap`() {
         val refs = listOf(ref("a", 100L), ref("b", 200L), ref("c", 300L))
-        assertTrue(RotationPolicy.refsToDelete(refs, max = 3).isEmpty())
+        assertTrue(RotationPolicy.refsToDelete(refs, max = 3) { it.manifest.createdAtEpochMs }.isEmpty())
     }
 
     @Test
@@ -29,7 +29,7 @@ internal class RotationPolicyTest {
             ref("c", 300L),
             ref("d", 400L),
         )
-        val toDelete = RotationPolicy.refsToDelete(refs, max = 3)
+        val toDelete = RotationPolicy.refsToDelete(refs, max = 3) { it.manifest.createdAtEpochMs }
         assertEquals(listOf("a"), toDelete.map { it.remoteId })
     }
 
@@ -42,7 +42,7 @@ internal class RotationPolicyTest {
             ref("d", 400L),
             ref("e", 500L),
         )
-        val toDelete = RotationPolicy.refsToDelete(refs, max = 3)
+        val toDelete = RotationPolicy.refsToDelete(refs, max = 3) { it.manifest.createdAtEpochMs }
         assertEquals(listOf("a", "b"), toDelete.map { it.remoteId })
     }
 
