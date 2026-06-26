@@ -125,18 +125,25 @@ internal class DriveSnapshotStorageTest {
     fun `rotation deletes the oldest snapshots beyond the cap after upload`() = runTest {
         coEvery { accountStore.snapshotFolderId() } returns "folder"
         coEvery { driveApi.uploadMultipart(any(), any<ByteArray>()) } returns snapshot("new", 500L)
+        // rotate() re-lists AFTER the upload commits, so the realistic post-upload state contains
+        // the just-uploaded file too: e1..e4 + new (5 files). With MAX_BACKUPS = 3 this is the
+        // meaningful 5-keep-3 case (delete the 2 oldest), and proves the freshest snapshot ("new")
+        // is never pruned -- the data-loss regression this test guards against.
         coEvery { driveApi.listFiles(eq(DRIVE), match { it.isExportQuery() }) } returns listOf(
             snapshot("e1", 100L),
             snapshot("e2", 200L),
             snapshot("e3", 300L),
             snapshot("e4", 400L),
+            snapshot("new", 500L),
         )
         coEvery { driveApi.deleteFile(any()) } just Runs
 
         storage.uploadSnapshot("{}".toByteArray())
 
         coVerify(exactly = 1) { driveApi.deleteFile("e1") }
-        coVerify(exactly = 0) { driveApi.deleteFile("e2") }
+        coVerify(exactly = 1) { driveApi.deleteFile("e2") }
+        coVerify(exactly = 0) { driveApi.deleteFile("e3") }
+        coVerify(exactly = 0) { driveApi.deleteFile("e4") }
         coVerify(exactly = 0) { driveApi.deleteFile("new") }
     }
 
