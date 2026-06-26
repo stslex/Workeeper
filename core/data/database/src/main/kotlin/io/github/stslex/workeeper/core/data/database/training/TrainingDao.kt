@@ -111,7 +111,7 @@ interface TrainingDao {
      * full fidelity (adhoc trainings are also needed for referential integrity with
      * their sessions). Never use this for a user-facing list.
      */
-    @Query("SELECT * FROM training_table")
+    @Query("SELECT * FROM training_table ORDER BY created_at ASC, uuid ASC")
     suspend fun getAll(): List<TrainingEntity>
 
     @Insert

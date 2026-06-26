@@ -37,18 +37,16 @@ internal class ExerciseDaoGetAllTest : BaseDatabaseTest() {
     }
 
     @Test
-    fun `getAll returns active plus adhoc and archived rows`() = runTest {
-        val active = exercise(name = "Squat")
-        val adhoc = exercise(name = "Adhoc Curl", isAdhoc = true)
-        val archived = exercise(name = "Old Press", archived = true)
-        listOf(active, adhoc, archived).forEach { exerciseDao.insert(it) }
+    fun `getAll returns all rows ordered by createdAt including adhoc and archived`() = runTest {
+        val active = exercise(name = "Squat", createdAt = 100L)
+        val adhoc = exercise(name = "Adhoc Curl", isAdhoc = true, createdAt = 200L)
+        val archived = exercise(name = "Old Press", archived = true, createdAt = 300L)
+        // Insert out of createdAt order to prove the ORDER BY, not insertion order.
+        listOf(archived, active, adhoc).forEach { exerciseDao.insert(it) }
 
         val all = exerciseDao.getAll()
 
-        assertEquals(
-            setOf(active.uuid, adhoc.uuid, archived.uuid),
-            all.map { it.uuid }.toSet(),
-        )
+        assertEquals(listOf(active.uuid, adhoc.uuid, archived.uuid), all.map { it.uuid })
     }
 
     @Test
@@ -78,13 +76,14 @@ internal class ExerciseDaoGetAllTest : BaseDatabaseTest() {
         name: String,
         isAdhoc: Boolean = false,
         archived: Boolean = false,
+        createdAt: Long = 0L,
     ) = ExerciseEntity(
         name = name,
         type = ExerciseTypeEntity.WEIGHTED,
         description = null,
         imagePath = null,
         archived = archived,
-        createdAt = 0L,
+        createdAt = createdAt,
         archivedAt = null,
         lastAdhocSets = null,
         isAdhoc = isAdhoc,

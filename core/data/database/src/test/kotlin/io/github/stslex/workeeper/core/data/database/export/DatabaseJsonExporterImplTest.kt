@@ -93,8 +93,9 @@ internal class DatabaseJsonExporterImplTest : BaseDatabaseTest() {
         assertFalse(raw.contains("imagePath"))
         assertFalse(raw.contains("bench.png"))
 
-        // Archived training is included, with its (empty) plan/sessions.
-        assertEquals(setOf("Push", "Old Split"), dto.trainings.map { it.name }.toSet())
+        // Archived training is included; top-level trainings are ordered by createdAt
+        // (Old Split = 500 before Push = 1000) so the snapshot is stable across runs.
+        assertEquals(listOf("Old Split", "Push"), dto.trainings.map { it.name })
         val old = dto.trainings.first { it.name == "Old Split" }
         assertTrue(old.plan.isEmpty())
         assertTrue(old.sessions.isEmpty())

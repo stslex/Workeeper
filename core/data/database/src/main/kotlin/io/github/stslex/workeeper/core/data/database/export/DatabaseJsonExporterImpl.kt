@@ -95,7 +95,7 @@ internal class DatabaseJsonExporterImpl @Inject constructor(
             WorkoutExportMapper.planExercise(row, index.exerciseNameByUuid[row.exerciseUuid].orEmpty())
         }
         val sessions = index.sessionsByTraining[training.uuid].orEmpty()
-            .sortedBy { it.startedAt }
+            .sortedWith(compareBy({ it.startedAt }, { it.uuid.toString() }))
             .map { session -> buildSession(session, index) }
         return WorkoutExportMapper.training(
             entity = training,

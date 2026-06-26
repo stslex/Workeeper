@@ -41,18 +41,16 @@ internal class TrainingDaoGetAllTest : BaseDatabaseTest() {
     }
 
     @Test
-    fun `getAll returns templates plus adhoc and archived rows`() = runTest {
-        val template = training(name = "Template")
-        val adhoc = training(name = "Adhoc", isAdhoc = true)
-        val archived = training(name = "Archived", archived = true, archivedAt = 10L)
-        listOf(template, adhoc, archived).forEach { trainingDao.insert(it) }
+    fun `getAll returns all rows ordered by createdAt including adhoc and archived`() = runTest {
+        val template = training(name = "Template", createdAt = 100L)
+        val adhoc = training(name = "Adhoc", isAdhoc = true, createdAt = 200L)
+        val archived = training(name = "Archived", archived = true, archivedAt = 10L, createdAt = 300L)
+        // Insert out of createdAt order to prove the ORDER BY, not insertion order.
+        listOf(archived, template, adhoc).forEach { trainingDao.insert(it) }
 
         val all = trainingDao.getAll()
 
-        assertEquals(
-            setOf(template.uuid, adhoc.uuid, archived.uuid),
-            all.map { it.uuid }.toSet(),
-        )
+        assertEquals(listOf(template.uuid, adhoc.uuid, archived.uuid), all.map { it.uuid })
     }
 
     @Test
@@ -103,12 +101,13 @@ internal class TrainingDaoGetAllTest : BaseDatabaseTest() {
         isAdhoc: Boolean = false,
         archived: Boolean = false,
         archivedAt: Long? = null,
+        createdAt: Long = 0L,
     ) = TrainingEntity(
         name = name,
         description = null,
         isAdhoc = isAdhoc,
         archived = archived,
-        createdAt = 0L,
+        createdAt = createdAt,
         archivedAt = archivedAt,
     )
 

@@ -141,7 +141,7 @@ interface ExerciseDao {
      * are referenced by sessions, so omitting them would break referential integrity
      * in the export). Never use this for a user-facing list.
      */
-    @Query("SELECT * FROM exercise_table")
+    @Query("SELECT * FROM exercise_table ORDER BY created_at ASC, uuid ASC")
     suspend fun getAll(): List<ExerciseEntity>
 
     @Query("SELECT uuid, last_adhoc_sets FROM exercise_table WHERE uuid IN (:uuids)")
