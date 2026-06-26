@@ -33,7 +33,7 @@ folder (`Workeeper/`), so the user can point any LLM/agent at their Drive and ge
 
 | # | Decision |
 |---|---|
-| D1 | **Scope:** add `drive.file` to the requested set as **OPTIONAL** (static request set — `appdata` stays the only `REQUIRED` gate). Do **not** make the requested scope set dynamic. Gate export on the **actual grant** read from `AuthorizationResult.getGrantedScopes()`, plus the user toggle. |
+| D1 | **Scope:** `drive.file` is OPTIONAL (`appdata` stays the only `REQUIRED` gate). The requested set is **dynamic / granted-aware** (revised from the original "static" intent — see rationale): regular sign-in + silent refresh request only the *already-granted* set (base, plus `drive.file` only if previously granted); `drive.file` is requested solely via `BackupAuth.requestDriveFileAccess()` (the explicit toggle grant). **Rationale:** GMS `AuthorizationClient.authorize()` raises a resolution (no silent token) on *any* ungranted requested scope, so a static `ALL`-includes-`drive.file` set would break silent token refresh for every appdata-only user (all existing users + anyone who declines the optional scope). Export is gated on the actual grant — `driveFileGranted`, re-derived from `AuthorizationResult.getGrantedScopes()` on **every** authorize — AND the user toggle. |
 | D2 | **Coupling:** the exporter is fully independent and **best-effort**. It must never block, delay, or fail the binary backup. All exporter/upload errors are swallowed (logged + Crashlytics non-fatal). |
 | D3 | **Drive client:** make `DriveApi` **space-aware** (parameterize `spaces` on list, `parents` on upload). Add a sibling `DriveSnapshotStorage` next to `DriveBackupStorage`. The binary path keeps calling with `appDataFolder` — zero behavior change on the path that actually protects user data. |
 | D4 | **Placement:** JSON production lives in `core/data/database` (`DatabaseJsonExporter`, reads the 9 DAOs → encodes). Upload lives in `core/data/backup/google-drive`. Export DTOs (`@Serializable`) live in the **data layer**, never domain (Detekt `DomainLayerPurityRule`). The exporter must **not** be added to `feature/recovery` (it reads the DB → would trip `RecoveryActivityDbFreeTest`). |
@@ -161,11 +161,21 @@ Contract rules:
     name `workeeper_export_<epochMs>.json`.
   - **Rotation (D9):** reuse `RotationPolicy.refsToDelete` (cap 3), run after a successful upload,
     best-effort.
-- **Scope (D1):** `DriveAuthScopes.ALL` gains `drive.file` as **optional** (not `REQUIRED`). The
-  requested set stays static — no lock-step hazard across sign-in/refresh/revoke. Gate at runtime on
-  `AuthorizationResult.getGrantedScopes()` containing `drive.file`. `DriveBackupAuth.signIn/completeSignIn`
-  must surface granted scopes (or persist a `driveFileGranted` flag derived from the result) for the
-  toggle/runner to read.
+- **Scope (D1) — dynamic, granted-aware** (the requested set is NOT static; see D1 rationale):
+  `DriveAuthScopes.ALL` is the base set (`drive.appdata` + the two `userinfo` scopes, unchanged from
+  v1); `ALL_WITH_DRIVE_FILE` = base + `drive.file`.
+  - Regular `signIn()` requests `ALL` only (no `drive.file` prompt at first sign-in).
+  - Silent refresh (`DriveAuthTokenProvider`) requests only the **already-granted** set: `ALL`, plus
+    `drive.file` only when the persisted `driveFileGranted` flag is set. An appdata-only user therefore
+    requests exactly `ALL` — byte-identical to v1 — so `authorize()` never raises a resolution for them
+    (the no-regression invariant, by construction). An empty/unset flag defaults to `false` ⇒ base set.
+  - `drive.file` is requested **solely** by `BackupAuth.requestDriveFileAccess()` (`ALL_WITH_DRIVE_FILE`),
+    used by the explicit AI-export toggle grant.
+  - `driveFileGranted` is re-derived from `getGrantedScopes()` on **every** authorize (sign-in, explicit
+    grant, silent refresh) and persisted in `AccountDataStore`, so a later revocation flips it off; the
+    next silent refresh requests `drive.file` once, gets no token (resolution — never surfaced to the UI
+    on this background path), re-derives the flag to `false`, and silently retries with base scopes so
+    the binary token survives. `BackupAuth.observeDriveFileGranted()` exposes the flag to the toggle/runner.
 
 ### 4.3 `core/data/backup/api` — contracts & constants
 - New constants: folder name `"Workeeper"`, snapshot prefix `"workeeper_export_"`, suffix `".json"`,
@@ -278,6 +288,21 @@ independently green incl Detekt — bisect property).
   Event emitted); decline → toggle off + snackbar.
 - **Placement guard:** the exporter is not referenced from `feature/recovery` (keep
   `RecoveryActivityDbFreeTest` green).
+
+### Manual release gates (cannot be unit-tested; must pass before ship)
+
+1. **OAuth consent screen / verification (§7, §10.3).** `drive.file` is added to the app's OAuth
+   consent screen in Google Cloud Console; verification posture is acceptable for a "sensitive" scope.
+   Not determinable from source.
+2. **Appdata-only silent refresh stays resolution-free.** On a device signed in *without* `drive.file`
+   (the existing-user / v1-migration state), confirm the binary backup's silent token refresh succeeds
+   with no resolution prompt after the scope addition. The granted-aware design makes this safe by
+   construction (the request is byte-identical to v1), but verify empirically — the binary backup must
+   not regress for existing users.
+3. **Snapshot smoke.** Enable the toggle → grant `drive.file` → trigger a backup → find
+   `Workeeper/workeeper_export_<epochMs>.json` in visible Drive, open it, and verify the JSON structure.
+4. **R8 release build (§10.4).** Confirm the `@Serializable` export DTOs + enums survive minification
+   (no obfuscated-`serialName` decode failures) in a `store` release build.
 
 ## 9. Out of scope (v1) / deferred
 
