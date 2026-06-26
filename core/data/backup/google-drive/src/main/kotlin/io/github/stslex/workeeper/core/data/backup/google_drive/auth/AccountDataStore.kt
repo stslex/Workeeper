@@ -57,4 +57,17 @@ internal interface AccountDataStore {
 
     /** Caches the snapshot folder id; pass `null` to drop a stale id (e.g. after a 404). */
     suspend fun setSnapshotFolderId(id: String?)
+
+    /** Hot stream of whether `drive.file` is currently granted (drives the AI-export toggle UI). */
+    fun observeDriveFileGranted(): Flow<Boolean>
+
+    /** One-shot read of the `drive.file` grant flag (used by the export runner + silent refresh). */
+    suspend fun isDriveFileGranted(): Boolean
+
+    /**
+     * Persists the `drive.file` grant flag. Re-derived from `AuthorizationResult.grantedScopes`
+     * on every authorize (sign-in, explicit grant, AND silent refresh) so a later revocation
+     * flips it back to `false`.
+     */
+    suspend fun setDriveFileGranted(granted: Boolean)
 }

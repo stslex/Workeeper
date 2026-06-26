@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.core.data.backup.google_drive.auth
 
 import com.google.android.gms.auth.api.identity.AuthorizationClient
 import com.google.android.gms.auth.api.identity.AuthorizationRequest
+import com.google.android.gms.common.api.Scope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.data.backup.google_drive.network.AuthTokenProvider
@@ -44,15 +45,40 @@ internal class DriveAuthTokenProvider @Inject constructor(
     }
 
     private suspend fun refreshTokenFromGms(): String? {
-        val request = AuthorizationRequest.builder()
-            .setRequestedScopes(DriveAuthScopes.ALL)
-            .build()
-        val result = try {
-            authorizationClient.authorize(request).await()
+        // Request ONLY the scopes the account already granted: base, plus drive.file only if
+        // it was previously granted. Appdata-only users therefore request exactly
+        // DriveAuthScopes.ALL (identical to v1) and never trip an authorize() resolution.
+        val includeDriveFile = accountStore.isDriveFileGranted()
+        val scopes = if (includeDriveFile) {
+            DriveAuthScopes.ALL_WITH_DRIVE_FILE
+        } else {
+            DriveAuthScopes.ALL
+        }
+        return try {
+            // If we requested drive.file but got no token, it was revoked (the flag is
+            // re-derived to false in authorizeFor); retry with base scopes so the binary
+            // backup token stays available.
+            authorizeFor(scopes)
+                ?: if (includeDriveFile) authorizeFor(DriveAuthScopes.ALL) else null
         } catch (@Suppress("TooGenericExceptionCaught") t: Throwable) {
             Log.tag(KtorLogger.TAG).e(t, "authorize() threw")
-            return null
+            null
         }
+    }
+
+    /**
+     * Authorizes [scopes], re-derives + persists the `drive.file` grant from the result's
+     * granted scopes (so a revocation flips the flag off on the very next refresh), caches a
+     * non-null token, and returns the token (or `null` when resolution is required).
+     */
+    private suspend fun authorizeFor(scopes: List<Scope>): String? {
+        val request = AuthorizationRequest.builder()
+            .setRequestedScopes(scopes)
+            .build()
+        val result = authorizationClient.authorize(request).await()
+        accountStore.setDriveFileGranted(
+            result.grantedScopes.orEmpty().contains(DriveAuthScopes.DRIVE_FILE),
+        )
         val token = result.accessToken
         if (token != null) {
             accountStore.setToken(

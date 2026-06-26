@@ -7,6 +7,7 @@ import com.google.android.gms.auth.api.identity.AuthorizationRequest
 import com.google.android.gms.auth.api.identity.AuthorizationResult
 import com.google.android.gms.auth.api.identity.ClearTokenRequest
 import com.google.android.gms.auth.api.identity.RevokeAccessRequest
+import com.google.android.gms.common.api.Scope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
@@ -19,6 +20,7 @@ import io.github.stslex.workeeper.core.data.backup.google_drive.error.DriveError
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -71,15 +73,27 @@ internal class DriveBackupAuth @Inject constructor(
             .launchIn(authScope)
     }
 
-    override suspend fun signIn(): SignInResult = withContext(dispatcher) {
+    override suspend fun signIn(): SignInResult = authorizeWith(DriveAuthScopes.ALL)
+
+    override suspend fun requestDriveFileAccess(): SignInResult =
+        authorizeWith(DriveAuthScopes.ALL_WITH_DRIVE_FILE)
+
+    override fun observeDriveFileGranted(): Flow<Boolean> = accountStore.observeDriveFileGranted()
+
+    /**
+     * Shared interactive authorize. [signIn] requests the base [DriveAuthScopes.ALL];
+     * [requestDriveFileAccess] adds `drive.file`. Both resolve through [resolveSignIn], which
+     * re-derives the `drive.file` grant from the result.
+     */
+    private suspend fun authorizeWith(scopes: List<Scope>): SignInResult = withContext(dispatcher) {
         runCatching {
             val request = AuthorizationRequest.builder()
-                .setRequestedScopes(DriveAuthScopes.ALL)
+                .setRequestedScopes(scopes)
                 .build()
             authorizationClient.authorize(request).await()
         }
             .onFailure { e ->
-                logger.e(e, "signIn failed")
+                logger.e(e, "authorize failed")
             }
             .fold(
                 onSuccess = { result -> resolveSignIn(result) },
@@ -111,6 +125,7 @@ internal class DriveBackupAuth @Inject constructor(
                             BackupResult.Failure(BackupError.MissingRequiredScope)
                         } else {
                             captureAccessToken(result)
+                            accountStore.setDriveFileGranted(result.isDriveFileGranted())
                             val account = result.toAccount(fetchUserInfo(result.accessToken))
                             accountStore.setAccount(account)
                             BackupResult.Success(account)
@@ -129,7 +144,7 @@ internal class DriveBackupAuth @Inject constructor(
      */
     override suspend fun signOut(): BackupResult<Unit> = withContext(dispatcher) {
         val revokeRequest = RevokeAccessRequest.builder()
-            .setScopes(DriveAuthScopes.ALL)
+            .setScopes(DriveAuthScopes.ALL_WITH_DRIVE_FILE)
             .build()
         runCatching {
             authorizationClient.revokeAccess(revokeRequest).await()
@@ -171,6 +186,7 @@ internal class DriveBackupAuth @Inject constructor(
             return SignInResult.PartialGrant(missing)
         }
         captureAccessToken(result)
+        accountStore.setDriveFileGranted(result.isDriveFileGranted())
         val account = result.toAccount(fetchUserInfo(result.accessToken))
         accountStore.setAccount(account)
         return SignInResult.Success(account)
@@ -180,6 +196,9 @@ internal class DriveBackupAuth @Inject constructor(
         val granted: List<String> = grantedScopes.orEmpty()
         return DriveAuthScopes.REQUIRED.filterNot { granted.contains(it) }
     }
+
+    private fun AuthorizationResult.isDriveFileGranted(): Boolean =
+        grantedScopes.orEmpty().contains(DriveAuthScopes.DRIVE_FILE)
 
     private suspend fun clearTokenBestEffort(badToken: String?) {
         if (badToken == null) return

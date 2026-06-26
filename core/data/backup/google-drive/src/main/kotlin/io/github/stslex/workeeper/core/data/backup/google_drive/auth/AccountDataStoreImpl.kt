@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -79,6 +80,16 @@ internal class AccountDataStoreImpl @Inject constructor(
         }
     }
 
+    override fun observeDriveFileGranted(): Flow<Boolean> =
+        dataStore.data.map { it[KEY_DRIVE_FILE_GRANTED] ?: false }
+
+    override suspend fun isDriveFileGranted(): Boolean =
+        dataStore.data.first()[KEY_DRIVE_FILE_GRANTED] ?: false
+
+    override suspend fun setDriveFileGranted(granted: Boolean) {
+        dataStore.edit { it[KEY_DRIVE_FILE_GRANTED] = granted }
+    }
+
     private fun accountFromPrefs(prefs: Preferences): Account? {
         val email = prefs[KEY_EMAIL] ?: return null
         return Account(email = email, displayName = prefs[KEY_DISPLAY_NAME])
@@ -91,5 +102,6 @@ internal class AccountDataStoreImpl @Inject constructor(
         val KEY_TOKEN = stringPreferencesKey("access_token")
         val KEY_TOKEN_EXPIRES_AT = longPreferencesKey("access_token_expires_at")
         val KEY_SNAPSHOT_FOLDER_ID = stringPreferencesKey("snapshot_folder_id")
+        val KEY_DRIVE_FILE_GRANTED = booleanPreferencesKey("drive_file_granted")
     }
 }

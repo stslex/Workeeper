@@ -3,8 +3,10 @@ package io.github.stslex.workeeper.core.data.backup.google_drive.auth
 
 import android.app.Application
 import com.google.android.gms.auth.api.identity.AuthorizationClient
+import com.google.android.gms.auth.api.identity.AuthorizationRequest
 import com.google.android.gms.auth.api.identity.AuthorizationResult
 import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.Scope
 import com.google.android.gms.common.api.Status
 import com.google.android.gms.tasks.Tasks
 import io.github.stslex.workeeper.core.data.backup.api.model.Account
@@ -141,5 +143,92 @@ internal class DriveAuthTokenProviderTest {
 
         assertEquals("first-token", token)
         coVerify(exactly = 1) { accountStore.setToken("first-token", any()) }
+    }
+
+    @Test
+    fun `appdata-only refresh requests only the base scopes and never drive_file`() = runTest {
+        coEvery { accountStore.token() } returns null
+        coEvery { accountStore.isDriveFileGranted() } returns false
+        val authResult = mockk<AuthorizationResult> {
+            every { hasResolution() } returns false
+            every { accessToken } returns "fresh"
+            every { grantedScopes } returns listOf(DriveAuthScopes.DRIVE_APPDATA)
+        }
+        val captured = slot<AuthorizationRequest>()
+        every { authorizationClient.authorize(capture(captured)) } returns Tasks.forResult(authResult)
+
+        newProvider().currentToken()
+
+        val scopes = captured.captured.requestedScopes.map(Scope::getScopeUri).toSet()
+        assertTrue(
+            DriveAuthScopes.DRIVE_FILE !in scopes,
+            "appdata-only silent refresh must not request drive.file (would force resolution): $scopes",
+        )
+        assertTrue(DriveAuthScopes.DRIVE_APPDATA in scopes)
+    }
+
+    @Test
+    fun `drive_file-granted refresh requests drive_file and re-persists the grant`() = runTest {
+        coEvery { accountStore.token() } returns null
+        coEvery { accountStore.isDriveFileGranted() } returns true
+        val authResult = mockk<AuthorizationResult> {
+            every { hasResolution() } returns false
+            every { accessToken } returns "fresh"
+            every { grantedScopes } returns listOf(
+                DriveAuthScopes.DRIVE_APPDATA,
+                DriveAuthScopes.DRIVE_FILE,
+            )
+        }
+        val captured = slot<AuthorizationRequest>()
+        every { authorizationClient.authorize(capture(captured)) } returns Tasks.forResult(authResult)
+
+        newProvider().currentToken()
+
+        val scopes = captured.captured.requestedScopes.map(Scope::getScopeUri).toSet()
+        assertTrue(DriveAuthScopes.DRIVE_FILE in scopes, "expected drive.file requested: $scopes")
+        coVerify { accountStore.setDriveFileGranted(true) }
+    }
+
+    @Test
+    fun `refresh re-derives driveFileGranted to false when result omits drive_file`() = runTest {
+        coEvery { accountStore.token() } returns null
+        coEvery { accountStore.isDriveFileGranted() } returns false
+        val authResult = mockk<AuthorizationResult> {
+            every { hasResolution() } returns false
+            every { accessToken } returns "fresh"
+            every { grantedScopes } returns listOf(DriveAuthScopes.DRIVE_APPDATA)
+        }
+        every { authorizationClient.authorize(any()) } returns Tasks.forResult(authResult)
+
+        newProvider().currentToken()
+
+        coVerify { accountStore.setDriveFileGranted(false) }
+    }
+
+    @Test
+    fun `refresh retries with base scopes when drive_file was revoked`() = runTest {
+        coEvery { accountStore.token() } returns null
+        coEvery { accountStore.isDriveFileGranted() } returns true
+        val revoked = mockk<AuthorizationResult> {
+            every { hasResolution() } returns true
+            every { accessToken } returns null
+            every { grantedScopes } returns listOf(DriveAuthScopes.DRIVE_APPDATA)
+        }
+        val base = mockk<AuthorizationResult> {
+            every { hasResolution() } returns false
+            every { accessToken } returns "base-token"
+            every { grantedScopes } returns listOf(DriveAuthScopes.DRIVE_APPDATA)
+        }
+        val requests = mutableListOf<AuthorizationRequest>()
+        every { authorizationClient.authorize(capture(requests)) } returns
+            Tasks.forResult(revoked) andThen Tasks.forResult(base)
+
+        val token = newProvider().currentToken()
+
+        assertEquals("base-token", token)
+        assertEquals(2, requests.size)
+        assertTrue(DriveAuthScopes.DRIVE_FILE in requests[0].requestedScopes.map(Scope::getScopeUri))
+        assertTrue(DriveAuthScopes.DRIVE_FILE !in requests[1].requestedScopes.map(Scope::getScopeUri))
+        coVerify { accountStore.setDriveFileGranted(false) }
     }
 }
