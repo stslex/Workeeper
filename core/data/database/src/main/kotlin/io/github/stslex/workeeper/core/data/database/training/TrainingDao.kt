@@ -104,6 +104,16 @@ interface TrainingDao {
     @Query("SELECT * FROM training_table WHERE uuid = :uuid")
     fun observeById(uuid: Uuid): Flow<TrainingEntity?>
 
+    /**
+     * Every training row, unfiltered — includes `is_adhoc = 1` and `archived = 1`.
+     * Intentionally bypasses the `is_adhoc = 0` / `archived = 0` list invariant: the
+     * only caller is the AI-readable snapshot export, which dumps the full graph at
+     * full fidelity (adhoc trainings are also needed for referential integrity with
+     * their sessions). Never use this for a user-facing list.
+     */
+    @Query("SELECT * FROM training_table")
+    suspend fun getAll(): List<TrainingEntity>
+
     @Insert
     suspend fun insert(training: TrainingEntity)
 

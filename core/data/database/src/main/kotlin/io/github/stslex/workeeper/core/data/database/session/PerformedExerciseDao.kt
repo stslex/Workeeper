@@ -17,6 +17,19 @@ interface PerformedExerciseDao {
     )
     suspend fun getBySession(sessionUuid: Uuid): List<PerformedExerciseEntity>
 
+    /**
+     * Every performed-exercise row across all sessions, ordered so the snapshot
+     * exporter can `groupBy { sessionUuid }` with each group already in position
+     * order. Unfiltered full-graph read; not for user-facing use.
+     */
+    @Query(
+        """
+        SELECT * FROM performed_exercise_table
+        ORDER BY session_uuid, position ASC
+        """,
+    )
+    suspend fun getAll(): List<PerformedExerciseEntity>
+
     @Insert
     suspend fun insert(rows: List<PerformedExerciseEntity>)
 

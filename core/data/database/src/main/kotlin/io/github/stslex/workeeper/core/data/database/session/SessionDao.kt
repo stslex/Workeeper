@@ -113,6 +113,15 @@ interface SessionDao {
     @Query("SELECT * FROM session_table WHERE uuid = :uuid")
     suspend fun getById(uuid: Uuid): SessionEntity?
 
+    /**
+     * Every session row, unfiltered — includes both `IN_PROGRESS` and `FINISHED`.
+     * Bypasses the `state`-filtered list invariant: the only caller is the
+     * AI-readable snapshot export, which dumps the full history. Not for user-facing
+     * reads.
+     */
+    @Query("SELECT * FROM session_table")
+    suspend fun getAll(): List<SessionEntity>
+
     @Query(
         """
         SELECT COUNT(*) FROM session_table

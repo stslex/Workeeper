@@ -21,6 +21,23 @@ interface TrainingTagDao {
     )
     suspend fun getTagNames(trainingUuid: Uuid): List<String>
 
+    /**
+     * Denormalized tag names for many trainings in one query (snapshot export).
+     * Returns one [TrainingTagNameRow] per (training, tag) pair; the caller groups
+     * by `trainingUuid` in memory. Mirrors the `getPlanSetsBatch` batch convention;
+     * callers must short-circuit an empty [trainingUuids] list (Room renders `IN ()`).
+     */
+    @Query(
+        """
+        SELECT tt.training_uuid AS training_uuid, t.name AS name
+        FROM training_tag_table tt
+        JOIN tag_table t ON t.uuid = tt.tag_uuid
+        WHERE tt.training_uuid IN (:trainingUuids)
+        ORDER BY t.name COLLATE NOCASE ASC
+        """,
+    )
+    suspend fun getTagNamesForTrainings(trainingUuids: List<Uuid>): List<TrainingTagNameRow>
+
     @Insert
     suspend fun insert(rows: List<TrainingTagEntity>)
 
