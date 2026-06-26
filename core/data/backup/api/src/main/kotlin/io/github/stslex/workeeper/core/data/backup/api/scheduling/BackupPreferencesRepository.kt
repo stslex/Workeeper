@@ -28,4 +28,6 @@ interface BackupPreferencesRepository {
     suspend fun setLastError(error: BackupErrorCode?)
 
     suspend fun setAutoBackupBootstrapped(bootstrapped: Boolean)
+
+    suspend fun setAiExportEnabled(enabled: Boolean)
 }
