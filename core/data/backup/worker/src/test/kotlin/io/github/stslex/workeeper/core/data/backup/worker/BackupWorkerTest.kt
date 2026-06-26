@@ -19,7 +19,6 @@ import io.github.stslex.workeeper.core.data.backup.worker.notification.BackupNot
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.runBlocking
@@ -83,11 +82,34 @@ internal class BackupWorkerTest {
                 ),
             ),
         )
-        every { snapshotExportRunner.runIfEligible() } throws RuntimeException("runner blew up")
+        coEvery { snapshotExportRunner.runIfEligibleAwaiting() } throws RuntimeException("runner blew up")
 
         val result = makeWorker().doWork()
 
         assertEquals(ListenableWorker.Result.success(), result)
+    }
+
+    @Test
+    fun `worker awaits the snapshot export rather than firing it and forgetting`() = runBlocking {
+        coEvery { backupStorage.uploadBackup(any(), any()) } returns BackupResult.Success(
+            BackupRef(
+                remoteId = "id",
+                manifest = BackupManifest(
+                    appVersion = "1.0.0",
+                    dbSchemaVersion = 5,
+                    createdAtEpochMs = 0L,
+                    dbFileSizeBytes = 1L,
+                    deviceModel = null,
+                ),
+            ),
+        )
+
+        makeWorker().doWork()
+
+        // The worker holds a wakelock window, so it must AWAIT the snapshot (keeps the process
+        // alive for the upload) and never use the detached fire-and-forget path.
+        coVerify(exactly = 1) { snapshotExportRunner.runIfEligibleAwaiting() }
+        coVerify(exactly = 0) { snapshotExportRunner.runIfEligible() }
     }
 
     @Test

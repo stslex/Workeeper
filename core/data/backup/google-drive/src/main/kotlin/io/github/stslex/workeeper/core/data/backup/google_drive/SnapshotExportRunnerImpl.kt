@@ -13,12 +13,15 @@ import io.github.stslex.workeeper.core.data.backup.api.SnapshotStorage
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
+import io.github.stslex.workeeper.core.data.backup.google_drive.manifest.ManifestPropertiesMapper
 import io.github.stslex.workeeper.core.data.database.export.DatabaseJsonExporter
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -41,27 +44,41 @@ internal class SnapshotExportRunnerImpl @Inject constructor(
 
     private val logger = Log.tag(TAG)
 
-    // App-lifetime scope so the export runs DETACHED from the binary backup: the trigger
-    // (manual createBackup / BackupWorker.doWork) returns immediately and is never delayed by
-    // the DB-export + visible-Drive upload. Best-effort — if the process is reclaimed before it
-    // finishes, the next backup re-exports (losing a snapshot loses nothing recoverable).
+    // App-lifetime scope for the FOREGROUND fire-and-forget path so the manual backup returns
+    // immediately and is never delayed by the DB-export + visible-Drive upload (D2). The worker
+    // instead awaits via runIfEligibleAwaiting() to keep its wakelock window. Best-effort — if the
+    // process is reclaimed before it finishes, the next backup re-exports (losing a snapshot loses
+    // nothing recoverable).
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
+
+    // Serializes the export's Drive mutation across the manual + worker triggers (both funnel
+    // through this singleton). Without it, two overlapping runs could create duplicate Workeeper/
+    // folders (resolveFolderId is check-then-act) or violate the rotation cap (list-then-delete).
+    // In-process is sufficient: WorkManager runs the worker in the app process.
+    private val exportMutex = Mutex()
 
     override fun runIfEligible() {
         scope.launch { runExport() }
     }
 
+    override suspend fun runIfEligibleAwaiting() {
+        runExport()
+    }
+
     private suspend fun runExport() {
         runCatching {
             if (!isEligible()) return@runCatching
-            val json = exporter.export(
-                appVersion = readVersionName(),
-                deviceModel = Build.MODEL,
-                exportedAtEpochMs = System.currentTimeMillis(),
-            )
-            when (val result = snapshotStorage.uploadSnapshot(json)) {
-                is BackupResult.Success -> Unit
-                is BackupResult.Failure -> handleFailure(result.error)
+            exportMutex.withLock {
+                val json = exporter.export(
+                    appVersion = readVersionName(),
+                    // Cap to match the binary manifest (spec §3); a >100-char model is truncated.
+                    deviceModel = Build.MODEL.take(ManifestPropertiesMapper.DEVICE_MODEL_MAX_LEN),
+                    exportedAtEpochMs = System.currentTimeMillis(),
+                )
+                when (val result = snapshotStorage.uploadSnapshot(json)) {
+                    is BackupResult.Success -> Unit
+                    is BackupResult.Failure -> handleFailure(result.error)
+                }
             }
         }.onFailure { t ->
             // Unexpected throwable (e.g. serialization / DB-read bug). Record + swallow.

@@ -63,9 +63,12 @@ internal class BackupWorker @AssistedInject constructor(
         val tempFile = File.createTempFile(TEMP_PREFIX, TEMP_SUFFIX, applicationContext.cacheDir)
         return try {
             val result = executeBackup(tempFile)
-            // Best-effort AI snapshot AFTER the binary backup, independent of its outcome.
-            // Wrapped so a runner fault can never affect the worker Result; D2 decoupling.
-            runCatching { snapshotExportRunner.runIfEligible() }
+            // The binary-backup Result is already computed above. AWAIT the best-effort AI snapshot
+            // before returning so WorkManager keeps the wakelock/execution window alive until the
+            // visible-Drive upload finishes — a detached app-scope launch would race process death
+            // on every periodic run. runCatching-wrapped so a runner fault can never change the
+            // Result; D2 holds (the binary upload is done — only Result reporting is held longer).
+            runCatching { snapshotExportRunner.runIfEligibleAwaiting() }
             result
         } finally {
             tempFile.delete()
