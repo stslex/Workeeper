@@ -231,6 +231,73 @@ internal class BackupClickHandlerTest {
         }
 
     @Test
+    fun `ToggleAiExport off persists disabled`() = runTest(testDispatcher) {
+        handler.invoke(Action.Backup.ToggleAiExport(false))
+
+        coVerify { preferencesRepository.setAiExportEnabled(false) }
+    }
+
+    @Test
+    fun `ToggleAiExport on with drive_file already granted persists enabled`() =
+        runTest(testDispatcher) {
+            coEvery { interactor.requestDriveFileAccess() } returns SignInOutcomeDomain.Success
+
+            handler.invoke(Action.Backup.ToggleAiExport(true))
+
+            coVerify { preferencesRepository.setAiExportEnabled(true) }
+        }
+
+    @Test
+    fun `ToggleAiExport on without grant emits AuthResolutionRequested and does not persist`() =
+        runTest(testDispatcher) {
+            val sender = mockk<IntentSender>(relaxed = true)
+            coEvery { interactor.requestDriveFileAccess() } returns
+                SignInOutcomeDomain.NeedsResolution(sender)
+
+            handler.invoke(Action.Backup.ToggleAiExport(true))
+
+            val event = store.events.single()
+            assertTrue(event is Event.AuthResolutionRequested)
+            assertSame(sender, (event as Event.AuthResolutionRequested).intentSender)
+            coVerify(exactly = 0) { preferencesRepository.setAiExportEnabled(true) }
+        }
+
+    @Test
+    fun `ToggleAiExport grant succeeds via resolution persists enabled`() =
+        runTest(testDispatcher) {
+            preferencesFlow.value = preferencesFlow.value.copy(autoBackupBootstrapped = true)
+            coEvery { interactor.requestDriveFileAccess() } returns
+                SignInOutcomeDomain.NeedsResolution(mockk(relaxed = true))
+            handler.invoke(Action.Backup.ToggleAiExport(true))
+
+            coEvery { interactor.completeSignIn(any()) } returns
+                BackupResult.Success(AccountDomain(email = "a@b.com", displayName = null))
+            coEvery { interactor.isDriveFileGranted() } returns true
+
+            handler.invoke(Action.Backup.HandleAuthResult(mockk(relaxed = true)))
+
+            coVerify { preferencesRepository.setAiExportEnabled(true) }
+        }
+
+    @Test
+    fun `ToggleAiExport grant declined shows access-needed snackbar and stays off`() =
+        runTest(testDispatcher) {
+            preferencesFlow.value = preferencesFlow.value.copy(autoBackupBootstrapped = true)
+            coEvery { interactor.requestDriveFileAccess() } returns
+                SignInOutcomeDomain.NeedsResolution(mockk(relaxed = true))
+            handler.invoke(Action.Backup.ToggleAiExport(true))
+
+            coEvery { interactor.completeSignIn(any()) } returns
+                BackupResult.Success(AccountDomain(email = "a@b.com", displayName = null))
+            coEvery { interactor.isDriveFileGranted() } returns false
+
+            handler.invoke(Action.Backup.HandleAuthResult(mockk(relaxed = true)))
+
+            assertTrue(store.events.any { it is Event.ShowAiExportAccessNeeded })
+            coVerify(exactly = 0) { preferencesRepository.setAiExportEnabled(true) }
+        }
+
+    @Test
     fun `SignIn PartialGrant emits MISSING_REQUIRED_SCOPE and stays Idle`() =
         runTest(testDispatcher) {
             coEvery { interactor.signIn() } returns SignInOutcomeDomain.PartialGrant

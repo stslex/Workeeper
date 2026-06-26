@@ -27,6 +27,8 @@ fun NavGraphBuilder.settingsGraph(
         val context = LocalContext.current
         val haptic = LocalHapticFeedback.current
         val backupCreatedMessage = stringResource(R.string.feature_settings_backup_created)
+        val aiExportAccessNeededMessage =
+            stringResource(R.string.feature_settings_backup_ai_export_access_needed)
         val autoBackupEnabledMessage =
             stringResource(R.string.feature_settings_backup_auto_enabled_default)
         val autoBackupEnabledAction =
@@ -63,6 +65,9 @@ fun NavGraphBuilder.settingsGraph(
                 }
 
                 Event.ShowBackupCreated -> SnackbarManager.showSnackbar(backupCreatedMessage)
+
+                Event.ShowAiExportAccessNeeded ->
+                    SnackbarManager.showSnackbar(aiExportAccessNeededMessage)
 
                 Event.ShowAutoBackupEnabledSnackbarRequested -> SnackbarManager.showSnackbar(
                     message = autoBackupEnabledMessage,

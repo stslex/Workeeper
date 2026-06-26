@@ -50,6 +50,15 @@ internal class BackupClickHandler @Inject constructor(
     store: SettingsHandlerStore,
 ) : Handler<Action.Backup>, SettingsHandlerStore by store {
 
+    /**
+     * In-flight marker for an AI-export-driven incremental `drive.file` grant: set when the
+     * toggle triggers `requestDriveFileAccess()` and the result needs resolution, consumed in
+     * [handleAuthResult] to decide whether to enable AI export (granted) or show the
+     * access-needed snackbar (declined). Transient (ViewModel-scoped) — lost on process death,
+     * which keeps the toggle pessimistically off.
+     */
+    private var pendingAiExportGrant: Boolean = false
+
     override fun invoke(action: Action.Backup) {
         when (action) {
             Action.Backup.ObserveAuth -> observeAuth()
@@ -77,6 +86,8 @@ internal class BackupClickHandler @Inject constructor(
                 action.schedule,
                 action.allowOnMobileData,
             )
+
+            is Action.Backup.ToggleAiExport -> toggleAiExport(action.enabled)
         }
     }
 
@@ -219,7 +230,10 @@ internal class BackupClickHandler @Inject constructor(
 
     private fun handleAuthResult(resultIntent: android.content.Intent?) {
         launchDefault(
-            onError = { emitUnknownErrorAndIdle(it) },
+            onError = { e ->
+                pendingAiExportGrant = false
+                emitUnknownErrorAndIdle(e)
+            },
             onSuccess = { result ->
                 when (result) {
                     is BackupResult.Success -> {
@@ -227,18 +241,75 @@ internal class BackupClickHandler @Inject constructor(
                         updateStateImmediate { current ->
                             current.copy(backupOperation = BackupOperationUi.Idle)
                         }
+                        reconcileAiExportGrant()
                         launchDefault { bootstrapOrRehydrate() }
                     }
 
                     is BackupResult.Failure -> {
-                        val errorUi = result.error.toUi()
-                        sendEvent(Event.ShowBackupError(errorUi))
+                        // A cancelled/failed resolution that was driving an AI-export grant
+                        // surfaces the access-needed snackbar, not a generic backup error.
+                        if (consumePendingAiExportGrant()) {
+                            sendEvent(Event.ShowAiExportAccessNeeded)
+                        } else {
+                            sendEvent(Event.ShowBackupError(result.error.toUi()))
+                        }
                     }
                 }
             },
         ) {
             interactor.completeSignIn(resultIntent)
         }
+    }
+
+    private fun toggleAiExport(enabled: Boolean) {
+        if (!enabled) {
+            launchDefault { preferencesRepository.setAiExportEnabled(false) }
+            return
+        }
+        // Pessimistic: never persist enabled=true before the drive.file grant is confirmed.
+        launchDefault(
+            onError = { e ->
+                logger.e(e, "Failed to request drive.file for AI export")
+                sendEvent(Event.ShowAiExportAccessNeeded)
+            },
+            onSuccess = { outcome ->
+                when (outcome) {
+                    SignInOutcomeDomain.Success ->
+                        preferencesRepository.setAiExportEnabled(true)
+
+                    is SignInOutcomeDomain.NeedsResolution -> {
+                        pendingAiExportGrant = true
+                        sendEvent(Event.AuthResolutionRequested(outcome.intentSender))
+                    }
+
+                    SignInOutcomeDomain.PartialGrant,
+                    is SignInOutcomeDomain.Failure,
+                    -> sendEvent(Event.ShowAiExportAccessNeeded)
+                }
+            },
+        ) {
+            interactor.requestDriveFileAccess()
+        }
+    }
+
+    /**
+     * Post-resolution reconciliation (called from [handleAuthResult] success). If a grant was
+     * pending, persist the toggle ON only when `drive.file` is now actually granted; otherwise
+     * the user declined the scope — surface the access-needed snackbar and leave the toggle off.
+     */
+    private suspend fun reconcileAiExportGrant() {
+        if (!consumePendingAiExportGrant()) return
+        if (interactor.isDriveFileGranted()) {
+            preferencesRepository.setAiExportEnabled(true)
+        } else {
+            sendEvent(Event.ShowAiExportAccessNeeded)
+        }
+    }
+
+    private fun consumePendingAiExportGrant(): Boolean {
+        val pending = pendingAiExportGrant
+        pendingAiExportGrant = false
+        return pending
     }
 
     private fun requestSignOut() {

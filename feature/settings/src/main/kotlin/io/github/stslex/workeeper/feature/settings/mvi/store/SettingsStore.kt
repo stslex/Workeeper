@@ -111,6 +111,8 @@ internal interface SettingsStore : Store<State, Action, Event> {
                 val schedule: BackupScheduleUi,
                 val allowOnMobileData: Boolean,
             ) : Backup
+
+            data class ToggleAiExport(val enabled: Boolean) : Backup
         }
     }
 
@@ -128,5 +130,7 @@ internal interface SettingsStore : Store<State, Action, Event> {
         data object ShowBackupCreated : Event
 
         data object ShowAutoBackupEnabledSnackbarRequested : Event
+
+        data object ShowAiExportAccessNeeded : Event
     }
 }

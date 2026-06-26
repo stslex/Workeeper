@@ -32,6 +32,7 @@ internal object BackupPreferencesUiMapper {
         allowOnMobileData = prefs.allowOnMobileData,
         nextBackupText = nextBackupText(prefs.schedule, periodicInfos, now),
         isAuthPaused = prefs.lastError == BackupErrorCode.AuthRevoked,
+        aiExportEnabled = prefs.aiExportEnabled,
     )
 
     private fun nextBackupText(
