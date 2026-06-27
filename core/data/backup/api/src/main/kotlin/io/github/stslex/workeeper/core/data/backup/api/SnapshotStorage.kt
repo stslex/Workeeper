@@ -20,4 +20,14 @@ interface SnapshotStorage {
      * prunes older snapshots beyond the retention cap. Best-effort.
      */
     suspend fun uploadSnapshot(content: ByteArray): BackupResult<Unit>
+
+    /**
+     * Deletes every snapshot file from the visible folder, leaving the (now-empty) folder.
+     * Invoked when the user withdraws AI-export consent (toggle OFF) and BEFORE sign-out revokes
+     * `drive.file` — after revocation the app can no longer see its own visible files, so they
+     * would be stranded permanently. Best-effort: a no-op when `drive.file` is not granted (the
+     * scope is required to enumerate/delete the visible files), and a [BackupResult.Failure] here
+     * is non-fatal.
+     */
+    suspend fun deleteAllSnapshots(): BackupResult<Unit>
 }

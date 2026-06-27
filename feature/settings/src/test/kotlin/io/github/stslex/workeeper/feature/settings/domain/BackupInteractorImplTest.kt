@@ -509,6 +509,13 @@ internal class BackupInteractorImplTest {
         coVerify(exactly = 1) { backupAuth.signOut() }
     }
 
+    @Test
+    fun `deleteAiExportSnapshots delegates to the snapshot runner`() = runTest(testDispatcher) {
+        interactor.deleteAiExportSnapshots()
+
+        coVerify(exactly = 1) { snapshotExportRunner.clearSnapshots() }
+    }
+
     private fun makeRef(
         remoteId: String = "remote-id",
         appVersion: String = "1.2.3",

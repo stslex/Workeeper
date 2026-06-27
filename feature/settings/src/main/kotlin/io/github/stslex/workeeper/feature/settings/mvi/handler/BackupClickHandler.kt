@@ -259,7 +259,12 @@ internal class BackupClickHandler @Inject constructor(
 
     private fun toggleAiExport(enabled: Boolean) {
         if (!enabled) {
-            launchDefault { preferencesRepository.setAiExportEnabled(false) }
+            // Withdraw consent: stop future exports (flag off so a racing worker won't re-upload),
+            // then best-effort delete the already-exported plaintext snapshots from visible Drive.
+            launchDefault {
+                preferencesRepository.setAiExportEnabled(false)
+                interactor.deleteAiExportSnapshots()
+            }
             return
         }
         // Ignore a re-entrant enable while a grant is already in flight (the switch is also
@@ -349,6 +354,9 @@ internal class BackupClickHandler @Inject constructor(
             },
         ) {
             autoBackupController.cancelPeriodic()
+            // Delete the visible-Drive snapshots BEFORE signOut revokes drive.file — once revoked,
+            // drive.file can no longer see the app's own files, stranding them permanently.
+            interactor.deleteAiExportSnapshots()
             interactor.signOut()
         }
     }

@@ -33,6 +33,13 @@ internal interface BackupInteractor {
 
     suspend fun signOut(): BackupResult<Unit>
 
+    /**
+     * Best-effort removal of previously-exported AI snapshots from the visible Drive folder.
+     * Invoked when the user disables AI export (consent withdrawal) and during sign-out, BEFORE
+     * [signOut] revokes the grant — afterwards the files can no longer be reached. Never throws.
+     */
+    suspend fun deleteAiExportSnapshots()
+
     suspend fun createBackup(): BackupResult<Unit>
 
     suspend fun listLatestBackup(): BackupResult<BackupSummaryDomain?>

@@ -43,6 +43,7 @@ folder (`Workeeper/`), so the user can point any LLM/agent at their Drive and ge
 | D8 | **Folder:** create-or-lookup a visible `Workeeper/` folder (by name, `trashed=false`), cache its id, dedup if multiple exist (pick oldest by `createdTime`), recreate if the cached id 404s. |
 | D9 | **Rotation:** reuse the existing `RotationPolicy.refsToDelete`, cap at `MAX_BACKUPS = 3` (mirror the binary path), scoped to the visible folder. Upload-then-rotate (never a zero-file window). No temp→rename needed on Drive — `files.create` is atomic for readers. |
 | D10 | **Triggers:** run on the **same two trigger points** as the binary backup — auto (`BackupWorker`: periodic + bootstrap one-time) and manual ("Create backup"). Always-fresh with the binary backup, no second schedule. Gated by toggle + `drive.file` grant, best-effort. |
+| D11 | **Consent withdrawal / sign-out cleanup:** disabling the AI-export toggle deletes the already-exported `workeeper_export_*` files from the visible folder (the consent that produced them is gone), and sign-out deletes them **before** `revokeAccess` — once `drive.file` is revoked the app can no longer see its own visible files, so a delete-after-revoke would strand them permanently. Both go through `SnapshotExportRunner.clearSnapshots()` (serialized with uploads via the same in-process `Mutex`) → `SnapshotStorage.deleteAllSnapshots()` (lists the folder, best-effort deletes each export, never CREATES a folder, no-op without the grant). The empty folder is left in place. Best-effort: failures are swallowed. |
 
 ---
 
@@ -232,6 +233,10 @@ navigation.
 - **Decline handling:** if the incremental grant is declined → revert the toggle to **off** and show a
   snackbar ("Google Drive access is needed for AI export"). Never leave a toggle that reads "on" but
   does nothing.
+- **Withdrawal cleanup (D11):** turning the toggle **off** persists `aiExportEnabled = false` *then*
+  deletes the already-exported snapshots from the visible folder (`interactor.deleteAiExportSnapshots()`);
+  sign-out deletes them **before** revoking `drive.file`. So "off" / signed-out leaves no plaintext
+  workout-history copy readable by a previously-authorized third party. Best-effort.
 
 ---
 
@@ -243,6 +248,10 @@ navigation.
   handling (cancel periodic + notification) governs user-facing behavior; **do not double-notify** from
   the snapshot path.
 - **Folder trashed/deleted by user** → cached id 404 on upload → recreate folder, retry once.
+- **Toggle off / sign-out with snapshots present** → `clearSnapshots()` lists the visible folder and
+  best-effort deletes each `workeeper_export_*` file (D11). Never creates a folder; no-op without the
+  `drive.file` grant; the empty folder is left in place. Sign-out deletes **before** `revokeAccess`
+  (after revoke the app can't see the files). Per-file delete failures are swallowed.
 - **Two devices, same account** → device B's `drive.file` list sees A's app-created folder (same OAuth
   client) → dedup by oldest `createdTime`; tolerate pre-existing duplicates (optionally clean extras
   best-effort).

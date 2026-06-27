@@ -158,6 +158,82 @@ internal class DriveSnapshotStorageTest {
         assertEquals(BackupError.NetworkUnavailable, (result as BackupResult.Failure).error)
     }
 
+    @Test
+    fun `deleteAllSnapshots is a no-op when drive_file is not granted`() = runTest {
+        coEvery { accountStore.isDriveFileGranted() } returns false
+
+        val result = storage.deleteAllSnapshots()
+
+        assertTrue(result is BackupResult.Success)
+        coVerify(exactly = 0) { driveApi.listFiles(any(), any()) }
+        coVerify(exactly = 0) { driveApi.deleteFile(any()) }
+    }
+
+    @Test
+    fun `deleteAllSnapshots deletes every export file in the cached folder`() = runTest {
+        coEvery { accountStore.isDriveFileGranted() } returns true
+        coEvery { accountStore.snapshotFolderId() } returns "folder"
+        coEvery { driveApi.listFiles(eq(DRIVE), match { it.isExportQuery() }) } returns listOf(
+            snapshot("e1", 100L),
+            snapshot("e2", 200L),
+            snapshot("e3", 300L),
+        )
+        coEvery { driveApi.deleteFile(any()) } just Runs
+
+        val result = storage.deleteAllSnapshots()
+
+        assertTrue(result is BackupResult.Success)
+        coVerify(exactly = 1) { driveApi.deleteFile("e1") }
+        coVerify(exactly = 1) { driveApi.deleteFile("e2") }
+        coVerify(exactly = 1) { driveApi.deleteFile("e3") }
+        coVerify(exactly = 0) { driveApi.createFolder(any()) }
+    }
+
+    @Test
+    fun `deleteAllSnapshots never creates a folder and deletes nothing when none exists`() =
+        runTest {
+            coEvery { accountStore.isDriveFileGranted() } returns true
+            coEvery { accountStore.snapshotFolderId() } returns null
+            coEvery { driveApi.listFiles(eq(DRIVE), match { it.isFolderQuery() }) } returns emptyList()
+
+            val result = storage.deleteAllSnapshots()
+
+            assertTrue(result is BackupResult.Success)
+            coVerify(exactly = 0) { driveApi.createFolder(any()) }
+            coVerify(exactly = 0) { driveApi.deleteFile(any()) }
+        }
+
+    @Test
+    fun `deleteAllSnapshots surfaces a typed Failure when the list call fails`() = runTest {
+        coEvery { accountStore.isDriveFileGranted() } returns true
+        coEvery { accountStore.snapshotFolderId() } returns "folder"
+        coEvery { driveApi.listFiles(eq(DRIVE), match { it.isExportQuery() }) } throws
+            IOException("offline")
+
+        val result = storage.deleteAllSnapshots()
+
+        assertTrue(result is BackupResult.Failure)
+        assertEquals(BackupError.NetworkUnavailable, (result as BackupResult.Failure).error)
+    }
+
+    @Test
+    fun `deleteAllSnapshots swallows a per-file delete failure and still returns Success`() =
+        runTest {
+            coEvery { accountStore.isDriveFileGranted() } returns true
+            coEvery { accountStore.snapshotFolderId() } returns "folder"
+            coEvery { driveApi.listFiles(eq(DRIVE), match { it.isExportQuery() }) } returns listOf(
+                snapshot("e1", 100L),
+                snapshot("e2", 200L),
+            )
+            coEvery { driveApi.deleteFile("e1") } throws IOException("offline")
+            coEvery { driveApi.deleteFile("e2") } just Runs
+
+            val result = storage.deleteAllSnapshots()
+
+            assertTrue(result is BackupResult.Success)
+            coVerify(exactly = 1) { driveApi.deleteFile("e2") }
+        }
+
     private fun folder(id: String, createdTime: String? = null): DriveFileDto = DriveFileDto(
         id = id,
         name = FOLDER,

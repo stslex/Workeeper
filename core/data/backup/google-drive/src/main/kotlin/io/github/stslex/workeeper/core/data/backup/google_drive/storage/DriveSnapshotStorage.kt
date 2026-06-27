@@ -55,17 +55,46 @@ internal class DriveSnapshotStorage @Inject constructor(
             )
         }
 
+    /**
+     * Deletes every snapshot file in the visible folder (consent withdrawal / sign-out cleanup).
+     * No-op when `drive.file` is not granted (can't see the visible files without the scope) or
+     * when no folder exists yet — and it never CREATES a folder, unlike [resolveFolderId]. The
+     * empty folder is left in place; only `workeeper_export_*` files are removed. Per-file delete
+     * failures are swallowed (best-effort); a list failure surfaces as a typed [BackupResult].
+     */
+    override suspend fun deleteAllSnapshots(): BackupResult<Unit> = withContext(dispatcher) {
+        if (!accountStore.isDriveFileGranted()) return@withContext BackupResult.Success(Unit)
+        runCatching {
+            val folderId = existingFolderId() ?: return@runCatching
+            val files = withTokenRefreshOn401 {
+                driveApi.listFiles(spaces = DRIVE_SPACE, query = exportQuery(folderId))
+            }
+            files.forEach { file ->
+                runCatching { withTokenRefreshOn401 { driveApi.deleteFile(file.id) } }
+                    .onFailure { logger.e(it, "deleteAllSnapshots: delete ${file.id} failed") }
+            }
+        }.fold(
+            onSuccess = { BackupResult.Success(Unit) },
+            onFailure = { BackupResult.Failure(DriveErrorMapper.toBackupError(it)) },
+        )
+    }
+
     /** Cached id if present; else find the oldest existing `Workeeper/` folder, else create one. */
     private suspend fun resolveFolderId(): String {
         accountStore.snapshotFolderId()?.let { return it }
-        val existing = withTokenRefreshOn401 {
-            driveApi.listFiles(spaces = DRIVE_SPACE, query = FOLDER_QUERY)
-        }.minByOrNull { it.createdTime.orEmpty() }
-        val id = existing?.id
+        val id = findFolderInDrive()?.id
             ?: withTokenRefreshOn401 { driveApi.createFolder(SnapshotConstants.FOLDER_NAME) }.id
         accountStore.setSnapshotFolderId(id)
         return id
     }
+
+    /** Cached id, else the oldest existing `Workeeper/` folder in Drive, else `null` (no create). */
+    private suspend fun existingFolderId(): String? =
+        accountStore.snapshotFolderId() ?: findFolderInDrive()?.id
+
+    private suspend fun findFolderInDrive(): DriveFileDto? = withTokenRefreshOn401 {
+        driveApi.listFiles(spaces = DRIVE_SPACE, query = FOLDER_QUERY)
+    }.minByOrNull { it.createdTime.orEmpty() }
 
     /**
      * Uploads to [folderId]; if the folder is gone (`404`, e.g. user trashed it), drops the

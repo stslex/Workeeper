@@ -62,6 +62,8 @@ internal class BackupInteractorImpl @Inject constructor(
 
     override suspend fun signOut(): BackupResult<Unit> = backupAuth.signOut()
 
+    override suspend fun deleteAiExportSnapshots() = snapshotExportRunner.clearSnapshots()
+
     override suspend fun createBackup(): BackupResult<Unit> = withContext(dispatcher) {
         val result = createBinaryBackup()
         // Best-effort AI snapshot AFTER the binary backup. Wrapped so a runner fault can never

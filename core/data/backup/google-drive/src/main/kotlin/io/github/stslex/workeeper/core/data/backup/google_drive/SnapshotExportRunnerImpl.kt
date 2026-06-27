@@ -65,6 +65,22 @@ internal class SnapshotExportRunnerImpl @Inject constructor(
         runExport()
     }
 
+    override suspend fun clearSnapshots() {
+        runCatching {
+            // Serialize with the export paths: deleting while an upload is mid-rotation could
+            // delete the wrong set or race the folder lookup. The storage gates on the grant.
+            exportMutex.withLock {
+                when (val result = snapshotStorage.deleteAllSnapshots()) {
+                    is BackupResult.Success -> Unit
+                    is BackupResult.Failure -> handleFailure(result.error)
+                }
+            }
+        }.onFailure { t ->
+            // Unexpected throwable. Record + swallow — deletion is best-effort housekeeping.
+            logger.e(t, "AI snapshot deletion threw")
+        }
+    }
+
     private suspend fun runExport() {
         runCatching {
             if (!isEligible()) return@runCatching

@@ -30,4 +30,16 @@ interface SnapshotExportRunner {
      * unless the toggle is on AND `drive.file` is granted.
      */
     suspend fun runIfEligibleAwaiting()
+
+    /**
+     * Deletes all previously-exported snapshots from the visible folder, serialized against
+     * [runIfEligible] / [runIfEligibleAwaiting] through the same in-process lock so a delete can
+     * never race a concurrent upload. SUSPENDS until done. Call when the user withdraws consent
+     * (AI-export toggle OFF) and BEFORE sign-out revokes `drive.file` — once the grant is gone the
+     * app can no longer see its visible files to remove them. Fully best-effort: gated on the
+     * `drive.file` grant (no-op without it) and the body is swallowed so it never throws. Unlike
+     * the export paths this does NOT gate on the toggle — it is invoked precisely when the toggle
+     * is going off.
+     */
+    suspend fun clearSnapshots()
 }

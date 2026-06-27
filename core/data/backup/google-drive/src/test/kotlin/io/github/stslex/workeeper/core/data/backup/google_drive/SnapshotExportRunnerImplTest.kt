@@ -176,4 +176,35 @@ internal class SnapshotExportRunnerImplTest {
         coVerify(exactly = 0) { exporter.export(any(), any(), any()) }
         coVerify(exactly = 0) { snapshotStorage.uploadSnapshot(any()) }
     }
+
+    @Test
+    fun `clearSnapshots delegates to storage deleteAllSnapshots (no toggle gate)`() = runTest {
+        // No eligibility stubbing: deletion must run even though the toggle is off (it is invoked
+        // precisely on consent withdrawal). The grant gate lives in the storage layer.
+        coEvery { snapshotStorage.deleteAllSnapshots() } returns BackupResult.Success(Unit)
+
+        runner().clearSnapshots()
+
+        coVerify(exactly = 1) { snapshotStorage.deleteAllSnapshots() }
+        coVerify(exactly = 0) { snapshotStorage.uploadSnapshot(any()) }
+    }
+
+    @Test
+    fun `clearSnapshots swallows a storage failure and never throws`() = runTest {
+        coEvery { snapshotStorage.deleteAllSnapshots() } returns
+            BackupResult.Failure(BackupError.Io(IOException("disk")))
+
+        runner().clearSnapshots() // must not throw
+
+        coVerify(exactly = 1) { snapshotStorage.deleteAllSnapshots() }
+    }
+
+    @Test
+    fun `clearSnapshots swallows a thrown exception and never throws`() = runTest {
+        coEvery { snapshotStorage.deleteAllSnapshots() } throws RuntimeException("boom")
+
+        runner().clearSnapshots() // must not throw
+
+        coVerify(exactly = 1) { snapshotStorage.deleteAllSnapshots() }
+    }
 }

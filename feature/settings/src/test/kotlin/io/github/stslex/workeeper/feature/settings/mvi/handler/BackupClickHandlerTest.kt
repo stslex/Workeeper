@@ -34,6 +34,7 @@ import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Actio
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Event
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
@@ -252,11 +253,16 @@ internal class BackupClickHandlerTest {
         }
 
     @Test
-    fun `ToggleAiExport off persists disabled`() = runTest(testDispatcher) {
-        handler.invoke(Action.Backup.ToggleAiExport(false))
+    fun `ToggleAiExport off persists disabled then deletes exported snapshots`() =
+        runTest(testDispatcher) {
+            handler.invoke(Action.Backup.ToggleAiExport(false))
 
-        coVerify { preferencesRepository.setAiExportEnabled(false) }
-    }
+            // Flag off FIRST (so a racing worker won't re-upload), then delete the plaintext copies.
+            coVerifyOrder {
+                preferencesRepository.setAiExportEnabled(false)
+                interactor.deleteAiExportSnapshots()
+            }
+        }
 
     @Test
     fun `ToggleAiExport on with drive_file already granted persists enabled`() =
@@ -899,6 +905,19 @@ internal class BackupClickHandlerTest {
 
         coVerify { autoBackupController.cancelPeriodic() }
         coVerify { interactor.signOut() }
+    }
+
+    @Test
+    fun `ConfirmSignOut deletes snapshots before revoking via signOut`() = runTest(testDispatcher) {
+        coEvery { interactor.signOut() } returns BackupResult.Success(Unit)
+
+        handler.invoke(Action.Backup.ConfirmSignOut)
+
+        // Deletion MUST precede signOut: drive.file can't see the app's files once revoked.
+        coVerifyOrder {
+            interactor.deleteAiExportSnapshots()
+            interactor.signOut()
+        }
     }
 
     @Test
