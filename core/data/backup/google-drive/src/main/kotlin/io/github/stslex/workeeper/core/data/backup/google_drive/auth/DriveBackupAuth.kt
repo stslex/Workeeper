@@ -125,7 +125,7 @@ internal class DriveBackupAuth @Inject constructor(
                             BackupResult.Failure(BackupError.MissingRequiredScope)
                         } else {
                             persistTokenAndGrant(result)
-                            val account = result.toAccount(fetchUserInfo(result.accessToken))
+                            val account = resolveAccount(result)
                             accountStore.setAccount(account)
                             BackupResult.Success(account)
                         }
@@ -202,10 +202,25 @@ internal class DriveBackupAuth @Inject constructor(
             return SignInResult.PartialGrant(missing)
         }
         persistTokenAndGrant(result)
-        val account = result.toAccount(fetchUserInfo(result.accessToken))
+        val account = resolveAccount(result)
         accountStore.setAccount(account)
         return SignInResult.Success(account)
     }
+
+    /**
+     * Resolves the account to persist for a successful authorize result.
+     *
+     * A real identity (userinfo email, else the `GoogleSignInAccount` email) always wins. When the
+     * result carries neither — an incremental `drive.file` grant that GMS satisfies with a cached
+     * credential, so `accessToken` is null AND `toGoogleSignInAccount()` is null — falling back to
+     * [PLACEHOLDER_EMAIL] would clobber the already signed-in user's email/display name purely from
+     * enabling the toggle. So in that case the existing stored account is preserved. Only a truly
+     * first-time sign-in with no derivable identity and no prior account reaches the placeholder.
+     */
+    private suspend fun resolveAccount(result: AuthorizationResult): Account =
+        result.toAccountOrNull(fetchUserInfo(result.accessToken))
+            ?: accountStore.account()
+            ?: Account(email = PLACEHOLDER_EMAIL, displayName = null)
 
     private fun AuthorizationResult.missingRequiredScopes(): List<String> {
         val granted: List<String> = grantedScopes.orEmpty()
@@ -226,12 +241,15 @@ internal class DriveBackupAuth @Inject constructor(
         }
     }
 
-    private fun AuthorizationResult.toAccount(userInfo: UserInfo?): Account {
+    /**
+     * Builds an [Account] from a real identity source, or `null` when none is available (no
+     * userinfo email and no `GoogleSignInAccount` email). The placeholder fallback lives in
+     * [resolveAccount] so callers can first preserve an existing stored identity.
+     */
+    private fun AuthorizationResult.toAccountOrNull(userInfo: UserInfo?): Account? {
         val gsa = toGoogleSignInAccount()
-        return Account(
-            email = userInfo?.email ?: gsa?.email ?: PLACEHOLDER_EMAIL,
-            displayName = userInfo?.name ?: gsa?.displayName,
-        )
+        val email = userInfo?.email ?: gsa?.email ?: return null
+        return Account(email = email, displayName = userInfo?.name ?: gsa?.displayName)
     }
 
     private companion object {

@@ -31,6 +31,8 @@ internal class AccountDataStoreImpl @Inject constructor(
 
     override fun observeAccount(): Flow<Account?> = dataStore.data.map(::accountFromPrefs)
 
+    override suspend fun account(): Account? = accountFromPrefs(dataStore.data.first())
+
     override suspend fun setAccount(account: Account) {
         dataStore.edit { prefs ->
             prefs[KEY_EMAIL] = account.email

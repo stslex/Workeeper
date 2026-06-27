@@ -20,6 +20,9 @@ internal interface AccountDataStore {
     /** Hot stream of the persisted account. Emits `null` when no account is stored. */
     fun observeAccount(): Flow<Account?>
 
+    /** One-shot read of the persisted account, or `null` when none is stored. */
+    suspend fun account(): Account?
+
     /** Persists [account]. Overwrites any prior value. */
     suspend fun setAccount(account: Account)
 

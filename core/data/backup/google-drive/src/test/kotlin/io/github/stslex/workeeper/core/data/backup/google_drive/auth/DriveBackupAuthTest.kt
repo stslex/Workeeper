@@ -46,6 +46,7 @@ internal class DriveBackupAuthTest {
     private val accountFlow = MutableStateFlow<Account?>(null)
     private val accountStore = mockk<AccountDataStore>(relaxed = true).also {
         every { it.observeAccount() } returns accountFlow
+        coEvery { it.account() } coAnswers { accountFlow.value }
         coEvery { it.setAccount(any()) } coAnswers {
             accountFlow.value = firstArg()
         }
@@ -552,6 +553,40 @@ internal class DriveBackupAuthTest {
             coVerify { accountStore.setDriveFileGranted(true) }
             coVerify(exactly = 1) { accountStore.clearToken() }
             coVerify(exactly = 0) { accountStore.setToken(any(), any()) }
+        }
+
+    @Test
+    fun `requestDriveFileAccess preserves existing account when grant carries no fresh identity`() =
+        runTest {
+            // Already signed in with a real identity. Enabling AI export drives an incremental
+            // drive.file grant that GMS satisfies with a cached credential: success, but no fresh
+            // accessToken and no GoogleSignInAccount. The placeholder must NOT clobber the stored
+            // email/display name.
+            accountFlow.value = Account(email = "real@example.com", displayName = "Real User")
+            val authResult = mockk<AuthorizationResult> {
+                every { hasResolution() } returns false
+                every { grantedScopes } returns listOf(
+                    DriveAuthScopes.DRIVE_APPDATA,
+                    DriveAuthScopes.USERINFO_EMAIL,
+                    DriveAuthScopes.USERINFO_PROFILE,
+                    DriveAuthScopes.DRIVE_FILE,
+                )
+                every { toGoogleSignInAccount() } returns null
+                every { accessToken } returns null
+            }
+            every { authorizationClient.authorize(any()) } returns Tasks.forResult(authResult)
+
+            val result = newAuth().requestDriveFileAccess()
+
+            assertTrue(result is SignInResult.Success, "expected Success, got $result")
+            assertEquals(
+                Account(email = "real@example.com", displayName = "Real User"),
+                (result as SignInResult.Success).account,
+            )
+            coVerify { accountStore.setDriveFileGranted(true) }
+            coVerify(exactly = 0) {
+                accountStore.setAccount(Account(email = "drive_account", displayName = null))
+            }
         }
 
     @Test
