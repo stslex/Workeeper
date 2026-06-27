@@ -16,6 +16,9 @@ import io.github.stslex.workeeper.core.data.database.session.model.SetEntity
 import io.github.stslex.workeeper.core.data.database.training.TrainingEntity
 import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseEntity
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
@@ -52,9 +55,9 @@ internal class DatabaseJsonExporterImpl @Inject constructor(
         // an interleaved insert could surface a child row whose parent/name row was not read (e.g.
         // `exerciseNameByUuid` falling back to ""). The transaction pins all reads to one state.
         val snapshot = database.withTransaction {
-            val exercises = database.exerciseDao.getAll()
-            val trainings = database.trainingDao.getAll()
-            val index = buildIndex(exercises)
+            val exercises = async { database.exerciseDao.getAll() }
+            val trainings = async { database.trainingDao.getAll() }
+            val index = async { buildIndex(exercises) }
             WorkoutExportDto(
                 schemaVersion = EXPORT_SCHEMA_VERSION,
                 exportedAt = WorkoutExportMapper.epochToIso(exportedAtEpochMs),
@@ -63,33 +66,63 @@ internal class DatabaseJsonExporterImpl @Inject constructor(
                     dbSchemaVersion = dbSchemaVersion,
                     deviceModel = deviceModel,
                 ),
-                exercises = exercises.map { entity ->
-                    WorkoutExportMapper.exercise(entity, index.tagsByExercise[entity.uuid].orEmpty())
+                exercises = exercises.await().map { entity ->
+                    WorkoutExportMapper.exercise(
+                        entity,
+                        index.await().tagsByExercise[entity.uuid].orEmpty(),
+                    )
                 },
-                trainings = trainings.map { training -> buildTraining(training, index) },
+                trainings = trainings.await()
+                    .map { training -> buildTraining(training, index.await()) },
             )
         }
         // Encode outside the transaction — pure CPU, no DB access; keeps the transaction short.
         json.encodeToString(snapshot).toByteArray(Charsets.UTF_8)
     }
 
-    private suspend fun buildIndex(exercises: List<ExerciseEntity>): ExportIndex = ExportIndex(
-        exerciseNameByUuid = exercises.associate { it.uuid to it.name },
-        // Full-table tag joins (no uuid binding) — cannot hit SQLITE_MAX_VARIABLE_NUMBER, and
-        // consistent with the unfiltered getAll() readers below.
-        tagsByExercise = database.exerciseTagDao.getAllExerciseTagNames()
-            .groupBy({ it.exerciseUuid }, { it.name }),
-        tagsByTraining = database.trainingTagDao.getAllTrainingTagNames()
-            .groupBy({ it.trainingUuid }, { it.name }),
-        planByTraining = database.trainingExerciseDao.getAll().groupBy { it.trainingUuid },
-        sessionsByTraining = database.sessionDao.getAll().groupBy { it.trainingUuid },
-        performedBySession = database.performedExerciseDao.getAll().groupBy { it.sessionUuid },
-        setsByPerformed = database.setDao.getAll().groupBy { it.performedExerciseUuid },
-    )
+    private suspend fun CoroutineScope.buildIndex(exercises: Deferred<List<ExerciseEntity>>): ExportIndex {
+        val tagsByExerciseDeferred = async {
+            database.exerciseTagDao.getAllExerciseTagNames()
+                .groupBy({ it.exerciseUuid }, { it.name })
+        }
+        val tagsByTrainingDeferred = async {
+            database.trainingTagDao.getAllTrainingTagNames()
+                .groupBy({ it.trainingUuid }, { it.name })
+        }
+        val planByTrainingDeferred = async {
+            database.trainingExerciseDao.getAll().groupBy { it.trainingUuid }
+        }
+        val sessionsByTrainingDeferred = async {
+            database.sessionDao.getAll().groupBy { it.trainingUuid }
+        }
+        val performedBySessionDeferred = async {
+            database.performedExerciseDao.getAll().groupBy { it.sessionUuid }
+        }
+        val setsByPerformedDeferred = async {
+            database.setDao.getAll().groupBy { it.performedExerciseUuid }
+        }
+        val exerciseNameByUuidDeferred = async {
+            exercises.await().associate { it.uuid to it.name }
+        }
+        return ExportIndex(
+            exerciseNameByUuid = exerciseNameByUuidDeferred.await(),
+            // Full-table tag joins (no uuid binding) — cannot hit SQLITE_MAX_VARIABLE_NUMBER, and
+            // consistent with the unfiltered getAll() readers below.
+            tagsByExercise = tagsByExerciseDeferred.await(),
+            tagsByTraining = tagsByTrainingDeferred.await(),
+            planByTraining = planByTrainingDeferred.await(),
+            sessionsByTraining = sessionsByTrainingDeferred.await(),
+            performedBySession = performedBySessionDeferred.await(),
+            setsByPerformed = setsByPerformedDeferred.await(),
+        )
+    }
 
     private fun buildTraining(training: TrainingEntity, index: ExportIndex): TrainingExportDto {
         val plan = index.planByTraining[training.uuid].orEmpty().map { row ->
-            WorkoutExportMapper.planExercise(row, index.exerciseNameByUuid[row.exerciseUuid].orEmpty())
+            WorkoutExportMapper.planExercise(
+                row,
+                index.exerciseNameByUuid[row.exerciseUuid].orEmpty(),
+            )
         }
         val sessions = index.sessionsByTraining[training.uuid].orEmpty()
             .sortedWith(compareBy({ it.startedAt }, { it.uuid.toString() }))

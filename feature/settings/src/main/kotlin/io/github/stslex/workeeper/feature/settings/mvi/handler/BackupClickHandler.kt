@@ -288,7 +288,7 @@ internal class BackupClickHandler @Inject constructor(
             },
             onSuccess = { outcome ->
                 when (outcome) {
-                    SignInOutcomeDomain.Success -> {
+                    is SignInOutcomeDomain.Success -> {
                         preferencesRepository.setAiExportEnabled(true)
                         updateStateImmediate { current ->
                             current.copy(backupOperation = BackupOperationUi.Idle)
@@ -296,10 +296,11 @@ internal class BackupClickHandler @Inject constructor(
                     }
 
                     // Keep TogglingAiExport set; handleAuthResult resolves the grant and resets it.
-                    is SignInOutcomeDomain.NeedsResolution ->
-                        sendEvent(Event.AuthResolutionRequested(outcome.intentSender))
+                    is SignInOutcomeDomain.NeedsResolution -> sendEvent(
+                        Event.AuthResolutionRequested(outcome.intentSender),
+                    )
 
-                    SignInOutcomeDomain.PartialGrant,
+                    is SignInOutcomeDomain.PartialGrant,
                     is SignInOutcomeDomain.Failure,
                     -> {
                         updateStateImmediate { current ->

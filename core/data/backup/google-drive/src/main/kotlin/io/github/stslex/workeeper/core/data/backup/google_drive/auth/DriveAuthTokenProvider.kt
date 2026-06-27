@@ -6,6 +6,7 @@ import com.google.android.gms.auth.api.identity.AuthorizationRequest
 import com.google.android.gms.common.api.Scope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.logger.Log
+import io.github.stslex.workeeper.core.core.utils.CommonExt.runIf
 import io.github.stslex.workeeper.core.data.backup.google_drive.network.AuthTokenProvider
 import io.github.stslex.workeeper.core.data.backup.google_drive.utils.KtorLogger
 import kotlinx.coroutines.CoroutineDispatcher
@@ -44,27 +45,23 @@ internal class DriveAuthTokenProvider @Inject constructor(
         refreshTokenFromGms()
     }
 
-    private suspend fun refreshTokenFromGms(): String? {
-        // Request ONLY the scopes the account already granted: base, plus drive.file only if
-        // it was previously granted. Appdata-only users therefore request exactly
-        // DriveAuthScopes.ALL (identical to v1) and never trip an authorize() resolution.
+    // Request ONLY the scopes the account already granted: base, plus drive.file only if
+    // it was previously granted. Appdata-only users therefore request exactly
+    // DriveAuthScopes.ALL (identical to v1) and never trip an authorize() resolution.
+    private suspend fun refreshTokenFromGms(): String? = runCatching {
         val includeDriveFile = accountStore.isDriveFileGranted()
         val scopes = if (includeDriveFile) {
             DriveAuthScopes.ALL_WITH_DRIVE_FILE
         } else {
             DriveAuthScopes.ALL
         }
-        return try {
-            // If we requested drive.file but got no token, it was revoked (the flag is
-            // re-derived to false in authorizeFor); retry with base scopes so the binary
-            // backup token stays available.
-            authorizeFor(scopes)
-                ?: if (includeDriveFile) authorizeFor(DriveAuthScopes.ALL) else null
-        } catch (@Suppress("TooGenericExceptionCaught") t: Throwable) {
-            Log.tag(KtorLogger.TAG).e(t, "authorize() threw")
-            null
-        }
+        authorizeFor(scopes)
+            ?: runIf(includeDriveFile) {
+                authorizeFor(DriveAuthScopes.ALL)
+            }
     }
+        .onFailure { t -> Log.tag(KtorLogger.TAG).e(t, "authorize() threw") }
+        .getOrNull()
 
     /**
      * Authorizes [scopes], re-derives + persists the `drive.file` grant from the result's
@@ -77,7 +74,7 @@ internal class DriveAuthTokenProvider @Inject constructor(
             .build()
         val result = authorizationClient.authorize(request).await()
         accountStore.setDriveFileGranted(
-            result.grantedScopes.orEmpty().contains(DriveAuthScopes.DRIVE_FILE),
+            result.grantedScopes.contains(DriveAuthScopes.DRIVE_FILE),
         )
         val token = result.accessToken
         if (token != null) {

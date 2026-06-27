@@ -16,6 +16,7 @@ import io.github.stslex.workeeper.core.data.backup.api.model.Account
 import io.github.stslex.workeeper.core.data.backup.api.model.AuthState
 import io.github.stslex.workeeper.core.data.backup.api.model.SignInResult
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
+import io.github.stslex.workeeper.core.data.backup.google_drive.auth.DriveBackupAuth.Companion.PLACEHOLDER_EMAIL
 import io.github.stslex.workeeper.core.data.backup.google_drive.error.DriveErrorMapper
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -167,8 +168,9 @@ internal class DriveBackupAuth @Inject constructor(
      * [DriveAuthTokenProvider] to refresh a `drive.file`-capable token on the next Drive call.
      */
     private suspend fun persistTokenAndGrant(result: AuthorizationResult) {
-        val driveFileGranted = result.isDriveFileGranted()
-        accountStore.setDriveFileGranted(driveFileGranted)
+        val driveFileGranted = result.isDriveFileGranted().also { granted ->
+            accountStore.setDriveFileGranted(granted)
+        }
         val freshToken = result.accessToken
         when {
             freshToken != null -> accountStore.setToken(
