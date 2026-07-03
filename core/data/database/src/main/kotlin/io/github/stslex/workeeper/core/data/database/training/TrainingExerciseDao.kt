@@ -67,6 +67,19 @@ interface TrainingExerciseDao {
         exerciseUuids: List<Uuid>,
     ): List<TrainingExercisePlanRow>
 
+    /**
+     * Every plan row across all trainings, ordered so the snapshot exporter can
+     * `groupBy { trainingUuid }` with each group already in plan order. Unfiltered
+     * by design (full-graph export); not for user-facing reads.
+     */
+    @Query(
+        """
+        SELECT * FROM training_exercise_table
+        ORDER BY training_uuid, position ASC
+        """,
+    )
+    suspend fun getAll(): List<TrainingExerciseEntity>
+
     @Query(
         """
         UPDATE training_exercise_table

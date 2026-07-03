@@ -46,6 +46,7 @@ internal class DriveBackupAuthTest {
     private val accountFlow = MutableStateFlow<Account?>(null)
     private val accountStore = mockk<AccountDataStore>(relaxed = true).also {
         every { it.observeAccount() } returns accountFlow
+        coEvery { it.account() } coAnswers { accountFlow.value }
         coEvery { it.setAccount(any()) } coAnswers {
             accountFlow.value = firstArg()
         }
@@ -367,6 +368,7 @@ internal class DriveBackupAuthTest {
                 DriveAuthScopes.DRIVE_APPDATA,
                 DriveAuthScopes.USERINFO_EMAIL,
                 DriveAuthScopes.USERINFO_PROFILE,
+                DriveAuthScopes.DRIVE_FILE,
             ),
             scopes,
         )
@@ -477,6 +479,134 @@ internal class DriveBackupAuthTest {
         assertTrue(result is SignInResult.PartialGrant, "expected PartialGrant, got $result")
         coVerify(exactly = 0) { accountStore.setAccount(any()) }
         coVerify(exactly = 0) { accountStore.setToken(any(), any()) }
+    }
+
+    @Test
+    fun `signIn persists driveFileGranted false when drive_file not granted`() = runTest {
+        val authResult = mockk<AuthorizationResult> {
+            every { hasResolution() } returns false
+            every { grantedScopes } returns listOf(
+                DriveAuthScopes.DRIVE_APPDATA,
+                DriveAuthScopes.USERINFO_EMAIL,
+                DriveAuthScopes.USERINFO_PROFILE,
+            )
+            every { toGoogleSignInAccount() } returns null
+            every { accessToken } returns "tok"
+        }
+        every { authorizationClient.authorize(any()) } returns Tasks.forResult(authResult)
+
+        newAuth().signIn()
+
+        coVerify { accountStore.setDriveFileGranted(false) }
+    }
+
+    @Test
+    fun `requestDriveFileAccess requests drive_file and persists the grant on success`() = runTest {
+        val authResult = mockk<AuthorizationResult> {
+            every { hasResolution() } returns false
+            every { grantedScopes } returns listOf(
+                DriveAuthScopes.DRIVE_APPDATA,
+                DriveAuthScopes.USERINFO_EMAIL,
+                DriveAuthScopes.USERINFO_PROFILE,
+                DriveAuthScopes.DRIVE_FILE,
+            )
+            every { toGoogleSignInAccount() } returns null
+            every { accessToken } returns "tok"
+        }
+        val captured = slot<com.google.android.gms.auth.api.identity.AuthorizationRequest>()
+        every { authorizationClient.authorize(capture(captured)) } returns Tasks.forResult(authResult)
+
+        val result = newAuth().requestDriveFileAccess()
+
+        assertTrue(result is SignInResult.Success, "expected Success, got $result")
+        val scopes = captured.captured.requestedScopes.map(Scope::getScopeUri).toSet()
+        assertTrue(scopes.contains(DriveAuthScopes.DRIVE_FILE), "expected drive.file requested, got $scopes")
+        coVerify { accountStore.setDriveFileGranted(true) }
+        // Fresh token present -> cache it, never clear.
+        coVerify(exactly = 1) { accountStore.setToken(token = "tok", expiresAtEpochMs = any()) }
+        coVerify(exactly = 0) { accountStore.clearToken() }
+    }
+
+    @Test
+    fun `requestDriveFileAccess clears stale cached token when drive_file granted with no fresh token`() =
+        runTest {
+            // GMS can return a Success that grants drive.file but carries no access token (it
+            // deems a cached credential sufficient). The cached token predates the grant and may
+            // be appdata-only, so it must be dropped to force a drive.file-capable refresh rather
+            // than 403 the visible-Drive upload until its TTL expires.
+            val authResult = mockk<AuthorizationResult> {
+                every { hasResolution() } returns false
+                every { grantedScopes } returns listOf(
+                    DriveAuthScopes.DRIVE_APPDATA,
+                    DriveAuthScopes.USERINFO_EMAIL,
+                    DriveAuthScopes.USERINFO_PROFILE,
+                    DriveAuthScopes.DRIVE_FILE,
+                )
+                every { toGoogleSignInAccount() } returns null
+                every { accessToken } returns null
+            }
+            every { authorizationClient.authorize(any()) } returns Tasks.forResult(authResult)
+
+            val result = newAuth().requestDriveFileAccess()
+
+            assertTrue(result is SignInResult.Success, "expected Success, got $result")
+            coVerify { accountStore.setDriveFileGranted(true) }
+            coVerify(exactly = 1) { accountStore.clearToken() }
+            coVerify(exactly = 0) { accountStore.setToken(any(), any()) }
+        }
+
+    @Test
+    fun `requestDriveFileAccess preserves existing account when grant carries no fresh identity`() =
+        runTest {
+            // Already signed in with a real identity. Enabling AI export drives an incremental
+            // drive.file grant that GMS satisfies with a cached credential: success, but no fresh
+            // accessToken and no GoogleSignInAccount. The placeholder must NOT clobber the stored
+            // email/display name.
+            accountFlow.value = Account(email = "real@example.com", displayName = "Real User")
+            val authResult = mockk<AuthorizationResult> {
+                every { hasResolution() } returns false
+                every { grantedScopes } returns listOf(
+                    DriveAuthScopes.DRIVE_APPDATA,
+                    DriveAuthScopes.USERINFO_EMAIL,
+                    DriveAuthScopes.USERINFO_PROFILE,
+                    DriveAuthScopes.DRIVE_FILE,
+                )
+                every { toGoogleSignInAccount() } returns null
+                every { accessToken } returns null
+            }
+            every { authorizationClient.authorize(any()) } returns Tasks.forResult(authResult)
+
+            val result = newAuth().requestDriveFileAccess()
+
+            assertTrue(result is SignInResult.Success, "expected Success, got $result")
+            assertEquals(
+                Account(email = "real@example.com", displayName = "Real User"),
+                (result as SignInResult.Success).account,
+            )
+            coVerify { accountStore.setDriveFileGranted(true) }
+            coVerify(exactly = 0) {
+                accountStore.setAccount(Account(email = "drive_account", displayName = null))
+            }
+        }
+
+    @Test
+    fun `completeSignIn persists driveFileGranted true when drive_file granted`() = runTest {
+        val intent = mockk<Intent>()
+        val authResult = mockk<AuthorizationResult> {
+            every { grantedScopes } returns listOf(
+                DriveAuthScopes.DRIVE_APPDATA,
+                DriveAuthScopes.USERINFO_EMAIL,
+                DriveAuthScopes.USERINFO_PROFILE,
+                DriveAuthScopes.DRIVE_FILE,
+            )
+            every { toGoogleSignInAccount() } returns null
+            every { accessToken } returns "tok"
+        }
+        every { authorizationClient.getAuthorizationResultFromIntent(intent) } returns authResult
+
+        newAuth().completeSignIn(intent)
+
+        coVerify { accountStore.setDriveFileGranted(true) }
     }
 
     @Test

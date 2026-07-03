@@ -6,6 +6,7 @@ import androidx.work.ListenableWorker
 import androidx.work.WorkerFactory
 import androidx.work.WorkerParameters
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
+import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
 import io.github.stslex.workeeper.core.data.backup.worker.notification.BackupNotificationHelper
@@ -22,6 +23,7 @@ internal class WorkerTestFactory(
     private val preferences: BackupPreferencesRepository,
     private val autoBackupController: AutoBackupController,
     private val notificationHelper: BackupNotificationHelper,
+    private val snapshotExportRunner: SnapshotExportRunner,
 ) : WorkerFactory() {
 
     override fun createWorker(
@@ -36,5 +38,6 @@ internal class WorkerTestFactory(
         preferences = preferences,
         autoBackupController = autoBackupController,
         notificationHelper = notificationHelper,
+        snapshotExportRunner = snapshotExportRunner,
     )
 }

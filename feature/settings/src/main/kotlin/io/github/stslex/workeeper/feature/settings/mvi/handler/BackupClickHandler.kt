@@ -77,6 +77,8 @@ internal class BackupClickHandler @Inject constructor(
                 action.schedule,
                 action.allowOnMobileData,
             )
+
+            is Action.Backup.ToggleAiExport -> toggleAiExport(action.enabled)
         }
     }
 
@@ -148,13 +150,16 @@ internal class BackupClickHandler @Inject constructor(
         combine(
             preferencesRepository.observe(),
             autoBackupController.observePeriodicStatus(),
-        ) { prefs, infos -> prefs to infos }
-            .launch { (prefs, infos) ->
-                val ui = BackupPreferencesUiMapper.toUi(
-                    prefs = prefs,
-                    periodicInfos = infos,
-                    now = System.currentTimeMillis(),
-                )
+            interactor.driveFileGranted,
+        ) { prefs, infos, driveFileGranted ->
+            BackupPreferencesUiMapper.toUi(
+                prefs = prefs,
+                periodicInfos = infos,
+                now = System.currentTimeMillis(),
+                driveFileGranted = driveFileGranted,
+            )
+        }
+            .launch { ui ->
                 updateState { current -> current.copy(backupPreferences = ui) }
             }
     }
@@ -219,25 +224,108 @@ internal class BackupClickHandler @Inject constructor(
 
     private fun handleAuthResult(resultIntent: android.content.Intent?) {
         launchDefault(
-            onError = { emitUnknownErrorAndIdle(it) },
+            onError = { e -> emitUnknownErrorAndIdle(e) },
             onSuccess = { result ->
+                // The in-flight operation is the single source of truth for whether this
+                // resolution was driving an AI-export grant (vs a plain sign-in) — no
+                // cross-coroutine var. Read it before resetting to Idle.
+                val wasAiExportGrant =
+                    state.value.backupOperation == BackupOperationUi.TogglingAiExport
+                updateStateImmediate { current ->
+                    current.copy(backupOperation = BackupOperationUi.Idle)
+                }
                 when (result) {
                     is BackupResult.Success -> {
                         logger.i { "Sign-in successful for account: ${result.data}" }
-                        updateStateImmediate { current ->
-                            current.copy(backupOperation = BackupOperationUi.Idle)
-                        }
+                        if (wasAiExportGrant) reconcileAiExportGrant()
                         launchDefault { bootstrapOrRehydrate() }
                     }
 
                     is BackupResult.Failure -> {
-                        val errorUi = result.error.toUi()
-                        sendEvent(Event.ShowBackupError(errorUi))
+                        // A cancelled/failed resolution that was driving an AI-export grant
+                        // surfaces the access-needed snackbar, not a generic backup error.
+                        if (wasAiExportGrant) {
+                            sendEvent(Event.ShowAiExportAccessNeeded)
+                        } else {
+                            sendEvent(Event.ShowBackupError(result.error.toUi()))
+                        }
                     }
                 }
             },
         ) {
             interactor.completeSignIn(resultIntent)
+        }
+    }
+
+    private fun toggleAiExport(enabled: Boolean) {
+        if (!enabled) {
+            // Withdraw consent: stop future exports (flag off so a racing worker won't re-upload),
+            // then best-effort delete the already-exported plaintext snapshots from visible Drive.
+            launchDefault {
+                preferencesRepository.setAiExportEnabled(false)
+                interactor.deleteAiExportSnapshots()
+            }
+            return
+        }
+        // Ignore a re-entrant enable while a grant is already in flight (the switch is also
+        // disabled in the UI while TogglingAiExport) — prevents launching a second
+        // requestDriveFileAccess() and a second resolution intent.
+        if (state.value.backupOperation.isInProgress) return
+        // Mark in flight and keep it set THROUGH the resolution round-trip so handleAuthResult can
+        // tell this resolution apart from a plain sign-in. Pessimistic: never persist enabled=true
+        // before the drive.file grant is confirmed. (`updateState` — non-suspend entry point, as
+        // in `signIn`.)
+        updateState { current ->
+            current.copy(backupOperation = BackupOperationUi.TogglingAiExport)
+        }
+        launchDefault(
+            onError = { e ->
+                logger.e(e, "Failed to request drive.file for AI export")
+                updateStateImmediate { current ->
+                    current.copy(backupOperation = BackupOperationUi.Idle)
+                }
+                sendEvent(Event.ShowAiExportAccessNeeded)
+            },
+            onSuccess = { outcome ->
+                when (outcome) {
+                    is SignInOutcomeDomain.Success -> {
+                        preferencesRepository.setAiExportEnabled(true)
+                        updateStateImmediate { current ->
+                            current.copy(backupOperation = BackupOperationUi.Idle)
+                        }
+                    }
+
+                    // Keep TogglingAiExport set; handleAuthResult resolves the grant and resets it.
+                    is SignInOutcomeDomain.NeedsResolution -> sendEvent(
+                        Event.AuthResolutionRequested(outcome.intentSender),
+                    )
+
+                    is SignInOutcomeDomain.PartialGrant,
+                    is SignInOutcomeDomain.Failure,
+                    -> {
+                        updateStateImmediate { current ->
+                            current.copy(backupOperation = BackupOperationUi.Idle)
+                        }
+                        sendEvent(Event.ShowAiExportAccessNeeded)
+                    }
+                }
+            },
+        ) {
+            interactor.requestDriveFileAccess()
+        }
+    }
+
+    /**
+     * Post-resolution reconciliation (called from [handleAuthResult] success only when the
+     * in-flight op was [BackupOperationUi.TogglingAiExport]). Persist the toggle ON only when
+     * `drive.file` is now actually granted; otherwise the user declined the scope — surface the
+     * access-needed snackbar and leave the toggle off.
+     */
+    private suspend fun reconcileAiExportGrant() {
+        if (interactor.isDriveFileGranted()) {
+            preferencesRepository.setAiExportEnabled(true)
+        } else {
+            sendEvent(Event.ShowAiExportAccessNeeded)
         }
     }
 
@@ -267,6 +355,9 @@ internal class BackupClickHandler @Inject constructor(
             },
         ) {
             autoBackupController.cancelPeriodic()
+            // Delete the visible-Drive snapshots BEFORE signOut revokes drive.file — once revoked,
+            // drive.file can no longer see the app's own files, stranding them permanently.
+            interactor.deleteAiExportSnapshots()
             interactor.signOut()
         }
     }

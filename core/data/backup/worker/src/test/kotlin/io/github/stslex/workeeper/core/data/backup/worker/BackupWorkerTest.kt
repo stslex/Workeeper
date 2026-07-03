@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.work.ListenableWorker
 import androidx.work.testing.TestListenableWorkerBuilder
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
+import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.model.BackupManifest
 import io.github.stslex.workeeper.core.data.backup.api.model.BackupRef
@@ -43,6 +44,7 @@ internal class BackupWorkerTest {
         coEvery { observePeriodicStatus() } returns emptyFlow<List<AutoBackupWorkInfo>>()
         coEvery { observeOneTimeStatus() } returns emptyFlow<List<AutoBackupWorkInfo>>()
     }
+    private val snapshotExportRunner = mockk<SnapshotExportRunner>(relaxed = true)
 
     private fun makeWorker(): BackupWorker = TestListenableWorkerBuilder<BackupWorker>(
         ApplicationProvider.getApplicationContext(),
@@ -53,6 +55,7 @@ internal class BackupWorkerTest {
             preferences = preferences,
             autoBackupController = autoBackupController,
             notificationHelper = notificationHelper,
+            snapshotExportRunner = snapshotExportRunner,
         ),
     ).build()
 
@@ -63,6 +66,50 @@ internal class BackupWorkerTest {
             BackupResult.Success(Unit)
         }
         coEvery { snapshotProvider.currentSchemaVersion() } returns 5
+    }
+
+    @Test
+    fun `binary success result is unaffected when the snapshot runner throws`() = runBlocking {
+        coEvery { backupStorage.uploadBackup(any(), any()) } returns BackupResult.Success(
+            BackupRef(
+                remoteId = "id",
+                manifest = BackupManifest(
+                    appVersion = "1.0.0",
+                    dbSchemaVersion = 5,
+                    createdAtEpochMs = 0L,
+                    dbFileSizeBytes = 1L,
+                    deviceModel = null,
+                ),
+            ),
+        )
+        coEvery { snapshotExportRunner.runIfEligibleAwaiting() } throws RuntimeException("runner blew up")
+
+        val result = makeWorker().doWork()
+
+        assertEquals(ListenableWorker.Result.success(), result)
+    }
+
+    @Test
+    fun `worker awaits the snapshot export rather than firing it and forgetting`() = runBlocking {
+        coEvery { backupStorage.uploadBackup(any(), any()) } returns BackupResult.Success(
+            BackupRef(
+                remoteId = "id",
+                manifest = BackupManifest(
+                    appVersion = "1.0.0",
+                    dbSchemaVersion = 5,
+                    createdAtEpochMs = 0L,
+                    dbFileSizeBytes = 1L,
+                    deviceModel = null,
+                ),
+            ),
+        )
+
+        makeWorker().doWork()
+
+        // The worker holds a wakelock window, so it must AWAIT the snapshot (keeps the process
+        // alive for the upload) and never use the detached fire-and-forget path.
+        coVerify(exactly = 1) { snapshotExportRunner.runIfEligibleAwaiting() }
+        coVerify(exactly = 0) { snapshotExportRunner.runIfEligible() }
     }
 
     @Test

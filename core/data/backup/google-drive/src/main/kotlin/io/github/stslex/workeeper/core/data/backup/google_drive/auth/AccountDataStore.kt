@@ -20,6 +20,9 @@ internal interface AccountDataStore {
     /** Hot stream of the persisted account. Emits `null` when no account is stored. */
     fun observeAccount(): Flow<Account?>
 
+    /** One-shot read of the persisted account, or `null` when none is stored. */
+    suspend fun account(): Account?
+
     /** Persists [account]. Overwrites any prior value. */
     suspend fun setAccount(account: Account)
 
@@ -46,4 +49,28 @@ internal interface AccountDataStore {
 
     /** Removes only the stored token. No-op when no token is stored. */
     suspend fun clearToken()
+
+    /**
+     * The cached id of the visible-Drive `Workeeper/` folder used by the AI snapshot,
+     * or `null` if not yet resolved. Cached here (rather than a new component) because
+     * this is already the singleton Drive-state store; [clear] drops it with everything
+     * else on sign-out.
+     */
+    suspend fun snapshotFolderId(): String?
+
+    /** Caches the snapshot folder id; pass `null` to drop a stale id (e.g. after a 404). */
+    suspend fun setSnapshotFolderId(id: String?)
+
+    /** Hot stream of whether `drive.file` is currently granted (drives the AI-export toggle UI). */
+    fun observeDriveFileGranted(): Flow<Boolean>
+
+    /** One-shot read of the `drive.file` grant flag (used by the export runner + silent refresh). */
+    suspend fun isDriveFileGranted(): Boolean
+
+    /**
+     * Persists the `drive.file` grant flag. Re-derived from `AuthorizationResult.grantedScopes`
+     * on every authorize (sign-in, explicit grant, AND silent refresh) so a later revocation
+     * flips it back to `false`.
+     */
+    suspend fun setDriveFileGranted(granted: Boolean)
 }

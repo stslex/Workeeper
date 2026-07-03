@@ -32,6 +32,19 @@ interface SetDao {
         performedExerciseUuids: List<Uuid>,
     ): List<SetEntity>
 
+    /**
+     * Every set row across all performed exercises, ordered so the snapshot exporter
+     * can `groupBy { performedExerciseUuid }` with each group already in position
+     * order. Unfiltered full-graph read; not for user-facing use.
+     */
+    @Query(
+        """
+        SELECT * FROM set_table
+        ORDER BY performed_exercise_uuid, position ASC
+        """,
+    )
+    suspend fun getAll(): List<SetEntity>
+
     @Query(
         """
         SELECT * FROM set_table

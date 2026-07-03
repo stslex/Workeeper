@@ -24,6 +24,13 @@ data class BackupPreferences(
     val lastSuccessAtEpochMs: Long,
     val lastError: BackupErrorCode?,
     val autoBackupBootstrapped: Boolean,
+    /**
+     * Whether the user enabled the AI-readable JSON snapshot export. Off by default and
+     * flipped on only via the Settings toggle after the `drive.file` grant is confirmed
+     * (pessimistic / opt-in). The export runner gates on this AND the actual `drive.file`
+     * grant, so it stays inert until both hold.
+     */
+    val aiExportEnabled: Boolean = false,
 ) {
 
     companion object {
@@ -35,6 +42,7 @@ data class BackupPreferences(
             lastSuccessAtEpochMs = 0L,
             lastError = null,
             autoBackupBootstrapped = false,
+            aiExportEnabled = false,
         )
     }
 }

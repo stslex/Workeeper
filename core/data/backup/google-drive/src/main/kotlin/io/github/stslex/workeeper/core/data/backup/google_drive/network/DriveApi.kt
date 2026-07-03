@@ -4,40 +4,51 @@ package io.github.stslex.workeeper.core.data.backup.google_drive.network
 import java.io.File
 
 /**
- * Thin Drive REST surface used by `DriveBackupStorage`. Each method maps to a
- * single Drive endpoint, scoped to `drive.appdata`. Errors are surfaced as
- * thrown exceptions and translated into
+ * Thin Drive REST surface. Each method maps to a single Drive endpoint. Errors are
+ * surfaced as thrown exceptions and translated into
  * [io.github.stslex.workeeper.core.data.backup.api.error.BackupError] variants by
  * `DriveErrorMapper`.
  *
- * Authorization headers are injected by the configured `HttpClient` (see
- * `NetworkModule`); callers do not pass tokens.
+ * The surface is **space-aware**: callers pass the Drive `spaces` and parent ids they
+ * target, so the same client serves both the binary backup path (`appDataFolder`) and
+ * the snapshot path (visible `drive`). Authorization headers are injected by the
+ * configured `HttpClient` (see `NetworkModule`); callers do not pass tokens.
  */
 internal interface DriveApi {
 
     /**
-     * `GET /drive/v3/files` against `appDataFolder` for entries with our naming
-     * prefix. Returns the parsed file rows; pagination is not used in v1 (we cap at
-     * MAX_BACKUPS = 3, so the request always fits in a single page).
+     * `GET /drive/v3/files` matching [query] within [spaces]. Returns the parsed file
+     * rows; pagination is not used in v1 (callers cap their result sets). The binary
+     * backup path passes `spaces = "appDataFolder"`; the snapshot path passes
+     * `spaces = "drive"`.
      */
-    suspend fun listFiles(): List<DriveFileDto>
+    suspend fun listFiles(spaces: String, query: String): List<DriveFileDto>
 
     /**
      * `POST /upload/drive/v3/files?uploadType=multipart` with a `multipart/related`
-     * body containing the JSON metadata and the binary db payload. Returns the
-     * created Drive file row.
-     *
-     * Caller owns [content]; impl reads but does not delete it.
+     * body containing the JSON [metadata] and the binary payload read from [content].
+     * Returns the created Drive file row. Caller owns [content]; impl reads but does
+     * not delete it.
      */
-    suspend fun uploadMultipart(
-        metadata: DriveFileMetadataDto,
-        content: File,
-    ): DriveFileDto
+    suspend fun uploadMultipart(metadata: DriveFileMetadataDto, content: File): DriveFileDto
 
     /**
-     * `GET /drive/v3/files/{fileId}?alt=media`. Streams the response body into
-     * [target], overwriting it. Returns bytes written for size verification by the
-     * caller.
+     * In-memory [ByteArray] overload of [uploadMultipart] — same multipart upload for
+     * payloads already in memory (e.g. the JSON snapshot). [DriveFileMetadataDto.parents]
+     * decides the destination; [DriveFileMetadataDto.mimeType] the content type.
+     */
+    suspend fun uploadMultipart(metadata: DriveFileMetadataDto, content: ByteArray): DriveFileDto
+
+    /**
+     * `POST /drive/v3/files` creating an empty folder named [name] in the user's visible
+     * Drive (My Drive root). Used by the snapshot storage to create its `Workeeper/`
+     * folder. Returns the created folder row.
+     */
+    suspend fun createFolder(name: String): DriveFileDto
+
+    /**
+     * `GET /drive/v3/files/{fileId}?alt=media`. Streams the response body into [target],
+     * overwriting it. Returns bytes written for size verification by the caller.
      */
     suspend fun downloadFile(fileId: String, target: File): Long
 

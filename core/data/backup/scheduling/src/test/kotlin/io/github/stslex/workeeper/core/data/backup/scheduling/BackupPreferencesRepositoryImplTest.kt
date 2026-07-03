@@ -52,6 +52,13 @@ internal class BackupPreferencesRepositoryImplTest {
         assertEquals(0L, prefs.lastSuccessAtEpochMs)
         assertNull(prefs.lastError)
         assertFalse(prefs.autoBackupBootstrapped)
+        assertFalse(prefs.aiExportEnabled)
+    }
+
+    @Test
+    fun `setAiExportEnabled true is observable on next collect`() = runTest {
+        repo.setAiExportEnabled(true)
+        assertTrue(repo.observe().first().aiExportEnabled)
     }
 
     @Test
