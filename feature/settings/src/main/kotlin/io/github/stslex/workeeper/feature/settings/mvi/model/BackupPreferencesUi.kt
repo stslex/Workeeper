@@ -14,4 +14,5 @@ internal data class BackupPreferencesUi(
     val allowOnMobileData: Boolean,
     val nextBackupText: String?,
     val isAuthPaused: Boolean,
+    val aiExportEnabled: Boolean,
 )

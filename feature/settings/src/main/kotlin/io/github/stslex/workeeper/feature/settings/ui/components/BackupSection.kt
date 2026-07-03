@@ -87,6 +87,11 @@ private fun AuthenticatedBlock(
             nextBackupText = preferences.nextBackupText,
             onClick = { onAction(Action.Backup.OpenFrequencyPicker) },
         )
+        AiExportRow(
+            enabled = preferences.aiExportEnabled,
+            inProgress = operation == BackupOperationUi.TogglingAiExport,
+            onToggle = { onAction(Action.Backup.ToggleAiExport(it)) },
+        )
     }
     BackupButtonRow(
         title = stringResource(R.string.feature_settings_backup_create),
@@ -160,6 +165,7 @@ private fun BackupSectionAuthenticatedLightPreview() {
                     allowOnMobileData = false,
                     nextBackupText = "in 23 hours",
                     isAuthPaused = false,
+                    aiExportEnabled = true,
                 ),
                 canRevertLastRestore = true,
             ),
@@ -188,6 +194,7 @@ private fun BackupSectionAuthenticatedDarkPreview() {
                     allowOnMobileData = false,
                     nextBackupText = "in 23 hours",
                     isAuthPaused = false,
+                    aiExportEnabled = true,
                 ),
                 canRevertLastRestore = true,
             ),
@@ -216,6 +223,7 @@ private fun BackupSectionAuthPausedPreview() {
                     allowOnMobileData = false,
                     nextBackupText = null,
                     isAuthPaused = true,
+                    aiExportEnabled = false,
                 ),
                 canRevertLastRestore = false,
             ),

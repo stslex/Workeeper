@@ -11,6 +11,7 @@ import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
+import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.model.BackupManifest
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreInProgressContext
@@ -25,6 +26,7 @@ import io.github.stslex.workeeper.feature.settings.domain.model.BackupSummaryDom
 import io.github.stslex.workeeper.feature.settings.domain.model.SignInOutcomeDomain
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -36,13 +38,22 @@ internal class BackupInteractorImpl @Inject constructor(
     private val backupStorage: BackupStorage,
     private val snapshotProvider: DatabaseSnapshotProvider,
     private val restoreStateRepository: RestoreStateRepository,
+    private val snapshotExportRunner: SnapshotExportRunner,
     @ApplicationContext private val context: Context,
     @IODispatcher private val dispatcher: CoroutineDispatcher,
 ) : BackupInteractor {
 
     override val authState: Flow<BackupAuthDomain> = backupAuth.state.map { it.toDomain() }
 
+    override val driveFileGranted: Flow<Boolean> get() = backupAuth.observeDriveFileGranted()
+
     override suspend fun signIn(): SignInOutcomeDomain = backupAuth.signIn().toDomain()
+
+    override suspend fun requestDriveFileAccess(): SignInOutcomeDomain =
+        backupAuth.requestDriveFileAccess().toDomain()
+
+    override suspend fun isDriveFileGranted(): Boolean =
+        backupAuth.observeDriveFileGranted().first()
 
     override suspend fun completeSignIn(resultIntent: Intent?): BackupResult<AccountDomain> =
         backupAuth.completeSignIn(resultIntent).mapSuccess {
@@ -51,11 +62,21 @@ internal class BackupInteractorImpl @Inject constructor(
 
     override suspend fun signOut(): BackupResult<Unit> = backupAuth.signOut()
 
+    override suspend fun deleteAiExportSnapshots() = snapshotExportRunner.clearSnapshots()
+
     override suspend fun createBackup(): BackupResult<Unit> = withContext(dispatcher) {
+        val result = createBinaryBackup()
+        // Best-effort AI snapshot AFTER the binary backup. Wrapped so a runner fault can never
+        // affect the binary result (the runner also swallows internally); D2 decoupling.
+        runCatching { snapshotExportRunner.runIfEligible() }
+        result
+    }
+
+    private suspend fun createBinaryBackup(): BackupResult<Unit> {
         val tempFile = File.createTempFile(TEMP_BACKUP_PREFIX, TEMP_BACKUP_SUFFIX, context.cacheDir)
-        try {
+        return try {
             val capture = snapshotProvider.captureSnapshot(tempFile)
-            if (capture is BackupResult.Failure) return@withContext capture
+            if (capture is BackupResult.Failure) return capture
             val manifest = BackupManifest(
                 appVersion = readVersionName(),
                 dbSchemaVersion = snapshotProvider.currentSchemaVersion(),

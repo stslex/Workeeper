@@ -34,6 +34,7 @@ import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Actio
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Event
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
@@ -62,8 +63,10 @@ internal class BackupClickHandlerTest {
     private val authFlow = MutableStateFlow<BackupAuthDomain>(BackupAuthDomain.NotAuthenticated)
     private val preferencesFlow = MutableStateFlow(BackupPreferences.DEFAULT)
     private val periodicStatusFlow = MutableStateFlow<List<AutoBackupWorkInfo>>(emptyList())
+    private val driveFileGrantedFlow = MutableStateFlow(true)
     private val interactor = mockk<BackupInteractor>(relaxed = true).apply {
         every { authState } returns authFlow
+        every { driveFileGranted } returns driveFileGrantedFlow
     }
     private val preferencesRepository = mockk<BackupPreferencesRepository>(relaxed = true).apply {
         every { observe() } returns preferencesFlow
@@ -228,6 +231,128 @@ internal class BackupClickHandlerTest {
             val event = store.events.single()
             assertTrue(event is Event.AuthResolutionRequested)
             assertSame(sender, (event as Event.AuthResolutionRequested).intentSender)
+        }
+
+    @Test
+    fun `ObservePreferences gates aiExportEnabled on the drive_file grant`() =
+        runTest(testDispatcher) {
+            preferencesFlow.value = preferencesFlow.value.copy(aiExportEnabled = true)
+            driveFileGrantedFlow.value = false
+
+            handler.invoke(Action.Backup.ObservePreferences)
+
+            assertEquals(
+                false,
+                store.stateFlow.value.backupPreferences?.aiExportEnabled,
+                "toggle must read off when drive.file is not granted, even if the pref is on",
+            )
+
+            driveFileGrantedFlow.value = true
+
+            assertEquals(true, store.stateFlow.value.backupPreferences?.aiExportEnabled)
+        }
+
+    @Test
+    fun `ToggleAiExport off persists disabled then deletes exported snapshots`() =
+        runTest(testDispatcher) {
+            handler.invoke(Action.Backup.ToggleAiExport(false))
+
+            // Flag off FIRST (so a racing worker won't re-upload), then delete the plaintext copies.
+            coVerifyOrder {
+                preferencesRepository.setAiExportEnabled(false)
+                interactor.deleteAiExportSnapshots()
+            }
+        }
+
+    @Test
+    fun `ToggleAiExport on with drive_file already granted persists enabled`() =
+        runTest(testDispatcher) {
+            coEvery { interactor.requestDriveFileAccess() } returns SignInOutcomeDomain.Success
+
+            handler.invoke(Action.Backup.ToggleAiExport(true))
+
+            coVerify { preferencesRepository.setAiExportEnabled(true) }
+        }
+
+    @Test
+    fun `ToggleAiExport on without grant emits AuthResolutionRequested and does not persist`() =
+        runTest(testDispatcher) {
+            val sender = mockk<IntentSender>(relaxed = true)
+            coEvery { interactor.requestDriveFileAccess() } returns
+                SignInOutcomeDomain.NeedsResolution(sender)
+
+            handler.invoke(Action.Backup.ToggleAiExport(true))
+
+            val event = store.events.single()
+            assertTrue(event is Event.AuthResolutionRequested)
+            assertSame(sender, (event as Event.AuthResolutionRequested).intentSender)
+            coVerify(exactly = 0) { preferencesRepository.setAiExportEnabled(true) }
+        }
+
+    @Test
+    fun `ToggleAiExport grant succeeds via resolution persists enabled`() =
+        runTest(testDispatcher) {
+            preferencesFlow.value = preferencesFlow.value.copy(autoBackupBootstrapped = true)
+            coEvery { interactor.requestDriveFileAccess() } returns
+                SignInOutcomeDomain.NeedsResolution(mockk(relaxed = true))
+            handler.invoke(Action.Backup.ToggleAiExport(true))
+
+            coEvery { interactor.completeSignIn(any()) } returns
+                BackupResult.Success(AccountDomain(email = "a@b.com", displayName = null))
+            coEvery { interactor.isDriveFileGranted() } returns true
+
+            handler.invoke(Action.Backup.HandleAuthResult(mockk(relaxed = true)))
+
+            coVerify { preferencesRepository.setAiExportEnabled(true) }
+        }
+
+    @Test
+    fun `ToggleAiExport grant declined shows access-needed snackbar and stays off`() =
+        runTest(testDispatcher) {
+            preferencesFlow.value = preferencesFlow.value.copy(autoBackupBootstrapped = true)
+            coEvery { interactor.requestDriveFileAccess() } returns
+                SignInOutcomeDomain.NeedsResolution(mockk(relaxed = true))
+            handler.invoke(Action.Backup.ToggleAiExport(true))
+
+            coEvery { interactor.completeSignIn(any()) } returns
+                BackupResult.Success(AccountDomain(email = "a@b.com", displayName = null))
+            coEvery { interactor.isDriveFileGranted() } returns false
+
+            handler.invoke(Action.Backup.HandleAuthResult(mockk(relaxed = true)))
+
+            assertTrue(store.events.any { it is Event.ShowAiExportAccessNeeded })
+            coVerify(exactly = 0) { preferencesRepository.setAiExportEnabled(true) }
+        }
+
+    @Test
+    fun `ToggleAiExport on marks the operation in-flight until the resolution completes`() =
+        runTest(testDispatcher) {
+            coEvery { interactor.requestDriveFileAccess() } returns
+                SignInOutcomeDomain.NeedsResolution(mockk(relaxed = true))
+
+            handler.invoke(Action.Backup.ToggleAiExport(true))
+
+            assertEquals(
+                BackupOperationUi.TogglingAiExport,
+                store.stateFlow.value.backupOperation,
+            )
+        }
+
+    @Test
+    fun `ToggleAiExport ignores a re-entrant enable while a grant is already in flight`() =
+        runTest(testDispatcher) {
+            coEvery { interactor.requestDriveFileAccess() } returns
+                SignInOutcomeDomain.NeedsResolution(mockk(relaxed = true))
+
+            handler.invoke(Action.Backup.ToggleAiExport(true)) // in flight, awaiting resolution
+            handler.invoke(Action.Backup.ToggleAiExport(true)) // re-entrant: must be ignored
+
+            assertEquals(
+                BackupOperationUi.TogglingAiExport,
+                store.stateFlow.value.backupOperation,
+            )
+            coVerify(exactly = 1) { interactor.requestDriveFileAccess() }
+            assertEquals(1, store.events.count { it is Event.AuthResolutionRequested })
         }
 
     @Test
@@ -780,6 +905,19 @@ internal class BackupClickHandlerTest {
 
         coVerify { autoBackupController.cancelPeriodic() }
         coVerify { interactor.signOut() }
+    }
+
+    @Test
+    fun `ConfirmSignOut deletes snapshots before revoking via signOut`() = runTest(testDispatcher) {
+        coEvery { interactor.signOut() } returns BackupResult.Success(Unit)
+
+        handler.invoke(Action.Backup.ConfirmSignOut)
+
+        // Deletion MUST precede signOut: drive.file can't see the app's files once revoked.
+        coVerifyOrder {
+            interactor.deleteAiExportSnapshots()
+            interactor.signOut()
+        }
     }
 
     @Test

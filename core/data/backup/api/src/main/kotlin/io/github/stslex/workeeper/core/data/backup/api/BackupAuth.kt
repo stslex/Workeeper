@@ -6,6 +6,7 @@ import io.github.stslex.workeeper.core.data.backup.api.model.Account
 import io.github.stslex.workeeper.core.data.backup.api.model.AuthState
 import io.github.stslex.workeeper.core.data.backup.api.model.SignInResult
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -31,6 +32,22 @@ interface BackupAuth {
      * sign-in could not be attempted.
      */
     suspend fun signIn(): SignInResult
+
+    /**
+     * Hot stream of whether the optional `drive.file` (visible-Drive) scope is currently
+     * granted. Drives the AI-export toggle's enabled state and gates the export runner.
+     * Re-derived on every authorize, so a later revocation flips it back to `false`.
+     */
+    fun observeDriveFileGranted(): Flow<Boolean>
+
+    /**
+     * Requests the optional `drive.file` scope on the already-connected account (incremental
+     * grant for AI export). Same [SignInResult] contract as [signIn]: [SignInResult.Success]
+     * if already granted, [SignInResult.NeedsResolution] to launch the consent flow (forward
+     * the result via [completeSignIn]), or [SignInResult.Failure]. Does NOT start a fresh
+     * sign-in — it adds a scope to the existing session.
+     */
+    suspend fun requestDriveFileAccess(): SignInResult
 
     /**
      * Completes a sign-in that previously returned [SignInResult.NeedsResolution].

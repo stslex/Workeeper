@@ -63,6 +63,10 @@ internal class BackupPreferencesRepositoryImpl @Inject constructor(
         dataStore.edit { it[KEY_AUTO_BACKUP_BOOTSTRAPPED] = bootstrapped }
     }
 
+    override suspend fun setAiExportEnabled(enabled: Boolean) {
+        dataStore.edit { it[KEY_AI_EXPORT_ENABLED] = enabled }
+    }
+
     private fun fromPrefs(prefs: Preferences): BackupPreferences {
         val default = BackupPreferences.DEFAULT
         val schedule = prefs[KEY_SCHEDULE]
@@ -79,6 +83,7 @@ internal class BackupPreferencesRepositoryImpl @Inject constructor(
             lastError = lastError,
             autoBackupBootstrapped = prefs[KEY_AUTO_BACKUP_BOOTSTRAPPED]
                 ?: default.autoBackupBootstrapped,
+            aiExportEnabled = prefs[KEY_AI_EXPORT_ENABLED] ?: default.aiExportEnabled,
         )
     }
 
@@ -91,5 +96,6 @@ internal class BackupPreferencesRepositoryImpl @Inject constructor(
         val KEY_LAST_SUCCESS = longPreferencesKey("last_success_at")
         val KEY_LAST_ERROR = stringPreferencesKey("last_error")
         val KEY_AUTO_BACKUP_BOOTSTRAPPED = booleanPreferencesKey("auto_backup_bootstrapped")
+        val KEY_AI_EXPORT_ENABLED = booleanPreferencesKey("ai_export_enabled")
     }
 }

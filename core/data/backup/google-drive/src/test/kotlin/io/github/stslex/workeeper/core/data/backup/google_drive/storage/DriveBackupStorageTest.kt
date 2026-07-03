@@ -64,7 +64,7 @@ internal class DriveBackupStorageTest {
             driveFileWithManifest("b", manifestAt(300L)),
             driveFileWithManifest("c", manifestAt(200L)),
         )
-        coEvery { driveApi.listFiles() } returns files
+        coEvery { driveApi.listFiles(any(), any()) } returns files
 
         val result = storage.listBackups()
 
@@ -76,7 +76,7 @@ internal class DriveBackupStorageTest {
     @Test
     fun `listBackups maps appProperties manifest into BackupRef manifest`() = runTest {
         val manifest = manifestAt(42L).copy(deviceModel = "Pixel 9")
-        coEvery { driveApi.listFiles() } returns listOf(driveFileWithManifest("x", manifest))
+        coEvery { driveApi.listFiles(any(), any()) } returns listOf(driveFileWithManifest("x", manifest))
 
         val result = storage.listBackups()
 
@@ -84,6 +84,21 @@ internal class DriveBackupStorageTest {
         val refs = (result as BackupResult.Success).data
         assertEquals(1, refs.size)
         assertEquals(manifest, refs.single().manifest)
+    }
+
+    @Test
+    fun `binary list still queries appDataFolder space with the app_ name prefix`() = runTest {
+        // Regression: making DriveApi space-aware must not change the binary backup path.
+        coEvery { driveApi.listFiles(any(), any()) } returns emptyList()
+
+        storage.listBackups()
+
+        coVerify {
+            driveApi.listFiles(
+                spaces = "appDataFolder",
+                query = match { it.contains("'${BackupConstants.FILE_PREFIX}'") && it.contains("trashed=false") },
+            )
+        }
     }
 
     @Test
@@ -95,7 +110,7 @@ internal class DriveBackupStorageTest {
 
         coEvery { driveApi.uploadMultipart(any(), eq(dbFile)) } returns
             driveFileDto(id = "uploaded-id")
-        coEvery { driveApi.listFiles() } returns emptyList()
+        coEvery { driveApi.listFiles(any(), any()) } returns emptyList()
 
         val result = storage.uploadBackup(dbFile, manifest)
 
@@ -131,8 +146,8 @@ internal class DriveBackupStorageTest {
             driveFileWithManifest("old3", manifestAt(300L)),
         )
         val withNew = existingFiles + driveFileWithManifest("new", newManifest)
-        coEvery { driveApi.uploadMultipart(any(), any()) } returns driveFileDto(id = "new")
-        coEvery { driveApi.listFiles() } returns withNew
+        coEvery { driveApi.uploadMultipart(any(), any<File>()) } returns driveFileDto(id = "new")
+        coEvery { driveApi.listFiles(any(), any()) } returns withNew
         coEvery { driveApi.deleteFile(any()) } just Runs
 
         val result = storage.uploadBackup(dbFile, newManifest)
@@ -153,8 +168,8 @@ internal class DriveBackupStorageTest {
             driveFileWithManifest("old2", manifestAt(200L)),
             driveFileWithManifest("new", newManifest),
         )
-        coEvery { driveApi.uploadMultipart(any(), any()) } returns driveFileDto(id = "new")
-        coEvery { driveApi.listFiles() } returns withNew
+        coEvery { driveApi.uploadMultipart(any(), any<File>()) } returns driveFileDto(id = "new")
+        coEvery { driveApi.listFiles(any(), any()) } returns withNew
 
         val result = storage.uploadBackup(dbFile, newManifest)
 
@@ -166,8 +181,8 @@ internal class DriveBackupStorageTest {
     fun `uploadBackup rotation list failure does not fail upload`() = runTest {
         val newManifest = manifestAt(400L)
         val dbFile = tempFile()
-        coEvery { driveApi.uploadMultipart(any(), any()) } returns driveFileDto(id = "new")
-        coEvery { driveApi.listFiles() } throws IOException("rotation list failed")
+        coEvery { driveApi.uploadMultipart(any(), any<File>()) } returns driveFileDto(id = "new")
+        coEvery { driveApi.listFiles(any(), any()) } throws IOException("rotation list failed")
 
         val result = storage.uploadBackup(dbFile, newManifest)
 
@@ -214,7 +229,7 @@ internal class DriveBackupStorageTest {
 
     @Test
     fun `network IOException during list maps to NetworkUnavailable`() = runTest {
-        coEvery { driveApi.listFiles() } throws IOException("offline")
+        coEvery { driveApi.listFiles(any(), any()) } throws IOException("offline")
 
         val result = storage.listBackups()
 
@@ -226,23 +241,23 @@ internal class DriveBackupStorageTest {
     fun `uploadBackup retries once after 401 and succeeds on second call`() = runTest {
         val manifest = manifestAt(1_000L)
         val dbFile = tempFile()
-        coEvery { driveApi.uploadMultipart(any(), any()) } throws
+        coEvery { driveApi.uploadMultipart(any(), any<File>()) } throws
             DriveException.AuthRevoked("first 401") andThen driveFileDto(id = "fresh-id")
-        coEvery { driveApi.listFiles() } returns emptyList()
+        coEvery { driveApi.listFiles(any(), any()) } returns emptyList()
 
         val result = storage.uploadBackup(dbFile, manifest)
 
         assertTrue(result is BackupResult.Success, "upload must succeed on retry; got $result")
         assertEquals("fresh-id", (result as BackupResult.Success).data.remoteId)
         coVerify(exactly = 1) { tokenInvalidator.invalidate() }
-        coVerify(exactly = 2) { driveApi.uploadMultipart(any(), any()) }
+        coVerify(exactly = 2) { driveApi.uploadMultipart(any(), any<File>()) }
     }
 
     @Test
     fun `uploadBackup second 401 propagates as AuthRevoked`() = runTest {
         val manifest = manifestAt(1_000L)
         val dbFile = tempFile()
-        coEvery { driveApi.uploadMultipart(any(), any()) } throws
+        coEvery { driveApi.uploadMultipart(any(), any<File>()) } throws
             DriveException.AuthRevoked("first 401") andThenThrows
             DriveException.AuthRevoked("second 401")
 
@@ -251,12 +266,12 @@ internal class DriveBackupStorageTest {
         assertTrue(result is BackupResult.Failure)
         assertEquals(BackupError.AuthRevoked, (result as BackupResult.Failure).error)
         coVerify(exactly = 1) { tokenInvalidator.invalidate() }
-        coVerify(exactly = 2) { driveApi.uploadMultipart(any(), any()) }
+        coVerify(exactly = 2) { driveApi.uploadMultipart(any(), any<File>()) }
     }
 
     @Test
     fun `listBackups retries once after 401 and succeeds on second call`() = runTest {
-        coEvery { driveApi.listFiles() } throws DriveException.AuthRevoked("401") andThen
+        coEvery { driveApi.listFiles(any(), any()) } throws DriveException.AuthRevoked("401") andThen
             listOf(driveFileWithManifest("a", manifestAt(100L)))
 
         val result = storage.listBackups()
@@ -264,7 +279,7 @@ internal class DriveBackupStorageTest {
         assertTrue(result is BackupResult.Success)
         assertEquals(1, (result as BackupResult.Success).data.size)
         coVerify(exactly = 1) { tokenInvalidator.invalidate() }
-        coVerify(exactly = 2) { driveApi.listFiles() }
+        coVerify(exactly = 2) { driveApi.listFiles(any(), any()) }
     }
 
     @Test

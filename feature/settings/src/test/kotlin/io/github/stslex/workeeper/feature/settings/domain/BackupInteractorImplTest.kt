@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.IntentSender
 import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
+import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.model.Account
 import io.github.stslex.workeeper.core.data.backup.api.model.AuthState
@@ -28,6 +29,7 @@ import io.mockk.slot
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -50,6 +52,7 @@ internal class BackupInteractorImplTest {
     private val backupStorage = mockk<BackupStorage>(relaxed = true)
     private val snapshotProvider = mockk<DatabaseSnapshotProvider>(relaxed = true)
     private val restoreStateRepository = mockk<RestoreStateRepository>(relaxed = true)
+    private val snapshotExportRunner = mockk<SnapshotExportRunner>(relaxed = true)
     private val context = mockk<Context>(relaxed = true)
     private val packageManager = mockk<android.content.pm.PackageManager>(relaxed = true)
     private val packageInfo = android.content.pm.PackageInfo().apply {
@@ -83,6 +86,7 @@ internal class BackupInteractorImplTest {
             backupStorage = backupStorage,
             snapshotProvider = snapshotProvider,
             restoreStateRepository = restoreStateRepository,
+            snapshotExportRunner = snapshotExportRunner,
             context = context,
             dispatcher = testDispatcher,
         )
@@ -90,6 +94,41 @@ internal class BackupInteractorImplTest {
 
     @AfterEach
     fun tearDown() = Dispatchers.resetMain()
+
+    @Test
+    fun `createBackup returns the binary result even when the snapshot runner throws`() =
+        runTest(testDispatcher) {
+            val captured = slot<File>()
+            coEvery { snapshotProvider.captureSnapshot(capture(captured)) } answers {
+                captured.captured.writeText("data")
+                BackupResult.Success(Unit)
+            }
+            coEvery { snapshotProvider.currentSchemaVersion() } returns 5
+            coEvery { backupStorage.uploadBackup(any(), any()) } returns BackupResult.Success(makeRef())
+            every { snapshotExportRunner.runIfEligible() } throws RuntimeException("runner blew up")
+
+            val result = interactor.createBackup()
+
+            assertTrue(result is BackupResult.Success, "binary result must be unaffected, got $result")
+        }
+
+    @Test
+    fun `requestDriveFileAccess maps NeedsResolution from backupAuth`() = runTest(testDispatcher) {
+        val sender = mockk<IntentSender>(relaxed = true)
+        coEvery { backupAuth.requestDriveFileAccess() } returns SignInResult.NeedsResolution(sender)
+
+        val outcome = interactor.requestDriveFileAccess()
+
+        assertTrue(outcome is SignInOutcomeDomain.NeedsResolution)
+        assertSame(sender, (outcome as SignInOutcomeDomain.NeedsResolution).intentSender)
+    }
+
+    @Test
+    fun `isDriveFileGranted reflects the backupAuth grant flow`() = runTest(testDispatcher) {
+        every { backupAuth.observeDriveFileGranted() } returns flowOf(true)
+
+        assertTrue(interactor.isDriveFileGranted())
+    }
 
     @Test
     fun `signIn Success returns SignInOutcomeDomain Success`() = runTest(testDispatcher) {
@@ -468,6 +507,13 @@ internal class BackupInteractorImplTest {
         val result = interactor.signOut()
         assertTrue(result is BackupResult.Success)
         coVerify(exactly = 1) { backupAuth.signOut() }
+    }
+
+    @Test
+    fun `deleteAiExportSnapshots delegates to the snapshot runner`() = runTest(testDispatcher) {
+        interactor.deleteAiExportSnapshots()
+
+        coVerify(exactly = 1) { snapshotExportRunner.clearSnapshots() }
     }
 
     private fun makeRef(

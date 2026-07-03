@@ -36,3 +36,13 @@ internal data class DriveFileMetadataDto(
     @SerialName("mimeType") val mimeType: String,
     @SerialName("appProperties") val appProperties: Map<String, String>,
 )
+
+/**
+ * Metadata-only body for the create-folder endpoint (`POST /drive/v3/files` with no
+ * media). No `parents` — the folder is created at the visible My Drive root.
+ */
+@Serializable
+internal data class DriveFolderRequestDto(
+    @SerialName("name") val name: String,
+    @SerialName("mimeType") val mimeType: String,
+)

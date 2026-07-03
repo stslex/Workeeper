@@ -19,4 +19,7 @@ internal sealed interface BackupOperationUi {
     data object Restoring : BackupOperationUi
 
     data object SigningOut : BackupOperationUi
+
+    /** In-flight incremental `drive.file` grant driven by the AI-export toggle. */
+    data object TogglingAiExport : BackupOperationUi
 }

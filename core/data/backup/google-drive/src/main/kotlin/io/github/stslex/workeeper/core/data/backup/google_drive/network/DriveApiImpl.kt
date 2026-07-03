@@ -20,13 +20,12 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Ktor-backed `DriveApi` for Drive v3 `appdata`-scoped endpoints. All requests run
- * on [dispatcher]; Authorization headers are injected by `DriveAuthPlugin` on the
- * shared `HttpClient`.
+ * Ktor-backed `DriveApi` for Drive v3 endpoints. All requests run on [dispatcher];
+ * Authorization headers are injected by `DriveAuthPlugin` on the shared `HttpClient`.
  *
- * Upload + download buffer the db file fully in memory. v1 backups are bounded by
- * `MAX_BACKUPS = 3` and typical workout-app db sizes (single-digit MB), so the
- * trade-off favors implementation simplicity over streaming.
+ * Upload + download buffer the payload fully in memory. v1 backups/snapshots are
+ * bounded by `MAX_BACKUPS = 3` and small db/JSON sizes, so the trade-off favors
+ * implementation simplicity over streaming.
  */
 @Singleton
 internal class DriveApiImpl @Inject constructor(
@@ -39,38 +38,37 @@ internal class DriveApiImpl @Inject constructor(
         ignoreUnknownKeys = true
     }
 
-    override suspend fun listFiles(): List<DriveFileDto> = withContext(dispatcher) {
-        httpClient
-            .get(DRIVE_FILES_URL) {
-                parameter("spaces", APP_DATA_FOLDER)
-                parameter("q", "name contains '$BACKUP_FILE_PREFIX' and trashed=false")
-                parameter("fields", "files(id,name,createdTime,size,appProperties)")
-                parameter("pageSize", PAGE_SIZE)
-            }
-            .body<DriveFileListDto>()
-            .files
-    }
+    override suspend fun listFiles(spaces: String, query: String): List<DriveFileDto> =
+        withContext(dispatcher) {
+            httpClient
+                .get(DRIVE_FILES_URL) {
+                    parameter("spaces", spaces)
+                    parameter("q", query)
+                    parameter("fields", "files(id,name,createdTime,size,appProperties)")
+                    parameter("pageSize", PAGE_SIZE)
+                }
+                .body<DriveFileListDto>()
+                .files
+        }
 
     override suspend fun uploadMultipart(
         metadata: DriveFileMetadataDto,
         content: File,
-    ): DriveFileDto = withContext(dispatcher) {
-        val boundary = "workeeper-${System.currentTimeMillis()}"
-        val metadataPart = (
-            "--$boundary\r\n" +
-                "Content-Type: application/json; charset=UTF-8\r\n\r\n" +
-                metadataJson.encodeToString(metadata) +
-                "\r\n--$boundary\r\n" +
-                "Content-Type: ${metadata.mimeType}\r\n\r\n"
-            ).toByteArray(Charsets.UTF_8)
-        val closingPart = "\r\n--$boundary--\r\n".toByteArray(Charsets.UTF_8)
-        val body = metadataPart + content.readBytes() + closingPart
+    ): DriveFileDto = withContext(dispatcher) { postMultipart(metadata, content.readBytes()) }
 
+    override suspend fun uploadMultipart(
+        metadata: DriveFileMetadataDto,
+        content: ByteArray,
+    ): DriveFileDto = withContext(dispatcher) { postMultipart(metadata, content) }
+
+    override suspend fun createFolder(name: String): DriveFileDto = withContext(dispatcher) {
+        val body = metadataJson
+            .encodeToString(DriveFolderRequestDto(name = name, mimeType = FOLDER_MIME_TYPE))
+            .toByteArray(Charsets.UTF_8)
         httpClient
-            .post(DRIVE_UPLOAD_URL) {
-                parameter("uploadType", "multipart")
-                parameter("fields", "id,name,createdTime,size,appProperties")
-                contentType(ContentType.parse("multipart/related; boundary=$boundary"))
+            .post(DRIVE_FILES_URL) {
+                parameter("fields", "id,name,createdTime")
+                contentType(ContentType.Application.Json)
                 setBody(body)
             }
             .body<DriveFileDto>()
@@ -93,11 +91,40 @@ internal class DriveApiImpl @Inject constructor(
         }
     }
 
+    /**
+     * Builds a `multipart/related` body (JSON metadata part + raw payload) and POSTs it.
+     * Shared by both [uploadMultipart] overloads; the binary path reads its file into
+     * [content] first, so its on-the-wire request is byte-for-byte what it was before.
+     */
+    private suspend fun postMultipart(
+        metadata: DriveFileMetadataDto,
+        content: ByteArray,
+    ): DriveFileDto {
+        val boundary = "workeeper-${System.currentTimeMillis()}"
+        val metadataPart = (
+            "--$boundary\r\n" +
+                "Content-Type: application/json; charset=UTF-8\r\n\r\n" +
+                metadataJson.encodeToString(metadata) +
+                "\r\n--$boundary\r\n" +
+                "Content-Type: ${metadata.mimeType}\r\n\r\n"
+            ).toByteArray(Charsets.UTF_8)
+        val closingPart = "\r\n--$boundary--\r\n".toByteArray(Charsets.UTF_8)
+        val body = metadataPart + content + closingPart
+
+        return httpClient
+            .post(DRIVE_UPLOAD_URL) {
+                parameter("uploadType", "multipart")
+                parameter("fields", "id,name,createdTime,size,appProperties")
+                contentType(ContentType.parse("multipart/related; boundary=$boundary"))
+                setBody(body)
+            }
+            .body<DriveFileDto>()
+    }
+
     private companion object {
         const val DRIVE_FILES_URL = "https://www.googleapis.com/drive/v3/files"
         const val DRIVE_UPLOAD_URL = "https://www.googleapis.com/upload/drive/v3/files"
-        const val APP_DATA_FOLDER = "appDataFolder"
-        const val BACKUP_FILE_PREFIX = "app_"
         const val PAGE_SIZE = "100"
+        const val FOLDER_MIME_TYPE = "application/vnd.google-apps.folder"
     }
 }
