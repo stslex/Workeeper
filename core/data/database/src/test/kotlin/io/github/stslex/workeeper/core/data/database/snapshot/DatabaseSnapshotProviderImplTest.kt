@@ -61,6 +61,14 @@ internal class DatabaseSnapshotProviderImplTest {
     }
 
     @Test
+    fun `liveDatabaseFile resolves to the app database path`() {
+        assertEquals(
+            context.getDatabasePath(AppDatabase.NAME).absolutePath,
+            provider.liveDatabaseFile().absolutePath,
+        )
+    }
+
+    @Test
     fun `captureSnapshot truncates WAL sidecar and snapshot opens with persisted data`() =
         runTest {
             // Pre-insert so the WAL has unsynced bytes — without this the test

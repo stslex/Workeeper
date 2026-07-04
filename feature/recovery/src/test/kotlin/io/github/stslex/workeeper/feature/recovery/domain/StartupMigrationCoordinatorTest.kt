@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.recovery.domain
 
-import android.content.Context
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
-import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.migration.APP_DATABASE_VERSION
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
+import io.github.stslex.workeeper.core.data.database.snapshot.LiveDatabaseLocator
 import io.github.stslex.workeeper.feature.recovery.diagnostics.StartupMigrationReporter
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -21,8 +20,8 @@ import java.io.File
 
 internal class StartupMigrationCoordinatorTest {
 
-    private val androidContext = mockk<Context>(relaxed = true)
     private val snapshotProvider = mockk<DatabaseSnapshotProvider>(relaxed = true)
+    private val liveDatabaseLocator = mockk<LiveDatabaseLocator>(relaxed = true)
     private val reporter = mockk<StartupMigrationReporter>(relaxed = true)
     private lateinit var coordinator: StartupMigrationCoordinator
 
@@ -37,10 +36,10 @@ internal class StartupMigrationCoordinatorTest {
             // they want to exercise the fresh-install branch.
             writeText("placeholder")
         }
-        every { androidContext.getDatabasePath(AppDatabase.NAME) } returns liveDbFile
+        every { liveDatabaseLocator.liveDatabaseFile() } returns liveDbFile
         coordinator = StartupMigrationCoordinator(
-            context = androidContext,
             snapshotProvider = snapshotProvider,
+            liveDatabaseLocator = liveDatabaseLocator,
             reporter = reporter,
         )
     }
