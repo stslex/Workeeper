@@ -4,11 +4,9 @@ package io.github.stslex.workeeper.feature.recovery.domain
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageInfo
-import android.content.pm.PackageManager
-import android.os.Build
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.stslex.workeeper.core.core.logger.Log
+import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreInProgressContext
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
@@ -55,6 +53,7 @@ import javax.inject.Singleton
 @Singleton
 class RestoreRecoveryCoordinator @Inject internal constructor(
     @ApplicationContext private val context: Context,
+    private val platformInfo: PlatformInfoProvider,
     private val snapshotProvider: DatabaseSnapshotProvider,
     private val restoreStateRepository: RestoreStateRepository,
     private val appDialogPublisher: AppDialogPublisher,
@@ -139,7 +138,7 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
             reporter.recordRestoreTimeFailure(
                 exception = cause,
                 context = context,
-                appVersionName = readVersionName(),
+                appVersionName = platformInfo.appVersionName(),
             )
         }
         val rollback = snapshotProvider.rollbackToPreRestoreBackup()
@@ -155,19 +154,6 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
         appDialogPublisher.publish(
             AppDialog.RestoreFailure(reason = BackupErrorCodeForFailure),
         )
-    }
-
-    private fun readVersionName(): String {
-        val info: PackageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.packageManager.getPackageInfo(
-                context.packageName,
-                PackageManager.PackageInfoFlags.of(0),
-            )
-        } else {
-            @Suppress("DEPRECATION")
-            context.packageManager.getPackageInfo(context.packageName, 0)
-        }
-        return info.versionName.orEmpty()
     }
 
     /**

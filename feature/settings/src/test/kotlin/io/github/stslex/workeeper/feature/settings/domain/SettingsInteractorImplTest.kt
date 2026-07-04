@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.settings.domain
 
-import android.content.Context
+import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
 import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
 import io.github.stslex.workeeper.feature.settings.domain.model.ThemeModeDomain
 import io.mockk.coEvery
@@ -24,7 +24,7 @@ internal class SettingsInteractorImplTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
     private val commonDataStore = mockk<CommonDataStore>(relaxed = true)
-    private val context = mockk<Context>(relaxed = true)
+    private val platformInfo = mockk<PlatformInfoProvider>(relaxed = true)
 
     private lateinit var interactor: SettingsInteractor
 
@@ -32,7 +32,7 @@ internal class SettingsInteractorImplTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         interactor = SettingsInteractorImpl(
-            context = context,
+            platformInfo = platformInfo,
             commonDataStore = commonDataStore,
             defaultDispatcher = testDispatcher,
         )

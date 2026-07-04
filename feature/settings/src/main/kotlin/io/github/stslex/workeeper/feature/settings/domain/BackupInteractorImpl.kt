@@ -3,12 +3,10 @@ package io.github.stslex.workeeper.feature.settings.domain
 
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageInfo
-import android.content.pm.PackageManager
-import android.os.Build
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.IODispatcher
+import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
 import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
 import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
@@ -39,6 +37,7 @@ internal class BackupInteractorImpl @Inject constructor(
     private val snapshotProvider: DatabaseSnapshotProvider,
     private val restoreStateRepository: RestoreStateRepository,
     private val snapshotExportRunner: SnapshotExportRunner,
+    private val platformInfo: PlatformInfoProvider,
     @ApplicationContext private val context: Context,
     @IODispatcher private val dispatcher: CoroutineDispatcher,
 ) : BackupInteractor {
@@ -78,11 +77,11 @@ internal class BackupInteractorImpl @Inject constructor(
             val capture = snapshotProvider.captureSnapshot(tempFile)
             if (capture is BackupResult.Failure) return capture
             val manifest = BackupManifest(
-                appVersion = readVersionName(),
+                appVersion = platformInfo.appVersionName(),
                 dbSchemaVersion = snapshotProvider.currentSchemaVersion(),
                 createdAtEpochMs = System.currentTimeMillis(),
                 dbFileSizeBytes = tempFile.length(),
-                deviceModel = Build.MODEL,
+                deviceModel = platformInfo.deviceModel(),
             )
             backupStorage.uploadBackup(tempFile, manifest).mapSuccess { }
         } finally {
@@ -171,19 +170,6 @@ internal class BackupInteractorImpl @Inject constructor(
     private suspend fun rollbackPreSwapFailure() {
         snapshotProvider.deletePreRestoreBackup()
         restoreStateRepository.clearRestoreInProgress()
-    }
-
-    private fun readVersionName(): String {
-        val info: PackageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.packageManager.getPackageInfo(
-                context.packageName,
-                PackageManager.PackageInfoFlags.of(0),
-            )
-        } else {
-            @Suppress("DEPRECATION")
-            context.packageManager.getPackageInfo(context.packageName, 0)
-        }
-        return info.versionName.orEmpty()
     }
 
     private fun <T, R> BackupResult<T>.mapSuccess(transform: (T) -> R): BackupResult<R> =

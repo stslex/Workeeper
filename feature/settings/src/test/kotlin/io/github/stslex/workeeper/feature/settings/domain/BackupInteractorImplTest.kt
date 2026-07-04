@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.feature.settings.domain
 import android.content.Context
 import android.content.Intent
 import android.content.IntentSender
+import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
 import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
 import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
@@ -54,10 +55,7 @@ internal class BackupInteractorImplTest {
     private val restoreStateRepository = mockk<RestoreStateRepository>(relaxed = true)
     private val snapshotExportRunner = mockk<SnapshotExportRunner>(relaxed = true)
     private val context = mockk<Context>(relaxed = true)
-    private val packageManager = mockk<android.content.pm.PackageManager>(relaxed = true)
-    private val packageInfo = android.content.pm.PackageInfo().apply {
-        versionName = "1.2.3"
-    }
+    private val platformInfo = mockk<PlatformInfoProvider>(relaxed = true)
 
     @TempDir
     lateinit var cacheDir: File
@@ -68,15 +66,8 @@ internal class BackupInteractorImplTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         every { context.cacheDir } returns cacheDir
-        every { context.packageName } returns "io.github.stslex.workeeper"
-        every { context.packageManager } returns packageManager
-        every { packageManager.getPackageInfo(any<String>(), any<Int>()) } returns packageInfo
-        every {
-            packageManager.getPackageInfo(
-                any<String>(),
-                any<android.content.pm.PackageManager.PackageInfoFlags>(),
-            )
-        } returns packageInfo
+        every { platformInfo.appVersionName() } returns "1.2.3"
+        every { platformInfo.deviceModel() } returns "Pixel"
         every { backupAuth.state } returns MutableStateFlow(AuthState.SignedOut)
         coEvery { snapshotProvider.preserveCurrentDb() } returns BackupResult.Success(
             File(cacheDir, "pre_restore_backup.db"),
@@ -87,6 +78,7 @@ internal class BackupInteractorImplTest {
             snapshotProvider = snapshotProvider,
             restoreStateRepository = restoreStateRepository,
             snapshotExportRunner = snapshotExportRunner,
+            platformInfo = platformInfo,
             context = context,
             dispatcher = testDispatcher,
         )

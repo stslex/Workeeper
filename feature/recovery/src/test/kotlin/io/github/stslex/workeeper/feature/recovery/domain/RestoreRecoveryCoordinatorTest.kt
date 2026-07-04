@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.feature.recovery.domain
 
 import android.content.Context
+import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreInProgressContext
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
@@ -28,14 +29,15 @@ internal class RestoreRecoveryCoordinatorTest {
     private val restoreStateRepository = mockk<RestoreStateRepository>(relaxed = true)
     private val appDialogPublisher = mockk<AppDialogPublisher>(relaxed = true)
     private val reporter = mockk<RestoreRecoveryReporter>(relaxed = true)
+    private val platformInfo = mockk<PlatformInfoProvider>(relaxed = true)
 
     private lateinit var coordinator: RestoreRecoveryCoordinator
 
     @BeforeEach
     fun setUp() {
-        every { androidContext.packageName } returns "io.github.stslex.workeeper"
         coordinator = RestoreRecoveryCoordinator(
             context = androidContext,
+            platformInfo = platformInfo,
             snapshotProvider = snapshotProvider,
             restoreStateRepository = restoreStateRepository,
             appDialogPublisher = appDialogPublisher,
