@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.settings.domain
 
-import android.content.Context
 import android.content.Intent
-import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
+import io.github.stslex.workeeper.core.core.platform.TempFileProvider
 import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
 import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
@@ -27,7 +26,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import java.io.File
 import javax.inject.Inject
 
 @ViewModelScoped
@@ -38,7 +36,7 @@ internal class BackupInteractorImpl @Inject constructor(
     private val restoreStateRepository: RestoreStateRepository,
     private val snapshotExportRunner: SnapshotExportRunner,
     private val platformInfo: PlatformInfoProvider,
-    @ApplicationContext private val context: Context,
+    private val tempFileProvider: TempFileProvider,
     @IODispatcher private val dispatcher: CoroutineDispatcher,
 ) : BackupInteractor {
 
@@ -72,7 +70,11 @@ internal class BackupInteractorImpl @Inject constructor(
     }
 
     private suspend fun createBinaryBackup(): BackupResult<Unit> {
-        val tempFile = File.createTempFile(TEMP_BACKUP_PREFIX, TEMP_BACKUP_SUFFIX, context.cacheDir)
+        // TODO(tech-debt): temp-file staging inside a domain interactor is a smell. The
+        //  TempFileProvider seam is a tactical decoupling (domain no longer imports
+        //  Context.cacheDir); the strategic fix is moving snapshot staging into the data
+        //  layer. Not done in Phase A.
+        val tempFile = tempFileProvider.createTempFile(TEMP_BACKUP_PREFIX, TEMP_BACKUP_SUFFIX)
         return try {
             val capture = snapshotProvider.captureSnapshot(tempFile)
             if (capture is BackupResult.Failure) return capture
@@ -143,8 +145,7 @@ internal class BackupInteractorImpl @Inject constructor(
             ),
         )
 
-        val tempFile =
-            File.createTempFile(TEMP_RESTORE_PREFIX, TEMP_BACKUP_SUFFIX, context.cacheDir)
+        val tempFile = tempFileProvider.createTempFile(TEMP_RESTORE_PREFIX, TEMP_BACKUP_SUFFIX)
         try {
             val download = backupStorage.downloadBackup(ref, tempFile)
             if (download is BackupResult.Failure) {

@@ -16,4 +16,10 @@ internal abstract class PlatformModule {
     abstract fun bindPlatformInfoProvider(
         impl: AndroidPlatformInfoProvider,
     ): PlatformInfoProvider
+
+    @Binds
+    @Singleton
+    abstract fun bindTempFileProvider(
+        impl: AndroidTempFileProvider,
+    ): TempFileProvider
 }

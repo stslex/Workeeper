@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.settings.domain
 
-import android.content.Context
 import android.content.Intent
 import android.content.IntentSender
 import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
+import io.github.stslex.workeeper.core.core.platform.TempFileProvider
 import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
 import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
@@ -54,7 +54,7 @@ internal class BackupInteractorImplTest {
     private val snapshotProvider = mockk<DatabaseSnapshotProvider>(relaxed = true)
     private val restoreStateRepository = mockk<RestoreStateRepository>(relaxed = true)
     private val snapshotExportRunner = mockk<SnapshotExportRunner>(relaxed = true)
-    private val context = mockk<Context>(relaxed = true)
+    private val tempFileProvider = mockk<TempFileProvider>(relaxed = true)
     private val platformInfo = mockk<PlatformInfoProvider>(relaxed = true)
 
     @TempDir
@@ -65,7 +65,9 @@ internal class BackupInteractorImplTest {
     @BeforeEach
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
-        every { context.cacheDir } returns cacheDir
+        every { tempFileProvider.createTempFile(any(), any()) } answers {
+            File.createTempFile("test", ".db", cacheDir)
+        }
         every { platformInfo.appVersionName() } returns "1.2.3"
         every { platformInfo.deviceModel() } returns "Pixel"
         every { backupAuth.state } returns MutableStateFlow(AuthState.SignedOut)
@@ -79,7 +81,7 @@ internal class BackupInteractorImplTest {
             restoreStateRepository = restoreStateRepository,
             snapshotExportRunner = snapshotExportRunner,
             platformInfo = platformInfo,
-            context = context,
+            tempFileProvider = tempFileProvider,
             dispatcher = testDispatcher,
         )
     }
