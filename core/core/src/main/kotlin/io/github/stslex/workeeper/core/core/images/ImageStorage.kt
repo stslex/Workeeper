@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.core.images
 
-import android.net.Uri
 import io.github.stslex.workeeper.core.core.images.model.ImageSaveResult
 
 interface ImageStorage {
 
     /**
-     * Reads the image at [sourceUri], decodes it, downsamples to fit within
+     * Reads the image at [sourceRef], decodes it, downsamples to fit within
      * [MAX_EDGE]x[MAX_EDGE], compresses as JPEG quality [QUALITY], and writes
      * it atomically to filesDir/exercise_images/<exerciseUuid>.jpg.
      *
@@ -20,19 +19,18 @@ interface ImageStorage {
      * @return [ImageSaveResult.Success] on success, or [ImageSaveResult.Failure]
      *         on failure. Never throws.
      */
-    suspend fun saveImage(sourceUri: Uri, exerciseUuid: String): ImageSaveResult
+    suspend fun saveImage(sourceRef: ImageRef, exerciseUuid: String): ImageSaveResult
 
     /**
-     * Returns a temporary file URI suitable for handing to
-     * ActivityResultContracts.TakePicture. The caller passes this URI to the
-     * camera launcher; on success, the camera writes the captured image there.
-     * The caller is then expected to call saveImage(tempUri, exerciseUuid) to
+     * Returns a temporary capture reference (an image URI on Android) suitable for
+     * handing to the camera launcher; on success, the camera writes the captured image
+     * there. The caller is then expected to call saveImage(ref, exerciseUuid) to
      * downsample + persist to the canonical location.
      *
      * Temp files live in filesDir/exercise_images/.tmp/ and are cleaned up by
      * cleanupTempFiles() on next app start.
      */
-    suspend fun createTempCaptureUri(): Uri
+    suspend fun createTempCaptureRef(): ImageRef
 
     /**
      * Deletes the file at [path]. No-op if absent. Returns true if a file
