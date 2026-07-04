@@ -12,6 +12,7 @@ import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.core.images.model.ImageSaveResult
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.utils.CommonExt.parseOrRandom
+import io.github.stslex.workeeper.core.ui.kit.components.dialog.BlockedArchiveItem
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.domain.PlanDraftReducer
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
@@ -159,13 +160,15 @@ internal class ClickHandler @Inject constructor(
                 }
 
                 is ArchiveResult.Blocked -> {
-                    val body = resourceWrapper.getString(
-                        R.string.feature_exercise_detail_archive_blocked_body_format,
-                        name,
-                        result.activeTrainings.joinToString(", "),
+                    val item = BlockedArchiveItem(
+                        exerciseName = name,
+                        trainingsLabel = resourceWrapper.getString(
+                            R.string.feature_exercise_detail_archive_blocked_used_in_format,
+                            result.activeTrainings.joinToString(", "),
+                        ),
                     )
                     updateStateImmediate {
-                        it.copy(dialogState = DialogState.ArchiveBlocked(body = body))
+                        it.copy(dialogState = DialogState.ArchiveBlocked(item = item))
                     }
                 }
             }

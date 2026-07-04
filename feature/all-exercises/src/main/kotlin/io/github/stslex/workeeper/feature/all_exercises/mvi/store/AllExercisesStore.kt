@@ -5,6 +5,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.paging.PagingData
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
+import io.github.stslex.workeeper.core.ui.kit.components.dialog.BlockedArchiveItem
 import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.feature.all_exercises.mvi.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.all_exercises.mvi.model.TagUiModel
@@ -26,6 +27,7 @@ internal interface AllExercisesStore : Store<State, Action, Event> {
         val pendingPermanentDelete: PendingDelete?,
         val selectionMode: SelectionMode,
         val pendingBulkDelete: PendingBulkDelete?,
+        val blockedArchiveDialog: BlockedArchiveDialog?,
     ) : Store.State {
 
         val isSelecting: Boolean get() = selectionMode is SelectionMode.On
@@ -56,6 +58,19 @@ internal interface AllExercisesStore : Store<State, Action, Event> {
         @Stable
         data class PendingBulkDelete(val count: Int)
 
+        /**
+         * Blocked-archive acknowledgement dialog. Surfaced whenever a bulk archive left at
+         * least one exercise active because it is still used by a training. [archivedSummary]
+         * is the pre-formatted "N archived" line for the partial case (null when nothing was
+         * archived); [items] carry each blocked exercise with its pre-formatted, truncated
+         * blocking-trainings label. Strings are built by the UI mapper.
+         */
+        @Stable
+        data class BlockedArchiveDialog(
+            val archivedSummary: String?,
+            val items: ImmutableList<BlockedArchiveItem>,
+        )
+
         companion object {
 
             fun init(
@@ -67,6 +82,7 @@ internal interface AllExercisesStore : Store<State, Action, Event> {
                 pendingPermanentDelete = null,
                 selectionMode = SelectionMode.Off,
                 pendingBulkDelete = null,
+                blockedArchiveDialog = null,
             )
         }
     }
@@ -102,6 +118,8 @@ internal interface AllExercisesStore : Store<State, Action, Event> {
             data object OnBulkDeleteConfirm : Click
 
             data object OnBulkDeleteDismiss : Click
+
+            data object OnBlockedArchiveDismiss : Click
         }
 
         sealed interface Navigation : Action {

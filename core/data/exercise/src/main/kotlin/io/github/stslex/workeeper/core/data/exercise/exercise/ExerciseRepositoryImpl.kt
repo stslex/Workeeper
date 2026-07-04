@@ -415,12 +415,21 @@ internal class ExerciseRepositoryImpl @Inject constructor(
         val (allowed, blocked) = parsed.partition { uuid ->
             trainingExerciseDao.countActiveTemplatesUsing(uuid) == 0
         }
-        val blockedNames = blocked.mapNotNull { dao.getById(it)?.name }
+        // Reuse the same query the detail-screen archive uses (getActiveTemplateNamesUsing)
+        // so both surfaces name the blocking trainings identically. The blocked subset is
+        // small (only the user-selected exercises that are still referenced).
+        val blockedExercises = blocked.mapNotNull { uuid ->
+            val name = dao.getById(uuid)?.name ?: return@mapNotNull null
+            BulkArchiveOutcome.BlockedExercise(
+                name = name,
+                activeTrainings = trainingExerciseDao.getActiveTemplateNamesUsing(uuid),
+            )
+        }
         if (allowed.isNotEmpty()) {
             val now = System.currentTimeMillis()
             allowed.forEach { dao.archive(it, now) }
         }
-        BulkArchiveOutcome(archivedCount = allowed.size, blockedNames = blockedNames)
+        BulkArchiveOutcome(archivedCount = allowed.size, blocked = blockedExercises)
     }
 
     override suspend fun bulkPermanentDelete(uuids: Set<String>) {

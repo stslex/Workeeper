@@ -34,7 +34,13 @@ internal object AllExercisesDomainMapper {
 
     fun ExerciseRepository.BulkArchiveOutcome.toDomain(): BulkArchiveResult = BulkArchiveResult(
         archivedCount = archivedCount,
-        blockedNames = blockedNames,
+        blocked = blocked.map { it.toDomain() },
+    )
+
+    private fun ExerciseRepository.BulkArchiveOutcome.BlockedExercise.toDomain():
+        BulkArchiveResult.BlockedExerciseDomain = BulkArchiveResult.BlockedExerciseDomain(
+        name = name,
+        activeTrainings = activeTrainings,
     )
 
     fun ExerciseListItem.toDomain(): ExerciseListItemDomain = ExerciseListItemDomain(

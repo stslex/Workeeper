@@ -3,14 +3,17 @@ package io.github.stslex.workeeper.feature.all_exercises.mvi.mapper
 
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.feature.all_exercises.R
+import io.github.stslex.workeeper.feature.all_exercises.domain.model.BulkArchiveResult
 import io.github.stslex.workeeper.feature.all_exercises.domain.model.ExerciseDomain
 import io.github.stslex.workeeper.feature.all_exercises.domain.model.ExerciseListItemDomain
 import io.github.stslex.workeeper.feature.all_exercises.domain.model.ExerciseTypeDomain
 import io.github.stslex.workeeper.feature.all_exercises.mvi.mapper.AllExercisesUiMapper.composeFooterLabel
+import io.github.stslex.workeeper.feature.all_exercises.mvi.mapper.AllExercisesUiMapper.toBlockedArchiveDialog
 import io.github.stslex.workeeper.feature.all_exercises.mvi.mapper.AllExercisesUiMapper.toUi
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -215,5 +218,69 @@ internal class AllExercisesUiMapperTest {
         val ui = item.toUi(resourceWrapper = resourceWrapper)
         assertEquals("", ui.footerLabel)
         assertTrue(ui.tags.isEmpty())
+    }
+
+    @Test
+    fun `toBlockedArchiveDialog truncates trainings and sets archived summary on partial block`() {
+        stubBlockedArchiveStrings()
+        val result = BulkArchiveResult(
+            archivedCount = 1,
+            blocked = listOf(
+                BulkArchiveResult.BlockedExerciseDomain(
+                    name = "Bench",
+                    activeTrainings = listOf("Push", "Pull", "Legs", "Upper"),
+                ),
+            ),
+        )
+
+        val dialog = result.toBlockedArchiveDialog(resourceWrapper)
+
+        assertEquals("1 archived", dialog.archivedSummary)
+        assertEquals(1, dialog.items.size)
+        assertEquals("Bench", dialog.items.first().exerciseName)
+        // 4 trainings, first two shown, remaining two folded into "+2 more".
+        assertEquals("used in Push, Pull +2 more", dialog.items.first().trainingsLabel)
+    }
+
+    @Test
+    fun `toBlockedArchiveDialog omits archived summary and truncation when nothing archived`() {
+        stubBlockedArchiveStrings()
+        val result = BulkArchiveResult(
+            archivedCount = 0,
+            blocked = listOf(
+                BulkArchiveResult.BlockedExerciseDomain(
+                    name = "Bench",
+                    activeTrainings = listOf("Push", "Legs"),
+                ),
+            ),
+        )
+
+        val dialog = result.toBlockedArchiveDialog(resourceWrapper)
+
+        assertNull(dialog.archivedSummary)
+        assertEquals("used in Push, Legs", dialog.items.first().trainingsLabel)
+    }
+
+    private fun stubBlockedArchiveStrings() {
+        every {
+            resourceWrapper.getString(
+                R.string.feature_all_exercises_blocked_archive_used_in_format,
+                any(),
+            )
+        } answers { "used in ${secondArg<Array<Any>>().first()}" }
+        every {
+            resourceWrapper.getQuantityString(
+                R.plurals.feature_all_exercises_blocked_archive_more,
+                any<Int>(),
+                any(),
+            )
+        } answers { "+${secondArg<Int>()} more" }
+        every {
+            resourceWrapper.getQuantityString(
+                R.plurals.feature_all_exercises_bulk_archive_success,
+                any<Int>(),
+                any(),
+            )
+        } answers { "${secondArg<Int>()} archived" }
     }
 }
