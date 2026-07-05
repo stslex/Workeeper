@@ -183,6 +183,87 @@ internal class DomainLayerPurityRuleTest {
         assertEquals(0, findings.size, "non-core.data imports must not be flagged, got: $findings")
     }
 
+    @Test
+    fun `flags android import in feature domain`() {
+        val findings = rule.lintForPath(
+            "src/main/kotlin/io/github/stslex/workeeper/feature/settings/domain/BackupInteractor.kt",
+            """
+            package io.github.stslex.workeeper.feature.settings.domain
+
+            import android.content.Intent
+
+            interface BackupInteractor { fun handle(intent: Intent?) }
+            """.trimIndent(),
+        )
+        assertEquals(1, findings.size, "android.* in domain must be flagged, got: $findings")
+        assertTrue(findings.single().message.contains("Intent"))
+    }
+
+    @Test
+    fun `does not flag androidx import in feature domain`() {
+        // androidx.paging / androidx.datastore are multiplatform-portable and used
+        // legitimately in real domain interactors — they must NOT be flagged.
+        val findings = rule.lintForPath(
+            "src/main/kotlin/io/github/stslex/workeeper/feature/archive/domain/ArchiveInteractor.kt",
+            """
+            package io.github.stslex.workeeper.feature.archive.domain
+
+            import androidx.paging.PagingData
+
+            interface ArchiveInteractor { fun observe(): PagingData<Int> }
+            """.trimIndent(),
+        )
+        assertEquals(0, findings.size, "androidx.* is KMP-portable, must not be flagged, got: $findings")
+    }
+
+    @Test
+    fun `flags android import in domain mapper (mapper exemption is data-only)`() {
+        // The /domain/mapper/ exemption covers core.data imports, NOT android.* — a mapper
+        // must still be platform-neutral.
+        val findings = rule.lintForPath(
+            "src/main/kotlin/io/github/stslex/workeeper/feature/example/domain/mapper/ExampleMapper.kt",
+            """
+            package io.github.stslex.workeeper.feature.example.domain.mapper
+
+            import android.content.Context
+
+            object ExampleMapper { fun map(context: Context) = Unit }
+            """.trimIndent(),
+        )
+        assertEquals(1, findings.size, "android.* must be flagged even in a domain mapper, got: $findings")
+    }
+
+    @Test
+    fun `does not flag android import outside feature domain`() {
+        // The mvi edge is allowed to hold android.* — the rule scopes to /domain/ only.
+        val findings = rule.lintForPath(
+            "src/main/kotlin/io/github/stslex/workeeper/feature/settings/mvi/handler/BackupClickHandler.kt",
+            """
+            package io.github.stslex.workeeper.feature.settings.mvi.handler
+
+            import android.content.IntentSender
+
+            class BackupClickHandler { fun launch(sender: IntentSender) = Unit }
+            """.trimIndent(),
+        )
+        assertEquals(0, findings.size, "android.* outside domain/ is allowed, got: $findings")
+    }
+
+    @Test
+    fun `does not flag android import in domain test sources`() {
+        val findings = rule.lintForPath(
+            "src/test/kotlin/io/github/stslex/workeeper/feature/settings/domain/BackupInteractorTest.kt",
+            """
+            package io.github.stslex.workeeper.feature.settings.domain
+
+            import android.content.Intent
+
+            class BackupInteractorTest { fun stub(): Intent? = null }
+            """.trimIndent(),
+        )
+        assertEquals(0, findings.size, "test sources are exempt, got: $findings")
+    }
+
     /**
      * `Rule.lint(String)` synthesises a virtual file at an internal location, so the
      * rule's path-based predicates (`/feature/...`, `/domain/mapper/`, `/src/test/`)
