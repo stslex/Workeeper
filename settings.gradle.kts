@@ -64,3 +64,7 @@ include(":feature:app-dialogs:impl")
 include(":feature:recovery")
 
 include(":lint-rules")
+
+// Probe-2 — disposable KMP toolchain probes. NOT wired into :app. Revert in one shot.
+include(":probe-room28")
+include(":probe-room3")
