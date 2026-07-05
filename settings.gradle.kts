@@ -64,3 +64,6 @@ include(":feature:app-dialogs:impl")
 include(":feature:recovery")
 
 include(":lint-rules")
+
+// Phase B — Metro DI spike. Disposable, NOT wired into :app. Revert in one shot on NO-GO.
+include(":spike-metro")

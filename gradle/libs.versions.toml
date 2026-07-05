@@ -188,6 +188,8 @@ detekt-test = { module = "io.gitlab.arturbosch.detekt:detekt-test", version.ref 
 
 [plugins]
 kotlin = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+androidKmpLibrary = { id = "com.android.kotlin.multiplatform.library", version.ref = "androidGradlePlugin" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 application = { id = "com.android.application", version.ref = "androidGradlePlugin" }
@@ -207,6 +209,7 @@ convention-application-store = { id = "workeeper.android.application.store", ver
 convention-application-dev = { id = "workeeper.android.application.dev", version = "1.0" }
 
 convention-androidLibrary = { id = "workeeper.android.androidLibrary", version = "1.0" }
+convention-kmpLibrary = { id = "workeeper.kmp.library", version = "1.0" }
 convention-composeLibrary = { id = "workeeper.android.composeLibrary", version = "1.0" }
 convention-roomLibrary = { id = "workeeper.room.library", version = "1.0" }
 convention-lint = { id = "workeeper.lint.convention", version = "1.0" }
