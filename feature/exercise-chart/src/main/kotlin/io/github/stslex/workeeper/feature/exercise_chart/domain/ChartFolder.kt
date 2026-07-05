@@ -36,7 +36,7 @@ internal fun bucketAndFold(
     zoneId: ZoneId = ZoneId.systemDefault(),
 ): ChartFoldDomain {
     val today = Instant.ofEpochMilli(now).atZone(zoneId).toLocalDate()
-    val windowStart = preset.windowStartMillis(now)
+    val windowStart = preset.windowStartMillis(now, zoneId)
 
     val flat = history
         .asSequence()

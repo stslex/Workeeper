@@ -743,6 +743,14 @@ Contrasted with today's Android-only GitHub Actions pipeline: iOS CI needs **mac
 
 > **Important addition on the `exercise-chart` java.time port specifically:** the DST/day-boundary test coverage for the `kotlinx-datetime` port (see Phase 4/5) **must pin a specific non-UTC, DST-observing timezone** (e.g. `America/New_York` or `Europe/Berlin`) **and specific real DST-transition dates** (that zone's actual 2026 spring-forward/fall-back dates) — a test suite running in UTC (the default in many CI environments) would never exercise the epoch-millis↔local-calendar-day conversion bug class this port risks, since UTC has no DST transitions to expose the bug.
 
+#### DECISION RECORD — A.4 implemented (the latent date bug, found and fixed in Phase A)
+
+The bug this warned about was **already present** in the current java.time code, not merely a port risk. `ChartPresetDomain.windowStartMillis` computed the 1M/3M/1Y window start as `now - windowDays * 86_400_000` — naive "every day is 24h" arithmetic. Across a DST transition inside the window, a real calendar day is 23h/25h, so the boundary drifted by the transition's offset and, when `now` was within an hour of local midnight, landed on the **wrong calendar day** (the chart silently including/excluding one boundary day). It was latent because the entire `ChartFolderTest` ran in `ZoneOffset.UTC`, which has no DST.
+
+Fixed in place: `windowStartMillis(now, zone)` now subtracts `windowDays` **calendar** days in the caller's zone (`Instant.ofEpochMilli(now).atZone(zone).minusDays(days)`), preserving local time-of-day. This equals the old value for any non-DST window, so all existing UTC tests stay green — it changes behaviour *only* in the DST-crossing cases that were wrong. The zone is the one `ChartFolder` already resolves; the rest of `ChartFolder`/`PointPixelMap` was already DST-correct (`atZone(zone).toLocalDate()`, `day.atStartOfDay(zone)`, `ChronoUnit.DAYS.between(LocalDate, LocalDate)`). The dead duplicate `ChartPresetUiModel.windowStartMillis` (same bug, zero callers) was removed.
+
+Pinned with two DST-pinned tests in `ChartFolderTest` (`America/New_York`, the actual 2026-03-08 spring-forward and 2026-11-01 fall-back, `now` near local midnight) asserting the correct `windowStartDay`. **Validated as genuine bug-exposers** (not false-passes): both were run against the naive math and confirmed to FAIL (spring → 02-17 vs correct 02-18; fall → 10-17 vs correct 10-16), then pass on the fix. When the `kotlinx-datetime` port happens, these tests port to `commonTest` and must stay green — the port no longer needs to re-derive this bug.
+
 ## feature/recovery: defer vs. rebuild, costed both ways
 
 `feature/recovery` is **not one thing** — it bundles a rare crash-safety-net screen with a real, user-facing Settings feature. They cost very differently.
