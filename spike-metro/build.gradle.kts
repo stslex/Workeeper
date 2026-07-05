@@ -13,6 +13,13 @@ kotlin {
     }
 
     iosSimulatorArm64()
+
+    sourceSets {
+        androidMain.dependencies {
+            // Android-only ViewModel retention wrapper around the Metro Store factory.
+            implementation(libs.lifecycle.viewModel)
+        }
+    }
 }
 
 // Point Detekt (incl. the custom :lint-rules MVI checks) at the KMP source sets,
@@ -22,5 +29,6 @@ detekt {
     source.setFrom(
         "src/commonMain/kotlin",
         "src/androidMain/kotlin",
+        "src/iosMain/kotlin",
     )
 }
