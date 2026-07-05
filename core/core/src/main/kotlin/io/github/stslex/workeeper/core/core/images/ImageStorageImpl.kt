@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.graphics.ImageDecoder
 import android.net.Uri
 import androidx.core.content.FileProvider
+import androidx.core.net.toUri
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.images.ImageStorage.Companion.DIRECTORY
@@ -46,7 +47,7 @@ class ImageStorageImpl @Inject constructor(
         sourceRef: ImageRef,
         exerciseUuid: String,
     ): ImageSaveResult = withContext(ioDispatcher) {
-        val sourceUri = Uri.parse(sourceRef.value)
+        val sourceUri = sourceRef.value.toUri()
         val destFile = File(rootDir, "$exerciseUuid$FILE_EXTENSION")
         val tempFile = File(rootDir, "$exerciseUuid$FILE_EXTENSION.tmp")
         try {

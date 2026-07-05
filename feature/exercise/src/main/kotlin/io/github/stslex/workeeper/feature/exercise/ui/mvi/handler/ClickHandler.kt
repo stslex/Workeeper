@@ -4,9 +4,9 @@ package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.net.Uri
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
@@ -652,7 +652,7 @@ internal class ClickHandler @Inject constructor(
     private fun launchCameraCapture() {
         launch(
             onSuccess = { ref ->
-                sendEvent(Event.NavigateLaunchCamera(Uri.parse(ref.value)))
+                sendEvent(Event.NavigateLaunchCamera(ref.value.toUri()))
             },
         ) {
             interactor.createTempCaptureRef()
