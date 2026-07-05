@@ -22,6 +22,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.core.net.toUri
 import androidx.navigation.NavGraphBuilder
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.ActiveSessionConflictDialog
+import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppBlockedArchiveDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
 import io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel
@@ -39,6 +40,7 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Event
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State.Mode
+import kotlinx.collections.immutable.persistentListOf
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Suppress("LongMethod", "CyclomaticComplexMethod")
@@ -212,11 +214,12 @@ fun NavGraphBuilder.exerciseGraph(
                 onDismiss = { processor.consume(Action.Click.OnDismissDiscard) },
             )
 
-            is DialogState.ArchiveBlocked -> AppDialog(
+            is DialogState.ArchiveBlocked -> AppBlockedArchiveDialog(
                 title = stringResource(R.string.feature_exercise_detail_archive_blocked_title),
-                body = dialog.body,
+                items = persistentListOf(dialog.item),
+                nextStep = stringResource(R.string.feature_exercise_detail_archive_blocked_next_step),
                 confirmLabel = stringResource(R.string.feature_exercise_detail_archive_blocked_ok),
-                onConfirm = { processor.consume(Action.Click.OnDismissArchiveBlocked) },
+                onDismiss = { processor.consume(Action.Click.OnDismissArchiveBlocked) },
             )
 
             is DialogState.PermanentDeleteConfirm -> AppConfirmDialog(

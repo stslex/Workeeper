@@ -26,6 +26,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
+import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppBlockedArchiveDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.fab.AppFAB
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
@@ -155,6 +156,17 @@ internal fun AllExercisesScreen(
             confirmLabel = stringResource(R.string.feature_all_exercises_bulk_archive),
             onConfirm = { consume(Action.Click.OnBulkDeleteConfirm) },
             onDismiss = { consume(Action.Click.OnBulkDeleteDismiss) },
+        )
+    }
+
+    state.blockedArchiveDialog?.let { dialog ->
+        AppBlockedArchiveDialog(
+            title = stringResource(R.string.feature_all_exercises_blocked_archive_title),
+            items = dialog.items,
+            archivedSummary = dialog.archivedSummary,
+            nextStep = stringResource(R.string.feature_all_exercises_blocked_archive_next_step),
+            confirmLabel = stringResource(R.string.feature_all_exercises_blocked_archive_confirm),
+            onDismiss = { consume(Action.Click.OnBlockedArchiveDismiss) },
         )
     }
 }

@@ -48,11 +48,18 @@
         <item quantity="one">%d exercise archived</item>
         <item quantity="other">%d exercises archived</item>
     </plurals>
-    <string name="feature_all_exercises_bulk_archive_partial_format">Archived %1$d, blocked: %2$s</string>
     <string name="feature_all_exercises_bulk_archive_confirm_title">Archive selected?</string>
     <plurals name="feature_all_exercises_bulk_archive_confirm_body">
         <item quantity="one">%d exercise will move to archive. Restore from Settings → Archive.</item>
         <item quantity="other">%d exercises will move to archive. Restore from Settings → Archive.</item>
     </plurals>
     <string name="feature_all_exercises_bulk_archive_impact">Reversible · history preserved</string>
+    <string name="feature_all_exercises_blocked_archive_title">Some couldn&#8217;t be archived</string>
+    <string name="feature_all_exercises_blocked_archive_used_in_format">used in %1$s</string>
+    <plurals name="feature_all_exercises_blocked_archive_more">
+        <item quantity="one">+%1$d more</item>
+        <item quantity="other">+%1$d more</item>
+    </plurals>
+    <string name="feature_all_exercises_blocked_archive_next_step">These are still in active trainings. Remove them from those trainings first, then archive.</string>
+    <string name="feature_all_exercises_blocked_archive_confirm">Got it</string>
 </resources>

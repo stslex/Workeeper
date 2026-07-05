@@ -62,7 +62,6 @@
         <item quantity="many">%d упражнений в архиве</item>
         <item quantity="other">%d упражнения в архиве</item>
     </plurals>
-    <string name="feature_all_exercises_bulk_archive_partial_format">В архиве: %1$d, не получилось: %2$s</string>
     <string name="feature_all_exercises_bulk_archive_confirm_title">Архивировать выбранные?</string>
     <plurals name="feature_all_exercises_bulk_archive_confirm_body">
         <item quantity="one">%d упражнение будет перенесено в архив. Восстановить можно в Настройках → Архив.</item>
@@ -71,4 +70,14 @@
         <item quantity="other">%d упражнения будут перенесены в архив. Восстановить можно в Настройках → Архив.</item>
     </plurals>
     <string name="feature_all_exercises_bulk_archive_impact">Обратимо · история сохранится</string>
+    <string name="feature_all_exercises_blocked_archive_title">Не удалось архивировать</string>
+    <string name="feature_all_exercises_blocked_archive_used_in_format">в тренировках: %1$s</string>
+    <plurals name="feature_all_exercises_blocked_archive_more">
+        <item quantity="one">и ещё %1$d</item>
+        <item quantity="few">и ещё %1$d</item>
+        <item quantity="many">и ещё %1$d</item>
+        <item quantity="other">и ещё %1$d</item>
+    </plurals>
+    <string name="feature_all_exercises_blocked_archive_next_step">Они используются в активных тренировках. Сначала уберите их оттуда, затем архивируйте.</string>
+    <string name="feature_all_exercises_blocked_archive_confirm">Понятно</string>
 </resources>

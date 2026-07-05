@@ -8,6 +8,7 @@ import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.all_exercises.R
 import io.github.stslex.workeeper.feature.all_exercises.di.AllExercisesHandlerStore
 import io.github.stslex.workeeper.feature.all_exercises.domain.AllExercisesInteractor
+import io.github.stslex.workeeper.feature.all_exercises.mvi.mapper.AllExercisesUiMapper
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Action
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Event
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.State.PendingBulkDelete
@@ -37,6 +38,7 @@ internal class ClickHandler @Inject constructor(
             Action.Click.OnBulkDelete -> processBulkDelete()
             Action.Click.OnBulkDeleteConfirm -> processBulkDeleteConfirm()
             Action.Click.OnBulkDeleteDismiss -> processBulkDeleteDismiss()
+            Action.Click.OnBlockedArchiveDismiss -> processBlockedArchiveDismiss()
         }
     }
 
@@ -144,26 +146,36 @@ internal class ClickHandler @Inject constructor(
         val targets = mode.selectedUuids.toSet()
         launch(
             onSuccess = { result ->
-                updateStateImmediate { current ->
-                    current.copy(
-                        selectionMode = SelectionMode.Off,
-                        pendingBulkDelete = null,
-                    )
-                }
-                val message = if (result.blockedNames.isEmpty()) {
-                    resourceWrapper.getQuantityString(
-                        R.plurals.feature_all_exercises_bulk_archive_success,
-                        result.archivedCount,
-                        result.archivedCount,
+                if (result.blocked.isEmpty()) {
+                    updateStateImmediate { current ->
+                        current.copy(
+                            selectionMode = SelectionMode.Off,
+                            pendingBulkDelete = null,
+                        )
+                    }
+                    sendEvent(
+                        Event.ShowBulkDeleteSuccess(
+                            message = resourceWrapper.getQuantityString(
+                                R.plurals.feature_all_exercises_bulk_archive_success,
+                                result.archivedCount,
+                                result.archivedCount,
+                            ),
+                        ),
                     )
                 } else {
-                    resourceWrapper.getString(
-                        R.string.feature_all_exercises_bulk_archive_partial_format,
-                        result.archivedCount,
-                        result.blockedNames.joinToString(", "),
-                    )
+                    // Any blocked exercise → one consistent, persistent mechanism: a dialog
+                    // naming the blocking trainings, never a droppable snackbar.
+                    val dialog = with(AllExercisesUiMapper) {
+                        result.toBlockedArchiveDialog(resourceWrapper)
+                    }
+                    updateStateImmediate { current ->
+                        current.copy(
+                            selectionMode = SelectionMode.Off,
+                            pendingBulkDelete = null,
+                            blockedArchiveDialog = dialog,
+                        )
+                    }
                 }
-                sendEvent(Event.ShowBulkDeleteSuccess(message = message))
             },
         ) {
             interactor.bulkArchive(targets)
@@ -172,5 +184,9 @@ internal class ClickHandler @Inject constructor(
 
     private fun processBulkDeleteDismiss() {
         updateState { current -> current.copy(pendingBulkDelete = null) }
+    }
+
+    private fun processBlockedArchiveDismiss() {
+        updateState { current -> current.copy(blockedArchiveDialog = null) }
     }
 }

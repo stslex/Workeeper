@@ -57,8 +57,6 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.State
 import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.persistentListOf
-import kotlinx.collections.immutable.plus
 import kotlinx.collections.immutable.toImmutableList
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -157,28 +155,7 @@ private fun DetailLargeTopBar(
     scrollBehavior: androidx.compose.material3.TopAppBarScrollBehavior,
 ) {
     val actions = remember(state.canPermanentlyDelete) {
-        persistentListOf(
-            TopbarAction(
-                titleRes = R.string.feature_exercise_detail_edit,
-                testTag = "ExerciseDetailEditMenuItem",
-                onClick = { consume(Action.Click.OnEditClick) },
-            ),
-            TopbarAction(
-                titleRes = R.string.feature_exercise_detail_archive,
-                testTag = "ExerciseDetailArchiveMenuItem",
-                onClick = { consume(Action.Click.OnArchiveMenuClick) },
-            ),
-        ).apply {
-            if (state.canPermanentlyDelete) {
-                plus(
-                    TopbarAction(
-                        titleRes = R.string.feature_exercise_detail_permanent_delete,
-                        testTag = "ExerciseDetailPermanentDeleteMenuItem",
-                        onClick = { consume(Action.Click.OnPermanentDeleteMenuClick) },
-                    ),
-                )
-            }
-        }
+        exerciseDetailActions(state.canPermanentlyDelete, consume)
     }
     DetailTopbar(
         title = state.name,
@@ -187,6 +164,43 @@ private fun DetailLargeTopBar(
         scrollBehavior = scrollBehavior,
     )
 }
+
+/**
+ * Overflow-menu actions for the exercise detail screen. The permanent-delete entry is
+ * appended only when [canPermanentlyDelete] is true (no history, no active templates).
+ *
+ * Built with [buildList] rather than `persistentListOf(...).apply { plus(...) }`: `apply`
+ * returns its receiver and the `plus` result was discarded, so the permanent-delete item
+ * never reached the menu — a silent regression this function makes testable.
+ */
+internal fun exerciseDetailActions(
+    canPermanentlyDelete: Boolean,
+    consume: (Action) -> Unit,
+): ImmutableList<TopbarAction> = buildList {
+    add(
+        TopbarAction(
+            titleRes = R.string.feature_exercise_detail_edit,
+            testTag = "ExerciseDetailEditMenuItem",
+            onClick = { consume(Action.Click.OnEditClick) },
+        ),
+    )
+    add(
+        TopbarAction(
+            titleRes = R.string.feature_exercise_detail_archive,
+            testTag = "ExerciseDetailArchiveMenuItem",
+            onClick = { consume(Action.Click.OnArchiveMenuClick) },
+        ),
+    )
+    if (canPermanentlyDelete) {
+        add(
+            TopbarAction(
+                titleRes = R.string.feature_exercise_detail_permanent_delete,
+                testTag = "ExerciseDetailPermanentDeleteMenuItem",
+                onClick = { consume(Action.Click.OnPermanentDeleteMenuClick) },
+            ),
+        )
+    }
+}.toImmutableList()
 
 @Composable
 private fun DefaultPlanCard(

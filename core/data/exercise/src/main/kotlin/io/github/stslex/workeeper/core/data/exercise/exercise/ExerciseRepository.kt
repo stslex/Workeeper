@@ -144,7 +144,8 @@ interface ExerciseRepository {
     /**
      * Bulk-archive a batch of exercises. Mirrors [ExerciseRepository.archive] except it
      * runs in one transaction; exercises currently used by an active (non-archived)
-     * training are excluded and surfaced in [BulkArchiveOutcome.blockedNames].
+     * training are excluded and surfaced in [BulkArchiveOutcome.blocked], each with the
+     * names of the active trainings that block it so the caller can tell the user why.
      */
     suspend fun bulkArchive(uuids: Set<String>): BulkArchiveOutcome
 
@@ -170,8 +171,19 @@ interface ExerciseRepository {
 
     data class BulkArchiveOutcome(
         val archivedCount: Int,
-        val blockedNames: List<String>,
-    )
+        val blocked: List<BlockedExercise>,
+    ) {
+
+        /**
+         * An exercise that could not be archived because it is still referenced by at
+         * least one active (non-archived, non-adhoc) training. [activeTrainings] holds
+         * those training names so the UI can name them and tell the user what to do.
+         */
+        data class BlockedExercise(
+            val name: String,
+            val activeTrainings: List<String>,
+        )
+    }
 
     /**
      * Result of [createInlineAdhocExercise]. [reusedExisting] is true when a case-insensitive
