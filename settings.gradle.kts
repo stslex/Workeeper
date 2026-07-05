@@ -72,3 +72,7 @@ include(":probe-room3")
 include(":probe-hilt")
 include(":probe-metro")
 include(":probe-di-root")
+// P2.a — multi-module Metro aggregation + cross-module scope enforcement
+include(":probe-agg-x")
+include(":probe-agg-y")
+include(":probe-agg-root")
