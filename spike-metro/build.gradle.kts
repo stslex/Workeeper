@@ -1,15 +1,18 @@
 plugins {
     alias(libs.plugins.convention.kmpLibrary)
+    alias(libs.plugins.metro)
 }
 
-// Phase B.0: empty KMP module, android target only. iosSimulatorArm64 + Metro arrive
-// in B.1. Not wired into :app — this is a disposable go/no-go spike.
+// Phase B.1: trivial Metro graph across BOTH targets (fail-fast on the iOS compile).
+// Not wired into :app — disposable go/no-go spike.
 kotlin {
     androidLibrary {
         namespace = "io.github.stslex.workeeper.spike_metro"
         compileSdk = libs.versions.compileSdk.get().toInt()
         minSdk = libs.versions.minSdk.get().toInt()
     }
+
+    iosSimulatorArm64()
 }
 
 // Point Detekt (incl. the custom :lint-rules MVI checks) at the KMP source sets,
