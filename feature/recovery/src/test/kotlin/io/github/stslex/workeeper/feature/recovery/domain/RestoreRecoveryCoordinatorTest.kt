@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.recovery.domain
 
-import android.content.Context
+import io.github.stslex.workeeper.core.core.platform.AppReinitializer
 import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreInProgressContext
@@ -16,6 +16,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
+import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -24,7 +25,7 @@ import org.junit.jupiter.api.Test
 
 internal class RestoreRecoveryCoordinatorTest {
 
-    private val androidContext = mockk<Context>(relaxed = true)
+    private val appReinitializer = mockk<AppReinitializer>(relaxed = true)
     private val snapshotProvider = mockk<DatabaseSnapshotProvider>(relaxed = true)
     private val restoreStateRepository = mockk<RestoreStateRepository>(relaxed = true)
     private val appDialogPublisher = mockk<AppDialogPublisher>(relaxed = true)
@@ -36,7 +37,7 @@ internal class RestoreRecoveryCoordinatorTest {
     @BeforeEach
     fun setUp() {
         coordinator = RestoreRecoveryCoordinator(
-            context = androidContext,
+            appReinitializer = appReinitializer,
             platformInfo = platformInfo,
             snapshotProvider = snapshotProvider,
             restoreStateRepository = restoreStateRepository,
@@ -169,6 +170,13 @@ internal class RestoreRecoveryCoordinatorTest {
             coVerify(exactly = 1) { restoreStateRepository.clearPreRestoreBackupAvailable() }
             coVerify(exactly = 1) { appDialogPublisher.publish(AppDialog.UndoRestoreSuccess) }
         }
+
+    @Test
+    fun `restartApp delegates to the AppReinitializer seam`() {
+        coordinator.restartApp()
+
+        verify(exactly = 1) { appReinitializer.reinitialize() }
+    }
 
     private fun makeContext(
         backupSchemaVersion: Int = 5,

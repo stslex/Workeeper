@@ -22,4 +22,10 @@ internal abstract class PlatformModule {
     abstract fun bindTempFileProvider(
         impl: AndroidTempFileProvider,
     ): TempFileProvider
+
+    @Binds
+    @Singleton
+    abstract fun bindAppReinitializer(
+        impl: AndroidAppReinitializer,
+    ): AppReinitializer
 }
