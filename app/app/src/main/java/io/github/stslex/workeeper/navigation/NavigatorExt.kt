@@ -7,12 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavController
-import dagger.hilt.EntryPoint
-import dagger.hilt.InstallIn
-import dagger.hilt.android.EntryPointAccessors
-import dagger.hilt.components.SingletonComponent
 import io.github.stslex.workeeper.core.core.logger.Log
-import io.github.stslex.workeeper.core.core.platform.AppReinitializer
 import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
 import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
 import io.github.stslex.workeeper.core.ui.navigation.NavCommand
@@ -55,7 +50,6 @@ object NavigatorExt {
             is NavCommand.PopBack -> popBack(navController, command.attrs)
 
             is NavCommand.ReplaceTo -> replaceTo(navController, command.screen)
-            NavCommand.RestartApp -> restartApp(context)
             NavCommand.OpenRecovery -> openRecovery(context)
         }
     }
@@ -119,26 +113,9 @@ object NavigatorExt {
         }
     }
 
-    private fun restartApp(context: Context) {
-        // NavigatorExt is a stateless object, so it reaches the process-scoped
-        // AppReinitializer via the application context rather than @Inject. The
-        // single restart body lives in AndroidAppReinitializer; this call site and
-        // RestoreRecoveryCoordinator both delegate to it.
-        EntryPointAccessors
-            .fromApplication(context.applicationContext, AppReinitializerEntryPoint::class.java)
-            .appReinitializer()
-            .reinitialize()
-    }
-
     private fun openRecovery(context: Context) {
         val intent = Intent(context, RecoveryActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         context.startActivity(intent)
-    }
-
-    @EntryPoint
-    @InstallIn(SingletonComponent::class)
-    internal interface AppReinitializerEntryPoint {
-        fun appReinitializer(): AppReinitializer
     }
 }
