@@ -68,3 +68,7 @@ include(":lint-rules")
 // Probe-2 — disposable KMP toolchain probes. NOT wired into :app. Revert in one shot.
 include(":probe-room28")
 include(":probe-room3")
+// P2.b — Hilt <-> Metro coexistence
+include(":probe-hilt")
+include(":probe-metro")
+include(":probe-di-root")
