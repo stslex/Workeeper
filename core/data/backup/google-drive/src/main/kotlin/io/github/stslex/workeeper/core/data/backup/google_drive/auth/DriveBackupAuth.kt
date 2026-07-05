@@ -13,6 +13,8 @@ import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.model.Account
+import io.github.stslex.workeeper.core.data.backup.api.model.AuthResolution
+import io.github.stslex.workeeper.core.data.backup.api.model.AuthResolutionOutcome
 import io.github.stslex.workeeper.core.data.backup.api.model.AuthState
 import io.github.stslex.workeeper.core.data.backup.api.model.SignInResult
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
@@ -102,8 +104,11 @@ internal class DriveBackupAuth @Inject constructor(
             )
     }
 
-    override suspend fun completeSignIn(intentData: Intent?): BackupResult<Account> =
+    override suspend fun completeSignIn(outcome: AuthResolutionOutcome): BackupResult<Account> =
         withContext(dispatcher) {
+            // The mvi edge wraps the ActivityResult Intent (or null, on cancel) here. Downcast
+            // at the platform boundary; a null/non-Intent payload means a cancelled resolution.
+            val intentData = outcome.platform as? Intent
             if (intentData == null) {
                 return@withContext BackupResult.Failure(
                     BackupError.Unknown(IllegalStateException("intentData is null")),
@@ -195,7 +200,7 @@ internal class DriveBackupAuth @Inject constructor(
                         IllegalStateException("hasResolution=true but pendingIntent=null"),
                     ),
                 )
-            return SignInResult.NeedsResolution(pendingIntent.intentSender)
+            return SignInResult.NeedsResolution(AuthResolution(pendingIntent.intentSender))
         }
         val missing = result.missingRequiredScopes()
         if (missing.isNotEmpty()) {

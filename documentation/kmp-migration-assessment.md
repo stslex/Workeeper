@@ -539,6 +539,23 @@ None of these are large individually, but they're qualitatively different from "
 
 > **Note — this is ONE workstream, not two.** Items 5 here (the domain-layer `IntentSender` leak) and the `core/data/backup/api`-module leak found in the touchpoints sweep (`BackupAuth.kt`, `SignInResult.kt`) are **the same underlying two-phase Google Sign-In consent model** baked into the domain/api surface. They are consolidated into a single workstream — "de-Android the auth domain/api surface" — in the Phase 4 rollup, counted once, and placed on the **critical path** because it gates domain purity, the data-layer auth port, *and* the iOS auth implementation. The iOS auth **implementation** itself (GoogleSignIn-iOS / OAuth+Keychain, appDataFolder, silent refresh) is a separate, downstream workstream (see Phase 3/4) — not double-counted with the redesign.
 
+#### DECISION RECORD — A.2b implemented (item 5 resolved for Phase A)
+
+Item 5 is closed for the three domain/api leaks (`SignInResult.NeedsResolution`, `BackupAuth.completeSignIn`, `SignInOutcomeDomain.NeedsResolution`, plus `BackupInteractor(Impl).completeSignIn`). `Intent`/`IntentSender` no longer appear in `feature/settings/domain/` or `core/data/backup/api/`. The resolution round-trip now crosses the boundary as two opaque, platform-neutral handles introduced in `core/data/backup/api/model/`:
+
+- `AuthResolution(val platform: Any?)` — data→UI, wraps the Android `IntentSender`.
+- `AuthResolutionOutcome(val platform: Any?)` — UI→data, wraps the Android result `Intent?`.
+
+Both are the **same shape** (single `platform` field). Conversion to/from the concrete Android types happens only at the mvi-handler edge (`BackupClickHandler`, where `android.*` is allowed) and inside the Android `BackupAuth` impl (`DriveBackupAuth`); the domain and api layers pass the handles straight through and never unpack `.platform`.
+
+Three decisions recorded with this implementation:
+
+1. **Accepted ASYMMETRIC contract — final with rationale, not interim debt.** Android is two-phase (UI-mediated `ActivityResult`): it emits `NeedsResolution` and later has `completeSignIn` called. iOS will implement a **subset** — single-phase, never emits `NeedsResolution`, `completeSignIn` is never called on iOS, and the presenting view controller is obtained via a root-VC holder. A *symmetric single-phase* contract was **rejected** because it fights the app's MVI/Compose-`ActivityResult` flow. **Do not symmetrize this later.**
+2. **`AuthResolution` / `AuthResolutionOutcome` are OPAQUE-PER-PLATFORM by design.** At the KMP split each becomes an `expect value class` with per-platform `actual` (Android → `IntentSender` / `Intent?`; iOS → presenting-context ref). The Phase-A `.platform as IntentSender` downcast in `BackupClickHandler` is the **precursor** to the Android actual's unpacking and migrates verbatim into `androidMain`. It is **not** a "temporary `Any` that later becomes neutral."
+3. **`platform` is `Any?`, not the `Any` first drafted.** The `AuthResolutionOutcome` handle must carry the cancelled-resolution case (Android's `ActivityResult` yields a null `Intent` on cancel; `DriveBackupAuth.completeSignIn(null)` returning `Failure` is an existing, tested contract). A non-null `Any` cannot be constructed from `resultIntent: Intent?` at the handler wrap site without a crash-on-cancel `!!` or a behaviour change. `Any?` on **both** types preserves the null-cancel path and keeps them symmetric; it maps cleanly onto a future `expect value class` wrapping a nullable payload.
+
+Still open in this workstream (tracked elsewhere, NOT part of A.2b): the mvi/ui surface deliberately stays Android-typed for Phase A — `SettingsStore.Action.HandleAuthResult(Intent?)`, `SettingsStore.Event.AuthResolutionRequested(IntentSender)`, and `SettingsGraph`'s `StartIntentSenderForResult` launcher. Neutralizing those is a settings-screen KMP prerequisite deferred past Phase A. `RestoreRecoveryCoordinator`'s `Activity`/`Context`/`Intent` leak is Phase A.3.
+
 ### Detection method, stated plainly (re-verification)
 
 See [Phase 0 → Headline finding](#headline-finding--the-domain-layer-is-not-actually-pure) for the full exhaustive re-scan: 26 `domain/` directories checked directly, 8 production files confirmed by two independent methods — **not a floor**.

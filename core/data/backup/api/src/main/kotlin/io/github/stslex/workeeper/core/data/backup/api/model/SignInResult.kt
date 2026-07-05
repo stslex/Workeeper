@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.backup.api.model
 
-import android.content.IntentSender
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 
 /**
@@ -18,10 +17,12 @@ sealed interface SignInResult {
 
     /**
      * The provider needs the user to interact with a system UI before sign-in can
-     * complete. Launch [intentSender], then hand the resulting `Intent` back via
+     * complete. Act on [resolution] at the UI edge, then hand the outcome back via
      * [io.github.stslex.workeeper.core.data.backup.api.BackupAuth.completeSignIn].
+     * [resolution] is an opaque [AuthResolution] handle so this contract stays free
+     * of platform (`android.*`) types.
      */
-    data class NeedsResolution(val intentSender: IntentSender) : SignInResult
+    data class NeedsResolution(val resolution: AuthResolution) : SignInResult
 
     /**
      * The provider returned a credential, but at least one hard-required scope was

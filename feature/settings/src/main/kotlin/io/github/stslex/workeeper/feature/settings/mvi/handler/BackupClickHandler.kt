@@ -2,8 +2,10 @@
 package io.github.stslex.workeeper.feature.settings.mvi.handler
 
 import android.content.Context
+import android.content.IntentSender
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.scopes.ViewModelScoped
+import io.github.stslex.workeeper.core.data.backup.api.model.AuthResolutionOutcome
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
@@ -198,7 +200,11 @@ internal class BackupClickHandler @Inject constructor(
                         updateStateImmediate { current ->
                             current.copy(backupOperation = BackupOperationUi.Idle)
                         }
-                        sendEvent(Event.AuthResolutionRequested(result.intentSender))
+                        // Downcast the opaque resolution to the Android launch handle at the mvi
+                        // edge (android.* is allowed here; the domain never unpacks .platform).
+                        sendEvent(
+                            Event.AuthResolutionRequested(result.resolution.platform as IntentSender),
+                        )
                     }
 
                     SignInOutcomeDomain.PartialGrant -> {
@@ -253,7 +259,9 @@ internal class BackupClickHandler @Inject constructor(
                 }
             },
         ) {
-            interactor.completeSignIn(resultIntent)
+            // Wrap the Android ActivityResult Intent (or null on cancel) into the neutral
+            // outcome handle before crossing back into the domain.
+            interactor.completeSignIn(AuthResolutionOutcome(resultIntent))
         }
     }
 
@@ -297,7 +305,7 @@ internal class BackupClickHandler @Inject constructor(
 
                     // Keep TogglingAiExport set; handleAuthResult resolves the grant and resets it.
                     is SignInOutcomeDomain.NeedsResolution -> sendEvent(
-                        Event.AuthResolutionRequested(outcome.intentSender),
+                        Event.AuthResolutionRequested(outcome.resolution.platform as IntentSender),
                     )
 
                     is SignInOutcomeDomain.PartialGrant,

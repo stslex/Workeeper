@@ -10,6 +10,8 @@ import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
 import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.model.Account
+import io.github.stslex.workeeper.core.data.backup.api.model.AuthResolution
+import io.github.stslex.workeeper.core.data.backup.api.model.AuthResolutionOutcome
 import io.github.stslex.workeeper.core.data.backup.api.model.AuthState
 import io.github.stslex.workeeper.core.data.backup.api.model.BackupManifest
 import io.github.stslex.workeeper.core.data.backup.api.model.BackupRef
@@ -109,12 +111,13 @@ internal class BackupInteractorImplTest {
     @Test
     fun `requestDriveFileAccess maps NeedsResolution from backupAuth`() = runTest(testDispatcher) {
         val sender = mockk<IntentSender>(relaxed = true)
-        coEvery { backupAuth.requestDriveFileAccess() } returns SignInResult.NeedsResolution(sender)
+        coEvery { backupAuth.requestDriveFileAccess() } returns
+            SignInResult.NeedsResolution(AuthResolution(sender))
 
         val outcome = interactor.requestDriveFileAccess()
 
         assertTrue(outcome is SignInOutcomeDomain.NeedsResolution)
-        assertSame(sender, (outcome as SignInOutcomeDomain.NeedsResolution).intentSender)
+        assertSame(sender, (outcome as SignInOutcomeDomain.NeedsResolution).resolution.platform)
     }
 
     @Test
@@ -135,10 +138,10 @@ internal class BackupInteractorImplTest {
     @Test
     fun `signIn NeedsResolution propagates same intentSender`() = runTest(testDispatcher) {
         val sender = makeIntentSender()
-        coEvery { backupAuth.signIn() } returns SignInResult.NeedsResolution(sender)
+        coEvery { backupAuth.signIn() } returns SignInResult.NeedsResolution(AuthResolution(sender))
         val outcome = interactor.signIn()
         assertTrue(outcome is SignInOutcomeDomain.NeedsResolution)
-        assertSame(sender, (outcome as SignInOutcomeDomain.NeedsResolution).intentSender)
+        assertSame(sender, (outcome as SignInOutcomeDomain.NeedsResolution).resolution.platform)
     }
 
     @Test
@@ -476,21 +479,21 @@ internal class BackupInteractorImplTest {
     @Test
     fun `completeSignIn maps api Success of Account to Success of Unit`() =
         runTest(testDispatcher) {
-            val intent = mockk<Intent>(relaxed = true)
+            val outcome = AuthResolutionOutcome(mockk<Intent>(relaxed = true))
             val expectedAccount = AccountDomain(email = "a@b.com", displayName = "A")
-            coEvery { backupAuth.completeSignIn(intent) } returns
+            coEvery { backupAuth.completeSignIn(outcome) } returns
                 BackupResult.Success(Account(email = "a@b.com", displayName = "A"))
-            val result = interactor.completeSignIn(intent)
+            val result = interactor.completeSignIn(outcome)
             assertTrue(result is BackupResult.Success)
             assertEquals(expectedAccount, (result as BackupResult.Success).data)
         }
 
     @Test
     fun `completeSignIn propagates Failure`() = runTest(testDispatcher) {
-        val intent = mockk<Intent>(relaxed = true)
+        val outcome = AuthResolutionOutcome(mockk<Intent>(relaxed = true))
         val error = BackupError.AuthRevoked
-        coEvery { backupAuth.completeSignIn(intent) } returns BackupResult.Failure(error)
-        val result = interactor.completeSignIn(intent)
+        coEvery { backupAuth.completeSignIn(outcome) } returns BackupResult.Failure(error)
+        val result = interactor.completeSignIn(outcome)
         assertTrue(result is BackupResult.Failure)
         assertSame(error, (result as BackupResult.Failure).error)
     }

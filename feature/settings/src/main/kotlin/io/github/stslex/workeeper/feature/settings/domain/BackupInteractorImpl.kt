@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.settings.domain
 
-import android.content.Intent
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
@@ -10,6 +9,7 @@ import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
 import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
+import io.github.stslex.workeeper.core.data.backup.api.model.AuthResolutionOutcome
 import io.github.stslex.workeeper.core.data.backup.api.model.BackupManifest
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreInProgressContext
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
@@ -52,8 +52,8 @@ internal class BackupInteractorImpl @Inject constructor(
     override suspend fun isDriveFileGranted(): Boolean =
         backupAuth.observeDriveFileGranted().first()
 
-    override suspend fun completeSignIn(resultIntent: Intent?): BackupResult<AccountDomain> =
-        backupAuth.completeSignIn(resultIntent).mapSuccess {
+    override suspend fun completeSignIn(outcome: AuthResolutionOutcome): BackupResult<AccountDomain> =
+        backupAuth.completeSignIn(outcome).mapSuccess {
             it.toDomain()
         }
 
