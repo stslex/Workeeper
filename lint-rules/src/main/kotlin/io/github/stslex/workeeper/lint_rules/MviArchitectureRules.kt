@@ -26,6 +26,7 @@ class MviArchitectureRuleSet : RuleSetProvider {
             DomainLayerPurityRule(config),
             UiLayerNoDataRule(config),
             DiscardedScopeResultRule(config),
+            NoActualForExpectSuppressionRule(config),
         ),
     )
 }

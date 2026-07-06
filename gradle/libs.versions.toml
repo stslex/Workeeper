@@ -1,7 +1,9 @@
 [versions]
 androidDesugarJdkLibs = "2.1.5"
 kotlin = "2.3.20"
-ksp = "2.3.6"
+# KSP 2.3.9 (not 2.3.6): 2.3.6 silently skips KMP/native codegen — a proven false-green
+# (Probe-2). Repo-wide single source of truth; must survive existing Hilt-Android codegen.
+ksp = "2.3.9"
 androidGradlePlugin = "9.1.0"
 androidTools = "32.1.0"
 
@@ -45,6 +47,11 @@ gms = "4.4.4"
 fbCrashlytics = "3.0.7"
 
 room = "2.8.4"
+# KMP toolchain (Phase C) — declared but UNAPPLIED in C.0; the Room 2->3 migration and
+# the K/N SQLite driver land when C.1 converts the first module. No module references
+# these yet, so they are inert until then.
+room3 = "3.0.0"
+sqliteBundled = "2.7.0"
 vkompose = "0.7.2"
 serialization = "1.9.0"
 datetime = "0.7.1"
@@ -66,6 +73,11 @@ junitKtx = "1.3.0"
 
 # Other tools
 haze = "1.7.1"
+
+# KMP DI (Phase C) — Metro pinned to 1.1.1: the last line compatible with Kotlin 2.3.20
+# (1.2.0+ requires Kotlin 2.4.0, which CMP does not yet support). Declared but UNAPPLIED
+# in C.0; applied when the first Hilt->Metro DI slice lands in C.1.
+metro = "1.1.1"
 [libraries]
 android-desugarJdkLibs = { module = "com.android.tools:desugar_jdk_libs", version.ref = "androidDesugarJdkLibs" }
 android-gradlePlugin = { module = "com.android.tools.build:gradle", version.ref = "androidGradlePlugin" }
@@ -145,6 +157,13 @@ androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = 
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 androidx-room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
 
+# Room 3.0 (androidx.room3) + BundledSQLiteDriver on K/N — UNAPPLIED in C.0. These replace
+# the androidx.room 2.8.4 coordinates above during the Room 2->3 migration (a later phase);
+# both sets coexist in the catalog only until that swap is committed.
+androidx-sqlite-bundled = { group = "androidx.sqlite", name = "sqlite-bundled", version.ref = "sqliteBundled" }
+androidx-room3-runtime = { group = "androidx.room3", name = "room3-runtime", version.ref = "room3" }
+androidx-room3-compiler = { group = "androidx.room3", name = "room3-compiler", version.ref = "room3" }
+
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 androidx-datastore-core = { group = "androidx.datastore", name = "datastore-core", version.ref = "datastore" }
 
@@ -188,6 +207,12 @@ detekt-test = { module = "io.gitlab.arturbosch.detekt:detekt-test", version.ref 
 
 [plugins]
 kotlin = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+# KMP toolchain (Phase C) — UNAPPLIED in C.0. androidKmpLibrary is AGP's KMP-native library
+# plugin (AGP 9.0+ rejects com.android.library + kotlin-multiplatform together). Consumed by
+# the promoted KmpLibraryConventionPlugin, which is itself applied to zero modules until C.1.
+kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+androidKmpLibrary = { id = "com.android.kotlin.multiplatform.library", version.ref = "androidGradlePlugin" }
+metro = { id = "dev.zacsweers.metro", version.ref = "metro" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 application = { id = "com.android.application", version.ref = "androidGradlePlugin" }
@@ -207,6 +232,7 @@ convention-application-store = { id = "workeeper.android.application.store", ver
 convention-application-dev = { id = "workeeper.android.application.dev", version = "1.0" }
 
 convention-androidLibrary = { id = "workeeper.android.androidLibrary", version = "1.0" }
+convention-kmpLibrary = { id = "workeeper.kmp.library", version = "1.0" }
 convention-composeLibrary = { id = "workeeper.android.composeLibrary", version = "1.0" }
 convention-roomLibrary = { id = "workeeper.room.library", version = "1.0" }
 convention-lint = { id = "workeeper.lint.convention", version = "1.0" }
