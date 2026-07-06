@@ -17,6 +17,7 @@ import io.github.stslex.workeeper.core.data.database.sets.SetTypeDataModel
 import io.github.stslex.workeeper.core.data.database.testfixtures.RepositoryTestEnv
 import io.github.stslex.workeeper.core.data.database.training.TrainingEntity
 import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseEntity
+import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository.BulkArchiveOutcome.BlockedExercise
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository.SaveResult
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseChangeDataModel
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.ExerciseTypeDataModel
@@ -1128,7 +1129,10 @@ internal class ExerciseRepositoryImplDbTest {
         val outcome = repository.bulkArchive(setOf(freeUuid.toString(), blockedUuid.toString()))
 
         assertEquals(1, outcome.archivedCount)
-        assertEquals(listOf("Blocked"), outcome.blockedNames)
+        assertEquals(
+            listOf(BlockedExercise(name = "Blocked", activeTrainings = listOf("Push"))),
+            outcome.blocked,
+        )
         assertTrue(env.exerciseDao.getById(freeUuid)?.archived == true)
         assertTrue(env.exerciseDao.getById(blockedUuid)?.archived == false)
     }

@@ -12,7 +12,8 @@
     <string name="feature_exercise_detail_archive">Archive</string>
     <string name="feature_exercise_detail_archive_success_format">&#8216;%1$s&#8217; archived</string>
     <string name="feature_exercise_detail_archive_blocked_title">Cannot archive</string>
-    <string name="feature_exercise_detail_archive_blocked_body_format">&#8216;%1$s&#8217; is used in active trainings: %2$s. Remove from those first.</string>
+    <string name="feature_exercise_detail_archive_blocked_used_in_format">used in %1$s</string>
+    <string name="feature_exercise_detail_archive_blocked_next_step">Remove it from those trainings first, then archive.</string>
     <string name="feature_exercise_detail_archive_blocked_ok">OK</string>
     <string name="feature_exercise_detail_archive_undo">Undo</string>
     <string name="feature_exercise_detail_history_meta_format">%1$s · %2$s</string>

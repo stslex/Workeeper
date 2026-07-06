@@ -12,6 +12,7 @@ import io.github.stslex.workeeper.feature.all_exercises.mvi.model.ExerciseUiMode
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Action
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Event
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.State
+import io.mockk.CapturingSlot
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -42,6 +43,7 @@ internal class ClickHandlerTest {
         pendingPermanentDelete = null,
         selectionMode = State.SelectionMode.Off,
         pendingBulkDelete = null,
+        blockedArchiveDialog = null,
     )
     private val stateFlow = MutableStateFlow(initialState)
 
@@ -148,7 +150,7 @@ internal class ClickHandlerTest {
         )
         coEvery {
             interactor.bulkArchive(any())
-        } returns BulkArchiveResult(archivedCount = 2, blockedNames = emptyList())
+        } returns BulkArchiveResult(archivedCount = 2, blocked = emptyList())
 
         val actionSlot = slot<suspend CoroutineScope.() -> BulkArchiveResult>()
         val onSuccessSlot = slot<suspend CoroutineScope.(BulkArchiveResult) -> Unit>()
@@ -169,6 +171,101 @@ internal class ClickHandlerTest {
         onSuccessSlot.captured(this, result)
         assertTrue(stateFlow.value.selectionMode is State.SelectionMode.Off)
         assertNull(stateFlow.value.pendingBulkDelete)
+        // Pure success surfaces a snackbar, never the blocked dialog.
+        assertNull(stateFlow.value.blockedArchiveDialog)
+        verify(exactly = 1) { store.sendEvent(ofType<Event.ShowBulkDeleteSuccess>()) }
+    }
+
+    @Test
+    fun `OnBulkDeleteConfirm opens blocked dialog and no snackbar when all blocked`() = runTest {
+        val targets = persistentSetOf("uuid-1")
+        stateFlow.value = stateFlow.value.copy(
+            selectionMode = State.SelectionMode.On(selectedUuids = targets),
+            pendingBulkDelete = State.PendingBulkDelete(count = 1),
+        )
+        coEvery { interactor.bulkArchive(any()) } returns BulkArchiveResult(
+            archivedCount = 0,
+            blocked = listOf(
+                BulkArchiveResult.BlockedExerciseDomain(
+                    name = "Bench",
+                    activeTrainings = listOf("Push", "Legs"),
+                ),
+            ),
+        )
+        val (actionSlot, onSuccessSlot) = captureLaunch()
+
+        handler.invoke(Action.Click.OnBulkDeleteConfirm)
+        onSuccessSlot.captured(this, actionSlot.captured(this))
+
+        val dialog = stateFlow.value.blockedArchiveDialog
+        assertNotNull(dialog)
+        assertEquals(1, dialog?.items?.size)
+        // Nothing archived → no "N archived" summary line.
+        assertNull(dialog?.archivedSummary)
+        assertTrue(stateFlow.value.selectionMode is State.SelectionMode.Off)
+        assertNull(stateFlow.value.pendingBulkDelete)
+        verify(exactly = 0) { store.sendEvent(ofType<Event.ShowBulkDeleteSuccess>()) }
+    }
+
+    @Test
+    fun `OnBulkDeleteConfirm opens blocked dialog with archived summary on partial block`() = runTest {
+        val targets = persistentSetOf("uuid-1", "uuid-2")
+        stateFlow.value = stateFlow.value.copy(
+            selectionMode = State.SelectionMode.On(selectedUuids = targets),
+            pendingBulkDelete = State.PendingBulkDelete(count = 2),
+        )
+        coEvery { interactor.bulkArchive(any()) } returns BulkArchiveResult(
+            archivedCount = 1,
+            blocked = listOf(
+                BulkArchiveResult.BlockedExerciseDomain(
+                    name = "Bench",
+                    activeTrainings = listOf("Push"),
+                ),
+            ),
+        )
+        val (actionSlot, onSuccessSlot) = captureLaunch()
+
+        handler.invoke(Action.Click.OnBulkDeleteConfirm)
+        onSuccessSlot.captured(this, actionSlot.captured(this))
+
+        val dialog = stateFlow.value.blockedArchiveDialog
+        assertNotNull(dialog)
+        assertEquals(1, dialog?.items?.size)
+        // One exercise archived → summary line present (formatted via ResourceWrapper mock).
+        assertNotNull(dialog?.archivedSummary)
+        verify(exactly = 0) { store.sendEvent(ofType<Event.ShowBulkDeleteSuccess>()) }
+    }
+
+    private fun captureLaunch(): LaunchSlots {
+        val actionSlot = slot<suspend CoroutineScope.() -> BulkArchiveResult>()
+        val onSuccessSlot = slot<suspend CoroutineScope.(BulkArchiveResult) -> Unit>()
+        every {
+            store.launch(
+                onError = any(),
+                onSuccess = capture(onSuccessSlot),
+                workDispatcher = any(),
+                eachDispatcher = any(),
+                action = capture(actionSlot),
+            )
+        } returns mockk(relaxed = true)
+        return LaunchSlots(actionSlot, onSuccessSlot)
+    }
+
+    private data class LaunchSlots(
+        val action: CapturingSlot<suspend CoroutineScope.() -> BulkArchiveResult>,
+        val onSuccess: CapturingSlot<suspend CoroutineScope.(BulkArchiveResult) -> Unit>,
+    )
+
+    @Test
+    fun `OnBlockedArchiveDismiss clears the blocked dialog`() {
+        stateFlow.value = stateFlow.value.copy(
+            blockedArchiveDialog = State.BlockedArchiveDialog(
+                archivedSummary = null,
+                items = persistentListOf(),
+            ),
+        )
+        handler.invoke(Action.Click.OnBlockedArchiveDismiss)
+        assertNull(stateFlow.value.blockedArchiveDialog)
     }
 
     @Test

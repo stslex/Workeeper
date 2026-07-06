@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.store
 
 import androidx.compose.runtime.Stable
+import io.github.stslex.workeeper.core.ui.kit.components.dialog.BlockedArchiveItem
 
 /**
  * Single source of truth for every dialog rendered on the Exercise screen. Folds the
@@ -25,11 +26,12 @@ internal sealed interface DialogState {
 
     /**
      * Surfaced when archiving an exercise that is still referenced by an active training.
-     * The body string is pre-formatted by the handler — it embeds the exercise name and
-     * the comma-joined list of active trainings.
+     * Rendered by the shared `AppBlockedArchiveDialog` (same component the all-exercises
+     * bulk-archive path uses) so the two surfaces can't drift. [item] carries the exercise
+     * name and the pre-formatted "used in …" trainings label built by the handler.
      */
     @Stable
-    data class ArchiveBlocked(val body: String) : DialogState
+    data class ArchiveBlocked(val item: BlockedArchiveItem) : DialogState
 
     @Stable
     data class PermanentDeleteConfirm(
