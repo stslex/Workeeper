@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise.domain
 
-import android.net.Uri
+import io.github.stslex.workeeper.core.core.images.ImageRef
 import io.github.stslex.workeeper.core.core.images.model.ImageSaveResult
 import io.github.stslex.workeeper.feature.exercise.domain.model.ArchiveResult
 import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseChangeDomain
@@ -57,9 +57,9 @@ internal interface ExerciseInteractor {
 
     suspend fun clearWeightsFromAllPlansForExercise(uuid: String)
 
-    suspend fun saveImage(uri: Uri, exerciseUuid: String): ImageSaveResult
+    suspend fun saveImage(ref: ImageRef, exerciseUuid: String): ImageSaveResult
 
-    suspend fun createTempCaptureUri(): Uri
+    suspend fun createTempCaptureRef(): ImageRef
 
     suspend fun deleteImageFile(path: String): Boolean
 

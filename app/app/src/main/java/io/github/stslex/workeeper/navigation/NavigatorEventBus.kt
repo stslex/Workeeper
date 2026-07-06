@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.navigation
 
 import io.github.stslex.workeeper.core.core.logger.Log
+import io.github.stslex.workeeper.core.core.platform.AppReinitializer
 import io.github.stslex.workeeper.core.ui.navigation.NavCommand
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen
@@ -12,7 +13,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class NavigatorEventBus @Inject constructor() : Navigator, NavigatorReceiver {
+class NavigatorEventBus @Inject constructor(
+    private val appReinitializer: AppReinitializer,
+) : Navigator, NavigatorReceiver {
 
     private val log = Log.tag(TAG)
 
@@ -34,7 +37,12 @@ class NavigatorEventBus @Inject constructor() : Navigator, NavigatorReceiver {
     }
 
     override fun restartApp() {
-        consume(NavCommand.RestartApp)
+        // Restart is terminal and platform-owned — resolve the process-scoped
+        // AppReinitializer by constructor injection and invoke it directly rather than
+        // routing a NavCommand through the replay=0 command bus (which would silently
+        // drop with no mounted subscriber, the OpenRecovery hazard). Keeps NavigatorExt
+        // free of any Hilt entry point.
+        appReinitializer.reinitialize()
     }
 
     override fun openRecovery() {

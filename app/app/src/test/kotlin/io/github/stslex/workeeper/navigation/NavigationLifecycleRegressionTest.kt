@@ -74,7 +74,7 @@ internal class NavigationLifecycleRegressionTest {
     @Test
     fun `bus survives across simulated bridge detach and re-attach`() = runTest {
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
-        val bus = NavigatorEventBus()
+        val bus = NavigatorEventBus(mockk(relaxed = true))
 
         // Bridge 1 attaches, observes one command, then detaches when its launched
         // job completes (simulates LaunchedEffect leaving the composition).
@@ -100,7 +100,7 @@ internal class NavigationLifecycleRegressionTest {
     @Test
     fun `bus continues operating after commands emitted with no subscriber`() = runTest {
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
-        val bus = NavigatorEventBus()
+        val bus = NavigatorEventBus(mockk(relaxed = true))
 
         // Decision-side dispatch happens while no executor is collecting (the bridge
         // has not attached yet). The bus uses replay = 0 with extraBufferCapacity = 64,
@@ -125,7 +125,7 @@ internal class NavigationLifecycleRegressionTest {
     @Test
     fun `concurrent collectors each observe the same slice of the stream`() = runTest {
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
-        val bus = NavigatorEventBus()
+        val bus = NavigatorEventBus(mockk(relaxed = true))
 
         val firstFlow = async(dispatcher) { bus.commands.take(2).toList() }
         val secondFlow = async(dispatcher) { bus.commands.take(2).toList() }
@@ -147,7 +147,7 @@ internal class NavigationLifecycleRegressionTest {
     @Test
     fun `bridge re-collection preserves command order across handovers`() = runTest {
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
-        val bus = NavigatorEventBus()
+        val bus = NavigatorEventBus(mockk(relaxed = true))
 
         // First bridge collects two commands.
         val first = async(dispatcher) { bus.commands.take(2).toList() }
@@ -182,7 +182,7 @@ internal class NavigationLifecycleRegressionTest {
 
     @Test
     fun `repeated subscription returns the same SharedFlow instance from the bus`() {
-        val bus = NavigatorEventBus()
+        val bus = NavigatorEventBus(mockk(relaxed = true))
 
         // Repeated reads must return the same flow instance — otherwise re-attaching
         // after recreation would attach to a different stream and miss subsequent

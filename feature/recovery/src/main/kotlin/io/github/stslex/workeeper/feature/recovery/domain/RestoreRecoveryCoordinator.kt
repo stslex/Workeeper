@@ -1,14 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.recovery.domain
 
-import android.app.Activity
-import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageInfo
-import android.content.pm.PackageManager
-import android.os.Build
-import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.stslex.workeeper.core.core.logger.Log
+import io.github.stslex.workeeper.core.core.platform.AppReinitializer
+import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreInProgressContext
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
@@ -49,12 +44,13 @@ import javax.inject.Singleton
  * [PreflightOutcome.RestoreRolledBack]. Same for [performUndoRestore]'s
  * [UndoRestoreOutcome.Succeeded] outcome on the consumer side
  * ([RestoreDialogChoiceObserver][io.github.stslex.workeeper.feature.recovery.RestoreDialogChoiceObserver]).
- * The [restartApp] method here is a non-Composable parallel to
- * `NavigatorExt.restartApp(context)` — see its own KDoc.
+ * [restartApp] delegates to the platform-neutral [AppReinitializer] seam, whose single
+ * Android actual (a process restart) is shared with the Settings post-restore path.
  */
 @Singleton
 class RestoreRecoveryCoordinator @Inject internal constructor(
-    @ApplicationContext private val context: Context,
+    private val appReinitializer: AppReinitializer,
+    private val platformInfo: PlatformInfoProvider,
     private val snapshotProvider: DatabaseSnapshotProvider,
     private val restoreStateRepository: RestoreStateRepository,
     private val appDialogPublisher: AppDialogPublisher,
@@ -139,7 +135,7 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
             reporter.recordRestoreTimeFailure(
                 exception = cause,
                 context = context,
-                appVersionName = readVersionName(),
+                appVersionName = platformInfo.appVersionName(),
             )
         }
         val rollback = snapshotProvider.rollbackToPreRestoreBackup()
@@ -157,32 +153,15 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
         )
     }
 
-    private fun readVersionName(): String {
-        val info: PackageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.packageManager.getPackageInfo(
-                context.packageName,
-                PackageManager.PackageInfoFlags.of(0),
-            )
-        } else {
-            @Suppress("DEPRECATION")
-            context.packageManager.getPackageInfo(context.packageName, 0)
-        }
-        return info.versionName.orEmpty()
-    }
-
     /**
-     * Pulls the launch intent off the package manager and starts it with
-     * `FLAG_ACTIVITY_NEW_TASK | CLEAR_TASK`, then exits the current process.
-     * Identical mechanic to `NavigatorExt.restartApp` but callable from
-     * non-Composable code paths (Application.onCreate, EntryPoint).
+     * Restarts the app after a recovery step by delegating to the platform-neutral
+     * [AppReinitializer] seam. Callable from non-Composable code paths
+     * (`Application.onCreate` pre-flight, the undo reactor). The Android actual is a
+     * process restart; the mechanism lives in one place (`AndroidAppReinitializer`),
+     * shared with the Settings post-restore restart path.
      */
     fun restartApp() {
-        val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
-            ?: error("No launch intent for package ${context.packageName}")
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        context.startActivity(intent)
-        if (context is Activity) context.finishAffinity()
-        Runtime.getRuntime().exit(0)
+        appReinitializer.reinitialize()
     }
 
     /** Discriminator for the post-restart pre-flight result. */

@@ -6,9 +6,11 @@ import android.content.Context
 import android.content.pm.PackageManager
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.scopes.ViewModelScoped
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
+import io.github.stslex.workeeper.core.core.images.ImageRef
 import io.github.stslex.workeeper.core.core.images.model.ImageSaveResult
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.core.utils.CommonExt.parseOrRandom
@@ -325,7 +327,8 @@ internal class ClickHandler @Inject constructor(
         PendingImage.Unchanged -> ImageCommitOutcome.Unchanged
         PendingImage.RemoveExisting -> ImageCommitOutcome.Removed(previousPath = current.imagePath)
         is PendingImage.NewFromUri -> when (
-            val saveResult = interactor.saveImage(pending.uri, resolvedUuid.toString())
+            val saveResult =
+                interactor.saveImage(ImageRef(pending.uri.toString()), resolvedUuid.toString())
         ) {
             is ImageSaveResult.Success -> ImageCommitOutcome.Stored(
                 newPath = saveResult.absolutePath,
@@ -651,11 +654,11 @@ internal class ClickHandler @Inject constructor(
 
     private fun launchCameraCapture() {
         launch(
-            onSuccess = { tempUri ->
-                sendEvent(Event.NavigateLaunchCamera(tempUri))
+            onSuccess = { ref ->
+                sendEvent(Event.NavigateLaunchCamera(ref.value.toUri()))
             },
         ) {
-            interactor.createTempCaptureUri()
+            interactor.createTempCaptureRef()
         }
     }
 

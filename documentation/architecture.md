@@ -685,13 +685,21 @@ and any other layer that wants to make a navigation **decision** depends on
 not — emitting a navigation command at any point is safe; it queues until the
 bridge is attached.
 
-`restartApp()` is the destructive variant: the bus emits
-`NavCommand.RestartApp`, and the App/UI bridge cold-starts the app from a
-fresh process (clears the task stack, finishes the activity affinity, calls
-`Runtime.exit(0)`). It exists because some operations (e.g. a Room database
-file swap after a Drive backup restore) invalidate the in-process DAO graph
-and singletons, and the only safe recovery is a full process restart. Feature
-code never imports `Context` or `Intent` to do this — it just calls
+`restartApp()` is the destructive variant, and unlike the queued commands
+above it does **not** travel over the command bus. `NavigatorEventBus`
+constructor-injects an `AppReinitializer` (a platform-neutral seam in
+`core/core/.../platform/`) and `restartApp()` calls
+`appReinitializer.reinitialize()` directly. The Android actual
+(`AndroidAppReinitializer`) cold-starts the app from a fresh process: it
+relaunches the launcher intent with
+`FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_CLEAR_TASK` on the **application**
+`Context` and calls `Runtime.exit(0)`. It exists because some operations
+(e.g. a Room database file swap after a Drive backup restore) invalidate the
+in-process DAO graph and singletons, and the only safe recovery is a full
+process restart. Restart bypasses the bus on purpose: the bus is `replay = 0`,
+so a command emitted while no bridge subscriber is attached would be silently
+dropped — resolving the seam directly removes that hazard. Feature code never
+imports `Context` or `Intent` to do this — it just calls
 `navigator.restartApp()` like any other command.
 
 ### `NavigatorEventBus` (singleton command bus implementation)
@@ -705,7 +713,9 @@ implementation. It implements two interfaces:
 
 ```kotlin
 @Singleton
-class NavigatorEventBus @Inject constructor() : Navigator, NavigatorReceiver {
+class NavigatorEventBus @Inject constructor(
+    private val appReinitializer: AppReinitializer,
+) : Navigator, NavigatorReceiver {
 
     private val _commands = MutableSharedFlow<NavCommand>(
         extraBufferCapacity = 64,
@@ -717,7 +727,10 @@ class NavigatorEventBus @Inject constructor() : Navigator, NavigatorReceiver {
         _commands.tryEmit(NavCommand.PopBack(previousStackAttr.toList()))
     }
     override fun replaceTo(screen: Screen) { _commands.tryEmit(NavCommand.ReplaceTo(screen)) }
-    override fun restartApp() { _commands.tryEmit(NavCommand.RestartApp) }
+
+    // Terminal + platform-owned: invoke the injected seam directly instead of
+    // emitting a NavCommand onto the replay=0 bus (no subscriber ⇒ silent drop).
+    override fun restartApp() { appReinitializer.reinitialize() }
 }
 ```
 
@@ -755,8 +768,10 @@ abstract interface receive the same singleton. The class name carries the
 
 `NavCommand` (`core/ui/navigation/.../NavCommand.kt`) is a
 `sealed interface` with four variants — `NavTo(screen)`,
-`ReplaceTo(screen)`, `PopBack(attrs)`, and `RestartApp` — corresponding
-1-to-1 with the `Navigator` operations. Living in `core/ui/navigation`
+`ReplaceTo(screen)`, `PopBack(attrs)`, and `OpenRecovery`. The three
+back-stack commands correspond 1-to-1 with `Navigator` operations;
+`restartApp()` is deliberately **not** a `NavCommand` — it invokes the
+`AppReinitializer` seam directly (see above). Living in `core/ui/navigation`
 (next to `Navigator`) lets the bus, the bridge, and any test double share
 the same sealed surface without crossing the `app/app` module boundary.
 
@@ -824,13 +839,15 @@ its key/value pairs into
 `navController.previousBackStackEntry.savedStateHandle` before the pop, which
 is how navigation results flow back to the previous screen (see
 [Navigation results via SavedStateHandle](#navigation-results-via-savedstatehandle)).
-`NavCommand.RestartApp` is the one branch that does not call into
+`NavCommand.OpenRecovery` is the one branch that does not call into
 `NavController`: it reads `LocalContext.current` (captured at bridge attach)
-to launch a fresh `MAIN/LAUNCHER` intent with
-`FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_CLEAR_TASK`, finishes the activity
-affinity, and calls `Runtime.getRuntime().exit(0)`. The bridge is the only
-place that holds `Context` for the navigation pipeline; no feature module
-imports `Context` for restart purposes.
+to launch `RecoveryActivity` in a fresh task (`FLAG_ACTIVITY_NEW_TASK`).
+Process restart is **not** one of these branches — it never reaches
+`processCommand` at all, because `restartApp()` invokes the `AppReinitializer`
+seam directly instead of emitting a `NavCommand` (see the destructive
+app-restart section below). The bridge is the only place that holds `Context`
+for the navigation pipeline; no feature module imports `Context` for restart
+or recovery purposes.
 
 ### Lifetime rules
 
@@ -871,8 +888,9 @@ through the graph composable directly. The pattern:
 3. `NavigationHandler` has `Navigator` injected via Hilt DI and calls
    `navigator.navTo(...)`, `navigator.replaceTo(...)`, `navigator.popBack(...)`,
    or `navigator.restartApp()`. The `Navigator` is the singleton
-   `NavigatorEventBus` — emitting is pure command dispatch with no side
-   effect on `NavController`.
+   `NavigatorEventBus` — the three back-stack calls are pure command dispatch
+   with no side effect on `NavController`; `restartApp()` is the exception,
+   invoking the `AppReinitializer` seam directly (see below).
 4. The App/UI bridge collects the command on its current `NavController` and
    executes it.
 
@@ -933,7 +951,7 @@ Reference implementation: `feature/all-trainings/ui/AllTrainingsGraph.kt`
 `feature/exercise/ui/ExerciseGraph.kt` +
 `feature/exercise/ui/mvi/handler/NavigationHandler.kt`.
 
-### Destructive app-restart through the bus
+### Destructive app-restart through the `AppReinitializer` seam
 
 Some operations invalidate the in-process Singleton graph (Room DAOs, cached
 repository state, observed Flows). The canonical case is a Drive backup
@@ -942,8 +960,9 @@ restore that swaps the live database file via
 already-resolved DAO points at a stale file handle, so only a cold start
 recovers correctness.
 
-The pattern routes this through the same command bus as any other navigation
-decision instead of through a feature-local helper:
+The pattern still expresses restart as a `Navigator` call (not a feature-local
+helper), but — unlike the back-stack commands — it resolves to a direct seam
+invocation rather than a bus emission:
 
 1. The feature's domain/MVI layer (e.g. `BackupClickHandler` after a
    successful restore) emits `Action.Navigation.RestartApp` via
@@ -956,10 +975,16 @@ decision instead of through a feature-local helper:
    Action.Navigation.RestartApp -> navigator.restartApp()
    ```
 
-3. `NavigatorEventBus.restartApp()` emits `NavCommand.RestartApp`.
-4. `NavigatorExt.processCommand` handles the `RestartApp` branch by relaunching
-   the package's launch intent (`FLAG_ACTIVITY_NEW_TASK | CLEAR_TASK`),
-   finishing the activity affinity, and calling `Runtime.getRuntime().exit(0)`.
+3. `NavigatorEventBus.restartApp()` invokes the constructor-injected
+   `AppReinitializer` seam directly — `appReinitializer.reinitialize()` —
+   rather than emitting a `NavCommand`. Restart is terminal and
+   platform-owned, so it bypasses the `replay = 0` bus, which would silently
+   drop the command when no bridge subscriber is attached.
+4. The Android actual `AndroidAppReinitializer.reinitialize()` relaunches the
+   package's launch intent (`FLAG_ACTIVITY_NEW_TASK | CLEAR_TASK`) on the
+   application `Context` and calls `Runtime.getRuntime().exit(0)`. (A future
+   iOS actual performs an in-place reinit instead — iOS has no self-restart
+   API.)
 
 What this pattern replaces — and why:
 
@@ -970,9 +995,12 @@ What this pattern replaces — and why:
   that touches the framework" surface in two: most navigation went through
   the bus, restart went through an Event. Promoting restart into
   `Navigator.restartApp()` re-unifies the surface: every navigation-shaped
-  side effect — including process restart — is a `NavCommand` translated
-  by `NavigatorExt`, and no feature module imports `Context` /
-  `Runtime` / `Intent` for navigation purposes.
+  side effect is expressed as a `Navigator` call, and no feature module
+  imports `Context` / `Runtime` / `Intent` for navigation purposes. The
+  back-stack commands are `NavCommand`s translated by `NavigatorExt`; process
+  restart resolves to the `AppReinitializer` seam (`reinitialize()`), keeping
+  both the framework `Context` and the process-kill primitive out of feature
+  and domain code.
 - `Event.AppRestartRequested` is intentionally not part of the contract —
   app restart is a navigation **decision**, not a UI-side effect. Encoding it
   as an `Action.Navigation` variant means the same MVI rules apply
@@ -981,8 +1009,9 @@ What this pattern replaces — and why:
 Reference implementation:
 `feature/settings/.../mvi/handler/BackupClickHandler.kt::scheduleAppRestart`
 (producer), `feature/settings/.../mvi/handler/SettingsNavigationHandler.kt`
-(router), and `app/app/.../navigation/NavigatorExt.kt::restartApp`
-(executor).
+(router), `app/app/.../navigation/NavigatorEventBus.kt::restartApp`
+(seam dispatch), and
+`core/core/.../platform/AndroidAppReinitializer.kt::reinitialize` (executor).
 
 ### Navigation results via `SavedStateHandle`
 

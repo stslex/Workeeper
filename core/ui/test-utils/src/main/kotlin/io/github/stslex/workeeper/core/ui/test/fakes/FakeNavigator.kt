@@ -23,6 +23,14 @@ class FakeNavigator @Inject constructor() : Navigator {
     private val _commands: MutableList<NavCommand> = CopyOnWriteArrayList()
     val commands: List<NavCommand> get() = _commands.toList()
 
+    /**
+     * Restart is not a [NavCommand] (production routes it straight to `AppReinitializer`,
+     * bypassing the command bus), so it is observed as an invocation count rather than an
+     * entry in [commands].
+     */
+    var restartAppInvocations: Int = 0
+        private set
+
     override fun navTo(screen: Screen) {
         _commands += NavCommand.NavTo(screen)
     }
@@ -37,10 +45,11 @@ class FakeNavigator @Inject constructor() : Navigator {
 
     fun reset() {
         _commands.clear()
+        restartAppInvocations = 0
     }
 
     override fun restartApp() {
-        _commands += NavCommand.RestartApp
+        restartAppInvocations += 1
     }
 
     override fun openRecovery() {

@@ -24,7 +24,9 @@ internal class DatabaseSnapshotProviderImpl @Inject constructor(
     private val appDatabase: AppDatabase,
     @ApplicationContext private val context: Context,
     @IODispatcher private val dispatcher: CoroutineDispatcher,
-) : DatabaseSnapshotProvider {
+) : DatabaseSnapshotProvider, LiveDatabaseLocator {
+
+    override fun liveDatabaseFile(): File = context.getDatabasePath(AppDatabase.NAME)
 
     override suspend fun captureSnapshot(target: File): BackupResult<Unit> =
         withContext(dispatcher) {

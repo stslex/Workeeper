@@ -15,6 +15,7 @@ import com.google.android.gms.common.api.Status
 import com.google.android.gms.tasks.Tasks
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.model.Account
+import io.github.stslex.workeeper.core.data.backup.api.model.AuthResolutionOutcome
 import io.github.stslex.workeeper.core.data.backup.api.model.AuthState
 import io.github.stslex.workeeper.core.data.backup.api.model.SignInResult
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
@@ -244,7 +245,7 @@ internal class DriveBackupAuthTest {
         val result = newAuth().signIn()
 
         assertTrue(result is SignInResult.NeedsResolution, "expected NeedsResolution, got $result")
-        assertEquals(intentSender, (result as SignInResult.NeedsResolution).intentSender)
+        assertEquals(intentSender, (result as SignInResult.NeedsResolution).resolution.platform)
         coVerify(exactly = 0) { accountStore.setAccount(any()) }
     }
 
@@ -277,7 +278,7 @@ internal class DriveBackupAuthTest {
         }
         every { authorizationClient.getAuthorizationResultFromIntent(intent) } returns authResult
 
-        val result = newAuth().completeSignIn(intent)
+        val result = newAuth().completeSignIn(AuthResolutionOutcome(intent))
 
         assertTrue(result is BackupResult.Success, "expected Success, got $result")
         assertEquals(
@@ -305,7 +306,7 @@ internal class DriveBackupAuthTest {
         }
         every { authorizationClient.getAuthorizationResultFromIntent(intent) } returns authResult
 
-        newAuth().completeSignIn(intent)
+        newAuth().completeSignIn(AuthResolutionOutcome(intent))
 
         coVerify(exactly = 1) {
             accountStore.setToken(
@@ -333,7 +334,7 @@ internal class DriveBackupAuthTest {
             name = "From Userinfo",
         )
 
-        val result = newAuth().completeSignIn(intent)
+        val result = newAuth().completeSignIn(AuthResolutionOutcome(intent))
 
         assertTrue(result is BackupResult.Success)
         assertEquals(
@@ -345,7 +346,7 @@ internal class DriveBackupAuthTest {
     @Test
     fun `completeSignIn with null Intent returns Failure`() = runTest {
         val driveAuth = newAuth()
-        val result = driveAuth.completeSignIn(null)
+        val result = driveAuth.completeSignIn(AuthResolutionOutcome(null))
 
         assertTrue(result is BackupResult.Failure)
         assertTrue((result as BackupResult.Failure).error is BackupError.Unknown)
@@ -449,7 +450,7 @@ internal class DriveBackupAuthTest {
                 authResult
             every { authorizationClient.clearToken(any()) } returns Tasks.forResult(null)
 
-            val result = newAuth().completeSignIn(intent)
+            val result = newAuth().completeSignIn(AuthResolutionOutcome(intent))
 
             assertTrue(result is BackupResult.Failure, "expected Failure, got $result")
             assertEquals(
@@ -604,7 +605,7 @@ internal class DriveBackupAuthTest {
         }
         every { authorizationClient.getAuthorizationResultFromIntent(intent) } returns authResult
 
-        newAuth().completeSignIn(intent)
+        newAuth().completeSignIn(AuthResolutionOutcome(intent))
 
         coVerify { accountStore.setDriveFileGranted(true) }
     }

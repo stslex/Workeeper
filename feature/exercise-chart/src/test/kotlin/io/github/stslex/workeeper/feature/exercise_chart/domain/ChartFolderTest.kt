@@ -213,6 +213,66 @@ internal class ChartFolderTest {
         assertEquals("in-window", result.points.single().sessionUuid)
     }
 
+    // DST-pinned window-boundary tests. These run in a real DST-observing zone
+    // (America/New_York) at that zone's actual 2026 transition dates, with `now` near local
+    // midnight — the only conditions under which the epoch-millis <-> local-calendar-day
+    // window-start conversion can drift a day. The existing suite runs in UTC (no DST) and so
+    // can never exercise this class of bug.
+
+    @Test
+    fun `MONTH_1 window start tracks calendar days across a DST spring-forward`() {
+        // 2026-03-08 springs forward (a 23h day). With `now` just after local midnight, a naive
+        // `now - 30 * 24h` start drifts back an hour, across the transition, onto the PREVIOUS
+        // calendar day. The window must track calendar days, not fixed-length millis.
+        val nyZone = ZoneId.of("America/New_York")
+        val now = zonedMillis(nyZone, 2026, 3, 20, hour = 0, minute = 30)
+
+        val result = bucketAndFold(
+            history = listOf(
+                entry(
+                    finishedAt = zonedMillis(nyZone, 2026, 3, 10, hour = 12),
+                    sessionUuid = "in-window",
+                    sets = listOf(set(weight = 100.0, reps = 5)),
+                ),
+            ),
+            preset = ChartPresetDomain.MONTH_1,
+            metric = ChartMetricDomain.HEAVIEST_WEIGHT,
+            exerciseType = ExerciseTypeDomain.WEIGHTED,
+            now = now,
+            zoneId = nyZone,
+        )
+
+        // 30 calendar days before 2026-03-20 is 02-18, not the 02-17 a naive 30*24h lands on.
+        assertEquals(LocalDate.of(2026, 2, 18), result.windowStartDay)
+    }
+
+    @Test
+    fun `MONTH_1 window start tracks calendar days across a DST fall-back`() {
+        // 2026-11-01 falls back (a 25h day). With `now` just before local midnight, a naive
+        // `now - 30 * 24h` start drifts forward an hour, across the transition, onto the NEXT
+        // calendar day.
+        val nyZone = ZoneId.of("America/New_York")
+        val now = zonedMillis(nyZone, 2026, 11, 15, hour = 23, minute = 30)
+
+        val result = bucketAndFold(
+            history = listOf(
+                entry(
+                    finishedAt = zonedMillis(nyZone, 2026, 11, 5, hour = 12),
+                    sessionUuid = "in-window",
+                    sets = listOf(set(weight = 100.0, reps = 5)),
+                ),
+            ),
+            preset = ChartPresetDomain.MONTH_1,
+            metric = ChartMetricDomain.HEAVIEST_WEIGHT,
+            exerciseType = ExerciseTypeDomain.WEIGHTED,
+            now = now,
+            zoneId = nyZone,
+        )
+
+        // 30 calendar days before 2026-11-15 is 10-16, not the 10-17 a naive 30*24h lands on.
+        assertEquals(LocalDate.of(2026, 10, 16), result.windowStartDay)
+    }
+
     @Test
     fun `ALL preset includes very old sets`() {
         val result = bucketAndFold(
@@ -457,5 +517,18 @@ internal class ChartFolderTest {
     ): Long = LocalDate.of(year, month, day)
         .atTime(hour, 0)
         .toInstant(ZoneOffset.UTC)
+        .toEpochMilli()
+
+    private fun zonedMillis(
+        zone: ZoneId,
+        year: Int,
+        month: Int,
+        day: Int,
+        hour: Int = 12,
+        minute: Int = 0,
+    ): Long = LocalDate.of(year, month, day)
+        .atTime(hour, minute)
+        .atZone(zone)
+        .toInstant()
         .toEpochMilli()
 }

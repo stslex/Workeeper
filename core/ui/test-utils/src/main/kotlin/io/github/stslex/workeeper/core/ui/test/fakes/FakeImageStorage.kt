@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.ui.test.fakes
 
-import android.net.Uri
-import androidx.core.net.toUri
+import io.github.stslex.workeeper.core.core.images.ImageRef
 import io.github.stslex.workeeper.core.core.images.ImageStorage
 import io.github.stslex.workeeper.core.core.images.model.ImageSaveResult
 import java.util.concurrent.ConcurrentHashMap
@@ -21,7 +20,7 @@ import javax.inject.Singleton
 class FakeImageStorage @Inject constructor() : ImageStorage {
 
     private val storedPaths: MutableMap<String, String> = ConcurrentHashMap()
-    private val storedSources: MutableMap<String, Uri> = ConcurrentHashMap()
+    private val storedSources: MutableMap<String, ImageRef> = ConcurrentHashMap()
     private val deletedPaths: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
 
     @Volatile private var saveCount: Int = 0
@@ -30,21 +29,21 @@ class FakeImageStorage @Inject constructor() : ImageStorage {
     @Volatile private var cleanupCount: Int = 0
 
     override suspend fun saveImage(
-        sourceUri: Uri,
+        sourceRef: ImageRef,
         exerciseUuid: String,
     ): ImageSaveResult {
         saveCount += 1
         val path = "/fake-image-storage/$exerciseUuid.jpg"
         storedPaths[exerciseUuid] = path
-        storedSources[exerciseUuid] = sourceUri
+        storedSources[exerciseUuid] = sourceRef
         deletedPaths.remove(path)
         return ImageSaveResult.Success(absolutePath = path)
     }
 
-    override suspend fun createTempCaptureUri(): Uri {
+    override suspend fun createTempCaptureRef(): ImageRef {
         createTempCount += 1
         val id = createTempCount
-        return "file:///fake-image-storage/.tmp/$id.jpg".toUri()
+        return ImageRef("file:///fake-image-storage/.tmp/$id.jpg")
     }
 
     override suspend fun deleteImage(path: String): Boolean {
@@ -80,7 +79,7 @@ class FakeImageStorage @Inject constructor() : ImageStorage {
 
     data class Snapshot(
         val storedPaths: Map<String, String>,
-        val storedSources: Map<String, Uri>,
+        val storedSources: Map<String, ImageRef>,
         val deletedPaths: Set<String>,
         val saveCount: Int,
         val deleteCount: Int,

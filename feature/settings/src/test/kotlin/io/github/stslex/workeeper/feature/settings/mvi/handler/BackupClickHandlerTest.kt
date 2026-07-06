@@ -8,6 +8,7 @@ import android.content.res.Resources
 import android.text.format.DateUtils
 import android.text.format.Formatter
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
+import io.github.stslex.workeeper.core.data.backup.api.model.AuthResolution
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
@@ -223,7 +224,7 @@ internal class BackupClickHandlerTest {
     fun `SignIn NeedsResolution emits AuthResolutionRequested with same intentSender`() =
         runTest(testDispatcher) {
             val sender = mockk<IntentSender>(relaxed = true)
-            coEvery { interactor.signIn() } returns SignInOutcomeDomain.NeedsResolution(sender)
+            coEvery { interactor.signIn() } returns SignInOutcomeDomain.NeedsResolution(AuthResolution(sender))
 
             handler.invoke(Action.Backup.SignIn)
 
@@ -279,7 +280,7 @@ internal class BackupClickHandlerTest {
         runTest(testDispatcher) {
             val sender = mockk<IntentSender>(relaxed = true)
             coEvery { interactor.requestDriveFileAccess() } returns
-                SignInOutcomeDomain.NeedsResolution(sender)
+                SignInOutcomeDomain.NeedsResolution(AuthResolution(sender))
 
             handler.invoke(Action.Backup.ToggleAiExport(true))
 
@@ -294,7 +295,7 @@ internal class BackupClickHandlerTest {
         runTest(testDispatcher) {
             preferencesFlow.value = preferencesFlow.value.copy(autoBackupBootstrapped = true)
             coEvery { interactor.requestDriveFileAccess() } returns
-                SignInOutcomeDomain.NeedsResolution(mockk(relaxed = true))
+                SignInOutcomeDomain.NeedsResolution(AuthResolution(mockk<IntentSender>(relaxed = true)))
             handler.invoke(Action.Backup.ToggleAiExport(true))
 
             coEvery { interactor.completeSignIn(any()) } returns
@@ -311,7 +312,7 @@ internal class BackupClickHandlerTest {
         runTest(testDispatcher) {
             preferencesFlow.value = preferencesFlow.value.copy(autoBackupBootstrapped = true)
             coEvery { interactor.requestDriveFileAccess() } returns
-                SignInOutcomeDomain.NeedsResolution(mockk(relaxed = true))
+                SignInOutcomeDomain.NeedsResolution(AuthResolution(mockk<IntentSender>(relaxed = true)))
             handler.invoke(Action.Backup.ToggleAiExport(true))
 
             coEvery { interactor.completeSignIn(any()) } returns
@@ -328,7 +329,7 @@ internal class BackupClickHandlerTest {
     fun `ToggleAiExport on marks the operation in-flight until the resolution completes`() =
         runTest(testDispatcher) {
             coEvery { interactor.requestDriveFileAccess() } returns
-                SignInOutcomeDomain.NeedsResolution(mockk(relaxed = true))
+                SignInOutcomeDomain.NeedsResolution(AuthResolution(mockk<IntentSender>(relaxed = true)))
 
             handler.invoke(Action.Backup.ToggleAiExport(true))
 
@@ -342,7 +343,7 @@ internal class BackupClickHandlerTest {
     fun `ToggleAiExport ignores a re-entrant enable while a grant is already in flight`() =
         runTest(testDispatcher) {
             coEvery { interactor.requestDriveFileAccess() } returns
-                SignInOutcomeDomain.NeedsResolution(mockk(relaxed = true))
+                SignInOutcomeDomain.NeedsResolution(AuthResolution(mockk<IntentSender>(relaxed = true)))
 
             handler.invoke(Action.Backup.ToggleAiExport(true)) // in flight, awaiting resolution
             handler.invoke(Action.Backup.ToggleAiExport(true)) // re-entrant: must be ignored
@@ -380,7 +381,7 @@ internal class BackupClickHandlerTest {
     fun `HandleAuthResult Failure(MissingRequiredScope) emits MISSING_REQUIRED_SCOPE`() =
         runTest(testDispatcher) {
             val intent = mockk<Intent>(relaxed = true)
-            coEvery { interactor.completeSignIn(intent) } returns BackupResult.Failure(
+            coEvery { interactor.completeSignIn(any()) } returns BackupResult.Failure(
                 BackupError.MissingRequiredScope,
             )
 
@@ -409,7 +410,7 @@ internal class BackupClickHandlerTest {
     @Test
     fun `HandleAuthResult Failure emits ShowBackupError`() = runTest(testDispatcher) {
         val intent = mockk<Intent>(relaxed = true)
-        coEvery { interactor.completeSignIn(intent) } returns BackupResult.Failure(
+        coEvery { interactor.completeSignIn(any()) } returns BackupResult.Failure(
             BackupError.AuthRevoked,
         )
         handler.invoke(Action.Backup.HandleAuthResult(intent))
@@ -427,7 +428,7 @@ internal class BackupClickHandlerTest {
             )
             val intent = mockk<Intent>(relaxed = true)
             val expectedAccount = AccountDomain(email = "a@b.com", displayName = "A")
-            coEvery { interactor.completeSignIn(intent) } returns BackupResult.Success(expectedAccount)
+            coEvery { interactor.completeSignIn(any()) } returns BackupResult.Success(expectedAccount)
 
             handler.invoke(Action.Backup.HandleAuthResult(intent))
 
@@ -444,7 +445,7 @@ internal class BackupClickHandlerTest {
         runTest(testDispatcher) {
             preferencesFlow.value = preferencesFlow.value.copy(autoBackupBootstrapped = false)
             val intent = mockk<Intent>(relaxed = true)
-            coEvery { interactor.completeSignIn(intent) } returns BackupResult.Success(
+            coEvery { interactor.completeSignIn(any()) } returns BackupResult.Success(
                 AccountDomain("first@example.com", "First"),
             )
 
