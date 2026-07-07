@@ -10,6 +10,8 @@ android {
 
 dependencies {
     implementation(project(":core:core"))
+    // Android/Hilt half of core:core — its @Modules aggregate into the app's single Dagger graph.
+    implementation(project(":core:core-android"))
     androidTestImplementation(project(":core:ui:test-utils"))
 
     implementation(project(":core:ui:kit"))

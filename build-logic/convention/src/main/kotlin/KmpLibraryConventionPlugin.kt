@@ -2,6 +2,8 @@ import AppExt.findPluginId
 import AppExt.libs
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 
 /**
  * Kotlin Multiplatform library convention (Phase C KMP foundation).
@@ -9,13 +11,18 @@ import org.gradle.api.Project
  * Applies AGP's KMP-native `com.android.kotlin.multiplatform.library` plugin — required
  * since AGP 9.0, which rejects the legacy `com.android.library` + `kotlin-multiplatform`
  * combination. Deliberately bypasses [KotlinAndroid.configureKotlinAndroid], which
- * force-applies Hilt to every Android module; a KMP module wires DI through Metro instead.
+ * force-applies Hilt to every Android module; a KMP module CANNOT run the Hilt plugin
+ * ("The Hilt Android Gradle plugin can only be applied to an Android project"), so Hilt
+ * @Modules for a KMP leaf live in a sibling Android-library module (e.g. `core:core-android`).
  * Detekt + the custom `:lint-rules` still apply via the shared `convention.lint` plugin.
  *
- * Status in C.0: this convention is REGISTERED but APPLIED TO NO MODULE. It is the seam the
- * first Hilt->Metro / Room-2->3 slice (C.1) applies when it converts a leaf module. Target
- * declarations (android + iosX/Arm64), source-set layout, namespace/compileSdk/minSdk, and
- * the Metro/Room3 wiring are intentionally deferred to that slice rather than guessed here.
+ * First applied in C.1 (L1: `core:core`). Consuming modules declare their own targets
+ * (`android { }` + `iosSimulatorArm64()`), source-set layout, namespace/compileSdk/minSdk,
+ * and any Metro/Room3 wiring in their build script.
+ *
+ * `-Xexpect-actual-classes` is set here so `expect`/`actual` classes, objects, and
+ * annotations (the KMP DI-qualifier and Firebase-holder seams) do not emit the Beta
+ * warning on every compilation across every future KMP module.
  */
 class KmpLibraryConventionPlugin : Plugin<Project> {
 
@@ -25,6 +32,22 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
                 apply(libs.findPluginId("kotlinMultiplatform"))
                 apply(libs.findPluginId("androidKmpLibrary"))
                 apply(libs.findPluginId("convention.lint"))
+            }
+
+            extensions.configure(KotlinMultiplatformExtension::class.java) {
+                tasks.withType(KotlinCompilationTask::class.java).configureEach {
+                    compilerOptions.freeCompilerArgs.addAll(
+                        // expect/actual classes/objects/annotations (DI qualifiers, Firebase
+                        // holders) are Beta — silence the per-compilation warning.
+                        "-Xexpect-actual-classes",
+                        // Repo-standard opt-ins, mirroring KotlinAndroid.configureKotlinAndroid
+                        // so KMP modules match the Android convention's experimental surface.
+                        "-opt-in=kotlin.RequiresOptIn",
+                        "-opt-in=kotlin.uuid.ExperimentalUuidApi",
+                        "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
+                        "-opt-in=kotlin.time.ExperimentalTime",
+                    )
+                }
             }
         }
     }

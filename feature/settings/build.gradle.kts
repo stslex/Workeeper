@@ -4,6 +4,8 @@ plugins {
 
 dependencies {
     implementation(project(":core:core"))
+    // TempFileProvider (java.io.File-typed) lives in the Android half of core:core.
+    implementation(project(":core:core-android"))
 
     implementation(project(":core:data:dataStore"))
     implementation(project(":core:ui:kit"))

@@ -96,7 +96,12 @@ appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "a
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 lifecycle-viewModel = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-ktx", version.ref = "lifecycle" }
 lifecycle-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycle" }
+# KMP lifecycle runtime (2.10.0 publishes iosArm64/iosSimulatorArm64): LifecycleOwner,
+# LifecycleObserver and lifecycleScope used by AppCoroutineScope(Impl) in commonMain.
+lifecycle-runtime = { group = "androidx.lifecycle", name = "lifecycle-runtime", version.ref = "lifecycle" }
 coroutines = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
+# KMP coroutines core (commonMain-safe; pulls android/native variants per target).
+coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
 
 kotlin-compiler-embeddable = { group = "org.jetbrains.kotlin", name = "kotlin-compiler-embeddable", version.ref = "kotlin" }
 
@@ -149,6 +154,8 @@ androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "a
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
 androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidxTest" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+# Runtime half of robolectric-junit5 (RobolectricExtension) for KMP androidHostTest source sets.
+robolectric-junit5-extension = { group = "tech.apter.junit5.jupiter", name = "robolectric-extension", version.ref = "robolectricExt" }
 androidx-test = { group = "androidx.test", name = "core-ktx", version.ref = "androidxTest" }
 
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
@@ -214,6 +221,8 @@ kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref =
 androidKmpLibrary = { id = "com.android.kotlin.multiplatform.library", version.ref = "androidGradlePlugin" }
 metro = { id = "dev.zacsweers.metro", version.ref = "metro" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+# Compose Multiplatform plugin (Phase C.1) — provides the `compose.*` runtime DSL for KMP/iOS.
+composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "composeGradle" }
 serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 application = { id = "com.android.application", version.ref = "androidGradlePlugin" }
 library = { id = "com.android.library", version.ref = "androidGradlePlugin" }

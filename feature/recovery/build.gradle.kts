@@ -10,6 +10,8 @@ android {
 
 dependencies {
     implementation(project(":core:core"))
+    // AndroidAppReinitializer (concrete) lives in the Android half of core:core.
+    implementation(project(":core:core-android"))
     implementation(project(":core:ui:kit"))
     implementation(project(":core:ui:navigation"))
     implementation(project(":core:data:database"))

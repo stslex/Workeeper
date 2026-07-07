@@ -4,6 +4,8 @@ plugins {
 
 dependencies {
     implementation(project(":core:core"))
+    // formatRelativeTime (android.text.format.DateUtils) lives in the Android half of core:core.
+    implementation(project(":core:core-android"))
 
     implementation(project(":core:ui:kit"))
     implementation(project(":core:ui:mvi"))
