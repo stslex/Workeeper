@@ -5,6 +5,7 @@ import androidx.paging.PagingData
 import androidx.paging.map
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
 import io.github.stslex.workeeper.feature.archive.di.ArchiveScope
@@ -21,9 +22,9 @@ import kotlinx.coroutines.withContext
 internal class ArchiveInteractorImpl(
     private val exerciseRepository: ExerciseRepository,
     private val trainingRepository: TrainingRepository,
-    // Qualifier dropped: the Hilt @DefaultDispatcher is resolved at the bridge EntryPoint;
-    // Metro receives one unqualified CoroutineDispatcher (still Dispatchers.Default).
-    private val defaultDispatcher: CoroutineDispatcher,
+    // Qualified: Metro reads the javax @DefaultDispatcher (via includeJavax interop), so this
+    // resolves to the (CoroutineDispatcher + @DefaultDispatcher) bound instance — no strip.
+    @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
 ) : ArchiveInteractor {
 
     override fun observeArchivedExerciseCount(): Flow<Int> = exerciseRepository

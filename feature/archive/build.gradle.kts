@@ -7,6 +7,17 @@ plugins {
     alias(libs.plugins.metro)
 }
 
+// Metro reads javax.inject qualifiers (via includeJavax) so the app-scoped Hilt @Singletons
+// bridged into the Metro graph keep their qualifiers — e.g. @DefaultDispatcher / @IODispatcher
+// (core:core `expect`/`actual` annotations meta-annotated @javax.inject.Qualifier). Without this
+// the bridge stripped qualifiers, silently merging two same-typed dispatchers; enabling javax
+// interop lets (type + qualifier) stay the Metro binding key. No core:core change needed.
+metro {
+    interop {
+        includeJavax()
+    }
+}
+
 dependencies {
     implementation(project(":core:core"))
 

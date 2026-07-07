@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.feature.archive.di
 import dev.zacsweers.metro.Binds
 import dev.zacsweers.metro.DependencyGraph
 import dev.zacsweers.metro.Provides
+import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
@@ -51,9 +52,11 @@ internal interface ArchiveGraph {
             @Provides storeDispatchers: StoreDispatchers,
             @Provides analyticsHolder: AnalyticsHolder,
             @Provides loggerHolder: LoggerHolder,
-            // UNQUALIFIED: @DefaultDispatcher is consumed on the Hilt side of the bridge
-            // (ArchiveHiltEntryPoint). Sole CoroutineDispatcher in archive's graph → no ambiguity.
-            @Provides defaultDispatcher: CoroutineDispatcher,
+            // QUALIFIED across the bridge: @DefaultDispatcher (javax.inject.Qualifier) is read by
+            // Metro via `metro { interop { includeJavax() } }`, so the binding key is
+            // (CoroutineDispatcher + @DefaultDispatcher). A feature bridging a second dispatcher
+            // (e.g. @IODispatcher) therefore gets a DISTINCT key — no collision, no strip.
+            @Provides @DefaultDispatcher defaultDispatcher: CoroutineDispatcher,
         ): ArchiveGraph
     }
 }
