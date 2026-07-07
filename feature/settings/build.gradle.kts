@@ -1,5 +1,17 @@
 plugins {
     alias(libs.plugins.convention.composeLibrary)
+    // KMP C.1: feature/settings flipped from Hilt to Metro DI (the hardest feature — 18
+    // app-scoped bound instances incl. two qualified dispatchers + @ApplicationContext).
+    alias(libs.plugins.metro)
+}
+
+// Metro reads javax.inject qualifiers so the bridged app-scoped @Singletons keep their
+// qualifiers — settings bridges @DefaultDispatcher AND @IODispatcher (both CoroutineDispatcher):
+// (type + qualifier) is the Metro binding key, so the two resolve distinctly, never merge.
+metro {
+    interop {
+        includeJavax()
+    }
 }
 
 dependencies {

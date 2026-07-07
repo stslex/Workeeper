@@ -2,15 +2,16 @@
 package io.github.stslex.workeeper.feature.settings.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.settings.about.AboutLinks
 import io.github.stslex.workeeper.feature.settings.di.SettingsHandlerStore
+import io.github.stslex.workeeper.feature.settings.di.SettingsScope
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Action
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Event
-import javax.inject.Inject
 
-@ViewModelScoped
+@SingleIn(SettingsScope::class)
 internal class SettingsClickHandler @Inject constructor(
     store: SettingsHandlerStore,
 ) : Handler<Action.Click>, SettingsHandlerStore by store {

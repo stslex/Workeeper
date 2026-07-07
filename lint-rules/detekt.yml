@@ -120,6 +120,11 @@ complexity:
     ignoreOverridden: false
     ignoreAnnotated:
       - 'androidx.room.Dao'
+      # KMP C.1 (Metro migration): a Hilt @EntryPoint that bridges a feature's app-scoped
+      # @Singletons into its Metro graph has one accessor per bridged dependency, so its
+      # function count is the dependency count, not an extractable smell. Hilt code is
+      # unaffected — no Hilt @Module/component carries @EntryPoint.
+      - 'dagger.hilt.EntryPoint'
     excludes:
       - '**/core/core/logger/Logger.kt'
       - '**/core/core/logger/Log.kt'
