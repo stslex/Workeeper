@@ -14,6 +14,10 @@ dependencies {
     implementation(project(":core:ui:navigation"))
     implementation(project(":core:ui:kit"))
 
+    // viewModel { } + viewModelFactory/initializer for the Metro-backed Store retention path
+    // (rememberMetroStoreProcessor). The Hilt path uses hiltViewModel (transitive) already.
+    implementation(libs.bundles.lifecycle)
+
     implementation(platform(libs.google.firebase.bom))
     implementation(libs.google.firebase.perf)
 
