@@ -91,6 +91,11 @@ complexity:
     ignoreDataClasses: true
     ignoreAnnotated:
       - androidx.compose.runtime.Composable
+      # KMP C.1 (Metro migration): a Metro @DependencyGraph.Factory `create(...)` binds one
+      # app-scoped dependency per parameter (the Hilt→Metro bridge surface), so its parameter
+      # count is intrinsically the dependency count, not an extractable smell. Hilt code is
+      # unaffected — no Hilt DI type carries this annotation.
+      - dev.zacsweers.metro.DependencyGraph.Factory
     excludes:
       - '**/*StoreImpl*'
       - '**/*Store.kt'
