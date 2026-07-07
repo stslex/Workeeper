@@ -659,3 +659,5 @@ mvi-architecture:
     active: true
   DiscardedScopeResultRule:
     active: true
+  NoActualForExpectSuppressionRule:
+    active: true
