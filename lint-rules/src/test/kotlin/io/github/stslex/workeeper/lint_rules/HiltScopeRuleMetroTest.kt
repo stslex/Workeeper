@@ -110,4 +110,74 @@ internal class HiltScopeRuleMetroTest {
             "A Hilt Handler (@Inject, no @SingleIn, no @ViewModelScoped) must still be flagged.",
         )
     }
+
+    @Test
+    fun `Metro Handler scoped to AppScope is flagged (soundness guard reads the scope arg)`() {
+        val findings = rule.lint(
+            """
+            package io.github.stslex.workeeper.feature.example.mvi.handler
+
+            import dev.zacsweers.metro.Inject
+            import dev.zacsweers.metro.SingleIn
+
+            @SingleIn(AppScope::class)
+            internal class ExampleClickHandler @Inject constructor(
+                private val interactor: Any,
+            )
+            """.trimIndent(),
+        )
+
+        assertTrue(
+            findings.isNotEmpty(),
+            "A Handler @SingleIn(AppScope) must be flagged — a Handler is feature-scoped, never app-scoped.",
+        )
+    }
+
+    @Test
+    fun `Metro Handler scoped to its feature scope is not flagged`() {
+        val findings = rule.lint(
+            """
+            package io.github.stslex.workeeper.feature.example.mvi.handler
+
+            import dev.zacsweers.metro.Inject
+            import dev.zacsweers.metro.SingleIn
+
+            @SingleIn(ExampleScope::class)
+            internal class ExampleClickHandler @Inject constructor(
+                private val interactor: Any,
+            )
+            """.trimIndent(),
+        )
+
+        assertEquals(
+            0,
+            findings.size,
+            "A Handler @SingleIn(<FeatureScope>) must pass — only AppScope is blacklisted for Handlers.",
+        )
+    }
+
+    @Test
+    fun `non-Handler class scoped to AppScope is not flagged by the Handler guard`() {
+        // The AppScope blacklist is Handler-specific: an Interactor/other class may legitimately
+        // be app-scoped in some designs, so the guard must not fire outside the Handler bucket.
+        val findings = rule.lint(
+            """
+            package io.github.stslex.workeeper.feature.example.domain
+
+            import dev.zacsweers.metro.Inject
+            import dev.zacsweers.metro.SingleIn
+
+            @SingleIn(AppScope::class)
+            internal class ExampleInteractorImpl @Inject constructor(
+                private val repository: Any,
+            )
+            """.trimIndent(),
+        )
+
+        assertEquals(
+            0,
+            findings.size,
+            "The AppScope guard is Handler-only; a non-Handler @SingleIn(AppScope) must not be flagged here.",
+        )
+    }
 }
