@@ -1,7 +1,9 @@
 package io.github.stslex.workeeper.feature.live_workout.mvi.mapper
 
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutScope
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.withPresentation
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
@@ -9,10 +11,10 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStor
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableSet
-import javax.inject.Inject
 
-@ViewModelScoped
-internal class StateStatusMapper @Inject constructor(
+@Inject
+@SingleIn(LiveWorkoutScope::class)
+internal class StateStatusMapper(
     private val resourceWrapper: ResourceWrapper,
 ) {
 

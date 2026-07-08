@@ -1,5 +1,14 @@
 plugins {
     alias(libs.plugins.convention.composeLibrary)
+    // KMP C.1 (wave 3): feature/live-workout flipped Hilt→Metro. ASSISTED, largest feature,
+    // 13 bound instances, single @DefaultDispatcher.
+    alias(libs.plugins.metro)
+}
+
+metro {
+    interop {
+        includeJavax()
+    }
 }
 
 dependencies {
