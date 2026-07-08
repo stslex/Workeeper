@@ -2,11 +2,13 @@
 package io.github.stslex.workeeper.feature.home.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.home.R
 import io.github.stslex.workeeper.feature.home.di.HomeHandlerStore
+import io.github.stslex.workeeper.feature.home.di.HomeScope
 import io.github.stslex.workeeper.feature.home.domain.HomeInteractor
 import io.github.stslex.workeeper.feature.home.domain.model.StartSessionConflict
 import io.github.stslex.workeeper.feature.home.mvi.mapper.HomeUiMapper.toPickerItems
@@ -14,12 +16,11 @@ import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Action
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Event
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.State
 import kotlinx.collections.immutable.persistentListOf
-import javax.inject.Inject
 
 private const val PICKER_LIMIT = 5
 
 @Suppress("TooManyFunctions")
-@ViewModelScoped
+@SingleIn(HomeScope::class)
 internal class ClickHandler @Inject constructor(
     private val interactor: HomeInteractor,
     private val resourceWrapper: ResourceWrapper,

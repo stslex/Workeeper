@@ -1,5 +1,13 @@
 plugins {
     alias(libs.plugins.convention.composeLibrary)
+    // KMP C.1 (wave 3): feature/home flipped Hilt→Metro. PLAIN, single @DefaultDispatcher.
+    alias(libs.plugins.metro)
+}
+
+metro {
+    interop {
+        includeJavax()
+    }
 }
 
 dependencies {

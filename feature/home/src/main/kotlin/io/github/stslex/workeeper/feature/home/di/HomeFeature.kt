@@ -2,8 +2,12 @@
 package io.github.stslex.workeeper.feature.home.di
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
+import dagger.hilt.android.EntryPointAccessors
+import dev.zacsweers.metro.createGraphFactory
 import io.github.stslex.workeeper.core.ui.mvi.Feature
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
+import io.github.stslex.workeeper.core.ui.mvi.processor.rememberMetroStoreProcessor
 import io.github.stslex.workeeper.core.ui.navigation.Screen.BottomBar.Home
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Action
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Event
@@ -12,8 +16,36 @@ import io.github.stslex.workeeper.feature.home.mvi.store.HomeStoreImpl
 
 internal typealias HomeStoreProcessor = StoreProcessor<State, Action, Event>
 
+/**
+ * feature/home resolves its Store through the **Metro** path (KMP C.1 wave 3). PLAIN Store (a
+ * BottomBar destination) — the graph exposes the Store directly and this composable retains it via
+ * `rememberMetroStoreProcessor`. The 9 app-scoped Hilt singletons are pulled from the
+ * `SingletonComponent` via [HomeHiltEntryPoint]. Single `@DefaultDispatcher`, no Context.
+ */
 internal object HomeFeature : Feature<HomeStoreProcessor, Home>() {
 
+    @Suppress("UNCHECKED_CAST")
     @Composable
-    override fun processor(): HomeStoreProcessor = createProcessor<HomeStoreImpl>()
+    override fun processor(): HomeStoreProcessor {
+        val context = LocalContext.current
+        return rememberMetroStoreProcessor<HomeStoreImpl> {
+            val entryPoint = EntryPointAccessors.fromApplication(
+                context.applicationContext,
+                HomeHiltEntryPoint::class.java,
+            )
+            createGraphFactory<HomeGraph.Factory>()
+                .create(
+                    trainingRepository = entryPoint.trainingRepository(),
+                    sessionRepository = entryPoint.sessionRepository(),
+                    sessionConflictResolver = entryPoint.sessionConflictResolver(),
+                    resourceWrapper = entryPoint.resourceWrapper(),
+                    navigator = entryPoint.navigator(),
+                    storeDispatchers = entryPoint.storeDispatchers(),
+                    analyticsHolder = entryPoint.analyticsHolder(),
+                    loggerHolder = entryPoint.loggerHolder(),
+                    defaultDispatcher = entryPoint.defaultDispatcher(),
+                )
+                .homeStore
+        } as HomeStoreProcessor
+    }
 }
