@@ -1,5 +1,15 @@
 plugins {
     alias(libs.plugins.convention.composeLibrary)
+    // KMP C.1 (wave 2 checkpoint): feature/all-exercises flipped Hilt→Metro. Non-collider,
+    // PLAIN Store (archive template), single @DefaultDispatcher (no collision).
+    alias(libs.plugins.metro)
+}
+
+// Metro reads javax.inject qualifiers so the bridged @DefaultDispatcher keeps its qualifier.
+metro {
+    interop {
+        includeJavax()
+    }
 }
 
 dependencies {

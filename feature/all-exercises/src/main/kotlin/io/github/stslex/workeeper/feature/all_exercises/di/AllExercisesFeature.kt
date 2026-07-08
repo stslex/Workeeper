@@ -2,8 +2,12 @@
 package io.github.stslex.workeeper.feature.all_exercises.di
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
+import dagger.hilt.android.EntryPointAccessors
+import dev.zacsweers.metro.createGraphFactory
 import io.github.stslex.workeeper.core.ui.mvi.Feature
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
+import io.github.stslex.workeeper.core.ui.mvi.processor.rememberMetroStoreProcessor
 import io.github.stslex.workeeper.core.ui.navigation.Screen.BottomBar.AllExercises
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Action
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Event
@@ -12,8 +16,36 @@ import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesSt
 
 internal typealias AllExercisesStoreProcessor = StoreProcessor<State, Action, Event>
 
+/**
+ * feature/all-exercises resolves its Store through the **Metro** path (KMP C.1 wave 2). PLAIN Store
+ * (a BottomBar destination with no route args) — the graph exposes the Store directly and this
+ * composable retains it via `rememberMetroStoreProcessor`. The 8 app-scoped Hilt singletons are
+ * pulled from the `SingletonComponent` via [AllExercisesHiltEntryPoint]. Single `@DefaultDispatcher`
+ * (no collision), no Context.
+ */
 internal object AllExercisesFeature : Feature<AllExercisesStoreProcessor, AllExercises>() {
 
+    @Suppress("UNCHECKED_CAST")
     @Composable
-    override fun processor(): AllExercisesStoreProcessor = createProcessor<AllExercisesStoreImpl>()
+    override fun processor(): AllExercisesStoreProcessor {
+        val context = LocalContext.current
+        return rememberMetroStoreProcessor<AllExercisesStoreImpl> {
+            val entryPoint = EntryPointAccessors.fromApplication(
+                context.applicationContext,
+                AllExercisesHiltEntryPoint::class.java,
+            )
+            createGraphFactory<AllExercisesGraph.Factory>()
+                .create(
+                    exerciseRepository = entryPoint.exerciseRepository(),
+                    tagRepository = entryPoint.tagRepository(),
+                    resourceWrapper = entryPoint.resourceWrapper(),
+                    navigator = entryPoint.navigator(),
+                    storeDispatchers = entryPoint.storeDispatchers(),
+                    analyticsHolder = entryPoint.analyticsHolder(),
+                    loggerHolder = entryPoint.loggerHolder(),
+                    defaultDispatcher = entryPoint.defaultDispatcher(),
+                )
+                .allExercisesStore
+        } as AllExercisesStoreProcessor
+    }
 }

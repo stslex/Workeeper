@@ -2,11 +2,13 @@
 package io.github.stslex.workeeper.feature.all_exercises.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.all_exercises.R
 import io.github.stslex.workeeper.feature.all_exercises.di.AllExercisesHandlerStore
+import io.github.stslex.workeeper.feature.all_exercises.di.AllExercisesScope
 import io.github.stslex.workeeper.feature.all_exercises.domain.AllExercisesInteractor
 import io.github.stslex.workeeper.feature.all_exercises.mvi.mapper.AllExercisesUiMapper
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Action
@@ -15,10 +17,9 @@ import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesSt
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.State.SelectionMode
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toPersistentSet
-import javax.inject.Inject
 
 @Suppress("TooManyFunctions")
-@ViewModelScoped
+@SingleIn(AllExercisesScope::class)
 internal class ClickHandler @Inject constructor(
     private val interactor: AllExercisesInteractor,
     private val resourceWrapper: ResourceWrapper,

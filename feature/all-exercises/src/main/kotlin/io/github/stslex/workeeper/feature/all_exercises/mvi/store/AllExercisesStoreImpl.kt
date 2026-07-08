@@ -2,7 +2,7 @@
 package io.github.stslex.workeeper.feature.all_exercises.mvi.store
 
 import androidx.annotation.VisibleForTesting
-import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.zacsweers.metro.Inject
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
@@ -14,10 +14,11 @@ import io.github.stslex.workeeper.feature.all_exercises.mvi.handler.PagingHandle
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Action
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Event
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.State
-import javax.inject.Inject
 
-@HiltViewModel
-internal class AllExercisesStoreImpl @Inject constructor(
+// Metro constructs this PLAIN Store (class-level @Inject); no Hilt @HiltViewModel. Retention is
+// owned by the Android ViewModelStore via rememberMetroStoreProcessor — so NO @SingleIn here.
+@Inject
+internal class AllExercisesStoreImpl(
     navigationHandler: NavigationHandler,
     pagingHandler: PagingHandler,
     clickHandler: ClickHandler,
