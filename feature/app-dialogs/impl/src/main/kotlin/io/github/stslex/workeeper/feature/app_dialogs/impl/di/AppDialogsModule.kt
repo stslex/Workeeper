@@ -4,8 +4,6 @@ package io.github.stslex.workeeper.feature.app_dialogs.impl.di
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
-import dagger.hilt.android.components.ViewModelComponent
-import dagger.hilt.android.scopes.ViewModelScoped
 import dagger.hilt.components.SingletonComponent
 import io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObserver
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
@@ -32,17 +30,6 @@ internal abstract class AppDialogsModule {
     @Singleton
     abstract fun bindAppDialogObserver(impl: AppDialogObserverImpl): AppDialogObserver
 }
-
-/**
- * ViewModel-graph bindings for the new layered MVI presentation layer. The
- * Activity-scoped `@HiltViewModel AppDialogStoreImpl` injects handlers and
- * a `HandlerStore` from this graph, so they live as long as the Store does.
- */
-@Module
-@InstallIn(ViewModelComponent::class)
-internal interface AppDialogViewModelModule {
-
-    @Binds
-    @ViewModelScoped
-    fun bindHandlerStore(impl: AppDialogHandlerStoreImpl): AppDialogHandlerStore
-}
+// AppDialogViewModelModule removed: the ViewModel tier flipped to Metro (KMP C.1 wave 4). Its
+// @Binds AppDialogHandlerStore migrated to AppDialogGraph. The SingletonComponent api bindings
+// above (AppDialogPublisher / AppDialogObserver) stay in Hilt — the api contract is unchanged.

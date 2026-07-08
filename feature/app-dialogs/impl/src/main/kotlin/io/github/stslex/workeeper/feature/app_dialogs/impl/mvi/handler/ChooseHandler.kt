@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.handler
 
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialogUserChoice
 import io.github.stslex.workeeper.feature.app_dialogs.impl.di.AppDialogHandlerStore
+import io.github.stslex.workeeper.feature.app_dialogs.impl.di.AppDialogsScope
 import io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.store.AppDialogStore.Action
 import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImpl
-import javax.inject.Inject
 
 /**
  * Receives `Action.Choose(dialog, action)` from the Host and emits the
@@ -26,7 +27,7 @@ import javax.inject.Inject
  * interface) because the producer-side `emit` is intentionally internal —
  * the api surface only exposes the consumer side.
  */
-@ViewModelScoped
+@SingleIn(AppDialogsScope::class)
 internal class ChooseHandler @Inject constructor(
     private val observer: AppDialogObserverImpl,
     store: AppDialogHandlerStore,
