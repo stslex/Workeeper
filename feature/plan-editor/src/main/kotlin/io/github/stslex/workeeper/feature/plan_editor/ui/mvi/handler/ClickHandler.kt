@@ -2,7 +2,8 @@
 package io.github.stslex.workeeper.feature.plan_editor.ui.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.domain.PlanDraftReducer
@@ -12,6 +13,7 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanEditorBodyAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.plan_editor.R
 import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorHandlerStore
+import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorScope
 import io.github.stslex.workeeper.feature.plan_editor.domain.PlanEditorInteractor
 import io.github.stslex.workeeper.feature.plan_editor.ui.mapper.PlanEditorMapper.toDomain
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.DialogState
@@ -21,10 +23,9 @@ import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorSto
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.State.Mode
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.serialization.json.Json
-import javax.inject.Inject
 
 @Suppress("TooManyFunctions")
-@ViewModelScoped
+@SingleIn(PlanEditorScope::class)
 internal class ClickHandler @Inject constructor(
     private val interactor: PlanEditorInteractor,
     private val resourceWrapper: ResourceWrapper,

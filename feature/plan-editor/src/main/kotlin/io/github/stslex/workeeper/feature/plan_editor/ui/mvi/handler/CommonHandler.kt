@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.plan_editor.ui.mvi.handler
 
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorHandlerStore
+import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorScope
 import io.github.stslex.workeeper.feature.plan_editor.domain.PlanEditorInteractor
 import io.github.stslex.workeeper.feature.plan_editor.domain.model.PlanEditorLoadResult
 import io.github.stslex.workeeper.feature.plan_editor.ui.mapper.PlanEditorMapper.toUi
@@ -12,9 +14,8 @@ import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorSto
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.Event
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.State.Mode
 import kotlinx.collections.immutable.toImmutableList
-import javax.inject.Inject
 
-@ViewModelScoped
+@SingleIn(PlanEditorScope::class)
 internal class CommonHandler @Inject constructor(
     private val interactor: PlanEditorInteractor,
     store: PlanEditorHandlerStore,

@@ -2,10 +2,9 @@
 package io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store
 
 import androidx.annotation.VisibleForTesting
-import dagger.assisted.Assisted
-import dagger.assisted.AssistedFactory
-import dagger.assisted.AssistedInject
-import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
@@ -28,8 +27,10 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 
-@HiltViewModel(assistedFactory = PlanEditorStoreImpl.Factory::class)
-internal class PlanEditorStoreImpl @AssistedInject constructor(
+// Metro assisted Store: @AssistedInject + @Assisted screen; graph exposes the @AssistedFactory
+// (never the Store). No @HiltViewModel; unscoped (ViewModelStore retention via rememberMetroStoreProcessor).
+@AssistedInject
+internal class PlanEditorStoreImpl(
     @Assisted screen: Screen.PlanEditor,
     navigationHandler: NavigationHandler,
     commonHandler: CommonHandler,

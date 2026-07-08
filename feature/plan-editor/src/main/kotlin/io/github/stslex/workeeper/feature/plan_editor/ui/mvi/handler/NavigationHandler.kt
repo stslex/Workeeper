@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.plan_editor.ui.mvi.handler
 
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.Screen.PlanEditor.Companion.planEditorDraftResultAttr
 import io.github.stslex.workeeper.core.ui.navigation.Screen.PlanEditor.Companion.planEditorSavedAttr
+import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorScope
 import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorStore.Action
-import javax.inject.Inject
 
-@ViewModelScoped
+@SingleIn(PlanEditorScope::class)
 internal class NavigationHandler @Inject constructor(
     private val navigator: Navigator,
 ) : Handler<Action.Navigation> {
