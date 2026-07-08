@@ -7,8 +7,8 @@ import android.content.pm.PackageManager
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
-import dagger.hilt.android.qualifiers.ApplicationContext
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.core.images.ImageRef
 import io.github.stslex.workeeper.core.core.images.model.ImageSaveResult
@@ -21,6 +21,7 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
+import io.github.stslex.workeeper.feature.exercise.di.ExerciseScope
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.domain.model.ArchiveResult
 import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseChangeDomain
@@ -45,15 +46,15 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
-import javax.inject.Inject
 import kotlin.uuid.Uuid
 
 @Suppress("TooManyFunctions", "LargeClass")
-@ViewModelScoped
+@SingleIn(ExerciseScope::class)
 internal class ClickHandler @Inject constructor(
     private val interactor: ExerciseInteractor,
     private val resourceWrapper: ResourceWrapper,
-    @ApplicationContext
+    // Plain Context: @ApplicationContext is resolved on the Hilt side of the bridge
+    // (ExerciseHiltEntryPoint) and bound bare into the graph — one Context per graph.
     private val context: Context,
     @MainImmediateDispatcher
     private val mainDispatcher: CoroutineDispatcher,

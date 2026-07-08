@@ -1,5 +1,17 @@
 plugins {
     alias(libs.plugins.convention.composeLibrary)
+    // KMP C.1 (wave 1): feature/exercise flipped from Hilt to Metro DI. Collider —
+    // @DefaultDispatcher + @MainImmediateDispatcher (both CoroutineDispatcher) + @ApplicationContext.
+    // Assisted Store (Screen.Exercise route arg) → the graph exposes the assisted Factory.
+    alias(libs.plugins.metro)
+}
+
+// Metro reads javax.inject qualifiers so the two same-typed dispatchers keep their qualifiers:
+// (type + qualifier) is the Metro binding key → @Default and @MainImmediate resolve distinctly.
+metro {
+    interop {
+        includeJavax()
+    }
 }
 
 android {

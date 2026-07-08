@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise.domain
 
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.core.images.ImageRef
 import io.github.stslex.workeeper.core.core.images.ImageStorage
@@ -9,6 +10,7 @@ import io.github.stslex.workeeper.core.core.images.model.ImageSaveResult
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordRepository
 import io.github.stslex.workeeper.core.data.exercise.tags.TagRepository
+import io.github.stslex.workeeper.feature.exercise.di.ExerciseScope
 import io.github.stslex.workeeper.feature.exercise.domain.mapper.ExerciseDomainMapper.toData
 import io.github.stslex.workeeper.feature.exercise.domain.mapper.ExerciseDomainMapper.toDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.ArchiveResult
@@ -30,11 +32,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
 
 @Suppress("LongParameterList", "TooManyFunctions")
-@ViewModelScoped
-internal class ExerciseInteractorImpl @Inject constructor(
+@Inject
+@SingleIn(ExerciseScope::class)
+internal class ExerciseInteractorImpl(
     private val exerciseRepository: ExerciseRepository,
     private val tagRepository: TagRepository,
     private val imageStorage: ImageStorage,
