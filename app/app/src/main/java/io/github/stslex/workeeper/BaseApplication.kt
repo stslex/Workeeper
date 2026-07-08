@@ -8,11 +8,15 @@ import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
+import dev.zacsweers.metro.HasMemberInjections
+import dev.zacsweers.metro.createGraphFactory
 import io.github.stslex.workeeper.core.core.images.ImageStorage
 import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
 import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
+import io.github.stslex.workeeper.di.AppGraph
+import io.github.stslex.workeeper.di.AppGraphOwner
 import io.github.stslex.workeeper.feature.recovery.boot.AppDialogObserverBootstrapEntryPoint
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
 import io.github.stslex.workeeper.feature.recovery.domain.StartupMigrationCoordinator
@@ -23,9 +27,35 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
-abstract class BaseApplication : Application(), Configuration.Provider {
+// Metro (now applied to app/app) scans this module and sees the Hilt `@Inject workerFactory` member
+// on this NON-FINAL class; it requires @HasMemberInjections for subclass-propagation safety (the
+// flavor subclasses extend it). This is a Metro↔Hilt coexistence acknowledgement only — Hilt still
+// performs the actual member injection. This friction generalizes to any Metro-enabled module that
+// retains a Hilt-member-injected non-final class; it recurs on the real app flip.
+@HasMemberInjections
+abstract class BaseApplication : Application(), Configuration.Provider, AppGraphOwner {
 
     abstract val isDebugLoggingAllow: Boolean
+
+    /**
+     * The Metro app-scope graph (KMP C.1 app-collapse Phase 1 — leaf E-proof), held for the whole
+     * process ALONGSIDE `@HiltAndroidApp`. `by lazy` so it is created on first access (a feature
+     * Store construction, well after `onCreate`), which guarantees `applicationContext` is ready.
+     *
+     * Exposed via [AppGraphOwner] (NOT a concrete-type cast) so Hilt reads it through the interface —
+     * `AppGraphAdoptBackModule.provideAppGraph` resolves the graph from the app context as an
+     * `AppGraphOwner`, and instrumented tests can `@TestInstallIn`-replace that provider without a
+     * `BaseApplication` (the Hilt test harness swaps in `HiltTestApplication`).
+     *
+     * `@Suppress(EXPOSED_PROPERTY_TYPE)`: `AppGraph`/`AppGraphOwner` are `internal` to `:app:app` and
+     * this override is only ever read through the `internal AppGraphOwner` seam within the module —
+     * the public class surface never leaks the internal type to another module (flavor subclasses only
+     * call `super`). Keeping the DI types module-internal is deliberate.
+     */
+    @Suppress("EXPOSED_PROPERTY_TYPE_IN_CONSTRUCTOR_ERROR", "EXPOSED_PROPERTY_TYPE")
+    override val appGraph: AppGraph by lazy {
+        createGraphFactory<AppGraph.Factory>().create(applicationContext)
+    }
 
     @Inject
     internal lateinit var workerFactory: HiltWorkerFactory

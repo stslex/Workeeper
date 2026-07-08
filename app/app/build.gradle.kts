@@ -1,5 +1,18 @@
 plugins {
     alias(libs.plugins.convention.composeLibrary)
+    // KMP C.1 app-collapse Phase 1 (leaf E-proof): app/app gets the Metro plugin so the
+    // app-scoped AppGraph can be stood up ALONGSIDE @HiltAndroidApp (second dual-path at
+    // app-scope tier). Plugin-application only — no detekt-exemption centralization here.
+    alias(libs.plugins.metro)
+}
+
+// Metro reads javax.inject qualifiers (mirrors every flipped feature). No qualified app-scoped
+// binding crosses the AppGraph seam in this leaf spike, but the interop line is kept for
+// consistency with the batch and to keep the mechanic identical when the bulk migration lands.
+metro {
+    interop {
+        includeJavax()
+    }
 }
 
 android {
