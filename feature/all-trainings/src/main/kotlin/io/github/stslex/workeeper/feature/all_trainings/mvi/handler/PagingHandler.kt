@@ -3,12 +3,14 @@ package io.github.stslex.workeeper.feature.all_trainings.mvi.handler
 
 import androidx.paging.PagingData
 import androidx.paging.map
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.all_trainings.di.AllTrainingsHandlerStore
+import io.github.stslex.workeeper.feature.all_trainings.di.AllTrainingsScope
 import io.github.stslex.workeeper.feature.all_trainings.domain.AllTrainingsInteractor
 import io.github.stslex.workeeper.feature.all_trainings.mvi.mapper.TrainingListItemMapper.toUi
 import io.github.stslex.workeeper.feature.all_trainings.mvi.model.TrainingListItemUi
@@ -19,10 +21,9 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
-import javax.inject.Inject
 import io.github.stslex.workeeper.feature.all_trainings.mvi.mapper.TagUiMapper.toUi as toTagUi
 
-@ViewModelScoped
+@SingleIn(AllTrainingsScope::class)
 internal class PagingHandler @Inject constructor(
     private val interactor: AllTrainingsInteractor,
     private val resourceWrapper: ResourceWrapper,

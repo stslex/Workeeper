@@ -1,5 +1,14 @@
 plugins {
     alias(libs.plugins.convention.composeLibrary)
+    // KMP C.1 (wave 3): feature/all-trainings flipped Hilt→Metro. Non-collider, PLAIN Store
+    // (archive template), single @DefaultDispatcher (no collision).
+    alias(libs.plugins.metro)
+}
+
+metro {
+    interop {
+        includeJavax()
+    }
 }
 
 dependencies {
