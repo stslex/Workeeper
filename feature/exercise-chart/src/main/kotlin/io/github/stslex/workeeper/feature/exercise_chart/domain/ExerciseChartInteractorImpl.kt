@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise_chart.domain
 
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
+import io.github.stslex.workeeper.feature.exercise_chart.di.ExerciseChartScope
 import io.github.stslex.workeeper.feature.exercise_chart.domain.mapper.ExerciseChartDomainMapper.toDomain
 import io.github.stslex.workeeper.feature.exercise_chart.domain.model.ChartFoldDomain
 import io.github.stslex.workeeper.feature.exercise_chart.domain.model.ChartMetricDomain
@@ -13,10 +15,10 @@ import io.github.stslex.workeeper.feature.exercise_chart.domain.model.ExerciseTy
 import io.github.stslex.workeeper.feature.exercise_chart.domain.model.RecentExerciseDomain
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
 
-@ViewModelScoped
-internal class ExerciseChartInteractorImpl @Inject constructor(
+@Inject
+@SingleIn(ExerciseChartScope::class)
+internal class ExerciseChartInteractorImpl(
     private val exerciseRepository: ExerciseRepository,
     private val sessionRepository: SessionRepository,
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,

@@ -2,16 +2,17 @@
 package io.github.stslex.workeeper.feature.exercise_chart.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.exercise_chart.di.ExerciseChartHandlerStore
+import io.github.stslex.workeeper.feature.exercise_chart.di.ExerciseChartScope
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapper.toTooltip
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Action
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Event
-import javax.inject.Inject
 
-@ViewModelScoped
+@SingleIn(ExerciseChartScope::class)
 internal class ClickHandler @Inject constructor(
     private val commonHandler: CommonHandler,
     private val resourceWrapper: ResourceWrapper,

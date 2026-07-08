@@ -2,10 +2,9 @@
 package io.github.stslex.workeeper.feature.exercise_chart.mvi.store
 
 import androidx.annotation.VisibleForTesting
-import dagger.assisted.Assisted
-import dagger.assisted.AssistedFactory
-import dagger.assisted.AssistedInject
-import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
@@ -20,8 +19,10 @@ import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChart
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Event
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.State
 
-@HiltViewModel(assistedFactory = ExerciseChartStoreImpl.Factory::class)
-internal class ExerciseChartStoreImpl @AssistedInject constructor(
+// Metro assisted Store: @AssistedInject + @Assisted screen; graph exposes the @AssistedFactory
+// (never the Store). No @HiltViewModel; unscoped (ViewModelStore retention via rememberMetroStoreProcessor).
+@AssistedInject
+internal class ExerciseChartStoreImpl(
     @Assisted screen: Screen.ExerciseChart,
     navigationHandler: NavigationHandler,
     clickHandler: ClickHandler,
