@@ -2,15 +2,16 @@
 package io.github.stslex.workeeper.feature.image_viewer.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.image_viewer.di.ImageViewerHandlerStore
+import io.github.stslex.workeeper.feature.image_viewer.di.ImageViewerScope
 import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStore.Action
 import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStore.Event
 import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStore.State
-import javax.inject.Inject
 
-@ViewModelScoped
+@SingleIn(ImageViewerScope::class)
 internal class ClickHandler @Inject constructor(
     store: ImageViewerHandlerStore,
 ) : Handler<Action.Click>, ImageViewerHandlerStore by store {
