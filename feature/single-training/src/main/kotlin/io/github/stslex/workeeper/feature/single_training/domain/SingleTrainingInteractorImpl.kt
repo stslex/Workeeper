@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.single_training.domain
 
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.session.SessionConflictResolver
@@ -9,6 +10,7 @@ import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.data.exercise.tags.TagRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
+import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingScope
 import io.github.stslex.workeeper.feature.single_training.domain.mapper.SingleTrainingDomainMapper.toData
 import io.github.stslex.workeeper.feature.single_training.domain.mapper.SingleTrainingDomainMapper.toDomain
 import io.github.stslex.workeeper.feature.single_training.domain.model.ActiveSessionDomain
@@ -26,11 +28,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
 
 @Suppress("TooManyFunctions", "LongParameterList")
-@ViewModelScoped
-internal class SingleTrainingInteractorImpl @Inject constructor(
+@Inject
+@SingleIn(SingleTrainingScope::class)
+internal class SingleTrainingInteractorImpl(
     private val trainingRepository: TrainingRepository,
     private val trainingExerciseRepository: TrainingExerciseRepository,
     private val exerciseRepository: ExerciseRepository,
