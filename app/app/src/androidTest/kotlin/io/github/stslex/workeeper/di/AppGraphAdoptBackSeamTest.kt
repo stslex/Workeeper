@@ -20,10 +20,9 @@ import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
 import kotlinx.coroutines.Dispatchers
 import io.github.stslex.workeeper.core.ui.test.annotations.Regression
-import io.github.stslex.workeeper.BaseApplication
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertSame
-import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -168,16 +167,20 @@ class AppGraphAdoptBackSeamTest {
     }
 
     @Test
-    fun negativeControl_castingApplicationToBaseApplicationThrowsUnderHiltTestApplication() {
-        // NEGATIVE CONTROL: the delegating @Provides reads the graph via the AppGraphOwner INTERFACE,
-        // never `context as BaseApplication`. This proves the cast variant genuinely fails here — the
-        // Hilt harness runs HiltTestApplication, which does NOT extend BaseApplication. A seam that could
-        // not fail this way would be false-green (it would silently work only because prod == test app).
-        val appContext = ApplicationProvider.getApplicationContext<Context>().applicationContext
-        assertThrows(ClassCastException::class.java) {
-            @Suppress("UNUSED_EXPRESSION")
-            (appContext as BaseApplication)
-        }
+    fun negativeControl_hiltTestApplicationIsNotAnAppGraphOwner() {
+        // NEGATIVE CONTROL (retargeted, Phase B3/V.1): assert the INVARIANT the decoupled
+        // AppGraphSourceModule fallback actually relies on — that the Hilt test harness's Application is
+        // NOT an AppGraphOwner, so `provideAppGraph` takes the else/fallback branch (build the real graph)
+        // rather than `application.appGraph`. If HiltTestApplication WERE an owner, the fallback would
+        // never run and the whole cross-module test path would be exercising an untested branch — a
+        // false-green. This replaces the vestigial `context as BaseApplication` assertion (the prod code
+        // no longer casts; it does this `is` check).
+        val app = ApplicationProvider.getApplicationContext<Context>().applicationContext
+        assertFalse(
+            "HiltTestApplication must NOT be an AppGraphOwner — the fallback branch that builds the real " +
+                "graph depends on it; if it were an owner, that branch would never run (false-green).",
+            app is AppGraphOwner,
+        )
     }
 
     /**

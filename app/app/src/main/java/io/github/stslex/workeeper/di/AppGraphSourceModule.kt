@@ -6,7 +6,6 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import dev.zacsweers.metro.createGraphFactory
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import kotlinx.coroutines.CoroutineDispatcher
@@ -47,8 +46,9 @@ internal object AppGraphSourceModule {
         // Prod: BaseApplication (and its dev/store subclasses) hold the process-lifetime graph.
         is AppGraphOwner -> application.appGraph
         // Test: HiltTestApplication is not an AppGraphOwner. Build the real graph from the app context —
-        // the same construction BaseApplication.appGraph performs — so the real adopt-back shims resolve.
-        else -> createGraphFactory<AppGraph.Factory>().create(
+        // the same construction BaseApplication.appGraph performs (via the shared [buildAppGraph]) — so
+        // the real adopt-back shims resolve.
+        else -> buildAppGraph(
             applicationContext = application.applicationContext,
             defaultDispatcher = defaultDispatcher,
             mainImmediateDispatcher = mainImmediateDispatcher,

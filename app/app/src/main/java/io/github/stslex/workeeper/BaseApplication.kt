@@ -9,7 +9,6 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import dev.zacsweers.metro.HasMemberInjections
-import dev.zacsweers.metro.createGraphFactory
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.core.images.ImageStorage
@@ -19,6 +18,7 @@ import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsReco
 import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
 import io.github.stslex.workeeper.di.AppGraph
 import io.github.stslex.workeeper.di.AppGraphOwner
+import io.github.stslex.workeeper.di.buildAppGraph
 import io.github.stslex.workeeper.feature.recovery.boot.AppDialogObserverBootstrapEntryPoint
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
 import io.github.stslex.workeeper.feature.recovery.domain.StartupMigrationCoordinator
@@ -64,7 +64,7 @@ abstract class BaseApplication : Application(), Configuration.Provider, AppGraph
             applicationContext,
             DispatcherBridgeEntryPoint::class.java,
         )
-        createGraphFactory<AppGraph.Factory>().create(
+        buildAppGraph(
             applicationContext = applicationContext,
             defaultDispatcher = dispatchers.defaultDispatcher(),
             mainImmediateDispatcher = dispatchers.mainImmediateDispatcher(),
