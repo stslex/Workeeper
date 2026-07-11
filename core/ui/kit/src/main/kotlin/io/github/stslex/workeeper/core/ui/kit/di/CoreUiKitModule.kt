@@ -4,8 +4,6 @@ import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import io.github.stslex.workeeper.core.ui.kit.utils.NumUiUtils
-import io.github.stslex.workeeper.core.ui.kit.utils.NumUiUtilsImpl
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolder
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderImpl
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
@@ -28,8 +26,6 @@ internal interface CoreUiKitModule {
     @Binds
     @Singleton
     fun bindResourceManager(impl: ResourceManagerImpl): ResourceManager
-
-    @Binds
-    @Singleton
-    fun bindNumUiUtils(impl: NumUiUtilsImpl): NumUiUtils
+    // NumUiUtils: App-Scope Collapse Step 3 (SB1) — migrated to Metro (AppGraph owns it). Its @Binds was
+    // removed here; NumUiUtils has no app-scope Hilt consumer (clean migration, no adopt-back @Provides).
 }
