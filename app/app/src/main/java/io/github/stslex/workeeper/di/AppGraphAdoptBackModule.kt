@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.di
 
-import android.content.Context
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
-import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import javax.inject.Singleton
@@ -16,11 +14,11 @@ import javax.inject.Singleton
  * adopt-back is Hilt-reads-Metro — a still-Hilt-owned consumer resolves a now-Metro-owned binding
  * through a thin Hilt `@Provides` that DELEGATES to the app-graph accessor.
  *
- * The graph is obtained through the [AppGraphOwner] interface ([provideAppGraph]) — NEVER by casting
- * the Application to a concrete `BaseApplication`. That decoupling is a mechanic fix: the Hilt test
- * harness swaps in `HiltTestApplication` (no `BaseApplication`), so a concrete cast would crash every
- * `@HiltAndroidTest` transitively resolving a migrated binding. Tests `@TestInstallIn`-replace
- * [provideAppGraph] with a test-built graph.
+ * The `AppGraph` binding these shims consume is provided by [AppGraphSourceModule] — the SINGLE unit
+ * that reaches the [BaseApplication]-held graph (or builds the real one under test). This module holds
+ * ONLY the delegating shims and is NEVER `@TestInstallIn`-replaced, so tests exercise the REAL
+ * delegation (Phase D2 decouple: previously the whole module was replaced by a hand-copied test double,
+ * so the `===` proof exercised the copy, not the production shim).
  *
  * SINGLE-OWNER DISCIPLINE: [provideAnalyticsHolder] returns `appGraph.analyticsHolder` — the SAME
  * instance the Metro graph constructed and retains (`@SingleIn(AppScope)`). It NEVER constructs a
@@ -32,17 +30,6 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 internal object AppGraphAdoptBackModule {
-
-    /**
-     * Bridges the Metro [AppGraph] into Hilt as a single `@Singleton` instance, read through the
-     * [AppGraphOwner] interface off the app context. In instrumented tests this provider is replaced
-     * via `@TestInstallIn` with one that builds a test [AppGraph] — so no `BaseApplication` is needed.
-     */
-    @Provides
-    @Singleton
-    fun provideAppGraph(
-        @ApplicationContext context: Context,
-    ): AppGraph = (context.applicationContext as AppGraphOwner).appGraph
 
     /**
      * Adopt-back for the leaf: delegate to the graph's owned instance. `@Singleton` caches the

@@ -120,19 +120,22 @@ class AppGraphAdoptBackSeamTest {
 }
 
 /**
- * `@TestInstallIn` REPLACES `AppGraphAdoptBackModule` (its `provideAppGraph` reads the graph off a
- * `BaseApplication`, absent under `HiltTestApplication`) with test providers that return a test-built
- * [AppGraph]. TOP-LEVEL, not nested in the `@HiltAndroidTest` class — Hilt forbids nesting
- * `@TestInstallIn` modules in test classes.
+ * `@TestInstallIn` REPLACES ONLY [AppGraphSourceModule] (Phase D2 decouple) — the single unit that
+ * reaches the `BaseApplication`-held graph, absent under `HiltTestApplication`. It does NOT replace
+ * [AppGraphAdoptBackModule]: the REAL adopt-back shims (`provideAnalyticsHolder`, etc.) stay live and
+ * consume the test-built `AppGraph` this module provides, so the `===` proof exercises the PRODUCTION
+ * delegation, not a hand-copied double (the honesty gap this phase fixes). TOP-LEVEL, not nested in the
+ * `@HiltAndroidTest` class — Hilt forbids nesting `@TestInstallIn` modules in test classes.
  *
- * Standing bulk-phase companion to the adopt-back mechanic: prod `AppGraph` and this test `AppGraph`
- * must stay in sync as bindings migrate. The test's `provideAnalyticsHolder` still delegates to
- * `appGraph.analyticsHolder`, so the Hilt path exercises the real single-owner delegation.
+ * NOTE the prod [AppGraphSourceModule] now ALSO builds the real graph from `applicationContext` when the
+ * Application is not an `AppGraphOwner` — so the flavor (`app:dev`/`app:store`) tests need no replacement
+ * at all. This module remains for `app:app`'s own seam test to expose `testAppGraph` for the Metro-direct
+ * assertion path.
  */
 @Module
 @TestInstallIn(
     components = [SingletonComponent::class],
-    replaces = [AppGraphAdoptBackModule::class],
+    replaces = [AppGraphSourceModule::class],
 )
 internal object TestAppGraphModule {
 
@@ -145,8 +148,4 @@ internal object TestAppGraphModule {
     @Provides
     @Singleton
     fun provideAppGraph(): AppGraph = testAppGraph
-
-    @Provides
-    @Singleton
-    fun provideAnalyticsHolder(appGraph: AppGraph): AnalyticsHolder = appGraph.analyticsHolder
 }
