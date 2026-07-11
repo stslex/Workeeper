@@ -15,10 +15,15 @@ import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.components.SingletonComponent
 import dagger.hilt.testing.TestInstallIn
 import dev.zacsweers.metro.createGraphFactory
+import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
+import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
+import kotlinx.coroutines.Dispatchers
 import io.github.stslex.workeeper.core.ui.test.annotations.Regression
+import io.github.stslex.workeeper.BaseApplication
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -106,6 +111,75 @@ class AppGraphAdoptBackSeamTest {
         )
     }
 
+    // ========================================================================================
+    // App-Scope Collapse Step 3 (mvi slice) — the FIRST adopt-back SHIM + COLLIDER seam proof.
+    // NumUiUtils (clean) never exercised the shim; these tests do.
+    // ========================================================================================
+
+    private fun loggerHiltResolved(): LoggerHolder =
+        EntryPointAccessors
+            .fromApplication(
+                ApplicationProvider.getApplicationContext(),
+                TestLoggerEntryPoint::class.java,
+            )
+            .loggerHolder()
+
+    // Metro-side consumer path: the graph's own accessor IS the Metro-owned instance BaseStore
+    // ctor-injects (BaseStore is feature/Metro-constructed and receives loggerHolder from the graph).
+    private fun loggerMetroDirect(): LoggerHolder = TestAppGraphModule.testAppGraph.loggerHolder
+
+    @Test
+    fun loggerHolder_hiltAdoptBackAndMetroResolveTheSameInstance() {
+        val metro = loggerMetroDirect()
+        val hilt = loggerHiltResolved()
+
+        assertNotNull(metro)
+        assertNotNull(hilt)
+        // POSITIVE seam proof across BOTH sides (not two Hilt reads): the Hilt EntryPoint resolution
+        // (through the adopt-back delegating @Provides) returns the SAME object the Metro graph owns and
+        // hands to Metro consumers. === identity survives the shim.
+        assertSame(
+            "LoggerHolder Hilt adopt-back must return the SAME instance the Metro graph owns (===), not a copy",
+            metro,
+            hilt,
+        )
+    }
+
+    @Test
+    fun storeDispatchers_collidersResolveWithCorrectQualifiersPostMigration() {
+        // COLLIDER: StoreDispatchers is Metro-constructed from the two qualified CoroutineDispatcher
+        // bound instances; the qualifiers survived includeJavax into the graph. Both dispatchers resolve
+        // (non-null, distinct fields) and the Hilt adopt-back returns the SAME Metro-owned instance.
+        val metro = TestAppGraphModule.testAppGraph.storeDispatchers
+        val hilt = EntryPointAccessors
+            .fromApplication(
+                ApplicationProvider.getApplicationContext<Context>(),
+                TestStoreDispatchersEntryPoint::class.java,
+            )
+            .storeDispatchers()
+
+        assertNotNull(metro.defaultDispatcher)
+        assertNotNull(metro.mainImmediateDispatcher)
+        assertSame(
+            "StoreDispatchers Hilt adopt-back must return the SAME Metro-owned instance (===)",
+            metro,
+            hilt,
+        )
+    }
+
+    @Test
+    fun negativeControl_castingApplicationToBaseApplicationThrowsUnderHiltTestApplication() {
+        // NEGATIVE CONTROL: the delegating @Provides reads the graph via the AppGraphOwner INTERFACE,
+        // never `context as BaseApplication`. This proves the cast variant genuinely fails here — the
+        // Hilt harness runs HiltTestApplication, which does NOT extend BaseApplication. A seam that could
+        // not fail this way would be false-green (it would silently work only because prod == test app).
+        val appContext = ApplicationProvider.getApplicationContext<Context>().applicationContext
+        assertThrows(ClassCastException::class.java) {
+            @Suppress("UNUSED_EXPRESSION")
+            (appContext as BaseApplication)
+        }
+    }
+
     /**
      * Equivalent to a production `*HiltEntryPoint.analyticsHolder()`: reads `AnalyticsHolder` from
      * Hilt's `SingletonComponent`, now served exclusively by the adopt-back delegating `@Provides`.
@@ -116,6 +190,20 @@ class AppGraphAdoptBackSeamTest {
     @InstallIn(SingletonComponent::class)
     interface TestAnalyticsEntryPoint {
         fun analyticsHolder(): AnalyticsHolder
+    }
+
+    /** Mirrors the 13 production `*HiltEntryPoint.loggerHolder()` accessors (module-`internal`). */
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
+    interface TestLoggerEntryPoint {
+        fun loggerHolder(): LoggerHolder
+    }
+
+    /** Mirrors the 13 production `*HiltEntryPoint.storeDispatchers()` accessors. */
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
+    interface TestStoreDispatchersEntryPoint {
+        fun storeDispatchers(): StoreDispatchers
     }
 }
 
@@ -139,12 +227,24 @@ class AppGraphAdoptBackSeamTest {
 )
 internal object TestAppGraphModule {
 
-    // A single process-wide test graph, mirroring the prod `by lazy` app-owned singleton.
+    // A single process-wide test graph, mirroring the prod `by lazy` app-owned singleton. The two
+    // collider dispatchers StoreDispatchers needs are bridged in as test doubles (App-Scope Collapse
+    // Step 3, mvi slice) — the same qualified bound-instance shape the prod BaseApplication passes.
     val testAppGraph: AppGraph by lazy {
         createGraphFactory<AppGraph.Factory>()
-            .create(ApplicationProvider.getApplicationContext<Context>())
+            .create(
+                // Identity-only test: any CoroutineDispatcher constructs StoreDispatchers. Unconfined is
+                // on the core classpath (avoids a kotlinx-coroutines-test androidTest dep just for this).
+                applicationContext = ApplicationProvider.getApplicationContext<Context>(),
+                defaultDispatcher = Dispatchers.Unconfined,
+                mainImmediateDispatcher = Dispatchers.Unconfined,
+            )
     }
 
+    // Phase D2 decouple: TestAppGraphModule replaces ONLY AppGraphSourceModule, so it provides ONLY the
+    // graph source. The real adopt-back shims (provideAnalyticsHolder / provideLoggerHolder /
+    // provideStoreDispatchers) in AppGraphAdoptBackModule stay live and consume this graph — the === proof
+    // exercises the PRODUCTION shims, not test copies.
     @Provides
     @Singleton
     fun provideAppGraph(): AppGraph = testAppGraph

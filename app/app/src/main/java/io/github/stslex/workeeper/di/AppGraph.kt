@@ -6,8 +6,13 @@ import dev.zacsweers.metro.DependencyGraph
 import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.AppScope
+import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
+import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.ui.kit.utils.NumUiUtils
+import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
+import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
+import kotlinx.coroutines.CoroutineDispatcher
 
 /**
  * The Metro app-scope dependency graph (KMP C.1 app-collapse Phase 1 — leaf E-proof).
@@ -42,6 +47,23 @@ internal interface AppGraph {
     val numUiUtils: NumUiUtils
 
     /**
+     * App-Scope Collapse Step 3 (SB1, core:ui:mvi slice). Metro-owned [LoggerHolder] — a concrete
+     * self-bound class (no interface), so it carries `@SingleIn(AppScope)` + `@Inject` (NOT
+     * `@ContributesBinding`, which binds to a supertype); THIS accessor pulls it into the graph as a
+     * retained singleton. The 13 `*HiltEntryPoint.loggerHolder()` readers + the `BaseStore` ctor param
+     * resolve it via the single adopt-back `@Provides` ([AppGraphAdoptBackModule]) delegating here.
+     */
+    val loggerHolder: LoggerHolder
+
+    /**
+     * App-Scope Collapse Step 3 (SB1, core:ui:mvi slice). Metro-owned [StoreDispatchers]. Its two
+     * `CoroutineDispatcher` ctor deps are the collider set, still Hilt-owned at this layer, so they are
+     * bridged into [Factory.create] as qualified bound instances (`@DefaultDispatcher` /
+     * `@MainImmediateDispatcher` survive via `includeJavax`) until core:core-android is migrated.
+     */
+    val storeDispatchers: StoreDispatchers
+
+    /**
      * Metro CONSTRUCTS and retains the leaf. `@SingleIn(AppScope)` binds it to this graph's
      * lifetime — i.e. the process — the exact lifetime Hilt's `@Singleton` gave. This is the first
      * app-scoped binding Metro *owns* (features only ever ADOPTED Hilt-owned singletons in).
@@ -56,6 +78,12 @@ internal interface AppGraph {
             // PLAIN Context bound instance (locked C shape). Unused by the leaf, but fixes the graph
             // shape so the bulk migration adds AppDatabase/etc. as siblings without reshaping create().
             @Provides applicationContext: Context,
+            // App-Scope Collapse Step 3 (SB1, mvi slice): the 2 collider dispatchers StoreDispatchers
+            // needs are still Hilt-owned (CoreModule, core:core-android) at this layer, so they are
+            // bridged in as QUALIFIED bound instances (includeJavax carries the qualifiers). Transient —
+            // dropped from create() when core:core-android migrates the dispatchers to the graph.
+            @Provides @DefaultDispatcher defaultDispatcher: CoroutineDispatcher,
+            @Provides @MainImmediateDispatcher mainImmediateDispatcher: CoroutineDispatcher,
         ): AppGraph
     }
 }

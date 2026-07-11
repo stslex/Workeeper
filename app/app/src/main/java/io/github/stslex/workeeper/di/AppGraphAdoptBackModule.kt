@@ -5,7 +5,9 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
+import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
 import javax.inject.Singleton
 
 /**
@@ -41,4 +43,28 @@ internal object AppGraphAdoptBackModule {
     fun provideAnalyticsHolder(
         appGraph: AppGraph,
     ): AnalyticsHolder = appGraph.analyticsHolder
+
+    /**
+     * Adopt-back for [LoggerHolder] (App-Scope Collapse Step 3, mvi slice). Returns
+     * `appGraph.loggerHolder` — the SAME instance the Metro graph retains (`@SingleIn(AppScope)`),
+     * never a parallel Hilt construction (`LoggerHolder`'s Hilt `@Inject`/`@Singleton` were stripped, so
+     * this is the ONLY Hilt binding). The 13 `*HiltEntryPoint.loggerHolder()` readers + the `BaseStore`
+     * ctor param resolve through this single provider.
+     */
+    @Provides
+    @Singleton
+    fun provideLoggerHolder(
+        appGraph: AppGraph,
+    ): LoggerHolder = appGraph.loggerHolder
+
+    /**
+     * Adopt-back for [StoreDispatchers] (App-Scope Collapse Step 3, mvi slice). Same single-owner
+     * delegation: returns the graph's retained instance for the 13 `*HiltEntryPoint.storeDispatchers()`
+     * readers.
+     */
+    @Provides
+    @Singleton
+    fun provideStoreDispatchers(
+        appGraph: AppGraph,
+    ): StoreDispatchers = appGraph.storeDispatchers
 }
