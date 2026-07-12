@@ -1,18 +1,21 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.exercise.training
 
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.data.database.converters.PlanSetsConverter
 import io.github.stslex.workeeper.core.data.database.sets.PlanSetDataModel
 import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseDao
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
-import javax.inject.Singleton
 import kotlin.uuid.Uuid
 
-@Singleton
-internal class TrainingExerciseRepositoryImpl @Inject constructor(
+@ContributesBinding(AppScope::class)
+@SingleIn(AppScope::class)
+class TrainingExerciseRepositoryImpl @Inject internal constructor(
     private val dao: TrainingExerciseDao,
     @IODispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : TrainingExerciseRepository {

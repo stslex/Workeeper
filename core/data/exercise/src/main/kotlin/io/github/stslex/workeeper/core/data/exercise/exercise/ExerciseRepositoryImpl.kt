@@ -5,10 +5,14 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.coroutine.asyncForEach
 import io.github.stslex.workeeper.core.core.coroutine.asyncMap
 import io.github.stslex.workeeper.core.core.coroutine.asyncMapNotNull
 import io.github.stslex.workeeper.core.core.coroutine.asyncScope
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.images.ImageStorage
 import io.github.stslex.workeeper.core.core.utils.CommonExt.runIf
@@ -45,13 +49,12 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
-import javax.inject.Singleton
 import kotlin.uuid.Uuid
 
 @Suppress("TooManyFunctions", "LongParameterList")
-@Singleton
-internal class ExerciseRepositoryImpl @Inject constructor(
+@ContributesBinding(AppScope::class)
+@SingleIn(AppScope::class)
+class ExerciseRepositoryImpl @Inject internal constructor(
     private val dao: ExerciseDao,
     private val tagDao: TagDao,
     private val exerciseTagDao: ExerciseTagDao,

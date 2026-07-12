@@ -41,6 +41,8 @@ import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
 import io.github.stslex.workeeper.core.data.backup.api.SnapshotStorage
 import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
 import io.github.stslex.workeeper.core.data.database_test.InMemoryDatabaseProvider
+import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
+import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.ui.test.fakes.FakeImageStorage
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.navigation.NavigatorEventBus
@@ -229,6 +231,25 @@ class AppGraphAdoptBackSeamTest {
         assertSame("Navigator interface === concrete NavigatorEventBus", ifaceMetro as Any, concreteMetro as Any)
         assertSame("Navigator Hilt adopt-back === Metro-owned", ifaceMetro, ep.navigator())
         assertSame("NavigatorEventBus Hilt adopt-back === Metro-owned", concreteMetro, ep.navigatorEventBus())
+    }
+
+    @Test
+    fun exerciseRepositories_hiltAdoptBackAndMetroResolveTheSameInstances() {
+        // App-Scope Collapse Step 3 (C2): the exercise repos are Metro-owned (@ContributesBinding); their
+        // still-Hilt readers (feature *HiltEntryPoint + pure-Hilt @Inject) resolve === the Metro-owned instance
+        // through the adopt-back shims. Two representative repos (Exercise + Session — the two heaviest).
+        val ep = EntryPointAccessors.fromApplication(
+            ApplicationProvider.getApplicationContext<Context>(), TestExerciseReposEntryPoint::class.java)
+        assertSame(
+            "ExerciseRepository Hilt adopt-back === Metro-owned",
+            TestAppGraphModule.testAppGraph.exerciseRepository,
+            ep.exerciseRepository(),
+        )
+        assertSame(
+            "SessionRepository Hilt adopt-back === Metro-owned",
+            TestAppGraphModule.testAppGraph.sessionRepository,
+            ep.sessionRepository(),
+        )
     }
 
     @Test
@@ -500,6 +521,14 @@ class AppGraphAdoptBackSeamTest {
         fun backupAuth(): BackupAuth
         fun backupStorage(): BackupStorage
         fun snapshotStorage(): SnapshotStorage
+    }
+
+    /** Mirrors the feature `*HiltEntryPoint` / pure-Hilt readers of the (now Metro-owned) exercise repos. */
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
+    interface TestExerciseReposEntryPoint {
+        fun exerciseRepository(): ExerciseRepository
+        fun sessionRepository(): SessionRepository
     }
 
     /**

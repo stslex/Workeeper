@@ -1,5 +1,9 @@
 package io.github.stslex.workeeper.core.data.exercise.tags
 
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
 import io.github.stslex.workeeper.core.data.database.tag.TagDao
@@ -11,12 +15,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
-import javax.inject.Singleton
 import kotlin.uuid.Uuid
 
-@Singleton
-internal class TagRepositoryImpl @Inject constructor(
+@ContributesBinding(AppScope::class)
+@SingleIn(AppScope::class)
+class TagRepositoryImpl @Inject internal constructor(
     private val dao: TagDao,
     @IODispatcher private val ioDispatcher: CoroutineDispatcher,
     private val transitionRunner: DbTransitionRunner,

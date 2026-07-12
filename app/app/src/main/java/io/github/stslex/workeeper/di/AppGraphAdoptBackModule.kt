@@ -20,6 +20,14 @@ import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupCont
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
 import io.github.stslex.workeeper.core.data.backup.google_drive.auth.AccountDataStore
 import io.github.stslex.workeeper.core.data.backup.worker.notification.BackupNotificationHelper
+import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
+import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordRepository
+import io.github.stslex.workeeper.core.data.exercise.session.PerformedExerciseRepository
+import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
+import io.github.stslex.workeeper.core.data.exercise.session.SetRepository
+import io.github.stslex.workeeper.core.data.exercise.tags.TagRepository
+import io.github.stslex.workeeper.core.data.exercise.training.TrainingExerciseRepository
+import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolder
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
@@ -307,4 +315,49 @@ internal object AppGraphAdoptBackModule {
     fun provideSnapshotStorage(
         appGraph: AppGraph,
     ): SnapshotStorage = appGraph.snapshotStorage
+
+    /**
+     * Adopt-back for the exercise repositories (App-Scope Collapse Step 3, C2). Each is Metro-owned via
+     * `@ContributesBinding(AppScope)` on its impl; these single-owner shims re-provide them into Hilt's
+     * `SingletonComponent` for the still-Hilt readers — the feature `*HiltEntryPoint` bridges AND every
+     * pure-Hilt `@Inject` consumer (interactors / handlers / use cases). One shim per type serves all its
+     * consumers. `StatsRepository` has zero consumers (dead) — no shim.
+     */
+    @Provides
+    @Singleton
+    fun provideExerciseRepository(appGraph: AppGraph): ExerciseRepository = appGraph.exerciseRepository
+
+    @Provides
+    @Singleton
+    fun provideSessionRepository(appGraph: AppGraph): SessionRepository = appGraph.sessionRepository
+
+    @Provides
+    @Singleton
+    fun provideSetRepository(appGraph: AppGraph): SetRepository = appGraph.setRepository
+
+    @Provides
+    @Singleton
+    fun provideTagRepository(appGraph: AppGraph): TagRepository = appGraph.tagRepository
+
+    @Provides
+    @Singleton
+    fun providePersonalRecordRepository(
+        appGraph: AppGraph,
+    ): PersonalRecordRepository = appGraph.personalRecordRepository
+
+    @Provides
+    @Singleton
+    fun providePerformedExerciseRepository(
+        appGraph: AppGraph,
+    ): PerformedExerciseRepository = appGraph.performedExerciseRepository
+
+    @Provides
+    @Singleton
+    fun provideTrainingExerciseRepository(
+        appGraph: AppGraph,
+    ): TrainingExerciseRepository = appGraph.trainingExerciseRepository
+
+    @Provides
+    @Singleton
+    fun provideTrainingRepository(appGraph: AppGraph): TrainingRepository = appGraph.trainingRepository
 }

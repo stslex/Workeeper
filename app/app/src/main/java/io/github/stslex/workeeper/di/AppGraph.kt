@@ -33,6 +33,15 @@ import io.github.stslex.workeeper.core.data.database.tag.TagDao
 import io.github.stslex.workeeper.core.data.database.tag.TrainingTagDao
 import io.github.stslex.workeeper.core.data.database.training.TrainingDao
 import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseDao
+import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
+import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordRepository
+import io.github.stslex.workeeper.core.data.exercise.session.PerformedExerciseRepository
+import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
+import io.github.stslex.workeeper.core.data.exercise.session.SetRepository
+import io.github.stslex.workeeper.core.data.exercise.stats.StatsRepository
+import io.github.stslex.workeeper.core.data.exercise.tags.TagRepository
+import io.github.stslex.workeeper.core.data.exercise.training.TrainingExerciseRepository
+import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
 import io.github.stslex.workeeper.core.ui.kit.utils.NumUiUtils
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolder
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
@@ -208,6 +217,24 @@ internal interface AppGraph {
     val backupAuth: BackupAuth
     val backupStorage: BackupStorage
     val snapshotStorage: SnapshotStorage
+
+    /**
+     * App-Scope Collapse Step 3 (C2). The nine exercise repositories, now Metro-owned via
+     * `@ContributesBinding(AppScope)` on their (public) impls (their Room-DAO / DbTransitionRunner /
+     * ImageStorage ctor deps resolve from the C2 bridge params; `@IO` from the graph). Eight are read
+     * cross-module by still-Hilt features (via `*HiltEntryPoint` bridges + pure-Hilt `@Inject`) and resolve
+     * through their adopt-back shims; [statsRepository] has zero consumers (dead binding) — exposed for
+     * completeness/identity, no shim.
+     */
+    val exerciseRepository: ExerciseRepository
+    val sessionRepository: SessionRepository
+    val setRepository: SetRepository
+    val tagRepository: TagRepository
+    val personalRecordRepository: PersonalRecordRepository
+    val performedExerciseRepository: PerformedExerciseRepository
+    val trainingExerciseRepository: TrainingExerciseRepository
+    val trainingRepository: TrainingRepository
+    val statsRepository: StatsRepository
 
     /**
      * Metro CONSTRUCTS and retains the leaf. `@SingleIn(AppScope)` binds it to this graph's
