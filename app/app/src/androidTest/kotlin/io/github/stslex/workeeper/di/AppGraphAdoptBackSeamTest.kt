@@ -19,7 +19,9 @@ import io.github.stslex.workeeper.core.core.platform.AppReinitializer
 import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
 import io.github.stslex.workeeper.core.core.platform.TempFileProvider
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
+import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
+import io.github.stslex.workeeper.core.data.backup.worker.notification.BackupNotificationHelper
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolder
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
@@ -256,6 +258,22 @@ class AppGraphAdoptBackSeamTest {
         assertSame("RestoreStateRepository ===", TestAppGraphModule.testAppGraph.restoreStateRepository, ep.restoreStateRepository())
     }
 
+    @Test
+    fun workerBindings_hiltAdoptBackAndMetroResolveTheSameInstance() {
+        // Only BackupNotificationHelper is asserted here. AutoBackupController (BackupScheduler) eagerly calls
+        // WorkManager.getInstance(context) in its init — which throws under HiltTestApplication (no
+        // Configuration.Provider). It was never constructed in tests before (lazy @Singleton, no trigger);
+        // the seam test must NOT force-construct it. Its adopt-back is validated by the app:dev flavor
+        // Regression (a real Configuration.Provider app) instead.
+        val ep = EntryPointAccessors.fromApplication(
+            ApplicationProvider.getApplicationContext<Context>(), TestWorkerEntryPoint::class.java)
+        assertSame(
+            "BackupNotificationHelper ===",
+            TestAppGraphModule.testAppGraph.backupNotificationHelper,
+            ep.backupNotificationHelper(),
+        )
+    }
+
     /**
      * Equivalent to a production `*HiltEntryPoint.analyticsHolder()`: reads `AnalyticsHolder` from
      * Hilt's `SingletonComponent`, now served exclusively by the adopt-back delegating `@Provides`.
@@ -316,6 +334,13 @@ class AppGraphAdoptBackSeamTest {
     @InstallIn(SingletonComponent::class)
     interface TestRestoreStateEntryPoint {
         fun restoreStateRepository(): RestoreStateRepository
+    }
+
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
+    interface TestWorkerEntryPoint {
+        fun autoBackupController(): AutoBackupController
+        fun backupNotificationHelper(): BackupNotificationHelper
     }
 }
 

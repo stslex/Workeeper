@@ -9,10 +9,10 @@ import android.content.Intent
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.getSystemService
-import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.data.backup.worker.R
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Owns the lifecycle of the persistent "Auto-backup paused" notification surfaced
@@ -25,9 +25,13 @@ import javax.inject.Singleton
  * first show call rather than at app startup so app cold-start cost stays flat
  * for users who never hit the auth-revoked path.
  */
-@Singleton
-internal class BackupNotificationHelper @Inject constructor(
-    @ApplicationContext private val context: Context,
+// App-Scope Collapse Step 3 (SB1): Hilt @Inject/@Singleton stripped; self-bound (no interface) → Metro-owned
+// via @SingleIn(AppScope)+@Inject + an AppGraph accessor (NOT @ContributesBinding — needs a supertype).
+// Public for cross-module aggregation (D1). Context plain.
+@SingleIn(AppScope::class)
+@Inject
+class BackupNotificationHelper(
+    private val context: Context,
 ) {
 
     fun showAuthPaused() {

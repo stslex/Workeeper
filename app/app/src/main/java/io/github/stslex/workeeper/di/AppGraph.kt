@@ -12,7 +12,9 @@ import io.github.stslex.workeeper.core.core.platform.AppReinitializer
 import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
 import io.github.stslex.workeeper.core.core.platform.TempFileProvider
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
+import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
+import io.github.stslex.workeeper.core.data.backup.worker.notification.BackupNotificationHelper
 import io.github.stslex.workeeper.core.ui.kit.utils.NumUiUtils
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolder
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
@@ -86,6 +88,13 @@ internal interface AppGraph {
 
     /** App-Scope Collapse Step 3 (scheduling slice). Metro-owned RestoreStateRepository. */
     val restoreStateRepository: RestoreStateRepository
+
+    /**
+     * App-Scope Collapse Step 3 (worker slice). Metro-owned AutoBackupController (BackupScheduler) +
+     * BackupNotificationHelper.
+     */
+    val autoBackupController: AutoBackupController
+    val backupNotificationHelper: BackupNotificationHelper
 
     /**
      * App-Scope Collapse Step 3 (SB1, backup/scheduling slice). Metro-owned [BackupPreferencesRepository]

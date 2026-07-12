@@ -9,7 +9,9 @@ import io.github.stslex.workeeper.core.core.platform.AppReinitializer
 import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
 import io.github.stslex.workeeper.core.core.platform.TempFileProvider
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
+import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
+import io.github.stslex.workeeper.core.data.backup.worker.notification.BackupNotificationHelper
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolder
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
@@ -127,4 +129,23 @@ internal object AppGraphAdoptBackModule {
     fun provideRestoreStateRepository(
         appGraph: AppGraph,
     ): RestoreStateRepository = appGraph.restoreStateRepository
+
+    /**
+     * Adopt-back: AutoBackupController — read by BackupWorkerHiltEntryPoint (Step-2 bridge) and
+     * SettingsHiltEntryPoint.
+     */
+    @Provides
+    @Singleton
+    fun provideAutoBackupController(
+        appGraph: AppGraph,
+    ): AutoBackupController = appGraph.autoBackupController
+
+    /**
+     * Adopt-back: BackupNotificationHelper — read by BackupWorkerHiltEntryPoint (Step-2 bridge).
+     */
+    @Provides
+    @Singleton
+    fun provideBackupNotificationHelper(
+        appGraph: AppGraph,
+    ): BackupNotificationHelper = appGraph.backupNotificationHelper
 }
