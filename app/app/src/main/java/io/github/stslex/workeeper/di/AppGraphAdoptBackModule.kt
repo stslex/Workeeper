@@ -5,6 +5,9 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import io.github.stslex.workeeper.core.core.platform.AppReinitializer
+import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
+import io.github.stslex.workeeper.core.core.platform.TempFileProvider
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolder
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
@@ -98,4 +101,19 @@ internal object AppGraphAdoptBackModule {
     @Provides
     @Singleton
     fun provideActivityHolderProducer(appGraph: AppGraph): ActivityHolderProducer = appGraph.activityHolderProducer
+
+    /** Adopt-back: PlatformInfoProvider (read by RestoreRecoveryCoordinator + SettingsHiltEntryPoint). */
+    @Provides
+    @Singleton
+    fun providePlatformInfoProvider(appGraph: AppGraph): PlatformInfoProvider = appGraph.platformInfoProvider
+
+    /** Adopt-back: TempFileProvider (read by SettingsHiltEntryPoint). */
+    @Provides
+    @Singleton
+    fun provideTempFileProvider(appGraph: AppGraph): TempFileProvider = appGraph.tempFileProvider
+
+    /** Adopt-back: AppReinitializer (read by NavigatorEventBus + RestoreRecoveryCoordinator). */
+    @Provides
+    @Singleton
+    fun provideAppReinitializer(appGraph: AppGraph): AppReinitializer = appGraph.appReinitializer
 }

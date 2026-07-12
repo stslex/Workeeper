@@ -1,5 +1,16 @@
 plugins {
     alias(libs.plugins.convention.androidLibrary)
+    // App-Scope Collapse Step 3: Metro plugin so the platform impls (Android{PlatformInfoProvider,
+    // TempFileProvider,AppReinitializer}) contribute to the app-scope AppGraph via @ContributesBinding.
+    // This module DECLARES AppScope (a bare marker) — the plugin only processes the contributing impls.
+    // Metro coexists with the module's Hilt @Modules (PlatformModule keeps nothing; CoreModule dispatchers stay).
+    alias(libs.plugins.metro)
+}
+
+metro {
+    interop {
+        includeJavax()
+    }
 }
 
 // Android/Hilt side of the split core module (Phase C KMP cascade, L1). :core:core is a

@@ -8,6 +8,9 @@ import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
+import io.github.stslex.workeeper.core.core.platform.AppReinitializer
+import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
+import io.github.stslex.workeeper.core.core.platform.TempFileProvider
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
 import io.github.stslex.workeeper.core.ui.kit.utils.NumUiUtils
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolder
@@ -74,6 +77,11 @@ internal interface AppGraph {
      */
     val activityHolder: ActivityHolder
     val activityHolderProducer: ActivityHolderProducer
+
+    /** App-Scope Collapse Step 3 (core-android platform slice). Metro-owned via @ContributesBinding. */
+    val platformInfoProvider: PlatformInfoProvider
+    val tempFileProvider: TempFileProvider
+    val appReinitializer: AppReinitializer
 
     /**
      * App-Scope Collapse Step 3 (SB1, backup/scheduling slice). Metro-owned [BackupPreferencesRepository]

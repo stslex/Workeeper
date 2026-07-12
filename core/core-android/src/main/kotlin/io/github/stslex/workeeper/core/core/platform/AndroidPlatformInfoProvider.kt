@@ -5,13 +5,24 @@ import android.content.Context
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.os.Build
-import dagger.hilt.android.qualifiers.ApplicationContext
-import javax.inject.Inject
-import javax.inject.Singleton
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.AppScope
 
-@Singleton
-internal class AndroidPlatformInfoProvider @Inject constructor(
-    @ApplicationContext private val context: Context,
+/**
+ * App-Scope Collapse Step 3 (SB1). Hilt `@Inject`/`@Singleton` stripped, Hilt `@Binds` removed from
+ * PlatformModule; now Metro-owned via `@ContributesBinding(AppScope)` (auto-aggregated by the app-scope
+ * AppGraph). `@SingleIn(AppScope)` = process-lifetime single-owner. `public` for cross-module aggregation
+ * (D1 — the merged AppGraph in :app:app cannot extend an internal contribution; never hand-construct,
+ * resolve via DI). Context is PLAIN (Metro resolves it from the graph's create(applicationContext); the
+ * Hilt `@ApplicationContext` qualifier is not javax so includeJavax does not carry it).
+ */
+@ContributesBinding(AppScope::class)
+@SingleIn(AppScope::class)
+@Inject
+class AndroidPlatformInfoProvider(
+    private val context: Context,
 ) : PlatformInfoProvider {
 
     private val packageInfo: PackageInfo by lazy {

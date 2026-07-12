@@ -15,6 +15,9 @@ import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.components.SingletonComponent
 import dagger.hilt.testing.TestInstallIn
 import dev.zacsweers.metro.createGraphFactory
+import io.github.stslex.workeeper.core.core.platform.AppReinitializer
+import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
+import io.github.stslex.workeeper.core.core.platform.TempFileProvider
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolder
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
@@ -234,6 +237,17 @@ class AppGraphAdoptBackSeamTest {
         assertSame("Hilt adopt-back ActivityHolderProducer === Metro-owned", producerMetro, producerHilt)
     }
 
+    @Test
+    fun platformBindings_hiltAdoptBackAndMetroResolveTheSameInstance() {
+        // App-Scope Collapse Step 3 core-android platform slice: 3 interface-bound @ContributesBinding
+        // impls (PlatformInfoProvider/TempFileProvider/AppReinitializer). Each Hilt adopt-back === Metro.
+        val ep = EntryPointAccessors.fromApplication(
+            ApplicationProvider.getApplicationContext<Context>(), TestPlatformEntryPoint::class.java)
+        assertSame("PlatformInfoProvider ===", TestAppGraphModule.testAppGraph.platformInfoProvider, ep.platformInfoProvider())
+        assertSame("TempFileProvider ===", TestAppGraphModule.testAppGraph.tempFileProvider, ep.tempFileProvider())
+        assertSame("AppReinitializer ===", TestAppGraphModule.testAppGraph.appReinitializer, ep.appReinitializer())
+    }
+
     /**
      * Equivalent to a production `*HiltEntryPoint.analyticsHolder()`: reads `AnalyticsHolder` from
      * Hilt's `SingletonComponent`, now served exclusively by the adopt-back delegating `@Provides`.
@@ -280,6 +294,14 @@ class AppGraphAdoptBackSeamTest {
     interface TestActivityHolderEntryPoint {
         fun activityHolder(): ActivityHolder
         fun activityHolderProducer(): ActivityHolderProducer
+    }
+
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
+    interface TestPlatformEntryPoint {
+        fun platformInfoProvider(): PlatformInfoProvider
+        fun tempFileProvider(): TempFileProvider
+        fun appReinitializer(): AppReinitializer
     }
 }
 
