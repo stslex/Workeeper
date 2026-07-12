@@ -11,6 +11,7 @@ import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.core.platform.AppReinitializer
 import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
 import io.github.stslex.workeeper.core.core.platform.TempFileProvider
+import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
@@ -245,4 +246,15 @@ internal object AppGraphAdoptBackModule {
     fun provideIODispatcher(
         appGraph: AppGraph,
     ): CoroutineDispatcher = appGraph.ioDispatcher
+
+    /**
+     * Adopt-back for [ResourceWrapper] (App-Scope Collapse Step 3, PF commit 2A). Metro-owned via
+     * `ResourceWrapperBindingContainer`; the ten feature `*HiltEntryPoint.resourceWrapper()` bridges
+     * resolve the singleton through this delegating shim.
+     */
+    @Provides
+    @Singleton
+    fun provideResourceWrapper(
+        appGraph: AppGraph,
+    ): ResourceWrapper = appGraph.resourceWrapper
 }

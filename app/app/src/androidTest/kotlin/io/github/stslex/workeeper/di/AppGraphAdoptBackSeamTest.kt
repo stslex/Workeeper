@@ -35,6 +35,7 @@ import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObs
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
+import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.test.annotations.Regression
 import kotlinx.coroutines.CoroutineDispatcher
 import org.junit.Assert.assertFalse
@@ -193,6 +194,19 @@ class AppGraphAdoptBackSeamTest {
         assertSame("@DefaultDispatcher ===", TestAppGraphModule.testAppGraph.defaultDispatcher, ep.defaultDispatcher())
         assertSame("@MainImmediateDispatcher ===", TestAppGraphModule.testAppGraph.mainImmediateDispatcher, ep.mainImmediateDispatcher())
         assertSame("@IODispatcher ===", TestAppGraphModule.testAppGraph.ioDispatcher, ep.ioDispatcher())
+    }
+
+    @Test
+    fun resourceWrapper_hiltAdoptBackAndMetroResolveTheSameInstance() {
+        // App-Scope Collapse Step 3 (PF commit 2A): ResourceWrapper via ResourceWrapperBindingContainer.
+        // The ten feature *HiltEntryPoint.resourceWrapper() bridges resolve the SAME Metro-owned instance.
+        val ep = EntryPointAccessors.fromApplication(
+            ApplicationProvider.getApplicationContext<Context>(), TestResourceWrapperEntryPoint::class.java)
+        assertSame(
+            "ResourceWrapper ===",
+            TestAppGraphModule.testAppGraph.resourceWrapper,
+            ep.resourceWrapper(),
+        )
     }
 
     @Test
@@ -438,6 +452,13 @@ class AppGraphAdoptBackSeamTest {
 
         @IODispatcher
         fun ioDispatcher(): CoroutineDispatcher
+    }
+
+    /** Mirrors the ten feature `*HiltEntryPoint.resourceWrapper()` bridges. */
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
+    interface TestResourceWrapperEntryPoint {
+        fun resourceWrapper(): ResourceWrapper
     }
 }
 

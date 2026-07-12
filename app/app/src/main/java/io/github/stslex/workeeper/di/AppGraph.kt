@@ -13,6 +13,7 @@ import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.core.platform.AppReinitializer
 import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
 import io.github.stslex.workeeper.core.core.platform.TempFileProvider
+import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
@@ -94,6 +95,14 @@ internal interface AppGraph {
 
     @IODispatcher
     val ioDispatcher: CoroutineDispatcher
+
+    /**
+     * App-Scope Collapse Step 3 (PF commit 2A). Metro-owned [ResourceWrapper] — CONTRIBUTED by
+     * `ResourceWrapperBindingContainer` (`@BindingContainer @ContributesTo(AppScope)`, its `Context` from
+     * the `create(applicationContext)` bound instance). The ten feature `*HiltEntryPoint.resourceWrapper()`
+     * bridges resolve it via the single adopt-back `@Provides`.
+     */
+    val resourceWrapper: ResourceWrapper
 
     /**
      * App-Scope Collapse Step 3 (SB1). Metro-owned [ActivityHolder] + [ActivityHolderProducer] — the same
