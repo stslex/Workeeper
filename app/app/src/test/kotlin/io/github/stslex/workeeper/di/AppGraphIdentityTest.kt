@@ -21,8 +21,24 @@ import org.junit.jupiter.api.Test
  */
 internal class AppGraphIdentityTest {
 
+    // App-Scope Collapse Step 3 (C2, bridge-scaffold): create() now also takes the db-cascade substrate
+    // (9 DAOs + DbTransitionRunner + ImageStorage). These identity tests only exercise the leaf accessor,
+    // so all bridge inputs are relaxed mocks — none is consumed until the repo flips land (C2 commit 2).
     private fun buildGraph(): AppGraph = createGraphFactory<AppGraph.Factory>()
-        .create(applicationContext = mockk<Context>(relaxed = true))
+        .create(
+            applicationContext = mockk<Context>(relaxed = true),
+            exerciseDao = mockk(relaxed = true),
+            exerciseTagDao = mockk(relaxed = true),
+            performedExerciseDao = mockk(relaxed = true),
+            sessionDao = mockk(relaxed = true),
+            setDao = mockk(relaxed = true),
+            tagDao = mockk(relaxed = true),
+            trainingDao = mockk(relaxed = true),
+            trainingExerciseDao = mockk(relaxed = true),
+            trainingTagDao = mockk(relaxed = true),
+            dbTransitionRunner = mockk(relaxed = true),
+            imageStorage = mockk(relaxed = true),
+        )
 
     @Test
     fun `app graph constructs the leaf singleton`() {

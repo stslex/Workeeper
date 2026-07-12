@@ -10,6 +10,7 @@ import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.core.di.DispatchersBindingContainer
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
+import io.github.stslex.workeeper.core.core.images.ImageStorage
 import io.github.stslex.workeeper.core.core.platform.AppReinitializer
 import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
 import io.github.stslex.workeeper.core.core.platform.TempFileProvider
@@ -22,6 +23,16 @@ import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupCont
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
 import io.github.stslex.workeeper.core.data.backup.google_drive.auth.AccountDataStore
 import io.github.stslex.workeeper.core.data.backup.worker.notification.BackupNotificationHelper
+import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
+import io.github.stslex.workeeper.core.data.database.exercise.ExerciseDao
+import io.github.stslex.workeeper.core.data.database.session.PerformedExerciseDao
+import io.github.stslex.workeeper.core.data.database.session.SessionDao
+import io.github.stslex.workeeper.core.data.database.session.SetDao
+import io.github.stslex.workeeper.core.data.database.tag.ExerciseTagDao
+import io.github.stslex.workeeper.core.data.database.tag.TagDao
+import io.github.stslex.workeeper.core.data.database.tag.TrainingTagDao
+import io.github.stslex.workeeper.core.data.database.training.TrainingDao
+import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseDao
 import io.github.stslex.workeeper.core.ui.kit.utils.NumUiUtils
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolder
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
@@ -210,9 +221,26 @@ internal interface AppGraph {
     @DependencyGraph.Factory
     fun interface Factory {
         fun create(
-            // PLAIN Context bound instance (locked C shape). Unused by the leaf, but fixes the graph
-            // shape so the bulk migration adds AppDatabase/etc. as siblings without reshaping create().
+            // PLAIN Context bound instance (locked C shape).
             @Provides applicationContext: Context,
+            // App-Scope Collapse Step 3 (C2, bridge-scaffold). The exercise-repo migration's db-cascade
+            // substrate: 9 Room DAOs + DbTransitionRunner + ImageStorage are BRIDGE-READ from Hilt as bound
+            // instances (they stay Hilt-owned — the db-cascade is Step-5-fenced, ImageStorage is the C1
+            // carveout). NEVER constructed here: the callers pull the Hilt-BOUND instances so tests that
+            // @TestInstallIn-swap FakeImageStorage still get the fake. Cycle-free since C2-h' (the @IO→appGraph
+            // back-edge is dissolved: DbTransitionRunner/ImageStorageImpl need @IO, which is now a direct Hilt
+            // Dispatchers.IO, not routed through appGraph). Unconsumed until the repo flips land (C2 commit 2).
+            @Provides exerciseDao: ExerciseDao,
+            @Provides exerciseTagDao: ExerciseTagDao,
+            @Provides performedExerciseDao: PerformedExerciseDao,
+            @Provides sessionDao: SessionDao,
+            @Provides setDao: SetDao,
+            @Provides tagDao: TagDao,
+            @Provides trainingDao: TrainingDao,
+            @Provides trainingExerciseDao: TrainingExerciseDao,
+            @Provides trainingTagDao: TrainingTagDao,
+            @Provides dbTransitionRunner: DbTransitionRunner,
+            @Provides imageStorage: ImageStorage,
         ): AppGraph
     }
 }

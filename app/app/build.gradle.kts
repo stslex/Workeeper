@@ -26,6 +26,9 @@ dependencies {
     // Android/Hilt half of core:core — its @Modules aggregate into the app's single Dagger graph.
     implementation(project(":core:core-android"))
     androidTestImplementation(project(":core:ui:test-utils"))
+    // App-Scope Collapse Step 3 (C2): the seam's TestAppGraphModule builds the graph with real in-memory-Room
+    // DAOs (the C2 bridge params) via InMemoryDatabaseProvider — no mockk on the app:app androidTest classpath.
+    androidTestImplementation(project(":core:data:database-test"))
 
     implementation(project(":core:ui:kit"))
     implementation(project(":core:ui:navigation"))

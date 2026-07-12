@@ -39,6 +39,9 @@ import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
 import io.github.stslex.workeeper.core.data.backup.api.SnapshotStorage
+import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
+import io.github.stslex.workeeper.core.data.database_test.InMemoryDatabaseProvider
+import io.github.stslex.workeeper.core.ui.test.fakes.FakeImageStorage
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.navigation.NavigatorEventBus
 import io.github.stslex.workeeper.core.ui.test.annotations.Regression
@@ -557,9 +560,30 @@ internal object TestAppGraphModule {
     // Collapse Step 3 (PF commit 1): the dispatchers are Metro-owned (DispatchersBindingContainer), so
     // create() takes only applicationContext — the same shrunk signature the prod BaseApplication uses.
     val testAppGraph: AppGraph by lazy {
+        val db = InMemoryDatabaseProvider.create(ApplicationProvider.getApplicationContext())
         createGraphFactory<AppGraph.Factory>()
             .create(
                 applicationContext = ApplicationProvider.getApplicationContext<Context>(),
+                // App-Scope Collapse Step 3 (C2, bridge-scaffold): the seam identity tests never call the repos,
+                // so the DAOs come from a real in-memory AppDatabase (no mockk on the app:app androidTest
+                // classpath); DbTransitionRunner is a no-op passthrough; ImageStorage uses the real
+                // FakeImageStorage to mirror the @TestInstallIn fake the prod bridge reads. All unconsumed until
+                // the repo flips land (C2 commit 2).
+                exerciseDao = db.exerciseDao,
+                exerciseTagDao = db.exerciseTagDao,
+                performedExerciseDao = db.performedExerciseDao,
+                sessionDao = db.sessionDao,
+                setDao = db.setDao,
+                tagDao = db.tagDao,
+                trainingDao = db.trainingDao,
+                trainingExerciseDao = db.trainingExerciseDao,
+                trainingTagDao = db.trainingTagDao,
+                dbTransitionRunner = object : DbTransitionRunner {
+                    override suspend operator fun <T> invoke(
+                        block: suspend kotlinx.coroutines.CoroutineScope.() -> T,
+                    ): T = kotlinx.coroutines.coroutineScope(block)
+                },
+                imageStorage = FakeImageStorage(),
             )
     }
 
