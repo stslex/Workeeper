@@ -1,12 +1,32 @@
 package io.github.stslex.workeeper.core.ui.kit.utils.activityHolder
 
 import android.app.Activity
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import dev.zacsweers.metro.binding
+import io.github.stslex.workeeper.core.core.di.AppScope
 import java.lang.ref.WeakReference
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class ActivityHolderImpl @Inject constructor() : ActivityHolder, ActivityHolderProducer {
+/**
+ * App-Scope Collapse Step 3 (SB1). Hilt's `@Inject`/`@Singleton` were stripped and the Hilt `@Binds` in
+ * `CoreUiKitModule` removed; this type is now Metro-owned via `@ContributesBinding(AppScope)`, which the
+ * app-scope `AppGraph` auto-aggregates. `@SingleIn(AppScope)` gives the process-lifetime single-owner the
+ * `@Singleton` gave — one holder retains the current `Activity` across the process.
+ *
+ * TWO supertypes ([ActivityHolder] + [ActivityHolderProducer]) → `@ContributesBinding` is `@Repeatable`,
+ * applied once per bound type with an explicit `binding<>()` (the ambiguity-resolving form Metro requires
+ * for a multi-supertype impl). Both contributions MUST use the same scope.
+ *
+ * `public` (already public here): required for cross-module Metro aggregation — the merged `AppGraph` in
+ * `:app:app` cannot extend an internal contribution from another module (D1). Never hand-construct; resolve
+ * `ActivityHolder`/`ActivityHolderProducer` via DI.
+ */
+@ContributesBinding(AppScope::class, binding = binding<ActivityHolder>())
+@ContributesBinding(AppScope::class, binding = binding<ActivityHolderProducer>())
+@SingleIn(AppScope::class)
+@Inject
+class ActivityHolderImpl : ActivityHolder, ActivityHolderProducer {
 
     private var _activity: WeakReference<Activity>? = null
 

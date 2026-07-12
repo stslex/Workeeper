@@ -10,6 +10,8 @@ import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
 import io.github.stslex.workeeper.core.ui.kit.utils.NumUiUtils
+import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolder
+import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
@@ -63,6 +65,15 @@ internal interface AppGraph {
      * `@MainImmediateDispatcher` survive via `includeJavax`) until core:core-android is migrated.
      */
     val storeDispatchers: StoreDispatchers
+
+    /**
+     * App-Scope Collapse Step 3 (SB1). Metro-owned [ActivityHolder] + [ActivityHolderProducer] — the same
+     * `ActivityHolderImpl` (one `@SingleIn(AppScope)` retained instance) contributes BOTH via repeatable
+     * `@ContributesBinding`. `ActivityHolder` is read by the still-Hilt `ResourceManagerImpl` (L1) and
+     * `ActivityHolderProducer` by `MainActivity`, both via the adopt-back `@Provides`.
+     */
+    val activityHolder: ActivityHolder
+    val activityHolderProducer: ActivityHolderProducer
 
     /**
      * App-Scope Collapse Step 3 (SB1, backup/scheduling slice). Metro-owned [BackupPreferencesRepository]

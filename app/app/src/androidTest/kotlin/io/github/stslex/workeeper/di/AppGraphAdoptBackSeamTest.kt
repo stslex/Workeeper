@@ -16,6 +16,8 @@ import dagger.hilt.components.SingletonComponent
 import dagger.hilt.testing.TestInstallIn
 import dev.zacsweers.metro.createGraphFactory
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
+import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolder
+import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
@@ -212,6 +214,26 @@ class AppGraphAdoptBackSeamTest {
         assertSame("Worker EntryPoint must resolve the SAME instance (===)", metro, hiltWorker)
     }
 
+    @Test
+    fun activityHolder_bothTypesAndHiltAdoptBackResolveTheSameSingleInstance() {
+        // App-Scope Collapse Step 3 ui-kit slice: ActivityHolderImpl backs TWO interfaces via repeatable
+        // @ContributesBinding. Both bound types AND the Hilt adopt-back must be the SAME retained instance.
+        val holderMetro = TestAppGraphModule.testAppGraph.activityHolder
+        val producerMetro = TestAppGraphModule.testAppGraph.activityHolderProducer
+        val holderHilt = EntryPointAccessors
+            .fromApplication(ApplicationProvider.getApplicationContext<Context>(), TestActivityHolderEntryPoint::class.java)
+            .activityHolder()
+        val producerHilt = EntryPointAccessors
+            .fromApplication(ApplicationProvider.getApplicationContext<Context>(), TestActivityHolderEntryPoint::class.java)
+            .activityHolderProducer()
+
+        assertNotNull(holderMetro)
+        // one @SingleIn(AppScope) ActivityHolderImpl → both accessors + both shims === the same object.
+        assertSame("ActivityHolder and ActivityHolderProducer are the SAME ActivityHolderImpl (===)", holderMetro as Any, producerMetro as Any)
+        assertSame("Hilt adopt-back ActivityHolder === Metro-owned", holderMetro, holderHilt)
+        assertSame("Hilt adopt-back ActivityHolderProducer === Metro-owned", producerMetro, producerHilt)
+    }
+
     /**
      * Equivalent to a production `*HiltEntryPoint.analyticsHolder()`: reads `AnalyticsHolder` from
      * Hilt's `SingletonComponent`, now served exclusively by the adopt-back delegating `@Provides`.
@@ -250,6 +272,14 @@ class AppGraphAdoptBackSeamTest {
     @InstallIn(SingletonComponent::class)
     interface TestBackupPrefsWorkerEntryPoint {
         fun backupPreferencesRepository(): BackupPreferencesRepository
+    }
+
+    /** Mirrors ResourceManagerImpl's ActivityHolder read + MainActivity's ActivityHolderProducer read. */
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
+    interface TestActivityHolderEntryPoint {
+        fun activityHolder(): ActivityHolder
+        fun activityHolderProducer(): ActivityHolderProducer
     }
 }
 

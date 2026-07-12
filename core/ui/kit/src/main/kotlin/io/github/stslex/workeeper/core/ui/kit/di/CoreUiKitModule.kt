@@ -4,9 +4,6 @@ import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolder
-import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderImpl
-import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
 import io.github.stslex.workeeper.core.ui.kit.utils.resource.ResourceManager
 import io.github.stslex.workeeper.core.ui.kit.utils.resource.ResourceManagerImpl
 import javax.inject.Singleton
@@ -15,13 +12,10 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 internal interface CoreUiKitModule {
 
-    @Binds
-    @Singleton
-    fun bindActivityHolder(impl: ActivityHolderImpl): ActivityHolder
-
-    @Binds
-    @Singleton
-    fun bindActivityHolderProducer(impl: ActivityHolderImpl): ActivityHolderProducer
+    // ActivityHolder + ActivityHolderProducer: App-Scope Collapse Step 3 — migrated to Metro
+    // (@ContributesBinding x2 on ActivityHolderImpl). Their @Binds were removed here; still-Hilt readers
+    // (ResourceManagerImpl for ActivityHolder, MainActivity for ActivityHolderProducer) resolve via the
+    // adopt-back @Provides in AppGraphAdoptBackModule.
 
     @Binds
     @Singleton

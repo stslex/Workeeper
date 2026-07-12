@@ -6,6 +6,8 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
+import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolder
+import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
@@ -80,4 +82,20 @@ internal object AppGraphAdoptBackModule {
     fun provideBackupPreferencesRepository(
         appGraph: AppGraph,
     ): BackupPreferencesRepository = appGraph.backupPreferencesRepository
+
+    /**
+     * Adopt-back for [ActivityHolder] (App-Scope Collapse Step 3, ui-kit slice). Single-owner delegation to
+     * the Metro graph's retained `ActivityHolderImpl`. Read by the still-Hilt `ResourceManagerImpl` (L1).
+     */
+    @Provides
+    @Singleton
+    fun provideActivityHolder(appGraph: AppGraph): ActivityHolder = appGraph.activityHolder
+
+    /**
+     * Adopt-back for [ActivityHolderProducer] — the SAME `ActivityHolderImpl` instance (repeatable
+     * `@ContributesBinding` binds both types to one owner). Read by `MainActivity` (@Inject field).
+     */
+    @Provides
+    @Singleton
+    fun provideActivityHolderProducer(appGraph: AppGraph): ActivityHolderProducer = appGraph.activityHolderProducer
 }
