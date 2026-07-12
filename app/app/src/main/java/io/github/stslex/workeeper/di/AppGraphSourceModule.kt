@@ -6,9 +6,6 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
-import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
-import kotlinx.coroutines.CoroutineDispatcher
 import javax.inject.Singleton
 
 /**
@@ -37,21 +34,16 @@ internal object AppGraphSourceModule {
     @Singleton
     fun provideAppGraph(
         application: Application,
-        // The db-cascade/collider bridge inputs the graph's create() needs. Hilt-owned at this layer, so
-        // they are injected here and passed to the test-branch build (prod BaseApplication passes the same
-        // set from its own EntryPoint). This provider is the single place that knows create()'s signature.
-        @DefaultDispatcher defaultDispatcher: CoroutineDispatcher,
-        @MainImmediateDispatcher mainImmediateDispatcher: CoroutineDispatcher,
     ): AppGraph = when (application) {
         // Prod: BaseApplication (and its dev/store subclasses) hold the process-lifetime graph.
         is AppGraphOwner -> application.appGraph
         // Test: HiltTestApplication is not an AppGraphOwner. Build the real graph from the app context —
         // the same construction BaseApplication.appGraph performs (via the shared [buildAppGraph]) — so
-        // the real adopt-back shims resolve.
+        // the real adopt-back shims resolve. App-Scope Collapse Step 3 (PF commit 1): this provider no
+        // longer injects the dispatchers — they are Metro-owned (DispatchersBindingContainer), so feeding
+        // them back through create() would be a cycle (provideAppGraph → dispatcher shim → appGraph).
         else -> buildAppGraph(
             applicationContext = application.applicationContext,
-            defaultDispatcher = defaultDispatcher,
-            mainImmediateDispatcher = mainImmediateDispatcher,
         )
     }
 }

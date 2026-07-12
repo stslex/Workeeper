@@ -32,8 +32,11 @@ import io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObse
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepository
 import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImpl
-import kotlinx.coroutines.Dispatchers
+import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
+import io.github.stslex.workeeper.core.core.di.IODispatcher
+import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.ui.test.annotations.Regression
+import kotlinx.coroutines.CoroutineDispatcher
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertSame
@@ -178,6 +181,18 @@ class AppGraphAdoptBackSeamTest {
             metro,
             hilt,
         )
+    }
+
+    @Test
+    fun dispatchers_hiltAdoptBackAndMetroResolveTheSameQualifiedInstances() {
+        // App-Scope Collapse Step 3 (PF commit 1): the FIRST provides-factory (@BindingContainer) migration.
+        // The 3 dispatchers with Hilt readers are Metro-owned; each qualified adopt-back @Provides returns
+        // the SAME instance the graph's DispatchersBindingContainer produced. Qualifiers survive includeJavax.
+        val ep = EntryPointAccessors.fromApplication(
+            ApplicationProvider.getApplicationContext<Context>(), TestDispatchersEntryPoint::class.java)
+        assertSame("@DefaultDispatcher ===", TestAppGraphModule.testAppGraph.defaultDispatcher, ep.defaultDispatcher())
+        assertSame("@MainImmediateDispatcher ===", TestAppGraphModule.testAppGraph.mainImmediateDispatcher, ep.mainImmediateDispatcher())
+        assertSame("@IODispatcher ===", TestAppGraphModule.testAppGraph.ioDispatcher, ep.ioDispatcher())
     }
 
     @Test
@@ -406,6 +421,24 @@ class AppGraphAdoptBackSeamTest {
     interface TestAccountDataStoreEntryPoint {
         fun accountDataStore(): AccountDataStore
     }
+
+    /**
+     * Mirrors the still-Hilt dispatcher readers (feature `*HiltEntryPoint` bridges + pure-Hilt `@Inject`
+     * interactors / handlers / `core:data` repositories) — each resolves the qualified dispatcher from
+     * Hilt's `SingletonComponent`, now served by the adopt-back shims delegating to the Metro graph.
+     */
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
+    interface TestDispatchersEntryPoint {
+        @DefaultDispatcher
+        fun defaultDispatcher(): CoroutineDispatcher
+
+        @MainImmediateDispatcher
+        fun mainImmediateDispatcher(): CoroutineDispatcher
+
+        @IODispatcher
+        fun ioDispatcher(): CoroutineDispatcher
+    }
 }
 
 /**
@@ -428,17 +461,13 @@ class AppGraphAdoptBackSeamTest {
 )
 internal object TestAppGraphModule {
 
-    // A single process-wide test graph, mirroring the prod `by lazy` app-owned singleton. The two
-    // collider dispatchers StoreDispatchers needs are bridged in as test doubles (App-Scope Collapse
-    // Step 3, mvi slice) — the same qualified bound-instance shape the prod BaseApplication passes.
+    // A single process-wide test graph, mirroring the prod `by lazy` app-owned singleton. App-Scope
+    // Collapse Step 3 (PF commit 1): the dispatchers are Metro-owned (DispatchersBindingContainer), so
+    // create() takes only applicationContext — the same shrunk signature the prod BaseApplication uses.
     val testAppGraph: AppGraph by lazy {
         createGraphFactory<AppGraph.Factory>()
             .create(
-                // Identity-only test: any CoroutineDispatcher constructs StoreDispatchers. Unconfined is
-                // on the core classpath (avoids a kotlinx-coroutines-test androidTest dep just for this).
                 applicationContext = ApplicationProvider.getApplicationContext<Context>(),
-                defaultDispatcher = Dispatchers.Unconfined,
-                mainImmediateDispatcher = Dispatchers.Unconfined,
             )
     }
 

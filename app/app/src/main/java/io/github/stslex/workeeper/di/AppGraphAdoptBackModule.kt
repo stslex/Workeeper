@@ -5,6 +5,9 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
+import io.github.stslex.workeeper.core.core.di.IODispatcher
+import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.core.platform.AppReinitializer
 import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
 import io.github.stslex.workeeper.core.core.platform.TempFileProvider
@@ -22,6 +25,7 @@ import io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObse
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepository
 import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImpl
+import kotlinx.coroutines.CoroutineDispatcher
 import javax.inject.Singleton
 
 /**
@@ -212,4 +216,33 @@ internal object AppGraphAdoptBackModule {
     fun provideAccountDataStore(
         appGraph: AppGraph,
     ): AccountDataStore = appGraph.accountDataStore
+
+    /**
+     * Adopt-back for the app CoroutineDispatchers (App-Scope Collapse Step 3, PF commit 1). The four
+     * dispatchers are Metro-owned (`DispatchersBindingContainer`); these qualified shims re-provide the
+     * three that have still-Hilt readers into the `SingletonComponent` — the feature `*HiltEntryPoint`
+     * bridges AND every pure-Hilt `@Inject @DefaultDispatcher/@IODispatcher/@MainImmediateDispatcher`
+     * consumer (interactors, handlers, `core:data` repositories) resolve through them. `@MainDispatcher`
+     * has zero consumers, so it needs no shim (provided by the container for completeness only).
+     */
+    @Provides
+    @Singleton
+    @DefaultDispatcher
+    fun provideDefaultDispatcher(
+        appGraph: AppGraph,
+    ): CoroutineDispatcher = appGraph.defaultDispatcher
+
+    @Provides
+    @Singleton
+    @MainImmediateDispatcher
+    fun provideMainImmediateDispatcher(
+        appGraph: AppGraph,
+    ): CoroutineDispatcher = appGraph.mainImmediateDispatcher
+
+    @Provides
+    @Singleton
+    @IODispatcher
+    fun provideIODispatcher(
+        appGraph: AppGraph,
+    ): CoroutineDispatcher = appGraph.ioDispatcher
 }

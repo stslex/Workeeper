@@ -9,8 +9,6 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import dev.zacsweers.metro.HasMemberInjections
-import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
-import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.core.images.ImageStorage
 import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
 import io.github.stslex.workeeper.core.core.logger.Log
@@ -22,7 +20,6 @@ import io.github.stslex.workeeper.di.buildAppGraph
 import io.github.stslex.workeeper.feature.recovery.boot.AppDialogObserverBootstrapEntryPoint
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
 import io.github.stslex.workeeper.feature.recovery.domain.StartupMigrationCoordinator
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -57,18 +54,10 @@ abstract class BaseApplication : Application(), Configuration.Provider, AppGraph
      */
     @Suppress("EXPOSED_PROPERTY_TYPE_IN_CONSTRUCTOR_ERROR", "EXPOSED_PROPERTY_TYPE")
     override val appGraph: AppGraph by lazy {
-        // App-Scope Collapse Step 3 (SB1, mvi slice): StoreDispatchers (Metro-owned) ctor-needs the two
-        // collider dispatchers, still Hilt-owned at this layer. Bridge them from Hilt into create() as
-        // qualified bound instances (transient until core:core-android migrates the dispatchers).
-        val dispatchers = EntryPointAccessors.fromApplication(
-            applicationContext,
-            DispatcherBridgeEntryPoint::class.java,
-        )
-        buildAppGraph(
-            applicationContext = applicationContext,
-            defaultDispatcher = dispatchers.defaultDispatcher(),
-            mainImmediateDispatcher = dispatchers.mainImmediateDispatcher(),
-        )
+        // App-Scope Collapse Step 3 (PF commit 1): the dispatcher bridge is retired — StoreDispatchers'
+        // dispatchers are now Metro-owned (DispatchersBindingContainer), so the graph self-provides them
+        // and create() needs only applicationContext.
+        buildAppGraph(applicationContext = applicationContext)
     }
 
     @Inject
@@ -183,21 +172,5 @@ abstract class BaseApplication : Application(), Configuration.Provider, AppGraph
     internal interface RecoveryEntryPoint {
         fun restoreRecoveryCoordinator(): RestoreRecoveryCoordinator
         fun startupMigrationCoordinator(): StartupMigrationCoordinator
-    }
-
-    /**
-     * App-Scope Collapse Step 3 (SB1, mvi slice). Pulls the two collider dispatchers
-     * StoreDispatchers needs (still Hilt-owned in CoreModule) so [appGraph] can bridge them into
-     * `AppGraph.create()` as qualified bound instances. Transient — retired when core:core-android
-     * migrates the dispatchers to the Metro graph.
-     */
-    @EntryPoint
-    @InstallIn(SingletonComponent::class)
-    internal interface DispatcherBridgeEntryPoint {
-        @DefaultDispatcher
-        fun defaultDispatcher(): CoroutineDispatcher
-
-        @MainImmediateDispatcher
-        fun mainImmediateDispatcher(): CoroutineDispatcher
     }
 }

@@ -17,9 +17,10 @@ import kotlinx.coroutines.CoroutineDispatcher
  *
  * COLLIDER ctor deps: the two `CoroutineDispatcher`s are distinguished only by their javax qualifiers
  * (`@DefaultDispatcher` / `@MainImmediateDispatcher`), which survive into the Metro graph via
- * `includeJavax`. The dispatchers themselves are still Hilt-owned (CoreModule, core:core-android) at
- * this layer, so they are bridged into `AppGraph.create()` as qualified bound instances until
- * core:core-android is migrated.
+ * `includeJavax`. App-Scope Collapse Step 3 (PF commit 1): the dispatchers are now Metro-owned
+ * (`DispatchersBindingContainer`, a `@BindingContainer @ContributesTo(AppScope)` in core:core-android),
+ * so the graph resolves these qualified deps from its own aggregated bindings — no longer bridged
+ * through `AppGraph.create()`.
  */
 @SingleIn(AppScope::class)
 @Inject
