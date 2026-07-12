@@ -14,6 +14,7 @@ import io.github.stslex.workeeper.core.core.platform.TempFileProvider
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
+import io.github.stslex.workeeper.core.data.backup.google_drive.auth.AccountDataStore
 import io.github.stslex.workeeper.core.data.backup.worker.notification.BackupNotificationHelper
 import io.github.stslex.workeeper.core.ui.kit.utils.NumUiUtils
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolder
@@ -128,6 +129,14 @@ internal interface AppGraph {
     val appDialogObserverImpl: AppDialogObserverImpl
     val appDialogObserver: AppDialogObserver
     val appDialogPublisher: AppDialogPublisher
+
+    /**
+     * App-Scope Collapse Step 3 (google-drive slice). Metro-owned [AccountDataStore] — CONTRIBUTED by
+     * `@ContributesBinding(AppScope)` on the (now public) `AccountDataStoreImpl`. Its `Context` resolves
+     * from the `create(applicationContext)` bound instance. The one clean Context-only gd binding (no
+     * cross-module reader); its four gd consumers stay Hilt this pass and resolve via the adopt-back shim.
+     */
+    val accountDataStore: AccountDataStore
 
     /**
      * Metro CONSTRUCTS and retains the leaf. `@SingleIn(AppScope)` binds it to this graph's

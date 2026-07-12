@@ -10,8 +10,6 @@ import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
 import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
 import io.github.stslex.workeeper.core.data.backup.api.SnapshotStorage
 import io.github.stslex.workeeper.core.data.backup.google_drive.SnapshotExportRunnerImpl
-import io.github.stslex.workeeper.core.data.backup.google_drive.auth.AccountDataStore
-import io.github.stslex.workeeper.core.data.backup.google_drive.auth.AccountDataStoreImpl
 import io.github.stslex.workeeper.core.data.backup.google_drive.auth.DriveAuthTokenProvider
 import io.github.stslex.workeeper.core.data.backup.google_drive.auth.DriveBackupAuth
 import io.github.stslex.workeeper.core.data.backup.google_drive.auth.DriveTokenInvalidator
@@ -25,6 +23,12 @@ import io.github.stslex.workeeper.core.data.backup.google_drive.storage.DriveBac
 import io.github.stslex.workeeper.core.data.backup.google_drive.storage.DriveSnapshotStorage
 import javax.inject.Singleton
 
+/**
+ * Hilt bindings for the google-drive backup module. App-Scope Collapse Step 3 removed
+ * `bindAccountDataStore` from here — `AccountDataStore` is now Metro-owned via
+ * `@ContributesBinding(AppScope)` on `AccountDataStoreImpl`, resolved by these consumers through the
+ * app/app adopt-back shim. The remaining eight `@Binds` (the Drive auth/network chain) stay Hilt.
+ */
 @Module
 @InstallIn(SingletonComponent::class)
 internal interface AuthBindingsModule {
@@ -52,10 +56,6 @@ internal interface AuthBindingsModule {
     @Binds
     @Singleton
     fun bindAuthTokenProvider(impl: DriveAuthTokenProvider): AuthTokenProvider
-
-    @Binds
-    @Singleton
-    fun bindAccountDataStore(impl: AccountDataStoreImpl): AccountDataStore
 
     @Binds
     @Singleton

@@ -14,8 +14,15 @@ import kotlinx.coroutines.flow.Flow
  * (`completeSignIn` / silent `signIn` success) so `DriveAuthTokenProvider` can
  * serve them on subsequent calls without a fresh `authorize()` round-trip. See
  * [TokenSnapshot] for the lifetime contract.
+ *
+ * DI (App-Scope Collapse Step 3): Metro-owned via `@ContributesBinding(AppScope)`
+ * on `AccountDataStoreImpl`. Public (not `internal`) because app/app's `AppGraph`
+ * names this interface in its accessor + adopt-back shim, and Metro contributions
+ * on an `internal` impl do not aggregate cross-Gradle-module. The four gd readers
+ * (`DriveAuthTokenProvider` / `DriveBackupAuth` / `DriveTokenInvalidator` /
+ * `DriveSnapshotStorage`) stay Hilt this pass and resolve it through that shim.
  */
-internal interface AccountDataStore {
+interface AccountDataStore {
 
     /** Hot stream of the persisted account. Emits `null` when no account is stored. */
     fun observeAccount(): Flow<Account?>

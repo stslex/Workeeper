@@ -11,6 +11,7 @@ import io.github.stslex.workeeper.core.core.platform.TempFileProvider
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
+import io.github.stslex.workeeper.core.data.backup.google_drive.auth.AccountDataStore
 import io.github.stslex.workeeper.core.data.backup.worker.notification.BackupNotificationHelper
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolder
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
@@ -200,4 +201,15 @@ internal object AppGraphAdoptBackModule {
     fun provideAppDialogPublisher(
         appGraph: AppGraph,
     ): AppDialogPublisher = appGraph.appDialogPublisher
+
+    /**
+     * Adopt-back: AccountDataStore (App-Scope Collapse Step 3, google-drive slice) — read by the four
+     * still-Hilt gd consumers (DriveAuthTokenProvider / DriveBackupAuth / DriveTokenInvalidator /
+     * DriveSnapshotStorage). Delegates to the single Metro-owned `AccountDataStoreImpl`.
+     */
+    @Provides
+    @Singleton
+    fun provideAccountDataStore(
+        appGraph: AppGraph,
+    ): AccountDataStore = appGraph.accountDataStore
 }

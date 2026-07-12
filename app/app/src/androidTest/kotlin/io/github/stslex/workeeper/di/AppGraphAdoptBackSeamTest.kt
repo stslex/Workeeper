@@ -21,6 +21,7 @@ import io.github.stslex.workeeper.core.core.platform.TempFileProvider
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
+import io.github.stslex.workeeper.core.data.backup.google_drive.auth.AccountDataStore
 import io.github.stslex.workeeper.core.data.backup.worker.notification.BackupNotificationHelper
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolder
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
@@ -303,6 +304,19 @@ class AppGraphAdoptBackSeamTest {
         assertSame("AppDialogPublisher Hilt adopt-back === Metro-owned", publisherMetro, ep.appDialogPublisher())
     }
 
+    @Test
+    fun accountDataStore_hiltAdoptBackAndMetroResolveTheSameInstance() {
+        // App-Scope Collapse Step 3 google-drive slice: the one Context-only gd binding (no cross-module
+        // reader). The four gd consumers stay Hilt and resolve through the adopt-back shim === Metro-owned.
+        val ep = EntryPointAccessors.fromApplication(
+            ApplicationProvider.getApplicationContext<Context>(), TestAccountDataStoreEntryPoint::class.java)
+        assertSame(
+            "AccountDataStore ===",
+            TestAppGraphModule.testAppGraph.accountDataStore,
+            ep.accountDataStore(),
+        )
+    }
+
     /**
      * Equivalent to a production `*HiltEntryPoint.analyticsHolder()`: reads `AnalyticsHolder` from
      * Hilt's `SingletonComponent`, now served exclusively by the adopt-back delegating `@Provides`.
@@ -384,6 +398,13 @@ class AppGraphAdoptBackSeamTest {
         fun appDialogObserverImpl(): AppDialogObserverImpl
         fun appDialogObserver(): AppDialogObserver
         fun appDialogPublisher(): AppDialogPublisher
+    }
+
+    /** Mirrors the four gd readers of AccountDataStore (DriveAuthTokenProvider et al., module-`internal`). */
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
+    interface TestAccountDataStoreEntryPoint {
+        fun accountDataStore(): AccountDataStore
     }
 }
 
