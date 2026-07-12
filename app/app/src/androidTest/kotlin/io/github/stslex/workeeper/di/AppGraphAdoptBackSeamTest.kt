@@ -27,6 +27,10 @@ import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolde
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
+import io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObserver
+import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
+import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepository
+import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImpl
 import kotlinx.coroutines.Dispatchers
 import io.github.stslex.workeeper.core.ui.test.annotations.Regression
 import org.junit.Assert.assertFalse
@@ -274,6 +278,31 @@ class AppGraphAdoptBackSeamTest {
         )
     }
 
+    @Test
+    fun appDialogBindings_hiltAdoptBackAndMetroResolveTheSameInstances() {
+        // App-Scope Collapse Step 3 app-dialogs slice: 3 impls, 4 shims. The observer is contributed as
+        // its interface AND exposed as its concrete type — one @SingleIn(AppScope) instance backs both.
+        val ep = EntryPointAccessors.fromApplication(
+            ApplicationProvider.getApplicationContext<Context>(), TestAppDialogsEntryPoint::class.java)
+
+        val repoMetro = TestAppGraphModule.testAppGraph.appDialogRepository
+        val observerImplMetro = TestAppGraphModule.testAppGraph.appDialogObserverImpl
+        val observerMetro = TestAppGraphModule.testAppGraph.appDialogObserver
+        val publisherMetro = TestAppGraphModule.testAppGraph.appDialogPublisher
+
+        assertNotNull(repoMetro)
+        // Self-bound concrete Repository: read by the feature's OWN Hilt EntryPoint (feeds AppDialogGraph).
+        assertSame("AppDialogRepository Hilt adopt-back === Metro-owned", repoMetro, ep.appDialogRepository())
+        // ObserverImpl concrete (read by AppDialogFeature) === the interface binding (cross-module readers):
+        // one @SingleIn instance, contributed + self-exposed.
+        assertSame("AppDialogObserver interface === concrete AppDialogObserverImpl", observerImplMetro as Any, observerMetro as Any)
+        assertSame("AppDialogObserverImpl Hilt adopt-back === Metro-owned", observerImplMetro, ep.appDialogObserverImpl())
+        assertSame("AppDialogObserver Hilt adopt-back === Metro-owned", observerMetro, ep.appDialogObserver())
+        // Publisher interface (read cross-module by settings).
+        assertNotNull(publisherMetro)
+        assertSame("AppDialogPublisher Hilt adopt-back === Metro-owned", publisherMetro, ep.appDialogPublisher())
+    }
+
     /**
      * Equivalent to a production `*HiltEntryPoint.analyticsHolder()`: reads `AnalyticsHolder` from
      * Hilt's `SingletonComponent`, now served exclusively by the adopt-back delegating `@Provides`.
@@ -341,6 +370,20 @@ class AppGraphAdoptBackSeamTest {
     interface TestWorkerEntryPoint {
         fun autoBackupController(): AutoBackupController
         fun backupNotificationHelper(): BackupNotificationHelper
+    }
+
+    /**
+     * Mirrors app-dialogs' readers: the feature's own `AppDialogsHiltEntryPoint` (repository + observerImpl
+     * concrete, feeding its Metro `AppDialogGraph`) plus the cross-module api-interface readers in settings
+     * (`AppDialogPublisher`) and recovery/archive/`BaseApplication` (`AppDialogObserver`).
+     */
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
+    interface TestAppDialogsEntryPoint {
+        fun appDialogRepository(): AppDialogRepository
+        fun appDialogObserverImpl(): AppDialogObserverImpl
+        fun appDialogObserver(): AppDialogObserver
+        fun appDialogPublisher(): AppDialogPublisher
     }
 }
 

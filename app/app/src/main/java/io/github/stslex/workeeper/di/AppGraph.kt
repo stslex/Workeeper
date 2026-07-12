@@ -21,6 +21,10 @@ import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolde
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
+import io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObserver
+import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
+import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepository
+import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImpl
 import kotlinx.coroutines.CoroutineDispatcher
 
 /**
@@ -104,6 +108,26 @@ internal interface AppGraph {
      * `@Provides` + identity tests; `SettingsHiltEntryPoint` + `BackupWorkerHiltEntryPoint` delegate here.
      */
     val backupPreferencesRepository: BackupPreferencesRepository
+
+    /**
+     * App-Scope Collapse Step 3 (app-dialogs slice). The three app-scoped singletons of
+     * feature/app-dialogs:impl, now Metro-owned:
+     *  - [appDialogRepository] — the self-bound concrete `AppDialogRepository` (`@SingleIn(AppScope)` +
+     *    `@Inject`; implements `AppDialogPublisher` but is NOT bound to it). Read only intra-module,
+     *    including by the feature's own `AppDialogGraph` via `AppDialogsHiltEntryPoint.appDialogRepository()`
+     *    — that read is an adopt-back shim. Its `Context` resolves from the `create(applicationContext)`
+     *    bound instance.
+     *  - [appDialogObserverImpl] — the concrete `AppDialogObserverImpl` (`@SingleIn(AppScope)`), read by
+     *    `AppDialogFeature` via `AppDialogsHiltEntryPoint.appDialogObserverImpl()`. The SAME instance is
+     *    contributed as [appDialogObserver] (`@ContributesBinding`) for the cross-module consumers.
+     *  - [appDialogObserver] / [appDialogPublisher] — the api interfaces, contributed via
+     *    `@ContributesBinding(AppScope)` on the impls, read cross-module (settings / recovery / archive /
+     *    `BaseApplication`) through the two api adopt-back shims.
+     */
+    val appDialogRepository: AppDialogRepository
+    val appDialogObserverImpl: AppDialogObserverImpl
+    val appDialogObserver: AppDialogObserver
+    val appDialogPublisher: AppDialogPublisher
 
     /**
      * Metro CONSTRUCTS and retains the leaf. `@SingleIn(AppScope)` binds it to this graph's

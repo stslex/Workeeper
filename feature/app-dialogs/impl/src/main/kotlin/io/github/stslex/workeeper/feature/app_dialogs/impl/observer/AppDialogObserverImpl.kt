@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.app_dialogs.impl.observer
 
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialogUserChoice
 import io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObserver
@@ -9,11 +13,9 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
- * `@Singleton` implementation of [AppDialogObserver]. Holds the cross-feature
+ * App-singleton implementation of [AppDialogObserver]. Holds the cross-feature
  * choice transport (`MutableSharedFlow`) and the acknowledgement bridge to
  * the repository.
  *
@@ -28,9 +30,19 @@ import javax.inject.Singleton
  * subscriber-side handler's `init { ... launchIn(scope) }` runs before any
  * `MainActivity.onCreate` and registers a collector. See the [AppDialogObserver]
  * KDoc for the full bootstrap contract.
+ *
+ * DI (App-Scope Collapse Step 3): Metro-owned. `@ContributesBinding(AppScope)`
+ * binds it to [AppDialogObserver] for the cross-module consumer readers
+ * (recovery / archive / `BaseApplication`); `AppGraph` ALSO exposes the concrete
+ * type via a self accessor for the intra-module `AppDialogFeature` read (the
+ * feature graph takes `AppDialogObserverImpl`, not the interface). One
+ * `@SingleIn(AppScope)` instance backs both. Public because `@ContributesBinding`
+ * on an `internal` class does not aggregate across Gradle modules.
  */
-@Singleton
-internal class AppDialogObserverImpl @Inject constructor(
+@ContributesBinding(AppScope::class)
+@SingleIn(AppScope::class)
+@Inject
+class AppDialogObserverImpl(
     private val repository: AppDialogRepository,
 ) : AppDialogObserver {
 

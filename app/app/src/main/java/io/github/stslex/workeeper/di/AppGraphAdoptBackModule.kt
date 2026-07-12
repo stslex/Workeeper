@@ -17,6 +17,10 @@ import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolde
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
+import io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObserver
+import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
+import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepository
+import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImpl
 import javax.inject.Singleton
 
 /**
@@ -38,6 +42,12 @@ import javax.inject.Singleton
  * double-instance `===`-split class). Every one of the 13 `*HiltEntryPoint.analyticsHolder()`
  * accessors resolves through this provider.
  */
+// TooManyFunctions: this object is the App-Scope Collapse shim aggregator — it holds exactly one
+// trivial delegating `@Provides` per Metro-owned binding that still has a Hilt-side reader. The
+// function count IS the migrated-binding count (it grows one line per flip and collapses to zero
+// when Hilt is removed in Step 6), not an extractable smell — the same rationale that exempts the
+// per-feature `@EntryPoint` bridges in detekt.yml.
+@Suppress("TooManyFunctions")
 @Module
 @InstallIn(SingletonComponent::class)
 internal object AppGraphAdoptBackModule {
@@ -148,4 +158,46 @@ internal object AppGraphAdoptBackModule {
     fun provideBackupNotificationHelper(
         appGraph: AppGraph,
     ): BackupNotificationHelper = appGraph.backupNotificationHelper
+
+    /**
+     * Adopt-back: AppDialogRepository (App-Scope Collapse Step 3, app-dialogs slice) — the concrete
+     * self-bound singleton, read by the feature's OWN `AppDialogsHiltEntryPoint.appDialogRepository()`
+     * that feeds its Metro `AppDialogGraph`. Delegates to the single Metro-owned instance.
+     */
+    @Provides
+    @Singleton
+    fun provideAppDialogRepository(
+        appGraph: AppGraph,
+    ): AppDialogRepository = appGraph.appDialogRepository
+
+    /**
+     * Adopt-back: AppDialogObserverImpl (concrete) — read by `AppDialogsHiltEntryPoint.appDialogObserverImpl()`.
+     * SAME instance the [provideAppDialogObserver] interface shim returns (one `@SingleIn(AppScope)`).
+     */
+    @Provides
+    @Singleton
+    fun provideAppDialogObserverImpl(
+        appGraph: AppGraph,
+    ): AppDialogObserverImpl = appGraph.appDialogObserverImpl
+
+    /**
+     * Adopt-back: AppDialogObserver (api interface) — read cross-module by recovery / archive /
+     * `BaseApplication` via their `*HiltEntryPoint`s. Delegates to the Metro-owned `AppDialogObserverImpl`.
+     */
+    @Provides
+    @Singleton
+    fun provideAppDialogObserver(
+        appGraph: AppGraph,
+    ): AppDialogObserver = appGraph.appDialogObserver
+
+    /**
+     * Adopt-back: AppDialogPublisher (api interface) — read cross-module by settings
+     * (`SettingsHiltEntryPoint.appDialogPublisher()` + `BackupClickHandler`). Delegates to the
+     * Metro-owned `AppDialogPublisherImpl`.
+     */
+    @Provides
+    @Singleton
+    fun provideAppDialogPublisher(
+        appGraph: AppGraph,
+    ): AppDialogPublisher = appGraph.appDialogPublisher
 }
