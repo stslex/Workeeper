@@ -8,6 +8,7 @@ import dagger.hilt.components.SingletonComponent
 import io.github.stslex.workeeper.core.core.platform.AppReinitializer
 import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
 import io.github.stslex.workeeper.core.core.platform.TempFileProvider
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolder
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
@@ -116,4 +117,14 @@ internal object AppGraphAdoptBackModule {
     @Provides
     @Singleton
     fun provideAppReinitializer(appGraph: AppGraph): AppReinitializer = appGraph.appReinitializer
+
+    /**
+     * Adopt-back: RestoreStateRepository — read by RestoreDialogChoiceObserver, RestoreRecoveryCoordinator,
+     * and SettingsHiltEntryPoint (all still-Hilt at this layer).
+     */
+    @Provides
+    @Singleton
+    fun provideRestoreStateRepository(
+        appGraph: AppGraph,
+    ): RestoreStateRepository = appGraph.restoreStateRepository
 }

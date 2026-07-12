@@ -18,6 +18,7 @@ import dev.zacsweers.metro.createGraphFactory
 import io.github.stslex.workeeper.core.core.platform.AppReinitializer
 import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
 import io.github.stslex.workeeper.core.core.platform.TempFileProvider
+import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolder
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
@@ -248,6 +249,13 @@ class AppGraphAdoptBackSeamTest {
         assertSame("AppReinitializer ===", TestAppGraphModule.testAppGraph.appReinitializer, ep.appReinitializer())
     }
 
+    @Test
+    fun restoreStateRepository_hiltAdoptBackAndMetroResolveTheSameInstance() {
+        val ep = EntryPointAccessors.fromApplication(
+            ApplicationProvider.getApplicationContext<Context>(), TestRestoreStateEntryPoint::class.java)
+        assertSame("RestoreStateRepository ===", TestAppGraphModule.testAppGraph.restoreStateRepository, ep.restoreStateRepository())
+    }
+
     /**
      * Equivalent to a production `*HiltEntryPoint.analyticsHolder()`: reads `AnalyticsHolder` from
      * Hilt's `SingletonComponent`, now served exclusively by the adopt-back delegating `@Provides`.
@@ -302,6 +310,12 @@ class AppGraphAdoptBackSeamTest {
         fun platformInfoProvider(): PlatformInfoProvider
         fun tempFileProvider(): TempFileProvider
         fun appReinitializer(): AppReinitializer
+    }
+
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
+    interface TestRestoreStateEntryPoint {
+        fun restoreStateRepository(): RestoreStateRepository
     }
 }
 
