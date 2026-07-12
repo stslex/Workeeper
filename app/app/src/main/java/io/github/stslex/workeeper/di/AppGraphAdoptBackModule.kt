@@ -32,6 +32,7 @@ import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogReposit
 import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImpl
 import io.github.stslex.workeeper.navigation.NavigatorEventBus
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import javax.inject.Singleton
 
 /**
@@ -224,33 +225,33 @@ internal object AppGraphAdoptBackModule {
     ): AccountDataStore = appGraph.accountDataStore
 
     /**
-     * Adopt-back for the app CoroutineDispatchers (App-Scope Collapse Step 3, PF commit 1). The four
-     * dispatchers are Metro-owned (`DispatchersBindingContainer`); these qualified shims re-provide the
-     * three that have still-Hilt readers into the `SingletonComponent` — the feature `*HiltEntryPoint`
-     * bridges AND every pure-Hilt `@Inject @DefaultDispatcher/@IODispatcher/@MainImmediateDispatcher`
-     * consumer (interactors, handlers, `core:data` repositories) resolve through them. `@MainDispatcher`
-     * has zero consumers, so it needs no shim (provided by the container for completeness only).
+     * Hilt-side app CoroutineDispatchers (App-Scope Collapse Step 3, PF commit 1; back-edge correction C2-h').
+     *
+     * These provide `Dispatchers.IO/.Default/.Main.immediate` DIRECTLY — NOT via `appGraph`. The dispatchers
+     * are STATELESS kotlinx process-singletons, so the adopt-back single-owner discipline (which guards a
+     * STATEFUL binding from being double-instantiated) is MOOT: a direct `@Provides` returns the IDENTICAL
+     * object the Metro `DispatchersBindingContainer` holds (asserted `===` in the seam). Routing them through
+     * `appGraph` (the original PF.1 shim) created a latent back-edge — Hilt `@IO` depended on `appGraph` — and
+     * any Hilt binding built INSIDE `appGraph` construction that needs `@IO` (C2's `DbTransitionRunner` /
+     * `ImageStorageImpl`; Step-5's db-cascade) re-enters the graph mid-build → `StackOverflowError`. Providing
+     * the stateless value directly dissolves the back-edge for C2 and Step 5. The Metro-side
+     * `DispatchersBindingContainer` is untouched — Metro consumers still resolve from the graph. `@MainDispatcher`
+     * has zero consumers, so it needs no Hilt shim.
      */
     @Provides
     @Singleton
     @DefaultDispatcher
-    fun provideDefaultDispatcher(
-        appGraph: AppGraph,
-    ): CoroutineDispatcher = appGraph.defaultDispatcher
+    fun provideDefaultDispatcher(): CoroutineDispatcher = Dispatchers.Default
 
     @Provides
     @Singleton
     @MainImmediateDispatcher
-    fun provideMainImmediateDispatcher(
-        appGraph: AppGraph,
-    ): CoroutineDispatcher = appGraph.mainImmediateDispatcher
+    fun provideMainImmediateDispatcher(): CoroutineDispatcher = Dispatchers.Main.immediate
 
     @Provides
     @Singleton
     @IODispatcher
-    fun provideIODispatcher(
-        appGraph: AppGraph,
-    ): CoroutineDispatcher = appGraph.ioDispatcher
+    fun provideIODispatcher(): CoroutineDispatcher = Dispatchers.IO
 
     /**
      * Adopt-back for [ResourceWrapper] (App-Scope Collapse Step 3, PF commit 2A). Metro-owned via

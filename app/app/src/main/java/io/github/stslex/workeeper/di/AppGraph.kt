@@ -87,10 +87,14 @@ internal interface AppGraph {
 
     /**
      * App-Scope Collapse Step 3 (PF commit 1). The four Metro-owned CoroutineDispatchers, CONTRIBUTED by
-     * [DispatchersBindingContainer] (`@BindingContainer @ContributesTo(AppScope)`). Exposed as QUALIFIED
-     * accessors so the qualified adopt-back `@Provides` in `AppGraphAdoptBackModule` re-provide them into
-     * Hilt's `SingletonComponent` for the still-Hilt readers (`@Default` / `@MainImmediate` / `@IO` — the
-     * three with consumers; `@Main` is provided for completeness but has no reader, hence no accessor/shim).
+     * [DispatchersBindingContainer] (`@BindingContainer @ContributesTo(AppScope)`) — the Metro-side binding
+     * that Metro consumers (`StoreDispatchers`, the feature graphs) resolve.
+     *
+     * These qualified accessors expose the graph's dispatchers for the seam's `===` identity proof. Since the
+     * C2-h' back-edge correction, the Hilt-side shims provide `Dispatchers.*` DIRECTLY (not via these
+     * accessors) — the dispatchers are stateless kotlinx process-singletons, so the direct Hilt value is the
+     * IDENTICAL object these accessors return (the seam asserts `===`), and routing the Hilt shim through
+     * `appGraph` would re-introduce the dissolved `@IO`→`appGraph` back-edge.
      */
     @DefaultDispatcher
     val defaultDispatcher: CoroutineDispatcher
