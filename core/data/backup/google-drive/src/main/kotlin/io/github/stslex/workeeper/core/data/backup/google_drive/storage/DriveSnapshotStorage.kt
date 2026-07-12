@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.backup.google_drive.storage
 
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.data.backup.api.BackupConstants
@@ -18,8 +22,6 @@ import io.ktor.client.plugins.ClientRequestException
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * `SnapshotStorage` impl over Drive v3 files in the *visible* `drive` space — the sibling
@@ -30,8 +32,9 @@ import javax.inject.Singleton
  * 401 handling mirrors `DriveBackupStorage` ([withTokenRefreshOn401]); a stale cached
  * folder id surfaces as a `404` on upload, which is recovered once (recreate + retry).
  */
-@Singleton
-internal class DriveSnapshotStorage @Inject constructor(
+@ContributesBinding(AppScope::class)
+@SingleIn(AppScope::class)
+class DriveSnapshotStorage @Inject internal constructor(
     private val driveApi: DriveApi,
     private val accountStore: AccountDataStore,
     private val tokenInvalidator: TokenInvalidator,

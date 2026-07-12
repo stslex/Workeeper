@@ -36,6 +36,9 @@ import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
+import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
+import io.github.stslex.workeeper.core.data.backup.api.SnapshotStorage
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.navigation.NavigatorEventBus
 import io.github.stslex.workeeper.core.ui.test.annotations.Regression
@@ -362,6 +365,37 @@ class AppGraphAdoptBackSeamTest {
         )
     }
 
+    @Test
+    fun googleDriveAuthChain_facadeAndInternalCrossReadResolveTheSameMetroInstances() {
+        // App-Scope Collapse Step 3 (PF.3): the gd auth-chain atomic unit. GMS/ktor stay inside gd's
+        // @BindingContainers; app/app names only these clean facade/inner interfaces.
+        val ep = EntryPointAccessors.fromApplication(
+            ApplicationProvider.getApplicationContext<Context>(), TestGoogleDriveEntryPoint::class.java)
+
+        // POSITIVE (facade): the still-Hilt settings/worker EntryPoints resolve === the Metro-owned instances.
+        assertSame(
+            "BackupAuth Hilt adopt-back === Metro-owned",
+            TestAppGraphModule.testAppGraph.backupAuth,
+            ep.backupAuth(),
+        )
+        assertSame(
+            "BackupStorage Hilt adopt-back === Metro-owned",
+            TestAppGraphModule.testAppGraph.backupStorage,
+            ep.backupStorage(),
+        )
+        // POSITIVE (internal cross-read): SnapshotStorage is read by the still-Hilt SnapshotExportRunnerImpl
+        // (deferred to Step 5 with its DatabaseJsonExporter → AppDatabase db-cascade tether). Its Hilt-injected
+        // SnapshotStorage resolves through this same adopt-back shim === the Metro-owned instance — the one
+        // Hilt-class-reads-a-freshly-migrated-Metro-dep-inside-gd path that assemble cannot see. (The DB-heavy
+        // runner itself isn't constructed here — the seam Hilt graph has no AppDatabase — but the shim IS the
+        // exact read path it resolves through.)
+        assertSame(
+            "SnapshotStorage Hilt adopt-back === Metro-owned (the SnapshotExportRunnerImpl cross-read path)",
+            TestAppGraphModule.testAppGraph.snapshotStorage,
+            ep.snapshotStorage(),
+        )
+    }
+
     /**
      * Equivalent to a production `*HiltEntryPoint.analyticsHolder()`: reads `AnalyticsHolder` from
      * Hilt's `SingletonComponent`, now served exclusively by the adopt-back delegating `@Provides`.
@@ -450,6 +484,19 @@ class AppGraphAdoptBackSeamTest {
     @InstallIn(SingletonComponent::class)
     interface TestAccountDataStoreEntryPoint {
         fun accountDataStore(): AccountDataStore
+    }
+
+    /**
+     * Mirrors the gd auth-chain facade readers: settings + worker read `BackupAuth` / `BackupStorage`; the
+     * still-Hilt (Step-5-deferred) `SnapshotExportRunnerImpl` reads `SnapshotStorage`. All three are GMS/ktor-clean
+     * — the GMS `AuthorizationClient` + ktor `HttpClient` never appear here (HOME-A containment).
+     */
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
+    interface TestGoogleDriveEntryPoint {
+        fun backupAuth(): BackupAuth
+        fun backupStorage(): BackupStorage
+        fun snapshotStorage(): SnapshotStorage
     }
 
     /**

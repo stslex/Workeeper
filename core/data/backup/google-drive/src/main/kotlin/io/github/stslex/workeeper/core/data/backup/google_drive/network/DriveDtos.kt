@@ -9,9 +9,13 @@ import kotlinx.serialization.Serializable
  * upload + patch endpoints. Only the fields we actually consume are modelled; the
  * Json instance is configured with `ignoreUnknownKeys = true` so extra Drive fields
  * never break decoding.
+ *
+ * Public solely for cross-module Metro aggregation (App-Scope Collapse Step 3, PF.3): it is named in the
+ * [DriveApi] contract, which went public so `DriveApiImpl`'s `@ContributesBinding(AppScope)` aggregates into
+ * app/app's `AppGraph`. Not for external use.
  */
 @Serializable
-internal data class DriveFileDto(
+data class DriveFileDto(
     @SerialName("id") val id: String,
     @SerialName("name") val name: String,
     @SerialName("createdTime") val createdTime: String? = null,
@@ -28,9 +32,12 @@ internal data class DriveFileListDto(
  * Metadata payload for the create-file (multipart/related) and patch-file endpoints.
  * `parents` for backup uploads is always `["appDataFolder"]`; `mimeType` is
  * `application/x-sqlite3`; `appProperties` carries the serialized manifest.
+ *
+ * Public for the same cross-module Metro-aggregation reason as [DriveFileDto] (named in the [DriveApi]
+ * contract); not for external use.
  */
 @Serializable
-internal data class DriveFileMetadataDto(
+data class DriveFileMetadataDto(
     @SerialName("name") val name: String,
     @SerialName("parents") val parents: List<String>,
     @SerialName("mimeType") val mimeType: String,

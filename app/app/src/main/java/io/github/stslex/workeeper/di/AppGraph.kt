@@ -14,6 +14,9 @@ import io.github.stslex.workeeper.core.core.platform.AppReinitializer
 import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
 import io.github.stslex.workeeper.core.core.platform.TempFileProvider
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
+import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
+import io.github.stslex.workeeper.core.data.backup.api.SnapshotStorage
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
@@ -176,6 +179,20 @@ internal interface AppGraph {
      * cross-module reader); its four gd consumers stay Hilt this pass and resolve via the adopt-back shim.
      */
     val accountDataStore: AccountDataStore
+
+    /**
+     * App-Scope Collapse Step 3 (PF.3, google-drive auth-chain). The GMS-clean gd bindings that have a
+     * still-Hilt reader, Metro-owned via `@ContributesBinding(AppScope)` on their gd impls (the GMS
+     * `AuthorizationClient` + ktor `HttpClient` are held by the gd `@BindingContainer`s but stay INSIDE gd —
+     * no accessor here, so app/app never names them). These three are exposed for the adopt-back shims:
+     *  - [backupAuth] / [backupStorage] — read cross-module by settings + worker (still Hilt).
+     *  - [snapshotStorage] — read by the still-Hilt `SnapshotExportRunnerImpl` (deferred to Step 5 with its
+     *    `DatabaseJsonExporter` → `AppDatabase` db-cascade tether); this accessor + shim is TRANSIENT,
+     *    retired when SnapshotExportRunner migrates in Step 5.
+     */
+    val backupAuth: BackupAuth
+    val backupStorage: BackupStorage
+    val snapshotStorage: SnapshotStorage
 
     /**
      * Metro CONSTRUCTS and retains the leaf. `@SingleIn(AppScope)` binds it to this graph's

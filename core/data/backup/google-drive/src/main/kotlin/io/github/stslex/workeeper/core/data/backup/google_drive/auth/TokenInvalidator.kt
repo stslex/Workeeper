@@ -14,8 +14,12 @@ package io.github.stslex.workeeper.core.data.backup.google_drive.auth
  * Implementations are best-effort — failures during invalidation are logged but
  * not propagated, since the caller (a retry path) cannot do better than to
  * attempt the refresh anyway.
+ *
+ * Public solely for cross-module Metro aggregation (App-Scope Collapse Step 3, PF.3): its impl carries
+ * `@ContributesBinding(AppScope)`, which requires the bound interface be visible to app/app's `AppGraph`.
+ * Not for external use — the only consumers are gd-internal (`DriveBackupStorage` / `DriveSnapshotStorage`).
  */
-internal interface TokenInvalidator {
+interface TokenInvalidator {
 
     suspend fun invalidate()
 }

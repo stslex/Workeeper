@@ -12,6 +12,9 @@ import io.github.stslex.workeeper.core.core.platform.AppReinitializer
 import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
 import io.github.stslex.workeeper.core.core.platform.TempFileProvider
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
+import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
+import io.github.stslex.workeeper.core.data.backup.api.SnapshotStorage
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
@@ -277,4 +280,30 @@ internal object AppGraphAdoptBackModule {
     fun provideNavigatorEventBus(
         appGraph: AppGraph,
     ): NavigatorEventBus = appGraph.navigatorEventBus
+
+    /**
+     * Adopt-back for the google-drive auth-chain facade (App-Scope Collapse Step 3, PF.3). All three are
+     * GMS/ktor-CLEAN api interfaces — the GMS `AuthorizationClient` + ktor `HttpClient` stay inside gd's
+     * `@BindingContainer`s and are never named here (HOME-A containment).
+     *  - [provideBackupAuth] / [provideBackupStorage] — read by still-Hilt settings + worker EntryPoints.
+     *  - [provideSnapshotStorage] — read by the still-Hilt `SnapshotExportRunnerImpl` (deferred to Step 5).
+     *    TRANSIENT: retired when SnapshotExportRunner migrates with its db-cascade tether.
+     */
+    @Provides
+    @Singleton
+    fun provideBackupAuth(
+        appGraph: AppGraph,
+    ): BackupAuth = appGraph.backupAuth
+
+    @Provides
+    @Singleton
+    fun provideBackupStorage(
+        appGraph: AppGraph,
+    ): BackupStorage = appGraph.backupStorage
+
+    @Provides
+    @Singleton
+    fun provideSnapshotStorage(
+        appGraph: AppGraph,
+    ): SnapshotStorage = appGraph.snapshotStorage
 }

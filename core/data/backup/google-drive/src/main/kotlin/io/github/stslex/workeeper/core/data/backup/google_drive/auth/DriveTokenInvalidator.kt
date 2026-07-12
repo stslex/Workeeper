@@ -3,16 +3,19 @@ package io.github.stslex.workeeper.core.data.backup.google_drive.auth
 
 import com.google.android.gms.auth.api.identity.AuthorizationClient
 import com.google.android.gms.auth.api.identity.ClearTokenRequest
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.logger.Log
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-internal class DriveTokenInvalidator @Inject constructor(
+@ContributesBinding(AppScope::class)
+@SingleIn(AppScope::class)
+class DriveTokenInvalidator @Inject internal constructor(
     private val authorizationClient: AuthorizationClient,
     private val accountStore: AccountDataStore,
     @IODispatcher private val dispatcher: CoroutineDispatcher,

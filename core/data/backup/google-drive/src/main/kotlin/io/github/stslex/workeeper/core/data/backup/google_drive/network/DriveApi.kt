@@ -12,9 +12,14 @@ import java.io.File
  * The surface is **space-aware**: callers pass the Drive `spaces` and parent ids they
  * target, so the same client serves both the binary backup path (`appDataFolder`) and
  * the snapshot path (visible `drive`). Authorization headers are injected by the
- * configured `HttpClient` (see `NetworkModule`); callers do not pass tokens.
+ * configured `HttpClient` (see [NetworkBindingContainer]); callers do not pass tokens.
+ *
+ * Public solely for cross-module Metro aggregation (App-Scope Collapse Step 3, PF.3): `DriveApiImpl` carries
+ * `@ContributesBinding(AppScope)`, so this bound interface — and the [DriveFileDto] / [DriveFileMetadataDto]
+ * it names in its contract — must be visible to app/app's `AppGraph`. Not for external use (the only
+ * consumers are the gd-internal `DriveBackupStorage` / `DriveSnapshotStorage`).
  */
-internal interface DriveApi {
+interface DriveApi {
 
     /**
      * `GET /drive/v3/files` matching [query] within [spaces]. Returns the parsed file

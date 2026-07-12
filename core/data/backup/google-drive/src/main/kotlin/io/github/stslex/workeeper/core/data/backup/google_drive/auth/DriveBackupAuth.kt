@@ -8,6 +8,10 @@ import com.google.android.gms.auth.api.identity.AuthorizationResult
 import com.google.android.gms.auth.api.identity.ClearTokenRequest
 import com.google.android.gms.auth.api.identity.RevokeAccessRequest
 import com.google.android.gms.common.api.Scope
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
@@ -32,8 +36,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * `BackupAuth` implementation backed by GMS Identity's `AuthorizationClient` for
@@ -55,8 +57,9 @@ import javax.inject.Singleton
  * itself only carries the token. Userinfo failures degrade to the
  * `GoogleSignInAccount`-derived email when present, then to a placeholder.
  */
-@Singleton
-internal class DriveBackupAuth @Inject constructor(
+@ContributesBinding(AppScope::class)
+@SingleIn(AppScope::class)
+class DriveBackupAuth @Inject internal constructor(
     private val authorizationClient: AuthorizationClient,
     private val accountStore: AccountDataStore,
     private val userInfoFetcher: UserInfoFetcher,
