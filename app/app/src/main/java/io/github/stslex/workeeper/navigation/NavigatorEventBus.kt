@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.navigation
 
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import dev.zacsweers.metro.binding
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.core.platform.AppReinitializer
 import io.github.stslex.workeeper.core.ui.navigation.NavCommand
@@ -9,11 +14,20 @@ import io.github.stslex.workeeper.core.ui.navigation.Screen
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class NavigatorEventBus @Inject constructor(
+/**
+ * App-Scope Collapse Step 3 (Phase PF commit 2C). Metro-owned: `@SingleIn(AppScope)` + `@Inject`
+ * (its `AppReinitializer` dep is already Metro-owned). `@ContributesBinding(AppScope)` binds it to the
+ * [Navigator] interface for the 12 feature readers; the app `AppGraph` ALSO exposes the concrete type via
+ * a self accessor for `AppRootViewModel` (which injects `NavigatorEventBus` directly, then passes it as a
+ * [NavigatorReceiver] to `NavigatorExt`). One `@SingleIn(AppScope)` instance backs both — the same dual
+ * concrete/interface shape as `AppDialogObserverImpl`. `NavigationModule` (the old `@Provides Navigator`)
+ * is deleted. Both readers resolve through the two adopt-back `@Provides` in `AppGraphAdoptBackModule`.
+ */
+@ContributesBinding(AppScope::class, binding = binding<Navigator>())
+@SingleIn(AppScope::class)
+@Inject
+class NavigatorEventBus(
     private val appReinitializer: AppReinitializer,
 ) : Navigator, NavigatorReceiver {
 

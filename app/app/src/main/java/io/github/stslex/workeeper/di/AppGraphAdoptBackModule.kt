@@ -22,10 +22,12 @@ import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolde
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
+import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObserver
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepository
 import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImpl
+import io.github.stslex.workeeper.navigation.NavigatorEventBus
 import kotlinx.coroutines.CoroutineDispatcher
 import javax.inject.Singleton
 
@@ -257,4 +259,22 @@ internal object AppGraphAdoptBackModule {
     fun provideResourceWrapper(
         appGraph: AppGraph,
     ): ResourceWrapper = appGraph.resourceWrapper
+
+    /**
+     * Adopt-back for the Navigator subsystem (App-Scope Collapse Step 3, PF commit 2C). The one
+     * Metro-owned `NavigatorEventBus` is re-provided into Hilt as [Navigator] (for the 12 feature
+     * `*HiltEntryPoint.navigator()` bridges) AND as its concrete type (for `AppRootViewModel`, which
+     * injects the concrete). Both delegate to the SAME `@SingleIn(AppScope)` instance.
+     */
+    @Provides
+    @Singleton
+    fun provideNavigator(
+        appGraph: AppGraph,
+    ): Navigator = appGraph.navigator
+
+    @Provides
+    @Singleton
+    fun provideNavigatorEventBus(
+        appGraph: AppGraph,
+    ): NavigatorEventBus = appGraph.navigatorEventBus
 }

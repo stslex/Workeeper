@@ -25,10 +25,12 @@ import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolde
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
+import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObserver
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepository
 import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImpl
+import io.github.stslex.workeeper.navigation.NavigatorEventBus
 import kotlinx.coroutines.CoroutineDispatcher
 
 /**
@@ -103,6 +105,16 @@ internal interface AppGraph {
      * bridges resolve it via the single adopt-back `@Provides`.
      */
     val resourceWrapper: ResourceWrapper
+
+    /**
+     * App-Scope Collapse Step 3 (PF commit 2C). Metro-owned Navigator subsystem — the one
+     * `NavigatorEventBus` (`@SingleIn(AppScope)`) contributes [Navigator] via `@ContributesBinding`
+     * (read by the 12 feature `*HiltEntryPoint.navigator()` bridges) AND is exposed here as its concrete
+     * type for `AppRootViewModel` (which injects the concrete, then passes it as a `NavigatorReceiver`).
+     * One instance backs both; both resolve via the two adopt-back `@Provides`.
+     */
+    val navigator: Navigator
+    val navigatorEventBus: NavigatorEventBus
 
     /**
      * App-Scope Collapse Step 3 (SB1). Metro-owned [ActivityHolder] + [ActivityHolderProducer] — the same

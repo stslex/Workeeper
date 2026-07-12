@@ -36,6 +36,8 @@ import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
+import io.github.stslex.workeeper.core.ui.navigation.Navigator
+import io.github.stslex.workeeper.navigation.NavigatorEventBus
 import io.github.stslex.workeeper.core.ui.test.annotations.Regression
 import kotlinx.coroutines.CoroutineDispatcher
 import org.junit.Assert.assertFalse
@@ -207,6 +209,20 @@ class AppGraphAdoptBackSeamTest {
             TestAppGraphModule.testAppGraph.resourceWrapper,
             ep.resourceWrapper(),
         )
+    }
+
+    @Test
+    fun navigator_hiltAdoptBackConcreteAndInterfaceResolveTheSameInstance() {
+        // App-Scope Collapse Step 3 (PF commit 2C): NavigatorEventBus contributes Navigator AND is exposed
+        // as its concrete type (AppRootViewModel injects the concrete). One @SingleIn(AppScope) instance:
+        // the interface binding, the concrete accessor, and both Hilt adopt-backs are all ===.
+        val ep = EntryPointAccessors.fromApplication(
+            ApplicationProvider.getApplicationContext<Context>(), TestNavigatorEntryPoint::class.java)
+        val ifaceMetro = TestAppGraphModule.testAppGraph.navigator
+        val concreteMetro = TestAppGraphModule.testAppGraph.navigatorEventBus
+        assertSame("Navigator interface === concrete NavigatorEventBus", ifaceMetro as Any, concreteMetro as Any)
+        assertSame("Navigator Hilt adopt-back === Metro-owned", ifaceMetro, ep.navigator())
+        assertSame("NavigatorEventBus Hilt adopt-back === Metro-owned", concreteMetro, ep.navigatorEventBus())
     }
 
     @Test
@@ -459,6 +475,14 @@ class AppGraphAdoptBackSeamTest {
     @InstallIn(SingletonComponent::class)
     interface TestResourceWrapperEntryPoint {
         fun resourceWrapper(): ResourceWrapper
+    }
+
+    /** Mirrors the 12 feature `*HiltEntryPoint.navigator()` bridges + `AppRootViewModel`'s concrete inject. */
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
+    interface TestNavigatorEntryPoint {
+        fun navigator(): Navigator
+        fun navigatorEventBus(): NavigatorEventBus
     }
 }
 
