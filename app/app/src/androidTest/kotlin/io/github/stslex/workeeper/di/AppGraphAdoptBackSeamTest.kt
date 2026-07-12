@@ -15,6 +15,7 @@ import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.components.SingletonComponent
 import dagger.hilt.testing.TestInstallIn
 import dev.zacsweers.metro.createGraphFactory
+import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
@@ -183,6 +184,34 @@ class AppGraphAdoptBackSeamTest {
         )
     }
 
+    @Test
+    fun backupPreferencesRepository_hiltAdoptBackAndMetroResolveTheSameInstance() {
+        // App-Scope Collapse Step 3 backup/scheduling slice: the FIRST @ContributesBinding (interface-bound,
+        // public impl) WITH an adopt-back shim. POSITIVE seam proof across both sides.
+        val metro = TestAppGraphModule.testAppGraph.backupPreferencesRepository
+        // Leg 1 — SettingsHiltEntryPoint-equivalent (a Metro feature's Hilt EntryPoint reader).
+        val hiltSettings = EntryPointAccessors
+            .fromApplication(
+                ApplicationProvider.getApplicationContext<Context>(),
+                TestBackupPrefsSettingsEntryPoint::class.java,
+            )
+            .backupPreferencesRepository()
+        // Leg 2 — BackupWorkerHiltEntryPoint-equivalent. NOTE plain Hilt EntryPoint (the Step-2
+        // MetroWorkerFactory is dormant) — a 2nd Hilt reader, NOT a live Metro-bridge cross-check.
+        val hiltWorker = EntryPointAccessors
+            .fromApplication(
+                ApplicationProvider.getApplicationContext<Context>(),
+                TestBackupPrefsWorkerEntryPoint::class.java,
+            )
+            .backupPreferencesRepository()
+
+        assertNotNull(metro)
+        // Both Hilt-side readers (through the SINGLE adopt-back @Provides) return the SAME Metro-owned
+        // instance — === not ==.
+        assertSame("Settings EntryPoint must resolve the Metro-owned BackupPreferencesRepository (===)", metro, hiltSettings)
+        assertSame("Worker EntryPoint must resolve the SAME instance (===)", metro, hiltWorker)
+    }
+
     /**
      * Equivalent to a production `*HiltEntryPoint.analyticsHolder()`: reads `AnalyticsHolder` from
      * Hilt's `SingletonComponent`, now served exclusively by the adopt-back delegating `@Provides`.
@@ -207,6 +236,20 @@ class AppGraphAdoptBackSeamTest {
     @InstallIn(SingletonComponent::class)
     interface TestStoreDispatchersEntryPoint {
         fun storeDispatchers(): StoreDispatchers
+    }
+
+    /** Mirrors SettingsHiltEntryPoint.backupPreferencesRepository() (module-`internal`). */
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
+    interface TestBackupPrefsSettingsEntryPoint {
+        fun backupPreferencesRepository(): BackupPreferencesRepository
+    }
+
+    /** Mirrors BackupWorkerHiltEntryPoint.backupPreferencesRepository() (the Step-2 worker bridge, dormant). */
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
+    interface TestBackupPrefsWorkerEntryPoint {
+        fun backupPreferencesRepository(): BackupPreferencesRepository
     }
 }
 

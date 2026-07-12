@@ -8,6 +8,7 @@ import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
+import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
 import io.github.stslex.workeeper.core.ui.kit.utils.NumUiUtils
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
@@ -62,6 +63,15 @@ internal interface AppGraph {
      * `@MainImmediateDispatcher` survive via `includeJavax`) until core:core-android is migrated.
      */
     val storeDispatchers: StoreDispatchers
+
+    /**
+     * App-Scope Collapse Step 3 (SB1, backup/scheduling slice). Metro-owned [BackupPreferencesRepository]
+     * — CONTRIBUTED by `@ContributesBinding(AppScope)` on the (now public) `BackupPreferencesRepositoryImpl`
+     * in its own module; `@DependencyGraph` auto-aggregates it. Its `Context` ctor dep resolves from the
+     * `create(applicationContext)` bound instance. This accessor exposes the binding for the adopt-back
+     * `@Provides` + identity tests; `SettingsHiltEntryPoint` + `BackupWorkerHiltEntryPoint` delegate here.
+     */
+    val backupPreferencesRepository: BackupPreferencesRepository
 
     /**
      * Metro CONSTRUCTS and retains the leaf. `@SingleIn(AppScope)` binds it to this graph's

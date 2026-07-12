@@ -5,6 +5,7 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
@@ -67,4 +68,16 @@ internal object AppGraphAdoptBackModule {
     fun provideStoreDispatchers(
         appGraph: AppGraph,
     ): StoreDispatchers = appGraph.storeDispatchers
+
+    /**
+     * Adopt-back for [BackupPreferencesRepository] (App-Scope Collapse Step 3, backup/scheduling slice).
+     * Single-owner delegation: returns `appGraph.backupPreferencesRepository`, the SAME instance the Metro
+     * graph retains (`@ContributesBinding` + `@SingleIn(AppScope)`), never a parallel construction. The
+     * `SettingsHiltEntryPoint` + `BackupWorkerHiltEntryPoint` readers resolve through this single provider.
+     */
+    @Provides
+    @Singleton
+    fun provideBackupPreferencesRepository(
+        appGraph: AppGraph,
+    ): BackupPreferencesRepository = appGraph.backupPreferencesRepository
 }
