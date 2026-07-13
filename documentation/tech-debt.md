@@ -291,6 +291,24 @@ Entries below are the active follow-ups; the spec links back here from its
 
 ---
 
+## App-Scope Collapse (Hilt→Metro) — Step-6 atomic-cut blockers
+
+Tracked on the `feature/metro-batch` branch (App-Scope Collapse: the final DI migration moving the
+app-scope Hilt graph to Metro). Steps 1–5 migrate bindings under a reversible dual-path; **Step 6** is
+the single irreversible cut that drops `@HiltAndroidApp` and removes Hilt from the app graph entirely.
+The two entries below are hard **Step-6 blockers**: Hilt cannot be removed at the atomic cut while these
+bindings live in the graph, because each depends on a Dagger **assisted** factory and Metro 1.1.x has no
+mechanic to consume a Dagger-generated `@AssistedFactory` / `@AssistedInject` type. They are **orthogonal
+to Step 5** (DB cascade / restore) — neither touches the database fence — so they do not gate Step 5, only
+the final cut.
+
+| Severity | Location | Description |
+|---|---|---|
+| 🔴 | [core/data/dataStore/.../core/DataStoreProviderFactory.kt](../core/data/dataStore/src/main/kotlin/io/github/stslex/workeeper/core/data/dataStore/core/DataStoreProviderFactory.kt) ↔ [CommonDataStoreImpl.kt](../core/data/dataStore/src/main/kotlin/io/github/stslex/workeeper/core/data/dataStore/store/CommonDataStoreImpl.kt) | **`CommonDataStore` is a DEFER-C Hilt carveout — assisted-factory dependency.** `CommonDataStoreImpl` constructor-injects `DataStoreProviderFactory` (a Dagger `@AssistedFactory`) and calls `storeFactory.create(NAME)`; the produced `DataStoreProvider` is `@AssistedInject`. Metro cannot consume a Dagger `@AssistedFactory`, so `CommonDataStore` stays Hilt-owned through Steps 3–5. Live consumers: `AppRootViewModel` + `feature/settings` (`SettingsInteractorImpl`, via `SettingsHiltEntryPoint`). **Fix path (required before Step 6):** either (a) reshape the assisted `DataStoreProvider` into a Metro-native factory (drop `@AssistedInject`, pass `name` as a plain provider-scoped param or a small factory function bound in the graph), or (b) keep a minimal Hilt sub-component solely for the assisted dataStore chain and bridge it — contradicts the "drop `@HiltAndroidApp`" goal, so (a) is preferred. **Trigger to act:** Step-6 planning, or when the assisted→Metro mechanic is solved for ImageStorage (same class of problem — solve once, apply to both). |
+| 🔴 | [core/core-android/.../images/ImageStorageImpl.kt](../core/core-android/src/main/kotlin/io/github/stslex/workeeper/core/core/images/ImageStorageImpl.kt) ↔ [ImageStorageModule.kt](../core/core-android/src/main/kotlin/io/github/stslex/workeeper/core/core/images/ImageStorageModule.kt) | **`ImageStorage` is a DEFER-C Hilt carveout — assisted class + test-DI entanglement.** Two blockers compound: (1) it sits on the same assisted-factory class of problem as CommonDataStore; (2) deleting its `@Binds` module breaks `TestInfraModule`'s `@TestInstallIn(replaces = [ImageStorageModule])` that injects `FakeImageStorage` across ~15 feature test suites — a Fake + a Metro adopt-back cannot coexist (Hilt duplicate binding), and the shared `TestInfra` cannot tell whether `app/app` is present. **Fix path (required before Step 6):** design a per-context fake architecture (feature-test graphs get their own `FakeImageStorage` binding independent of the app-scope owner) alongside the assisted→Metro reshape. This is its own follow-up, larger than a single flip. **Trigger to act:** Step-6 planning; coordinate with the [feature androidTest app-scope debt](#) fake-infra work. |
+
+---
+
 ## v2.0 Foundations Stage — closed entries
 
 The v2.0 stage addressed the following items. They are listed here for traceability before they roll into the next audit cleanup.
