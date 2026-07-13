@@ -155,8 +155,8 @@ tree. The **core** Metro set (7 modules) is, verified against each `build.gradle
 | `core/data/backup/worker` | `:5` | `:10` |
 
 - `core/data/dataStore` does **NOT** apply Metro (`build.gradle.kts` applies only
-  `convention.androidLibrary`) — it holds the DEFER-C `CommonDataStore` assisted carveout (see
-  `documentation/tech-debt.md` → Step-6 blockers).
+  `convention.androidLibrary`) — it still holds the assisted `CommonDataStore` (migratable via Metro native
+  assisted in its own slice, not a permanent carveout; see `documentation/tech-debt.md` → Step-6 blockers).
 - `core:core` (KMP, `commonMain`+`iosMain`) does **NOT** apply Metro (platform-axis constraint, §D3b).
 - Repo-wide, the plugin is applied in 21 build files: these 7 core + `app/app` + 13 feature modules; every
   module that applies the plugin also has `includeJavax()`.
@@ -308,16 +308,29 @@ Code instances of the principle:
 
 ## Deferred / carveout bindings (Step-6 blockers)
 
-Assisted-DI carveouts that stay Hilt-owned through Steps 3–5 and **block the Step-6 atomic cut** — Metro
-1.1.x cannot consume a Dagger `@AssistedFactory`/`@AssistedInject`. Tracked in full in
-`documentation/tech-debt.md` → *App-Scope Collapse (Hilt→Metro) — Step-6 atomic-cut blockers*:
+Two bindings stay Hilt-owned through Step 3. They are **separate, unrelated problems** — an earlier draft
+wrongly grouped them as an assisted capability gap. **Metro 1.1.1 HAS native assisted injection**
+(decompile-anchored on the pinned artifact: `interop { includeDagger() }` is a first-class Gradle DSL — the
+same `interop {}` block used for `includeJavax()` — and the compiler carries `AssistedFactoryImpl$Dagger` +
+`$Metro`, the full FIR/IR assisted pipeline). So there is **no Metro bump, no Kotlin-2.4.0, and no cascade
+into the ~695-LOC custom Detekt rules.** Tracked in full in `documentation/tech-debt.md` → *App-Scope
+Collapse (Hilt→Metro) — Step-6 atomic-cut blockers*:
 
-- **CommonDataStore** — `DataStoreProviderFactory` is `@AssistedFactory`; `DataStoreProvider` is
-  `@AssistedInject`. Lives in `core/data/dataStore` (which does not apply Metro, §D10).
-- **ImageStorage** — same assisted class of problem, plus a `@TestInstallIn(replaces = [ImageStorageModule])`
-  fake-DI entanglement across ~15 feature test suites.
-
-Both are **orthogonal to Step 5** (neither touches the DB fence) — they gate only the final cut.
+- **CommonDataStore** — genuinely assisted (`DataStoreProviderFactory` `@AssistedFactory`; `DataStoreProvider`
+  `@AssistedInject` with `@Assisted name: String` + a non-assisted `@ApplicationContext Context`), but
+  **migratable**: the produced `DataStoreProvider` is already **unscoped**, so the "assisted injected types
+  cannot be scoped" constraint does not bite — the consumer `CommonDataStoreImpl` stays `@SingleIn(AppScope)`.
+  Migrate via Metro native assisted (`interop { includeDagger() }`, no bump) or a manual function-type factory
+  from a public `@BindingContainer`. Residual coexistence risk = per-module dual-processor collision
+  (`core/data/dataStore` runs Hilt-KSP; §D10 — resolve by opting it off the Hilt convention at migration). Its
+  own execution slice; **orthogonal to Step 5** (does not touch the DB fence).
+- **ImageStorage** — **NOT assisted**: a plain `@Singleton @Inject constructor(@ApplicationContext Context,
+  @IODispatcher CoroutineDispatcher)` bound by a plain `@Binds`; both deps are graph-available, so it is a
+  trivial D1 flip. Its only blocker is the `@TestInstallIn(replaces = [ImageStorageModule])` fake-swap across
+  15 test suites — a **forward bridge** (Hilt owns, Metro reads a `create()` bound instance), not an
+  adopt-back, so the §D2 honesty-split does not apply and Metro has no `@TestInstallIn` analogue. Deferred to
+  **Step 5** to flip *with* the DB-cascade substrate it is fenced alongside, designing the Metro test-override
+  once for the whole cascade.
 
 ---
 
