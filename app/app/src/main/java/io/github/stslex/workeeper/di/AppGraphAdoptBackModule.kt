@@ -28,7 +28,6 @@ import io.github.stslex.workeeper.core.data.exercise.session.SetRepository
 import io.github.stslex.workeeper.core.data.exercise.tags.TagRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
-import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolder
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
@@ -119,13 +118,10 @@ internal object AppGraphAdoptBackModule {
         appGraph: AppGraph,
     ): BackupPreferencesRepository = appGraph.backupPreferencesRepository
 
-    /**
-     * Adopt-back for [ActivityHolder] (App-Scope Collapse Step 3, ui-kit slice). Single-owner delegation to
-     * the Metro graph's retained `ActivityHolderImpl`. Read by the still-Hilt `ResourceManagerImpl` (L1).
-     */
-    @Provides
-    @Singleton
-    fun provideActivityHolder(appGraph: AppGraph): ActivityHolder = appGraph.activityHolder
+    // ActivityHolder adopt-back removed (App-Scope Collapse Step 3, L-tail): its sole still-Hilt reader
+    // ResourceManagerImpl was a dead binding (last .locale reader removed in e37f74f5) and was DELETED, so
+    // the `provideActivityHolder` @Provides had no remaining Hilt consumer. ActivityHolderProducer keeps its
+    // adopt-back below — MainActivity still reads it Hilt-side.
 
     /**
      * Adopt-back for [ActivityHolderProducer] — the SAME `ActivityHolderImpl` instance (repeatable

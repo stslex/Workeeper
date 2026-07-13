@@ -23,7 +23,6 @@ import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupCont
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
 import io.github.stslex.workeeper.core.data.backup.google_drive.auth.AccountDataStore
 import io.github.stslex.workeeper.core.data.backup.worker.notification.BackupNotificationHelper
-import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolder
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
@@ -298,22 +297,20 @@ class AppGraphAdoptBackSeamTest {
     }
 
     @Test
-    fun activityHolder_bothTypesAndHiltAdoptBackResolveTheSameSingleInstance() {
+    fun activityHolder_bothTypesAndProducerHiltAdoptBackResolveTheSameSingleInstance() {
         // App-Scope Collapse Step 3 ui-kit slice: ActivityHolderImpl backs TWO interfaces via repeatable
-        // @ContributesBinding. Both bound types AND the Hilt adopt-back must be the SAME retained instance.
+        // @ContributesBinding. Both bound Metro types are the same retained instance. The ActivityHolder
+        // adopt-back @Provides was removed in the L-tail slice (its sole Hilt reader ResourceManagerImpl was
+        // a dead binding and was DELETED), so only the ActivityHolderProducer leg still has a Hilt adopt-back.
         val holderMetro = TestAppGraphModule.testAppGraph.activityHolder
         val producerMetro = TestAppGraphModule.testAppGraph.activityHolderProducer
-        val holderHilt = EntryPointAccessors
-            .fromApplication(ApplicationProvider.getApplicationContext<Context>(), TestActivityHolderEntryPoint::class.java)
-            .activityHolder()
         val producerHilt = EntryPointAccessors
             .fromApplication(ApplicationProvider.getApplicationContext<Context>(), TestActivityHolderEntryPoint::class.java)
             .activityHolderProducer()
 
         assertNotNull(holderMetro)
-        // one @SingleIn(AppScope) ActivityHolderImpl → both accessors + both shims === the same object.
+        // one @SingleIn(AppScope) ActivityHolderImpl → both bound types === the same object.
         assertSame("ActivityHolder and ActivityHolderProducer are the SAME ActivityHolderImpl (===)", holderMetro as Any, producerMetro as Any)
-        assertSame("Hilt adopt-back ActivityHolder === Metro-owned", holderMetro, holderHilt)
         assertSame("Hilt adopt-back ActivityHolderProducer === Metro-owned", producerMetro, producerHilt)
     }
 
@@ -460,11 +457,11 @@ class AppGraphAdoptBackSeamTest {
         fun backupPreferencesRepository(): BackupPreferencesRepository
     }
 
-    /** Mirrors ResourceManagerImpl's ActivityHolder read + MainActivity's ActivityHolderProducer read. */
+    /** Mirrors MainActivity's ActivityHolderProducer read (the ActivityHolder adopt-back was removed in the
+     * L-tail slice once ResourceManagerImpl, its sole Hilt reader, was deleted as a dead binding). */
     @EntryPoint
     @InstallIn(SingletonComponent::class)
     interface TestActivityHolderEntryPoint {
-        fun activityHolder(): ActivityHolder
         fun activityHolderProducer(): ActivityHolderProducer
     }
 

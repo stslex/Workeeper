@@ -146,8 +146,11 @@ internal interface AppGraph {
     /**
      * App-Scope Collapse Step 3 (SB1). Metro-owned [ActivityHolder] + [ActivityHolderProducer] — the same
      * `ActivityHolderImpl` (one `@SingleIn(AppScope)` retained instance) contributes BOTH via repeatable
-     * `@ContributesBinding`. `ActivityHolder` is read by the still-Hilt `ResourceManagerImpl` (L1) and
-     * `ActivityHolderProducer` by `MainActivity`, both via the adopt-back `@Provides`.
+     * `@ContributesBinding`. The `ActivityHolder` supertype now has no production reader — its former sole
+     * consumer `ResourceManagerImpl` was a dead binding (last `.locale` reader removed in e37f74f5) and was
+     * DELETED in the L-tail slice, so its adopt-back `@Provides` was removed too. This accessor stays: the
+     * seam test uses it to prove both supertypes resolve to the one `ActivityHolderImpl` instance.
+     * `ActivityHolderProducer` is still read by `MainActivity` via the adopt-back `@Provides`.
      */
     val activityHolder: ActivityHolder
     val activityHolderProducer: ActivityHolderProducer
