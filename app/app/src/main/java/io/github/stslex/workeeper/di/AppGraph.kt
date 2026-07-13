@@ -23,6 +23,7 @@ import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupCont
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
 import io.github.stslex.workeeper.core.data.backup.google_drive.auth.AccountDataStore
 import io.github.stslex.workeeper.core.data.backup.worker.notification.BackupNotificationHelper
+import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
 import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
 import io.github.stslex.workeeper.core.data.database.exercise.ExerciseDao
 import io.github.stslex.workeeper.core.data.database.session.PerformedExerciseDao
@@ -178,6 +179,17 @@ internal interface AppGraph {
      * `@Provides` + identity tests; `SettingsHiltEntryPoint` + `BackupWorkerHiltEntryPoint` delegate here.
      */
     val backupPreferencesRepository: BackupPreferencesRepository
+
+    /**
+     * App-Scope Collapse Step 3 (CommonDataStore slice). Metro-owned [CommonDataStore] — CONTRIBUTED by
+     * `@ContributesBinding(AppScope)` on the (now public) `CommonDataStoreImpl` in `core:data:dataStore`;
+     * `@DependencyGraph` auto-aggregates it. Its dep is a Metro-native `@AssistedFactory`
+     * (`DataStoreProviderFactory`, whose produced `DataStoreProvider` takes a plain `Context` from the
+     * `create(applicationContext)` bound instance). This accessor exposes the binding for the adopt-back
+     * `@Provides` + identity tests; the 3 still-Hilt readers (`AppRootViewModel`, `SettingsHiltEntryPoint`,
+     * `SettingsGraph`) delegate here.
+     */
+    val commonDataStore: CommonDataStore
 
     /**
      * App-Scope Collapse Step 3 (app-dialogs slice). The three app-scoped singletons of

@@ -20,6 +20,7 @@ import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupCont
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
 import io.github.stslex.workeeper.core.data.backup.google_drive.auth.AccountDataStore
 import io.github.stslex.workeeper.core.data.backup.worker.notification.BackupNotificationHelper
+import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordRepository
 import io.github.stslex.workeeper.core.data.exercise.session.PerformedExerciseRepository
@@ -117,6 +118,19 @@ internal object AppGraphAdoptBackModule {
     fun provideBackupPreferencesRepository(
         appGraph: AppGraph,
     ): BackupPreferencesRepository = appGraph.backupPreferencesRepository
+
+    /**
+     * Adopt-back for [CommonDataStore] (App-Scope Collapse Step 3, CommonDataStore slice). Single-owner
+     * delegation: returns `appGraph.commonDataStore`, the SAME instance the Metro graph retains
+     * (`@ContributesBinding` + `@SingleIn(AppScope)`), never a parallel construction. The 3 still-Hilt
+     * readers — `AppRootViewModel` (`@HiltViewModel`), `SettingsHiltEntryPoint`, and `SettingsGraph`'s
+     * `@Provides` — resolve through this single provider.
+     */
+    @Provides
+    @Singleton
+    fun provideCommonDataStore(
+        appGraph: AppGraph,
+    ): CommonDataStore = appGraph.commonDataStore
 
     // ActivityHolder adopt-back removed (App-Scope Collapse Step 3, L-tail): its sole still-Hilt reader
     // ResourceManagerImpl was a dead binding (last .locale reader removed in e37f74f5) and was DELETED, so

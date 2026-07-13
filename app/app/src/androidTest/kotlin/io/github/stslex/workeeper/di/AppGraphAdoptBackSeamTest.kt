@@ -21,6 +21,7 @@ import io.github.stslex.workeeper.core.core.platform.TempFileProvider
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
+import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
 import io.github.stslex.workeeper.core.data.backup.google_drive.auth.AccountDataStore
 import io.github.stslex.workeeper.core.data.backup.worker.notification.BackupNotificationHelper
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
@@ -297,6 +298,29 @@ class AppGraphAdoptBackSeamTest {
     }
 
     @Test
+    fun commonDataStore_hiltAdoptBackAndMetroResolveTheSameInstance() {
+        // App-Scope Collapse Step 3 CommonDataStore slice: the FIRST assisted-DI flip (Metro-native
+        // @AssistedInject/@AssistedFactory, interface-bound public impl) WITH an adopt-back shim.
+        // CommonDataStore is a STATEFUL singleton — one DataStore over `common_prefs`. If the Hilt reader
+        // resolved a SECOND CommonDataStoreImpl, two DataStore instances would write the same file =>
+        // corruption/race. Static gates are blind to this; the === identity is the whole point of the seam.
+        val metro = TestAppGraphModule.testAppGraph.commonDataStore
+        // Hilt-side reader through the single adopt-back @Provides — mirrors AppRootViewModel (@HiltViewModel),
+        // SettingsHiltEntryPoint.commonDataStore(), and SettingsGraph's @Provides bridge-read, all of which
+        // resolve CommonDataStore from Hilt via that one provider.
+        val hilt = EntryPointAccessors
+            .fromApplication(
+                ApplicationProvider.getApplicationContext<Context>(),
+                TestCommonDataStoreEntryPoint::class.java,
+            )
+            .commonDataStore()
+
+        assertNotNull(metro)
+        // The Hilt-side reader returns the SAME Metro-owned instance — === not == (single DataStore owner).
+        assertSame("Hilt EntryPoint must resolve the Metro-owned CommonDataStore (===)", metro, hilt)
+    }
+
+    @Test
     fun activityHolder_bothTypesAndProducerHiltAdoptBackResolveTheSameSingleInstance() {
         // App-Scope Collapse Step 3 ui-kit slice: ActivityHolderImpl backs TWO interfaces via repeatable
         // @ContributesBinding. Both bound Metro types are the same retained instance. The ActivityHolder
@@ -455,6 +479,14 @@ class AppGraphAdoptBackSeamTest {
     @InstallIn(SingletonComponent::class)
     interface TestBackupPrefsWorkerEntryPoint {
         fun backupPreferencesRepository(): BackupPreferencesRepository
+    }
+
+    /** Mirrors the 3 Hilt-side CommonDataStore readers (AppRootViewModel @HiltViewModel,
+     * SettingsHiltEntryPoint.commonDataStore(), SettingsGraph @Provides) — all resolve via the one adopt-back. */
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
+    interface TestCommonDataStoreEntryPoint {
+        fun commonDataStore(): CommonDataStore
     }
 
     /** Mirrors MainActivity's ActivityHolderProducer read (the ActivityHolder adopt-back was removed in the

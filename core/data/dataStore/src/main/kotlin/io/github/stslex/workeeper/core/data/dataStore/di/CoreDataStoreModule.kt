@@ -1,18 +1,15 @@
 package io.github.stslex.workeeper.core.data.dataStore.di
 
-import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
-import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStoreImpl
-import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
 internal interface CoreDataStoreModule {
 
-    @Binds
-    @Singleton
-    fun bindCommonDataStore(impl: CommonDataStoreImpl): CommonDataStore
+    // CommonDataStore: App-Scope Collapse Step 3 (CommonDataStore slice) — migrated to Metro (AppGraph owns
+    // it via @ContributesBinding(AppScope) on CommonDataStoreImpl). Its @Binds was removed here; the 3
+    // still-Hilt readers (AppRootViewModel + settings EntryPoint/Graph) resolve via the adopt-back @Provides
+    // in AppGraphAdoptBackModule.
 }
