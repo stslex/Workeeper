@@ -2,30 +2,25 @@ package io.github.stslex.workeeper.core.data.database.di
 
 import android.content.Context
 import androidx.room.Room
-import androidx.room.withTransaction
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.data.database.AppDatabase
-import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
-import io.github.stslex.workeeper.core.data.database.exercise.ExerciseDao
 import io.github.stslex.workeeper.core.data.database.migration.MIGRATIONS
-import io.github.stslex.workeeper.core.data.database.session.PerformedExerciseDao
-import io.github.stslex.workeeper.core.data.database.session.SessionDao
-import io.github.stslex.workeeper.core.data.database.session.SetDao
-import io.github.stslex.workeeper.core.data.database.tag.ExerciseTagDao
-import io.github.stslex.workeeper.core.data.database.tag.TagDao
-import io.github.stslex.workeeper.core.data.database.tag.TrainingTagDao
-import io.github.stslex.workeeper.core.data.database.training.TrainingDao
-import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseDao
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.withContext
 import javax.inject.Singleton
 
+/**
+ * Hilt provider for the [AppDatabase] **`create()` bound-instance root** (App-Scope Collapse Step 5, 5a).
+ *
+ * `AppDatabase` stays Hilt-constructed here (the single Room instance) and is threaded into the Metro
+ * app-graph as the `create(appDatabase = ...)` root by `BaseApplication`. It is deliberately NOT
+ * `@ContributesBinding`-flipped: it is a test-override I/O boundary (§Test-override root) the seam swaps for
+ * an in-memory DB. The 9 DAOs + `DbTransitionRunner` that DERIVE from it moved to the Metro-owned
+ * `DbCascadeBindingContainer`; the 3 `AppDatabase`-derived interface bindings moved to `@ContributesBinding`
+ * on their impls. This module now provides only the root.
+ */
 @Module
 @InstallIn(SingletonComponent::class)
 object CoreDatabaseModule {
@@ -45,59 +40,4 @@ object CoreDatabaseModule {
         // (Scenarios 1 and 2); silent data wipe is never an option.
         .apply { MIGRATIONS.forEach { addMigrations(it) } }
         .build()
-
-    @Provides
-    @Singleton
-    internal fun provideTransition(
-        db: AppDatabase,
-        @IODispatcher ioDispatcher: CoroutineDispatcher,
-    ): DbTransitionRunner = object : DbTransitionRunner {
-
-        override suspend fun <T> invoke(
-            block: suspend CoroutineScope.() -> T,
-        ): T = withContext(ioDispatcher) {
-            db.withTransaction {
-                block()
-            }
-        }
-    }
-
-    @Provides
-    @Singleton
-    internal fun provideTrainingDao(db: AppDatabase): TrainingDao = db.trainingDao
-
-    @Provides
-    @Singleton
-    internal fun provideTrainingExerciseDao(db: AppDatabase): TrainingExerciseDao =
-        db.trainingExerciseDao
-
-    @Provides
-    @Singleton
-    internal fun provideExerciseDao(db: AppDatabase): ExerciseDao = db.exerciseDao
-
-    @Provides
-    @Singleton
-    internal fun provideSessionDao(db: AppDatabase): SessionDao = db.sessionDao
-
-    @Provides
-    @Singleton
-    internal fun providePerformedExerciseDao(
-        db: AppDatabase,
-    ): PerformedExerciseDao = db.performedExerciseDao
-
-    @Provides
-    @Singleton
-    internal fun provideSetDao(db: AppDatabase): SetDao = db.setDao
-
-    @Provides
-    @Singleton
-    internal fun provideTagDao(db: AppDatabase): TagDao = db.tagDao
-
-    @Provides
-    @Singleton
-    internal fun provideExerciseTagDao(db: AppDatabase): ExerciseTagDao = db.exerciseTagDao
-
-    @Provides
-    @Singleton
-    internal fun provideTrainingTagDao(db: AppDatabase): TrainingTagDao = db.trainingTagDao
 }

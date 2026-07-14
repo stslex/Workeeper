@@ -7,16 +7,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import io.github.stslex.workeeper.core.core.images.ImageStorage
-import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
-import io.github.stslex.workeeper.core.data.database.exercise.ExerciseDao
-import io.github.stslex.workeeper.core.data.database.session.PerformedExerciseDao
-import io.github.stslex.workeeper.core.data.database.session.SessionDao
-import io.github.stslex.workeeper.core.data.database.session.SetDao
-import io.github.stslex.workeeper.core.data.database.tag.ExerciseTagDao
-import io.github.stslex.workeeper.core.data.database.tag.TagDao
-import io.github.stslex.workeeper.core.data.database.tag.TrainingTagDao
-import io.github.stslex.workeeper.core.data.database.training.TrainingDao
-import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseDao
+import io.github.stslex.workeeper.core.data.database.AppDatabase
 import javax.inject.Singleton
 
 /**
@@ -43,43 +34,27 @@ internal object AppGraphSourceModule {
 
     @Provides
     @Singleton
-    @Suppress("LongParameterList")
     fun provideAppGraph(
         application: Application,
-        // App-Scope Collapse Step 3 (C2, bridge-scaffold). The db-cascade substrate the graph bridge-reads,
+        // App-Scope Collapse Step 5 (5a). The two DB-cascade `create()` roots the graph bridge-reads,
         // injected FROM HILT — so under @TestInstallIn (TestInfraModule swaps FakeImageStorage) the test-branch
-        // build passes the FAKE ImageStorage into create(), never a real one. The DAOs / DbTransitionRunner stay
-        // Hilt-owned (Step-5-fenced). Fake-awareness guarantee: bridge-READ, never construct. No dagger.Lazy
-        // needed — C2-h' dissolved the @IO→appGraph back-edge, so eager resolution here does not cycle.
-        exerciseDao: ExerciseDao,
-        exerciseTagDao: ExerciseTagDao,
-        performedExerciseDao: PerformedExerciseDao,
-        sessionDao: SessionDao,
-        setDao: SetDao,
-        tagDao: TagDao,
-        trainingDao: TrainingDao,
-        trainingExerciseDao: TrainingExerciseDao,
-        trainingTagDao: TrainingTagDao,
-        dbTransitionRunner: DbTransitionRunner,
+        // build passes the FAKE ImageStorage into create(), never a real one; and the in-memory AppDatabase
+        // (from the test-DB module) flows in as the appDatabase root. The 9 DAOs + DbTransitionRunner now DERIVE
+        // from appDatabase graph-internally (DbCascadeBindingContainer). Fake-awareness guarantee: bridge-READ,
+        // never construct. No dagger.Lazy needed — no @IO→appGraph back-edge (derived bindings read AppDatabase /
+        // a direct Dispatchers.IO).
+        appDatabase: AppDatabase,
         imageStorage: ImageStorage,
     ): AppGraph = when (application) {
         // Prod: BaseApplication (and its dev/store subclasses) hold the process-lifetime graph.
         is AppGraphOwner -> application.appGraph
         // Test: HiltTestApplication is not an AppGraphOwner. Build the real graph from the app context — the
         // same construction BaseApplication.appGraph performs (via the shared [buildAppGraph]) — so the real
-        // adopt-back shims resolve, and the bridged deps (incl. FakeImageStorage) come from Hilt.
+        // adopt-back shims resolve, and the bridged roots (incl. FakeImageStorage + in-memory AppDatabase) come
+        // from Hilt.
         else -> buildAppGraph(
             applicationContext = application.applicationContext,
-            exerciseDao = exerciseDao,
-            exerciseTagDao = exerciseTagDao,
-            performedExerciseDao = performedExerciseDao,
-            sessionDao = sessionDao,
-            setDao = setDao,
-            tagDao = tagDao,
-            trainingDao = trainingDao,
-            trainingExerciseDao = trainingExerciseDao,
-            trainingTagDao = trainingTagDao,
-            dbTransitionRunner = dbTransitionRunner,
+            appDatabase = appDatabase,
             imageStorage = imageStorage,
         )
     }

@@ -12,16 +12,7 @@ import dev.zacsweers.metro.HasMemberInjections
 import io.github.stslex.workeeper.core.core.images.ImageStorage
 import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
 import io.github.stslex.workeeper.core.core.logger.Log
-import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
-import io.github.stslex.workeeper.core.data.database.exercise.ExerciseDao
-import io.github.stslex.workeeper.core.data.database.session.PerformedExerciseDao
-import io.github.stslex.workeeper.core.data.database.session.SessionDao
-import io.github.stslex.workeeper.core.data.database.session.SetDao
-import io.github.stslex.workeeper.core.data.database.tag.ExerciseTagDao
-import io.github.stslex.workeeper.core.data.database.tag.TagDao
-import io.github.stslex.workeeper.core.data.database.tag.TrainingTagDao
-import io.github.stslex.workeeper.core.data.database.training.TrainingDao
-import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseDao
+import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
 import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
 import io.github.stslex.workeeper.di.AppGraph
@@ -64,27 +55,19 @@ abstract class BaseApplication : Application(), Configuration.Provider, AppGraph
      */
     @Suppress("EXPOSED_PROPERTY_TYPE_IN_CONSTRUCTOR_ERROR", "EXPOSED_PROPERTY_TYPE")
     override val appGraph: AppGraph by lazy {
-        // App-Scope Collapse Step 3 (C2, bridge-scaffold): the exercise-repo db-cascade substrate (9 DAOs +
-        // DbTransitionRunner + ImageStorage) is bridge-READ from Hilt (they stay Hilt-owned) and handed to
-        // create(). Reading the Hilt-BOUND ImageStorage (not constructing) keeps @TestInstallIn fakes intact.
-        // Cycle-free since C2-h' (DbTransitionRunner/ImageStorage need @IO = a direct Hilt Dispatchers.IO, no
-        // appGraph re-entry). Transient — each param retires when its owning tier migrates (db-cascade = Step 5).
+        // App-Scope Collapse Step 5 (5a): the DB-cascade collapsed to a single AppDatabase create() root
+        // (the 9 DAOs + DbTransitionRunner + the 3 DB-bindings now derive from it graph-internally). The
+        // two roots — AppDatabase + ImageStorage — are bridge-READ from Hilt (AppDatabase stays
+        // Hilt-constructed by CoreDatabaseModule; ImageStorage stays a permanent create() root, 5c). Reading
+        // the Hilt-BOUND ImageStorage (not constructing) keeps @TestInstallIn fakes intact. Cycle-free:
+        // every derived binding reads AppDatabase / a direct Dispatchers.IO — no appGraph re-entry.
         val db = EntryPointAccessors.fromApplication(
             applicationContext,
             DbCascadeBridgeEntryPoint::class.java,
         )
         buildAppGraph(
             applicationContext = applicationContext,
-            exerciseDao = db.exerciseDao(),
-            exerciseTagDao = db.exerciseTagDao(),
-            performedExerciseDao = db.performedExerciseDao(),
-            sessionDao = db.sessionDao(),
-            setDao = db.setDao(),
-            tagDao = db.tagDao(),
-            trainingDao = db.trainingDao(),
-            trainingExerciseDao = db.trainingExerciseDao(),
-            trainingTagDao = db.trainingTagDao(),
-            dbTransitionRunner = db.dbTransitionRunner(),
+            appDatabase = db.appDatabase(),
             imageStorage = db.imageStorage(),
         )
     }
@@ -204,25 +187,16 @@ abstract class BaseApplication : Application(), Configuration.Provider, AppGraph
     }
 
     /**
-     * App-Scope Collapse Step 3 (C2, bridge-scaffold). Pulls the exercise-repo db-cascade substrate (9 Room
-     * DAOs + [DbTransitionRunner] + [ImageStorage]) out of Hilt's `SingletonComponent` so [appGraph] can
-     * bridge them into `create()` as bound instances. Reading the Hilt-BOUND [ImageStorage] preserves the
-     * `@TestInstallIn` fake. Transient — each accessor retires when its owning tier migrates (db-cascade =
-     * Step 5, ImageStorage = the C1 carveout).
+     * App-Scope Collapse Step 5 (5a). Pulls the two DB-cascade `create()` roots — the Hilt-constructed
+     * [AppDatabase] + the [ImageStorage] (a permanent create() root, 5c) — out of Hilt's `SingletonComponent`
+     * so [appGraph] can bridge them into `create()` as bound instances. Reading the Hilt-BOUND [ImageStorage]
+     * preserves the `@TestInstallIn` fake. The 9 DAOs + `DbTransitionRunner` + the 3 DB-bindings no longer
+     * cross this bridge — they derive from `appDatabase` graph-internally.
      */
     @EntryPoint
     @InstallIn(SingletonComponent::class)
     internal interface DbCascadeBridgeEntryPoint {
-        fun exerciseDao(): ExerciseDao
-        fun exerciseTagDao(): ExerciseTagDao
-        fun performedExerciseDao(): PerformedExerciseDao
-        fun sessionDao(): SessionDao
-        fun setDao(): SetDao
-        fun tagDao(): TagDao
-        fun trainingDao(): TrainingDao
-        fun trainingExerciseDao(): TrainingExerciseDao
-        fun trainingTagDao(): TrainingTagDao
-        fun dbTransitionRunner(): DbTransitionRunner
+        fun appDatabase(): AppDatabase
         fun imageStorage(): ImageStorage
     }
 }

@@ -2,6 +2,10 @@
 package io.github.stslex.workeeper.core.data.database.export
 
 import androidx.room.withTransaction
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.exercise.ExerciseEntity
@@ -21,8 +25,6 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
-import javax.inject.Inject
-import javax.inject.Singleton
 import kotlin.uuid.Uuid
 
 /**
@@ -30,9 +32,14 @@ import kotlin.uuid.Uuid
  * tag readers), assemble the nested graph in memory with `groupBy` (zero N+1), and encode.
  * `explicitNulls = false` realizes the spec's "omit nullable fields when null"; `prettyPrint`
  * keeps the artifact human-readable.
+ *
+ * App-Scope Collapse Step 5 (5a): Metro-owned via `@ContributesBinding(AppScope)` on the (public) impl —
+ * derives from the [AppDatabase] `create()` root; `@IODispatcher` is the direct `Dispatchers.IO`. Public for
+ * cross-module aggregation (D1). Read by the still-Hilt `SnapshotExportRunnerImpl` (5b) via the adopt-back shim.
  */
-@Singleton
-internal class DatabaseJsonExporterImpl @Inject constructor(
+@SingleIn(AppScope::class)
+@ContributesBinding(AppScope::class)
+public class DatabaseJsonExporterImpl @Inject constructor(
     private val database: AppDatabase,
     @IODispatcher private val dispatcher: CoroutineDispatcher,
 ) : DatabaseJsonExporter {

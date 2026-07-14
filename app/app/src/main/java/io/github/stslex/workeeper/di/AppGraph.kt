@@ -24,16 +24,10 @@ import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferen
 import io.github.stslex.workeeper.core.data.backup.google_drive.auth.AccountDataStore
 import io.github.stslex.workeeper.core.data.backup.worker.notification.BackupNotificationHelper
 import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
-import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
-import io.github.stslex.workeeper.core.data.database.exercise.ExerciseDao
-import io.github.stslex.workeeper.core.data.database.session.PerformedExerciseDao
-import io.github.stslex.workeeper.core.data.database.session.SessionDao
-import io.github.stslex.workeeper.core.data.database.session.SetDao
-import io.github.stslex.workeeper.core.data.database.tag.ExerciseTagDao
-import io.github.stslex.workeeper.core.data.database.tag.TagDao
-import io.github.stslex.workeeper.core.data.database.tag.TrainingTagDao
-import io.github.stslex.workeeper.core.data.database.training.TrainingDao
-import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseDao
+import io.github.stslex.workeeper.core.data.database.AppDatabase
+import io.github.stslex.workeeper.core.data.database.export.DatabaseJsonExporter
+import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
+import io.github.stslex.workeeper.core.data.database.snapshot.LiveDatabaseLocator
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordRepository
 import io.github.stslex.workeeper.core.data.exercise.session.PerformedExerciseRepository
@@ -252,6 +246,20 @@ internal interface AppGraph {
     val statsRepository: StatsRepository
 
     /**
+     * App-Scope Collapse Step 5 (5a). The three `AppDatabase`-derived DB-cascade interface bindings, now
+     * Metro-owned via `@ContributesBinding(AppScope)` on their impls (both derive from the `appDatabase`
+     * `create()` root). Exposed here for the adopt-back shims + the `===` identity seam:
+     *  - [databaseSnapshotProvider] / [liveDatabaseLocator] — the SAME `DatabaseSnapshotProviderImpl`
+     *    instance (repeatable `@ContributesBinding`). Read cross-module by the restore path (BackupWorker,
+     *    RecoveryActivity, the recovery observers, settings) — all still Hilt, via their adopt-back shims.
+     *  - [databaseJsonExporter] — read by the still-Hilt `SnapshotExportRunnerImpl` (5b); shim is transient,
+     *    retired with SnapshotExportRunner in 5b.
+     */
+    val databaseSnapshotProvider: DatabaseSnapshotProvider
+    val liveDatabaseLocator: LiveDatabaseLocator
+    val databaseJsonExporter: DatabaseJsonExporter
+
+    /**
      * Metro CONSTRUCTS and retains the leaf. `@SingleIn(AppScope)` binds it to this graph's
      * lifetime — i.e. the process — the exact lifetime Hilt's `@Singleton` gave. This is the first
      * app-scoped binding Metro *owns* (features only ever ADOPTED Hilt-owned singletons in).
@@ -262,26 +270,17 @@ internal interface AppGraph {
 
     @DependencyGraph.Factory
     fun interface Factory {
+        // App-Scope Collapse Step 5 (5a): create() collapsed from 12 params to 3 ROOTS. Each is a
+        // test-override boundary the seam swaps directly (§Test-override root); everything else derives.
+        //  - applicationContext: the app Context (plain; @ApplicationContext stays Hilt-side).
+        //  - appDatabase: the single Room instance (Hilt-constructed root, threaded in). The 9 DAOs +
+        //    DbTransitionRunner DERIVE from it graph-internally (DbCascadeBindingContainer), and the 3
+        //    AppDatabase-derived interface bindings are @ContributesBinding on their impls. The seam swaps
+        //    an in-memory AppDatabase here; prod passes the file-backed Hilt one.
+        //  - imageStorage: permanent create() root (5c Option A'; @TestInstallIn fake flows through).
         fun create(
-            // PLAIN Context bound instance (locked C shape).
             @Provides applicationContext: Context,
-            // App-Scope Collapse Step 3 (C2, bridge-scaffold). The exercise-repo migration's db-cascade
-            // substrate: 9 Room DAOs + DbTransitionRunner + ImageStorage are BRIDGE-READ from Hilt as bound
-            // instances (they stay Hilt-owned — the db-cascade is Step-5-fenced, ImageStorage is the C1
-            // carveout). NEVER constructed here: the callers pull the Hilt-BOUND instances so tests that
-            // @TestInstallIn-swap FakeImageStorage still get the fake. Cycle-free since C2-h' (the @IO→appGraph
-            // back-edge is dissolved: DbTransitionRunner/ImageStorageImpl need @IO, which is now a direct Hilt
-            // Dispatchers.IO, not routed through appGraph). Unconsumed until the repo flips land (C2 commit 2).
-            @Provides exerciseDao: ExerciseDao,
-            @Provides exerciseTagDao: ExerciseTagDao,
-            @Provides performedExerciseDao: PerformedExerciseDao,
-            @Provides sessionDao: SessionDao,
-            @Provides setDao: SetDao,
-            @Provides tagDao: TagDao,
-            @Provides trainingDao: TrainingDao,
-            @Provides trainingExerciseDao: TrainingExerciseDao,
-            @Provides trainingTagDao: TrainingTagDao,
-            @Provides dbTransitionRunner: DbTransitionRunner,
+            @Provides appDatabase: AppDatabase,
             @Provides imageStorage: ImageStorage,
         ): AppGraph
     }

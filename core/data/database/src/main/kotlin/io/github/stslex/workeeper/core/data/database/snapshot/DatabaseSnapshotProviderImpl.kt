@@ -4,7 +4,11 @@ package io.github.stslex.workeeper.core.data.database.snapshot
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteException
-import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import dev.zacsweers.metro.binding
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
@@ -15,14 +19,22 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
-import javax.inject.Inject
-import javax.inject.Singleton
 import io.github.stslex.workeeper.core.data.database.migration.hasMigrationPath as registryHasMigrationPath
 
-@Singleton
-internal class DatabaseSnapshotProviderImpl @Inject constructor(
+/**
+ * App-Scope Collapse Step 5 (5a). Metro-owned via repeatable `@ContributesBinding(AppScope)` — binds BOTH
+ * [DatabaseSnapshotProvider] and [LiveDatabaseLocator] to this ONE `@SingleIn(AppScope)` instance (the same
+ * `@Binds`-pair the deleted `CoreDatabaseBindingsModule` held). Public for cross-module aggregation (D1;
+ * never hand-construct — resolve via DI). Derives from the [AppDatabase] `create()` root; `Context` is
+ * PLAIN (from the graph's `create(applicationContext)` — `@ApplicationContext` is a Hilt qualifier, not
+ * carried into the Metro graph); `@IODispatcher` is the direct `Dispatchers.IO`. No `appGraph` back-edge.
+ */
+@SingleIn(AppScope::class)
+@ContributesBinding(AppScope::class, binding = binding<DatabaseSnapshotProvider>())
+@ContributesBinding(AppScope::class, binding = binding<LiveDatabaseLocator>())
+public class DatabaseSnapshotProviderImpl @Inject constructor(
     private val appDatabase: AppDatabase,
-    @ApplicationContext private val context: Context,
+    private val context: Context,
     @IODispatcher private val dispatcher: CoroutineDispatcher,
 ) : DatabaseSnapshotProvider, LiveDatabaseLocator {
 

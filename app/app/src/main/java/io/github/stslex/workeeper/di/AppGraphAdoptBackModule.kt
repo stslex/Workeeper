@@ -21,6 +21,9 @@ import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferen
 import io.github.stslex.workeeper.core.data.backup.google_drive.auth.AccountDataStore
 import io.github.stslex.workeeper.core.data.backup.worker.notification.BackupNotificationHelper
 import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
+import io.github.stslex.workeeper.core.data.database.export.DatabaseJsonExporter
+import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
+import io.github.stslex.workeeper.core.data.database.snapshot.LiveDatabaseLocator
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordRepository
 import io.github.stslex.workeeper.core.data.exercise.session.PerformedExerciseRepository
@@ -370,4 +373,32 @@ internal object AppGraphAdoptBackModule {
     @Provides
     @Singleton
     fun provideTrainingRepository(appGraph: AppGraph): TrainingRepository = appGraph.trainingRepository
+
+    /**
+     * Adopt-back for the DB-cascade interface bindings (App-Scope Collapse Step 5, 5a). Each is Metro-owned
+     * via `@ContributesBinding(AppScope)` on its (public) impl; these single-owner shims re-provide them into
+     * Hilt's `SingletonComponent` for the still-Hilt readers.
+     *  - [provideDatabaseSnapshotProvider] / [provideLiveDatabaseLocator] — the SAME
+     *    `DatabaseSnapshotProviderImpl` instance (restore path: BackupWorker via `BackupWorkerHiltEntryPoint`,
+     *    RecoveryActivity, the recovery observers, settings via `SettingsHiltEntryPoint`/`SettingsGraph`).
+     *  - [provideDatabaseJsonExporter] — read by the still-Hilt `SnapshotExportRunnerImpl`; TRANSIENT, retired
+     *    with SnapshotExportRunner in 5b.
+     */
+    @Provides
+    @Singleton
+    fun provideDatabaseSnapshotProvider(
+        appGraph: AppGraph,
+    ): DatabaseSnapshotProvider = appGraph.databaseSnapshotProvider
+
+    @Provides
+    @Singleton
+    fun provideLiveDatabaseLocator(
+        appGraph: AppGraph,
+    ): LiveDatabaseLocator = appGraph.liveDatabaseLocator
+
+    @Provides
+    @Singleton
+    fun provideDatabaseJsonExporter(
+        appGraph: AppGraph,
+    ): DatabaseJsonExporter = appGraph.databaseJsonExporter
 }

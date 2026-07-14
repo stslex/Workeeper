@@ -39,7 +39,9 @@ import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
 import io.github.stslex.workeeper.core.data.backup.api.SnapshotStorage
-import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
+import io.github.stslex.workeeper.core.data.database.export.DatabaseJsonExporter
+import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
+import io.github.stslex.workeeper.core.data.database.snapshot.LiveDatabaseLocator
 import io.github.stslex.workeeper.core.data.database_test.InMemoryDatabaseProvider
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
@@ -249,6 +251,45 @@ class AppGraphAdoptBackSeamTest {
             "SessionRepository Hilt adopt-back === Metro-owned",
             TestAppGraphModule.testAppGraph.sessionRepository,
             ep.sessionRepository(),
+        )
+    }
+
+    @Test
+    fun dbCascade_appDatabaseResolvesAsOneInstance_andHiltAdoptBackMatchesMetro() {
+        // App-Scope Collapse Step 5 (5a). THE cascade invariant: the 3 AppDatabase-derived bindings are
+        // Metro-owned (@ContributesBinding) and all derive from the ONE appDatabase create() root.
+        //  (a) DatabaseSnapshotProvider === LiveDatabaseLocator: repeatable @ContributesBinding binds BOTH
+        //      interfaces to the SAME DatabaseSnapshotProviderImpl, which holds the ONE AppDatabase. If this
+        //      split into two instances (or two AppDatabase handles), swap/rollback would operate on
+        //      divergent Room handles — the exact double-handle corruption the atomicity rule prevents.
+        //  (b) each Hilt adopt-back shim === the Metro-owned instance (the still-Hilt restore-path readers
+        //      resolve the same object).
+        val ep = EntryPointAccessors.fromApplication(
+            ApplicationProvider.getApplicationContext<Context>(), TestDbCascadeEntryPoint::class.java)
+        val snapshotMetro = TestAppGraphModule.testAppGraph.databaseSnapshotProvider
+        val locatorMetro = TestAppGraphModule.testAppGraph.liveDatabaseLocator
+
+        // (a) ONE instance behind both DB-locator interfaces (one AppDatabase, one impl).
+        assertSame(
+            "DatabaseSnapshotProvider === LiveDatabaseLocator (one impl, one AppDatabase root)",
+            snapshotMetro as Any,
+            locatorMetro as Any,
+        )
+        // (b) Hilt adopt-back === Metro-owned, for all three DB-bindings.
+        assertSame(
+            "DatabaseSnapshotProvider Hilt adopt-back === Metro-owned",
+            snapshotMetro,
+            ep.databaseSnapshotProvider(),
+        )
+        assertSame(
+            "LiveDatabaseLocator Hilt adopt-back === Metro-owned",
+            locatorMetro,
+            ep.liveDatabaseLocator(),
+        )
+        assertSame(
+            "DatabaseJsonExporter Hilt adopt-back === Metro-owned",
+            TestAppGraphModule.testAppGraph.databaseJsonExporter,
+            ep.databaseJsonExporter(),
         )
     }
 
@@ -561,6 +602,19 @@ class AppGraphAdoptBackSeamTest {
     }
 
     /**
+     * Mirrors the still-Hilt readers of the (now Metro-owned) DB-cascade interface bindings (App-Scope
+     * Collapse Step 5, 5a): the restore path (BackupWorker / RecoveryActivity / recovery observers /
+     * settings) reads these from Hilt's `SingletonComponent` through the adopt-back shims.
+     */
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
+    interface TestDbCascadeEntryPoint {
+        fun databaseSnapshotProvider(): DatabaseSnapshotProvider
+        fun liveDatabaseLocator(): LiveDatabaseLocator
+        fun databaseJsonExporter(): DatabaseJsonExporter
+    }
+
+    /**
      * Mirrors the still-Hilt dispatcher readers (feature `*HiltEntryPoint` bridges + pure-Hilt `@Inject`
      * interactors / handlers / `core:data` repositories) — each resolves the qualified dispatcher from
      * Hilt's `SingletonComponent`, now served by the adopt-back shims delegating to the Metro graph.
@@ -618,29 +672,15 @@ internal object TestAppGraphModule {
     // Collapse Step 3 (PF commit 1): the dispatchers are Metro-owned (DispatchersBindingContainer), so
     // create() takes only applicationContext — the same shrunk signature the prod BaseApplication uses.
     val testAppGraph: AppGraph by lazy {
-        val db = InMemoryDatabaseProvider.create(ApplicationProvider.getApplicationContext())
         createGraphFactory<AppGraph.Factory>()
             .create(
                 applicationContext = ApplicationProvider.getApplicationContext<Context>(),
-                // App-Scope Collapse Step 3 (C2, bridge-scaffold): the seam identity tests never call the repos,
-                // so the DAOs come from a real in-memory AppDatabase (no mockk on the app:app androidTest
-                // classpath); DbTransitionRunner is a no-op passthrough; ImageStorage uses the real
-                // FakeImageStorage to mirror the @TestInstallIn fake the prod bridge reads. All unconsumed until
-                // the repo flips land (C2 commit 2).
-                exerciseDao = db.exerciseDao,
-                exerciseTagDao = db.exerciseTagDao,
-                performedExerciseDao = db.performedExerciseDao,
-                sessionDao = db.sessionDao,
-                setDao = db.setDao,
-                tagDao = db.tagDao,
-                trainingDao = db.trainingDao,
-                trainingExerciseDao = db.trainingExerciseDao,
-                trainingTagDao = db.trainingTagDao,
-                dbTransitionRunner = object : DbTransitionRunner {
-                    override suspend operator fun <T> invoke(
-                        block: suspend kotlinx.coroutines.CoroutineScope.() -> T,
-                    ): T = kotlinx.coroutines.coroutineScope(block)
-                },
+                // App-Scope Collapse Step 5 (5a): create() collapsed to 3 roots. The AppDatabase root is an
+                // in-memory Room instance (the test-override swap for the file-backed prod DB); the 9 DAOs +
+                // DbTransitionRunner + the 3 DB-bindings all derive from it graph-internally. ImageStorage uses
+                // the real FakeImageStorage, mirroring the @TestInstallIn fake the prod bridge reads. This is
+                // the AppDatabase-resolves-as-ONE-instance invariant that makes it a cascade, not 11 flips.
+                appDatabase = InMemoryDatabaseProvider.create(ApplicationProvider.getApplicationContext()),
                 imageStorage = FakeImageStorage(),
             )
     }
