@@ -31,6 +31,7 @@ import io.github.stslex.workeeper.core.data.database.snapshot.LiveDatabaseLocato
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordRepository
 import io.github.stslex.workeeper.core.data.exercise.session.PerformedExerciseRepository
+import io.github.stslex.workeeper.core.data.exercise.session.SessionConflictResolver
 import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.data.exercise.session.SetRepository
 import io.github.stslex.workeeper.core.data.exercise.stats.StatsRepository
@@ -49,6 +50,9 @@ import io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObse
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepository
 import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImpl
+import io.github.stslex.workeeper.feature.recovery.boot.RecoveryBootstrap
+import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
+import io.github.stslex.workeeper.feature.recovery.domain.StartupMigrationCoordinator
 import io.github.stslex.workeeper.navigation.NavigatorEventBus
 import kotlinx.coroutines.CoroutineDispatcher
 
@@ -259,6 +263,29 @@ internal interface AppGraph : AppGraphContract {
     override val trainingExerciseRepository: TrainingExerciseRepository
     override val trainingRepository: TrainingRepository
     val statsRepository: StatsRepository
+
+    /**
+     * App-Scope Collapse Step 6 (cut). [SessionConflictResolver] — self-bound `@SingleIn(AppScope)`
+     * graph node; read by home + single-training via `appGraphContract()` post-Hilt.
+     */
+    override val sessionConflictResolver: SessionConflictResolver
+
+    /**
+     * App-Scope Collapse Step 6 (cut). [ImageStorage] accessor over the `create()` bound-instance root —
+     * read by the exercise feature (+ `BaseApplication.cleanupOrphanedImageTempFiles`) via the graph.
+     */
+    override val imageStorage: ImageStorage
+
+    /**
+     * App-Scope Collapse Step 6 (cut). The recovery cluster — feature/recovery `@SingleIn(AppScope)` graph
+     * nodes read by `BaseApplication`/`MainActivity` (both in app/app, so read the INTERNAL graph directly;
+     * NOT on `AppGraphContract` — core:di cannot name feature types). [recoveryBootstrap] is the
+     * `RestoreDialogChoiceObserver` (via its `RecoveryBootstrap` supertype, `@ContributesBinding`) —
+     * resolving it eagerly arms the observer's `init{}` subscriber (app-dialogs BLOCKER 1).
+     */
+    val restoreRecoveryCoordinator: RestoreRecoveryCoordinator
+    val startupMigrationCoordinator: StartupMigrationCoordinator
+    val recoveryBootstrap: RecoveryBootstrap
 
     /**
      * App-Scope Collapse Step 5 (5a). The `AppDatabase`-derived DB-locator interface bindings, now Metro-owned

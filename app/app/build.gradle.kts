@@ -47,8 +47,6 @@ dependencies {
     implementation(project(":core:data:backup:worker"))
 
     api(libs.androidx.work.runtime)
-    api(libs.androidx.hilt.work)
-    ksp(libs.androidx.hilt.compiler)
 
     implementation(project(":feature:exercise"))
     implementation(project(":feature:exercise-chart"))
@@ -62,8 +60,8 @@ dependencies {
     implementation(project(":feature:past-session"))
     implementation(project(":feature:image-viewer"))
     implementation(project(":feature:plan-editor"))
-    implementation(project(":feature:app-dialogs:api"))
-    implementation(project(":feature:app-dialogs:impl"))
+    api(project(":feature:app-dialogs:api"))
+    api(project(":feature:app-dialogs:impl"))
     implementation(project(":feature:recovery"))
 
     implementation(platform(libs.google.firebase.bom))
@@ -71,7 +69,6 @@ dependencies {
     implementation(libs.google.firebase.crashlytics)
     implementation(libs.google.firebase.perf)
 
-    implementation(libs.hilt.navigation.compose)
 
     androidTestImplementation(libs.bundles.android.test)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

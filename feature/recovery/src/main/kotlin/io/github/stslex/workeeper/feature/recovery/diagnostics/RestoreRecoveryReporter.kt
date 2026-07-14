@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.recovery.diagnostics
 
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreInProgressContext
 import io.github.stslex.workeeper.core.data.database.migration.APP_DATABASE_VERSION
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Wraps [FirebaseCrashlyticsHolder] for the restore-recovery non-fatals
@@ -23,7 +24,7 @@ import javax.inject.Singleton
  * narrow — adding a method per scenario keeps the call-sites grep-able and
  * the key-set discoverable.
  */
-@Singleton
+@SingleIn(AppScope::class)
 internal class RestoreRecoveryReporter @Inject constructor(
     private val snapshotProvider: DatabaseSnapshotProvider,
 ) {

@@ -3,8 +3,8 @@ package io.github.stslex.workeeper.feature.home.di
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
-import dagger.hilt.android.EntryPointAccessors
 import dev.zacsweers.metro.createGraphFactory
+import io.github.stslex.workeeper.core.di.appGraphContract
 import io.github.stslex.workeeper.core.ui.mvi.Feature
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
 import io.github.stslex.workeeper.core.ui.mvi.processor.rememberMetroStoreProcessor
@@ -29,21 +29,19 @@ internal object HomeFeature : Feature<HomeStoreProcessor, Home>() {
     override fun processor(): HomeStoreProcessor {
         val context = LocalContext.current
         return rememberMetroStoreProcessor<HomeStoreImpl> {
-            val entryPoint = EntryPointAccessors.fromApplication(
-                context.applicationContext,
-                HomeHiltEntryPoint::class.java,
-            )
+            // App-Scope Collapse Step 6 (cut): app-scope deps via the Metro AppGraphContract.
+            val graph = context.appGraphContract()
             createGraphFactory<HomeGraph.Factory>()
                 .create(
-                    trainingRepository = entryPoint.trainingRepository(),
-                    sessionRepository = entryPoint.sessionRepository(),
-                    sessionConflictResolver = entryPoint.sessionConflictResolver(),
-                    resourceWrapper = entryPoint.resourceWrapper(),
-                    navigator = entryPoint.navigator(),
-                    storeDispatchers = entryPoint.storeDispatchers(),
-                    analyticsHolder = entryPoint.analyticsHolder(),
-                    loggerHolder = entryPoint.loggerHolder(),
-                    defaultDispatcher = entryPoint.defaultDispatcher(),
+                    trainingRepository = graph.trainingRepository,
+                    sessionRepository = graph.sessionRepository,
+                    sessionConflictResolver = graph.sessionConflictResolver,
+                    resourceWrapper = graph.resourceWrapper,
+                    navigator = graph.navigator,
+                    storeDispatchers = graph.storeDispatchers,
+                    analyticsHolder = graph.analyticsHolder,
+                    loggerHolder = graph.loggerHolder,
+                    defaultDispatcher = graph.defaultDispatcher,
                 )
                 .homeStore
         } as HomeStoreProcessor

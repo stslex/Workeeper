@@ -4,11 +4,8 @@ package io.github.stslex.workeeper.core.data.backup.worker
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
-import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import dagger.assisted.Assisted
-import dagger.assisted.AssistedInject
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
 import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
@@ -42,10 +39,11 @@ import java.io.File
  * [DatabaseSnapshotProvider.captureSnapshot] which produces a WAL-checkpointed
  * copy in [Context.getCacheDir].
  */
-@HiltWorker
-internal class BackupWorker @AssistedInject constructor(
-    @Assisted appContext: Context,
-    @Assisted workerParams: WorkerParameters,
+// App-Scope Collapse Step 6 (cut): plain CoroutineWorker constructed directly by MetroWorkerFactory
+// (Hilt @HiltWorker/@AssistedInject removed) — the factory reads the 6 app-scope deps from the graph.
+internal class BackupWorker(
+    appContext: Context,
+    workerParams: WorkerParameters,
     private val backupStorage: BackupStorage,
     private val snapshotProvider: DatabaseSnapshotProvider,
     private val preferences: BackupPreferencesRepository,

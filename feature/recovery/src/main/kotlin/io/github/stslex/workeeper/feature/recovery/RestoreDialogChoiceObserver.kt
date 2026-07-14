@@ -8,7 +8,10 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import androidx.core.net.toUri
-import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.data.backup.api.RecoveryDiagnosticsExporter
@@ -26,8 +29,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
-import javax.inject.Inject
-import javax.inject.Singleton
 import io.github.stslex.workeeper.feature.recovery.R as RecoveryR
 
 /**
@@ -71,9 +72,12 @@ import io.github.stslex.workeeper.feature.recovery.R as RecoveryR
  * failure window — without it, an IO-error rollback would dismiss the
  * dialog while the user's data was never actually rolled back.
  */
-@Singleton
-internal class RestoreDialogChoiceObserver @Inject constructor(
-    @ApplicationContext private val context: Context,
+@SingleIn(AppScope::class)
+@ContributesBinding(AppScope::class)
+// Public for cross-module @ContributesBinding aggregation into the app graph (D1; never hand-construct
+// — resolve via DI). Metro-owned via @ContributesBinding(AppScope) bound to RecoveryBootstrap.
+class RestoreDialogChoiceObserver @Inject constructor(
+    private val context: Context,
     private val observer: AppDialogObserver,
     private val coordinator: RestoreRecoveryCoordinator,
     private val restoreStateRepository: RestoreStateRepository,

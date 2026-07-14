@@ -17,6 +17,7 @@ metro {
 
 dependencies {
     implementation(project(":core:core"))
+    implementation(project(":core:di"))
     // Android-only core:core-android for AppScope (the app-graph marker) — the app-scoped impls flipped
     // to Metro in App-Scope Collapse Step 3 contribute/scope against it. Not the KMP core:core (iOS).
     implementation(project(":core:core-android"))
@@ -28,7 +29,6 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.datastore.core)
 
-    implementation(libs.hilt.navigation.compose)
 
     androidTestImplementation(libs.bundles.android.test)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

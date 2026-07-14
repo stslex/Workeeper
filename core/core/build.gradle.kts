@@ -37,7 +37,12 @@ kotlin {
             // Provides javax.inject.Qualifier for the dispatcher-qualifier android actuals.
             // These annotation classes are the ONLY Hilt-adjacent code in this KMP module —
             // the @Modules that reference them live in :core:core-android.
-            implementation(libs.hilt.android)
+            // App-Scope Collapse Step 6 (cut): the 4 dispatcher qualifier annotations carry
+            // @javax.inject.Qualifier (read by Metro's includeJavax()). `api` (not implementation) so
+            // downstream modules see the meta-annotation on the public qualifier types — else Metro
+            // can't recognise the qualifier and the app-scope aggregation drops the qualified dispatchers.
+            // Was pulled transitively via hilt.android; now the bare javax.inject artifact, Hilt gone.
+            api(libs.javax.inject)
         }
 
         // JVM unit tests for the pure-Kotlin commonMain surface (NumUiUtils, asyncAssociate

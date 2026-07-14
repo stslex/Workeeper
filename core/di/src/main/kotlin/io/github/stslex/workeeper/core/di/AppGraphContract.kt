@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.core.di
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
+import io.github.stslex.workeeper.core.core.images.ImageStorage
 import io.github.stslex.workeeper.core.core.platform.AppReinitializer
 import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
 import io.github.stslex.workeeper.core.core.platform.TempFileProvider
@@ -22,6 +23,7 @@ import io.github.stslex.workeeper.core.data.database.snapshot.LiveDatabaseLocato
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordRepository
 import io.github.stslex.workeeper.core.data.exercise.session.PerformedExerciseRepository
+import io.github.stslex.workeeper.core.data.exercise.session.SessionConflictResolver
 import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.data.exercise.session.SetRepository
 import io.github.stslex.workeeper.core.data.exercise.tags.TagRepository
@@ -81,6 +83,14 @@ interface AppGraphContract {
     val platformInfoProvider: PlatformInfoProvider
     val tempFileProvider: TempFileProvider
     val appReinitializer: AppReinitializer
+
+    // App-Scope Collapse Step 6 (cut): ImageStorage — a `create()` bound-instance root on AppGraph;
+    // exposed as an accessor so the exercise feature (which reads it post-cut) resolves it from the graph.
+    val imageStorage: ImageStorage
+
+    // App-Scope Collapse Step 6 (cut): SessionConflictResolver — self-bound @SingleIn(AppScope) @Inject
+    // graph node; exposed so home + single-training features read it from the graph post-cut.
+    val sessionConflictResolver: SessionConflictResolver
 
     // ── core:ui:navigation ──
     val navigator: Navigator

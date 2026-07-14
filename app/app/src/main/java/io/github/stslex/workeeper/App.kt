@@ -36,11 +36,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import io.github.stslex.workeeper.bottom_app_bar.WorkeeperBottomAppBar
 import io.github.stslex.workeeper.core.ui.kit.components.snackbar.AppSnackbar
@@ -50,6 +51,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
 import io.github.stslex.workeeper.core.ui.navigation.Screen
+import io.github.stslex.workeeper.di.AppGraphOwner
 import io.github.stslex.workeeper.feature.app_dialogs.impl.ui.AppDialogHost
 import io.github.stslex.workeeper.host.AppNavigationHost
 import io.github.stslex.workeeper.host.BottomBarNavigationListener.Companion.rememberBottomBarNavigationListener
@@ -60,7 +62,17 @@ private val TOP_APP_BAR_ACTION_PADDING = 4.dp
 
 @Composable
 fun App() {
-    val viewModel: AppRootViewModel = hiltViewModel()
+    // App-Scope Collapse Step 6 (cut): AppRootViewModel is a plain ViewModel (last @HiltViewModel removed),
+    // constructed via viewModel {} with deps read from the app graph — commonDataStore off the public
+    // contract, navigatorEventBus off the internal AppGraph (concrete, app/app-owned).
+    val context = LocalContext.current
+    val viewModel: AppRootViewModel = viewModel {
+        val graph = (context.applicationContext as AppGraphOwner).appGraph
+        AppRootViewModel(
+            commonDataStore = graph.commonDataStore,
+            navigatorEventBus = graph.navigatorEventBus,
+        )
+    }
     val themeMode by viewModel.themeMode.collectAsState()
 
     AppTheme(themeMode = themeMode) {

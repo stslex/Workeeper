@@ -3,8 +3,8 @@ package io.github.stslex.workeeper.feature.exercise.di
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
-import dagger.hilt.android.EntryPointAccessors
 import dev.zacsweers.metro.createGraphFactory
+import io.github.stslex.workeeper.core.di.appGraphContract
 import io.github.stslex.workeeper.core.ui.mvi.FeatureAssisted
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
 import io.github.stslex.workeeper.core.ui.mvi.processor.rememberMetroStoreProcessor
@@ -33,26 +33,25 @@ internal object ExerciseFeature : FeatureAssisted<ExerciseStoreProcessor, Screen
     override fun processor(screen: Screen.Exercise): ExerciseStoreProcessor {
         val context = LocalContext.current
         return rememberMetroStoreProcessor<ExerciseStoreImpl> {
-            val entryPoint = EntryPointAccessors.fromApplication(
-                context.applicationContext,
-                ExerciseHiltEntryPoint::class.java,
-            )
+            // App-Scope Collapse Step 6 (cut): app-scope deps via the Metro AppGraphContract; app Context
+            // direct from LocalContext (a create() param of the feature graph, never from the app graph).
+            val graph = context.appGraphContract()
             createGraphFactory<ExerciseGraph.Factory>()
                 .create(
-                    exerciseRepository = entryPoint.exerciseRepository(),
-                    tagRepository = entryPoint.tagRepository(),
-                    imageStorage = entryPoint.imageStorage(),
-                    personalRecordRepository = entryPoint.personalRecordRepository(),
-                    sessionRepository = entryPoint.sessionRepository(),
-                    trainingRepository = entryPoint.trainingRepository(),
-                    resourceWrapper = entryPoint.resourceWrapper(),
-                    navigator = entryPoint.navigator(),
-                    storeDispatchers = entryPoint.storeDispatchers(),
-                    analyticsHolder = entryPoint.analyticsHolder(),
-                    loggerHolder = entryPoint.loggerHolder(),
-                    defaultDispatcher = entryPoint.defaultDispatcher(),
-                    mainImmediateDispatcher = entryPoint.mainImmediateDispatcher(),
-                    context = entryPoint.applicationContext(),
+                    exerciseRepository = graph.exerciseRepository,
+                    tagRepository = graph.tagRepository,
+                    imageStorage = graph.imageStorage,
+                    personalRecordRepository = graph.personalRecordRepository,
+                    sessionRepository = graph.sessionRepository,
+                    trainingRepository = graph.trainingRepository,
+                    resourceWrapper = graph.resourceWrapper,
+                    navigator = graph.navigator,
+                    storeDispatchers = graph.storeDispatchers,
+                    analyticsHolder = graph.analyticsHolder,
+                    loggerHolder = graph.loggerHolder,
+                    defaultDispatcher = graph.defaultDispatcher,
+                    mainImmediateDispatcher = graph.mainImmediateDispatcher,
+                    context = context.applicationContext,
                 )
                 .storeFactory
                 .create(screen)

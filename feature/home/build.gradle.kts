@@ -12,6 +12,7 @@ metro {
 
 dependencies {
     implementation(project(":core:core"))
+    implementation(project(":core:di"))
     // formatRelativeTime (android.text.format.DateUtils) lives in the Android half of core:core.
     implementation(project(":core:core-android"))
 

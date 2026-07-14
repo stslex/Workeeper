@@ -7,8 +7,6 @@ import android.graphics.ImageDecoder
 import android.net.Uri
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
-import dagger.hilt.android.qualifiers.ApplicationContext
-import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.images.ImageStorage.Companion.DIRECTORY
 import io.github.stslex.workeeper.core.core.images.ImageStorage.Companion.FILE_EXTENSION
 import io.github.stslex.workeeper.core.core.images.ImageStorage.Companion.MAX_EDGE
@@ -23,13 +21,12 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.IOException
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class ImageStorageImpl @Inject constructor(
-    @ApplicationContext private val context: Context,
-    @IODispatcher private val ioDispatcher: CoroutineDispatcher,
+// App-Scope Collapse Step 6 (cut): plain class constructed by `buildImageStorage` (the create()-root
+// factory) — Hilt @Singleton/@Inject/@ApplicationContext removed; ctor params are plain.
+class ImageStorageImpl(
+    private val context: Context,
+    private val ioDispatcher: CoroutineDispatcher,
 ) : ImageStorage {
 
     private val logger: Logger = Log.tag("ImageStorage")

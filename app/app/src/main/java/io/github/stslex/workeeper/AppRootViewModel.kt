@@ -3,7 +3,6 @@ package io.github.stslex.workeeper
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.navigation.NavigatorEventBus
@@ -11,10 +10,11 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import javax.inject.Inject
 
-@HiltViewModel
-internal class AppRootViewModel @Inject constructor(
+// App-Scope Collapse Step 6 (cut): plain ViewModel (was the last @HiltViewModel). Constructed in App.kt
+// via viewModel {} with deps read from the app graph — commonDataStore from appGraphContract(),
+// navigatorEventBus from the internal AppGraph (concrete, not on the public contract).
+internal class AppRootViewModel(
     commonDataStore: CommonDataStore,
     val navigatorEventBus: NavigatorEventBus,
 ) : ViewModel() {

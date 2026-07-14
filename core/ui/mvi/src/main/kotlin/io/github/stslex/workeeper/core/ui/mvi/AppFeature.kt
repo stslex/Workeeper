@@ -4,7 +4,6 @@ package io.github.stslex.workeeper.core.ui.mvi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
-import io.github.stslex.workeeper.core.ui.mvi.processor.rememberStoreProcessor
 
 /**
  * `AppFeature` is the screen-less composition-time entry point for a feature whose Store
@@ -37,9 +36,4 @@ abstract class AppFeature<TProcessor : StoreProcessor<*, *, *>> {
 
     @Composable
     abstract fun processor(): TProcessor
-
-    @Suppress("UNCHECKED_CAST")
-    @Composable
-    inline fun <reified TSImpl : BaseStore<*, *, *>> AppFeature<TProcessor>.createProcessor(): TProcessor =
-        rememberStoreProcessor<TSImpl>() as TProcessor
 }

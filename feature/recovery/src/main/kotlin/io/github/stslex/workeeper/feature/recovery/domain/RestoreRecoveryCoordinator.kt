@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.recovery.domain
 
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.core.platform.AppReinitializer
 import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
@@ -11,8 +14,6 @@ import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotPr
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.recovery.diagnostics.RestoreRecoveryReporter
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Orchestrates the two cross-cutting recovery flows that live above
@@ -47,7 +48,7 @@ import javax.inject.Singleton
  * [restartApp] delegates to the platform-neutral [AppReinitializer] seam, whose single
  * Android actual (a process restart) is shared with the Settings post-restore path.
  */
-@Singleton
+@SingleIn(AppScope::class)
 class RestoreRecoveryCoordinator @Inject internal constructor(
     private val appReinitializer: AppReinitializer,
     private val platformInfo: PlatformInfoProvider,

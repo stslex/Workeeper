@@ -24,9 +24,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
-import dagger.hilt.android.AndroidEntryPoint
-import io.github.stslex.workeeper.core.data.backup.api.RecoveryDiagnosticsExporter
-import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
+import io.github.stslex.workeeper.core.di.appGraphContract
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -34,7 +32,6 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import kotlinx.coroutines.launch
 import java.io.File
-import javax.inject.Inject
 
 /**
  * Room-free fallback launcher for Scenario 2 (startup migration failure).
@@ -62,12 +59,16 @@ import javax.inject.Inject
  * | Report issue | Opens the GitHub issue URL with `bug,migration` labels. |
  * | Export diagnostics | Writes a `.txt` via `RecoveryDiagnosticsExporter` and launches `ACTION_SEND`. |
  */
-@AndroidEntryPoint
+// App-Scope Collapse Step 6 (cut): Hilt-free. Reads its two app-scope deps from the Metro app graph via
+// context.appGraphContract() (library module → public seam). ROOM-FREE PRESERVED: resolving
+// databaseSnapshotProvider + recoveryDiagnosticsExporter builds the graph (buildAppDatabase = a cold
+// Room.build(), no SQLite open) and constructs the two impls (ctors only store refs — no openHelper);
+// the DB opens only when a forbidden method is called, which this activity never does.
 class RecoveryActivity : ComponentActivity() {
 
-    @Inject internal lateinit var snapshotProvider: DatabaseSnapshotProvider
+    private val snapshotProvider get() = appGraphContract().databaseSnapshotProvider
 
-    @Inject internal lateinit var diagnosticsExporter: RecoveryDiagnosticsExporter
+    private val diagnosticsExporter get() = appGraphContract().recoveryDiagnosticsExporter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

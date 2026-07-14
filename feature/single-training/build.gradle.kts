@@ -16,6 +16,7 @@ metro {
 
 dependencies {
     implementation(project(":core:core"))
+    implementation(project(":core:di"))
 
     implementation(project(":core:ui:kit"))
     implementation(project(":core:ui:mvi"))

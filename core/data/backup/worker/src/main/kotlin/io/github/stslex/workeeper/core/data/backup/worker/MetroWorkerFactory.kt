@@ -26,7 +26,7 @@ import io.github.stslex.workeeper.core.di.appGraphContract
  * factory (verified against work-runtime 2.10.0 `WorkerFactory.kt`). No `DelegatingWorkerFactory` needed —
  * `BackupWorker` is the only worker in the app.
  */
-internal class MetroWorkerFactory(
+class MetroWorkerFactory(
     private val appContext: Context,
 ) : WorkerFactory() {
 

@@ -3,12 +3,13 @@ package io.github.stslex.workeeper.feature.settings.di
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
-import dagger.hilt.android.EntryPointAccessors
 import dev.zacsweers.metro.createGraphFactory
+import io.github.stslex.workeeper.core.di.appGraphContract
 import io.github.stslex.workeeper.core.ui.mvi.Feature
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
 import io.github.stslex.workeeper.core.ui.mvi.processor.rememberMetroStoreProcessor
 import io.github.stslex.workeeper.core.ui.navigation.Screen.Settings
+import io.github.stslex.workeeper.feature.app_dialogs.api.appDialogPublisher
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Action
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Event
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.State
@@ -34,30 +35,29 @@ internal object SettingsFeature : Feature<SettingsStoreProcessor, Settings>() {
     override fun processor(): SettingsStoreProcessor {
         val context = LocalContext.current
         return rememberMetroStoreProcessor<SettingsStoreImpl> {
-            val entryPoint = EntryPointAccessors.fromApplication(
-                context.applicationContext,
-                SettingsHiltEntryPoint::class.java,
-            )
+            // App-Scope Collapse Step 6 (cut): app-scope deps via the Metro AppGraphContract; appDialogPublisher
+            // via the feature-api holder seam (core:di can't name the feature type); app Context direct.
+            val graph = context.appGraphContract()
             createGraphFactory<SettingsGraph.Factory>()
                 .create(
-                    navigator = entryPoint.navigator(),
-                    platformInfoProvider = entryPoint.platformInfoProvider(),
-                    commonDataStore = entryPoint.commonDataStore(),
-                    backupAuth = entryPoint.backupAuth(),
-                    backupStorage = entryPoint.backupStorage(),
-                    snapshotExportRunner = entryPoint.snapshotExportRunner(),
-                    databaseSnapshotProvider = entryPoint.databaseSnapshotProvider(),
-                    restoreStateRepository = entryPoint.restoreStateRepository(),
-                    backupPreferencesRepository = entryPoint.backupPreferencesRepository(),
-                    autoBackupController = entryPoint.autoBackupController(),
-                    appDialogPublisher = entryPoint.appDialogPublisher(),
-                    tempFileProvider = entryPoint.tempFileProvider(),
-                    storeDispatchers = entryPoint.storeDispatchers(),
-                    analyticsHolder = entryPoint.analyticsHolder(),
-                    loggerHolder = entryPoint.loggerHolder(),
-                    defaultDispatcher = entryPoint.defaultDispatcher(),
-                    ioDispatcher = entryPoint.ioDispatcher(),
-                    context = entryPoint.applicationContext(),
+                    navigator = graph.navigator,
+                    platformInfoProvider = graph.platformInfoProvider,
+                    commonDataStore = graph.commonDataStore,
+                    backupAuth = graph.backupAuth,
+                    backupStorage = graph.backupStorage,
+                    snapshotExportRunner = graph.snapshotExportRunner,
+                    databaseSnapshotProvider = graph.databaseSnapshotProvider,
+                    restoreStateRepository = graph.restoreStateRepository,
+                    backupPreferencesRepository = graph.backupPreferencesRepository,
+                    autoBackupController = graph.autoBackupController,
+                    appDialogPublisher = context.appDialogPublisher(),
+                    tempFileProvider = graph.tempFileProvider,
+                    storeDispatchers = graph.storeDispatchers,
+                    analyticsHolder = graph.analyticsHolder,
+                    loggerHolder = graph.loggerHolder,
+                    defaultDispatcher = graph.defaultDispatcher,
+                    ioDispatcher = graph.ioDispatcher,
+                    context = context.applicationContext,
                 )
                 .settingsStore
         } as SettingsStoreProcessor

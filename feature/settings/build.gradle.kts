@@ -16,6 +16,7 @@ metro {
 
 dependencies {
     implementation(project(":core:core"))
+    implementation(project(":core:di"))
     // TempFileProvider (java.io.File-typed) lives in the Android half of core:core.
     implementation(project(":core:core-android"))
 

@@ -5,20 +5,17 @@ import android.app.Application
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.work.WorkerParameters
-import dagger.hilt.android.EntryPointAccessors
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
 import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
 import io.github.stslex.workeeper.core.data.backup.api.notification.BackupNotificationHelper
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
-import io.github.stslex.workeeper.core.data.backup.worker.di.BackupWorkerHiltEntryPoint
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
+import io.github.stslex.workeeper.core.di.AppGraphContract
+import io.github.stslex.workeeper.core.di.AppGraphContractHolder
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkStatic
-import io.mockk.unmockkStatic
 import io.mockk.verify
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
@@ -28,28 +25,27 @@ import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
 
 /**
- * S5 verification for [MetroWorkerFactory] (App-Scope Collapse Step 2 standup, Design B): the factory
- * dispatch logic is proven on BOTH a known-positive (BackupWorker's class name → a constructed worker)
- * and a known-negative (any other class name → null fallthrough) before it is trusted.
+ * Verification for [MetroWorkerFactory] (App-Scope Collapse Step 6 — Hilt-free): the factory dispatch
+ * logic is proven on BOTH a known-positive (BackupWorker's class name → a constructed worker) and a
+ * known-negative (any other class name → null fallthrough).
  *
- * The Hilt `SingletonComponent` is not stood up in this unit test, so
- * `EntryPointAccessors.fromApplication` is statically mocked to return a mocked
- * [BackupWorkerHiltEntryPoint] — the bridge boundary. This isolates the factory's own dispatch +
- * construction wiring (the Step-2 deliverable) from Hilt graph assembly, which is exercised at runtime.
+ * The factory reads its six deps from `appContext.applicationContext.appGraphContract()`, so the test
+ * Application implements [AppGraphContractHolder] and returns a mocked [AppGraphContract] — the graph
+ * boundary. This isolates the factory's dispatch + construction wiring from real graph assembly.
  */
 @ExtendWith(RobolectricExtension::class)
 @Config(application = MetroWorkerFactoryTest.TestApplication::class, sdk = [33])
 internal class MetroWorkerFactoryTest {
 
-    class TestApplication : Application()
-
-    private val entryPoint = mockk<BackupWorkerHiltEntryPoint>(relaxed = true).apply {
-        every { backupStorage() } returns mockk<BackupStorage>(relaxed = true)
-        every { databaseSnapshotProvider() } returns mockk<DatabaseSnapshotProvider>(relaxed = true)
-        every { backupPreferencesRepository() } returns mockk<BackupPreferencesRepository>(relaxed = true)
-        every { autoBackupController() } returns mockk<AutoBackupController>(relaxed = true)
-        every { backupNotificationHelper() } returns mockk<BackupNotificationHelper>(relaxed = true)
-        every { snapshotExportRunner() } returns mockk<SnapshotExportRunner>(relaxed = true)
+    class TestApplication : Application(), AppGraphContractHolder {
+        override val appGraphContract: AppGraphContract = mockk(relaxed = true) {
+            every { backupStorage } returns mockk<BackupStorage>(relaxed = true)
+            every { databaseSnapshotProvider } returns mockk<DatabaseSnapshotProvider>(relaxed = true)
+            every { backupPreferencesRepository } returns mockk<BackupPreferencesRepository>(relaxed = true)
+            every { autoBackupController } returns mockk<AutoBackupController>(relaxed = true)
+            every { backupNotificationHelper } returns mockk<BackupNotificationHelper>(relaxed = true)
+            every { snapshotExportRunner } returns mockk<SnapshotExportRunner>(relaxed = true)
+        }
     }
 
     private val workerParameters = mockk<WorkerParameters>(relaxed = true)
@@ -59,38 +55,27 @@ internal class MetroWorkerFactoryTest {
 
     @BeforeEach
     fun setUp() {
-        // Acquire the context INSIDE setUp (not a field initializer) so RobolectricExtension has
-        // already registered the instrumentation — mirrors BackupWorkerTest's makeWorker() timing.
         appContext = ApplicationProvider.getApplicationContext()
-        mockkStatic(EntryPointAccessors::class)
-        every {
-            EntryPointAccessors.fromApplication(any<Context>(), BackupWorkerHiltEntryPoint::class.java)
-        } returns entryPoint
         factory = MetroWorkerFactory(appContext)
     }
 
-    @AfterEach
-    fun tearDown() {
-        unmockkStatic(EntryPointAccessors::class)
-    }
-
     @Test
-    fun `known-positive - BackupWorker class name constructs a BackupWorker via the bridge`() {
+    fun `known-positive - BackupWorker class name constructs a BackupWorker via the graph`() {
         val worker = factory.createWorker(
             appContext = appContext,
             workerClassName = BackupWorker::class.java.name,
             workerParameters = workerParameters,
         )
 
-        // The factory bridge-read the six deps and constructed the real worker — the exact path the
-        // Step-6 flip will exercise once Configuration.Provider routes to this factory.
+        // The factory read the six deps from the graph and constructed the real worker.
         assertInstanceOf(BackupWorker::class.java, worker)
-        verify { entryPoint.backupStorage() }
-        verify { entryPoint.databaseSnapshotProvider() }
-        verify { entryPoint.backupPreferencesRepository() }
-        verify { entryPoint.autoBackupController() }
-        verify { entryPoint.backupNotificationHelper() }
-        verify { entryPoint.snapshotExportRunner() }
+        val graph = (appContext.applicationContext as AppGraphContractHolder).appGraphContract
+        verify { graph.backupStorage }
+        verify { graph.databaseSnapshotProvider }
+        verify { graph.backupPreferencesRepository }
+        verify { graph.autoBackupController }
+        verify { graph.backupNotificationHelper }
+        verify { graph.snapshotExportRunner }
     }
 
     @Test
@@ -104,7 +89,8 @@ internal class MetroWorkerFactoryTest {
         // null → WorkManager's inherited createWorkerWithDefaultFallback constructs unknown workers via
         // the default reflection factory. No DelegatingWorkerFactory needed.
         assertNull(worker)
-        // The bridge must NOT be touched on the negative path (the != short-circuit precedes the lazy read).
-        verify(exactly = 0) { entryPoint.backupStorage() }
+        // The graph must NOT be touched on the negative path (the != short-circuit precedes the lazy read).
+        val graph = (appContext.applicationContext as AppGraphContractHolder).appGraphContract
+        verify(exactly = 0) { graph.backupStorage }
     }
 }

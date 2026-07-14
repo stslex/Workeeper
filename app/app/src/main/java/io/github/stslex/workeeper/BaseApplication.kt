@@ -2,17 +2,12 @@
 package io.github.stslex.workeeper
 
 import android.app.Application
-import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
-import dagger.hilt.EntryPoint
-import dagger.hilt.InstallIn
-import dagger.hilt.android.EntryPointAccessors
-import dagger.hilt.components.SingletonComponent
-import dev.zacsweers.metro.HasMemberInjections
-import io.github.stslex.workeeper.core.core.images.ImageStorage
+import io.github.stslex.workeeper.core.core.images.buildImageStorage
 import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
 import io.github.stslex.workeeper.core.core.logger.Log
-import io.github.stslex.workeeper.core.data.database.AppDatabase
+import io.github.stslex.workeeper.core.data.backup.worker.MetroWorkerFactory
+import io.github.stslex.workeeper.core.data.database.buildAppDatabase
 import io.github.stslex.workeeper.core.di.AppGraphContract
 import io.github.stslex.workeeper.core.di.AppGraphContractHolder
 import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
@@ -20,75 +15,64 @@ import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
 import io.github.stslex.workeeper.di.AppGraph
 import io.github.stslex.workeeper.di.AppGraphOwner
 import io.github.stslex.workeeper.di.buildAppGraph
-import io.github.stslex.workeeper.feature.recovery.boot.AppDialogObserverBootstrapEntryPoint
+import io.github.stslex.workeeper.feature.app_dialogs.api.AppDialogPublisherHolder
+import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
+import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepository
+import io.github.stslex.workeeper.feature.app_dialogs.impl.di.AppDialogInternalsHolder
+import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImpl
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
-import io.github.stslex.workeeper.feature.recovery.domain.StartupMigrationCoordinator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import javax.inject.Inject
 
-// Metro (now applied to app/app) scans this module and sees the Hilt `@Inject workerFactory` member
-// on this NON-FINAL class; it requires @HasMemberInjections for subclass-propagation safety (the
-// flavor subclasses extend it). This is a Metro↔Hilt coexistence acknowledgement only — Hilt still
-// performs the actual member injection. This friction generalizes to any Metro-enabled module that
-// retains a Hilt-member-injected non-final class; it recurs on the real app flip.
-@HasMemberInjections
-abstract class BaseApplication : Application(), Configuration.Provider, AppGraphOwner, AppGraphContractHolder {
+/**
+ * The process [Application] base, Hilt-free (App-Scope Collapse Step 6 — the cut). Holds the Metro
+ * app-scope [AppGraph] for the whole process and exposes it through the interface seams every consumer
+ * reads: [AppGraphOwner] (in-module: `MainActivity`/adopt-back-era readers), [AppGraphContractHolder]
+ * (library consumers via `appGraphContract()`), and the two feature-tier holders
+ * ([AppDialogPublisherHolder], [AppDialogInternalsHolder]) for the app-dialogs types `core:di` cannot name.
+ */
+abstract class BaseApplication :
+    Application(),
+    Configuration.Provider,
+    AppGraphOwner,
+    AppGraphContractHolder,
+    AppDialogPublisherHolder,
+    AppDialogInternalsHolder {
 
     abstract val isDebugLoggingAllow: Boolean
 
     /**
-     * The Metro app-scope graph (KMP C.1 app-collapse Phase 1 — leaf E-proof), held for the whole
-     * process ALONGSIDE `@HiltAndroidApp`. `by lazy` so it is created on first access (a feature
-     * Store construction, well after `onCreate`), which guarantees `applicationContext` is ready.
-     *
-     * Exposed via [AppGraphOwner] (NOT a concrete-type cast) so Hilt reads it through the interface —
-     * `AppGraphAdoptBackModule.provideAppGraph` resolves the graph from the app context as an
-     * `AppGraphOwner`, and instrumented tests can `@TestInstallIn`-replace that provider without a
-     * `BaseApplication` (the Hilt test harness swaps in `HiltTestApplication`).
-     *
-     * `@Suppress(EXPOSED_PROPERTY_TYPE)`: `AppGraph`/`AppGraphOwner` are `internal` to `:app:app` and
-     * this override is only ever read through the `internal AppGraphOwner` seam within the module —
-     * the public class surface never leaks the internal type to another module (flavor subclasses only
-     * call `super`). Keeping the DI types module-internal is deliberate.
+     * The Metro app-scope graph, held for the whole process. `by lazy` so it is created on first access
+     * (a feature Store construction, well after `onCreate`). Constructs the two `create()` roots directly,
+     * Hilt-free: [buildAppDatabase] (a cold `Room.databaseBuilder(...).build()` — no SQLite open, so
+     * `RecoveryActivity`'s Room-free bootstrap safety holds) and [ImageStorageImpl] via
+     * [buildImageStorageOrNull]; `@IODispatcher` is `Dispatchers.IO` directly (the graph is under
+     * construction — reading its own dispatcher would cycle; `Dispatchers.IO` is the identical stateless
+     * process-singleton the graph's accessor returns).
      */
     @Suppress("EXPOSED_PROPERTY_TYPE_IN_CONSTRUCTOR_ERROR", "EXPOSED_PROPERTY_TYPE")
     override val appGraph: AppGraph by lazy {
-        // App-Scope Collapse Step 5 (5a): the DB-cascade collapsed to a single AppDatabase create() root
-        // (the 9 DAOs + DbTransitionRunner + the 3 DB-bindings now derive from it graph-internally). The
-        // two roots — AppDatabase + ImageStorage — are bridge-READ from Hilt (AppDatabase stays
-        // Hilt-constructed by CoreDatabaseModule; ImageStorage stays a permanent create() root, 5c). Reading
-        // the Hilt-BOUND ImageStorage (not constructing) keeps @TestInstallIn fakes intact. Cycle-free:
-        // every derived binding reads AppDatabase / a direct Dispatchers.IO — no appGraph re-entry.
-        val db = EntryPointAccessors.fromApplication(
-            applicationContext,
-            DbCascadeBridgeEntryPoint::class.java,
-        )
         buildAppGraph(
             applicationContext = applicationContext,
-            appDatabase = db.appDatabase(),
-            imageStorage = db.imageStorage(),
+            appDatabase = buildAppDatabase(applicationContext),
+            imageStorage = buildImageStorage(applicationContext, Dispatchers.IO),
         )
     }
 
-    /**
-     * App-Scope Collapse Step 6 (P-CONTRACT). Public [AppGraphContract] seam for the ~15 post-cut
-     * LIBRARY consumers, read via [io.github.stslex.workeeper.core.di.appGraphContract]. One-line
-     * `get() = appGraph` — `AppGraph : AppGraphContract`, so the held graph IS the contract; the getter
-     * reads the `by lazy` [appGraph] on access, never forcing construction eagerly. Add-only: no consumer
-     * calls it yet (every `EntryPointAccessors` path stays live).
-     */
     override val appGraphContract: AppGraphContract get() = appGraph
 
-    @Inject
-    internal lateinit var workerFactory: HiltWorkerFactory
+    override val appDialogPublisher: AppDialogPublisher get() = appGraph.appDialogPublisher
+
+    override val appDialogRepository: AppDialogRepository get() = appGraph.appDialogRepository
+
+    override val appDialogObserverImpl: AppDialogObserverImpl get() = appGraph.appDialogObserverImpl
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
-            .setWorkerFactory(workerFactory)
+            .setWorkerFactory(MetroWorkerFactory(this))
             .build()
 
     override fun onCreate() {
@@ -105,109 +89,56 @@ abstract class BaseApplication : Application(), Configuration.Provider, AppGraph
      * Runs the two recovery pre-flights in the order required by
      * `documentation/feature-specs/backup-recovery.md`:
      *
-     * 1. **Scenario 1** (post-restart restore migration). If the
-     *    `restore_in_progress` flag is set, the coordinator either publishes
-     *    a `RestoreSuccess` dialog and returns `RestoreSucceeded` (continue
-     *    to MainActivity), or rolls back the live db and returns
-     *    `RestoreRolledBack` (caller restarts — this method never returns).
-     *    `NoOp` means there was no restore in progress; fall through.
-     * 2. **Scenario 2** (startup migration failure / developer error).
-     *    Only runs after Scenario 1 was a no-op. Reads the live db's
-     *    schema via a Room-free SQLite peek and decides whether to
-     *    `Proceed` (MainActivity opens normally) or `RouteToRecovery`
-     *    (MainActivity reads `coordinator.lastDecision` and finishes
-     *    itself, launching `RecoveryActivity`).
+     * 1. **Scenario 1** (post-restart restore migration). If the `restore_in_progress` flag is set, the
+     *    coordinator either publishes a `RestoreSuccess` dialog and returns `RestoreSucceeded` (continue
+     *    to MainActivity), or rolls back the live db and returns `RestoreRolledBack` (caller restarts —
+     *    this method never returns). `NoOp` means there was no restore in progress; fall through.
+     * 2. **Scenario 2** (startup migration failure / developer error). Only runs after Scenario 1 was a
+     *    no-op. Reads the live db's schema via a Room-free SQLite peek and decides whether to `Proceed`
+     *    (MainActivity opens normally) or `RouteToRecovery` (MainActivity reads `coordinator.lastDecision`
+     *    and finishes itself, launching `RecoveryActivity`).
      *
-     * Both checks run under `runBlocking` because the alternative —
-     * dispatching on a background coroutine after `setContent` — would
-     * briefly show MainActivity content before recovery routing decides.
-     * The work is bounded: a DataStore read, one SQLite version peek, and
-     * (on failure) one file copy. Steady-state cost on a healthy install
-     * is ~one DataStore read and one peek.
+     * Both checks run under `runBlocking` because the alternative — dispatching on a background coroutine
+     * after `setContent` — would briefly show MainActivity content before recovery routing decides.
      */
     private fun handleRecoveryPreflightChain() {
-        val recoveryEntryPoint = EntryPointAccessors.fromApplication(
-            this,
-            RecoveryEntryPoint::class.java,
-        )
         val restoreOutcome = runBlocking {
-            recoveryEntryPoint.restoreRecoveryCoordinator().handlePostRestoreLaunch()
+            appGraph.restoreRecoveryCoordinator.handlePostRestoreLaunch()
         }
         if (restoreOutcome == RestoreRecoveryCoordinator.PreflightOutcome.RestoreRolledBack) {
-            recoveryEntryPoint.restoreRecoveryCoordinator().restartApp()
+            appGraph.restoreRecoveryCoordinator.restartApp()
             return
         }
         if (restoreOutcome == RestoreRecoveryCoordinator.PreflightOutcome.RestoreSucceeded) {
-            // The Scenario 1 success path leaves `pre_restore_backup.db` on
-            // disk for the user's undo slot, and Room will open the
-            // freshly-restored db on first DAO access. Scenario 2 has
-            // nothing to add — skip.
+            // The Scenario 1 success path leaves `pre_restore_backup.db` on disk for the user's undo slot,
+            // and Room will open the freshly-restored db on first DAO access. Scenario 2 has nothing to
+            // add — skip.
             return
         }
         // Scenario 1 was a no-op (no restore in progress). Run Scenario 2.
         runBlocking {
-            recoveryEntryPoint.startupMigrationCoordinator().checkAndRouteOrProceed()
+            appGraph.startupMigrationCoordinator.checkAndRouteOrProceed()
         }
-        // The result is cached on `StartupMigrationCoordinator.lastDecision`;
-        // MainActivity reads it on its own onCreate to decide whether to
-        // finish + launch RecoveryActivity.
+        // The result is cached on `StartupMigrationCoordinator.lastDecision`; MainActivity reads it on its
+        // own onCreate to decide whether to finish + launch RecoveryActivity.
     }
 
     private fun cleanupOrphanedImageTempFiles() {
-        val imageStorage = EntryPointAccessors.fromApplication(
-            this,
-            ImageStorageEntryPoint::class.java,
-        ).imageStorage()
-        // Fire-and-forget on a one-shot IO coroutine — clearing temp files left
-        // behind by killed camera-capture flows is best-effort.
+        val imageStorage = appGraph.imageStorage
+        // Fire-and-forget on a one-shot IO coroutine — clearing temp files left behind by killed
+        // camera-capture flows is best-effort.
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             imageStorage.cleanupTempFiles()
         }
     }
 
     /**
-     * Eagerly construct the `@Singleton` cross-feature dialog reactor so its
-     * `init { observer.observeUserActions()...launchIn(scope) }` registers a
-     * subscriber on the SharedFlow BEFORE MainActivity.onCreate runs. Lazy
-     * @Singleton construction would mean the first user dispatch fires on
-     * zero subscribers and is lost (same failure class as the rehydrate bug
-     * we're explicitly avoiding). The return value is intentionally
-     * discarded — the side-effect of construction is what we want.
-     *
-     * Same EntryPoint pattern as [RecoveryEntryPoint] and
-     * [ImageStorageEntryPoint]; see those for the established convention.
+     * Eagerly construct the cross-feature dialog reactor so its `init { observer.observeUserActions()
+     * ...launchIn(scope) }` registers a subscriber on the SharedFlow BEFORE MainActivity.onCreate runs.
+     * Lazy construction would mean the first user dispatch fires on zero subscribers and is lost. The
+     * return value is intentionally discarded — the side-effect of construction is what we want.
      */
     private fun bootstrapAppDialogObserver() {
-        EntryPointAccessors.fromApplication(
-            this,
-            AppDialogObserverBootstrapEntryPoint::class.java,
-        ).recoveryBootstrap()
-    }
-
-    @EntryPoint
-    @InstallIn(SingletonComponent::class)
-    internal interface ImageStorageEntryPoint {
-        fun imageStorage(): ImageStorage
-    }
-
-    @EntryPoint
-    @InstallIn(SingletonComponent::class)
-    internal interface RecoveryEntryPoint {
-        fun restoreRecoveryCoordinator(): RestoreRecoveryCoordinator
-        fun startupMigrationCoordinator(): StartupMigrationCoordinator
-    }
-
-    /**
-     * App-Scope Collapse Step 5 (5a). Pulls the two DB-cascade `create()` roots — the Hilt-constructed
-     * [AppDatabase] + the [ImageStorage] (a permanent create() root, 5c) — out of Hilt's `SingletonComponent`
-     * so [appGraph] can bridge them into `create()` as bound instances. Reading the Hilt-BOUND [ImageStorage]
-     * preserves the `@TestInstallIn` fake. The 9 DAOs + `DbTransitionRunner` + the 3 DB-bindings no longer
-     * cross this bridge — they derive from `appDatabase` graph-internally.
-     */
-    @EntryPoint
-    @InstallIn(SingletonComponent::class)
-    internal interface DbCascadeBridgeEntryPoint {
-        fun appDatabase(): AppDatabase
-        fun imageStorage(): ImageStorage
+        appGraph.recoveryBootstrap
     }
 }
