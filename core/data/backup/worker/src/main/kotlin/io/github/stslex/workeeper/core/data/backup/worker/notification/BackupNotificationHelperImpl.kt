@@ -9,9 +9,11 @@ import android.content.Intent
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.getSystemService
+import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.AppScope
+import io.github.stslex.workeeper.core.data.backup.api.notification.BackupNotificationHelper
 import io.github.stslex.workeeper.core.data.backup.worker.R
 
 /**
@@ -24,17 +26,20 @@ import io.github.stslex.workeeper.core.data.backup.worker.R
  * surface in the shade. Channel registration is idempotent and runs on the
  * first show call rather than at app startup so app cold-start cost stays flat
  * for users who never hit the auth-revoked path.
+ *
+ * App-Scope Collapse Step 6 (worker de-cycle): Metro-owned via `@ContributesBinding(AppScope)`, bound to
+ * the [BackupNotificationHelper] api interface (in `core:data:backup:api`) so `core:di`'s
+ * `AppGraphContract` can name it without depending on this worker module. Public for cross-module
+ * aggregation (D1); `Context` plain.
  */
-// App-Scope Collapse Step 3 (SB1): Hilt @Inject/@Singleton stripped; self-bound (no interface) → Metro-owned
-// via @SingleIn(AppScope)+@Inject + an AppGraph accessor (NOT @ContributesBinding — needs a supertype).
-// Public for cross-module aggregation (D1). Context plain.
 @SingleIn(AppScope::class)
+@ContributesBinding(AppScope::class)
 @Inject
-class BackupNotificationHelper(
+class BackupNotificationHelperImpl(
     private val context: Context,
-) {
+) : BackupNotificationHelper {
 
-    fun showAuthPaused() {
+    override fun showAuthPaused() {
         val manager = NotificationManagerCompat.from(context)
         // POST_NOTIFICATIONS is runtime on API 33+. We never prompt for it ourselves —
         // if the user denied it, the persistent banner in Settings remains the source of
@@ -57,7 +62,7 @@ class BackupNotificationHelper(
         }
     }
 
-    fun cancelAuthPaused() {
+    override fun cancelAuthPaused() {
         NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID)
     }
 

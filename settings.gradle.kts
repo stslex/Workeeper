@@ -69,9 +69,3 @@ include(":feature:app-dialogs:impl")
 include(":feature:recovery")
 
 include(":lint-rules")
-
-// THROWAWAY probe (C.1.0-pre) — Xcode 26.6 <-> K/N 2.3.20 link isolation. Remove before real commit.
-include(":probe-knlink")
-
-// THROWAWAY probe (C.1.0-pre) — Metro @DependencyGraph consuming a Hilt-OWNED @Singleton across the boundary (===). Remove before real commit.
-include(":probe-hiltmetro")

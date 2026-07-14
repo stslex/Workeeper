@@ -5,21 +5,19 @@ import android.content.Context
 import androidx.work.ListenableWorker
 import androidx.work.WorkerFactory
 import androidx.work.WorkerParameters
-import dagger.hilt.android.EntryPointAccessors
-import io.github.stslex.workeeper.core.data.backup.worker.di.BackupWorkerHiltEntryPoint
+import io.github.stslex.workeeper.core.di.appGraphContract
 
 /**
  * Metro-side WorkManager [WorkerFactory] (App-Scope Collapse Step 2 — reversible standup, Design B).
  *
- * Constructs [BackupWorker] WITHOUT Hilt's assisted-injection machinery: it bridge-reads the worker's
- * six app-scoped `@Singleton` deps from the Hilt `SingletonComponent` via [BackupWorkerHiltEntryPoint]
- * (the `SettingsHiltEntryPoint` bound-instance pattern) and calls the constructor directly. Metro never
- * processes `BackupWorker`'s constructor, so its Dagger `@AssistedInject` + `@HiltWorker` are untouched
- * and Hilt's `HiltWorkerFactory` keeps working in parallel until the Step 6 cut.
+ * Constructs [BackupWorker] WITHOUT Hilt's assisted-injection machinery: it reads the worker's six
+ * app-scoped deps from the Metro app graph via `appContext.appGraphContract()` (App-Scope Collapse
+ * Step 6, P-WORKER — Hilt-free, replacing the `BackupWorkerHiltEntryPoint` bridge) and calls the
+ * constructor directly.
  *
- * DORMANT UNTIL STEP 6: this factory is stood up but NOT wired. `BaseApplication`'s
+ * DORMANT UNTIL THE CUT: this factory is repointed to the graph but NOT yet wired. `BaseApplication`'s
  * `Configuration.Provider` still returns Hilt's `HiltWorkerFactory`, so at runtime WorkManager routes
- * every worker through Hilt exactly as before — this class constructs nothing until Step 6 flips
+ * every worker through Hilt exactly as before — this class constructs nothing until the cut flips
  * `Configuration.Provider` to it (and drops `@HiltWorker`).
  *
  * Class-name match mirrors `HiltWorkerFactory` (which keys a `Map<String, …>` by `workerClassName`):
@@ -32,13 +30,8 @@ internal class MetroWorkerFactory(
     private val appContext: Context,
 ) : WorkerFactory() {
 
-    // Read once, off the application context — the same @Singleton instances Hilt already holds.
-    private val entryPoint: BackupWorkerHiltEntryPoint by lazy {
-        EntryPointAccessors.fromApplication(
-            appContext.applicationContext,
-            BackupWorkerHiltEntryPoint::class.java,
-        )
-    }
+    // Read once, off the application context — the same singletons the app graph holds.
+    private val graph by lazy { appContext.applicationContext.appGraphContract() }
 
     override fun createWorker(
         appContext: Context,
@@ -52,12 +45,12 @@ internal class MetroWorkerFactory(
         return BackupWorker(
             appContext = appContext,
             workerParams = workerParameters,
-            backupStorage = entryPoint.backupStorage(),
-            snapshotProvider = entryPoint.databaseSnapshotProvider(),
-            preferences = entryPoint.backupPreferencesRepository(),
-            autoBackupController = entryPoint.autoBackupController(),
-            notificationHelper = entryPoint.backupNotificationHelper(),
-            snapshotExportRunner = entryPoint.snapshotExportRunner(),
+            backupStorage = graph.backupStorage,
+            snapshotProvider = graph.databaseSnapshotProvider,
+            preferences = graph.backupPreferencesRepository,
+            autoBackupController = graph.autoBackupController,
+            notificationHelper = graph.backupNotificationHelper,
+            snapshotExportRunner = graph.snapshotExportRunner,
         )
     }
 }

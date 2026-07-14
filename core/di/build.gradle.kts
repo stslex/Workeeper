@@ -21,8 +21,7 @@ dependencies {
     api(project(":core:ui:mvi"))            // AnalyticsHolder, LoggerHolder, StoreDispatchers
     api(project(":core:ui:navigation"))     // Navigator
     api(project(":core:data:exercise"))     // the 8 exercise repositories
-    api(project(":core:data:backup:api"))   // BackupAuth, BackupStorage, SnapshotExportRunner, RestoreStateRepository, AutoBackupController, BackupPreferencesRepository
-    api(project(":core:data:backup:worker")) // BackupNotificationHelper
+    api(project(":core:data:backup:api"))   // BackupAuth, BackupStorage, SnapshotExportRunner, RestoreStateRepository, AutoBackupController, BackupPreferencesRepository, BackupNotificationHelper (P-WORKER: extracted here to break the core:di↔worker cycle)
     api(project(":core:data:database"))     // DatabaseSnapshotProvider, LiveDatabaseLocator
     api(project(":core:data:dataStore"))    // CommonDataStore
 }
