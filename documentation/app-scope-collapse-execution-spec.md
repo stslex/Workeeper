@@ -117,9 +117,18 @@ bound instance via `create(...)`, so nothing reads Hilt's `@ApplicationContext` 
 graph interface stays small. Bindings arrive via `@ContributesBinding` auto-aggregation, not a `@Provides`
 per binding; the graph declares an accessor only where a shim or a test needs to read one.
 
-- Anchor: `app/app/src/main/java/io/github/stslex/workeeper/di/AppGraph.kt:64-66` (Context-as-bound-instance
-  rationale), `:75` (`@DependencyGraph(scope = AppScope::class)`), `:255` (`@Provides applicationContext:
+- Anchor: `app/app/src/main/java/io/github/stslex/workeeper/di/AppGraph.kt:64-67` (Context-as-bound-instance
+  rationale), `:76` (`@DependencyGraph(scope = AppScope::class)`), `:267` (`@Provides applicationContext:
   Context` in `create(...)`).
+
+**`create(...)` signature.** *Current, source-true @ `589777d9`:* the factory takes **12** `@Provides`
+bound instances (`AppGraph.kt:265-286`) — `applicationContext` + the **9 Room DAOs** + `dbTransitionRunner`
++ `imageStorage`. `AppDatabase` is **not** a `create()` param today; the 9 DAOs proxy it (bridge-read from
+Hilt, Step-5-fenced). *Step-5 (5a) **target** — intent, not current state:* collapse to **3 roots** —
+`create(applicationContext, appDatabase, imageStorage)` — where `appDatabase` and `imageStorage` are
+test-override roots (§Test-override root) and the 9 DAOs + `dbTransitionRunner` become graph-internal
+`@Provides` deriving from the `appDatabase` root. The 3-root shape is the authorized 5a classification,
+**not yet in source** (Step 5 unexecuted).
 
 **D3b — `AppScope` is Android-only.** `AppScope` is `abstract class AppScope private constructor()` in
 **`core:core-android`** (an `com.android.library`), package
@@ -128,9 +137,18 @@ per binding; the graph declares an accessor only where a shim or a test needs to
 `commonMain`/`iosMain`, which would compile the Android-DI token to iOS (a platform-axis leak).
 
 - Anchor: `core/core-android/src/main/kotlin/io/github/stslex/workeeper/core/core/di/AppScope.kt:23`.
-- Verified: all 29 `@ContributesBinding(AppScope::class)` sites are in Android `src/main` (or `src/main/java`
-  for app/app); zero in `commonMain`/`iosMain`. `core:core` (the only module with `commonMain`/`iosMain`)
-  applies no Metro and hosts no AppScope contribution.
+- Verified: every real-code `@ContributesBinding(AppScope::class)` site is in Android `src/main` (or
+  `src/main/java` for app/app); zero in `commonMain`/`iosMain`. `core:core` (the only module with
+  `commonMain`/`iosMain`) applies no Metro and hosts no AppScope contribution. The count is a moving target
+  (grows one per flip), so it is stated as a **reproducible snapshot**, not a bare figure:
+
+  ```
+  # snapshot @ 589777d9 — excludes the ContributesBindingScopeRule rule + its test fixture
+  git grep -l -E '@ContributesBinding\(AppScope' -- '*.kt' | grep -v lint-rules | wc -l   # → 39 files
+  git grep    -E '@ContributesBinding\(AppScope' -- '*.kt' | grep -v lint-rules | wc -l   # → 59 occurrences
+  git grep -l -E '@ContributesBinding\(AppScope' -- '*.kt' | grep -v lint-rules \
+    | grep -iE 'commonMain|iosMain'                                                        # → (empty: invariant holds)
+  ```
 
 > **Note (corrects a stale draft).** A prior scratchpad draft stated AppScope moved to
 > `core:core/commonMain` and was made public. That is **wrong** — the code places it in `core:core-android`
@@ -138,11 +156,39 @@ per binding; the graph declares an accessor only where a shim or a test needs to
 
 ---
 
+## Test-override root — a swappable binding stays a `create()` bound-instance
+
+**Invariant (governs Steps 5 AND 6).** A binding a test must swap (an I/O boundary — `ImageStorage`,
+`AppDatabase`) stays a `create()` bound-instance; the graph owns it, the test injects fake/in-memory via
+`create()`. Bindings deriving from an overridable root may contribute. Contribution-based test doubles are
+banned — they compile green but never merge into the prod-compiled graph.
+
+**Why (source mechanic).** An androidTest `@ContributesBinding` NEVER merges into the main-compiled
+`@DependencyGraph`: Metro aggregates contributions at the graph's compile site (in `app/app` main), and
+`core:ui:test-utils` is `androidTestImplementation`-only (`app/app/build.gradle.kts:28`) — off the app main
+classpath. A test double expressed as a contribution compiles green in the test source set yet is invisible
+to the merged prod graph: a false-green (§V). Verified: zero real `@ContributesBinding` in any test source
+set (`git grep -E '^\s*@ContributesBinding' -- '*/src/androidTest/*' '*/src/test/*'` → empty).
+
+**How the swap actually happens.** `AppGraphAdoptBackSeamTest.kt:621` builds an in-memory DB
+(`InMemoryDatabaseProvider.create(...)`) and `:644` passes `imageStorage = FakeImageStorage()` — both
+`create()` bound-instance factory params (`AppGraph.kt:265-286`), bridge-read fake-aware from Hilt in
+`AppGraphSourceModule.kt:49-53`.
+
+**Consequence for Steps 5–6 (target, not current state).** The Step-5 (5a) target collapses the 9 DAOs +
+`dbTransitionRunner` into fewer roots (§D3a); when it does, the swappable I/O boundary (`AppDatabase`,
+`ImageStorage`) MUST remain a `create()` bound-instance root, and everything derivable from it becomes
+graph-internal `@Provides`. Never re-express a swappable root as a `@ContributesBinding` / `@BindingContainer`
+contribution to "clean up" the `create()` signature — that reintroduces the false-green. This 3-root target
+is the authorized 5a classification, not yet in source.
+
+---
+
 ## D10 — Metro plugin applied across the core tree
 
 `@ContributesBinding`/`@BindingContainer` require the Metro compiler plugin (`alias(libs.plugins.metro)`)
 + `metro { interop { includeJavax() } }` in each contributing module. Step 3 applies it across the core
-tree. The **core** Metro set (7 modules) is, verified against each `build.gradle.kts`:
+tree. The **core** Metro set (8 modules) is, verified against each `build.gradle.kts`:
 
 | Module | plugin | includeJavax |
 |---|---|---|
@@ -153,17 +199,22 @@ tree. The **core** Metro set (7 modules) is, verified against each `build.gradle
 | `core/data/backup/scheduling` | `:6` | `:11` |
 | `core/data/backup/google-drive` | `:7` | `:12` |
 | `core/data/backup/worker` | `:5` | `:10` |
+| `core/data/dataStore` | `:8` | `:13` |
 
-- `core/data/dataStore` does **NOT** apply Metro (`build.gradle.kts` applies only
-  `convention.androidLibrary`) — it still holds the assisted `CommonDataStore` (migratable via Metro native
-  assisted in its own slice, not a permanent carveout; see `documentation/tech-debt.md` → Step-6 blockers).
+- `core/data/dataStore` **DOES** apply Metro (`build.gradle.kts:8` `alias(libs.plugins.metro)`, `:13`
+  `includeJavax()`), added by `589777d9` when `CommonDataStore` flipped to Metro-native assisted (see the
+  Deferred section). It applies Metro **alongside** the convention's Hilt-KSP: after the assisted trio
+  converted to `dev.zacsweers.metro.*`, no `dagger.assisted.*` remains for Hilt-KSP to process, so the two
+  processors coexist with no Hilt opt-out (matches `backup/scheduling`).
 - `core:core` (KMP, `commonMain`+`iosMain`) does **NOT** apply Metro (platform-axis constraint, §D3b).
-- Repo-wide, the plugin is applied in 21 build files: these 7 core + `app/app` + 13 feature modules; every
+- Repo-wide, the plugin is applied in 22 build files: these 8 core + `app/app` + 13 feature modules; every
   module that applies the plugin also has `includeJavax()`.
 
-> **Note (corrects a stale draft).** A prior draft listed `core/data/dataStore` as a Metro module and
-> omitted `core/data/backup/worker`. Both are wrong: dataStore does not apply Metro; worker does (it hosts
-> `@ContributesBinding(AppScope)` on `BackupScheduler`, `.../worker/scheduler/BackupScheduler.kt:32`).
+> **Note (post-`589777d9` sync).** This spec was authored at `4da5b247`, one commit **before** the
+> `CommonDataStore` flip (`589777d9`) landed — so the original draft correctly listed `core/data/dataStore`
+> as non-Metro *at authoring time*. `589777d9` added the Metro plugin there; the table + count above are
+> synced to that commit. (`core/data/backup/worker` hosts `@ContributesBinding(AppScope)` on
+> `BackupScheduler`, `.../worker/scheduler/BackupScheduler.kt:32`.)
 
 ---
 
@@ -264,14 +315,14 @@ that app/app *source* imports zero `com.google.android.gms`/`io.ktor`. The mecha
    `UserInfoFetcherImpl.kt:22`, `DriveApiImpl.kt:34`, `DriveBackupStorage.kt:40`, `DriveSnapshotStorage.kt:37`.
 3. `AppGraph` exposes only the GMS-clean api interfaces (`BackupAuth`/`BackupStorage`/`SnapshotStorage`,
    plus the Context-only `AccountDataStore`) — no accessor for `AuthorizationClient`/`HttpClient`, so app/app
-   never names them. Anchor: `AppGraph.kt:207-218`. Post-flip Hilt `AuthBindingsModule.kt:22` retains only
+   never names them. Anchor: `AppGraph.kt:222-234`. Post-flip Hilt `AuthBindingsModule.kt:26` retains only
    `bindSnapshotExportRunner` (the old Hilt `AuthProvidersModule`/`NetworkModule` were deleted in `947fed3a`).
-4. Identity proven on-device: `AppGraphAdoptBackSeamTest.kt:389`
+4. Identity proven on-device: `AppGraphAdoptBackSeamTest.kt:414`
    (`googleDriveAuthChain_facadeAndInternalCrossReadResolveTheSameMetroInstances`).
 
 `snapshotStorage` is a **transient** accessor+shim — read by the still-Hilt `SnapshotExportRunnerImpl` whose
 `DatabaseJsonExporter → AppDatabase` tether is Step-5-fenced; retired when `SnapshotExportRunner` migrates in
-Step 5 (`AppGraph.kt:212-215`).
+Step 5 (`AppGraph.kt:222-234`).
 
 ---
 
@@ -306,31 +357,35 @@ Code instances of the principle:
 
 ---
 
-## Deferred / carveout bindings (Step-6 blockers)
+## Deferred / carveout bindings — status
 
-Two bindings stay Hilt-owned through Step 3. They are **separate, unrelated problems** — an earlier draft
-wrongly grouped them as an assisted capability gap. **Metro 1.1.1 HAS native assisted injection**
-(decompile-anchored on the pinned artifact: `interop { includeDagger() }` is a first-class Gradle DSL — the
-same `interop {}` block used for `includeJavax()` — and the compiler carries `AssistedFactoryImpl$Dagger` +
-`$Metro`, the full FIR/IR assisted pipeline). So there is **no Metro bump, no Kotlin-2.4.0, and no cascade
-into the ~695-LOC custom Detekt rules.** Tracked in full in `documentation/tech-debt.md` → *App-Scope
-Collapse (Hilt→Metro) — Step-6 atomic-cut blockers*:
+The **assisted→Metro mechanic EXISTS** (proven at `589777d9`): Metro 1.1.1 has native assisted injection —
+a hand-written `@AssistedFactory` interface converted to `dev.zacsweers.metro.*`, `generateAssistedFactories`
+left off, Metro generates the factory impl. **No Metro bump, no Kotlin-2.4.0, no cascade into the ~695-LOC
+custom Detekt rules.** Any earlier "no assisted→Metro mechanic" framing is stale — delete it on sight.
 
-- **CommonDataStore** — genuinely assisted (`DataStoreProviderFactory` `@AssistedFactory`; `DataStoreProvider`
-  `@AssistedInject` with `@Assisted name: String` + a non-assisted `@ApplicationContext Context`), but
-  **migratable**: the produced `DataStoreProvider` is already **unscoped**, so the "assisted injected types
-  cannot be scoped" constraint does not bite — the consumer `CommonDataStoreImpl` stays `@SingleIn(AppScope)`.
-  Migrate via Metro native assisted (`interop { includeDagger() }`, no bump) or a manual function-type factory
-  from a public `@BindingContainer`. Residual coexistence risk = per-module dual-processor collision
-  (`core/data/dataStore` runs Hilt-KSP; §D10 — resolve by opting it off the Hilt convention at migration). Its
-  own execution slice; **orthogonal to Step 5** (does not touch the DB fence).
-- **ImageStorage** — **NOT assisted**: a plain `@Singleton @Inject constructor(@ApplicationContext Context,
-  @IODispatcher CoroutineDispatcher)` bound by a plain `@Binds`; both deps are graph-available, so it is a
-  trivial D1 flip. Its only blocker is the `@TestInstallIn(replaces = [ImageStorageModule])` fake-swap across
-  15 test suites — a **forward bridge** (Hilt owns, Metro reads a `create()` bound instance), not an
-  adopt-back, so the §D2 honesty-split does not apply and Metro has no `@TestInstallIn` analogue. Deferred to
-  **Step 5** to flip *with* the DB-cascade substrate it is fenced alongside, designing the Metro test-override
-  once for the whole cascade.
+The two bindings once tracked here are **separate, unrelated problems** (never an assisted capability gap):
+
+- **CommonDataStore — DONE (`589777d9`).** Migrated to Metro-owned: `@ContributesBinding(AppScope::class)`
+  on the now-public `CommonDataStoreImpl` (`CommonDataStoreImpl.kt:24`, `@SingleIn(AppScope)` `:25`) using
+  Metro-native assisted — `DataStoreProviderFactory` is `dev.zacsweers.metro.AssistedFactory`
+  (`.../core/DataStoreProviderFactory.kt:3`); `DataStoreProvider` is `dev.zacsweers.metro.@AssistedInject`
+  (`DataStoreProvider.kt:8-9`). The produced `DataStoreProvider` stays **unscoped** (Metro forbids scoping
+  assisted types); the app-scoped singleton lives on the consumer `CommonDataStoreImpl`. `core/data/dataStore`
+  applies Metro alongside Hilt-KSP with no opt-out — after the assisted trio converted to
+  `dev.zacsweers.metro.*`, no `dagger.assisted.*` remains for Hilt-KSP, so the two coexist (§D10). This
+  spec was authored at `4da5b247`, one commit before this flip; the entry is synced post-`589777d9`.
+  *(Follow-up: `documentation/tech-debt.md` still carries a "mechanic found" row for CommonDataStore that
+  should move to done — out of scope for this single-`.md` sync.)*
+- **ImageStorage — RESOLVED as a permanent `create()` root (5c, Option A′).** **NOT assisted:** a plain
+  `@Inject constructor(@ApplicationContext Context, @IODispatcher CoroutineDispatcher)`
+  (`ImageStorageImpl.kt:30`) — the assisted mechanic is irrelevant to it. Its real, independent blocker is the
+  **test-classpath-merge** problem: an androidTest fake expressed as a `@ContributesBinding` never merges
+  into the main-compiled graph (§Test-override root), so `ImageStorage` cannot be flipped to a contribution
+  without a silent-green fake fallback. Resolution: `ImageStorage` **stays a permanent `create()`
+  bound-instance root** — the graph owns it, tests inject `FakeImageStorage()` via `create()` (as
+  `AppGraph.kt:285` + `AppGraphAdoptBackSeamTest.kt:644` already do). It is a test-override root, not a
+  deferred flip; there is nothing left to "design later."
 
 ---
 
