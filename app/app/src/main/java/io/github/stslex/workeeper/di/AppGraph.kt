@@ -17,7 +17,7 @@ import io.github.stslex.workeeper.core.core.platform.TempFileProvider
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
-import io.github.stslex.workeeper.core.data.backup.api.SnapshotStorage
+import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
@@ -25,7 +25,6 @@ import io.github.stslex.workeeper.core.data.backup.google_drive.auth.AccountData
 import io.github.stslex.workeeper.core.data.backup.worker.notification.BackupNotificationHelper
 import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
 import io.github.stslex.workeeper.core.data.database.AppDatabase
-import io.github.stslex.workeeper.core.data.database.export.DatabaseJsonExporter
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
 import io.github.stslex.workeeper.core.data.database.snapshot.LiveDatabaseLocator
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
@@ -217,15 +216,21 @@ internal interface AppGraph {
      * App-Scope Collapse Step 3 (PF.3, google-drive auth-chain). The GMS-clean gd bindings that have a
      * still-Hilt reader, Metro-owned via `@ContributesBinding(AppScope)` on their gd impls (the GMS
      * `AuthorizationClient` + ktor `HttpClient` are held by the gd `@BindingContainer`s but stay INSIDE gd —
-     * no accessor here, so app/app never names them). These three are exposed for the adopt-back shims:
-     *  - [backupAuth] / [backupStorage] — read cross-module by settings + worker (still Hilt).
-     *  - [snapshotStorage] — read by the still-Hilt `SnapshotExportRunnerImpl` (deferred to Step 5 with its
-     *    `DatabaseJsonExporter` → `AppDatabase` db-cascade tether); this accessor + shim is TRANSIENT,
-     *    retired when SnapshotExportRunner migrates in Step 5.
+     * no accessor here, so app/app never names them). Read cross-module by settings + worker (still Hilt),
+     * via their adopt-back shims.
+     *
+     * (The `snapshotStorage` accessor + shim were RETIRED in Step 5 (5b): its sole still-Hilt reader was
+     * `SnapshotExportRunnerImpl`, now Metro-owned and resolving `SnapshotStorage` directly.)
      */
     val backupAuth: BackupAuth
     val backupStorage: BackupStorage
-    val snapshotStorage: SnapshotStorage
+
+    /**
+     * App-Scope Collapse Step 5 (5b). Metro-owned [SnapshotExportRunner] (`@ContributesBinding(AppScope)` on
+     * `SnapshotExportRunnerImpl`, all deps graph-resolvable). Exposed for the adopt-back shim + identity seam:
+     * read by the still-Hilt `BackupWorker` (via `BackupWorkerHiltEntryPoint`) + settings.
+     */
+    val snapshotExportRunner: SnapshotExportRunner
 
     /**
      * App-Scope Collapse Step 3 (C2). The nine exercise repositories, now Metro-owned via
@@ -246,18 +251,17 @@ internal interface AppGraph {
     val statsRepository: StatsRepository
 
     /**
-     * App-Scope Collapse Step 5 (5a). The three `AppDatabase`-derived DB-cascade interface bindings, now
-     * Metro-owned via `@ContributesBinding(AppScope)` on their impls (both derive from the `appDatabase`
-     * `create()` root). Exposed here for the adopt-back shims + the `===` identity seam:
-     *  - [databaseSnapshotProvider] / [liveDatabaseLocator] — the SAME `DatabaseSnapshotProviderImpl`
-     *    instance (repeatable `@ContributesBinding`). Read cross-module by the restore path (BackupWorker,
-     *    RecoveryActivity, the recovery observers, settings) — all still Hilt, via their adopt-back shims.
-     *  - [databaseJsonExporter] — read by the still-Hilt `SnapshotExportRunnerImpl` (5b); shim is transient,
-     *    retired with SnapshotExportRunner in 5b.
+     * App-Scope Collapse Step 5 (5a). The `AppDatabase`-derived DB-locator interface bindings, now Metro-owned
+     * via repeatable `@ContributesBinding(AppScope)` on `DatabaseSnapshotProviderImpl` — [databaseSnapshotProvider]
+     * / [liveDatabaseLocator] are the SAME instance (derives from the `appDatabase` `create()` root). Exposed for
+     * the adopt-back shims + the `===` identity seam. Read cross-module by the restore path (BackupWorker,
+     * RecoveryActivity, the recovery observers, settings) — all still Hilt, via their adopt-back shims.
+     *
+     * (`DatabaseJsonExporter` is Metro-owned too (5a) but its accessor + shim were RETIRED in 5b: its sole
+     * still-Hilt reader was `SnapshotExportRunnerImpl`, now Metro-owned and resolving it directly.)
      */
     val databaseSnapshotProvider: DatabaseSnapshotProvider
     val liveDatabaseLocator: LiveDatabaseLocator
-    val databaseJsonExporter: DatabaseJsonExporter
 
     /**
      * Metro CONSTRUCTS and retains the leaf. `@SingleIn(AppScope)` binds it to this graph's

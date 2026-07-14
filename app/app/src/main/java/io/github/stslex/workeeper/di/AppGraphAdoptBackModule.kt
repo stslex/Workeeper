@@ -14,14 +14,13 @@ import io.github.stslex.workeeper.core.core.platform.TempFileProvider
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
-import io.github.stslex.workeeper.core.data.backup.api.SnapshotStorage
+import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
 import io.github.stslex.workeeper.core.data.backup.google_drive.auth.AccountDataStore
 import io.github.stslex.workeeper.core.data.backup.worker.notification.BackupNotificationHelper
 import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
-import io.github.stslex.workeeper.core.data.database.export.DatabaseJsonExporter
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
 import io.github.stslex.workeeper.core.data.database.snapshot.LiveDatabaseLocator
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
@@ -304,12 +303,13 @@ internal object AppGraphAdoptBackModule {
     ): NavigatorEventBus = appGraph.navigatorEventBus
 
     /**
-     * Adopt-back for the google-drive auth-chain facade (App-Scope Collapse Step 3, PF.3). All three are
+     * Adopt-back for the google-drive auth-chain facade (App-Scope Collapse Step 3, PF.3). Both are
      * GMS/ktor-CLEAN api interfaces — the GMS `AuthorizationClient` + ktor `HttpClient` stay inside gd's
-     * `@BindingContainer`s and are never named here (HOME-A containment).
-     *  - [provideBackupAuth] / [provideBackupStorage] — read by still-Hilt settings + worker EntryPoints.
-     *  - [provideSnapshotStorage] — read by the still-Hilt `SnapshotExportRunnerImpl` (deferred to Step 5).
-     *    TRANSIENT: retired when SnapshotExportRunner migrates with its db-cascade tether.
+     * `@BindingContainer`s and are never named here (HOME-A containment). Read by still-Hilt settings + worker
+     * EntryPoints.
+     *
+     * (`provideSnapshotStorage` was RETIRED in Step 5 (5b): its sole still-Hilt reader was
+     * `SnapshotExportRunnerImpl`, now Metro-owned and resolving `SnapshotStorage` directly from the graph.)
      */
     @Provides
     @Singleton
@@ -322,12 +322,6 @@ internal object AppGraphAdoptBackModule {
     fun provideBackupStorage(
         appGraph: AppGraph,
     ): BackupStorage = appGraph.backupStorage
-
-    @Provides
-    @Singleton
-    fun provideSnapshotStorage(
-        appGraph: AppGraph,
-    ): SnapshotStorage = appGraph.snapshotStorage
 
     /**
      * Adopt-back for the exercise repositories (App-Scope Collapse Step 3, C2). Each is Metro-owned via
@@ -381,8 +375,9 @@ internal object AppGraphAdoptBackModule {
      *  - [provideDatabaseSnapshotProvider] / [provideLiveDatabaseLocator] — the SAME
      *    `DatabaseSnapshotProviderImpl` instance (restore path: BackupWorker via `BackupWorkerHiltEntryPoint`,
      *    RecoveryActivity, the recovery observers, settings via `SettingsHiltEntryPoint`/`SettingsGraph`).
-     *  - [provideDatabaseJsonExporter] — read by the still-Hilt `SnapshotExportRunnerImpl`; TRANSIENT, retired
-     *    with SnapshotExportRunner in 5b.
+     *
+     * (`provideDatabaseJsonExporter` was RETIRED in Step 5 (5b): its sole still-Hilt reader was
+     * `SnapshotExportRunnerImpl`, now Metro-owned and resolving `DatabaseJsonExporter` directly from the graph.)
      */
     @Provides
     @Singleton
@@ -396,9 +391,15 @@ internal object AppGraphAdoptBackModule {
         appGraph: AppGraph,
     ): LiveDatabaseLocator = appGraph.liveDatabaseLocator
 
+    /**
+     * Adopt-back for [SnapshotExportRunner] (App-Scope Collapse Step 5, 5b) — the last binding flip. Metro-owned
+     * via `@ContributesBinding(AppScope)` on `SnapshotExportRunnerImpl`; re-provided into Hilt for the two
+     * still-Hilt readers — `BackupWorker` (via `BackupWorkerHiltEntryPoint`, the dormant Step-2 WorkerFactory
+     * path) and settings (`SettingsHiltEntryPoint` / `SettingsGraph`). Single-owner delegation to the graph.
+     */
     @Provides
     @Singleton
-    fun provideDatabaseJsonExporter(
+    fun provideSnapshotExportRunner(
         appGraph: AppGraph,
-    ): DatabaseJsonExporter = appGraph.databaseJsonExporter
+    ): SnapshotExportRunner = appGraph.snapshotExportRunner
 }

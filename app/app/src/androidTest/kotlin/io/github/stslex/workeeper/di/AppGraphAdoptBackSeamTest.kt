@@ -38,8 +38,7 @@ import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
-import io.github.stslex.workeeper.core.data.backup.api.SnapshotStorage
-import io.github.stslex.workeeper.core.data.database.export.DatabaseJsonExporter
+import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
 import io.github.stslex.workeeper.core.data.database.snapshot.LiveDatabaseLocator
 import io.github.stslex.workeeper.core.data.database_test.InMemoryDatabaseProvider
@@ -286,11 +285,9 @@ class AppGraphAdoptBackSeamTest {
             locatorMetro,
             ep.liveDatabaseLocator(),
         )
-        assertSame(
-            "DatabaseJsonExporter Hilt adopt-back === Metro-owned",
-            TestAppGraphModule.testAppGraph.databaseJsonExporter,
-            ep.databaseJsonExporter(),
-        )
+        // (DatabaseJsonExporter's === leg was removed in 5b: it no longer has a Hilt adopt-back shim — its sole
+        // still-Hilt reader, SnapshotExportRunnerImpl, is now Metro-owned. Its Metro identity is exercised
+        // transitively via the SnapshotExportRunner leg in googleDriveAuthChain_....)
     }
 
     @Test
@@ -469,16 +466,15 @@ class AppGraphAdoptBackSeamTest {
             TestAppGraphModule.testAppGraph.backupStorage,
             ep.backupStorage(),
         )
-        // POSITIVE (internal cross-read): SnapshotStorage is read by the still-Hilt SnapshotExportRunnerImpl
-        // (deferred to Step 5 with its DatabaseJsonExporter → AppDatabase db-cascade tether). Its Hilt-injected
-        // SnapshotStorage resolves through this same adopt-back shim === the Metro-owned instance — the one
-        // Hilt-class-reads-a-freshly-migrated-Metro-dep-inside-gd path that assemble cannot see. (The DB-heavy
-        // runner itself isn't constructed here — the seam Hilt graph has no AppDatabase — but the shim IS the
-        // exact read path it resolves through.)
+        // POSITIVE (App-Scope Collapse Step 5, 5b): SnapshotExportRunner is now Metro-owned
+        // (@ContributesBinding). Its still-Hilt readers — BackupWorker (via BackupWorkerHiltEntryPoint) +
+        // settings (SettingsHiltEntryPoint) — resolve === the Metro-owned instance through the adopt-back shim.
+        // This replaces the transient SnapshotStorage cross-read leg (that shim retired in 5b: its sole Hilt
+        // reader, SnapshotExportRunnerImpl, is now Metro and resolves SnapshotStorage/DatabaseJsonExporter direct).
         assertSame(
-            "SnapshotStorage Hilt adopt-back === Metro-owned (the SnapshotExportRunnerImpl cross-read path)",
-            TestAppGraphModule.testAppGraph.snapshotStorage,
-            ep.snapshotStorage(),
+            "SnapshotExportRunner Hilt adopt-back === Metro-owned",
+            TestAppGraphModule.testAppGraph.snapshotExportRunner,
+            ep.snapshotExportRunner(),
         )
     }
 
@@ -590,7 +586,7 @@ class AppGraphAdoptBackSeamTest {
     interface TestGoogleDriveEntryPoint {
         fun backupAuth(): BackupAuth
         fun backupStorage(): BackupStorage
-        fun snapshotStorage(): SnapshotStorage
+        fun snapshotExportRunner(): SnapshotExportRunner
     }
 
     /** Mirrors the feature `*HiltEntryPoint` / pure-Hilt readers of the (now Metro-owned) exercise repos. */
@@ -611,7 +607,6 @@ class AppGraphAdoptBackSeamTest {
     interface TestDbCascadeEntryPoint {
         fun databaseSnapshotProvider(): DatabaseSnapshotProvider
         fun liveDatabaseLocator(): LiveDatabaseLocator
-        fun databaseJsonExporter(): DatabaseJsonExporter
     }
 
     /**
