@@ -3,8 +3,8 @@ package io.github.stslex.workeeper.feature.plan_editor.di
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
-import dagger.hilt.android.EntryPointAccessors
 import dev.zacsweers.metro.createGraphFactory
+import io.github.stslex.workeeper.core.di.appGraphContract
 import io.github.stslex.workeeper.core.ui.mvi.FeatureAssisted
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
 import io.github.stslex.workeeper.core.ui.mvi.processor.rememberMetroStoreProcessor
@@ -33,20 +33,20 @@ internal object PlanEditorFeature : FeatureAssisted<
     override fun processor(screen: Screen.PlanEditor): PlanEditorStoreProcessor {
         val context = LocalContext.current
         return rememberMetroStoreProcessor<PlanEditorStoreImpl> {
-            val entryPoint = EntryPointAccessors.fromApplication(
-                context.applicationContext,
-                PlanEditorHiltEntryPoint::class.java,
-            )
+            // P-BRIDGES: app-scope deps read via the Metro AppGraphContract (Hilt-free), replacing
+            // EntryPointAccessors + the feature HiltEntryPoint. Same app graph, same bindings; the
+            // HiltEntryPoint declaration stays until the cut (dead once this reader repoints).
+            val graph = context.appGraphContract()
             createGraphFactory<PlanEditorGraph.Factory>()
                 .create(
-                    exerciseRepository = entryPoint.exerciseRepository(),
-                    trainingExerciseRepository = entryPoint.trainingExerciseRepository(),
-                    resourceWrapper = entryPoint.resourceWrapper(),
-                    navigator = entryPoint.navigator(),
-                    storeDispatchers = entryPoint.storeDispatchers(),
-                    analyticsHolder = entryPoint.analyticsHolder(),
-                    loggerHolder = entryPoint.loggerHolder(),
-                    defaultDispatcher = entryPoint.defaultDispatcher(),
+                    exerciseRepository = graph.exerciseRepository,
+                    trainingExerciseRepository = graph.trainingExerciseRepository,
+                    resourceWrapper = graph.resourceWrapper,
+                    navigator = graph.navigator,
+                    storeDispatchers = graph.storeDispatchers,
+                    analyticsHolder = graph.analyticsHolder,
+                    loggerHolder = graph.loggerHolder,
+                    defaultDispatcher = graph.defaultDispatcher,
                 )
                 .storeFactory
                 .create(screen)

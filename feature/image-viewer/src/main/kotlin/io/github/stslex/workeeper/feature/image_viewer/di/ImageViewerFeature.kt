@@ -3,8 +3,8 @@ package io.github.stslex.workeeper.feature.image_viewer.di
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
-import dagger.hilt.android.EntryPointAccessors
 import dev.zacsweers.metro.createGraphFactory
+import io.github.stslex.workeeper.core.di.appGraphContract
 import io.github.stslex.workeeper.core.ui.mvi.FeatureAssisted
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
 import io.github.stslex.workeeper.core.ui.mvi.processor.rememberMetroStoreProcessor
@@ -33,16 +33,16 @@ internal object ImageViewerFeature : FeatureAssisted<
     override fun processor(screen: Screen.ExerciseImage): ImageViewerStoreProcessor {
         val context = LocalContext.current
         return rememberMetroStoreProcessor<ImageViewerStoreImpl> {
-            val entryPoint = EntryPointAccessors.fromApplication(
-                context.applicationContext,
-                ImageViewerHiltEntryPoint::class.java,
-            )
+            // P-BRIDGES: app-scope deps read via the Metro AppGraphContract (Hilt-free), replacing
+            // EntryPointAccessors + the feature HiltEntryPoint. Same app graph, same bindings; the
+            // HiltEntryPoint declaration stays until the cut (dead once this reader repoints).
+            val graph = context.appGraphContract()
             createGraphFactory<ImageViewerGraph.Factory>()
                 .create(
-                    navigator = entryPoint.navigator(),
-                    storeDispatchers = entryPoint.storeDispatchers(),
-                    analyticsHolder = entryPoint.analyticsHolder(),
-                    loggerHolder = entryPoint.loggerHolder(),
+                    navigator = graph.navigator,
+                    storeDispatchers = graph.storeDispatchers,
+                    analyticsHolder = graph.analyticsHolder,
+                    loggerHolder = graph.loggerHolder,
                 )
                 .storeFactory
                 .create(screen)

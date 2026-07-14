@@ -3,8 +3,8 @@ package io.github.stslex.workeeper.feature.all_trainings.di
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
-import dagger.hilt.android.EntryPointAccessors
 import dev.zacsweers.metro.createGraphFactory
+import io.github.stslex.workeeper.core.di.appGraphContract
 import io.github.stslex.workeeper.core.ui.mvi.Feature
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
 import io.github.stslex.workeeper.core.ui.mvi.processor.rememberMetroStoreProcessor
@@ -29,20 +29,20 @@ internal object AllTrainingsFeature : Feature<AllTrainingsStoreProcessor, AllTra
     override fun processor(): AllTrainingsStoreProcessor {
         val context = LocalContext.current
         return rememberMetroStoreProcessor<AllTrainingsStoreImpl> {
-            val entryPoint = EntryPointAccessors.fromApplication(
-                context.applicationContext,
-                AllTrainingsHiltEntryPoint::class.java,
-            )
+            // P-BRIDGES: app-scope deps read via the Metro AppGraphContract (Hilt-free), replacing
+            // EntryPointAccessors + the feature HiltEntryPoint. Same app graph, same bindings; the
+            // HiltEntryPoint declaration stays until the cut (dead once this reader repoints).
+            val graph = context.appGraphContract()
             createGraphFactory<AllTrainingsGraph.Factory>()
                 .create(
-                    trainingRepository = entryPoint.trainingRepository(),
-                    tagRepository = entryPoint.tagRepository(),
-                    resourceWrapper = entryPoint.resourceWrapper(),
-                    navigator = entryPoint.navigator(),
-                    storeDispatchers = entryPoint.storeDispatchers(),
-                    analyticsHolder = entryPoint.analyticsHolder(),
-                    loggerHolder = entryPoint.loggerHolder(),
-                    defaultDispatcher = entryPoint.defaultDispatcher(),
+                    trainingRepository = graph.trainingRepository,
+                    tagRepository = graph.tagRepository,
+                    resourceWrapper = graph.resourceWrapper,
+                    navigator = graph.navigator,
+                    storeDispatchers = graph.storeDispatchers,
+                    analyticsHolder = graph.analyticsHolder,
+                    loggerHolder = graph.loggerHolder,
+                    defaultDispatcher = graph.defaultDispatcher,
                 )
                 .allTrainingsStore
         } as AllTrainingsStoreProcessor

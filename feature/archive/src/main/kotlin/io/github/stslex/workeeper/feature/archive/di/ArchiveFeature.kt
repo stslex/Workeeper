@@ -3,8 +3,8 @@ package io.github.stslex.workeeper.feature.archive.di
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
-import dagger.hilt.android.EntryPointAccessors
 import dev.zacsweers.metro.createGraphFactory
+import io.github.stslex.workeeper.core.di.appGraphContract
 import io.github.stslex.workeeper.core.ui.mvi.Feature
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
 import io.github.stslex.workeeper.core.ui.mvi.processor.rememberMetroStoreProcessor
@@ -36,20 +36,20 @@ internal object ArchiveFeature : Feature<ArchiveStoreProcessor, Archive>() {
     override fun processor(): ArchiveStoreProcessor {
         val context = LocalContext.current
         return rememberMetroStoreProcessor<ArchiveStoreImpl> {
-            val entryPoint = EntryPointAccessors.fromApplication(
-                context.applicationContext,
-                ArchiveHiltEntryPoint::class.java,
-            )
+            // P-BRIDGES: app-scope deps read via the Metro AppGraphContract (Hilt-free), replacing
+            // EntryPointAccessors + the feature HiltEntryPoint. Same app graph, same bindings; the
+            // HiltEntryPoint declaration stays until the cut (dead once this reader repoints).
+            val graph = context.appGraphContract()
             createGraphFactory<ArchiveGraph.Factory>()
                 .create(
-                    navigator = entryPoint.navigator(),
-                    exerciseRepository = entryPoint.exerciseRepository(),
-                    trainingRepository = entryPoint.trainingRepository(),
-                    resourceWrapper = entryPoint.resourceWrapper(),
-                    storeDispatchers = entryPoint.storeDispatchers(),
-                    analyticsHolder = entryPoint.analyticsHolder(),
-                    loggerHolder = entryPoint.loggerHolder(),
-                    defaultDispatcher = entryPoint.defaultDispatcher(),
+                    navigator = graph.navigator,
+                    exerciseRepository = graph.exerciseRepository,
+                    trainingRepository = graph.trainingRepository,
+                    resourceWrapper = graph.resourceWrapper,
+                    storeDispatchers = graph.storeDispatchers,
+                    analyticsHolder = graph.analyticsHolder,
+                    loggerHolder = graph.loggerHolder,
+                    defaultDispatcher = graph.defaultDispatcher,
                 )
                 .archiveStore
         } as ArchiveStoreProcessor
