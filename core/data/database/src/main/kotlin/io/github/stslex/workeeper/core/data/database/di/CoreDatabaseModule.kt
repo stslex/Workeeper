@@ -1,14 +1,13 @@
 package io.github.stslex.workeeper.core.data.database.di
 
 import android.content.Context
-import androidx.room.Room
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import io.github.stslex.workeeper.core.data.database.AppDatabase
-import io.github.stslex.workeeper.core.data.database.migration.MIGRATIONS
+import io.github.stslex.workeeper.core.data.database.buildAppDatabase
 import javax.inject.Singleton
 
 /**
@@ -25,19 +24,14 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object CoreDatabaseModule {
 
+    // App-Scope Collapse Step 6 (P-DBROOT): construction delegates to the non-Hilt `buildAppDatabase`
+    // factory (staged in-module), so the single source of construction truth is exercised in prod while
+    // Hilt still OWNS the binding + bridge-feeds `create()`. The atomic cut deletes this @Provides and
+    // calls `buildAppDatabase` directly at the graph seam. No `fallbackToDestructiveMigration` (migration
+    // failure routes to the recovery flows; never a silent wipe) — that policy lives in the factory.
     @Provides
     @Singleton
     internal fun provideAppDatabase(
         @ApplicationContext context: Context,
-    ): AppDatabase = Room
-        .databaseBuilder(
-            context,
-            AppDatabase::class.java,
-            AppDatabase.NAME,
-        )
-        // No fallbackToDestructiveMigration*. Migration failure routes to the
-        // recovery flows in documentation/feature-specs/backup-recovery.md
-        // (Scenarios 1 and 2); silent data wipe is never an option.
-        .apply { MIGRATIONS.forEach { addMigrations(it) } }
-        .build()
+    ): AppDatabase = buildAppDatabase(context)
 }
