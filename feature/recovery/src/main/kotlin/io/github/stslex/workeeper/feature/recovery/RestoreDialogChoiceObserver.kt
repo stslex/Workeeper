@@ -11,6 +11,7 @@ import androidx.core.net.toUri
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.core.logger.Log
+import io.github.stslex.workeeper.core.data.backup.api.RecoveryDiagnosticsExporter
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialogUserAction
@@ -18,7 +19,6 @@ import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialogUserCho
 import io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObserver
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.recovery.boot.RecoveryBootstrap
-import io.github.stslex.workeeper.feature.recovery.diagnostics.RecoveryDiagnosticsExporter
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
 import io.github.stslex.workeeper.feature.recovery.domain.UndoRestoreOutcome
 import kotlinx.coroutines.CoroutineDispatcher

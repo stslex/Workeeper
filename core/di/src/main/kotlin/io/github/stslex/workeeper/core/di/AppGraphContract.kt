@@ -10,6 +10,7 @@ import io.github.stslex.workeeper.core.core.platform.TempFileProvider
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
+import io.github.stslex.workeeper.core.data.backup.api.RecoveryDiagnosticsExporter
 import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
@@ -49,10 +50,10 @@ import kotlinx.coroutines.CoroutineDispatcher
  * `EntryPointAccessors` path still resolves. No consumer reads this contract yet.
  *
  * **Deliberately absent — feature/app-owned types a `core` module cannot name:**
- * `RecoveryDiagnosticsExporter` (feature/recovery — gets its accessor once its contract extracts to a
- * core-visible module in P-REC), the app-dialogs api/impl accessors (`AppDialogObserver` etc.,
- * feature-tier), and the concrete `NavigatorEventBus` (app/app-owned) — these stay on `AppGraph`
- * directly. **Also absent this commit (not yet `AppGraph` accessors — would force a new binding
+ * the app-dialogs api/impl accessors (`AppDialogObserver` etc., feature-tier) and the concrete
+ * `NavigatorEventBus` (app/app-owned) — these stay on `AppGraph` directly. (`RecoveryDiagnosticsExporter`
+ * WAS absent in P-CONTRACT for this reason; P-REC extracted its contract to `core:data:backup:api`, so it
+ * is now nameable and included above.) **Also absent (not yet `AppGraph` accessors — would force a new binding
  * resolution, breaking the add-only "inherit existing accessors only" invariant):** `imageStorage`
  * (a `create()` bound-instance root, not exposed as an `AppGraph` accessor) and `sessionConflictResolver`
  * (a plain `@Inject` class, not `@ContributesBinding(AppScope)`, resolved Hilt-side today). Each is
@@ -92,6 +93,9 @@ interface AppGraphContract {
     val autoBackupController: AutoBackupController
     val backupPreferencesRepository: BackupPreferencesRepository
     val backupNotificationHelper: BackupNotificationHelper
+
+    // ── feature/recovery (P-REC): impl Metro-owned, contract extracted to core:data:backup:api ──
+    val recoveryDiagnosticsExporter: RecoveryDiagnosticsExporter
 
     // ── core:data:dataStore ──
     val commonDataStore: CommonDataStore

@@ -17,6 +17,7 @@ import io.github.stslex.workeeper.core.core.platform.TempFileProvider
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
+import io.github.stslex.workeeper.core.data.backup.api.RecoveryDiagnosticsExporter
 import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
@@ -232,6 +233,14 @@ internal interface AppGraph : AppGraphContract {
      * read by the still-Hilt `BackupWorker` (via `BackupWorkerHiltEntryPoint`) + settings.
      */
     override val snapshotExportRunner: SnapshotExportRunner
+
+    /**
+     * App-Scope Collapse Step 6 (P-REC). Metro-owned [RecoveryDiagnosticsExporter] — `@ContributesBinding(AppScope)`
+     * on `RecoveryDiagnosticsExporterImpl` (feature/recovery), bound to the api interface. Exposed for the
+     * adopt-back shim + the `AppGraphContract` accessor: read by the still-Hilt `RecoveryActivity` (`@Inject`)
+     * + `RestoreDialogChoiceObserver` via the adopt-back `@Provides`.
+     */
+    override val recoveryDiagnosticsExporter: RecoveryDiagnosticsExporter
 
     /**
      * App-Scope Collapse Step 3 (C2). The nine exercise repositories, now Metro-owned via

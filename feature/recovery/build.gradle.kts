@@ -1,5 +1,18 @@
 plugins {
     alias(libs.plugins.convention.composeLibrary)
+    // App-Scope Collapse Step 6 (P-REC): Metro plugin so RecoveryDiagnosticsExporter can be Metro-owned
+    // (@ContributesBinding(AppScope) → aggregated into the app graph). The convention still force-applies
+    // Hilt-KSP; Metro coexists alongside it (the other recovery @Singletons stay Hilt this prep). No
+    // dagger.assisted here, so no dual-processor collision.
+    alias(libs.plugins.metro)
+}
+
+// Metro reads javax.inject qualifiers (includeJavax) so RecoveryDiagnosticsExporter's @IODispatcher
+// CoroutineDispatcher ctor dep keeps its qualifier as part of the Metro binding key.
+metro {
+    interop {
+        includeJavax()
+    }
 }
 
 android {

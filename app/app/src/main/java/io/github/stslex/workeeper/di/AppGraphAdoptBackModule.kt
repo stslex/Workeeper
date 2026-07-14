@@ -14,6 +14,7 @@ import io.github.stslex.workeeper.core.core.platform.TempFileProvider
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
+import io.github.stslex.workeeper.core.data.backup.api.RecoveryDiagnosticsExporter
 import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
@@ -402,4 +403,17 @@ internal object AppGraphAdoptBackModule {
     fun provideSnapshotExportRunner(
         appGraph: AppGraph,
     ): SnapshotExportRunner = appGraph.snapshotExportRunner
+
+    /**
+     * Adopt-back for [RecoveryDiagnosticsExporter] (App-Scope Collapse Step 6, P-REC). Metro-owned via
+     * `@ContributesBinding(AppScope)` on `RecoveryDiagnosticsExporterImpl` (feature/recovery, bound to the
+     * `core:data:backup:api` interface); re-provided into Hilt's `SingletonComponent` for the two still-Hilt
+     * readers — `RecoveryActivity` (`@AndroidEntryPoint @Inject`) and `RestoreDialogChoiceObserver` (ctor).
+     * Single-owner delegation to the graph. Retired at the cut when both readers become graph-reads.
+     */
+    @Provides
+    @Singleton
+    fun provideRecoveryDiagnosticsExporter(
+        appGraph: AppGraph,
+    ): RecoveryDiagnosticsExporter = appGraph.recoveryDiagnosticsExporter
 }

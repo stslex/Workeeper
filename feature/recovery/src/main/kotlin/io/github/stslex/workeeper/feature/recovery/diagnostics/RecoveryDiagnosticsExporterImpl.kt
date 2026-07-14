@@ -6,8 +6,12 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import androidx.core.content.FileProvider
-import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
+import io.github.stslex.workeeper.core.data.backup.api.RecoveryDiagnosticsExporter
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreInProgressContext
 import io.github.stslex.workeeper.core.data.database.migration.APP_DATABASE_VERSION
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
@@ -18,8 +22,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Writes plain-text diagnostic files for either recovery flow and returns
@@ -39,20 +41,28 @@ import javax.inject.Singleton
  * [DatabaseSnapshotProvider.availableMigrationsLabel] — a pure-Kotlin
  * read of the registered MIGRATIONS array. No Room access; safe to
  * inject into `RecoveryActivity`'s graph.
+ *
+ * App-Scope Collapse Step 6 (P-REC): Metro-owned via `@ContributesBinding(AppScope)`, bound to the
+ * [RecoveryDiagnosticsExporter] api interface (in `core:data:backup:api`). Public for cross-module
+ * aggregation (D1; never hand-construct — resolve via DI). Its `Context` is the graph's
+ * `create(applicationContext)` root (plain param, no `@ApplicationContext`); `@IODispatcher` resolves
+ * from `DispatchersBindingContainer`. Still-Hilt readers (`RecoveryActivity`, `RestoreDialogChoiceObserver`)
+ * resolve the interface via the adopt-back `@Provides` in `AppGraphAdoptBackModule`.
  */
-@Singleton
-internal class RecoveryDiagnosticsExporter @Inject constructor(
-    @ApplicationContext private val context: Context,
+@SingleIn(AppScope::class)
+@ContributesBinding(AppScope::class)
+public class RecoveryDiagnosticsExporterImpl @Inject constructor(
+    private val context: Context,
     private val snapshotProvider: DatabaseSnapshotProvider,
     @IODispatcher private val dispatcher: CoroutineDispatcher,
-) {
+) : RecoveryDiagnosticsExporter {
 
     /**
      * Scenario 1 (restore-time) variant. Writes `cache/recovery_diagnostics/
      * workeeper_restore_diagnostic_<stamp>.txt` and returns its content URI.
      * Returns `null` if the write failed (caller hides the share action).
      */
-    suspend fun exportRestoreFailure(
+    override suspend fun exportRestoreFailure(
         exception: Throwable?,
         context: RestoreInProgressContext?,
         appVersionName: String,
@@ -80,7 +90,7 @@ internal class RecoveryDiagnosticsExporter @Inject constructor(
      * from the app context directly so `RecoveryActivity` does not need to
      * plumb them in.
      */
-    suspend fun exportStartupMigrationFailure(): Uri? = withContext(dispatcher) {
+    override suspend fun exportStartupMigrationFailure(): Uri? = withContext(dispatcher) {
         runCatching {
             val outFile = newFile(prefix = "workeeper_startup_diagnostic")
             outFile.writeText(text = buildStartupText(), charset = Charsets.UTF_8)
