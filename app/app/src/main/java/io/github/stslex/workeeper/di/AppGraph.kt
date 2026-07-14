@@ -36,6 +36,7 @@ import io.github.stslex.workeeper.core.data.exercise.stats.StatsRepository
 import io.github.stslex.workeeper.core.data.exercise.tags.TagRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
+import io.github.stslex.workeeper.core.di.AppGraphContract
 import io.github.stslex.workeeper.core.ui.kit.utils.NumUiUtils
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolder
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
@@ -67,10 +68,10 @@ import kotlinx.coroutines.CoroutineDispatcher
  * delegating read is the adopt-back seam this phase proves identity-preserving.
  */
 @DependencyGraph(scope = AppScope::class)
-internal interface AppGraph {
+internal interface AppGraph : AppGraphContract {
 
     /** Root accessor: the single app-scoped [AnalyticsHolder] the adopt-back `@Provides` delegates to. */
-    val analyticsHolder: AnalyticsHolder
+    override val analyticsHolder: AnalyticsHolder
 
     /**
      * App-Scope Collapse Step 3 (SB1). Metro-owned [NumUiUtils] — CONTRIBUTED by
@@ -89,7 +90,7 @@ internal interface AppGraph {
      * retained singleton. The 13 `*HiltEntryPoint.loggerHolder()` readers + the `BaseStore` ctor param
      * resolve it via the single adopt-back `@Provides` ([AppGraphAdoptBackModule]) delegating here.
      */
-    val loggerHolder: LoggerHolder
+    override val loggerHolder: LoggerHolder
 
     /**
      * App-Scope Collapse Step 3 (SB1, core:ui:mvi slice). Metro-owned [StoreDispatchers]. Its two
@@ -97,7 +98,7 @@ internal interface AppGraph {
      * [DispatchersBindingContainer] (App-Scope Collapse Step 3, PF commit 1) — no longer bridged through
      * `create()`. `includeJavax` carries the qualifiers.
      */
-    val storeDispatchers: StoreDispatchers
+    override val storeDispatchers: StoreDispatchers
 
     /**
      * App-Scope Collapse Step 3 (PF commit 1). The four Metro-owned CoroutineDispatchers, CONTRIBUTED by
@@ -111,13 +112,13 @@ internal interface AppGraph {
      * `appGraph` would re-introduce the dissolved `@IO`→`appGraph` back-edge.
      */
     @DefaultDispatcher
-    val defaultDispatcher: CoroutineDispatcher
+    override val defaultDispatcher: CoroutineDispatcher
 
     @MainImmediateDispatcher
-    val mainImmediateDispatcher: CoroutineDispatcher
+    override val mainImmediateDispatcher: CoroutineDispatcher
 
     @IODispatcher
-    val ioDispatcher: CoroutineDispatcher
+    override val ioDispatcher: CoroutineDispatcher
 
     /**
      * App-Scope Collapse Step 3 (PF commit 2A). Metro-owned [ResourceWrapper] — CONTRIBUTED by
@@ -125,7 +126,7 @@ internal interface AppGraph {
      * the `create(applicationContext)` bound instance). The ten feature `*HiltEntryPoint.resourceWrapper()`
      * bridges resolve it via the single adopt-back `@Provides`.
      */
-    val resourceWrapper: ResourceWrapper
+    override val resourceWrapper: ResourceWrapper
 
     /**
      * App-Scope Collapse Step 3 (PF commit 2C). Metro-owned Navigator subsystem — the one
@@ -134,7 +135,7 @@ internal interface AppGraph {
      * type for `AppRootViewModel` (which injects the concrete, then passes it as a `NavigatorReceiver`).
      * One instance backs both; both resolve via the two adopt-back `@Provides`.
      */
-    val navigator: Navigator
+    override val navigator: Navigator
     val navigatorEventBus: NavigatorEventBus
 
     /**
@@ -150,19 +151,19 @@ internal interface AppGraph {
     val activityHolderProducer: ActivityHolderProducer
 
     /** App-Scope Collapse Step 3 (core-android platform slice). Metro-owned via @ContributesBinding. */
-    val platformInfoProvider: PlatformInfoProvider
-    val tempFileProvider: TempFileProvider
-    val appReinitializer: AppReinitializer
+    override val platformInfoProvider: PlatformInfoProvider
+    override val tempFileProvider: TempFileProvider
+    override val appReinitializer: AppReinitializer
 
     /** App-Scope Collapse Step 3 (scheduling slice). Metro-owned RestoreStateRepository. */
-    val restoreStateRepository: RestoreStateRepository
+    override val restoreStateRepository: RestoreStateRepository
 
     /**
      * App-Scope Collapse Step 3 (worker slice). Metro-owned AutoBackupController (BackupScheduler) +
      * BackupNotificationHelper.
      */
-    val autoBackupController: AutoBackupController
-    val backupNotificationHelper: BackupNotificationHelper
+    override val autoBackupController: AutoBackupController
+    override val backupNotificationHelper: BackupNotificationHelper
 
     /**
      * App-Scope Collapse Step 3 (SB1, backup/scheduling slice). Metro-owned [BackupPreferencesRepository]
@@ -171,7 +172,7 @@ internal interface AppGraph {
      * `create(applicationContext)` bound instance. This accessor exposes the binding for the adopt-back
      * `@Provides` + identity tests; `SettingsHiltEntryPoint` + `BackupWorkerHiltEntryPoint` delegate here.
      */
-    val backupPreferencesRepository: BackupPreferencesRepository
+    override val backupPreferencesRepository: BackupPreferencesRepository
 
     /**
      * App-Scope Collapse Step 3 (CommonDataStore slice). Metro-owned [CommonDataStore] — CONTRIBUTED by
@@ -182,7 +183,7 @@ internal interface AppGraph {
      * `@Provides` + identity tests; the 3 still-Hilt readers (`AppRootViewModel`, `SettingsHiltEntryPoint`,
      * `SettingsGraph`) delegate here.
      */
-    val commonDataStore: CommonDataStore
+    override val commonDataStore: CommonDataStore
 
     /**
      * App-Scope Collapse Step 3 (app-dialogs slice). The three app-scoped singletons of
@@ -222,15 +223,15 @@ internal interface AppGraph {
      * (The `snapshotStorage` accessor + shim were RETIRED in Step 5 (5b): its sole still-Hilt reader was
      * `SnapshotExportRunnerImpl`, now Metro-owned and resolving `SnapshotStorage` directly.)
      */
-    val backupAuth: BackupAuth
-    val backupStorage: BackupStorage
+    override val backupAuth: BackupAuth
+    override val backupStorage: BackupStorage
 
     /**
      * App-Scope Collapse Step 5 (5b). Metro-owned [SnapshotExportRunner] (`@ContributesBinding(AppScope)` on
      * `SnapshotExportRunnerImpl`, all deps graph-resolvable). Exposed for the adopt-back shim + identity seam:
      * read by the still-Hilt `BackupWorker` (via `BackupWorkerHiltEntryPoint`) + settings.
      */
-    val snapshotExportRunner: SnapshotExportRunner
+    override val snapshotExportRunner: SnapshotExportRunner
 
     /**
      * App-Scope Collapse Step 3 (C2). The nine exercise repositories, now Metro-owned via
@@ -240,14 +241,14 @@ internal interface AppGraph {
      * through their adopt-back shims; [statsRepository] has zero consumers (dead binding) — exposed for
      * completeness/identity, no shim.
      */
-    val exerciseRepository: ExerciseRepository
-    val sessionRepository: SessionRepository
-    val setRepository: SetRepository
-    val tagRepository: TagRepository
-    val personalRecordRepository: PersonalRecordRepository
-    val performedExerciseRepository: PerformedExerciseRepository
-    val trainingExerciseRepository: TrainingExerciseRepository
-    val trainingRepository: TrainingRepository
+    override val exerciseRepository: ExerciseRepository
+    override val sessionRepository: SessionRepository
+    override val setRepository: SetRepository
+    override val tagRepository: TagRepository
+    override val personalRecordRepository: PersonalRecordRepository
+    override val performedExerciseRepository: PerformedExerciseRepository
+    override val trainingExerciseRepository: TrainingExerciseRepository
+    override val trainingRepository: TrainingRepository
     val statsRepository: StatsRepository
 
     /**
@@ -260,8 +261,8 @@ internal interface AppGraph {
      * (`DatabaseJsonExporter` is Metro-owned too (5a) but its accessor + shim were RETIRED in 5b: its sole
      * still-Hilt reader was `SnapshotExportRunnerImpl`, now Metro-owned and resolving it directly.)
      */
-    val databaseSnapshotProvider: DatabaseSnapshotProvider
-    val liveDatabaseLocator: LiveDatabaseLocator
+    override val databaseSnapshotProvider: DatabaseSnapshotProvider
+    override val liveDatabaseLocator: LiveDatabaseLocator
 
     /**
      * Metro CONSTRUCTS and retains the leaf. `@SingleIn(AppScope)` binds it to this graph's

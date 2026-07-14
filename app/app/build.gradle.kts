@@ -25,6 +25,11 @@ dependencies {
     implementation(project(":core:core"))
     // Android/Hilt half of core:core — its @Modules aggregate into the app's single Dagger graph.
     implementation(project(":core:core-android"))
+    // App-Scope Collapse Step 6 (P-CONTRACT): the public AppGraphContract seam. AppGraph extends it;
+    // BaseApplication implements AppGraphContractHolder so Context.appGraphContract() resolves the held
+    // graph. `api` (not `implementation`) so the flavor apps (app:dev/app:store) that subclass
+    // BaseApplication see the public supertype AppGraphContractHolder on their classpath.
+    api(project(":core:di"))
     androidTestImplementation(project(":core:ui:test-utils"))
     // App-Scope Collapse Step 3 (C2): the seam's TestAppGraphModule builds the graph with real in-memory-Room
     // DAOs (the C2 bridge params) via InMemoryDatabaseProvider — no mockk on the app:app androidTest classpath.

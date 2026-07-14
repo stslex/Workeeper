@@ -34,6 +34,9 @@ include(":app:store")
 include(":core:core")
 // Android/Hilt half of the kotlin-only core:core (KMP): hosts the Hilt @Modules + Android impls.
 include(":core:core-android")
+// App-Scope Collapse Step 6 (P-CONTRACT): the public AppGraphContract seam + Context.appGraphContract()
+// accessor the ~15 post-cut library consumers read the app graph through (Hilt-free, add-only).
+include(":core:di")
 
 include(":core:ui:kit")
 include(":core:ui:navigation")

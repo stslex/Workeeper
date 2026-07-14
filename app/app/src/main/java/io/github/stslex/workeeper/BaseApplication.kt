@@ -13,6 +13,8 @@ import io.github.stslex.workeeper.core.core.images.ImageStorage
 import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.data.database.AppDatabase
+import io.github.stslex.workeeper.core.di.AppGraphContract
+import io.github.stslex.workeeper.core.di.AppGraphContractHolder
 import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
 import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
 import io.github.stslex.workeeper.di.AppGraph
@@ -34,7 +36,7 @@ import javax.inject.Inject
 // performs the actual member injection. This friction generalizes to any Metro-enabled module that
 // retains a Hilt-member-injected non-final class; it recurs on the real app flip.
 @HasMemberInjections
-abstract class BaseApplication : Application(), Configuration.Provider, AppGraphOwner {
+abstract class BaseApplication : Application(), Configuration.Provider, AppGraphOwner, AppGraphContractHolder {
 
     abstract val isDebugLoggingAllow: Boolean
 
@@ -71,6 +73,15 @@ abstract class BaseApplication : Application(), Configuration.Provider, AppGraph
             imageStorage = db.imageStorage(),
         )
     }
+
+    /**
+     * App-Scope Collapse Step 6 (P-CONTRACT). Public [AppGraphContract] seam for the ~15 post-cut
+     * LIBRARY consumers, read via [io.github.stslex.workeeper.core.di.appGraphContract]. One-line
+     * `get() = appGraph` — `AppGraph : AppGraphContract`, so the held graph IS the contract; the getter
+     * reads the `by lazy` [appGraph] on access, never forcing construction eagerly. Add-only: no consumer
+     * calls it yet (every `EntryPointAccessors` path stays live).
+     */
+    override val appGraphContract: AppGraphContract get() = appGraph
 
     @Inject
     internal lateinit var workerFactory: HiltWorkerFactory
