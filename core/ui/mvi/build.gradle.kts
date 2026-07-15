@@ -13,12 +13,9 @@ metro {
     }
 }
 
-android {
-    defaultConfig {
-        testInstrumentationRunner =
-            "io.github.stslex.workeeper.core.ui.test.runner.WorkeeperTestRunner"
-    }
-}
+// App-Scope Collapse Step 6 (Phase 3.4): androidTest de-Hilt'd — no custom Application needed (Stores
+// resolve via the Metro path with directly-constructed deps), so the module uses the convention default
+// `androidx.test.runner.AndroidJUnitRunner` (the deleted WorkeeperTestRunner booted HiltTestApplication).
 
 dependencies {
     implementation(project(":core:core"))
@@ -38,6 +35,5 @@ dependencies {
     androidTestImplementation(libs.bundles.android.test)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(project(":core:ui:test-utils"))
-    kspAndroidTest(libs.hilt.compiler)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

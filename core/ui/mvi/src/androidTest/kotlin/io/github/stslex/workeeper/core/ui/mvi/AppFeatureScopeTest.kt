@@ -3,16 +3,14 @@ package io.github.stslex.workeeper.core.ui.mvi
 
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import dagger.hilt.android.testing.HiltAndroidRule
-import dagger.hilt.android.testing.HiltAndroidTest
 import io.github.stslex.workeeper.core.ui.test.TestActivity
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertSame
 import org.junit.Rule
 import org.junit.Test
@@ -25,39 +23,30 @@ import org.junit.runner.RunWith
  * mount site depends on (see KDoc on [AppFeature] and
  * `documentation/feature-specs/app-dialogs.md` → "AppDialogHost mounting").
  *
- * The test does NOT touch the dialog catalog, recovery, or any production Store —
- * it uses [AppRootProbeFeature] / [AppRootProbeStoreImpl] declared in
- * `AppFeatureProbe.kt`. The probe's `@ViewModelScoped` `HandlerStore` + `Handler`
- * also have to bind on the Store's `ViewModelComponent`, so successful composition
- * of `AppRootProbeFeature.processor()` doubles as proof that the binding works.
+ * App-Scope Collapse Step 6 (Phase 3.4): de-Hilt'd. The probe ([AppRootProbeFeature] /
+ * [AppRootProbeStoreImpl] in `AppFeatureProbe.kt`) resolves its Store through the SAME Metro path every
+ * production `AppFeature` now uses — `rememberMetroStoreProcessor`, which retains the Store via
+ * `viewModel<T>()` in the current `LocalViewModelStoreOwner`. That is the exact retention mechanic under
+ * test: at App-root depth `LocalViewModelStoreOwner` must be the host Activity, so the Store lands in the
+ * Activity's `ViewModelStore` and a subsequent `ViewModelProvider(activity)` read returns the SAME
+ * instance (proof the cache key is the Activity, not a `NavBackStackEntry`).
  */
-@HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 internal class AppFeatureScopeTest {
 
-    @get:Rule(order = 0)
-    val hiltRule: HiltAndroidRule = HiltAndroidRule(this)
-
-    @get:Rule(order = 1)
+    @get:Rule
     val composeRule = createAndroidComposeRule<TestActivity>()
 
     @Test
     fun appFeatureProcessorResolvesAtActivityScope() {
         var capturedOwner: ViewModelStoreOwner? = null
         var capturedLifecycle: LifecycleOwner? = null
-        var capturedStore: AppRootProbeStoreImpl? = null
 
         composeRule.setContent {
             // Composed as a sibling of any NavHost would be — i.e. directly at the
             // App root depth — so LocalViewModelStoreOwner.current must resolve to
             // the host ComponentActivity, not a NavBackStackEntry.
             AppRootProbeFeature.processor()
-
-            // Re-resolve the same @HiltViewModel from the same composition context.
-            // hiltViewModel<T>() reads LocalViewModelStoreOwner.current, so this
-            // returns the SAME instance as what AppFeature wired up — only if the
-            // owner resolution agrees.
-            val directStore: AppRootProbeStoreImpl = hiltViewModel()
 
             // LifecycleOwner and ViewModelStoreOwner snapshots from the same
             // composition that AppFeature is composed in: BaseStore.init was called
@@ -69,7 +58,6 @@ internal class AppFeatureScopeTest {
             SideEffect {
                 capturedOwner = owner
                 capturedLifecycle = lifecycleOwner
-                capturedStore = directStore
             }
         }
 
@@ -78,7 +66,6 @@ internal class AppFeatureScopeTest {
         val activity = composeRule.activity
         val owner = checkNotNull(capturedOwner) { "LocalViewModelStoreOwner not resolved" }
         val lifecycle = checkNotNull(capturedLifecycle) { "LifecycleOwner not resolved" }
-        val storeFromComposition = checkNotNull(capturedStore) { "Store not captured" }
 
         // (1) Activity owns the ViewModelStore the Store was scoped to.
         assertSame(
@@ -87,14 +74,14 @@ internal class AppFeatureScopeTest {
             owner.viewModelStore,
         )
 
-        // (2) Fetching the same VM class via the Activity's ViewModelProvider returns
-        // the same instance — proof that the cache key is the Activity, not a
-        // NavBackStackEntry. If the AppFeature had silently rescoped to any other
-        // owner, ViewModelProvider(activity) would construct a SECOND instance.
-        val viaActivity = ViewModelProvider(activity).get(AppRootProbeStoreImpl::class.java)
-        assertSame(
-            "Store fetched from the Activity must be the same instance AppFeature wired up",
-            storeFromComposition,
+        // (2) The Store the processor retained is cached in the Activity's ViewModelStore, so fetching
+        // AppRootProbeStoreImpl from the Activity's ViewModelProvider returns that SAME already-retained
+        // instance (ViewModelProvider returns the cached entry without invoking a factory). If the
+        // AppFeature had silently rescoped the Store to any other owner, the Activity's store would hold
+        // no such entry and this read would fail to construct one (no default no-arg factory).
+        val viaActivity = ViewModelProvider(activity)[AppRootProbeStoreImpl::class.java]
+        assertNotNull(
+            "AppRootProbeStoreImpl must be retained in the host Activity's ViewModelStore",
             viaActivity,
         )
 
