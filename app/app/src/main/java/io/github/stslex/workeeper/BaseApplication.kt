@@ -79,10 +79,22 @@ abstract class BaseApplication :
         super.onCreate()
         FirebaseCrashlyticsHolder.initialize()
         Log.isLogging = isDebugLoggingAllow
+        onCreateGraphBootstrap()
+        PerformanceMetricsRecorder.process(RecordAction.AppCreated)
+    }
+
+    /**
+     * The graph-touching half of [onCreate], extracted behind an overridable seam (App-Scope Collapse
+     * Step 6, Phase 3.3). Every statement here reads [appGraph], which would force the `by lazy` graph to
+     * build with the production `create()` roots (file-backed `buildAppDatabase`). The consolidated
+     * `:app:app` androidTest harness overrides this to a no-op in its `TestApplication`, so the
+     * `MetroTestRule` can install a fresh per-test graph (in-memory / fail-fast DB) BEFORE any graph read.
+     * `protected open` keeps the seam `:app:app`-internal — no cross-module visibility change.
+     */
+    protected open fun onCreateGraphBootstrap() {
         handleRecoveryPreflightChain()
         cleanupOrphanedImageTempFiles()
         bootstrapAppDialogObserver()
-        PerformanceMetricsRecorder.process(RecordAction.AppCreated)
     }
 
     /**

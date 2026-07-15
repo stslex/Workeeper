@@ -2,23 +2,14 @@ plugins {
     alias(libs.plugins.convention.application.dev)
 }
 
-android {
-    defaultConfig {
-        testInstrumentationRunner = "io.github.stslex.workeeper.dev.HiltTestRunner"
-    }
-}
-
+// App-Scope Collapse Step 6 (Phase 3.3): all app-tier instrumented tests consolidated into
+// :app:app androidTest (the only source set that can see the module-internal Metro AppGraph). app/dev
+// hosts no androidTest sources, so its former Hilt runner + androidTest deps are gone.
 dependencies {
     implementation(project(":app:app"))
-    androidTestImplementation(project(":core:ui:test-utils"))
 
     implementation(platform(libs.google.firebase.bom))
     implementation(libs.google.firebase.analytics)
     implementation(libs.google.firebase.crashlytics)
     implementation(libs.google.firebase.perf)
-
-    androidTestImplementation(libs.bundles.android.test)
-    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-    kspAndroidTest(libs.hilt.compiler)
-    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

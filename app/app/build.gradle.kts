@@ -17,7 +17,10 @@ metro {
 
 android {
     defaultConfig {
-        testInstrumentationRunner = "io.github.stslex.workeeper.app.HiltTestRunner"
+        // App-Scope Collapse Step 6 (Phase 3.3): the consolidated Metro androidTest harness. Boots
+        // TestApplication (a BaseApplication subclass holding the per-test graph) — replaces the deleted
+        // HiltTestRunner that booted HiltTestApplication. All app-tier instrumented tests live here.
+        testInstrumentationRunner = "io.github.stslex.workeeper.harness.MetroTestRunner"
     }
 }
 
@@ -72,5 +75,8 @@ dependencies {
 
     androidTestImplementation(libs.bundles.android.test)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    // App-Scope Collapse Step 6 (Phase 3.3): RecoveryActivityDbFreeTest's fail-fast AppDatabase root
+    // override (a tripwire mockk whose openHelper throws) was relocated here from feature/recovery.
+    androidTestImplementation(libs.mockk.android)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

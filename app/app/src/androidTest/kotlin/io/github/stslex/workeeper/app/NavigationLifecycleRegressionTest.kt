@@ -1,17 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-only
-package io.github.stslex.workeeper.dev
+package io.github.stslex.workeeper.app
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import dagger.hilt.android.testing.HiltAndroidRule
-import dagger.hilt.android.testing.HiltAndroidTest
 import io.github.stslex.workeeper.MainActivity
 import io.github.stslex.workeeper.bottom_app_bar.BottomBarItem
 import io.github.stslex.workeeper.core.ui.test.annotations.Regression
-import org.junit.Before
+import io.github.stslex.workeeper.harness.MetroTestRule
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -45,20 +43,19 @@ import org.junit.runner.RunWith
  *  - LiveWorkout finish session → replaceTo PastSession back-stack assertions.
  */
 @Regression
-@HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 internal class NavigationLifecycleRegressionTest {
 
+    // App-Scope Collapse Step 6 (Phase 3.3): moved from `app/dev` into `:app:app` androidTest and
+    // de-Hilt'd. MetroTestRule (order 0) installs the per-test graph before the compose rule (order 1)
+    // launches MainActivity — and crucially the SAME graph survives `scenario.recreate()`, since the
+    // process-singleton MetroTestGraphHolder is untouched by activity recreation (the invariant this
+    // regression guards).
     @get:Rule(order = 0)
-    val hiltRule = HiltAndroidRule(this)
+    val metroRule = MetroTestRule()
 
     @get:Rule(order = 1)
     val composeRule = createAndroidComposeRule<MainActivity>()
-
-    @Before
-    fun setup() {
-        hiltRule.inject()
-    }
 
     /**
      * Activity recreation mid-flight must not break navigation. After the recreate
