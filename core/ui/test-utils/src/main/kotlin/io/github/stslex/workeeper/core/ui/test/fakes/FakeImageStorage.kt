@@ -5,8 +5,6 @@ import io.github.stslex.workeeper.core.core.images.ImageRef
 import io.github.stslex.workeeper.core.core.images.ImageStorage
 import io.github.stslex.workeeper.core.core.images.model.ImageSaveResult
 import java.util.concurrent.ConcurrentHashMap
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * In-memory fake of [ImageStorage] for instrumentation tests.
@@ -15,9 +13,12 @@ import javax.inject.Singleton
  * disk I/O), surfaces a stable synthetic absolute path, and counts every method call so
  * tests can assert behaviour without reaching into internals. [snapshot] is the read
  * surface; [reset] is for setup between tests.
+ *
+ * App-Scope Collapse Step 6 (Phase 3.2): a plain class — no Hilt `@Inject`/`@Singleton`.
+ * The Metro test harness constructs it directly and passes it as the `imageStorage`
+ * `create()` bound-instance root via `buildAppGraph(...)`.
  */
-@Singleton
-class FakeImageStorage @Inject constructor() : ImageStorage {
+class FakeImageStorage : ImageStorage {
 
     private val storedPaths: MutableMap<String, String> = ConcurrentHashMap()
     private val storedSources: MutableMap<String, ImageRef> = ConcurrentHashMap()

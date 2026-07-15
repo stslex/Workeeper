@@ -7,6 +7,5 @@ dependencies {
     api(project(":core:data:database"))
 
     api(libs.bundles.room)
-    implementation(libs.hilt.test)
     api(libs.androidx.test)
 }
