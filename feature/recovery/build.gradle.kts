@@ -15,11 +15,10 @@ metro {
     }
 }
 
-android {
-    defaultConfig {
-        testInstrumentationRunner = "io.github.stslex.workeeper.core.ui.test.runner.WorkeeperTestRunner"
-    }
-}
+// App-Scope Collapse Step 6 (Phase 3.4): RecoveryActivityDbFreeTest relocated to :app:app androidTest
+// (the only source set that can build the app graph with a fail-fast DB root), and its Hilt
+// RecoveryDepsFakeModule deleted — feature/recovery now hosts no androidTest sources, so its former Hilt
+// runner + androidTest deps are gone.
 
 dependencies {
     implementation(project(":core:core"))
@@ -31,12 +30,4 @@ dependencies {
     implementation(project(":core:data:database"))
     implementation(project(":core:data:backup:api"))
     implementation(project(":feature:app-dialogs:api"))
-
-    androidTestImplementation(libs.bundles.android.test)
-    androidTestImplementation(libs.bundles.room)
-    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-    androidTestImplementation(libs.mockk.android)
-    androidTestImplementation(project(":core:ui:test-utils"))
-    kspAndroidTest(libs.hilt.compiler)
-    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

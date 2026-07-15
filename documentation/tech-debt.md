@@ -177,6 +177,27 @@ Five stub files with `TODO(feature-rewrite-tests)` markers carry an `@Ignore`d p
 
 **Plan:** address as a dedicated test-coverage PR after v2 stabilises. Don't try to fill in feature PRs.
 
+### `BaseApplication.onCreate` bootstrap chain — zero androidTest coverage (App-Scope Collapse Step 6, Phase 3.4)
+
+The consolidated `:app:app` androidTest harness boots
+[`TestApplication`](../app/app/src/androidTest/kotlin/io/github/stslex/workeeper/harness/TestApplication.kt),
+a `BaseApplication` subclass that overrides `onCreateGraphBootstrap()` to a **no-op**. That means the
+production `onCreate` bootstrap chain — the recovery pre-flight (`handlePostRestoreLaunch` /
+`checkAndRouteOrProceed`, run under `runBlocking` before `MainActivity`), the orphaned-image-temp-file
+cleanup, and the app-dialog observer subscribe-before-`MainActivity` (`bootstrapAppDialogObserver`) — has
+**zero instrumented coverage**. `TestApplication` must skip it: `Application.onCreate` fires at process
+start, before any test's `@Before` installs a graph via `MetroTestRule`, so running the graph-touching
+bootstrap there would force graph construction with the wrong roots.
+
+- **This is NOT a regression.** Pre-cut, every `@HiltAndroidTest` booted `dagger.hilt.android.testing.HiltTestApplication`,
+  which is **not** a `BaseApplication` and never ran this bootstrap chain either — the chain has *never*
+  had androidTest coverage. Phase 3.4 makes the gap *visible* (a named override), it does not create it.
+- **Covered only by the on-device restore cycle** — the manual/device restore-gate baseline
+  (`metro-batch-anchor` reference), not by any automated instrumented test.
+- **Trigger to act:** if the bootstrap chain grows behaviour worth guarding (e.g. a new pre-flight
+  scenario), add a dedicated `:app:app` androidTest that constructs a `TestApplication`, installs a graph
+  via `MetroTestRule`, then invokes the bootstrap explicitly — rather than relying on `onCreate`.
+
 ---
 
 ## Navigation lifecycle — RESOLVED in PR #143
