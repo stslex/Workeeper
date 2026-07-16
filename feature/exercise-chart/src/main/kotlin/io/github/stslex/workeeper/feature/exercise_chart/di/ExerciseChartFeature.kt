@@ -17,11 +17,11 @@ import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChart
 internal typealias ExerciseChartStoreProcessor = StoreProcessor<State, Action, Event>
 
 /**
- * feature/exercise-chart resolves its Store through the **Metro** path (KMP C.1 wave 3). ASSISTED
+ * feature/exercise-chart resolves its Store through the **Metro** path. ASSISTED
  * Store (`Screen.ExerciseChart` route arg) — the graph exposes the assisted
  * [ExerciseChartStoreImpl.Factory] and this composable calls `storeFactory.create(screen)` inside
- * the `rememberMetroStoreProcessor` lambda. The 8 app-scoped Hilt singletons are pulled from the
- * `SingletonComponent` via [ExerciseChartHiltEntryPoint]. Single `@DefaultDispatcher`, no Context.
+ * the `rememberMetroStoreProcessor` lambda. The 8 app-scoped bindings are pulled from the
+ * Metro app graph via `context.appGraphContract()`. Single `@DefaultDispatcher`, no Context.
  */
 internal object ExerciseChartFeature : FeatureAssisted<
     ExerciseChartStoreProcessor,
@@ -33,9 +33,7 @@ internal object ExerciseChartFeature : FeatureAssisted<
     override fun processor(screen: Screen.ExerciseChart): ExerciseChartStoreProcessor {
         val context = LocalContext.current
         return rememberMetroStoreProcessor<ExerciseChartStoreImpl> {
-            // P-BRIDGES: app-scope deps read via the Metro AppGraphContract (Hilt-free), replacing
-            // EntryPointAccessors + the feature HiltEntryPoint. Same app graph, same bindings; the
-            // HiltEntryPoint declaration stays until the cut (dead once this reader repoints).
+            // app-scope deps read via the Metro AppGraphContract.
             val graph = context.appGraphContract()
             createGraphFactory<ExerciseChartGraph.Factory>()
                 .create(

@@ -20,7 +20,7 @@ import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStor
 import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStore.State
 
 // Metro assisted Store: @AssistedInject constructs it with the Screen.ExerciseImage route arg via
-// @Assisted; the graph exposes the @AssistedFactory (never the Store). No Hilt @HiltViewModel.
+// @Assisted; the graph exposes the @AssistedFactory (never the Store).
 // Retention is owned by the Android ViewModelStore via rememberMetroStoreProcessor — no @SingleIn.
 @AssistedInject
 internal class ImageViewerStoreImpl(

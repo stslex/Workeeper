@@ -14,8 +14,9 @@ import io.github.stslex.workeeper.core.data.database.AppDatabase
  * App-Scope Collapse Step 5 (5a): the DB-cascade substrate collapsed to a single [AppDatabase] `create()`
  * root. The 9 Room DAOs + `DbTransitionRunner` now derive from it graph-internally
  * (`DbCascadeBindingContainer`); the 3 `AppDatabase`-derived interface bindings are `@ContributesBinding` on
- * their impls. Callers pull the Hilt-BOUND [AppDatabase] + [ImageStorage] (never construct) so tests that
- * swap an in-memory `AppDatabase` / `@TestInstallIn` `FakeImageStorage` still resolve. Cycle-free: every
+ * their impls. Callers pull the graph's BOUND-INSTANCE [AppDatabase] + [ImageStorage] (never construct) so
+ * tests that swap an in-memory `AppDatabase` / a `FakeImageStorage` via the create() bound-instance roots
+ * still resolve. Cycle-free: every
  * derived binding reads `AppDatabase` (root) / a direct `Dispatchers.IO` — no `@IO`→`appGraph` back-edge.
  */
 internal fun buildAppGraph(

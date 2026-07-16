@@ -26,7 +26,7 @@ import io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.store.AppDialogSt
  * against the recreated Activity's `ViewModelStore` and re-runs its initial
  * actions.
  */
-// Metro constructs this PLAIN Store (class-level @Inject); no Hilt @HiltViewModel. Retention is
+// Metro constructs this PLAIN Store (class-level @Inject). Retention is
 // owned by the Activity's ViewModelStore via rememberMetroStoreProcessor (root-mounted through
 // AppFeature) — so NO @SingleIn here.
 @Inject

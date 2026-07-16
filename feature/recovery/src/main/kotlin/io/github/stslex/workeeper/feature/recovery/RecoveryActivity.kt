@@ -35,7 +35,7 @@ import java.io.File
 
 /**
  * Room-free fallback launcher for Scenario 2 (startup migration failure).
- * Hosted by `feature/recovery` because it must run without any Hilt graph
+ * Hosted by `feature/recovery` because it must run without any DI graph
  * entry that touches `AppDatabase`.
  *
  * **DB-free invariant**: this activity only calls methods on its injected
@@ -59,7 +59,7 @@ import java.io.File
  * | Report issue | Opens the GitHub issue URL with `bug,migration` labels. |
  * | Export diagnostics | Writes a `.txt` via `RecoveryDiagnosticsExporter` and launches `ACTION_SEND`. |
  */
-// App-Scope Collapse Step 6 (cut): Hilt-free. Reads its two app-scope deps from the Metro app graph via
+// Reads its two app-scope deps from the Metro app graph via
 // context.appGraphContract() (library module → public seam). ROOM-FREE PRESERVED: resolving
 // databaseSnapshotProvider + recoveryDiagnosticsExporter builds the graph (buildAppDatabase = a cold
 // Room.build(), no SQLite open) and constructs the two impls (ctors only store refs — no openHelper);

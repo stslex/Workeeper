@@ -12,18 +12,15 @@ import io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.store.AppDialogSt
 import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImpl
 
 /**
- * The single Metro dependency graph for feature/app-dialogs:impl (KMP C.1 wave 4) — the Metro
- * analogue of the deleted Hilt `AppDialogViewModelModule` + the `ViewModelComponent` tier. Scoped to
- * [AppDialogsScope].
+ * The single Metro dependency graph for feature/app-dialogs:impl. Scoped to [AppDialogsScope].
  *
  * PLAIN Store (`AppDialogStoreImpl` is `@Inject`, not assisted — `AppFeature` has no route arg): the
- * graph exposes the Store directly as [appDialogStore]. The 5 app-scoped deps are Hilt-owned
- * `@Singleton`s handed in as `@Provides` bound instances; the one `@Binds` (AppDialogHandlerStore)
- * migrates from the deleted `AppDialogViewModelModule`.
+ * graph exposes the Store directly as [appDialogStore]. The 5 app-scoped deps are `@SingleIn(AppScope)`
+ * bindings owned by the app graph, handed in as `@Provides` bound instances; the one `@Binds`
+ * (AppDialogHandlerStore) is declared on this graph.
  *
- * NO Context / NO dispatcher in this graph — the only Context is `@ApplicationContext` on the
- * Hilt-constructed `@Singleton` [AppDialogRepository], resolved entirely on the Hilt side. The
- * SingletonComponent `AppDialogPublisher` / `AppDialogObserver` API bindings stay in Hilt (untouched).
+ * NO Context / NO dispatcher in this graph — the only Context is on the app-graph-owned
+ * `@SingleIn(AppScope)` [AppDialogRepository], resolved entirely on the app-graph side.
  */
 @DependencyGraph(scope = AppDialogsScope::class)
 internal interface AppDialogGraph {

@@ -16,17 +16,15 @@ import io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.store.AppDialogSt
 internal typealias AppDialogStoreProcessor = StoreProcessor<State, Action, Event>
 
 /**
- * Screen-less composition entry for the app-root `AppDialogStore`, resolved through the **Metro**
- * path (KMP C.1 wave 4). First production user of `AppFeature` — see its KDoc for the mount-site
- * invariant (must be composed as a sibling of `NavHost`, never inside a destination, otherwise
- * `LocalViewModelStoreOwner` silently rescopes the Store to a `NavBackStackEntry`).
+ * Screen-less composition entry for the app-root `AppDialogStore`. First production user of
+ * `AppFeature` — see its KDoc for the mount-site invariant (must be composed as a sibling of
+ * `NavHost`, never inside a destination, otherwise `LocalViewModelStoreOwner` silently rescopes the
+ * Store to a `NavBackStackEntry`).
  *
- * The DI backend flip does NOT change the mount mechanic: `rememberMetroStoreProcessor` retains the
- * Metro-created Store in whatever `LocalViewModelStoreOwner` is current — here the host
- * `ComponentActivity`'s `ViewModelStore` (root mount via `AppDialogHost`), exactly as the Hilt path
- * did. The 5 app-scoped Hilt singletons are pulled from the `SingletonComponent` via
- * [AppDialogsHiltEntryPoint]. No dispatcher, no Context (the only Context is `@ApplicationContext` on
- * the Hilt-constructed `@Singleton` `AppDialogRepository` — Hilt-side only).
+ * `rememberMetroStoreProcessor` retains the Metro-created Store in whatever
+ * `LocalViewModelStoreOwner` is current — here the host `ComponentActivity`'s `ViewModelStore` (root
+ * mount via `AppDialogHost`). Shared app-scoped deps come from the Metro `AppGraphContract`; this
+ * feature's own app-scoped impls come from the impl-internal holder seam (`appDialogInternals()`).
  */
 internal object AppDialogFeature : AppFeature<AppDialogStoreProcessor>() {
 

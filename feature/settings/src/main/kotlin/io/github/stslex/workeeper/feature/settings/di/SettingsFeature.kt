@@ -18,15 +18,14 @@ import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStoreImpl
 internal typealias SettingsStoreProcessor = StoreProcessor<State, Action, Event>
 
 /**
- * feature/settings resolves its Store through the **Metro** path (KMP C.1), not `hiltViewModel()`.
+ * feature/settings resolves its Store through the **Metro** path via `rememberMetroStoreProcessor`.
  * The Metro graph is built INSIDE the `rememberMetroStoreProcessor` factory lambda so it is created
  * at most once per retained [SettingsStoreImpl] (per `NavBackStackEntry`), binding the graph +
- * `@SingleIn(SettingsScope)` nodes to the Store's lifetime — the way Hilt `@ViewModelScoped` did.
+ * `@SingleIn(SettingsScope)` nodes to the Store's lifetime.
  *
- * The 18 app-scoped Hilt singletons are pulled from the `SingletonComponent` via
- * [SettingsHiltEntryPoint]. The two dispatchers cross the bridge QUALIFIED (`includeJavax`); the
- * app `Context` is resolved on the Hilt side (`applicationContext()` keeps `@ApplicationContext`)
- * and handed to the graph as a plain `Context`.
+ * The app-scoped dependencies are read from the Metro AppGraph via `context.appGraphContract()`;
+ * `appDialogPublisher` is read through the feature-api holder seam; the app `Context` is passed
+ * directly.
  */
 internal object SettingsFeature : Feature<SettingsStoreProcessor, Settings>() {
 

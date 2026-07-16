@@ -23,17 +23,14 @@ import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTraini
 import kotlinx.coroutines.CoroutineDispatcher
 
 /**
- * The single Metro dependency graph for feature/single-training (KMP C.1 wave 1) — the Metro
- * analogue of the deleted Hilt `SingleTrainingModule` + the `ViewModelComponent` tier. Scoped to
- * [SingleTrainingScope].
+ * The single Metro dependency graph for feature/single-training. Scoped to [SingleTrainingScope].
  *
  * ASSISTED Store: `SingleTrainingStoreImpl` takes the `Screen.Training` route arg via `@Assisted`, so
  * the graph exposes the assisted [SingleTrainingStoreImpl.Factory] as its root — NEVER the Store.
  *
- * The 13 app-scoped deps are Hilt-owned `@Singleton`s handed in as `@Provides` bound instances. The
- * two `@Binds` (SingleTrainingInteractor, SingleTrainingHandlerStore) migrate from the module.
- * `@DefaultDispatcher` + `@MainImmediateDispatcher` stay QUALIFIED (`includeJavax`) → distinct keys.
- * No Context param — this feature injects none.
+ * The 13 app-scoped deps are app-graph `@SingleIn(AppScope)` bindings handed in as `@Provides` bound
+ * instances via the factory. `@DefaultDispatcher` + `@MainImmediateDispatcher` stay QUALIFIED →
+ * distinct keys. No Context param — this feature injects none.
  */
 @DependencyGraph(scope = SingleTrainingScope::class)
 internal interface SingleTrainingGraph {

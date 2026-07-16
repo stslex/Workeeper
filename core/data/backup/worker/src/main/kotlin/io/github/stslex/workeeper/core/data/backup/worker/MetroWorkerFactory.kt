@@ -8,23 +8,15 @@ import androidx.work.WorkerParameters
 import io.github.stslex.workeeper.core.di.appGraphContract
 
 /**
- * Metro-side WorkManager [WorkerFactory] (App-Scope Collapse Step 2 — reversible standup, Design B).
+ * Metro-side WorkManager [WorkerFactory].
  *
- * Constructs [BackupWorker] WITHOUT Hilt's assisted-injection machinery: it reads the worker's six
- * app-scoped deps from the Metro app graph via `appContext.appGraphContract()` (App-Scope Collapse
- * Step 6, P-WORKER — Hilt-free, replacing the `BackupWorkerHiltEntryPoint` bridge) and calls the
- * constructor directly.
+ * Constructs [BackupWorker] by reading the worker's six app-scoped deps from the Metro app graph via
+ * `appContext.appGraphContract()` and calling the constructor directly.
  *
- * DORMANT UNTIL THE CUT: this factory is repointed to the graph but NOT yet wired. `BaseApplication`'s
- * `Configuration.Provider` still returns Hilt's `HiltWorkerFactory`, so at runtime WorkManager routes
- * every worker through Hilt exactly as before — this class constructs nothing until the cut flips
- * `Configuration.Provider` to it (and drops `@HiltWorker`).
- *
- * Class-name match mirrors `HiltWorkerFactory` (which keys a `Map<String, …>` by `workerClassName`):
- * we compare `workerClassName` against [BackupWorker]'s fully-qualified name. Any other worker → `null`,
- * so WorkManager's inherited `createWorkerWithDefaultFallback` constructs it via the default reflection
- * factory (verified against work-runtime 2.10.0 `WorkerFactory.kt`). No `DelegatingWorkerFactory` needed —
- * `BackupWorker` is the only worker in the app.
+ * Class-name match: we compare `workerClassName` against [BackupWorker]'s fully-qualified name. Any
+ * other worker → `null`, so WorkManager's inherited `createWorkerWithDefaultFallback` constructs it via
+ * the default reflection factory (verified against work-runtime 2.10.0 `WorkerFactory.kt`). No
+ * `DelegatingWorkerFactory` needed — `BackupWorker` is the only worker in the app.
  */
 class MetroWorkerFactory(
     private val appContext: Context,

@@ -17,10 +17,10 @@ import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsSt
 internal typealias AllTrainingsStoreProcessor = StoreProcessor<State, Action, Event>
 
 /**
- * feature/all-trainings resolves its Store through the **Metro** path (KMP C.1 wave 3). PLAIN Store
+ * feature/all-trainings resolves its Store through the **Metro** path. PLAIN Store
  * (a BottomBar destination) — the graph exposes the Store directly and this composable retains it
- * via `rememberMetroStoreProcessor`. The 8 app-scoped Hilt singletons are pulled from the
- * `SingletonComponent` via [AllTrainingsHiltEntryPoint]. Single `@DefaultDispatcher`, no Context.
+ * via `rememberMetroStoreProcessor`. The 8 app-scoped bindings are pulled from the Metro app graph
+ * via `context.appGraphContract()`. Single `@DefaultDispatcher`, no Context.
  */
 internal object AllTrainingsFeature : Feature<AllTrainingsStoreProcessor, AllTrainings>() {
 
@@ -29,9 +29,6 @@ internal object AllTrainingsFeature : Feature<AllTrainingsStoreProcessor, AllTra
     override fun processor(): AllTrainingsStoreProcessor {
         val context = LocalContext.current
         return rememberMetroStoreProcessor<AllTrainingsStoreImpl> {
-            // P-BRIDGES: app-scope deps read via the Metro AppGraphContract (Hilt-free), replacing
-            // EntryPointAccessors + the feature HiltEntryPoint. Same app graph, same bindings; the
-            // HiltEntryPoint declaration stays until the cut (dead once this reader repoints).
             val graph = context.appGraphContract()
             createGraphFactory<AllTrainingsGraph.Factory>()
                 .create(

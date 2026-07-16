@@ -16,13 +16,11 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 
 /**
- * App-Scope Collapse Step 3 (Phase PF commit 2C). Metro-owned: `@SingleIn(AppScope)` + `@Inject`
- * (its `AppReinitializer` dep is already Metro-owned). `@ContributesBinding(AppScope)` binds it to the
- * [Navigator] interface for the 12 feature readers; the app `AppGraph` ALSO exposes the concrete type via
- * a self accessor for `AppRootViewModel` (which injects `NavigatorEventBus` directly, then passes it as a
- * [NavigatorReceiver] to `NavigatorExt`). One `@SingleIn(AppScope)` instance backs both — the same dual
- * concrete/interface shape as `AppDialogObserverImpl`. `NavigationModule` (the old `@Provides Navigator`)
- * is deleted. Both readers resolve through the two adopt-back `@Provides` in `AppGraphAdoptBackModule`.
+ * `@ContributesBinding(AppScope)` binds it to the [Navigator] interface for the feature readers; the app
+ * `AppGraph` ALSO exposes the concrete type via a self accessor for `AppRootViewModel` (which injects
+ * `NavigatorEventBus` directly, then passes it as a [NavigatorReceiver] to `NavigatorExt`). One
+ * `@SingleIn(AppScope)` instance backs both — the same dual concrete/interface shape as
+ * `AppDialogObserverImpl`.
  */
 @ContributesBinding(AppScope::class, binding = binding<Navigator>())
 @SingleIn(AppScope::class)
@@ -54,8 +52,7 @@ class NavigatorEventBus(
         // Restart is terminal and platform-owned — resolve the process-scoped
         // AppReinitializer by constructor injection and invoke it directly rather than
         // routing a NavCommand through the replay=0 command bus (which would silently
-        // drop with no mounted subscriber, the OpenRecovery hazard). Keeps NavigatorExt
-        // free of any Hilt entry point.
+        // drop with no mounted subscriber, the OpenRecovery hazard).
         appReinitializer.reinitialize()
     }
 

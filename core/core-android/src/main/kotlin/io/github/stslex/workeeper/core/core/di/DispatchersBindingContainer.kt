@@ -9,26 +9,15 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 
 /**
- * App-Scope Collapse Step 3 (Phase PF commit 1). The four app CoroutineDispatchers, moved out of Hilt's
- * `CoreModule` into a Metro provides-factory container — the FIRST production `@BindingContainer` (the
- * mechanic proven read-only in the PF spike + guarded by `ContributesToScopeRule`).
+ * The four app `CoroutineDispatcher`s as a Metro provides-factory container.
  *
  * `@BindingContainer @ContributesTo(AppScope)` makes these Metro-owned: the app `@DependencyGraph(AppScope)`
  * (`AppGraph`) auto-aggregates them cross-module, so `StoreDispatchers` (and every other Metro consumer)
- * resolves its qualified `CoroutineDispatcher` deps directly from the graph. This RETIRES the transient
- * `@DefaultDispatcher` / `@MainImmediateDispatcher` `create()`-param bridge (`AppGraph.Factory.create`,
- * `buildAppGraph`, `AppGraphSourceModule.provideAppGraph`, `BaseApplication.DispatcherBridgeEntryPoint`) —
- * keeping it would be a `[Metro/DuplicateBinding]`, and adopt-back-feeding it would be a construction cycle
- * (`provideAppGraph` → dispatcher → adopt-back → `appGraph` → `provideAppGraph`).
+ * resolves its qualified `CoroutineDispatcher` deps directly from the graph.
  *
  * PUBLIC (object + funcs): `@ContributesTo` on an `internal` container silently fails to aggregate
- * cross-Gradle-module (PF.0 gate, `nonPublicContributionSeverity` default NONE) — the same visibility rule
- * as `@ContributesBinding`. The javax `@Qualifier`s survive into the graph via `includeJavax`.
- *
- * Still-Hilt consumers (feature `*HiltEntryPoint` bridges + pure-Hilt `@Inject` interactors / handlers /
- * `core:data` repositories) read these from Hilt's `SingletonComponent`, so they resolve through the three
- * qualified adopt-back `@Provides` in `AppGraphAdoptBackModule` (`@Default` / `@MainImmediate` / `@IO`).
- * `@Main` is migrated for completeness but has ZERO consumers — no adopt-back shim.
+ * cross-Gradle-module (`nonPublicContributionSeverity` default NONE) — the same visibility rule
+ * as `@ContributesBinding`.
  */
 @BindingContainer
 @ContributesTo(AppScope::class)

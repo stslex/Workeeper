@@ -30,18 +30,16 @@ import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStoreImpl
 import kotlinx.coroutines.CoroutineDispatcher
 
 /**
- * The single Metro dependency graph for feature/settings (KMP C.1) — the Metro analogue of the
- * deleted Hilt `SettingsModule` + the `ViewModelComponent` tier. Scoped to [SettingsScope].
+ * The single Metro dependency graph for feature/settings. Scoped to [SettingsScope].
  *
- * The 18 app-scoped deps are Hilt-owned `@Singleton`s handed in as `@Provides` bound instances via
- * [Factory] — the graph ADOPTS them. The three `@Binds` (SettingsInteractor, BackupInteractor,
- * SettingsHandlerStore) migrate here from the deleted `SettingsModule`. [settingsStore] is the root.
+ * The 18 app-scoped deps are app-graph-owned bindings handed in as `@Provides` bound instances via
+ * [Factory]. The three `@Binds` (SettingsInteractor, BackupInteractor, SettingsHandlerStore) live
+ * here. [settingsStore] is the root.
  *
- * Bridge specifics:
- * - `@DefaultDispatcher` + `@IODispatcher` factory params stay QUALIFIED (Metro reads them via
- *   `includeJavax`) → two distinct `(CoroutineDispatcher + qualifier)` binding keys, no collision.
- * - `context` is a PLAIN `Context` param (point 2 of the Context mechanic): the `@ApplicationContext`
- *   qualifier was consumed on the Hilt side at [SettingsHiltEntryPoint]. One `Context` per graph.
+ * Binding specifics:
+ * - `@DefaultDispatcher` + `@IODispatcher` factory params stay QUALIFIED → two distinct
+ *   `(CoroutineDispatcher + qualifier)` binding keys, no collision.
+ * - `context` is a PLAIN `Context` param: one `Context` per graph.
  */
 @DependencyGraph(scope = SettingsScope::class)
 internal interface SettingsGraph {
@@ -90,7 +88,7 @@ internal interface SettingsGraph {
             @Provides loggerHolder: LoggerHolder,
             @Provides @DefaultDispatcher defaultDispatcher: CoroutineDispatcher,
             @Provides @IODispatcher ioDispatcher: CoroutineDispatcher,
-            // PLAIN Context — @ApplicationContext stays on the Hilt side (Context mechanic point 2).
+            // PLAIN Context — unqualified; one Context per graph.
             @Provides context: Context,
         ): SettingsGraph
     }

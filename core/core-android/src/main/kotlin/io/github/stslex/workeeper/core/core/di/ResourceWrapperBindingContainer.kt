@@ -10,8 +10,8 @@ import io.github.stslex.workeeper.core.core.resources.AndroidResourceWrapper
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 
 /**
- * App-Scope Collapse Step 3 (Phase PF commit 2A). `ResourceWrapper` moved out of Hilt's `CoreModule`
- * into a Metro provides-factory container — the same mechanic as [DispatchersBindingContainer].
+ * `ResourceWrapper` lives in a Metro provides-factory container — the same mechanic as
+ * [DispatchersBindingContainer].
  *
  * `@BindingContainer @ContributesTo(AppScope)` makes it Metro-owned; the app graph auto-aggregates it
  * cross-module. The one factory dep is the app `Context`, resolved from the graph's
@@ -19,9 +19,7 @@ import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
  * core:core-android, never the KMP `commonMain` that compiles to iOS). PUBLIC container + func — an
  * `internal` container silently fails to aggregate cross-module (guarded by `ContributesToScopeRule`).
  *
- * The ten Metro feature `*HiltEntryPoint.resourceWrapper()` bridges are the only still-Hilt readers; they
- * resolve the singleton through the one adopt-back `@Provides` in `AppGraphAdoptBackModule` (identity
- * preserved). `ResourceWrapper` is public in core:core `commonMain`, so no visibility widening is needed.
+ * `ResourceWrapper` is public in core:core `commonMain`, so no visibility widening is needed.
  */
 @BindingContainer
 @ContributesTo(AppScope::class)

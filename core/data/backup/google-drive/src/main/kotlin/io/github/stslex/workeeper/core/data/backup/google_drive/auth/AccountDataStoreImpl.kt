@@ -20,11 +20,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 /**
- * DI (App-Scope Collapse Step 3): Metro-owned. `@ContributesBinding(AppScope)` binds it to
- * [AccountDataStore] for the four gd readers (still Hilt this pass, resolved via the app/app adopt-back
- * shim). Public because `@ContributesBinding` on an `internal` class does not aggregate across Gradle
- * modules. The `Context` drops from Hilt's `@ApplicationContext` to a plain param resolved from the app
- * graph's `create(applicationContext)` bound instance.
+ * Metro-owned. `@ContributesBinding(AppScope)` binds it to [AccountDataStore] for the gd readers.
+ * Public because `@ContributesBinding` on an `internal` class does not aggregate across Gradle
+ * modules. The `Context` is a plain param resolved from the app graph's `create(applicationContext)`
+ * bound instance.
  */
 @ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)

@@ -42,12 +42,11 @@ import java.util.TimeZone
  * read of the registered MIGRATIONS array. No Room access; safe to
  * inject into `RecoveryActivity`'s graph.
  *
- * App-Scope Collapse Step 6 (P-REC): Metro-owned via `@ContributesBinding(AppScope)`, bound to the
+ * Metro-owned via `@ContributesBinding(AppScope)`, bound to the
  * [RecoveryDiagnosticsExporter] api interface (in `core:data:backup:api`). Public for cross-module
  * aggregation (D1; never hand-construct — resolve via DI). Its `Context` is the graph's
- * `create(applicationContext)` root (plain param, no `@ApplicationContext`); `@IODispatcher` resolves
- * from `DispatchersBindingContainer`. Still-Hilt readers (`RecoveryActivity`, `RestoreDialogChoiceObserver`)
- * resolve the interface via the adopt-back `@Provides` in `AppGraphAdoptBackModule`.
+ * `create(applicationContext)` root (plain param); `@IODispatcher` resolves
+ * from `DispatchersBindingContainer`.
  */
 @SingleIn(AppScope::class)
 @ContributesBinding(AppScope::class)

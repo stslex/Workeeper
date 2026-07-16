@@ -36,30 +36,20 @@ import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import kotlinx.coroutines.CoroutineDispatcher
 
 /**
- * PUBLIC app-scope DI contract — the Hilt-free seam library consumers read the app graph through.
+ * PUBLIC app-scope DI contract — the seam library consumers read the app graph through.
  *
- * App-Scope Collapse Step 6 (P-CONTRACT). Declares the app-scoped accessors that the ~15 post-cut
- * LIBRARY consumers need — `RecoveryActivity`, the 13 feature `*Feature.kt` bridges, and the worker
- * — so they resolve app-scope bindings via [Context.appGraphContract] instead of
- * `EntryPointAccessors.fromApplication(..., *HiltEntryPoint)`. app/app's
+ * Declares the app-scoped accessors that LIBRARY consumers need — `RecoveryActivity`, the feature
+ * `*Feature.kt` bridges, and the worker — so they resolve app-scope bindings via
+ * [Context.appGraphContract]. app/app's
  * `@DependencyGraph(scope = AppScope::class) internal interface AppGraph : AppGraphContract` extends
  * this interface; Metro treats the inherited `val`s as graph accessors (interface-inheritance proven
- * cross-module) and resolves them from the existing 55 `@ContributesBinding(AppScope)` contributions.
+ * cross-module) and resolves them from the `@ContributesBinding(AppScope)` contributions.
  * The aggregation site — and `AppScope` — stay in app/app / `core:core-android`; this is a plain
  * interface with no Metro annotation.
  *
- * **Add-only invariant (P-CONTRACT):** authored alongside a fully-live Hilt bridge — every current
- * `EntryPointAccessors` path still resolves. No consumer reads this contract yet.
- *
  * **Deliberately absent — feature/app-owned types a `core` module cannot name:**
  * the app-dialogs api/impl accessors (`AppDialogObserver` etc., feature-tier) and the concrete
- * `NavigatorEventBus` (app/app-owned) — these stay on `AppGraph` directly. (`RecoveryDiagnosticsExporter`
- * WAS absent in P-CONTRACT for this reason; P-REC extracted its contract to `core:data:backup:api`, so it
- * is now nameable and included above.) **Also absent (not yet `AppGraph` accessors — would force a new binding
- * resolution, breaking the add-only "inherit existing accessors only" invariant):** `imageStorage`
- * (a `create()` bound-instance root, not exposed as an `AppGraph` accessor) and `sessionConflictResolver`
- * (a plain `@Inject` class, not `@ContributesBinding(AppScope)`, resolved Hilt-side today). Each is
- * added here only once it is a declared `AppGraph` accessor and a consumer needs it.
+ * `NavigatorEventBus` (app/app-owned) — these stay on `AppGraph` directly.
  */
 interface AppGraphContract {
 
@@ -84,12 +74,12 @@ interface AppGraphContract {
     val tempFileProvider: TempFileProvider
     val appReinitializer: AppReinitializer
 
-    // App-Scope Collapse Step 6 (cut): ImageStorage — a `create()` bound-instance root on AppGraph;
-    // exposed as an accessor so the exercise feature (which reads it post-cut) resolves it from the graph.
+    // ImageStorage — a `create()` bound-instance root on AppGraph;
+    // exposed as an accessor so the exercise feature resolves it from the graph.
     val imageStorage: ImageStorage
 
-    // App-Scope Collapse Step 6 (cut): SessionConflictResolver — self-bound @SingleIn(AppScope) @Inject
-    // graph node; exposed so home + single-training features read it from the graph post-cut.
+    // SessionConflictResolver — self-bound @SingleIn(AppScope) @Inject
+    // graph node; exposed so home + single-training features read it from the graph.
     val sessionConflictResolver: SessionConflictResolver
 
     // ── core:ui:navigation ──

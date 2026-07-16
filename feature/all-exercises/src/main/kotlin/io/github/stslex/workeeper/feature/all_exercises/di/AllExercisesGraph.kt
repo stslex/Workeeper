@@ -18,14 +18,13 @@ import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesSt
 import kotlinx.coroutines.CoroutineDispatcher
 
 /**
- * The single Metro dependency graph for feature/all-exercises (KMP C.1 wave 2) — the Metro analogue
- * of the deleted Hilt `AllExercisesModule` + the `ViewModelComponent` tier. Scoped to
- * [AllExercisesScope].
+ * The single Metro dependency graph for feature/all-exercises. Scoped to [AllExercisesScope].
  *
  * PLAIN Store (not assisted — a BottomBar destination with no route args): the graph exposes the
- * Store directly as [allExercisesStore]. The 8 app-scoped deps are Hilt-owned `@Singleton`s handed
- * in as `@Provides` bound instances; the two `@Binds` (AllExercisesInteractor, AllExercisesHandlerStore)
- * migrate from the module. `@DefaultDispatcher` stays QUALIFIED (`includeJavax`). No Context.
+ * Store directly as [allExercisesStore]. The 8 app-scoped deps are `@SingleIn(AppScope)` bindings
+ * from the app graph handed in as `@Provides` bound instances; the two `@Binds`
+ * (AllExercisesInteractor, AllExercisesHandlerStore) live here. `@DefaultDispatcher` stays QUALIFIED.
+ * No Context.
  */
 @DependencyGraph(scope = AllExercisesScope::class)
 internal interface AllExercisesGraph {

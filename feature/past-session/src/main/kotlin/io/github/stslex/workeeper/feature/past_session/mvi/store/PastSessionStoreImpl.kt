@@ -21,7 +21,7 @@ import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStor
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.State
 
 // Metro assisted Store: @AssistedInject constructs it with the Screen.PastSession route arg via
-// @Assisted; the graph exposes the @AssistedFactory (never the Store). No Hilt @HiltViewModel.
+// @Assisted; the graph exposes the @AssistedFactory (never the Store).
 // Retention is owned by the Android ViewModelStore via rememberMetroStoreProcessor — no @SingleIn.
 @AssistedInject
 internal class PastSessionStoreImpl(

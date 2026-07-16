@@ -17,10 +17,10 @@ import io.github.stslex.workeeper.feature.home.mvi.store.HomeStoreImpl
 internal typealias HomeStoreProcessor = StoreProcessor<State, Action, Event>
 
 /**
- * feature/home resolves its Store through the **Metro** path (KMP C.1 wave 3). PLAIN Store (a
+ * feature/home resolves its Store through the **Metro** path. PLAIN Store (a
  * BottomBar destination) — the graph exposes the Store directly and this composable retains it via
- * `rememberMetroStoreProcessor`. The 9 app-scoped Hilt singletons are pulled from the
- * `SingletonComponent` via [HomeHiltEntryPoint]. Single `@DefaultDispatcher`, no Context.
+ * `rememberMetroStoreProcessor`. The 9 app-scoped deps are pulled from the
+ * Metro AppGraph via `context.appGraphContract()`. Single `@DefaultDispatcher`, no Context.
  */
 internal object HomeFeature : Feature<HomeStoreProcessor, Home>() {
 

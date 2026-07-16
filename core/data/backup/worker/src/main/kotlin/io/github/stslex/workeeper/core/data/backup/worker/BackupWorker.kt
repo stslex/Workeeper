@@ -39,8 +39,8 @@ import java.io.File
  * [DatabaseSnapshotProvider.captureSnapshot] which produces a WAL-checkpointed
  * copy in [Context.getCacheDir].
  */
-// App-Scope Collapse Step 6 (cut): plain CoroutineWorker constructed directly by MetroWorkerFactory
-// (Hilt @HiltWorker/@AssistedInject removed) — the factory reads the 6 app-scope deps from the graph.
+// Plain CoroutineWorker constructed directly by MetroWorkerFactory, which reads the 6 app-scope
+// deps from the graph and passes them here.
 internal class BackupWorker(
     appContext: Context,
     workerParams: WorkerParameters,

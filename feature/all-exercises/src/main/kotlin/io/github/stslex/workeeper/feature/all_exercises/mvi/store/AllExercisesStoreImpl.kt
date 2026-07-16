@@ -15,8 +15,8 @@ import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesSt
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Event
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.State
 
-// Metro constructs this PLAIN Store (class-level @Inject); no Hilt @HiltViewModel. Retention is
-// owned by the Android ViewModelStore via rememberMetroStoreProcessor — so NO @SingleIn here.
+// Metro constructs this PLAIN Store (class-level @Inject). Retention is owned by the Android
+// ViewModelStore via rememberMetroStoreProcessor — so NO @SingleIn here.
 @Inject
 internal class AllExercisesStoreImpl(
     navigationHandler: NavigationHandler,

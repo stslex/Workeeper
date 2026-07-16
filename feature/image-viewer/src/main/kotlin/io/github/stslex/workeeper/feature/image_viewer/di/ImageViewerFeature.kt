@@ -17,11 +17,11 @@ import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStor
 internal typealias ImageViewerStoreProcessor = StoreProcessor<State, Action, Event>
 
 /**
- * feature/image-viewer resolves its Store through the **Metro** path (KMP C.1 wave 2). ASSISTED
+ * feature/image-viewer resolves its Store through the **Metro** path. ASSISTED
  * Store (`Screen.ExerciseImage` route arg) — the graph exposes the assisted
  * [ImageViewerStoreImpl.Factory] and this composable calls `storeFactory.create(screen)` inside the
- * `rememberMetroStoreProcessor` lambda. The 4 app-scoped Hilt singletons are pulled from the
- * `SingletonComponent` via [ImageViewerHiltEntryPoint]. No dispatcher, no Context.
+ * `rememberMetroStoreProcessor` lambda. The 4 app-scoped singletons are pulled from the
+ * Metro app graph via [appGraphContract]. No dispatcher, no Context.
  */
 internal object ImageViewerFeature : FeatureAssisted<
     ImageViewerStoreProcessor,
@@ -33,9 +33,6 @@ internal object ImageViewerFeature : FeatureAssisted<
     override fun processor(screen: Screen.ExerciseImage): ImageViewerStoreProcessor {
         val context = LocalContext.current
         return rememberMetroStoreProcessor<ImageViewerStoreImpl> {
-            // P-BRIDGES: app-scope deps read via the Metro AppGraphContract (Hilt-free), replacing
-            // EntryPointAccessors + the feature HiltEntryPoint. Same app graph, same bindings; the
-            // HiltEntryPoint declaration stays until the cut (dead once this reader repoints).
             val graph = context.appGraphContract()
             createGraphFactory<ImageViewerGraph.Factory>()
                 .create(

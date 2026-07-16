@@ -21,10 +21,6 @@ internal typealias ExerciseStoreProcessor = StoreProcessor<State, Action, Event>
  * ASSISTED — it takes the `Screen.Exercise` route arg — so the graph exposes the assisted
  * [ExerciseStoreImpl.Factory] and this composable calls `storeFactory.create(screen)` inside the
  * `rememberMetroStoreProcessor` lambda (once per retained Store, per `NavBackStackEntry`).
- *
- * The 14 app-scoped Hilt singletons are pulled from the `SingletonComponent` via
- * [ExerciseHiltEntryPoint]. The two dispatchers cross the bridge QUALIFIED (`includeJavax`); the app
- * `Context` is resolved on the Hilt side and handed to the graph as a plain `Context`.
  */
 internal object ExerciseFeature : FeatureAssisted<ExerciseStoreProcessor, Screen.Exercise>() {
 

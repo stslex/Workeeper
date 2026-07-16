@@ -33,9 +33,8 @@ import kotlin.uuid.Uuid
  * `explicitNulls = false` realizes the spec's "omit nullable fields when null"; `prettyPrint`
  * keeps the artifact human-readable.
  *
- * App-Scope Collapse Step 5 (5a): Metro-owned via `@ContributesBinding(AppScope)` on the (public) impl —
- * derives from the [AppDatabase] `create()` root; `@IODispatcher` is the direct `Dispatchers.IO`. Public for
- * cross-module aggregation (D1). Read by the still-Hilt `SnapshotExportRunnerImpl` (5b) via the adopt-back shim.
+ * Metro-owned via `@ContributesBinding(AppScope)` on the (public) impl — derives from the [AppDatabase]
+ * `create()` root; `@IODispatcher` is the direct `Dispatchers.IO`. Public for cross-module aggregation (D1).
  */
 @SingleIn(AppScope::class)
 @ContributesBinding(AppScope::class)

@@ -53,8 +53,8 @@ import kotlin.uuid.Uuid
 internal class ClickHandler @Inject constructor(
     private val interactor: ExerciseInteractor,
     private val resourceWrapper: ResourceWrapper,
-    // Plain Context: @ApplicationContext is resolved on the Hilt side of the bridge
-    // (ExerciseHiltEntryPoint) and bound bare into the graph — one Context per graph.
+    // Plain Context: the app Context is a create() bound-instance root on the app graph
+    // and bound bare into this graph — one Context per graph.
     private val context: Context,
     @MainImmediateDispatcher
     private val mainDispatcher: CoroutineDispatcher,

@@ -22,7 +22,7 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStor
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
 
 // Metro assisted Store: @AssistedInject + @Assisted screen; graph exposes the @AssistedFactory
-// (never the Store). No @HiltViewModel; unscoped (ViewModelStore retention via rememberMetroStoreProcessor).
+// (never the Store). Unscoped (ViewModelStore retention via rememberMetroStoreProcessor).
 @AssistedInject
 internal class LiveWorkoutStoreImpl(
     @Assisted screen: Screen.LiveWorkout,

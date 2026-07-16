@@ -18,7 +18,7 @@ import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Actio
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Event
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.State
 
-// Metro constructs this Store (class-level @Inject); no Hilt @HiltViewModel. Retention is
+// Metro constructs this Store (class-level @Inject). Retention is
 // owned by the Android ViewModelStore via rememberMetroStoreProcessor — so NO @SingleIn here.
 @Inject
 internal class SettingsStoreImpl(

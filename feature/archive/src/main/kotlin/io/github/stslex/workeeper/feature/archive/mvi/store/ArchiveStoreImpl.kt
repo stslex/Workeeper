@@ -15,7 +15,7 @@ import io.github.stslex.workeeper.feature.archive.mvi.store.ArchiveStore.Action
 import io.github.stslex.workeeper.feature.archive.mvi.store.ArchiveStore.Event
 import io.github.stslex.workeeper.feature.archive.mvi.store.ArchiveStore.State
 
-// Metro constructs this Store (class-level @Inject); no Hilt @HiltViewModel. Retention is
+// Metro constructs this Store (class-level @Inject). Retention is
 // owned by the Android ViewModelStore via rememberMetroStoreProcessor — so NO @SingleIn here.
 @Inject
 internal class ArchiveStoreImpl(

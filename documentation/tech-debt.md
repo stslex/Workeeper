@@ -197,6 +197,42 @@ bootstrap there would force graph construction with the wrong roots.
 - **Trigger to act:** if the bootstrap chain grows behaviour worth guarding (e.g. a new pre-flight
   scenario), add a dedicated `:app:app` androidTest that constructs a `TestApplication`, installs a graph
   via `MetroTestRule`, then invokes the bootstrap explicitly — rather than relying on `onCreate`.
+- **Still open after Phase 3.6.** The relocated `ExerciseCreatePersistenceTest` restored the *feature*
+  create→persist seam (UI→Store→repository→Room over an in-memory DB); it does **not** touch this
+  `onCreate` bootstrap chain. This gap is specifically about `onCreateGraphBootstrap()` being a no-op and
+  is unchanged by that restore.
+
+---
+
+## Firebase-transitive dagger-core on the app runtime classpath (App-Scope Collapse Step 6, Phase 5)
+
+After the Hilt dependency excision (Phase 5), **zero `hilt` artifacts** remain on any compile or runtime
+classpath (`./gradlew :app:dev:dependencies --configuration debugRuntimeClasspath | grep -i hilt` is
+empty). One `com.google.dagger:dagger:2.57.2` remains on the app runtime classpaths — this is
+**dagger-core (the JSR-330 DI runtime), NOT Hilt** — pulled transitively by
+`com.google.firebase:firebase-sessions:3.0.5` (Firebase uses Dagger internally).
+
+- **ACCEPTED, not a Step-6 leftover.** It predates the Hilt→Metro migration — Firebase always shipped its
+  own Dagger; removing our Hilt never had any bearing on it. `grep -i hilt` is the correct success check
+  (empty everywhere); `grep -i "hilt\|dagger"` will always find this one Firebase-owned line.
+- **Not ours to remove.** Firebase (analytics / crashlytics / performance) is a required production
+  dependency; forcing `dagger` out via a `firebase` `exclude` risks breaking Firebase Sessions at runtime.
+- **Trigger to revisit:** only if Firebase drops its internal Dagger usage (then the line disappears on its
+  own), or if a future audit explicitly decides to exclude it and validates Firebase still works.
+
+## Stale Hilt-generated Java footgun when switching to a de-Hilt'd branch (App-Scope Collapse Step 6)
+
+Switching into this branch (or any branch where a module's androidTest was de-Hilt'd) with a **warm
+`build/` dir** can fail `:core:ui:mvi:compileDebugAndroidTestJavaWithJavac` (or another module's
+equivalent) on **orphaned Hilt-generated Java** — e.g. `AppFeatureScopeTest_TestComponentDataSupplier.java`
+referencing `DaggerDefault_HiltComponents_SingletonC`. Cause: once a test drops `@HiltAndroidTest`, that
+module's `kspDebugAndroidTestKotlin` becomes `SKIPPED`, and a **SKIPPED KSP task does not delete** the
+`.java` files a prior run generated into `build/generated/ksp/debugAndroidTest/`; `--rerun-tasks` re-runs
+the compile (which reads the stale files) but not the cleanup.
+
+- **Remedy:** `./gradlew clean` (the files are gitignored build output — clean wipes them).
+- **CI is unaffected** — it always builds from a clean checkout with no pre-existing `build/`.
+- Applies to local incremental builds only; it is a build-hygiene artifact, not a code defect.
 
 ---
 

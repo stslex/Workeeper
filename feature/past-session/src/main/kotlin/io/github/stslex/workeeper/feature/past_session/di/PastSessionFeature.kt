@@ -17,11 +17,11 @@ import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStor
 internal typealias PastSessionStoreProcessor = StoreProcessor<State, Action, Event>
 
 /**
- * feature/past-session resolves its Store through the **Metro** path (KMP C.1 wave 2). ASSISTED
+ * feature/past-session resolves its Store through the **Metro** path. ASSISTED
  * Store (`Screen.PastSession` route arg) — the graph exposes the assisted
  * [PastSessionStoreImpl.Factory] and this composable calls `storeFactory.create(screen)` inside the
- * `rememberMetroStoreProcessor` lambda. The 9 app-scoped Hilt singletons are pulled from the
- * `SingletonComponent` via [PastSessionHiltEntryPoint]. Single `@IODispatcher` (no collision), no Context.
+ * `rememberMetroStoreProcessor` lambda. The 9 app-scoped `@SingleIn(AppScope)` bindings are pulled
+ * from the Metro AppGraph via [appGraphContract]. Single `@IODispatcher` (no collision), no Context.
  */
 internal object PastSessionFeature : FeatureAssisted<
     PastSessionStoreProcessor,
@@ -33,9 +33,7 @@ internal object PastSessionFeature : FeatureAssisted<
     override fun processor(screen: Screen.PastSession): PastSessionStoreProcessor {
         val context = LocalContext.current
         return rememberMetroStoreProcessor<PastSessionStoreImpl> {
-            // P-BRIDGES: app-scope deps read via the Metro AppGraphContract (Hilt-free), replacing
-            // EntryPointAccessors + the feature HiltEntryPoint. Same app graph, same bindings; the
-            // HiltEntryPoint declaration stays until the cut (dead once this reader repoints).
+            // app-scope deps read via the Metro AppGraphContract.
             val graph = context.appGraphContract()
             createGraphFactory<PastSessionGraph.Factory>()
                 .create(

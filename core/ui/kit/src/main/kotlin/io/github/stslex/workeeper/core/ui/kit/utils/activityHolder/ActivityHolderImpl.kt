@@ -9,10 +9,9 @@ import io.github.stslex.workeeper.core.core.di.AppScope
 import java.lang.ref.WeakReference
 
 /**
- * App-Scope Collapse Step 3 (SB1). Hilt's `@Inject`/`@Singleton` were stripped and the Hilt `@Binds` in
- * `CoreUiKitModule` removed; this type is now Metro-owned via `@ContributesBinding(AppScope)`, which the
- * app-scope `AppGraph` auto-aggregates. `@SingleIn(AppScope)` gives the process-lifetime single-owner the
- * `@Singleton` gave — one holder retains the current `Activity` across the process.
+ * Metro-owned via `@ContributesBinding(AppScope)`, which the app-scope `AppGraph` auto-aggregates.
+ * `@SingleIn(AppScope)` makes this a process-lifetime single-owner — one holder retains the current
+ * `Activity` across the process.
  *
  * TWO supertypes ([ActivityHolder] + [ActivityHolderProducer]) → `@ContributesBinding` is `@Repeatable`,
  * applied once per bound type with an explicit `binding<>()` (the ambiguity-resolving form Metro requires

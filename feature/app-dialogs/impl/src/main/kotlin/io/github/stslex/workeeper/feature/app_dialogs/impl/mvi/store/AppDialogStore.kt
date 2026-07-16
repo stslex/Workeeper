@@ -9,17 +9,17 @@ import io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.store.AppDialogSt
 import io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.store.AppDialogStore.State
 
 /**
- * Activity-scoped `@HiltViewModel BaseStore` projecting the
+ * Activity-scoped `BaseStore` projecting the
  * `AppDialogRepository` flow into UI state and accepting user choices from
  * the Host. Obtained at the App root through the screen-less
  * `AppDialogFeature` composition entry so its `ViewModelStoreOwner` is the
  * host `ComponentActivity` — same lifetime as the Activity, not a
- * `NavBackStackEntry`, not a `@Singleton`.
+ * `NavBackStackEntry`, not `@SingleIn(AppScope)`.
  *
- * Why this isn't `@Singleton`: see
+ * Why this isn't `@SingleIn(AppScope)`: see
  * `documentation/feature-specs/app-dialogs.md` → "Layering — data / domain /
  * presentation". The persistence-only role lives in `AppDialogRepository`
- * (also `@Singleton`); this Store is the presentation projection of that
+ * (also `@SingleIn(AppScope)`); this Store is the presentation projection of that
  * repository — Activity-scoped because UI lives on the Activity.
  *
  * Events: intentionally empty in v1. Every user-visible outcome flows
@@ -56,7 +56,7 @@ internal interface AppDialogStore : Store<State, Action, Event> {
             data object Observe : RepoAction
 
             /**
-             * Store-mediated publish. Currently unused — the `@Singleton`
+             * Store-mediated publish. Currently unused — the `@SingleIn(AppScope)`
              * `AppDialogPublisher` facade bypasses the Store and calls
              * `repository.publish()` directly. Kept as a surface point for
              * any future caller that needs the publish to be observable in
@@ -65,7 +65,7 @@ internal interface AppDialogStore : Store<State, Action, Event> {
             data class Publish(val dialog: AppDialog) : RepoAction
 
             /**
-             * Store-mediated dismiss. Currently unused — the `@Singleton`
+             * Store-mediated dismiss. Currently unused — the `@SingleIn(AppScope)`
              * `AppDialogObserver.acknowledgeReaction()` bypasses the Store
              * and calls `repository.dismiss()` directly. Kept for future
              * callers that need dismiss to route through the Store's

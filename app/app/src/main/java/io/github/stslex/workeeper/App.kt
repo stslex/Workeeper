@@ -62,9 +62,9 @@ private val TOP_APP_BAR_ACTION_PADDING = 4.dp
 
 @Composable
 fun App() {
-    // App-Scope Collapse Step 6 (cut): AppRootViewModel is a plain ViewModel (last @HiltViewModel removed),
-    // constructed via viewModel {} with deps read from the app graph — commonDataStore off the public
-    // contract, navigatorEventBus off the internal AppGraph (concrete, app/app-owned).
+    // AppRootViewModel is a plain ViewModel constructed via viewModel {} with deps read from the app
+    // graph — commonDataStore off the public contract, navigatorEventBus off the internal AppGraph
+    // (concrete, app/app-owned).
     val context = LocalContext.current
     val viewModel: AppRootViewModel = viewModel {
         val graph = (context.applicationContext as AppGraphOwner).appGraph

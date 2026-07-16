@@ -8,23 +8,19 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 
 /**
- * Metro-backed Store resolution path — the transition-era twin of the Hilt-backed
- * [rememberStoreProcessor] overloads (which call `hiltViewModel`). Added **alongside**
- * the Hilt path, not replacing it: the 8 non-migrated features keep resolving their Store
- * via `hiltViewModel` through [rememberStoreProcessor], untouched.
+ * Metro-backed Store resolution path.
  *
- * A migrated feature (first: `feature/archive`) supplies [factory] — a lambda that resolves
- * its Metro graph / assisted factory and constructs the [BaseStore] subclass. Because
- * [BaseStore] already IS an `androidx.lifecycle.ViewModel`, the Metro-created Store is
- * retained **directly** in the Compose `ViewModelStore` via [viewModel] — scoped to the
- * current `LocalViewModelStoreOwner` (the `NavBackStackEntry` inside a `NavHost`), the
- * exact same lifetime `hiltViewModel` gives today: survives configuration change and
- * recomposition, cleared on back-stack pop. No separate ViewModel shim is needed.
+ * A feature supplies [factory] — a lambda that resolves its Metro graph / assisted factory
+ * and constructs the [BaseStore] subclass. Because [BaseStore] already IS an
+ * `androidx.lifecycle.ViewModel`, the Metro-created Store is retained **directly** in the
+ * Compose `ViewModelStore` via [viewModel] — scoped to the current
+ * `LocalViewModelStoreOwner` (the `NavBackStackEntry` inside a `NavHost`): survives
+ * configuration change and recomposition, cleared on back-stack pop. No separate ViewModel
+ * shim is needed.
  *
- * The retained Store is then handed to the existing backend-agnostic
+ * The retained Store is then handed to the backend-agnostic
  * [rememberStoreProcessor] `(StoreCreator)` overload, which owns ALL lifecycle wiring
- * (`store.init` / `store.dispose` via `DisposableEffect`, analytics, render trace) — so the
- * Metro and Hilt paths share identical post-resolution behaviour.
+ * (`store.init` / `store.dispose` via `DisposableEffect`, analytics, render trace).
  *
  * NOTE (Android-only): this file resolves retention on Android. iOS retention (no
  * `ViewModelStore`) is resolved by the Compose Multiplatform nav host and lives in the

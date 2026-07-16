@@ -30,7 +30,7 @@ import kotlinx.coroutines.runBlocking
 /**
  * The process [Application] base, Hilt-free (App-Scope Collapse Step 6 — the cut). Holds the Metro
  * app-scope [AppGraph] for the whole process and exposes it through the interface seams every consumer
- * reads: [AppGraphOwner] (in-module: `MainActivity`/adopt-back-era readers), [AppGraphContractHolder]
+ * reads: [AppGraphOwner] (in-module: `MainActivity` and other `:app:app` readers), [AppGraphContractHolder]
  * (library consumers via `appGraphContract()`), and the two feature-tier holders
  * ([AppDialogPublisherHolder], [AppDialogInternalsHolder]) for the app-dialogs types `core:di` cannot name.
  */

@@ -11,7 +11,7 @@ import javax.inject.Singleton
 /**
  * Records every [Navigator] command without dispatching it. Production wires
  * `NavigatorEventBus` (lives in `app/app`) which is not on feature-test classpaths;
- * tests at feature scope use this fake instead so the Hilt graph for any feature whose
+ * tests at feature scope use this fake instead so the Metro graph for any feature whose
  * handlers inject [Navigator] resolves cleanly.
  *
  * Tests that need to assert "navigated to X" can read [commands] after the action.

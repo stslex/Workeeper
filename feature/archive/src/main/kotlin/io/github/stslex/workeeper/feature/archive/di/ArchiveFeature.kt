@@ -17,17 +17,13 @@ import io.github.stslex.workeeper.feature.archive.mvi.store.ArchiveStoreImpl
 internal typealias ArchiveStoreProcessor = StoreProcessor<State, Action, Event>
 
 /**
- * feature/archive resolves its Store through the **Metro** path (KMP C.1 M0), not
- * `hiltViewModel()`. It is the first feature flipped to Metro; the other 11 features + the
- * app stay on Hilt via the same [rememberStoreProcessor][io.github.stslex.workeeper.core.ui.mvi.processor.rememberStoreProcessor]
- * seam.
+ * feature/archive resolves its Store through the Metro `rememberMetroStoreProcessor` seam.
  *
  * The Metro graph is built INSIDE the `rememberMetroStoreProcessor` factory lambda so it is
  * created at most once per retained [ArchiveStoreImpl] (per `NavBackStackEntry`
  * `ViewModelStore`) — binding the graph and its `@SingleIn(ArchiveScope)` nodes to exactly
- * the Store's lifetime, the way Hilt `@ViewModelScoped` did. The 8 app-scoped Hilt singletons
- * are pulled from the Hilt `SingletonComponent` via [ArchiveHiltEntryPoint] and handed to the
- * graph factory as bound instances.
+ * the Store's lifetime. The 8 app-scoped singletons are pulled from the Metro app graph via
+ * [appGraphContract] and handed to the graph factory as bound instances.
  */
 internal object ArchiveFeature : Feature<ArchiveStoreProcessor, Archive>() {
 
@@ -36,9 +32,7 @@ internal object ArchiveFeature : Feature<ArchiveStoreProcessor, Archive>() {
     override fun processor(): ArchiveStoreProcessor {
         val context = LocalContext.current
         return rememberMetroStoreProcessor<ArchiveStoreImpl> {
-            // P-BRIDGES: app-scope deps read via the Metro AppGraphContract (Hilt-free), replacing
-            // EntryPointAccessors + the feature HiltEntryPoint. Same app graph, same bindings; the
-            // HiltEntryPoint declaration stays until the cut (dead once this reader repoints).
+            // app-scope deps read via the Metro AppGraphContract.
             val graph = context.appGraphContract()
             createGraphFactory<ArchiveGraph.Factory>()
                 .create(

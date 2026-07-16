@@ -6,10 +6,10 @@ import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObs
 
 /**
  * Feature-internal seam: the process `Application` exposes app-dialogs/impl's own app-scoped singletons
- * ([AppDialogRepository], [AppDialogObserverImpl]) through this interface. App-Scope Collapse Step 6 (cut).
+ * ([AppDialogRepository], [AppDialogObserverImpl]) through this interface.
  *
  * These are `feature/app-dialogs/impl` concrete types; no module can name them. The one consumer — this
- * feature's own `AppDialogFeature` — reads them Hilt-free via this impl-owned holder+accessor.
+ * feature's own `AppDialogFeature` — reads them via this impl-owned holder+accessor rather than the Metro graph.
  * `BaseApplication` implements this as one-line `get()`s.
  */
 interface AppDialogInternalsHolder {

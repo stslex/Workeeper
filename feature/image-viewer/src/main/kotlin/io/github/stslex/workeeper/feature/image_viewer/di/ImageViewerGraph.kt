@@ -11,14 +11,13 @@ import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStoreImpl
 
 /**
- * The single Metro dependency graph for feature/image-viewer (KMP C.1 wave 2) — the Metro analogue
- * of the deleted Hilt `ImageViewerModule` + the `ViewModelComponent` tier. Scoped to [ImageViewerScope].
+ * The single Metro dependency graph for feature/image-viewer. Scoped to [ImageViewerScope].
  *
  * ASSISTED Store: `ImageViewerStoreImpl` takes the `Screen.ExerciseImage` route arg via `@Assisted`,
  * so the graph exposes the assisted [ImageViewerStoreImpl.Factory] as its root — never the Store.
  *
- * The 4 app-scoped deps are Hilt-owned `@Singleton`s handed in as `@Provides` bound instances. The
- * one `@Binds` (ImageViewerHandlerStore) migrates from the module. No dispatcher, no Context.
+ * The 4 app-scoped deps are `@SingleIn(AppScope)` bindings from the app graph, handed in as
+ * `@Provides` bound instances. The one `@Binds` (ImageViewerHandlerStore). No dispatcher, no Context.
  */
 @DependencyGraph(scope = ImageViewerScope::class)
 internal interface ImageViewerGraph {

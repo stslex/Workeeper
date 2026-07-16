@@ -17,13 +17,13 @@ import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTraini
 internal typealias SingleTrainingStoreProcessor = StoreProcessor<State, Action, Event>
 
 /**
- * feature/single-training resolves its Store through the **Metro** path (KMP C.1 wave 1). The Store
+ * feature/single-training resolves its Store through the **Metro** path. The Store
  * is ASSISTED — it takes the `Screen.Training` route arg — so the graph exposes the assisted
  * [SingleTrainingStoreImpl.Factory] and this composable calls `storeFactory.create(screen)` inside
  * the `rememberMetroStoreProcessor` lambda (once per retained Store, per `NavBackStackEntry`).
  *
- * The 13 app-scoped Hilt singletons are pulled from the `SingletonComponent` via
- * [SingleTrainingHiltEntryPoint]. The two dispatchers cross the bridge QUALIFIED (`includeJavax`).
+ * The app-scoped `@SingleIn(AppScope)` bindings are read from the Metro app graph via
+ * `context.appGraphContract()`. The two dispatchers cross QUALIFIED.
  * No Context — this feature injects none.
  */
 internal object SingleTrainingFeature : FeatureAssisted<

@@ -33,14 +33,10 @@ import kotlinx.coroutines.sync.withLock
  * [Log.e]); transient typed [BackupError]s (network / auth / quota / not-authenticated) are
  * logged only (via [Log.w], which does not record a non-fatal).
  *
- * App-Scope Collapse Step 5 (5b): Metro-owned via `@ContributesBinding(AppScope)` on the (public) impl —
- * the LAST binding flip before Step 6. All deps are graph-resolvable: `BackupPreferencesRepository` /
- * `BackupAuth` / `DatabaseJsonExporter` (5a) / `SnapshotStorage` are `@ContributesBinding`; `Context` is
- * PLAIN (the `create()` root; `@ApplicationContext` is Hilt-side only); `@IODispatcher` is the direct
- * `Dispatchers.IO`. No `appGraph` back-edge. Public for cross-module aggregation (D1). Read by the still-Hilt
- * `BackupWorker` (via `BackupWorkerHiltEntryPoint`) + settings (via `SettingsHiltEntryPoint`) through the
- * adopt-back shim. Retires `AuthBindingsModule` (its last Hilt binding) + the transient `databaseJsonExporter`
- * / `snapshotStorage` shims (their last Hilt reader).
+ * Metro-owned via `@ContributesBinding(AppScope)` on the (public) impl. All deps are graph-resolvable:
+ * `BackupPreferencesRepository` / `BackupAuth` / `DatabaseJsonExporter` / `SnapshotStorage` are
+ * `@ContributesBinding`; `Context` is the plain `create()` bound-instance root; `@IODispatcher` is the
+ * direct `Dispatchers.IO`. Public for cross-module aggregation (D1).
  */
 @SingleIn(AppScope::class)
 @ContributesBinding(AppScope::class)

@@ -8,19 +8,17 @@ import kotlinx.coroutines.flow.Flow
  * Local persistence for the signed-in Drive account and its access-token cache.
  * Backs `DriveBackupAuth.state`. Naming uses the `DataStore` suffix to match the
  * project's `HiltScopeRule` singleton classifier; the spec called it
- * `AccountStore` but bare "Store" maps to `@HiltViewModel` (MVI store scope).
+ * `AccountStore` but bare "Store" maps to the MVI Store scope (retained Store).
  *
  * Access tokens are persisted as part of the sign-in path
  * (`completeSignIn` / silent `signIn` success) so `DriveAuthTokenProvider` can
  * serve them on subsequent calls without a fresh `authorize()` round-trip. See
  * [TokenSnapshot] for the lifetime contract.
  *
- * DI (App-Scope Collapse Step 3): Metro-owned via `@ContributesBinding(AppScope)`
- * on `AccountDataStoreImpl`. Public (not `internal`) because app/app's `AppGraph`
- * names this interface in its accessor + adopt-back shim, and Metro contributions
- * on an `internal` impl do not aggregate cross-Gradle-module. The four gd readers
- * (`DriveAuthTokenProvider` / `DriveBackupAuth` / `DriveTokenInvalidator` /
- * `DriveSnapshotStorage`) stay Hilt this pass and resolve it through that shim.
+ * DI: Metro-owned via `@ContributesBinding(AppScope)` on `AccountDataStoreImpl`.
+ * Public (not `internal`) because app/app's `AppGraph` names this interface in its
+ * accessor, and Metro contributions on an `internal` impl do not aggregate
+ * cross-Gradle-module.
  */
 interface AccountDataStore {
 

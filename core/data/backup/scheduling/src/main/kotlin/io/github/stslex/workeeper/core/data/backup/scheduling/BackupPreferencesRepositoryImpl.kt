@@ -22,11 +22,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 /**
- * App-Scope Collapse Step 3 (SB1). Hilt's `@Inject`/`@Singleton` were stripped and the Hilt `@Binds` in
- * `BackupSchedulingModule` removed; this type is now Metro-owned via `@ContributesBinding(AppScope)`,
- * which the app-scope `AppGraph` auto-aggregates (interface-bound → the single supertype
- * `BackupPreferencesRepository` is the implicit bound type). `@SingleIn(AppScope)` gives the
- * process-lifetime single-owner the `@Singleton` gave.
+ * Metro-owned via `@ContributesBinding(AppScope)`, which the app-scope `AppGraph` auto-aggregates
+ * (interface-bound → the single supertype `BackupPreferencesRepository` is the implicit bound type).
+ * `@SingleIn(AppScope)` gives a process-lifetime single owner.
  *
  * `public` (was `internal`): Metro 1.1.1 rejects a cross-Gradle-module `@ContributesBinding` on an
  * `internal` class — the merged graph in `:app:app` cannot extend an internal contribution from another
@@ -35,10 +33,9 @@ import kotlinx.coroutines.flow.map
  * The widening is narrow: the override methods were already public via the interface; only the class and
  * constructor visibility change.
  *
- * Context is a PLAIN `Context` (not `@ApplicationContext`): Metro CONSTRUCTS this impl and resolves
- * `Context` from the graph's `create(applicationContext)` bound instance, which is unqualified.
- * `@ApplicationContext` is a Hilt-specific qualifier (not `javax.inject`), so `includeJavax` does not
- * carry it — dropping it is required for the Metro binding to match.
+ * Context is a PLAIN, unqualified `Context`: Metro CONSTRUCTS this impl and resolves `Context` from the
+ * graph's `create(applicationContext)` bound instance, which is unqualified — so the constructor
+ * parameter must carry no qualifier for the binding to match.
  */
 @ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)

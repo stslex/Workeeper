@@ -24,21 +24,21 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStoreImp
 import kotlinx.coroutines.CoroutineDispatcher
 
 /**
- * The single Metro dependency graph for feature/exercise (KMP C.1 wave 1) — the Metro analogue of
- * the deleted Hilt `ExerciseModule` + the `ViewModelComponent` tier. Scoped to [ExerciseScope].
+ * The single Metro dependency graph for feature/exercise. Scoped to [ExerciseScope].
  *
  * ASSISTED Store: `ExerciseStoreImpl` takes the `Screen.Exercise` route arg via `@Assisted`, so the
  * graph exposes the assisted [ExerciseStoreImpl.Factory] as its root — NEVER the Store directly
  * (exposing an assisted type is a `[Metro/InvalidBinding]`). `ExerciseFeature` calls
  * `storeFactory.create(screen)` inside the `rememberMetroStoreProcessor` lambda.
  *
- * The 14 app-scoped deps are Hilt-owned `@Singleton`s handed in as `@Provides` bound instances via
- * [Factory]. The two `@Binds` (ExerciseInteractor, ExerciseHandlerStore) migrate from `ExerciseModule`.
+ * The 14 app-scoped deps are `@SingleIn(AppScope)` bindings from the app graph, handed in as
+ * `@Provides` bound instances via [Factory]. The two `@Binds` (ExerciseInteractor,
+ * ExerciseHandlerStore) are the feature's own bindings.
  *
  * Bridge specifics:
- * - `@DefaultDispatcher` + `@MainImmediateDispatcher` factory params stay QUALIFIED (`includeJavax`)
+ * - `@DefaultDispatcher` + `@MainImmediateDispatcher` factory params stay QUALIFIED
  *   → two distinct `(CoroutineDispatcher + qualifier)` binding keys, no collision.
- * - `context` is a PLAIN `Context` param: `@ApplicationContext` was consumed on the Hilt side.
+ * - `context` is a PLAIN `Context` param.
  */
 @DependencyGraph(scope = ExerciseScope::class)
 internal interface ExerciseGraph {
@@ -79,7 +79,7 @@ internal interface ExerciseGraph {
             @Provides loggerHolder: LoggerHolder,
             @Provides @DefaultDispatcher defaultDispatcher: CoroutineDispatcher,
             @Provides @MainImmediateDispatcher mainImmediateDispatcher: CoroutineDispatcher,
-            // PLAIN Context — @ApplicationContext stays on the Hilt side.
+            // PLAIN Context.
             @Provides context: Context,
         ): ExerciseGraph
     }

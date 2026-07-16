@@ -24,6 +24,34 @@ Project context for OpenAI Codex / Cursor agents (and any other tool that follow
 ./setup-hooks.sh
 ```
 
+## Gate discipline (a green gate must be an EXECUTED gate)
+
+When a change must be proven green, `--rerun-tasks` alone is **not sufficient**. Gradle has two
+independent output-reuse mechanisms and this rule must defeat both:
+
+- **`UP-TO-DATE`** — the task's inputs are unchanged since its last run in *this* build dir.
+  `--rerun-tasks` defeats this.
+- **`FROM-CACHE`** — the task's output is loaded from the **build cache** (keyed by input hashes),
+  *without executing the task*, even after `./gradlew clean`. `--rerun-tasks` does **not** defeat this;
+  only `--no-build-cache` does.
+
+A run that reports `FROM-CACHE` proves nothing about execution, exactly like `UP-TO-DATE`. This was
+observed live: a gate reporting `698 from cache` in ~3 min was replaced by a true `1498 executed` run
+taking 35 min — same green, but only the second is evidence.
+
+**The gate command is therefore:**
+
+```bash
+./gradlew clean
+./gradlew assembleDebug detekt testDebugUnitTest --rerun-tasks --no-build-cache --continue   # per-commit
+./gradlew assembleDebugAndroidTest --rerun-tasks --no-build-cache --continue                 # phase-exit (repo-wide)
+```
+
+**Quote the Gradle summary line as the gate evidence.** It must read `N actionable tasks: N executed`.
+Any `from cache` OR `up-to-date` count in that line **voids** the gate result — re-run before claiming
+green. (`lintDebug` is intentionally excluded from these gates — its `[Registered]` error on
+`Dev/StoreMobileApp` is pre-existing and tracked on a separate track; do not "fix" it here.)
+
 ## Canonical project knowledge
 
 - [documentation/architecture.md](documentation/architecture.md) — modules, MVI, DI, data flow.

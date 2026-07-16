@@ -17,11 +17,11 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStor
 internal typealias LiveWorkoutStoreProcessor = StoreProcessor<State, Action, Event>
 
 /**
- * feature/live-workout resolves its Store through the **Metro** path (KMP C.1 wave 3). ASSISTED
+ * feature/live-workout resolves its Store through the **Metro** path. ASSISTED
  * Store (`Screen.LiveWorkout` route arg) — the graph exposes the assisted [LiveWorkoutStoreImpl.Factory]
  * and this composable calls `storeFactory.create(screen)` inside the `rememberMetroStoreProcessor`
- * lambda. The 13 app-scoped Hilt singletons are pulled from the `SingletonComponent` via
- * [LiveWorkoutHiltEntryPoint]. Single `@DefaultDispatcher`, no Context.
+ * lambda. The 13 app-scoped bindings are pulled from the Metro app graph via
+ * [context.appGraphContract()]. Single `@DefaultDispatcher`, no Context.
  */
 internal object LiveWorkoutFeature : FeatureAssisted<
     LiveWorkoutStoreProcessor,
@@ -33,9 +33,7 @@ internal object LiveWorkoutFeature : FeatureAssisted<
     override fun processor(screen: Screen.LiveWorkout): LiveWorkoutStoreProcessor {
         val context = LocalContext.current
         return rememberMetroStoreProcessor<LiveWorkoutStoreImpl> {
-            // P-BRIDGES: app-scope deps read via the Metro AppGraphContract (Hilt-free), replacing
-            // EntryPointAccessors + the feature HiltEntryPoint. Same app graph, same bindings; the
-            // HiltEntryPoint declaration stays until the cut (dead once this reader repoints).
+            // app-scope deps read via the Metro AppGraphContract.
             val graph = context.appGraphContract()
             createGraphFactory<LiveWorkoutGraph.Factory>()
                 .create(

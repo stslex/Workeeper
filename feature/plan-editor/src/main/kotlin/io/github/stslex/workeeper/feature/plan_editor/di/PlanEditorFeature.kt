@@ -17,11 +17,11 @@ import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorSto
 internal typealias PlanEditorStoreProcessor = StoreProcessor<State, Action, Event>
 
 /**
- * feature/plan-editor resolves its Store through the **Metro** path (KMP C.1 wave 3). ASSISTED Store
+ * feature/plan-editor resolves its Store through the **Metro** path. ASSISTED Store
  * (`Screen.PlanEditor` route arg) — the graph exposes the assisted [PlanEditorStoreImpl.Factory] and
  * this composable calls `storeFactory.create(screen)` inside the `rememberMetroStoreProcessor`
- * lambda. The 8 app-scoped Hilt singletons are pulled from the `SingletonComponent` via
- * [PlanEditorHiltEntryPoint]. Single `@DefaultDispatcher`, no Context.
+ * lambda. The 8 app-scoped bindings are pulled from the Metro AppGraph via
+ * [appGraphContract]. Single `@DefaultDispatcher`, no Context.
  */
 internal object PlanEditorFeature : FeatureAssisted<
     PlanEditorStoreProcessor,
@@ -33,9 +33,6 @@ internal object PlanEditorFeature : FeatureAssisted<
     override fun processor(screen: Screen.PlanEditor): PlanEditorStoreProcessor {
         val context = LocalContext.current
         return rememberMetroStoreProcessor<PlanEditorStoreImpl> {
-            // P-BRIDGES: app-scope deps read via the Metro AppGraphContract (Hilt-free), replacing
-            // EntryPointAccessors + the feature HiltEntryPoint. Same app graph, same bindings; the
-            // HiltEntryPoint declaration stays until the cut (dead once this reader repoints).
             val graph = context.appGraphContract()
             createGraphFactory<PlanEditorGraph.Factory>()
                 .create(

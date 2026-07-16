@@ -19,8 +19,8 @@ internal typealias AllExercisesStoreProcessor = StoreProcessor<State, Action, Ev
 /**
  * feature/all-exercises resolves its Store through the **Metro** path (KMP C.1 wave 2). PLAIN Store
  * (a BottomBar destination with no route args) — the graph exposes the Store directly and this
- * composable retains it via `rememberMetroStoreProcessor`. The 8 app-scoped Hilt singletons are
- * pulled from the `SingletonComponent` via [AllExercisesHiltEntryPoint]. Single `@DefaultDispatcher`
+ * composable retains it via `rememberMetroStoreProcessor`. The 8 app-scoped deps are pulled from
+ * the Metro AppGraph via `context.appGraphContract()`. Single `@DefaultDispatcher`
  * (no collision), no Context.
  */
 internal object AllExercisesFeature : Feature<AllExercisesStoreProcessor, AllExercises>() {
@@ -30,10 +30,6 @@ internal object AllExercisesFeature : Feature<AllExercisesStoreProcessor, AllExe
     override fun processor(): AllExercisesStoreProcessor {
         val context = LocalContext.current
         return rememberMetroStoreProcessor<AllExercisesStoreImpl> {
-            // App-Scope Collapse Step 6 (P-BRIDGES): app-scope deps read via the Metro AppGraphContract
-            // (Hilt-free), replacing EntryPointAccessors + AllExercisesHiltEntryPoint. The graph is the
-            // SAME app graph the EntryPoint delegated to — identical bindings, Hilt-free read path. The
-            // AllExercisesHiltEntryPoint declaration stays until the cut (dead once this reader repoints).
             val graph = context.appGraphContract()
             createGraphFactory<AllExercisesGraph.Factory>()
                 .create(

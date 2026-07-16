@@ -48,8 +48,8 @@ internal class BackupClickHandler @Inject constructor(
     private val restoreStateRepository: RestoreStateRepository,
     private val snapshotProvider: DatabaseSnapshotProvider,
     private val appDialogPublisher: AppDialogPublisher,
-    // Plain Context: @ApplicationContext is resolved on the Hilt side of the bridge
-    // (SettingsHiltEntryPoint) and bound bare into the graph — one Context per graph.
+    // Plain Context: the application Context is bound bare into the graph as a
+    // create() bound-instance — one Context per graph.
     private val context: Context,
     store: SettingsHandlerStore,
 ) : Handler<Action.Backup>, SettingsHandlerStore by store {

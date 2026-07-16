@@ -8,15 +8,15 @@ import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
 /**
  * `AppFeature` is the screen-less composition-time entry point for a feature whose Store
  * lives at the App root rather than inside a navigation destination. It is the screen-less
- * twin of [Feature] / [FeatureAssisted] — same role, same `@HiltViewModel` + `BaseStore`
- * shape, no `Screen` parameter — and delegates to the existing no-`Screen` overload of
+ * twin of [Feature] / [FeatureAssisted] — same role, same `@Inject`-constructed Store +
+ * `BaseStore` shape, no `Screen` parameter — and delegates to the existing no-`Screen` overload of
  * [rememberStoreProcessor].
  *
  * **Mount-site invariant.** Composables that resolve their Store through `AppFeature`
  * MUST be composed **outside / as a sibling of** `NavHost`. At that depth
  * `LocalViewModelStoreOwner` is the host `ComponentActivity`, which scopes the Store to
  * the Activity's `ViewModelStore` — same lifetime as the Activity, NOT a
- * `NavBackStackEntry`, NOT a `@Singleton`. Composing the entry inside a `NavHost`
+ * `NavBackStackEntry`, NOT `@SingleIn(AppScope)`. Composing the entry inside a `NavHost`
  * destination silently rescopes the Store to that destination: no compile error, behaviour
  * breaks at runtime (the Store is re-instantiated on each navigation). Use [Feature]
  * inside `NavHost` destinations and `AppFeature` only at the App root (e.g. siblings of

@@ -22,8 +22,7 @@ import java.io.File
 import java.io.FileNotFoundException
 import java.io.IOException
 
-// App-Scope Collapse Step 6 (cut): plain class constructed by `buildImageStorage` (the create()-root
-// factory) — Hilt @Singleton/@Inject/@ApplicationContext removed; ctor params are plain.
+// Plain class constructed by `buildImageStorage` (the create()-root factory); ctor params are plain.
 class ImageStorageImpl(
     private val context: Context,
     private val ioDispatcher: CoroutineDispatcher,

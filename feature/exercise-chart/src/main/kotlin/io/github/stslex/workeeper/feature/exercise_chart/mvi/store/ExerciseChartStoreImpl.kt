@@ -20,7 +20,7 @@ import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChart
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.State
 
 // Metro assisted Store: @AssistedInject + @Assisted screen; graph exposes the @AssistedFactory
-// (never the Store). No @HiltViewModel; unscoped (ViewModelStore retention via rememberMetroStoreProcessor).
+// (never the Store). Unscoped (ViewModelStore retention via rememberMetroStoreProcessor).
 @AssistedInject
 internal class ExerciseChartStoreImpl(
     @Assisted screen: Screen.ExerciseChart,
