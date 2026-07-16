@@ -13,7 +13,6 @@ plugins {
     alias(libs.plugins.firebaseCrashlytics) apply false
     alias(libs.plugins.firebasePerf) apply false
     alias(libs.plugins.detekt)
-    alias(libs.plugins.hilt) apply false
 }
 
 buildscript {
