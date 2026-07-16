@@ -28,19 +28,31 @@ import org.junit.rules.ExternalResource
  * Lives in `:app:app` androidTest because [buildAppGraph] + `AppGraph` are module-`internal`.
  */
 internal class MetroTestRule(
-    private val appDatabase: (Context) -> AppDatabase = { ctx -> InMemoryDatabaseProvider.create(ctx) },
+    private val appDatabaseFactory: (Context) -> AppDatabase = { ctx -> InMemoryDatabaseProvider.create(ctx) },
     private val imageStorage: () -> ImageStorage = { FakeImageStorage() },
 ) : ExternalResource() {
 
     private val context: Context
         get() = ApplicationProvider.getApplicationContext()
 
+    private var installedDatabase: AppDatabase? = null
+
+    /**
+     * The [AppDatabase] instance the current test's graph was built from — the SAME `create()` root the
+     * app graph derives its DAOs / repositories from. A persistence test reads it back (e.g.
+     * `appDatabase.exerciseDao.getAllActive()`) to assert what a Store→repository→Room write produced.
+     */
+    val appDatabase: AppDatabase
+        get() = installedDatabase ?: error("MetroTestRule.appDatabase read before @Before installed the graph")
+
     override fun before() {
         val ctx = context
+        val database = appDatabaseFactory(ctx)
+        installedDatabase = database
         MetroTestGraphHolder.install(
             buildAppGraph(
                 applicationContext = ctx,
-                appDatabase = appDatabase(ctx),
+                appDatabase = database,
                 imageStorage = imageStorage(),
             ),
         )
@@ -48,5 +60,6 @@ internal class MetroTestRule(
 
     override fun after() {
         MetroTestGraphHolder.reset()
+        installedDatabase = null
     }
 }

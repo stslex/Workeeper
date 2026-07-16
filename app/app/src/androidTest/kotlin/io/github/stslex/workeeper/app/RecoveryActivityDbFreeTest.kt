@@ -53,7 +53,7 @@ internal class RecoveryActivityDbFreeTest {
 
     @get:Rule
     val metroRule = MetroTestRule(
-        appDatabase = { failFastDatabase() },
+        appDatabaseFactory = { failFastDatabase() },
     )
 
     @Test
