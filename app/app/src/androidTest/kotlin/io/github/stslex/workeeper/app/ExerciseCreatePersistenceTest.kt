@@ -9,6 +9,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stslex.workeeper.core.data.database.exercise.ExerciseTypeEntity
+import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
+import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.core.ui.test.TestActivity
 import io.github.stslex.workeeper.core.ui.test.annotations.Regression
@@ -59,12 +61,16 @@ internal class ExerciseCreatePersistenceTest {
     @Test
     fun f02_create_with_name_only_persists() {
         composeRule.setContent {
-            val navController = rememberNavController()
-            NavHost(
-                navController = navController,
-                startDestination = Screen.Exercise(uuid = null),
-            ) {
-                exerciseGraph()
+            // ExerciseEditScreen reads `LocalAppColors` (AppUi.colors), so the mount must live inside
+            // `AppTheme` exactly like the production hierarchy — same wrap the pre-cut version used.
+            AppTheme(themeMode = ThemeMode.LIGHT) {
+                val navController = rememberNavController()
+                NavHost(
+                    navController = navController,
+                    startDestination = Screen.Exercise(uuid = null),
+                ) {
+                    exerciseGraph()
+                }
             }
         }
 
