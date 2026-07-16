@@ -310,7 +310,7 @@ next PR that adds a real-DB instrumentation fixture (similar to the
 | LiveWorkout finish session → `replaceTo` lands on PastSession; back does not return to finished LiveWorkout | manual |
 
 Documented at [architecture.md → Navigation](architecture.md#navigation),
-[lint-rules.md → HiltScopeRule scope expectations](lint-rules.md#scope-expectations-for-the-navigation-layer),
+[lint-rules.md → MetroScopeRule scope expectations](lint-rules.md#scope-expectations-for-the-navigation-layer),
 and the lifecycle-safe navigation refactor section in
 [`refactor-with-mvi-rules`](../.claude/skills/refactor-with-mvi-rules.md).
 

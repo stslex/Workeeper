@@ -17,7 +17,7 @@ pattern (see [`.claude/skills/mvi-dialog-state.md`](../../.claude/skills/mvi-dia
 and [`compose-state-discipline.md → Rule 4`](../../.claude/skills/compose-state-discipline.md)).
 Per-feature dialog state is in-memory, screen-scoped, and dismissed when the
 user navigates away. App Dialogs are persisted in DataStore, projected through
-a `@HiltViewModel` Store that is Activity-scoped by virtue of being obtained at
+an unscoped Metro Store that is Activity-scoped by virtue of being obtained at
 the App root, and visible from any destination until the user explicitly
 acknowledges them.
 
@@ -34,28 +34,28 @@ acknowledges them.
 
 - Cross-feature dialog catalog (`AppDialog` sealed interface).
 - Three-layer presentation:
-  - **Data** — `AppDialogRepository` (`@Singleton`) owns DataStore persistence
+  - **Data** — `AppDialogRepository` (`@SingleIn(AppScope)`) owns DataStore persistence
     (the `pending_*` flag set per variant).
   - **Domain** — `AppDialogResolver` is a pure function that walks the
     persisted flags in fixed priority order and emits the current
     `AppDialog?`.
-  - **Presentation** — `AppDialogStore` (`@HiltViewModel BaseStore<State,
+  - **Presentation** — `AppDialogStore` (unscoped Metro `BaseStore<State,
     Action, Event>`) projects the repository flow into UI state and accepts
     Actions from the Host and from producer features.
 - `AppDialogHost` Composable mounted at app root **as a sibling of**
   `NavHost`. Its `LocalViewModelStoreOwner` is the host `ComponentActivity`
   so the Store is Activity-scoped (NOT destination-scoped, NOT
-  `@Singleton`).
+  `@SingleIn(AppScope)`).
 - Generic `AppConfirmationDialog` Composable in `core/ui/kit` so per-variant
   Composables don't author dialog chrome.
-- `AppDialogPublisher` (`@Singleton`) — producer-side facade that writes
+- `AppDialogPublisher` (`@SingleIn(AppScope)`) — producer-side facade that writes
   through `AppDialogRepository`. Producers depend only on the api module.
-- `AppDialogObserver` (`@Singleton`) — cross-feature observation surface.
+- `AppDialogObserver` (`@SingleIn(AppScope)`) — cross-feature observation surface.
   Exposes `observeUserActions(): Flow<AppDialogUserChoice>` for consumers
   (e.g. `feature/recovery`) that need to react to the user's dialog choice
   without taking a dependency on the impl module's Store. The observer is
   backed by the repository's persistence flow, NOT by the Activity-scoped
-  Store (a `@Singleton` cannot inject an Activity-scoped `ViewModel`).
+  Store (a `@SingleIn(AppScope)` cannot inject an Activity-scoped `ViewModel`).
 
 ## Out of scope
 
@@ -73,7 +73,7 @@ acknowledges them.
 - Direct callbacks from dialog action buttons into the producing feature.
   The host dispatches `Action.Choose(dialog, choice)` to the Store; the
   Store records the choice in the persisted flag set and the producing
-  feature's own `@Singleton` handler reacts by observing
+  feature's own `@SingleIn(AppScope)` handler reacts by observing
   `AppDialogObserver.observeUserActions()`. There is no typed callback
   channel from the host into a producer — that would re-introduce the
   coupling this mechanism exists to avoid (see backup-recovery's earlier
@@ -84,7 +84,7 @@ acknowledges them.
 | Module | Purpose |
 |---|---|
 | `feature/app-dialogs/api` | Provider-neutral contracts: `AppDialog` sealed types, `AppDialogUserAction` (enum of choices the user can tap on any variant), `AppDialogUserChoice` (data class pairing a variant with the action the user picked), `AppDialogPublisher`, `AppDialogObserver`. Producer features depend on this module only. |
-| `feature/app-dialogs/impl` | Layered MVI implementation. **data/** — `AppDialogRepository[Impl]` + `AppDialogKeys`. **domain/** — `AppDialogResolver`. **mvi/store/** — `AppDialogStore[Impl]` (`@HiltViewModel`) + `AppDialogHandlerStore[Impl]`. **mvi/handler/** — `AppDialogRepoHandler` (`Action.RepoAction` sub-tree: Observe/Publish/Dismiss) + `ChooseHandler` (`Action.Choose`). **ui/** — `AppDialogHost`, `AppDialogHostContent`, one Composable file per variant. **publisher/** — `AppDialogPublisherImpl` (`@Singleton` facade over the repository). **observer/** — `AppDialogObserverImpl` (`@Singleton` over the repository). Bound at the app graph; consumer features do not depend on impl. |
+| `feature/app-dialogs/impl` | Layered MVI implementation. **data/** — `AppDialogRepository[Impl]` + `AppDialogKeys`. **domain/** — `AppDialogResolver`. **mvi/store/** — `AppDialogStore[Impl]` (unscoped Metro Store) + `AppDialogHandlerStore[Impl]`. **mvi/handler/** — `AppDialogRepoHandler` (`Action.RepoAction` sub-tree: Observe/Publish/Dismiss) + `ChooseHandler` (`Action.Choose`). **ui/** — `AppDialogHost`, `AppDialogHostContent`, one Composable file per variant. **publisher/** — `AppDialogPublisherImpl` (`@SingleIn(AppScope)` facade over the repository). **observer/** — `AppDialogObserverImpl` (`@SingleIn(AppScope)` over the repository). Bound at the app graph; consumer features do not depend on impl. |
 | `core/ui/kit` | `AppConfirmationDialog` generic Composable. Per-variant composables in `feature/app-dialogs/impl/ui` delegate to it for consistent chrome. |
 
 The api/impl split mirrors the convention used by `core/data/backup/*`: a
@@ -113,7 +113,7 @@ The reasoning is:
 
 - **Process-restart survival.** Backup recovery's primary failure mode is
   "Room migration crashes after a Restore". The process dies, the activity
-  is recreated, the Store is re-instantiated by Hilt against the host
+  is recreated, the Store is re-instantiated by Metro against the host
   Activity's `ViewModelStore`, the Repository replays from DataStore, and
   the user sees the `RestoreFailure` dialog. An in-memory queue would be
   wiped; a DataStore-backed flag survives.
@@ -134,12 +134,12 @@ if multiple are pending).
 
 ```
 +--------------------------------------------------------------------+
-| Presentation (Activity-scoped via App() root, @HiltViewModel)      |
+| Presentation (Activity-scoped via App() root, unscoped Metro Store)|
 |                                                                    |
 |   AppDialogStore : Store<State, Action, Event>                     |
 |       State.current  : AppDialog?                                  |
 |       State.lastUserChoice : AppDialogUserChoice?  (transient)     |
-|     Handlers (@ViewModelScoped):                                   |
+|     Handlers (@SingleIn(AppDialogScope)):                          |
 |       AppDialogRepoHandler — Action.RepoAction sub-tree            |
 |         Observe  → repository.currentDialog → State.current        |
 |         Publish  → repository.publish (currently no dispatcher)    |
@@ -160,7 +160,7 @@ if multiple are pending).
                               ▲
                               │
 +--------------------------------------------------------------------+
-| Data (@Singleton)                                                  |
+| Data (@SingleIn(AppScope))                                         |
 |                                                                    |
 |   AppDialogRepository                                              |
 |     observe(): Flow<AppDialog?>   — repository.data.map(resolver)  |
@@ -168,18 +168,18 @@ if multiple are pending).
 |     dismiss(dialog)                — atomic DataStore.edit clear   |
 |     recordUserChoice(choice)       — atomic edit, fed to observer  |
 |                                                                    |
-|   AppDialogObserver (@Singleton)                                   |
+|   AppDialogObserver (@SingleIn(AppScope))                          |
 |     observeUserActions(): Flow<AppDialogUserChoice>                |
 |     — backed by repository, NOT by the Activity-scoped Store, so   |
-|     other @Singletons (e.g. feature/recovery's observer) can inject|
+|     other @SingleIn(AppScope)s (e.g. recovery's observer) can inject|
 |     it without scope-mismatch.                                     |
 +--------------------------------------------------------------------+
 ```
 
 The two layers' separation is load-bearing for the
-[`AppDialogObserver`](#cross-feature-observation) decision: a `@Singleton`
+[`AppDialogObserver`](#cross-feature-observation) decision: a `@SingleIn(AppScope)`
 in another feature cannot legally inject the Activity-scoped
-`@HiltViewModel` Store; the observer reads from the repository instead so
+Metro Store; the observer reads from the repository instead so
 its scope matches its consumers'.
 
 ## DataStore keys (per dialog type)
@@ -212,7 +212,7 @@ typed metadata keys. Adding a new dialog type =
    file in `feature/app-dialogs/impl/ui/<Name>Dialog.kt`.
 5. Add any new `AppDialogUserAction` enum entries needed by the new
    variant's buttons; if a consumer feature reacts to them, that feature
-   adds a `@Singleton` handler observing `AppDialogObserver`.
+   adds a `@SingleIn(AppScope)` handler observing `AppDialogObserver`.
 
 The pattern is documented in
 [`.claude/skills/app-dialogs-pattern.md`](../../.claude/skills/app-dialogs-pattern.md).
@@ -328,7 +328,7 @@ interface AppDialogPublisher {
 }
 ```
 
-`AppDialogPublisherImpl` is a `@Singleton` thin facade that delegates to
+`AppDialogPublisherImpl` is a `@SingleIn(AppScope)` thin facade that delegates to
 `AppDialogRepository.publish(dialog)` — that's where the atomic dedup write
 lives. The split (Publisher = api, Repository = impl) lets producer features
 depend on the api module without pulling DataStore.
@@ -375,9 +375,9 @@ does **not** block a `RestoreSuccess` publish; only the same variant's
 primary flag short-circuits. Across-variant prioritization is handled by
 the [priority ordering](#priority-ordering) read path, not by publish.
 
-`AppDialogPublisher` is `@Singleton`; the impl binding inside
+`AppDialogPublisher` is `@SingleIn(AppScope)`; the impl binding inside
 `feature/app-dialogs/impl` binds it to `AppDialogPublisherImpl`, which
-delegates to the `@Singleton` `AppDialogRepository`. Producer and consumer
+delegates to the `@SingleIn(AppScope)` `AppDialogRepository`. Producer and consumer
 share the same DataStore writer.
 
 ## Cross-feature observation
@@ -412,10 +412,10 @@ that any variant can present:
 | `UndoRestoreConfirmation` | Confirm → `ConfirmUndo`; Cancel → `Cancel` |
 | `UndoRestoreSuccess` | OK → `Acknowledge` |
 
-`AppDialogObserverImpl` is `@Singleton` and is **backed by the repository**,
-not by the Activity-scoped Store. The rationale is scope: a `@Singleton`
+`AppDialogObserverImpl` is `@SingleIn(AppScope)` and is **backed by the repository**,
+not by the Activity-scoped Store. The rationale is scope: a `@SingleIn(AppScope)`
 in another feature (`feature/recovery`'s `RestoreDialogChoiceObserver`, for example) cannot
-inject the Activity-scoped `@HiltViewModel` Store. The observer reads from
+inject the Activity-scoped Metro Store. The observer reads from
 the repository's persisted user-choice record, which is the same source
 the Store's `ChooseHandler` writes to. Single source of truth holds.
 
@@ -452,12 +452,11 @@ The host:
 
 - Resolves `AppDialogStore` via the screen-less composition entry
   `AppDialogFeature.processor()` (a single-instance object that delegates
-  to `rememberStoreProcessor<AppDialogStoreImpl>()` →
-  `hiltViewModel<AppDialogStoreImpl>()`). Because the surrounding
+  to `rememberMetroStoreProcessor<AppDialogStoreImpl>()`). Because the surrounding
   `LocalViewModelStoreOwner` is the host `ComponentActivity` (App root is a
   sibling of NavHost), the resulting Store is **Activity-scoped** — same
   lifetime as the Activity's `ViewModelStore`, NOT the current navigation
-  destination, NOT a `@Singleton`. It survives configuration changes and is
+  destination, NOT a `@SingleIn(AppScope)`. It survives configuration changes and is
   reused across all destinations.
 
   `AppDialogFeature` is an `AppFeature<TProcessor>` — a screen-less twin of
@@ -465,7 +464,7 @@ The host:
   `core/ui/mvi`. The screen-less variant exists for app-root mounts; it
   must not be used inside `NavHost` (where `Feature` is the right entry).
   This is the minimal new MVI-composition entry required for the refactor;
-  the underlying scope/owner mechanism (`hiltViewModel<T>()` →
+  the underlying scope/owner mechanism (`rememberMetroStoreProcessor<T>()` →
   `LocalViewModelStoreOwner`) is reused unchanged from the
   existing `AppRootViewModel` Activity-scoped VM (see
   [`App.kt:63`](../../app/app/src/main/java/io/github/stslex/workeeper/App.kt)).
@@ -536,11 +535,11 @@ Handler routing (`AppDialogStoreImpl.handlerCreator`):
 
 | Action | Handler |
 |---|---|
-| `is Action.RepoAction` | `AppDialogRepoHandler` (`@ViewModelScoped`) |
-| `is Action.Choose` | `ChooseHandler` (`@ViewModelScoped`) |
+| `is Action.RepoAction` | `AppDialogRepoHandler` (`@SingleIn(AppDialogScope)`) |
+| `is Action.Choose` | `ChooseHandler` (`@SingleIn(AppDialogScope)`) |
 
 Per-feature reaction to user choices is **NOT** in the Store's handler
-graph — it lives in the consuming feature's own `@Singleton` handler that
+graph — it lives in the consuming feature's own `@SingleIn(AppScope)` handler that
 observes `AppDialogObserver.observeUserActions()`. The Store records the
 choice; the consumer reacts to it.
 
@@ -577,23 +576,24 @@ deferred to a follow-up PR — see
 
 | Class | Scope | Notes |
 |---|---|---|
-| `AppDialogRepository[Impl]` | `@Singleton` | Single writer of `pending_*` keys. Owns the `DataStore<Preferences>` instance. |
+| `AppDialogRepository[Impl]` | `@SingleIn(AppScope)` | Single writer of `pending_*` keys. Owns the `DataStore<Preferences>` instance. |
 | `AppDialogResolver` | pure (no `@Inject`) | Static priority walk. No state. |
-| `AppDialogStore` interface / `AppDialogStoreImpl` | `@HiltViewModel` | Activity-scoped via `hiltViewModel<AppDialogStoreImpl>()` at App root. Standard `Store`-suffix → `@HiltViewModel` mapping per [`HiltScopeRule`](../lint-rules.md#hiltscoperule). **No carve-out** — this is a regular MVI Store. |
-| `AppDialogHandlerStoreImpl` | `@ViewModelScoped` | Standard `BaseHandlerStore` bridge. |
-| `AppDialogRepoHandler` / `ChooseHandler` | `@ViewModelScoped` | Handler-suffix → `@ViewModelScoped` per `HiltScopeRule`. |
-| `AppDialogPublisher` / `AppDialogPublisherImpl` | `@Singleton` (`@Binds`) | Thin facade over the repository. |
-| `AppDialogObserver` / `AppDialogObserverImpl` | `@Singleton` (`@Binds`) | Cross-feature observation surface, backed by the repository. |
-| `AppDialogHost` | Stateless Composable | Resolves the Store via `rememberStoreProcessor<AppDialogStoreImpl>()`. No `EntryPointAccessors`. |
+| `AppDialogStore` interface / `AppDialogStoreImpl` | unscoped (class-level `@Inject`) | Activity-scoped via `rememberMetroStoreProcessor<AppDialogStoreImpl>()` at App root; retained by the Activity `ViewModelStore`. A Metro Store carries no scope annotation — [`MetroScopeRule`](../lint-rules.md#metroscoperule) does not require one. **No carve-out** — this is a regular MVI Store. |
+| `AppDialogHandlerStoreImpl` | `@SingleIn(AppDialogScope)` | Standard `BaseHandlerStore` bridge. |
+| `AppDialogRepoHandler` / `ChooseHandler` | `@SingleIn(AppDialogScope)` | Handler-suffix → feature-scoped `@SingleIn(<Feature>Scope)` per `MetroScopeRule` (a `*Handler` must not be `@SingleIn(AppScope)`). |
+| `AppDialogPublisher` / `AppDialogPublisherImpl` | `@SingleIn(AppScope)` (`@ContributesBinding`) | Thin facade over the repository. |
+| `AppDialogObserver` / `AppDialogObserverImpl` | `@SingleIn(AppScope)` (`@ContributesBinding`) | Cross-feature observation surface, backed by the repository. |
+| `AppDialogHost` | Stateless Composable | Resolves the Store via `rememberMetroStoreProcessor<AppDialogStoreImpl>()`. No `EntryPointAccessors`. |
 
-The `Store` suffix on `AppDialogStore` follows the standard `HiltScopeRule`
-predicate (`Store` → `@HiltViewModel`). Activity-scoping is achieved at
-the **mount site** (App root, sibling of NavHost) by `LocalViewModelStoreOwner`
-resolving to the host `ComponentActivity`, not by a special DI scope.
+A Metro Store such as `AppDialogStore` carries no scope annotation at all;
+`MetroScopeRule` name-matches `*Store` classes but does not require a scope on
+them. Activity-scoping is achieved at the **mount site** (App root, sibling of
+NavHost) by `LocalViewModelStoreOwner` resolving to the host
+`ComponentActivity`, not by a DI scope.
 
 This replaces the historical `AppDialogStore` carve-out from
 `ScopeClassType.singletonClasses` — see
-[lint-rules.md → HiltScopeRule](../lint-rules.md#hiltscoperule) for the
+[lint-rules.md → MetroScopeRule](../lint-rules.md#metroscoperule) for the
 deletion rationale. The previous design (a `@Singleton` DataStore wrapper
 misnamed `*Store`) is gone; the persistence-only role moved to
 `AppDialogRepository`, leaving `AppDialogStore` as a genuine MVI Store
@@ -617,7 +617,7 @@ that does not need an exception.
   DataStore, the *runtime truth* is the Activity-scoped Store's State,
   the *trigger* is `publish(dialog)`, the *cross-feature reaction* is
   `AppDialogObserver.observeUserActions()`. `Event` is never involved.
-- [lint-rules.md → HiltScopeRule](../lint-rules.md#hiltscoperule) — explains
+- [lint-rules.md → MetroScopeRule](../lint-rules.md#metroscoperule) — explains
   why `AppDialogStore` no longer needs the `ScopeClassType.singletonClasses`
   carve-out after the refactor.
 - [tech-debt.md](../tech-debt.md) — entry for migrating existing

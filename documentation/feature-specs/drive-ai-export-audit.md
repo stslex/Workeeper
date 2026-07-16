@@ -321,8 +321,8 @@ the navigation/plan-editor UI modules — but only for Room column JSON, Drive w
 
 ### 4.3 Hilt provisioning of the Drive client — `CONFIRMED`
 
-All DI lives in `core/data/backup/google-drive/.../di/`, **`@InstallIn(SingletonComponent::class)`**,
-everything **`@Singleton`**:
+All DI lives in `core/data/backup/google-drive/.../di/`, everything app-scoped
+(**`@SingleIn(AppScope)`**):
 
 - `NetworkModule` (`@Module object`): `@Provides @Singleton provideHttpClient(authTokenProvider)`.
   `di/NetworkModule.kt:21–48`.
@@ -334,10 +334,14 @@ everything **`@Singleton`**:
   `UserInfoFetcher←UserInfoFetcherImpl`. `di/AuthBindingsModule.kt:24–55`.
 - `DatabaseSnapshotProvider` is bound `@Singleton` in `core/data/database/.../di/CoreDatabaseBindingsModule.kt`.
 
-> Scope note for new code: per the project's `HiltScopeRule` (§4.4), classes ending in `Storage` /
-> `Repository` / `DataStore` / `Database` must be `@Singleton`; `Handler` / `Interactor` / `Mapper`
-> must be `@ViewModelScoped`; a `Store` must be `@HiltViewModel`. The existing Drive graph is
-> uniformly `@Singleton`, which matches.
+> Scope note for new code: per the project's `MetroScopeRule` (§4.4), a name-matched
+> (`Repository` / `DataStore` / `Database` / `Storage` / `StoreDispatchers` / `Handler` /
+> `Interactor` / `Mapper`) constructor-`@Inject` class must declare `@SingleIn(<Scope>::class)` —
+> app-scoped concerns (`Storage` / `Repository` / `DataStore` / `Database`) as `@SingleIn(AppScope)`,
+> feature concerns (`Handler` / `Interactor` / `Mapper`) as `@SingleIn(<Feature>Scope)` (a `*Handler`
+> must not be `@SingleIn(AppScope)`). A Metro `Store` is UNSCOPED (class-level `@Inject`, retained by
+> the ViewModelStore via `rememberMetroStoreProcessor`). The existing Drive graph is uniformly
+> `@SingleIn(AppScope)`, which matches.
 
 ### 4.4 Constraining custom Detekt rules — `CONFIRMED`
 
@@ -346,9 +350,11 @@ in `MviArchitectureRules.kt`). The ones most likely to constrain new export/snap
 
 - **`MviHandlerConstructorRule`** — every `*Handler` needs a primary constructor with `@Inject` and ≥1
   param and must implement `Handler`; `NavigationHandler` is the documented exception.
-- **`HiltScopeRule`** — scope-by-suffix enforcement (see §4.3 note); `Storage/Repository/DataStore/
-  Database/StoreDispatchers → @Singleton`, `Handler/Interactor/Mapper → @ViewModelScoped`,
-  `Store → @HiltViewModel`.
+- **`MetroScopeRule`** — scope-by-suffix enforcement (see §4.3 note); a name-matched
+  (`Repository`/`DataStore`/`Database`/`Storage`/`StoreDispatchers`/`Handler`/`Interactor`/`Mapper`)
+  constructor-`@Inject` class must declare `@SingleIn(<Scope>::class)`; a `*Handler` must not be
+  `@SingleIn(AppScope)` (feature-scoped only). A Metro `Store` is UNSCOPED. (`javax.inject.@Singleton`
+  still resolves under Metro's `includeJavax` but the graph ignores it — the rule flags it.)
 - **`DomainLayerPurityRule`** — domain layer may not import `core.data.*` model types (suffixes
   `DataModel`/`Entity`/`Dto`/`DataType`/…) except inside `/domain/mapper/` or `.api.*`.
 - **`DomainLayerNoUiRule`** — domain layer may not import Compose / `R` / `mvi` / `ui` types.

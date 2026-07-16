@@ -64,7 +64,7 @@ silently fails to aggregate** — a false-green. This is caught by a custom dete
   Anchor: `lint-rules/src/main/kotlin/io/github/stslex/workeeper/lint_rules/ContributesBindingScopeRule.kt:36`.
 - `ContributesToScopeRule` — the provides-factory twin (§provides-factory), guards `@BindingContainer`'s
   `@ContributesTo` scope. Anchor: `.../lint_rules/ContributesToScopeRule.kt:43`.
-- **Do NOT conflate** these with `HiltScopeRule` (`.../lint_rules/HiltScopeRule.kt:78`), which is a
+- **Do NOT conflate** these with `MetroScopeRule` (`.../lint_rules/MetroScopeRule.kt:78`), which is a
   Handler-lifetime guard (rejects `@SingleIn(AppScope)` on a `*Handler`), unrelated to aggregation.
 
 **Encapsulation tradeoff — currently UN-BACKSTOPPED.** Widening impls to `public` loses the compile-time

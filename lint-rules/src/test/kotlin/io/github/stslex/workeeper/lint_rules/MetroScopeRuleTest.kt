@@ -7,21 +7,17 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
- * Coverage for the Metro-path awareness added to `HiltScopeRule` for the KMP C.1 M0
- * migration (feature/archive flipped from Hilt to Metro DI).
+ * Coverage for [MetroScopeRule] — the Metro-only successor to the former `HiltScopeRule`.
  *
- * A Metro-managed component carries `@SingleIn(<Scope>::class)` instead of Hilt's
- * `@ViewModelScoped` / `@Singleton`. The rule accepts `@SingleIn` as satisfying the scope
- * requirement for the scoped buckets (`Handler`, `Interactor`, `Mapper`, singleton names),
- * and — because a Metro graph owns the scope, not a Hilt component — does not then demand the
- * Hilt annotation.
- *
- * These tests pin BOTH directions: the Metro path passes, AND the Hilt path still fires (the
- * guard is not disarmed) for the untouched 11 features.
+ * DI is 100% Metro. A constructor-injected, name-matched dependency (Handler / Interactor / Mapper /
+ * Repository / …) must declare a `@SingleIn(<Scope>::class)`; a `*Handler` must not be
+ * `@SingleIn(AppScope)`. The Hilt-annotation branches (requiring `@ViewModelScoped` / `@HiltViewModel`)
+ * were deleted once those FQNs left every classpath — the checks here all key off annotations a developer
+ * can still write (`dev.zacsweers.metro.SingleIn`, and the retained-but-wrong `javax.inject.@Singleton`).
  */
-internal class HiltScopeRuleMetroTest {
+internal class MetroScopeRuleTest {
 
-    private val rule = HiltScopeRule()
+    private val rule = MetroScopeRule()
 
     @Test
     fun `Metro Handler with SingleIn ctor injection passes`() {
@@ -42,7 +38,7 @@ internal class HiltScopeRuleMetroTest {
         assertEquals(
             0,
             findings.size,
-            "A @SingleIn Metro Handler with ctor @Inject must pass — @SingleIn is the @ViewModelScoped analogue.",
+            "A @SingleIn Metro Handler with ctor @Inject must pass.",
         )
     }
 
@@ -71,8 +67,8 @@ internal class HiltScopeRuleMetroTest {
     @Test
     fun `Metro Store with class-level Inject and no scope passes`() {
         // A Metro Store is intentionally UNSCOPED (retained by the Android ViewModelStore). Its
-        // class-level @Inject leaves the primary constructor un-annotated, so the rule
-        // short-circuits at hasInject and never demands @HiltViewModel.
+        // class-level @Inject leaves the primary constructor un-annotated, so the rule short-circuits at
+        // hasInject and never demands a scope.
         val findings = rule.lint(
             """
             package io.github.stslex.workeeper.feature.archive.mvi.store
@@ -90,14 +86,14 @@ internal class HiltScopeRuleMetroTest {
     }
 
     @Test
-    fun `Hilt Handler without any scope still triggers a finding`() {
-        // Guard intact: a ctor-@Inject Handler on the Hilt path with NO @SingleIn and NO
-        // @ViewModelScoped must still be flagged for the untouched features.
+    fun `ctor-Inject Handler with no scope is flagged (must declare SingleIn)`() {
+        // The retained "must declare a scope" guard: a name-matched ctor-@Inject DI class with NO
+        // @SingleIn is flagged — it either forgot the scope or used a non-Metro one.
         val findings = rule.lint(
             """
             package io.github.stslex.workeeper.feature.example.mvi.handler
 
-            import javax.inject.Inject
+            import dev.zacsweers.metro.Inject
 
             internal class ExampleClickHandler @Inject constructor(
                 private val interactor: Any,
@@ -107,7 +103,32 @@ internal class HiltScopeRuleMetroTest {
 
         assertTrue(
             findings.isNotEmpty(),
-            "A Hilt Handler (@Inject, no @SingleIn, no @ViewModelScoped) must still be flagged.",
+            "A ctor-@Inject Handler with no @SingleIn must be flagged — it must declare its Metro scope.",
+        )
+    }
+
+    @Test
+    fun `ctor-Inject class annotated only javax Singleton is flagged (not a Metro scope)`() {
+        // javax.inject is retained (Metro includeJavax), so @Singleton still RESOLVES and compiles — but
+        // the Metro graph does not honour it. A name-matched ctor-@Inject class with only @Singleton and
+        // no @SingleIn is silently unscoped under Metro, so it must be flagged.
+        val findings = rule.lint(
+            """
+            package io.github.stslex.workeeper.feature.example.mvi.handler
+
+            import javax.inject.Inject
+            import javax.inject.Singleton
+
+            @Singleton
+            internal class ExampleClickHandler @Inject constructor(
+                private val interactor: Any,
+            )
+            """.trimIndent(),
+        )
+
+        assertTrue(
+            findings.isNotEmpty(),
+            "@Singleton (javax, resolves but Metro ignores it) with no @SingleIn must be flagged.",
         )
     }
 

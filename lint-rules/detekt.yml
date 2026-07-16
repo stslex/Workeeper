@@ -656,8 +656,8 @@ mvi-architecture:
   MviStoreStateRule:
     active: true
   KoinScopeRule:
-    active: false  # Disabled: Project now uses Hilt instead of Koin
-  HiltScopeRule:
+    active: false  # Disabled: Project uses Metro DI (not Koin)
+  MetroScopeRule:
     active: true
   ContributesToScopeRule:
     active: true

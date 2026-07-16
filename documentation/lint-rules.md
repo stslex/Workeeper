@@ -38,7 +38,7 @@ All ten rules live under
 `lint-rules/src/main/kotlin/io/github/stslex/workeeper/lint_rules/`. The rule set provider is
 `MviArchitectureRules.kt`, which constructs `MviArchitectureRuleSet` with id `mvi-architecture`
 and registers nine of the ten rules (one helper file is the `ScopeClassType` enum used by
-`HiltScopeRule`).
+`MetroScopeRule`).
 
 A class is considered "in an MVI module" when its package contains `mvi` or its file path
 contains `/mvi/`. Several rules gate themselves on this check, so test classes outside `/mvi/`
@@ -142,7 +142,7 @@ data class ClickHandler(...) {
 Good:
 
 ```kotlin
-@ViewModelScoped
+@SingleIn(ExampleScope::class)
 internal class ClickHandler @Inject constructor(
     private val store: HandlerStore<State, Action, Event>,
 ) : Handler<Action.Click> {
@@ -171,8 +171,8 @@ name contains `Handler`:
 - The primary constructor must carry `@Inject`. The rule's source has a literal-name
   exemption for `NavigationHandler`
   (`lint-rules/.../MviHandlerConstructorRule.kt:74`) for historical reasons. The
-  current architecture uses normal Hilt constructor injection on every handler,
-  including `NavigationHandler` — `@ViewModelScoped @Inject Navigator` is the
+  current architecture uses normal Metro constructor injection on every handler,
+  including `NavigationHandler` — `@SingleIn(<Feature>Scope::class) @Inject Navigator` is the
   canonical shape (see e.g.
   `feature/exercise/.../ui/mvi/handler/NavigationHandler.kt`,
   `feature/home/.../mvi/handler/NavigationHandler.kt`). New code SHOULD NOT rely on
@@ -191,35 +191,45 @@ is nested inside a class whose name ends in `Store`:
 - It must be declared `data class`.
 - It must implement `Store.State`.
 
-### `HiltScopeRule`
+### `MetroScopeRule`
 
-**File:** `HiltScopeRule.kt`, with the helper enum `ScopeClassType.kt` · **Severity:** Defect.
+**File:** `MetroScopeRule.kt`, with the helper enum `ScopeClassType.kt` · **Severity:** Defect.
 
-Walks classes that have a primary constructor annotated `@Inject` and applies a name-based
-scope policy from `ScopeClassType`:
+DI is 100% Metro (`dev.zacsweers.metro`). The rule walks classes that have a primary constructor
+annotated `@Inject` and whose name matches a dependency bucket in `ScopeClassType`
+(`Repository` / `DataStore` / `Database` / `Storage` / `StoreDispatchers` / `Handler` / `Interactor` /
+`Mapper`), and enforces:
 
-- Class name contains any of `Repository`, `DataStore`, `Database`, `Storage`,
-  or `StoreDispatchers` → must be annotated `@Singleton`.
-- Class name contains any of `Handler`, `Interactor`, `Mapper` → must be annotated
-  `@ViewModelScoped`.
-- Class name contains `Store` (matches both `*Store` interfaces and `*StoreImpl`
-  ViewModels) → must be annotated `@HiltViewModel` (the rule's `HiltViewModelScoped`
-  enum entry maps to the `HiltViewModel` annotation, since stores implementing the
-  Store interface are constructed by Hilt's `hiltViewModel<T>()`).
+- **A Metro scope must be declared.** The class must carry `@SingleIn(<Scope>::class)`. A name-matched
+  `@Inject` class with no `@SingleIn` is flagged — it either forgot the scope, or used a non-Metro
+  annotation. `javax.inject.@Singleton` still *resolves* (javax.inject is retained for Metro's
+  `includeJavax()` qualifier interop), so a developer can write `@Singleton` and be **silently wrong** —
+  the Metro graph does not honour it — and the rule catches exactly this.
+- **A Handler must not be app-scoped.** `@SingleIn(AppScope)` on a `*Handler` is a mis-scope (a per-screen
+  Handler pinned to the process-lifetime app graph). The rule reads the scope *argument*, not just the
+  annotation name, and rejects it. `@SingleIn(<Feature>Scope)` passes.
 
-The rule also reports if the class carries the annotation for a *different* category.
+A Metro `Store` is intentionally UNSCOPED (retained by the Android `ViewModelStore` via
+`rememberMetroStoreProcessor`) and carries a **class-level** `@Inject`, so its empty primary-constructor
+annotations short-circuit the `hasInject` check — it never reaches the rule and needs no bucket.
+
+> The Hilt-era branches (requiring `dagger.hilt.android.scopes.ViewModelScoped` on Handler/Interactor/Mapper
+> and `@HiltViewModel` on Store, plus a cross-bucket exclusivity loop) were **deleted** once Hilt left every
+> classpath, making those FQNs unresolvable. The retained checks key only off annotations a developer can
+> still write: `dev.zacsweers.metro.SingleIn` and `javax.inject.@Singleton`. (This rule was formerly
+> `HiltScopeRule`.)
 
 Bad:
 
 ```kotlin
-@Singleton
-class ClickHandler @Inject constructor(...) : Handler<Action.Click> { ... }
+@Singleton                                              // javax — resolves, but Metro ignores it
+internal class ClickHandler @Inject constructor(...) : Handler<Action.Click> { ... }
 ```
 
 Good:
 
 ```kotlin
-@ViewModelScoped
+@SingleIn(ExampleScope::class)
 internal class ClickHandler @Inject constructor(...) : Handler<Action.Click> { ... }
 ```
 
@@ -227,56 +237,52 @@ internal class ClickHandler @Inject constructor(...) : Handler<Action.Click> { .
 
 The lifecycle-safe navigation architecture (see
 [architecture.md → Navigation](architecture.md#navigation)) introduces a few classes
-that the `HiltScopeRule` predicates must NOT flag:
+that the `MetroScopeRule` predicates must NOT flag:
 
 - `NavigatorEventBus`
-  (`app/app/.../navigation/NavigatorEventBus.kt`) — the singleton command-bus
+  (`app/app/.../navigation/NavigatorEventBus.kt`) — the app-scoped command-bus
   implementation of `Navigator` and `NavigatorReceiver`. **Intentionally allowed at
-  singleton scope** because it is controller-free: the class stores only a
+  app scope** because it is controller-free: the class stores only a
   `MutableSharedFlow<NavCommand>` and four emit methods. There is no
   `NavController`, `NavBackStackEntry`, `SavedStateHandle`, `Activity`, or `Context`
   reachable through it, so promoting it to application scope leaks nothing.
-  - The class is annotated `@Singleton` directly (see
-    `NavigatorEventBus.kt:13`) and constructor-injects with `@Inject constructor()`.
-  - `NavigationModule` (`@InstallIn(SingletonComponent::class)`) additionally
-    `@Provides @Singleton fun provideNavigator(impl: NavigatorEventBus): Navigator`
-    so callers depending on the abstract `Navigator` interface receive the same
-    singleton instance.
-  - `HiltScopeRule` does **not** flag the class. The reason is purely the name:
+  - The class is annotated `@SingleIn(AppScope::class)` +
+    `@ContributesBinding(AppScope::class, binding = binding<Navigator>())` and
+    constructor-injects with `@Inject` — one app-scoped instance backs both the
+    concrete type and the `Navigator` interface for cross-module readers.
+  - `MetroScopeRule` does **not** flag the class. The reason is purely the name:
     `NavigatorEventBus` does not contain any of the configured `ScopeClassType`
     predicates (`Repository` / `DataStore` / `Database` / `Storage` /
-    `StoreDispatchers` / `Handler` / `Interactor` / `Mapper` / `Store`), so
+    `StoreDispatchers` / `Handler` / `Interactor` / `Mapper`), so
     `ScopeClassType.getByName("NavigatorEventBus")` returns `null` and the rule
-    short-circuits. The `Bus` suffix was chosen with this rule in mind. The
-    skip is **not** because the class is "scoped only via the module" — the class
-    annotation is the load-bearing one; the module binding mirrors it for the
-    `Navigator` interface alias.
+    short-circuits. The `Bus` suffix was chosen with this rule in mind.
 - `NavigatorReceiver`
   (`app/app/.../navigation/NavigatorReceiver.kt`) — interface only; the rule skips
   interfaces.
-- `NavigationModule`
-  (`app/app/.../di/NavigationModule.kt`) — Hilt module class. It is not constructor
-  injected, so the rule short-circuits at the `hasInject` check.
 - Feature `NavigationHandler` classes
-  (`feature/<name>/.../mvi/handler/NavigationHandler.kt`) — `@ViewModelScoped` with
-  `@Inject Navigator`. They match the `Handler` predicate and the rule expects
-  `@ViewModelScoped`; they comply.
+  (`feature/<name>/.../mvi/handler/NavigationHandler.kt`) — `@SingleIn(<Feature>Scope::class)`
+  with `@Inject Navigator`. They match the `Handler` predicate and the rule expects a
+  feature-scoped `@SingleIn`; they comply.
 - `NavigatorHolder`
   (`core/ui/navigation/.../NavigatorHolder.kt`) — `@Stable` value class wrapping a
   `NavHostController`. It has no `@Inject` constructor (composition-scoped via
   `remember(navController)` in `App.kt`), so the rule short-circuits.
 
 Stores, interactors, and mappers continue to follow the standard predicates: a Store
-interface (`*Store : Store<...>`) and its `*StoreImpl` carry `@HiltViewModel`;
-interactors / handlers / mappers carry `@ViewModelScoped`; repositories / data
-stores / databases / dispatch holders carry `@Singleton`.
+is intentionally UNSCOPED (class-level `@Inject`, retained by the Android `ViewModelStore`
+via `rememberMetroStoreProcessor`) and is never name-matched by the rule;
+interactors / handlers / mappers carry `@SingleIn(<Feature>Scope::class)`; repositories / data
+stores / databases / dispatch holders carry `@SingleIn(AppScope::class)`.
 
 #### Historical note: removed `AppDialogStore` carve-out
 
 Earlier versions of `ScopeClassType.singletonClasses` contained the
 explicit string `"AppDialogStore"` so the rule would map that class to
 `@Singleton` rather than to the default `Store → @HiltViewModel`. The
-carve-out has been **deleted**.
+carve-out has been **deleted**. (Both `@Singleton` and `@HiltViewModel`
+below are the historical Hilt-era annotations; the current Metro
+equivalents are `@SingleIn(AppScope::class)` and an unscoped class-level
+`@Inject` Store.)
 
 The carve-out existed because the original `AppDialogStore` was a
 DataStore writer wearing a `*Store` suffix — it had no `State`/`Action`/
@@ -287,30 +293,32 @@ repository, not a Store.
 The app-dialogs re-architecture splits that misnomer:
 
 - `AppDialogRepository` (in `feature/app-dialogs/impl/data/`) — the
-  `@Singleton` DataStore writer. The `Repository` suffix already maps to
-  `@Singleton` via `ScopeClassType.singletonClasses`.
+  `@SingleIn(AppScope::class)` DataStore writer. The `Repository` suffix
+  maps to the app-scope predicate via `ScopeClassType.singletonClasses`.
 - `AppDialogStore` (in `feature/app-dialogs/impl/mvi/store/`) — a genuine
-  `@HiltViewModel BaseStore<State, Action, Event>`. Activity-scoped at
-  runtime by virtue of being obtained at the App root (sibling of
-  `NavHost`), not by a Hilt-level scope override. The class follows the
-  default `Store → @HiltViewModel` rule with no exception.
+  UNSCOPED `BaseStore<State, Action, Event>` (class-level `@Inject`).
+  Activity-scoped at runtime by virtue of being obtained at the App root
+  (sibling of `NavHost`) and retained by the `ViewModelStore` via
+  `rememberMetroStoreProcessor`, not by any DI-level scope override. The
+  class is never name-matched by the rule.
 
 After the rewrite there is no `Store`-suffixed class anywhere in the
-project that wants singleton scope. The `singletonClasses` predicate list
+project that wants app scope. The `singletonClasses` predicate list
 returns to "Repository / DataStore / Database / Storage / StoreDispatchers"
 — the same shape it had before app-dialogs landed.
 
-If a future class needs singleton scope but does not match any of the
-singleton predicates, either:
+If a future class needs app scope but does not match any of the
+app-scope predicates, either:
 
 1. Name it with one of the existing predicate keywords (when the class
    genuinely is a repository / storage / etc.), or
-2. Provide the binding through an `@InstallIn(SingletonComponent::class)`
-   Hilt module (the pattern `NavigationModule` uses for `NavigatorEventBus`).
+2. Provide the binding at app scope via Metro — annotate
+   `@SingleIn(AppScope::class)` and contribute it with `@ContributesBinding(AppScope::class, ...)`
+   (the pattern `NavigatorEventBus` uses for `Navigator`).
 
 If a future class is a Store-shaped MVI surface that needs to outlive
 ViewModel scope (e.g. another cross-feature app-root component), follow
-the app-dialogs pattern: implement a normal `@HiltViewModel BaseStore` and
+the app-dialogs pattern: implement a normal UNSCOPED `BaseStore` and
 obtain it via the screen-less `AppFeature` composition entry at the App
 root — `LocalViewModelStoreOwner` does the rest. **Do not add a new
 `singletonClasses` carve-out.**
@@ -420,7 +428,7 @@ sealed interface ArchivedItem { ... }
 
 ### `ScopeClassType` (helper, not a rule)
 
-`ScopeClassType.kt` is the enum that backs `HiltScopeRule`. Update its `singletonClasses` and
+`ScopeClassType.kt` is the enum that backs `MetroScopeRule`. Update its `singletonClasses` and
 `viewModelScopedClasses` lists if a new naming convention enters the codebase.
 
 ## Android Lint configuration

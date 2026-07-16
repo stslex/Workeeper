@@ -7,8 +7,8 @@ import kotlinx.coroutines.flow.Flow
 /**
  * Local persistence for the signed-in Drive account and its access-token cache.
  * Backs `DriveBackupAuth.state`. Naming uses the `DataStore` suffix to match the
- * project's `HiltScopeRule` singleton classifier; the spec called it
- * `AccountStore` but bare "Store" maps to the MVI Store scope (retained Store).
+ * project's `MetroScopeRule` singleton-bucket classifier; the spec called it
+ * `AccountStore` but a bare "Store" suffix reads as an (unscoped) MVI Store.
  *
  * Access tokens are persisted as part of the sign-in path
  * (`completeSignIn` / silent `signIn` success) so `DriveAuthTokenProvider` can

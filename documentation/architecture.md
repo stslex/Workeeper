@@ -369,8 +369,9 @@ Lives in `core/*/di/Core*Module.kt`:
   `@Singleton NavigatorEventBus` and binds it as `Navigator` at the application level.
   `NavigatorEventBus` is a controller-free command bus — see [Navigation](#navigation).
 
-Repositories, DataStores, and `AppDatabase` are `@Singleton`. `HiltScopeRule` enforces this for
-classes whose name contains `Repository`, `DataStore`, `Database`, or `StoreDispatchers`.
+Repositories, DataStores, and `AppDatabase` are `@SingleIn(AppScope::class)`. `MetroScopeRule`
+enforces this for classes whose name contains `Repository`, `DataStore`, `Database`, or
+`StoreDispatchers`.
 
 ### Feature graph (`ViewModelComponent`)
 
@@ -388,13 +389,14 @@ class name `NavigationHandler` is exempt at the rule level for historical reason
 the current architecture uses `@Inject Navigator` constructor injection on it
 identically to other handlers. New code should not rely on the exemption.
 
-`HiltScopeRule` enforces `@ViewModelScoped` for classes whose name contains `Handler`,
-`Interactor`, or `Mapper`. `*Store` interfaces (excluding `*HandlerStore`) implement
-`Store` and route through `@HiltViewModel`. Names containing `Repository`, `DataStore`,
-`Database`, `Storage`, or `StoreDispatchers` must be `@Singleton`. The
-`NavigatorEventBus` class is named with the `Bus` suffix specifically so it does not
-match any of those scope predicates — its `@Singleton` annotation is provided by
-`NavigationModule` rather than tagged on the class.
+`MetroScopeRule` enforces `@SingleIn(<Feature>Scope::class)` for classes whose name contains
+`Handler`, `Interactor`, or `Mapper` (a `*Handler` must not be `@SingleIn(AppScope)` —
+feature-scoped only). `*Store` classes are UNSCOPED: they carry a class-level `@Inject` and
+are retained by the `ViewModelStore` via `rememberMetroStoreProcessor`. Names containing
+`Repository`, `DataStore`, `Database`, `Storage`, or `StoreDispatchers` must be
+`@SingleIn(AppScope::class)`. The `NavigatorEventBus` class is named with the `Bus` suffix
+specifically so it does not match any of those scope predicates — it is
+`@SingleIn(AppScope) @ContributesBinding(AppScope, binding<Navigator>()) @Inject`.
 
 ### `@HiltViewModel` and assisted factories
 
@@ -757,12 +759,12 @@ contract that **is** load-bearing: the bus stays usable across bridge
 detach / re-attach cycles, and the next bridge observes every command
 emitted after its subscription point in dispatch order.
 
-The class is annotated `@Singleton` directly and constructor-injects with
-`@Inject constructor()`. `NavigationModule`
-(`app/app/.../di/NavigationModule.kt`) additionally `@Provides @Singleton`
-the same instance as a `Navigator` binding so callers depending on the
-abstract interface receive the same singleton. The class name carries the
-`Bus` suffix on purpose so it does not match any `HiltScopeRule` predicate
+The class is annotated `@SingleIn(AppScope::class)` directly and constructor-injects
+with `@Inject`. It carries
+`@ContributesBinding(AppScope, binding<Navigator>())` so callers depending on the
+abstract interface receive the same app-scoped instance — no separate module binding is
+needed. The class name carries the
+`Bus` suffix on purpose so it does not match any `MetroScopeRule` predicate
 (`Repository`, `DataStore`, `Database`, `Storage`, `StoreDispatchers`,
 `Handler`, `Interactor`, `Mapper`, `Store`).
 
@@ -2022,8 +2024,10 @@ Architectural names that the Detekt rules enforce; full rule details and code ex
 - `*Handler` classes must have a primary constructor annotated `@Inject` (with the documented
   exception of `NavigationHandler`) and constructor-inject their dependencies.
 - Classes whose name contains `Repository`, `DataStore`, `Database`, or `StoreDispatchers` must
-  carry `@Singleton`. Classes whose name contains `Handler`, `Store`, `Interactor`, or `Mapper`
-  must carry `@ViewModelScoped`.
+  carry `@SingleIn(AppScope::class)`. Classes whose name contains `Handler`, `Interactor`, or
+  `Mapper` must carry `@SingleIn(<Feature>Scope::class)` (a `*Handler` must not be
+  `@SingleIn(AppScope)`); `*Store` classes are unscoped (class-level `@Inject`, retained by the
+  `ViewModelStore` via `rememberMetroStoreProcessor`).
 - Composables ending in `Screen` must have both a `*State` parameter and an `Action`/`Event`
   handler parameter.
 

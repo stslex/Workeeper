@@ -12,8 +12,8 @@ import java.io.IOException
  * Translates Ktor / IO / serialization exceptions into the typed
  * [BackupError] variants the api module declares. Stateless `object`; the
  * `Mapper`-named class is intentionally NOT `@Inject`-constructed so the
- * project's `HiltScopeRule` does not demand `@ViewModelScoped` (which would
- * conflict with the `@Singleton` consumers).
+ * project's `MetroScopeRule` does not demand a `@SingleIn` scope (the rule only
+ * scope-checks constructor-`@Inject` classes).
  */
 internal object DriveErrorMapper {
 

@@ -91,14 +91,17 @@ When adding to a feature module:
 - The Store contract (`State`, `Action`, `Event`) must conform to the MVI Detekt rules:
   immutable data-class State, sealed Action / Event, and the Store interface.
 - New handlers belong in `feature/<name>/.../mvi/handler/<Category>Handler.kt`. Use
-  constructor injection with `@Inject` and annotate the class `@ViewModelScoped`. This
-  applies to `NavigationHandler` too — `@ViewModelScoped @Inject Navigator` is the
-  canonical shape after the lifecycle-safe navigation refactor.
+  constructor injection with `@Inject` and annotate the class
+  `@SingleIn(<Feature>Scope::class)` (feature scope, never `AppScope`). This applies to
+  `NavigationHandler` too — a `@SingleIn(<Feature>Scope::class) @Inject`-constructed
+  handler depending on `Navigator` is the canonical shape after the lifecycle-safe
+  navigation refactor.
 - Repositories, DataStores, the database, `Storage`, and `StoreDispatchers` are
-  `@Singleton`. Handlers, Interactors, and Mappers are `@ViewModelScoped`. Stores
-  (`*Store` interfaces and their `*StoreImpl` ViewModels) are `@HiltViewModel`, with an
-  optional assisted-factory variant for screens that need route arguments at
-  construction.
+  `@SingleIn(AppScope::class)`. Handlers, Interactors, and Mappers are
+  `@SingleIn(<Feature>Scope::class)`. Stores (`*Store` interfaces and their `*StoreImpl`
+  ViewModels) are UNSCOPED — a class-level `@Inject` with no scope annotation, retained
+  by the `ViewModelStore` via `rememberMetroStoreProcessor` — with an optional
+  assisted-factory variant for screens that need route arguments at construction.
 
 ### Navigation
 
@@ -107,10 +110,11 @@ When adding to a feature module:
   `data class` route (`String?`, `Long`, etc.) — never `NavController`,
   `NavBackStackEntry`, `SavedStateHandle`, `Activity`, or `Context`.
 - Stores and `NavigationHandler`s depend on `Navigator` (the command-bus interface in
-  `core/ui/navigation`). Hilt provides the singleton implementation
-  `NavigatorEventBus` (`app/app/.../navigation/NavigatorEventBus.kt`), which stores
-  only a `SharedFlow<NavigationCommand>` and three emit methods. It holds no
-  controller.
+  `core/ui/navigation`). The Metro app graph provides the app-scoped implementation
+  `NavigatorEventBus` (`app/app/.../navigation/NavigatorEventBus.kt`), declared
+  `@SingleIn(AppScope) @ContributesBinding(AppScope, binding<Navigator>()) @Inject`,
+  which stores only a `SharedFlow<NavigationCommand>` and three emit methods. It holds
+  no controller.
 - The App/UI bridge — `App.kt` + `NavigatorExt.NavigationEventBusSetup` — is the
   ONLY place AndroidX Navigation operations execute. `App.kt` owns
   `rememberNavController()` and feeds it into the bridge through a
@@ -119,8 +123,8 @@ When adding to a feature module:
   every recomposition / activity recreation.
 - `NavHostController`, `NavController`, `NavBackStackEntry`, `SavedStateHandle`,
   `Activity`, and `Context` MUST NOT be retained by any `ViewModel`, `Store`,
-  `Handler`, `Interactor`, `Mapper`, or Hilt-`@Singleton` binding. The only object
-  allowed to live at singleton scope is the command-only `NavigatorEventBus`.
+  `Handler`, `Interactor`, `Mapper`, or `@SingleIn(AppScope)` binding. The only object
+  allowed to live at app scope is the command-only `NavigatorEventBus`.
 - `SavedStateHandle` is composable-graph scoped. Use
   `navComponentScreenWithState(<Feature>) { stateHandle, processor -> ... }` when a
   screen consumes a navigation result, and reset the consumed value via
@@ -134,7 +138,7 @@ The full architectural rationale lives in
 the lifecycle-safe navigation refactor checklist in
 [`.claude/skills/refactor-with-mvi-rules.md`](.claude/skills/refactor-with-mvi-rules.md),
 and the lint-rule scope expectations in
-[documentation/lint-rules.md → HiltScopeRule scope expectations](documentation/lint-rules.md#scope-expectations-for-the-navigation-layer).
+[documentation/lint-rules.md → MetroScopeRule scope expectations](documentation/lint-rules.md#scope-expectations-for-the-navigation-layer).
 
 ### Other surfaces
 

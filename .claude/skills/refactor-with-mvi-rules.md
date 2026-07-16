@@ -10,7 +10,7 @@ description: Resolve a custom Detekt MVI-architecture rule violation by reading 
 - A `./gradlew detekt` run reports an `Mvi*` rule (`MviStateImmutabilityRule`,
   `MviActionNamingRule`, `MviEventNamingRule`, `MviHandlerNamingRule`,
   `MviStoreExtensionRule`, `MviHandlerConstructorRule`, `MviStoreStateRule`).
-- A `HiltScopeRule` or `ComposableStateRule` violation appears.
+- A `MetroScopeRule` or `ComposableStateRule` violation appears.
 - The user says "fix this MVI lint violation" / "this rule is firing on X".
 
 ## Prerequisites
@@ -34,7 +34,7 @@ description: Resolve a custom Detekt MVI-architecture rule violation by reading 
    - `MviStoreExtensionRule.kt`
    - `MviHandlerConstructorRule.kt`
    - `MviStoreStateRule.kt`
-   - `HiltScopeRule.kt` (uses `ScopeClassType.kt` for the name → annotation mapping)
+   - `MetroScopeRule.kt` (uses `ScopeClassType.kt` for the name → annotation mapping)
    - `ComposableStateRule.kt`
    - `DomainLayerPurityRule.kt`
    - `DomainLayerNoUiRule.kt`
@@ -97,10 +97,10 @@ description: Resolve a custom Detekt MVI-architecture rule violation by reading 
      annotated `@Inject` and at least one parameter. The rule's source explicitly skips
      the literal class name `NavigationHandler`
      (`lint-rules/.../MviHandlerConstructorRule.kt:74`) for historical reasons. The
-     **current architecture** uses normal Hilt constructor injection on every handler,
-     including `NavigationHandler` — `@ViewModelScoped @Inject Navigator` is the
+     **current architecture** uses normal Metro constructor injection on every handler,
+     including `NavigationHandler` — `@SingleIn(<Feature>Scope) @Inject Navigator` is the
      canonical shape. New code must NOT rely on the `NavigationHandler` exemption: write
-     `@ViewModelScoped` + `@Inject` and let the rule pass on the merits. The exemption
+     `@SingleIn(<Feature>Scope)` + `@Inject` and let the rule pass on the merits. The exemption
      remains only so legacy modules compile while they migrate. Variants like
      `SettingsNavigationHandler` / `ArchiveNavigationHandler` follow the same shape (no
      `@Suppress` needed when they have `@Inject`).
@@ -108,13 +108,18 @@ description: Resolve a custom Detekt MVI-architecture rule violation by reading 
    - **`MviStoreStateRule`** — the inner `State` class of a `*Store` must be
      `data class State(...) : Store.State`.
 
-   - **`HiltScopeRule`** — apply scope by class-name pattern (the mapping is in
+   - **`MetroScopeRule`** — a name-matched constructor-`@Inject` class must declare
+     `@SingleIn(<Scope>::class)` (the mapping is in
      `lint-rules/.../lint_rules/ScopeClassType.kt`):
-     - Names containing `Repository` / `DataStore` / `Database` / `StoreDispatchers` →
-       `@Singleton`.
-     - Names containing `Handler` / `Store` / `Interactor` / `Mapper` →
-       `@ViewModelScoped`.
-     The rule also reports if a class carries the *other* category's annotation.
+     - Names containing `Repository` / `DataStore` / `Database` / `Storage` /
+       `StoreDispatchers` → `@SingleIn(AppScope::class)`.
+     - Names containing `Handler` / `Interactor` / `Mapper` →
+       `@SingleIn(<Feature>Scope::class)` (feature-scoped). A `*Handler` must NOT be
+       `@SingleIn(AppScope::class)`.
+     A Metro `Store` is UNSCOPED (class-level `@Inject`, retained by the `ViewModelStore`
+     via `rememberMetroStoreProcessor`) — it carries no `@SingleIn`. Note: a leftover
+     `javax.inject.@Singleton` still resolves (Metro `includeJavax`) but the Metro graph
+     ignores it, so `MetroScopeRule` flags it — replace it with the `@SingleIn` above.
 
    - **`ComposableStateRule`** — `@Composable` functions whose name ends in `Screen`
      must take a `*State` parameter and an action/event handler parameter (typically a
@@ -214,14 +219,16 @@ The rules:
   `NavController.navigate(...)` / `popBackStack(...)` / process-restart calls live
   ONLY in `app/app/.../navigation/NavigatorExt.kt::NavigationEventBusSetup`.
   Nowhere else.
-- **`Navigator` is a command-bus abstraction.** The singleton implementation is
-  `NavigatorEventBus` (`app/app/.../navigation/NavigatorEventBus.kt`). It stores a
+- **`Navigator` is a command-bus abstraction.** The app-scoped implementation is
+  `NavigatorEventBus` (`app/app/.../navigation/NavigatorEventBus.kt`), bound as
+  `@SingleIn(AppScope) @ContributesBinding(AppScope, binding<Navigator>()) @Inject`.
+  It stores a
   `SharedFlow<NavCommand>` and four emit methods. It does not store a
   `NavController`, `NavBackStackEntry`, `SavedStateHandle`, `Context`, or
   `Activity`. Anything else that claims to be a `Navigator` is wrong by definition.
 - **`NavHostController`, `NavController`, `NavBackStackEntry`, `SavedStateHandle`,
   `Activity`, and `Context` MUST NOT be retained** by any `ViewModel`, `Store`,
-  `Handler`, `Interactor`, `Mapper`, or Hilt-`@Singleton` binding. They MUST NOT be
+  `Handler`, `Interactor`, `Mapper`, or `@SingleIn(AppScope)` binding. They MUST NOT be
   passed in via constructor or function parameter to those layers.
 - **`SavedStateHandle` is composable-graph scoped.** It enters via
   `navComponentScreenWithState(<Feature>) { stateHandle, processor -> ... }` (which
@@ -235,7 +242,8 @@ The conformant fix shape, when migrating an existing screen:
 
 1. Replace whatever non-singleton "navigator" type the Store/Handler currently depends
    on with the `Navigator` interface from `core/ui/navigation`.
-2. Constructor-inject `Navigator` (Hilt provides the singleton `NavigatorEventBus`)
+2. Constructor-inject `Navigator` (the Metro app-graph provides the app-scoped
+   `NavigatorEventBus` via its `@ContributesBinding(AppScope, binding<Navigator>())`)
    and call `navigator.navTo(...)` / `popBack(...)` / `replaceTo(...)`.
 3. If the Store needs route arguments, expose them via `@Assisted screen: Screen.<X>`
    (assisted injection through the screen's `StoreFactory<Screen.<X>, StoreImpl>`).
@@ -246,7 +254,7 @@ The conformant fix shape, when migrating an existing screen:
    and reset the attr via `stateHandle.setAttrDefaultValue(...)` after consumption
    so re-entry does not retrigger it.
 
-References: `feature/exercise/.../ui/mvi/handler/NavigationHandler.kt` (Hilt
+References: `feature/exercise/.../ui/mvi/handler/NavigationHandler.kt` (Metro
 `@Inject Navigator`), `feature/exercise/.../ui/ExerciseGraph.kt` (PlanEditor
 saved-result consumption with reset), `feature/plan-editor/.../ui/mvi/handler/NavigationHandler.kt`
 (`navigator.popBack(planEditorSavedAttr.toPairValue(true))` to write the result on
@@ -260,13 +268,13 @@ When reviewing a PR that touches navigation, run through this list before approv
 - [ ] No `NavController`, `NavHostController`, `NavBackStackEntry`, `SavedStateHandle`,
       `Activity`, or `Context` field on any Store / ViewModel / Handler / Interactor.
 - [ ] No `NavController` / `NavHostController` constructor parameter on any
-      `@HiltViewModel` / `@AssistedInject` / `@ViewModelScoped` / `@Singleton`-bound
-      class.
+      `@Inject` Store / `@Assisted`-injected / `@SingleIn(<Feature>Scope)` /
+      `@SingleIn(AppScope)`-bound class.
 - [ ] No `SavedStateHandle` retained outside the composable graph block. It is
       acceptable as a parameter to a `navComponentScreenWithState` content lambda or
       to a private composable helper inside the graph; not as a Store/Handler field.
 - [ ] No new "navigator" type that wraps a `NavController` and is bound at
-      `@Singleton` scope. The only acceptable singleton command-bus is
+      `@SingleIn(AppScope)` scope. The only acceptable app-scoped command-bus is
       `NavigatorEventBus`.
 - [ ] No `remember(navController) { CommandBus(...) }` pattern. The command bus is
       a singleton; only the executor (`NavigationEventBusSetup`) is composition-scoped
@@ -279,7 +287,7 @@ When reviewing a PR that touches navigation, run through this list before approv
 - [ ] When a screen consumes a navigation result via `SavedStateHandle`, the consumer
       resets the value back to its default after handling, so re-entry does not
       retrigger the consumer.
-- [ ] Feature `NavigationHandler` carries `@ViewModelScoped` + `@Inject Navigator`.
+- [ ] Feature `NavigationHandler` carries `@SingleIn(<Feature>Scope)` + `@Inject Navigator`.
       No `@Suppress("MviHandlerConstructorRule")` is needed in new code.
 - [ ] No `Event.Navigate*` event was added. Navigation is `Action.Navigation.<X>`.
 - [ ] Graph composable does not call `navController.navigate(...)` /
@@ -319,7 +327,7 @@ Compose UI tests (see the `write-handler-test` and `write-ui-test` skills).
   See [architecture.md → Navigation flow (canonical pattern)](../../documentation/architecture.md#navigation-flow-canonical-pattern).
 - **Do not retain `NavController`, `NavHostController`, `NavBackStackEntry`,
   `SavedStateHandle`, `Activity`, or `Context` in a Store / Handler / ViewModel /
-  Interactor / Mapper / Hilt singleton.** They are owned by the composition that
+  Interactor / Mapper / `@SingleIn(AppScope)` binding.** They are owned by the composition that
   creates them. The only navigation surface allowed in those layers is the singleton
   command-bus `Navigator` (`NavigatorEventBus`).
 - **Do not invent a Component-backed `Navigator`.** Route arguments enter the Store
@@ -327,9 +335,11 @@ Compose UI tests (see the `write-handler-test` and `write-ui-test` skills).
   `Component<Screen>` / `RootComponent` / `Component.create(navigator)` machinery is
   gone. Constructing a "Navigator" in the feature layer that holds onto `NavController`
   is the regression this section exists to prevent.
-- **Do not mix scope annotations.** `HiltScopeRule` rejects `@Singleton` on a class whose
-  name matches the `@ViewModelScoped` set (and vice-versa). Pick the scope that matches
-  the class name; if neither fits, rename the class.
+- **Do not mix scope annotations.** `MetroScopeRule` rejects `@SingleIn(AppScope)` on a
+  class whose name matches the feature-scoped set (`*Handler` especially), and requires
+  `@SingleIn(AppScope)` on the app-scoped set (`Repository` / `DataStore` / `Database` /
+  `Storage` / `StoreDispatchers`). Pick the scope that matches the class name; if neither
+  fits, rename the class.
 - **Do not change rule sources to make a violation go away.** If a rule's intent is wrong
   for the codebase, that is a separate, larger conversation — open an issue rather than
   editing `lint-rules/.../lint_rules/*.kt` mid-feature work.

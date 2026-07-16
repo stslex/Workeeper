@@ -18,9 +18,8 @@ import org.jetbrains.kotlin.psi.KtClass
  * nothing at the call site. A binding annotated with the WRONG scope therefore COMPILES GREEN but
  * silently contributes to a different (or nonexistent) graph, so the app-scope `AppGraph`
  * (`@DependencyGraph(scope = AppScope::class)`) never aggregates it. At runtime the binding is simply
- * absent — a false-green with no compile signal, the same soundness class the pre-`d1cb7965`
- * `HiltScopeRule` gap had (it reads `@SingleIn` scope on Handlers only, and has zero
- * `@ContributesBinding` coverage).
+ * absent — a false-green with no compile signal, the same soundness class the `MetroScopeRule` gap has
+ * (it reads the `@SingleIn` scope on Handlers only, and has zero `@ContributesBinding` coverage).
  *
  * This rule fails any `@ContributesBinding` whose scope argument is not the PROJECT `AppScope`
  * (`io.github.stslex.workeeper.core.core.di.AppScope`). Two failure modes are caught:

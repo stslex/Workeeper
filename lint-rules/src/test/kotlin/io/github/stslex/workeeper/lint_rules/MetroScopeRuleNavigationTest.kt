@@ -7,28 +7,24 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
- * Coverage for the navigation-architecture-specific scope expectations of `HiltScopeRule`
+ * Coverage for the navigation-architecture-specific scope expectations of [MetroScopeRule]
  * after the lifecycle-safe navigation refactor.
  *
- * The rule walks `@Inject`-annotated classes and applies a name-based scope policy
- * (`ScopeClassType`):
- *   - `Repository`, `DataStore`, `Database`, `Storage`, `StoreDispatchers` → `@Singleton`.
- *   - `Handler`, `Interactor`, `Mapper` → `@ViewModelScoped`.
- *   - `Store` → `@HiltViewModel`.
+ * The rule walks `@Inject`-constructor classes whose name matches a dependency bucket
+ * ([ScopeClassType]) and requires a Metro `@SingleIn(<Scope>::class)`. A `*Handler` additionally
+ * must not be `@SingleIn(AppScope)`.
  *
- * The new navigation architecture introduces a few classes that must NOT be flagged
- * by these predicates:
- *   - `NavigatorEventBus` — singleton command bus, name carries the `Bus` suffix
- *     specifically to avoid matching any predicate.
- *   - Feature `NavigationHandler`s — `@ViewModelScoped @Inject Navigator` is the
- *     canonical shape after this refactor; the literal-name exemption in
- *     `MviHandlerConstructorRule` for `NavigationHandler` is back-compat only.
+ * The navigation architecture introduces classes that must NOT be flagged:
+ *   - `NavigatorEventBus` — singleton command bus; its `Bus` suffix keeps its name out of every
+ *     bucket predicate, so the rule never scope-checks it.
+ *   - Feature `NavigationHandler`s — `@SingleIn(<Feature>Scope) @Inject Navigator` is the canonical
+ *     shape after this refactor.
  *
  * These tests pin those invariants.
  */
-internal class HiltScopeRuleNavigationTest {
+internal class MetroScopeRuleNavigationTest {
 
-    private val rule = HiltScopeRule()
+    private val rule = MetroScopeRule()
 
     @Test
     fun `NavigatorEventBus is not flagged because the name does not match any predicate`() {
@@ -36,10 +32,10 @@ internal class HiltScopeRuleNavigationTest {
             """
             package io.github.stslex.workeeper.navigation
 
-            import javax.inject.Inject
-            import javax.inject.Singleton
+            import dev.zacsweers.metro.Inject
+            import dev.zacsweers.metro.SingleIn
 
-            @Singleton
+            @SingleIn(AppScope::class)
             class NavigatorEventBus @Inject constructor()
             """.trimIndent(),
         )
@@ -47,31 +43,33 @@ internal class HiltScopeRuleNavigationTest {
         assertEquals(
             0,
             findings.size,
-            "NavigatorEventBus should pass HiltScopeRule — name carries 'Bus' suffix to dodge all predicates.",
+            "NavigatorEventBus should pass MetroScopeRule — name carries 'Bus' suffix to dodge all predicates.",
         )
     }
 
     @Test
-    fun `NavigationHandler with ViewModelScoped passes`() {
+    fun `NavigationHandler with SingleIn feature scope passes`() {
         val findings = rule.lint(
             """
             package io.github.stslex.workeeper.feature.example.mvi.handler
 
-            import dagger.hilt.android.scopes.ViewModelScoped
-            import javax.inject.Inject
+            import dev.zacsweers.metro.Inject
+            import dev.zacsweers.metro.SingleIn
 
-            @ViewModelScoped
+            @SingleIn(ExampleScope::class)
             internal class NavigationHandler @Inject constructor(
                 private val navigator: Any,
             )
             """.trimIndent(),
         )
 
-        assertEquals(0, findings.size, "ViewModelScoped + @Inject NavigationHandler should pass")
+        assertEquals(0, findings.size, "@SingleIn(<FeatureScope>) + @Inject NavigationHandler should pass")
     }
 
     @Test
-    fun `NavigationHandler with Singleton triggers a finding`() {
+    fun `NavigationHandler with javax Singleton triggers a finding`() {
+        // @Singleton (javax.inject, retained for Metro includeJavax) is NOT a Metro scope — the graph
+        // ignores it. A name-matched ctor-@Inject Handler with only @Singleton is silently unscoped.
         val findings = rule.lint(
             """
             package io.github.stslex.workeeper.feature.example.mvi.handler
@@ -88,17 +86,17 @@ internal class HiltScopeRuleNavigationTest {
 
         assertTrue(
             findings.isNotEmpty(),
-            "NavigationHandler annotated @Singleton must be flagged — its name matches the @ViewModelScoped predicate.",
+            "NavigationHandler annotated @Singleton (not @SingleIn) must be flagged — its name matches a bucket.",
         )
     }
 
     @Test
-    fun `NavigationHandler missing both annotations triggers a finding`() {
+    fun `NavigationHandler missing any scope triggers a finding`() {
         val findings = rule.lint(
             """
             package io.github.stslex.workeeper.feature.example.mvi.handler
 
-            import javax.inject.Inject
+            import dev.zacsweers.metro.Inject
 
             internal class NavigationHandler @Inject constructor(
                 private val navigator: Any,
@@ -108,7 +106,7 @@ internal class HiltScopeRuleNavigationTest {
 
         assertTrue(
             findings.isNotEmpty(),
-            "NavigationHandler with @Inject but no scope annotation must be flagged.",
+            "NavigationHandler with @Inject but no @SingleIn must be flagged.",
         )
     }
 
@@ -127,9 +125,9 @@ internal class HiltScopeRuleNavigationTest {
     }
 
     @Test
-    fun `NavigationModule has no @Inject constructor and is skipped`() {
-        // Hilt @Module classes are not constructor-injected. The rule short-circuits at the
-        // `hasInject` check and does not require any scope annotation.
+    fun `NavigationModule has no ctor Inject and is skipped`() {
+        // A class with no constructor @Inject short-circuits at the `hasInject` check and is not
+        // scope-checked.
         val findings = rule.lint(
             """
             package io.github.stslex.workeeper.di
