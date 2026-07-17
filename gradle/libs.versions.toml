@@ -43,12 +43,14 @@ robolectricExt = "0.9.0"
 gms = "4.5.0"
 fbCrashlytics = "3.0.7"
 
-room = "2.8.4"
-# KMP toolchain (Phase C) — declared but UNAPPLIED in C.0; the Room 2->3 migration and
-# the K/N SQLite driver land when C.1 converts the first module. No module references
-# these yet, so they are inert until then.
+# room = "2.8.4" was the androidx.room 2.x line; superseded by the room3 (androidx.room3)
+# coordinates below, which are the applied ones. The 2.x version key is gone with its coords.
+# androidx.sqlite 2.7.0 (transitive of room3-runtime): sqlite-framework carries the
+# AndroidSQLiteDriver, now REQUIRED via setDriver() on every RoomDatabase.Builder in
+# Room 3. sqlite-bundled (K/N BundledSQLiteDriver) stays declared but INERT — Android
+# uses the framework driver; bundled lands when C.1 converts the DB module to K/N.
 room3 = "3.0.0"
-sqliteBundled = "2.7.0"
+sqlite = "2.7.0"
 serialization = "1.11.0"
 datetime = "0.8.0"
 paging = "3.5.0"
@@ -82,7 +84,7 @@ kotlin-gradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", ve
 kotlin-serialization = { module = "org.jetbrains.kotlin:kotlin-serialization", version.ref = "kotlin" }
 ksp-gradlePlugin = { group = "com.google.devtools.ksp", name = "com.google.devtools.ksp.gradle.plugin", version.ref = "ksp" }
 android-tools-common = { group = "com.android.tools", name = "common", version.ref = "androidTools" }
-room-gradlePlugin = { group = "androidx.room", name = "room-gradle-plugin", version.ref = "room" }
+room-gradlePlugin = { group = "androidx.room3", name = "room3-gradle-plugin", version.ref = "room3" }
 composeCompiler-gradlePlugin = { group = "org.jetbrains.compose", name = "compose-gradle-plugin", version.ref = "composeGradle" }
 fbCrashlytics-gradlePlugin = { module = "com.google.firebase:firebase-crashlytics-gradle", version.ref = "fbCrashlytics" }
 
@@ -153,18 +155,19 @@ robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "
 robolectric-junit5-extension = { group = "tech.apter.junit5.jupiter", name = "robolectric-extension", version.ref = "robolectricExt" }
 androidx-test = { group = "androidx.test", name = "core-ktx", version.ref = "androidxTest" }
 
-androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
-androidx-room-paging = { group = "androidx.room", name = "room-paging", version.ref = "room" }
-androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
-androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
-androidx-room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
+# Room 3.0 (androidx.room3). The alias names keep the -room- shape so consumers and the
+# convention plugin are unchanged; only the group/artifact moved from androidx.room ->
+# androidx.room3. room3 folded the old room-ktx (coroutine/Flow support) into room3-runtime,
+# so there is no room3-ktx artifact and the bundle drops it.
+androidx-room-runtime = { group = "androidx.room3", name = "room3-runtime", version.ref = "room3" }
+androidx-room-paging = { group = "androidx.room3", name = "room3-paging", version.ref = "room3" }
+androidx-room-compiler = { group = "androidx.room3", name = "room3-compiler", version.ref = "room3" }
+androidx-room-testing = { group = "androidx.room3", name = "room3-testing", version.ref = "room3" }
 
-# Room 3.0 (androidx.room3) + BundledSQLiteDriver on K/N — UNAPPLIED in C.0. These replace
-# the androidx.room 2.8.4 coordinates above during the Room 2->3 migration (a later phase);
-# both sets coexist in the catalog only until that swap is committed.
-androidx-sqlite-bundled = { group = "androidx.sqlite", name = "sqlite-bundled", version.ref = "sqliteBundled" }
-androidx-room3-runtime = { group = "androidx.room3", name = "room3-runtime", version.ref = "room3" }
-androidx-room3-compiler = { group = "androidx.room3", name = "room3-compiler", version.ref = "room3" }
+# AndroidSQLiteDriver (framework SQLite) — the Room 3 setDriver() driver on Android.
+androidx-sqlite-framework = { group = "androidx.sqlite", name = "sqlite-framework", version.ref = "sqlite" }
+# K/N BundledSQLiteDriver — declared but inert (Android does not need it; lands with C.1).
+androidx-sqlite-bundled = { group = "androidx.sqlite", name = "sqlite-bundled", version.ref = "sqlite" }
 
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 androidx-datastore-core = { group = "androidx.datastore", name = "datastore-core", version.ref = "datastore" }
@@ -216,7 +219,7 @@ serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref 
 application = { id = "com.android.application", version.ref = "androidGradlePlugin" }
 library = { id = "com.android.library", version.ref = "androidGradlePlugin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
-room = { id = "androidx.room", version.ref = "room" }
+room = { id = "androidx.room3", version.ref = "room3" }
 robolectric-junit5 = { id = "tech.apter.junit5.jupiter.robolectric-extension-gradle-plugin", version.ref = "robolectricExt" }
 gms = { id = "com.google.gms.google-services", version.ref = "gms" }
 firebaseCrashlytics = { id = "com.google.firebase.crashlytics", version.ref = "fbCrashlytics" }
@@ -276,6 +279,5 @@ test = [
 
 room = [
     "androidx-room-runtime",
-    "androidx-room-paging",
-    "androidx-room-ktx"
+    "androidx-room-paging"
 ]

@@ -2,7 +2,8 @@
 package io.github.stslex.workeeper.core.data.database
 
 import android.content.Context
-import androidx.room.Room
+import androidx.room3.Room
+import androidx.sqlite.driver.AndroidSQLiteDriver
 import io.github.stslex.workeeper.core.data.database.migration.MIGRATIONS
 
 /**
@@ -35,5 +36,8 @@ fun buildAppDatabase(context: Context): AppDatabase = Room
         AppDatabase::class.java,
         AppDatabase.NAME,
     )
+    // Room 3 requires an explicit driver; AndroidSQLiteDriver is the framework SQLite
+    // implementation Room 2.8.4 used implicitly, so the on-disk format is unchanged.
+    .setDriver(AndroidSQLiteDriver())
     .apply { MIGRATIONS.forEach { addMigrations(it) } }
     .build()

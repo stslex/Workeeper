@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.database.exercise
 
-import androidx.room.Room
+import androidx.room3.Room
+import androidx.sqlite.driver.AndroidSQLiteDriver
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stslex.workeeper.core.data.database.AppDatabase
@@ -44,6 +45,7 @@ internal class ExerciseDaoRecentlyTrainedTest {
             ApplicationProvider.getApplicationContext(),
             AppDatabase::class.java,
         )
+            .setDriver(AndroidSQLiteDriver())
             .allowMainThreadQueries()
             .build()
     }

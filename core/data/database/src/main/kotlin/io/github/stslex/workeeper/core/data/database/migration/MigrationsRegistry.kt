@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.database.migration
 
-import androidx.room.migration.Migration
+import androidx.room3.migration.Migration
 
 /**
  * Live schema version of `AppDatabase`. The `@Database(version = APP_DATABASE_VERSION)`

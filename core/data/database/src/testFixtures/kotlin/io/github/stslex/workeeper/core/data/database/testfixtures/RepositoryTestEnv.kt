@@ -2,8 +2,9 @@
 package io.github.stslex.workeeper.core.data.database.testfixtures
 
 import android.app.Application
-import androidx.room.Room
-import androidx.room.withTransaction
+import androidx.room3.Room
+import androidx.room3.withTransaction
+import androidx.sqlite.driver.AndroidSQLiteDriver
 import androidx.test.core.app.ApplicationProvider
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
@@ -32,6 +33,7 @@ class RepositoryTestEnv {
             ApplicationProvider.getApplicationContext(),
             AppDatabase::class.java,
         )
+        .setDriver(AndroidSQLiteDriver())
         .allowMainThreadQueries()
         .build()
 

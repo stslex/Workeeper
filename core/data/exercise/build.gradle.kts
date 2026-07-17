@@ -22,7 +22,8 @@ dependencies {
     implementation(libs.androidx.compose.runtime)
 
     implementation(libs.androidx.paging.runtime)
-    implementation(libs.androidx.room.ktx)
+    // room3 folded the old room-ktx (coroutine/Flow support) into room3-runtime.
+    implementation(libs.androidx.room.runtime)
     testImplementation(libs.androidx.paging.testing)
     testImplementation(testFixtures(project(":core:data:database")))
 }

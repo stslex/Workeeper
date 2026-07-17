@@ -30,8 +30,12 @@ dependencies {
 
     testFixturesImplementation(project(":core:core"))
     testFixturesImplementation(libs.bundles.room)
+    // RepositoryTestEnv builds a Room 3 DB and must setDriver(AndroidSQLiteDriver()).
+    testFixturesImplementation(libs.androidx.sqlite.framework)
     testFixturesImplementation(libs.androidx.test)
     testFixturesImplementation(libs.coroutines)
 
     androidTestImplementation(libs.bundles.android.test)
+    // runTest for the suspend Room 3 MigrationTestHelper API (createDatabase / runMigrationsAndValidate).
+    androidTestImplementation(libs.coroutine.test)
 }
