@@ -6,7 +6,6 @@ plugins {
     alias(libs.plugins.serialization) apply false
     alias(libs.plugins.ksp) apply false
     alias(libs.plugins.room) apply false
-    alias(libs.plugins.vkompose) apply false
     alias(libs.plugins.composeCompiler) apply false
     alias(libs.plugins.robolectric.junit5) apply false
     alias(libs.plugins.gms) apply false
