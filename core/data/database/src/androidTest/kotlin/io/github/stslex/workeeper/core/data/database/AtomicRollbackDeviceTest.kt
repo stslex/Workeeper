@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.database
 
-import androidx.room.Room
-import androidx.room.withTransaction
+import androidx.room3.Room
+import androidx.room3.immediateTransaction
+import androidx.room3.useWriterConnection
+import androidx.sqlite.driver.AndroidSQLiteDriver
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stslex.workeeper.core.core.coroutine.asyncForEach
@@ -53,9 +55,11 @@ internal class AtomicRollbackDeviceTest {
     private lateinit var database: AppDatabase
     private val tagDao get() = database.tagDao
 
-    /** Production's DbTransitionRunner shape, inline. */
+    /** Production's DbTransitionRunner shape, inline (Room 3 useWriterConnection/immediateTransaction). */
     private suspend fun <T> transition(block: suspend CoroutineScope.() -> T): T =
-        database.withTransaction { coroutineScope { block() } }
+        database.useWriterConnection { transactor ->
+            transactor.immediateTransaction { coroutineScope { block() } }
+        }
 
     @Before
     fun setUp() {
@@ -64,6 +68,7 @@ internal class AtomicRollbackDeviceTest {
         // Real file-backed DB on the device — NOT in-memory, so transaction/connection
         // semantics match production, not Robolectric's shadow SQLite.
         database = Room.databaseBuilder(context, AppDatabase::class.java, PROBE_DB)
+            .setDriver(AndroidSQLiteDriver())
             .build()
     }
 

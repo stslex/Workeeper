@@ -7,10 +7,13 @@ import androidx.sqlite.execSQL
 import androidx.test.platform.app.InstrumentationRegistry
 import io.github.stslex.workeeper.core.data.database.migration.Migration6
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import java.io.File
 import kotlin.uuid.Uuid
 
 /**
@@ -19,10 +22,10 @@ import kotlin.uuid.Uuid
  * Each test seeds a v(N) DB through raw SQL, runs the matching `Migration` object via
  * [MigrationTestHelper.runMigrationsAndValidate], and asserts the resulting v(N+1) DB
  * has the expected shape and data. Room 3 removed the `validateDroppedTables` argument
- * from `runMigrationsAndValidate`; the structural-drift guard is now asserted
- * explicitly in [migrate5to6_validatesNoUnregisteredTablesSurvive] against
- * `sqlite_master`, so inadvertent drift still fails the build regardless of Room's
- * (undocumented) default table-validation behaviour.
+ * from `runMigrationsAndValidate`; a device probe (a stale unregistered table injected at
+ * v5) confirmed Room 3's `runMigrationsAndValidate` does NOT validate dropped/extra tables
+ * by default — it passes. So [migrate5to6_validatesNoUnregisteredTablesSurvive]'s explicit
+ * `sqlite_master` assertion is the ONLY structural-drift guard, not belt-and-braces.
  */
 internal class AppDatabaseMigrationTest {
 
@@ -33,6 +36,23 @@ internal class AppDatabaseMigrationTest {
         AndroidSQLiteDriver(),
         AppDatabase::class,
     )
+
+    // Room 3's File-based MigrationTestHelper points at a real on-disk file that persists
+    // between test methods; a stale file makes the next createDatabase() try to migrate an
+    // existing DB ("A migration should never occur while creating a new database"). Delete
+    // it (+ WAL/SHM sidecars) before and after each test.
+    @Before
+    fun clearDbFile() = deleteTestDb()
+
+    @After
+    fun cleanUpDbFile() = deleteTestDb()
+
+    private fun deleteTestDb() {
+        val base = InstrumentationRegistry.getInstrumentation().targetContext.getDatabasePath(TEST_DB)
+        base.delete()
+        File("${base.path}-wal").delete()
+        File("${base.path}-shm").delete()
+    }
 
     @Test
     fun migrate5to6_addsIsAdhocColumnDefaultZero() = runTest {
