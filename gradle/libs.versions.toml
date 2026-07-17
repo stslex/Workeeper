@@ -16,7 +16,7 @@ versionCode = "49"
 ktx = "1.17.0"
 material = "1.14.0"
 appcompat = "1.7.1"
-immutableCollection = "0.4.0"
+immutableCollection = "0.5.1"
 lifecycle = "2.10.0"
 coroutines = "1.11.0"
 
