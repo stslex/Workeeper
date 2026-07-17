@@ -4,12 +4,12 @@ kotlin = "2.4.10"
 # KSP 2.3.9 (not 2.3.6): 2.3.6 silently skips KMP/native codegen — a proven false-green
 # (Probe-2). KSP2 is Kotlin-decoupled; drives Room's DAO codegen (the only KSP consumer).
 ksp = "2.3.9"
-androidGradlePlugin = "9.1.0"
+androidGradlePlugin = "9.3.0"
 androidTools = "32.3.0"
 
 minSdk = "28"
 targetSdk = "37"
-compileSdk = "36"
+compileSdk = "37"
 versionName = "1.48.0"
 versionCode = "49"
 
