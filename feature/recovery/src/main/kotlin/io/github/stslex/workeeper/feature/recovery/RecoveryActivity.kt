@@ -43,7 +43,7 @@ import java.io.File
  * (`getPreMigrationBackupFile`, `availableMigrationsLabel`,
  * `exportStartupMigrationFailure`). Calling
  * `currentSchemaVersion`/`captureSnapshot`/`restoreFromSnapshot`/
- * `preserveCurrentDb` would force `appDatabase.openHelper.{writable,readable}Database`
+ * `preserveCurrentDb` would open a `SQLiteConnection` to the live `AppDatabase`
  * — which triggers the migration we are trying to avoid. Tests verify
  * the four buttons stay on Room-free paths.
  *
@@ -62,7 +62,7 @@ import java.io.File
 // Reads its two app-scope deps from the Metro app graph via
 // context.appGraphContract() (library module → public seam). ROOM-FREE PRESERVED: resolving
 // databaseSnapshotProvider + recoveryDiagnosticsExporter builds the graph (buildAppDatabase = a cold
-// Room.build(), no SQLite open) and constructs the two impls (ctors only store refs — no openHelper);
+// Room.build(), no SQLite open) and constructs the two impls (ctors only store refs — no connection open);
 // the DB opens only when a forbidden method is called, which this activity never does.
 class RecoveryActivity : ComponentActivity() {
 

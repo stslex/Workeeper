@@ -84,6 +84,6 @@ internal class MigrationGraphTest {
 
     private fun stubMigration(start: Int, end: Int): Migration =
         object : Migration(start, end) {
-            override fun migrate(connection: SQLiteConnection) = Unit
+            override suspend fun migrate(connection: SQLiteConnection) = Unit
         }
 }

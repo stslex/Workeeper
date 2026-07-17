@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.database.export
 
-import androidx.room3.withTransaction
+import androidx.room3.deferredTransaction
+import androidx.room3.useReaderConnection
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
@@ -23,6 +24,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlin.uuid.Uuid
@@ -54,33 +56,44 @@ public class DatabaseJsonExporterImpl @Inject constructor(
         exportedAtEpochMs: Long,
     ): ByteArray = withContext(dispatcher) {
         // Process-stable (only changes on migration at open); read once, outside the transaction.
-        val dbSchemaVersion = database.openHelper.readableDatabase.version
+        // Room 3 removed `openHelper`; read PRAGMA user_version through a reader connection.
+        val dbSchemaVersion = database.useReaderConnection { connection ->
+            connection.usePrepared("PRAGMA user_version") { stmt ->
+                if (stmt.step()) stmt.getLong(0).toInt() else 0
+            }
+        }
         // One consistent snapshot: every table read + the in-memory index build runs inside a
-        // single Room transaction. The export is fire-and-forget (spec D2) so it can overlap live
-        // workout edits; without the transaction each DAO call would observe its own snapshot and
-        // an interleaved insert could surface a child row whose parent/name row was not read (e.g.
-        // `exerciseNameByUuid` falling back to ""). The transaction pins all reads to one state.
-        val snapshot = database.withTransaction {
-            val exercises = async { database.exerciseDao.getAll() }
-            val trainings = async { database.trainingDao.getAll() }
-            val index = async { buildIndex(exercises) }
-            WorkoutExportDto(
-                schemaVersion = EXPORT_SCHEMA_VERSION,
-                exportedAt = WorkoutExportMapper.epochToIso(exportedAtEpochMs),
-                source = SourceExportDto(
-                    appVersion = appVersion,
-                    dbSchemaVersion = dbSchemaVersion,
-                    deviceModel = deviceModel,
-                ),
-                exercises = exercises.await().map { entity ->
-                    WorkoutExportMapper.exercise(
-                        entity,
-                        index.await().tagsByExercise[entity.uuid].orEmpty(),
+        // single Room read transaction. The export is fire-and-forget (spec D2) so it can overlap
+        // live workout edits; without the transaction each DAO call would observe its own snapshot
+        // and an interleaved insert could surface a child row whose parent/name row was not read
+        // (e.g. `exerciseNameByUuid` falling back to ""). The transaction pins all reads to one state.
+        // Room 3: `withTransaction {}` → `useReaderConnection { it.deferredTransaction {} }` (reads only);
+        // `coroutineScope` is nested INSIDE so the `async {}` children reuse the transaction connection.
+        val snapshot = database.useReaderConnection { transactor ->
+            transactor.deferredTransaction {
+                coroutineScope {
+                    val exercises = async { database.exerciseDao.getAll() }
+                    val trainings = async { database.trainingDao.getAll() }
+                    val index = async { buildIndex(exercises) }
+                    WorkoutExportDto(
+                        schemaVersion = EXPORT_SCHEMA_VERSION,
+                        exportedAt = WorkoutExportMapper.epochToIso(exportedAtEpochMs),
+                        source = SourceExportDto(
+                            appVersion = appVersion,
+                            dbSchemaVersion = dbSchemaVersion,
+                            deviceModel = deviceModel,
+                        ),
+                        exercises = exercises.await().map { entity ->
+                            WorkoutExportMapper.exercise(
+                                entity,
+                                index.await().tagsByExercise[entity.uuid].orEmpty(),
+                            )
+                        },
+                        trainings = trainings.await()
+                            .map { training -> buildTraining(training, index.await()) },
                     )
-                },
-                trainings = trainings.await()
-                    .map { training -> buildTraining(training, index.await()) },
-            )
+                }
+            }
         }
         // Encode outside the transaction — pure CPU, no DB access; keeps the transaction short.
         json.encodeToString(snapshot).toByteArray(Charsets.UTF_8)

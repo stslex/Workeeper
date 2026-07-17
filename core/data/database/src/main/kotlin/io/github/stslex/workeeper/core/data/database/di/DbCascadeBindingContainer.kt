@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.database.di
 
-import androidx.room3.withTransaction
+import androidx.room3.immediateTransaction
+import androidx.room3.useWriterConnection
 import dev.zacsweers.metro.BindingContainer
 import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.Provides
@@ -21,6 +22,7 @@ import io.github.stslex.workeeper.core.data.database.training.TrainingDao
 import io.github.stslex.workeeper.core.data.database.training.TrainingExerciseDao
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 
 /**
@@ -54,8 +56,17 @@ public object DbCascadeBindingContainer {
         override suspend fun <T> invoke(
             block: suspend CoroutineScope.() -> T,
         ): T = withContext(ioDispatcher) {
-            db.withTransaction {
-                block()
+            // Room 3 replaced `withTransaction {}` with `useWriterConnection { it.immediateTransaction {} }`
+            // (per the Room KMP migration guide — the documented equivalent). `coroutineScope` is nested
+            // INSIDE so the receiver `block` runs inherits the transaction context, and any `async {}`
+            // children participate in the same transaction (identical rollback semantics to the former
+            // `withTransaction`). Verified by the atomicity probe in AtomicRollbackTest.
+            db.useWriterConnection { transactor ->
+                transactor.immediateTransaction {
+                    coroutineScope {
+                        block()
+                    }
+                }
             }
         }
     }

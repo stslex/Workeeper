@@ -25,8 +25,8 @@ import io.github.stslex.workeeper.core.data.database.migration.MIGRATIONS
  * to the recovery flows, never a silent wipe).
  *
  * **Room-free (P-DBROOT invariant).** `Room.databaseBuilder(...).build()` returns the handle WITHOUT
- * opening the SQLite file — the `SupportSQLiteOpenHelper` opens lazily on the first
- * `openHelper.{writable,readable}Database` access. So constructing the DB here does not trigger a
+ * opening the SQLite file — Room 3 opens the `SQLiteConnection` lazily on the first DAO / pragma
+ * access (via the configured `SQLiteDriver`). So constructing the DB here does not trigger a
  * migration; `RecoveryActivity`'s Room-free bootstrap safety (Phase-0.9) is preserved on this non-Hilt
  * path exactly as on the Hilt one.
  */
