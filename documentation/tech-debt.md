@@ -36,6 +36,14 @@ Each tracked location should carry a `TODO(tech-debt): <category> — <ref>` mar
 
 ---
 
+## Room 2→3 cross-version upgrade proof — manual, NOT in the automated suite
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟡 | [core/data/database/.../Room3RoundTripDeviceTest.kt](../core/data/database/src/androidTest/kotlin/io/github/stslex/workeeper/core/data/database/Room3RoundTripDeviceTest.kt) | **Two distinct guarantees — one automated, one manual.** (1) COVERED repeatably by `Room3RoundTripDeviceTest` (normal `connectedAndroidTest`): Room 3 round-trips the production schema on a real file — write → close → re-open a fresh `AppDatabase` on the same file → read exact values → PagingSource DAO → transactional write persists (self-seeding; known-negative proves the read can observe absence). (2) NOT automated: that a file written *specifically by the Room 2.8.4 runtime* is readable by Room 3 — the real Play cross-version upgrade path. Proven ONCE manually on 2026-07-18 (Room-2 write APK + Room-3 read APK, 3/3, plus a real dev-app launch on the Room-2 file with zero Room integrity/migration/driver exceptions), but it is NOT in the suite because it requires a cross-branch, two-APK, seeded-file dance that `connectedAndroidTest`'s auto-uninstall defeats. **To re-run the cross-version proof before the final land:** (a) on a Room-2 tip author a test that writes the real file-backed `app.db` via the production builder with known values, `./gradlew :core:data:database:installDebugAndroidTest` then `adb shell am instrument -w -e class <FQN> io.github.stslex.workeeper.core.data.database.test/androidx.test.runner.AndroidJUnitRunner`; (b) `adb shell run-as io.github.stslex.workeeper.core.data.database.test ls -l databases/` → confirm `app.db` + size (the "before"); (c) switch to the Room-3 tip, `installDebugAndroidTest` (install -r, NO uninstall), `run-as ls -l` AGAIN and confirm `app.db` survived byte-identical (the ★ vacuity gate — if gone, the test is vacuous, STOP); (d) `am instrument` a Room-3 read test asserting the exact Room-2 values. Do NOT use `connectedAndroidTest` for this — it uninstalls the test APK and wipes the file. **Trigger to act:** before the final ff-merge, if the cross-version proof is wanted fresh; or if `installDebugAndroidTest`/AGP behaviour changes. |
+
+---
+
 ## Flaky UI test — ApplicationBottomBarTest.navigateToExercisesAndBack
 
 | Severity | Location | Description |
