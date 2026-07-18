@@ -9,15 +9,12 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 
 /**
- * KMP C.1 app-collapse Phase 1 (leaf E-proof) — pure-JVM half.
- *
- * Proves the Metro-OWNED side of the adopt-back seam on the real [AppGraph]:
- *  1. The graph CONSTRUCTS the leaf ([AnalyticsHolder]) — first app-scoped binding Metro owns.
+ * Pure-JVM identity invariants for a Metro-owned app-scoped binding on the real [AppGraph],
+ * exercised through the [AnalyticsHolder] leaf accessor (Metro codegen, no Android runtime):
+ *  1. The graph CONSTRUCTS the leaf ([AnalyticsHolder]).
  *  2. The leaf is `@SingleIn(AppScope)`, so repeated reads of `appGraph.analyticsHolder` return the
- *     SAME instance (`===`). This is the single-owner invariant the adopt-back `@Provides` relies on:
- *     the delegating Hilt provider returns `appGraph.analyticsHolder`, so if the graph itself did not
- *     retain one instance, every Hilt read would diverge. Metro codegen, no Android runtime — the
- *     cross-side Hilt→Metro `===` is asserted in the instrumented `AppGraphAdoptBackSeamTest`.
+ *     SAME instance (`===`) — the single-owner-per-graph invariant.
+ *  3. Ownership is per-graph, not global: two independently-built graphs own distinct instances.
  */
 internal class AppGraphIdentityTest {
 
@@ -45,9 +42,9 @@ internal class AppGraphIdentityTest {
         val first = graph.analyticsHolder
         val second = graph.analyticsHolder
 
-        // @SingleIn(AppScope) → the graph retains ONE instance. This is what makes the adopt-back
-        // delegating @Provides safe: every Hilt-side read of `appGraph.analyticsHolder` is the SAME
-        // object, never a fresh construction (which would be the double-handle / === split class).
+        // @SingleIn(AppScope) → the graph retains ONE instance: every read of `appGraph.analyticsHolder`
+        // is the SAME object, never a fresh construction (a re-provided binding would be the
+        // double-handle / === split class this guards against).
         assertSame(
             first,
             second,

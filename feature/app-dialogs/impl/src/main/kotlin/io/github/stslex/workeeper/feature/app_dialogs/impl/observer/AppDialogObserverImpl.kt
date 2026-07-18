@@ -25,11 +25,11 @@ import kotlinx.coroutines.flow.asSharedFlow
  * emitter). `BufferOverflow.SUSPEND` ensures we never silently drop an
  * emission — the emitter waits for the subscriber to drain.
  *
- * **Bootstrap dependency.** No subscriber = no delivery. Construct via the
- * Hilt `@EntryPoint` accessor at `BaseApplication.onCreate` so the
- * subscriber-side handler's `init { ... launchIn(scope) }` runs before any
- * `MainActivity.onCreate` and registers a collector. See the [AppDialogObserver]
- * KDoc for the full bootstrap contract.
+ * **Bootstrap dependency.** No subscriber = no delivery. Constructed at
+ * `BaseApplication.onCreate` by reading the graph's `appDialogObserverImpl`
+ * accessor (`appGraph.appDialogObserverImpl`) so the subscriber-side handler's
+ * `init { ... launchIn(scope) }` runs before any `MainActivity.onCreate` and
+ * registers a collector. See the [AppDialogObserver] KDoc for the full bootstrap contract.
  *
  * DI (App-Scope Collapse Step 3): Metro-owned. `@ContributesBinding(AppScope)`
  * binds it to [AppDialogObserver] for the cross-module consumer readers

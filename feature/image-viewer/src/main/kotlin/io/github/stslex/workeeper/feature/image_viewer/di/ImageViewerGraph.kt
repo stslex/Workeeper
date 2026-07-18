@@ -17,7 +17,8 @@ import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStor
  * so the graph exposes the assisted [ImageViewerStoreImpl.Factory] as its root — never the Store.
  *
  * The 4 app-scoped deps are `@SingleIn(AppScope)` bindings from the app graph, handed in as
- * `@Provides` bound instances. The one `@Binds` (ImageViewerHandlerStore). No dispatcher, no Context.
+ * `@Provides` bound instances. The sole `@Binds` maps `ImageViewerHandlerStoreImpl` to
+ * `ImageViewerHandlerStore`. No dispatcher, no Context.
  */
 @DependencyGraph(scope = ImageViewerScope::class)
 internal interface ImageViewerGraph {

@@ -45,11 +45,14 @@ abstract class BaseApplication :
     abstract val isDebugLoggingAllow: Boolean
 
     /**
-     * The Metro app-scope graph, held for the whole process. `by lazy` so it is created on first access
-     * (a feature Store construction, well after `onCreate`). Constructs the two `create()` roots directly,
-     * Hilt-free: [buildAppDatabase] (a cold `Room.databaseBuilder(...).build()` — no SQLite open, so
-     * `RecoveryActivity`'s Room-free bootstrap safety holds) and [ImageStorageImpl] via
-     * [buildImageStorageOrNull]; `@IODispatcher` is `Dispatchers.IO` directly (the graph is under
+     * The Metro app-scope graph, held for the whole process. `by lazy` so it is created on first access.
+     * In production that first access is DURING `onCreate` — [onCreateGraphBootstrap] →
+     * [handleRecoveryPreflightChain] reads `appGraph` to run the recovery/startup-migration pre-flight;
+     * only the test override defers/skips that, so under test the graph is created on a later access.
+     * Constructs the two `create()` roots directly, Hilt-free: [buildAppDatabase] (a cold
+     * `Room.databaseBuilder(...).build()` — no SQLite open, so `RecoveryActivity`'s Room-free bootstrap
+     * safety holds) and [ImageStorageImpl] via [buildImageStorage]; `@IODispatcher` is `Dispatchers.IO`
+     * directly (the graph is under
      * construction — reading its own dispatcher would cycle; `Dispatchers.IO` is the identical stateless
      * process-singleton the graph's accessor returns).
      */

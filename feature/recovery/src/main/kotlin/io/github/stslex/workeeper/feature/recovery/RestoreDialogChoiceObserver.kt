@@ -38,9 +38,10 @@ import io.github.stslex.workeeper.feature.recovery.R as RecoveryR
  * undo / report / export side-effects, then calls
  * [AppDialogObserver.acknowledgeReaction] to clear the dialog.
  *
- * **Bootstrap (BLOCKER 1).** This `@Singleton` is constructed at
- * `BaseApplication.onCreate` via a Hilt `@EntryPoint`, mirroring the
- * existing `RecoveryEntryPoint` and `ImageStorageEntryPoint` patterns.
+ * **Bootstrap (BLOCKER 1).** This `@SingleIn(AppScope)` observer is
+ * `@ContributesBinding(AppScope)`-bound to [RecoveryBootstrap] and constructed at
+ * `BaseApplication.onCreate` by eagerly reading the `recoveryBootstrap` accessor on
+ * the app graph (`appGraph.recoveryBootstrap`).
  * Construction triggers the `init { ... launchIn(scope) }` block below,
  * registering a subscriber on the observer's `SharedFlow` BEFORE any
  * `MainActivity.onCreate` runs. The first user dispatch lands on a live
