@@ -25,7 +25,9 @@ import kotlin.uuid.Uuid
  * from `runMigrationsAndValidate`; a device probe (a stale unregistered table injected at
  * v5) confirmed Room 3's `runMigrationsAndValidate` does NOT validate dropped/extra tables
  * by default — it passes. So [migrate5to6_validatesNoUnregisteredTablesSurvive]'s explicit
- * `sqlite_master` assertion is the ONLY structural-drift guard, not belt-and-braces.
+ * `sqlite_master` assertion is the ONLY guard for unregistered-table drift, not
+ * belt-and-braces. (Column / index / FK drift is still caught by `runMigrationsAndValidate`'s
+ * own schema validation against `6.json` — see that test's KDoc.)
  */
 internal class AppDatabaseMigrationTest {
 
@@ -238,13 +240,18 @@ internal class AppDatabaseMigrationTest {
     }
 
     /**
-     * Structural-drift guard. Room 2's `runMigrationsAndValidate(..., validateDroppedTables
-     * = true, ...)` failed the build if the post-migration DB carried tables absent from the
-     * exported schema; Room 3 dropped that parameter. This test reproduces the guarantee
-     * explicitly: after the migration, the set of user tables in `sqlite_master` must equal
-     * the tables declared by [AppDatabase]'s exported v6 schema — excluding SQLite internals
-     * and Room's own bookkeeping table. Any inadvertent structural drift (a stray table left
-     * by a future migration) fails here.
+     * Unregistered-table survival guard. Room 2's `runMigrationsAndValidate(...,
+     * validateDroppedTables = true, ...)` failed the build if the post-migration DB carried
+     * tables absent from the exported schema; Room 3 dropped that parameter. This test
+     * reproduces THAT specific guarantee explicitly: after the migration, the set of user
+     * tables in `sqlite_master` must equal the tables declared by [AppDatabase]'s exported v6
+     * schema — excluding SQLite internals and Room's own bookkeeping table. It catches only
+     * TABLE add/drop drift (e.g. a stray table left by a future migration). Column / index /
+     * foreign-key drift is NOT covered here — that is caught separately by
+     * `runMigrationsAndValidate`'s core schema validation against the exported `6.json`.
+     *
+     * NOTE: [EXPECTED_V6_TABLES] is a manual maintenance point — it must be kept in sync with
+     * the `tableName`s in `schemas/.../AppDatabase/6.json` (updated whenever the entity set changes).
      */
     @Test
     fun migrate5to6_validatesNoUnregisteredTablesSurvive() = runTest {

@@ -239,9 +239,6 @@ internal class DatabaseSnapshotProviderImplTest {
         try {
             val names = restored.tagDao.observeAll().first().map { it.name }.toSet()
             assertEquals(setOf("Original"), names)
-            // The successful DAO read above IS proof the restored DB opens (Room 3 removed
-            // `openHelper`); a second independent read confirms the connection is live.
-            assertNotNull(restored.tagDao.observeAll().first())
         } finally {
             restored.close()
         }
