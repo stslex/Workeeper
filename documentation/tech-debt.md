@@ -36,6 +36,14 @@ Each tracked location should carry a `TODO(tech-debt): <category> — <ref>` mar
 
 ---
 
+## Flaky UI test — ApplicationBottomBarTest.navigateToExercisesAndBack
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟡 | [app/app/.../ApplicationBottomBarTest.kt](../app/app/src/androidTest/kotlin/io/github/stslex/workeeper/app/ApplicationBottomBarTest.kt) | **`navigateToExercisesAndBack` is intermittently flaky: 1/3 fail on the room3 branch, 0/2 on the Room-2 baseline; it failed once under heavy emulator load (full suites took 12–36 min) and passed 4 consecutive times since.** Sample too small to conclude pre-existing vs environmental — do NOT read this as "proven pre-existing". The mechanism is a race by construction: `checkAppClosed()` calls `assertDoesNotExist(AppRoot)` immediately after `Espresso.pressBack()`, with no wait for the activity-finish/recompose to settle. It loads a PagingSource from Room on the way to Exercises, so it is not Room-free, but the failure signature (AppRoot still present right after back) is a teardown-timing race, not a data error. **Do NOT add retries or arbitrary waits as a "fix"** — if hardened, gate on an idling resource / `waitUntil` for AppRoot's absence, not `Thread.sleep`. **Trigger to act:** it fails again on a non-loaded machine, or a UI-test-stability pass is scheduled. |
+
+---
+
 ## Robolectric is not a valid oracle for transaction / async-child rollback semantics
 
 | Severity | Location | Description |
