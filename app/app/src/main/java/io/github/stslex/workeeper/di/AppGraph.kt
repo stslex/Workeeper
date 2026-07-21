@@ -42,10 +42,12 @@ import io.github.stslex.workeeper.core.di.AppGraphContract
 import io.github.stslex.workeeper.core.ui.kit.utils.NumUiUtils
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolder
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
+import io.github.stslex.workeeper.core.ui.mvi.di.StoreCoreDeps
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
+import io.github.stslex.workeeper.core.ui.navigation.NavigatorDeps
 import io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObserver
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepository
@@ -62,7 +64,7 @@ import kotlinx.coroutines.CoroutineDispatcher
  * via `create(...)`, so the graph interface stays small.
  */
 @DependencyGraph(scope = AppScope::class)
-internal interface AppGraph : AppGraphContract {
+internal interface AppGraph : AppGraphContract, StoreCoreDeps, NavigatorDeps {
 
     /** Root accessor: the single app-scoped [AnalyticsHolder]. */
     override val analyticsHolder: AnalyticsHolder
