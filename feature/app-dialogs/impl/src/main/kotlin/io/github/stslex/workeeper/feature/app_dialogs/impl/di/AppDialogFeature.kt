@@ -4,8 +4,9 @@ package io.github.stslex.workeeper.feature.app_dialogs.impl.di
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import dev.zacsweers.metro.createGraphFactory
-import io.github.stslex.workeeper.core.di.appGraphContract
 import io.github.stslex.workeeper.core.ui.mvi.AppFeature
+import io.github.stslex.workeeper.core.ui.mvi.di.StoreCoreDeps
+import io.github.stslex.workeeper.core.ui.mvi.di.appDeps
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
 import io.github.stslex.workeeper.core.ui.mvi.processor.rememberMetroStoreProcessor
 import io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.store.AppDialogStore.Action
@@ -23,8 +24,10 @@ internal typealias AppDialogStoreProcessor = StoreProcessor<State, Action, Event
  *
  * `rememberMetroStoreProcessor` retains the Metro-created Store in whatever
  * `LocalViewModelStoreOwner` is current — here the host `ComponentActivity`'s `ViewModelStore` (root
- * mount via `AppDialogHost`). Shared app-scoped deps come from the Metro `AppGraphContract`; this
- * feature's own app-scoped impls come from the impl-internal holder seam (`appDialogInternals()`).
+ * mount via `AppDialogHost`). Shared store-infra deps come from the narrow [StoreCoreDeps] interface
+ * acquired via `context.appDeps<StoreCoreDeps>()` (AppGraphContract-split, mechanism A — AppDialog reads
+ * only the store-infra trio, no navigator/repos); this feature's own app-scoped impls come from the
+ * impl-internal holder seam (`appDialogInternals()`).
  */
 internal object AppDialogFeature : AppFeature<AppDialogStoreProcessor>() {
 
@@ -33,17 +36,18 @@ internal object AppDialogFeature : AppFeature<AppDialogStoreProcessor>() {
     override fun processor(): AppDialogStoreProcessor {
         val context = LocalContext.current
         return rememberMetroStoreProcessor<AppDialogStoreImpl> {
-            // App-Scope Collapse Step 6 (cut): shared app-scope deps via the Metro AppGraphContract; this
-            // feature's OWN app-scoped impls via the impl-internal holder seam (no module can name them).
-            val graph = context.appGraphContract()
+            // AppGraphContract-split (mechanism A): shared store-infra deps via the narrow StoreCoreDeps
+            // interface (appDeps<T>()); this feature's OWN app-scoped impls via the impl-internal holder
+            // seam (no module can name them). appDeps<T>() FEEDS the typed create(...) below.
+            val deps = context.appDeps<StoreCoreDeps>()
             val internals = context.appDialogInternals()
             createGraphFactory<AppDialogGraph.Factory>()
                 .create(
                     appDialogRepository = internals.appDialogRepository,
                     appDialogObserver = internals.appDialogObserverImpl,
-                    storeDispatchers = graph.storeDispatchers,
-                    analyticsHolder = graph.analyticsHolder,
-                    loggerHolder = graph.loggerHolder,
+                    storeDispatchers = deps.storeDispatchers,
+                    analyticsHolder = deps.analyticsHolder,
+                    loggerHolder = deps.loggerHolder,
                 )
                 .appDialogStore
         } as AppDialogStoreProcessor

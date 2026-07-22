@@ -10,6 +10,7 @@ import io.github.stslex.workeeper.core.data.backup.worker.MetroWorkerFactory
 import io.github.stslex.workeeper.core.data.database.buildAppDatabase
 import io.github.stslex.workeeper.core.di.AppGraphContract
 import io.github.stslex.workeeper.core.di.AppGraphContractHolder
+import io.github.stslex.workeeper.core.ui.mvi.di.AppDepsHolder
 import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
 import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
 import io.github.stslex.workeeper.di.AppGraph
@@ -39,6 +40,7 @@ abstract class BaseApplication :
     Configuration.Provider,
     AppGraphOwner,
     AppGraphContractHolder,
+    AppDepsHolder,
     AppDialogPublisherHolder,
     AppDialogInternalsHolder {
 
@@ -66,6 +68,12 @@ abstract class BaseApplication :
     }
 
     override val appGraphContract: AppGraphContract get() = appGraph
+
+    // AppGraphContract-split (mechanism A): feature-side readers acquire ONE narrow interface via
+    // `context.appDeps<T>()`. `appGraph` implements every narrow interface (StoreCoreDeps, NavigatorDeps,
+    // each XDeps), so the accessor's `as T` cast is safe by construction. Additive alongside
+    // `appGraphContract` during the strangler migration — removed with it at the final commit.
+    override fun appDeps(): Any = appGraph
 
     override val appDialogPublisher: AppDialogPublisher get() = appGraph.appDialogPublisher
 
