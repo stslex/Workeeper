@@ -4,10 +4,12 @@ package io.github.stslex.workeeper.feature.single_training.di
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import dev.zacsweers.metro.createGraphFactory
-import io.github.stslex.workeeper.core.di.appGraphContract
 import io.github.stslex.workeeper.core.ui.mvi.FeatureAssisted
+import io.github.stslex.workeeper.core.ui.mvi.di.StoreCoreDeps
+import io.github.stslex.workeeper.core.ui.mvi.di.appDeps
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
 import io.github.stslex.workeeper.core.ui.mvi.processor.rememberMetroStoreProcessor
+import io.github.stslex.workeeper.core.ui.navigation.NavigatorDeps
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Event
@@ -22,8 +24,10 @@ internal typealias SingleTrainingStoreProcessor = StoreProcessor<State, Action, 
  * [SingleTrainingStoreImpl.Factory] and this composable calls `storeFactory.create(screen)` inside
  * the `rememberMetroStoreProcessor` lambda (once per retained Store, per `NavBackStackEntry`).
  *
- * The app-scoped `@SingleIn(AppScope)` bindings are read from the Metro app graph via
- * `context.appGraphContract()`. The two dispatchers cross QUALIFIED.
+ * The app-scoped `@SingleIn(AppScope)` bindings are acquired as the composition of three narrow
+ * interfaces ([StoreCoreDeps] + [NavigatorDeps] + [SingleTrainingDeps] — the domain tail: five repos,
+ * `sessionConflictResolver`, `resourceWrapper`, and BOTH qualified dispatchers) via `context.appDeps<T>()`
+ * (the god-object split, mechanism A). The two dispatchers cross QUALIFIED.
  * No Context — this feature injects none.
  */
 internal object SingleTrainingFeature : FeatureAssisted<
@@ -36,23 +40,27 @@ internal object SingleTrainingFeature : FeatureAssisted<
     override fun processor(screen: Screen.Training): SingleTrainingStoreProcessor {
         val context = LocalContext.current
         return rememberMetroStoreProcessor<SingleTrainingStoreImpl> {
-            // App-Scope Collapse Step 6 (cut): app-scope deps via the Metro AppGraphContract.
-            val graph = context.appGraphContract()
+            // Mechanism A (the god-object split): spine four from StoreCoreDeps + NavigatorDeps; the domain
+            // tail (repos + sessionConflictResolver + resourceWrapper + BOTH qualified dispatchers) from
+            // SingleTrainingDeps.
+            val coreDeps = context.appDeps<StoreCoreDeps>()
+            val navDeps = context.appDeps<NavigatorDeps>()
+            val deps = context.appDeps<SingleTrainingDeps>()
             createGraphFactory<SingleTrainingGraph.Factory>()
                 .create(
-                    trainingRepository = graph.trainingRepository,
-                    trainingExerciseRepository = graph.trainingExerciseRepository,
-                    exerciseRepository = graph.exerciseRepository,
-                    tagRepository = graph.tagRepository,
-                    sessionRepository = graph.sessionRepository,
-                    sessionConflictResolver = graph.sessionConflictResolver,
-                    resourceWrapper = graph.resourceWrapper,
-                    navigator = graph.navigator,
-                    storeDispatchers = graph.storeDispatchers,
-                    analyticsHolder = graph.analyticsHolder,
-                    loggerHolder = graph.loggerHolder,
-                    defaultDispatcher = graph.defaultDispatcher,
-                    mainImmediateDispatcher = graph.mainImmediateDispatcher,
+                    trainingRepository = deps.trainingRepository,
+                    trainingExerciseRepository = deps.trainingExerciseRepository,
+                    exerciseRepository = deps.exerciseRepository,
+                    tagRepository = deps.tagRepository,
+                    sessionRepository = deps.sessionRepository,
+                    sessionConflictResolver = deps.sessionConflictResolver,
+                    resourceWrapper = deps.resourceWrapper,
+                    navigator = navDeps.navigator,
+                    storeDispatchers = coreDeps.storeDispatchers,
+                    analyticsHolder = coreDeps.analyticsHolder,
+                    loggerHolder = coreDeps.loggerHolder,
+                    defaultDispatcher = deps.defaultDispatcher,
+                    mainImmediateDispatcher = deps.mainImmediateDispatcher,
                 )
                 .storeFactory
                 .create(screen)
