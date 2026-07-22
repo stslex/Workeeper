@@ -6,14 +6,29 @@
 - **C1 DONE** — committed `f1fe1a02` on branch `cleanup/appgraphcontract-split` (base `d54129dd` = tip of
   `feature/metro-batch`). Additive spine interfaces (`StoreCoreDeps` in `core:ui:mvi`, `NavigatorDeps` in
   `core:ui:navigation`); `AppGraph` implements both; `AppGraphContract` intact; all gates green; revert-clean.
+- **Docs synced** — `spec.md` + this file carry the **acquisition mechanism** (`appDeps<T>()` in
+  `core:ui:mvi`) and the **untyped-registry disambiguation** (see `spec.md` §"Acquisition mechanism" and
+  Non-goals). ACQUISITION (`appDeps<T>()`) and INJECTION (`create(...)`) are orthogonal; `appDeps<T>()`
+  FEEDS `create(...)`, it does not replace it.
 - Nothing else migrated. The god-object is untouched.
 
 ## Next step: C3 — migrate the FIRST reader
 **`AppDialog`** (`feature/app-dialogs/impl/.../di/AppDialogFeature.kt`). Rationale: it consumes
 `StoreCoreDeps` ONLY (`analyticsHolder`, `loggerHolder`, `storeDispatchers`) — no `navigator`, no domain
-tail — the cleanest first migration; validates single-interface resolution. Its `AppDialogGraph.Factory`
-currently takes those 3 as positional bound instances read off `context.appGraphContract()`; replace with
-`storeCoreDeps = graph` composition.
+tail — the cleanest first migration; validates BOTH the acquisition mechanism and single-interface
+injection. Its `AppDialogGraph.Factory` currently takes those 3 as positional bound instances read off
+`context.appGraphContract()`; replace with **acquisition + injection**:
+```kotlin
+val deps = context.appDeps<StoreCoreDeps>()
+createGraphFactory<AppDialogGraph.Factory>().create(
+    analyticsHolder = deps.analyticsHolder,
+    loggerHolder = deps.loggerHolder,
+    storeDispatchers = deps.storeDispatchers,
+    // + this feature's own impl-internal deps via appDialogInternals()
+)
+```
+C3 also introduces the acquisition seam itself (`AppDepsHolder` + `appDeps<T>()` in `core:ui:mvi`,
+`BaseApplication : AppDepsHolder`) — reused by every later reader.
 
 ## Then, in order (cheapest → hardest)
 1. `AppDialog` — StoreCoreDeps only

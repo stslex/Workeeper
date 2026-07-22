@@ -11,11 +11,13 @@
 
 - **State:** **C1 is DONE and committed at `f1fe1a02`** on branch `cleanup/appgraphcontract-split` (base
   `d54129dd` = tip of `feature/metro-batch`). Additive spine interfaces only; `AppGraphContract` intact;
-  all gates green; `git revert`-clean.
-- **Next step:** **C3 — migrate the first reader: `AppDialog`.** It consumes `StoreCoreDeps` ONLY (no
-  navigator, no domain tail) → the cleanest first migration, validates single-interface resolution.
-  Then `ImageViewer` (+`NavigatorDeps`), then the five size-8 readers, then the assisted/larger features,
-  then `Settings`, then `RecoveryActivity` + `MetroWorkerFactory`.
+  all gates green; `git revert`-clean. **Docs synced** (this file + `NEXT.md`) with the acquisition
+  mechanism and the untyped-registry disambiguation before C3.
+- **Next step:** **C3 — migrate the first reader: `AppDialog`** via `context.appDeps<StoreCoreDeps>()`. It
+  consumes `StoreCoreDeps` ONLY (no navigator, no domain tail) → the cleanest first migration; it validates
+  BOTH the acquisition mechanism (`appDeps<T>()`, see "Acquisition mechanism" below) and single-interface
+  injection. Then `ImageViewer` (+`NavigatorDeps`), then the five size-8 readers, then the assisted/larger
+  features, then `Settings`, then `RecoveryActivity` + `MetroWorkerFactory`.
 - **Load-bearing inputs (in this folder):**
   - `gate0-discovery.md` — the **32-accessor universe**, the **30-item consumed list**, the **dead-surface
     proof**, and the **15-reader → composition MAP** (the direct input to each migration commit).
@@ -36,7 +38,10 @@ that union into narrow per-consumer interfaces composed from a shared spine.
 ## Locked decisions (post-Gate-0)
 - **KEEP** dep-injection into feature graphs. **DELETE** the god-object. **REPLACE** with composed narrow
   interfaces. **OUT OF SCOPE / rejected:** `@GraphExtension`/subcomponent inheritance, probe-3,
-  `core:di`-as-mechanism, any untyped registry (those killed injection entirely; injection stays).
+  `core:di`-as-mechanism, an untyped registry **as the dependency-distribution mechanism** (variant B /
+  extension factories — those killed typed injection entirely; injection stays). The reified
+  **acquisition** accessor `appDeps<T>()` is NOT this rejected registry — see "Acquisition mechanism" and
+  the disambiguation under Non-goals.
 - Grounded at HEAD `d54129dd`; every count re-verified in Gate 0 against source.
 - Target branch `cleanup/appgraphcontract-split`, merged back through normal review, lands BEFORE #176 goes
   to `dev`. No `dev`/`master` involvement.
@@ -82,9 +87,48 @@ Gate 0 confirmed 0 internal repositories).
 readers (`Recovery`/`Worker`) get only their own interface. `AppGraph` implements every app-scope interface
 (it already exposes every accessor via aggregation → "implement" = declare the supertype, no new provision).
 
+### Acquisition mechanism (the missing layer — how a reader physically gets its interface)
+**ACQUISITION and INJECTION are two orthogonal concerns, both required.** The interface-composition above
+is the *injection* layer (how deps flow into the feature graph factory). It says nothing about *how a
+reader obtains the interface object* once `appGraphContract()` is removed. That is the *acquisition* layer,
+and it is **mechanism A**, homed in `core:ui:mvi`:
+
+- **`interface AppDepsHolder { fun appDeps(): Any }`** and
+  **`inline fun <reified T : Any> Context.appDeps(): T = (applicationContext as AppDepsHolder).appDeps() as T`**
+  — both in `core:ui:mvi`. This module is Android-capable, already declares the spine (`StoreCoreDeps`,
+  `NavigatorDeps`), and is depended on by all 13 features + `RecoveryActivity` → one home covers all 14
+  feature-side readers with **no new module wiring**.
+- **`BaseApplication : AppDepsHolder { override fun appDeps(): Any = appGraph }`** (in `:app`). This is the
+  same interface-seam idiom the current `AppGraphContractHolder` uses — read the held graph through the
+  **interface**, never a concrete-`Application` cast (a `context as BaseApplication` cast
+  `ClassCastException`s under a swapped test `Application`).
+- **Coverage:** the 14 feature-side readers (13 features + `RecoveryActivity`) all depend on `core:ui:mvi`,
+  so they all reach `appDeps<T>()`.
+- **Scope carve-out — `MetroWorkerFactory`** (`core/data/backup/worker`) **MUST NOT depend on `core:ui:mvi`**
+  (data→ui inversion). It is the ONE reader the mvi-hosted mechanism does not reach; it gets its **own point
+  acquisition** when it is migrated (last reader in the queue). Do **not** route the Worker through
+  `core:ui:mvi`.
+
+**`appDeps<T>()` FEEDS `create(...)`; it does not replace it.** Acquisition yields ONE narrow interface;
+injection then passes its members into the graph factory, fully typed. Per-reader flow (AppDialog, C3):
+```kotlin
+val deps = context.appDeps<StoreCoreDeps>()
+createGraphFactory<AppDialogGraph.Factory>()
+    .create(
+        analyticsHolder = deps.analyticsHolder,
+        loggerHolder = deps.loggerHolder,
+        storeDispatchers = deps.storeDispatchers,
+        // … + this feature's own impl-internal deps via appDialogInternals()
+    )
+```
+
 ### Deletion (final commit)
 `AppGraphContract` + `AppGraphContractHolder` + `AppGraphContractAccessor` + module **`core:di`** are
-DELETED at the end. Area-3 (the 8 `api` edges of `core:di`) dissolves with the module.
+DELETED **entirely** at the end. Because the acquisition mechanism is homed in `core:ui:mvi` (NOT
+`core:di`), `core:di` retains only those three files once every reader is migrated — nothing is left to
+keep, so it is **fully deleted, never "gutted to a mechanism."** (Supersedes the earlier
+`core:di`-as-mechanism framing — `core:di`-as-mechanism is a rejected non-goal, see below.) Area-3 (the 8
+`api` edges of `core:di`) dissolves with the module.
 
 ## Coverage arithmetic (completeness gate — from Gate 0)
 - Universe = **32** accessors on `AppGraphContract`.
@@ -95,7 +139,18 @@ DELETED at the end. Area-3 (the 8 `api` edges of `core:di`) dissolves with the m
 - The UNION of all new interfaces' accessors MUST == exactly these 30 — add none unread, drop none read.
 
 ## Non-goals (considered and rejected — do not reintroduce)
-- No `@GraphExtension`/inheritance, no probe-3, no registry, no `core:di`-as-mechanism.
+- No `@GraphExtension`/inheritance, no probe-3, no `core:di`-as-mechanism.
+- **Untyped registry — REJECTED vs ACCEPTED (disambiguation; a reviewer stalled here).** These are
+  *different things*:
+  - **REJECTED** — an untyped registry as the **dependency-distribution mechanism** (variant B / extension
+    factories): `holder.get(key) as Factory` puts untyped resolution on the **load-bearing dependency
+    path**, so every dep flows through a stringly/`Any`-keyed lookup. That is what "no untyped registry"
+    forbids, and it is out of scope.
+  - **ACCEPTED** — a **localized reified acquisition of ONE narrow interface** (`appDeps<T>()`),
+    immediately followed by fully-typed `create(...)`. The only untyped point is the single `as T` cast at
+    acquisition, **safe by construction** (`AppGraph` implements every narrow interface, so the cast can
+    only fail if the interface is unimplemented — a compile-time-visible mistake, not a runtime key miss).
+    The domain/injection path stays **fully typed**. This is the accepted acquisition design (mechanism A).
 - No change to the ~37 `@ContributesBinding(AppScope)` contributions (the provide side is healthy).
 - No change to backup/restore/DB logic, Room schema, or the on-device path — DI-surface reshape only.
 - No shared `BackupDeps`, no `BottomBarDeps`, no api-promotion. Not merging to `dev`.
@@ -116,16 +171,21 @@ Conventional commits, English.
 
 ### Execution table
 - **C1 — `StoreCoreDeps` + `NavigatorDeps`, AppGraph implements (additive).** ✅ **DONE at `f1fe1a02`.**
-- **C2 — introduce the backup/domain interfaces as needed per reader** (folded into each migration commit
-  below rather than one big additive commit, since each `XDeps`/`RecoveryDeps`/`BackupWorkerDeps` lives in
-  its consumer's module; `AppGraph` gains the supertype in the same commit that introduces the interface).
+  Docs synced afterward with the acquisition mechanism + untyped-registry disambiguation (this commit).
+- **C2 — introduce the acquisition seam + the backup/domain interfaces as needed per reader.** The
+  acquisition seam (`AppDepsHolder` + `appDeps<T>()` in `core:ui:mvi`, `BaseApplication : AppDepsHolder`;
+  see "Acquisition mechanism") is introduced in the **first migration commit that needs it (C3)**, then
+  reused by every later reader. Each `XDeps`/`RecoveryDeps`/`BackupWorkerDeps` lives in its consumer's
+  module; `AppGraph` gains the supertype in the same commit that introduces the interface.
 - **C3…Cn — migrate readers, one per commit.** Order (cheapest first):
   `AppDialog` (StoreCoreDeps only) → `ImageViewer` (+NavigatorDeps) → the five size-8
   (`AllExercises`/`AllTrainings`/`Archive`/`ExerciseChart`/`PlanEditor`) → the assisted/larger features
   (`Home`/`PastSession`/`Exercise`/`SingleTraining`/`LiveWorkout`) → `Settings` → `RecoveryActivity` +
   `MetroWorkerFactory`. Per reader: replace its `appGraphContract()` read + positional `create(...)` list
-  with the narrow composition; introduce that reader's `XDeps`/consumer interface (+ AppGraph supertype) in
-  the same commit. One reversible commit each.
+  with **acquisition + injection** — acquire the narrow interface via `context.appDeps<XDeps>()` (the
+  Worker uses its own point acquisition, NOT `appDeps`), then feed its members into the typed `create(...)`;
+  introduce that reader's `XDeps`/consumer interface (+ AppGraph supertype) in the same commit. One
+  reversible commit each.
 - **C(n+1) — drop the two dead accessors** (`appReinitializer`, `liveDatabaseLocator`) — Gate 0 proved them
   unreachable-except-via-contract. *Known-negative:* assemble green (nothing referenced them).
 - **C(last) — delete `AppGraphContract` + holder + accessor + module `core:di`.** Only when
