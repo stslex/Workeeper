@@ -64,6 +64,7 @@ import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorDeps
 import io.github.stslex.workeeper.feature.recovery.boot.RecoveryBootstrap
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
 import io.github.stslex.workeeper.feature.recovery.domain.StartupMigrationCoordinator
+import io.github.stslex.workeeper.feature.settings.di.SettingsDeps
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingDeps
 import io.github.stslex.workeeper.navigation.NavigatorEventBus
 import kotlinx.coroutines.CoroutineDispatcher
@@ -87,7 +88,8 @@ internal interface AppGraph :
     ExerciseDeps,
     SingleTrainingDeps,
     LiveWorkoutDeps,
-    HomeDeps {
+    HomeDeps,
+    SettingsDeps {
 
     /** Root accessor: the single app-scoped [AnalyticsHolder]. */
     override val analyticsHolder: AnalyticsHolder
