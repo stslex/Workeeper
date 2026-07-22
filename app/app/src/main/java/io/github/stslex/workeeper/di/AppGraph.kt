@@ -54,6 +54,7 @@ import io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObse
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepository
 import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImpl
+import io.github.stslex.workeeper.feature.archive.di.ArchiveDeps
 import io.github.stslex.workeeper.feature.recovery.boot.RecoveryBootstrap
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
 import io.github.stslex.workeeper.feature.recovery.domain.StartupMigrationCoordinator
@@ -66,7 +67,13 @@ import kotlinx.coroutines.CoroutineDispatcher
  * via `create(...)`, so the graph interface stays small.
  */
 @DependencyGraph(scope = AppScope::class)
-internal interface AppGraph : AppGraphContract, StoreCoreDeps, NavigatorDeps, AllTrainingsDeps, AllExercisesDeps {
+internal interface AppGraph :
+    AppGraphContract,
+    StoreCoreDeps,
+    NavigatorDeps,
+    AllTrainingsDeps,
+    AllExercisesDeps,
+    ArchiveDeps {
 
     /** Root accessor: the single app-scoped [AnalyticsHolder]. */
     override val analyticsHolder: AnalyticsHolder
