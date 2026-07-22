@@ -10,10 +10,10 @@ import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreInProgress
  * Extracted to `core:data:backup:api` in App-Scope Collapse Step 6 (P-REC): the impl
  * (`feature/recovery`'s `RecoveryDiagnosticsExporter`) is Metro-owned via
  * `@ContributesBinding(AppScope)` and exposed on the app graph as `recoveryDiagnosticsExporter`, so the
- * post-cut library consumer (`RecoveryActivity`) can read it through `AppGraphContract` — but a `core`
- * module (`core:di`) cannot name a `feature`-owned type, so the CONTRACT lives here in the api module
- * both `core:di` and `feature/recovery` already see. The impl carries the Android-bound file/`Uri`/`Context`
- * logic; this interface is the GMS/Room-free seam.
+ * post-cut library consumer (`RecoveryActivity`) reads it via the typed holder (`RecoveryDepsHolder`) — but
+ * the app-scope dep interfaces cannot name a `feature`-owned type, so the CONTRACT lives here in the api
+ * module both the dep interfaces and `feature/recovery` already see. The impl carries the Android-bound
+ * file/`Uri`/`Context` logic; this interface is the GMS/Room-free seam.
  */
 interface RecoveryDiagnosticsExporter {
 

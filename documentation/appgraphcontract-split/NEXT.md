@@ -1,8 +1,26 @@
-# NEXT — AppGraphContract split, resume pointer
+# NEXT — AppGraphContract split — ✅ MIGRATION COMPLETE
 
-**Read `spec.md` first** (this folder) — it has the full plan + the corrected verification model.
+**STATUS: DONE.** All 15 readers migrated, the `AppGraphContract` god-object + module `core:di` deleted.
+The strangler is finished; what remains is the maintainer's on-device pass. History below is retained for
+provenance.
 
-## Where we are
+## Final shape (as landed)
+- **Acquisition mechanism:** `AppDepsHolder` + `inline fun <reified T> Context.appDeps(): T` in
+  `core:ui:mvi`; `BaseApplication` implements `AppDepsHolder`. The 13 feature-side readers use
+  `context.appDeps<XDeps>()`.
+- **Framework readers (2), typed point-acquisition (no `core:ui:mvi` edge):** `RecoveryActivity` via
+  `RecoveryDepsHolder`/`RecoveryDeps` (in `feature/recovery`); `MetroWorkerFactory` via
+  `BackupWorkerDepsHolder`/`BackupWorkerDeps` (in `core/data/backup/worker`, data→ui inversion respected).
+  `BaseApplication` implements both typed holders.
+- **AppGraph** implements the 15 replacement interfaces (2 spine `StoreCoreDeps`/`NavigatorDeps` + 11
+  feature `XDeps` + `RecoveryDeps` + `BackupWorkerDeps`); `AppGraphContract` is gone from its supertypes.
+- **Deleted:** `AppGraphContract` + `AppGraphContractHolder` + `AppGraphContractAccessor` + module
+  `core:di` (Area-3's 8 `api` edges dissolved with it). 2 dead accessors (`appReinitializer`,
+  `liveDatabaseLocator`) dropped (bindings survive via ctor `@Inject`).
+- **`app/app`** gained a direct `api(project(":core:ui:mvi"))` (+ `api(feature:recovery)` +
+  `api(core:data:backup:worker)`) so the flavor apps see the holder supertypes after `core:di`'s deletion.
+
+## Where we are (history)
 - **C1 DONE** — committed `f1fe1a02` on branch `cleanup/appgraphcontract-split` (base `d54129dd` = tip of
   `feature/metro-batch`). Additive spine interfaces (`StoreCoreDeps` in `core:ui:mvi`, `NavigatorDeps` in
   `core:ui:navigation`); `AppGraph` implements both; `AppGraphContract` intact; all gates green; revert-clean.

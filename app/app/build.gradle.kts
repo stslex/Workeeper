@@ -28,11 +28,6 @@ dependencies {
     implementation(project(":core:core"))
     // Android/Hilt half of core:core — its @Modules aggregate into the app's single Dagger graph.
     implementation(project(":core:core-android"))
-    // App-Scope Collapse Step 6 (P-CONTRACT): the public AppGraphContract seam. AppGraph extends it;
-    // BaseApplication implements AppGraphContractHolder so Context.appGraphContract() resolves the held
-    // graph. `api` (not `implementation`) so the flavor apps (app:dev/app:store) that subclass
-    // BaseApplication see the public supertype AppGraphContractHolder on their classpath.
-    api(project(":core:di"))
     androidTestImplementation(project(":core:ui:test-utils"))
     // App-Scope Collapse Step 3 (C2): the seam's TestAppGraphModule builds the graph with real in-memory-Room
     // DAOs (the C2 bridge params) via InMemoryDatabaseProvider — no mockk on the app:app androidTest classpath.
@@ -40,7 +35,12 @@ dependencies {
 
     implementation(project(":core:ui:kit"))
     implementation(project(":core:ui:navigation"))
-    implementation(project(":core:ui:mvi"))
+    // api (not implementation): BaseApplication implements AppDepsHolder (core:ui:mvi), so the holder
+    // supertype must be visible to the flavor Application subclasses (DevMobileApp/StoreMobileApp) that
+    // extend BaseApplication. Before core:di's deletion this came transitively via
+    // api(core:di) -> api(core:ui:mvi); this DIRECT edge replaces that doomed chain (same holder-visibility
+    // fix as api(feature:recovery) + api(core:data:backup:worker)).
+    api(project(":core:ui:mvi"))
     implementation(project(":core:data:database"))
     implementation(project(":core:data:exercise"))
     implementation(project(":core:data:dataStore"))

@@ -7,6 +7,14 @@
 
 ---
 
+## ✅ MIGRATION COMPLETE
+All 15 readers migrated; the `AppGraphContract` god-object + `AppGraphContractHolder` +
+`AppGraphContractAccessor` + module `core:di` are **deleted**. Acquisition = `appDeps<T>()` in `core:ui:mvi`
+for the 13 feature readers + typed holders (`RecoveryDeps`/`BackupWorkerDeps`) for the 2 framework readers.
+`AppGraph` implements the 15 replacement interfaces. Coverage union == the 30 consumed accessors (verified);
+the 2 dead accessors dropped. All gates green (assemble + detekt + full-suite unit tests). See `NEXT.md` for
+the final shape. The sections below are the original plan, retained for provenance.
+
 ## ▶ RESUME HERE (session entry point)
 
 - **State:** **C1 is DONE and committed at `f1fe1a02`** on branch `cleanup/appgraphcontract-split` (base

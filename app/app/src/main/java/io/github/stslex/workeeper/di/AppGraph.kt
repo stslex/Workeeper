@@ -37,7 +37,6 @@ import io.github.stslex.workeeper.core.data.exercise.stats.StatsRepository
 import io.github.stslex.workeeper.core.data.exercise.tags.TagRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
-import io.github.stslex.workeeper.core.di.AppGraphContract
 import io.github.stslex.workeeper.core.ui.kit.utils.NumUiUtils
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolder
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
@@ -76,7 +75,6 @@ import kotlinx.coroutines.CoroutineDispatcher
  */
 @DependencyGraph(scope = AppScope::class)
 internal interface AppGraph :
-    AppGraphContract,
     StoreCoreDeps,
     NavigatorDeps,
     AllTrainingsDeps,
@@ -229,8 +227,8 @@ internal interface AppGraph :
 
     /**
      * Metro-owned [RecoveryDiagnosticsExporter] — `@ContributesBinding(AppScope)` on
-     * `RecoveryDiagnosticsExporterImpl` (feature/recovery), bound to the api interface. Exposed on the
-     * `AppGraphContract`: read by `RecoveryActivity` + `RestoreDialogChoiceObserver` via the graph.
+     * `RecoveryDiagnosticsExporterImpl` (feature/recovery), bound to the api interface. Exposed via
+     * `RecoveryDeps`: read by `RecoveryActivity` + `RestoreDialogChoiceObserver` through the graph.
      */
     override val recoveryDiagnosticsExporter: RecoveryDiagnosticsExporter
 
@@ -252,7 +250,7 @@ internal interface AppGraph :
 
     /**
      * [SessionConflictResolver] — self-bound `@SingleIn(AppScope)` graph node; read by home +
-     * single-training via `appGraphContract()`.
+     * single-training via their `XDeps` (`HomeDeps` / `SingleTrainingDeps`).
      */
     override val sessionConflictResolver: SessionConflictResolver
 
@@ -264,8 +262,8 @@ internal interface AppGraph :
 
     /**
      * The recovery cluster — feature/recovery `@SingleIn(AppScope)` graph nodes read by
-     * `BaseApplication`/`MainActivity` (both in app/app, so read the INTERNAL graph directly;
-     * NOT on `AppGraphContract` — core:di cannot name feature types). [recoveryBootstrap] is the
+     * `BaseApplication`/`MainActivity` (both in app/app, so read the INTERNAL graph directly via
+     * `AppGraphOwner`, not through a dep interface). [recoveryBootstrap] is the
      * `RestoreDialogChoiceObserver` (via its `RecoveryBootstrap` supertype, `@ContributesBinding`) —
      * resolving it eagerly arms the observer's `init{}` subscriber (app-dialogs BLOCKER 1).
      */

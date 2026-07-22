@@ -32,7 +32,7 @@ import org.junit.runner.RunWith
  * build the app graph (`buildAppGraph`/`AppGraph` are `:app:app`-internal). This mirrors the
  * [RecoveryActivityDbFreeTest] relocation: [MetroTestRule] installs a per-test app graph over an
  * in-memory `AppDatabase` root, and `exerciseGraph()` resolves `ExerciseFeature`'s Store through
- * `context.appGraphContract()` — so the Store→interactor→repository→Room write path runs against that
+ * `context.appDeps<T>()` — so the Store→interactor→repository→Room write path runs against that
  * in-memory DB. The assertions are the SAME ones the pre-cut Hilt version asserted (commit `88031508`),
  * restored verbatim; [ExerciseFormBasicsTest] in `feature/exercise` keeps the lighter render+dispatch
  * coverage.

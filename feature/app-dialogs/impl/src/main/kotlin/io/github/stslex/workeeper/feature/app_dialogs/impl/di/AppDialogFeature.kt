@@ -25,7 +25,7 @@ internal typealias AppDialogStoreProcessor = StoreProcessor<State, Action, Event
  * `rememberMetroStoreProcessor` retains the Metro-created Store in whatever
  * `LocalViewModelStoreOwner` is current — here the host `ComponentActivity`'s `ViewModelStore` (root
  * mount via `AppDialogHost`). Shared store-infra deps come from the narrow [StoreCoreDeps] interface
- * acquired via `context.appDeps<StoreCoreDeps>()` (AppGraphContract-split, mechanism A — AppDialog reads
+ * acquired via `context.appDeps<StoreCoreDeps>()` (god-object split, mechanism A — AppDialog reads
  * only the store-infra trio, no navigator/repos); this feature's own app-scoped impls come from the
  * impl-internal holder seam (`appDialogInternals()`).
  */
@@ -36,7 +36,7 @@ internal object AppDialogFeature : AppFeature<AppDialogStoreProcessor>() {
     override fun processor(): AppDialogStoreProcessor {
         val context = LocalContext.current
         return rememberMetroStoreProcessor<AppDialogStoreImpl> {
-            // AppGraphContract-split (mechanism A): shared store-infra deps via the narrow StoreCoreDeps
+            // god-object split (mechanism A): shared store-infra deps via the narrow StoreCoreDeps
             // interface (appDeps<T>()); this feature's OWN app-scoped impls via the impl-internal holder
             // seam (no module can name them). appDeps<T>() FEEDS the typed create(...) below.
             val deps = context.appDeps<StoreCoreDeps>()

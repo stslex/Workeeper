@@ -15,8 +15,8 @@ import kotlinx.coroutines.CoroutineDispatcher
  * {navigator}) — the two feature repos + `resourceWrapper` + the qualified `@DefaultDispatcher`.
  *
  * Acquired via `context.appDeps<AllTrainingsDeps>()` and fed into `AllTrainingsGraph.Factory.create(...)`;
- * the signatures are copied VERBATIM from `AppGraphContract` so `AppGraph`'s existing overrides satisfy
- * them with no new provision. The types are owned by data/core modules `all-trainings` already depends on
+ * the signatures are copied verbatim from the app graph's accessor set so `AppGraph`'s existing overrides
+ * satisfy them with no new provision. The types are owned by data/core modules `all-trainings` already depends on
  * (`core:data:exercise`, `core:core`), so declaring them here adds no dependency edge and no cycle.
  *
  * `@DefaultDispatcher` is copied verbatim (qualifier included): Metro matches bindings by

@@ -4,7 +4,7 @@ package io.github.stslex.workeeper.core.ui.mvi.di
 import android.content.Context
 
 /**
- * Held-instance seam for the **AppGraphContract split** (variant A, mechanism A): the process
+ * Held-instance seam for the **god-object split** (variant A, mechanism A): the process
  * [android.app.Application] exposes the app-scope graph as an opaque [Any], from which a reader
  * acquires ONE narrow dependency interface via [appDeps].
  *
@@ -17,9 +17,9 @@ import android.content.Context
  * FEEDS `create(...)`, it does not replace it. See
  * `documentation/appgraphcontract-split/spec.md` §"Acquisition mechanism".
  *
- * The public analogue of the older `AppGraphContractHolder` seam it will replace: `BaseApplication`
- * implements both additively during the strangler migration, and reads the graph through the INTERFACE
- * (never a concrete-`Application` cast — that `ClassCastException`s under a swapped test `Application`).
+ * The public holder seam readers acquire the graph through: `BaseApplication` implements it and reads
+ * the graph through the INTERFACE (never a concrete-`Application` cast — that `ClassCastException`s
+ * under a swapped test `Application`).
  */
 interface AppDepsHolder {
     fun appDeps(): Any

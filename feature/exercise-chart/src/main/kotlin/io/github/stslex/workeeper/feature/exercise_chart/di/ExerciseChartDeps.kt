@@ -14,8 +14,8 @@ import kotlinx.coroutines.CoroutineDispatcher
  * `@DefaultDispatcher`.
  *
  * Acquired via `context.appDeps<ExerciseChartDeps>()` and fed into `ExerciseChartGraph.Factory.create(...)`;
- * signatures copied VERBATIM from `AppGraphContract` so `AppGraph`'s existing overrides satisfy them with
- * no new provision. Types are owned by `core:data:exercise` / `core:core` (already depended on) — no new
+ * signatures copied verbatim from the app graph's accessor set so `AppGraph`'s existing overrides satisfy
+ * them with no new provision. Types are owned by `core:data:exercise` / `core:core` (already depended on) — no new
  * edge, no cycle. `@DefaultDispatcher` is copied verbatim: Metro matches by (type + qualifier), so an
  * unqualified `CoroutineDispatcher` accessor would collide with the other dispatcher bindings.
  */
