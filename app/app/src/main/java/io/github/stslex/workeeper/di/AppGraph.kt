@@ -56,6 +56,7 @@ import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogReposit
 import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImpl
 import io.github.stslex.workeeper.feature.archive.di.ArchiveDeps
 import io.github.stslex.workeeper.feature.exercise_chart.di.ExerciseChartDeps
+import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorDeps
 import io.github.stslex.workeeper.feature.recovery.boot.RecoveryBootstrap
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
 import io.github.stslex.workeeper.feature.recovery.domain.StartupMigrationCoordinator
@@ -75,7 +76,8 @@ internal interface AppGraph :
     AllTrainingsDeps,
     AllExercisesDeps,
     ArchiveDeps,
-    ExerciseChartDeps {
+    ExerciseChartDeps,
+    PlanEditorDeps {
 
     /** Root accessor: the single app-scoped [AnalyticsHolder]. */
     override val analyticsHolder: AnalyticsHolder
