@@ -33,7 +33,7 @@ data class AppTypography(
 private val googleFontProvider = GoogleFont.Provider(
     providerAuthority = "com.google.android.gms.fonts",
     providerPackage = "com.google.android.gms",
-    certificates = R.array.com_google_android_gms_fonts_certs,
+    certificates = R.array.app_gms_fonts_certs,
 )
 
 private val interFont = GoogleFont(name = "Inter")
