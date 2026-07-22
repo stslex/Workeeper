@@ -6,6 +6,8 @@ import androidx.work.Configuration
 import io.github.stslex.workeeper.core.core.images.buildImageStorage
 import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
 import io.github.stslex.workeeper.core.core.logger.Log
+import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerDeps
+import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerDepsHolder
 import io.github.stslex.workeeper.core.data.backup.worker.MetroWorkerFactory
 import io.github.stslex.workeeper.core.data.database.buildAppDatabase
 import io.github.stslex.workeeper.core.di.AppGraphContract
@@ -44,6 +46,7 @@ abstract class BaseApplication :
     AppGraphContractHolder,
     AppDepsHolder,
     RecoveryDepsHolder,
+    BackupWorkerDepsHolder,
     AppDialogPublisherHolder,
     AppDialogInternalsHolder {
 
@@ -83,6 +86,12 @@ abstract class BaseApplication :
     // must not gain a parasitic mvi edge just to reach the mvi-homed accessor. `appGraph` implements
     // RecoveryDeps, so returning it typed as RecoveryDeps is a compile-checked upcast.
     override fun recoveryDeps(): RecoveryDeps = appGraph
+
+    // AppGraphContract-split (typed point-acquisition): MetroWorkerFactory (core:data:backup:worker, DATA
+    // layer) reads its 6 deps through this typed holder — it MUST NOT depend on core:ui:mvi (data→ui
+    // inversion), so it cannot use appDeps<T>(). `appGraph` implements BackupWorkerDeps, so returning it
+    // typed as BackupWorkerDeps is a compile-checked upcast.
+    override fun backupWorkerDeps(): BackupWorkerDeps = appGraph
 
     override val appDialogPublisher: AppDialogPublisher get() = appGraph.appDialogPublisher
 

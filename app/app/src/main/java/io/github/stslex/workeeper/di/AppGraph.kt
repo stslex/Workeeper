@@ -24,6 +24,7 @@ import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepos
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
 import io.github.stslex.workeeper.core.data.backup.google_drive.auth.AccountDataStore
+import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerDeps
 import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
@@ -91,7 +92,8 @@ internal interface AppGraph :
     LiveWorkoutDeps,
     HomeDeps,
     SettingsDeps,
-    RecoveryDeps {
+    RecoveryDeps,
+    BackupWorkerDeps {
 
     /** Root accessor: the single app-scoped [AnalyticsHolder]. */
     override val analyticsHolder: AnalyticsHolder

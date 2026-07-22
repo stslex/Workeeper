@@ -47,7 +47,10 @@ dependencies {
     implementation(project(":core:data:backup:api"))
     implementation(project(":core:data:backup:google-drive"))
     implementation(project(":core:data:backup:scheduling"))
-    implementation(project(":core:data:backup:worker"))
+    // api (not implementation): BaseApplication implements BackupWorkerDepsHolder (core:data:backup:worker),
+    // so the holder supertype must be visible to the flavor Application subclasses
+    // (DevMobileApp/StoreMobileApp) that extend BaseApplication (same reason as api(feature:recovery)).
+    api(project(":core:data:backup:worker"))
 
     api(libs.androidx.work.runtime)
 

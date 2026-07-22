@@ -17,9 +17,6 @@ dependencies {
     implementation(project(":core:data:backup:api"))
     implementation(project(":core:data:backup:scheduling"))
     implementation(project(":core:data:database"))
-    // P-WORKER: AppGraphContract seam so MetroWorkerFactory reads its 6 deps via appGraphContract()
-    // (Hilt-free). Acyclic now that BackupNotificationHelper's contract moved to :core:data:backup:api.
-    implementation(project(":core:di"))
 
     implementation(libs.androidx.work.runtime)
 
