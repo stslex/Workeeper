@@ -21,6 +21,8 @@ import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPub
 import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepository
 import io.github.stslex.workeeper.feature.app_dialogs.impl.di.AppDialogInternalsHolder
 import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImpl
+import io.github.stslex.workeeper.feature.recovery.di.RecoveryDeps
+import io.github.stslex.workeeper.feature.recovery.di.RecoveryDepsHolder
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -41,6 +43,7 @@ abstract class BaseApplication :
     AppGraphOwner,
     AppGraphContractHolder,
     AppDepsHolder,
+    RecoveryDepsHolder,
     AppDialogPublisherHolder,
     AppDialogInternalsHolder {
 
@@ -74,6 +77,12 @@ abstract class BaseApplication :
     // each XDeps), so the accessor's `as T` cast is safe by construction. Additive alongside
     // `appGraphContract` during the strangler migration — removed with it at the final commit.
     override fun appDeps(): Any = appGraph
+
+    // AppGraphContract-split (typed point-acquisition): the framework-instantiated RecoveryActivity reads
+    // its 2 deps through this typed holder instead of appDeps<T>() — it uses no core:ui:mvi symbols, so it
+    // must not gain a parasitic mvi edge just to reach the mvi-homed accessor. `appGraph` implements
+    // RecoveryDeps, so returning it typed as RecoveryDeps is a compile-checked upcast.
+    override fun recoveryDeps(): RecoveryDeps = appGraph
 
     override val appDialogPublisher: AppDialogPublisher get() = appGraph.appDialogPublisher
 

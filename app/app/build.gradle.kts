@@ -65,7 +65,10 @@ dependencies {
     implementation(project(":feature:plan-editor"))
     api(project(":feature:app-dialogs:api"))
     api(project(":feature:app-dialogs:impl"))
-    implementation(project(":feature:recovery"))
+    // api (not implementation): BaseApplication implements RecoveryDepsHolder (feature:recovery), so the
+    // holder supertype must be visible to the flavor Application subclasses (DevMobileApp/StoreMobileApp)
+    // in app/dev + app/store, which extend BaseApplication.
+    api(project(":feature:recovery"))
 
     implementation(platform(libs.google.firebase.bom))
     implementation(libs.google.firebase.analytics)

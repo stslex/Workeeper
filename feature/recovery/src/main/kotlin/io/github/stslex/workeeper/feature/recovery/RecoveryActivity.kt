@@ -24,12 +24,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
-import io.github.stslex.workeeper.core.di.appGraphContract
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import io.github.stslex.workeeper.feature.recovery.di.RecoveryDeps
+import io.github.stslex.workeeper.feature.recovery.di.RecoveryDepsHolder
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -59,16 +60,21 @@ import java.io.File
  * | Report issue | Opens the GitHub issue URL with `bug,migration` labels. |
  * | Export diagnostics | Writes a `.txt` via `RecoveryDiagnosticsExporter` and launches `ACTION_SEND`. |
  */
-// Reads its two app-scope deps from the Metro app graph via
-// context.appGraphContract() (library module → public seam). ROOM-FREE PRESERVED: resolving
-// databaseSnapshotProvider + recoveryDiagnosticsExporter builds the graph (buildAppDatabase = a cold
-// Room.build(), no SQLite open) and constructs the two impls (ctors only store refs — no connection open);
-// the DB opens only when a forbidden method is called, which this activity never does.
+// Reads its two app-scope deps through the typed [RecoveryDepsHolder] point-acquisition (this Activity uses
+// no core:ui:mvi symbols, so it does NOT take the mvi-homed appDeps<T>() path and gains no mvi edge).
+// ROOM-FREE PRESERVED: resolving databaseSnapshotProvider + recoveryDiagnosticsExporter builds the graph
+// (buildAppDatabase = a cold Room.build(), no SQLite open) and constructs the two impls (ctors only store
+// refs — no connection open); the DB opens only when a forbidden method is called, which this activity never
+// does.
 class RecoveryActivity : ComponentActivity() {
 
-    private val snapshotProvider get() = appGraphContract().databaseSnapshotProvider
+    private val deps: RecoveryDeps by lazy {
+        (applicationContext as RecoveryDepsHolder).recoveryDeps()
+    }
 
-    private val diagnosticsExporter get() = appGraphContract().recoveryDiagnosticsExporter
+    private val snapshotProvider get() = deps.databaseSnapshotProvider
+
+    private val diagnosticsExporter get() = deps.recoveryDiagnosticsExporter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
