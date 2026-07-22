@@ -1,8 +1,15 @@
 # NEXT — AppGraphContract split — ✅ MIGRATION COMPLETE
 
-**STATUS: DONE.** All 15 readers migrated, the `AppGraphContract` god-object + module `core:di` deleted.
-The strangler is finished; what remains is the maintainer's on-device pass. History below is retained for
-provenance.
+> **▶ RESUME HERE → read [`HANDOFF.md`](HANDOFF.md) first**, then `git log --oneline d54129dd..HEAD`.
+> It is the complete state snapshot for the fresh (zero-memory) session: what's done (with SHAs), the
+> verification model, the open gates, and toolchain notes.
+
+**STATUS: DONE + delivered.** All 15 readers migrated; the `AppGraphContract` god-object + module `core:di`
+deleted. Delivered to **PR #176** (`feature/metro-batch` → `dev`) — **CI GREEN** (tip `8697f5e8`). The
+strangler is finished. **Next action = maintainer's ON-DEVICE PASS** (NOT more DI work): the Recovery/Worker
+typed-holder runtime upcast + Google Fonts cert load are the two runtime paths unit tests don't cover — see
+`HANDOFF.md` §"Open gates". Then independent review, then merge → `dev` (via PR only). History below is
+retained for provenance.
 
 ## Final shape (as landed)
 - **Acquisition mechanism:** `AppDepsHolder` + `inline fun <reified T> Context.appDeps(): T` in
