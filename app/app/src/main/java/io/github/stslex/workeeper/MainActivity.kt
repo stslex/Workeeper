@@ -17,7 +17,7 @@ import io.github.stslex.workeeper.feature.recovery.domain.StartupCheck
 
 // App-Scope Collapse Step 6 (cut): Hilt-free. Reads its two app-scope deps from the internal AppGraph via
 // the AppGraphOwner interface (never a concrete-Application cast) — MainActivity is in app/app so it can
-// see the internal seam (the tighter idiom vs the public appGraphContract()).
+// see the internal seam (the tighter idiom vs the public `context.appDeps<T>()` accessor).
 class MainActivity : ComponentActivity() {
 
     private val appGraph get() = (application as AppGraphOwner).appGraph

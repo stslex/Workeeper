@@ -25,9 +25,10 @@ import org.junit.runner.RunWith
  *
  * App-Scope Collapse Step 6 (Phase 3.4): de-Hilt'd. The former version booted a real Hilt graph +
  * in-memory `AppDatabase` (via the deleted `TestDatabaseModule`) inside `TestActivity` and asserted the
- * row landed in `exercise_table`. Post-cut the feature graph resolves through `context.appGraphContract()`
- * (the app graph, only reachable from `:app:app`), and the exercise repositories have `internal`
- * constructors — so a real end-to-end DB round-trip is not constructible in this module. Following the
+ * row landed in `exercise_table`. Post-cut the feature graph resolves its app-scope deps through the
+ * `appDeps<T>()` acquisition seam (backed by the app graph, only reachable from `:app:app`), and the
+ * exercise repositories have `internal` constructors — so a real end-to-end DB round-trip is not
+ * constructible in this module. Following the
  * established feature-UI-test idiom (F1 — direct screen render with an `ActionCapture`, cf.
  * [io.github.stslex.workeeper.feature.settings.SettingsScreenTest] and the sibling [ExerciseScreenTest]),
  * this verifies the form's action wiring; DB persistence is covered by the repository unit tests.

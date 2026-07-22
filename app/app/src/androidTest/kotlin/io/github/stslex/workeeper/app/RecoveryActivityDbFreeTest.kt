@@ -32,8 +32,8 @@ import org.junit.runner.RunWith
  * override** — a real [AppDatabase] built with a [SQLiteDriver] whose `open()`
  * throws `AssertionError` (Room 3 removed `openHelper`; the driver is now the
  * connection seam). `RecoveryActivity` resolves `databaseSnapshotProvider` /
- * `recoveryDiagnosticsExporter` from the per-test Metro graph via
- * `context.appGraphContract()`; the graph's DB-cascade derives the DAOs from
+ * `recoveryDiagnosticsExporter` from the per-test Metro graph via its typed
+ * holder (`RecoveryDepsHolder`); the graph's DB-cascade derives the DAOs from
  * this one root, so if any production code path reachable from the activity
  * opens a connection, the assertion bubbles up out of [ActivityScenario.launch]
  * and the test fails.

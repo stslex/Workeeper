@@ -28,9 +28,9 @@ import io.github.stslex.workeeper.core.data.backup.worker.R
  * for users who never hit the auth-revoked path.
  *
  * App-Scope Collapse Step 6 (worker de-cycle): Metro-owned via `@ContributesBinding(AppScope)`, bound to
- * the [BackupNotificationHelper] api interface (in `core:data:backup:api`) so `core:di`'s
- * `AppGraphContract` can name it without depending on this worker module. Public for cross-module
- * aggregation (D1); `Context` plain.
+ * the [BackupNotificationHelper] api interface (in `core:data:backup:api`) so app-scope dep interfaces
+ * (the worker's own `BackupWorkerDeps`) can name it via the api type without depending on this worker
+ * module. Public for cross-module aggregation (D1); `Context` plain.
  */
 @SingleIn(AppScope::class)
 @ContributesBinding(AppScope::class)

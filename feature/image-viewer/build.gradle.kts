@@ -15,8 +15,6 @@ metro {
 
 dependencies {
     implementation(project(":core:core"))
-    // P-BRIDGES: AppGraphContract seam for Hilt-free app-scope reads.
-    implementation(project(":core:di"))
 
     implementation(project(":core:ui:kit"))
     implementation(project(":core:ui:mvi"))

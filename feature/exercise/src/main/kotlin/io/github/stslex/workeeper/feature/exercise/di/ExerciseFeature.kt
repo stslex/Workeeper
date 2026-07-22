@@ -4,10 +4,12 @@ package io.github.stslex.workeeper.feature.exercise.di
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import dev.zacsweers.metro.createGraphFactory
-import io.github.stslex.workeeper.core.di.appGraphContract
 import io.github.stslex.workeeper.core.ui.mvi.FeatureAssisted
+import io.github.stslex.workeeper.core.ui.mvi.di.StoreCoreDeps
+import io.github.stslex.workeeper.core.ui.mvi.di.appDeps
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
 import io.github.stslex.workeeper.core.ui.mvi.processor.rememberMetroStoreProcessor
+import io.github.stslex.workeeper.core.ui.navigation.NavigatorDeps
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Event
@@ -29,24 +31,27 @@ internal object ExerciseFeature : FeatureAssisted<ExerciseStoreProcessor, Screen
     override fun processor(screen: Screen.Exercise): ExerciseStoreProcessor {
         val context = LocalContext.current
         return rememberMetroStoreProcessor<ExerciseStoreImpl> {
-            // App-Scope Collapse Step 6 (cut): app-scope deps via the Metro AppGraphContract; app Context
-            // direct from LocalContext (a create() param of the feature graph, never from the app graph).
-            val graph = context.appGraphContract()
+            // Mechanism A (the god-object split): spine four from StoreCoreDeps + NavigatorDeps; the domain
+            // tail (repos + imageStorage + resourceWrapper + BOTH qualified dispatchers) from ExerciseDeps.
+            // App Context stays direct from LocalContext (a create() param, never from the app graph).
+            val coreDeps = context.appDeps<StoreCoreDeps>()
+            val navDeps = context.appDeps<NavigatorDeps>()
+            val deps = context.appDeps<ExerciseDeps>()
             createGraphFactory<ExerciseGraph.Factory>()
                 .create(
-                    exerciseRepository = graph.exerciseRepository,
-                    tagRepository = graph.tagRepository,
-                    imageStorage = graph.imageStorage,
-                    personalRecordRepository = graph.personalRecordRepository,
-                    sessionRepository = graph.sessionRepository,
-                    trainingRepository = graph.trainingRepository,
-                    resourceWrapper = graph.resourceWrapper,
-                    navigator = graph.navigator,
-                    storeDispatchers = graph.storeDispatchers,
-                    analyticsHolder = graph.analyticsHolder,
-                    loggerHolder = graph.loggerHolder,
-                    defaultDispatcher = graph.defaultDispatcher,
-                    mainImmediateDispatcher = graph.mainImmediateDispatcher,
+                    exerciseRepository = deps.exerciseRepository,
+                    tagRepository = deps.tagRepository,
+                    imageStorage = deps.imageStorage,
+                    personalRecordRepository = deps.personalRecordRepository,
+                    sessionRepository = deps.sessionRepository,
+                    trainingRepository = deps.trainingRepository,
+                    resourceWrapper = deps.resourceWrapper,
+                    navigator = navDeps.navigator,
+                    storeDispatchers = coreDeps.storeDispatchers,
+                    analyticsHolder = coreDeps.analyticsHolder,
+                    loggerHolder = coreDeps.loggerHolder,
+                    defaultDispatcher = deps.defaultDispatcher,
+                    mainImmediateDispatcher = deps.mainImmediateDispatcher,
                     context = context.applicationContext,
                 )
                 .storeFactory

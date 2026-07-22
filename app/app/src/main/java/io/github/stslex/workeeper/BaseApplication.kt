@@ -6,10 +6,11 @@ import androidx.work.Configuration
 import io.github.stslex.workeeper.core.core.images.buildImageStorage
 import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
 import io.github.stslex.workeeper.core.core.logger.Log
+import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerDeps
+import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerDepsHolder
 import io.github.stslex.workeeper.core.data.backup.worker.MetroWorkerFactory
 import io.github.stslex.workeeper.core.data.database.buildAppDatabase
-import io.github.stslex.workeeper.core.di.AppGraphContract
-import io.github.stslex.workeeper.core.di.AppGraphContractHolder
+import io.github.stslex.workeeper.core.ui.mvi.di.AppDepsHolder
 import io.github.stslex.workeeper.core.ui.mvi.performance.PerformanceMetricsRecorder
 import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
 import io.github.stslex.workeeper.di.AppGraph
@@ -20,6 +21,8 @@ import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPub
 import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepository
 import io.github.stslex.workeeper.feature.app_dialogs.impl.di.AppDialogInternalsHolder
 import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImpl
+import io.github.stslex.workeeper.feature.recovery.di.RecoveryDeps
+import io.github.stslex.workeeper.feature.recovery.di.RecoveryDepsHolder
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -30,15 +33,19 @@ import kotlinx.coroutines.runBlocking
 /**
  * The process [Application] base, Hilt-free (App-Scope Collapse Step 6 — the cut). Holds the Metro
  * app-scope [AppGraph] for the whole process and exposes it through the interface seams every consumer
- * reads: [AppGraphOwner] (in-module: `MainActivity` and other `:app:app` readers), [AppGraphContractHolder]
- * (library consumers via `appGraphContract()`), and the two feature-tier holders
- * ([AppDialogPublisherHolder], [AppDialogInternalsHolder]) for the app-dialogs types `core:di` cannot name.
+ * reads: [AppGraphOwner] (in-module: `MainActivity` and other `:app:app` readers), [AppDepsHolder]
+ * (feature-side readers via `context.appDeps<T>()`), the typed [RecoveryDepsHolder] /
+ * [BackupWorkerDepsHolder] (the two framework readers that must not depend on `core:ui:mvi`), and the two
+ * feature-tier holders ([AppDialogPublisherHolder], [AppDialogInternalsHolder]) for the app-dialogs types
+ * no dep interface can name.
  */
 abstract class BaseApplication :
     Application(),
     Configuration.Provider,
     AppGraphOwner,
-    AppGraphContractHolder,
+    AppDepsHolder,
+    RecoveryDepsHolder,
+    BackupWorkerDepsHolder,
     AppDialogPublisherHolder,
     AppDialogInternalsHolder {
 
@@ -65,7 +72,22 @@ abstract class BaseApplication :
         )
     }
 
-    override val appGraphContract: AppGraphContract get() = appGraph
+    // God-object split (mechanism A): feature-side readers acquire ONE narrow interface via
+    // `context.appDeps<T>()`. `appGraph` implements every narrow interface (StoreCoreDeps, NavigatorDeps,
+    // each XDeps), so the accessor's `as T` cast is safe by construction.
+    override fun appDeps(): Any = appGraph
+
+    // God-object split (typed point-acquisition): the framework-instantiated RecoveryActivity reads
+    // its 2 deps through this typed holder instead of `context.appDeps<T>()` — it uses no core:ui:mvi
+    // symbols, so it must not gain a parasitic mvi edge just to reach the mvi-homed accessor. `appGraph`
+    // implements RecoveryDeps, so returning it typed as RecoveryDeps is a compile-checked upcast.
+    override fun recoveryDeps(): RecoveryDeps = appGraph
+
+    // God-object split (typed point-acquisition): MetroWorkerFactory (core:data:backup:worker, DATA
+    // layer) reads its 6 deps through this typed holder — it MUST NOT depend on core:ui:mvi (data→ui
+    // inversion), so it cannot use `context.appDeps<T>()`. `appGraph` implements BackupWorkerDeps, so
+    // returning it typed as BackupWorkerDeps is a compile-checked upcast.
+    override fun backupWorkerDeps(): BackupWorkerDeps = appGraph
 
     override val appDialogPublisher: AppDialogPublisher get() = appGraph.appDialogPublisher
 

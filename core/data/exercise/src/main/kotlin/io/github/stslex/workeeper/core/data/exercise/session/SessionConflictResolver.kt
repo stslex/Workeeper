@@ -20,8 +20,8 @@ import io.github.stslex.workeeper.core.data.exercise.session.model.ActiveSession
  *   caller surfaces the conflict modal and routes the choice through its handler.
  */
 // App-Scope Collapse Step 6 (cut): self-bound Metro graph node (no supertype → @SingleIn+@Inject, mirror
-// LoggerHolder), exposed as an AppGraph/AppGraphContract accessor so home + single-training resolve it
-// from the graph post-Hilt. Its sole ctor dep SessionRepository is already @ContributesBinding(AppScope).
+// LoggerHolder), exposed as an AppGraph accessor so home + single-training resolve it via
+// context.appDeps<T>() post-Hilt. Its sole ctor dep SessionRepository is already @ContributesBinding(AppScope).
 @SingleIn(AppScope::class)
 @Inject
 class SessionConflictResolver(

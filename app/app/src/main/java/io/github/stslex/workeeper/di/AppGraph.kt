@@ -11,7 +11,6 @@ import io.github.stslex.workeeper.core.core.di.DispatchersBindingContainer
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.core.images.ImageStorage
-import io.github.stslex.workeeper.core.core.platform.AppReinitializer
 import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
 import io.github.stslex.workeeper.core.core.platform.TempFileProvider
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
@@ -24,10 +23,10 @@ import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepos
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
 import io.github.stslex.workeeper.core.data.backup.google_drive.auth.AccountDataStore
+import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerDeps
 import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
-import io.github.stslex.workeeper.core.data.database.snapshot.LiveDatabaseLocator
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordRepository
 import io.github.stslex.workeeper.core.data.exercise.session.PerformedExerciseRepository
@@ -38,21 +37,34 @@ import io.github.stslex.workeeper.core.data.exercise.stats.StatsRepository
 import io.github.stslex.workeeper.core.data.exercise.tags.TagRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
-import io.github.stslex.workeeper.core.di.AppGraphContract
 import io.github.stslex.workeeper.core.ui.kit.utils.NumUiUtils
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolder
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
+import io.github.stslex.workeeper.core.ui.mvi.di.StoreCoreDeps
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
+import io.github.stslex.workeeper.core.ui.navigation.NavigatorDeps
+import io.github.stslex.workeeper.feature.all_exercises.di.AllExercisesDeps
+import io.github.stslex.workeeper.feature.all_trainings.di.AllTrainingsDeps
 import io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObserver
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepository
 import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImpl
+import io.github.stslex.workeeper.feature.archive.di.ArchiveDeps
+import io.github.stslex.workeeper.feature.exercise.di.ExerciseDeps
+import io.github.stslex.workeeper.feature.exercise_chart.di.ExerciseChartDeps
+import io.github.stslex.workeeper.feature.home.di.HomeDeps
+import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutDeps
+import io.github.stslex.workeeper.feature.past_session.di.PastSessionDeps
+import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorDeps
 import io.github.stslex.workeeper.feature.recovery.boot.RecoveryBootstrap
+import io.github.stslex.workeeper.feature.recovery.di.RecoveryDeps
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
 import io.github.stslex.workeeper.feature.recovery.domain.StartupMigrationCoordinator
+import io.github.stslex.workeeper.feature.settings.di.SettingsDeps
+import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingDeps
 import io.github.stslex.workeeper.navigation.NavigatorEventBus
 import kotlinx.coroutines.CoroutineDispatcher
 
@@ -62,7 +74,22 @@ import kotlinx.coroutines.CoroutineDispatcher
  * via `create(...)`, so the graph interface stays small.
  */
 @DependencyGraph(scope = AppScope::class)
-internal interface AppGraph : AppGraphContract {
+internal interface AppGraph :
+    StoreCoreDeps,
+    NavigatorDeps,
+    AllTrainingsDeps,
+    AllExercisesDeps,
+    ArchiveDeps,
+    ExerciseChartDeps,
+    PlanEditorDeps,
+    PastSessionDeps,
+    ExerciseDeps,
+    SingleTrainingDeps,
+    LiveWorkoutDeps,
+    HomeDeps,
+    SettingsDeps,
+    RecoveryDeps,
+    BackupWorkerDeps {
 
     /** Root accessor: the single app-scoped [AnalyticsHolder]. */
     override val analyticsHolder: AnalyticsHolder
@@ -133,7 +160,6 @@ internal interface AppGraph : AppGraphContract {
     /** Metro-owned via @ContributesBinding. */
     override val platformInfoProvider: PlatformInfoProvider
     override val tempFileProvider: TempFileProvider
-    override val appReinitializer: AppReinitializer
 
     /** Metro-owned RestoreStateRepository. */
     override val restoreStateRepository: RestoreStateRepository
@@ -201,8 +227,8 @@ internal interface AppGraph : AppGraphContract {
 
     /**
      * Metro-owned [RecoveryDiagnosticsExporter] — `@ContributesBinding(AppScope)` on
-     * `RecoveryDiagnosticsExporterImpl` (feature/recovery), bound to the api interface. Exposed on the
-     * `AppGraphContract`: read by `RecoveryActivity` + `RestoreDialogChoiceObserver` via the graph.
+     * `RecoveryDiagnosticsExporterImpl` (feature/recovery), bound to the api interface. Exposed via
+     * `RecoveryDeps`: read by `RecoveryActivity` + `RestoreDialogChoiceObserver` through the graph.
      */
     override val recoveryDiagnosticsExporter: RecoveryDiagnosticsExporter
 
@@ -224,7 +250,7 @@ internal interface AppGraph : AppGraphContract {
 
     /**
      * [SessionConflictResolver] — self-bound `@SingleIn(AppScope)` graph node; read by home +
-     * single-training via `appGraphContract()`.
+     * single-training via their `XDeps` (`HomeDeps` / `SingleTrainingDeps`).
      */
     override val sessionConflictResolver: SessionConflictResolver
 
@@ -236,8 +262,8 @@ internal interface AppGraph : AppGraphContract {
 
     /**
      * The recovery cluster — feature/recovery `@SingleIn(AppScope)` graph nodes read by
-     * `BaseApplication`/`MainActivity` (both in app/app, so read the INTERNAL graph directly;
-     * NOT on `AppGraphContract` — core:di cannot name feature types). [recoveryBootstrap] is the
+     * `BaseApplication`/`MainActivity` (both in app/app, so read the INTERNAL graph directly via
+     * `AppGraphOwner`, not through a dep interface). [recoveryBootstrap] is the
      * `RestoreDialogChoiceObserver` (via its `RecoveryBootstrap` supertype, `@ContributesBinding`) —
      * resolving it eagerly arms the observer's `init{}` subscriber (app-dialogs BLOCKER 1).
      */
@@ -246,14 +272,13 @@ internal interface AppGraph : AppGraphContract {
     val recoveryBootstrap: RecoveryBootstrap
 
     /**
-     * The `AppDatabase`-derived DB-locator interface bindings, Metro-owned via repeatable
-     * `@ContributesBinding(AppScope)` on `DatabaseSnapshotProviderImpl` — [databaseSnapshotProvider] /
-     * [liveDatabaseLocator] are the SAME instance (derives from the `appDatabase` `create()` root). Read
-     * cross-module by the restore path (BackupWorker, RecoveryActivity, the recovery observers, settings)
-     * via the graph.
+     * The `AppDatabase`-derived DB-snapshot binding, Metro-owned via `@ContributesBinding(AppScope)` on
+     * `DatabaseSnapshotProviderImpl` (derives from the `appDatabase` `create()` root). Read cross-module by
+     * the restore path (BackupWorker, RecoveryActivity, the recovery observers, settings) via the graph.
+     * (The sibling `LiveDatabaseLocator` binding — the SAME instance — is consumed by `StartupMigration
+     * Coordinator` via ctor `@Inject`, not through a graph accessor, so it has no accessor here.)
      */
     override val databaseSnapshotProvider: DatabaseSnapshotProvider
-    override val liveDatabaseLocator: LiveDatabaseLocator
 
     /**
      * Metro CONSTRUCTS and retains this. `@SingleIn(AppScope)` binds it to this graph's
