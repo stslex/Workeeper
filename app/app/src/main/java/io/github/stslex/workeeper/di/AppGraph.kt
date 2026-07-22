@@ -11,7 +11,6 @@ import io.github.stslex.workeeper.core.core.di.DispatchersBindingContainer
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.core.images.ImageStorage
-import io.github.stslex.workeeper.core.core.platform.AppReinitializer
 import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
 import io.github.stslex.workeeper.core.core.platform.TempFileProvider
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
@@ -28,7 +27,6 @@ import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerDeps
 import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
-import io.github.stslex.workeeper.core.data.database.snapshot.LiveDatabaseLocator
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordRepository
 import io.github.stslex.workeeper.core.data.exercise.session.PerformedExerciseRepository
@@ -164,7 +162,6 @@ internal interface AppGraph :
     /** Metro-owned via @ContributesBinding. */
     override val platformInfoProvider: PlatformInfoProvider
     override val tempFileProvider: TempFileProvider
-    override val appReinitializer: AppReinitializer
 
     /** Metro-owned RestoreStateRepository. */
     override val restoreStateRepository: RestoreStateRepository
@@ -277,14 +274,13 @@ internal interface AppGraph :
     val recoveryBootstrap: RecoveryBootstrap
 
     /**
-     * The `AppDatabase`-derived DB-locator interface bindings, Metro-owned via repeatable
-     * `@ContributesBinding(AppScope)` on `DatabaseSnapshotProviderImpl` — [databaseSnapshotProvider] /
-     * [liveDatabaseLocator] are the SAME instance (derives from the `appDatabase` `create()` root). Read
-     * cross-module by the restore path (BackupWorker, RecoveryActivity, the recovery observers, settings)
-     * via the graph.
+     * The `AppDatabase`-derived DB-snapshot binding, Metro-owned via `@ContributesBinding(AppScope)` on
+     * `DatabaseSnapshotProviderImpl` (derives from the `appDatabase` `create()` root). Read cross-module by
+     * the restore path (BackupWorker, RecoveryActivity, the recovery observers, settings) via the graph.
+     * (The sibling `LiveDatabaseLocator` binding — the SAME instance — is consumed by `StartupMigration
+     * Coordinator` via ctor `@Inject`, not through a graph accessor, so it has no accessor here.)
      */
     override val databaseSnapshotProvider: DatabaseSnapshotProvider
-    override val liveDatabaseLocator: LiveDatabaseLocator
 
     /**
      * Metro CONSTRUCTS and retains this. `@SingleIn(AppScope)` binds it to this graph's

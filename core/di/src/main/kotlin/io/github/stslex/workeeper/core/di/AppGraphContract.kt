@@ -5,7 +5,6 @@ import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.core.images.ImageStorage
-import io.github.stslex.workeeper.core.core.platform.AppReinitializer
 import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
 import io.github.stslex.workeeper.core.core.platform.TempFileProvider
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
@@ -19,7 +18,6 @@ import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupCont
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
 import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
-import io.github.stslex.workeeper.core.data.database.snapshot.LiveDatabaseLocator
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordRepository
 import io.github.stslex.workeeper.core.data.exercise.session.PerformedExerciseRepository
@@ -72,7 +70,6 @@ interface AppGraphContract {
     val resourceWrapper: ResourceWrapper
     val platformInfoProvider: PlatformInfoProvider
     val tempFileProvider: TempFileProvider
-    val appReinitializer: AppReinitializer
 
     // ImageStorage — a `create()` bound-instance root on AppGraph;
     // exposed as an accessor so the exercise feature resolves it from the graph.
@@ -102,7 +99,6 @@ interface AppGraphContract {
 
     // ── core:data:database (AppDatabase-derived, DB-safe on resolve; opens lazily) ──
     val databaseSnapshotProvider: DatabaseSnapshotProvider
-    val liveDatabaseLocator: LiveDatabaseLocator
 
     // ── core:data:exercise repositories + conflict resolver ──
     val exerciseRepository: ExerciseRepository
