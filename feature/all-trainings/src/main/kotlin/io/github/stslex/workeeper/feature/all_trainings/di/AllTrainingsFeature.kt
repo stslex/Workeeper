@@ -35,7 +35,7 @@ internal object AllTrainingsFeature : Feature<AllTrainingsStoreProcessor, AllTra
         val context = LocalContext.current
         return rememberMetroStoreProcessor<AllTrainingsStoreImpl> {
             context.appDeps<AllTrainingsGraph.Factory>()
-                .create()
+                .createAllTrainingsGraph()
                 .allTrainingsStore
         } as AllTrainingsStoreProcessor
     }

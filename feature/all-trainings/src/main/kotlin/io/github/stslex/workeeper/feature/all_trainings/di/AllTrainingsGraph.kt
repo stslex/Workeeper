@@ -30,9 +30,15 @@ interface AllTrainingsGraph {
     @Binds
     val AllTrainingsHandlerStoreImpl.bindHandlerStore: AllTrainingsHandlerStore
 
+    /**
+     * The creator method name must be UNIQUE across all contributed extension factories: every
+     * `@ContributesTo(AppScope::class)` factory is merged into `AppGraph`, so two factories both
+     * declaring `create()` collide ("return types are incompatible") the moment a second feature is
+     * ported. Binding rule for all 13 — see documentation/graph-extension-arc/HANDOFF.md.
+     */
     @ContributesTo(AppScope::class)
     @GraphExtension.Factory
     fun interface Factory {
-        fun create(): AllTrainingsGraph
+        fun createAllTrainingsGraph(): AllTrainingsGraph
     }
 }

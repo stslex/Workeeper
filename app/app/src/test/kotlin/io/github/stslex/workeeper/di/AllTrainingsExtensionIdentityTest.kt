@@ -53,7 +53,7 @@ internal class AllTrainingsExtensionIdentityTest {
 
         val store = appGraph
             .asContribution<AllTrainingsGraph.Factory>()
-            .create()
+            .createAllTrainingsGraph()
             .allTrainingsStore
 
         assertNotNull(store, "The contributed extension must resolve AllTrainingsStoreImpl from the parent graph")
@@ -65,7 +65,7 @@ internal class AllTrainingsExtensionIdentityTest {
 
         val store = appGraph
             .asContribution<AllTrainingsGraph.Factory>()
-            .create()
+            .createAllTrainingsGraph()
             .allTrainingsStore
 
         // Identity, not just non-null: the extension inherits the parent's app-scoped singletons.
