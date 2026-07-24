@@ -6,4 +6,4 @@ import io.github.stslex.workeeper.feature.archive.mvi.store.ArchiveStore.Action
 import io.github.stslex.workeeper.feature.archive.mvi.store.ArchiveStore.Event
 import io.github.stslex.workeeper.feature.archive.mvi.store.ArchiveStore.State
 
-internal interface ArchiveHandlerStore : HandlerStore<State, Action, Event>
+interface ArchiveHandlerStore : HandlerStore<State, Action, Event>

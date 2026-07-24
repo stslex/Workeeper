@@ -12,7 +12,7 @@ import io.github.stslex.workeeper.feature.archive.mvi.store.ArchiveStore.Action
 import io.github.stslex.workeeper.feature.archive.mvi.store.ArchiveStore.Event
 import io.github.stslex.workeeper.feature.archive.mvi.store.ArchiveStore.State
 
-internal interface ArchiveStore : Store<State, Action, Event> {
+interface ArchiveStore : Store<State, Action, Event> {
 
     @Stable
     enum class Segment { EXERCISES, TRAININGS }

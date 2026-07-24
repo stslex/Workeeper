@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.archive.domain.model
 
-internal sealed interface ArchivedItem {
+sealed interface ArchivedItem {
 
     val uuid: String
     val name: String

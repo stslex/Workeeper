@@ -19,7 +19,7 @@ import kotlinx.coroutines.withContext
 
 @Inject
 @SingleIn(ArchiveScope::class)
-internal class ArchiveInteractorImpl(
+class ArchiveInteractorImpl(
     private val exerciseRepository: ExerciseRepository,
     private val trainingRepository: TrainingRepository,
     // Qualified: Metro reads the javax @DefaultDispatcher (via includeJavax interop), so this

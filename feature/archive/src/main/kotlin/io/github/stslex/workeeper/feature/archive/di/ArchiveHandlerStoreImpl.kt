@@ -10,5 +10,5 @@ import io.github.stslex.workeeper.feature.archive.mvi.store.ArchiveStore.State
 
 @Inject
 @SingleIn(ArchiveScope::class)
-internal class ArchiveHandlerStoreImpl : ArchiveHandlerStore,
+class ArchiveHandlerStoreImpl : ArchiveHandlerStore,
     BaseHandlerStore<State, Action, Event>()
