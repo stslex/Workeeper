@@ -27,10 +27,15 @@ the whole arc or none of it.
 ## Status
 
 - **DONE:** Phase 0 gate (`c12c44dc`), `AppScope`→commonMain (`2f9c89d8`), all-trainings port
-  (`9f17d02a`), dead `AllTrainingsDeps` deleted (`197f39b4`).
-- **REMAINING:** 12 features. Non-goals for the current slice: assisted-store features (`exercise`,
+  (`9f17d02a`) + `AllTrainingsDeps` deleted (`197f39b4`), unique-creator fix (`dbfc4852`),
+  archive port (`4c184e5e`) + `ArchiveDeps` deleted. 2 of 13 ported; 13 `XxxDeps` supertypes remain
+  on `AppGraph` (was 15).
+- **REMAINING:** 11 features. Non-goals for the current slice: assisted-store features (`exercise`,
   `live-workout`, `image-viewer`, `plan-editor`) and `MetroWorkerFactory` need a separate acquisition
-  decision.
+  decision. NOTE: the assisted set is LARGER than the original non-goal list — measured
+  `FeatureAssisted<>` users are `exercise`, `live-workout`, `image-viewer`, `plan-editor`,
+  `exercise-chart`, `past-session`, `single-training` (7). Remaining PLAIN (portable now):
+  `all-exercises`, `app-dialogs`, `home`, `settings`.
 
 ## The proven pattern (per feature)
 
@@ -107,6 +112,23 @@ port. A real slope departure will show by feature 3, not feature 13.
 | Extensions in `:app` | After porting | clean `:app:app` median | runs | task state |
 |---|---|---|---|---|
 | 1 | all-trainings | **1.4s** | 1.7 / 1.3 / 1.4 | EXECUTED, 0 FROM-CACHE |
+| 2 | archive | **1.2s** | 1.2 / 1.5 / 1.2 | EXECUTED, 0 FROM-CACHE |
+
+## Measured forced-public surface, per feature (never assumed)
+
+Widen ONE declaration at a time to a compiler fixpoint; record what the compiler actually forced. The
+count is a hypothesis per feature, not a work order.
+
+| Feature | Forced-public | `@Binds` | Handlers (all stayed internal) | Composition note |
+|---|---|---|---|---|
+| all-trainings | **11** | 2 | 3 | 3 domain models forced; UI models were already public |
+| archive | **11** | 2 | 5 | forced a UI model (`ArchivedItemUi`) + its own `ExerciseTypeDomain` copy |
+
+**Refuted hypothesis:** handler count does not drive the forced set — archive has 5 handlers vs
+all-trainings' 3, and none was forced public. The `@Inject class XStoreImpl internal constructor(...)`
+form keeps every handler off the public API. What *does* drive it: the `@Binds` pairs, the accessor
+return type, and whichever domain/UI models the now-public interactor/store contract exposes (note each
+feature owns a private duplicate of `ExerciseTypeDomain`, so that one recurs).
 
 ## The three baseline-RED androidTest modules (enumerated — previously undocumented)
 
