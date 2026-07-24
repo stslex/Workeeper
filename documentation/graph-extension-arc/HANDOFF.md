@@ -131,6 +131,21 @@ form keeps every handler off the public API. What *does* drive it: the `@Binds` 
 return type, and whichever domain/UI models the now-public interactor/store contract exposes (note each
 feature owns a private duplicate of `ExerciseTypeDomain`, so that one recurs).
 
+## Debt the arc makes visible — `ExerciseTypeDomain` × 8 (record only, do NOT fix during the arc)
+
+`ExerciseTypeDomain` is an identical `internal enum class` duplicated in **8 feature modules**
+(`all-exercises`, `archive`, `exercise`, `exercise-chart`, `live-workout`, `past-session`,
+`plan-editor`, `single-training`) — a deliberate domain-purity duplication, each feature owning its own
+copy rather than sharing a `core.data.*` type.
+
+The arc forces each copy **public** as it ports that feature (archive's is already public, commit
+`4c184e5e`), so at arc completion there will be **8 public copies of the same enum**. This is
+**pre-existing debt the arc merely makes visible**, not debt the arc creates: the duplication is
+already there, the arc only changes its visibility.
+
+**Consolidation is a candidate for AFTER the arc, not during** — merging them mid-arc would touch 8
+feature modules while both DI mechanisms are live, against the indivisibility rule above.
+
 ## The three baseline-RED androidTest modules (enumerated — previously undocumented)
 
 These were referenced across the Step-6 commits as "12 green / same 3 baseline-RED" but were **not
