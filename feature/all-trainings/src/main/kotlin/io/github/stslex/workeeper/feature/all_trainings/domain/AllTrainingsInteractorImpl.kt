@@ -21,7 +21,7 @@ import kotlinx.coroutines.withContext
 
 @Inject
 @SingleIn(AllTrainingsScope::class)
-internal class AllTrainingsInteractorImpl(
+class AllTrainingsInteractorImpl(
     private val trainingRepository: TrainingRepository,
     private val tagRepository: TagRepository,
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,

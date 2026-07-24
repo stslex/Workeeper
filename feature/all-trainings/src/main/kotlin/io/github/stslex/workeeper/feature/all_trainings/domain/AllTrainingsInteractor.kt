@@ -7,7 +7,7 @@ import io.github.stslex.workeeper.feature.all_trainings.domain.model.TagDomain
 import io.github.stslex.workeeper.feature.all_trainings.domain.model.TrainingListItemDomain
 import kotlinx.coroutines.flow.Flow
 
-internal interface AllTrainingsInteractor {
+interface AllTrainingsInteractor {
 
     fun observeTrainings(filterTagUuids: Set<String>): Flow<PagingData<TrainingListItemDomain>>
 
