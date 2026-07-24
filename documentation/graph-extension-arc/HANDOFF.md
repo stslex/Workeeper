@@ -37,6 +37,11 @@ the whole arc or none of it.
 1. `XxxGraph` → `@GraphExtension(XScope::class)`, public interface; `Factory` →
    `@GraphExtension.Factory` + `@ContributesTo(AppScope::class)`, **zero params** (deps inherited); keep
    feature-local `@Binds`.
+   **BINDING NAMING RULE — each contributed `@GraphExtension.Factory` declares a UNIQUELY-NAMED
+   creator** (`createAllTrainingsGraph()`, `createArchiveGraph()`, …), never a bare `create()`. Every
+   factory is merged into `AppGraph`, so two factories declaring `create()` fail to compile
+   (`'fun create(): XGraph' clashes with 'fun create(): YGraph': return types are incompatible`). This
+   is invisible with one feature ported and breaks on the second — measured on an N-extension probe.
 2. Flip point: `context.appDeps<XxxGraph.Factory>().create().xxxStore` — the existing `as T` seam cast.
    **`asContribution<T>()` is NOT usable** feature-side (needs a statically `@DependencyGraph` receiver;
    the seam is `Any`).
@@ -49,6 +54,26 @@ the whole arc or none of it.
    `@GraphExtension` can't be created standalone): assert the store resolves through the real parent
    AND its app-scoped deps are the SAME instances (`===`).
 5. Delete `XxxDeps` + its AppGraph supertype **only** once no sibling still needs its members.
+
+## The three baseline-RED androidTest modules (enumerated — previously undocumented)
+
+These were referenced across the Step-6 commits as "12 green / same 3 baseline-RED" but were **not
+named anywhere in `documentation/`** (no `P-TESTINFRA` marker exists). Recovered from commit
+`fa80d330`, which names them verbatim:
+
+> repo-wide `assembleDebugAndroidTest` = 12 green / same 3 baseline-RED (**`core:ui:mvi`,
+> `feature:exercise`, `feature:recovery`** — pre-existing `MissingBinding`, P-TESTINFRA's job)
+
+| Module | androidTest dir today | Note |
+|---|---|---|
+| `core:ui:mvi` | present | pre-existing `MissingBinding` |
+| `feature:exercise` | present | pre-existing `MissingBinding` |
+| `feature:recovery` | **absent** — no `src/androidTest` | entry is STALE; verify before citing |
+
+Status is **unchanged by the graph-extension arc**: `git diff cf328bf..HEAD` touches no androidTest
+source, and repo-wide `compileDebugAndroidTestKotlin` is green (they fail at runtime, not compile).
+Next session: verify with
+`./gradlew connectedDebugAndroidTest --continue` rather than asserting status by construction.
 
 ## KMP open items (next platform axis, NOT this arc)
 
