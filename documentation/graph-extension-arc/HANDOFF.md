@@ -55,6 +55,59 @@ the whole arc or none of it.
    AND its app-scoped deps are the SAME instances (`===`).
 5. Delete `XxxDeps` + its AppGraph supertype **only** once no sibling still needs its members.
 
+## ⚠️ Stale `app/app/build` is an ARC PROPERTY — wipe build dirs on every branch switch
+
+Extension codegen **concentrates in `:app`**: `AppGraph$Impl` implements every contributed factory, so
+one stale `app/app/build` now invalidates **all ported features at once**, and the failure surfaces at
+**RUNTIME**, not compile time:
+
+```
+java.lang.AbstractMethodError: Receiver class AppGraph$Impl does not define or inherit
+'AllTrainingsGraph createAllTrainingsGraph()' of interface AllTrainingsGraph$Factory
+```
+
+This is a **structural consequence of the arc**, not a session artifact: today's 13 *root* graphs
+distribute that risk across 13 modules; after the arc it is concentrated in one. Observed for real when
+switching between `cf328bf` and the spike branch mid-measurement. It is **not** reproducible from a
+consistent state (verified: the same ABI change cascades correctly, both compiles EXECUTED, tests
+green), so it is a stale-artifact hazard, not an incremental-correctness bug — same family as the
+repo's documented "stale Hilt-generated Java footgun when switching branches".
+
+**STANDING RULE for anyone working this arc:**
+```bash
+find . -maxdepth 4 -type d -name build -not -path "./.git/*" -exec rm -rf {} +
+```
+after every branch switch (and before any build-time measurement). A `--rerun-tasks` build also clears
+it. Symptom to recognise: `AbstractMethodError` on `AppGraph$Impl` naming a factory method that
+demonstrably exists in source.
+
+## Base decision — build on `cf328bf`, do NOT rebase onto `d54129d`
+
+**Settled: the AppGraphContract split arc stays.** At `d54129d` the seam is a concrete
+`AppGraphContract` in a separate `core:di` module; the generic
+`inline fun <reified T> Context.appDeps(): T` over `AppDepsHolder.appDeps(): Any` exists **only from
+the split arc onward** — and the extension flip point depends on exactly that generic form. Rebasing it
+out would delete the seam this arc needs and force re-inventing it.
+
+So the split arc splits in two:
+- **load-bearing, stays:** the seam generalization (`appDeps<T>()` + `AppDepsHolder`), which every
+  ported feature uses as `appDeps<XxxGraph.Factory>()`;
+- **transient, deleted by this arc:** the 15 narrow `XxxDeps` interfaces (536 LOC).
+
+All ports build on `cf328bf`, as the spike already does. No rebase, no force-push.
+
+## Running build-time table (append one row per ported feature)
+
+Per-feature guard against the untested "13 REAL extensions" cell: the N=0…16 slope probe used synthetic
+extensions (2 `@Binds` + trivial accessor), lighter than real features, and flat-on-each-axis does not
+prove flat-on-the-product. Measure **clean `:app:app:compileDebugKotlin`** (real clean state:
+`rm -rf app/app/build`, `--no-build-cache`, per-task state reported, ≥3 runs) **before and after** each
+port. A real slope departure will show by feature 3, not feature 13.
+
+| Extensions in `:app` | After porting | clean `:app:app` median | runs | task state |
+|---|---|---|---|---|
+| 1 | all-trainings | **1.4s** | 1.7 / 1.3 / 1.4 | EXECUTED, 0 FROM-CACHE |
+
 ## The three baseline-RED androidTest modules (enumerated — previously undocumented)
 
 These were referenced across the Step-6 commits as "12 green / same 3 baseline-RED" but were **not
