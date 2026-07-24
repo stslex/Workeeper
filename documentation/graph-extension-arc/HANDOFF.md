@@ -47,7 +47,8 @@ the whole arc or none of it.
    factory is merged into `AppGraph`, so two factories declaring `create()` fail to compile
    (`'fun create(): XGraph' clashes with 'fun create(): YGraph': return types are incompatible`). This
    is invisible with one feature ported and breaks on the second — measured on an N-extension probe.
-2. Flip point: `context.appDeps<XxxGraph.Factory>().create().xxxStore` — the existing `as T` seam cast.
+2. Flip point: `context.appDeps<XxxGraph.Factory>().createXxxGraph().xxxStore` — the existing `as T`
+   seam cast, with the uniquely-named creator from rule 1.
    **`asContribution<T>()` is NOT usable** feature-side (needs a statically `@DependencyGraph` receiver;
    the seam is `Any`).
 3. **Minimum** visibility, not blanket: the ceiling is a hypothesis per feature — measure the forced set.
