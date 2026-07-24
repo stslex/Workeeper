@@ -3,13 +3,10 @@ package io.github.stslex.workeeper.feature.image_viewer.di
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
-import dev.zacsweers.metro.createGraphFactory
 import io.github.stslex.workeeper.core.ui.mvi.FeatureAssisted
-import io.github.stslex.workeeper.core.ui.mvi.di.StoreCoreDeps
 import io.github.stslex.workeeper.core.ui.mvi.di.appDeps
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
 import io.github.stslex.workeeper.core.ui.mvi.processor.rememberMetroStoreProcessor
-import io.github.stslex.workeeper.core.ui.navigation.NavigatorDeps
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStore.Action
 import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStore.Event
@@ -19,12 +16,17 @@ import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStor
 internal typealias ImageViewerStoreProcessor = StoreProcessor<State, Action, Event>
 
 /**
- * feature/image-viewer resolves its Store through the **Metro** path. ASSISTED
- * Store (`Screen.ExerciseImage` route arg) — the graph exposes the assisted
- * [ImageViewerStoreImpl.Factory] and this composable calls `storeFactory.create(screen)` inside the
- * `rememberMetroStoreProcessor` lambda. The 4 app-scoped singletons are acquired as the composition of
- * two narrow interfaces ([StoreCoreDeps] {analytics, logger, dispatchers} + [NavigatorDeps] {navigator})
- * via `context.appDeps<T>()` (the god-object split, mechanism A). No dispatcher, no Context.
+ * feature/image-viewer resolves its Store through the Metro **graph-extension** path.
+ *
+ * The app-scope graph (returned as `Any` by the `AppDepsHolder` seam) IS the parent graph and, once
+ * `:app` is compiled, implements the contributed [ImageViewerGraph.Factory]; `appDeps<T>()` re-narrows it
+ * with its `as T` cast. All 4 formerly hand-threaded app-scoped deps are inherited from the parent.
+ *
+ * The `Screen.ExerciseImage` route arg is passed to the extension factory as a bound instance (shape B),
+ * so the extension is built per navigation entry and carries that entry's arg — the Store needs no
+ * assisted factory. The extension is created INSIDE the `rememberMetroStoreProcessor` lambda, so it is
+ * built at most once per retained Store (per `NavBackStackEntry`), binding it and its
+ * `@SingleIn(ImageViewerScope)` nodes to exactly the Store's lifetime.
  */
 internal object ImageViewerFeature : FeatureAssisted<
     ImageViewerStoreProcessor,
@@ -36,19 +38,9 @@ internal object ImageViewerFeature : FeatureAssisted<
     override fun processor(screen: Screen.ExerciseImage): ImageViewerStoreProcessor {
         val context = LocalContext.current
         return rememberMetroStoreProcessor<ImageViewerStoreImpl> {
-            // Mechanism A (the god-object split): the spine four come from the composition of two narrow
-            // interfaces (appDeps<T>() FEEDS the typed create(...) below). No domain tail → no XDeps.
-            val coreDeps = context.appDeps<StoreCoreDeps>()
-            val navDeps = context.appDeps<NavigatorDeps>()
-            createGraphFactory<ImageViewerGraph.Factory>()
-                .create(
-                    navigator = navDeps.navigator,
-                    storeDispatchers = coreDeps.storeDispatchers,
-                    analyticsHolder = coreDeps.analyticsHolder,
-                    loggerHolder = coreDeps.loggerHolder,
-                )
-                .storeFactory
-                .create(screen)
+            context.appDeps<ImageViewerGraph.Factory>()
+                .createImageViewerGraph(screen)
+                .imageViewerStore
         } as ImageViewerStoreProcessor
     }
 }

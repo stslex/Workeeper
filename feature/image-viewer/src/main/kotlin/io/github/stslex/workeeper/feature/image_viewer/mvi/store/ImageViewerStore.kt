@@ -5,7 +5,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.ui.mvi.Store
 
-internal interface ImageViewerStore :
+interface ImageViewerStore :
     Store<ImageViewerStore.State, ImageViewerStore.Action, ImageViewerStore.Event> {
 
     @Stable

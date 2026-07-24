@@ -10,6 +10,6 @@ import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStor
 
 @Inject
 @SingleIn(ImageViewerScope::class)
-internal class ImageViewerHandlerStoreImpl :
+class ImageViewerHandlerStoreImpl :
     ImageViewerHandlerStore,
     BaseHandlerStore<State, Action, Event>()
