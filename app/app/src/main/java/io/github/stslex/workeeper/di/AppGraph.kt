@@ -51,7 +51,6 @@ import io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObse
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepository
 import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImpl
-import io.github.stslex.workeeper.feature.archive.di.ArchiveDeps
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseDeps
 import io.github.stslex.workeeper.feature.exercise_chart.di.ExerciseChartDeps
 import io.github.stslex.workeeper.feature.home.di.HomeDeps
@@ -77,7 +76,6 @@ internal interface AppGraph :
     StoreCoreDeps,
     NavigatorDeps,
     AllExercisesDeps,
-    ArchiveDeps,
     ExerciseChartDeps,
     PlanEditorDeps,
     PastSessionDeps,
