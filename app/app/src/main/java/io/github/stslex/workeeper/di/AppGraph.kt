@@ -47,7 +47,6 @@ import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.NavigatorDeps
 import io.github.stslex.workeeper.feature.all_exercises.di.AllExercisesDeps
-import io.github.stslex.workeeper.feature.all_trainings.di.AllTrainingsDeps
 import io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObserver
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepository
@@ -77,7 +76,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 internal interface AppGraph :
     StoreCoreDeps,
     NavigatorDeps,
-    AllTrainingsDeps,
     AllExercisesDeps,
     ArchiveDeps,
     ExerciseChartDeps,
