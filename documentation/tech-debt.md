@@ -396,6 +396,33 @@ bounded prod-side construction tail left for Step 6.
 
 ---
 
+## Metro `@GraphExtension` migration — internal-constructor dependency on IR-level visibility
+
+Tracked on `spike/graph-extension-all-trainings` (feature graphs → contributed `@GraphExtension`).
+
+The per-feature public-API surface is minimised (all-trainings: 11 declarations, not the 14 ceiling)
+by keeping the store's handler dependencies **internal**: `AllTrainingsStoreImpl` is a `public` class
+with an **`internal` primary constructor** (`@Inject class AllTrainingsStoreImpl internal
+constructor(navigationHandler: NavigationHandler, ...)`), so `NavigationHandler` / `PagingHandler` /
+`ClickHandler` never become public API.
+
+**The dependency:** `:app` generates the extension impl and constructs the store by calling that
+`internal` constructor of another Gradle module. This works because Metro emits the constructor call in
+**IR, after the frontend visibility checks** — and Kotlin `internal` constructors are emitted `public`
+in bytecode, so there is no runtime barrier. It is a dependency on `internal` *not* being enforced at
+Metro's codegen layer.
+
+- **Blast radius:** every ported feature (13 at arc completion) that uses the internal-constructor
+  pattern to keep handlers internal.
+- **Detection is LOUD, compile-time:** if a Kotlin/Metro change ever enforced `internal` at the IR
+  call site, `:app:app:compileDebugKotlin` would fail — not a runtime failure.
+- **Rollback:** make the store's primary constructor `public` across all ported features (reverts the
+  3-handler saving; surface returns to the 14-ceiling shape). Mechanical, no behavior change.
+- **Axis:** watch on the **Kotlin bump** specifically (frontend/IR visibility semantics), not the
+  Metro bump alone.
+
+---
+
 ## v2.0 Foundations Stage — closed entries
 
 The v2.0 stage addressed the following items. They are listed here for traceability before they roll into the next audit cleanup.
