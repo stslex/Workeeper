@@ -601,6 +601,7 @@ count is a hypothesis per feature, not a work order.
 | home | **13** | 2 | 4 | predicted 12, measured 13 — see the transitive-closure correction below |
 | all-exercises | **17** | 2 | 4 | predicted 17, measured 17 — FIRST exact hit, closure procedure applied |
 | plan-editor | predicted 13 → **measured 13** | 2 | 5 | **written before fixpoint round 1** — 6 plumbing + 2 interactor + 5 models (`SetTypeDomain` reachable only via `PlanSetDomain.type`; the 4 `core.ui.plan_editor.model` types are cross-module and already public) |
+| exercise-chart | **predicted 21** → measured _(pending)_ | 2 | 3 | **written before fixpoint round 1, in its own commit ahead of any widening** — 6 plumbing + 2 interactor + 7 domain + 6 UI |
 | past-session | predicted 14 → **measured 14** | 2 | 4 | **written before fixpoint round 1, in its own commit (`16fd9910`) ahead of any widening** — 6 plumbing + 2 interactor + 6 domain models + **0 UI** (first port to force zero UI models) |
 
 ⚠️ **A prediction written after watching the fixpoint rounds is not a prediction.** all-exercises' 17=17
@@ -644,6 +645,41 @@ forced-public = 6 plumbing + 2 per interactor pair + (models exposed in the publ
 | all-exercises | 6 | 2 (×1) | 9 (7 domain + 2 UI; `TagUiModel` already public) | 17 | ✔ |
 | plan-editor | 6 | 2 (×1) | 5 (4 domain + `DialogState`; the 4 `core.ui.plan_editor` types are cross-module) | 13 | ✔ |
 | past-session | 6 | 2 (×1) | 6 domain + 0 UI (all 4 UI models already public) | 14 | ✔ |
+| exercise-chart | 6 | 2 (×1) | 7 domain + 6 UI (all 6 UI models are `internal` here) | **21 predicted** | _pending_ |
+
+**CLARIFICATION to the formula, settled while predicting exercise-chart: only TOP-LEVEL declarations
+count.** A declaration nested inside the store contract inherits the container's visibility and needs no
+edit of its own — past-session's `State` / `Action` / `Event` / `Phase` were never counted, and only
+`PastSessionStore` itself was widened. plan-editor's `DialogState` counted because it is a **top-level**
+declaration in its own file, not because it is a dialog model. So exercise-chart's nested
+`ExerciseChartStore.EmptyReason` does NOT count: 21, not 22.
+
+### exercise-chart — the prediction, written before widening (port 2 of the assisted batch)
+
+**21 = 6 plumbing + 2 interactor + 7 domain + 6 UI.** This would tie `settings` as the widest port.
+
+- **Plumbing (6):** `ExerciseChartGraph`, `ExerciseChartGraph.Factory`, `ExerciseChartStore`,
+  `ExerciseChartStoreImpl`, `ExerciseChartHandlerStore`, `ExerciseChartHandlerStoreImpl`.
+- **Interactor pair (2):** `ExerciseChartInteractor` + `ExerciseChartInteractorImpl`.
+- **Domain (7):** signatures give **5** — `RecentExerciseDomain`, `ChartPresetDomain`,
+  `ChartMetricDomain`, `ExerciseTypeDomain`, `ChartFoldDomain`. Closure adds **2**:
+  `ChartFoldDomain.points` → `ChartPointDomain`, `ChartFoldDomain.footer` → `ChartFooterStatsDomain`
+  (whose own members are `ChartPointDomain` again). `LocalDate` / `ZoneId` are external.
+- **UI (6):** every one of `ExercisePickerItemUiModel`, `ChartPresetUiModel`, `ChartMetricUiModel`,
+  `ChartPointUiModel`, `ChartFooterStatsUiModel`, `ChartTooltipUiModel` is declared `internal` and is
+  reachable from `State`. The exact inverse of past-session, where all four UI models were already
+  public and cost zero. Their members close immediately — `ExerciseTypeUiModel` is cross-module.
+
+**Two falsifiable side-claims, so this prediction can fail in more than one way:**
+
+1. **`HistoryEntryDomain` and `HistorySetDomain` will STAY internal.** They appear in no interactor or
+   store signature and are unreachable from any forced model — repository→mapper intermediates only.
+   If either is forced, the closure reasoning is wrong somewhere.
+2. **`ExerciseChartStore.EmptyReason` will need no edit of its own**, per the top-level clarification
+   above. If the compiler demands it, the counting rule is wrong and every prior total needs re-checking.
+
+**A measurement BELOW 21 is a STOP, not a win** — signature-only counting under-predicts, and the
+closure has already been applied here.
 
 ### past-session — the prediction, written before widening (port 1 of the assisted batch)
 
