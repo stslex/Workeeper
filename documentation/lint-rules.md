@@ -20,9 +20,35 @@ contract they enforce, see [architecture.md](architecture.md#mvi-contract).
   `checkAllWarnings = true`, `ignoreTestSources = true`, and emits HTML, XML, and SARIF reports
   to `build/reports/lint-results.{html,xml,sarif}`.
 - Wires Detekt to `lint-rules/detekt.yml` and `lint-rules/detekt-baseline.xml`,
-  `buildUponDefaultConfig = true`, `autoCorrect = true`.
+  `buildUponDefaultConfig = true`, **`autoCorrect = false`** (see below).
 - Adds two `detektPlugins` dependencies: `detekt-formatting` (formatting rules) and the
   `:lint-rules` project itself (the custom MVI rule set).
+
+### Detekt is a gate, not a formatter
+
+`autoCorrect` is **off** in the convention plugin. Detekt reports; it never writes.
+
+It used to be on, which made detekt two tools at once. The formatter role applies ktlint
+fixes to every file it analyses — not just the files in the diff being checked — and a
+corrected finding is not reported, so the rewrite is silent. Since `.githooks/pre-commit`
+runs `./gradlew detekt` on every commit, and CI runs it per push, the verification chain
+could rewrite the very tree it was verifying. That is tolerable in ordinary work and not
+tolerable across the graph-extension arc: a bisect over 13 per-feature ports is only
+meaningful if each commit is checked against an immutable tree.
+
+The formatter role is still available, per invocation, where a human is watching:
+
+```bash
+./gradlew detekt --auto-correct     # fixes what it can; still reports, so re-run to confirm green
+```
+
+**Proving the gate holds.** Zero-mutation is a vacuous result if nothing in the tree is
+autocorrectable, so anchor it on a positive control: add a file with a fixable violation
+(a missing trailing comma on a multi-line declaration trips `TrailingCommaOnDeclarationSite`),
+confirm the plain run REPORTS it and leaves the file byte-identical, then confirm
+`--auto-correct` does rewrite it. Only then does "detekt twice, second run mutates nothing"
+mean anything. Note that forcing execution matters too: a second run whose tasks are
+`UP-TO-DATE` never analysed anything, so use `--rerun-tasks` on both runs.
 
 The Detekt rule set is registered through the SPI contract at
 `lint-rules/src/main/resources/META-INF/services/io.gitlab.arturbosch.detekt.api.RuleSetProvider`
@@ -34,11 +60,12 @@ stdlib, with `detekt.test` and JUnit Jupiter available for rule unit tests.
 
 ## Custom Detekt MVI rules
 
-All ten rules live under
+The rules live under
 `lint-rules/src/main/kotlin/io/github/stslex/workeeper/lint_rules/`. The rule set provider is
 `MviArchitectureRules.kt`, which constructs `MviArchitectureRuleSet` with id `mvi-architecture`
-and registers nine of the ten rules (one helper file is the `ScopeClassType` enum used by
-`MetroScopeRule`).
+and registers every rule in `listOf(...)` (one file in the directory is not a rule: the
+`ScopeClassType` enum used by `MetroScopeRule`). `MviArchitectureRules.kt` is the authoritative
+list; the sections below document a subset.
 
 A class is considered "in an MVI module" when its package contains `mvi` or its file path
 contains `/mvi/`. Several rules gate themselves on this check, so test classes outside `/mvi/`
@@ -323,6 +350,40 @@ obtain it via the screen-less `AppFeature` composition entry at the App
 root — `LocalViewModelStoreOwner` does the rest. **Do not add a new
 `singletonClasses` carve-out.**
 
+### `ScreenInjectionRule`
+
+**File:** `ScreenInjectionRule.kt` · **Severity:** Defect.
+
+Fails any `@Inject` / `@AssistedInject` class that declares a navigation route arg (`Screen` or a
+nested `Screen.X`) as a constructor parameter, unless the class name ends in `StoreImpl` **and** the
+parameter sits in its primary constructor.
+
+The rule exists to replace a compiler guarantee the graph-extension arc gives up. Under
+`@AssistedInject` the route arg could reach nothing except the Store constructor — Metro enforced it.
+Shape B binds the arg as a `@Provides` instance on the contributed `@GraphExtension.Factory`, which
+makes it an ORDINARY binding in the feature scope: any `@Inject` node (Handler, Interactor, Mapper)
+could then declare `Screen.X` and read navigation state straight out of DI, bypassing the Store and
+the unidirectional flow the other MVI rules protect. Metro validates nothing at that call site.
+
+Not flagged, deliberately:
+
+- `@GraphExtension.Factory` / `@DependencyGraph.Factory` creator functions — interfaces, not injected
+  classes, and the legitimate entry point for the arg;
+- `Feature` / `FeatureAssisted` composition seams — `processor(screen)` is a function argument on a
+  non-injected object, not DI;
+- non-`@Inject` classes taking a `Screen` (UI mappers, navigation helpers) — handed the arg by a
+  caller rather than resolving it from a graph;
+- constructing `Screen.X(...)` inside a method body (e.g. `navigator.navTo(Screen.Exercise(...))`) —
+  only declared constructor parameter types are inspected;
+- `src/test/` sources.
+
+Secondary constructors taking the arg are flagged **everywhere, including on a `*StoreImpl`** — the
+arg enters through the primary constructor only.
+
+Not covered (no such site exists in the repo today, verified by sweep): member injection
+(`@Inject` on a property) and `@Provides` provider functions that consume the arg and hand it on
+under another type. If either shape is introduced, extend the rule — it inspects constructors only.
+
 ### `ComposableStateRule`
 
 **File:** `ComposableStateRule.kt` · **Severity:** Defect.
@@ -530,8 +591,8 @@ issues you intend to forget.
 ## Running lint locally
 
 ```bash
-./gradlew detekt                          # static analysis only
-./gradlew detekt --auto-correct           # also fix what can be fixed automatically
+./gradlew detekt                          # gate: reports, never writes
+./gradlew detekt --auto-correct           # opt in to the formatter role for this run only
 ./gradlew lintDebug                       # Android Lint
 ./gradlew detekt lintDebug                # both
 ./gradlew :feature:exercise:lintDebug     # one module
@@ -563,6 +624,40 @@ To re-enable the hook, remove the `exit 0` line near the top of `.githooks/pre-c
    Use `active: true` and add per-rule options if your rule reads them via `Config`.
 4. Add a unit test under `lint-rules/src/test/...` using `detekt.test` (declared in the
    module's `build.gradle.kts`). Run with `./gradlew :lint-rules:test`.
-5. Run `./gradlew detekt` against the codebase. If the new rule produces unavoidable existing
+5. Run `./gradlew --stop && ./gradlew detekt` against the codebase (see the daemon caveat
+   below — the `--stop` is not optional). If the new rule produces unavoidable existing
    findings, generate a baseline entry with
    `./lint-rules/baseline-manager.sh update-detekt`.
+
+### The Gradle daemon caches the rule jar — stop it after every rule edit
+
+**A running Gradle daemon keeps serving the `lint-rules.jar` it loaded first.** Editing a rule,
+rebuilding, and re-running `detekt` in the same daemon session runs the OLD rule bytecode.
+`--rerun-tasks` does not help: `:lint-rules:jar` genuinely re-executes and the new bytecode really
+is on disk, but detekt's worker classloader is cached by the daemon and never reloads it. Gradle
+reports `BUILD SUCCESSFUL` / prints stale findings, so nothing signals that the analysis is stale.
+
+This is a **silent false green**, and it is the most expensive trap in this module: a rule under
+development appears "not to fire on real code" (its jar predates the logic), or a rule you just
+loosened appears to still fire. Both readings send you debugging rule logic that is already correct.
+
+Always run `./gradlew --stop` between a rule edit and the detekt run that judges it. Rule
+**unit tests** (`:lint-rules:test`) are unaffected — they load the rule in the test JVM, not through
+detekt's worker — which is why unit tests and the real run can disagree indefinitely.
+
+### Prove a rule on both anchors, against real code
+
+Custom rules fail silently far more often than they fire wrongly, so a green run is not evidence
+until the rule has been shown to fire. Before trusting a new rule:
+
+- **Known-negative anchor.** Introduce the violation into a REAL source file, in a real code path.
+  A synthetic unused property is not an anchor — `UnusedPrivateProperty` (or another rule) fails the
+  build first and you will read someone else's finding as yours. Confirm the reported finding carries
+  **your rule's ID** in brackets; never conclude from the `N weighted issues` count alone.
+- **Known-positive anchor.** Confirm the legitimate shape passes — then **falsify the exemption**
+  that spares it (e.g. break the suffix / annotation the rule keys on) and confirm the same real
+  class now fails. Without this step, "passes" and "never visited" are indistinguishable, and a rule
+  that never visits is worse than no rule: it is a guarantee the codebase does not actually have.
+- Mirror the falsification in a unit test, so the exemption stays proven in CI rather than by hand.
+  See `ScreenInjectionRuleTest.the Store exemption is what spares the primary constructor, not a
+  skipped visit` for the shape: lint the same source twice, changing only the exempting detail.
