@@ -94,6 +94,12 @@ the whole arc or none of it.
   on a shape is a hole in the guarantee it replaces** — re-prove per NEW shape, not per feature.
 - **AppGraph accessor cleanup is deferred to the final feature** and is substantial, not cosmetic —
   see the orphaned-accessor ledger below for its running size.
+  ⚠️ **The final cleanup commit must ENUMERATE what remains, never assume a count.** Orphaning is a
+  property of which bridge interface happens to be the LAST declarer of a member, not of the port —
+  measured so far: past-session orphaned `ioDispatcher`, exercise orphaned `imageStorage`,
+  exercise-chart orphaned nothing. And an orphan is not automatically dead: `imageStorage` is still a
+  live root, read directly by `BaseApplication.cleanupOrphanedImageTempFiles`. Deleting orphans by
+  count rather than by enumeration is STANDING RULE 5 applied to the cleanup itself.
 - **Build-time gate READ and GREEN — FLAT across N=1…7, extended to N=8, batch unlocked.** The
   fresh-session re-baseline is done (see the re-baseline section below). N is not resolved anywhere in
   the series; the earlier "step at feature 4" is **disproven as session drift**. past-session's N=8 row
@@ -523,10 +529,39 @@ exactly what the gate demanded before any extrapolation:
 > dead and the three deltas were noise. If they land near +0.10, the mechanism is real and the endpoint
 > must be re-estimated from total binding count before the arc closes.
 
-**Recommended before the final two ports:** re-run the FULL series in ONE session in reversed or
-interleaved order. Three deltas from three different sessions cannot distinguish a real slope from
-three independent noisy pairs, and the ordering confound is still unbroken. That single run is the
-cheapest thing that could settle it.
+#### The test plan — the last two ports ARE the test cases, so they go first
+
+The re-run does **not** block the final two ports. `single-training` and `live-workout` both inherit
+**13 bindings** (measured, not assumed), which is exactly the regime the hypothesis makes its
+prediction about. Port them first, then re-run only if the prediction confirms.
+
+> **TIMESTAMPED PREDICTION, logged before either port is written:**
+> - **≈ +0.10s** same-session delta for each ⇒ the binding mechanism is **confirmed**, and the endpoint
+>   must be re-estimated from TOTAL bindings across all 13 rather than from N.
+> - **≈ +0.03s** for each ⇒ the binding story is **dead**, N=10 was a noisy pair, the plateau holds and
+>   the endpoint is safe by N.
+>
+> A split result (one near each) refutes the simple form of the hypothesis too — with equal binding
+> counts, the mechanism predicts equal deltas.
+
+**If and only if the +0.10 prediction lands, run the full re-baseline — on the BINDING axis.** Two
+design points, both deliberate:
+
+- **The X-axis is BINDING COUNT, not N.** The series is a slope in total inherited bindings; N is the
+  variable that was masking it while the early ports were narrow.
+- **Measure in DESCENDING binding count — widest first.** Session drift then works AGAINST an ascending
+  binding-trend, exactly as reversed order worked against N. A delta that rises with bindings *while
+  drift pushes the other way* is stronger confirmation than one measured in a neutral order.
+
+If both ports land near +0.03 the mechanism is refuted and no re-run is needed.
+
+#### ⚠ MEASURE THE ENDPOINT AT PORT 13, NOT AFTER THE CLOSING COMMITS
+
+The worst-case binding set exists at **the last port**, not at the end of the arc. The three closing
+commits delete `XxxDeps` interfaces, orphaned accessors, and `FeatureAssisted`/`StoreFactory` — they
+remove *declarations*, not *bindings*, so they cannot reduce the binding count the codegen pays for.
+Measuring after cleanup would measure the same binding set with less scaffolding and report it as the
+endpoint. **Take the endpoint build-time reading as part of port 13.**
 
 ### The yardstick: ±0.045s same-N reproducibility
 
@@ -681,6 +716,7 @@ count is a hypothesis per feature, not a work order.
 | home | **13** | 2 | 4 | predicted 12, measured 13 — see the transitive-closure correction below |
 | all-exercises | **17** | 2 | 4 | predicted 17, measured 17 — FIRST exact hit, closure procedure applied |
 | plan-editor | predicted 13 → **measured 13** | 2 | 5 | **written before fixpoint round 1** — 6 plumbing + 2 interactor + 5 models (`SetTypeDomain` reachable only via `PlanSetDomain.type`; the 4 `core.ui.plan_editor.model` types are cross-module and already public) |
+| single-training | **predicted 23** → measured _(pending)_ | 2 | 4 | **written before fixpoint round 1, in its own commit ahead of any widening** — 6 plumbing + 2 interactor + 14 domain + 1 UI; would be the widest port of the arc |
 | exercise | predicted 22 → **measured 22** | 2 | 4 | **written before fixpoint round 1, in its own commit ahead of any widening** — 6 plumbing + 2 interactor + 13 domain + 1 UI |
 | exercise-chart | predicted 21 → **measured 21** | 2 | 3 | **written before fixpoint round 1, in its own commit ahead of any widening** — 6 plumbing + 2 interactor + 7 domain + 6 UI |
 | past-session | predicted 14 → **measured 14** | 2 | 4 | **written before fixpoint round 1, in its own commit (`16fd9910`) ahead of any widening** — 6 plumbing + 2 interactor + 6 domain models + **0 UI** (first port to force zero UI models) |
@@ -728,6 +764,7 @@ forced-public = 6 plumbing + 2 per interactor pair + (models exposed in the publ
 | past-session | 6 | 2 (×1) | 6 domain + 0 UI (all 4 UI models already public) | 14 | ✔ |
 | exercise-chart | 6 | 2 (×1) | 7 domain + 6 UI (all 6 UI models are `internal` here) | 21 | ✔ |
 | exercise | 6 | 2 (×1) | 13 domain + 1 UI (7 UI models already public; only `DialogState`) | 22 | ✔ |
+| single-training | 6 | 2 (×1) | 14 domain + 1 UI (4 UI models already public; only `DialogState`) | **23 predicted** | _pending_ |
 
 ### exercise — the prediction, written before widening (port 3 of the assisted batch)
 
@@ -786,6 +823,37 @@ edit of its own — past-session's `State` / `Action` / `Event` / `Phase` were n
 `PastSessionStore` itself was widened. plan-editor's `DialogState` counted because it is a **top-level**
 declaration in its own file, not because it is a dialog model. So exercise-chart's nested
 `ExerciseChartStore.EmptyReason` does NOT count: 21, not 22.
+
+### single-training — the prediction, written before widening (port 4 of the assisted batch)
+
+**23 = 6 plumbing + 2 interactor + 14 domain + 1 UI.** This would make it the **widest port of the
+arc**, ahead of `settings` and `exercise` at 22.
+
+- **Domain (14) — every domain declaration in the feature.** Signatures give **10**: `TrainingDomain`,
+  `TrainingExerciseDetail`, `SessionDomain`, `TagDomain`, `TrainingChangeDomain`, `ArchiveResult`,
+  `ActiveSessionDomain`, `PlanSetDomain`, `PickerExercise`, `StartSessionConflict`. Closure adds **4**:
+  `TrainingExerciseDetail.exercise` → `ExerciseDomain` → `.type` → `ExerciseTypeDomain`;
+  `SessionDomain.state` → `SessionStateDomain`; `PlanSetDomain.type` → `SetTypeDomain`.
+- **UI (1).** Only `DialogState`. `TrainingExerciseItem`, `HistorySessionItem`, `PickerExerciseItem`
+  and `TagUiModel` are already public and cost nothing. Fourth port, fourth distinct UI cost
+  (0, 6, 1, 1).
+- **Note:** `State.activeSession` exposes a **domain** model directly in the UI contract. It is already
+  in the domain closure, so it adds nothing — but it is the first port where a domain type is reachable
+  from `State` as well as from the interactor.
+
+**Five falsifiable side-claims:**
+
+1. The 4 already-public UI models need no edit, so UI is 1 and not 5.
+2. The nested `Mode`, `Snapshot`, `ExerciseSignature` and `PickerState` need no edits — all four are
+   declared *inside* `State`, so the top-level-only rule says they inherit.
+3. No sealed subtype needs an edit (`ArchiveResult.*`, `StartSessionConflict.*`, `PickerState.*`).
+4. Both mappers (`SingleTrainingDomainMapper`, `TagUiMapper`) stay internal.
+5. All 4 handlers stay internal.
+
+**BINDING-DELTA PREDICTION for this port: ≈ +0.10s**, per the mechanism hypothesis (13 bindings).
+Near +0.03s refutes it.
+
+**A measurement BELOW 23 is a STOP, not a win.**
 
 ### exercise-chart — the prediction, written before widening (port 2 of the assisted batch)
 
