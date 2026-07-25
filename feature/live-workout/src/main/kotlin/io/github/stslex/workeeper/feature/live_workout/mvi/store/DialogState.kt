@@ -4,7 +4,7 @@ import androidx.compose.runtime.Stable
 import kotlinx.collections.immutable.ImmutableList
 
 @Stable
-internal sealed interface DialogState {
+sealed interface DialogState {
 
     @Stable
     data object Hidden : DialogState

@@ -35,7 +35,7 @@ import kotlinx.coroutines.withContext
 @Suppress("TooManyFunctions", "LongParameterList")
 @Inject
 @SingleIn(LiveWorkoutScope::class)
-internal class LiveWorkoutInteractorImpl(
+class LiveWorkoutInteractorImpl internal constructor(
     private val sessionRepository: SessionRepository,
     private val performedExerciseRepository: PerformedExerciseRepository,
     private val setRepository: SetRepository,

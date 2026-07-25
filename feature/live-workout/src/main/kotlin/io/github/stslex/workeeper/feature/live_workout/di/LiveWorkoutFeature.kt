@@ -3,13 +3,10 @@ package io.github.stslex.workeeper.feature.live_workout.di
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
-import dev.zacsweers.metro.createGraphFactory
 import io.github.stslex.workeeper.core.ui.mvi.FeatureAssisted
-import io.github.stslex.workeeper.core.ui.mvi.di.StoreCoreDeps
 import io.github.stslex.workeeper.core.ui.mvi.di.appDeps
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
 import io.github.stslex.workeeper.core.ui.mvi.processor.rememberMetroStoreProcessor
-import io.github.stslex.workeeper.core.ui.navigation.NavigatorDeps
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Event
@@ -19,13 +16,20 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStor
 internal typealias LiveWorkoutStoreProcessor = StoreProcessor<State, Action, Event>
 
 /**
- * feature/live-workout resolves its Store through the **Metro** path. ASSISTED
- * Store (`Screen.LiveWorkout` route arg) — the graph exposes the assisted [LiveWorkoutStoreImpl.Factory]
- * and this composable calls `storeFactory.create(screen)` inside the `rememberMetroStoreProcessor`
- * lambda. The 13 app-scoped bindings are acquired as the composition of three narrow interfaces
- * ([StoreCoreDeps] + [NavigatorDeps] + [LiveWorkoutDeps] — the domain tail: seven repos,
- * `resourceWrapper`, qualified `@DefaultDispatcher`) via `context.appDeps<T>()` (the god-object split,
- * mechanism A). Single `@DefaultDispatcher`, no Context.
+ * feature/live-workout resolves its Store through the Metro **graph-extension** path — the LAST of the
+ * 13 feature graphs to do so.
+ *
+ * The app-scope graph (returned as `Any` by the `AppDepsHolder` seam) IS the parent graph and, once
+ * `:app` is compiled, implements the contributed [LiveWorkoutGraph.Factory]; `appDeps<T>()` re-narrows
+ * it with its `as T` cast. All 13 formerly hand-threaded app-scoped deps are inherited from the parent,
+ * so the three `appDeps` lookups (`StoreCoreDeps` + `NavigatorDeps` + `LiveWorkoutDeps`) and the whole
+ * `createGraphFactory(...).create(...)` argument list are gone.
+ *
+ * The `Screen.LiveWorkout` route arg is passed to the extension factory as a bound instance (shape B),
+ * so the extension is built per navigation entry and carries that entry's arg — the Store needs no
+ * assisted factory. The extension is created INSIDE the `rememberMetroStoreProcessor` lambda, so it is
+ * built at most once per retained Store (per `NavBackStackEntry`), binding it and its
+ * `@SingleIn(LiveWorkoutScope)` nodes to exactly the Store's lifetime.
  */
 internal object LiveWorkoutFeature : FeatureAssisted<
     LiveWorkoutStoreProcessor,
@@ -37,29 +41,9 @@ internal object LiveWorkoutFeature : FeatureAssisted<
     override fun processor(screen: Screen.LiveWorkout): LiveWorkoutStoreProcessor {
         val context = LocalContext.current
         return rememberMetroStoreProcessor<LiveWorkoutStoreImpl> {
-            // Mechanism A (the god-object split): spine four from StoreCoreDeps + NavigatorDeps; the domain
-            // tail (seven repos + resourceWrapper + qualified @DefaultDispatcher) from LiveWorkoutDeps.
-            val coreDeps = context.appDeps<StoreCoreDeps>()
-            val navDeps = context.appDeps<NavigatorDeps>()
-            val deps = context.appDeps<LiveWorkoutDeps>()
-            createGraphFactory<LiveWorkoutGraph.Factory>()
-                .create(
-                    exerciseRepository = deps.exerciseRepository,
-                    performedExerciseRepository = deps.performedExerciseRepository,
-                    personalRecordRepository = deps.personalRecordRepository,
-                    sessionRepository = deps.sessionRepository,
-                    setRepository = deps.setRepository,
-                    trainingExerciseRepository = deps.trainingExerciseRepository,
-                    trainingRepository = deps.trainingRepository,
-                    resourceWrapper = deps.resourceWrapper,
-                    navigator = navDeps.navigator,
-                    storeDispatchers = coreDeps.storeDispatchers,
-                    analyticsHolder = coreDeps.analyticsHolder,
-                    loggerHolder = coreDeps.loggerHolder,
-                    defaultDispatcher = deps.defaultDispatcher,
-                )
-                .storeFactory
-                .create(screen)
+            context.appDeps<LiveWorkoutGraph.Factory>()
+                .createLiveWorkoutGraph(screen)
+                .liveWorkoutStore
         } as LiveWorkoutStoreProcessor
     }
 }

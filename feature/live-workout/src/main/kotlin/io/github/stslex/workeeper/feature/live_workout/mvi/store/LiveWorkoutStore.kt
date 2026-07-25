@@ -17,7 +17,7 @@ import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.persistentSetOf
 
 @Suppress("ComplexInterface")
-internal interface LiveWorkoutStore :
+interface LiveWorkoutStore :
     Store<LiveWorkoutStore.State, LiveWorkoutStore.Action, LiveWorkoutStore.Event> {
 
     @Stable

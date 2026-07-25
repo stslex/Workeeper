@@ -2,14 +2,11 @@
 package io.github.stslex.workeeper.feature.live_workout.mvi.store
 
 import androidx.annotation.VisibleForTesting
-import dev.zacsweers.metro.Assisted
-import dev.zacsweers.metro.AssistedFactory
-import dev.zacsweers.metro.AssistedInject
+import dev.zacsweers.metro.Inject
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
-import io.github.stslex.workeeper.core.ui.mvi.processor.StoreFactory
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStoreImpl
 import io.github.stslex.workeeper.feature.live_workout.mvi.handler.ClickHandler
@@ -21,11 +18,15 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStor
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Event
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
 
-// Metro assisted Store: @AssistedInject + @Assisted screen; graph exposes the @AssistedFactory
-// (never the Store). Unscoped (ViewModelStore retention via rememberMetroStoreProcessor).
-@AssistedInject
-internal class LiveWorkoutStoreImpl(
-    @Assisted screen: Screen.LiveWorkout,
+// Metro constructs this Store (class-level @Inject). The Screen.LiveWorkout route arg is a bound
+// instance on the extension factory (shape B), so it is an ordinary ctor param — no assisted machinery.
+// Unscoped (ViewModelStore retention via rememberMetroStoreProcessor).
+// The class is `public` (its accessor is on the public extension) but the primary constructor is
+// `internal`, so the handler ctor params stay internal — :app calls the ctor at the IR level.
+// NOTE: the route arg must be read HERE only; ScreenInjectionRule forbids injecting Screen elsewhere.
+@Inject
+class LiveWorkoutStoreImpl internal constructor(
+    screen: Screen.LiveWorkout,
     navigationHandler: NavigationHandler,
     clickHandler: ClickHandler,
     inputHandler: InputHandler,
@@ -56,9 +57,6 @@ internal class LiveWorkoutStoreImpl(
     analyticsHolder = analyticsHolder,
     loggerHolder = loggerHolder,
 ) {
-
-    @AssistedFactory
-    interface Factory : StoreFactory<Screen.LiveWorkout, LiveWorkoutStoreImpl>
 
     companion object {
 

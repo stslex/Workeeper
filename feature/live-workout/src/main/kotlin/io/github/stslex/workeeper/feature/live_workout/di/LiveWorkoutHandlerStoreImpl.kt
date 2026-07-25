@@ -10,5 +10,5 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStor
 
 @Inject
 @SingleIn(LiveWorkoutScope::class)
-internal class LiveWorkoutHandlerStoreImpl : LiveWorkoutHandlerStore,
+class LiveWorkoutHandlerStoreImpl : LiveWorkoutHandlerStore,
     BaseHandlerStore<State, Action, Event>()

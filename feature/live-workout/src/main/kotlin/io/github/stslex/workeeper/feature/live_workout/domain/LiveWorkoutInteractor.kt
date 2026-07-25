@@ -12,7 +12,7 @@ import io.github.stslex.workeeper.feature.live_workout.domain.model.PlanSetDomai
 import io.github.stslex.workeeper.feature.live_workout.domain.model.SessionSnapshotDomain
 
 @Suppress("TooManyFunctions")
-internal interface LiveWorkoutInteractor {
+interface LiveWorkoutInteractor {
 
     suspend fun startSession(trainingUuid: String): String
 
