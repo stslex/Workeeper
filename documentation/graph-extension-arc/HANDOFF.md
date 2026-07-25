@@ -846,6 +846,7 @@ count is a hypothesis per feature, not a work order.
 | home | **13** | 2 | 4 | predicted 12, measured 13 — see the transitive-closure correction below |
 | all-exercises | **17** | 2 | 4 | predicted 17, measured 17 — FIRST exact hit, closure procedure applied |
 | plan-editor | predicted 13 → **measured 13** | 2 | 5 | **written before fixpoint round 1** — 6 plumbing + 2 interactor + 5 models (`SetTypeDomain` reachable only via `PlanSetDomain.type`; the 4 `core.ui.plan_editor.model` types are cross-module and already public) |
+| app-dialogs | **predicted 6** → measured _(pending)_ | 1 | 2 | **written before fixpoint round 1** — 6 plumbing + 0 interactor + 0 models; port 13, carries the ENDPOINT reading |
 | live-workout | predicted 24 → **measured 24** | 2 | 7 | **written before fixpoint round 1, ahead of any widening** — 6 plumbing + 2 interactor + 15 domain + 1 UI; port 13, the ENDPOINT |
 | single-training | predicted 23 → **measured 23** | 2 | 4 | **written before fixpoint round 1, in its own commit ahead of any widening** — 6 plumbing + 2 interactor + 14 domain + 1 UI; would be the widest port of the arc |
 | exercise | predicted 22 → **measured 22** | 2 | 4 | **written before fixpoint round 1, in its own commit ahead of any widening** — 6 plumbing + 2 interactor + 13 domain + 1 UI |
@@ -897,6 +898,69 @@ forced-public = 6 plumbing + 2 per interactor pair + (models exposed in the publ
 | exercise | 6 | 2 (×1) | 13 domain + 1 UI (7 UI models already public; only `DialogState`) | 22 | ✔ |
 | single-training | 6 | 2 (×1) | 14 domain + 1 UI (4 UI models already public; only `DialogState`) | 23 | ✔ |
 | live-workout | 6 | 2 (×1) | 15 domain + 1 UI (only `DialogState`; `BottomSheetState` already public) | 24 | ✔ |
+| app-dialogs | 6 | 0 (no interactor) | 0 (all models live in the `api` module) | **6 predicted** | _pending_ |
+
+## 🔍 app-dialogs — SHAPE SURVEY, done before porting (port 13, the actual last graph)
+
+The instruction was to verify shape B even applies rather than assume it transfers. It does, with one
+real divergence that is a *deletion opportunity*, not an obstacle.
+
+### What transfers unchanged
+
+- **No route arg ⇒ the NO-ARG factory form**, `fun createAppDialogGraph(): AppDialogGraph` with zero
+  `@Provides`. This is not new: it is exactly the form the five plain `Feature<P, S>` ports already
+  used (all-trainings, archive, settings, home, all-exercises). Shape B's no-arg variant is proven 5×.
+- **The Store is ALREADY plain `@Inject`** — `AppDialogStoreImpl` was never assisted, so there is no
+  `@AssistedInject` / `@Assisted` / `@AssistedFactory` / `StoreFactory` to remove. The simplest store
+  transition in the arc.
+- Smallest graph in the arc: **5** factory params, **1** `@Binds`, **2** handlers.
+
+### The real divergence: this port kills a SECOND seam
+
+`app-dialogs/impl` carries its own seam that no other feature has — `AppDialogInternalsHolder` +
+`Context.appDialogInternals()`, implemented by `BaseApplication`. It exists because
+`AppDialogRepository` and `AppDialogObserverImpl` are impl-owned concrete types that no other module
+can name, so they are handed to the feature graph through an Application-implements-holder trick
+instead of through `appDeps<T>()`.
+
+**Once app-dialogs is a contributed `@GraphExtension`, that seam is dead.** The extension inherits
+every app-scoped binding from `AppGraph`, and `AppGraph` *already* exposes `appDialogRepository` and
+`appDialogObserverImpl` as accessors. Its only consumer is `AppDialogFeature`, which stops using it.
+So this port additionally removes: the holder interface, the accessor function, and
+`BaseApplication`'s supertype + two `get()` overrides. That is the analogue of an `XxxDeps` deletion
+but of a *different seam type*, and it belongs in this port's deletion commit.
+
+### What is NOT affected — do not over-delete in the closing commits
+
+`AppDialogPublisherHolder` + `Context.appDialogPublisher()` in the **api** module STAYS. It serves
+cross-module consumers (settings / recovery / archive reading the publisher from a `Context`), which
+have nothing to do with this feature's own graph. Two similarly-named seams, only one of them dead.
+
+Also unaffected: app-dialogs is the only feature that *contributes* app-scoped bindings
+(`AppDialogRepository` is `@SingleIn(AppScope)`; the observer/publisher are `@ContributesBinding`).
+The port touches only its feature-scoped graph; the app-scoped contributions stay exactly as they are.
+
+### The prediction — 6 = 6 plumbing + 0 interactor + 0 models
+
+The **smallest port of the arc**, tying image-viewer, and a bookend: the widest (live-workout, 24)
+lands immediately before the narrowest.
+
+**Six falsifiable side-claims:**
+
+1. **Zero interactor pairs** — there is no interactor; the domain layer is one internal object
+   (`AppDialogResolver`). Second port ever with 0, after image-viewer.
+2. **Zero models.** `AppDialog`, `AppDialogUserAction` and `AppDialogUserChoice` live in the **api**
+   module and are already public cross-module, so the store contract exposes nothing widenable.
+3. `AppDialogResolver` and `AppDialogKeys` stay internal.
+4. Both handlers (`ChooseHandler`, `AppDialogRepoHandler`) stay internal.
+5. `AppDialogsScope` stays internal.
+6. **`AppDialogRepository` and `AppDialogObserverImpl` need NO visibility change** — already public,
+   inherited by the extension rather than exposed on it.
+
+**A measurement BELOW 6 is a STOP, not a win.**
+
+**This port carries the ENDPOINT reading (N=13)**, bracketed (control, new, control) with the
+cold-calibration figure logged.
 
 ### live-workout — the prediction, written before widening (port 13, the LAST feature graph)
 
