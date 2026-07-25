@@ -6,4 +6,4 @@ import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesSt
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Event
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.State
 
-internal interface AllExercisesHandlerStore : HandlerStore<State, Action, Event>
+interface AllExercisesHandlerStore : HandlerStore<State, Action, Event>

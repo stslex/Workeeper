@@ -23,7 +23,7 @@ import kotlinx.coroutines.withContext
 
 @Inject
 @SingleIn(AllExercisesScope::class)
-internal class AllExercisesInteractorImpl(
+class AllExercisesInteractorImpl(
     private val exerciseRepository: ExerciseRepository,
     private val tagRepository: TagRepository,
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,

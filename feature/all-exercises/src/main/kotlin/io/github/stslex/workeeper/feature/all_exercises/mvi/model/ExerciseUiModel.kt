@@ -5,7 +5,7 @@ import androidx.compose.runtime.Stable
 import kotlinx.collections.immutable.ImmutableList
 
 @Stable
-internal data class ExerciseUiModel(
+data class ExerciseUiModel(
     val uuid: String,
     val name: String,
     val type: ExerciseTypeUiModel,

@@ -18,7 +18,7 @@ import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesSt
 // Metro constructs this PLAIN Store (class-level @Inject). Retention is owned by the Android
 // ViewModelStore via rememberMetroStoreProcessor — so NO @SingleIn here.
 @Inject
-internal class AllExercisesStoreImpl(
+class AllExercisesStoreImpl internal constructor(
     navigationHandler: NavigationHandler,
     pagingHandler: PagingHandler,
     clickHandler: ClickHandler,

@@ -2,32 +2,31 @@
 package io.github.stslex.workeeper.feature.all_exercises.di
 
 import dev.zacsweers.metro.Binds
-import dev.zacsweers.metro.DependencyGraph
-import dev.zacsweers.metro.Provides
-import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
-import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
-import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
-import io.github.stslex.workeeper.core.data.exercise.tags.TagRepository
-import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
-import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
-import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
-import io.github.stslex.workeeper.core.ui.navigation.Navigator
+import dev.zacsweers.metro.ContributesTo
+import dev.zacsweers.metro.GraphExtension
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.feature.all_exercises.domain.AllExercisesInteractor
 import io.github.stslex.workeeper.feature.all_exercises.domain.AllExercisesInteractorImpl
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStoreImpl
-import kotlinx.coroutines.CoroutineDispatcher
 
 /**
- * The single Metro dependency graph for feature/all-exercises. Scoped to [AllExercisesScope].
+ * feature/all-exercises' Metro graph as a CONTRIBUTED [GraphExtension] of [AllExercisesScope]. The
+ * factory carries `@ContributesTo(AppScope::class)`, so the extension is merged into the app graph in
+ * `:app` and inherits ALL of its app-scoped bindings — the 8 formerly hand-threaded bound-instance
+ * `@Provides` are gone and `createAllExercisesGraph()` takes no arguments. The two `@Binds`
+ * (interactor, handler store) stay.
  *
- * PLAIN Store (not assisted — a BottomBar destination with no route args): the graph exposes the
- * Store directly as [allExercisesStore]. The 8 app-scoped deps are `@SingleIn(AppScope)` bindings
- * from the app graph handed in as `@Provides` bound instances; the two `@Binds`
- * (AllExercisesInteractor, AllExercisesHandlerStore) live here. `@DefaultDispatcher` stays QUALIFIED.
- * No Context.
+ * PLAIN Store (a BottomBar destination with no route args): the graph exposes the Store directly.
+ * Structurally the same shape and size as home's extension (9 vs 9 formerly-threaded deps), which is why
+ * it was picked as feature 6: it is a near-replicate of row 5 in feature terms, so the build-time table's
+ * step-vs-slope question turns on N alone. See the running table in
+ * documentation/graph-extension-arc/HANDOFF.md.
+ *
+ * Interface + factory are `public` because `:app` generates the extension impl and references them;
+ * [AllExercisesScope] stays `internal` (Metro reads the scope KClass at IR level).
  */
-@DependencyGraph(scope = AllExercisesScope::class)
-internal interface AllExercisesGraph {
+@GraphExtension(AllExercisesScope::class)
+interface AllExercisesGraph {
 
     /** Root accessor: the retained Store (plain, non-assisted). Metro constructs it, wiring its deps. */
     val allExercisesStore: AllExercisesStoreImpl
@@ -38,17 +37,15 @@ internal interface AllExercisesGraph {
     @Binds
     val AllExercisesHandlerStoreImpl.bindHandlerStore: AllExercisesHandlerStore
 
-    @DependencyGraph.Factory
+    /**
+     * The creator method name must be UNIQUE across all contributed extension factories: every
+     * `@ContributesTo(AppScope::class)` factory is merged into `AppGraph`, so two factories both
+     * declaring `create()` collide ("return types are incompatible"). Binding rule for all 13 — see
+     * documentation/graph-extension-arc/HANDOFF.md.
+     */
+    @ContributesTo(AppScope::class)
+    @GraphExtension.Factory
     fun interface Factory {
-        fun create(
-            @Provides exerciseRepository: ExerciseRepository,
-            @Provides tagRepository: TagRepository,
-            @Provides resourceWrapper: ResourceWrapper,
-            @Provides navigator: Navigator,
-            @Provides storeDispatchers: StoreDispatchers,
-            @Provides analyticsHolder: AnalyticsHolder,
-            @Provides loggerHolder: LoggerHolder,
-            @Provides @DefaultDispatcher defaultDispatcher: CoroutineDispatcher,
-        ): AllExercisesGraph
+        fun createAllExercisesGraph(): AllExercisesGraph
     }
 }
