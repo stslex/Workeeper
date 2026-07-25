@@ -495,6 +495,7 @@ count is a hypothesis per feature, not a work order.
 | home | **13** | 2 | 4 | predicted 12, measured 13 — see the transitive-closure correction below |
 | all-exercises | **17** | 2 | 4 | predicted 17, measured 17 — FIRST exact hit, closure procedure applied |
 | plan-editor | predicted 13 → **measured 13** | 2 | 5 | **written before fixpoint round 1** — 6 plumbing + 2 interactor + 5 models (`SetTypeDomain` reachable only via `PlanSetDomain.type`; the 4 `core.ui.plan_editor.model` types are cross-module and already public) |
+| past-session | **predicted 14** → measured _(pending)_ | 2 | 4 | **written before fixpoint round 1, in its own commit ahead of any widening** — 6 plumbing + 2 interactor + 6 domain models + **0 UI** |
 
 ⚠️ **A prediction written after watching the fixpoint rounds is not a prediction.** all-exercises' 17=17
 was recorded honestly, but the closure procedure is ITERATIVE — run it while reading compiler output and
@@ -536,6 +537,33 @@ forced-public = 6 plumbing + 2 per interactor pair + (models exposed in the publ
 | home | 6 | 2 (×1) | 5 domain (2 UI already public) | 13 | ✔ |
 | all-exercises | 6 | 2 (×1) | 9 (7 domain + 2 UI; `TagUiModel` already public) | 17 | ✔ |
 | plan-editor | 6 | 2 (×1) | 5 (4 domain + `DialogState`; the 4 `core.ui.plan_editor` types are cross-module) | 13 | ✔ |
+| past-session | 6 | 2 (×1) | 6 domain + 0 UI (all 4 UI models already public) | **14 predicted** | _pending_ |
+
+### past-session — the prediction, written before widening (port 1 of the assisted batch)
+
+**14 = 6 plumbing + 2 interactor + 6 domain models + 0 UI.**
+
+- **Plumbing (6):** `PastSessionGraph`, `PastSessionGraph.Factory`, `PastSessionStore`,
+  `PastSessionStoreImpl`, `PastSessionHandlerStore`, `PastSessionHandlerStoreImpl`.
+- **Interactor pair (2):** `PastSessionInteractor` + `PastSessionInteractorImpl`, forced by the `@Binds`
+  on the now-public graph.
+- **Domain closure (6):** signatures give only **2** — `DetailWithPrs` (`observeDetailWithPrs`) and
+  `SetDomain` (`updateSet`). The closure recursion adds **4** more:
+  `DetailWithPrs.detail` → `SessionDetailDomain` → `.exercises` → **`PerformedExerciseDetailDomain`** →
+  `.exerciseType` → `ExerciseTypeDomain`; and `SetDomain.type` → `SetTypeDomain`.
+  **`PerformedExerciseDetailDomain` is the closure-only catch** — it appears in NO interactor or store
+  signature and is a second declaration inside `SessionDetailDomain.kt`, so signature-only counting
+  would miss it and under-predict by at least one. This is the `home` miss pattern exactly.
+- **UI (0):** `PastSessionUiModel`, `PastExerciseUiModel`, `PastSetUiModel` and `ErrorType` carry no
+  visibility modifier and are **already public**, so they cost nothing; `SetTypeUiModel` is
+  cross-module (`core.ui.plan_editor.model`). This is the first port predicted to force zero UI models.
+
+Staying internal (predicted): `PastSessionFeature`, `PastSessionScope`, `PastSessionDomainMapper`,
+`PastSessionUiMapper`, and all 4 handlers.
+
+**A measurement BELOW 14 is a STOP, not a win.** Signature-only counting under-predicts and this
+prediction already applied the closure, so landing low means something structurally different is
+happening and must be understood before the remaining three are batched.
 
 Handler count is confirmed irrelevant a second time: settings has 5 handlers and forced none of them —
 `class XStoreImpl internal constructor(...)` keeps every handler off the public API regardless of count.
