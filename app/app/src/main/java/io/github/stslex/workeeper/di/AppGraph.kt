@@ -50,7 +50,6 @@ import io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObse
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepository
 import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImpl
-import io.github.stslex.workeeper.feature.exercise.di.ExerciseDeps
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutDeps
 import io.github.stslex.workeeper.feature.recovery.boot.RecoveryBootstrap
 import io.github.stslex.workeeper.feature.recovery.di.RecoveryDeps
@@ -69,7 +68,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 internal interface AppGraph :
     StoreCoreDeps,
     NavigatorDeps,
-    ExerciseDeps,
     SingleTrainingDeps,
     LiveWorkoutDeps,
     RecoveryDeps,
@@ -245,10 +243,16 @@ internal interface AppGraph :
     override val sessionConflictResolver: SessionConflictResolver
 
     /**
-     * [ImageStorage] accessor over the `create()` bound-instance root — read by the exercise feature
-     * (+ `BaseApplication.cleanupOrphanedImageTempFiles`) via the graph.
+     * [ImageStorage] accessor over the `create()` bound-instance root — read by
+     * `BaseApplication.cleanupOrphanedImageTempFiles`, and by the exercise extension, which now
+     * INHERITS it rather than being handed it.
+     *
+     * ORPHANED by the exercise port: `ExerciseDeps` was the last bridge interface still declaring
+     * `imageStorage`, so this accessor overrides nothing. Kept as a plain `val` (no `override`) rather
+     * than deleted — accessor cleanup is deferred to the final feature and lands in bulk, per the
+     * orphaned-accessor ledger. It is still a live root: `BaseApplication` reads it directly.
      */
-    override val imageStorage: ImageStorage
+    val imageStorage: ImageStorage
 
     /**
      * The recovery cluster — feature/recovery `@SingleIn(AppScope)` graph nodes read by
