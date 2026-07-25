@@ -26,13 +26,13 @@ grep -rln "@DependencyGraph(\|@GraphExtension(" --include="*.kt" feature/ | grep
 grep -rln "@GraphExtension(" --include="*.kt" feature/ | grep -v /build/ | wc -l
 ```
 
-Both measurements agree: **13 feature graphs, 9 ported, 4 remaining.**
+Both measurements agree: **13 feature graphs, 10 ported, 3 remaining.**
 
 | Base class | n | Features | Status |
 |---|---|---|---|
 | `Feature<P, S>` | 5 | all-trainings, archive, home, all-exercises, settings | **all ported** |
-| `FeatureAssisted<P, S>` | 7 | image-viewer, plan-editor, past-session, exercise-chart | ported |
-| | | **exercise, live-workout, single-training** | **remaining — THREE** |
+| `FeatureAssisted<P, S>` | 7 | image-viewer, plan-editor, past-session, exercise-chart, exercise | ported |
+| | | **live-workout, single-training** | **remaining — TWO** |
 | `AppFeature<P>` | 1 | app-dialogs | remaining, separate (screen-less) |
 
 ⚠️ **`AppFeature` is why the naive grep returns 12 and not 13.** A `Feature|FeatureAssisted` search
@@ -59,28 +59,28 @@ the whole arc or none of it.
 
 ## Status
 
-- **DONE — 9 of 13 ported.** Phase 0 gate (`c12c44dc`), `AppScope`→commonMain (`2f9c89d8`),
+- **DONE — 10 of 13 ported.** Phase 0 gate (`c12c44dc`), `AppScope`→commonMain (`2f9c89d8`),
   all-trainings (`9f17d02a`) + `AllTrainingsDeps` deleted (`197f39b4`), unique-creator fix
   (`dbfc4852`), archive (`4c184e5e`) + `ArchiveDeps` deleted (`62e5af72`), image-viewer
   (`4c7a1a67`, FIRST assisted feature, shape B), settings (`d784a510`), home (`02e90d81`),
   all-exercises (`b3272960`), plan-editor (`ff1299b1`, second shape-B), the four dead `XxxDeps`
   deleted together in `8be3bde0`, and **past-session (`714b224a`, port 1 of the assisted batch, third
   shape-B) + `PastSessionDeps` deleted (`6722983b`)**, and **exercise-chart (`b3ef0480`, port 2 of the
-  batch, fourth shape-B) + `ExerciseChartDeps` deleted (`2f508a29`)**. **7 `XxxDeps` supertypes remain**
-  on `AppGraph` (was 15) — and the list bottoms out at 2, not 0: `StoreCoreDeps` + `NavigatorDeps` are
-  load-bearing γ-spine, not transient. `StoreFactory` has **3 users left** (`exercise`,
-  `live-workout`, `single-training`) and dies with the last of them.
+  batch, fourth shape-B) + `ExerciseChartDeps` deleted (`2f508a29`)**, and **exercise (`0f129261`, port 3
+  of the batch, fifth shape-B, joint-widest at 22 forced-public) + `ExerciseDeps` deleted (`7968c76e`)**.
+  **6 `XxxDeps` supertypes remain** on `AppGraph` (was 15) — and the list bottoms out at 2, not 0: `StoreCoreDeps` + `NavigatorDeps` are
+  load-bearing γ-spine, not transient. `StoreFactory` has **2 users left** (`live-workout`,
+  `single-training`) and dies with the last of them.
   *(Count the supertypes by READING the list, not by grepping `Deps,` — the last entry ends in ` {`
   and a comma-anchored grep returns 7. That is STANDING RULE 5 witness #1 recurring; it recurred again
   while writing this line.)*
-- **REMAINING — 4 features.** `app-dialogs` is the only PLAIN one left, and it is app-root-scoped and
-  screen-less — structurally unlike the nine done, so NOT a drop-in repeat of the pattern. The other 3
-  are route-arg/assisted — `exercise`, `live-workout`, `single-training` — all portable under
-  **shape B**. `MetroWorkerFactory` still needs its own acquisition decision, and lands
+- **REMAINING — 3 features.** `app-dialogs` is the only PLAIN one left, and it is app-root-scoped and
+  screen-less — structurally unlike the ten done, so NOT a drop-in repeat of the pattern. The other 2
+  are route-arg/assisted — `live-workout`, `single-training` — both portable under **shape B**, and
+  both are the GMS/WorkManager boundary candidates. `MetroWorkerFactory` still needs its own acquisition decision, and lands
   under STANDING RULE 4 (boundary test) when it does.
-  ⚠️ **`exercise` is still unscheduled.** It was omitted from the batch brief but is a genuine
-  unported `FeatureAssisted` user (verified in the inventory above). It must be ported or explicitly
-  deferred — it cannot be dropped silently, or the arc cannot close.
+  ✅ **`exercise` is now ported** (`0f129261`) — the scheduling flag from the batch brief's omission is
+  closed.
   **`live-workout` and `single-training` are the two that may reach GMS/WorkManager** via
   session/backup paths. If construction dies off-device, that is the STANDING RULE 4 BOUNDARY case —
   assert failure at platform static-init HAVING PASSED THROUGH the real binding container, both halves
@@ -98,7 +98,10 @@ the whole arc or none of it.
   fresh-session re-baseline is done (see the re-baseline section below). N is not resolved anywhere in
   the series; the earlier "step at feature 4" is **disproven as session drift**. past-session's N=8 row
   overlaps its same-session N=7 control, and exercise-chart's N=9 row overlaps its same-session N=8
-  control at +0.027s (below the yardstick), so the plateau holds to **N=9**. Re-run with
+  control at +0.027s (below the yardstick). ⚠️ **N=10 (exercise) came in at +0.115s, 2.5× the
+  yardstick** — ranges still overlap so it does not resolve, but see the MECHANISM HYPOTHESIS in the
+  row-N=10 section: the three same-session deltas are monotonic in the ported feature's BINDING COUNT
+  and not in N. Settle it before the last two ports. Re-run with
   `sh documentation/graph-extension-arc/measure-build-time.sh`. Each new real extension extends the
   plateau, so this is not a licence to stop measuring — and an appended row needs a **same-session
   control**, see the correction in the row-N=8 section.
@@ -122,8 +125,12 @@ Shape B held on a real assisted feature with no surprise the spike had not alrea
 ~~Port 2 of the batch — `exercise-chart`.~~ **Done** (`b3ef0480` + `2f508a29`): predicted 21 →
 measured 21, five identity claims green, N=9 row with same-session control.
 
-**Batch the rest — `single-training`, `live-workout`, and `exercise`** under the proven shape-B
-pattern, one commit per feature:
+~~Port 3 of the batch — `exercise`.~~ **Done** (`0f129261` + `7968c76e`): predicted 22 → measured 22,
+six identity claims green, N=10 row with same-session control.
+
+**Batch the rest — `single-training` and `live-workout`** under the proven shape-B pattern, one commit
+per feature. Both are GMS/WorkManager boundary candidates, and both have 13 inherited bindings, which
+is what the mechanism hypothesis makes its prediction about:
 
 - `@GraphExtension` + **uniquely-named** factory creator (never a bare `create()`);
 - `@Inject` class with `internal` constructor;
@@ -137,7 +144,7 @@ signature-only counting systematically UNDER-predicts, so landing high means som
 different is going on and it must be understood before the next port.
 
 **Append a build-time row per port — WITH a same-session control.** The plateau is confirmed to
-**N=9**. A row measured in a new session cannot be compared to the older table (past-session's row
+**N=10** by overlapping ranges, but N=10's delta was +0.115s. A row measured in a new session cannot be compared to the older table (past-session's row
 proved this: same tree, cold calibration 43.993s here vs 23.261s there). Every appended row must come
 with a re-measurement of the previous N in the SAME session, in reversed order, and must record its
 cold-calibration figure. Any future slope must beat the **±0.045s same-N reproducibility** below.
@@ -475,6 +482,52 @@ noise. So when the cold-calibration figures match, the rows are comparable; when
 between these sessions and the N=1…7 series, they are not. That is exactly what the recorded figure is
 for, and it is now demonstrated in both directions rather than asserted.
 
+### ⚠ Row N=10 (exercise) — the first delta materially above the yardstick, and a MECHANISM candidate
+
+| N | feature | session position | n | median | min | max | spread | sd |
+|---|---|---|---|---|---|---|---|---|
+| 10 | exercise | measured **1st** | 9 | 1.132 | 0.992 | 1.327 | 0.335 | 0.107 |
+| 9 | `b3ef0480` (same-session control) | measured **2nd** | 9 | 1.017 | 0.977 | 1.299 | 0.322 | 0.102 |
+
+Cold calibration this session: **30.272s** (a FASTER machine-point than the 43.6/44.0s sessions, so
+these absolutes are not comparable to those rows — the within-session pair is).
+
+**N=9 → N=10 is +0.115s: 2.5× the ±0.045s yardstick.** By the arc's decision rule it still does not
+resolve — the ranges overlap across [0.992, 1.299] — but this is the first same-session delta clearly
+above the yardstick, and it is the third consecutive positive one.
+
+#### The three same-session deltas, and what actually orders them
+
+| port | N | inherited bindings | same-session delta |
+|---|---|---|---|
+| exercise-chart | 9 | **8** | +0.027 |
+| past-session | 8 | **9** | +0.060 |
+| exercise | 10 | **14** | +0.115 |
+
+**The deltas are monotonic in the ported feature's BINDING COUNT, and NOT monotonic in N.** Ordered by
+N they run 0.060 → 0.027 → 0.115 (down, then up). Ordered by how many app-scoped bindings the new
+extension inherits they run 0.027 → 0.060 → 0.115, strictly increasing. Cumulative N=7→N=10: **+0.202s**.
+
+> **MECHANISM HYPOTHESIS (not a finding): `:app`'s merged-graph codegen cost scales with the number of
+> inherited bindings each extension resolves, not with the extension COUNT.** That would explain why
+> the flat N=1…7 series stayed flat — those ports were narrow — and why the widest feature in the repo
+> produced the largest jump. It also reframes the endpoint question: what matters is the TOTAL bindings
+> across all 13 extensions, not 13 itself.
+
+**This is a hypothesis on three points, each a single noisy pair with overlapping ranges. It is not
+established and must not be extrapolated.** But it makes a sharp, falsifiable prediction, which is
+exactly what the gate demanded before any extrapolation:
+
+> **PREDICTION — `single-training` (13 bindings) and `live-workout` (13 bindings) should each produce a
+> same-session delta near +0.10s, NOT near +0.03s.** If they land near +0.03, the binding-count story is
+> dead and the three deltas were noise. If they land near +0.10, the mechanism is real and the endpoint
+> must be re-estimated from total binding count before the arc closes.
+
+**Recommended before the final two ports:** re-run the FULL series in ONE session in reversed or
+interleaved order. Three deltas from three different sessions cannot distinguish a real slope from
+three independent noisy pairs, and the ordering confound is still unbroken. That single run is the
+cheapest thing that could settle it.
+
 ### The yardstick: ±0.045s same-N reproducibility
 
 The three rows at **constant N=7** (0.875 / 0.861 / 0.906) are separate checkouts measured at different
@@ -628,7 +681,7 @@ count is a hypothesis per feature, not a work order.
 | home | **13** | 2 | 4 | predicted 12, measured 13 — see the transitive-closure correction below |
 | all-exercises | **17** | 2 | 4 | predicted 17, measured 17 — FIRST exact hit, closure procedure applied |
 | plan-editor | predicted 13 → **measured 13** | 2 | 5 | **written before fixpoint round 1** — 6 plumbing + 2 interactor + 5 models (`SetTypeDomain` reachable only via `PlanSetDomain.type`; the 4 `core.ui.plan_editor.model` types are cross-module and already public) |
-| exercise | **predicted 22** → measured _(pending)_ | 2 | 4 | **written before fixpoint round 1, in its own commit ahead of any widening** — 6 plumbing + 2 interactor + 13 domain + 1 UI |
+| exercise | predicted 22 → **measured 22** | 2 | 4 | **written before fixpoint round 1, in its own commit ahead of any widening** — 6 plumbing + 2 interactor + 13 domain + 1 UI |
 | exercise-chart | predicted 21 → **measured 21** | 2 | 3 | **written before fixpoint round 1, in its own commit ahead of any widening** — 6 plumbing + 2 interactor + 7 domain + 6 UI |
 | past-session | predicted 14 → **measured 14** | 2 | 4 | **written before fixpoint round 1, in its own commit (`16fd9910`) ahead of any widening** — 6 plumbing + 2 interactor + 6 domain models + **0 UI** (first port to force zero UI models) |
 
@@ -674,7 +727,7 @@ forced-public = 6 plumbing + 2 per interactor pair + (models exposed in the publ
 | plan-editor | 6 | 2 (×1) | 5 (4 domain + `DialogState`; the 4 `core.ui.plan_editor` types are cross-module) | 13 | ✔ |
 | past-session | 6 | 2 (×1) | 6 domain + 0 UI (all 4 UI models already public) | 14 | ✔ |
 | exercise-chart | 6 | 2 (×1) | 7 domain + 6 UI (all 6 UI models are `internal` here) | 21 | ✔ |
-| exercise | 6 | 2 (×1) | 13 domain + 1 UI (7 UI models already public; only `DialogState`) | **22 predicted** | _pending_ |
+| exercise | 6 | 2 (×1) | 13 domain + 1 UI (7 UI models already public; only `DialogState`) | 22 | ✔ |
 
 ### exercise — the prediction, written before widening (port 3 of the assisted batch)
 
@@ -711,6 +764,21 @@ become inherited rather than hand-threaded.
    `TrackNowConflict.*`, `ImageDisplay.*`, `PendingImage.*`) — nested, so they inherit.
 
 **A measurement BELOW 22 is a STOP, not a win.**
+
+**OUTCOME: measured 22. Exact hit, and all four side-claims held.** The 4 use cases stayed internal
+(so the `internal constructor` mechanism does hold for use-case ctor params), the nested
+`DiscardTarget` needed no edit, the 7 already-public UI models needed no edit, and no sealed subtype
+needed one. Closure produced exactly the three predicted additions, including `ActiveSessionDomain`
+reachable only through a sealed subtype's member.
+
+22 forced, 0 over-widened, 0 stale — **after** the harness reported one STALE case and refused to
+count it. `ExerciseHandlerStoreImpl`'s real declaration line is
+`class ExerciseHandlerStoreImpl : ExerciseHandlerStore,` and the case regex expected
+`class ExerciseHandlerStoreImpl :`, so the edit never applied. Without the stale guard that would have
+been silently counted as "forced" (an unmodified file still compiles… no — it would have been counted
+by whatever the compile said, which is the point: an un-applied mutation tests nothing). It was re-run
+against the correct line and failed as internal. **The stale-case guard exists for exactly this and it
+fired on the third use.**
 
 **CLARIFICATION to the formula, settled while predicting exercise-chart: only TOP-LEVEL declarations
 count.** A declaration nested inside the store contract inherits the container's visibility and needs no
