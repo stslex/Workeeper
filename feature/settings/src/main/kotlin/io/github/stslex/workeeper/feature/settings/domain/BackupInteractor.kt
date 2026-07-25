@@ -9,7 +9,7 @@ import io.github.stslex.workeeper.feature.settings.domain.model.BackupSummaryDom
 import io.github.stslex.workeeper.feature.settings.domain.model.SignInOutcomeDomain
 import kotlinx.coroutines.flow.Flow
 
-internal interface BackupInteractor {
+interface BackupInteractor {
 
     val authState: Flow<BackupAuthDomain>
 

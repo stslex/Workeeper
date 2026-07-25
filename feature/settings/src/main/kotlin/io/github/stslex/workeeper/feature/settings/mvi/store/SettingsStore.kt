@@ -18,7 +18,7 @@ import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Actio
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Event
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.State
 
-internal interface SettingsStore : Store<State, Action, Event> {
+interface SettingsStore : Store<State, Action, Event> {
 
     @Stable
     data class State(

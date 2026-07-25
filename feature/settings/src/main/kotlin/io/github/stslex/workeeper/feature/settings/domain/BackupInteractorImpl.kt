@@ -31,7 +31,7 @@ import kotlinx.coroutines.withContext
 
 @Inject
 @SingleIn(SettingsScope::class)
-internal class BackupInteractorImpl(
+class BackupInteractorImpl(
     private val backupAuth: BackupAuth,
     private val backupStorage: BackupStorage,
     private val snapshotProvider: DatabaseSnapshotProvider,

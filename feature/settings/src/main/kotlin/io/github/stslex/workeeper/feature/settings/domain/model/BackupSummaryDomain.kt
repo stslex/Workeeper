@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.settings.domain.model
 
-internal data class BackupSummaryDomain(
+data class BackupSummaryDomain(
     val createdAtEpochMs: Long,
     val sizeBytes: Long,
     val appVersion: String,

@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.map
 
 @Inject
 @SingleIn(SettingsScope::class)
-internal class SettingsInteractorImpl(
+class SettingsInteractorImpl(
     private val platformInfo: PlatformInfoProvider,
     private val commonDataStore: CommonDataStore,
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,

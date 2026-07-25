@@ -4,7 +4,7 @@ package io.github.stslex.workeeper.feature.settings.mvi.model
 import androidx.annotation.StringRes
 import io.github.stslex.workeeper.feature.settings.R
 
-internal enum class BackupErrorUi(@StringRes val messageRes: Int) {
+enum class BackupErrorUi(@StringRes val messageRes: Int) {
     NOT_AUTHENTICATED(R.string.feature_settings_backup_error_not_authenticated),
     NETWORK_UNAVAILABLE(R.string.feature_settings_backup_error_network_unavailable),
     AUTH_REVOKED(R.string.feature_settings_backup_error_auth_revoked),

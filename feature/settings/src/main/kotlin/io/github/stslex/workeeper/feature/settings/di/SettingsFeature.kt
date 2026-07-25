@@ -3,15 +3,11 @@ package io.github.stslex.workeeper.feature.settings.di
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
-import dev.zacsweers.metro.createGraphFactory
 import io.github.stslex.workeeper.core.ui.mvi.Feature
-import io.github.stslex.workeeper.core.ui.mvi.di.StoreCoreDeps
 import io.github.stslex.workeeper.core.ui.mvi.di.appDeps
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
 import io.github.stslex.workeeper.core.ui.mvi.processor.rememberMetroStoreProcessor
-import io.github.stslex.workeeper.core.ui.navigation.NavigatorDeps
 import io.github.stslex.workeeper.core.ui.navigation.Screen.Settings
-import io.github.stslex.workeeper.feature.app_dialogs.api.appDialogPublisher
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Action
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Event
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.State
@@ -20,16 +16,24 @@ import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStoreImpl
 internal typealias SettingsStoreProcessor = StoreProcessor<State, Action, Event>
 
 /**
- * feature/settings resolves its Store through the **Metro** path via `rememberMetroStoreProcessor`.
- * The Metro graph is built INSIDE the `rememberMetroStoreProcessor` factory lambda so it is created
- * at most once per retained [SettingsStoreImpl] (per `NavBackStackEntry`), binding the graph +
- * `@SingleIn(SettingsScope)` nodes to the Store's lifetime.
+ * feature/settings resolves its Store through the Metro **graph-extension** path.
  *
- * The app-scoped dependencies are acquired as the composition of three narrow interfaces
- * ([StoreCoreDeps] + [NavigatorDeps] + [SettingsDeps] — the wide backup/platform/dataStore/db tail plus
- * both qualified dispatchers) via `context.appDeps<T>()` (the god-object split, mechanism A);
- * `appDialogPublisher` is read through the feature-api holder seam; the app `Context` is passed
- * directly. Both `appDialogPublisher` and `Context` are composition-sourced — NOT in [SettingsDeps].
+ * The app-scope graph (returned as `Any` by the `AppDepsHolder` seam) IS the parent graph, and once
+ * `:app` is compiled it implements the contributed [SettingsGraph.Factory]. `appDeps<T>()` re-narrows it
+ * with its `as T` cast — the same acquisition seam as before, now targeting the contributed factory
+ * instead of the three `XxxDeps` interfaces. (`asContribution<T>()` is not usable here: it requires a
+ * statically `@DependencyGraph`-typed receiver, which the `Any` seam is not.)
+ *
+ * This is where the arc's widest hand-threading collapses: the old body read `StoreCoreDeps` +
+ * `NavigatorDeps` + `SettingsDeps`, plus `appDialogPublisher` through the feature-api holder seam and
+ * the app `Context` from `LocalContext`, then passed all **18** across explicitly. Every one of them is
+ * an app-scoped binding the extension now inherits, so `createSettingsGraph()` takes no arguments and
+ * the composition-sourced/graph-sourced split disappears entirely — `Context` still comes from
+ * `LocalContext`, but only to reach the `AppDepsHolder` seam, never as a graph argument.
+ *
+ * The extension is created INSIDE the `rememberMetroStoreProcessor` factory lambda, so it is built at
+ * most once per retained [SettingsStoreImpl] (per `NavBackStackEntry` `ViewModelStore`) — binding the
+ * extension and its `@SingleIn(SettingsScope)` nodes to exactly the Store's lifetime.
  */
 internal object SettingsFeature : Feature<SettingsStoreProcessor, Settings>() {
 
@@ -38,34 +42,8 @@ internal object SettingsFeature : Feature<SettingsStoreProcessor, Settings>() {
     override fun processor(): SettingsStoreProcessor {
         val context = LocalContext.current
         return rememberMetroStoreProcessor<SettingsStoreImpl> {
-            // Mechanism A (the god-object split): spine four from StoreCoreDeps + NavigatorDeps; the wide
-            // domain tail (backup slice + platform/dataStore/db + BOTH qualified dispatchers) from
-            // SettingsDeps. appDialogPublisher (feature-api holder seam) and the app Context (LocalContext)
-            // are composition-sourced — passed direct, NOT via appDeps.
-            val coreDeps = context.appDeps<StoreCoreDeps>()
-            val navDeps = context.appDeps<NavigatorDeps>()
-            val deps = context.appDeps<SettingsDeps>()
-            createGraphFactory<SettingsGraph.Factory>()
-                .create(
-                    navigator = navDeps.navigator,
-                    platformInfoProvider = deps.platformInfoProvider,
-                    commonDataStore = deps.commonDataStore,
-                    backupAuth = deps.backupAuth,
-                    backupStorage = deps.backupStorage,
-                    snapshotExportRunner = deps.snapshotExportRunner,
-                    databaseSnapshotProvider = deps.databaseSnapshotProvider,
-                    restoreStateRepository = deps.restoreStateRepository,
-                    backupPreferencesRepository = deps.backupPreferencesRepository,
-                    autoBackupController = deps.autoBackupController,
-                    appDialogPublisher = context.appDialogPublisher(),
-                    tempFileProvider = deps.tempFileProvider,
-                    storeDispatchers = coreDeps.storeDispatchers,
-                    analyticsHolder = coreDeps.analyticsHolder,
-                    loggerHolder = coreDeps.loggerHolder,
-                    defaultDispatcher = deps.defaultDispatcher,
-                    ioDispatcher = deps.ioDispatcher,
-                    context = context.applicationContext,
-                )
+            context.appDeps<SettingsGraph.Factory>()
+                .createSettingsGraph()
                 .settingsStore
         } as SettingsStoreProcessor
     }

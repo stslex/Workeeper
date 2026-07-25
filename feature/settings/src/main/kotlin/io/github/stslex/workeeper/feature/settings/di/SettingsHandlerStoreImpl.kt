@@ -10,5 +10,5 @@ import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.State
 
 @Inject
 @SingleIn(SettingsScope::class)
-internal class SettingsHandlerStoreImpl : SettingsHandlerStore,
+class SettingsHandlerStoreImpl : SettingsHandlerStore,
     BaseHandlerStore<State, Action, Event>()

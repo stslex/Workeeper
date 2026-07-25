@@ -5,7 +5,7 @@ import androidx.compose.runtime.Stable
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupScheduleUi
 
 @Stable
-internal sealed interface DialogState {
+sealed interface DialogState {
 
     @Stable
     data object Hidden : DialogState

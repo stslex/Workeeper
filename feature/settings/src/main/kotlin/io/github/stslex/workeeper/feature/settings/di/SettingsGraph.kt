@@ -3,25 +3,11 @@ package io.github.stslex.workeeper.feature.settings.di
 
 import android.content.Context
 import dev.zacsweers.metro.Binds
-import dev.zacsweers.metro.DependencyGraph
-import dev.zacsweers.metro.Provides
+import dev.zacsweers.metro.ContributesTo
+import dev.zacsweers.metro.GraphExtension
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.core.di.IODispatcher
-import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
-import io.github.stslex.workeeper.core.core.platform.TempFileProvider
-import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
-import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
-import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
-import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
-import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
-import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
-import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
-import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
-import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
-import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
-import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
-import io.github.stslex.workeeper.core.ui.navigation.Navigator
-import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.settings.domain.BackupInteractor
 import io.github.stslex.workeeper.feature.settings.domain.BackupInteractorImpl
 import io.github.stslex.workeeper.feature.settings.domain.SettingsInteractor
@@ -30,27 +16,37 @@ import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStoreImpl
 import kotlinx.coroutines.CoroutineDispatcher
 
 /**
- * The single Metro dependency graph for feature/settings. Scoped to [SettingsScope].
+ * feature/settings' Metro graph as a CONTRIBUTED [GraphExtension] of [SettingsScope]. The factory
+ * carries `@ContributesTo(AppScope::class)`, so the extension is merged into the app graph in `:app` and
+ * inherits ALL of its app-scoped bindings — all **18** formerly hand-threaded bound-instance `@Provides`
+ * are gone and `createSettingsGraph()` takes no arguments. The three `@Binds` (SettingsInteractor,
+ * BackupInteractor, SettingsHandlerStore) stay. [settingsStore] is the root.
  *
- * The 18 app-scoped deps are app-graph-owned bindings handed in as `@Provides` bound instances via
- * [Factory]. The three `@Binds` (SettingsInteractor, BackupInteractor, SettingsHandlerStore) live
- * here. [settingsStore] is the root.
+ * This is the widest graph in the repo, and it is what makes the inheritance claim non-trivial — every
+ * category the arc has to carry appears here at once:
+ * - **two same-typed qualified dispatchers**, `@DefaultDispatcher` + `@IODispatcher`, which must inherit
+ *   as two DISTINCT `(CoroutineDispatcher + qualifier)` keys and not cross-wire;
+ * - a **bare, unqualified `Context`**, inherited from AppGraph's `create(applicationContext)` bound
+ *   instance rather than passed per-graph;
+ * - `appDialogPublisher`, which reaches the extension as an ordinary `@ContributesBinding(AppScope)`
+ *   binding — under the old factory it was composition-sourced through the feature-api holder seam.
  *
- * Binding specifics:
- * - `@DefaultDispatcher` + `@IODispatcher` factory params stay QUALIFIED → two distinct
- *   `(CoroutineDispatcher + qualifier)` binding keys, no collision.
- * - `context` is a PLAIN `Context` param: one `Context` per graph.
+ * The three accessors below keep that claim OBSERVABLE. They were bridge-observability roots for
+ * `SettingsGraphBridgeTest`; they are retained deliberately because the property they expose got
+ * HARDER to verify, not easier — the pair is now inherited across a graph boundary instead of handed
+ * in explicitly, and a silent cross-wire would be invisible from the Store alone. Read by
+ * `SettingsExtensionIdentityTest` in `:app`. They cost no forced-public surface: `CoroutineDispatcher`
+ * and `Context` are external types.
+ *
+ * Interface + factory are `public` because `:app` generates the extension impl and references them;
+ * [SettingsScope] stays `internal` (Metro reads the scope KClass at IR level).
  */
-@DependencyGraph(scope = SettingsScope::class)
-internal interface SettingsGraph {
+@GraphExtension(SettingsScope::class)
+interface SettingsGraph {
 
     /** Root accessor: the retained Store. Metro constructs [SettingsStoreImpl], wiring its deps. */
     val settingsStore: SettingsStoreImpl
 
-    // Bridge-observability accessors (inert roots): expose the two qualified dispatchers and the
-    // app Context as the graph resolves them, so the real graph is self-verifying — proving the
-    // (type + qualifier) keys resolve distinctly and the bare Context is bound. Consumed by
-    // SettingsGraphBridgeTest; no runtime cost unless read.
     @DefaultDispatcher
     val defaultDispatcher: CoroutineDispatcher
 
@@ -68,28 +64,15 @@ internal interface SettingsGraph {
     @Binds
     val SettingsHandlerStoreImpl.bindHandlerStore: SettingsHandlerStore
 
-    @DependencyGraph.Factory
+    /**
+     * The creator method name must be UNIQUE across all contributed extension factories: every
+     * `@ContributesTo(AppScope::class)` factory is merged into `AppGraph`, so two factories both
+     * declaring `create()` collide ("return types are incompatible"). Binding rule for all 13 — see
+     * documentation/graph-extension-arc/HANDOFF.md.
+     */
+    @ContributesTo(AppScope::class)
+    @GraphExtension.Factory
     fun interface Factory {
-        fun create(
-            @Provides navigator: Navigator,
-            @Provides platformInfoProvider: PlatformInfoProvider,
-            @Provides commonDataStore: CommonDataStore,
-            @Provides backupAuth: BackupAuth,
-            @Provides backupStorage: BackupStorage,
-            @Provides snapshotExportRunner: SnapshotExportRunner,
-            @Provides databaseSnapshotProvider: DatabaseSnapshotProvider,
-            @Provides restoreStateRepository: RestoreStateRepository,
-            @Provides backupPreferencesRepository: BackupPreferencesRepository,
-            @Provides autoBackupController: AutoBackupController,
-            @Provides appDialogPublisher: AppDialogPublisher,
-            @Provides tempFileProvider: TempFileProvider,
-            @Provides storeDispatchers: StoreDispatchers,
-            @Provides analyticsHolder: AnalyticsHolder,
-            @Provides loggerHolder: LoggerHolder,
-            @Provides @DefaultDispatcher defaultDispatcher: CoroutineDispatcher,
-            @Provides @IODispatcher ioDispatcher: CoroutineDispatcher,
-            // PLAIN Context — unqualified; one Context per graph.
-            @Provides context: Context,
-        ): SettingsGraph
+        fun createSettingsGraph(): SettingsGraph
     }
 }

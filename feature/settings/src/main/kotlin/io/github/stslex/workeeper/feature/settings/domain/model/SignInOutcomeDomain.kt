@@ -4,7 +4,7 @@ package io.github.stslex.workeeper.feature.settings.domain.model
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.model.AuthResolution
 
-internal sealed interface SignInOutcomeDomain {
+sealed interface SignInOutcomeDomain {
 
     data object Success : SignInOutcomeDomain
 

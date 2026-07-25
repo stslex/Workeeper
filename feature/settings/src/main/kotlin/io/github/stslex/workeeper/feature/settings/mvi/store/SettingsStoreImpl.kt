@@ -21,7 +21,7 @@ import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.State
 // Metro constructs this Store (class-level @Inject). Retention is
 // owned by the Android ViewModelStore via rememberMetroStoreProcessor — so NO @SingleIn here.
 @Inject
-internal class SettingsStoreImpl(
+class SettingsStoreImpl internal constructor(
     navigationHandler: SettingsNavigationHandler,
     pagingHandler: SettingsPagingHandler,
     clickHandler: SettingsClickHandler,
