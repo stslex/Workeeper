@@ -21,6 +21,13 @@
 #      silent false green — the arc's recurring failure class (see STANDING RULE 5).
 #   5. Merges stderr. Kotlin/Gradle diagnostics go there; capturing stdout alone reports success on a
 #      failed build.
+#   6. CALIBRATES ITSELF FIRST (step 0). Rejecting stale runs and being able to register a real
+#      regression are separate properties: the guards prove the former, only a known-positive proves
+#      the latter, and it has to be proven in THIS session on THIS machine. A cold compile must show
+#      tens of seconds; if it does not, the run aborts rather than emitting a flat, meaningless series.
+#
+# WHAT THIS SCRIPT DOES NOT GUARD: the wrapper you invoke it from. Its integrity check is the N column
+# in the summary — it must ascend, never repeat one value across all rows. See the reading guide.
 #
 # HISTORICAL POINTS come from read-only `git worktree` checkouts of the arc's own SHAs, so no branch is
 # created, moved, rebased, or pushed. Worktrees are removed on exit.
@@ -77,6 +84,10 @@ MAX_N=40
 # Smallest difference worth believing, in seconds. n is derived so the median's standard error is
 # comfortably under half of it.
 TARGET_SE=0.05
+# Calibration floor. A cold :app:app:compileDebugKotlin from wiped build dirs must register tens of
+# seconds; a warm one registers ~1s. Anything under this means the harness is not measuring the
+# compile it claims to. 8x above the warm figure, well under the ~30s observed cold.
+CALIBRATION_MIN_S=10
 
 # --------------------------------------------------------------------------------------------------
 
@@ -147,9 +158,39 @@ PY
 }
 
 echo "=============================================================="
+echo " STEP 0 — CALIBRATION (known-positive)"
+echo "=============================================================="
+# "Rejects UP-TO-DATE/FROM-CACHE" and "can register a large number IN THIS SESSION" are SEPARATE
+# properties. The run-level guards prove the first. This proves the second, here, on this machine,
+# in this session — because a fresh session is a different machine-point and daemon state, and an
+# instrument that silently reports ~1s for everything would produce a beautifully flat, meaningless
+# series. Force the number large and confirm it shows up.
+wipe_builds "$REPO"
+echo "measuring a COLD :app:app:compileDebugKotlin (all build dirs wiped)…"
+COLD="$(one_run "$REPO")"
+echo "  cold run registered: ${COLD:-NOTHING}s   (expect tens of seconds; warm is ~1s)"
+
+if [ -z "$COLD" ]; then
+    echo
+    echo "ABORT: the calibration run produced no measurement at all."
+    echo "The harness cannot see the compile it is supposed to time. Fix that before trusting"
+    echo "anything below — a series of small numbers would look like a clean flat result."
+    exit 1
+fi
+if [ "$(python3 -c "print(1 if float('$COLD') < $CALIBRATION_MIN_S else 0)")" = "1" ]; then
+    echo
+    echo "ABORT: cold run registered ${COLD}s, under the ${CALIBRATION_MIN_S}s floor."
+    echo "A cold full compile cannot legitimately be this fast, so the harness is measuring"
+    echo "something other than the compile — most likely reused state that survived the wipe."
+    echo "A regression would be invisible to this run. Do not read the series."
+    exit 1
+fi
+echo "  CALIBRATED: the harness registers a large number when one exists."
+
+echo
+echo "=============================================================="
 echo " Arc build-time re-baseline — PILOT"
 echo "=============================================================="
-wipe_builds "$REPO"
 echo "warming dependencies (discarded)…"
 ./gradlew :app:app:compileDebugKotlin --no-build-cache --console=plain >/dev/null 2>&1
 
@@ -197,11 +238,25 @@ echo "$SERIES" | while IFS='|' read -r label ref; do
     fi
 
     ext="$(count_extensions "$dir")"
+    echo "$ext" >> "$OUT/ncolumn.txt"
     echo
     echo "--- $label ($ref) : $ext contributed extensions found ---"
     collect "$dir" "$N_DERIVED" "$OUT/$label.txt"
     stats "N=$ext $label" "$OUT/$label.txt" | tee -a "$RESULTS"
 done
+
+# The N column is this series' integrity check. It must ASCEND 1,2,3,4,5,6,7,7,7 — the two repeats are
+# the deliberate pre/post-bridge control plus the working tree. All-identical N means every row measured
+# the SAME checkout: the symptom of a worktree that never got created, or of a shell wrapper whose
+# argument split silently collapsed (a bad `set -- $spec` under zsh did exactly this while verifying
+# these SHAs — five rows, five confident results, all of the working tree). The run-level guards below
+# do NOT cover the invocation wrapper; the N column is what catches it.
+if [ -f "$OUT/ncolumn.txt" ] && [ "$(sort -u "$OUT/ncolumn.txt" | wc -l | tr -d ' ')" -le 1 ]; then
+    echo
+    echo "!! ABORT-WORTHY: every row reported the SAME extension count."
+    echo "   Each row measured the same checkout. The numbers below are one row repeated."
+    echo "   N column was: $(tr '\n' ' ' < "$OUT/ncolumn.txt")"
+fi
 
 echo
 echo "=============================================================="
@@ -210,8 +265,14 @@ echo "=============================================================="
 cat "$RESULTS"
 echo
 echo "Reading it:"
+echo "  * FIRST check the N column ascends 1,2,3,4,5,6,7,7,7. Identical values mean every row measured"
+echo "    the same checkout — the numbers are one row repeated, however plausible they look. The"
+echo "    run-level UP-TO-DATE / FROM-CACHE guards do NOT cover the wrapper this script is invoked by."
 echo "  * Compare RANGES, not medians. If two rows' ranges overlap, N is not resolved between them."
 echo "  * A LOWER median at a HIGHER N means N is not the driver at this resolution."
+echo "  * The two N=7 rows are a CONTROL, not a duplicate: plan-editor still carries the four dead"
+echo "    XxxDeps on AppGraph, plan-editor-postbridge does not. If they differ materially, the bridge"
+echo "    residue confounds every row and the series must be re-cut; if they match, it is a non-issue."
 echo "  * Only if ranges separate cleanly and monotonically is there a slope to extrapolate — and even"
 echo "    then, name the mechanism in :app's merged-graph codegen before projecting to 13 extensions."
 echo

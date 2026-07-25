@@ -69,6 +69,13 @@ done; 3–4 are why this section is here.
    sh documentation/graph-extension-arc/measure-build-time.sh
    ```
 
+   The script's **STEP 0 calibrates itself before measuring anything**, and will abort rather than
+   emit a flat series it cannot trust. "Rejects stale runs" and "can register a real regression in
+   THIS session" are separate properties: the run-level guards prove the first, only a known-positive
+   proves the second, and a fresh session is a different machine-point. Step 0 wipes every build dir,
+   times one cold `:app:app:compileDebugKotlin`, and requires tens of seconds. Verified both ways in
+   place: cold registers **28.5s** → CALIBRATED; warm registers **1.0s** → ABORT under the 10s floor.
+
 4. **Read RANGES, not medians.** Overlapping ranges mean N is not resolved between those rows. A lower
    median at a higher N means N is not the driver at this resolution.
 
@@ -158,6 +165,14 @@ Every rule in this document is an instance of it. So is every failure the arc ha
 | `FROM-CACHE` build-time row | "compile took Xs" | the compile was restored, not executed |
 | stdout-not-stderr | "0 compile errors" | errors go to stderr; the build had failed |
 | arithmetic-not-measured | "the ledger says N" | nobody re-read the file at that SHA |
+| shell wrapper — bad word split | "5 SHAs COMPILE" | zsh did not split `set -- $spec`, so all five rows measured the working tree. Tell: the N column read 7,7,7,7,7 instead of 4,5,6,7,7 |
+| shell wrapper — copied script | "the calibration gate aborts" | the copy resolved `REPO` from its own `dirname`, so `./gradlew` did not exist. It aborted for the wrong reason, which reads identically to aborting for the right one |
+
+The last two are worth their own note: **both were in the wrapper around a verified instrument, not the
+instrument.** `measure-build-time.sh` rejects UP-TO-DATE and FROM-CACHE runs and calibrates itself — and
+neither guard can see a caller that hands it the wrong directory or collapses its arguments. An
+instrument's guarantees stop at its own boundary. That is why the script's summary prints an N column
+whose ascent is the integrity check, and why a probe must be run **in place** rather than as a copy.
 
 The shape is identical every time: **the instrument answers a question adjacent to the one asked, and
 reports success either way.** No error is raised, so the result reads as evidence.
