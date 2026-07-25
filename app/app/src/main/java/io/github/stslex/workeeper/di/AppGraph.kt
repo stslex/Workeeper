@@ -50,7 +50,6 @@ import io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObse
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepository
 import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImpl
-import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutDeps
 import io.github.stslex.workeeper.feature.recovery.boot.RecoveryBootstrap
 import io.github.stslex.workeeper.feature.recovery.di.RecoveryDeps
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
@@ -63,11 +62,25 @@ import kotlinx.coroutines.CoroutineDispatcher
  * process. Factory-shaped ([Factory]): the app `Context` enters as a `@Provides` bound instance
  * via `create(...)`, so the graph interface stays small.
  */
+/*
+ * ORPHANED-ACCESSOR STATE, after the 13th and final feature port (live-workout).
+ *
+ * Only TWO bridge supertypes remain that this arc will delete — RecoveryDeps and BackupWorkerDeps are
+ * NOT feature-graph bridges; StoreCoreDeps + NavigatorDeps are the load-bearing γ-spine and stay.
+ * Every accessor that a deleted XxxDeps was the last declarer of has been turned into a plain `val`
+ * with `override` dropped, NOT deleted — the bulk accessor cleanup is the second closing commit.
+ *
+ * Running orphan ledger, per deletion: past-session 1, exercise-chart 0, exercise 1, single-training 3,
+ * live-workout 9. Fourteen orphans from five deletions, with no pattern that predicts the next one —
+ * which is why the cleanup commit must ENUMERATE what remains rather than work from a count, and why
+ * "orphaned" must never be read as "dead": several of these are live roots (imageStorage via
+ * BaseApplication.cleanupOrphanedImageTempFiles, sessionConflictResolver / the dispatchers / the
+ * repositories via the :app identity tests).
+ */
 @DependencyGraph(scope = AppScope::class)
 internal interface AppGraph :
     StoreCoreDeps,
     NavigatorDeps,
-    LiveWorkoutDeps,
     RecoveryDeps,
     BackupWorkerDeps {
 
@@ -103,7 +116,7 @@ internal interface AppGraph :
      * process-singletons.
      */
     @DefaultDispatcher
-    override val defaultDispatcher: CoroutineDispatcher
+    val defaultDispatcher: CoroutineDispatcher
 
     // ORPHANED by the single-training port (see the ledger): `SingleTrainingDeps` was the last bridge
     // interface still declaring `@MainImmediateDispatcher`. Kept as a plain `val` — deletion is deferred
@@ -126,7 +139,7 @@ internal interface AppGraph :
      * (`@BindingContainer @ContributesTo(AppScope)`, its `Context` from the `create(applicationContext)`
      * bound instance).
      */
-    override val resourceWrapper: ResourceWrapper
+    val resourceWrapper: ResourceWrapper
 
     /**
      * Metro-owned Navigator subsystem — the one `NavigatorEventBus` (`@SingleIn(AppScope)`) contributes
@@ -228,16 +241,16 @@ internal interface AppGraph :
      * from the graph). Eight are read cross-module by features via the graph; [statsRepository] has zero
      * consumers (dead binding) — exposed for completeness/identity.
      */
-    override val exerciseRepository: ExerciseRepository
-    override val sessionRepository: SessionRepository
-    override val setRepository: SetRepository
+    val exerciseRepository: ExerciseRepository
+    val sessionRepository: SessionRepository
+    val setRepository: SetRepository
     // ORPHANED by the single-training port: `SingleTrainingDeps` was the last bridge interface still
     // declaring `tagRepository`. Kept as a plain `val` pending the final cleanup.
     val tagRepository: TagRepository
-    override val personalRecordRepository: PersonalRecordRepository
-    override val performedExerciseRepository: PerformedExerciseRepository
-    override val trainingExerciseRepository: TrainingExerciseRepository
-    override val trainingRepository: TrainingRepository
+    val personalRecordRepository: PersonalRecordRepository
+    val performedExerciseRepository: PerformedExerciseRepository
+    val trainingExerciseRepository: TrainingExerciseRepository
+    val trainingRepository: TrainingRepository
     val statsRepository: StatsRepository
 
     /**
