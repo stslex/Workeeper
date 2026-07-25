@@ -27,16 +27,9 @@ import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerDeps
 import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
-import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
-import io.github.stslex.workeeper.core.data.exercise.personal_record.PersonalRecordRepository
-import io.github.stslex.workeeper.core.data.exercise.session.PerformedExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.session.SessionConflictResolver
 import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
-import io.github.stslex.workeeper.core.data.exercise.session.SetRepository
 import io.github.stslex.workeeper.core.data.exercise.stats.StatsRepository
-import io.github.stslex.workeeper.core.data.exercise.tags.TagRepository
-import io.github.stslex.workeeper.core.data.exercise.training.TrainingExerciseRepository
-import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
 import io.github.stslex.workeeper.core.ui.kit.utils.NumUiUtils
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolder
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
@@ -139,7 +132,6 @@ internal interface AppGraph :
      * (`@BindingContainer @ContributesTo(AppScope)`, its `Context` from the `create(applicationContext)`
      * bound instance).
      */
-    val resourceWrapper: ResourceWrapper
 
     /**
      * Metro-owned Navigator subsystem — the one `NavigatorEventBus` (`@SingleIn(AppScope)`) contributes
@@ -241,16 +233,9 @@ internal interface AppGraph :
      * from the graph). Eight are read cross-module by features via the graph; [statsRepository] has zero
      * consumers (dead binding) — exposed for completeness/identity.
      */
-    val exerciseRepository: ExerciseRepository
     val sessionRepository: SessionRepository
-    val setRepository: SetRepository
     // ORPHANED by the single-training port: `SingleTrainingDeps` was the last bridge interface still
     // declaring `tagRepository`. Kept as a plain `val` pending the final cleanup.
-    val tagRepository: TagRepository
-    val personalRecordRepository: PersonalRecordRepository
-    val performedExerciseRepository: PerformedExerciseRepository
-    val trainingExerciseRepository: TrainingExerciseRepository
-    val trainingRepository: TrainingRepository
     val statsRepository: StatsRepository
 
     /**
