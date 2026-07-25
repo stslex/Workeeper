@@ -334,6 +334,10 @@ It rests on **four independent legs**, not one number:
 4. **The design is biased TOWARD false slopes, and still produced null.** N ascends in measurement
    order, so any session drift ADDS to an apparent climb. A null result under that bias is *stronger*
    evidence of flatness, not weaker.
+   **Scope this leg carefully — it protects the SLOPE reading and nothing else.** For the
+   N≤3-vs-N≥4 *level* difference the sign runs the other way: drift makes later rows slower, and the
+   later rows are precisely the higher-N ones, so there drift MANUFACTURES the effect instead of
+   working against it. Leg 4 is a one-directional shield; do not spend it on the qualification below.
 
 Across the whole series N=1…7 the medians span only 0.080s — smaller than the *within-row* spread of
 **eight of the nine rows** (every row except image-viewer, whose spread is 0.043s).
@@ -409,9 +413,13 @@ false step would have been extrapolated to 13 extensions.
 - **Read RANGES, not medians.** Overlapping ranges mean N is not resolved between those rows.
 - **One figure family per column.** Task-execution is the cleaner metric; never mix it with whole-build.
 - **A new row must beat ±0.045s** before it is a slope.
-- **Vary the measurement ORDER, not just N.** In this run N ascended in measurement order, so N and
-  session-position are the same axis and any level difference between early and late rows is
-  unattributable. A reversed or interleaved run would break that confound and settle the N=3→4 question.
+- **Vary the measurement ORDER, not just N.** This is NOT a quirk of one run. `SERIES` is hardcoded in
+  ascending N, and rows have always been appended per port, so **every run of this script — and every
+  build-time row this arc has ever recorded — has had N and session-position on the same axis.** The
+  confound predates this session and was never only a cross-session problem. It is harmless for the
+  slope reading (drift only inflates an apparent climb, per leg 4) and **fatal for any early-vs-late
+  LEVEL comparison**, where drift's sign runs the other way. A reversed or interleaved run breaks it
+  and would settle the N=3→4 question.
 - **Compute an SE at the level you are comparing at.** Two group means do not take the SE of two single
   rows; carry each group's n through.
 - The plateau is confirmed only to **N=7**. Each new real extension extends it — this is not a licence
