@@ -26,14 +26,14 @@ grep -rln "@DependencyGraph(\|@GraphExtension(" --include="*.kt" feature/ | grep
 grep -rln "@GraphExtension(" --include="*.kt" feature/ | grep -v /build/ | wc -l
 ```
 
-Both measurements agree: **13 feature graphs, 12 ported, 1 remaining (`app-dialogs`).**
+Both measurements agree: **13 feature graphs, ALL 13 PORTED, 0 remaining.** No `@DependencyGraph` survives under `feature/`.
 
 | Base class | n | Features | Status |
 |---|---|---|---|
 | `Feature<P, S>` | 5 | all-trainings, archive, home, all-exercises, settings | **all ported** |
 | `FeatureAssisted<P, S>` | 7 | **all seven ported** — image-viewer, plan-editor, past-session, exercise-chart, exercise, single-training, live-workout | done |
 
-| `AppFeature<P>` | 1 | **app-dialogs** | **THE ONLY ONE LEFT** — separate shape, still `@DependencyGraph` |
+| `AppFeature<P>` | 1 | app-dialogs | ported (`5fafe040`) — its only user, so `AppFeature` itself may be deletable |
 
 ⚠️ **`AppFeature` is why the naive grep returns 12 and not 13.** A `Feature|FeatureAssisted` search
 silently omits app-dialogs, because its base class is neither — which is the structural reason it is
@@ -59,7 +59,7 @@ the whole arc or none of it.
 
 ## Status
 
-- **DONE — 12 of 13 ported.** Phase 0 gate (`c12c44dc`), `AppScope`→commonMain (`2f9c89d8`),
+- **DONE — 13 of 13 ported. ALL FEATURE GRAPHS ARE CONTRIBUTED EXTENSIONS.** Phase 0 gate (`c12c44dc`), `AppScope`→commonMain (`2f9c89d8`),
   all-trainings (`9f17d02a`) + `AllTrainingsDeps` deleted (`197f39b4`), unique-creator fix
   (`dbfc4852`), archive (`4c184e5e`) + `ArchiveDeps` deleted (`62e5af72`), image-viewer
   (`4c7a1a67`, FIRST assisted feature, shape B), settings (`d784a510`), home (`02e90d81`),
@@ -70,25 +70,25 @@ the whole arc or none of it.
   of the batch, fifth shape-B, joint-widest at 22 forced-public) + `ExerciseDeps` deleted (`7968c76e`)**,
   and **single-training (`8f2fb43b`, sixth shape-B, 23 forced-public) + `SingleTrainingDeps` deleted
   (`6406c900`)**, and **live-workout (`ee959370`, seventh shape-B, WIDEST of the arc at 24
-  forced-public) + `LiveWorkoutDeps` deleted (`818c90c9`, the last feature bridge)**. **4 supertypes
-  remain** on `AppGraph` (was 15) — and the list bottoms out at 2, not 0: `StoreCoreDeps` + `NavigatorDeps` are
+  forced-public) + `LiveWorkoutDeps` deleted (`818c90c9`, the last feature bridge)**, and
+  **app-dialogs (`5fafe040`, port 13, narrowest at 6 forced-public) + the `AppDialogInternalsHolder`
+  seam retired (`a750d717`)**. **4 supertypes remain** on `AppGraph` (was 15) — and the list bottoms out at 2, not 0: `StoreCoreDeps` + `NavigatorDeps` are
   load-bearing γ-spine, not transient. `StoreFactory` has **NO users left** and dies with the closing commits and dies with the last of them.
   *(Count the supertypes by READING the list, not by grepping `Deps,` — the last entry ends in ` {`
   and a comma-anchored grep returns 7. That is STANDING RULE 5 witness #1 recurring; it recurred again
   while writing this line.)*
-- **REMAINING — 1 feature: `app-dialogs`.** It is app-root-scoped and screen-less (base class
-  `AppFeature<P>`, not `FeatureAssisted`), structurally unlike the twelve done, so NOT a drop-in repeat
-  of the pattern. It is still a `@DependencyGraph` and it IS one of the 13 — the arc cannot close
-  without it.
-  ⚠️ **CORRECTION: `live-workout` was port 12 of 13, not 13 of 13.** Its commit (`ee959370`) is
-  mislabelled "13/13" and "THE LAST FEATURE GRAPH" in the subject and body. It is the last *assisted /
-  route-arg* feature and the last *feature-graph bridge interface*, but `app-dialogs` is the thirteenth
-  graph. The label was inherited from a brief instead of measured — the count class again, committed in
-  the very arc that carries a "grep, not memory" inventory section. Not rewritten (no-rebase); recorded
-  here and in the endpoint section.
-  ⚠️ **Consequently the ENDPOINT reading has NOT been taken.** The bracketed reading below is
-  **N=11 → N=12**. The true endpoint is N=13, and per the port-13 rule it must be measured as part of
-  the `app-dialogs` port, before the closing commits. `MetroWorkerFactory` still needs its own acquisition decision, and lands
+- **REMAINING — no feature ports. What is left is the close-out:**
+  1. the **three closing commits** — delete the remaining bridge interfaces + the **ENUMERATED 14**
+     orphaned accessors; `AppGraph` `override` → plain down to the `StoreCoreDeps` + `NavigatorDeps`
+     spine; delete `FeatureAssisted` / `StoreFactory` from `core:ui:mvi` (**`StoreFactory` now has zero
+     users**) — and check whether `AppFeature` can go too, since app-dialogs was its only user;
+  2. the **on-device restore-cycle known-positive anchor** on the base;
+  3. then **#176**.
+  ⚠️ **CORRECTION, standing: `live-workout` was port 12 of 13, not 13 of 13.** Its commit (`ee959370`)
+  is mislabelled "13/13" and "THE LAST FEATURE GRAPH". It is the last *assisted* feature and the last
+  *feature-graph bridge interface*; `app-dialogs` (`5fafe040`) is the thirteenth graph. The label was
+  inherited from a brief instead of measured — the count class, committed inside the arc that carries a
+  "grep, not memory" inventory section. Not rewritten (no-rebase). `MetroWorkerFactory` still needs its own acquisition decision, and lands
   under STANDING RULE 4 (boundary test) when it does.
   ✅ **`exercise` is now ported** (`0f129261`) — the scheduling flag from the batch brief's omission is
   closed.
@@ -530,7 +530,38 @@ noise. So when the cold-calibration figures match, the rows are comparable; when
 between these sessions and the N=1…7 series, they are not. That is exactly what the recorded figure is
 for, and it is now demonstrated in both directions rather than asserted.
 
-### ✅ BRACKETED reading at N=12 — witness 12 CONFIRMED (NOT the endpoint; see the correction in Status)
+### 🏁 ENDPOINT — N=13, all thirteen ported, bracketed
+
+Taken at the app-dialogs port, per the port-13 rule (the closing commits delete declarations, not
+bindings, so they cannot change what the codegen pays for). Control = `ee959370` (N=12 tree), verified
+at **12** extensions against the working tree's **13**. Cold calibration **28.976s**.
+
+| bracket position | tree | n | median | range |
+|---|---|---|---|---|
+| control A (1st) | N=12 | 9 | 1.075 | 1.003 – 1.195 |
+| **NEW** (2nd) | **N=13** | 9 | **0.995** | 0.965 – 1.210 |
+| control B (3rd) | N=12 | 9 | 0.988 | 0.962 – 1.119 |
+
+```
+WITHIN-PAIR DRIFT (ctlB - ctlA)  : -0.087s
+RAW delta (new - ctlA)           : -0.080s
+DRIFT-CORRECTED (new - mean ctl) : -0.036s
+three-way range overlap          : [1.003, 1.119]  OVERLAP
+```
+
+**THE ENDPOINT COSTS NOTHING.** The thirteenth extension is **−0.036s** drift-corrected — negative, and
+the three-way ranges overlap, so it does not resolve. Across the whole arc no reading has ever resolved
+outside overlapping ranges.
+
+**And this bracket is the strongest evidence yet for witness 12.** The within-pair drift measured here
+is **−0.087s — nearly 2× the ±0.045s yardstick**, and it swamps the effect it surrounds. Under the old
+fixed order (new first, control second) a speed-up of that size pushes `new − control` *positive*; under
+bracketing the same comparison reads −0.036s. **The sign of a delta in this environment is decided by
+measurement order whenever the drift exceeds the effect — which here it does, by 2×.** Any fixed-order
+delta below ~0.09s in this repo is dominated by the artefact, which retroactively covers all four of the
+earlier positive deltas (+0.018 … +0.115).
+
+### ✅ Earlier bracketed reading at N=12 — witness 12 first confirmed (NOT the endpoint)
 
 First reading taken with **BRACKETED order: control, NEW, control**, so within-pair drift is *measured*
 rather than assumed. Control = `8f2fb43b` (N=11 tree); new = the working tree after live-workout (N=12).
@@ -846,7 +877,7 @@ count is a hypothesis per feature, not a work order.
 | home | **13** | 2 | 4 | predicted 12, measured 13 — see the transitive-closure correction below |
 | all-exercises | **17** | 2 | 4 | predicted 17, measured 17 — FIRST exact hit, closure procedure applied |
 | plan-editor | predicted 13 → **measured 13** | 2 | 5 | **written before fixpoint round 1** — 6 plumbing + 2 interactor + 5 models (`SetTypeDomain` reachable only via `PlanSetDomain.type`; the 4 `core.ui.plan_editor.model` types are cross-module and already public) |
-| app-dialogs | **predicted 6** → measured _(pending)_ | 1 | 2 | **written before fixpoint round 1** — 6 plumbing + 0 interactor + 0 models; port 13, carries the ENDPOINT reading |
+| app-dialogs | predicted 6 → **measured 6** | 1 | 2 | **written before fixpoint round 1** — 6 plumbing + 0 interactor + 0 models; port 13, carries the ENDPOINT reading |
 | live-workout | predicted 24 → **measured 24** | 2 | 7 | **written before fixpoint round 1, ahead of any widening** — 6 plumbing + 2 interactor + 15 domain + 1 UI; port 13, the ENDPOINT |
 | single-training | predicted 23 → **measured 23** | 2 | 4 | **written before fixpoint round 1, in its own commit ahead of any widening** — 6 plumbing + 2 interactor + 14 domain + 1 UI; would be the widest port of the arc |
 | exercise | predicted 22 → **measured 22** | 2 | 4 | **written before fixpoint round 1, in its own commit ahead of any widening** — 6 plumbing + 2 interactor + 13 domain + 1 UI |
@@ -898,7 +929,7 @@ forced-public = 6 plumbing + 2 per interactor pair + (models exposed in the publ
 | exercise | 6 | 2 (×1) | 13 domain + 1 UI (7 UI models already public; only `DialogState`) | 22 | ✔ |
 | single-training | 6 | 2 (×1) | 14 domain + 1 UI (4 UI models already public; only `DialogState`) | 23 | ✔ |
 | live-workout | 6 | 2 (×1) | 15 domain + 1 UI (only `DialogState`; `BottomSheetState` already public) | 24 | ✔ |
-| app-dialogs | 6 | 0 (no interactor) | 0 (all models live in the `api` module) | **6 predicted** | _pending_ |
+| app-dialogs | 6 | 0 (no interactor) | 0 (all models live in the `api` module) | 6 | ✔ |
 
 ## 🔍 app-dialogs — SHAPE SURVEY, done before porting (port 13, the actual last graph)
 
@@ -958,6 +989,9 @@ lands immediately before the narrowest.
    inherited by the extension rather than exposed on it.
 
 **A measurement BELOW 6 is a STOP, not a win.**
+
+**OUTCOME: measured 6. Exact hit, all six side-claims held.** Narrowest port of the arc, tying
+image-viewer, landing immediately after the widest. 6 forced, 0 over-widened, 0 stale.
 
 **This port carries the ENDPOINT reading (N=13)**, bracketed (control, new, control) with the
 cold-calibration figure logged.
