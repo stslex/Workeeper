@@ -10,5 +10,5 @@ import io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store.PlanEditorSto
 
 @Inject
 @SingleIn(PlanEditorScope::class)
-internal class PlanEditorHandlerStoreImpl : PlanEditorHandlerStore,
+class PlanEditorHandlerStoreImpl : PlanEditorHandlerStore,
     BaseHandlerStore<State, Action, Event>()

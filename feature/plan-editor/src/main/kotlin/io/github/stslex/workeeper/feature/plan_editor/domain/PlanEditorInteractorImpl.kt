@@ -17,7 +17,7 @@ import kotlinx.coroutines.withContext
 
 @Inject
 @SingleIn(PlanEditorScope::class)
-internal class PlanEditorInteractorImpl(
+class PlanEditorInteractorImpl(
     private val exerciseRepository: ExerciseRepository,
     private val trainingExerciseRepository: TrainingExerciseRepository,
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,

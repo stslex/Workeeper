@@ -2,14 +2,11 @@
 package io.github.stslex.workeeper.feature.plan_editor.ui.mvi.store
 
 import androidx.annotation.VisibleForTesting
-import dev.zacsweers.metro.Assisted
-import dev.zacsweers.metro.AssistedFactory
-import dev.zacsweers.metro.AssistedInject
+import dev.zacsweers.metro.Inject
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
-import io.github.stslex.workeeper.core.ui.mvi.processor.StoreFactory
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
@@ -27,11 +24,15 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 
-// Metro assisted Store: @AssistedInject + @Assisted screen; graph exposes the @AssistedFactory
-// (never the Store). Unscoped (ViewModelStore retention via rememberMetroStoreProcessor).
-@AssistedInject
-internal class PlanEditorStoreImpl(
-    @Assisted screen: Screen.PlanEditor,
+// Metro constructs this Store (class-level @Inject). The Screen.PlanEditor route arg is a bound
+// instance on the extension factory (shape B), so it is an ordinary ctor param — no assisted machinery.
+// Retention is owned by the Android ViewModelStore via rememberMetroStoreProcessor — no @SingleIn.
+// The class is `public` (its accessor is on the public extension) but the primary constructor is
+// `internal`, so the handler ctor params stay internal — :app calls the ctor at the IR level.
+// NOTE: the route arg must be read HERE only; ScreenInjectionRule forbids injecting Screen elsewhere.
+@Inject
+class PlanEditorStoreImpl internal constructor(
+    screen: Screen.PlanEditor,
     navigationHandler: NavigationHandler,
     commonHandler: CommonHandler,
     clickHandler: ClickHandler,
@@ -59,9 +60,6 @@ internal class PlanEditorStoreImpl(
     analyticsHolder = analyticsHolder,
     loggerHolder = loggerHolder,
 ) {
-
-    @AssistedFactory
-    interface Factory : StoreFactory<Screen.PlanEditor, PlanEditorStoreImpl>
 
     companion object {
 

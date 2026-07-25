@@ -19,7 +19,7 @@ import kotlinx.collections.immutable.ImmutableList
  * and persists either to the DB ([Mode.Existing] / [Mode.PerformedExercise]) or back to the
  * caller as a [PlanDraftResult] payload ([Mode.Draft]).
  */
-internal interface PlanEditorStore : Store<State, Action, Event> {
+interface PlanEditorStore : Store<State, Action, Event> {
 
     @Stable
     data class State(
