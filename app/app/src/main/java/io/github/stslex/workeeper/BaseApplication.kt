@@ -18,9 +18,6 @@ import io.github.stslex.workeeper.di.AppGraphOwner
 import io.github.stslex.workeeper.di.buildAppGraph
 import io.github.stslex.workeeper.feature.app_dialogs.api.AppDialogPublisherHolder
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
-import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepository
-import io.github.stslex.workeeper.feature.app_dialogs.impl.di.AppDialogInternalsHolder
-import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImpl
 import io.github.stslex.workeeper.feature.recovery.di.RecoveryDeps
 import io.github.stslex.workeeper.feature.recovery.di.RecoveryDepsHolder
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
@@ -35,9 +32,13 @@ import kotlinx.coroutines.runBlocking
  * app-scope [AppGraph] for the whole process and exposes it through the interface seams every consumer
  * reads: [AppGraphOwner] (in-module: `MainActivity` and other `:app:app` readers), [AppDepsHolder]
  * (feature-side readers via `context.appDeps<T>()`), the typed [RecoveryDepsHolder] /
- * [BackupWorkerDepsHolder] (the two framework readers that must not depend on `core:ui:mvi`), and the two
- * feature-tier holders ([AppDialogPublisherHolder], [AppDialogInternalsHolder]) for the app-dialogs types
- * no dep interface can name.
+ * [BackupWorkerDepsHolder] (the two framework readers that must not depend on `core:ui:mvi`), and the
+ * feature-tier [AppDialogPublisherHolder], which cross-module consumers (settings / recovery / archive)
+ * read to reach the publisher from a `Context`.
+ *
+ * `AppDialogInternalsHolder` used to sit alongside it, handing app-dialogs/impl its own app-scoped
+ * singletons because no dep interface could name those impl-owned types. The app-dialogs port retired
+ * it: the contributed extension inherits them from [AppGraph] directly.
  */
 abstract class BaseApplication :
     Application(),
@@ -46,8 +47,7 @@ abstract class BaseApplication :
     AppDepsHolder,
     RecoveryDepsHolder,
     BackupWorkerDepsHolder,
-    AppDialogPublisherHolder,
-    AppDialogInternalsHolder {
+    AppDialogPublisherHolder {
 
     abstract val isDebugLoggingAllow: Boolean
 
@@ -90,10 +90,6 @@ abstract class BaseApplication :
     override fun backupWorkerDeps(): BackupWorkerDeps = appGraph
 
     override val appDialogPublisher: AppDialogPublisher get() = appGraph.appDialogPublisher
-
-    override val appDialogRepository: AppDialogRepository get() = appGraph.appDialogRepository
-
-    override val appDialogObserverImpl: AppDialogObserverImpl get() = appGraph.appDialogObserverImpl
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()

@@ -9,7 +9,7 @@ import io.github.stslex.workeeper.di.AppGraph
  * (App-Scope Collapse Step 6, Phase 3.3). Booted by [MetroTestRunner] in place of the production
  * `DevMobileApp`/`StoreMobileApp`; because it extends [BaseApplication] it satisfies every seam the
  * production Application does — `AppGraphOwner`, `AppDepsHolder`, `RecoveryDepsHolder`,
- * `AppDialogPublisherHolder`, `AppDialogInternalsHolder`, `Configuration.Provider` — so `MainActivity`
+ * `AppDialogPublisherHolder`, `Configuration.Provider` — so `MainActivity`
  * (`application as AppGraphOwner`) and `RecoveryActivity` (via its typed holder) resolve the
  * per-test graph transparently.
  *
