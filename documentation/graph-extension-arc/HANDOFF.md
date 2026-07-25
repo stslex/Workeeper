@@ -234,7 +234,7 @@ bytecode; `--rerun-tasks` does not defeat it and nothing in the output signals i
 session on `ScreenInjectionRule`, where a correct rule appeared not to fire on real code. Details and
 the two-anchor proof procedure: `documentation/lint-rules.md`.
 
-## ⚠️ THE ADJACENT-ANSWER CLASS — one failure mode, ten witnesses
+## ⚠️ THE ADJACENT-ANSWER CLASS — one failure mode, thirteen witnesses
 
 Every silent failure this arc has hit is the **same defect wearing different clothes**. It is written up
 once, as a class, because there will be an eleventh and the next session should recognise its shape
@@ -257,7 +257,7 @@ It is never a crash, never a stack trace, never a warning. It is always a plausi
 pass. That is the whole difficulty: the failure and the success are byte-identical at the point you read
 them, and only differ in what produced them.
 
-### The ten witnesses
+### The thirteen witnesses
 
 | # | Witness | Answered… | …the actual question | The tell |
 |---|---|---|---|---|
@@ -271,6 +271,9 @@ them, and only differ in what produced them.
 | 8 | cold sample-1 in every worktree row | "N=4…7 ranges all overlap ⇒ FLAT" | every row's first sample was a full cold build, so every max was pinned near 29s | ranges that overlap **by construction** — the readout is identical whether the series is flat or rising |
 | 9 | worktree missing gitignored config | "the historical rows measured nothing" | the build died at CONFIGURATION time; worktrees do not inherit `keystore.properties` | `NO VALID SAMPLES` — it announced itself instead of returning a number |
 | 10 | edit harness truncated its own inputs | "all 14 declarations are genuinely forced public" | `awk -v int=…` aborted (gawk builtin), the redirect emptied each source file, and every compile failed on EMPTINESS | a flawless 14/14 that matched the prediction exactly — the welcome answer |
+| 11 | stale case regex in the falsifier | "this declaration is forced public" | the mutation never applied — the real line carried its supertype inline, so the regex missed | caught only because the harness verifies the edit landed and refuses to score un-applied cases |
+| 12 | fixed within-pair measurement order | "four consecutive positive deltas ⇒ a per-extension build cost" | new-row-first / control-second EVERY time, so any within-session speedup biases every delta the same way | 4/4 positive with no variable ordering them — the artefact's signature, not a trend |
+| 13 | self-comparing identity assertion | "the extension inherited the parent's SessionConflictResolver" | `assertSame(parent.x, parent.x)` never touched the extension and passes regardless | a green tick, in the very instrument that proves extension correctness |
 
 **Witness 8 is the most dangerous one recorded**, because it was aimed at the GO branch of a live gate.
 `wipe_builds` leaves a worktree fully uncompiled, so each row's first measured sample was a cold build:
@@ -280,6 +283,31 @@ decided by whether ranges **OVERLAP**. Ranges all spanning ~1–29s overlap by c
 would have reported FLAT whether or not it was. Recognition-question 2 fails exactly. The fix is a
 discarded warm-up per worktree, so all rows are compared warm; the working tree never carried the cold
 sample, so the defect was an asymmetry *between* rows.
+
+**Witnesses 12 and 13 are the two worst, because each was created by a fix for an earlier one.**
+
+**12 — the protocol that killed one confound seated another.** Reversed order (new row measured first,
+control second) was introduced to stop cross-row drift faking an N-slope, and it does that. But the
+order *inside* each pair was then the same every single time, so any systematic within-session speedup
+makes the first-measured row look slower and biases **every** delta positive. Four positive deltas
+looked like a per-extension cost and were the artefact's fingerprint. **A fix for a confound is itself
+a design decision that can introduce one — re-run the recognition test on the fix, not just on the
+thing it fixed.**
+
+**13 — the defect was inside the instrument that proves correctness.** The single-training identity
+test asserted `assertSame(appGraph.sessionConflictResolver, appGraph.sessionConflictResolver)`: both
+operands from the parent, the extension never touched, green regardless of what the extension resolved.
+
+> **The audit that followed found NO other instance** — every other `assertSame` in the eleven identity
+> tests has one operand from the extension or the store. Two look similar and are correct:
+> `ImageViewerExtensionIdentityTest`'s `assertNotSame(a, b)` compares two *extension-built* stores, and
+> `AppGraphIdentityTest`'s `assertSame(first, second)` compares two reads of `graph.analyticsHolder` —
+> parent-side on both sides, but its claim genuinely *is* parent-side stability (`@SingleIn` retains one
+> instance).
+>
+> **That is the lesson: `assertSame(parent.x, parent.x)` is VALID for a stability claim and VACUOUS for
+> an inheritance claim. Identical code, different claim — so this defect cannot be found by pattern
+> matching, only by reading each assertion against the sentence it is supposed to prove.**
 
 **Witness 10 is a new shape too: an edit harness that destroyed its own inputs.** Every earlier witness
 measured the wrong thing; this one measured the *right* thing on a *destroyed* input. The falsifier
@@ -307,7 +335,7 @@ saves you is that it **reports absence as absence** rather than substituting a d
 did NOT catch it: the N column ascended `1,2,3,4,5,6` perfectly through eight rows that measured
 nothing at all. **An integrity check proves the thing it checks, and nothing adjacent to it.**
 
-### Recognising the eleventh
+### Recognising the fourteenth
 
 Three questions, in order. Any "no" means you are holding an adjacent answer:
 
@@ -532,7 +560,10 @@ systematic flaw in how all four were taken:
 > deltas is exactly what that artefact produces. Reversed order protects the N-axis from cross-row
 > drift; it does nothing about within-pair order bias, because the order is the same every time.
 
-**Fix for any future pair: alternate the order between ports, or bracket — control, new, control.**
+**Fix for any future pair: BRACKET — control, new, control.** Alternating between ports merely averages
+the bias out over many ports and never shows it; bracketing measures the within-pair drift *directly*,
+as the gap between the two control readings, so it can be reported and subtracted. After being caught
+twice by a hidden confound, a design that SHOWS drift beats one that blurs it.
 Until that is done, "all four positive" is not evidence of a per-extension cost; it is equally well
 explained by the measurement order that produced it.
 
@@ -769,6 +800,7 @@ count is a hypothesis per feature, not a work order.
 | home | **13** | 2 | 4 | predicted 12, measured 13 — see the transitive-closure correction below |
 | all-exercises | **17** | 2 | 4 | predicted 17, measured 17 — FIRST exact hit, closure procedure applied |
 | plan-editor | predicted 13 → **measured 13** | 2 | 5 | **written before fixpoint round 1** — 6 plumbing + 2 interactor + 5 models (`SetTypeDomain` reachable only via `PlanSetDomain.type`; the 4 `core.ui.plan_editor.model` types are cross-module and already public) |
+| live-workout | **predicted 24** → measured _(pending)_ | 2 | 7 | **written before fixpoint round 1, ahead of any widening** — 6 plumbing + 2 interactor + 15 domain + 1 UI; port 13, the ENDPOINT |
 | single-training | predicted 23 → **measured 23** | 2 | 4 | **written before fixpoint round 1, in its own commit ahead of any widening** — 6 plumbing + 2 interactor + 14 domain + 1 UI; would be the widest port of the arc |
 | exercise | predicted 22 → **measured 22** | 2 | 4 | **written before fixpoint round 1, in its own commit ahead of any widening** — 6 plumbing + 2 interactor + 13 domain + 1 UI |
 | exercise-chart | predicted 21 → **measured 21** | 2 | 3 | **written before fixpoint round 1, in its own commit ahead of any widening** — 6 plumbing + 2 interactor + 7 domain + 6 UI |
@@ -818,6 +850,46 @@ forced-public = 6 plumbing + 2 per interactor pair + (models exposed in the publ
 | exercise-chart | 6 | 2 (×1) | 7 domain + 6 UI (all 6 UI models are `internal` here) | 21 | ✔ |
 | exercise | 6 | 2 (×1) | 13 domain + 1 UI (7 UI models already public; only `DialogState`) | 22 | ✔ |
 | single-training | 6 | 2 (×1) | 14 domain + 1 UI (4 UI models already public; only `DialogState`) | 23 | ✔ |
+| live-workout | 6 | 2 (×1) | 15 domain + 1 UI (only `DialogState`; `BottomSheetState` already public) | **24 predicted** | _pending_ |
+
+### live-workout — the prediction, written before widening (port 13, the LAST feature graph)
+
+**24 = 6 plumbing + 2 interactor + 15 domain + 1 UI.** Would be the widest port of the arc.
+
+- **Domain (15) — every domain declaration.** Signatures give **9**: `AdhocSessionResult`,
+  `AddExerciseResult`, `InlineAdhocResult`, `ExercisePickerEntry`, `ExerciseTypeDomain`,
+  `PersonalRecordDomain`, `SessionSnapshotDomain`, `PlanSetDomain`, `FinishResult`. Closure adds **6**,
+  almost all of them down the `SessionSnapshotDomain` spine: `.session` → `SessionDomain` → `.state` →
+  `SessionStateDomain`; `.exercises` → `LiveExerciseDomain` → `.performed` →
+  `PerformedExerciseDomain` and `.performedSets` → `SetDomain`; plus `PersonalRecordDomain.type` →
+  `SetTypeDomain`. This is the deepest closure chain in the arc — four levels from one signature type.
+- **UI (1).** Only `DialogState`.
+
+**Six falsifiable side-claims:**
+
+1. **`BottomSheetState` costs ZERO although `DialogState` costs 1.** Two sibling state types, same
+   directory, both reachable from `State` — `BottomSheetState` is already public, `DialogState` is
+   `internal`. The sharpest available demonstration that the UI term is about *declared visibility*,
+   not about what kind of thing a type is.
+2. **`ErrorType` stays internal** — it appears nowhere in the store contract.
+3. **`LiveSessionStateUiModel` stays internal** — referenced nowhere outside its own file (it may be
+   dead; that is a separate question and not this port's business).
+4. The nested `DraftKey` and `PrSnapshotItem` need no edits (declared inside `State`).
+5. No sealed subtype needs an edit.
+6. All **7** handlers and **5** mappers stay internal — the largest handler set in the arc, and the
+   strongest test yet of the `internal constructor` mechanism.
+
+**BUILD-TIME: this port carries the ENDPOINT reading**, per the port-13 rule. Measured with
+**BRACKETED order — control, new, control** — so within-pair drift is measured as the gap between the
+two control readings rather than silently biasing the delta.
+
+> **PREDICTION for the bracket:** the two control readings will differ, and the drift-corrected delta
+> will be **smaller than the raw new-minus-first-control delta**. If the two controls differ in the
+> direction that inflates the raw delta, that *confirms* witness 12's order-bias explanation for the
+> four positive deltas. If the controls agree closely and the delta persists, order bias is NOT the
+> explanation and a small real per-extension cost is back on the table.
+
+**A measurement BELOW 24 is a STOP, not a win.**
 
 ### exercise — the prediction, written before widening (port 3 of the assisted batch)
 
