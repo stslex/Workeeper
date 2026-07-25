@@ -10,6 +10,7 @@ import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreInProgressContext
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
+import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupErrorCode
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
@@ -185,12 +186,11 @@ class RestoreRecoveryCoordinator @Inject internal constructor(
         /**
          * Reason surfaced in [AppDialog.RestoreFailure] when the post-restart
          * pre-flight rolls back. We cannot map the underlying [Throwable] to a
-         * specific [io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupErrorCode]
+         * specific [BackupErrorCode]
          * — Room's exception types are not part of the v1 BackupError surface
          * — so we surface `Unknown` and rely on the diagnostic export / the
          * Crashlytics non-fatal for the actual failure shape.
          */
-        val BackupErrorCodeForFailure =
-            io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupErrorCode.Unknown
+        val BackupErrorCodeForFailure = BackupErrorCode.Unknown
     }
 }
