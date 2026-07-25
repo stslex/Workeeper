@@ -26,13 +26,13 @@ grep -rln "@DependencyGraph(\|@GraphExtension(" --include="*.kt" feature/ | grep
 grep -rln "@GraphExtension(" --include="*.kt" feature/ | grep -v /build/ | wc -l
 ```
 
-Both measurements agree: **13 feature graphs, 10 ported, 3 remaining.**
+Both measurements agree: **13 feature graphs, 11 ported, 2 remaining.**
 
 | Base class | n | Features | Status |
 |---|---|---|---|
 | `Feature<P, S>` | 5 | all-trainings, archive, home, all-exercises, settings | **all ported** |
-| `FeatureAssisted<P, S>` | 7 | image-viewer, plan-editor, past-session, exercise-chart, exercise | ported |
-| | | **live-workout, single-training** | **remaining — TWO** |
+| `FeatureAssisted<P, S>` | 7 | image-viewer, plan-editor, past-session, exercise-chart, exercise, single-training | ported |
+| | | **live-workout** | **remaining — ONE** |
 | `AppFeature<P>` | 1 | app-dialogs | remaining, separate (screen-less) |
 
 ⚠️ **`AppFeature` is why the naive grep returns 12 and not 13.** A `Feature|FeatureAssisted` search
@@ -59,7 +59,7 @@ the whole arc or none of it.
 
 ## Status
 
-- **DONE — 10 of 13 ported.** Phase 0 gate (`c12c44dc`), `AppScope`→commonMain (`2f9c89d8`),
+- **DONE — 11 of 13 ported.** Phase 0 gate (`c12c44dc`), `AppScope`→commonMain (`2f9c89d8`),
   all-trainings (`9f17d02a`) + `AllTrainingsDeps` deleted (`197f39b4`), unique-creator fix
   (`dbfc4852`), archive (`4c184e5e`) + `ArchiveDeps` deleted (`62e5af72`), image-viewer
   (`4c7a1a67`, FIRST assisted feature, shape B), settings (`d784a510`), home (`02e90d81`),
@@ -67,17 +67,18 @@ the whole arc or none of it.
   deleted together in `8be3bde0`, and **past-session (`714b224a`, port 1 of the assisted batch, third
   shape-B) + `PastSessionDeps` deleted (`6722983b`)**, and **exercise-chart (`b3ef0480`, port 2 of the
   batch, fourth shape-B) + `ExerciseChartDeps` deleted (`2f508a29`)**, and **exercise (`0f129261`, port 3
-  of the batch, fifth shape-B, joint-widest at 22 forced-public) + `ExerciseDeps` deleted (`7968c76e`)**.
-  **6 `XxxDeps` supertypes remain** on `AppGraph` (was 15) — and the list bottoms out at 2, not 0: `StoreCoreDeps` + `NavigatorDeps` are
-  load-bearing γ-spine, not transient. `StoreFactory` has **2 users left** (`live-workout`,
-  `single-training`) and dies with the last of them.
+  of the batch, fifth shape-B, joint-widest at 22 forced-public) + `ExerciseDeps` deleted (`7968c76e`)**,
+  and **single-training (`8f2fb43b`, port 4, sixth shape-B, WIDEST of the arc at 23 forced-public) +
+  `SingleTrainingDeps` deleted (`6406c900`)**. **5 `XxxDeps` supertypes remain** on `AppGraph` (was 15) — and the list bottoms out at 2, not 0: `StoreCoreDeps` + `NavigatorDeps` are
+  load-bearing γ-spine, not transient. `StoreFactory` has **1 user left** (`live-workout`) and dies with the last of them.
   *(Count the supertypes by READING the list, not by grepping `Deps,` — the last entry ends in ` {`
   and a comma-anchored grep returns 7. That is STANDING RULE 5 witness #1 recurring; it recurred again
   while writing this line.)*
-- **REMAINING — 3 features.** `app-dialogs` is the only PLAIN one left, and it is app-root-scoped and
-  screen-less — structurally unlike the ten done, so NOT a drop-in repeat of the pattern. The other 2
-  are route-arg/assisted — `live-workout`, `single-training` — both portable under **shape B**, and
-  both are the GMS/WorkManager boundary candidates. `MetroWorkerFactory` still needs its own acquisition decision, and lands
+- **REMAINING — 2 features.** `app-dialogs` is the only PLAIN one left, and it is app-root-scoped and
+  screen-less — structurally unlike the eleven done, so NOT a drop-in repeat of the pattern. The other
+  is `live-workout`, the last route-arg/assisted feature, portable under **shape B** and the remaining
+  GMS/WorkManager boundary candidate. **`live-workout` is port 13 — the endpoint build-time reading is
+  taken there**, per the rule above. `MetroWorkerFactory` still needs its own acquisition decision, and lands
   under STANDING RULE 4 (boundary test) when it does.
   ✅ **`exercise` is now ported** (`0f129261`) — the scheduling flag from the batch brief's omission is
   closed.
@@ -106,8 +107,9 @@ the whole arc or none of it.
   overlaps its same-session N=7 control, and exercise-chart's N=9 row overlaps its same-session N=8
   control at +0.027s (below the yardstick). ⚠️ **N=10 (exercise) came in at +0.115s, 2.5× the
   yardstick** — ranges still overlap so it does not resolve, but see the MECHANISM HYPOTHESIS in the
-  row-N=10 section: the three same-session deltas are monotonic in the ported feature's BINDING COUNT
-  and not in N. Settle it before the last two ports. Re-run with
+  row-N=10 section — but N=11 (single-training, 13 bindings) came in at **+0.018s and REFUTED that
+  hypothesis** against a prediction logged before the port. See the row-N=11 section: no variable orders
+  the four deltas, and a fixed measurement order explains their all being positive. Re-run with
   `sh documentation/graph-extension-arc/measure-build-time.sh`. Each new real extension extends the
   plateau, so this is not a licence to stop measuring — and an appended row needs a **same-session
   control**, see the correction in the row-N=8 section.
@@ -134,9 +136,11 @@ measured 21, five identity claims green, N=9 row with same-session control.
 ~~Port 3 of the batch — `exercise`.~~ **Done** (`0f129261` + `7968c76e`): predicted 22 → measured 22,
 six identity claims green, N=10 row with same-session control.
 
-**Batch the rest — `single-training` and `live-workout`** under the proven shape-B pattern, one commit
-per feature. Both are GMS/WorkManager boundary candidates, and both have 13 inherited bindings, which
-is what the mechanism hypothesis makes its prediction about:
+~~Port 4 of the batch — `single-training`.~~ **Done** (`8f2fb43b` + `6406c900`): predicted 23 →
+measured 23, six identity claims green, N=11 row refuting the binding mechanism.
+
+**Port `live-workout` — the LAST feature graph, i.e. port 13.** Take the ENDPOINT build-time reading
+as part of it, per the rule above. It is the remaining GMS/WorkManager boundary candidate:
 
 - `@GraphExtension` + **uniquely-named** factory creator (never a bare `create()`);
 - `@Inject` class with `internal` constructor;
@@ -488,7 +492,56 @@ noise. So when the cold-calibration figures match, the rows are comparable; when
 between these sessions and the N=1…7 series, they are not. That is exactly what the recorded figure is
 for, and it is now demonstrated in both directions rather than asserted.
 
-### ⚠ Row N=10 (exercise) — the first delta materially above the yardstick, and a MECHANISM candidate
+### ✅ Row N=11 (single-training) — the binding mechanism is REFUTED by its own test case
+
+| N | feature | session position | n | median | min | max | spread | sd |
+|---|---|---|---|---|---|---|---|---|
+| 11 | single-training | measured **1st** | 9 | 1.068 | 1.011 | 1.278 | 0.267 | 0.084 |
+| 10 | `0f129261` (same-session control) | measured **2nd** | 9 | 1.050 | 0.958 | 1.220 | 0.262 | 0.080 |
+
+Cold calibration: **30.606s**. **Delta +0.018s**, ranges overlapping across [1.011, 1.220].
+
+**The timestamped prediction said ≈+0.10 confirms the binding mechanism and ≈+0.03 kills it. It came in
+at +0.018. The mechanism is refuted** — by the port that was chosen in advance to test it, against a
+number logged before the port was written.
+
+All four same-session deltas, ordered by binding count:
+
+| port | N | bindings | delta |
+|---|---|---|---|
+| exercise-chart | 9 | 8 | +0.027 |
+| past-session | 8 | 9 | +0.060 |
+| **single-training** | 11 | **13** | **+0.018** |
+| exercise | 10 | 14 | +0.115 |
+
+**Monotonic in bindings: NO. Monotonic in N: NO.** single-training (13) and exercise (14) are adjacent
+binding counts whose deltas differ by 6×, which is precisely what the hypothesis forbade. The n=3
+monotonicity that suggested it was coincidence — three points can be ordered by many variables, and
+the fourth killed it.
+
+#### What survives: four positive deltas and an ORDER BIAS that would explain them
+
+All four deltas are positive (sign test p = 1/16 ≈ 0.06), mean +0.055s, cumulative N=7→N=11 **+0.220s**.
+That is worth naming rather than dismissing. But before reading it as a per-extension cost, note a
+systematic flaw in how all four were taken:
+
+> ⚠️ **In every one of the four pairs, the NEW (higher-N) row was measured FIRST and the control
+> SECOND.** The order was fixed, not alternated. So any systematic within-session drift biases every
+> delta in the SAME direction: if the machine speeds up as a session proceeds (cache/JIT warming), the
+> first-measured row is systematically slower and **every delta is biased positive**. Four positive
+> deltas is exactly what that artefact produces. Reversed order protects the N-axis from cross-row
+> drift; it does nothing about within-pair order bias, because the order is the same every time.
+
+**Fix for any future pair: alternate the order between ports, or bracket — control, new, control.**
+Until that is done, "all four positive" is not evidence of a per-extension cost; it is equally well
+explained by the measurement order that produced it.
+
+**Consequence for the plan:** the binding-axis re-run is now moot — the axis is refuted. But a full
+single-session re-baseline is *more* valuable than before, because it is the only thing that can
+separate a small genuine per-extension cost from a fixed-order artefact. It should measure N=1…13 in
+one session with **alternating or bracketed order**, not the fixed new-first order used so far.
+
+### ⚠ Row N=10 (exercise) — the delta that raised the MECHANISM candidate (now refuted)
 
 | N | feature | session position | n | median | min | max | spread | sd |
 |---|---|---|---|---|---|---|---|---|
@@ -716,7 +769,7 @@ count is a hypothesis per feature, not a work order.
 | home | **13** | 2 | 4 | predicted 12, measured 13 — see the transitive-closure correction below |
 | all-exercises | **17** | 2 | 4 | predicted 17, measured 17 — FIRST exact hit, closure procedure applied |
 | plan-editor | predicted 13 → **measured 13** | 2 | 5 | **written before fixpoint round 1** — 6 plumbing + 2 interactor + 5 models (`SetTypeDomain` reachable only via `PlanSetDomain.type`; the 4 `core.ui.plan_editor.model` types are cross-module and already public) |
-| single-training | **predicted 23** → measured _(pending)_ | 2 | 4 | **written before fixpoint round 1, in its own commit ahead of any widening** — 6 plumbing + 2 interactor + 14 domain + 1 UI; would be the widest port of the arc |
+| single-training | predicted 23 → **measured 23** | 2 | 4 | **written before fixpoint round 1, in its own commit ahead of any widening** — 6 plumbing + 2 interactor + 14 domain + 1 UI; would be the widest port of the arc |
 | exercise | predicted 22 → **measured 22** | 2 | 4 | **written before fixpoint round 1, in its own commit ahead of any widening** — 6 plumbing + 2 interactor + 13 domain + 1 UI |
 | exercise-chart | predicted 21 → **measured 21** | 2 | 3 | **written before fixpoint round 1, in its own commit ahead of any widening** — 6 plumbing + 2 interactor + 7 domain + 6 UI |
 | past-session | predicted 14 → **measured 14** | 2 | 4 | **written before fixpoint round 1, in its own commit (`16fd9910`) ahead of any widening** — 6 plumbing + 2 interactor + 6 domain models + **0 UI** (first port to force zero UI models) |
@@ -764,7 +817,7 @@ forced-public = 6 plumbing + 2 per interactor pair + (models exposed in the publ
 | past-session | 6 | 2 (×1) | 6 domain + 0 UI (all 4 UI models already public) | 14 | ✔ |
 | exercise-chart | 6 | 2 (×1) | 7 domain + 6 UI (all 6 UI models are `internal` here) | 21 | ✔ |
 | exercise | 6 | 2 (×1) | 13 domain + 1 UI (7 UI models already public; only `DialogState`) | 22 | ✔ |
-| single-training | 6 | 2 (×1) | 14 domain + 1 UI (4 UI models already public; only `DialogState`) | **23 predicted** | _pending_ |
+| single-training | 6 | 2 (×1) | 14 domain + 1 UI (4 UI models already public; only `DialogState`) | 23 | ✔ |
 
 ### exercise — the prediction, written before widening (port 3 of the assisted batch)
 
@@ -854,6 +907,19 @@ arc**, ahead of `settings` and `exercise` at 22.
 Near +0.03s refutes it.
 
 **A measurement BELOW 23 is a STOP, not a win.**
+
+**OUTCOME: measured 23. Exact hit, and all five side-claims held.** Widest port of the arc. 23 forced,
+0 over-widened, 0 stale, control green first.
+
+⚠️ **One identity assertion had to be rewritten before it meant anything, and it was GREEN when it was
+meaningless.** The session-subsystem test first read
+`assertSame(appGraph.sessionConflictResolver, appGraph.sessionConflictResolver)` — the parent's accessor
+compared to *itself*. It never touched the extension and would pass no matter what the extension
+resolved. The fix adds a `sessionConflictResolver` observability accessor to the extension (no
+forced-public cost) so the claim can be made against the parent's instance, and it is proven RED by
+comparing against a *different* `AppGraph`'s resolver. **A self-comparing assertion is the
+adjacent-answer class in test form: it answers "is this accessor stable" instead of "did the extension
+inherit it", and both readouts are a green tick.**
 
 ### exercise-chart — the prediction, written before widening (port 2 of the assisted batch)
 
