@@ -53,7 +53,6 @@ import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObs
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseDeps
 import io.github.stslex.workeeper.feature.exercise_chart.di.ExerciseChartDeps
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutDeps
-import io.github.stslex.workeeper.feature.past_session.di.PastSessionDeps
 import io.github.stslex.workeeper.feature.recovery.boot.RecoveryBootstrap
 import io.github.stslex.workeeper.feature.recovery.di.RecoveryDeps
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
@@ -72,7 +71,6 @@ internal interface AppGraph :
     StoreCoreDeps,
     NavigatorDeps,
     ExerciseChartDeps,
-    PastSessionDeps,
     ExerciseDeps,
     SingleTrainingDeps,
     LiveWorkoutDeps,
@@ -116,8 +114,14 @@ internal interface AppGraph :
     @MainImmediateDispatcher
     override val mainImmediateDispatcher: CoroutineDispatcher
 
+    // ORPHANED by the past-session port: `PastSessionDeps` was the last bridge interface still
+    // declaring `@IODispatcher`, so this accessor now overrides nothing. It is kept (as a plain `val`,
+    // no `override`) rather than deleted — accessor cleanup is deferred to the final feature and lands
+    // in bulk, per the orphaned-accessor ledger in the arc HANDOFF. Still read by
+    // `PastSessionExtensionIdentityTest`, which asserts the extension inherits THIS key and not
+    // `@DefaultDispatcher`.
     @IODispatcher
-    override val ioDispatcher: CoroutineDispatcher
+    val ioDispatcher: CoroutineDispatcher
 
     /**
      * Metro-owned [ResourceWrapper] — CONTRIBUTED by `ResourceWrapperBindingContainer`
