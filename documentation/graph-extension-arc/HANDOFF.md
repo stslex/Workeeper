@@ -26,14 +26,14 @@ grep -rln "@DependencyGraph(\|@GraphExtension(" --include="*.kt" feature/ | grep
 grep -rln "@GraphExtension(" --include="*.kt" feature/ | grep -v /build/ | wc -l
 ```
 
-Both measurements agree: **13 feature graphs, 11 ported, 2 remaining.**
+Both measurements agree: **13 feature graphs, 12 ported, 1 remaining (`app-dialogs`).**
 
 | Base class | n | Features | Status |
 |---|---|---|---|
 | `Feature<P, S>` | 5 | all-trainings, archive, home, all-exercises, settings | **all ported** |
-| `FeatureAssisted<P, S>` | 7 | image-viewer, plan-editor, past-session, exercise-chart, exercise, single-training | ported |
-| | | **live-workout** | **remaining — ONE** |
-| `AppFeature<P>` | 1 | app-dialogs | remaining, separate (screen-less) |
+| `FeatureAssisted<P, S>` | 7 | **all seven ported** — image-viewer, plan-editor, past-session, exercise-chart, exercise, single-training, live-workout | done |
+
+| `AppFeature<P>` | 1 | **app-dialogs** | **THE ONLY ONE LEFT** — separate shape, still `@DependencyGraph` |
 
 ⚠️ **`AppFeature` is why the naive grep returns 12 and not 13.** A `Feature|FeatureAssisted` search
 silently omits app-dialogs, because its base class is neither — which is the structural reason it is
@@ -59,7 +59,7 @@ the whole arc or none of it.
 
 ## Status
 
-- **DONE — 11 of 13 ported.** Phase 0 gate (`c12c44dc`), `AppScope`→commonMain (`2f9c89d8`),
+- **DONE — 12 of 13 ported.** Phase 0 gate (`c12c44dc`), `AppScope`→commonMain (`2f9c89d8`),
   all-trainings (`9f17d02a`) + `AllTrainingsDeps` deleted (`197f39b4`), unique-creator fix
   (`dbfc4852`), archive (`4c184e5e`) + `ArchiveDeps` deleted (`62e5af72`), image-viewer
   (`4c7a1a67`, FIRST assisted feature, shape B), settings (`d784a510`), home (`02e90d81`),
@@ -68,17 +68,27 @@ the whole arc or none of it.
   shape-B) + `PastSessionDeps` deleted (`6722983b`)**, and **exercise-chart (`b3ef0480`, port 2 of the
   batch, fourth shape-B) + `ExerciseChartDeps` deleted (`2f508a29`)**, and **exercise (`0f129261`, port 3
   of the batch, fifth shape-B, joint-widest at 22 forced-public) + `ExerciseDeps` deleted (`7968c76e`)**,
-  and **single-training (`8f2fb43b`, port 4, sixth shape-B, WIDEST of the arc at 23 forced-public) +
-  `SingleTrainingDeps` deleted (`6406c900`)**. **5 `XxxDeps` supertypes remain** on `AppGraph` (was 15) — and the list bottoms out at 2, not 0: `StoreCoreDeps` + `NavigatorDeps` are
-  load-bearing γ-spine, not transient. `StoreFactory` has **1 user left** (`live-workout`) and dies with the last of them.
+  and **single-training (`8f2fb43b`, sixth shape-B, 23 forced-public) + `SingleTrainingDeps` deleted
+  (`6406c900`)**, and **live-workout (`ee959370`, seventh shape-B, WIDEST of the arc at 24
+  forced-public) + `LiveWorkoutDeps` deleted (`818c90c9`, the last feature bridge)**. **4 supertypes
+  remain** on `AppGraph` (was 15) — and the list bottoms out at 2, not 0: `StoreCoreDeps` + `NavigatorDeps` are
+  load-bearing γ-spine, not transient. `StoreFactory` has **NO users left** and dies with the closing commits and dies with the last of them.
   *(Count the supertypes by READING the list, not by grepping `Deps,` — the last entry ends in ` {`
   and a comma-anchored grep returns 7. That is STANDING RULE 5 witness #1 recurring; it recurred again
   while writing this line.)*
-- **REMAINING — 2 features.** `app-dialogs` is the only PLAIN one left, and it is app-root-scoped and
-  screen-less — structurally unlike the eleven done, so NOT a drop-in repeat of the pattern. The other
-  is `live-workout`, the last route-arg/assisted feature, portable under **shape B** and the remaining
-  GMS/WorkManager boundary candidate. **`live-workout` is port 13 — the endpoint build-time reading is
-  taken there**, per the rule above. `MetroWorkerFactory` still needs its own acquisition decision, and lands
+- **REMAINING — 1 feature: `app-dialogs`.** It is app-root-scoped and screen-less (base class
+  `AppFeature<P>`, not `FeatureAssisted`), structurally unlike the twelve done, so NOT a drop-in repeat
+  of the pattern. It is still a `@DependencyGraph` and it IS one of the 13 — the arc cannot close
+  without it.
+  ⚠️ **CORRECTION: `live-workout` was port 12 of 13, not 13 of 13.** Its commit (`ee959370`) is
+  mislabelled "13/13" and "THE LAST FEATURE GRAPH" in the subject and body. It is the last *assisted /
+  route-arg* feature and the last *feature-graph bridge interface*, but `app-dialogs` is the thirteenth
+  graph. The label was inherited from a brief instead of measured — the count class again, committed in
+  the very arc that carries a "grep, not memory" inventory section. Not rewritten (no-rebase); recorded
+  here and in the endpoint section.
+  ⚠️ **Consequently the ENDPOINT reading has NOT been taken.** The bracketed reading below is
+  **N=11 → N=12**. The true endpoint is N=13, and per the port-13 rule it must be measured as part of
+  the `app-dialogs` port, before the closing commits. `MetroWorkerFactory` still needs its own acquisition decision, and lands
   under STANDING RULE 4 (boundary test) when it does.
   ✅ **`exercise` is now ported** (`0f129261`) — the scheduling flag from the batch brief's omission is
   closed.
@@ -520,6 +530,42 @@ noise. So when the cold-calibration figures match, the rows are comparable; when
 between these sessions and the N=1…7 series, they are not. That is exactly what the recorded figure is
 for, and it is now demonstrated in both directions rather than asserted.
 
+### ✅ BRACKETED reading at N=12 — witness 12 CONFIRMED (NOT the endpoint; see the correction in Status)
+
+First reading taken with **BRACKETED order: control, NEW, control**, so within-pair drift is *measured*
+rather than assumed. Control = `8f2fb43b` (N=11 tree); new = the working tree after live-workout (N=12).
+Cold calibration **31.143s**.
+
+| bracket position | tree | n | median | range |
+|---|---|---|---|---|
+| control A (1st) | N=11 | 9 | 1.004 | 0.965 – 1.143 |
+| **NEW** (2nd) | **N=12** | 9 | **0.989** | 0.967 – 1.133 |
+| control B (3rd) | N=11 | 9 | 0.981 | 0.915 – 1.130 |
+
+```
+WITHIN-PAIR DRIFT (ctlB - ctlA)  : -0.023s   <-- MEASURED, not assumed
+RAW delta (new - ctlA)           : -0.015s
+DRIFT-CORRECTED (new - mean ctl) : -0.003s
+three-way range overlap          : [0.967, 1.130]  OVERLAP
+```
+
+**Two findings, and the bracket is what produced both.**
+
+**1. Adding the twelfth extension costs nothing measurable: −0.003s drift-corrected**, three-way ranges
+overlapping. Whatever the earlier positive deltas were, they are not a compounding per-extension cost.
+
+**2. Witness 12 is CONFIRMED, quantitatively.** The bracket measured the machine getting **faster**
+within the pair (−0.023s from first control to last). That is exactly the direction that inflates a
+`new`-measured-first delta: under the old fixed order the new row ran on the slower early machine and
+its control on the faster later one, biasing `new − control` **positive by roughly the drift
+magnitude**. The four earlier deltas were +0.027, +0.018, +0.060, +0.115 (mean +0.055) — subtract a
+~+0.023 order bias and three of the four fall to at or below the ±0.045 yardstick.
+
+The prediction logged in `92230fdd` said the controls would differ, the corrected delta would be
+smaller than the raw, and controls differing in the inflating direction would confirm witness 12.
+**All three landed.** The order bias was not hypothetical; it is measured, signed, and about the size
+of the effect it was manufacturing.
+
 ### ✅ Row N=11 (single-training) — the binding mechanism is REFUTED by its own test case
 
 | N | feature | session position | n | median | min | max | spread | sd |
@@ -800,7 +846,7 @@ count is a hypothesis per feature, not a work order.
 | home | **13** | 2 | 4 | predicted 12, measured 13 — see the transitive-closure correction below |
 | all-exercises | **17** | 2 | 4 | predicted 17, measured 17 — FIRST exact hit, closure procedure applied |
 | plan-editor | predicted 13 → **measured 13** | 2 | 5 | **written before fixpoint round 1** — 6 plumbing + 2 interactor + 5 models (`SetTypeDomain` reachable only via `PlanSetDomain.type`; the 4 `core.ui.plan_editor.model` types are cross-module and already public) |
-| live-workout | **predicted 24** → measured _(pending)_ | 2 | 7 | **written before fixpoint round 1, ahead of any widening** — 6 plumbing + 2 interactor + 15 domain + 1 UI; port 13, the ENDPOINT |
+| live-workout | predicted 24 → **measured 24** | 2 | 7 | **written before fixpoint round 1, ahead of any widening** — 6 plumbing + 2 interactor + 15 domain + 1 UI; port 13, the ENDPOINT |
 | single-training | predicted 23 → **measured 23** | 2 | 4 | **written before fixpoint round 1, in its own commit ahead of any widening** — 6 plumbing + 2 interactor + 14 domain + 1 UI; would be the widest port of the arc |
 | exercise | predicted 22 → **measured 22** | 2 | 4 | **written before fixpoint round 1, in its own commit ahead of any widening** — 6 plumbing + 2 interactor + 13 domain + 1 UI |
 | exercise-chart | predicted 21 → **measured 21** | 2 | 3 | **written before fixpoint round 1, in its own commit ahead of any widening** — 6 plumbing + 2 interactor + 7 domain + 6 UI |
@@ -850,7 +896,7 @@ forced-public = 6 plumbing + 2 per interactor pair + (models exposed in the publ
 | exercise-chart | 6 | 2 (×1) | 7 domain + 6 UI (all 6 UI models are `internal` here) | 21 | ✔ |
 | exercise | 6 | 2 (×1) | 13 domain + 1 UI (7 UI models already public; only `DialogState`) | 22 | ✔ |
 | single-training | 6 | 2 (×1) | 14 domain + 1 UI (4 UI models already public; only `DialogState`) | 23 | ✔ |
-| live-workout | 6 | 2 (×1) | 15 domain + 1 UI (only `DialogState`; `BottomSheetState` already public) | **24 predicted** | _pending_ |
+| live-workout | 6 | 2 (×1) | 15 domain + 1 UI (only `DialogState`; `BottomSheetState` already public) | 24 | ✔ |
 
 ### live-workout — the prediction, written before widening (port 13, the LAST feature graph)
 
@@ -890,6 +936,10 @@ two control readings rather than silently biasing the delta.
 > explanation and a small real per-extension cost is back on the table.
 
 **A measurement BELOW 24 is a STOP, not a win.**
+
+**OUTCOME: measured 24. Exact hit, all six side-claims held.** Widest port of the arc. 24 forced,
+0 over-widened, 0 stale, control green first. The `BottomSheetState`-costs-0 / `DialogState`-costs-1
+claim held exactly, on two sibling sealed types in the same directory.
 
 ### exercise — the prediction, written before widening (port 3 of the assisted batch)
 
