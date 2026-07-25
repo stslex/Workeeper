@@ -27,7 +27,7 @@ import io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.store.AppDialogSt
  * MVI lint rule's "outer sealed" check without committing the catalog to
  * a particular event surface.
  */
-internal interface AppDialogStore : Store<State, Action, Event> {
+interface AppDialogStore : Store<State, Action, Event> {
 
     /**
      * The current pending dialog as projected by `AppDialogRepoHandler` from

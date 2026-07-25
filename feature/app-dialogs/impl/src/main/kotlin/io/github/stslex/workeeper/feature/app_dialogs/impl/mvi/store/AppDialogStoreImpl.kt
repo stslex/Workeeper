@@ -30,7 +30,7 @@ import io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.store.AppDialogSt
 // owned by the Activity's ViewModelStore via rememberMetroStoreProcessor (root-mounted through
 // AppFeature) — so NO @SingleIn here.
 @Inject
-internal class AppDialogStoreImpl(
+class AppDialogStoreImpl internal constructor(
     repoHandler: AppDialogRepoHandler,
     chooseHandler: ChooseHandler,
     storeEmitter: AppDialogHandlerStoreImpl,

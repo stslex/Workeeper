@@ -10,6 +10,6 @@ import io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.store.AppDialogSt
 
 @Inject
 @SingleIn(AppDialogsScope::class)
-internal class AppDialogHandlerStoreImpl :
+class AppDialogHandlerStoreImpl :
     AppDialogHandlerStore,
     BaseHandlerStore<State, Action, Event>()

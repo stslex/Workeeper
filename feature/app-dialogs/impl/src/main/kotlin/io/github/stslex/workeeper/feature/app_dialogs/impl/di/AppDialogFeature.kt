@@ -3,9 +3,7 @@ package io.github.stslex.workeeper.feature.app_dialogs.impl.di
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
-import dev.zacsweers.metro.createGraphFactory
 import io.github.stslex.workeeper.core.ui.mvi.AppFeature
-import io.github.stslex.workeeper.core.ui.mvi.di.StoreCoreDeps
 import io.github.stslex.workeeper.core.ui.mvi.di.appDeps
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
 import io.github.stslex.workeeper.core.ui.mvi.processor.rememberMetroStoreProcessor
@@ -24,10 +22,15 @@ internal typealias AppDialogStoreProcessor = StoreProcessor<State, Action, Event
  *
  * `rememberMetroStoreProcessor` retains the Metro-created Store in whatever
  * `LocalViewModelStoreOwner` is current — here the host `ComponentActivity`'s `ViewModelStore` (root
- * mount via `AppDialogHost`). Shared store-infra deps come from the narrow [StoreCoreDeps] interface
- * acquired via `context.appDeps<StoreCoreDeps>()` (god-object split, mechanism A — AppDialog reads
- * only the store-infra trio, no navigator/repos); this feature's own app-scoped impls come from the
- * impl-internal holder seam (`appDialogInternals()`).
+ * mount via `AppDialogHost`).
+ *
+ * All 5 formerly hand-threaded deps are inherited from the parent graph, so BOTH former acquisition
+ * paths are gone: the `appDeps<StoreCoreDeps>()` lookup for the store-infra trio, AND the
+ * impl-internal `appDialogInternals()` holder seam that fed this feature its own app-scoped
+ * singletons. The extension inherits `AppDialogRepository` and `AppDialogObserverImpl` straight from
+ * `AppGraph`, so that seam is deleted outright rather than narrowed.
+ *
+ * The creator takes no arguments — this feature is screen-less, so there is no route arg to bind.
  */
 internal object AppDialogFeature : AppFeature<AppDialogStoreProcessor>() {
 
@@ -36,19 +39,8 @@ internal object AppDialogFeature : AppFeature<AppDialogStoreProcessor>() {
     override fun processor(): AppDialogStoreProcessor {
         val context = LocalContext.current
         return rememberMetroStoreProcessor<AppDialogStoreImpl> {
-            // god-object split (mechanism A): shared store-infra deps via the narrow StoreCoreDeps
-            // interface (appDeps<T>()); this feature's OWN app-scoped impls via the impl-internal holder
-            // seam (no module can name them). appDeps<T>() FEEDS the typed create(...) below.
-            val deps = context.appDeps<StoreCoreDeps>()
-            val internals = context.appDialogInternals()
-            createGraphFactory<AppDialogGraph.Factory>()
-                .create(
-                    appDialogRepository = internals.appDialogRepository,
-                    appDialogObserver = internals.appDialogObserverImpl,
-                    storeDispatchers = deps.storeDispatchers,
-                    analyticsHolder = deps.analyticsHolder,
-                    loggerHolder = deps.loggerHolder,
-                )
+            context.appDeps<AppDialogGraph.Factory>()
+                .createAppDialogGraph()
                 .appDialogStore
         } as AppDialogStoreProcessor
     }
