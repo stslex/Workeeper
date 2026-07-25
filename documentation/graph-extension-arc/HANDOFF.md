@@ -152,40 +152,66 @@ bytecode; `--rerun-tasks` does not defeat it and nothing in the output signals i
 session on `ScreenInjectionRule`, where a correct rule appeared not to fire on real code. Details and
 the two-anchor proof procedure: `documentation/lint-rules.md`.
 
-## THE STANDING PRINCIPLE — over all rules below
+## ⚠️ THE ADJACENT-ANSWER CLASS — one failure mode, seven witnesses
 
-> **A green result, or a number, is trusted only after it has been shown how it goes RED.**
+Every silent failure this arc has hit is the **same defect wearing different clothes**. It is written up
+once, as a class, because there will be an eighth and the next session should recognise its shape rather
+than rediscover it from scratch.
 
-Every rule in this document is an instance of it. So is every failure the arc has hit:
+> **THE CLASS.** The instrument answers a question *adjacent* to the one asked, and reports success
+> either way. No error is raised, so the wrong answer arrives wearing the costume of evidence.
+>
+> **THE COUNTERMEASURE.** A green result, or a number, is trusted only after it has been shown how it
+> goes RED.
 
-| Instance | The instrument answered… | …but not the question asked |
-|---|---|---|
-| daemon-stale `lint-rules.jar` | "detekt passes" | detekt analysed with rule bytecode from before the edit |
-| `UP-TO-DATE` double-run | "second run mutated nothing" | the second run never analysed anything |
-| `FROM-CACHE` build-time row | "compile took Xs" | the compile was restored, not executed |
-| stdout-not-stderr | "0 compile errors" | errors go to stderr; the build had failed |
-| arithmetic-not-measured | "the ledger says N" | nobody re-read the file at that SHA |
-| shell wrapper — bad word split | "5 SHAs COMPILE" | zsh did not split `set -- $spec`, so all five rows measured the working tree. Tell: the N column read 7,7,7,7,7 instead of 4,5,6,7,7 |
-| shell wrapper — copied script | "the calibration gate aborts" | the copy resolved `REPO` from its own `dirname`, so `./gradlew` did not exist. It aborted for the wrong reason, which reads identically to aborting for the right one |
+It is never a crash, never a stack trace, never a warning. It is always a plausible number or a clean
+pass. That is the whole difficulty: the failure and the success are byte-identical at the point you read
+them, and only differ in what produced them.
 
-The last two are worth their own note: **both were in the wrapper around a verified instrument, not the
-instrument.** `measure-build-time.sh` rejects UP-TO-DATE and FROM-CACHE runs and calibrates itself — and
-neither guard can see a caller that hands it the wrong directory or collapses its arguments. An
-instrument's guarantees stop at its own boundary. That is why the script's summary prints an N column
-whose ascent is the integrity check, and why a probe must be run **in place** rather than as a copy.
+### The seven witnesses
 
-The shape is identical every time: **the instrument answers a question adjacent to the one asked, and
-reports success either way.** No error is raised, so the result reads as evidence.
+| # | Witness | Answered… | …the actual question | The tell |
+|---|---|---|---|---|
+| 1 | daemon-stale `lint-rules.jar` | "detekt passes" | detekt analysed with rule bytecode from *before* the edit | a rule that fires in unit tests but never on real code |
+| 2 | `UP-TO-DATE` double-run | "second run mutated nothing" | the second run never analysed anything | 2s and 386ms runtimes |
+| 3 | `FROM-CACHE` build-time row | "compile took Xs" | the compile was restored, not executed | task state not printed |
+| 4 | stdout-not-stderr | "0 compile errors" | Kotlin writes `e:` to stderr; the build had failed | 0 errors on a fixpoint that should still be climbing |
+| 5 | arithmetic-not-measured | "the ledger says N" | nobody re-read the file at that SHA | a commit message disagreeing with the table |
+| 6 | wrapper — bad word split | "5 SHAs COMPILE" | zsh did not split `set -- $spec`; all five rows measured the working tree | **N column read 7,7,7,7,7 instead of 4,5,6,7,7** |
+| 7 | wrapper — copied script | "the calibration gate aborts" | the copy resolved `REPO` from its own `dirname`, so `./gradlew` did not exist | it aborted for the *wrong reason*, which reads identically to the right one |
 
-The practical form: before trusting any green, break something and confirm it goes red. Before trusting
-any number, change the thing it measures and confirm the number moves. That is why forced-public counts
-are falsified declaration-by-declaration, why the `*StoreImpl` exemption is broken on purpose before its
-pass is believed, why `ScreenInjectionRule` is proven on a real known-negative anchor per route-arg
-shape, and why build-time rows report distributions rather than medians.
+### Recognising the eighth
+
+Three questions, in order. Any "no" means you are holding an adjacent answer:
+
+1. **Did the thing I am measuring actually run?** (executed, not cached, not up-to-date, not skipped)
+2. **Would this readout have looked DIFFERENT if the answer were the opposite?** If a pass and a failure
+   produce the same output, the output is not evidence.
+3. **Am I reading the instrument, or a wrapper around it?** Witnesses 6 and 7 were both in the wrapper,
+   and both defeated an instrument that was itself correct and self-guarding.
+
+### The boundary the last two found
+
+`measure-build-time.sh` rejects UP-TO-DATE and FROM-CACHE runs and calibrates itself against a cold
+build — and neither guard can see a caller that hands it the wrong directory or collapses its arguments.
+**An instrument's guarantees stop at its own edge.** Two consequences, both pinned in the script:
+
+- the **N column is the integrity check** — it must ascend `1,2,3,4,5,6,7,7,7`; all-identical means every
+  row measured one checkout, however plausible the timings look;
+- **probes are run in place, never as a copy**, because a copy silently re-resolves its own paths.
+
+### Where the countermeasure already lives
+
+Every verification convention on this arc is this class being paid off in advance: forced-public counts
+falsified declaration-by-declaration; the `*StoreImpl` exemption deliberately broken before its pass is
+believed; `ScreenInjectionRule` proven on a real known-negative anchor per route-arg *shape*; the detekt
+double-run anchored on a positive control that is genuinely autocorrectable; build-time rows reported as
+distributions; and `measure-build-time.sh` STEP 0 refusing to measure until a cold build has proven it
+can register a large number in *this* session.
 
 **STANDING RULE 5 — on this arc, every count is proven by MEASUREMENT. Arithmetic and regex undercount
-silently.** The counting-specific instance of the principle above. Confirmed empirically four times in
-one session, each a different mechanism, each producing a confident wrong number with no error:
+silently.** This is the ADJACENT-ANSWER CLASS above, narrowed to counting — the sub-case common enough
+on this arc to earn its own rule. Four mechanisms, each producing a confident wrong number with no error:
 
 | # | What was counted | How it went wrong | Detected by |
 |---|---|---|---|
