@@ -32,7 +32,7 @@ import kotlinx.coroutines.withContext
 @Suppress("TooManyFunctions", "LongParameterList")
 @Inject
 @SingleIn(SingleTrainingScope::class)
-internal class SingleTrainingInteractorImpl(
+class SingleTrainingInteractorImpl internal constructor(
     private val trainingRepository: TrainingRepository,
     private val trainingExerciseRepository: TrainingExerciseRepository,
     private val exerciseRepository: ExerciseRepository,

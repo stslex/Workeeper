@@ -10,5 +10,5 @@ import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTraini
 
 @Inject
 @SingleIn(SingleTrainingScope::class)
-internal class SingleTrainingHandlerStoreImpl : SingleTrainingHandlerStore,
+class SingleTrainingHandlerStoreImpl : SingleTrainingHandlerStore,
     BaseHandlerStore<State, Action, Event>()

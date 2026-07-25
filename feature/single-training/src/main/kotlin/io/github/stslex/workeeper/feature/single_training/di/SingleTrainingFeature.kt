@@ -3,13 +3,10 @@ package io.github.stslex.workeeper.feature.single_training.di
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
-import dev.zacsweers.metro.createGraphFactory
 import io.github.stslex.workeeper.core.ui.mvi.FeatureAssisted
-import io.github.stslex.workeeper.core.ui.mvi.di.StoreCoreDeps
 import io.github.stslex.workeeper.core.ui.mvi.di.appDeps
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
 import io.github.stslex.workeeper.core.ui.mvi.processor.rememberMetroStoreProcessor
-import io.github.stslex.workeeper.core.ui.navigation.NavigatorDeps
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Action
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Event
@@ -19,16 +16,20 @@ import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTraini
 internal typealias SingleTrainingStoreProcessor = StoreProcessor<State, Action, Event>
 
 /**
- * feature/single-training resolves its Store through the **Metro** path. The Store
- * is ASSISTED — it takes the `Screen.Training` route arg — so the graph exposes the assisted
- * [SingleTrainingStoreImpl.Factory] and this composable calls `storeFactory.create(screen)` inside
- * the `rememberMetroStoreProcessor` lambda (once per retained Store, per `NavBackStackEntry`).
+ * feature/single-training resolves its Store through the Metro **graph-extension** path.
  *
- * The app-scoped `@SingleIn(AppScope)` bindings are acquired as the composition of three narrow
- * interfaces ([StoreCoreDeps] + [NavigatorDeps] + [SingleTrainingDeps] — the domain tail: five repos,
- * `sessionConflictResolver`, `resourceWrapper`, and BOTH qualified dispatchers) via `context.appDeps<T>()`
- * (the god-object split, mechanism A). The two dispatchers cross QUALIFIED.
- * No Context — this feature injects none.
+ * The app-scope graph (returned as `Any` by the `AppDepsHolder` seam) IS the parent graph and, once
+ * `:app` is compiled, implements the contributed [SingleTrainingGraph.Factory]; `appDeps<T>()`
+ * re-narrows it with its `as T` cast. All 13 formerly hand-threaded app-scoped deps are inherited from
+ * the parent, so the three `appDeps` lookups (`StoreCoreDeps` + `NavigatorDeps` + `SingleTrainingDeps`)
+ * and the whole `createGraphFactory(...).create(...)` argument list are gone — including both qualified
+ * dispatchers, which now cross the graph boundary as two distinct keys rather than being handed in.
+ *
+ * The `Screen.Training` route arg is passed to the extension factory as a bound instance (shape B), so
+ * the extension is built per navigation entry and carries that entry's arg — the Store needs no
+ * assisted factory. The extension is created INSIDE the `rememberMetroStoreProcessor` lambda, so it is
+ * built at most once per retained Store (per `NavBackStackEntry`), binding it and its
+ * `@SingleIn(SingleTrainingScope)` nodes to exactly the Store's lifetime.
  */
 internal object SingleTrainingFeature : FeatureAssisted<
     SingleTrainingStoreProcessor,
@@ -40,30 +41,9 @@ internal object SingleTrainingFeature : FeatureAssisted<
     override fun processor(screen: Screen.Training): SingleTrainingStoreProcessor {
         val context = LocalContext.current
         return rememberMetroStoreProcessor<SingleTrainingStoreImpl> {
-            // Mechanism A (the god-object split): spine four from StoreCoreDeps + NavigatorDeps; the domain
-            // tail (repos + sessionConflictResolver + resourceWrapper + BOTH qualified dispatchers) from
-            // SingleTrainingDeps.
-            val coreDeps = context.appDeps<StoreCoreDeps>()
-            val navDeps = context.appDeps<NavigatorDeps>()
-            val deps = context.appDeps<SingleTrainingDeps>()
-            createGraphFactory<SingleTrainingGraph.Factory>()
-                .create(
-                    trainingRepository = deps.trainingRepository,
-                    trainingExerciseRepository = deps.trainingExerciseRepository,
-                    exerciseRepository = deps.exerciseRepository,
-                    tagRepository = deps.tagRepository,
-                    sessionRepository = deps.sessionRepository,
-                    sessionConflictResolver = deps.sessionConflictResolver,
-                    resourceWrapper = deps.resourceWrapper,
-                    navigator = navDeps.navigator,
-                    storeDispatchers = coreDeps.storeDispatchers,
-                    analyticsHolder = coreDeps.analyticsHolder,
-                    loggerHolder = coreDeps.loggerHolder,
-                    defaultDispatcher = deps.defaultDispatcher,
-                    mainImmediateDispatcher = deps.mainImmediateDispatcher,
-                )
-                .storeFactory
-                .create(screen)
+            context.appDeps<SingleTrainingGraph.Factory>()
+                .createSingleTrainingGraph(screen)
+                .singleTrainingStore
         } as SingleTrainingStoreProcessor
     }
 }

@@ -14,7 +14,7 @@ import io.github.stslex.workeeper.feature.single_training.domain.model.TrainingE
 import kotlinx.coroutines.flow.Flow
 
 @Suppress("TooManyFunctions")
-internal interface SingleTrainingInteractor {
+interface SingleTrainingInteractor {
 
     suspend fun getTraining(uuid: String): TrainingDomain?
 
