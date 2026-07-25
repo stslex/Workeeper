@@ -49,9 +49,15 @@ OUT="${TMPDIR:-/tmp}/arc-build-time-$$"
 mkdir -p "$OUT"
 WORKTREES=""
 
+# Remove worktrees by PATH GLOB, not by an accumulated variable. The series loop below runs inside a
+# pipeline subshell (`echo "$SERIES" | while ...`), so anything it appends to $WORKTREES is lost when
+# that subshell exits and this trap would remove nothing — observed leaking six registered worktrees.
+# A leaked registration is not cosmetic: the next run's `git worktree add` fails on the existing path
+# and the row is SKIPPED, which reads as a measurement result rather than as stale state.
 cleanup() {
-    for w in $WORKTREES; do
-        git worktree remove --force "$w" >/dev/null 2>&1
+    for w in "$OUT"/wt-* $WORKTREES; do
+        [ -e "$w" ] || continue
+        git worktree remove --force "$w" >/dev/null 2>&1 || rm -rf "$w"
     done
     git worktree prune >/dev/null 2>&1
 }
@@ -97,6 +103,47 @@ wipe_builds() {
     find "$1" -maxdepth 4 -type d -name build -not -path "*/.git/*" -exec rm -rf {} + 2>/dev/null
 }
 
+# Machine-local config a git worktree does NOT inherit, because every one of these is gitignored.
+# Without them the build dies at CONFIGURATION time, before any Kotlin is compiled:
+#   * keystore.properties + keystore.jks — ConfigureApplication.kt:99-110 reads the properties from the
+#     ROOT project dir and calls getFile(storeFile), which throws on a missing file. With the properties
+#     absent, getProperty() returns null and the plugin fails with "getProperty(...) must not be null".
+#   * google-services.json (root, app/dev, app/store) — the Firebase plugin resolves these while
+#     configuring, and Gradle configures every project, not just the one being built.
+#   * local.properties — sdk.dir.
+# Every row gets byte-identical copies of the same files, so they cannot confound the variable under
+# test; the WORKING_TREE row already reads the originals in place. Build state (build/, .gradle/) is
+# deliberately NOT copied — seeding that would defeat wipe_builds and manufacture a false flat series.
+SEED_FILES="local.properties
+keystore.properties
+keystore.jks
+google-services.json
+app/dev/google-services.json
+app/store/google-services.json
+play_config.json"
+
+seed_machine_local() {
+    dest="$1"
+    missing=""
+    echo "$SEED_FILES" | while IFS= read -r f; do
+        [ -z "$f" ] && continue
+        [ -f "$REPO/$f" ] || continue
+        mkdir -p "$dest/$(dirname "$f")"
+        cp "$REPO/$f" "$dest/$f" && chmod 600 "$dest/$f"
+    done
+    # Prove the seed landed. A worktree missing keystore.properties fails every run and reports
+    # NO VALID SAMPLES — a row that looks like a measurement outcome but is a setup failure.
+    for f in keystore.properties keystore.jks; do
+        if [ -f "$REPO/$f" ] && [ ! -f "$dest/$f" ]; then
+            missing="$missing $f"
+        fi
+    done
+    if [ -n "$missing" ]; then
+        echo "!! seed FAILED for$missing — rows from $dest would be setup failures, not results" >&2
+        return 1
+    fi
+}
+
 # Count contributed extensions actually present, rather than trusting the label.
 count_extensions() {
     grep -rl "@GraphExtension(" "$1/feature" --include="*.kt" 2>/dev/null | wc -l | tr -d ' '
@@ -132,13 +179,18 @@ print(m.group(1))
 PY
 }
 
-# Collect n samples into a file.
+# Collect n samples into a file. On the FIRST rejected sample, keep the build log — one_run overwrites
+# $OUT/run.log every call, so by the time a row reports NO VALID SAMPLES the reason has been destroyed
+# and the row is undiagnosable without re-running the whole series.
 collect() {
     dir="$1"; n="$2"; dest="$3"
     : > "$dest"
     i=1
     while [ "$i" -le "$n" ]; do
         v="$(one_run "$dir")" && [ -n "$v" ] && echo "$v" >> "$dest"
+        if [ -z "${v:-}" ] && [ ! -f "$dest.fail.log" ]; then
+            cp "$OUT/run.log" "$dest.fail.log" 2>/dev/null
+        fi
         printf '  sample %s/%s: %s\n' "$i" "$n" "${v:-SKIPPED}"
         i=$((i + 1))
     done
@@ -235,12 +287,28 @@ echo "$SERIES" | while IFS='|' read -r label ref; do
         fi
         WORKTREES="$WORKTREES $dir"
         wipe_builds "$dir"
+        seed_machine_local "$dir" || { echo "!! $label SKIPPED — seed failed" | tee -a "$RESULTS"; continue; }
     fi
 
     ext="$(count_extensions "$dir")"
     echo "$ext" >> "$OUT/ncolumn.txt"
     echo
     echo "--- $label ($ref) : $ext contributed extensions found ---"
+
+    # Warm each worktree once and DISCARD the result, exactly as the working tree is warmed before the
+    # pilot. wipe_builds leaves every module uncompiled, so the first MEASURED sample would otherwise be
+    # a full cold build. Probed in this checkout: sample 1 = 29.192s against 1.202s / 0.932s for samples
+    # 2 and 3. One 29s value does not move the MEDIAN at any n — but it pins max and spread near 29s in
+    # EVERY row, and the gate is decided by whether ranges OVERLAP. Ranges that all span ~1-29s overlap by
+    # construction, so the series would read FLAT whether or not it is: the readout looks identical for
+    # both answers, which is the ADJACENT-ANSWER CLASS. Warming here makes all nine rows warm, so they
+    # are compared in the same state instead of the worktree rows carrying a cold sample the working
+    # tree never has.
+    if [ "$ref" != "WORKING_TREE" ]; then
+        echo "  warming (discarded)…"
+        one_run "$dir" >/dev/null 2>&1
+    fi
+
     collect "$dir" "$N_DERIVED" "$OUT/$label.txt"
     stats "N=$ext $label" "$OUT/$label.txt" | tee -a "$RESULTS"
 done
