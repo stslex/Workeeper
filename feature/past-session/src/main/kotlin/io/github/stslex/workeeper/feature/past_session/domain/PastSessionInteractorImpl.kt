@@ -21,7 +21,7 @@ import kotlinx.coroutines.flow.map
 
 @Inject
 @SingleIn(PastSessionScope::class)
-internal class PastSessionInteractorImpl(
+class PastSessionInteractorImpl internal constructor(
     private val sessionRepository: SessionRepository,
     private val setRepository: SetRepository,
     private val personalRecordRepository: PersonalRecordRepository,

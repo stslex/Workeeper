@@ -10,6 +10,6 @@ import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStor
 
 @Inject
 @SingleIn(PastSessionScope::class)
-internal class PastSessionHandlerStoreImpl :
+class PastSessionHandlerStoreImpl :
     PastSessionHandlerStore,
     BaseHandlerStore<State, Action, Event>()

@@ -8,7 +8,7 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.past_session.mvi.model.ErrorType
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSessionUiModel
 
-internal interface PastSessionStore :
+interface PastSessionStore :
     Store<PastSessionStore.State, PastSessionStore.Action, PastSessionStore.Event> {
 
     @Stable

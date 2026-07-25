@@ -5,7 +5,7 @@ import io.github.stslex.workeeper.feature.past_session.domain.model.DetailWithPr
 import io.github.stslex.workeeper.feature.past_session.domain.model.SetDomain
 import kotlinx.coroutines.flow.Flow
 
-internal interface PastSessionInteractor {
+interface PastSessionInteractor {
 
     /**
      * Combined session-detail + PR-holder set UUIDs. Detail is re-fetched on every PR
