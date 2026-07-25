@@ -32,11 +32,11 @@
 # HISTORICAL POINTS come from read-only `git worktree` checkouts of the arc's own SHAs, so no branch is
 # created, moved, rebased, or pushed. Worktrees are removed on exit.
 #
-# COVERAGE: N = 1..7 are all committed and wired into SERIES below, so one run produces the whole
+# COVERAGE: N = 1..8 are all committed and wired into SERIES below, so one run produces the whole
 # series. Append a line per future port; nothing else needs changing.
 #
-# WHAT DECIDES THE BATCH. Flat across N=4..7 means the feature-4 step was an artifact and the
-# 13-extension endpoint is safe, so the remaining assisted features can be batched. Rising means STOP:
+# WHAT DECIDED THE BATCH (settled): flat across N=4..7, so the feature-4 step was an artifact and the
+# batch was unlocked. The plateau now extends to N=8 (past-session). Rising at any future N means STOP:
 # name the mechanism in :app's merged-graph codegen that costs the time BEFORE extrapolating to 13.
 # Extrapolating an unnamed cause is numeric guessing — "associated with N" is not a mechanism.
 
@@ -82,6 +82,7 @@ home|02e90d81
 all-exercises|b3272960
 plan-editor|ff1299b1
 plan-editor-postbridge|8be3bde0
+past-session|714b224a
 current|WORKING_TREE"
 
 PILOT_RUNS=5
@@ -313,7 +314,7 @@ echo "$SERIES" | while IFS='|' read -r label ref; do
     stats "N=$ext $label" "$OUT/$label.txt" | tee -a "$RESULTS"
 done
 
-# The N column is this series' integrity check. It must ASCEND 1,2,3,4,5,6,7,7,7 — the two repeats are
+# The N column is this series' integrity check. It must ASCEND 1,2,3,4,5,6,7,7,8,8 — the repeats are
 # the deliberate pre/post-bridge control plus the working tree. All-identical N means every row measured
 # the SAME checkout: the symptom of a worktree that never got created, or of a shell wrapper whose
 # argument split silently collapsed (a bad `set -- $spec` under zsh did exactly this while verifying
@@ -333,7 +334,7 @@ echo "=============================================================="
 cat "$RESULTS"
 echo
 echo "Reading it:"
-echo "  * FIRST check the N column ascends 1,2,3,4,5,6,7,7,7. Identical values mean every row measured"
+echo "  * FIRST check the N column ascends 1,2,3,4,5,6,7,7,8,8. Identical values mean every row measured"
 echo "    the same checkout — the numbers are one row repeated, however plausible they look. The"
 echo "    run-level UP-TO-DATE / FROM-CACHE guards do NOT cover the wrapper this script is invoked by."
 echo "  * Compare RANGES, not medians. If two rows' ranges overlap, N is not resolved between them."

@@ -26,36 +26,46 @@ the whole arc or none of it.
 
 ## Status
 
-- **DONE — 7 of 13 ported.** Phase 0 gate (`c12c44dc`), `AppScope`→commonMain (`2f9c89d8`),
+- **DONE — 8 of 13 ported.** Phase 0 gate (`c12c44dc`), `AppScope`→commonMain (`2f9c89d8`),
   all-trainings (`9f17d02a`) + `AllTrainingsDeps` deleted (`197f39b4`), unique-creator fix
   (`dbfc4852`), archive (`4c184e5e`) + `ArchiveDeps` deleted (`62e5af72`), image-viewer
   (`4c7a1a67`, FIRST assisted feature, shape B), settings (`d784a510`), home (`02e90d81`),
-  all-exercises (`b3272960`), plan-editor (`ff1299b1`, second shape-B), and the four dead `XxxDeps`
-  deleted together in `8be3bde0`. **9 `XxxDeps` supertypes remain** on `AppGraph` (was 15) — and the
-  list bottoms out at 2, not 0: `StoreCoreDeps` + `NavigatorDeps` are load-bearing γ-spine, not
-  transient. `StoreFactory` has **5 users left** (the 5 un-ported assisted features) and dies with the
-  last of them.
-- **REMAINING — 6 features.** `app-dialogs` is the only PLAIN one left, and it is app-root-scoped and
-  screen-less — structurally unlike the six done, so NOT a drop-in repeat of the pattern. The other 5
-  are route-arg/assisted — `exercise`, `exercise-chart`, `live-workout`, `past-session`,
-  `single-training` — all portable under **shape B**. `MetroWorkerFactory` still needs its own
-  acquisition decision, and lands under STANDING RULE 4 (boundary test) when it does.
+  all-exercises (`b3272960`), plan-editor (`ff1299b1`, second shape-B), the four dead `XxxDeps`
+  deleted together in `8be3bde0`, and **past-session (`714b224a`, port 1 of the assisted batch, third
+  shape-B) + `PastSessionDeps` deleted (`6722983b`)**. **8 `XxxDeps` supertypes remain** on `AppGraph`
+  (was 15) — and the list bottoms out at 2, not 0: `StoreCoreDeps` + `NavigatorDeps` are load-bearing
+  γ-spine, not transient. `StoreFactory` has **4 users left** (the 4 un-ported assisted features) and
+  dies with the last of them.
+  *(Count the supertypes by READING the list, not by grepping `Deps,` — the last entry ends in ` {`
+  and a comma-anchored grep returns 7. That is STANDING RULE 5 witness #1 recurring; it recurred again
+  while writing this line.)*
+- **REMAINING — 5 features.** `app-dialogs` is the only PLAIN one left, and it is app-root-scoped and
+  screen-less — structurally unlike the eight done, so NOT a drop-in repeat of the pattern. The other 4
+  are route-arg/assisted — `exercise`, `exercise-chart`, `live-workout`, `single-training` — all
+  portable under **shape B**. `MetroWorkerFactory` still needs its own acquisition decision, and lands
+  under STANDING RULE 4 (boundary test) when it does.
+  ⚠️ **The batch brief named FOUR assisted features (single-training, past-session, exercise-chart,
+  live-workout) and omitted `exercise`, which is also an unported `FeatureAssisted` user.** With
+  past-session done, **four** assisted features remain, not three. `exercise` must be scheduled or
+  explicitly deferred — it cannot be dropped silently, or the arc cannot close.
 - **`ScreenInjectionRule` is now proven on BOTH route-arg shapes** — image-viewer's flat
   `Screen.ExerciseImage` and plan-editor's sealed parent `Screen.PlanEditor` (negative anchor:
   `Screen.PlanEditor.Existing`, a 3-level nested subtype, injected into a real used handler param →
-  fails by rule ID; positive anchor falsified by breaking the `*StoreImpl` exemption). The remaining 5
-  route args are all flat 2-level data classes, i.e. the already-proven shape. **A guard that is silent
+  fails by rule ID; positive anchor falsified by breaking the `*StoreImpl` exemption). past-session's
+  `Screen.PastSession` was the flat shape again, so no re-proof was needed. The remaining 4 route args
+  are all flat 2-level data classes, i.e. the already-proven shape. **A guard that is silent
   on a shape is a hole in the guarantee it replaces** — re-prove per NEW shape, not per feature.
 - **AppGraph accessor cleanup is deferred to the final feature** and is substantial, not cosmetic —
   see the orphaned-accessor ledger below for its running size.
-- **Build-time gate READ and GREEN — FLAT across N=1…7, batch unlocked.** The fresh-session
-  re-baseline is done (see the re-baseline section below). N is not resolved anywhere in the series;
-  the earlier "step at feature 4" is **disproven as session drift**. Re-run with
-  `sh documentation/graph-extension-arc/measure-build-time.sh` and append a row per new port. The
-  plateau is confirmed only to **N=7** — each new real extension extends it, so this is not a licence
-  to stop measuring.
+- **Build-time gate READ and GREEN — FLAT across N=1…7, extended to N=8, batch unlocked.** The
+  fresh-session re-baseline is done (see the re-baseline section below). N is not resolved anywhere in
+  the series; the earlier "step at feature 4" is **disproven as session drift**. past-session's N=8 row
+  overlaps its same-session N=7 control, so the plateau now holds to **N=8**. Re-run with
+  `sh documentation/graph-extension-arc/measure-build-time.sh`. Each new real extension extends the
+  plateau, so this is not a licence to stop measuring — and an appended row needs a **same-session
+  control**, see the correction in the row-N=8 section.
 
-## ▶ NEXT SESSION — batch the four remaining assisted features
+## ▶ NEXT SESSION — batch the remaining assisted features (port 1 of the batch is done)
 
 **The build-time gate is READ and it is FLAT. The batch is unlocked.** Steps 1–3 below are done; the
 work now is the batch itself.
@@ -67,8 +77,13 @@ work now is the batch itself.
 3. ~~Re-measure in a FRESH session.~~ Done. FLAT across N=1…7, four independent legs, full numbers in
    the re-baseline section below.
 
-**Batch `single-training`, `past-session`, `exercise-chart`, `live-workout`** under the proven shape-B
-pattern, one commit per feature:
+~~Port 1 of the batch — `past-session`.~~ **Done** (`714b224a` + `6722983b`): predicted 14 →
+measured 14, identity test green, detekt clean, N=8 build-time row taken with a same-session control.
+Shape B held on a real assisted feature with no surprise the spike had not already shown.
+
+**Batch the rest — `single-training`, `exercise-chart`, `live-workout`, and `exercise`** (the brief
+omitted `exercise`; it is also an unported `FeatureAssisted` user) under the proven shape-B pattern,
+one commit per feature:
 
 - `@GraphExtension` + **uniquely-named** factory creator (never a bare `create()`);
 - `@Inject` class with `internal` constructor;
@@ -81,8 +96,11 @@ reachable in the closure). **A prediction that lands HIGH is a STOP, not a pleas
 signature-only counting systematically UNDER-predicts, so landing high means something structurally
 different is going on and it must be understood before the next port.
 
-**Append a build-time row per port.** The plateau is confirmed only to N=7; each new real extension
-extends it. Any future slope must beat the **±0.045s same-N reproducibility** established below.
+**Append a build-time row per port — WITH a same-session control.** The plateau is confirmed to
+**N=8**. A row measured in a new session cannot be compared to the older table (past-session's row
+proved this: same tree, cold calibration 43.993s here vs 23.261s there). Every appended row must come
+with a re-measurement of the previous N in the SAME session, in reversed order, and must record its
+cold-calibration figure. Any future slope must beat the **±0.045s same-N reproducibility** below.
 
 `app-dialogs` stays OUT of the batch: app-root-scoped and screen-less, its own shape, not a mechanical
 port. Handle it separately.
@@ -342,6 +360,37 @@ It rests on **four independent legs**, not one number:
 Across the whole series N=1…7 the medians span only 0.080s — smaller than the *within-row* spread of
 **eight of the nine rows** (every row except image-viewer, whose spread is 0.043s).
 
+### Row N=8 (past-session) — and why "append a row per port" does not work as written
+
+| N | feature | session | n | median | min | max | spread | sd |
+|---|---|---|---|---|---|---|---|---|
+| 8 | past-session | port session, measured **1st** | 9 | 1.055 | 0.967 | 1.365 | 0.398 | 0.120 |
+| 7 | `8be3bde0` (same-session control) | port session, measured **2nd** | 9 | 0.995 | 0.950 | 1.169 | 0.219 | 0.082 |
+
+**Read only the same-session pair. The N=8 row is NOT comparable to the N=1…7 table above.** That
+table was measured in a different session, and the two sessions are demonstrably at different
+machine-points: STEP 0 cold calibration registered **43.993s here against 23.261s there**, ~1.9×. Laid
+naively against the earlier table, N=8's 1.055 would read as a +0.15s jump off a 0.906 plateau — which
+is exactly the artefact that produced, and then destroyed, the "step at feature 4".
+
+Against its own same-session control, N=7 → N=8 is **0.995 → 1.055, +0.060s, with ranges overlapping
+across [0.967, 1.169]**. Overlapping ranges mean **N is not resolved between 7 and 8**; the plateau
+holds. Two honest qualifications: +0.060s is nominally above the ±0.045s yardstick, but that yardstick
+came from a quieter session (within-row spreads there were 0.166–0.278 against 0.219/0.398 here), so it
+understates this session's noise; and one pair cannot supply a same-N yardstick for this session.
+
+Order was deliberately **reversed** — N=8 measured first, N=7 second — per the ordering protocol. So a
+drift that was still climbing cannot have manufactured the gap. A drift running the other way (the
+machine freeing up as the session went on, which the 43.993s opening calibration makes plausible) could
+inflate it. One pair cannot separate those, which is the point of the finding below.
+
+> **PROTOCOL CORRECTION — appending one row per port is NOT a valid comparison.** Each appended row is
+> measured in a later session, so every appended row carries the cross-session confound that this arc
+> has now been bitten by twice. The instruction "append a build-time row per port" is only sound if the
+> row is accompanied by a **same-session re-measurement of the previous N as a control**, measured in
+> reversed order. An absolute number from a new session compared against an older table is not
+> evidence — the cold-calibration figure is the tell, and it should be recorded on every row.
+
 ### The yardstick: ±0.045s same-N reproducibility
 
 The three rows at **constant N=7** (0.875 / 0.861 / 0.906) are separate checkouts measured at different
@@ -495,7 +544,7 @@ count is a hypothesis per feature, not a work order.
 | home | **13** | 2 | 4 | predicted 12, measured 13 — see the transitive-closure correction below |
 | all-exercises | **17** | 2 | 4 | predicted 17, measured 17 — FIRST exact hit, closure procedure applied |
 | plan-editor | predicted 13 → **measured 13** | 2 | 5 | **written before fixpoint round 1** — 6 plumbing + 2 interactor + 5 models (`SetTypeDomain` reachable only via `PlanSetDomain.type`; the 4 `core.ui.plan_editor.model` types are cross-module and already public) |
-| past-session | **predicted 14** → measured _(pending)_ | 2 | 4 | **written before fixpoint round 1, in its own commit ahead of any widening** — 6 plumbing + 2 interactor + 6 domain models + **0 UI** |
+| past-session | predicted 14 → **measured 14** | 2 | 4 | **written before fixpoint round 1, in its own commit (`16fd9910`) ahead of any widening** — 6 plumbing + 2 interactor + 6 domain models + **0 UI** (first port to force zero UI models) |
 
 ⚠️ **A prediction written after watching the fixpoint rounds is not a prediction.** all-exercises' 17=17
 was recorded honestly, but the closure procedure is ITERATIVE — run it while reading compiler output and
@@ -537,7 +586,7 @@ forced-public = 6 plumbing + 2 per interactor pair + (models exposed in the publ
 | home | 6 | 2 (×1) | 5 domain (2 UI already public) | 13 | ✔ |
 | all-exercises | 6 | 2 (×1) | 9 (7 domain + 2 UI; `TagUiModel` already public) | 17 | ✔ |
 | plan-editor | 6 | 2 (×1) | 5 (4 domain + `DialogState`; the 4 `core.ui.plan_editor` types are cross-module) | 13 | ✔ |
-| past-session | 6 | 2 (×1) | 6 domain + 0 UI (all 4 UI models already public) | **14 predicted** | _pending_ |
+| past-session | 6 | 2 (×1) | 6 domain + 0 UI (all 4 UI models already public) | 14 | ✔ |
 
 ### past-session — the prediction, written before widening (port 1 of the assisted batch)
 
@@ -564,6 +613,23 @@ Staying internal (predicted): `PastSessionFeature`, `PastSessionScope`, `PastSes
 **A measurement BELOW 14 is a STOP, not a win.** Signature-only counting under-predicts and this
 prediction already applied the closure, so landing low means something structurally different is
 happening and must be understood before the remaining three are batched.
+
+**OUTCOME: measured 14. Exact hit.** The compiler demanded the models in precisely the predicted
+closure order — round 2 gave the two signature models (`DetailWithPrs`, `SetDomain`), round 3
+`SessionDetailDomain` + `SetTypeDomain`, round 4 **`PerformedExerciseDetailDomain`**, round 5
+`ExerciseTypeDomain`. The closure-only catch was real and was caught in advance.
+
+All 14 were falsified individually — each reverted to `internal` with
+`:feature:past-session:compileDebugKotlin` required to FAIL. 14 forced, 0 over-widened, 0 stale cases.
+
+⚠️ **The first falsification harness was a tenth adjacent-answer witness and its result was discarded.**
+It drove the edit with `awk -v int=…`; `int` is a gawk builtin, so awk aborted on every case, the shell
+redirect truncated each source file to EMPTY, and all 14 compiles failed *because the file was empty*.
+It reported a flawless 14/14 — the answer that was wanted — for a reason that had nothing to do with
+visibility. The rewrite (a) replaces exactly one whole line and asserts the edit applied without
+truncating, and (b) runs a **known-negative control first**: `ClickHandler` is widened, then reverted,
+and MUST report "still compiles". Without a reachable negative verdict, 14 positives are unfalsifiable.
+The control went green before any positive was accepted.
 
 Handler count is confirmed irrelevant a second time: settings has 5 handlers and forced none of them —
 `class XStoreImpl internal constructor(...)` keeps every handler off the public API regardless of count.
