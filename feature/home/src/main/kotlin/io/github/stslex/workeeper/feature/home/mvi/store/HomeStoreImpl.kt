@@ -18,7 +18,7 @@ import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.State
 // Metro constructs this PLAIN Store (class-level @Inject). Retention is
 // owned by the Android ViewModelStore via rememberMetroStoreProcessor — so NO @SingleIn here.
 @Inject
-internal class HomeStoreImpl(
+class HomeStoreImpl internal constructor(
     navigationHandler: NavigationHandler,
     clickHandler: ClickHandler,
     commonHandler: CommonHandler,

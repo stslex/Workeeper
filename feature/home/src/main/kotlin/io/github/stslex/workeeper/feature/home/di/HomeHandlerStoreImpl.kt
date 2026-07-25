@@ -10,5 +10,5 @@ import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.State
 
 @Inject
 @SingleIn(HomeScope::class)
-internal class HomeHandlerStoreImpl : HomeHandlerStore,
+class HomeHandlerStoreImpl : HomeHandlerStore,
     BaseHandlerStore<State, Action, Event>()

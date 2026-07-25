@@ -7,7 +7,7 @@ import io.github.stslex.workeeper.feature.home.domain.model.StartSessionConflict
 import io.github.stslex.workeeper.feature.home.domain.model.TrainingListItemDomain
 import kotlinx.coroutines.flow.Flow
 
-internal interface HomeInteractor {
+interface HomeInteractor {
 
     fun observeActiveSession(): Flow<ActiveSessionWithStatsDomain?>
 

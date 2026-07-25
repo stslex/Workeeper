@@ -9,7 +9,7 @@ import io.github.stslex.workeeper.feature.home.mvi.model.RecentSessionItem
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 
-internal interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStore.Event> {
+interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStore.Event> {
 
     @Stable
     data class State(

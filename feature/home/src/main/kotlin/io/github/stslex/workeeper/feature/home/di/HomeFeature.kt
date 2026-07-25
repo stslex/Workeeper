@@ -3,13 +3,10 @@ package io.github.stslex.workeeper.feature.home.di
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
-import dev.zacsweers.metro.createGraphFactory
 import io.github.stslex.workeeper.core.ui.mvi.Feature
-import io.github.stslex.workeeper.core.ui.mvi.di.StoreCoreDeps
 import io.github.stslex.workeeper.core.ui.mvi.di.appDeps
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
 import io.github.stslex.workeeper.core.ui.mvi.processor.rememberMetroStoreProcessor
-import io.github.stslex.workeeper.core.ui.navigation.NavigatorDeps
 import io.github.stslex.workeeper.core.ui.navigation.Screen.BottomBar.Home
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Action
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Event
@@ -19,12 +16,18 @@ import io.github.stslex.workeeper.feature.home.mvi.store.HomeStoreImpl
 internal typealias HomeStoreProcessor = StoreProcessor<State, Action, Event>
 
 /**
- * feature/home resolves its Store through the **Metro** path. PLAIN Store (a
- * BottomBar destination) — the graph exposes the Store directly and this composable retains it via
- * `rememberMetroStoreProcessor`. The 9 app-scoped deps are acquired as the composition of three narrow
- * interfaces ([StoreCoreDeps] + [NavigatorDeps] + [HomeDeps] — the domain tail: two repos,
- * `sessionConflictResolver`, `resourceWrapper`, qualified `@DefaultDispatcher`) via `context.appDeps<T>()`
- * (the god-object split, mechanism A). Single `@DefaultDispatcher`, no Context.
+ * feature/home resolves its Store through the Metro **graph-extension** path.
+ *
+ * The app-scope graph (returned as `Any` by the `AppDepsHolder` seam) IS the parent graph, and once
+ * `:app` is compiled it implements the contributed [HomeGraph.Factory]. `appDeps<T>()` re-narrows it with
+ * its `as T` cast — the same acquisition seam as before, now targeting the contributed factory instead of
+ * the three `XxxDeps` interfaces. (`asContribution<T>()` is not usable here: it requires a statically
+ * `@DependencyGraph`-typed receiver, which the `Any` seam is not.) All 9 formerly hand-threaded
+ * app-scoped deps are inherited from the parent, so `createHomeGraph()` takes no arguments.
+ *
+ * The extension is created INSIDE the `rememberMetroStoreProcessor` factory lambda, so it is built at
+ * most once per retained [HomeStoreImpl] (per `NavBackStackEntry` `ViewModelStore`) — binding the
+ * extension and its `@SingleIn(HomeScope)` nodes to exactly the Store's lifetime.
  */
 internal object HomeFeature : Feature<HomeStoreProcessor, Home>() {
 
@@ -33,24 +36,8 @@ internal object HomeFeature : Feature<HomeStoreProcessor, Home>() {
     override fun processor(): HomeStoreProcessor {
         val context = LocalContext.current
         return rememberMetroStoreProcessor<HomeStoreImpl> {
-            // Mechanism A (the god-object split): spine four from StoreCoreDeps + NavigatorDeps; the domain
-            // tail (repos + sessionConflictResolver + resourceWrapper + qualified @DefaultDispatcher) from
-            // HomeDeps.
-            val coreDeps = context.appDeps<StoreCoreDeps>()
-            val navDeps = context.appDeps<NavigatorDeps>()
-            val deps = context.appDeps<HomeDeps>()
-            createGraphFactory<HomeGraph.Factory>()
-                .create(
-                    trainingRepository = deps.trainingRepository,
-                    sessionRepository = deps.sessionRepository,
-                    sessionConflictResolver = deps.sessionConflictResolver,
-                    resourceWrapper = deps.resourceWrapper,
-                    navigator = navDeps.navigator,
-                    storeDispatchers = coreDeps.storeDispatchers,
-                    analyticsHolder = coreDeps.analyticsHolder,
-                    loggerHolder = coreDeps.loggerHolder,
-                    defaultDispatcher = deps.defaultDispatcher,
-                )
+            context.appDeps<HomeGraph.Factory>()
+                .createHomeGraph()
                 .homeStore
         } as HomeStoreProcessor
     }

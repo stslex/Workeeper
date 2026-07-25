@@ -22,7 +22,7 @@ import kotlinx.coroutines.withContext
 @Suppress("LongParameterList")
 @Inject
 @SingleIn(HomeScope::class)
-internal class HomeInteractorImpl(
+class HomeInteractorImpl(
     private val sessionRepository: SessionRepository,
     private val trainingRepository: TrainingRepository,
     private val sessionConflictResolver: SessionConflictResolver,

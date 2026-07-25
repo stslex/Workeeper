@@ -2,30 +2,31 @@
 package io.github.stslex.workeeper.feature.home.di
 
 import dev.zacsweers.metro.Binds
-import dev.zacsweers.metro.DependencyGraph
-import dev.zacsweers.metro.Provides
-import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
-import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
-import io.github.stslex.workeeper.core.data.exercise.session.SessionConflictResolver
-import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
-import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
-import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
-import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
-import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
-import io.github.stslex.workeeper.core.ui.navigation.Navigator
+import dev.zacsweers.metro.ContributesTo
+import dev.zacsweers.metro.GraphExtension
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.feature.home.domain.HomeInteractor
 import io.github.stslex.workeeper.feature.home.domain.HomeInteractorImpl
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStoreImpl
-import kotlinx.coroutines.CoroutineDispatcher
 
 /**
- * The single Metro dependency graph for feature/home (KMP C.1 wave 3). Scoped to [HomeScope].
- * PLAIN Store (a BottomBar destination): the graph exposes the Store directly. 9 app-scoped
- * `@Provides` bound instances; two `@Binds` migrate from the deleted module. `@DefaultDispatcher`
- * stays QUALIFIED (`includeJavax`). No Context.
+ * feature/home's Metro graph as a CONTRIBUTED [GraphExtension] of [HomeScope]. The factory carries
+ * `@ContributesTo(AppScope::class)`, so the extension is merged into the app graph in `:app` and inherits
+ * ALL of its app-scoped bindings — the 9 formerly hand-threaded bound-instance `@Provides` are gone and
+ * `createHomeGraph()` takes no arguments. The two `@Binds` (interactor, handler store) stay.
+ *
+ * PLAIN Store (a BottomBar destination): the graph exposes the Store directly, no assisted machinery and
+ * no route arg. Structurally the same shape as archive's extension — which is the point of porting it
+ * here: it is the arc's build-time DISAMBIGUATOR. settings (feature 4) stepped 1.2 → 1.4s while being
+ * both the 4th extension AND the widest feature in the repo, confounding N with feature width. home holds
+ * the structure constant and varies only size, so row 5 separates the two. See the running build-time
+ * table in documentation/graph-extension-arc/HANDOFF.md.
+ *
+ * Interface + factory are `public` because `:app` generates the extension impl and references them;
+ * [HomeScope] stays `internal` (Metro reads the scope KClass at IR level).
  */
-@DependencyGraph(scope = HomeScope::class)
-internal interface HomeGraph {
+@GraphExtension(HomeScope::class)
+interface HomeGraph {
 
     /** Root accessor: the retained Store (plain, non-assisted). */
     val homeStore: HomeStoreImpl
@@ -36,18 +37,15 @@ internal interface HomeGraph {
     @Binds
     val HomeHandlerStoreImpl.bindHandlerStore: HomeHandlerStore
 
-    @DependencyGraph.Factory
+    /**
+     * The creator method name must be UNIQUE across all contributed extension factories: every
+     * `@ContributesTo(AppScope::class)` factory is merged into `AppGraph`, so two factories both
+     * declaring `create()` collide ("return types are incompatible"). Binding rule for all 13 — see
+     * documentation/graph-extension-arc/HANDOFF.md.
+     */
+    @ContributesTo(AppScope::class)
+    @GraphExtension.Factory
     fun interface Factory {
-        fun create(
-            @Provides trainingRepository: TrainingRepository,
-            @Provides sessionRepository: SessionRepository,
-            @Provides sessionConflictResolver: SessionConflictResolver,
-            @Provides resourceWrapper: ResourceWrapper,
-            @Provides navigator: Navigator,
-            @Provides storeDispatchers: StoreDispatchers,
-            @Provides analyticsHolder: AnalyticsHolder,
-            @Provides loggerHolder: LoggerHolder,
-            @Provides @DefaultDispatcher defaultDispatcher: CoroutineDispatcher,
-        ): HomeGraph
+        fun createHomeGraph(): HomeGraph
     }
 }
