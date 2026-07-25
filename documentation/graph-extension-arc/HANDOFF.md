@@ -77,13 +77,43 @@ the whole arc or none of it.
   *(Count the supertypes by READING the list, not by grepping `Deps,` — the last entry ends in ` {`
   and a comma-anchored grep returns 7. That is STANDING RULE 5 witness #1 recurring; it recurred again
   while writing this line.)*
-- **REMAINING — no feature ports. What is left is the close-out:**
-  1. the **three closing commits** — delete the remaining bridge interfaces + the **ENUMERATED 14**
-     orphaned accessors; `AppGraph` `override` → plain down to the `StoreCoreDeps` + `NavigatorDeps`
-     spine; delete `FeatureAssisted` / `StoreFactory` from `core:ui:mvi` (**`StoreFactory` now has zero
-     users**) — and check whether `AppFeature` can go too, since app-dialogs was its only user;
-  2. the **on-device restore-cycle known-positive anchor** on the base;
-  3. then **#176**.
+- **CLOSING COMMITS — 2 of 2 possible are DONE; three planned items do NOT survive measurement.**
+  1. ✅ `1f62da9e` — deleted the **8 orphaned accessors that are actually dead**. Of the 14 orphans,
+     only 8 are dead; **6 are live roots** and stay. Proven both ways: deleting a live one fails,
+     deleting the 8 is green.
+  2. ✅ `4b569f96` — deleted **`StoreFactory`** (zero implementors once all seven route-arg features
+     stopped being assisted). Kept as its own commit so a bisect can separate it from item 1.
+  3. ❌ **`FeatureAssisted` CANNOT be deleted — 7 live users.** Every ported route-arg feature still
+     extends it, and `NavComponentScreen` + `ScreenInjectionRule` reference it. Its difference from
+     `Feature` is `processor(screen: TScreen)` vs `processor()` — a **composition-time** concern (the
+     destination must hand the route arg in) that the DI port never touched. The plan conflated
+     "delete the assisted DI machinery" with "delete the assisted composition base class"; only the
+     former was ever true.
+  4. ❌ **`AppFeature` CANNOT be deleted** — app-dialogs still extends it, plus its own
+     `AppFeatureScopeTest` / `AppFeatureProbe` in `core:ui:mvi` androidTest. Porting app-dialogs
+     changed its DI, not its mount-site shape.
+  5. ❌ **The `AppGraph` `override` → plain collapse is ALREADY DONE**, distributed across the five
+     `XxxDeps` deletion commits — that is exactly what the 14 orphan conversions were. There is no
+     separate collapse commit to write. The 11 accessors still carrying `override` all override a
+     **live** supertype.
+  6. ⚠️ **The supertype list bottoms out at FOUR, not two.** `StoreCoreDeps` + `NavigatorDeps` are the
+     feature-facing γ-spine, but `RecoveryDeps` and `BackupWorkerDeps` are **live framework seams**,
+     not feature-graph bridges: `RecoveryActivity` reads `RecoveryDeps` via `RecoveryDepsHolder`
+     point-acquisition, and `MetroWorkerFactory` reads `BackupWorkerDeps` via `BackupWorkerDepsHolder`
+     — both are entry points that must not depend on `core:ui:mvi`. Collapsing "to the
+     StoreCoreDeps + NavigatorDeps spine" as written would break both.
+
+  🚫 **BLOCKED — the on-device restore-cycle anchor cannot be run by an agent.** It is a **manual,
+  device-driven, credential-requiring** procedure, not an automated test: `tech-debt.md:219` records it
+  as *"the manual/device restore-gate baseline … not by any automated instrumented test"*, and
+  `BackupStorage` is `DriveBackupStorage` — restore needs a signed-in Google account, live Drive OAuth,
+  and an existing backup to restore from. An emulator is attached and the base (`cf328bf4`) is
+  reachable, so this can be run at any time on that fixed SHA; **the ordering is not lost by having
+  done the two closing commits first, because nothing has been merged.** It must be run before merge.
+  Note the existing tag `metro-batch-anchor` → `64f875d6` is the *App-Scope Collapse* arc's anchor, not
+  this one's.
+
+  Then **#176**.
   ⚠️ **CORRECTION, standing: `live-workout` was port 12 of 13, not 13 of 13.** Its commit (`ee959370`)
   is mislabelled "13/13" and "THE LAST FEATURE GRAPH". It is the last *assisted* feature and the last
   *feature-graph bridge interface*; `app-dialogs` (`5fafe040`) is the thirteenth graph. The label was
