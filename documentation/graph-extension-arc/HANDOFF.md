@@ -48,45 +48,52 @@ the whole arc or none of it.
   on a shape is a hole in the guarantee it replaces** — re-prove per NEW shape, not per feature.
 - **AppGraph accessor cleanup is deferred to the final feature** and is substantial, not cosmetic —
   see the orphaned-accessor ledger below for its running size.
-- **Build-time is NOT a usable gate right now** — see the row-6 withdrawal below. Re-baseline with
-  `sh documentation/graph-extension-arc/measure-build-time.sh` in a FRESH session before reading any
-  slope. It pilots, derives n from observed variance, self-verifies N by counting extensions at each
-  checkout, and measures history from read-only `git worktree`s.
+- **Build-time gate READ and GREEN — FLAT across N=1…7, batch unlocked.** The fresh-session
+  re-baseline is done (see the re-baseline section below). N is not resolved anywhere in the series;
+  the earlier "step at feature 4" is **disproven as session drift**. Re-run with
+  `sh documentation/graph-extension-arc/measure-build-time.sh` and append a row per new port. The
+  plateau is confirmed only to **N=7** — each new real extension extends it, so this is not a licence
+  to stop measuring.
 
-## ▶ NEXT SESSION — do this first, in this order
+## ▶ NEXT SESSION — batch the four remaining assisted features
 
-The batch of remaining features is GATED on a build-time reading that does not exist yet. Steps 1–2 are
-done; 3–4 are why this section is here.
+**The build-time gate is READ and it is FLAT. The batch is unlocked.** Steps 1–3 below are done; the
+work now is the batch itself.
 
 1. ~~Commit ports 4–7.~~ Done — `d784a510`, `02e90d81`, `b3272960`, `ff1299b1`, `8be3bde0`.
 2. ~~Wire their SHAs into the measurement script's `SERIES` block.~~ Done — N = 1…7 all covered, plus a
    duplicate at N=7 (`ff1299b1` pre-bridge-deletion vs `8be3bde0` post) as a free control for whether
-   the bridge residue confounds the series.
-3. **In a FRESH session** (not a continuation of the one that produced rows 3–6 — those shared a
-   machine/session, so slow drift is confounded with N until a clean run separates them):
+   the bridge residue confounds the series. It does not; see the re-baseline.
+3. ~~Re-measure in a FRESH session.~~ Done. FLAT across N=1…7, four independent legs, full numbers in
+   the re-baseline section below.
 
-   ```bash
-   sh documentation/graph-extension-arc/measure-build-time.sh
-   ```
+**Batch `single-training`, `past-session`, `exercise-chart`, `live-workout`** under the proven shape-B
+pattern, one commit per feature:
 
-   The script's **STEP 0 calibrates itself before measuring anything**, and will abort rather than
-   emit a flat series it cannot trust. "Rejects stale runs" and "can register a real regression in
-   THIS session" are separate properties: the run-level guards prove the first, only a known-positive
-   proves the second, and a fresh session is a different machine-point. Step 0 wipes every build dir,
-   times one cold `:app:app:compileDebugKotlin`, and requires tens of seconds. Verified both ways in
-   place: cold registers **28.5s** → CALIBRATED; warm registers **1.0s** → ABORT under the 10s floor.
+- `@GraphExtension` + **uniquely-named** factory creator (never a bare `create()`);
+- `@Inject` class with `internal` constructor;
+- identity test in `app/app/src/test`;
+- `appDeps<Factory>()` flip point;
+- detekt with `./gradlew --stop` first — the daemon serves the `lint-rules.jar` it loaded first.
 
-4. **Read RANGES, not medians.** Overlapping ranges mean N is not resolved between those rows. A lower
-   median at a higher N means N is not the driver at this resolution.
+**Predict forced-public per feature BEFORE widening** (plumbing 6 + interactor pairs×N + models
+reachable in the closure). **A prediction that lands HIGH is a STOP, not a pleasant surprise** —
+signature-only counting systematically UNDER-predicts, so landing high means something structurally
+different is going on and it must be understood before the next port.
 
-**The gate.** Flat across N=4…7 ⇒ the feature-4 step was an artifact, the 13-extension endpoint is safe,
-and the four remaining assisted features (`exercise`, `exercise-chart`, `live-workout`, `past-session`,
-`single-training` — five, minus whichever is taken first) can be batched by the proven pattern. Rising ⇒
-**STOP** and name the mechanism in `:app`'s merged-graph codegen that costs the time, before any
-extrapolation to 13.
+**Append a build-time row per port.** The plateau is confirmed only to N=7; each new real extension
+extends it. Any future slope must beat the **±0.045s same-N reproducibility** established below.
 
-`app-dialogs` stays OUT of any batch: app-root-scoped and screen-less, its own shape, not a mechanical
+`app-dialogs` stays OUT of the batch: app-root-scoped and screen-less, its own shape, not a mechanical
 port. Handle it separately.
+
+### ⚠ FLAT UNLOCKS THE BATCH, NOT THE MERGE
+
+The arc is indivisible. A green slope reading does not shorten the list still gated before anything
+merges: **all 13 features** + **app-dialogs** (separate, not batched) + the **three closing commits**
+(delete the 10 remaining `XxxDeps` interfaces and the accumulated orphaned accessors; `AppGraph`
+`override` → plain; delete `FeatureAssisted`/`StoreFactory` from `core:ui:mvi`) + the **on-device
+restore-cycle known-positive anchor** on the base.
 
 ## The proven pattern (per feature)
 
@@ -152,11 +159,12 @@ bytecode; `--rerun-tasks` does not defeat it and nothing in the output signals i
 session on `ScreenInjectionRule`, where a correct rule appeared not to fire on real code. Details and
 the two-anchor proof procedure: `documentation/lint-rules.md`.
 
-## ⚠️ THE ADJACENT-ANSWER CLASS — one failure mode, seven witnesses
+## ⚠️ THE ADJACENT-ANSWER CLASS — one failure mode, nine witnesses
 
 Every silent failure this arc has hit is the **same defect wearing different clothes**. It is written up
-once, as a class, because there will be an eighth and the next session should recognise its shape rather
-than rediscover it from scratch.
+once, as a class, because there will be a tenth and the next session should recognise its shape rather
+than rediscover it from scratch. Witnesses 8 and 9 were both caught during the build-time re-baseline —
+the eighth in the classic silent shape, the ninth in a NEW shape the list had not yet recorded.
 
 > **THE CLASS.** The instrument answers a question *adjacent* to the one asked, and reports success
 > either way. No error is raised, so the wrong answer arrives wearing the costume of evidence.
@@ -168,7 +176,7 @@ It is never a crash, never a stack trace, never a warning. It is always a plausi
 pass. That is the whole difficulty: the failure and the success are byte-identical at the point you read
 them, and only differ in what produced them.
 
-### The seven witnesses
+### The nine witnesses
 
 | # | Witness | Answered… | …the actual question | The tell |
 |---|---|---|---|---|
@@ -179,8 +187,28 @@ them, and only differ in what produced them.
 | 5 | arithmetic-not-measured | "the ledger says N" | nobody re-read the file at that SHA | a commit message disagreeing with the table |
 | 6 | wrapper — bad word split | "5 SHAs COMPILE" | zsh did not split `set -- $spec`; all five rows measured the working tree | **N column read 7,7,7,7,7 instead of 4,5,6,7,7** |
 | 7 | wrapper — copied script | "the calibration gate aborts" | the copy resolved `REPO` from its own `dirname`, so `./gradlew` did not exist | it aborted for the *wrong reason*, which reads identically to the right one |
+| 8 | cold sample-1 in every worktree row | "N=4…7 ranges all overlap ⇒ FLAT" | every row's first sample was a full cold build, so every max was pinned near 29s | ranges that overlap **by construction** — the readout is identical whether the series is flat or rising |
+| 9 | worktree missing gitignored config | "the historical rows measured nothing" | the build died at CONFIGURATION time; worktrees do not inherit `keystore.properties` | `NO VALID SAMPLES` — it announced itself instead of returning a number |
 
-### Recognising the eighth
+**Witness 8 is the most dangerous one recorded**, because it was aimed at the GO branch of a live gate.
+`wipe_builds` leaves a worktree fully uncompiled, so each row's first measured sample was a cold build:
+probed in one checkout, sample 1 = **29.192s** against **1.202s / 0.932s** for samples 2–3. A single
+such value cannot move a median — but it pins max and spread near 29s in EVERY row, and the gate is
+decided by whether ranges **OVERLAP**. Ranges all spanning ~1–29s overlap by construction, so the series
+would have reported FLAT whether or not it was. Recognition-question 2 fails exactly. The fix is a
+discarded warm-up per worktree, so all rows are compared warm; the working tree never carried the cold
+sample, so the defect was an asymmetry *between* rows.
+
+**Witness 9 is a NEW shape and the class grew to hold it.** Until now every witness was silent — a
+plausible number or a clean pass. This one was LOUD: the instrument died for a reason the class was not
+watching for (configuration-time failure, not measurement-time), and it was caught **only because the
+row printed `NO VALID SAMPLES` instead of a number**. The lesson is not "add a guard for keystores"; it
+is that an instrument can fail outside every failure mode you have enumerated, and the property that
+saves you is that it **reports absence as absence** rather than substituting a default. Note also what
+did NOT catch it: the N column ascended `1,2,3,4,5,6` perfectly through eight rows that measured
+nothing at all. **An integrity check proves the thing it checks, and nothing adjacent to it.**
+
+### Recognising the tenth
 
 Three questions, in order. Any "no" means you are holding an adjacent answer:
 
@@ -190,7 +218,7 @@ Three questions, in order. Any "no" means you are holding an adjacent answer:
 3. **Am I reading the instrument, or a wrapper around it?** Witnesses 6 and 7 were both in the wrapper,
    and both defeated an instrument that was itself correct and self-guarding.
 
-### The boundary the last two found
+### The boundary witnesses 6 and 7 found
 
 `measure-build-time.sh` rejects UP-TO-DATE and FROM-CACHE runs and calibrates itself against a cold
 build — and neither guard can see a caller that hands it the wrong directory or collapses its arguments.
@@ -266,115 +294,184 @@ So the split arc splits in two:
 
 All ports build on `cf328bf`, as the spike already does. No rebase, no force-push.
 
-## Running build-time table (append one row per ported feature)
+## ✅ Build-time re-baseline — FRESH SESSION, the authoritative table
 
-Per-feature guard against the untested "13 REAL extensions" cell: the N=0…16 slope probe used synthetic
-extensions (2 `@Binds` + trivial accessor), lighter than real features, and flat-on-each-axis does not
-prove flat-on-the-product. Measure **clean `:app:app:compileDebugKotlin`** (real clean state:
-`rm -rf app/app/build`, `--no-build-cache`, per-task state reported, ≥3 runs) **before and after** each
-port. A real slope departure will show by feature 3, not feature 13.
+**Every earlier build-time figure in this document is SUPERSEDED by this table.** The rows below were
+measured in one fresh session, all nine from one `measure-build-time.sh` run, and every number was
+recomputed from the raw sample files rather than transcribed. Do not carry a figure forward from the
+superseded history further down.
+
+**Task-execution seconds only — one figure family, no mixing.** All rows come from the `Task Execution`
+figure in the `--profile` HTML. No `Total Build Time` figure appears in this table.
+
+| N | feature | SHA | n | median | min | max | spread | sd |
+|---|---|---|---|---|---|---|---|---|
+| 1 | all-trainings | `9f17d02a` | 9 | 0.827 | 0.782 | 1.004 | 0.222 | 0.070 |
+| 2 | archive | `4c184e5e` | 9 | 0.833 | 0.806 | 0.972 | 0.166 | 0.063 |
+| 3 | image-viewer | `4c7a1a67` | 9 | 0.826 | 0.807 | 0.850 | 0.043 | 0.014 |
+| 4 | settings | `d784a510` | 9 | 0.894 | 0.839 | 1.095 | 0.256 | 0.102 |
+| 5 | home | `02e90d81` | 9 | 0.848 | 0.829 | 0.999 | 0.170 | 0.068 |
+| 6 | all-exercises | `b3272960` | 9 | 0.896 | 0.866 | 1.118 | 0.252 | 0.084 |
+| 7 | plan-editor | `ff1299b1` | 9 | 0.875 | 0.839 | 1.042 | 0.203 | 0.063 |
+| 7 | plan-editor-postbridge | `8be3bde0` | 9 | 0.861 | 0.833 | 1.111 | 0.278 | 0.090 |
+| 7 | current (working tree) | — | 9 | 0.906 | 0.855 | 1.042 | 0.187 | 0.072 |
+
+Run integrity: **STEP 0 calibrated at 23.261s** cold against the 10s floor; **N column `1 2 3 4 5 6 7 7 7`**
+(ascending, so no wrapper collapse); **n = 9 derived from pilot variance and it hit the FLOOR, not the
+cap** (unclamped requirement ≈4, worst-row SE of the median ≈0.043s against a 0.05s target); **zero
+rejected samples** across all 81 — no UP-TO-DATE, no FROM-CACHE, no `.fail.log` written.
+
+### THE VERDICT: FLAT across N=1…7. N is not resolved anywhere in this series.
+
+It rests on **four independent legs**, not one number:
+
+1. **Not monotonic.** N=4…7 medians run 0.894 → 0.848 → 0.896 → 0.875 / 0.861 / 0.906 — down, up, down.
+   A *lower* median at a *higher* N occurs twice. A slope cannot do that.
+2. **All N=4…7 ranges share a common band.** The intersection is **[0.866, 0.999]**, non-empty and
+   0.133s wide, shared by all six rows.
+3. **Across-N variation ≈ same-N variation.** The total median span over N=4…7 is **0.058s**; the
+   same-N reproducibility yardstick (below) is **±0.045s**. The signal is the size of the noise.
+4. **The design is biased TOWARD false slopes, and still produced null.** N ascends in measurement
+   order, so any session drift ADDS to an apparent climb. A null result under that bias is *stronger*
+   evidence of flatness, not weaker.
+
+Across the whole series N=1…7 the medians span only 0.080s — smaller than the *within-row* spread of
+**eight of the nine rows** (every row except image-viewer, whose spread is 0.043s).
+
+### The yardstick: ±0.045s same-N reproducibility
+
+The three rows at **constant N=7** (0.875 / 0.861 / 0.906) are separate checkouts measured at different
+points in the session. Their median span, **0.045s**, is a direct empirical measure of row-to-row
+reproducibility with N *held fixed*. **Any future slope claim must beat ±0.045s to be a slope at all.**
+This is the number to compare new rows against — not a bare difference of two medians.
+
+### The one honest qualification — named, not smoothed
+
+Mean-of-medians for N=1–3 is **0.829** against **0.880** for N=4–7: a gap of **0.051s**. State plainly
+what that is and is not, because the first draft of this section got it backwards and understated its
+own evidence: **the gap is NOT inside the noise of the group comparison.** It exceeds the ±0.045s
+yardstick. All six N=4–7 medians sit above all three N=1–3 medians — perfect rank separation. Under the
+series' own between-row variability (sd of the three N=7 medians, 0.023s), the difference of group means
+is **3.2 SE**; even the most conservative defensible error bar — the worst row's SE of the median,
+0.042s, applied to every row and propagated into two group means, 0.042·√(1/3+1/6) = 0.030s — still
+leaves it at **1.7 SE**.
+
+*(The retired claim was "inside an SE of ~0.06s". That 0.06 is √2 × the worst SINGLE row's SE of the
+median: a two-single-rows construction silently applied to a two-groups comparison, discarding both
+group sizes. It is exactly the adjacent-answer shape in arithmetic form — a plausible number answering
+a question next to the one asked.)*
+
+**What keeps the step unresolved is the DESIGN, not the arithmetic.** N ascends in measurement order, so
+"the rows with N≤3" and "the first three rows of the session" are the *same three rows*. A step at
+N=3→4 is therefore exactly degenerate with the session simply getting slower after its first three rows
+— and this series shows that drift directly: the working-tree row, measured **last**, carries the
+highest median of all nine (0.906). This is the same confound that killed the superseded +0.25s step,
+and one session cannot break it from the inside.
+
+**So a step at N=3→4 can be neither excluded nor established from this series.** What it is not, either
+way, is a **slope** — nothing climbs across N=4…7, which is the range the gate actually turns on, and
+that is why the gate reads GO. Do not promote this to a finding and do not smooth it away.
+
+**To resolve it, a future run must measure the rows in a different order** — reversed or interleaved, so
+that N and session-position stop being the same axis. Until some run does that, treat the N≤3 vs N≥4
+level difference as unattributed.
+
+### The bridge-residue control: PASSED
+
+`ff1299b1` (four dead `XxxDeps` still on `AppGraph`) vs `8be3bde0` (deleted) — same extension count,
+different supertype list. **0.875 vs 0.861, a 0.014s difference, ranges [0.839, 1.042] vs
+[0.833, 1.111] nearly co-extensive.** The bridge residue does **not** confound the series and no re-cut
+is needed. The control then paid for itself twice by yielding the ±0.045s yardstick above.
+
+### Why the fresh session was mandatory
+
+The superseded reading called a **+0.25s step at N=3→4** and it does not reproduce:
+
+| N | superseded (one shared session) | fresh session | Δ |
+|---|---|---|---|
+| 3 image-viewer | 0.946 [0.930, 1.012] | 0.826 [0.807, 0.850] | −0.12 |
+| 4 settings | 1.199 [1.055, 1.258] | 0.894 [0.839, 1.095] | −0.31 |
+| 5 home | 1.204 [1.202, 1.241] | 0.848 [0.829, 0.999] | −0.36 |
+| 6 all-exercises | 1.155 [0.959, 1.735] | 0.896 [0.866, 1.118] | −0.26 |
+
+Every fresh row lands materially **below** its predecessor, and the decisive detail is the overlap: in
+the superseded rows N=3 and N=4 were **disjoint** ([0.930, 1.012] vs [1.055, 1.258]) — which is exactly
+why it read as a real step. In the fresh series they **overlap** (0.839–0.850) and the gap collapses
+from **+0.25s to +0.068s**.
+
+**The step at feature 4 is disproven as session drift.** Without the fresh-session requirement that
+false step would have been extrapolated to 13 extensions.
+
+### Protocol for every future row
+
+- **n ≥ 9**, reported as median + min/max, **compared as distributions**. A row reporting only a median
+  is not usable evidence; never compare two point medians and call the difference a trend.
+- **Read RANGES, not medians.** Overlapping ranges mean N is not resolved between those rows.
+- **One figure family per column.** Task-execution is the cleaner metric; never mix it with whole-build.
+- **A new row must beat ±0.045s** before it is a slope.
+- **Vary the measurement ORDER, not just N.** In this run N ascended in measurement order, so N and
+  session-position are the same axis and any level difference between early and late rows is
+  unattributable. A reversed or interleaved run would break that confound and settle the N=3→4 question.
+- **Compute an SE at the level you are comparing at.** Two group means do not take the SE of two single
+  rows; carry each group's n through.
+- The plateau is confirmed only to **N=7**. Each new real extension extends it — this is not a licence
+  to stop measuring. The claim under test is flat-on-the-product, and only measurement retires it.
+- If a future series ever DOES rise: **name the mechanism** in `:app`'s merged-graph codegen that costs
+  the time before extrapolating. "Associated with N" is not a mechanism.
+
+## Superseded build-time history (kept for the reasoning, NOT for the numbers)
+
+Everything below this line is retained because the *reasoning* is load-bearing — it is how the n≥9
+protocol and the fresh-session requirement were earned. **Its numbers are dead.** The original per-feature
+guard against the untested "13 REAL extensions" cell: the N=0…16 slope probe used synthetic extensions
+(2 `@Binds` + trivial accessor), lighter than real features, and flat-on-each-axis does not prove
+flat-on-the-product — which is why a row is still appended per port.
 
 | Extensions in `:app` | After porting | clean `:app:app` median | runs | task state |
 |---|---|---|---|---|
-| 1 | all-trainings | **1.4s** | 1.7 / 1.3 / 1.4 | EXECUTED, 0 FROM-CACHE |
-| 2 | archive | **1.2s** | 1.2 / 1.5 / 1.2 | EXECUTED, 0 FROM-CACHE |
-| 3 | image-viewer | **1.2s** | 1.2 / 1.2 / 1.1 | EXECUTED, 0 FROM-CACHE |
-| 4 | settings | **1.4s** | 1.4 / 1.4 / 1.2 | EXECUTED, 0 FROM-CACHE |
-| 5 | home (disambiguator) | **1.4s** | 1.5 / 1.4 / 1.3 | EXECUTED, 0 FROM-CACHE |
-| 6 | all-exercises | **1.5s** (n=9, see below) | 1.6 / 1.8 / 1.5 / 1.4 / 1.2 / 1.2 / 1.2 / 1.3 / 1.2 | EXECUTED, 0 FROM-CACHE |
+| 1 | all-trainings | ~~1.4s~~ | 1.7 / 1.3 / 1.4 | EXECUTED, 0 FROM-CACHE |
+| 2 | archive | ~~1.2s~~ | 1.2 / 1.5 / 1.2 | EXECUTED, 0 FROM-CACHE |
+| 3 | image-viewer | ~~1.2s~~ | 1.2 / 1.2 / 1.1 | EXECUTED, 0 FROM-CACHE |
+| 4 | settings | ~~1.4s~~ | 1.4 / 1.4 / 1.2 | EXECUTED, 0 FROM-CACHE |
+| 5 | home (disambiguator) | ~~1.4s~~ | 1.5 / 1.4 / 1.3 | EXECUTED, 0 FROM-CACHE |
+| 6 | all-exercises | ~~1.3s~~ (n=9) | 1.6 / 1.8 / 1.5 / 1.4 / 1.2 / 1.2 / 1.2 / 1.3 / 1.2 | EXECUTED, 0 FROM-CACHE |
 
-Row 3 figures are whole-build medians from `--profile` (`Total Build Time`), the same family as rows 1–2.
-The narrower `Task Execution` figure for the same three runs was 0.9 / 1.0 / 0.9 → **0.9s** median; quote
-one family or the other, never mix them.
+Those are whole-build medians (`Total Build Time`); the task-execution figures for the same runs are in
+the comparison table above. All of them are confounded with drift across one long session.
 
-Row 4 task-execution figures were 1.2 / 1.3 / 1.1 → **1.2s** median.
+Row 6's median was recorded here as **1.5s** and that was arithmetically wrong even on its own run list:
+the nine runs sort to 1.2 1.2 1.2 1.2 **1.3** 1.4 1.5 1.6 1.8. 1.5 is the median of the FIRST FIVE runs,
+left unupdated when the row was extended to n=9. Corrected above for the record. It is a dead number in
+a dead table and nothing downstream depended on it — but it is a fifth instance of STANDING RULE 5:
+a stale figure survives because nobody re-derived it, and it never raises an error.
 
-**The feature-3 guard is discharged.** The protocol above put the load-bearing test at feature 3
-precisely because the flat N=0…16 slope came from synthetic extensions — and 3 REAL extensions were flat
-(1.4 → 1.2 → 1.2). Nothing here licenses feature 13: keep appending a row per port, since the claim
-being tested is flat-on-the-product, and only measurement retires it.
+### ~~The step at feature 4~~ — RETIRED, disproven as drift
 
-**Row 4 is NOT flat, and the row cannot say why.** Whole-build went 1.2 → 1.4s, task-execution 0.9 →
-1.2s. Before reading that as slope, note two things. Run-to-run spread inside row 4 is 1.2…1.4s, so the
-step is the same size as the noise — its own low sample equals the previous median. And the row confounds
-two variables: settings is both the 4th extension AND the widest feature in the repo (18 inherited
-bindings, 22 forced-public types), so `:app`'s merged-graph codegen grew for a reason that has nothing to
-do with N.
+The reading these rows produced was: *whole-build 1.2 → 1.4s and task-execution 0.9 → 1.2s at N=3→4, a
+step ~0.3s sitting outside the spread of rows 3 and 5, therefore a real step to a plateau.* It survived
+one disambiguation (home, a deliberately SMALL feature, failed to bring the number back down, so the
+step was not settings being the widest feature in the repo — 18 inherited bindings, 22 forced-public).
 
-**Disambiguating prediction — port a SMALL feature next.** If the rise is feature size, row 5 drops back
-toward 1.2s; if it is genuinely N, row 5 stays at ~1.4s or climbs. Do not average the two readings away,
-and do not record row 5 without noting which outcome it produced.
+**It is now disproven.** The fresh series overlaps at N=3/N=4 where the superseded rows were disjoint,
+and the gap collapses from +0.25s to +0.068s. The cause was **session drift**, not N: rows 3–6 were all
+measured at different points in one long session, which is precisely the confound the fresh-session
+requirement was written to break. Numbers and comparison table in the authoritative section above.
 
-### Row 5 outcome: the prediction resolved AGAINST feature width
+**The three reasoning steps that survive**, because they are how the current protocol was earned:
 
-home was chosen to hold structure constant and vary only size — same plain-Store shape as archive, 9
-inherited bindings vs settings' 18, 13 forced-public vs 22. It **stayed at 1.4s**. A small feature did not
-bring the number back down, so the step at feature 4 was not settings being wide.
+1. **A row can confound two variables at once.** Row 4 varied N *and* feature width simultaneously; it
+   took a purpose-built row 5 to separate them. Design each new row to vary one thing.
+2. **n=3 medians are not stable.** Row 6 at n=9 read 1.155s while its own first three samples alone
+   would have reported 1.273s — a 0.12s swing from sampling, against a claimed step of 0.3s. This is
+   what bought the **n ≥ 9** protocol. Row 6 also produced a LOWER median at a HIGHER N (1.155 vs row
+   5's 1.204) and a range (0.959–1.735) that swallowed every earlier row.
+3. **"Associated with N" is not a mechanism.** Nothing in those rows ever identified WHAT in `:app`'s
+   merged-graph codegen would cost the time — which is why naming the mechanism is still a hard
+   precondition for extrapolating any future rise.
 
-Read the task-execution series, which is the cleaner metric — its within-row spread is far tighter than
-whole-build (row 5: 1.20 / 1.24 / 1.20, spread 0.04s):
-
-| N | feature | task exec median | within-row spread |
-|---|---|---|---|
-| 3 | image-viewer | **0.9s** | 0.08s |
-| 4 | settings | **1.2s** | 0.20s |
-| 5 | home | **1.2s** | 0.04s |
-
-The 3 → 4 step (~0.3s) sits well outside the spread of rows 3 and 5, so it is a real step, not noise. It
-then held flat from 4 to 5.
-
-**So: a step to a plateau, associated with N — NOT a per-feature slope.** That distinction matters for
-feature 13: a slope would compound, a step will not. Two points do not establish a plateau, so this is
-provisional.
-
-**Next discriminator — port another SMALL feature (feature 6) and read task-exec only.** Flat at ~1.2s ⇒
-step-then-plateau confirmed, and the 13-extension endpoint is safe. Rising ⇒ it is a slope after all and
-the endpoint needs re-estimating before the mechanical ports continue.
-
-Two honest caveats on this reading. Rows 3–5 were measured in one session on one machine but at different
-points in it, so slow drift in machine state is not excluded. And "associated with N" is not a mechanism —
-nothing here identifies WHAT in `:app`'s merged-graph codegen costs the 0.3s. If row 6 rises, find the
-mechanism before extrapolating to 13.
-
-### ⚠ Row 6 WITHDRAWS the step reading — the measurement is underpowered at n=3
-
-all-exercises (feature 6, a near-replicate of home: same plain-Store shape, 9 vs 9 threaded deps) was
-measured at **n=9** instead of the protocol's 3. That alone dissolves the result:
-
-| N | feature | n | median | min | max | spread |
-|---|---|---|---|---|---|---|
-| 3 | image-viewer | 3 | 0.946 | 0.930 | 1.012 | 0.08 |
-| 4 | settings | 3 | 1.199 | 1.055 | 1.258 | 0.20 |
-| 5 | home | 3 | 1.204 | 1.202 | 1.241 | 0.04 |
-| 6 | all-exercises | **9** | **1.155** | **0.959** | **1.735** | **0.78** |
-
-Three findings, each fatal to the previous reading:
-
-1. **More extensions produced a LOWER median.** Row 6 (n=9) is 1.155s against row 5's 1.204s. If N drove
-   the number, this could not happen.
-2. **Row 6's range swallows every earlier row.** Its minimum, 0.959s, sits inside row 3's range
-   (0.930–1.012) — a 6-extension build produced a sample as fast as a 3-extension build.
-3. **n=3 medians are not stable.** Row 6's first three samples alone would have reported 1.273s; all nine
-   report 1.155s. A 0.12s swing from sampling alone, against a "step" of 0.3s.
-
-**So the 3 → 4 step is not established, and the step-vs-plateau question was never answerable at n=3.**
-The noise band is the same size as the effect. Rows 1–5 are single-digit-sample point estimates and must
-not be compared as if they were measurements. This also retro-explains row 1 (all-trainings, N=1) landing
-at 1.4s — as high as N=4 and N=5.
-
-**Protocol change — build-time rows require n ≥ 9, reported as median + min/max, compared as
-distributions.** A row that reports only a median is not usable evidence. Do not compare two point
-medians and call the difference a trend.
-
-**Build-time is NOT currently a usable gate on the mechanical run.** Before it can gate anything:
-
-- re-measure in a FRESH session (rows 3–6 all share one long session; drift is confounded with N);
-- re-measure N = 1, 2, 3 at n ≥ 9 from the arc's earlier commits — use a **read-only `git worktree`** at
-  those SHAs so no branch is mutated (respects the no-rebase / no-force-push non-goals);
-- only then ask whether N matters at all. It may not.
-
-Until that exists, do not extrapolate any build-time claim to feature 13 — in either direction. The
-absence of a proven slope is not proof of a plateau.
+The general lesson, now paid for twice: **the absence of a proven slope is not proof of a plateau, and
+an apparent step is not proof of one either.** Both directions need measurement, at n ≥ 9, in a session
+that is not the one that produced the rows being compared.
 
 ## Measured forced-public surface, per feature (never assumed)
 
