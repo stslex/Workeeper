@@ -11,6 +11,39 @@ becomes a `@GraphExtension(XScope)` whose `@GraphExtension.Factory` carries
 app-scoped binding. End state deletes the **15 `XxxDeps` interfaces**, the **125 `@Provides`** bound
 instances, the **30 `override val`** accessors, the **13 `*BridgeTest.kt`**, and the `as T` cast seam.
 
+## 📋 THE MEASURED FEATURE INVENTORY (grep, not memory — re-run before the arc closes)
+
+The assisted feature list has been under-counted **twice**: once at 4→7 two rounds ago, and again when
+a batch brief named four assisted features and omitted `exercise`. That is STANDING RULE 5 applied to
+the feature list itself — a remembered or hand-written count under-reports and raises no error. This
+table is *measured*, and the commands are here so it can be re-measured rather than trusted.
+
+```bash
+# Every feature that mounts a Store. THREE base classes, not two — AppFeature is the screen-less one.
+grep -rn ": *\(Feature\|FeatureAssisted\|AppFeature\)<" --include="*.kt" feature/ | grep -v /build/
+# Independent cross-check: every feature DI graph, and which are ported.
+grep -rln "@DependencyGraph(\|@GraphExtension(" --include="*.kt" feature/ | grep -v /build/ | grep -v /test/
+grep -rln "@GraphExtension(" --include="*.kt" feature/ | grep -v /build/ | wc -l
+```
+
+Both measurements agree: **13 feature graphs, 8 ported, 5 remaining.**
+
+| Base class | n | Features | Status |
+|---|---|---|---|
+| `Feature<P, S>` | 5 | all-trainings, archive, home, all-exercises, settings | **all ported** |
+| `FeatureAssisted<P, S>` | 7 | image-viewer, plan-editor, past-session | ported |
+| | | **exercise, exercise-chart, live-workout, single-training** | **remaining — FOUR** |
+| `AppFeature<P>` | 1 | app-dialogs | remaining, separate (screen-less) |
+
+⚠️ **`AppFeature` is why the naive grep returns 12 and not 13.** A `Feature|FeatureAssisted` search
+silently omits app-dialogs, because its base class is neither — which is the structural reason it is
+screen-less and not a mechanical port. A search that names two of three base classes produces a
+confident, wrong, error-free total: the silent-undercount class again, now in the inventory itself.
+
+**Root cause of both undercounts: an uncached count was trusted over a verification.** Before the arc
+closes, re-run the block above and reconcile it against the ported list — do not carry this table
+forward either.
+
 ## ⚠️ THE ARC IS INDIVISIBLE — do not merge a partial port
 
 `AppGraph`'s accessor count and the 15 `XxxDeps` interfaces collapse **only when the last feature is
@@ -177,12 +210,18 @@ bytecode; `--rerun-tasks` does not defeat it and nothing in the output signals i
 session on `ScreenInjectionRule`, where a correct rule appeared not to fire on real code. Details and
 the two-anchor proof procedure: `documentation/lint-rules.md`.
 
-## ⚠️ THE ADJACENT-ANSWER CLASS — one failure mode, nine witnesses
+## ⚠️ THE ADJACENT-ANSWER CLASS — one failure mode, ten witnesses
 
 Every silent failure this arc has hit is the **same defect wearing different clothes**. It is written up
-once, as a class, because there will be a tenth and the next session should recognise its shape rather
-than rediscover it from scratch. Witnesses 8 and 9 were both caught during the build-time re-baseline —
-the eighth in the classic silent shape, the ninth in a NEW shape the list had not yet recorded.
+once, as a class, because there will be an eleventh and the next session should recognise its shape
+rather than rediscover it from scratch. Witnesses 8 and 9 were both caught during the build-time
+re-baseline; the tenth during past-session's forced-public falsification.
+
+> **TEN WITNESSES IS NO LONGER A LIST — IT IS A PROVEN PROPERTY OF THIS ENVIRONMENT.**
+> **Any green that suits you is false until it has been shown red.** Not "be careful"; a rule. The
+> tenth was caught only because the test was applied to a number that was *welcome* — a flawless 14/14
+> matching the prediction exactly. That is when the check is least likely to be run and most likely to
+> be needed.
 
 > **THE CLASS.** The instrument answers a question *adjacent* to the one asked, and reports success
 > either way. No error is raised, so the wrong answer arrives wearing the costume of evidence.
@@ -194,7 +233,7 @@ It is never a crash, never a stack trace, never a warning. It is always a plausi
 pass. That is the whole difficulty: the failure and the success are byte-identical at the point you read
 them, and only differ in what produced them.
 
-### The nine witnesses
+### The ten witnesses
 
 | # | Witness | Answered… | …the actual question | The tell |
 |---|---|---|---|---|
@@ -207,6 +246,7 @@ them, and only differ in what produced them.
 | 7 | wrapper — copied script | "the calibration gate aborts" | the copy resolved `REPO` from its own `dirname`, so `./gradlew` did not exist | it aborted for the *wrong reason*, which reads identically to the right one |
 | 8 | cold sample-1 in every worktree row | "N=4…7 ranges all overlap ⇒ FLAT" | every row's first sample was a full cold build, so every max was pinned near 29s | ranges that overlap **by construction** — the readout is identical whether the series is flat or rising |
 | 9 | worktree missing gitignored config | "the historical rows measured nothing" | the build died at CONFIGURATION time; worktrees do not inherit `keystore.properties` | `NO VALID SAMPLES` — it announced itself instead of returning a number |
+| 10 | edit harness truncated its own inputs | "all 14 declarations are genuinely forced public" | `awk -v int=…` aborted (gawk builtin), the redirect emptied each source file, and every compile failed on EMPTINESS | a flawless 14/14 that matched the prediction exactly — the welcome answer |
 
 **Witness 8 is the most dangerous one recorded**, because it was aimed at the GO branch of a live gate.
 `wipe_builds` leaves a worktree fully uncompiled, so each row's first measured sample was a cold build:
@@ -217,6 +257,23 @@ would have reported FLAT whether or not it was. Recognition-question 2 fails exa
 discarded warm-up per worktree, so all rows are compared warm; the working tree never carried the cold
 sample, so the defect was an asymmetry *between* rows.
 
+**Witness 10 is a new shape too: an edit harness that destroyed its own inputs.** Every earlier witness
+measured the wrong thing; this one measured the *right* thing on a *destroyed* input. The falsifier
+mutated a declaration to `internal` and required the compile to FAIL — sound in principle. But it drove
+the edit with `awk -v int=…`, and `int` is a gawk builtin that cannot be a variable name, so awk aborted
+before writing a byte while the shell redirect had already truncated the target to zero length. Every
+compile then failed because the file was EMPTY. The verdict logic was correct and the input was rubble.
+
+Two general lessons, both cheap:
+
+- **A filter in a pipeline that writes back to its own input destroys that input when it fails.**
+  `cmd … > file` truncates before `cmd` runs. Any harness that rewrites files in place must verify the
+  rewrite landed — non-empty, expected line present, expected line count — before trusting the result.
+- **A pass/fail harness needs a KNOWN-NEGATIVE control before its positives mean anything.** The fix
+  widens `ClickHandler` (which the ledger says is never forced), reverts it, and requires the harness to
+  report "still compiles". If that control cannot go green, the harness has no reachable negative
+  verdict and 14 positives are unfalsifiable. Run the control FIRST and abort on it, as the rewrite does.
+
 **Witness 9 is a NEW shape and the class grew to hold it.** Until now every witness was silent — a
 plausible number or a clean pass. This one was LOUD: the instrument died for a reason the class was not
 watching for (configuration-time failure, not measurement-time), and it was caught **only because the
@@ -226,7 +283,7 @@ saves you is that it **reports absence as absence** rather than substituting a d
 did NOT catch it: the N column ascended `1,2,3,4,5,6` perfectly through eight rows that measured
 nothing at all. **An integrity check proves the thing it checks, and nothing adjacent to it.**
 
-### Recognising the tenth
+### Recognising the eleventh
 
 Three questions, in order. Any "no" means you are holding an adjacent answer:
 
