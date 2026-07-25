@@ -8,8 +8,73 @@ Branch: `spike/graph-extension-all-trainings` (cut from `cf328bf`; backup `backu
 Replace the Hilt-strangler DI bridge with Metro `@GraphExtension`. Each of the **13 feature graphs**
 becomes a `@GraphExtension(XScope)` whose `@GraphExtension.Factory` carries
 `@ContributesTo(AppScope::class)`, so `:app` generates the extension impl and it inherits every
-app-scoped binding. End state deletes the **15 `XxxDeps` interfaces**, the **125 `@Provides`** bound
-instances, the **30 `override val`** accessors, the **13 `*BridgeTest.kt`**, and the `as T` cast seam.
+app-scoped binding.
+
+**MEASURED END STATE** (`git diff cf328bf..HEAD`, re-measured at close-out — the original prediction is
+kept beside it because three of its five numbers were wrong):
+
+| what | predicted | **measured** | verdict |
+|---|---|---|---|
+| `@Provides` bound instances on feature graph factories | 125 | **125 → 0** | ✅ exact |
+| `*BridgeTest.kt` deleted | 13 | **13 → 0** | ✅ exact |
+| `XxxDeps` interfaces deleted | 15 | **11 of 15; 4 remain** | ❌ 4 are load-bearing |
+| `override val` accessors on `AppGraph` | 30 → 0 | **30 → 11** | ❌ 11 override a live supertype |
+| the `as T` cast seam | deleted | **STILL PRESENT, load-bearing** | ❌ every port depends on it |
+
+The `as T` line was always self-contradictory: shape B's flip point *is*
+`context.appDeps<XxxGraph.Factory>()`, which goes through that cast. The seam was **generalized, not
+deleted** — as the "load-bearing, stays" note further down said all along. The headline and the body
+disagreed for the whole arc; the body was right.
+
+## ✅ THE TRUE END STATE — measured at close-out, replacing the plan
+
+Everything below is `git diff cf328bf..HEAD` or a grep, run at close-out. Where it contradicts an
+earlier plan in this document, **this section is right and the plan was wrong** — three of the plan's
+five headline numbers and three of its four planned deletions did not survive measurement.
+
+### What the arc DELETED
+
+| deleted | count | note |
+|---|---|---|
+| `@Provides` bound instances on feature graph factories | **125 → 0** | prediction exact |
+| `*BridgeTest.kt` | **13 → 0** | prediction exact; replaced by 11 `:app` identity tests |
+| `XxxDeps` interfaces | **11 of 15** | the other 4 are load-bearing, below |
+| orphaned `AppGraph` accessors | **8 of 14** | the other 6 are live roots, below |
+| `StoreFactory` | **deleted** (`4b569f96`) | zero implementors once no feature is assisted |
+| `AppDialogInternalsHolder` + accessor | **deleted** (`a750d717`) | app-dialogs' own second seam |
+
+### What STAYS — and why (each verified by grep, not assumed)
+
+| stays | why |
+|---|---|
+| **`StoreCoreDeps`, `NavigatorDeps`** | the feature-facing γ-spine; `appDeps<T>()` reads them |
+| **`RecoveryDeps`, `BackupWorkerDeps`** | **live framework seams** — `RecoveryActivity` and `MetroWorkerFactory` read them via typed holders; neither may depend on `core:ui:mvi` |
+| **the `as T` cast seam** (`AppDepsHolder` / `appDeps<T>()`) | shape B's flip point IS `appDeps<XxxGraph.Factory>()`. Generalized, never deletable |
+| **`FeatureAssisted`** | **7 live users.** Its `processor(screen)` vs `Feature`'s `processor()` is a COMPOSITION-time concern — the destination hands the route arg in. The DI port never touched it |
+| **`AppFeature`** | app-dialogs still extends it, plus `AppFeatureScopeTest` / `AppFeatureProbe` |
+| **11 `override val` accessors** | each overrides one of the 4 live supertypes |
+| **6 orphaned-but-live accessors** | `ioDispatcher`, `defaultDispatcher`, `mainImmediateDispatcher`, `sessionConflictResolver`, `sessionRepository` (identity tests) + `imageStorage` (`BaseApplication.cleanupOrphanedImageTempFiles`) |
+
+### The `AppGraph` collapse already happened
+
+There is **no separate collapse commit** and there never could have been. The `override` → plain
+conversion was distributed across the five `XxxDeps` deletion commits — the 14 orphan conversions *were*
+the collapse. `AppGraph` went 43 accessors / 30 `override` at the base to **35 / 11** now, incrementally.
+The mental model of "one big final collapse commit" was wrong for the whole arc; the file changed a
+little at a time, visibly in code, and only measurement showed it.
+
+### 🚫 The one thing still outstanding
+
+**The on-device restore-cycle known-positive anchor on `cf328bf4` — MANUAL, and it cannot be run by an
+agent.** `tech-debt.md:219` records it as the manual/device restore-gate baseline, explicitly not an
+automated test; `BackupStorage` is `DriveBackupStorage`, so it needs a signed-in Google account, live
+Drive OAuth and an existing backup. **Do not substitute a proxy**: something-green named
+"known-positive" would answer "something passed" instead of "restore works", and both read as a tick.
+⚠️ The existing tag `metro-batch-anchor` → `64f875d6` is the **App-Scope Collapse** arc's anchor, NOT
+this one's — taking it would be exactly that substitution.
+
+Nothing is merged, so the ordering is intact: the anchor can be run on that fixed SHA at any time, and
+must be run **before merge**. After it: **#176**.
 
 ## 📋 THE MEASURED FEATURE INVENTORY (grep, not memory — re-run before the arc closes)
 
@@ -46,7 +111,7 @@ forward either.
 
 ## ⚠️ THE ARC IS INDIVISIBLE — do not merge a partial port
 
-`AppGraph`'s accessor count and the 15 `XxxDeps` interfaces collapse **only when the last feature is
+`AppGraph`'s accessor count and the transient `XxxDeps` interfaces collapse **only when the last feature is
 ported**. After feature #1 (all-trainings) the AppGraph accessor count is **43 → 43** — this is the
 **expected** result, not a shortfall: all-trainings' four deps (`trainingRepository`, `tagRepository`,
 `resourceWrapper`, `@DefaultDispatcher`) are shared with other still-bridged features, so nothing is
@@ -72,8 +137,12 @@ the whole arc or none of it.
   (`6406c900`)**, and **live-workout (`ee959370`, seventh shape-B, WIDEST of the arc at 24
   forced-public) + `LiveWorkoutDeps` deleted (`818c90c9`, the last feature bridge)**, and
   **app-dialogs (`5fafe040`, port 13, narrowest at 6 forced-public) + the `AppDialogInternalsHolder`
-  seam retired (`a750d717`)**. **4 supertypes remain** on `AppGraph` (was 15) — and the list bottoms out at 2, not 0: `StoreCoreDeps` + `NavigatorDeps` are
-  load-bearing γ-spine, not transient. `StoreFactory` has **NO users left** and dies with the closing commits and dies with the last of them.
+  seam retired (`a750d717`)**. **4 supertypes remain** on `AppGraph` (was 15) — and that **4 is the
+  floor, measured**: `StoreCoreDeps` + `NavigatorDeps` are the feature-facing γ-spine, and
+  `RecoveryDeps` + `BackupWorkerDeps` are **live framework seams** (`RecoveryActivity` and
+  `MetroWorkerFactory` read them via typed holders; neither may depend on `core:ui:mvi`). **The floor
+  climbed every time it was measured rather than assumed: 0 → 2 → 4.** `StoreFactory` is **deleted**
+  (`4b569f96`).
   *(Count the supertypes by READING the list, not by grepping `Deps,` — the last entry ends in ` {`
   and a comma-anchored grep returns 7. That is STANDING RULE 5 witness #1 recurring; it recurred again
   while writing this line.)*
@@ -206,9 +275,10 @@ port. Handle it separately.
 
 The arc is indivisible. A green slope reading does not shorten the list still gated before anything
 merges: **all 13 features** + **app-dialogs** (separate, not batched) + the **three closing commits**
-(delete the 10 remaining `XxxDeps` interfaces and the accumulated orphaned accessors; `AppGraph`
-`override` → plain; delete `FeatureAssisted`/`StoreFactory` from `core:ui:mvi`) + the **on-device
-restore-cycle known-positive anchor** on the base.
+(**as executed**: delete the 8 genuinely-dead orphaned accessors + `StoreFactory`; the `override` →
+plain collapse turned out to be already distributed across the five `XxxDeps` deletions, and
+`FeatureAssisted` / `AppFeature` turned out NOT to be deletable) + the **on-device restore-cycle
+known-positive anchor** on the base.
 
 ## The proven pattern (per feature)
 
@@ -412,7 +482,7 @@ on this arc to earn its own rule. Four mechanisms, each producing a confident wr
 |---|---|---|---|
 | 1 | `XxxDeps` supertypes | regex `^ +\w+Deps,$` missed the LAST entry, which ends in ` {` — off by exactly one, and it disagreed with a commit message that was right | re-reading the actual list |
 | 2 | ledger rows for earlier ports | filled in by carrying numbers forward instead of `git show <sha>:AppGraph.kt` | re-deriving per commit |
-| 3 | end state of the supertype list | assumed 0; it bottoms out at **2** (γ-spine is not transient), so the final commit deletes 10 interfaces, not 15 | enumerating what remains |
+| 3 | end state of the supertype list | assumed 0; then measured **2** (γ-spine is not transient); then measured **4** at close-out — `RecoveryDeps` + `BackupWorkerDeps` are live framework seams. **The same number was wrong twice, each time by assuming rather than enumerating, and it climbed both times.** 11 of 15 interfaces deleted, not 15, not 10 | enumerating what remains |
 | 4 | Kotlin compile errors in a helper script | captured stdout only; `e:` diagnostics go to **stderr**, so a failing compile reported `0 errors` | cross-checking against a shell run |
 
 The shared shape: **each produced a plausible number, and none produced an error.** A silent
@@ -749,7 +819,7 @@ If both ports land near +0.03 the mechanism is refuted and no re-run is needed.
 #### ⚠ MEASURE THE ENDPOINT AT PORT 13, NOT AFTER THE CLOSING COMMITS
 
 The worst-case binding set exists at **the last port**, not at the end of the arc. The three closing
-commits delete `XxxDeps` interfaces, orphaned accessors, and `FeatureAssisted`/`StoreFactory` — they
+commits delete `XxxDeps` interfaces, orphaned accessors, and `StoreFactory` — they
 remove *declarations*, not *bindings*, so they cannot reduce the binding count the codegen pays for.
 Measuring after cleanup would measure the same binding set with less scaffolding and report it as the
 endpoint. **Take the endpoint build-time reading as part of port 13.**
@@ -1342,7 +1412,8 @@ override/plain split, and that split IS the pending cleanup: 18 plain accessors 
 by settings alone.
 
 Of the 12 remaining supertypes, `StoreCoreDeps` + `NavigatorDeps` are the load-bearing γ-spine and are
-NOT transient. The bridge therefore bottoms out at **2, not 0**: the final cleanup deletes 10 feature
+NOT transient. The bridge therefore bottoms out at **4, not 0 and not 2** — re-measured at close-out,
+`RecoveryDeps` and `BackupWorkerDeps` are live framework seams too. The final cleanup deleted 11 feature
 interfaces plus whatever accessors are orphaned by then.
 
 Projection to hold loosely: settings orphaned 5 because it was the last declarer of a wide,
