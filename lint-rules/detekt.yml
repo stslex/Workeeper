@@ -662,6 +662,8 @@ mvi-architecture:
     active: true
   ContributesToScopeRule:
     active: true
+  ScreenInjectionRule:
+    active: true
   ComposableStateRule:
     active: true
   DomainLayerPurityRule:

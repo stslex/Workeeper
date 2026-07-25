@@ -23,6 +23,7 @@ class MviArchitectureRuleSet : RuleSetProvider {
             MetroScopeRule(config),
             ContributesBindingScopeRule(config),
             ContributesToScopeRule(config),
+            ScreenInjectionRule(config),
             ComposableStateRule(config),
             DomainLayerNoUiRule(config),
             DomainLayerPurityRule(config),
