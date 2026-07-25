@@ -3,13 +3,10 @@ package io.github.stslex.workeeper.feature.exercise_chart.di
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
-import dev.zacsweers.metro.createGraphFactory
 import io.github.stslex.workeeper.core.ui.mvi.FeatureAssisted
-import io.github.stslex.workeeper.core.ui.mvi.di.StoreCoreDeps
 import io.github.stslex.workeeper.core.ui.mvi.di.appDeps
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
 import io.github.stslex.workeeper.core.ui.mvi.processor.rememberMetroStoreProcessor
-import io.github.stslex.workeeper.core.ui.navigation.NavigatorDeps
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Action
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Event
@@ -19,13 +16,19 @@ import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChart
 internal typealias ExerciseChartStoreProcessor = StoreProcessor<State, Action, Event>
 
 /**
- * feature/exercise-chart resolves its Store through the **Metro** path. ASSISTED
- * Store (`Screen.ExerciseChart` route arg) — the graph exposes the assisted
- * [ExerciseChartStoreImpl.Factory] and this composable calls `storeFactory.create(screen)` inside
- * the `rememberMetroStoreProcessor` lambda. The 8 app-scoped bindings are acquired as the composition of
- * three narrow interfaces ([StoreCoreDeps] + [NavigatorDeps] + [ExerciseChartDeps] — the domain tail: two
- * repos, `resourceWrapper`, qualified `@DefaultDispatcher`) via `context.appDeps<T>()` (the god-object
- * split, mechanism A). Single `@DefaultDispatcher`, no Context.
+ * feature/exercise-chart resolves its Store through the Metro **graph-extension** path.
+ *
+ * The app-scope graph (returned as `Any` by the `AppDepsHolder` seam) IS the parent graph and, once
+ * `:app` is compiled, implements the contributed [ExerciseChartGraph.Factory]; `appDeps<T>()` re-narrows
+ * it with its `as T` cast. All 8 formerly hand-threaded app-scoped deps are inherited from the parent,
+ * so the three `appDeps` lookups (`StoreCoreDeps` + `NavigatorDeps` + `ExerciseChartDeps`) and the whole
+ * `createGraphFactory(...).create(...)` argument list are gone.
+ *
+ * The `Screen.ExerciseChart` route arg is passed to the extension factory as a bound instance (shape B),
+ * so the extension is built per navigation entry and carries that entry's arg — the Store needs no
+ * assisted factory. The extension is created INSIDE the `rememberMetroStoreProcessor` lambda, so it is
+ * built at most once per retained Store (per `NavBackStackEntry`), binding it and its
+ * `@SingleIn(ExerciseChartScope)` nodes to exactly the Store's lifetime.
  */
 internal object ExerciseChartFeature : FeatureAssisted<
     ExerciseChartStoreProcessor,
@@ -37,24 +40,9 @@ internal object ExerciseChartFeature : FeatureAssisted<
     override fun processor(screen: Screen.ExerciseChart): ExerciseChartStoreProcessor {
         val context = LocalContext.current
         return rememberMetroStoreProcessor<ExerciseChartStoreImpl> {
-            // Mechanism A (the god-object split): spine four from StoreCoreDeps + NavigatorDeps; the domain
-            // tail (repos + resourceWrapper + qualified @DefaultDispatcher) from ExerciseChartDeps.
-            val coreDeps = context.appDeps<StoreCoreDeps>()
-            val navDeps = context.appDeps<NavigatorDeps>()
-            val deps = context.appDeps<ExerciseChartDeps>()
-            createGraphFactory<ExerciseChartGraph.Factory>()
-                .create(
-                    exerciseRepository = deps.exerciseRepository,
-                    sessionRepository = deps.sessionRepository,
-                    resourceWrapper = deps.resourceWrapper,
-                    navigator = navDeps.navigator,
-                    storeDispatchers = coreDeps.storeDispatchers,
-                    analyticsHolder = coreDeps.analyticsHolder,
-                    loggerHolder = coreDeps.loggerHolder,
-                    defaultDispatcher = deps.defaultDispatcher,
-                )
-                .storeFactory
-                .create(screen)
+            context.appDeps<ExerciseChartGraph.Factory>()
+                .createExerciseChartGraph(screen)
+                .exerciseChartStore
         } as ExerciseChartStoreProcessor
     }
 }

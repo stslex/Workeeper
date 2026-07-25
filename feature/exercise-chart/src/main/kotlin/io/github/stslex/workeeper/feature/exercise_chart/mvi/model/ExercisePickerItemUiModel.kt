@@ -5,7 +5,7 @@ import androidx.compose.runtime.Stable
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 
 @Stable
-internal data class ExercisePickerItemUiModel(
+data class ExercisePickerItemUiModel(
     val uuid: String,
     val name: String,
     val type: ExerciseTypeUiModel,

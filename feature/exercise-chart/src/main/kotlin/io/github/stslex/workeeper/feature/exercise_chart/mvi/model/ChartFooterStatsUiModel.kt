@@ -4,7 +4,7 @@ package io.github.stslex.workeeper.feature.exercise_chart.mvi.model
 import androidx.compose.runtime.Stable
 
 @Stable
-internal data class ChartFooterStatsUiModel(
+data class ChartFooterStatsUiModel(
     val minTitle: String,
     val minValue: String,
     val maxTitle: String,

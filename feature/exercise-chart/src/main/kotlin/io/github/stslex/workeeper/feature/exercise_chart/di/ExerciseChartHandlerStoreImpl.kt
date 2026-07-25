@@ -10,6 +10,6 @@ import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChart
 
 @Inject
 @SingleIn(ExerciseChartScope::class)
-internal class ExerciseChartHandlerStoreImpl :
+class ExerciseChartHandlerStoreImpl :
     ExerciseChartHandlerStore,
     BaseHandlerStore<State, Action, Event>()

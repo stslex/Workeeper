@@ -18,7 +18,7 @@ import kotlinx.coroutines.withContext
 
 @Inject
 @SingleIn(ExerciseChartScope::class)
-internal class ExerciseChartInteractorImpl(
+class ExerciseChartInteractorImpl internal constructor(
     private val exerciseRepository: ExerciseRepository,
     private val sessionRepository: SessionRepository,
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,

@@ -4,7 +4,7 @@ package io.github.stslex.workeeper.feature.exercise_chart.mvi.model
 import androidx.compose.runtime.Stable
 
 @Stable
-internal data class ChartTooltipUiModel(
+data class ChartTooltipUiModel(
     val sessionUuid: String,
     val exerciseName: String,
     val dateLabel: String,
