@@ -10,5 +10,5 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.St
 
 @Inject
 @SingleIn(ExerciseScope::class)
-internal class ExerciseHandlerStoreImpl : ExerciseHandlerStore,
+class ExerciseHandlerStoreImpl : ExerciseHandlerStore,
     BaseHandlerStore<State, Action, Event>()

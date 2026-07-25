@@ -21,7 +21,7 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.St
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 
-internal interface ExerciseStore : Store<State, Action, Event> {
+interface ExerciseStore : Store<State, Action, Event> {
 
     @Stable
     data class State(

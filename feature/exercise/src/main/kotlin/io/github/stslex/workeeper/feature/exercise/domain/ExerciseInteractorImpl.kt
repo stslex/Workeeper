@@ -36,7 +36,7 @@ import kotlinx.coroutines.withContext
 @Suppress("LongParameterList", "TooManyFunctions")
 @Inject
 @SingleIn(ExerciseScope::class)
-internal class ExerciseInteractorImpl(
+class ExerciseInteractorImpl internal constructor(
     private val exerciseRepository: ExerciseRepository,
     private val tagRepository: TagRepository,
     private val imageStorage: ImageStorage,

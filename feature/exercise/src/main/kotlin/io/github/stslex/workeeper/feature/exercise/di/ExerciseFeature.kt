@@ -3,13 +3,10 @@ package io.github.stslex.workeeper.feature.exercise.di
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
-import dev.zacsweers.metro.createGraphFactory
 import io.github.stslex.workeeper.core.ui.mvi.FeatureAssisted
-import io.github.stslex.workeeper.core.ui.mvi.di.StoreCoreDeps
 import io.github.stslex.workeeper.core.ui.mvi.di.appDeps
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
 import io.github.stslex.workeeper.core.ui.mvi.processor.rememberMetroStoreProcessor
-import io.github.stslex.workeeper.core.ui.navigation.NavigatorDeps
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Event
@@ -19,10 +16,24 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStoreImp
 internal typealias ExerciseStoreProcessor = StoreProcessor<State, Action, Event>
 
 /**
- * feature/exercise resolves its Store through the **Metro** path (KMP C.1 wave 1). The Store is
- * ASSISTED — it takes the `Screen.Exercise` route arg — so the graph exposes the assisted
- * [ExerciseStoreImpl.Factory] and this composable calls `storeFactory.create(screen)` inside the
- * `rememberMetroStoreProcessor` lambda (once per retained Store, per `NavBackStackEntry`).
+ * feature/exercise resolves its Store through the Metro **graph-extension** path.
+ *
+ * The app-scope graph (returned as `Any` by the `AppDepsHolder` seam) IS the parent graph and, once
+ * `:app` is compiled, implements the contributed [ExerciseGraph.Factory]; `appDeps<T>()` re-narrows it
+ * with its `as T` cast. All 14 formerly hand-threaded app-scoped deps are inherited from the parent, so
+ * the three `appDeps` lookups (`StoreCoreDeps` + `NavigatorDeps` + `ExerciseDeps`) and the whole
+ * `createGraphFactory(...).create(...)` argument list are gone.
+ *
+ * **The app `Context` is now inherited too.** It used to be passed explicitly as
+ * `context.applicationContext` from this composable; it now resolves from AppGraph's
+ * `create(applicationContext)` bound instance, so `LocalContext` is read only to reach the
+ * `AppDepsHolder` seam.
+ *
+ * The `Screen.Exercise` route arg is passed to the extension factory as a bound instance (shape B), so
+ * the extension is built per navigation entry and carries that entry's arg — the Store needs no
+ * assisted factory. The extension is created INSIDE the `rememberMetroStoreProcessor` lambda, so it is
+ * built at most once per retained Store (per `NavBackStackEntry`), binding it and its
+ * `@SingleIn(ExerciseScope)` nodes to exactly the Store's lifetime.
  */
 internal object ExerciseFeature : FeatureAssisted<ExerciseStoreProcessor, Screen.Exercise>() {
 
@@ -31,31 +42,9 @@ internal object ExerciseFeature : FeatureAssisted<ExerciseStoreProcessor, Screen
     override fun processor(screen: Screen.Exercise): ExerciseStoreProcessor {
         val context = LocalContext.current
         return rememberMetroStoreProcessor<ExerciseStoreImpl> {
-            // Mechanism A (the god-object split): spine four from StoreCoreDeps + NavigatorDeps; the domain
-            // tail (repos + imageStorage + resourceWrapper + BOTH qualified dispatchers) from ExerciseDeps.
-            // App Context stays direct from LocalContext (a create() param, never from the app graph).
-            val coreDeps = context.appDeps<StoreCoreDeps>()
-            val navDeps = context.appDeps<NavigatorDeps>()
-            val deps = context.appDeps<ExerciseDeps>()
-            createGraphFactory<ExerciseGraph.Factory>()
-                .create(
-                    exerciseRepository = deps.exerciseRepository,
-                    tagRepository = deps.tagRepository,
-                    imageStorage = deps.imageStorage,
-                    personalRecordRepository = deps.personalRecordRepository,
-                    sessionRepository = deps.sessionRepository,
-                    trainingRepository = deps.trainingRepository,
-                    resourceWrapper = deps.resourceWrapper,
-                    navigator = navDeps.navigator,
-                    storeDispatchers = coreDeps.storeDispatchers,
-                    analyticsHolder = coreDeps.analyticsHolder,
-                    loggerHolder = coreDeps.loggerHolder,
-                    defaultDispatcher = deps.defaultDispatcher,
-                    mainImmediateDispatcher = deps.mainImmediateDispatcher,
-                    context = context.applicationContext,
-                )
-                .storeFactory
-                .create(screen)
+            context.appDeps<ExerciseGraph.Factory>()
+                .createExerciseGraph(screen)
+                .exerciseStore
         } as ExerciseStoreProcessor
     }
 }

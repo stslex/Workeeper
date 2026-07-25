@@ -3,7 +3,7 @@ package io.github.stslex.workeeper.feature.exercise.domain.model
 
 import kotlin.uuid.Uuid
 
-internal data class ExerciseChangeDomain(
+data class ExerciseChangeDomain(
     val uuid: Uuid,
     val name: String,
     val type: ExerciseTypeDomain,
