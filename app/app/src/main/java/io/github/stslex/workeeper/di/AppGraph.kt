@@ -51,7 +51,6 @@ import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPub
 import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepository
 import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImpl
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseDeps
-import io.github.stslex.workeeper.feature.exercise_chart.di.ExerciseChartDeps
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutDeps
 import io.github.stslex.workeeper.feature.recovery.boot.RecoveryBootstrap
 import io.github.stslex.workeeper.feature.recovery.di.RecoveryDeps
@@ -70,7 +69,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 internal interface AppGraph :
     StoreCoreDeps,
     NavigatorDeps,
-    ExerciseChartDeps,
     ExerciseDeps,
     SingleTrainingDeps,
     LiveWorkoutDeps,
