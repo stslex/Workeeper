@@ -46,22 +46,18 @@ import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
 import io.github.stslex.workeeper.core.ui.navigation.NavigatorDeps
-import io.github.stslex.workeeper.feature.all_exercises.di.AllExercisesDeps
 import io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObserver
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepository
 import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImpl
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseDeps
 import io.github.stslex.workeeper.feature.exercise_chart.di.ExerciseChartDeps
-import io.github.stslex.workeeper.feature.home.di.HomeDeps
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutDeps
 import io.github.stslex.workeeper.feature.past_session.di.PastSessionDeps
-import io.github.stslex.workeeper.feature.plan_editor.di.PlanEditorDeps
 import io.github.stslex.workeeper.feature.recovery.boot.RecoveryBootstrap
 import io.github.stslex.workeeper.feature.recovery.di.RecoveryDeps
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
 import io.github.stslex.workeeper.feature.recovery.domain.StartupMigrationCoordinator
-import io.github.stslex.workeeper.feature.settings.di.SettingsDeps
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingDeps
 import io.github.stslex.workeeper.navigation.NavigatorEventBus
 import kotlinx.coroutines.CoroutineDispatcher
@@ -75,15 +71,11 @@ import kotlinx.coroutines.CoroutineDispatcher
 internal interface AppGraph :
     StoreCoreDeps,
     NavigatorDeps,
-    AllExercisesDeps,
     ExerciseChartDeps,
-    PlanEditorDeps,
     PastSessionDeps,
     ExerciseDeps,
     SingleTrainingDeps,
     LiveWorkoutDeps,
-    HomeDeps,
-    SettingsDeps,
     RecoveryDeps,
     BackupWorkerDeps {
 
@@ -154,11 +146,11 @@ internal interface AppGraph :
     val activityHolderProducer: ActivityHolderProducer
 
     /** Metro-owned via @ContributesBinding. */
-    override val platformInfoProvider: PlatformInfoProvider
-    override val tempFileProvider: TempFileProvider
+    val platformInfoProvider: PlatformInfoProvider
+    val tempFileProvider: TempFileProvider
 
     /** Metro-owned RestoreStateRepository. */
-    override val restoreStateRepository: RestoreStateRepository
+    val restoreStateRepository: RestoreStateRepository
 
     /** Metro-owned AutoBackupController (BackupScheduler) + BackupNotificationHelper. */
     override val autoBackupController: AutoBackupController
@@ -179,7 +171,7 @@ internal interface AppGraph :
      * a plain `Context` from the `create(applicationContext)` bound instance). Read by `AppRootViewModel`
      * and settings (`SettingsGraph`) via the graph.
      */
-    override val commonDataStore: CommonDataStore
+    val commonDataStore: CommonDataStore
 
     /**
      * The three app-scoped singletons of feature/app-dialogs:impl, Metro-owned:
@@ -212,7 +204,7 @@ internal interface AppGraph :
      * stay INSIDE gd — no accessor here, so app/app never names them). Read cross-module by settings + the
      * backup worker via the graph.
      */
-    override val backupAuth: BackupAuth
+    val backupAuth: BackupAuth
     override val backupStorage: BackupStorage
 
     /**
