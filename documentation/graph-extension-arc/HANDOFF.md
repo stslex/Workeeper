@@ -628,6 +628,7 @@ count is a hypothesis per feature, not a work order.
 | home | **13** | 2 | 4 | predicted 12, measured 13 — see the transitive-closure correction below |
 | all-exercises | **17** | 2 | 4 | predicted 17, measured 17 — FIRST exact hit, closure procedure applied |
 | plan-editor | predicted 13 → **measured 13** | 2 | 5 | **written before fixpoint round 1** — 6 plumbing + 2 interactor + 5 models (`SetTypeDomain` reachable only via `PlanSetDomain.type`; the 4 `core.ui.plan_editor.model` types are cross-module and already public) |
+| exercise | **predicted 22** → measured _(pending)_ | 2 | 4 | **written before fixpoint round 1, in its own commit ahead of any widening** — 6 plumbing + 2 interactor + 13 domain + 1 UI |
 | exercise-chart | predicted 21 → **measured 21** | 2 | 3 | **written before fixpoint round 1, in its own commit ahead of any widening** — 6 plumbing + 2 interactor + 7 domain + 6 UI |
 | past-session | predicted 14 → **measured 14** | 2 | 4 | **written before fixpoint round 1, in its own commit (`16fd9910`) ahead of any widening** — 6 plumbing + 2 interactor + 6 domain models + **0 UI** (first port to force zero UI models) |
 
@@ -673,6 +674,43 @@ forced-public = 6 plumbing + 2 per interactor pair + (models exposed in the publ
 | plan-editor | 6 | 2 (×1) | 5 (4 domain + `DialogState`; the 4 `core.ui.plan_editor` types are cross-module) | 13 | ✔ |
 | past-session | 6 | 2 (×1) | 6 domain + 0 UI (all 4 UI models already public) | 14 | ✔ |
 | exercise-chart | 6 | 2 (×1) | 7 domain + 6 UI (all 6 UI models are `internal` here) | 21 | ✔ |
+| exercise | 6 | 2 (×1) | 13 domain + 1 UI (7 UI models already public; only `DialogState`) | **22 predicted** | _pending_ |
+
+### exercise — the prediction, written before widening (port 3 of the assisted batch)
+
+**22 = 6 plumbing + 2 interactor + 13 domain + 1 UI.** This would make it the joint-widest port with
+`settings`. exercise is also the settings-shaped one structurally: 14 factory params, **two** qualified
+dispatchers (`@DefaultDispatcher` + `@MainImmediateDispatcher`) and a bare `Context`, all of which
+become inherited rather than hand-threaded.
+
+- **Domain (13) — every domain declaration in the feature.** Signatures give **10**: `ExerciseDomain`,
+  `HistoryEntryDomain`, `TagDomain`, `ExerciseTypeDomain`, `PersonalRecordDomain`,
+  `ExerciseChangeDomain`, `SaveResult`, `ArchiveResult`, `PlanSetDomain`, `TrackNowConflict`.
+  Closure adds **3**, and two of them are the catch signature-only counting misses:
+  - `HistoryEntryDomain.sets` → **`SetSummaryDomain`** (a second declaration inside
+    `HistoryEntryDomain.kt`, in no signature anywhere);
+  - `SetSummaryDomain.type` → **`SetTypeDomain`**;
+  - `TrackNowConflict.NeedsUserChoice.active` → **`ActiveSessionDomain`**, reachable ONLY through a
+    sealed subtype's member.
+  `ImageRef` / `ImageSaveResult` are `core:core` types (cross-module) and `Uuid` is stdlib.
+- **UI (1).** Only `DialogState`, forced via `State.dialogState`. It is top-level in its own file, the
+  same case as plan-editor's. The other **seven** UI models (`HistoryUiModel`, `ImageDisplay`,
+  `ImageErrorType`, `ImageSourceUiModel`, `PendingImage`, `PersonalRecordUiModel`, `TagUiModel`) are
+  already public and cost nothing — the third distinct UI cost in three ports (0, 6, 1), which is the
+  point of counting it per feature.
+
+**Four falsifiable side-claims:**
+
+1. **All 4 use cases stay internal** (`ArchiveExerciseUseCase`, `ResolveTrackNowConflictUseCase`,
+   `StartTrackNowSessionUseCase`, `DeleteSessionUseCase`). They are constructor params of
+   `ExerciseInteractorImpl`, whose primary constructor becomes `internal`. If a use case is forced, the
+   `internal constructor` mechanism does not hold for use cases and every prior port needs re-checking.
+2. **The nested `ExerciseStore.DiscardTarget` needs no edit** — top-level-only rule again.
+3. **The 7 already-public UI models require no edit**, so the UI term is 1 and not 8.
+4. **Sealed subtypes need no edits** (`ArchiveResult.Success/Blocked`, `SaveResult.*`,
+   `TrackNowConflict.*`, `ImageDisplay.*`, `PendingImage.*`) — nested, so they inherit.
+
+**A measurement BELOW 22 is a STOP, not a win.**
 
 **CLARIFICATION to the formula, settled while predicting exercise-chart: only TOP-LEVEL declarations
 count.** A declaration nested inside the store contract inherits the container's visibility and needs no
