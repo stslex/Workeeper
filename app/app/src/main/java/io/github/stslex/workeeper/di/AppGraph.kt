@@ -55,7 +55,6 @@ import io.github.stslex.workeeper.feature.recovery.boot.RecoveryBootstrap
 import io.github.stslex.workeeper.feature.recovery.di.RecoveryDeps
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
 import io.github.stslex.workeeper.feature.recovery.domain.StartupMigrationCoordinator
-import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingDeps
 import io.github.stslex.workeeper.navigation.NavigatorEventBus
 import kotlinx.coroutines.CoroutineDispatcher
 
@@ -68,7 +67,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 internal interface AppGraph :
     StoreCoreDeps,
     NavigatorDeps,
-    SingleTrainingDeps,
     LiveWorkoutDeps,
     RecoveryDeps,
     BackupWorkerDeps {
@@ -107,8 +105,12 @@ internal interface AppGraph :
     @DefaultDispatcher
     override val defaultDispatcher: CoroutineDispatcher
 
+    // ORPHANED by the single-training port (see the ledger): `SingleTrainingDeps` was the last bridge
+    // interface still declaring `@MainImmediateDispatcher`. Kept as a plain `val` — deletion is deferred
+    // to the final cleanup, and it is still a live root: `SingleTrainingExtensionIdentityTest` and
+    // `ExerciseExtensionIdentityTest` both read it to assert the qualified pair stays distinct.
     @MainImmediateDispatcher
-    override val mainImmediateDispatcher: CoroutineDispatcher
+    val mainImmediateDispatcher: CoroutineDispatcher
 
     // ORPHANED by the past-session port: `PastSessionDeps` was the last bridge interface still
     // declaring `@IODispatcher`, so this accessor now overrides nothing. It is kept (as a plain `val`,
@@ -229,7 +231,9 @@ internal interface AppGraph :
     override val exerciseRepository: ExerciseRepository
     override val sessionRepository: SessionRepository
     override val setRepository: SetRepository
-    override val tagRepository: TagRepository
+    // ORPHANED by the single-training port: `SingleTrainingDeps` was the last bridge interface still
+    // declaring `tagRepository`. Kept as a plain `val` pending the final cleanup.
+    val tagRepository: TagRepository
     override val personalRecordRepository: PersonalRecordRepository
     override val performedExerciseRepository: PerformedExerciseRepository
     override val trainingExerciseRepository: TrainingExerciseRepository
@@ -237,10 +241,14 @@ internal interface AppGraph :
     val statsRepository: StatsRepository
 
     /**
-     * [SessionConflictResolver] — self-bound `@SingleIn(AppScope)` graph node; read by home +
-     * single-training via their `XDeps` (`HomeDeps` / `SingleTrainingDeps`).
+     * [SessionConflictResolver] — self-bound `@SingleIn(AppScope)` graph node.
+     *
+     * ORPHANED by the single-training port: `SingleTrainingDeps` was the last bridge interface still
+     * declaring it, so this overrides nothing. Kept as a plain `val` pending the final cleanup, and it
+     * is a LIVE root, not dead weight: `SingleTrainingExtensionIdentityTest` reads it to assert the
+     * extension inherits the parent's instance rather than building its own double.
      */
-    override val sessionConflictResolver: SessionConflictResolver
+    val sessionConflictResolver: SessionConflictResolver
 
     /**
      * [ImageStorage] accessor over the `create()` bound-instance root — read by
