@@ -43,10 +43,10 @@ class PastSessionInteractorImpl internal constructor(
             emit(null)
             return@flow
         }
-        val uuidsByType = initial.exercises.associate { it.exerciseUuid to it.exerciseType }
+        val exerciseUuids = initial.exercises.mapTo(mutableSetOf()) { it.exerciseUuid }
         emitAll(
             personalRecordRepository
-                .observePrSetUuids(uuidsByType)
+                .observePrSetUuids(exerciseUuids)
                 .map { prSetUuids ->
                     val fresh = sessionRepository.getSessionDetail(sessionUuid) ?: initial
                     DetailWithPrs(detail = fresh.toDomain(), prSetUuids = prSetUuids)

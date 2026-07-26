@@ -45,7 +45,7 @@ internal class SessionDaoObservePersonalRecordTest : BaseDatabaseTest() {
         val exerciseUuid = Uuid.random()
         seedTrainingAndExercise(trainingUuid, exerciseUuid)
 
-        val result = sessionDao.observePersonalRecord(exerciseUuid, isWeightless = false).first()
+        val result = sessionDao.observePersonalRecord(exerciseUuid).first()
 
         assertNull(result)
     }
@@ -70,7 +70,7 @@ internal class SessionDaoObservePersonalRecordTest : BaseDatabaseTest() {
             reps = 5,
         )
 
-        val result = sessionDao.observePersonalRecord(exerciseUuid, isWeightless = false).first()
+        val result = sessionDao.observePersonalRecord(exerciseUuid).first()
 
         assertEquals(100.0, result?.weight)
         assertEquals(5, result?.reps)
@@ -90,7 +90,7 @@ internal class SessionDaoObservePersonalRecordTest : BaseDatabaseTest() {
             reps = 5,
         )
 
-        val initial = sessionDao.observePersonalRecord(exerciseUuid, isWeightless = false).first()
+        val initial = sessionDao.observePersonalRecord(exerciseUuid).first()
         assertEquals(80.0, initial?.weight)
 
         insertFinishedSet(
@@ -101,7 +101,7 @@ internal class SessionDaoObservePersonalRecordTest : BaseDatabaseTest() {
             reps = 5,
         )
 
-        val updated = sessionDao.observePersonalRecord(exerciseUuid, isWeightless = false).first()
+        val updated = sessionDao.observePersonalRecord(exerciseUuid).first()
         assertEquals(110.0, updated?.weight)
     }
 
@@ -125,7 +125,7 @@ internal class SessionDaoObservePersonalRecordTest : BaseDatabaseTest() {
             reps = 18,
         )
 
-        val result = sessionDao.observePersonalRecord(exerciseUuid, isWeightless = true).first()
+        val result = sessionDao.observePersonalRecord(exerciseUuid).first()
 
         assertEquals(18, result?.reps)
     }
@@ -175,7 +175,7 @@ internal class SessionDaoObservePersonalRecordTest : BaseDatabaseTest() {
             ),
         )
 
-        val result = sessionDao.observePersonalRecord(exerciseUuid, isWeightless = false).first()
+        val result = sessionDao.observePersonalRecord(exerciseUuid).first()
 
         assertEquals(60.0, result?.weight)
         assertEquals(8, result?.reps)
