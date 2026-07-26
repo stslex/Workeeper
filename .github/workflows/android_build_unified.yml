@@ -126,6 +126,14 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
 
+      # The custom detekt rules had NO CI coverage before this step. `:lint-rules` is a plain
+      # JVM module, so its tests live under `test` — and the pipeline's only test invocation
+      # was `testDebugUnitTest`, a task that does not exist for it. Every rule guarding the
+      # MVI/Metro/typography invariants was therefore unverified on every PR. Must run before
+      # `detekt`, since detekt is what consumes the jar these tests cover.
+      - name: Run custom detekt rule tests
+        run: ./gradlew :lint-rules:test --full-stacktrace
+
       - name: Run detekt
         run: ./gradlew detekt --full-stacktrace
 
