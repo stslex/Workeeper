@@ -7,7 +7,11 @@
 # KMP modules add it to their detekt `source.setFrom` explicitly (see core/core/build.gradle.kts),
 # so without the glob below those tests would be judged as production code.
 # Rules that inherit detekt's default `excludes` (no `excludes` key here) do NOT get the glob —
-# spell the list out locally when a rule must ignore host tests.
+# spell the list out locally when a rule must ignore host tests. Audited against detekt 1.23.8's
+# bundled default-detekt-config.yml: every rule detekt itself excludes from test code and that is
+# active here now spells its list out below, so nothing active inherits a host-test-blind default.
+# (detekt-formatting's bundled config declares no `excludes` at all — ktlint rules are meant to
+# apply to test sources too, so the `formatting:` block below is deliberately untouched.)
 
 build:
   maxIssues: 0
@@ -220,6 +224,15 @@ exceptions:
     active: false
   TooGenericExceptionCaught:
     active: true
+    # Spelled out (not inherited) so that '**/androidHostTest/**' can be added: detekt's own
+    # default for this rule already excludes every test source set it knows about, but that list
+    # predates the AGP KMP android host-test source set. Every other entry reproduces detekt
+    # 1.23.8's default list verbatim.
+    excludes: [
+      '**/test/**', '**/androidTest/**', '**/androidHostTest/**', '**/commonTest/**',
+      '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**',
+      '**/jsTest/**', '**/iosTest/**'
+    ]
     exceptionNames:
       - ArrayIndexOutOfBoundsException
       - Error
