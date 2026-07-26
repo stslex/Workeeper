@@ -6,6 +6,7 @@ import androidx.work.Configuration
 import io.github.stslex.workeeper.core.core.images.buildImageStorage
 import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
 import io.github.stslex.workeeper.core.core.logger.Log
+import io.github.stslex.workeeper.core.core.utils.CommonExt
 import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerDeps
 import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerDepsHolder
 import io.github.stslex.workeeper.core.data.backup.worker.MetroWorkerFactory
@@ -16,8 +17,6 @@ import io.github.stslex.workeeper.core.ui.mvi.performance.RecordAction
 import io.github.stslex.workeeper.di.AppGraph
 import io.github.stslex.workeeper.di.AppGraphOwner
 import io.github.stslex.workeeper.di.buildAppGraph
-import io.github.stslex.workeeper.feature.app_dialogs.api.AppDialogPublisherHolder
-import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.recovery.di.RecoveryDeps
 import io.github.stslex.workeeper.feature.recovery.di.RecoveryDepsHolder
 import io.github.stslex.workeeper.feature.recovery.domain.RestoreRecoveryCoordinator
@@ -31,14 +30,15 @@ import kotlinx.coroutines.runBlocking
  * The process [Application] base, Hilt-free (App-Scope Collapse Step 6 — the cut). Holds the Metro
  * app-scope [AppGraph] for the whole process and exposes it through the interface seams every consumer
  * reads: [AppGraphOwner] (in-module: `MainActivity` and other `:app:app` readers), [AppDepsHolder]
- * (feature-side readers via `context.appDeps<T>()`), the typed [RecoveryDepsHolder] /
- * [BackupWorkerDepsHolder] (the two framework readers that must not depend on `core:ui:mvi`), and the
- * feature-tier [AppDialogPublisherHolder], which cross-module consumers (settings / recovery / archive)
- * read to reach the publisher from a `Context`.
+ * (the 13 feature-side readers via `context.appDeps<XxxGraph.Factory>()`), and the typed
+ * [RecoveryDepsHolder] / [BackupWorkerDepsHolder] (the two framework readers that must not depend on
+ * `core:ui:mvi`).
  *
- * `AppDialogInternalsHolder` used to sit alongside it, handing app-dialogs/impl its own app-scoped
- * singletons because no dep interface could name those impl-owned types. The app-dialogs port retired
- * it: the contributed extension inherits them from [AppGraph] directly.
+ * Two `Context`-cast seams used to sit alongside them and are both gone. `AppDialogInternalsHolder`
+ * handed app-dialogs/impl its own app-scoped singletons because no dep interface could name those
+ * impl-owned types; `AppDialogPublisherHolder` exposed the publisher to cross-module producers. The
+ * contributed extensions inherit both from [AppGraph], and producers (settings / recovery) take
+ * `AppDialogPublisher` as an ordinary constructor dep.
  */
 abstract class BaseApplication :
     Application(),
@@ -46,8 +46,7 @@ abstract class BaseApplication :
     AppGraphOwner,
     AppDepsHolder,
     RecoveryDepsHolder,
-    BackupWorkerDepsHolder,
-    AppDialogPublisherHolder {
+    BackupWorkerDepsHolder {
 
     abstract val isDebugLoggingAllow: Boolean
 
@@ -72,9 +71,9 @@ abstract class BaseApplication :
         )
     }
 
-    // God-object split (mechanism A): feature-side readers acquire ONE narrow interface via
-    // `context.appDeps<T>()`. `appGraph` implements every narrow interface (StoreCoreDeps, NavigatorDeps,
-    // each XDeps), so the accessor's `as T` cast is safe by construction.
+    // Feature-side readers acquire their own contributed `XxxGraph.Factory` via `context.appDeps<T>()`.
+    // Every `@ContributesTo(AppScope::class)` extension factory is merged into `appGraph`, so the
+    // accessor's `as T` cast is safe by construction.
     override fun appDeps(): Any = appGraph
 
     // God-object split (typed point-acquisition): the framework-instantiated RecoveryActivity reads
@@ -89,8 +88,6 @@ abstract class BaseApplication :
     // returning it typed as BackupWorkerDeps is a compile-checked upcast.
     override fun backupWorkerDeps(): BackupWorkerDeps = appGraph
 
-    override val appDialogPublisher: AppDialogPublisher get() = appGraph.appDialogPublisher
-
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
             .setWorkerFactory(MetroWorkerFactory(this))
@@ -100,6 +97,7 @@ abstract class BaseApplication :
         super.onCreate()
         FirebaseCrashlyticsHolder.initialize()
         Log.isLogging = isDebugLoggingAllow
+        CommonExt.isTraceExecutionEnabled = isDebugLoggingAllow
         onCreateGraphBootstrap()
         PerformanceMetricsRecorder.process(RecordAction.AppCreated)
     }

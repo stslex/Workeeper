@@ -11,36 +11,25 @@ import io.github.stslex.workeeper.core.core.di.DispatchersBindingContainer
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.core.images.ImageStorage
-import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
-import io.github.stslex.workeeper.core.core.platform.TempFileProvider
-import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
 import io.github.stslex.workeeper.core.data.backup.api.BackupStorage
 import io.github.stslex.workeeper.core.data.backup.api.RecoveryDiagnosticsExporter
 import io.github.stslex.workeeper.core.data.backup.api.SnapshotExportRunner
 import io.github.stslex.workeeper.core.data.backup.api.notification.BackupNotificationHelper
-import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.AutoBackupController
 import io.github.stslex.workeeper.core.data.backup.api.scheduling.BackupPreferencesRepository
-import io.github.stslex.workeeper.core.data.backup.google_drive.auth.AccountDataStore
 import io.github.stslex.workeeper.core.data.backup.worker.BackupWorkerDeps
 import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
 import io.github.stslex.workeeper.core.data.database.AppDatabase
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
 import io.github.stslex.workeeper.core.data.exercise.session.SessionConflictResolver
 import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
-import io.github.stslex.workeeper.core.data.exercise.stats.StatsRepository
-import io.github.stslex.workeeper.core.ui.kit.utils.NumUiUtils
-import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolder
 import io.github.stslex.workeeper.core.ui.kit.utils.activityHolder.ActivityHolderProducer
-import io.github.stslex.workeeper.core.ui.mvi.di.StoreCoreDeps
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
 import io.github.stslex.workeeper.core.ui.navigation.Navigator
-import io.github.stslex.workeeper.core.ui.navigation.NavigatorDeps
 import io.github.stslex.workeeper.feature.app_dialogs.api.observer.AppDialogObserver
-import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.app_dialogs.impl.data.AppDialogRepository
 import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObserverImpl
 import io.github.stslex.workeeper.feature.recovery.boot.RecoveryBootstrap
@@ -56,108 +45,91 @@ import kotlinx.coroutines.CoroutineDispatcher
  * via `create(...)`, so the graph interface stays small.
  */
 /*
- * ORPHANED-ACCESSOR STATE, after the 13th and final feature port (live-workout).
+ * SUPERTYPE + ACCESSOR STATE — the measured end state of the graph-extension arc, not a plan.
  *
- * Only TWO bridge supertypes remain that this arc will delete — RecoveryDeps and BackupWorkerDeps are
- * NOT feature-graph bridges; StoreCoreDeps + NavigatorDeps are the load-bearing γ-spine and stay.
- * Every accessor that a deleted XxxDeps was the last declarer of has been turned into a plain `val`
- * with `override` dropped, NOT deleted — the bulk accessor cleanup is the second closing commit.
+ * All 13 feature `XxxDeps` bridge interfaces are gone: each feature resolves its Store through a
+ * contributed `@GraphExtension` that INHERITS the app-scoped bindings it used to be handed. The two
+ * spine interfaces (StoreCoreDeps, NavigatorDeps) went with them — once every port landed, nothing
+ * called `appDeps<StoreCoreDeps>()` or `appDeps<NavigatorDeps>()` any more.
  *
- * Running orphan ledger, per deletion: past-session 1, exercise-chart 0, exercise 1, single-training 3,
- * live-workout 9. Fourteen orphans from five deletions, with no pattern that predicts the next one —
- * which is why the cleanup commit must ENUMERATE what remains rather than work from a count, and why
- * "orphaned" must never be read as "dead": several of these are live roots (imageStorage via
- * BaseApplication.cleanupOrphanedImageTempFiles, sessionConflictResolver / the dispatchers / the
- * repositories via the :app identity tests).
+ * The TWO supertypes below are not feature-graph bridges and stay: RecoveryDeps (read by
+ * RecoveryActivity) and BackupWorkerDeps (read by MetroWorkerFactory), each acquired through its own
+ * typed holder on BaseApplication because those two readers must not depend on core:ui:mvi.
+ *
+ * Accessor policy, applied here rather than deferred: an accessor stays only when something reads it —
+ * BaseApplication / MainActivity / App.kt, one of the two dep interfaces, or a `:app` identity test.
+ * Reader-less accessors were deleted; the four kept without a reader say so in their own KDoc and are
+ * there as the compile-time assertion that the binding resolves in AppScope. An accessor is NOT what
+ * makes a binding reachable — the extensions inherit every AppScope binding whether or not an accessor
+ * names it.
  */
 @DependencyGraph(scope = AppScope::class)
 internal interface AppGraph :
-    StoreCoreDeps,
-    NavigatorDeps,
     RecoveryDeps,
     BackupWorkerDeps {
 
-    /** Root accessor: the single app-scoped [AnalyticsHolder]. */
-    override val analyticsHolder: AnalyticsHolder
-
     /**
-     * Metro-owned [NumUiUtils] — CONTRIBUTED by `@ContributesBinding(AppScope::class)` on
-     * `NumUiUtilsImpl` in its own module (`core:ui:kit`), which `@DependencyGraph(AppScope::class)`
-     * auto-aggregates. No `@Provides` here: the impl is `internal` to `core:ui:kit` and app/app cannot
-     * reference it, so ownership lives at the impl via contribution (the visibility-respecting Metro
-     * mechanic). This accessor exposes the binding for identity tests.
+     * Root accessor: the single app-scoped [AnalyticsHolder]. Read by the `:app` extension identity
+     * tests, which assert each feature extension resolves the parent's instance.
      */
-    val numUiUtils: NumUiUtils
+    val analyticsHolder: AnalyticsHolder
 
     /**
      * Metro-owned [LoggerHolder] — a concrete self-bound class (no interface), so it carries
      * `@SingleIn(AppScope)` + `@Inject` (NOT `@ContributesBinding`, which binds to a supertype); THIS
-     * accessor pulls it into the graph as a retained singleton.
+     * accessor pulls it into the graph as a retained singleton. Read by the identity tests.
      */
-    override val loggerHolder: LoggerHolder
+    val loggerHolder: LoggerHolder
 
     /**
      * Metro-owned [StoreDispatchers]. Its two qualified `CoroutineDispatcher` ctor deps resolve from
      * the graph's own [DispatchersBindingContainer]. `includeJavax` carries the qualifiers.
+     *
+     * NO READER: every Store takes `StoreDispatchers` as a constructor dep inside its own extension.
+     * Kept as the compile-time assertion that the qualified pair still resolves from this graph.
      */
-    override val storeDispatchers: StoreDispatchers
+    val storeDispatchers: StoreDispatchers
 
     /**
-     * The four Metro-owned CoroutineDispatchers, CONTRIBUTED by [DispatchersBindingContainer]
-     * (`@BindingContainer @ContributesTo(AppScope)`) — the binding that Metro consumers
-     * (`StoreDispatchers`, the feature graphs) resolve. The dispatchers are stateless kotlinx
-     * process-singletons.
+     * [DispatchersBindingContainer] (`@BindingContainer @ContributesTo(AppScope)`) contributes FOUR
+     * qualified `CoroutineDispatcher`s; the three exposed here are the ones the `:app` identity tests
+     * read — `@MainDispatcher` has no accessor. They are stateless kotlinx process-singletons, and Metro
+     * consumers (`StoreDispatchers`, the feature extensions) resolve them straight from the graph.
+     *
+     * Live root: the exercise-chart / exercise / live-workout identity tests read [defaultDispatcher] to
+     * assert the extension inherits the parent's `@DefaultDispatcher` key.
      */
     @DefaultDispatcher
     val defaultDispatcher: CoroutineDispatcher
 
-    // ORPHANED by the single-training port (see the ledger): `SingleTrainingDeps` was the last bridge
-    // interface still declaring `@MainImmediateDispatcher`. Kept as a plain `val` — deletion is deferred
-    // to the final cleanup, and it is still a live root: `SingleTrainingExtensionIdentityTest` and
-    // `ExerciseExtensionIdentityTest` both read it to assert the qualified pair stays distinct.
+    // Live root: `SingleTrainingExtensionIdentityTest` and `ExerciseExtensionIdentityTest` both read it
+    // to assert the qualified pair stays distinct across the extension boundary.
     @MainImmediateDispatcher
     val mainImmediateDispatcher: CoroutineDispatcher
 
-    // ORPHANED by the past-session port: `PastSessionDeps` was the last bridge interface still
-    // declaring `@IODispatcher`, so this accessor now overrides nothing. It is kept (as a plain `val`,
-    // no `override`) rather than deleted — accessor cleanup is deferred to the final feature and lands
-    // in bulk, per the orphaned-accessor ledger in the arc HANDOFF. Still read by
-    // `PastSessionExtensionIdentityTest`, which asserts the extension inherits THIS key and not
-    // `@DefaultDispatcher`.
+    // Live root: `PastSessionExtensionIdentityTest` (and the exercise-chart / live-workout / settings
+    // identity tests) read it to assert the extension inherits THIS key and not `@DefaultDispatcher`.
     @IODispatcher
     val ioDispatcher: CoroutineDispatcher
-
-    /**
-     * Metro-owned [ResourceWrapper] — CONTRIBUTED by `ResourceWrapperBindingContainer`
-     * (`@BindingContainer @ContributesTo(AppScope)`, its `Context` from the `create(applicationContext)`
-     * bound instance).
-     */
 
     /**
      * Metro-owned Navigator subsystem — the one `NavigatorEventBus` (`@SingleIn(AppScope)`) contributes
      * [Navigator] via `@ContributesBinding` AND is exposed here as its concrete type for `AppRootViewModel`
      * (which injects the concrete, then passes it as a `NavigatorReceiver`). One instance backs both.
+     *
+     * [navigatorEventBus] is read by `App.kt`. [navigator] has NO READER — features inject `Navigator`
+     * as a constructor dep inside their own extension — and is kept as the compile-time assertion that
+     * the contributed supertype binding still resolves to that same instance.
      */
-    override val navigator: Navigator
+    val navigator: Navigator
     val navigatorEventBus: NavigatorEventBus
 
     /**
-     * Metro-owned [ActivityHolder] + [ActivityHolderProducer] — the same `ActivityHolderImpl` (one
-     * `@SingleIn(AppScope)` retained instance) contributes BOTH via repeatable `@ContributesBinding`.
-     * The `ActivityHolder` supertype now has no production reader (its former sole consumer
-     * `ResourceManagerImpl` was a dead binding, last `.locale` reader removed in e37f74f5, and was
-     * DELETED in the L-tail slice). This accessor stays: the seam test uses it to prove both supertypes
-     * resolve to the one `ActivityHolderImpl` instance. `ActivityHolderProducer` is read by `MainActivity`.
+     * Metro-owned [ActivityHolderProducer] — `ActivityHolderImpl` (one `@SingleIn(AppScope)` retained
+     * instance) contributes it via `@ContributesBinding`. Read by `MainActivity`, which registers the
+     * current Activity on it.
      */
-    val activityHolder: ActivityHolder
     val activityHolderProducer: ActivityHolderProducer
-
-    /** Metro-owned via @ContributesBinding. */
-    val platformInfoProvider: PlatformInfoProvider
-    val tempFileProvider: TempFileProvider
-
-    /** Metro-owned RestoreStateRepository. */
-    val restoreStateRepository: RestoreStateRepository
 
     /** Metro-owned AutoBackupController (BackupScheduler) + BackupNotificationHelper. */
     override val autoBackupController: AutoBackupController
@@ -175,41 +147,40 @@ internal interface AppGraph :
      * Metro-owned [CommonDataStore] — CONTRIBUTED by `@ContributesBinding(AppScope)` on the (public)
      * `CommonDataStoreImpl` in `core:data:dataStore`; `@DependencyGraph` auto-aggregates it. Its dep is a
      * Metro-native `@AssistedFactory` (`DataStoreProviderFactory`, whose produced `DataStoreProvider` takes
-     * a plain `Context` from the `create(applicationContext)` bound instance). Read by `AppRootViewModel`
-     * and settings (`SettingsGraph`) via the graph.
+     * a plain `Context` from the `create(applicationContext)` bound instance). Read by `App.kt`, which
+     * hands it to `AppRootViewModel`; settings takes it as a constructor dep inside its own extension.
      */
     val commonDataStore: CommonDataStore
 
     /**
-     * The three app-scoped singletons of feature/app-dialogs:impl, Metro-owned:
+     * Three of the app-scoped singletons of feature/app-dialogs:impl, Metro-owned:
      *  - [appDialogRepository] — the self-bound concrete `AppDialogRepository` (`@SingleIn(AppScope)` +
-     *    `@Inject`; implements `AppDialogPublisher` but is NOT bound to it). Read only intra-module,
-     *    including by the feature's own `AppDialogGraph`. Its `Context` resolves from the
-     *    `create(applicationContext)` bound instance.
+     *    `@Inject`; implements `AppDialogPublisher` but is NOT bound to it). Its `Context` resolves from
+     *    the `create(applicationContext)` bound instance. Read by `AppDialogExtensionIdentityTest`,
+     *    which asserts the extension inherits this instance instead of building a double.
      *  - [appDialogObserverImpl] — the concrete `AppDialogObserverImpl` (`@SingleIn(AppScope)`), read by
-     *    `AppDialogFeature`. The SAME instance is contributed as [appDialogObserver]
+     *    the same identity test. The SAME instance is contributed as [appDialogObserver]
      *    (`@ContributesBinding`) for the cross-module consumers.
-     *  - [appDialogObserver] / [appDialogPublisher] — the api interfaces, contributed via
-     *    `@ContributesBinding(AppScope)` on the impls, read cross-module (settings / recovery / archive /
-     *    `BaseApplication`).
+     *  - [appDialogObserver] — the api interface. NO READER: `RestoreDialogChoiceObserver` takes it as a
+     *    constructor dep. Kept as the compile-time assertion that the contributed supertype binding
+     *    resolves to the same singleton.
+     *
+     * There is no `appDialogPublisher` accessor: its only reader was `BaseApplication`'s override of the
+     * `AppDialogPublisherHolder` seam, and that seam is deleted — settings and recovery take
+     * `AppDialogPublisher` as a constructor dep resolved inside their own extension.
      */
     val appDialogRepository: AppDialogRepository
     val appDialogObserverImpl: AppDialogObserverImpl
     val appDialogObserver: AppDialogObserver
-    val appDialogPublisher: AppDialogPublisher
-
-    /**
-     * Metro-owned [AccountDataStore] — CONTRIBUTED by `@ContributesBinding(AppScope)` on the (public)
-     * `AccountDataStoreImpl`. Its `Context` resolves from the `create(applicationContext)` bound instance.
-     * The one Context-only gd binding; read by its four gd consumers via the graph.
-     */
-    val accountDataStore: AccountDataStore
 
     /**
      * The google-drive auth-chain bindings, Metro-owned via `@ContributesBinding(AppScope)` on their gd
      * impls (the GMS `AuthorizationClient` + ktor `HttpClient` are held by the gd `@BindingContainer`s but
-     * stay INSIDE gd — no accessor here, so app/app never names them). Read cross-module by settings + the
-     * backup worker via the graph.
+     * stay INSIDE gd — no accessor here, so app/app never names them).
+     *
+     * [backupStorage] is declared by [BackupWorkerDeps] and read by `MetroWorkerFactory`. [backupAuth]
+     * has NO READER — `BackupInteractorImpl` (settings) and `SnapshotExportRunnerImpl` take it as a
+     * constructor dep — and is kept as the compile-time assertion that the gd auth chain still resolves.
      */
     val backupAuth: BackupAuth
     override val backupStorage: BackupStorage
@@ -222,41 +193,33 @@ internal interface AppGraph :
 
     /**
      * Metro-owned [RecoveryDiagnosticsExporter] — `@ContributesBinding(AppScope)` on
-     * `RecoveryDiagnosticsExporterImpl` (feature/recovery), bound to the api interface. Exposed via
-     * `RecoveryDeps`: read by `RecoveryActivity` + `RestoreDialogChoiceObserver` through the graph.
+     * `RecoveryDiagnosticsExporterImpl` (feature/recovery), bound to the api interface. Declared by
+     * [RecoveryDeps] and read by `RecoveryActivity` through its typed holder; `RestoreDialogChoiceObserver`
+     * takes the same binding as a constructor dep.
      */
     override val recoveryDiagnosticsExporter: RecoveryDiagnosticsExporter
 
     /**
-     * The nine exercise repositories, Metro-owned via `@ContributesBinding(AppScope)` on their (public)
+     * The exercise repositories are Metro-owned via `@ContributesBinding(AppScope)` on their (public)
      * impls (their Room-DAO / DbTransitionRunner / ImageStorage ctor deps resolve graph-internally; `@IO`
-     * from the graph). Eight are read cross-module by features via the graph; [statsRepository] has zero
-     * consumers (dead binding) — exposed for completeness/identity.
+     * from the graph), and every feature takes the ones it needs as constructor deps inside its own
+     * extension. Only [sessionRepository] keeps an accessor, because `LiveWorkoutExtensionIdentityTest`
+     * reads it to assert the extension inherits this instance rather than building a double.
      */
     val sessionRepository: SessionRepository
-    // ORPHANED by the single-training port: `SingleTrainingDeps` was the last bridge interface still
-    // declaring `tagRepository`. Kept as a plain `val` pending the final cleanup.
-    val statsRepository: StatsRepository
 
     /**
      * [SessionConflictResolver] — self-bound `@SingleIn(AppScope)` graph node.
      *
-     * ORPHANED by the single-training port: `SingleTrainingDeps` was the last bridge interface still
-     * declaring it, so this overrides nothing. Kept as a plain `val` pending the final cleanup, and it
-     * is a LIVE root, not dead weight: `SingleTrainingExtensionIdentityTest` reads it to assert the
-     * extension inherits the parent's instance rather than building its own double.
+     * Live root: `SingleTrainingExtensionIdentityTest` reads it to assert the extension inherits the
+     * parent's instance rather than building its own double.
      */
     val sessionConflictResolver: SessionConflictResolver
 
     /**
      * [ImageStorage] accessor over the `create()` bound-instance root — read by
-     * `BaseApplication.cleanupOrphanedImageTempFiles`, and by the exercise extension, which now
-     * INHERITS it rather than being handed it.
-     *
-     * ORPHANED by the exercise port: `ExerciseDeps` was the last bridge interface still declaring
-     * `imageStorage`, so this accessor overrides nothing. Kept as a plain `val` (no `override`) rather
-     * than deleted — accessor cleanup is deferred to the final feature and lands in bulk, per the
-     * orphaned-accessor ledger. It is still a live root: `BaseApplication` reads it directly.
+     * `BaseApplication.cleanupOrphanedImageTempFiles`. The exercise extension INHERITS the same binding
+     * rather than being handed it.
      */
     val imageStorage: ImageStorage
 
