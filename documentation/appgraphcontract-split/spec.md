@@ -15,6 +15,27 @@ for the 13 feature readers + typed holders (`RecoveryDeps`/`BackupWorkerDeps`) f
 the 2 dead accessors dropped. All gates green (assemble + detekt + full-suite unit tests). See `NEXT.md` for
 the final shape. The sections below are the original plan, retained for provenance.
 
+> ⚠️ **CORRECTION, standing (2026-07-26) — the architecture this spec locked has since been replaced,
+> including the parts marked "DONE in C1".** The same PR continued into the **graph-extension arc**:
+> all 13 features moved to contributed `@GraphExtension`s, which inherit app-scoped bindings instead of
+> being handed them. Consequences for what you read below:
+>
+> - **The γ-spine is deleted.** `StoreCoreDeps` (`core:ui:mvi`) and `NavigatorDeps`
+>   (`core:ui:navigation`) were removed by `7f48093f` once no reader called `appDeps<StoreCoreDeps>()`
+>   / `appDeps<NavigatorDeps>()`. So §"Target architecture" → "Spine — variant γ … DONE in C1" is
+>   history, not current state; do not reintroduce the spine on its authority.
+> - **The 11 per-feature `XDeps` interfaces are deleted** with their features' ports.
+> - **The per-consumer framework interfaces `RecoveryDeps` + `BackupWorkerDeps` SURVIVE**, exactly as
+>   specified here and for the reason given here (neither reader may depend on `core:ui:mvi`). They are
+>   `AppGraph`'s only two supertypes at HEAD.
+> - **`@GraphExtension` — listed under "OUT OF SCOPE / rejected" in "Locked decisions" — was
+>   subsequently adopted** and is now the mechanism for all 13 features. The rejection was correct for
+>   this spec's scope and wrong as a permanent verdict; that reversal is the subject of
+>   [`../graph-extension-arc/HANDOFF.md`](../graph-extension-arc/HANDOFF.md).
+>
+> Everything below is left as written. Read it as the plan that got the god-object deleted, not as the
+> description of the DI graph you are working in.
+
 ## ▶ RESUME HERE (session entry point)
 
 - **State:** **C1 is DONE and committed at `f1fe1a02`** on branch `cleanup/appgraphcontract-split` (base

@@ -3,6 +3,16 @@
 **Branch:** `cleanup/appgraphcontract-split` · **C1 commit:** `f1fe1a02` · **base:** `d54129dd` (tip of `feature/metro-batch`).
 Variant A, spine variant γ. Additive only — no reader migrated, nothing deleted, `AppGraphContract` intact.
 
+> ⚠️ **CORRECTION, standing (2026-07-26) — both interfaces this report introduces have since been
+> deleted.** `StoreCoreDeps` (`core/ui/mvi/.../di/StoreCoreDeps.kt`) and `NavigatorDeps`
+> (`core/ui/navigation/.../NavigatorDeps.kt`) were removed by **`7f48093f`**: the later
+> graph-extension arc ported every feature to a contributed `@GraphExtension` that **inherits**
+> analytics / logger / dispatchers / navigator from the parent graph, so the spine ended the PR with
+> zero readers. Neither file exists at HEAD, and `AppGraph`'s supertype list is now
+> `RecoveryDeps, BackupWorkerDeps`. This report is kept unedited because its *method* outlived its
+> subject: the Metro-resolves-accessors-**by-type** finding and the unbound-type non-vacuity probe
+> below are still how a graph-supertype claim gets proven here.
+
 ## Clean-base confirmation
 - Branched `cleanup/appgraphcontract-split` from the committed tip `d54129dd`; `git reset --hard d54129dd` discarded all tracked spike modifications; removed the 3 spike-specific untracked items (`SpikeProbeBindingContainer.kt`, `core/core/src/concurrentMain/`, `documentation/spike-metro-kmp-extension.md`).
 - **Tracked tree was clean before editing** (0 tracked-change lines). Three untracked files remained — `KMP_C1_RESULTS.md`, `documentation/metro-cleanup-discovery.md`, `iosApp/` — all pre-existing / orthogonal to C1 and NOT included in the commit (staged C1 files explicitly).

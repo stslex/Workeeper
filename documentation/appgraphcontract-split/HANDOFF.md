@@ -7,6 +7,33 @@
 > **Branch:** `feature/metro-batch` · **tip:** `8697f5e8` · **PR:** #176 (`feature/metro-batch` → `dev`), CI GREEN.
 > Every SHA/claim below was verified against source + git at write time.
 
+⚠️ **CORRECTION, standing (2026-07-26) — this is a snapshot of the tree at `8697f5e8`, and four of its
+shapes no longer exist.** The same PR continued past this handoff with the **graph-extension arc**
+(13 features ported to contributed `@GraphExtension`s) and its review round. The narrative below is
+left unedited as the record of that phase; it is **not** the current DI shape. For that, read
+`app/app/src/main/java/io/github/stslex/workeeper/di/AppGraph.kt` and
+[`../graph-extension-arc/HANDOFF.md`](../graph-extension-arc/HANDOFF.md).
+
+- **The 11 feature `XDeps` interfaces are all deleted** — `AllTrainingsDeps`, `AllExercisesDeps`,
+  `ArchiveDeps`, `ExerciseChartDeps`, `PlanEditorDeps`, `PastSessionDeps`, `ExerciseDeps`,
+  `SingleTrainingDeps`, `LiveWorkoutDeps`, `HomeDeps`, `SettingsDeps` — `git grep "interface <name>"`
+  returns nothing for any of the eleven. Each feature's extension now **inherits** what it used to be
+  handed.
+- **The 2 spine interfaces are deleted too** — `StoreCoreDeps` and `NavigatorDeps` went in `7f48093f`,
+  once no reader called `appDeps<StoreCoreDeps>()` / `appDeps<NavigatorDeps>()` any more. Nothing
+  replaced them: analytics / logger / dispatchers / navigator resolve from the parent graph.
+- **`AppGraph` implements 2 interfaces, not 15** — `RecoveryDeps` + `BackupWorkerDeps`. The typed
+  point-acquisition mechanism described under "Acquisition mechanism" below is exactly what survived,
+  and for the reason given there: neither reader may depend on `core:ui:mvi`.
+- **`BaseApplication` carries 4 holder supertypes, not 6** — `AppDialogInternalsHolder` (`a750d717`)
+  and `AppDialogPublisherHolder` + `Context.appDialogPublisher()` (`7f48093f`) are both deleted, with
+  the `override`s they forced. At HEAD the list is `Application()`, `Configuration.Provider`,
+  `AppGraphOwner`, `AppDepsHolder`, `RecoveryDepsHolder`, `BackupWorkerDepsHolder`. The reified
+  `appDeps<T>()` seam itself stays, now typed as `context.appDeps<XxxGraph.Factory>()`.
+
+The three OPEN GATES below (on-device pass → independent review → merge) were written against
+`8697f5e8` and still describe the merge protocol for PR #176; the tip they name is stale.
+
 ---
 
 ## ✅ DONE

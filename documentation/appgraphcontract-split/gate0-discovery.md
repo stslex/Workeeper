@@ -4,6 +4,15 @@
 **Working tree:** DIRTY (22 porcelain entries, spike leftovers). **All reads against the git ref `feature/metro-batch`**, not the working tree. Excludes `*/build/*`, `*/.claude/worktrees/*`.
 **Status:** discovery only — **NO edits made**. Maintainer GO required before EXECUTION.
 
+> ⚠️ **CORRECTION, standing (2026-07-26) — the decisions this gate framed were taken, executed, and
+> then partly undone.** The two-tier spine argued for in §"Decisions … 2. Spine granularity"
+> (`StoreCoreDeps` {AH,LH,SD} + navigator kept separate) was built in C1 and **deleted** by `7f48093f`:
+> the later graph-extension arc ported all 13 features to contributed `@GraphExtension`s, which inherit
+> those bindings from the parent graph, leaving the spine with no readers. The per-consumer framework
+> interfaces (`RecoveryDeps`, `BackupWorkerDeps`) survive and are `AppGraph`'s only two supertypes.
+> Every reading below is pinned to the ref `d54129dd` and is left exactly as measured — it is a
+> snapshot of that tree, not a description of HEAD.
+
 ---
 
 ## 0.1 — Interface homes & directional-cycle check

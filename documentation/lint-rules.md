@@ -597,16 +597,24 @@ so the classifier collapsed to a `Boolean`:
 
 `lint-rules/lint.xml` is the single source of truth. Settings worth knowing:
 
-- **Default severity** is `error` for almost every rule. Warnings live only on
-  `KotlinPropertyAccess`, `FragmentTagUsage`, `SetJavaScriptEnabled`, `Deprecated`, and
+- **Default severity** is `error` for almost every rule. Exactly eight entries are `warning`:
+  `SetJavaScriptEnabled`, `GradleDependency`, `NewerVersionAvailable`,
+  `AndroidGradlePluginVersion`, `KotlinPropertyAccess`, `FragmentTagUsage`, `Deprecated`, and
   `ObsoleteSdkInt`.
 - **Test sources** are excluded from `HardcodedText` and `SetTextI18n` to allow inline strings
   in tests.
 - **Mipmap launcher icons** are exempted from icon-related checks
   (`IconDensities`, `IconDuplicates`, `IconLocation`, `IconMissingDensityFolder`,
   `IconExpectedSize`, `IconLauncherShape`, `VectorRaster`, `ConvertToWebp`).
-- **Version catalog** is exempted from `GradleDependency` and `NewerVersionAvailable` because
-  the Kotlin version is intentionally pinned for Hilt compatibility.
+- **Dependency-freshness checks** (`GradleDependency`, `NewerVersionAvailable`,
+  `AndroidGradlePluginVersion`) are downgraded to `warning` **project-wide**. They are not
+  path-scoped to the version catalog — `lint.xml` holds no
+  `<ignore path="**/libs.versions.toml" />` entry for them. The inline comments above the first
+  two still blame "Hilt compatibility"; that rationale is dead — Hilt is on no classpath and
+  appears nowhere in `gradle/libs.versions.toml`. The live constraint on the `kotlin` pin is
+  Metro: per the catalog's own comment, `metro = "1.3.2"` is built against Kotlin 2.4.0, so
+  `kotlin = "2.4.10"` moves in lockstep with the Metro line. `ksp = "2.3.9"` is pinned for a
+  separate, documented reason (2.3.6 silently skips KMP/native codegen).
 
 ### Categories
 
@@ -632,9 +640,14 @@ The configuration groups checks by intent (the headings in `lint.xml` are explic
 The configuration leaves a few rule families to other tools:
 
 - Compose lint rules are handled by the Compose Compiler.
-- Hilt's own lint rules ship with the Hilt Gradle Plugin.
 - Room lint rules ship with the Room Gradle Plugin.
 - Coroutine rules ship with `kotlinx-coroutines`.
+
+DI is no longer on that list: `lint.xml` still carries a `<!-- Hilt Dependency Injection -->`
+comment block from the Hilt era, but it is a comment only — it configures nothing, and no Hilt
+Gradle Plugin is applied anywhere. The DI invariants this repo enforces live in the custom Detekt
+rules under `lint-rules/` — `MetroScopeRule`, `ContributesBindingScopeRule`,
+`ContributesToScopeRule` and `ScreenInjectionRule` — not in Android Lint.
 
 There is no separate "global suppressions" XML file under `lint-rules/src/main/resources/`;
 suppressions are categorized inline in `lint.xml` itself with comments. Treat the `<!-- ... -->`
@@ -646,23 +659,23 @@ To suppress a rule, edit `lint-rules/lint.xml` and add an `<issue>` block in the
 category. Two patterns are common:
 
 ```xml
-<!-- Severity override / global suppression -->
+<!-- Severity override, whole project -->
+<issue id="GradleDependency" severity="warning" />
+
+<!-- Path-scoped exemption -->
 <issue id="HardcodedText" severity="error">
     <ignore path="**/test/**" />
     <ignore path="**/androidTest/**" />
-</issue>
-
-<!-- Path-scoped exemption -->
-<issue id="GradleDependency" severity="error">
-    <ignore path="**/libs.versions.toml" />
 </issue>
 ```
 
 Two practical rules:
 
-- **Document the why.** Every entry should sit under a category heading and have an inline
-  comment if the reason is non-obvious (the existing `GradleDependency` block on
-  `libs.versions.toml` is a good model).
+- **Document the why.** Every entry should sit under a category heading and have an inline comment
+  if the reason is non-obvious; the model is the icon block's
+  `<!--Ignore launcher icon issues for mipmap folders -->`. Keep that comment true when the reason
+  changes — `GradleDependency` and `NewerVersionAvailable` still carry a Hilt-era comment even
+  though Hilt is on no classpath.
 - **Prefer narrowing the scope** (`<ignore path="..."/>`) over flipping the rule severity to
   `ignore` for the whole project.
 

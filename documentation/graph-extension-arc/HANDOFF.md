@@ -55,6 +55,28 @@ five headline numbers and three of its four planned deletions did not survive me
 | **11 `override val` accessors** | each overrides one of the 4 live supertypes |
 | **6 orphaned-but-live accessors** | `ioDispatcher`, `defaultDispatcher`, `mainImmediateDispatcher`, `sessionConflictResolver`, `sessionRepository` (identity tests) + `imageStorage` (`BaseApplication.cleanupOrphanedImageTempFiles`) |
 
+> ⚠️ **CORRECTION, standing (2026-07-26, PR #176 review) — three rows of the STAYS table did not
+> survive the review round.** Recorded here rather than rewritten, because the table is the close-out
+> *measurement* and the point is that it was measured too early.
+>
+> - **`StoreCoreDeps` + `NavigatorDeps` DELETED** by **`7f48093f`**. The row's "why" was the falsifier:
+>   `appDeps<T>()` did **not** read them. Both interfaces were added by this PR and finished it with
+>   zero call sites: `git grep "appDeps<StoreCoreDeps>"` / `"appDeps<NavigatorDeps>"` matched no
+>   executable line anywhere — only KDoc prose and these arc documents mention them. That is because
+>   every ported feature inherits analytics / logger / dispatchers / navigator from the parent graph
+>   through its `@GraphExtension`, which is precisely why the 11 feature `XxxDeps` bridges were deleted
+>   before them. The spine was the same thing one tier up, measured one review round late. Nothing
+>   replaced it. The DELETED table's count follows: **13 of the 15** dep interfaces are gone, not 11 —
+>   and the survivors are the framework pair, not "the other 4".
+> - **Supertypes: 4 → 2.** `AppGraph` now reads `internal interface AppGraph : RecoveryDeps,
+>   BackupWorkerDeps`. Only the two framework seams (row 2) survive, exactly as that row predicted.
+> - **`override val` accessors: 11 → 7**, following the supertype drop.
+> - Seven further `AppGraph` accessors went in the same commit (`numUiUtils`, `activityHolder`,
+>   `platformInfoProvider`, `tempFileProvider`, `restoreStateRepository`, `accountDataStore`,
+>   `statsRepository`) — each had zero readers repo-wide while its KDoc named readers that do not
+>   exist. The six "orphaned-but-live" accessors in the last row are NOT among them and all still
+>   exist. The lesson is the arc's own: *a KDoc naming a reader is not a reader.*
+
 ### The `AppGraph` collapse already happened
 
 There is **no separate collapse commit** and there never could have been. The `override` → plain
@@ -146,6 +168,15 @@ the whole arc or none of it.
   *(Count the supertypes by READING the list, not by grepping `Deps,` — the last entry ends in ` {`
   and a comma-anchored grep returns 7. That is STANDING RULE 5 witness #1 recurring; it recurred again
   while writing this line.)*
+
+  > ⚠️ **CORRECTION, standing (2026-07-26, `7f48093f`) — the floor is TWO, and the two are not the
+  > pair this bullet leads with.** `StoreCoreDeps` and `NavigatorDeps` were deleted (zero readers; see
+  > the STAYS-table correction above), leaving `internal interface AppGraph : RecoveryDeps,
+  > BackupWorkerDeps` — the two live framework seams, which this bullet correctly identified as
+  > non-deletable. The measure-don't-assume discipline was right; the measurement was simply taken one
+  > review round too early. Note the direction of the error, because it is the opposite of the earlier
+  > ones: every previous revision RAISED the floor (0 → 2 → 4) by finding something still live, and
+  > this is the first that LOWERED it, by finding something already dead.
 - **CLOSING COMMITS — 2 of 2 possible are DONE; three planned items do NOT survive measurement.**
   1. ✅ `1f62da9e` — deleted the **8 orphaned accessors that are actually dead**. Of the 14 orphans,
      only 8 are dead; **6 are live roots** and stay. Proven both ways: deleting a live one fails,
@@ -171,6 +202,14 @@ the whole arc or none of it.
      point-acquisition, and `MetroWorkerFactory` reads `BackupWorkerDeps` via `BackupWorkerDepsHolder`
      — both are entry points that must not depend on `core:ui:mvi`. Collapsing "to the
      StoreCoreDeps + NavigatorDeps spine" as written would break both.
+
+     > ⚠️ **CORRECTION, standing (2026-07-26, `7f48093f`) — wrong number, right conclusion.** The list
+     > bottoms out at **TWO**, and the two are `RecoveryDeps` + `BackupWorkerDeps`: exactly the pair
+     > this item defends. What did not survive is its premise that the γ-spine is feature-facing —
+     > nothing read `StoreCoreDeps` or `NavigatorDeps`, so they were deleted, not collapsed into. The
+     > warning still stands in substance: a collapse "to the spine" would have deleted the wrong two.
+     > (Item 5's "11 accessors still carrying `override`" is now **7**, from the same commit — each
+     > still overrides one of the two live supertypes.)
 
   🚫 **BLOCKED — the on-device restore-cycle anchor cannot be run by an agent.** It is a **manual,
   device-driven, credential-requiring** procedure, not an automated test: `tech-debt.md:219` records it
@@ -1067,6 +1106,27 @@ but of a *different seam type*, and it belongs in this port's deletion commit.
 cross-module consumers (settings / recovery / archive reading the publisher from a `Context`), which
 have nothing to do with this feature's own graph. Two similarly-named seams, only one of them dead.
 
+> ⚠️ **CORRECTION, standing (2026-07-26, PR #176 review) — THE INSTRUCTION ABOVE IS WITHDRAWN. The
+> seam did NOT stay.** `AppDialogPublisherHolder` + `Context.appDialogPublisher()` were **deleted**
+> from `feature/app-dialogs/api` by **`7f48093f`** ("delete the seams and accessors this PR added
+> dead"), along with `BaseApplication`'s `AppDialogPublisherHolder` supertype and its
+> `override val appDialogPublisher`. Do **not** restore them on this paragraph's authority.
+>
+> The reasoning above was wrong on its premise, not just on the outcome: the cross-module consumers it
+> credits never read the holder. It was added by this same PR and ended it with **zero** readers. At
+> HEAD the consumers of `AppDialogPublisher` outside `app-dialogs` are `feature/settings`
+> (`BackupClickHandler`) and `feature/recovery` (`RestoreDialogChoiceObserver`,
+> `RestoreRecoveryCoordinator`) — each takes it as an ordinary **constructor dep** resolved from the
+> app-scoped `@ContributesBinding`, never off a `Context`;
+> `archive` does not consume it at all. So "two similarly-named seams, only one of them dead" is
+> itself the correction's target: **both** were dead. The sibling `AppDialogInternalsHolder` was
+> retired first (`a750d717`); this one outlasted it only by being harder to disprove from its KDoc,
+> which named consumers that took the publisher by constructor. **Nothing replaced the holder** — the
+> api-module `AppDialogPublisher` interface alone carries the cross-module contract.
+>
+> The narrative above is left exactly as it was written before the port (no-rebase); only its
+> forward-looking "do not over-delete" instruction is superseded.
+
 Also unaffected: app-dialogs is the only feature that *contributes* app-scoped bindings
 (`AppDialogRepository` is `@SingleIn(AppScope)`; the observer/publisher are `@ContributesBinding`).
 The port touches only its feature-scoped graph; the app-scoped contributions stay exactly as they are.
@@ -1415,6 +1475,11 @@ Of the 12 remaining supertypes, `StoreCoreDeps` + `NavigatorDeps` are the load-b
 NOT transient. The bridge therefore bottoms out at **4, not 0 and not 2** — re-measured at close-out,
 `RecoveryDeps` and `BackupWorkerDeps` are live framework seams too. The final cleanup deleted 11 feature
 interfaces plus whatever accessors are orphaned by then.
+
+> ⚠️ **CORRECTION, standing (2026-07-26, `7f48093f`): "NOT transient" was wrong.** The γ-spine WAS
+> transient — `StoreCoreDeps` and `NavigatorDeps` outlived their last reader by one review round and
+> were deleted. The bridge bottoms out at **2** (`RecoveryDeps`, `BackupWorkerDeps`). The projection
+> in the paragraphs around this one is left as written; only the "NOT transient" verdict is withdrawn.
 
 Projection to hold loosely: settings orphaned 5 because it was the last declarer of a wide,
 uniquely-owned backup slice. Features whose deps are widely shared (`exerciseRepository` ×6,

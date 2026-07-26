@@ -4,6 +4,22 @@
 **Working tree:** DIRTY (22 `git status --porcelain` entries, from the intact `spike/metro-kmp-extension` task). **All reads are against the git ref `feature/metro-batch`** (`git grep feature/metro-batch`, `git show feature/metro-batch:…`), NOT the working tree. Sweeps exclude `*/build/*` and `*/.claude/worktrees/*`.
 Facts only — no groupings, interfaces, or design.
 
+> ⚠️ **CORRECTION, standing (2026-07-26) — every call site tabulated here is pinned to `d54129dd` and
+> several no longer exist.** The `AppGraphContract` god-object was deleted by the split this matrix
+> fed, and the per-consumer interfaces that replaced it were themselves mostly deleted by the later
+> graph-extension arc: the 11 feature `XDeps` plus the `StoreCoreDeps` / `NavigatorDeps` spine are gone
+> (`7f48093f`), leaving `RecoveryDeps` + `BackupWorkerDeps`. Two specifics for anyone grepping from
+> here:
+>
+> 1. The `graph.<accessor>` bound-instance lists that STEP 2 derives each consumed set from are gone.
+>    A feature's extension inherits those bindings; the only bound instance still passed to a factory
+>    is a route arg (shape B).
+> 2. The excluded non-contract arg `appDialogPublisher = context.appDialogPublisher()` no longer
+>    exists — `AppDialogPublisherHolder` and its `Context` accessor were deleted in the same commit,
+>    and consumers take `AppDialogPublisher` as a constructor dep instead.
+>
+> The tables below are left exactly as measured at `d54129dd`.
+
 ---
 
 ## STEP 1 — The `AppGraphContract` accessor universe (32 accessors)

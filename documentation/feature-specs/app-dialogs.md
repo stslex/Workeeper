@@ -139,7 +139,7 @@ if multiple are pending).
 |   AppDialogStore : Store<State, Action, Event>                     |
 |       State.current  : AppDialog?                                  |
 |       State.lastUserChoice : AppDialogUserChoice?  (transient)     |
-|     Handlers (@SingleIn(AppDialogScope)):                          |
+|     Handlers (@SingleIn(AppDialogsScope)):                         |
 |       AppDialogRepoHandler — Action.RepoAction sub-tree            |
 |         Observe  → repository.currentDialog → State.current        |
 |         Publish  → repository.publish (currently no dispatcher)    |
@@ -535,8 +535,8 @@ Handler routing (`AppDialogStoreImpl.handlerCreator`):
 
 | Action | Handler |
 |---|---|
-| `is Action.RepoAction` | `AppDialogRepoHandler` (`@SingleIn(AppDialogScope)`) |
-| `is Action.Choose` | `ChooseHandler` (`@SingleIn(AppDialogScope)`) |
+| `is Action.RepoAction` | `AppDialogRepoHandler` (`@SingleIn(AppDialogsScope)`) |
+| `is Action.Choose` | `ChooseHandler` (`@SingleIn(AppDialogsScope)`) |
 
 Per-feature reaction to user choices is **NOT** in the Store's handler
 graph — it lives in the consuming feature's own `@SingleIn(AppScope)` handler that
@@ -579,8 +579,8 @@ deferred to a follow-up PR — see
 | `AppDialogRepository[Impl]` | `@SingleIn(AppScope)` | Single writer of `pending_*` keys. Owns the `DataStore<Preferences>` instance. |
 | `AppDialogResolver` | pure (no `@Inject`) | Static priority walk. No state. |
 | `AppDialogStore` interface / `AppDialogStoreImpl` | unscoped (class-level `@Inject`) | Activity-scoped via `rememberMetroStoreProcessor<AppDialogStoreImpl>()` at App root; retained by the Activity `ViewModelStore`. A Metro Store carries no scope annotation — [`MetroScopeRule`](../lint-rules.md#metroscoperule) does not require one. **No carve-out** — this is a regular MVI Store. |
-| `AppDialogHandlerStoreImpl` | `@SingleIn(AppDialogScope)` | Standard `BaseHandlerStore` bridge. |
-| `AppDialogRepoHandler` / `ChooseHandler` | `@SingleIn(AppDialogScope)` | Handler-suffix → feature-scoped `@SingleIn(<Feature>Scope)` per `MetroScopeRule` (a `*Handler` must not be `@SingleIn(AppScope)`). |
+| `AppDialogHandlerStoreImpl` | `@SingleIn(AppDialogsScope)` | Standard `BaseHandlerStore` bridge. |
+| `AppDialogRepoHandler` / `ChooseHandler` | `@SingleIn(AppDialogsScope)` | Handler-suffix → feature-scoped `@SingleIn(<Feature>Scope)` per `MetroScopeRule` (a `*Handler` must not be `@SingleIn(AppScope)`). |
 | `AppDialogPublisher` / `AppDialogPublisherImpl` | `@SingleIn(AppScope)` (`@ContributesBinding`) | Thin facade over the repository. |
 | `AppDialogObserver` / `AppDialogObserverImpl` | `@SingleIn(AppScope)` (`@ContributesBinding`) | Cross-feature observation surface, backed by the repository. |
 | `AppDialogHost` | Stateless Composable | Resolves the Store via `rememberMetroStoreProcessor<AppDialogStoreImpl>()`. No `EntryPointAccessors`. |

@@ -4,6 +4,18 @@
 > It is the complete state snapshot for the fresh (zero-memory) session: what's done (with SHAs), the
 > verification model, the open gates, and toolchain notes.
 
+⚠️ **CORRECTION, standing (2026-07-26) — "Final shape (as landed)" below is no longer the final shape.**
+The same PR continued past this file with the **graph-extension arc**: all 13 features were ported to
+contributed `@GraphExtension`s, so the 11 feature `XDeps` interfaces AND the 2 spine interfaces
+(`StoreCoreDeps`, `NavigatorDeps`) are **deleted** — the spine by `7f48093f`, once nothing called
+`appDeps<StoreCoreDeps>()` / `appDeps<NavigatorDeps>()` any more. `AppGraph` implements **2**
+interfaces at HEAD (`RecoveryDeps`, `BackupWorkerDeps`), not 15. What survived unchanged is the
+acquisition mechanism itself: `AppDepsHolder` + `context.appDeps<T>()`, now reading each feature's own
+`XxxGraph.Factory`. Nothing below is edited — the ordered "then, in order" plan and the C3 walkthrough
+are the plan as it stood, and every step in them is done. Current shape:
+`app/app/src/main/java/io/github/stslex/workeeper/di/AppGraph.kt` +
+[`../graph-extension-arc/HANDOFF.md`](../graph-extension-arc/HANDOFF.md).
+
 **STATUS: DONE + delivered.** All 15 readers migrated; the `AppGraphContract` god-object + module `core:di`
 deleted. Delivered to **PR #176** (`feature/metro-batch` → `dev`) — **CI GREEN** (tip `8697f5e8`). The
 strangler is finished. **Next action = maintainer's ON-DEVICE PASS** (NOT more DI work): the Recovery/Worker
