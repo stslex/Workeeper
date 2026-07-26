@@ -32,6 +32,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
+import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
 private const val WEIGHT_COLUMN_FLEX = 1.2f
 
@@ -87,7 +88,7 @@ internal fun LiveSetRow(
                     value = set.weightLabel,
                     onValueChange = { input -> onWeightChange(input.toDoubleOrNull()) },
                     decimals = 2,
-                    suffix = "kg",
+                    suffix = stringResource(KitR.string.core_ui_kit_plan_editor_unit_kg),
                     enabled = editable && !set.isDone,
                 )
             }
@@ -97,7 +98,7 @@ internal fun LiveSetRow(
                 value = set.reps.takeIf { it > 0 }?.toString().orEmpty(),
                 onValueChange = { input -> onRepsChange(input.toIntOrNull()) },
                 decimals = 0,
-                suffix = "reps",
+                suffix = stringResource(KitR.string.core_ui_kit_plan_editor_unit_reps),
                 enabled = editable && !set.isDone,
             )
         }
