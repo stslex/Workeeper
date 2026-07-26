@@ -1,9 +1,9 @@
 plugins {
     alias(libs.plugins.convention.androidLibrary)
-    // App-Scope Collapse Step 3: Metro plugin so the platform impls (Android{PlatformInfoProvider,
-    // TempFileProvider,AppReinitializer}) contribute to the app-scope AppGraph via @ContributesBinding.
-    // This module DECLARES AppScope (a bare marker) — the plugin only processes the contributing impls.
-    // Metro coexists with the module's Hilt @Modules (PlatformModule keeps nothing; CoreModule dispatchers stay).
+    // Metro plugin so the platform impls (Android{PlatformInfoProvider,TempFileProvider,AppReinitializer})
+    // contribute to the app-scope AppGraph via @ContributesBinding, and so the two @BindingContainer
+    // @ContributesTo(AppScope) objects (DispatchersBindingContainer / ResourceWrapperBindingContainer)
+    // aggregate. AppScope itself is declared in :core:core commonMain; this module only consumes it.
     alias(libs.plugins.metro)
 }
 
@@ -13,16 +13,17 @@ metro {
     }
 }
 
-// Android/Hilt side of the split core module (Phase C KMP cascade, L1). :core:core is a
-// pure-Kotlin KMP module that CANNOT run the Hilt plugin; this Android-library module can,
-// so it hosts every Hilt @Module (CoreModule / PlatformModule / ImageStorageModule) plus the
-// Android-framework implementations (AndroidResourceWrapper, ImageStorageImpl, the platform
-// providers) and the Android-only helpers (CoroutineExt, RelativeTimeFormat). Packages are
-// kept under io.github.stslex.workeeper.core.core.* so no downstream import changes.
+// Android side of the split core module (Phase C KMP cascade, L1). :core:core is a pure-Kotlin KMP
+// module that cannot reference android.*; this Android-library module hosts everything that must —
+// the framework implementations (AndroidResourceWrapper, ImageStorageImpl + buildImageStorage, the
+// three platform providers), the TempFileProvider interface, the Android-only formatRelativeTime
+// helper, and the two Metro binding containers. Packages are kept under
+// io.github.stslex.workeeper.core.core.* so no downstream import changes.
 //
-// The app modules depend on this so its @InstallIn(SingletonComponent) modules aggregate into
-// the single app Dagger graph. Data/feature modules that consume the Android-only helpers
-// (core:data:exercise, feature:home, ...) also depend on it directly.
+// :app:app depends on this so the @ContributesTo(AppScope) containers aggregate into AppGraph.
+// Only two other modules need the edge, and only because they name an Android-only type:
+// feature:home (formatRelativeTime) and feature:settings (TempFileProvider). Everything else
+// resolves AppScope, the dispatcher qualifiers and the platform interfaces from :core:core.
 dependencies {
     api(project(":core:core"))
 

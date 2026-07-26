@@ -1,6 +1,6 @@
 plugins {
     alias(libs.plugins.convention.composeLibrary)
-    // KMP C.1 (wave 3): feature/home flipped Hilt→Metro. PLAIN, single @DefaultDispatcher.
+    // PLAIN Store, single @DefaultDispatcher.
     alias(libs.plugins.metro)
 }
 
@@ -12,7 +12,8 @@ metro {
 
 dependencies {
     implementation(project(":core:core"))
-    // formatRelativeTime (android.text.format.DateUtils) lives in the Android half of core:core.
+    // HomeUiMapper calls formatRelativeTime (android.text.format.DateUtils), which lives only in the
+    // Android-only core:core-android — the KMP core:core has no equivalent.
     implementation(project(":core:core-android"))
 
     implementation(project(":core:ui:kit"))

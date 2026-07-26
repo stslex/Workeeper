@@ -1,8 +1,8 @@
 plugins {
     alias(libs.plugins.convention.composeLibrary)
-    // KMP C.1 (wave 1): feature/exercise flipped from Hilt to Metro DI. Collider —
-    // @DefaultDispatcher + @MainImmediateDispatcher (both CoroutineDispatcher) + @ApplicationContext.
-    // Assisted Store (Screen.Exercise route arg) → the graph exposes the assisted Factory.
+    // Collider — @DefaultDispatcher + @MainImmediateDispatcher (both CoroutineDispatcher) + Context.
+    // The Screen.Exercise route arg enters as a @Provides bound instance on the extension factory
+    // (shape B), so the graph's root accessor is the Store itself and there is no assisted machinery.
     alias(libs.plugins.metro)
 }
 
@@ -14,9 +14,8 @@ metro {
     }
 }
 
-// App-Scope Collapse Step 6 (Phase 3.4): androidTest de-Hilt'd (screen-render tests via BaseComposeTest,
-// no Hilt graph / no in-memory DB), so the module uses the convention default AndroidJUnitRunner (the
-// deleted WorkeeperTestRunner booted HiltTestApplication).
+// App-Scope Collapse Step 6 (Phase 3.4): androidTest here is screen-render only (BaseComposeTest, no DI
+// graph, no in-memory DB), so the module uses the convention default AndroidJUnitRunner.
 
 dependencies {
     implementation(project(":core:core"))

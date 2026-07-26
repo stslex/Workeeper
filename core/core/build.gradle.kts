@@ -3,12 +3,13 @@ plugins {
 }
 
 // Layer 1 of the KMP cascade: core:core compiles for android + iosSimulatorArm64 and is
-// PURE KOTLIN — no Hilt, no Android-framework impls. commonMain holds the shared surface
-// (Logger/Log, dispatcher-qualifier + Firebase-holder expect/actual seams, AppCoroutineScope,
-// ResourceWrapper/ImageStorage/platform interfaces, result/model/time/utils helpers). The
-// Hilt @Modules and Android implementations live in the sibling :core:core-android module,
-// which CAN run the Hilt plugin. Firebase runtime deps are androidMain-only; the iOS actuals
-// are no-ops.
+// PURE KOTLIN — no Android-framework impls, no DI graph wiring (it applies no Metro plugin).
+// commonMain holds the shared surface (Logger/Log, dispatcher-qualifier + Firebase-holder
+// expect/actual seams, AppCoroutineScope, ResourceWrapper/ImageStorage/platform interfaces,
+// result/model/time/utils helpers). Everything that must touch android.* — the framework
+// implementations plus the two Metro @BindingContainer objects that bind them into AppScope —
+// lives in the sibling :core:core-android Android-library module, which is where the Metro
+// plugin is applied. Firebase runtime deps are androidMain-only; the iOS actuals are no-ops.
 kotlin {
     android {
         namespace = "io.github.stslex.workeeper.core.core"
@@ -35,8 +36,8 @@ kotlin {
             implementation(libs.google.firebase.crashlytics)
             implementation(libs.google.firebase.perf)
             // Provides javax.inject.Qualifier for the dispatcher-qualifier android actuals.
-            // These annotation classes are the ONLY Hilt-adjacent code in this KMP module —
-            // the @Modules that reference them live in :core:core-android.
+            // These annotation classes are the ONLY DI-adjacent code in this KMP module — the
+            // @BindingContainer that binds the qualified dispatchers lives in :core:core-android.
             // App-Scope Collapse Step 6 (cut): the 4 dispatcher qualifier annotations carry
             // @javax.inject.Qualifier (read by Metro's includeJavax()). `api` (not implementation) so
             // downstream modules see the meta-annotation on the public qualifier types — else Metro
@@ -74,6 +75,27 @@ tasks.withType<Test>().configureEach {
     systemProperty("junit.jupiter.extensions.autodetection.enabled", true)
 }
 
+// CI runs exactly ONE unit-test command — `./gradlew testDebugUnitTest`
+// (.github/workflows/android_build_unified.yml) — and Gradle silently skips projects that have
+// no task under that name. The AGP KMP android target has no build types: it names the host-test
+// task after the unit-test component identity ("androidHostTest"), i.e. `testAndroidHostTest`,
+// so `testDebugUnitTest` does not exist here and src/androidHostTest would never run in CI.
+// The alias depends on the LIVE `tasks.withType<Test>()` collection instead of a hardcoded task
+// name: the collection is resolved when the task graph is built (after AGP has registered its
+// tasks), so this keeps working if AGP ever renames or re-shapes the host-test task.
+tasks.register("testDebugUnitTest") {
+    group = "verification"
+    description = "Alias: runs this KMP module's host (JVM) tests under the repo-wide task name."
+    dependsOn(tasks.withType<Test>())
+}
+
 detekt {
-    source.setFrom("src/commonMain/kotlin", "src/androidMain/kotlin", "src/iosMain/kotlin")
+    source.setFrom(
+        "src/commonMain/kotlin",
+        "src/androidMain/kotlin",
+        "src/iosMain/kotlin",
+        // Non-KMP modules get src/test/kotlin from detekt's default source set; androidHostTest
+        // is this module's equivalent, so it must be gated too.
+        "src/androidHostTest/kotlin",
+    )
 }

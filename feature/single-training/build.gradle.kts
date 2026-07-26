@@ -1,8 +1,8 @@
 plugins {
     alias(libs.plugins.convention.composeLibrary)
-    // KMP C.1 (wave 1): feature/single-training flipped from Hilt to Metro DI. Collider —
-    // @DefaultDispatcher + @MainImmediateDispatcher (both CoroutineDispatcher), NO Context.
-    // Assisted Store (Screen.Training route arg) → the graph exposes the assisted Factory.
+    // Collider — @DefaultDispatcher + @MainImmediateDispatcher (both CoroutineDispatcher), NO Context.
+    // The Screen.Training route arg enters as a @Provides bound instance on the extension factory
+    // (shape B), so the graph's root accessor is the Store itself and there is no assisted machinery.
     alias(libs.plugins.metro)
 }
 

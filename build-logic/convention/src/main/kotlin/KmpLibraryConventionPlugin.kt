@@ -10,10 +10,12 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
  *
  * Applies AGP's KMP-native `com.android.kotlin.multiplatform.library` plugin — required
  * since AGP 9.0, which rejects the legacy `com.android.library` + `kotlin-multiplatform`
- * combination. Deliberately bypasses [KotlinAndroid.configureKotlinAndroid], which
- * force-applies Hilt to every Android module; a KMP module CANNOT run the Hilt plugin
- * ("The Hilt Android Gradle plugin can only be applied to an Android project"), so Hilt
- * @Modules for a KMP leaf live in a sibling Android-library module (e.g. `core:core-android`).
+ * combination. Deliberately bypasses [KotlinAndroid.configureKotlinAndroid]: that helper is
+ * typed against AGP's `ApplicationExtension` / `LibraryExtension`, neither of which the KMP
+ * android target exposes, and it wires Android-only concerns (Robolectric-JUnit5, the
+ * instrumentation runner, core-library desugaring, `buildConfig`, the Android test bundles)
+ * that a KMP leaf does not want. Where a leaf also needs android.* implementations or the Metro
+ * plugin, those live in a sibling Android-library module (`core:core` → `core:core-android`).
  * Detekt + the custom `:lint-rules` still apply via the shared `convention.lint` plugin.
  *
  * First applied in C.1 (L1: `core:core`). Consuming modules declare their own targets

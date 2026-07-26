@@ -1,9 +1,8 @@
 plugins {
     alias(libs.plugins.convention.composeLibrary)
-    // App-Scope Collapse Step 6 (P-REC): Metro plugin so RecoveryDiagnosticsExporter can be Metro-owned
-    // (@ContributesBinding(AppScope) → aggregated into the app graph). The convention still force-applies
-    // Hilt-KSP; Metro coexists alongside it (the other recovery @Singletons stay Hilt this prep). No
-    // dagger.assisted here, so no dual-processor collision.
+    // Metro plugin: every app-scoped singleton here is Metro-owned. RecoveryDiagnosticsExporterImpl and
+    // RestoreDialogChoiceObserver aggregate via @ContributesBinding(AppScope); the coordinators/reporters
+    // are @SingleIn(AppScope) @Inject, constructed by the graph. Metro is the module's sole DI processor.
     alias(libs.plugins.metro)
 }
 
@@ -15,15 +14,14 @@ metro {
     }
 }
 
-// App-Scope Collapse Step 6 (Phase 3.4): RecoveryActivityDbFreeTest relocated to :app:app androidTest
-// (the only source set that can build the app graph with a fail-fast DB root), and its Hilt
-// RecoveryDepsFakeModule deleted — feature/recovery now hosts no androidTest sources, so its former Hilt
-// runner + androidTest deps are gone.
+// App-Scope Collapse Step 6 (Phase 3.4): RecoveryActivityDbFreeTest lives in :app:app androidTest (the
+// only source set that can build the app graph with a fail-fast DB root). feature/recovery hosts no
+// androidTest sources, so it declares no instrumentation runner and no androidTest deps.
 
 dependencies {
+    // AppReinitializer / PlatformInfoProvider are the core:core interfaces this module injects; the
+    // Android impls (core:core-android) are resolved by the app graph, never named here.
     implementation(project(":core:core"))
-    // AndroidAppReinitializer (concrete) lives in the Android half of core:core.
-    implementation(project(":core:core-android"))
     implementation(project(":core:ui:kit"))
     implementation(project(":core:ui:navigation"))
     implementation(project(":core:data:database"))

@@ -1,11 +1,11 @@
 plugins {
     alias(libs.plugins.convention.composeLibrary)
-    // KMP C.1 (wave 2 checkpoint): feature/past-session flipped Hilt→Metro. Non-collider,
-    // assisted Store (Screen.PastSession), single @IODispatcher (no collision).
+    // Non-collider. Route-arg feature (shape B — Screen.PastSession is a @Provides bound instance on the
+    // extension factory, not an @Assisted param), single @IODispatcher (no collision).
     alias(libs.plugins.metro)
 }
 
-// Metro reads javax.inject qualifiers so the bridged @IODispatcher keeps its qualifier.
+// Metro reads javax.inject qualifiers so the inherited @IODispatcher keeps its qualifier.
 metro {
     interop {
         includeJavax()

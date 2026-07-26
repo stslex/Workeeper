@@ -1,8 +1,8 @@
 plugins {
     alias(libs.plugins.convention.androidLibrary)
-    // App-Scope Collapse Step 3 (SB1): Metro plugin so BackupPreferencesRepositoryImpl can be contributed
-    // to the app-scope AppGraph via @ContributesBinding(AppScope). Metro coexists with the module's Hilt
-    // @Module (which still binds RestoreStateRepository).
+    // Metro owns both repositories in this module — BackupPreferencesRepositoryImpl and
+    // RestoreStateRepositoryImpl are @ContributesBinding(AppScope) @SingleIn(AppScope), aggregated
+    // into the app-scope AppGraph. No other DI processor runs here.
     alias(libs.plugins.metro)
 }
 
@@ -14,8 +14,6 @@ metro {
 
 dependencies {
     implementation(project(":core:core"))
-    // App-Scope Collapse Step 3: the AppScope DI token lives in the Android-only core:core-android.
-    implementation(project(":core:core-android"))
     implementation(project(":core:data:backup:api"))
 
     implementation(libs.androidx.datastore.preferences)

@@ -1,14 +1,15 @@
 plugins {
     alias(libs.plugins.convention.composeLibrary)
-    // KMP C.1 app-collapse Phase 1 (leaf E-proof): app/app gets the Metro plugin so the
-    // app-scoped AppGraph can be stood up ALONGSIDE @HiltAndroidApp (second dual-path at
-    // app-scope tier). Plugin-application only — no detekt-exemption centralization here.
+    // app/app declares the process-lifetime app-scope graph: `@DependencyGraph(AppScope::class)` on
+    // `di/AppGraph.kt`, built by `BaseApplication` and the merge point for every cross-module
+    // `@ContributesTo` / `@ContributesBinding(AppScope)`. Metro is the only DI processor here.
     alias(libs.plugins.metro)
 }
 
-// Metro reads javax.inject qualifiers (mirrors every flipped feature). No qualified app-scoped
-// binding crosses the AppGraph seam in this leaf spike, but the interop line is kept for
-// consistency with the batch and to keep the mechanic identical when the bulk migration lands.
+// Metro reads javax.inject qualifiers (mirrors every feature module). Load-bearing at this tier: the
+// four `CoroutineDispatcher` bindings contributed by `DispatchersBindingContainer` are distinguished
+// only by their javax-meta-annotated qualifiers (@Default/@IO/@Main/@MainImmediate) — without
+// includeJavax the same-typed bindings would collide.
 metro {
     interop {
         includeJavax()
@@ -18,19 +19,22 @@ metro {
 android {
     defaultConfig {
         // App-Scope Collapse Step 6 (Phase 3.3): the consolidated Metro androidTest harness. Boots
-        // TestApplication (a BaseApplication subclass holding the per-test graph) — replaces the deleted
-        // HiltTestRunner that booted HiltTestApplication. All app-tier instrumented tests live here.
+        // TestApplication (a BaseApplication subclass holding the per-test graph installed by
+        // MetroTestRule). All app-tier instrumented tests live here.
         testInstrumentationRunner = "io.github.stslex.workeeper.harness.MetroTestRunner"
     }
 }
 
 dependencies {
     implementation(project(":core:core"))
-    // Android/Hilt half of core:core — its @Modules aggregate into the app's single Dagger graph.
+    // Android-only half of the split core module. app/app is the ONLY module that still needs this edge:
+    // it reads `buildImageStorage` (BaseApplication), the `TempFileProvider` type and the
+    // `DispatchersBindingContainer` / `ResourceWrapperBindingContainer` `@ContributesTo(AppScope)`
+    // containers, which aggregate into AppGraph from this compile classpath.
     implementation(project(":core:core-android"))
     androidTestImplementation(project(":core:ui:test-utils"))
-    // App-Scope Collapse Step 3 (C2): the seam's TestAppGraphModule builds the graph with real in-memory-Room
-    // DAOs (the C2 bridge params) via InMemoryDatabaseProvider — no mockk on the app:app androidTest classpath.
+    // App-Scope Collapse Step 3 (C2): MetroTestRule builds the per-test graph with real in-memory-Room
+    // DAOs via InMemoryDatabaseProvider — no mockk on the app:app androidTest classpath.
     androidTestImplementation(project(":core:data:database-test"))
 
     implementation(project(":core:ui:kit"))

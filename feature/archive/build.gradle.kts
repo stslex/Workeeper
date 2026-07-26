@@ -1,17 +1,14 @@
 plugins {
     alias(libs.plugins.convention.composeLibrary)
-    // KMP C.1 M0: feature/archive is the first feature flipped from Hilt to Metro DI.
-    // The convention still force-applies the Hilt plugin (KotlinAndroid.kt) — it now
-    // only processes archive's Hilt @EntryPoint bridge; all archive DI is Metro. The
-    // other 11 features + app stay on Hilt via the dual-path Store seam.
+    // PLAIN Store, single @DefaultDispatcher. archive is the template every other feature graph
+    // follows: a @GraphExtension contributed to AppScope, so it inherits all app-scoped bindings.
     alias(libs.plugins.metro)
 }
 
-// Metro reads javax.inject qualifiers (via includeJavax) so the app-scoped Hilt @Singletons
-// bridged into the Metro graph keep their qualifiers — e.g. @DefaultDispatcher / @IODispatcher
-// (core:core `expect`/`actual` annotations meta-annotated @javax.inject.Qualifier). Without this
-// the bridge stripped qualifiers, silently merging two same-typed dispatchers; enabling javax
-// interop lets (type + qualifier) stay the Metro binding key. No core:core change needed.
+// Metro reads javax.inject qualifiers (via includeJavax) so the inherited app-scoped dispatcher
+// bindings keep their qualifiers — @DefaultDispatcher / @IODispatcher are core:core annotations
+// meta-annotated @javax.inject.Qualifier. Without this, two same-typed CoroutineDispatcher bindings
+// would silently merge; with it, (type + qualifier) stays the Metro binding key.
 metro {
     interop {
         includeJavax()

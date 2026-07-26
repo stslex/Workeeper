@@ -1,7 +1,7 @@
 plugins {
     alias(libs.plugins.convention.composeLibrary)
-    // KMP C.1 (wave 3): feature/live-workout flipped Hilt→Metro. ASSISTED, largest feature,
-    // 13 bound instances, single @DefaultDispatcher.
+    // Largest feature. Route-arg feature (shape B — the arg is a @Provides bound instance on the
+    // extension factory, not an @Assisted param), single @DefaultDispatcher.
     alias(libs.plugins.metro)
 }
 

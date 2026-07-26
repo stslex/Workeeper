@@ -2,9 +2,9 @@ plugins {
     alias(libs.plugins.convention.application.dev)
 }
 
-// App-Scope Collapse Step 6 (Phase 3.3): all app-tier instrumented tests consolidated into
+// App-Scope Collapse Step 6 (Phase 3.3): all app-tier instrumented tests are consolidated into
 // :app:app androidTest (the only source set that can see the module-internal Metro AppGraph). app/dev
-// hosts no androidTest sources, so its former Hilt runner + androidTest deps are gone.
+// hosts no androidTest sources, so it declares no instrumentation runner and no androidTest deps.
 dependencies {
     implementation(project(":app:app"))
 

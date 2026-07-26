@@ -1,7 +1,8 @@
 plugins {
     alias(libs.plugins.convention.androidLibrary)
-    // App-Scope Collapse Step 3: Metro for @ContributesBinding(AutoBackupController via BackupScheduler)
-    // + @SingleIn BackupNotificationHelper. Coexists with the module's Hilt BackupWorker (@HiltWorker stays).
+    // Metro for @ContributesBinding(AutoBackupController via BackupScheduler) + @SingleIn
+    // BackupNotificationHelperImpl. BackupWorker itself is a plain CoroutineWorker constructed by
+    // MetroWorkerFactory, which reads its 6 app-scope deps through BackupWorkerDepsHolder.
     alias(libs.plugins.metro)
 }
 
@@ -13,7 +14,6 @@ metro {
 
 dependencies {
     implementation(project(":core:core"))
-    implementation(project(":core:core-android"))
     implementation(project(":core:data:backup:api"))
     implementation(project(":core:data:backup:scheduling"))
     implementation(project(":core:data:database"))

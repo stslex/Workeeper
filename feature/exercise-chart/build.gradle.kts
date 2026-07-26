@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.convention.composeLibrary)
-    // KMP C.1 (wave 3): feature/exercise-chart flipped Hilt→Metro. ASSISTED, single @DefaultDispatcher.
+    // Route-arg feature (shape B — the arg is a @Provides bound instance on the extension factory, not
+    // an @Assisted param), single @DefaultDispatcher.
     alias(libs.plugins.metro)
 }
 
