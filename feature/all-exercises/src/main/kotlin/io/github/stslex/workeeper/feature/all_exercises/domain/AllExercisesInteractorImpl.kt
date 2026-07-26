@@ -3,10 +3,12 @@ package io.github.stslex.workeeper.feature.all_exercises.domain
 
 import androidx.paging.PagingData
 import androidx.paging.map
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
 import io.github.stslex.workeeper.core.data.exercise.tags.TagRepository
+import io.github.stslex.workeeper.feature.all_exercises.di.AllExercisesScope
 import io.github.stslex.workeeper.feature.all_exercises.domain.mapper.AllExercisesDomainMapper.toDomain
 import io.github.stslex.workeeper.feature.all_exercises.domain.model.ArchiveResult
 import io.github.stslex.workeeper.feature.all_exercises.domain.model.BulkArchiveResult
@@ -18,10 +20,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
 
-@ViewModelScoped
-internal class AllExercisesInteractorImpl @Inject constructor(
+@Inject
+@SingleIn(AllExercisesScope::class)
+class AllExercisesInteractorImpl(
     private val exerciseRepository: ExerciseRepository,
     private val tagRepository: TagRepository,
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,

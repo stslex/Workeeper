@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.backup.google_drive.network
 
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -16,8 +20,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import java.io.File
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Ktor-backed `DriveApi` for Drive v3 endpoints. All requests run on [dispatcher];
@@ -27,8 +29,9 @@ import javax.inject.Singleton
  * bounded by `MAX_BACKUPS = 3` and small db/JSON sizes, so the trade-off favors
  * implementation simplicity over streaming.
  */
-@Singleton
-internal class DriveApiImpl @Inject constructor(
+@ContributesBinding(AppScope::class)
+@SingleIn(AppScope::class)
+class DriveApiImpl @Inject internal constructor(
     private val httpClient: HttpClient,
     @IODispatcher private val dispatcher: CoroutineDispatcher,
 ) : DriveApi {

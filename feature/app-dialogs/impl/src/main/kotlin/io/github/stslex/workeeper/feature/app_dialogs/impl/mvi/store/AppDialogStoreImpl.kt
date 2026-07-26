@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.store
 
-import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.zacsweers.metro.Inject
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
@@ -12,7 +12,6 @@ import io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.handler.ChooseHan
 import io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.store.AppDialogStore.Action
 import io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.store.AppDialogStore.Event
 import io.github.stslex.workeeper.feature.app_dialogs.impl.mvi.store.AppDialogStore.State
-import javax.inject.Inject
 
 /**
  * The genuine MVI Store backing `AppDialogHost`. Routes repository-touching
@@ -27,8 +26,11 @@ import javax.inject.Inject
  * against the recreated Activity's `ViewModelStore` and re-runs its initial
  * actions.
  */
-@HiltViewModel
-internal class AppDialogStoreImpl @Inject constructor(
+// Metro constructs this PLAIN Store (class-level @Inject). Retention is
+// owned by the Activity's ViewModelStore via rememberMetroStoreProcessor (root-mounted through
+// AppFeature) — so NO @SingleIn here.
+@Inject
+class AppDialogStoreImpl internal constructor(
     repoHandler: AppDialogRepoHandler,
     chooseHandler: ChooseHandler,
     storeEmitter: AppDialogHandlerStoreImpl,

@@ -2,12 +2,14 @@
 package io.github.stslex.workeeper.feature.live_workout.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExercisePickerAction
 import io.github.stslex.workeeper.feature.live_workout.R
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
+import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutScope
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
 import io.github.stslex.workeeper.feature.live_workout.domain.model.PlanSetDomain
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveSetMutator
@@ -20,10 +22,9 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Event
 import kotlinx.collections.immutable.toImmutableSet
-import javax.inject.Inject
 
 @Suppress("TooManyFunctions", "LongMethod", "LargeClass")
-@ViewModelScoped
+@SingleIn(LiveWorkoutScope::class)
 internal class ClickHandler @Inject constructor(
     private val interactor: LiveWorkoutInteractor,
     private val resourceWrapper: ResourceWrapper,

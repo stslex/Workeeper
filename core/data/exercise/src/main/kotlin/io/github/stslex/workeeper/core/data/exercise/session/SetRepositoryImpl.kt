@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.exercise.session
 
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.data.database.common.DbTransitionRunner
 import io.github.stslex.workeeper.core.data.database.session.SetDao
@@ -11,13 +15,12 @@ import io.github.stslex.workeeper.core.data.exercise.exercise.model.toData
 import io.github.stslex.workeeper.core.data.exercise.exercise.model.toEntity
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
-import javax.inject.Singleton
 import kotlin.uuid.Uuid
 
 @Suppress("TooManyFunctions")
-@Singleton
-internal class SetRepositoryImpl @Inject constructor(
+@ContributesBinding(AppScope::class)
+@SingleIn(AppScope::class)
+class SetRepositoryImpl @Inject internal constructor(
     private val dao: SetDao,
     private val transition: DbTransitionRunner,
     @IODispatcher private val ioDispatcher: CoroutineDispatcher,

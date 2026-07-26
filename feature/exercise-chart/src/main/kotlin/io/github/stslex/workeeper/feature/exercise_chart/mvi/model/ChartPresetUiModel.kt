@@ -8,7 +8,7 @@ import io.github.stslex.workeeper.feature.exercise_chart.R
  * display label; the window length + boundary computation lives in the domain
  * [ChartPresetDomain][io.github.stslex.workeeper.feature.exercise_chart.domain.model.ChartPresetDomain].
  */
-internal enum class ChartPresetUiModel(
+enum class ChartPresetUiModel(
     val labelRes: Int,
 ) {
     MONTH_1(R.string.feature_exercise_chart_preset_1m),

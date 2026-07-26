@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.backup.google_drive.storage
 
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.data.backup.api.BackupConstants
@@ -18,8 +22,6 @@ import io.github.stslex.workeeper.core.data.backup.google_drive.network.DriveFil
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import java.io.File
-import javax.inject.Inject
-import javax.inject.Singleton
 import kotlin.math.abs
 
 /**
@@ -33,8 +35,9 @@ import kotlin.math.abs
  * and retries the call once. The retry uses a freshly-issued token from
  * `authorize()`; a second 401 propagates and maps to `BackupError.AuthRevoked`.
  */
-@Singleton
-internal class DriveBackupStorage @Inject constructor(
+@ContributesBinding(AppScope::class)
+@SingleIn(AppScope::class)
+class DriveBackupStorage @Inject internal constructor(
     private val driveApi: DriveApi,
     private val tokenInvalidator: TokenInvalidator,
     @IODispatcher private val dispatcher: CoroutineDispatcher,

@@ -5,7 +5,7 @@ import androidx.compose.runtime.Stable
 import io.github.stslex.workeeper.feature.archive.domain.model.ArchivedItem
 
 @Stable
-internal sealed interface ArchivedItemUi {
+sealed interface ArchivedItemUi {
 
     val item: ArchivedItem
     val archivedAtLabel: String

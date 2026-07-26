@@ -1,9 +1,20 @@
 plugins {
     alias(libs.plugins.convention.composeLibrary)
+    // PLAIN Store, single @DefaultDispatcher.
+    alias(libs.plugins.metro)
+}
+
+metro {
+    interop {
+        includeJavax()
+    }
 }
 
 dependencies {
     implementation(project(":core:core"))
+    // HomeUiMapper calls formatRelativeTime (android.text.format.DateUtils), which lives only in the
+    // Android-only core:core-android — the KMP core:core has no equivalent.
+    implementation(project(":core:core-android"))
 
     implementation(project(":core:ui:kit"))
     implementation(project(":core:ui:mvi"))

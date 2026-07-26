@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.annotation.VisibleForTesting
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -24,21 +25,19 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
-import dagger.hilt.android.AndroidEntryPoint
-import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
-import io.github.stslex.workeeper.feature.recovery.diagnostics.RecoveryDiagnosticsExporter
+import io.github.stslex.workeeper.feature.recovery.di.RecoveryDeps
+import io.github.stslex.workeeper.feature.recovery.di.RecoveryDepsHolder
 import kotlinx.coroutines.launch
 import java.io.File
-import javax.inject.Inject
 
 /**
  * Room-free fallback launcher for Scenario 2 (startup migration failure).
- * Hosted by `feature/recovery` because it must run without any Hilt graph
+ * Hosted by `feature/recovery` because it must run without any DI graph
  * entry that touches `AppDatabase`.
  *
  * **DB-free invariant**: this activity only calls methods on its injected
@@ -46,7 +45,7 @@ import javax.inject.Inject
  * (`getPreMigrationBackupFile`, `availableMigrationsLabel`,
  * `exportStartupMigrationFailure`). Calling
  * `currentSchemaVersion`/`captureSnapshot`/`restoreFromSnapshot`/
- * `preserveCurrentDb` would force `appDatabase.openHelper.{writable,readable}Database`
+ * `preserveCurrentDb` would open a `SQLiteConnection` to the live `AppDatabase`
  * — which triggers the migration we are trying to avoid. Tests verify
  * the four buttons stay on Room-free paths.
  *
@@ -62,12 +61,34 @@ import javax.inject.Inject
  * | Report issue | Opens the GitHub issue URL with `bug,migration` labels. |
  * | Export diagnostics | Writes a `.txt` via `RecoveryDiagnosticsExporter` and launches `ACTION_SEND`. |
  */
-@AndroidEntryPoint
+// Reads its two app-scope deps through the typed [RecoveryDepsHolder] point-acquisition (this Activity uses
+// no core:ui:mvi symbols, so it does NOT take the mvi-homed appDeps<T>() path and gains no mvi edge).
+// ROOM-FREE PRESERVED: resolving databaseSnapshotProvider + recoveryDiagnosticsExporter builds the graph
+// (buildAppDatabase = a cold Room.build(), no SQLite open) and constructs the two impls (ctors only store
+// refs — no connection open); the DB opens only when a forbidden method is called, which this activity never
+// does.
 class RecoveryActivity : ComponentActivity() {
 
-    @Inject internal lateinit var snapshotProvider: DatabaseSnapshotProvider
+    private val deps: RecoveryDeps by lazy {
+        (applicationContext as RecoveryDepsHolder).recoveryDeps()
+    }
 
-    @Inject internal lateinit var diagnosticsExporter: RecoveryDiagnosticsExporter
+    private val snapshotProvider get() = deps.databaseSnapshotProvider
+
+    private val diagnosticsExporter get() = deps.recoveryDiagnosticsExporter
+
+    /**
+     * Reads BOTH lazily-resolved app-graph collaborators and returns them.
+     *
+     * Production never calls this: `deps` is a `by lazy` and the two accessors are only read from the
+     * button handlers, so a plain CREATED → STARTED → RESUMED walk never touches either. The DB-free
+     * tripwire (`RecoveryActivityDbFreeTest`) calls this from `scenario.onActivity { }` to force the
+     * resolution + construction of both collaborators INSIDE the window where the fail-fast
+     * `SQLiteDriver` is installed. Returning them (rather than reading them as bare statements) keeps
+     * the reads observable and un-elidable.
+     */
+    @VisibleForTesting
+    fun warmDeps(): List<Any> = listOf(snapshotProvider, diagnosticsExporter)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

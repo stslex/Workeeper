@@ -1,5 +1,14 @@
 plugins {
     alias(libs.plugins.convention.composeLibrary)
+    // Non-collider, PLAIN Store (archive template), single @DefaultDispatcher (no collision).
+    alias(libs.plugins.metro)
+}
+
+// Metro reads javax.inject qualifiers so the inherited @DefaultDispatcher keeps its qualifier.
+metro {
+    interop {
+        includeJavax()
+    }
 }
 
 dependencies {

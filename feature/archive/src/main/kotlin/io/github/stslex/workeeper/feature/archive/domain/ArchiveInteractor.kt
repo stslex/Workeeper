@@ -6,7 +6,7 @@ import io.github.stslex.workeeper.feature.archive.domain.model.ArchivedItem
 import kotlinx.coroutines.flow.Flow
 
 @Suppress("TooManyFunctions")
-internal interface ArchiveInteractor {
+interface ArchiveInteractor {
 
     fun observeArchivedExerciseCount(): Flow<Int>
 

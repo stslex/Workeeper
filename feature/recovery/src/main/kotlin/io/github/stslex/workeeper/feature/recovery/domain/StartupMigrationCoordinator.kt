@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.recovery.domain
 
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.database.migration.APP_DATABASE_VERSION
@@ -8,8 +11,6 @@ import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotPr
 import io.github.stslex.workeeper.core.data.database.snapshot.LiveDatabaseLocator
 import io.github.stslex.workeeper.feature.recovery.diagnostics.StartupMigrationReporter
 import java.io.File
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Discriminator for the routing decision the [StartupMigrationCoordinator]
@@ -95,7 +96,7 @@ enum class StartupMigrationFailureReason {
  *
  * Spec: `documentation/feature-specs/backup-recovery.md` → "Scenario 2".
  */
-@Singleton
+@SingleIn(AppScope::class)
 class StartupMigrationCoordinator @Inject internal constructor(
     private val snapshotProvider: DatabaseSnapshotProvider,
     private val liveDatabaseLocator: LiveDatabaseLocator,

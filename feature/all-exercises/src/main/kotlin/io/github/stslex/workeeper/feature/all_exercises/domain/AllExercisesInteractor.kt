@@ -9,7 +9,7 @@ import io.github.stslex.workeeper.feature.all_exercises.domain.model.ExerciseLis
 import io.github.stslex.workeeper.feature.all_exercises.domain.model.TagDomain
 import kotlinx.coroutines.flow.Flow
 
-internal interface AllExercisesInteractor {
+interface AllExercisesInteractor {
 
     /**
      * Paged active library exercises plus per-row stats (session count, linked-trainings

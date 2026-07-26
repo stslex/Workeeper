@@ -67,7 +67,15 @@ class LintConventionPlugin : Plugin<Project> {
                     ?.let { detektExt ->
                         detektExt.config.setFrom(rootProject.file("lint-rules/detekt.yml"))
                         detektExt.buildUponDefaultConfig = true
-                        detektExt.autoCorrect = true
+                        // detekt is a GATE: it reports, it never writes. autoCorrect applies
+                        // formatting/FQ-reference autofixes to any file it analyses — including
+                        // files outside the diff being verified — so with it enabled the
+                        // pre-commit hook and CI mutate the very tree they are checking. That
+                        // breaks per-commit verification: a bisect over the graph-extension arc
+                        // cannot trust a chain whose commits rewrite themselves mid-check.
+                        // The formatter role stays available on demand, per invocation:
+                        //   ./gradlew detekt --auto-correct
+                        detektExt.autoCorrect = false
                         detektExt.allRules = false
 
                         // Single centralized detekt baseline file for all modules

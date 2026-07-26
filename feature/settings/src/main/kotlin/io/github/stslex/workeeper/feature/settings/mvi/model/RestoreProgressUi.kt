@@ -4,7 +4,7 @@ package io.github.stslex.workeeper.feature.settings.mvi.model
 import androidx.compose.runtime.Stable
 
 @Stable
-internal sealed interface RestoreProgressUi {
+sealed interface RestoreProgressUi {
 
     val isActive: Boolean get() = this !is Idle
 

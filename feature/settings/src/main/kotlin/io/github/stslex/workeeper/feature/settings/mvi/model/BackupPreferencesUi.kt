@@ -9,7 +9,7 @@ import androidx.compose.runtime.Immutable
  * `ObservePreferences` flow lands its first emission.
  */
 @Immutable
-internal data class BackupPreferencesUi(
+data class BackupPreferencesUi(
     val schedule: BackupScheduleUi,
     val allowOnMobileData: Boolean,
     val nextBackupText: String?,

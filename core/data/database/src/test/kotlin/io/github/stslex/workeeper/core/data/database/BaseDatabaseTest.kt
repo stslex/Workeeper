@@ -2,7 +2,8 @@ package io.github.stslex.workeeper.core.data.database
 
 import android.app.Application
 import android.content.Context
-import androidx.room.Room
+import androidx.room3.Room
+import androidx.sqlite.driver.AndroidSQLiteDriver
 import androidx.test.core.app.ApplicationProvider
 
 internal abstract class BaseDatabaseTest {
@@ -12,6 +13,7 @@ internal abstract class BaseDatabaseTest {
     open fun initDb() {
         val context: Context = ApplicationProvider.getApplicationContext()
         database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+            .setDriver(AndroidSQLiteDriver())
             .allowMainThreadQueries()
             .build()
     }

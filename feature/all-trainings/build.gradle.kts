@@ -1,5 +1,13 @@
 plugins {
     alias(libs.plugins.convention.composeLibrary)
+    // Non-collider, PLAIN Store (archive template), single @DefaultDispatcher (no collision).
+    alias(libs.plugins.metro)
+}
+
+metro {
+    interop {
+        includeJavax()
+    }
 }
 
 dependencies {

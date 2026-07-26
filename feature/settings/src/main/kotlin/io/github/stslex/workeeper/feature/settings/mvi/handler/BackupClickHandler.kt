@@ -3,8 +3,8 @@ package io.github.stslex.workeeper.feature.settings.mvi.handler
 
 import android.content.Context
 import android.content.IntentSender
-import dagger.hilt.android.qualifiers.ApplicationContext
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.data.backup.api.model.AuthResolutionOutcome
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
@@ -18,6 +18,7 @@ import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.settings.di.SettingsHandlerStore
+import io.github.stslex.workeeper.feature.settings.di.SettingsScope
 import io.github.stslex.workeeper.feature.settings.domain.BackupInteractor
 import io.github.stslex.workeeper.feature.settings.domain.model.SignInOutcomeDomain
 import io.github.stslex.workeeper.feature.settings.mvi.mapper.BackupDateMapper
@@ -38,9 +39,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
-import javax.inject.Inject
 
-@ViewModelScoped
+@SingleIn(SettingsScope::class)
 internal class BackupClickHandler @Inject constructor(
     private val interactor: BackupInteractor,
     private val preferencesRepository: BackupPreferencesRepository,
@@ -48,7 +48,9 @@ internal class BackupClickHandler @Inject constructor(
     private val restoreStateRepository: RestoreStateRepository,
     private val snapshotProvider: DatabaseSnapshotProvider,
     private val appDialogPublisher: AppDialogPublisher,
-    @ApplicationContext private val context: Context,
+    // Plain Context: the application Context is bound bare into the graph as a
+    // create() bound-instance — one Context per graph.
+    private val context: Context,
     store: SettingsHandlerStore,
 ) : Handler<Action.Backup>, SettingsHandlerStore by store {
 

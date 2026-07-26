@@ -6,4 +6,4 @@ import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStor
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Event
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.State
 
-internal interface PastSessionHandlerStore : HandlerStore<State, Action, Event>
+interface PastSessionHandlerStore : HandlerStore<State, Action, Event>

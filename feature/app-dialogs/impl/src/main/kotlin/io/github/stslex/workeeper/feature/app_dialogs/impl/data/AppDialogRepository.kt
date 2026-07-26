@@ -8,15 +8,15 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.preferencesDataStoreFile
-import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialog
 import io.github.stslex.workeeper.feature.app_dialogs.api.publisher.AppDialogPublisher
 import io.github.stslex.workeeper.feature.app_dialogs.impl.domain.AppDialogResolver
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Single writer of every `pending_*` flag in the `app_dialogs_prefs` DataStore
@@ -31,18 +31,23 @@ import javax.inject.Singleton
  * in-memory queue would not survive (see
  * `documentation/feature-specs/app-dialogs.md` → "Single source of truth").
  *
- * Naming: `Repository` suffix maps to `@Singleton` through the standard
- * `HiltScopeRule` predicate (`ScopeClassType.singletonClasses` contains
- * `"Repository"`) — no carve-out. The historical `AppDialogStore` carve-out
- * is removed in the same refactor that introduces this class.
+ * DI (App-Scope Collapse Step 3, app-dialogs slice): Metro-owned, self-bound
+ * app singleton (`@SingleIn(AppScope)` + `@Inject` on the DataStore-building
+ * secondary ctor). Public because app/app's `AppGraph` names the concrete type
+ * in its accessor (Metro contributions/accessors can't reach an `internal`
+ * cross-module type). It implements [AppDialogPublisher] but is NOT bound to it
+ * (the producer binding is [AppDialogPublisherImpl]); so it is a self accessor,
+ * never `@ContributesBinding`. The `Context` drops from Hilt's
+ * `@ApplicationContext` to a plain param resolved from the graph's
+ * `create(applicationContext)` bound instance.
  */
-@Singleton
-internal class AppDialogRepository internal constructor(
+@SingleIn(AppScope::class)
+class AppDialogRepository internal constructor(
     private val dataStore: DataStore<Preferences>,
 ) : AppDialogPublisher {
 
     @Inject
-    constructor(@ApplicationContext context: Context) : this(
+    constructor(context: Context) : this(
         PreferenceDataStoreFactory.create {
             context.preferencesDataStoreFile(PREFS_NAME)
         },

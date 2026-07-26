@@ -4,7 +4,7 @@ package io.github.stslex.workeeper.feature.settings.mvi.model
 import androidx.compose.runtime.Stable
 
 @Stable
-internal enum class BackupScheduleUi {
+enum class BackupScheduleUi {
     DAILY,
     WEEKLY,
     MANUAL_ONLY,

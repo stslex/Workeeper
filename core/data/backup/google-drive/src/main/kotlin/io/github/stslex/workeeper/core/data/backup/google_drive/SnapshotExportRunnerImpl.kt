@@ -4,7 +4,10 @@ package io.github.stslex.workeeper.core.data.backup.google_drive
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
-import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.data.backup.api.BackupAuth
@@ -22,8 +25,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Default [SnapshotExportRunner]: gate on toggle + `drive.file` grant, then export the JSON
@@ -31,14 +32,20 @@ import javax.inject.Singleton
  * UNEXPECTED failures (serialization / IO bugs) are recorded as Crashlytics non-fatals (via
  * [Log.e]); transient typed [BackupError]s (network / auth / quota / not-authenticated) are
  * logged only (via [Log.w], which does not record a non-fatal).
+ *
+ * Metro-owned via `@ContributesBinding(AppScope)` on the (public) impl. All deps are graph-resolvable:
+ * `BackupPreferencesRepository` / `BackupAuth` / `DatabaseJsonExporter` / `SnapshotStorage` are
+ * `@ContributesBinding`; `Context` is the plain `create()` bound-instance root; `@IODispatcher` is the
+ * direct `Dispatchers.IO`. Public for cross-module aggregation (D1).
  */
-@Singleton
-internal class SnapshotExportRunnerImpl @Inject constructor(
+@SingleIn(AppScope::class)
+@ContributesBinding(AppScope::class)
+public class SnapshotExportRunnerImpl @Inject constructor(
     private val preferences: BackupPreferencesRepository,
     private val backupAuth: BackupAuth,
     private val exporter: DatabaseJsonExporter,
     private val snapshotStorage: SnapshotStorage,
-    @ApplicationContext private val context: Context,
+    private val context: Context,
     @IODispatcher private val dispatcher: CoroutineDispatcher,
 ) : SnapshotExportRunner {
 

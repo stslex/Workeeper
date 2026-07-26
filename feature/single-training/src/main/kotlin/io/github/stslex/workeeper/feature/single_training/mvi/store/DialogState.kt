@@ -4,7 +4,7 @@ package io.github.stslex.workeeper.feature.single_training.mvi.store
 import androidx.compose.runtime.Stable
 
 @Stable
-internal sealed interface DialogState {
+sealed interface DialogState {
 
     @Stable
     data object Hidden : DialogState

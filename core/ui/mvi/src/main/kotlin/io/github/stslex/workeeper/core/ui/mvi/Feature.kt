@@ -4,13 +4,13 @@ package io.github.stslex.workeeper.core.ui.mvi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import io.github.stslex.workeeper.core.ui.mvi.processor.StoreProcessor
-import io.github.stslex.workeeper.core.ui.mvi.processor.rememberStoreProcessor
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 
 /**
  * `Feature` is the composition-time entry point for a feature whose Store does NOT need
  * route arguments at construction (e.g. bottom-bar destinations or single-instance
- * screens). It returns a [StoreProcessor] backed by a plain `@HiltViewModel`.
+ * screens). Subclasses override [processor] to return a [StoreProcessor] (resolved via
+ * `rememberMetroStoreProcessor` over a Metro-constructed Store).
  *
  * Use [FeatureAssisted] when the screen carries a `data class Screen.<X>(...)` whose
  * fields seed the initial Store state.
@@ -27,9 +27,4 @@ abstract class Feature<TProcessor : StoreProcessor<*, *, *>, TScreen : Screen> {
 
     @Composable
     abstract fun processor(): TProcessor
-
-    @Suppress("UNCHECKED_CAST")
-    @Composable
-    inline fun <reified TSImpl : BaseStore<*, *, *>> Feature<TProcessor, TScreen>.createProcessor(): TProcessor =
-        rememberStoreProcessor<TSImpl>() as TProcessor
 }

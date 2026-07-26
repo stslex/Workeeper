@@ -26,7 +26,7 @@ echo "Running detekt..."
 if ! ./gradlew detekt --no-configuration-cache --quiet; then
     echo "❌ detekt found issues. Please fix them before committing."
     echo "Run './gradlew detekt --no-configuration-cache' to see the full report."
-    echo "Run './gradlew detektFormat --no-configuration-cache' to auto-fix formatting issues."
+    echo "Run './gradlew detekt --auto-correct --no-configuration-cache' to auto-fix formatting issues."
     exit 1
 fi
 echo "✅ detekt checks passed!"

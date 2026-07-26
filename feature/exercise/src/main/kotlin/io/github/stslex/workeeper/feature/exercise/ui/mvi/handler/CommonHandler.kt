@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise.ui.mvi.handler
 
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanDraftResult
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
+import io.github.stslex.workeeper.feature.exercise.di.ExerciseScope
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.HistoryEntryDomain
@@ -26,9 +28,8 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.Json
 import java.io.File
-import javax.inject.Inject
 
-@ViewModelScoped
+@SingleIn(ExerciseScope::class)
 internal class CommonHandler @Inject constructor(
     private val interactor: ExerciseInteractor,
     private val resourceWrapper: ResourceWrapper,

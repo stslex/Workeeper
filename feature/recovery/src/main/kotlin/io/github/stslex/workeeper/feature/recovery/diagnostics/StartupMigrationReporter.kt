@@ -4,12 +4,12 @@ package io.github.stslex.workeeper.feature.recovery.diagnostics
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
-import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.logger.FirebaseCrashlyticsHolder
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
 import io.github.stslex.workeeper.feature.recovery.domain.StartupMigrationFailureReason
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Wraps [FirebaseCrashlyticsHolder] for the Scenario 2 (startup) recovery
@@ -26,9 +26,9 @@ import javax.inject.Singleton
  * makes the dashboard surface the failure mode even though no Room
  * exception was caught.
  */
-@Singleton
+@SingleIn(AppScope::class)
 internal class StartupMigrationReporter @Inject constructor(
-    @ApplicationContext private val context: Context,
+    private val context: Context,
     private val snapshotProvider: DatabaseSnapshotProvider,
 ) {
 

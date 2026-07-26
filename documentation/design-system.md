@@ -864,7 +864,11 @@ AppTheme(darkTheme = isSystemInDarkTheme()) {
 val colors = LocalAppColors.current        // semantic colors
 val typography = LocalAppTypography.current
 val motion = LocalAppMotion.current
-val dimension = LocalAppDimension.current  // already exists
+
+// Spacing/radius are NOT a CompositionLocal: `AppDimension` is a plain
+// object, read directly (e.g. `AppDimension.Radius.largest`). There is no
+// `LocalAppDimension`.
+val radius = AppDimension.Radius.largest
 
 Text(
     text = "Sample",

@@ -4,7 +4,13 @@ package io.github.stslex.workeeper.core.data.database.snapshot
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteException
-import dagger.hilt.android.qualifiers.ApplicationContext
+import androidx.room3.useReaderConnection
+import androidx.room3.useWriterConnection
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import dev.zacsweers.metro.binding
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.logger.Log
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
@@ -15,14 +21,22 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
-import javax.inject.Inject
-import javax.inject.Singleton
 import io.github.stslex.workeeper.core.data.database.migration.hasMigrationPath as registryHasMigrationPath
 
-@Singleton
-internal class DatabaseSnapshotProviderImpl @Inject constructor(
+/**
+ * App-Scope Collapse Step 5 (5a). Metro-owned via repeatable `@ContributesBinding(AppScope)` — binds BOTH
+ * [DatabaseSnapshotProvider] and [LiveDatabaseLocator] to this ONE `@SingleIn(AppScope)` instance (the same
+ * `@Binds`-pair the deleted `CoreDatabaseBindingsModule` held). Public for cross-module aggregation (D1;
+ * never hand-construct — resolve via DI). Derives from the [AppDatabase] `create()` root; `Context` is
+ * PLAIN (from the graph's `create(applicationContext)` — `@ApplicationContext` is a Hilt qualifier, not
+ * carried into the Metro graph); `@IODispatcher` is the direct `Dispatchers.IO`. No `appGraph` back-edge.
+ */
+@SingleIn(AppScope::class)
+@ContributesBinding(AppScope::class, binding = binding<DatabaseSnapshotProvider>())
+@ContributesBinding(AppScope::class, binding = binding<LiveDatabaseLocator>())
+public class DatabaseSnapshotProviderImpl @Inject constructor(
     private val appDatabase: AppDatabase,
-    @ApplicationContext private val context: Context,
+    private val context: Context,
     @IODispatcher private val dispatcher: CoroutineDispatcher,
 ) : DatabaseSnapshotProvider, LiveDatabaseLocator {
 
@@ -31,9 +45,7 @@ internal class DatabaseSnapshotProviderImpl @Inject constructor(
     override suspend fun captureSnapshot(target: File): BackupResult<Unit> =
         withContext(dispatcher) {
             try {
-                appDatabase.openHelper.writableDatabase
-                    .query("PRAGMA wal_checkpoint(TRUNCATE)")
-                    .use { cursor -> cursor.moveToFirst() }
+                checkpointWal()
                 val source = context.getDatabasePath(AppDatabase.NAME)
                 source.copyTo(target, overwrite = true)
                 BackupResult.Success(Unit)
@@ -43,7 +55,7 @@ internal class DatabaseSnapshotProviderImpl @Inject constructor(
         }
 
     override suspend fun currentSchemaVersion(): Int = withContext(dispatcher) {
-        appDatabase.openHelper.readableDatabase.version
+        readUserVersion()
     }
 
     override fun hasMigrationPath(from: Int, to: Int): Boolean =
@@ -69,9 +81,7 @@ internal class DatabaseSnapshotProviderImpl @Inject constructor(
     override suspend fun preserveCurrentDb(): BackupResult<File> = withContext(dispatcher) {
         val target = preRestoreBackupFile()
         try {
-            appDatabase.openHelper.writableDatabase
-                .query("PRAGMA wal_checkpoint(TRUNCATE)")
-                .use { cursor -> cursor.moveToFirst() }
+            checkpointWal()
             val source = context.getDatabasePath(AppDatabase.NAME)
             target.parentFile?.mkdirs()
             source.copyTo(target, overwrite = true)
@@ -172,7 +182,7 @@ internal class DatabaseSnapshotProviderImpl @Inject constructor(
                 is BackupResult.Success -> r.data
                 is BackupResult.Failure -> return@withContext r
             }
-            val currentVersion = appDatabase.openHelper.readableDatabase.version
+            val currentVersion = readUserVersion()
             if (sourceVersion > currentVersion) {
                 return@withContext BackupResult.Failure(
                     BackupError.BackupTooNew(
@@ -214,6 +224,27 @@ internal class DatabaseSnapshotProviderImpl @Inject constructor(
     } catch (e: IOException) {
         BackupResult.Failure(BackupError.CorruptedBackup(reason = e.message ?: "header read failed"))
     }
+
+    /**
+     * Flush Room's WAL into the main db file so a subsequent file copy captures committed rows.
+     * Room 3 removed `openHelper.writableDatabase.query(...)`; the checkpoint now runs through a
+     * writer connection. `PRAGMA wal_checkpoint(TRUNCATE)` RETURNS a row (busy, log, checkpointed)
+     * — `stmt.step()` is what actually executes the pragma, so it must be stepped (a prepared-but-
+     * unstepped statement would silently no-op and leave the WAL beside the snapshot).
+     */
+    private suspend fun checkpointWal() {
+        appDatabase.useWriterConnection { connection ->
+            connection.usePrepared("PRAGMA wal_checkpoint(TRUNCATE)") { stmt -> stmt.step() }
+        }
+    }
+
+    /** Live schema version via `PRAGMA user_version` (Room 3 replacement for `openHelper.*.version`). */
+    private suspend fun readUserVersion(): Int =
+        appDatabase.useReaderConnection { connection ->
+            connection.usePrepared("PRAGMA user_version") { stmt ->
+                if (stmt.step()) stmt.getLong(0).toInt() else 0
+            }
+        }
 
     private companion object {
         const val TAG = "DatabaseSnapshotProvider"

@@ -7,11 +7,11 @@ import kotlinx.coroutines.flow.Flow
 
 /**
  * Cross-feature consumer surface for app-dialog choices. Implementations live
- * in `feature/app-dialogs/impl` and are wired at `@Singleton` scope. Consumer
- * features that need to react to the user's dialog choice (e.g. the
- * post-restart undo/diagnostics/report side-effects) subscribe to
- * [observeUserActions] and call [acknowledgeReaction] once their side-effect
- * has run.
+ * in `feature/app-dialogs/impl` and are wired at `@SingleIn(AppScope)` — one
+ * instance per process on the Metro app graph. Consumer features that need to
+ * react to the user's dialog choice (e.g. the post-restart
+ * undo/diagnostics/report side-effects) subscribe to [observeUserActions] and
+ * call [acknowledgeReaction] once their side-effect has run.
  *
  * **Choice transport.** The choice is delivered as a transient signal — it
  * is NOT persisted in DataStore. Crash-mid-reaction = the dialog flag stays
@@ -27,12 +27,22 @@ import kotlinx.coroutines.flow.Flow
  * the side-effect to fail silently after — the same failure class App
  * Dialogs exists to prevent.
  *
- * **Subscription lifetime.** The producing emit (`AppDialogObserverImpl.emit`)
- * blocks if no subscriber is active. Consumers therefore MUST be constructed
- * eagerly at `BaseApplication.onCreate` (via Hilt `@EntryPoint`) so the
- * subscription is registered before any UI dispatch can happen. See
- * `documentation/feature-specs/app-dialogs.md` → "Cross-feature observation"
- * for the bootstrap mechanism.
+ * **Subscription lifetime.** The transport is a `replay = 0` `SharedFlow`. A
+ * choice emitted while no subscriber is active is silently lost — the producing
+ * `AppDialogObserverImpl.emit` does NOT suspend to wait for one (proven by
+ * `AppDialogObserverImplTest`), and nothing is replayed to a late subscriber.
+ * Consumers therefore MUST be constructed eagerly at
+ * `BaseApplication.onCreate`, before any UI dispatch can happen.
+ *
+ * The ONE production subscriber is `RestoreDialogChoiceObserver`
+ * (`feature/recovery`), and it is armed indirectly: it is
+ * `@ContributesBinding(AppScope)`-bound to the `RecoveryBootstrap` marker, and
+ * `BaseApplication.bootstrapAppDialogObserver()` reads
+ * `appGraph.recoveryBootstrap` purely for the side-effect of constructing it —
+ * its `init { ... launchIn(scope) }` is what registers the collector. Deleting
+ * that accessor, or making the read lazy, silently drops every dialog choice
+ * with no compile error and no test failure at this boundary. See
+ * `documentation/feature-specs/app-dialogs.md` → "Cross-feature observation".
  */
 interface AppDialogObserver {
 

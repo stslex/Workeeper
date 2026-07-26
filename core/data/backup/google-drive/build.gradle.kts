@@ -1,6 +1,17 @@
 plugins {
     alias(libs.plugins.convention.androidLibrary)
     alias(libs.plugins.serialization)
+    // Metro owns every binding in this module — the whole Drive auth/storage/network chain is
+    // @ContributesBinding(AppScope), and the two framework types it needs (GMS AuthorizationClient,
+    // ktor HttpClient) come from the AuthProvidersBindingContainer / NetworkBindingContainer
+    // @ContributesTo(AppScope) containers, so app/app never names either type.
+    alias(libs.plugins.metro)
+}
+
+metro {
+    interop {
+        includeJavax()
+    }
 }
 
 dependencies {

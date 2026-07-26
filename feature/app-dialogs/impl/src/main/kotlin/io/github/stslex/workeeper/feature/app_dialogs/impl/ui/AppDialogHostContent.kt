@@ -8,7 +8,7 @@ import io.github.stslex.workeeper.feature.app_dialogs.api.model.AppDialogUserCho
 
 /**
  * Pure-Compose renderer split out of [AppDialogHost] so UI tests can drive
- * it with synthetic state and a fake `onChoice` lambda — no Hilt graph
+ * it with synthetic state and a fake `onChoice` lambda — no Metro graph
  * required. Returns nothing when [current] is `null`.
  *
  * Single dispatch lambda. Each per-variant Composable maps its typed

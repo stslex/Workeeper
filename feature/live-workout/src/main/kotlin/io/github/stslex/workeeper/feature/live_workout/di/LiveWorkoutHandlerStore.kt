@@ -6,4 +6,4 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStor
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Event
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
 
-internal interface LiveWorkoutHandlerStore : HandlerStore<State, Action, Event>
+interface LiveWorkoutHandlerStore : HandlerStore<State, Action, Event>

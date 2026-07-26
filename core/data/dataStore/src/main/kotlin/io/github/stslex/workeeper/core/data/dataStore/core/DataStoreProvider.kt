@@ -5,14 +5,19 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
-import dagger.assisted.Assisted
-import dagger.assisted.AssistedInject
-import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedInject
 import java.util.concurrent.ConcurrentHashMap
 
-internal class DataStoreProvider @AssistedInject constructor(
+// App-Scope Collapse Step 3 (CommonDataStore slice): Metro-native assisted injection (Metro 1.1.1). The
+// `dagger.assisted.*` trio was converted to `dev.zacsweers.metro.*`; Metro generates the factory impl for
+// the hand-written [DataStoreProviderFactory]. The produced type stays UNSCOPED (Metro forbids scoping an
+// assisted type; the app-scoped singleton lives on the consumer `CommonDataStoreImpl`). The `Context`
+// dropped from Hilt's `@ApplicationContext` to a plain param resolved from the app graph's
+// `create(applicationContext)` bound instance.
+class DataStoreProvider @AssistedInject constructor(
     @Assisted private val name: String,
-    @ApplicationContext context: Context,
+    context: Context,
 ) {
 
     val dataStore: DataStore<Preferences> = provideDataStore(context.applicationContext, name)

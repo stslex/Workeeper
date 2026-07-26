@@ -10,8 +10,13 @@ package io.github.stslex.workeeper.core.data.backup.google_drive.auth
  * Google's OAuth2 access tokens nominally live 60 minutes; the cache writer
  * applies a 10-minute safety margin so callers see a usable token for the
  * first ~50 minutes of any session.
+ *
+ * Public (not `internal`) because it is the return type of [AccountDataStore.token],
+ * and that interface went public when `AccountDataStoreImpl` moved onto the Metro app
+ * graph (App-Scope Collapse Step 3). A public interface member may not expose an
+ * `internal` type.
  */
-internal data class TokenSnapshot(
+data class TokenSnapshot(
     val token: String,
     val expiresAtEpochMs: Long,
 )

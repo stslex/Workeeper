@@ -6,4 +6,4 @@ import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTraini
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.Event
 import io.github.stslex.workeeper.feature.single_training.mvi.store.SingleTrainingStore.State
 
-internal interface SingleTrainingHandlerStore : HandlerStore<State, Action, Event>
+interface SingleTrainingHandlerStore : HandlerStore<State, Action, Event>

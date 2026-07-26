@@ -2,7 +2,7 @@
 package io.github.stslex.workeeper.feature.home.mvi.store
 
 import androidx.annotation.VisibleForTesting
-import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.zacsweers.metro.Inject
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
@@ -14,10 +14,11 @@ import io.github.stslex.workeeper.feature.home.mvi.handler.NavigationHandler
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Action
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Event
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.State
-import javax.inject.Inject
 
-@HiltViewModel
-internal class HomeStoreImpl @Inject constructor(
+// Metro constructs this PLAIN Store (class-level @Inject). Retention is
+// owned by the Android ViewModelStore via rememberMetroStoreProcessor — so NO @SingleIn here.
+@Inject
+class HomeStoreImpl internal constructor(
     navigationHandler: NavigationHandler,
     clickHandler: ClickHandler,
     commonHandler: CommonHandler,

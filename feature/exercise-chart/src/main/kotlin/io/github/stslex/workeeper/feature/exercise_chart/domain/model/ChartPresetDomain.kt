@@ -8,7 +8,7 @@ import java.time.ZoneId
  * Date filter presets for the chart screen. [windowStartMillis] returns the inclusive
  * start of the visible window (or `null` for [ALL], meaning unbounded).
  */
-internal enum class ChartPresetDomain(
+enum class ChartPresetDomain(
     private val windowDays: Long?,
 ) {
     MONTH_1(windowDays = 30L),

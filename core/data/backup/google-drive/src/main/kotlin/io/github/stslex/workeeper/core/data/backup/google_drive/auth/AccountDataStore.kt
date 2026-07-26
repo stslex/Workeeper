@@ -7,15 +7,20 @@ import kotlinx.coroutines.flow.Flow
 /**
  * Local persistence for the signed-in Drive account and its access-token cache.
  * Backs `DriveBackupAuth.state`. Naming uses the `DataStore` suffix to match the
- * project's `HiltScopeRule` singleton classifier; the spec called it
- * `AccountStore` but bare "Store" maps to `@HiltViewModel` (MVI store scope).
+ * project's `MetroScopeRule` singleton-bucket classifier; the spec called it
+ * `AccountStore` but a bare "Store" suffix reads as an (unscoped) MVI Store.
  *
  * Access tokens are persisted as part of the sign-in path
  * (`completeSignIn` / silent `signIn` success) so `DriveAuthTokenProvider` can
  * serve them on subsequent calls without a fresh `authorize()` round-trip. See
  * [TokenSnapshot] for the lifetime contract.
+ *
+ * DI: Metro-owned via `@ContributesBinding(AppScope)` on `AccountDataStoreImpl`.
+ * Public (not `internal`) because app/app's `AppGraph` names this interface in its
+ * accessor, and Metro contributions on an `internal` impl do not aggregate
+ * cross-Gradle-module.
  */
-internal interface AccountDataStore {
+interface AccountDataStore {
 
     /** Hot stream of the persisted account. Emits `null` when no account is stored. */
     fun observeAccount(): Flow<Account?>

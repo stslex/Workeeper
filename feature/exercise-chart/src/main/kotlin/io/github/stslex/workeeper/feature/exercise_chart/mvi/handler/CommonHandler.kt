@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise_chart.mvi.handler
 
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.exercise_chart.di.ExerciseChartHandlerStore
+import io.github.stslex.workeeper.feature.exercise_chart.di.ExerciseChartScope
 import io.github.stslex.workeeper.feature.exercise_chart.domain.ExerciseChartInteractor
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapper.toDomain
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapper.toUi
@@ -16,9 +18,8 @@ import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChart
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.async
-import javax.inject.Inject
 
-@ViewModelScoped
+@SingleIn(ExerciseChartScope::class)
 internal class CommonHandler @Inject constructor(
     private val interactor: ExerciseChartInteractor,
     private val resourceWrapper: ResourceWrapper,

@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.home.domain
 
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.data.exercise.session.SessionConflictResolver
 import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
+import io.github.stslex.workeeper.feature.home.di.HomeScope
 import io.github.stslex.workeeper.feature.home.domain.mapper.HomeDomainMapper.toDomain
 import io.github.stslex.workeeper.feature.home.domain.model.ActiveSessionWithStatsDomain
 import io.github.stslex.workeeper.feature.home.domain.model.RecentSessionDomain
@@ -16,11 +18,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
 
 @Suppress("LongParameterList")
-@ViewModelScoped
-internal class HomeInteractorImpl @Inject constructor(
+@Inject
+@SingleIn(HomeScope::class)
+class HomeInteractorImpl(
     private val sessionRepository: SessionRepository,
     private val trainingRepository: TrainingRepository,
     private val sessionConflictResolver: SessionConflictResolver,

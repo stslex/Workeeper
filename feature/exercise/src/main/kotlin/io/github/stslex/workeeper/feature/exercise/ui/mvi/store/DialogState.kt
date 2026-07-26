@@ -12,7 +12,7 @@ import io.github.stslex.workeeper.core.ui.kit.components.dialog.BlockedArchiveIt
  * "Dialogs and bottom sheets are State, not Events" section of compose-state-discipline.md.
  */
 @Stable
-internal sealed interface DialogState {
+sealed interface DialogState {
 
     @Stable
     data object Hidden : DialogState

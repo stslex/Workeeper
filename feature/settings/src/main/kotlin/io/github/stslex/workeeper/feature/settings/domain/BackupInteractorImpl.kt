@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.settings.domain
 
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
 import io.github.stslex.workeeper.core.core.platform.TempFileProvider
@@ -15,6 +16,7 @@ import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreInProgress
 import io.github.stslex.workeeper.core.data.backup.api.restore.RestoreStateRepository
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
 import io.github.stslex.workeeper.core.data.database.snapshot.DatabaseSnapshotProvider
+import io.github.stslex.workeeper.feature.settings.di.SettingsScope
 import io.github.stslex.workeeper.feature.settings.domain.mapper.BackupDomainMapper.toDomain
 import io.github.stslex.workeeper.feature.settings.domain.mapper.BackupDomainMapper.toSummary
 import io.github.stslex.workeeper.feature.settings.domain.model.AccountDomain
@@ -26,10 +28,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
 
-@ViewModelScoped
-internal class BackupInteractorImpl @Inject constructor(
+@Inject
+@SingleIn(SettingsScope::class)
+class BackupInteractorImpl(
     private val backupAuth: BackupAuth,
     private val backupStorage: BackupStorage,
     private val snapshotProvider: DatabaseSnapshotProvider,

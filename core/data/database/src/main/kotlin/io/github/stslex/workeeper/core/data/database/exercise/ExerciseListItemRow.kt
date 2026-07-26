@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.database.exercise
 
-import androidx.room.ColumnInfo
-import androidx.room.Embedded
+import androidx.room3.ColumnInfo
+import androidx.room3.Embedded
 
 /**
  * Projection used by [ExerciseDao.pagedActiveWithStats] and friends. Joins the exercise

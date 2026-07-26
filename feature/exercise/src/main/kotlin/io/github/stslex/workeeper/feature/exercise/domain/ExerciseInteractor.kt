@@ -16,7 +16,7 @@ import io.github.stslex.workeeper.feature.exercise.domain.model.TrackNowConflict
 import kotlinx.coroutines.flow.Flow
 
 @Suppress("TooManyFunctions")
-internal interface ExerciseInteractor {
+interface ExerciseInteractor {
 
     suspend fun getExercise(uuid: String): ExerciseDomain?
 

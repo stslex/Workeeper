@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.live_workout.mvi.mapper
 
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
+import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutScope
 import io.github.stslex.workeeper.feature.live_workout.domain.mapper.LiveWorkoutDomainMapper.beatsBaseline
 import io.github.stslex.workeeper.feature.live_workout.domain.model.PlanSetDomain
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveSetRowsResolver.withVisibleSets
@@ -17,7 +19,6 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStor
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableMap
-import javax.inject.Inject
 
 /**
  * Set-level state mutator: every transition that rewrites `performedSets`,
@@ -25,12 +26,13 @@ import javax.inject.Inject
  * (status mapper + presentation + visible-row resolver) so handlers stay focused on
  * action dispatch, side effects, and IO.
  *
- * `@ViewModelScoped` per the Hilt scope rule for `*Mapper` names — one instance per
+ * `@SingleIn(LiveWorkoutScope)` (Metro; formerly Hilt `@ViewModelScoped`) — one instance per
  * `LiveWorkoutStoreImpl`. Not a singleton: we never want a long-lived instance
  * holding `ResourceWrapper` across the app.
  */
-@ViewModelScoped
-internal class LiveSetMutator @Inject constructor(
+@Inject
+@SingleIn(LiveWorkoutScope::class)
+internal class LiveSetMutator(
     private val resourceWrapper: ResourceWrapper,
     private val statusMapper: StateStatusMapper,
 ) {

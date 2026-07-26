@@ -2,7 +2,8 @@
 package io.github.stslex.workeeper.core.data.database.snapshot
 
 import android.content.Context
-import androidx.room.Room
+import androidx.room3.Room
+import androidx.sqlite.driver.AndroidSQLiteDriver
 import androidx.test.core.app.ApplicationProvider
 import io.github.stslex.workeeper.core.data.backup.api.error.BackupError
 import io.github.stslex.workeeper.core.data.backup.api.result.BackupResult
@@ -51,7 +52,8 @@ internal class DatabaseSnapshotProviderImplTest {
 
     @AfterEach
     fun teardown() {
-        if (database.isOpen) database.close()
+        // Room 3 removed the public `isOpen`; close() is idempotent on a closed/never-opened DB.
+        database.close()
         context.deleteDatabase(AppDatabase.NAME)
         // Clean up any snapshots written into the databases dir.
         val dbDir = context.getDatabasePath(AppDatabase.NAME).parentFile
@@ -231,12 +233,12 @@ internal class DatabaseSnapshotProviderImplTest {
         // Rebuild Room — the previous handle is stale after restoreFromSnapshot.
         val restored = Room
             .databaseBuilder(context, AppDatabase::class.java, AppDatabase.NAME)
+            .setDriver(AndroidSQLiteDriver())
             .allowMainThreadQueries()
             .build()
         try {
             val names = restored.tagDao.observeAll().first().map { it.name }.toSet()
             assertEquals(setOf("Original"), names)
-            assertNotNull(restored.openHelper.readableDatabase)
         } finally {
             restored.close()
         }

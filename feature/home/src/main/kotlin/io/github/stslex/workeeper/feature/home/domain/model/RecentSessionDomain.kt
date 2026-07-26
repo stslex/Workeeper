@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.home.domain.model
 
-internal data class RecentSessionDomain(
+data class RecentSessionDomain(
     val sessionUuid: String,
     val trainingUuid: String,
     val trainingName: String,

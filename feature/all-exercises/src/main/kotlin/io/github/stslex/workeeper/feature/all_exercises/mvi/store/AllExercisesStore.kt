@@ -17,7 +17,7 @@ import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentSetOf
 
-internal interface AllExercisesStore : Store<State, Action, Event> {
+interface AllExercisesStore : Store<State, Action, Event> {
 
     @Stable
     data class State(

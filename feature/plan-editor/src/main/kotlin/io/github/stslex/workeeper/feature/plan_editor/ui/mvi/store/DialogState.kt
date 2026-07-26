@@ -9,7 +9,7 @@ import androidx.compose.runtime.Stable
  * never in a local Composable `var ... by remember`, and never as an `Event`.
  */
 @Stable
-internal sealed interface DialogState {
+sealed interface DialogState {
 
     @Stable
     data object Hidden : DialogState

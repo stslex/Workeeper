@@ -1,5 +1,17 @@
 plugins {
     alias(libs.plugins.convention.composeLibrary)
+    // Collider — @DefaultDispatcher + @MainImmediateDispatcher (both CoroutineDispatcher), NO Context.
+    // The Screen.Training route arg enters as a @Provides bound instance on the extension factory
+    // (shape B), so the graph's root accessor is the Store itself and there is no assisted machinery.
+    alias(libs.plugins.metro)
+}
+
+// Metro reads javax.inject qualifiers so the two same-typed dispatchers keep their qualifiers:
+// (type + qualifier) is the Metro binding key → @Default and @MainImmediate resolve distinctly.
+metro {
+    interop {
+        includeJavax()
+    }
 }
 
 dependencies {

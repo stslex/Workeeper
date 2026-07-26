@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.data.exercise.personal_record
 
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.github.stslex.workeeper.core.core.di.AppScope
 import io.github.stslex.workeeper.core.core.di.IODispatcher
 import io.github.stslex.workeeper.core.data.database.session.PersonalRecordRow
 import io.github.stslex.workeeper.core.data.database.session.SessionDao
@@ -13,12 +17,11 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
-import javax.inject.Singleton
 import kotlin.uuid.Uuid
 
-@Singleton
-internal class PersonalRecordRepositoryImpl @Inject constructor(
+@ContributesBinding(AppScope::class)
+@SingleIn(AppScope::class)
+class PersonalRecordRepositoryImpl @Inject internal constructor(
     private val sessionDao: SessionDao,
     @IODispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : PersonalRecordRepository {

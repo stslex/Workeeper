@@ -10,7 +10,7 @@ import java.time.LocalDate
  * that session's [io.github.stslex.workeeper.core.ui.navigation.Screen.PastSession].
  */
 @Stable
-internal data class ChartPointUiModel(
+data class ChartPointUiModel(
     val day: LocalDate,
     val dayMillis: Long,
     val value: Double,

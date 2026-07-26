@@ -6,4 +6,4 @@ import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStor
 import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStore.Event
 import io.github.stslex.workeeper.feature.image_viewer.mvi.store.ImageViewerStore.State
 
-internal interface ImageViewerHandlerStore : HandlerStore<State, Action, Event>
+interface ImageViewerHandlerStore : HandlerStore<State, Action, Event>

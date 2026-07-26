@@ -2,15 +2,11 @@
 package io.github.stslex.workeeper.feature.exercise_chart.mvi.store
 
 import androidx.annotation.VisibleForTesting
-import dagger.assisted.Assisted
-import dagger.assisted.AssistedFactory
-import dagger.assisted.AssistedInject
-import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.zacsweers.metro.Inject
 import io.github.stslex.workeeper.core.ui.mvi.BaseStore
 import io.github.stslex.workeeper.core.ui.mvi.di.StoreDispatchers
 import io.github.stslex.workeeper.core.ui.mvi.holders.AnalyticsHolder
 import io.github.stslex.workeeper.core.ui.mvi.holders.LoggerHolder
-import io.github.stslex.workeeper.core.ui.mvi.processor.StoreFactory
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.exercise_chart.di.ExerciseChartHandlerStoreImpl
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.handler.ClickHandler
@@ -20,9 +16,15 @@ import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChart
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Event
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.State
 
-@HiltViewModel(assistedFactory = ExerciseChartStoreImpl.Factory::class)
-internal class ExerciseChartStoreImpl @AssistedInject constructor(
-    @Assisted screen: Screen.ExerciseChart,
+// Metro constructs this Store (class-level @Inject). The Screen.ExerciseChart route arg is a bound
+// instance on the extension factory (shape B), so it is an ordinary ctor param — no assisted machinery.
+// Unscoped (ViewModelStore retention via rememberMetroStoreProcessor).
+// The class is `public` (its accessor is on the public extension) but the primary constructor is
+// `internal`, so the handler ctor params stay internal — :app calls the ctor at the IR level.
+// NOTE: the route arg must be read HERE only; ScreenInjectionRule forbids injecting Screen elsewhere.
+@Inject
+class ExerciseChartStoreImpl internal constructor(
+    screen: Screen.ExerciseChart,
     navigationHandler: NavigationHandler,
     clickHandler: ClickHandler,
     commonHandler: CommonHandler,
@@ -46,9 +48,6 @@ internal class ExerciseChartStoreImpl @AssistedInject constructor(
     analyticsHolder = analyticsHolder,
     loggerHolder = loggerHolder,
 ) {
-
-    @AssistedFactory
-    interface Factory : StoreFactory<Screen.ExerciseChart, ExerciseChartStoreImpl>
 
     companion object {
 

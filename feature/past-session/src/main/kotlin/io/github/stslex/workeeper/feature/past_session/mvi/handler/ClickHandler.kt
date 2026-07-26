@@ -2,9 +2,11 @@
 package io.github.stslex.workeeper.feature.past_session.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.past_session.di.PastSessionHandlerStore
+import io.github.stslex.workeeper.feature.past_session.di.PastSessionScope
 import io.github.stslex.workeeper.feature.past_session.domain.PastSessionInteractor
 import io.github.stslex.workeeper.feature.past_session.domain.model.SetDomain
 import io.github.stslex.workeeper.feature.past_session.domain.model.SetTypeDomain
@@ -15,9 +17,8 @@ import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStor
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.State
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Job
-import javax.inject.Inject
 
-@ViewModelScoped
+@SingleIn(PastSessionScope::class)
 internal class ClickHandler @Inject constructor(
     private val interactor: PastSessionInteractor,
     store: PastSessionHandlerStore,

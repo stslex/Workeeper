@@ -2,12 +2,14 @@
 package io.github.stslex.workeeper.feature.single_training.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.MainImmediateDispatcher
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.single_training.R
 import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingHandlerStore
+import io.github.stslex.workeeper.feature.single_training.di.SingleTrainingScope
 import io.github.stslex.workeeper.feature.single_training.domain.SingleTrainingInteractor
 import io.github.stslex.workeeper.feature.single_training.domain.model.ArchiveResult
 import io.github.stslex.workeeper.feature.single_training.domain.model.StartSessionConflict
@@ -26,11 +28,10 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
 import kotlin.uuid.Uuid
 
 @Suppress("TooManyFunctions", "LongMethod")
-@ViewModelScoped
+@SingleIn(SingleTrainingScope::class)
 internal class ClickHandler @Inject constructor(
     private val interactor: SingleTrainingInteractor,
     private val resourceWrapper: ResourceWrapper,

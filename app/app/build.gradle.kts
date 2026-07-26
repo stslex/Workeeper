@@ -1,31 +1,62 @@
 plugins {
     alias(libs.plugins.convention.composeLibrary)
+    // app/app declares the process-lifetime app-scope graph: `@DependencyGraph(AppScope::class)` on
+    // `di/AppGraph.kt`, built by `BaseApplication` and the merge point for every cross-module
+    // `@ContributesTo` / `@ContributesBinding(AppScope)`. Metro is the only DI processor here.
+    alias(libs.plugins.metro)
+}
+
+// Metro reads javax.inject qualifiers (mirrors every feature module). Load-bearing at this tier: the
+// four `CoroutineDispatcher` bindings contributed by `DispatchersBindingContainer` are distinguished
+// only by their javax-meta-annotated qualifiers (@Default/@IO/@Main/@MainImmediate) — without
+// includeJavax the same-typed bindings would collide.
+metro {
+    interop {
+        includeJavax()
+    }
 }
 
 android {
     defaultConfig {
-        testInstrumentationRunner = "io.github.stslex.workeeper.app.HiltTestRunner"
+        // App-Scope Collapse Step 6 (Phase 3.3): the consolidated Metro androidTest harness. Boots
+        // TestApplication (a BaseApplication subclass holding the per-test graph installed by
+        // MetroTestRule). All app-tier instrumented tests live here.
+        testInstrumentationRunner = "io.github.stslex.workeeper.harness.MetroTestRunner"
     }
 }
 
 dependencies {
     implementation(project(":core:core"))
+    // Android-only half of the split core module. app/app is the ONLY module that still needs this edge:
+    // it reads `buildImageStorage` (BaseApplication), the `TempFileProvider` type and the
+    // `DispatchersBindingContainer` / `ResourceWrapperBindingContainer` `@ContributesTo(AppScope)`
+    // containers, which aggregate into AppGraph from this compile classpath.
+    implementation(project(":core:core-android"))
     androidTestImplementation(project(":core:ui:test-utils"))
+    // App-Scope Collapse Step 3 (C2): MetroTestRule builds the per-test graph with real in-memory-Room
+    // DAOs via InMemoryDatabaseProvider — no mockk on the app:app androidTest classpath.
+    androidTestImplementation(project(":core:data:database-test"))
 
     implementation(project(":core:ui:kit"))
     implementation(project(":core:ui:navigation"))
-    implementation(project(":core:ui:mvi"))
+    // api (not implementation): BaseApplication implements AppDepsHolder (core:ui:mvi), so the holder
+    // supertype must be visible to the flavor Application subclasses (DevMobileApp/StoreMobileApp) that
+    // extend BaseApplication. Before core:di's deletion this came transitively via
+    // api(core:di) -> api(core:ui:mvi); this DIRECT edge replaces that doomed chain (same holder-visibility
+    // fix as api(feature:recovery) + api(core:data:backup:worker)).
+    api(project(":core:ui:mvi"))
     implementation(project(":core:data:database"))
     implementation(project(":core:data:exercise"))
     implementation(project(":core:data:dataStore"))
     implementation(project(":core:data:backup:api"))
     implementation(project(":core:data:backup:google-drive"))
     implementation(project(":core:data:backup:scheduling"))
-    implementation(project(":core:data:backup:worker"))
+    // api (not implementation): BaseApplication implements BackupWorkerDepsHolder (core:data:backup:worker),
+    // so the holder supertype must be visible to the flavor Application subclasses
+    // (DevMobileApp/StoreMobileApp) that extend BaseApplication (same reason as api(feature:recovery)).
+    api(project(":core:data:backup:worker"))
 
     api(libs.androidx.work.runtime)
-    api(libs.androidx.hilt.work)
-    ksp(libs.androidx.hilt.compiler)
 
     implementation(project(":feature:exercise"))
     implementation(project(":feature:exercise-chart"))
@@ -39,18 +70,23 @@ dependencies {
     implementation(project(":feature:past-session"))
     implementation(project(":feature:image-viewer"))
     implementation(project(":feature:plan-editor"))
-    implementation(project(":feature:app-dialogs:api"))
-    implementation(project(":feature:app-dialogs:impl"))
-    implementation(project(":feature:recovery"))
+    api(project(":feature:app-dialogs:api"))
+    api(project(":feature:app-dialogs:impl"))
+    // api (not implementation): BaseApplication implements RecoveryDepsHolder (feature:recovery), so the
+    // holder supertype must be visible to the flavor Application subclasses (DevMobileApp/StoreMobileApp)
+    // in app/dev + app/store, which extend BaseApplication.
+    api(project(":feature:recovery"))
 
     implementation(platform(libs.google.firebase.bom))
     implementation(libs.google.firebase.analytics)
     implementation(libs.google.firebase.crashlytics)
     implementation(libs.google.firebase.perf)
 
-    implementation(libs.hilt.navigation.compose)
 
     androidTestImplementation(libs.bundles.android.test)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    // App-Scope Collapse Step 6 (Phase 3.3): RecoveryActivityDbFreeTest's fail-fast AppDatabase root
+    // override (a tripwire mockk whose openHelper throws) was relocated here from feature/recovery.
+    androidTestImplementation(libs.mockk.android)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

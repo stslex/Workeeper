@@ -2,16 +2,17 @@
 package io.github.stslex.workeeper.feature.archive.mvi.handler
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import dagger.hilt.android.scopes.ViewModelScoped
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.archive.di.ArchiveHandlerStore
+import io.github.stslex.workeeper.feature.archive.di.ArchiveScope
 import io.github.stslex.workeeper.feature.archive.domain.ArchiveInteractor
 import io.github.stslex.workeeper.feature.archive.domain.model.ArchivedItem
 import io.github.stslex.workeeper.feature.archive.mvi.store.ArchiveStore.Action
 import io.github.stslex.workeeper.feature.archive.mvi.store.ArchiveStore.Event
-import javax.inject.Inject
 
-@ViewModelScoped
+@SingleIn(ArchiveScope::class)
 internal class ArchiveClickHandler @Inject constructor(
     private val interactor: ArchiveInteractor,
     store: ArchiveHandlerStore,

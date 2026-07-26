@@ -16,11 +16,12 @@ content in this file.
 ./gradlew connectedDebugAndroidTest
 
 # Static analysis
-./gradlew detekt
-./gradlew detekt --auto-correct
+./gradlew detekt                  # gate: reports, never writes (autoCorrect is off)
+./gradlew detekt --auto-correct   # opt in to the formatter role for this run only
 ./gradlew lintDebug
 
-# Pre-commit hook (currently disabled at the script level — see lint-rules.md)
+# Pre-commit hook — installs .githooks (core.hooksPath). Runs detekt on every
+# commit; its early exit skips lintDebug only. See lint-rules.md.
 ./setup-hooks.sh
 ```
 
@@ -60,7 +61,7 @@ Project-specific skills live under [`.claude/skills/`](.claude/skills/). Invoke 
 skill when the user asks for one of these tasks:
 
 - [`add-feature`](.claude/skills/add-feature.md) — scaffold a new `feature/<name>` module
-  (build script, MVI contract, handlers, Hilt module, navigation entry, smoke test stub).
+  (build script, MVI contract, handlers, DI graph, navigation entry, smoke test stub).
 - [`write-handler-test`](.claude/skills/write-handler-test.md) — write a JUnit 5 unit test for
   an MVI handler or `*StoreImpl` using the project's mocked `HandlerStore` + `TestScope`
   pattern.
@@ -69,11 +70,11 @@ skill when the user asks for one of these tasks:
   fixture from the `core/data/database` testFixtures source set.
 - [`write-ui-test`](.claude/skills/write-ui-test.md) — write a `@Smoke` Compose UI test using
   `BaseComposeTest`, `ActionCapture`, `MockDataFactory`, and `PagingTestUtils`.
-- [`add-database-migration`](.claude/skills/add-database-migration.md) — bump the Room schema
-  version, add a `MIGRATION_X_Y` object, register it in `CoreDatabaseModule`, and add a
-  `MigrationTestHelper`-based test.
+- [`add-database-migration`](.claude/skills/add-database-migration.md) — bump
+  `APP_DATABASE_VERSION`, add a `Migration<N>` object, append it to the `MIGRATIONS` array in
+  `MigrationsRegistry.kt`, and add a `MigrationTestHelper`-based test.
 - [`refactor-with-mvi-rules`](.claude/skills/refactor-with-mvi-rules.md) — resolve a custom
-  Detekt MVI / Hilt scope / Composable rule violation by applying the conformant fix
+  Detekt MVI / Metro scope / Composable rule violation by applying the conformant fix
   (see also [`compose-state-discipline`](.claude/skills/compose-state-discipline.md), which
   covers Rule 4: dialogs and bottom sheets live in `State`, not `Event`).
 - [`mvi-dialog-state`](.claude/skills/mvi-dialog-state.md) — model two-or-more dialogs /
@@ -88,7 +89,11 @@ skill when the user asks for one of these tasks:
 
 - `master` is the release branch; ongoing work targets `dev`.
 - UI tests (`ui_tests.yml`) are `workflow_dispatch`-only and do not gate PRs.
-- The pre-commit hook in `.githooks/pre-commit` returns early — CI is the lint gate.
+- The pre-commit hook in `.githooks/pre-commit` **runs `./gradlew detekt` on every commit**
+  (`core.hooksPath = .githooks`). Its early `exit 0` sits *after* the detekt block, so it skips
+  `lintDebug` only — Android Lint is CI-gated, detekt is gated both locally and in CI.
+- detekt runs with `autoCorrect = false`: it reports, it never writes to the tree it verifies.
+  Formatting is an explicit per-run opt-in (`./gradlew detekt --auto-correct`).
 - Privacy policy at `docs/index.md` and `docs/_config.yml` are locked by Play Console; do not
   modify them.
 - Set types live in `core/database/.../exercise/model/SetsEntityType.kt`; check the migration

@@ -18,7 +18,7 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import java.time.LocalDate
 
-internal interface ExerciseChartStore : Store<State, Action, Event> {
+interface ExerciseChartStore : Store<State, Action, Event> {
 
     /**
      * Why the chart canvas is not currently rendered. Three distinct cases drive three

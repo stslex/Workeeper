@@ -4,7 +4,7 @@ package io.github.stslex.workeeper.feature.settings.domain
 import io.github.stslex.workeeper.feature.settings.domain.model.ThemeModeDomain
 import kotlinx.coroutines.flow.Flow
 
-internal interface SettingsInteractor {
+interface SettingsInteractor {
 
     fun appVersionName(): String
 

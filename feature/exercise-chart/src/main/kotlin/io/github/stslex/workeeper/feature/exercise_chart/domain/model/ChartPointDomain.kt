@@ -3,7 +3,7 @@ package io.github.stslex.workeeper.feature.exercise_chart.domain.model
 
 import java.time.LocalDate
 
-internal data class ChartPointDomain(
+data class ChartPointDomain(
     val day: LocalDate,
     val dayMillis: Long,
     val value: Double,
