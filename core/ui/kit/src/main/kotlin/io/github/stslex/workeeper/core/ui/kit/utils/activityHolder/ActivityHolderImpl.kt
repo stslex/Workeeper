@@ -4,7 +4,6 @@ import android.app.Activity
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
-import dev.zacsweers.metro.binding
 import io.github.stslex.workeeper.core.core.di.AppScope
 import java.lang.ref.WeakReference
 
@@ -13,23 +12,23 @@ import java.lang.ref.WeakReference
  * `@SingleIn(AppScope)` makes this a process-lifetime single-owner — one holder retains the current
  * `Activity` across the process.
  *
- * TWO supertypes ([ActivityHolder] + [ActivityHolderProducer]) → `@ContributesBinding` is `@Repeatable`,
- * applied once per bound type with an explicit `binding<>()` (the ambiguity-resolving form Metro requires
- * for a multi-supertype impl). Both contributions MUST use the same scope.
+ * ONE bound supertype ([ActivityHolderProducer]) → the plain `@ContributesBinding(AppScope::class)`
+ * form, with no `binding<>()` argument: Metro infers the bound type when there is no ambiguity.
+ * `AppGraph` exposes it as `activityHolderProducer`, and `MainActivity` calls [produce] from its
+ * lifecycle.
  *
  * `public` (already public here): required for cross-module Metro aggregation — the merged `AppGraph` in
- * `:app:app` cannot extend an internal contribution from another module (D1). Never hand-construct; resolve
- * `ActivityHolder`/`ActivityHolderProducer` via DI.
+ * `:app:app` cannot extend an internal contribution from another module (D1). Never hand-construct;
+ * resolve `ActivityHolderProducer` via DI.
  */
-@ContributesBinding(AppScope::class, binding = binding<ActivityHolder>())
-@ContributesBinding(AppScope::class, binding = binding<ActivityHolderProducer>())
+@ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)
 @Inject
-class ActivityHolderImpl : ActivityHolder, ActivityHolderProducer {
+class ActivityHolderImpl : ActivityHolderProducer {
 
     private var _activity: WeakReference<Activity>? = null
 
-    override val activity: Activity?
+    val activity: Activity?
         get() = _activity?.get()
 
     override fun produce(activity: Activity?) {

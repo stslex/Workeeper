@@ -1,8 +1,8 @@
 plugins {
     alias(libs.plugins.convention.composeLibrary)
-    // Metro plugin so the app-scoped impls in this module (e.g. NumUiUtilsImpl) are contributed to the
-    // app-scope AppGraph via @ContributesBinding(AppScope) — visibility-respecting ownership (the
-    // internal impls stay internal; app/app never references them). includeJavax keeps any javax.inject
+    // Metro plugin so the app-scoped impls in this module (ActivityHolderImpl) are contributed to the
+    // app-scope AppGraph via @ContributesBinding(AppScope) — the impl declares its own binding, so
+    // app/app names only the bound interface and never the impl. includeJavax keeps any javax.inject
     // qualifier readable, matching the app/app + feature-module Metro config.
     alias(libs.plugins.metro)
 }
