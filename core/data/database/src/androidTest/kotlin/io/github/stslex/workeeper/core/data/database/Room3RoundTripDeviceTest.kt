@@ -13,6 +13,7 @@ import io.github.stslex.workeeper.core.data.database.exercise.ExerciseEntity
 import io.github.stslex.workeeper.core.data.database.exercise.ExerciseTypeEntity
 import io.github.stslex.workeeper.core.data.database.tag.TagEntity
 import io.github.stslex.workeeper.core.data.database.training.TrainingEntity
+import io.github.stslex.workeeper.core.ui.test.annotations.Regression
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -48,6 +49,7 @@ import kotlin.uuid.Uuid
  * ⚠️ androidTest + file-backed on purpose (own DB name, not "app.db", so it never collides
  * with production/other tests). Do NOT move onto Robolectric or in-memory.
  */
+@Regression
 @RunWith(AndroidJUnit4::class)
 internal class Room3RoundTripDeviceTest {
 

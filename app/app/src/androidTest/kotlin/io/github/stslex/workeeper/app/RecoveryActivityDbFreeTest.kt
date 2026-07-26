@@ -9,6 +9,7 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stslex.workeeper.core.data.database.AppDatabase
+import io.github.stslex.workeeper.core.ui.test.annotations.Regression
 import io.github.stslex.workeeper.feature.recovery.RecoveryActivity
 import io.github.stslex.workeeper.harness.MetroTestRule
 import org.junit.Rule
@@ -34,22 +35,30 @@ import org.junit.runner.RunWith
  * connection seam). `RecoveryActivity` resolves `databaseSnapshotProvider` /
  * `recoveryDiagnosticsExporter` from the per-test Metro graph via its typed
  * holder (`RecoveryDepsHolder`); the graph's DB-cascade derives the DAOs from
- * this one root, so if any production code path reachable from the activity
- * opens a connection, the assertion bubbles up out of [ActivityScenario.launch]
- * and the test fails.
+ * this one root, so if any production code path exercised by the test opens a
+ * connection, the assertion bubbles up out of [ActivityScenario.launch] or out of
+ * the [ActivityScenario.onActivity] block below, and the test fails.
  *
  * Spec: `documentation/feature-specs/backup-recovery.md` →
  * "RecoveryActivity location and DB-free invariant".
  *
- * Note on scope: this test asserts the **graph + composition-time** invariant.
- * The four button callbacks (Update / Export raw / Report / Export diagnostics)
- * currently route only to file-path or pure-Kotlin helpers; their behavior is
- * implicitly covered because [ActivityScenario.moveToState] walks the activity
- * all the way to RESUMED — composition runs, both app-graph-resolved
- * collaborators are constructed, the Compose tree renders. A future contributor
- * wiring a Room-dependent collaborator into the activity surfaces here
- * regardless of which button (if any) the user ends up tapping.
+ * Note on scope: this test covers TWO things, and the second one is explicit,
+ * not implicit. Walking to RESUMED alone does NOT construct the collaborators:
+ * post-Hilt, `RecoveryActivity` holds `deps` as a `by lazy` and `onCreate` only
+ * binds callable references (`::exportRawData`, …) into `setContent`, so nothing
+ * in CREATED → STARTED → RESUMED reads either accessor. So the test additionally
+ * calls [RecoveryActivity.warmDeps] from `scenario.onActivity { }` while the
+ * fail-fast driver is still installed — that is what forces
+ * `databaseSnapshotProvider` + `recoveryDiagnosticsExporter` out of the graph and
+ * through their constructors inside the tripwire window.
+ *
+ * What is still NOT covered: the four button callbacks are never invoked, so this
+ * test does not prove `getPreMigrationBackupFile()` /
+ * `exportStartupMigrationFailure()` stay Room-free at CALL time — only that
+ * resolving and constructing their owners is. A future contributor who injects a
+ * Room-dependent collaborator into the activity does surface here.
  */
+@Regression
 @RunWith(AndroidJUnit4::class)
 internal class RecoveryActivityDbFreeTest {
 
@@ -67,6 +76,11 @@ internal class RecoveryActivityDbFreeTest {
         // a SQLiteConnection, the tripwire driver throws AssertionError and the launch fails.
         ActivityScenario.launch(RecoveryActivity::class.java).use { scenario ->
             scenario.moveToState(Lifecycle.State.RESUMED)
+            // The lifecycle walk alone never reads `deps` (it is a `by lazy` behind
+            // two `get()` accessors, touched only by the button handlers). warmDeps()
+            // reads both, so the DB-free assertion actually covers collaborator
+            // resolution + construction, not just activity launch.
+            scenario.onActivity { activity -> activity.warmDeps() }
         }
     }
 

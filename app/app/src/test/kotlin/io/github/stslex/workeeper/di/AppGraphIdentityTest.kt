@@ -5,6 +5,7 @@ import android.content.Context
 import dev.zacsweers.metro.createGraphFactory
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 
@@ -59,9 +60,14 @@ internal class AppGraphIdentityTest {
         val a = buildGraph().analyticsHolder
         val b = buildGraph().analyticsHolder
 
-        assertNotNull(a)
-        assertNotNull(b)
-        // NOT assertSame — different graphs, different owners. Same-graph identity is the invariant
-        // (asserted above); cross-graph identity is deliberately NOT expected.
+        // Non-identity ACROSS graphs is the invariant this test pins: `@SingleIn(AppScope)` retains one
+        // instance PER GRAPH, so the owner is the graph, never a static. Flip
+        // `AppGraph.provideAnalyticsHolder()` to a process-global `INSTANCE` (or make AnalyticsHolder an
+        // `object`) and this assertion — and only this one — goes red.
+        assertNotSame(
+            a,
+            b,
+            "two independently-built AppGraphs must own distinct AnalyticsHolder instances",
+        )
     }
 }

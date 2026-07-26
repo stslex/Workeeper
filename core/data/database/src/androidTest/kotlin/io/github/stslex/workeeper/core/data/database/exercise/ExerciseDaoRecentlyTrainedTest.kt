@@ -12,6 +12,7 @@ import io.github.stslex.workeeper.core.data.database.session.SessionStateEntity
 import io.github.stslex.workeeper.core.data.database.session.model.SetEntity
 import io.github.stslex.workeeper.core.data.database.session.model.SetTypeEntity
 import io.github.stslex.workeeper.core.data.database.training.TrainingEntity
+import io.github.stslex.workeeper.core.ui.test.annotations.Regression
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -29,6 +30,7 @@ import kotlin.uuid.Uuid
  * Each case constructs minimal seed data via the project DAOs (no raw SQL), then calls
  * [ExerciseDao.getRecentlyTrainedExercises] and asserts the resulting picker rows.
  */
+@Regression
 @RunWith(AndroidJUnit4::class)
 internal class ExerciseDaoRecentlyTrainedTest {
 

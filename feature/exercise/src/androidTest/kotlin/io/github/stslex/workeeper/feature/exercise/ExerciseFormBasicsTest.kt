@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -31,7 +34,9 @@ import org.junit.runner.RunWith
  * constructible in this module. Following the
  * established feature-UI-test idiom (F1 — direct screen render with an `ActionCapture`, cf.
  * [io.github.stslex.workeeper.feature.settings.SettingsScreenTest] and the sibling [ExerciseScreenTest]),
- * this verifies the form's action wiring; DB persistence is covered by the repository unit tests.
+ * this verifies the form's action wiring; the DB half of F-02 (type → Save → row in `exercise_table`)
+ * was relocated to `app/app/src/androidTest/.../app/ExerciseCreatePersistenceTest.kt`, which drives the
+ * real feature graph over `MetroTestRule`'s in-memory `AppDatabase`.
  */
 @Smoke
 @RunWith(AndroidJUnit4::class)
@@ -46,23 +51,43 @@ class ExerciseFormBasicsTest : BaseComposeTest() {
     @Test
     fun f02_saveDisabledUntilNameEntered_thenTypingNameEnablesSaveAndTapDispatchesSaveClick() {
         val capture = createActionCapture<Action>()
+        // In production the Store folds Action.Input.OnNameChange back into State; here the test plays
+        // that role, so the empty → non-empty transition genuinely drives `isSaveEnabled` instead of the
+        // screen rendering one frozen state.
+        var state by mutableStateOf(createState())
 
         composeTestRule.setContent {
             AppTheme(themeMode = ThemeMode.LIGHT) {
                 // ExerciseEditScreen reads from `LocalAppColors` (AppUi.colors), so the mount lives inside
                 // `AppTheme` exactly like the production hierarchy — the same wrap `ExerciseScreenTest` uses.
-                ExerciseEditScreen(state = createState(), consume = capture)
+                ExerciseEditScreen(
+                    state = state,
+                    consume = { action ->
+                        capture(action)
+                        if (action is Action.Input.OnNameChange) {
+                            state = state.copy(name = action.value)
+                        }
+                    },
+                )
             }
         }
 
         // Empty name → Save disabled (State.isSaveEnabled = name.isNotBlank()).
         composeTestRule.onNodeWithTag("ExerciseEditSaveButton").assertIsNotEnabled()
 
-        // Typing a name dispatches OnNameChange (the input wiring the form depends on).
+        // Typing a name dispatches OnNameChange (the input wiring the form depends on)...
         composeTestRule
             .onNodeWithTag("ExerciseEditNameField")
             .performTextInput("Bench Press")
         capture.assertCaptured<Action.Input.OnNameChange>()
+
+        // ...and the folded-back name flips Save to enabled, where the tap dispatches OnSaveClick.
+        composeTestRule.waitForIdle()
+        composeTestRule
+            .onNodeWithTag("ExerciseEditSaveButton")
+            .assertIsEnabled()
+            .performClick()
+        capture.assertCapturedExactly(Action.Click.OnSaveClick)
     }
 
     @Test

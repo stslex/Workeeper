@@ -20,9 +20,6 @@ android {
 
 dependencies {
     implementation(project(":core:core"))
-    // Android-only core:core-android for AppScope (the app-graph marker the DB-cascade bindings contribute
-    // against) + the @IODispatcher qualifier the DbTransitionRunner/impl providers carry.
-    implementation(project(":core:core-android"))
     implementation(project(":core:data:backup:api"))
 
     implementation(libs.kotlinx.serialization.json)
@@ -38,4 +35,11 @@ dependencies {
     androidTestImplementation(libs.bundles.android.test)
     // runTest for the suspend Room 3 MigrationTestHelper API (createDatabase / runMigrationsAndValidate).
     androidTestImplementation(libs.coroutine.test)
+    // Supplies io.github.stslex.workeeper.core.ui.test.annotations.Regression — both
+    // connectedAndroidTest jobs in ui_tests.yml select tests via the runner's `annotation` argument,
+    // so an un-annotated device test here can never be picked up by any CI job.
+    // androidTest-variant edge only; test-utils' main variant reaches back here transitively
+    // (test-utils -> ui:navigation -> ui:plan-editor -> data:exercise -> data:database), which is the
+    // same accepted shape as core:ui:mvi's androidTestImplementation(project(":core:ui:test-utils")).
+    androidTestImplementation(project(":core:ui:test-utils"))
 }

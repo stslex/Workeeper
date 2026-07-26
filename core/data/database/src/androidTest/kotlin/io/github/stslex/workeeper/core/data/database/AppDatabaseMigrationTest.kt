@@ -6,6 +6,7 @@ import androidx.sqlite.driver.AndroidSQLiteDriver
 import androidx.sqlite.execSQL
 import androidx.test.platform.app.InstrumentationRegistry
 import io.github.stslex.workeeper.core.data.database.migration.Migration6
+import io.github.stslex.workeeper.core.ui.test.annotations.Regression
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -29,6 +30,7 @@ import kotlin.uuid.Uuid
  * belt-and-braces. (Column / index / FK drift is still caught by `runMigrationsAndValidate`'s
  * own schema validation against `6.json` — see that test's KDoc.)
  */
+@Regression
 internal class AppDatabaseMigrationTest {
 
     @get:Rule

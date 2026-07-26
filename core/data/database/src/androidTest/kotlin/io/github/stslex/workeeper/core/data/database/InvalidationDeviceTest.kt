@@ -9,6 +9,7 @@ import androidx.sqlite.driver.AndroidSQLiteDriver
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stslex.workeeper.core.data.database.tag.TagEntity
+import io.github.stslex.workeeper.core.ui.test.annotations.Regression
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
@@ -34,6 +35,7 @@ import org.junit.runner.RunWith
  * ⚠️ androidTest + file-backed on purpose — Robolectric is not a valid oracle for
  * invalidation/Flow re-emission any more than for transaction rollback.
  */
+@Regression
 @RunWith(AndroidJUnit4::class)
 internal class InvalidationDeviceTest {
 

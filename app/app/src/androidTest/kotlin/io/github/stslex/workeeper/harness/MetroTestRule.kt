@@ -17,7 +17,12 @@ import org.junit.rules.ExternalResource
  * Instrumentation creates the [TestApplication] once per process, so the graph MUST be rebuilt per
  * test — otherwise a fail-fast-DB test and an in-memory-DB test running in the same process would share
  * one graph. `@Before` (via [before]) builds the graph from the two `create()` roots and installs it;
- * `@After` (via [after]) resets the holder so a leaked read between tests fails loudly.
+ * `@After` (via [after]) resets the holder so a leaked read between tests fails loudly, and closes the
+ * per-test [AppDatabase] so its connection pool does not survive to process death.
+ *
+ * Declare this rule at `@Rule(order = 0)` — the OUTERMOST slot — whenever the test also has an activity
+ * / compose rule. JUnit runs the lowest-ordered rule outermost, so [after] then runs LAST, after the
+ * activity has been torn down and nothing can still be querying the database being closed.
  *
  * The two `create()` roots are the test-override boundary the seam is designed around
  * (`AppGraph.Factory.create(applicationContext, appDatabase, imageStorage)`):
@@ -58,8 +63,23 @@ internal class MetroTestRule(
         )
     }
 
+    /**
+     * Resets the holder, then closes the per-test database so its Room connection pool / SQLite
+     * connections are released instead of living until the instrumentation process dies.
+     *
+     * The `close()` is UNGUARDED on purpose — no `runCatching`. It is safe even for the DB-free
+     * tripwire's never-opened database (`RecoveryActivityDbFreeTest`'s driver throws from `open()`):
+     * Room 3's `RoomDatabase.close()` is `closeBarrier.close()` → `coroutineScope.cancel()` +
+     * `invalidationTracker.stop()` (Android's `stop()` only stops the multi-instance client, it runs no
+     * SQL) + `connectionManager.close()` → `connectionPool.close()`, and BOTH pool implementations skip
+     * connections that were never created (`ConnectionPoolImpl` iterates an `arrayOfNulls(capacity)`,
+     * `PassthroughConnectionPool` guards on `::connection.isInitialized`). No path calls
+     * `SQLiteDriver.open()`, so closing cannot trip the tripwire — and leaving it unguarded means a real
+     * close failure surfaces instead of being swallowed. (Verified against androidx.room3 3.0.0 sources.)
+     */
     override fun after() {
         MetroTestGraphHolder.reset()
+        installedDatabase?.close()
         installedDatabase = null
     }
 }

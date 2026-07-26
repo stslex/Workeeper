@@ -8,9 +8,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stslex.workeeper.core.ui.test.TestActivity
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertSame
 import org.junit.Rule
 import org.junit.Test
@@ -41,12 +41,19 @@ internal class AppFeatureScopeTest {
     fun appFeatureProcessorResolvesAtActivityScope() {
         var capturedOwner: ViewModelStoreOwner? = null
         var capturedLifecycle: LifecycleOwner? = null
+        var capturedStore: AppRootProbeStoreImpl? = null
 
         composeRule.setContent {
             // Composed as a sibling of any NavHost would be — i.e. directly at the
             // App root depth — so LocalViewModelStoreOwner.current must resolve to
             // the host ComponentActivity, not a NavBackStackEntry.
             AppRootProbeFeature.processor()
+
+            // The instance the line above retained, read back through the SAME androidx path
+            // `rememberMetroStoreProcessor` uses — `viewModel<T>()` with no explicit key against the
+            // current LocalViewModelStoreOwner (the de-Hilt'd equivalent of the old `hiltViewModel()`).
+            // It returns the already-cached entry, so no factory is invoked here.
+            val directStore: AppRootProbeStoreImpl = viewModel()
 
             // LifecycleOwner and ViewModelStoreOwner snapshots from the same
             // composition that AppFeature is composed in: BaseStore.init was called
@@ -58,6 +65,7 @@ internal class AppFeatureScopeTest {
             SideEffect {
                 capturedOwner = owner
                 capturedLifecycle = lifecycleOwner
+                capturedStore = directStore
             }
         }
 
@@ -66,6 +74,7 @@ internal class AppFeatureScopeTest {
         val activity = composeRule.activity
         val owner = checkNotNull(capturedOwner) { "LocalViewModelStoreOwner not resolved" }
         val lifecycle = checkNotNull(capturedLifecycle) { "LifecycleOwner not resolved" }
+        val directStore = checkNotNull(capturedStore) { "Probe Store not resolved in composition" }
 
         // (1) Activity owns the ViewModelStore the Store was scoped to.
         assertSame(
@@ -74,14 +83,16 @@ internal class AppFeatureScopeTest {
             owner.viewModelStore,
         )
 
-        // (2) The Store the processor retained is cached in the Activity's ViewModelStore, so fetching
-        // AppRootProbeStoreImpl from the Activity's ViewModelProvider returns that SAME already-retained
-        // instance (ViewModelProvider returns the cached entry without invoking a factory). If the
-        // AppFeature had silently rescoped the Store to any other owner, the Activity's store would hold
-        // no such entry and this read would fail to construct one (no default no-arg factory).
+        // (2) The instance the processor retained IS the entry in the Activity's ViewModelStore:
+        // fetching AppRootProbeStoreImpl through the Activity's own ViewModelProvider returns the
+        // cached entry (===), not a second construction. If AppFeature had silently rescoped the Store
+        // to any other owner, the Activity's store would hold no such entry and this read would either
+        // fail to construct one (no default no-arg factory) or hand back a DIFFERENT instance — the
+        // identity assertion is what catches the latter.
         val viaActivity = ViewModelProvider(activity)[AppRootProbeStoreImpl::class.java]
-        assertNotNull(
-            "AppRootProbeStoreImpl must be retained in the host Activity's ViewModelStore",
+        assertSame(
+            "Store fetched from the Activity must be the same instance AppFeature wired up",
+            directStore,
             viaActivity,
         )
 

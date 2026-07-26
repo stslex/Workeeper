@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.annotation.VisibleForTesting
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -75,6 +76,19 @@ class RecoveryActivity : ComponentActivity() {
     private val snapshotProvider get() = deps.databaseSnapshotProvider
 
     private val diagnosticsExporter get() = deps.recoveryDiagnosticsExporter
+
+    /**
+     * Reads BOTH lazily-resolved app-graph collaborators and returns them.
+     *
+     * Production never calls this: `deps` is a `by lazy` and the two accessors are only read from the
+     * button handlers, so a plain CREATED → STARTED → RESUMED walk never touches either. The DB-free
+     * tripwire (`RecoveryActivityDbFreeTest`) calls this from `scenario.onActivity { }` to force the
+     * resolution + construction of both collaborators INSIDE the window where the fail-fast
+     * `SQLiteDriver` is installed. Returning them (rather than reading them as bare statements) keeps
+     * the reads observable and un-elidable.
+     */
+    @VisibleForTesting
+    fun warmDeps(): List<Any> = listOf(snapshotProvider, diagnosticsExporter)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
