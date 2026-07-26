@@ -26,8 +26,9 @@ import io.github.stslex.workeeper.feature.app_dialogs.impl.observer.AppDialogObs
  * port they reached the feature graph through an `Application`-implements-holder trick
  * (`Context.appDialogInternals()`) rather than through `appDeps<T>()`. As a contributed extension the
  * graph inherits both directly from the parent, so the holder, its accessor and `BaseApplication`'s
- * two `get()` overrides all go. The similarly-named `AppDialogPublisherHolder` in the **api** module is
- * a different seam serving cross-module consumers and STAYS.
+ * two `get()` overrides all go. The similarly-named `AppDialogPublisherHolder` in the **api** module
+ * went the same way: cross-module producers (settings / recovery) take `AppDialogPublisher` as a
+ * constructor dep resolved from their own extension graph, so nothing read that seam either.
  *
  * The two accessors below are observability roots for the identity test: they are the app-scoped
  * singletons this feature used to be handed and now inherits, and asserting them against the parent's

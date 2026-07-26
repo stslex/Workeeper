@@ -24,8 +24,8 @@ internal typealias SettingsStoreProcessor = StoreProcessor<State, Action, Event>
  * instead of the three `XxxDeps` interfaces. (`asContribution<T>()` is not usable here: it requires a
  * statically `@DependencyGraph`-typed receiver, which the `Any` seam is not.)
  *
- * This is where the arc's widest hand-threading collapses: the old body read `StoreCoreDeps` +
- * `NavigatorDeps` + `SettingsDeps`, plus `appDialogPublisher` through the feature-api holder seam and
+ * This is where the arc's widest hand-threading collapses: the old body read three dep interfaces, plus
+ * `appDialogPublisher` through a now-deleted `Application`-cast holder seam in `app-dialogs/api` and
  * the app `Context` from `LocalContext`, then passed all **18** across explicitly. Every one of them is
  * an app-scoped binding the extension now inherits, so `createSettingsGraph()` takes no arguments and
  * the composition-sourced/graph-sourced split disappears entirely — `Context` still comes from

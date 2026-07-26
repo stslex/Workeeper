@@ -21,8 +21,8 @@ internal typealias ExerciseStoreProcessor = StoreProcessor<State, Action, Event>
  * The app-scope graph (returned as `Any` by the `AppDepsHolder` seam) IS the parent graph and, once
  * `:app` is compiled, implements the contributed [ExerciseGraph.Factory]; `appDeps<T>()` re-narrows it
  * with its `as T` cast. All 14 formerly hand-threaded app-scoped deps are inherited from the parent, so
- * the three `appDeps` lookups (`StoreCoreDeps` + `NavigatorDeps` + `ExerciseDeps`) and the whole
- * `createGraphFactory(...).create(...)` argument list are gone.
+ * the three `appDeps` dep-interface lookups this file used to make, and the whole
+ * `createGraphFactory(...).create(...)` argument list, are gone.
  *
  * **The app `Context` is now inherited too.** It used to be passed explicitly as
  * `context.applicationContext` from this composable; it now resolves from AppGraph's

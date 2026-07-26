@@ -4,8 +4,8 @@ package io.github.stslex.workeeper.core.core.di
 /**
  * Metro app-scope marker (App-Scope Collapse) — the Metro analogue of Hilt's `@Singleton` /
  * `SingletonComponent` tier. Mirrors the feature-scope token form
- * (`abstract class X private constructor()`, proven on Metro 1.1.1) used by every flipped
- * feature (e.g. `ArchiveScope`).
+ * (`abstract class X private constructor()`) used by every flipped feature — e.g. `ArchiveScope` in
+ * `feature/archive/src/main/kotlin/io/github/stslex/workeeper/feature/archive/di/ArchiveScope.kt`.
  *
  * A Metro-CONSTRUCTED app-scoped node annotated `@SingleIn(AppScope::class)` (or contributed via
  * `@ContributesBinding(AppScope::class)`) is owned by the single app-scope graph held on
@@ -20,5 +20,10 @@ package io.github.stslex.workeeper.core.core.di
  * `@GraphExtension`/`@ContributesTo` no longer takes an Android-only `core:core-android` edge just to see
  * `AppScope`. (`core:core-android` still re-exposes it via `api(core:core)`, so existing consumers keep
  * the identical import path with no change.)
+ *
+ * Invariant (execution spec §D3b): the TOKEN lives in `commonMain`, but every
+ * `@ContributesBinding(AppScope::class)` / `@ContributesTo(AppScope::class)` SITE must live in an
+ * Android-compiled source set — never `commonMain`/`iosMain`. Those annotations require the Metro
+ * compiler plugin, which `core:core` does not apply.
  */
 abstract class AppScope private constructor()

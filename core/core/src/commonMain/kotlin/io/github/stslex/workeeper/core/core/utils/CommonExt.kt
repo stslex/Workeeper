@@ -7,12 +7,15 @@ import kotlin.uuid.Uuid
 object CommonExt {
 
     /**
-     * Whether execution-time tracing is enabled. Mirrors [Log.isLogging]: a runtime flag the
-     * Android application sets from `BuildConfig.DEBUG` in `BaseApplication.onCreate`. Kept as
-     * a settable flag rather than an `expect val`/`BuildConfig` read because the KMP `android`
-     * library target (AGP 9.x) does not expose `buildConfig`, and this keeps the gate
-     * identical across android + ios with no generated-source plumbing. Defaults to `false`
-     * so release builds and the iOS target never trace unless explicitly enabled.
+     * The gate [traceExecutionTime] reads. On Android `BaseApplication.onCreate` assigns it
+     * `isDebugLoggingAllow` — the same value it assigns to [Log.isLogging] — so tracing follows
+     * the build flavour's debug-logging flag. Kept as a settable flag rather than an
+     * `expect val`/`BuildConfig` read because the KMP `android` library target (AGP 9.x) does not
+     * expose `buildConfig`, and this keeps the gate identical across android + ios with no
+     * generated-source plumbing.
+     *
+     * Unlike [Log.isLogging] (which defaults to `true`) this defaults to `false`, so any target
+     * that never runs that bootstrap — the iOS target, JVM unit tests — does not trace.
      */
     var isTraceExecutionEnabled: Boolean = false
 

@@ -100,8 +100,10 @@ When adding to a feature module:
   `@SingleIn(AppScope::class)`. Handlers, Interactors, and Mappers are
   `@SingleIn(<Feature>Scope::class)`. Stores (`*Store` interfaces and their `*StoreImpl`
   ViewModels) are UNSCOPED — a class-level `@Inject` with no scope annotation, retained
-  by the `ViewModelStore` via `rememberMetroStoreProcessor` — with an optional
-  assisted-factory variant for screens that need route arguments at construction.
+  by the `ViewModelStore` via `rememberMetroStoreProcessor`. A screen that needs route
+  arguments takes them as a `@Provides` bound instance on its feature's
+  `@GraphExtension.Factory`, not as an `@Assisted` Store parameter (`ScreenInjectionRule`
+  keeps the arg confined to the Store's primary constructor).
 
 ### Navigation
 
@@ -192,13 +194,22 @@ every PR; UI tests are opt-in via `ui_tests.yml`. See
 ## Schema and data migrations
 
 Room is set to `exportSchema = true` and writes to
-`core/database/schemas/io.github.stslex.workeeper.core.database.AppDatabase/`. When you change
-an entity:
+`core/data/database/schemas/io.github.stslex.workeeper.core.data.database.AppDatabase/`. When
+you change an entity:
 
-1. Bump the `version` in `AppDatabase`.
-2. Add a new `Migration<n>_<n+1>` under `core/database/.../migrations/` and register it in
-   `core/database/.../di/CoreDatabaseModule.kt`.
-3. Commit the freshly generated `<version>.json` schema file.
+1. Bump `APP_DATABASE_VERSION` in
+   `core/data/database/.../migration/MigrationsRegistry.kt`. `AppDatabase` reads that
+   constant on `@Database(version = ...)`; do not hardcode a version on the annotation.
+2. Add a new `Migration<n+1>` object under `core/data/database/.../migration/` and append it
+   to the `MIGRATIONS` array in the same `MigrationsRegistry.kt`. That array is the only
+   registration site — `buildAppDatabase(...)` in `AppDatabaseFactory.kt` spreads it onto the
+   `Room.databaseBuilder` chain, and there is deliberately no destructive fallback there.
+3. Add a `MigrationTestHelper` test in
+   `core/data/database/src/androidTest/.../AppDatabaseMigrationTest.kt`.
+4. Commit the freshly generated `<version>.json` schema file.
+
+The step-by-step recipe lives in
+[`.claude/skills/add-database-migration.md`](.claude/skills/add-database-migration.md).
 
 ## Releases
 

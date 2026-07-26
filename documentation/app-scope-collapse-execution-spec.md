@@ -130,29 +130,51 @@ test-override roots (§Test-override root) and the 9 DAOs + `dbTransitionRunner`
 `@Provides` deriving from the `appDatabase` root. The 3-root shape is the authorized 5a classification,
 **not yet in source** (Step 5 unexecuted).
 
-**D3b — `AppScope` is Android-only.** `AppScope` is `abstract class AppScope private constructor()` in
-**`core:core-android`** (an `com.android.library`), package
-`io.github.stslex.workeeper.core.core.di` (shared with the dispatcher qualifiers). Any
-`@ContributesBinding(AppScope::class)` impl MUST live in an **Android-compiled source set** — never a live
-`commonMain`/`iosMain`, which would compile the Android-DI token to iOS (a platform-axis leak).
+**D3b — the `AppScope` token lives in `commonMain`; every CONTRIBUTION stays Android-compiled.**
+`AppScope` is `abstract class AppScope private constructor()` in **`core:core`** (the KMP module),
+source set `src/commonMain`, package `io.github.stslex.workeeper.core.core.di` — the same package as the
+dispatcher qualifiers, which are declared in that same `commonMain` `di` directory. `2f9c89d8` relocated it
+there from `core:core-android`: import-neutral, because `core:core-android` re-exposes it via
+`api(project(":core:core"))` (`core/core-android/build.gradle.kts:27`), so every existing consumer keeps the
+identical import path. The motivation is edge shape — a module that needs nothing but the scope token (a
+`@GraphExtension` factory's `@ContributesTo(AppScope::class)`) no longer takes an Android-only
+`:core:core-android` dependency just to see it.
 
-- Anchor: `core/core-android/src/main/kotlin/io/github/stslex/workeeper/core/core/di/AppScope.kt:23`.
-- Verified: every real-code `@ContributesBinding(AppScope::class)` site is in Android `src/main` (or
-  `src/main/java` for app/app); zero in `commonMain`/`iosMain`. `core:core` (the only module with
-  `commonMain`/`iosMain`) applies no Metro and hosts no AppScope contribution. The count is a moving target
-  (grows one per flip), so it is stated as a **reproducible snapshot**, not a bare figure:
+Compiling the token to iOS costs nothing because the token is **inert**: `AppScope.kt` has **zero import
+statements** — no Metro, no Android — and no body. The annotations that make it a real DI scope
+(`@DependencyGraph(scope = AppScope::class)`, `@SingleIn`, `@ContributesBinding`/`@ContributesTo`) sit on the
+app graph and on the contributing impls, never on the token.
+
+**The platform-axis invariant that survives, and is the one to enforce:** every
+`@ContributesBinding(AppScope::class)` / `@ContributesTo(AppScope::class)` **site** MUST live in an
+**Android-compiled source set** — never `commonMain`, never `iosMain`. Those annotations require the Metro
+compiler plugin (§D10), and `core:core` — the only module that has `commonMain`/`iosMain` — does not apply it
+(`core/core/build.gradle.kts` applies only `convention.kmpLibrary`; no build-logic convention applies Metro).
+Declaring the token in `commonMain` is a no-op; contributing from `commonMain`/`iosMain` would be the leak.
+
+- Anchor: `core/core/src/commonMain/kotlin/io/github/stslex/workeeper/core/core/di/AppScope.kt:29` (the
+  declaration; the file is 29 lines — SPDX line, package line, and KDoc above it, no imports).
+- Enforcement split: `ContributesBindingScopeRule` / `ContributesToScopeRule` guard the scope *identity*
+  (project token vs Metro's built-in `dev.zacsweers.metro.AppScope`, §V) — neither rule looks at the source
+  set. The source-set half of the invariant is grep-enforced, and the counts are a moving target (they grow
+  one per flip), so it is stated as a **reproducible snapshot**, not a bare figure. Anchor the regex at line
+  start (`^\s*@`): an unanchored match also hits the many KDoc paragraphs that name the annotation in prose —
+  including `AppScope.kt`'s own KDoc, which makes the unanchored invariant check report a false violation.
 
   ```
-  # snapshot @ 589777d9 — excludes the ContributesBindingScopeRule rule + its test fixture
-  git grep -l -E '@ContributesBinding\(AppScope' -- '*.kt' | grep -v lint-rules | wc -l   # → 39 files
-  git grep    -E '@ContributesBinding\(AppScope' -- '*.kt' | grep -v lint-rules | wc -l   # → 59 occurrences
-  git grep -l -E '@ContributesBinding\(AppScope' -- '*.kt' | grep -v lint-rules \
-    | grep -iE 'commonMain|iosMain'                                                        # → (empty: invariant holds)
+  # snapshot @ c6977fbc — `grep -v lint-rules` drops the detekt rules + their test fixtures
+  git grep -l -E '^\s*@ContributesBinding\(AppScope' -- '*.kt' | grep -v lint-rules | wc -l  # → 35 files
+  git grep    -E '^\s*@ContributesBinding\(AppScope' -- '*.kt' | grep -v lint-rules | wc -l  # → 37 sites
+  git grep -l -E '^\s*@ContributesTo\(\s*AppScope'   -- '*.kt' | grep -v lint-rules | wc -l  # → 18 files
+  git grep    -E '^\s*@ContributesTo\(\s*AppScope'   -- '*.kt' | grep -v lint-rules | wc -l  # → 18 sites
+  git grep -l -E '^\s*@Contributes(Binding|To)\(\s*AppScope' -- '*.kt' | grep -v lint-rules \
+    | grep -iE 'commonMain|iosMain'                              # → (empty: invariant holds)
   ```
 
-> **Note (corrects a stale draft).** A prior scratchpad draft stated AppScope moved to
-> `core:core/commonMain` and was made public. That is **wrong** — the code places it in `core:core-android`
-> with a private constructor. Write to code truth.
+- Also verified at `c6977fbc`: every one of those sites is under Android `src/main` (`src/main/java` for
+  `app/app`), and the ONLY `commonMain` file that mentions `AppScope` at all is its own declaration —
+  `git grep -l AppScope -- '*.kt' | grep -oE 'src/[a-zA-Z]+' | sort | uniq -c` → `1 src/commonMain`,
+  `77 src/main`, `5 src/test`; `iosMain` has zero.
 
 ---
 
@@ -206,7 +228,8 @@ tree. The **core** Metro set (8 modules) is, verified against each `build.gradle
   Deferred section). It applies Metro **alongside** the convention's Hilt-KSP: after the assisted trio
   converted to `dev.zacsweers.metro.*`, no `dagger.assisted.*` remains for Hilt-KSP to process, so the two
   processors coexist with no Hilt opt-out (matches `backup/scheduling`).
-- `core:core` (KMP, `commonMain`+`iosMain`) does **NOT** apply Metro (platform-axis constraint, §D3b).
+- `core:core` (KMP, `commonMain`+`iosMain`) does **NOT** apply Metro: it declares the inert `AppScope`
+  token and hosts zero contributions, so it needs no Metro plugin (platform-axis constraint, §D3b).
 - Repo-wide, the plugin is applied in 22 build files: these 8 core + `app/app` + 13 feature modules; every
   module that applies the plugin also has `includeJavax()`.
 

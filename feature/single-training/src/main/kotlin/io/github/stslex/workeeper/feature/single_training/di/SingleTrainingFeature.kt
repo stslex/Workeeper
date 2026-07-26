@@ -21,7 +21,7 @@ internal typealias SingleTrainingStoreProcessor = StoreProcessor<State, Action, 
  * The app-scope graph (returned as `Any` by the `AppDepsHolder` seam) IS the parent graph and, once
  * `:app` is compiled, implements the contributed [SingleTrainingGraph.Factory]; `appDeps<T>()`
  * re-narrows it with its `as T` cast. All 13 formerly hand-threaded app-scoped deps are inherited from
- * the parent, so the three `appDeps` lookups (`StoreCoreDeps` + `NavigatorDeps` + `SingleTrainingDeps`)
+ * the parent, so the three `appDeps` dep-interface lookups this file used to make
  * and the whole `createGraphFactory(...).create(...)` argument list are gone — including both qualified
  * dispatchers, which now cross the graph boundary as two distinct keys rather than being handed in.
  *

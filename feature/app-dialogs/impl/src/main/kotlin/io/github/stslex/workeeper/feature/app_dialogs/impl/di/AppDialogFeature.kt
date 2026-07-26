@@ -25,7 +25,7 @@ internal typealias AppDialogStoreProcessor = StoreProcessor<State, Action, Event
  * mount via `AppDialogHost`).
  *
  * All 5 formerly hand-threaded deps are inherited from the parent graph, so BOTH former acquisition
- * paths are gone: the `appDeps<StoreCoreDeps>()` lookup for the store-infra trio, AND the
+ * paths are gone: the `appDeps` dep-interface lookup for the store-infra trio, AND the
  * impl-internal `appDialogInternals()` holder seam that fed this feature its own app-scoped
  * singletons. The extension inherits `AppDialogRepository` and `AppDialogObserverImpl` straight from
  * `AppGraph`, so that seam is deleted outright rather than narrowed.

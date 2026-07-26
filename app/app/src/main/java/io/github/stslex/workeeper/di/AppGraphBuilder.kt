@@ -8,8 +8,9 @@ import io.github.stslex.workeeper.core.data.database.AppDatabase
 
 /**
  * The SINGLE construction site for the app-scope [AppGraph]. Both real callers —
- * `BaseApplication.appGraph` (prod) and [AppGraphSourceModule]'s test fallback — delegate here, so the
- * `create(...)` argument list is threaded in exactly ONE place.
+ * `BaseApplication.appGraph` (prod) and `MetroTestRule` (the `:app:app` androidTest harness, which
+ * installs a fresh per-test graph into `MetroTestGraphHolder`) — delegate here, so the `create(...)`
+ * argument list is threaded in exactly ONE place.
  *
  * App-Scope Collapse Step 5 (5a): the DB-cascade substrate collapsed to a single [AppDatabase] `create()`
  * root. The 9 Room DAOs + `DbTransitionRunner` now derive from it graph-internally

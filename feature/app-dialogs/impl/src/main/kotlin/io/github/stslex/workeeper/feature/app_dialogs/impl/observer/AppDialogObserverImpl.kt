@@ -22,20 +22,31 @@ import kotlinx.coroutines.flow.asSharedFlow
  * **Transport.** A `MutableSharedFlow<AppDialogUserChoice>` with
  * `replay = 0` (no late subscriber catches the event) and
  * `extraBufferCapacity = 64` (absorbs bursts without suspending the
- * emitter). `BufferOverflow.SUSPEND` ensures we never silently drop an
- * emission — the emitter waits for the subscriber to drain.
+ * emitter). `BufferOverflow.SUSPEND` ensures that once a subscriber IS
+ * attached and falls behind, the emitter waits rather than dropping.
  *
- * **Bootstrap dependency.** No subscriber = no delivery. Constructed at
- * `BaseApplication.onCreate` by reading the graph's `appDialogObserverImpl`
- * accessor (`appGraph.appDialogObserverImpl`) so the subscriber-side handler's
- * `init { ... launchIn(scope) }` runs before any `MainActivity.onCreate` and
- * registers a collector. See the [AppDialogObserver] KDoc for the full bootstrap contract.
+ * **Bootstrap dependency.** No subscriber = no delivery, and with `replay = 0`
+ * that loss is permanent and silent. This instance is NOT what
+ * `BaseApplication` reads to arm the flow — the `AppGraph.appDialogObserverImpl`
+ * accessor exists for the intra-module `AppDialogFeature` read.
  *
- * DI (App-Scope Collapse Step 3): Metro-owned. `@ContributesBinding(AppScope)`
- * binds it to [AppDialogObserver] for the cross-module consumer readers
- * (recovery / archive / `BaseApplication`); `AppGraph` ALSO exposes the concrete
- * type via a self accessor for the intra-module `AppDialogFeature` read (the
- * feature graph takes `AppDialogObserverImpl`, not the interface). One
+ * The subscriber is armed indirectly: `RestoreDialogChoiceObserver`
+ * (`feature/recovery`) is the sole production collector, it is
+ * `@ContributesBinding(AppScope)`-bound to the `RecoveryBootstrap` marker, and
+ * `BaseApplication.bootstrapAppDialogObserver()` reads
+ * `appGraph.recoveryBootstrap` for the side-effect of constructing it — its
+ * `init { ... launchIn(scope) }` registers the collector before any
+ * `MainActivity.onCreate`. Removing or deferring THAT accessor read is what
+ * would break delivery, not a change to the accessor below.
+ *
+ * See the [AppDialogObserver] KDoc for the full bootstrap contract.
+ *
+ * DI: Metro-owned. `@ContributesBinding(AppScope)` binds it to
+ * [AppDialogObserver] for the one cross-module consumer that injects the
+ * interface — `RestoreDialogChoiceObserver` in `feature/recovery`. `AppGraph`
+ * ALSO exposes the concrete type via a self accessor for the intra-module
+ * `AppDialogFeature` read (the feature graph takes `AppDialogObserverImpl`, not
+ * the interface, because `ChooseHandler` needs the impl-internal `emit`). One
  * `@SingleIn(AppScope)` instance backs both. Public because `@ContributesBinding`
  * on an `internal` class does not aggregate across Gradle modules.
  */

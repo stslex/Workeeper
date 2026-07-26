@@ -9,7 +9,7 @@ package io.github.stslex.workeeper.feature.recovery.boot
  * reading the `recoveryBootstrap` accessor on the app graph in `BaseApplication.onCreate`
  * (`appGraph.recoveryBootstrap`) constructs that singleton, which arms the subscriber
  * before any UI dispatch — see `documentation/feature-specs/app-dialogs.md` →
- * "Bootstrap (BLOCKER 1)".
+ * "Cross-feature observation".
  *
  * The marker exists purely to type-erase the observer across the module boundary: callers
  * in `app/app` cannot reference the `internal` observer class directly, but they can hold a

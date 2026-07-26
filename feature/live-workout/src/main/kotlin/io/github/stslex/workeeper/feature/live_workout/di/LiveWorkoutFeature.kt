@@ -22,8 +22,8 @@ internal typealias LiveWorkoutStoreProcessor = StoreProcessor<State, Action, Eve
  * The app-scope graph (returned as `Any` by the `AppDepsHolder` seam) IS the parent graph and, once
  * `:app` is compiled, implements the contributed [LiveWorkoutGraph.Factory]; `appDeps<T>()` re-narrows
  * it with its `as T` cast. All 13 formerly hand-threaded app-scoped deps are inherited from the parent,
- * so the three `appDeps` lookups (`StoreCoreDeps` + `NavigatorDeps` + `LiveWorkoutDeps`) and the whole
- * `createGraphFactory(...).create(...)` argument list are gone.
+ * so the three `appDeps` dep-interface lookups this file used to make, and the whole
+ * `createGraphFactory(...).create(...)` argument list, are gone.
  *
  * The `Screen.LiveWorkout` route arg is passed to the extension factory as a bound instance (shape B),
  * so the extension is built per navigation entry and carries that entry's arg — the Store needs no
