@@ -448,6 +448,45 @@ tags (`"HomeGraph"`, `"AllTrainingsGraph"`, etc.) for cross-feature tests.
 | `feature/settings` | `feature/settings/src/androidTest/.../SettingsScreenTest.kt` |
 | `app/app` (`@Regression`, real graph) | `app/app/src/androidTest/.../app/ApplicationBottomBarTest.kt`, `ExerciseCreatePersistenceTest.kt`, `NavigationLifecycleRegressionTest.kt`, `RecoveryActivityDbFreeTest.kt`, `AllTrainingsExtensionDbVisibilityTest.kt` |
 
+## Visual gate — Paparazzi screenshot goldens
+
+Applies to `:core:ui:kit`. Goldens live in
+`core/ui/kit/src/test/snapshots/images/` and are committed.
+
+```bash
+# Verify the committed goldens (what CI runs, before detekt)
+./gradlew verifyPaparazziDebug
+
+# Re-record after an intentional visual change, then commit the PNGs
+./gradlew :core:ui:kit:recordPaparazziDebug
+```
+
+**Re-record workflow.** `recordPaparazziDebug` regenerates every golden, the PNGs are
+committed alongside the code change, and the reviewer reads the image diff. During the v3
+redesign the goldens are re-recorded at every visual step — they are the *before* picture for
+the next one, and are disposable by design.
+
+**Rule for the redesign branch: a golden change must be intentional and explained in the
+commit body. An unexplained golden delta is a review stop.** A commit that touches
+`src/test/snapshots/` without saying why in its message should not be approved.
+
+**Pinned rendering inputs** (change these and every golden moves): `DeviceConfig.PIXEL_5` —
+1080×2340 at 440 dpi, `fontScale = 1.0`, `softButtons = false`, locale `en` (`ru` for the
+Cyrillic golden), recorded at native device resolution.
+`maxPercentDifference = 0.0`, set explicitly.
+
+**A flaky golden is a finding, never a reason to raise the tolerance.** Adding a single glyph
+to a golden moves ~0.03% of the frame, so the commonly copied `0.1` would not catch it.
+
+**Not snapshotted, by design.** `Dialog`, `ModalBottomSheet`, `DropdownMenu`,
+`DatePickerDialog` and `TooltipBox` render in separate windows; Paparazzi models one window.
+Those sites stay on manual verification.
+
+**Liveness.** A Paparazzi task that discovers no tests still exits 0. `verifyPaparazziDebug`
+and `recordPaparazziDebug` are therefore finalized by `:core:ui:kit:assertGoldenLiveness`,
+which fails the build unless at least as many golden test cases executed as there are
+committed golden images.
+
 ## Running tests
 
 From the project root:

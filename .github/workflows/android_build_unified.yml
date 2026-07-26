@@ -99,6 +99,33 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew assembleDebug --full-stacktrace
 
+      # Visual gate for the v3 redesign. Deliberately placed BEFORE detekt.
+      #
+      # detekt cannot currently corrupt this: LintConventionPlugin sets
+      # `autoCorrect = false` precisely so the gate never rewrites the tree it verifies.
+      # Running the goldens first means that guarantee does not have to hold — the visual
+      # gate reads the checked-out tree before any other step could have touched it,
+      # whatever a future edit to that setting does.
+      #
+      # `verifyPaparazziDebug` is finalized by `:core:ui:kit:assertGoldenLiveness`, which
+      # fails the build if the golden tests did not actually execute. A Paparazzi task that
+      # discovers no tests still exits 0, so "green" alone does not mean the gate ran.
+      - name: Verify screenshot goldens
+        run: ./gradlew verifyPaparazziDebug --full-stacktrace
+
+      - name: Upload screenshot diffs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: paparazzi-failure-diffs
+          # alpha05 made this directory variant-aware (…/failures/<variant>/). Each failure
+          # writes an expected|delta|actual triptych — a red visual gate with no visible diff
+          # is barely better than no gate.
+          path: |
+            **/build/paparazzi/failures/**
+          if-no-files-found: ignore
+          retention-days: 30
+
       - name: Run detekt
         run: ./gradlew detekt --full-stacktrace
 
