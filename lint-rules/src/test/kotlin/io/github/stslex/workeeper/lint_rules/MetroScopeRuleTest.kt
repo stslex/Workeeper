@@ -9,9 +9,12 @@ import org.junit.jupiter.api.Test
 /**
  * Coverage for [MetroScopeRule] — the Metro-only successor to the former `HiltScopeRule`.
  *
- * DI is 100% Metro. A constructor-injected, name-matched dependency (Handler / Interactor / Mapper /
+ * DI is 100% Metro. A Metro-injected, name-matched dependency (Handler / Interactor / Mapper /
  * Repository / …) must declare a `@SingleIn(<Scope>::class)`; a `*Handler` must not be
- * `@SingleIn(AppScope)`. The Hilt-annotation branches (requiring `@ViewModelScoped` / `@HiltViewModel`)
+ * `@SingleIn(AppScope)`. Both `@Inject` shapes are inspected — on the primary constructor and on the
+ * class — and the only name-based exemption is the ViewModelStore-retained `*StoreImpl`, which does NOT
+ * extend to the `*HandlerStoreImpl` adapters. The Hilt-annotation branches (requiring
+ * `@ViewModelScoped` / `@HiltViewModel`)
  * were deleted once those FQNs left every classpath — the checks here all key off annotations a developer
  * can still write (`dev.zacsweers.metro.SingleIn`, and the retained-but-wrong `javax.inject.@Singleton`).
  */
@@ -42,11 +45,15 @@ internal class MetroScopeRuleTest {
         )
     }
 
+    /**
+     * Class-level `@Inject` is the dominant shape in the tree (every `*InteractorImpl`,
+     * `*HandlerStoreImpl`, `StateStatusMapper`, the `*DataStoreImpl`s …). A 0-finding assertion on the
+     * scoped variant alone proves nothing — it stays green if the rule never inspects the class at all.
+     * This is the pair: identical source, `@SingleIn` removed, must flag.
+     */
     @Test
-    fun `Metro Interactor with SingleIn class-level injection passes`() {
-        // Non-Handler classes carry class-level @Inject; the rule's hasInject check reads the
-        // primary constructor, so it already short-circuits. @SingleIn keeps it explicitly valid.
-        val findings = rule.lint(
+    fun `class-level Inject is inspected — scoped Interactor passes, unscoped one is flagged`() {
+        val scoped = rule.lint(
             """
             package io.github.stslex.workeeper.feature.archive.domain
 
@@ -60,15 +67,102 @@ internal class MetroScopeRuleTest {
             )
             """.trimIndent(),
         )
+        val unscoped = rule.lint(
+            """
+            package io.github.stslex.workeeper.feature.archive.domain
 
-        assertEquals(0, findings.size, "A @SingleIn Metro Interactor must pass.")
+            import dev.zacsweers.metro.Inject
+
+            @Inject
+            internal class ArchiveInteractorImpl(
+                private val repository: Any,
+            )
+            """.trimIndent(),
+        )
+
+        assertEquals(0, scoped.size, "A @SingleIn Metro Interactor with class-level @Inject must pass.")
+        assertTrue(
+            unscoped.isNotEmpty(),
+            "A class-level-@Inject Interactor with NO @SingleIn must be flagged — class-level @Inject is " +
+                "injection too, and the class is silently unscoped.",
+        )
+    }
+
+    /**
+     * The `*HandlerStoreImpl` adapters carry class-level `@Inject` and no primary-constructor parens at
+     * all, so `primaryConstructor` is null. They are ordinary feature-scoped graph nodes (NOT the
+     * ViewModelStore-retained Store), so the scope requirement applies to them.
+     */
+    @Test
+    fun `HandlerStoreImpl with class-level Inject and no scope is flagged`() {
+        val findings = rule.lint(
+            """
+            package io.github.stslex.workeeper.feature.archive.di
+
+            import dev.zacsweers.metro.Inject
+
+            @Inject
+            class ArchiveHandlerStoreImpl : ArchiveHandlerStore,
+                BaseHandlerStore<State, Action, Event>()
+            """.trimIndent(),
+        )
+
+        assertTrue(
+            findings.isNotEmpty(),
+            "A *HandlerStoreImpl with no @SingleIn must be flagged — it is not exempt as a Store.",
+        )
     }
 
     @Test
+    fun `HandlerStoreImpl scoped to its feature scope passes`() {
+        val findings = rule.lint(
+            """
+            package io.github.stslex.workeeper.feature.archive.di
+
+            import dev.zacsweers.metro.Inject
+            import dev.zacsweers.metro.SingleIn
+
+            @Inject
+            @SingleIn(ArchiveScope::class)
+            class ArchiveHandlerStoreImpl : ArchiveHandlerStore,
+                BaseHandlerStore<State, Action, Event>()
+            """.trimIndent(),
+        )
+
+        assertEquals(0, findings.size, "the shape every feature ships must stay green")
+    }
+
+    @Test
+    fun `HandlerStoreImpl scoped to AppScope is flagged by the Handler guard`() {
+        val findings = rule.lint(
+            """
+            package io.github.stslex.workeeper.feature.archive.di
+
+            import dev.zacsweers.metro.Inject
+            import dev.zacsweers.metro.SingleIn
+
+            @Inject
+            @SingleIn(AppScope::class)
+            class ArchiveHandlerStoreImpl : ArchiveHandlerStore,
+                BaseHandlerStore<State, Action, Event>()
+            """.trimIndent(),
+        )
+
+        assertTrue(
+            findings.isNotEmpty(),
+            "@SingleIn(AppScope) on a HandlerStore pins one BaseHandlerStore._store to the process.",
+        )
+    }
+
+    /**
+     * A Metro Store is intentionally UNSCOPED (retained by the Android `ViewModelStore`), and is now
+     * exempted BY NAME rather than by which `@Inject` shape it happens to use. This input has two reasons
+     * to pass — the `*StoreImpl` exemption and the fact that `ArchiveStoreImpl` matches no dependency
+     * bucket — so it is a regression anchor, not a proof of the exemption. The `*HandlerStoreImpl` tests
+     * above are what pin the exemption's boundary: it must not reach the adapters.
+     */
+    @Test
     fun `Metro Store with class-level Inject and no scope passes`() {
-        // A Metro Store is intentionally UNSCOPED (retained by the Android ViewModelStore). Its
-        // class-level @Inject leaves the primary constructor un-annotated, so the rule short-circuits at
-        // hasInject and never demands a scope.
         val findings = rule.lint(
             """
             package io.github.stslex.workeeper.feature.archive.mvi.store
@@ -83,6 +177,29 @@ internal class MetroScopeRuleTest {
         )
 
         assertEquals(0, findings.size, "A Metro @Inject Store (unscoped, class-level @Inject) must pass.")
+    }
+
+    /**
+     * `@AssistedInject` is NOT injection for this rule: Metro forbids scoping an assisted type, so
+     * demanding a `@SingleIn` would be unsatisfiable. `DataStoreProvider` is the live example.
+     */
+    @Test
+    fun `AssistedInject class in a bucket is not required to declare a scope`() {
+        val findings = rule.lint(
+            """
+            package io.github.stslex.workeeper.core.data.dataStore.core
+
+            import dev.zacsweers.metro.Assisted
+            import dev.zacsweers.metro.AssistedInject
+
+            class DataStoreProvider @AssistedInject constructor(
+                @Assisted private val name: String,
+                context: Any,
+            )
+            """.trimIndent(),
+        )
+
+        assertEquals(0, findings.size, "Metro forbids scoping an assisted type, so it must not be flagged.")
     }
 
     @Test

@@ -585,14 +585,17 @@ deferred to a follow-up PR — see
 | `AppDialogObserver` / `AppDialogObserverImpl` | `@SingleIn(AppScope)` (`@ContributesBinding`) | Cross-feature observation surface, backed by the repository. |
 | `AppDialogHost` | Stateless Composable | Resolves the Store via `rememberMetroStoreProcessor<AppDialogStoreImpl>()`. No `EntryPointAccessors`. |
 
-A Metro Store such as `AppDialogStore` carries no scope annotation at all;
-`MetroScopeRule` name-matches `*Store` classes but does not require a scope on
-them. Activity-scoping is achieved at the **mount site** (App root, sibling of
-NavHost) by `LocalViewModelStoreOwner` resolving to the host
-`ComponentActivity`, not by a DI scope.
+A Metro Store such as `AppDialogStoreImpl` carries no scope annotation at all.
+`MetroScopeRule` does inspect its class-level `@Inject`, but exempts it by name
+via `ScopedClassNames.isStoreImpl` before any scope check. Activity-scoping is
+achieved at the **mount site** (App root, sibling of NavHost) by
+`LocalViewModelStoreOwner` resolving to the host `ComponentActivity`, not by a
+DI scope. Note the sibling `AppDialogHandlerStoreImpl` is **not** covered by
+that exemption (`isStoreImpl` excludes `*HandlerStoreImpl`), which is why it
+carries `@SingleIn(AppDialogsScope::class)`.
 
-This replaces the historical `AppDialogStore` carve-out from
-`ScopeClassType.singletonClasses` — see
+This replaces the historical `AppDialogStore` carve-out from the deleted
+`ScopeClassType.singletonClasses` list (now `ScopedClassNames`) — see
 [lint-rules.md → MetroScopeRule](../lint-rules.md#metroscoperule) for the
 deletion rationale. The previous design (a `@Singleton` DataStore wrapper
 misnamed `*Store`) is gone; the persistence-only role moved to
@@ -618,7 +621,8 @@ that does not need an exception.
   the *trigger* is `publish(dialog)`, the *cross-feature reaction* is
   `AppDialogObserver.observeUserActions()`. `Event` is never involved.
 - [lint-rules.md → MetroScopeRule](../lint-rules.md#metroscoperule) — explains
-  why `AppDialogStore` no longer needs the `ScopeClassType.singletonClasses`
-  carve-out after the refactor.
+  why `AppDialogStore` no longer needs the deleted `ScopeClassType.singletonClasses`
+  carve-out after the refactor, and how the replacement `ScopedClassNames.isStoreImpl`
+  exemption works.
 - [tech-debt.md](../tech-debt.md) — entry for migrating existing
   feature-local confirmation dialogs to `AppConfirmationDialog`.

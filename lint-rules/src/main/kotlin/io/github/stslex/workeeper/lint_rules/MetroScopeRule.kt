@@ -11,12 +11,17 @@ import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtClass
 
 /**
- * Enforces Metro scope annotations on constructor-injected MVI dependencies.
+ * Enforces Metro scope annotations on `@Inject`-annotated MVI dependencies.
  *
- * DI is 100% Metro (`dev.zacsweers.metro`). A constructor-injected component that participates in a
- * feature graph must declare its lifetime with `@SingleIn(<Scope>::class)` — the scope key that binds one
- * instance to one graph. This rule walks `@Inject`-constructor classes whose name matches a known
- * dependency bucket and requires:
+ * DI is 100% Metro (`dev.zacsweers.metro`). An injected component that participates in a feature graph
+ * must declare its lifetime with `@SingleIn(<Scope>::class)` — the scope key that binds one instance to
+ * one graph. Both Metro `@Inject` shapes count: the annotation on the primary constructor
+ * (`class ClickHandler @Inject constructor(...)`) AND the class-level form
+ * (`@Inject @SingleIn(X) class FooInteractorImpl(...)`), which is what most of the tree uses and which
+ * also covers classes with no primary-constructor parens at all. `@AssistedInject` is deliberately NOT
+ * treated as injection here: Metro forbids scoping an assisted type, so demanding a `@SingleIn` on one
+ * would be wrong (`DataStoreProvider` is the live example). This rule walks those classes when their
+ * name matches a known dependency bucket ([ScopedClassNames.isScopeChecked]) and requires:
  *
  * - **A scope must be declared.** A name-matched `@Inject` class with no `@SingleIn` is flagged: it either
  *   forgot the scope, or is using a non-Metro scope annotation (`javax.inject.@Singleton` still resolves
@@ -28,8 +33,10 @@ import org.jetbrains.kotlin.psi.KtClass
  *   (`@SingleIn(<Feature>Scope)`) passes.
  *
  * A Metro `Store` is intentionally UNSCOPED (retained by the Android `ViewModelStore` via
- * `rememberMetroStoreProcessor`) and carries a class-level `@Inject`, so its empty primary-constructor
- * annotations short-circuit `hasInject` below — it never reaches this rule and needs no bucket.
+ * `rememberMetroStoreProcessor`), so a `*StoreImpl` is exempted BY NAME via
+ * [ScopedClassNames.isStoreImpl] — an explicit exemption, not an accident of which `@Inject` shape it
+ * happens to use. The `*HandlerStoreImpl` adapters are NOT covered by that exemption: they are ordinary
+ * feature-scoped graph nodes and are scope-checked like any other `*Handler`.
  *
  * (Formerly `HiltScopeRule`: the Hilt-annotation branches — requiring `dagger.hilt.android.scopes.ViewModelScoped`
  * on Handler/Interactor/Mapper and `@HiltViewModel` on Store, plus the cross-bucket exclusivity loop — were
@@ -56,15 +63,16 @@ class MetroScopeRule(
         if (klass.containingKtFile.virtualFilePath.contains("/test/") || klass.isInterface()) {
             return
         }
-        val hasInject = klass.primaryConstructor?.annotationEntries?.any {
-            it.shortName?.asString() == "Inject"
-        } ?: false
+        if (klass.isMetroInjected().not()) return
 
-        if (hasInject.not()) return
+        // An MVI Store is intentionally UNSCOPED (the Android ViewModelStore retains it), so it is
+        // exempted explicitly by name. `*HandlerStoreImpl` is NOT a Store in this sense and stays checked.
+        if (ScopedClassNames.isStoreImpl(className)) return
+
         // Only name-matched dependency buckets are scope-checked (Repository / Handler / Interactor / …).
         // A name with no bucket (e.g. `NavigatorEventBus`, the `Bus` suffix dodges every predicate) is
         // intentionally unconstrained.
-        if (ScopeClassType.getByName(className) == null) return
+        if (ScopedClassNames.isScopeChecked(className).not()) return
 
         val singleInEntry = klass.annotationEntries.firstOrNull {
             it.shortName?.asString() == METRO_SCOPE_ANNOTATION
@@ -101,6 +109,23 @@ class MetroScopeRule(
     }
 
     /**
+     * True when the class is Metro-injected in either shape: `@Inject` on the class itself, or `@Inject`
+     * on its primary constructor. Reading only the constructor would exempt the dominant shape in this
+     * tree — every `*InteractorImpl` / `*HandlerStoreImpl` carries the annotation on the class, and some
+     * have no primary-constructor parens at all, so `primaryConstructor` is null.
+     *
+     * `@AssistedInject` is intentionally excluded: Metro forbids scoping an assisted type.
+     */
+    private fun KtClass.isMetroInjected(): Boolean {
+        val onClass = annotationEntries.any { it.shortName?.asString() == INJECT_ANNOTATION }
+        val onPrimaryConstructor = primaryConstructor
+            ?.annotationEntries
+            ?.any { it.shortName?.asString() == INJECT_ANNOTATION }
+            ?: false
+        return onClass || onPrimaryConstructor
+    }
+
+    /**
      * True when this `@SingleIn(...)` entry's scope argument references [scopeSimpleName]
      * (e.g. `@SingleIn(AppScope::class)` references `AppScope`). Matches on the class-literal's
      * simple name, so a fully-qualified `some.pkg.AppScope::class` is caught too, while a
@@ -118,6 +143,9 @@ class MetroScopeRule(
     }
 
     private companion object {
+
+        /** Metro's injection annotation (`dev.zacsweers.metro.Inject`), class- or constructor-level. */
+        const val INJECT_ANNOTATION = "Inject"
 
         /** Metro's scope annotation (`dev.zacsweers.metro.SingleIn`). */
         const val METRO_SCOPE_ANNOTATION = "SingleIn"

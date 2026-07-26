@@ -10,9 +10,9 @@ import org.junit.jupiter.api.Test
  * Coverage for the navigation-architecture-specific scope expectations of [MetroScopeRule]
  * after the lifecycle-safe navigation refactor.
  *
- * The rule walks `@Inject`-constructor classes whose name matches a dependency bucket
- * ([ScopeClassType]) and requires a Metro `@SingleIn(<Scope>::class)`. A `*Handler` additionally
- * must not be `@SingleIn(AppScope)`.
+ * The rule walks Metro-`@Inject` classes (class-level or primary-constructor) whose name matches a
+ * dependency bucket ([ScopedClassNames.isScopeChecked]) and requires a Metro `@SingleIn(<Scope>::class)`.
+ * A `*Handler` additionally must not be `@SingleIn(AppScope)`.
  *
  * The navigation architecture introduces classes that must NOT be flagged:
  *   - `NavigatorEventBus` — singleton command bus; its `Bus` suffix keeps its name out of every
@@ -126,8 +126,8 @@ internal class MetroScopeRuleNavigationTest {
 
     @Test
     fun `NavigationModule has no ctor Inject and is skipped`() {
-        // A class with no constructor @Inject short-circuits at the `hasInject` check and is not
-        // scope-checked.
+        // A class with no Metro @Inject at all — neither on the class nor on the primary constructor —
+        // short-circuits at the injection check and is not scope-checked.
         val findings = rule.lint(
             """
             package io.github.stslex.workeeper.di

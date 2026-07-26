@@ -230,6 +230,40 @@ internal class ScreenInjectionRuleTest {
         assertEquals(1, findings.size, "assisted injection outside a Store is still a bypass")
     }
 
+    /**
+     * A `*HandlerStoreImpl` ends with the Store suffix but is NOT a Store: it is an injected
+     * `BaseHandlerStore` event relay in the feature scope. If the suffix check exempted it, a route arg
+     * could be resolved from the graph into it and read outside the Store — the exact bypass this rule
+     * exists to close. The pair below pins that only the real Store is exempt.
+     */
+    @Test
+    fun `HandlerStoreImpl injecting the route arg fails while the Store itself passes`() {
+        fun lintNamed(className: String) = rule.lint(
+            """
+            package io.github.stslex.workeeper.feature.all_trainings.di
+
+            import dev.zacsweers.metro.Inject
+            import io.github.stslex.workeeper.core.ui.navigation.Screen
+
+            @Inject
+            class $className(
+                private val screen: Screen.Training,
+            )
+            """.trimIndent(),
+        )
+
+        assertEquals(
+            1,
+            lintNamed("AllTrainingsHandlerStoreImpl").size,
+            "a HandlerStore adapter is not a Store — it must not inherit the route-arg exemption",
+        )
+        assertEquals(
+            0,
+            lintNamed("AllTrainingsStoreImpl").size,
+            "the real Store keeps the exemption on its primary constructor",
+        )
+    }
+
     @Test
     fun `Store taking the route arg in a SECONDARY constructor fails`() {
         val findings = rule.lint(

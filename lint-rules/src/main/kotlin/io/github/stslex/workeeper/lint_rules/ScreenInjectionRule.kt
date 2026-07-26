@@ -36,8 +36,11 @@ import org.jetbrains.kotlin.psi.KtParameter
  * [ContributesToScopeRule] were written for), so the guarantee has to be re-established by a rule.
  *
  * This rule fails any `@Inject` / `@AssistedInject` class that takes a `Screen` type as a constructor
- * parameter unless the class is a Store implementation (`*StoreImpl`) and the parameter sits in its
- * PRIMARY constructor — the one place the arg legitimately enters, to seed `initialState`.
+ * parameter unless the class is a Store implementation ([ScopedClassNames.isStoreImpl]) and the parameter
+ * sits in its PRIMARY constructor — the one place the arg legitimately enters, to seed `initialState`.
+ * The `*HandlerStoreImpl` adapters end with the same suffix but are NOT Stores — they are injected
+ * `BaseHandlerStore` event relays, and letting them inherit the exemption would reopen the bypass — so
+ * they are excluded from it and are flagged like any other feature-graph node.
  *
  * Deliberately NOT flagged:
  *  - `@GraphExtension.Factory` / `@DependencyGraph.Factory` creator functions — these are interfaces, not
@@ -68,8 +71,9 @@ class ScreenInjectionRule(
         if (klass.isInjected().not()) return
 
         val className = klass.name ?: return
-        // The Store's primary constructor is the one legitimate sink — it seeds initialState there.
-        val isStoreImpl = className.endsWith(STORE_IMPL_SUFFIX)
+        // The Store's primary constructor is the one legitimate sink — it seeds initialState there. The
+        // `*HandlerStoreImpl` adapters share the suffix but are NOT Stores, so they do not inherit it.
+        val isStoreImpl = ScopedClassNames.isStoreImpl(className)
 
         klass.primaryConstructor
             ?.valueParameters
@@ -134,7 +138,6 @@ class ScreenInjectionRule(
     private companion object {
 
         const val SCREEN = "Screen"
-        const val STORE_IMPL_SUFFIX = "StoreImpl"
 
         /**
          * Strips a package qualifier so `io.github...navigation.Screen.Training` reduces to

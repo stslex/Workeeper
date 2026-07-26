@@ -29,6 +29,10 @@ import org.jetbrains.kotlin.psi.KtClass
  *    so a contribution to it would not aggregate. PSI has no type resolution, so the import origin is
  *    the discriminator.
  *
+ * `@ContributesBinding` is `@Repeatable`, so a class may carry several entries (one per bound supertype)
+ * and EACH carries its own scope argument. Every entry is validated and every invalid one is reported at
+ * its own annotation — a correct first entry must not shield a mis-scoped later one.
+ *
  * The rule only applies to `@ContributesBinding`; every other contribution mechanism and all
  * non-contributing classes are ignored.
  */
@@ -48,47 +52,59 @@ class ContributesBindingScopeRule(
 
         if (klass.containingKtFile.virtualFilePath.contains("/test/")) return
 
-        val contributesEntry = klass.annotationEntries.firstOrNull {
+        // `@ContributesBinding` is @Repeatable: one impl binds N supertypes with N entries, each carrying
+        // its OWN scope argument (`ActivityHolderImpl` and `DatabaseSnapshotProviderImpl` both do this
+        // today). Validating only the first entry would let a correct first binding hide a mis-scoped
+        // later one — the exact false-green this rule exists to prevent — so every entry is checked and
+        // every invalid one is reported, anchored at its own annotation.
+        val contributesEntries = klass.annotationEntries.filter {
             it.shortName?.asString() == CONTRIBUTES_BINDING
-        } ?: return
-
-        val scopeName = contributesEntry.firstScopeArgumentSimpleName()
-        if (scopeName == null) {
-            report(
-                CodeSmell(
-                    issue,
-                    Entity.from(klass),
-                    "@ContributesBinding on '${klass.name}' must declare an explicit scope argument " +
-                        "of the project $APP_SCOPE.",
-                ),
-            )
-            return
         }
+        if (contributesEntries.isEmpty()) return
 
-        if (scopeName != APP_SCOPE) {
-            report(
-                CodeSmell(
-                    issue,
-                    Entity.from(klass),
-                    "@ContributesBinding on '${klass.name}' is scoped to '$scopeName', not the project " +
-                        "$APP_SCOPE — it will not aggregate into the app graph (silently absent at runtime).",
-                ),
-            )
-            return
+        val importsMetroAppScope = klass.importsMetroAppScope()
+        contributesEntries.forEach { entry ->
+            val violation = entry.scopeViolation(klass, importsMetroAppScope) ?: return@forEach
+            report(violation)
         }
+    }
 
-        // Simple name is AppScope — but reject Metro's BUILT-IN AppScope (a different class from the
-        // project token the AppGraph is scoped to). PSI can't resolve the type, so check the import.
-        if (klass.importsMetroAppScope()) {
-            report(
-                CodeSmell(
-                    issue,
-                    Entity.from(klass),
-                    "@ContributesBinding on '${klass.name}' uses Metro's built-in " +
-                        "$METRO_APP_SCOPE_FQN, not the project $APP_SCOPE — the app graph is scoped to " +
-                        "the project token, so this contribution will not aggregate.",
-                ),
+    /**
+     * The scope violation of a SINGLE `@ContributesBinding` entry, or null when that entry is correctly
+     * scoped to the project `AppScope`. [importsMetroAppScope] is a file-level fact, so it is resolved
+     * once by the caller and passed in.
+     */
+    private fun KtAnnotationEntry.scopeViolation(
+        klass: KtClass,
+        importsMetroAppScope: Boolean,
+    ): CodeSmell? {
+        val scopeName = firstScopeArgumentSimpleName()
+        return when {
+            scopeName == null -> CodeSmell(
+                issue,
+                Entity.from(this),
+                "@ContributesBinding on '${klass.name}' must declare an explicit scope argument " +
+                    "of the project $APP_SCOPE.",
             )
+
+            scopeName != APP_SCOPE -> CodeSmell(
+                issue,
+                Entity.from(this),
+                "@ContributesBinding on '${klass.name}' is scoped to '$scopeName', not the project " +
+                    "$APP_SCOPE — it will not aggregate into the app graph (silently absent at runtime).",
+            )
+
+            // Simple name is AppScope — but reject Metro's BUILT-IN AppScope (a different class from the
+            // project token the AppGraph is scoped to). PSI can't resolve the type, so check the import.
+            importsMetroAppScope -> CodeSmell(
+                issue,
+                Entity.from(this),
+                "@ContributesBinding on '${klass.name}' uses Metro's built-in " +
+                    "$METRO_APP_SCOPE_FQN, not the project $APP_SCOPE — the app graph is scoped to " +
+                    "the project token, so this contribution will not aggregate.",
+            )
+
+            else -> null
         }
     }
 

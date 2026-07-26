@@ -64,7 +64,8 @@ The rules live under
 `lint-rules/src/main/kotlin/io/github/stslex/workeeper/lint_rules/`. The rule set provider is
 `MviArchitectureRules.kt`, which constructs `MviArchitectureRuleSet` with id `mvi-architecture`
 and registers every rule in `listOf(...)` (one file in the directory is not a rule: the
-`ScopeClassType` enum used by `MetroScopeRule`). `MviArchitectureRules.kt` is the authoritative
+`ScopedClassNames` object, whose class-name predicates are shared by `MetroScopeRule` and
+`ScreenInjectionRule`). `MviArchitectureRules.kt` is the authoritative
 list; the sections below document a subset.
 
 A class is considered "in an MVI module" when its package contains `mvi` or its file path
@@ -220,12 +221,15 @@ is nested inside a class whose name ends in `Store`:
 
 ### `MetroScopeRule`
 
-**File:** `MetroScopeRule.kt`, with the helper enum `ScopeClassType.kt` · **Severity:** Defect.
+**File:** `MetroScopeRule.kt`, with the shared helper `ScopedClassNames.kt` · **Severity:** Defect.
 
-DI is 100% Metro (`dev.zacsweers.metro`). The rule walks classes that have a primary constructor
-annotated `@Inject` and whose name matches a dependency bucket in `ScopeClassType`
-(`Repository` / `DataStore` / `Database` / `Storage` / `StoreDispatchers` / `Handler` / `Interactor` /
-`Mapper`), and enforces:
+DI is 100% Metro (`dev.zacsweers.metro`). The rule walks classes annotated `@Inject` in **either**
+shape — on the class itself (`@Inject @SingleIn(X) class FooInteractorImpl(...)`, which is what most
+of the tree uses and the only shape available to a class with no primary-constructor parens) or on
+the primary constructor (`class ClickHandler @Inject constructor(...)`) — whose name matches a
+dependency bucket in `ScopedClassNames.isScopeChecked` (`Repository` / `DataStore` / `Database` /
+`Storage` / `StoreDispatchers` / `Handler` / `Interactor` / `Mapper`, matched by `contains`), and
+enforces:
 
 - **A Metro scope must be declared.** The class must carry `@SingleIn(<Scope>::class)`. A name-matched
   `@Inject` class with no `@SingleIn` is flagged — it either forgot the scope, or used a non-Metro
@@ -236,9 +240,22 @@ annotated `@Inject` and whose name matches a dependency bucket in `ScopeClassTyp
   Handler pinned to the process-lifetime app graph). The rule reads the scope *argument*, not just the
   annotation name, and rejects it. `@SingleIn(<Feature>Scope)` passes.
 
+`@AssistedInject` is deliberately **not** treated as injection here: Metro forbids scoping an assisted
+type, so demanding a `@SingleIn` on one would be wrong. `DataStoreProvider`
+(`core/data/dataStore/.../core/DataStoreProvider.kt`) is the live example — it matches the `DataStore`
+bucket by name and carries no `@SingleIn`, and the rule correctly stays silent.
+
 A Metro `Store` is intentionally UNSCOPED (retained by the Android `ViewModelStore` via
-`rememberMetroStoreProcessor`) and carries a **class-level** `@Inject`, so its empty primary-constructor
-annotations short-circuit the `hasInject` check — it never reaches the rule and needs no bucket.
+`rememberMetroStoreProcessor`) and carries a **class-level** `@Inject`. That `@Inject` **is** inspected
+— the rule reads both shapes — so the Store exemption is explicit and by name, not an accident of
+annotation placement: `ScopedClassNames.isStoreImpl(className)` returns true for a `*StoreImpl` and the
+rule returns before the bucket and scope checks.
+
+`ScopedClassNames.isStoreImpl` requires the name to end in `StoreImpl` **and not** in
+`HandlerStoreImpl`, so the `*HandlerStoreImpl` adapters are deliberately excluded from the exemption.
+They are not Stores in this sense — they are the feature-scoped `BaseHandlerStore` event relays (e.g.
+`AllExercisesHandlerStoreImpl`, `@Inject @SingleIn(AllExercisesScope::class)`) — so they stay
+scope-checked like any other `*Handler`.
 
 > The Hilt-era branches (requiring `dagger.hilt.android.scopes.ViewModelScoped` on Handler/Interactor/Mapper
 > and `@HiltViewModel` on Store, plus a cross-bucket exclusivity loop) were **deleted** once Hilt left every
@@ -278,11 +295,11 @@ that the `MetroScopeRule` predicates must NOT flag:
     constructor-injects with `@Inject` — one app-scoped instance backs both the
     concrete type and the `Navigator` interface for cross-module readers.
   - `MetroScopeRule` does **not** flag the class. The reason is purely the name:
-    `NavigatorEventBus` does not contain any of the configured `ScopeClassType`
-    predicates (`Repository` / `DataStore` / `Database` / `Storage` /
-    `StoreDispatchers` / `Handler` / `Interactor` / `Mapper`), so
-    `ScopeClassType.getByName("NavigatorEventBus")` returns `null` and the rule
-    short-circuits. The `Bus` suffix was chosen with this rule in mind.
+    `NavigatorEventBus` does not contain any of the configured
+    `ScopedClassNames` fragments (`Repository` / `DataStore` / `Database` /
+    `Storage` / `StoreDispatchers` / `Handler` / `Interactor` / `Mapper`), so
+    `ScopedClassNames.isScopeChecked("NavigatorEventBus")` returns `false` and
+    the rule short-circuits. The `Bus` suffix was chosen with this rule in mind.
 - `NavigatorReceiver`
   (`app/app/.../navigation/NavigatorReceiver.kt`) — interface only; the rule skips
   interfaces.
@@ -295,21 +312,23 @@ that the `MetroScopeRule` predicates must NOT flag:
   `NavHostController`. It has no `@Inject` constructor (composition-scoped via
   `remember(navController)` in `App.kt`), so the rule short-circuits.
 
-Stores, interactors, and mappers continue to follow the standard predicates: a Store
+Stores, interactors, and mappers continue to follow the standard predicates: a `*StoreImpl`
 is intentionally UNSCOPED (class-level `@Inject`, retained by the Android `ViewModelStore`
-via `rememberMetroStoreProcessor`) and is never name-matched by the rule;
-interactors / handlers / mappers carry `@SingleIn(<Feature>Scope::class)`; repositories / data
-stores / databases / dispatch holders carry `@SingleIn(AppScope::class)`.
+via `rememberMetroStoreProcessor`) and is exempted by name before any bucket check;
+interactors / handlers / mappers (including `*HandlerStoreImpl`) carry
+`@SingleIn(<Feature>Scope::class)`; repositories / data stores / databases / dispatch holders
+carry `@SingleIn(AppScope::class)`.
 
 #### Historical note: removed `AppDialogStore` carve-out
 
-Earlier versions of `ScopeClassType.singletonClasses` contained the
-explicit string `"AppDialogStore"` so the rule would map that class to
-`@Singleton` rather than to the default `Store → @HiltViewModel`. The
-carve-out has been **deleted**. (Both `@Singleton` and `@HiltViewModel`
-below are the historical Hilt-era annotations; the current Metro
-equivalents are `@SingleIn(AppScope::class)` and an unscoped class-level
-`@Inject` Store.)
+The rule's class-name predicates used to live in a `ScopeClassType` enum with a
+`singletonClasses` / `featureScopedClasses` split; that enum is **gone**, replaced by
+`ScopedClassNames` (a single `isScopeChecked` boolean plus the `isStoreImpl` exemption).
+An earlier version of its `singletonClasses` list contained the explicit string
+`"AppDialogStore"` so the rule would map that class to `@Singleton` rather than to the
+default `Store → @HiltViewModel`. That carve-out has been **deleted**. (Both `@Singleton`
+and `@HiltViewModel` here are the historical Hilt-era annotations; the current Metro
+equivalents are `@SingleIn(AppScope::class)` and an unscoped class-level `@Inject` Store.)
 
 The carve-out existed because the original `AppDialogStore` was a
 DataStore writer wearing a `*Store` suffix — it had no `State`/`Action`/
@@ -320,43 +339,106 @@ repository, not a Store.
 The app-dialogs re-architecture splits that misnomer:
 
 - `AppDialogRepository` (in `feature/app-dialogs/impl/data/`) — the
-  `@SingleIn(AppScope::class)` DataStore writer. The `Repository` suffix
-  maps to the app-scope predicate via `ScopeClassType.singletonClasses`.
-- `AppDialogStore` (in `feature/app-dialogs/impl/mvi/store/`) — a genuine
+  `@SingleIn(AppScope::class)` DataStore writer. Its name matches the
+  `Repository` fragment in `ScopedClassNames.isScopeChecked`, and `AppScope`
+  is a legal choice there (only a `*Handler` is barred from `AppScope`).
+  Note the rule does not actually reach this class: its `@Inject` sits on a
+  **secondary** constructor, and `MetroScopeRule` reads only class-level and
+  primary-constructor annotations, so `isMetroInjected()` is false and it
+  short-circuits. The `@SingleIn` is there by design, not by enforcement.
+- `AppDialogStoreImpl` (in `feature/app-dialogs/impl/mvi/store/`) — a genuine
   UNSCOPED `BaseStore<State, Action, Event>` (class-level `@Inject`).
   Activity-scoped at runtime by virtue of being obtained at the App root
   (sibling of `NavHost`) and retained by the `ViewModelStore` via
   `rememberMetroStoreProcessor`, not by any DI-level scope override. The
-  class is never name-matched by the rule.
+  rule exempts it by name through `ScopedClassNames.isStoreImpl`.
 
 After the rewrite there is no `Store`-suffixed class anywhere in the
-project that wants app scope. The `singletonClasses` predicate list
-returns to "Repository / DataStore / Database / Storage / StoreDispatchers"
-— the same shape it had before app-dialogs landed.
+project that needs a rule carve-out to reach app scope.
 
-If a future class needs app scope but does not match any of the
-app-scope predicates, either:
+The current rule no longer maps a name to a *specific* scope: outside the
+`*Handler`-must-not-be-`AppScope` guard it only requires that some `@SingleIn`
+be present. So a future class that wants app scope has two shapes, neither of
+which involves touching `ScopedClassNames`:
 
-1. Name it with one of the existing predicate keywords (when the class
-   genuinely is a repository / storage / etc.), or
-2. Provide the binding at app scope via Metro — annotate
-   `@SingleIn(AppScope::class)` and contribute it with `@ContributesBinding(AppScope::class, ...)`
-   (the pattern `NavigatorEventBus` uses for `Navigator`).
+1. Annotate `@SingleIn(AppScope::class)` — accepted whether or not the name
+   matches a bucket (a name outside every bucket is simply unconstrained), or
+2. Contribute the binding with `@ContributesBinding(AppScope::class, ...)`
+   alongside it (the pattern `NavigatorEventBus` uses for `Navigator`), which
+   `ContributesBindingScopeRule` then checks resolves to the *project*
+   `AppScope`.
 
 If a future class is a Store-shaped MVI surface that needs to outlive
 ViewModel scope (e.g. another cross-feature app-root component), follow
 the app-dialogs pattern: implement a normal UNSCOPED `BaseStore` and
 obtain it via the screen-less `AppFeature` composition entry at the App
-root — `LocalViewModelStoreOwner` does the rest. **Do not add a new
-`singletonClasses` carve-out.**
+root — `LocalViewModelStoreOwner` does the rest. **Do not add a new name
+carve-out to `ScopedClassNames`.**
+
+### `ContributesBindingScopeRule`
+
+**File:** `ContributesBindingScopeRule.kt` · **Severity:** Defect.
+
+A false-green guard for Metro `@ContributesBinding`. The `scope` argument is a `KClass<*>`, so Metro
+accepts **any** class there and validates nothing at the call site. A binding annotated with the wrong
+scope compiles green but contributes to a different (or nonexistent) graph, so the app-scope `AppGraph`
+(`@DependencyGraph(scope = AppScope::class)`) never aggregates it — at runtime the binding is simply
+absent, with no compile signal.
+
+The rule fails any `@ContributesBinding` whose scope argument is not the **project** `AppScope`
+(`io.github.stslex.workeeper.core.core.di.AppScope`). Three failure modes:
+
+- **No scope argument at all** — nothing to aggregate against.
+- **A scope whose simple name is not `AppScope`** — a feature scope, a typo, another marker.
+- **`AppScope` imported from `dev.zacsweers.metro`** — Metro's *built-in* app scope. Its simple name is
+  also `AppScope`, but it is a different class from the project token the `AppGraph` is scoped to, so a
+  contribution to it does not aggregate. PSI has no type resolution, so the rule uses the file's import
+  directives as the discriminator.
+
+`@ContributesBinding` is `@Repeatable`: one impl can bind N supertypes with N entries, and **each entry
+carries its own scope argument** (`ActivityHolderImpl` and `DatabaseSnapshotProviderImpl` both do this
+today). The rule validates every entry and reports each invalid one at its own annotation, so a correct
+first entry cannot shield a mis-scoped later one.
+
+Only `@ContributesBinding` is inspected — other contribution mechanisms (`@ContributesTo` has its own
+`ContributesToScopeRule`) and non-contributing classes are ignored, as are `/test/` sources.
+
+Bad:
+
+```kotlin
+import dev.zacsweers.metro.AppScope                     // Metro's built-in, not the project token
+
+@ContributesBinding(AppScope::class, binding = binding<FooHolder>())
+@SingleIn(AppScope::class)
+@Inject
+class FooHolderImpl : FooHolder { ... }                 // compiles; never aggregates
+```
+
+Good (the live `ActivityHolderImpl` shape):
+
+```kotlin
+import io.github.stslex.workeeper.core.core.di.AppScope
+
+@ContributesBinding(AppScope::class, binding = binding<ActivityHolder>())
+@ContributesBinding(AppScope::class, binding = binding<ActivityHolderProducer>())
+@SingleIn(AppScope::class)
+@Inject
+class ActivityHolderImpl : ActivityHolder, ActivityHolderProducer { ... }
+```
 
 ### `ScreenInjectionRule`
 
 **File:** `ScreenInjectionRule.kt` · **Severity:** Defect.
 
 Fails any `@Inject` / `@AssistedInject` class that declares a navigation route arg (`Screen` or a
-nested `Screen.X`) as a constructor parameter, unless the class name ends in `StoreImpl` **and** the
-parameter sits in its primary constructor.
+nested `Screen.X`) as a constructor parameter, unless the class is a Store implementation
+(`ScopedClassNames.isStoreImpl` — name ends in `StoreImpl` but **not** in `HandlerStoreImpl`)
+**and** the parameter sits in its primary constructor.
+
+The `*HandlerStoreImpl` carve-out is deliberate: those adapters share the suffix but are not Stores —
+they are injected `BaseHandlerStore` event relays living in the feature scope. Letting them inherit the
+exemption would reopen exactly the bypass this rule closes, so they are flagged like any other
+feature-graph node.
 
 The rule exists to replace a compiler guarantee the graph-extension arc gives up. Under
 `@AssistedInject` the route arg could reach nothing except the Store constructor — Metro enforced it.
@@ -375,10 +457,17 @@ Not flagged, deliberately:
   caller rather than resolving it from a graph;
 - constructing `Screen.X(...)` inside a method body (e.g. `navigator.navTo(Screen.Exercise(...))`) —
   only declared constructor parameter types are inspected;
-- `src/test/` sources.
+- test sources.
 
 Secondary constructors taking the arg are flagged **everywhere, including on a `*StoreImpl`** — the
 arg enters through the primary constructor only.
+
+> **Test-source skip is a path-substring match.** `MetroScopeRule`, `ScreenInjectionRule` and
+> `ContributesBindingScopeRule` all skip a file whose `virtualFilePath` contains the literal `/test/`.
+> That covers `src/test/` and `src/androidTest/`, but **not** the KMP host-test source set
+> `src/androidHostTest/` (no lowercase `/test/` segment). No file there carries a Metro annotation
+> today, so nothing fires — but a `@ContributesBinding` or `@Inject` fixture added under
+> `src/androidHostTest/` would be judged as production code. Widen the predicate if that day comes.
 
 Not covered (no such site exists in the repo today, verified by sweep): member injection
 (`@Inject` on a property) and `@Provides` provider functions that consume the arg and hand it on
@@ -487,10 +576,22 @@ sealed interface ArchivedItem { ... }
 // The @Stable wrapper lives in feature/archive/mvi/model/ArchivedItemUi.kt.
 ```
 
-### `ScopeClassType` (helper, not a rule)
+### `ScopedClassNames` (helper, not a rule)
 
-`ScopeClassType.kt` is the enum that backs `MetroScopeRule`. Update its `singletonClasses` and
-`viewModelScopedClasses` lists if a new naming convention enters the codebase.
+`ScopedClassNames.kt` holds the class-name predicates shared by `MetroScopeRule` and
+`ScreenInjectionRule`. It replaced the former `ScopeClassType` enum, whose `SINGLETON` /
+`FEATURE_SCOPED` split was write-only — the single consumer only compared the result against `null` —
+so the classifier collapsed to a `Boolean`:
+
+- `isScopeChecked(name)` — true when `name` **contains** one of `Repository`, `DataStore`, `Database`,
+  `Storage`, `StoreDispatchers`, `Handler`, `Interactor`, `Mapper`. These are the dependency buckets
+  `MetroScopeRule` requires a `@SingleIn` on. A name outside every bucket (e.g. `NavigatorEventBus`)
+  is intentionally unconstrained. Extend this list if a new naming convention enters the codebase.
+- `isStoreImpl(name)` — true when `name` ends in `StoreImpl` **and not** in `HandlerStoreImpl`. It is
+  the MVI Store exemption for both rules: `MetroScopeRule` skips scope-checking a Store (it is
+  intentionally unscoped), and `ScreenInjectionRule` allows the route arg into its primary constructor.
+  The `HandlerStoreImpl` exclusion is load-bearing in both — those adapters are feature-scoped graph
+  nodes, not Stores.
 
 ## Android Lint configuration
 
