@@ -1,16 +1,11 @@
 <resources>
-    <!-- Base application theme. -->
-    <style name="Theme.Workeeper" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
-        <!-- Primary brand color. -->
-        <item name="colorPrimary">@color/purple_200</item>
-        <item name="colorPrimaryVariant">@color/purple_700</item>
-        <item name="colorOnPrimary">@color/black</item>
-        <!-- Secondary brand color. -->
-        <item name="colorSecondary">@color/teal_200</item>
-        <item name="colorSecondaryVariant">@color/teal_200</item>
-        <item name="colorOnSecondary">@color/black</item>
-        <!-- Status bar color. -->
-        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
-        <!-- Customize your theme here. -->
+    <!--
+      Dark counterpart of values/themes.xml. See that file for why this is a platform theme,
+      why android:statusBarColor is absent, and why the background is duplicated as a literal.
+
+      windowBackground is the literal value of AppColors.surfaceTier0 (dark variant).
+    -->
+    <style name="Theme.Workeeper" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#FF0E0F0E</item>
     </style>
 </resources>
