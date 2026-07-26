@@ -57,19 +57,29 @@ internal fun bucketAndFold(
         }
         .toList()
 
-    if (flat.isEmpty()) return ChartFoldDomain(
+    // Same eligibility as the PR rule (`SessionDao.PR_ELIGIBILITY`): a zero-rep set is not a
+    // data point, and for a WEIGHTED exercise a weight-null set is excluded rather than
+    // coerced to 0.0 — coercion invents a point at the bottom of the axis.
+    val eligible = flat.filter { it.isEligible(exerciseType) }
+
+    if (eligible.isEmpty()) return ChartFoldDomain(
         points = emptyList(),
         footer = null,
         windowStartDay = null,
         windowEndDay = null,
     )
 
-    // The earliest finishedAt wins on tie, matching the v2.1 PR semantics.
+    // Which set represents the day, ordered as `SessionDao.PR_ORDER`: the metric first (that
+    // is what the axis plots), then reps DESC, then earliest finishedAt. Position ASC is the
+    // last criterion and comes for free — `sortedWith` is stable and each session's sets
+    // arrive in position order from `SessionDao.getHistoryByExercise`.
     val foldComparator = compareByDescending<FlatSet> { f ->
         metricValue(f, metric, exerciseType)
-    }.thenBy(FlatSet::finishedAt)
+    }
+        .thenByDescending(FlatSet::reps)
+        .thenBy(FlatSet::finishedAt)
 
-    val pointsByDay = flat
+    val pointsByDay = eligible
         .groupBy(FlatSet::day)
         .map { (_, dailySets) ->
             val winner = dailySets.sortedWith(foldComparator).first()
@@ -127,14 +137,38 @@ private fun computeWindow(
     }
 }
 
+/**
+ * A set is plottable under the same rule that makes it PR-eligible, minus the session-state
+ * clauses the history query has already applied.
+ */
+private fun FlatSet.isEligible(type: ExerciseTypeDomain): Boolean =
+    reps > 0 && (type == ExerciseTypeDomain.WEIGHTLESS || weight != null)
+
+/**
+ * Branches on the metric first, then on what that metric can mean for the exercise type — the
+ * other way round reads as if the type silences the metric.
+ *
+ * For a WEIGHTLESS exercise both metrics genuinely collapse to reps: there is no weight to be
+ * heaviest, and per-set volume with an unknown constant bodyweight is reps up to that
+ * constant. Nothing is lost by the collapse, and the metric toggle is not offered for those
+ * exercises anyway (`ExerciseChartStore.State.showMetricToggle`).
+ *
+ * `weight` is non-null here: [isEligible] dropped weight-null rows for WEIGHTED exercises
+ * before this is ever called.
+ */
 private fun metricValue(
     set: FlatSet,
     metric: ChartMetricDomain,
     type: ExerciseTypeDomain,
-): Double = when {
-    type == ExerciseTypeDomain.WEIGHTLESS -> set.reps.toDouble()
-    metric == ChartMetricDomain.HEAVIEST_WEIGHT -> set.weight ?: 0.0
-    else -> (set.weight ?: 0.0) * set.reps
+): Double = when (metric) {
+    ChartMetricDomain.HEAVIEST_WEIGHT -> when (type) {
+        ExerciseTypeDomain.WEIGHTLESS -> set.reps.toDouble()
+        ExerciseTypeDomain.WEIGHTED -> set.weight ?: 0.0
+    }
+    ChartMetricDomain.VOLUME_PER_SET -> when (type) {
+        ExerciseTypeDomain.WEIGHTLESS -> set.reps.toDouble()
+        ExerciseTypeDomain.WEIGHTED -> (set.weight ?: 0.0) * set.reps
+    }
 }
 
 private fun List<ChartPointDomain>.toFooter(): ChartFooterStatsDomain? {
