@@ -99,3 +99,32 @@ tasks.matching { task ->
 }.configureEach {
     finalizedBy(assertGoldenLiveness)
 }
+
+/**
+ * PF1 finding, measured not assumed: a bare `testDebugUnitTest` runs the golden tests but
+ * compares nothing.
+ *
+ * `Paparazzi` decides verify-vs-record from the `paparazzi.test.verify` system property, and
+ * the plugin injects that at *execution* time on its own tasks only — it is absent from the
+ * test task's configured `systemProperties` under either invocation. So under a plain
+ * `testDebugUnitTest` the goldens render into the build-dir report and always pass: a mutated
+ * golden that `verifyPaparazziDebug` rejects sails through. That was ~6 s per CI build of
+ * something that looked like a second safety net and was not one.
+ *
+ * Excluded from the plain run, therefore. `verifyPaparazziDebug` depends on this same test
+ * task, so the exclusion must not apply when a Paparazzi task was asked for.
+ *
+ * The guess is start-parameter based and could in principle be wrong (a lifecycle task that
+ * pulls in `verifyPaparazziDebug` without naming it). That is exactly what
+ * `assertGoldenLiveness` below catches: it fails the build whenever the gate reports success
+ * having executed fewer golden tests than there are committed goldens. Verified.
+ */
+val paparazziModeRequested = gradle.startParameter.taskNames.any { name -> "Paparazzi" in name }
+
+tasks.matching { task -> task.name == "testDebugUnitTest" }.configureEach {
+    if (!paparazziModeRequested) {
+        (this as Test).filter {
+            excludeTestsMatching("io.github.stslex.workeeper.core.ui.kit.golden.*")
+        }
+    }
+}
