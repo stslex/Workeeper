@@ -5,6 +5,9 @@ plugins {
     // app/app names only the bound interface and never the impl. includeJavax keeps any javax.inject
     // qualifier readable, matching the app/app + feature-module Metro config.
     alias(libs.plugins.metro)
+    // Visual gate for the v3 redesign. Goldens live in src/test/snapshots/images and are
+    // recorded with `:core:ui:kit:recordPaparazziDebug`, verified with `verifyPaparazziDebug`.
+    alias(libs.plugins.paparazzi)
 }
 
 metro {
