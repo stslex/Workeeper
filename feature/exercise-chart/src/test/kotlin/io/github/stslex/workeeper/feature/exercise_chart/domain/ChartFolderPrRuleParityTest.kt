@@ -25,8 +25,10 @@ import java.time.ZoneId
  *
  * The metric is [ChartMetricDomain.HEAVIEST_WEIGHT] throughout, because that is the metric
  * under which the chart's primary sort key *is* the PR rule's primary key. Under
- * [ChartMetricDomain.VOLUME_PER_SET] the chart deliberately ranks by `weight × reps` instead;
- * eligibility and the lower tiebreaks still apply, but the winner is not claimed to match.
+ * [ChartMetricDomain.VOLUME_PER_SET] the chart deliberately ranks by `weight × reps` instead:
+ * eligibility is still shared, but the reps tiebreak is not. A volume tie is a trade of weight
+ * against reps, so ranking by reps there would amount to ranking by *ascending* weight — only
+ * the earliest-`finishedAt` tiebreak carries over, and the winner is not claimed to match.
  */
 internal class ChartFolderPrRuleParityTest {
 

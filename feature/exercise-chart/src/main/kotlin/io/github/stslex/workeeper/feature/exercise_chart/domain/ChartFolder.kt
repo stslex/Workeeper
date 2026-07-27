@@ -69,19 +69,29 @@ internal fun bucketAndFold(
         windowEndDay = null,
     )
 
-    // Which set represents the day, ordered as `SessionDao.PR_ORDER`: the metric first (that
-    // is what the axis plots), then reps DESC, then earliest finishedAt. Position ASC is the
-    // last criterion and comes for free — `sortedWith` is stable and each session's sets
-    // arrive in position order from `SessionDao.getHistoryByExercise`.
-    val foldComparator = compareByDescending<FlatSet> { f ->
-        metricValue(f, metric, exerciseType)
+    // Eligibility decides which set *represents* a day; it does not decide how many sets the
+    // user logged that day. A set recorded without a weight was still performed — it just
+    // cannot be plotted — so the tooltip's "N sets this day" keeps counting every set.
+    val setsPerDay = flat.groupingBy(FlatSet::day).eachCount()
+
+    // Which set represents the day. The metric comes first — that is what the axis plots.
+    // Under HEAVIEST_WEIGHT the keys below it are `SessionDao.PR_ORDER`: a tie on the metric
+    // *is* a tie on weight, so reps DESC ranks equal-weight sets exactly as the PR rule does,
+    // and the earliest finishedAt settles the rest. Under VOLUME_PER_SET a tie instead means
+    // the two sets traded weight against reps (100×2 == 50×4), where reps DESC would quietly
+    // read as "prefer the lighter set" — volume is not a PR metric, so nothing licenses that
+    // key and the chart's own rule stands: earliest finishedAt wins. Position ASC is the last
+    // criterion either way and comes for free — `sortedWith` is stable and each session's
+    // sets arrive in position order from `SessionDao.getHistoryByExercise`.
+    val byMetric = compareByDescending<FlatSet> { f -> metricValue(f, metric, exerciseType) }
+    val foldComparator = when (metric) {
+        ChartMetricDomain.HEAVIEST_WEIGHT -> byMetric.thenByDescending(FlatSet::reps).thenBy(FlatSet::finishedAt)
+        ChartMetricDomain.VOLUME_PER_SET -> byMetric.thenBy(FlatSet::finishedAt)
     }
-        .thenByDescending(FlatSet::reps)
-        .thenBy(FlatSet::finishedAt)
 
     val pointsByDay = eligible
         .groupBy(FlatSet::day)
-        .map { (_, dailySets) ->
+        .map { (day, dailySets) ->
             val winner = dailySets.sortedWith(foldComparator).first()
             ChartPointDomain(
                 day = winner.day,
@@ -90,7 +100,7 @@ internal fun bucketAndFold(
                 sessionUuid = winner.sessionUuid,
                 weight = winner.weight,
                 reps = winner.reps,
-                setCount = dailySets.size,
+                setCount = setsPerDay.getValue(day),
             )
         }
         .sortedBy(ChartPointDomain::day)

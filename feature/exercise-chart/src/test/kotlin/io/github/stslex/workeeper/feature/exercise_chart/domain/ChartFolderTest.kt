@@ -140,6 +140,62 @@ internal class ChartFolderTest {
     }
 
     @Test
+    fun `setCount counts sets the chart cannot plot`() {
+        // Eligibility picks the day's winner; it must not shrink "N sets this day". A weighted
+        // set logged without a weight is unplottable but was still performed.
+        val result = bucketAndFold(
+            history = listOf(
+                entry(
+                    finishedAt = utcMillis(2026, 4, 28),
+                    sessionUuid = "s1",
+                    sets = listOf(
+                        set(weight = 100.0, reps = 5),
+                        set(weight = 110.0, reps = 3),
+                        set(weight = null, reps = 8),
+                    ),
+                ),
+            ),
+            preset = ChartPresetDomain.MONTHS_3,
+            metric = ChartMetricDomain.HEAVIEST_WEIGHT,
+            exerciseType = ExerciseTypeDomain.WEIGHTED,
+            now = utcMillis(2026, 5, 1),
+            zoneId = zone,
+        )
+
+        val point = result.points.single()
+        assertEquals(110.0, point.value)
+        assertEquals(3, point.reps)
+        assertEquals(3, point.setCount)
+    }
+
+    @Test
+    fun `setCount keeps the tooltip label when only one set of the day is plottable`() {
+        // `setCount == 1` is not just an off-by-one: the UI mapper gates the tooltip's
+        // "N sets this day" line on `setCount > 1`, so undercounting here erases the line.
+        val result = bucketAndFold(
+            history = listOf(
+                entry(
+                    finishedAt = utcMillis(2026, 4, 28),
+                    sessionUuid = "s1",
+                    sets = listOf(
+                        set(weight = 100.0, reps = 5),
+                        set(weight = null, reps = 8),
+                    ),
+                ),
+            ),
+            preset = ChartPresetDomain.MONTHS_3,
+            metric = ChartMetricDomain.HEAVIEST_WEIGHT,
+            exerciseType = ExerciseTypeDomain.WEIGHTED,
+            now = utcMillis(2026, 5, 1),
+            zoneId = zone,
+        )
+
+        val point = result.points.single()
+        assertEquals(100.0, point.value)
+        assertEquals(2, point.setCount)
+    }
+
+    @Test
     fun `tie on metric value selects earlier finishedAt session`() {
         val result = bucketAndFold(
             history = listOf(
@@ -319,6 +375,66 @@ internal class ChartFolderTest {
         )
 
         assertEquals(800.0, result.points.single().value)
+    }
+
+    @Test
+    fun `volume tie across sessions keeps the earlier session`() {
+        // Under VOLUME_PER_SET a tie is a trade of weight against reps, so a reps tiebreak
+        // would mean "prefer the lighter set" — and would move the tooltip's navigation
+        // target to the later session. Volume is not a PR metric; earliest finishedAt wins.
+        val result = bucketAndFold(
+            history = listOf(
+                entry(
+                    finishedAt = utcMillis(2026, 4, 28, hour = 9),
+                    sessionUuid = "morning",
+                    sets = listOf(set(weight = 100.0, reps = 2)), // weight×reps = 200
+                ),
+                entry(
+                    finishedAt = utcMillis(2026, 4, 28, hour = 18),
+                    sessionUuid = "evening",
+                    sets = listOf(set(weight = 50.0, reps = 4)), // weight×reps = 200
+                ),
+            ),
+            preset = ChartPresetDomain.MONTHS_3,
+            metric = ChartMetricDomain.VOLUME_PER_SET,
+            exerciseType = ExerciseTypeDomain.WEIGHTED,
+            now = utcMillis(2026, 5, 1),
+            zoneId = zone,
+        )
+
+        val point = result.points.single()
+        assertEquals(200.0, point.value)
+        assertEquals("morning", point.sessionUuid)
+        assertEquals(100.0, point.weight)
+        assertEquals(2, point.reps)
+    }
+
+    @Test
+    fun `volume tie inside one session keeps the earlier position`() {
+        // A drop set ties with itself: every set of a session shares one finishedAt, so the
+        // position order the history query delivers is what decides, via a stable sort.
+        val result = bucketAndFold(
+            history = listOf(
+                entry(
+                    finishedAt = utcMillis(2026, 4, 28),
+                    sessionUuid = "s1",
+                    sets = listOf(
+                        set(weight = 100.0, reps = 2), // weight×reps = 200
+                        set(weight = 50.0, reps = 4), // weight×reps = 200
+                    ),
+                ),
+            ),
+            preset = ChartPresetDomain.MONTHS_3,
+            metric = ChartMetricDomain.VOLUME_PER_SET,
+            exerciseType = ExerciseTypeDomain.WEIGHTED,
+            now = utcMillis(2026, 5, 1),
+            zoneId = zone,
+        )
+
+        val point = result.points.single()
+        assertEquals(200.0, point.value)
+        assertEquals(100.0, point.weight)
+        assertEquals(2, point.reps)
     }
 
     @Test
