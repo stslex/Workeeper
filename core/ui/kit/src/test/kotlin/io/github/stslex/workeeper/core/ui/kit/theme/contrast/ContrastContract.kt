@@ -1,0 +1,460 @@
+// SPDX-License-Identifier: GPL-3.0-only
+package io.github.stslex.workeeper.core.ui.kit.theme.contrast
+
+import io.github.stslex.workeeper.core.ui.kit.theme.contrast.SlotRole.BOTH
+import io.github.stslex.workeeper.core.ui.kit.theme.contrast.SlotRole.DEAD
+import io.github.stslex.workeeper.core.ui.kit.theme.contrast.SlotRole.DECORATIVE
+import io.github.stslex.workeeper.core.ui.kit.theme.contrast.SlotRole.EXEMPT
+import io.github.stslex.workeeper.core.ui.kit.theme.contrast.SlotRole.FOREGROUND
+import io.github.stslex.workeeper.core.ui.kit.theme.contrast.SlotRole.SURFACE
+
+/**
+ * The contrast contract: what each slot is, which pairs are real, and what each real pair owes.
+ *
+ * Three parts, and the third is the one that matters:
+ *
+ *  a. [ROLES] and [DECLARED] — the pairs that co-occur on screen, each with the type slot it is
+ *     painted at and therefore the threshold it must meet.
+ *  b. [EXCLUSIONS] — pairs that provably never co-occur, each with a reason.
+ *  c. `ContrastGateTest.every_foreground_surface_pair_is_declared_or_excluded` — enumerates the
+ *     **full cartesian product** and fails on anything that is in neither list.
+ *
+ * Without (c) this file is a comment: a new screen could introduce an unverified pairing and
+ * nothing would notice. With it, adding a slot or painting an existing colour somewhere new
+ * forces a decision here.
+ */
+internal object ContrastContract {
+
+    /**
+     * Role per slot, derived from call sites. Every slot the reflection scanner finds must
+     * appear here — `ContrastGateTest` asserts the two sets match exactly, so a new slot cannot
+     * default into being ignored.
+     */
+    val ROLES: Map<String, SlotRole> = mapOf(
+        // -- surfaces ---------------------------------------------------------------------
+        "surfaceTier0" to SURFACE,
+        "surfaceTier1" to SURFACE,
+        "surfaceTier2" to SURFACE,
+        "surfaceTier3" to SURFACE,
+        "surfaceTier4" to SURFACE,
+        "accentTintedBackground" to SURFACE,
+        "setType.warmupBackground" to SURFACE,
+        "setType.workBackground" to SURFACE,
+        "setType.failureBackground" to SURFACE,
+        "setType.dropBackground" to SURFACE,
+        "molten.background" to SURFACE,
+        "molten.solid" to SURFACE,
+        "record.background" to SURFACE,
+        "record.solid" to SURFACE,
+        "inverseSurface" to SURFACE,
+
+        // -- foregrounds ------------------------------------------------------------------
+        "textPrimary" to FOREGROUND,
+        "textSecondary" to FOREGROUND,
+        "textTertiary" to FOREGROUND,
+        "onAccent" to FOREGROUND,
+        "inverseOnSurface" to FOREGROUND,
+        "setType.warmupForeground" to FOREGROUND,
+        "setType.workForeground" to FOREGROUND,
+        "setType.failureForeground" to FOREGROUND,
+        "setType.dropForeground" to FOREGROUND,
+        "status.success" to FOREGROUND,
+        "status.warning" to FOREGROUND,
+        "status.error" to FOREGROUND,
+        "molten.text" to FOREGROUND,
+        "molten.onSolid" to FOREGROUND,
+        "record.textPrimary" to FOREGROUND,
+        "record.textSecondary" to FOREGROUND,
+        "record.onSolid" to FOREGROUND,
+
+        // `accent` is the primary-button fill *and* the link colour; `accentTintedForeground`
+        // paints the checkmark circle *and* the text on it. Both sides get enumerated.
+        "accent" to BOTH,
+        "accentTintedForeground" to BOTH,
+
+        // -- not scored -------------------------------------------------------------------
+        "borderSubtle" to DECORATIVE,
+        "borderDefault" to DECORATIVE,
+        "borderStrong" to DECORATIVE,
+        "molten.border" to DECORATIVE,
+        "record.border" to DECORATIVE,
+        "textDisabled" to EXEMPT,
+        "status.info" to DEAD,
+    )
+
+    /**
+     * A foreground/surface pair that really co-occurs, and the type slot it is painted at.
+     *
+     * The type slot — not the pair — carries the threshold. `molten.text` on `surfaceTier1`
+     * measures 8.58 in dark either way, but the same number is a pass at [TypeSlot.TITLE] and
+     * would be a fail at [TypeSlot.CAPTION] if the ratio were 4.2. Declaring the slot is what
+     * makes the verdict meaningful.
+     */
+    data class Declared(
+        val foreground: String,
+        val background: String,
+        val typeSlot: TypeSlot,
+        val evidence: String,
+        /**
+         * What a **translucent** [background] is composited over, named explicitly because
+         * guessing it is how a wash gets waved through.
+         *
+         * Measured: the molten wash over a dialog gives molten text 4.64:1 and over the page
+         * 4.33:1. Same wash, same text, one passes and one does not — and `PersonalRecordCard`
+         * is the page case. Assuming a single backdrop for every wash would have certified the
+         * failing site using the passing site's number.
+         *
+         * [PAGE] and [DIALOG] name the two real hosts; [DIALOG] is theme-dependent because
+         * production is (`val dialogBg = if (isDark) surfaceTier1 else surfaceTier2`, nine
+         * sites). Ignored when [background] is opaque.
+         */
+        val over: String = PAGE,
+    )
+
+    /** Composite backdrop: the screen. */
+    const val PAGE: String = "surfaceTier0"
+
+    /** Composite backdrop: a dialog — `surfaceTier1` in dark, `surfaceTier2` in light. */
+    const val DIALOG: String = "@dialog"
+
+    /**
+     * Everything the app actually paints, with the call site that proves it.
+     *
+     * Evidence is a real file, because "these two probably appear together" is how an
+     * accessibility gate turns into a fiction. Where a component is used on several surfaces
+     * (`AppButton.Tertiary` has ~28 call sites across four tiers) each tier gets its own row.
+     */
+    val DECLARED: List<Declared> = buildList {
+        // Body text on every surface it can land on. textPrimary/Secondary/Tertiary are read
+        // 95 / 45 / 55 times across every screen; treating them as universal is not laziness,
+        // it is what the call sites show.
+        val everySurface = listOf(
+            "surfaceTier0",
+            "surfaceTier1",
+            "surfaceTier2",
+            "surfaceTier3",
+            "surfaceTier4",
+        )
+        everySurface.forEach { surface ->
+            add(Declared("textPrimary", surface, TypeSlot.BODY, "95 reads; row/card titles"))
+            add(Declared("textSecondary", surface, TypeSlot.BODY, "45 reads; supporting text"))
+            add(Declared("textTertiary", surface, TypeSlot.META, "55 reads; captions, meta"))
+            // The screen-title rung. Same colour, larger type, weaker obligation — declared so
+            // the distinction is visible rather than implied.
+            add(Declared("textPrimary", surface, TypeSlot.TITLE, "DetailTopbar, PastSessionHeader"))
+        }
+
+        // accent is v3 `max`: links, timers, chart strokes, selected icons.
+        add(Declared("accent", "surfaceTier0", TypeSlot.BODY, "AboutBlock links, ChartCanvas"))
+        add(Declared("accent", "surfaceTier1", TypeSlot.BODY, "HomeStartCard, ActiveSessionBanner"))
+        add(Declared("accent", "surfaceTier2", TypeSlot.BODY, "AppNumberInput cursor"))
+        add(Declared("accent", "surfaceTier3", TypeSlot.BODY, "ChartTooltipPopup value"))
+        add(Declared("accent", "surfaceTier4", TypeSlot.BODY, "TrainingRow active glyph"))
+        add(Declared("accent", "surfaceTier1", TypeSlot.DISPLAY, "LiveWorkoutHeader timer"))
+        add(Declared("accent", "surfaceTier0", TypeSlot.UI_COMPONENT, "AppTextField focused outline"))
+        add(Declared("accent", "surfaceTier1", TypeSlot.UI_COMPONENT, "LiveExerciseCard border"))
+
+        // ...and the fill side of the same slot: primary button, FAB, progress bar.
+        add(Declared("onAccent", "accent", TypeSlot.BODY, "AppButton.Primary label"))
+        add(Declared("onAccent", "accent", TypeSlot.UI_COMPONENT, "AppFAB icon"))
+        add(Declared("accent", "surfaceTier3", TypeSlot.UI_COMPONENT, "progress fill on track"))
+
+        // Selected states.
+        add(
+            Declared(
+                "accentTintedForeground",
+                "accentTintedBackground",
+                TypeSlot.META,
+                "AppBottomBar selected icon on indicator pill",
+            ),
+        )
+        add(
+            Declared(
+                "onAccent",
+                "accentTintedForeground",
+                TypeSlot.UI_COMPONENT,
+                "AppCheckmarkButton checkmark on filled circle",
+            ),
+        )
+        add(
+            Declared(
+                "textPrimary",
+                "accentTintedBackground",
+                TypeSlot.BODY,
+                "ReorderableColumn drag highlight; selected AppTagChip",
+            ),
+        )
+
+        // Snackbar — the one inverse surface.
+        add(Declared("inverseOnSurface", "inverseSurface", TypeSlot.BODY, "AppSnackbar.kt:30"))
+        add(
+            Declared(
+                "inverseOnSurface",
+                "inverseSurface",
+                TypeSlot.UI_COMPONENT,
+                "AppSnackbar dismiss icon",
+            ),
+        )
+
+        // Set-type chips. 11sp labels inside an 18dp chip — the smallest text in the app.
+        add(Declared("setType.warmupForeground", "setType.warmupBackground", TypeSlot.CAPTION, "AppSetTypeChip W"))
+        add(Declared("setType.workForeground", "setType.workBackground", TypeSlot.CAPTION, "AppSetTypeChip ·"))
+        add(Declared("setType.failureForeground", "setType.failureBackground", TypeSlot.CAPTION, "AppSetTypeChip F"))
+        add(Declared("setType.dropForeground", "setType.dropBackground", TypeSlot.CAPTION, "AppSetTypeChip D"))
+
+        // warmupForeground drifted off its name: four of its five call sites are the amber
+        // "attention" tint on ordinary cards, not the chip.
+        add(
+            Declared(
+                "setType.warmupForeground",
+                "surfaceTier1",
+                TypeSlot.META,
+                "attention tint, 4 of 5 call sites",
+            ),
+        )
+
+        // Destructive. Every site is body-size — a sheet menu item, a settings row, a dialog
+        // button label. This is the set of pairs that forced the dark rust value to move.
+        listOf("surfaceTier0", "surfaceTier1", "surfaceTier2", "surfaceTier3", "surfaceTier4")
+            .forEach { surface ->
+                add(
+                    Declared(
+                        "status.error",
+                        surface,
+                        TypeSlot.BODY,
+                        "destructive labels: ExerciseEditScreen, FinishConfirmDialog, settings rows",
+                    ),
+                )
+                add(
+                    Declared(
+                        "setType.failureForeground",
+                        surface,
+                        TypeSlot.BODY,
+                        "AppButton.Destructive label; destructive banner",
+                    ),
+                )
+            }
+        add(
+            Declared(
+                "setType.failureForeground",
+                "setType.failureBackground",
+                TypeSlot.BODY,
+                "AppButton.Destructive filled variant, on a screen",
+                over = PAGE,
+            ),
+        )
+        add(
+            Declared(
+                "setType.failureForeground",
+                "setType.failureBackground",
+                TypeSlot.BODY,
+                "AppConfirmDialog destructive banner",
+                over = DIALOG,
+            ),
+        )
+
+        // Status.
+        add(
+            Declared(
+                "status.success",
+                "surfaceTier1",
+                TypeSlot.UI_COMPONENT,
+                "RestoreProgressOverlay check icon, iconLg",
+            ),
+        )
+        add(
+            Declared(
+                "status.success",
+                "surfaceTier2",
+                TypeSlot.UI_COMPONENT,
+                "RestoreProgressOverlay, light theme",
+            ),
+        )
+        add(
+            Declared(
+                "status.warning",
+                "surfaceTier1",
+                TypeSlot.CAPTION,
+                "past-session skipped chip, labelSmall",
+            ),
+        )
+
+        // Molten — the PR accent. Its text only ever sits inside a card (`sec` inactive, `slab`
+        // active) or on the toast, which is also `slab`. That is why `field` and `raise` are
+        // excluded below rather than declared: it is a fact about the layout, not a hope.
+        add(Declared("molten.text", "surfaceTier1", TypeSlot.CAPTION, "PR tag, 11sp"))
+        add(Declared("molten.text", "surfaceTier2", TypeSlot.CAPTION, "PR tag on active card"))
+        add(Declared("molten.text", "surfaceTier2", TypeSlot.BODY, "toast action button"))
+        add(Declared("molten.onSolid", "molten.solid", TypeSlot.CAPTION, "PR pill label"))
+        add(Declared("record.onSolid", "record.solid", TypeSlot.CAPTION, "PersonalRecordBadge"))
+        // PersonalRecordCard paints the wash and sits directly on the page (ExerciseDetailScreen
+        // is surfaceTier0), so PAGE — not a dialog — is the backdrop. This is the pair that
+        // moved the light molten text value.
+        add(
+            Declared(
+                foreground = "record.textPrimary",
+                background = "record.background",
+                typeSlot = TypeSlot.BODY,
+                evidence = "PersonalRecordCard value",
+                over = PAGE,
+            ),
+        )
+        add(
+            Declared(
+                foreground = "record.textSecondary",
+                background = "record.background",
+                typeSlot = TypeSlot.META,
+                evidence = "PersonalRecordCard date",
+                over = PAGE,
+            ),
+        )
+        // The same wash inside FinishConfirmDialog, over the dialog surface.
+        add(
+            Declared(
+                "record.textPrimary",
+                "record.background",
+                TypeSlot.BODY,
+                "FinishConfirmDialog PR block",
+                over = DIALOG,
+            ),
+        )
+        add(
+            Declared(
+                "record.textSecondary",
+                "record.background",
+                TypeSlot.META,
+                "FinishConfirmDialog PR rows",
+                over = DIALOG,
+            ),
+        )
+        // FinishConfirmDialog's own surface: tier1 in dark, tier2 in light. Both declared,
+        // because the dialog idiom picks by theme and the gate measures both themes.
+        add(Declared("record.textPrimary", "surfaceTier1", TypeSlot.BODY, "FinishConfirmDialog heading, dark"))
+        add(Declared("record.textSecondary", "surfaceTier1", TypeSlot.META, "FinishConfirmDialog rows, dark"))
+        add(Declared("record.textPrimary", "surfaceTier2", TypeSlot.BODY, "FinishConfirmDialog heading, light"))
+        add(Declared("record.textSecondary", "surfaceTier2", TypeSlot.META, "FinishConfirmDialog rows, light"))
+
+        // `accentTintedForeground` is v3 `max` — the same colour as textPrimary and accent.
+        // Nine of its thirteen reads are ordinary foreground text/icons on ordinary surfaces,
+        // so it is declared across the tiers rather than excluded. The report counts distinct
+        // measurements precisely so this aliasing does not read as extra coverage.
+        everySurface.forEach { surface ->
+            add(
+                Declared(
+                    "accentTintedForeground",
+                    surface,
+                    TypeSlot.BODY,
+                    "9 of 13 reads are foreground text/icon; same value as textPrimary",
+                ),
+            )
+        }
+        add(Declared("molten.text", "molten.background", TypeSlot.CAPTION, "PR tag inside its own wash", over = PAGE))
+    }
+
+    /**
+     * Pairs that never co-occur, each with the reason. Rules cover families; a rule that stops
+     * being true shows up as a *declared* pair failing, not as a silent pass.
+     */
+    data class Exclusion(val reason: String, val matches: (fg: String, bg: String) -> Boolean)
+
+    val EXCLUSIONS: List<Exclusion> = listOf(
+        Exclusion(
+            "Set-type chip colours are scoped to their own chip: `AppSetTypeChip` picks one " +
+                "(background, foreground) pair by `when(type)` and paints both. A warm-up " +
+                "foreground can never land on a drop background.",
+        ) { fg, bg ->
+            fg.startsWith("setType.") && bg.startsWith("setType.") &&
+                fg.removeSuffix("Foreground") != bg.removeSuffix("Background")
+        },
+        Exclusion(
+            "The set-type chip backgrounds host only their own chip label — no other " +
+                "foreground is ever drawn inside a chip.",
+        ) { fg, bg -> bg.startsWith("setType.") && !fg.startsWith("setType.") },
+        Exclusion(
+            "`inverseSurface` is the snackbar container and nothing else (AppSnackbar.kt:29). " +
+                "Only the snackbar's own message and dismiss icon are drawn on it.",
+        ) { fg, bg -> bg == "inverseSurface" && !fg.startsWith("inverse") },
+        Exclusion(
+            "`inverseOnSurface` is read only by AppSnackbar, so it never appears off the " +
+                "snackbar container.",
+        ) { fg, bg -> fg == "inverseOnSurface" && bg != "inverseSurface" },
+        Exclusion(
+            "Molten is not a general accent (spec §9): it appears only on the personal-record " +
+                "surfaces and the transient wow state. `.set`/`.prtag` live inside `.card`, " +
+                "whose fill is `sec` or `slab` — never `field`, never `raise`.",
+        ) { fg, bg ->
+            (fg.startsWith("molten.") || fg.startsWith("record.")) &&
+                bg in setOf("surfaceTier0", "surfaceTier3", "surfaceTier4", "accentTintedBackground")
+        },
+        Exclusion(
+            "The molten fill and wash host only personal-record content.",
+        ) { fg, bg ->
+            (
+                bg == "molten.solid" || bg == "record.solid" ||
+                    bg == "molten.background" || bg == "record.background"
+                ) &&
+                !(fg.startsWith("molten.") || fg.startsWith("record."))
+        },
+        Exclusion(
+            "`onAccent` is v3 `base`, the page colour. It is legible only on a filled accent " +
+                "or the checkmark circle; on any ordinary surface it would be page-on-page.",
+        ) { fg, bg -> fg == "onAccent" && bg !in setOf("accent", "accentTintedForeground") },
+        Exclusion(
+            "`accent` as a fill hosts only `onAccent` — AppButton.Primary, AppFAB and the " +
+                "Resume dialog button all pass `onAccent` as their content colour.",
+        ) { fg, bg -> bg == "accent" && fg != "onAccent" },
+        Exclusion(
+            "`accentTintedForeground` as a fill (AppCheckmarkButton circle, ReorderableColumn " +
+                "drag highlight) carries only the checkmark, which is `onAccent`.",
+        ) { fg, bg -> bg == "accentTintedForeground" && fg != "onAccent" },
+        Exclusion(
+            "The nav indicator pill and selected chip host their own selected content only.",
+        ) { fg, bg ->
+            bg == "accentTintedBackground" &&
+                fg !in setOf("accentTintedForeground", "textPrimary")
+        },
+        Exclusion(
+            "`status.success` is one icon in one overlay (RestoreProgressOverlay), which is a " +
+                "card: `sec` in dark, `slab` in light. It reaches no other surface.",
+        ) { fg, bg -> fg == "status.success" && bg !in setOf("surfaceTier1", "surfaceTier2") },
+        Exclusion(
+            "`status.warning` is one chip label in the past-session card header — `sec` only.",
+        ) { fg, bg -> fg == "status.warning" && bg != "surfaceTier1" },
+        Exclusion(
+            "The molten fill carries exactly one content colour, `onSolid`. That is the whole " +
+                "reason the slot exists: molten text on the molten fill is 1.0:1 by " +
+                "construction in dark, where `text` and `solid` are the same hex.",
+        ) { fg, bg ->
+            bg.endsWith(".solid") && !fg.endsWith(".onSolid")
+        },
+        Exclusion(
+            "`molten.*` and `record.*` are two names for one role — `record` is the concrete " +
+                "consumer, `molten` is the role it reads. A call site resolves one namespace " +
+                "or the other (`AppUi.colors.record` at every PR site), so a molten foreground " +
+                "never lands on a record surface or vice versa.",
+        ) { fg, bg ->
+            (fg.startsWith("molten.") && bg.startsWith("record.")) ||
+                (fg.startsWith("record.") && bg.startsWith("molten."))
+        },
+        Exclusion(
+            "`molten.onSolid` / `record.onSolid` exist to be legible on the molten fill and are " +
+                "painted nowhere else.",
+        ) { fg, bg ->
+            fg.endsWith(".onSolid") && bg !in setOf("molten.solid", "record.solid")
+        },
+        Exclusion(
+            "`setType.warmupForeground`'s off-chip use is the attention tint on cards (`sec`); " +
+                "it is not painted on the page, dialogs, fields or chips.",
+        ) { fg, bg ->
+            fg == "setType.warmupForeground" &&
+                bg in setOf("surfaceTier0", "surfaceTier2", "surfaceTier3", "surfaceTier4", "accentTintedBackground")
+        },
+        Exclusion(
+            "`setType.workForeground` and `setType.dropForeground` have exactly one reader each " +
+                "— their own chip (AppSetTypeChip.kt:53).",
+        ) { fg, bg ->
+            fg in setOf("setType.workForeground", "setType.dropForeground") &&
+                !bg.startsWith("setType.")
+        },
+    )
+}
