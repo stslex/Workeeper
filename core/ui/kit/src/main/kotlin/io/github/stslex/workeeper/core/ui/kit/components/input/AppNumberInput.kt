@@ -71,7 +71,11 @@ fun AppNumberInput(
                 modifier = Modifier.padding(start = AppDimension.Space.xs),
                 text = it,
                 style = AppUi.typography.bodySmall.copy(letterSpacing = 0.5.sp),
-                color = AppUi.colors.textTertiary,
+                // The mockup's `.unit`, which it paints in `--dim`. `textDim` is that role,
+                // aliased onto `meta` — see AppColors.textDim for the measurement that forced
+                // the merge. Reading the role rather than `textTertiary` keeps the unit
+                // distinguishable from the value it annotates if the tier is ever reinstated.
+                color = AppUi.colors.textDim,
             )
         }
     }

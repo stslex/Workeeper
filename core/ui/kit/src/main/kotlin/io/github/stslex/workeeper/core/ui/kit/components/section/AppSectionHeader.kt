@@ -69,14 +69,13 @@ fun AppSectionHeader(
  * `mono.caption` is the smallest step of the six-step scale in the mono family — the mockup draws
  * these in `--ff-mono` at 11px (`pass2d.html:38`), which is exactly this rung.
  *
- * The colour is [io.github.stslex.workeeper.core.ui.kit.theme.AppColors.textTertiary], **not** the
- * mockup's `--dim`. `--dim` is a fifth text tier this palette does not have, and adopting it as
- * drawn would ship a WCAG 1.4.3 failure: dark `--dim` `#6B7078` on `base` `#0B0D0F` measures
- * **3.91:1** against the 4.5:1 that 11sp owes. That is the same trap the palette already
- * documents for light `meta` — the mockup was drawn, not measured. `textTertiary` is the existing
- * tier that carries captions, it is already declared against every surface in the contrast
- * contract, and it passes. Adding the fifth tier is a palette decision with a measured number
- * attached now; it is not this step's to take.
+ * The colour is [io.github.stslex.workeeper.core.ui.kit.theme.AppColors.textDim] — the mockup's
+ * `--dim` role, which the palette now names explicitly and **aliases onto `meta`**. This label is
+ * the reason the alias exists: `--dim` cannot ship as drawn in either theme (dark `#6B7078`
+ * bottoms out at 2.87:1 on `raise`, light `#98A0A9` at 2.05:1, against the 4.5:1 an 11sp label
+ * owes), and the corrected value lands on `meta`. Reading [textDim] rather than `textTertiary`
+ * keeps the *role* visible at the call site: if the fourth tier is ever reinstated as a
+ * restricted large-type role, this site is one of the ones that must not follow it.
  */
 @Composable
 private fun SectionLabel(
@@ -87,7 +86,7 @@ private fun SectionLabel(
         modifier = modifier,
         text = text.uppercase(),
         style = AppUi.typography.mono.caption,
-        color = AppUi.colors.textTertiary,
+        color = AppUi.colors.textDim,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
     )

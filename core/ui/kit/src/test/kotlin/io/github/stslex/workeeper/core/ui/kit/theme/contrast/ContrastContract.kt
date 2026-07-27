@@ -52,6 +52,12 @@ internal object ContrastContract {
         "textPrimary" to FOREGROUND,
         "textSecondary" to FOREGROUND,
         "textTertiary" to FOREGROUND,
+        // v3 `dim`, aliased onto `meta` (AppColors.textDim). Same value as `textTertiary`, so
+        // it adds rows and no distinct measurements — the report's distinct-measurement counter
+        // keys on colour VALUES precisely so an alias cannot read as extra coverage. It is
+        // declared as its own slot rather than folded into `textTertiary` so that reinstating a
+        // real fourth tier fails here loudly instead of shipping unmeasured.
+        "textDim" to FOREGROUND,
         "onAccent" to FOREGROUND,
         "inverseOnSurface" to FOREGROUND,
         "setType.warmupForeground" to FOREGROUND,
@@ -201,6 +207,11 @@ internal object ContrastContract {
             add(Declared("textPrimary", surface, TypeSlot.BODY, "95 reads; row/card titles"))
             add(Declared("textSecondary", surface, TypeSlot.BODY, "45 reads; supporting text"))
             add(Declared("textTertiary", surface, TypeSlot.META, "55 reads; captions, meta"))
+            // v3 `dim`. Declared at CAPTION, not META: the mockups' smallest `dim` element is
+            // the 11px uppercase `.label`, and 11sp is the tightest rung this role reaches.
+            // Same threshold as META numerically (4.5:1), but the slot names what is actually
+            // painted, which is what makes the verdict re-checkable if the alias is ever undone.
+            add(Declared("textDim", surface, TypeSlot.CAPTION, "AppSectionHeader label, AppNumberInput unit"))
             // The screen-title rung. Same colour, larger type, weaker obligation — declared so
             // the distinction is visible rather than implied.
             add(Declared("textPrimary", surface, TypeSlot.TITLE, "DetailTopbar, PastSessionHeader"))

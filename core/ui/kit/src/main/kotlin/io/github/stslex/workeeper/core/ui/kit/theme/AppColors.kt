@@ -36,7 +36,8 @@ import androidx.compose.ui.graphics.Color
  * | raise          | surfaceTier4, accentTintedBackground, chips |
  * | max            | textPrimary, accent, accentTintedForeground |
  * | body           | textSecondary                               |
- * | meta           | textTertiary                                |
+ * | meta           | textTertiary, **textDim** — see below       |
+ * | dim            | textDim (aliased onto meta) — see below     |
  * | idle           | textDisabled                                |
  * | hair           | borderSubtle — decorative, no threshold     |
  * | hair-s lifted  | borderDefault, borderStrong — control       |
@@ -45,10 +46,13 @@ import androidx.compose.ui.graphics.Color
  * | molten ×4      | record.{textPrimary,solid,background,border}|
  * | rust           | status.error, setType.failure*              |
  *
- * Two tokens end up with no slot.
+ * `dim` now has a slot, [AppColors.textDim], and that slot is an **alias of `meta`**. The whole
+ * measurement lives on the slot's KDoc; read it before "restoring" a fifth tier here. Note that
+ * an earlier revision of this header carried the two `dim` values in the wrong order — the
+ * mockups draw dark `#6B7078` and light `#98A0A9`, which is the opposite of spec revision 3
+ * §2.1/§2.2.
  *
- * `dim` (#98A0A9 / #6B7078) is a fifth text tier and this palette has four; adding one is a
- * structural change, so it lands with the section layout in step 4.
+ * One token ends up with no slot at all.
  *
  * `hair-s` (#2B333B / #D2D7DD) has no slot for a sharper reason: both slots that would have
  * taken it turned out to be **enabled control outlines**, which owe 3:1 under WCAG 1.4.11, and
@@ -203,6 +207,71 @@ data class AppColors(
      */
     val textTertiary: Color,
     /**
+     * v3 `dim` — **merged into `meta`. This slot is an alias, deliberately, and not a mistake
+     * to be tidied away.**
+     *
+     * ## What the mockups draw
+     *
+     * `dim` is the fourth and weakest step of one descending text ramp — `max` → `body` →
+     * `meta` → `dim` — mirrored across the themes. Both mockups agree on the values, and both
+     * disagree with spec revision 3:
+     *
+     * | | mockups (`session-v3f.html:18,26`, `pass2d.html:19,27`) | spec rev. 3 §2.1/§2.2 |
+     * |---|---|---|
+     * | dark `dim`  | **`#6B7078`** | `#98A0A9` |
+     * | light `dim` | **`#98A0A9`** | `#6B7078` |
+     *
+     * The spec has the pair swapped between themes; §2.5's own "3.91:1" figure is derived from
+     * the *mockup's* dark value, so the spec contradicts itself and the mockups are right.
+     * The values above are the ones measured below.
+     *
+     * It carries `.label`, `.unit`, `.set-i`, `.ord`, `.ordchip`, `.sub`, `.plan-line`,
+     * `.chev`, `.tchip`, `.val .x`, `.scrub`, `.tempbadge` and `.mini` — captions, units,
+     * ordinals and chevrons on every screen. It is not decorative: an 11sp uppercase label owes
+     * 4.5:1 like any other small text.
+     *
+     * ## Why the fourth step does not exist here
+     *
+     * Measured with the same transcription the gate uses, against all five surfaces:
+     *
+     * | theme | `dim` as drawn | worst surface | ratio | owed |
+     * |---|---|---|---|---|
+     * | dark  | `#6B7078` | `raise` `#242B32` | **2.87:1** | 4.5:1 |
+     * | light | `#98A0A9` | `raise` `#DFE3E8` | **2.05:1** | 4.5:1 |
+     *
+     * (The dark value's best case, on `base`, is 3.91:1 — the number `AppSectionHeader` already
+     * recorded. It is the *best* case, not the worst.)
+     *
+     * So neither theme can ship `dim` as drawn. The question is then whether a *corrected* `dim`
+     * is still a distinct step, and it is not. Holding each mockup value's hue and saturation and
+     * moving only lightness until 4.5:1 clears on every surface:
+     *
+     * | theme | corrected `dim` | `meta` | redmean distance |
+     * |---|---|---|---|
+     * | dark  | `#8C9198` | `#8B95A1` | **16.3** |
+     * | light | `#5E6670` | `#596169` | **17.0** |
+     *
+     * A tier whose entire job is to sit *below* `meta` has to land on top of it to become legal.
+     * That is not a preference, it is arithmetic: the two-tier `meta`/`dim` distinction the
+     * mockups draw on every screen does not survive AA in either theme. So it collapses to one
+     * tier, and this slot names the collapse instead of hiding it.
+     *
+     * ## Why this is an alias and not a deletion
+     *
+     * Deleting it would scatter the decision across every call site as a silent `textTertiary`,
+     * which is exactly how the substitution has been happening so far — documented once in
+     * `AppSectionHeader` and applied without comment everywhere else. Naming the slot means the
+     * `dim` role is *readable in the code*, and reinstating it is a one-line change to the two
+     * assignments below rather than an archaeology exercise.
+     *
+     * **If Ilya reinstates `dim`**, the only defensible form is a *restricted* role: large type
+     * only (≥24sp regular or ≥18.66sp bold, where the threshold drops to 3:1 and the corrected
+     * values above are no longer forced), on dark surfaces only, since light's worst case at
+     * 2.05:1 misses even 3:1. That is a different slot with a different contract, and the commit
+     * that introduced this alias is its revert point.
+     */
+    val textDim: Color,
+    /**
      * v3 `idle`. **WCAG-exempt** — 1.4.3 and 1.4.11 both carve out inactive components, and
      * all seven readers are genuinely inactive: `disabledContentColor` on the four `AppButton`
      * variants, `disabledLabelColor` on `AppTextField`, and the two reorder arrows that are
@@ -345,6 +414,9 @@ fun provideDarkAppColors(): AppColors = AppColors(
     textPrimary = Color(DARK_MAX),
     textSecondary = Color(DARK_BODY),
     textTertiary = Color(DARK_META),
+    // v3 `dim`, merged into `meta`. See [AppColors.textDim] — the mockup's #6B7078 measures
+    // 2.87:1 on `raise` and only reaches 4.5:1 at #8C9198, 16.3 redmean from this value.
+    textDim = Color(DARK_META),
     textDisabled = Color(DARK_IDLE),
     borderSubtle = Color(DARK_HAIR),
     borderDefault = Color(DARK_CONTROL_OUTLINE),
@@ -398,6 +470,9 @@ fun provideLightAppColors(): AppColors = AppColors(
     textPrimary = Color(LIGHT_MAX),
     textSecondary = Color(LIGHT_BODY),
     textTertiary = Color(LIGHT_META),
+    // v3 `dim`, merged into `meta`. See [AppColors.textDim] — the mockup's #98A0A9 measures
+    // 2.05:1 on `raise` and only reaches 4.5:1 at #5E6670, 17.0 redmean from this value.
+    textDim = Color(LIGHT_META),
     textDisabled = Color(LIGHT_IDLE),
     borderSubtle = Color(LIGHT_HAIR),
     borderDefault = Color(LIGHT_CONTROL_OUTLINE),
