@@ -60,6 +60,14 @@ Each tracked location should carry a `TODO(tech-debt): <category> — <ref>` mar
 
 ---
 
+## Palette slot names describe v2 tiers, not v3 roles
+
+| Severity | Location | Description |
+|---|---|---|
+| 🟢 | [core/ui/kit/.../theme/AppColors.kt](../core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/theme/AppColors.kt) | **Renaming debt, deliberately incurred.** v3 step 3 kept the v2 slot names (`surfaceTier0..4`, `accentTintedBackground`) and mapped them onto v3 tokens in KDoc rather than renaming, because renaming is a thousand-line mechanical diff with no pixel behind it. The cost surfaced in step 4: `surfaceTier4` and `accentTintedBackground` both carry the v3 `raise` hex in its *utility* role — progress track, selected tag, hover — while the name `raise` reads as "elevated surface", which is a different thing entirely and is **not** what either slot does. A reader who goes looking for "the raised surface" finds two slots that are not it. Compounding it, `object Icon` (5 properties) and `object Button` (4) have **zero readers** repo-wide and shadow the live flat `icon*`/`height*` scale — `Icon.small = 16.dp` sits next to `iconSm = 18.dp` with 0 and 29 readers respectively, kept alive only by `@Suppress("unused")` on the object. **Trigger to act:** the next time a palette or dimension change touches these files for its own reasons — rename to role names (`base`/`sec`/`slab`/`field`/`raise`) and delete the two dead scales in the same pass. Do not do it as a standalone PR; the diff is large and the review value is near zero on its own. |
+
+---
+
 ## Reactive Aggregations
 
 | Severity | Location | Description |

@@ -726,3 +726,5 @@ mvi-architecture:
     active: true
   NumericFontFamilyOnLocalizedTextRule:
     active: true
+  ActiveSurfaceSingleReaderRule:
+    active: true

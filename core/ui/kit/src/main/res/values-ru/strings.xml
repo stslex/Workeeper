@@ -36,4 +36,6 @@
     <string name="core_ui_kit_pr_explainer_confirm">Понятно</string>
 
     <string name="core_ui_kit_reorderable_drag_handle">Переставить</string>
+
+    <string name="core_ui_kit_sheet_close">Закрыть</string>
 </resources>
