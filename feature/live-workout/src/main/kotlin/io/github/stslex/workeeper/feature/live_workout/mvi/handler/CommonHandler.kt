@@ -10,6 +10,7 @@ import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStor
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutScope
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toState
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.withDisclosureCarriedFrom
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -42,7 +43,9 @@ internal class CommonHandler @Inject constructor(
                     updateStateImmediate { it.copy(isLoading = false) }
                     return@launch
                 }
-                updateStateImmediate { createdState }
+                updateStateImmediate { previous ->
+                    createdState.withDisclosureCarriedFrom(previous)
+                }
                 startTimer()
             },
         ) {
@@ -74,9 +77,11 @@ internal class CommonHandler @Inject constructor(
     private fun processReload() {
         val sessionUuid = state.value.sessionUuid?.takeIf { it.isNotBlank() } ?: return
         launch(
-            onSuccess = { state ->
-                if (state == null) return@launch
-                updateStateImmediate { state }
+            onSuccess = { reloaded ->
+                if (reloaded == null) return@launch
+                // A plan-editor round-trip is not "leaving the screen session" (§7), so the
+                // user's manual expansions must survive this replacement.
+                updateStateImmediate { previous -> reloaded.withDisclosureCarriedFrom(previous) }
             },
         ) {
             interactor.loadSession(sessionUuid)

@@ -20,21 +20,17 @@ internal class StateStatusMapper(
 
     fun recomputeStatuses(state: LiveWorkoutStore.State): LiveWorkoutStore.State {
         val refreshed = recomputeOnly(state.exercises, state.activeExerciseUuids)
-        // Prune expanded entries that no longer correspond to a DONE or CURRENT row.
-        // SKIPPED/PENDING rows can't be expanded so any leftover entry is stale.
-        val visibleUuids = refreshed
-            .asSequence()
-            .filter {
-                it.status == ExerciseStatusUiModel.DONE ||
-                    it.status == ExerciseStatusUiModel.CURRENT
-            }
-            .map { it.performedExerciseUuid }
-            .toSet()
+        // The disclosure automaton (§7) is the single writer of `expandedExerciseUuids`. It
+        // runs after statuses are recomputed because rules 4-6 read the fresh status, and it
+        // replaces the old "prune stale entries" pass — a card that leaves DONE/CURRENT is
+        // simply not selected by the table, so there is nothing left to prune.
         return state.copy(
             exercises = refreshed,
-            expandedExerciseUuids = state.expandedExerciseUuids
-                .filter { it in visibleUuids }
-                .toImmutableSet(),
+            expandedExerciseUuids = DisclosureAutomaton.resolve(
+                exercises = refreshed,
+                intent = state.disclosureIntent,
+                previouslyExpanded = state.expandedExerciseUuids,
+            ).toImmutableSet(),
         ).withPresentation(resourceWrapper)
     }
 

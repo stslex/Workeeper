@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -26,6 +27,7 @@ import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import io.github.stslex.workeeper.core.ui.kit.components.motion.rememberSetClosureVisuals
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -36,7 +38,11 @@ fun AppCheckmarkButton(
     enabled: Boolean,
     onToggle: () -> Unit,
     modifier: Modifier = Modifier,
+    isRecord: Boolean = false,
 ) {
+    // §9's merged automaton. `isRecord` is a parameter to the same motion, never a second
+    // path: the morph and its timing are identical, and only the accent resolves differently.
+    val closure = rememberSetClosureVisuals(isDone = isDone, isRecord = isRecord)
     val transparent = Color.Transparent
     // Border stays at `accent` so the unchecked state still reads as an actionable
     // outlined chip. The filled state intentionally uses `accentTintedForeground` so
@@ -44,7 +50,11 @@ fun AppCheckmarkButton(
     // CURRENT live-exercise card border in dark theme — v2.4 visual polish).
     val borderColor = if (enabled) AppUi.colors.accent else AppUi.colors.borderDefault
     val fillColor by animateColorAsState(
-        targetValue = if (isDone && enabled) AppUi.colors.accentTintedForeground else transparent,
+        targetValue = when {
+            isDone && enabled && isRecord -> closure.accent
+            isDone && enabled -> AppUi.colors.accentTintedForeground
+            else -> transparent
+        },
         label = "AppCheckmarkButtonFill",
     )
     val iconTint by animateColorAsState(
@@ -57,6 +67,12 @@ fun AppCheckmarkButton(
         modifier = modifier
             .size(TOUCH_SIZE.dp)
             .padding(TOUCH_PADDING.dp)
+            // GEOMETRY only — this is the value driven by the overshooting `spring` curve.
+            // The colours above deliberately do not read it.
+            .graphicsLayer {
+                scaleX = closure.markScale
+                scaleY = closure.markScale
+            }
             .clip(CircleShape)
             .clickable(enabled = enabled, role = Role.Checkbox, onClick = onToggle)
             .semantics {

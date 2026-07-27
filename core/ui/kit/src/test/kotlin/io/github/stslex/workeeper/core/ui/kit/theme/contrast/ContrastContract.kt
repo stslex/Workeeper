@@ -30,7 +30,7 @@ internal object ContrastContract {
      * appear here — `ContrastGateTest` asserts the two sets match exactly, so a new slot cannot
      * default into being ignored.
      */
-    val ROLES: Map<String, SlotRole> = mapOf(
+    val ROLES: Map<String, SlotRole> = rolesOf(
         // -- surfaces ---------------------------------------------------------------------
         "surfaceTier0" to SURFACE,
         "surfaceTier1" to SURFACE,
@@ -72,26 +72,77 @@ internal object ContrastContract {
         "accent" to BOTH,
         "accentTintedForeground" to BOTH,
 
-        // Not decoration: these outlines ARE the control when it is off/unfocused, and every
-        // reader is an enabled, operable control — RadioButton unselectedColor
-        // (ThemeSelector.kt:84), Checkbox uncheckedColor (ExercisePickerSheet.kt:170),
-        // AppTextField unfocusedBorderColor (AppTextField.kt:57), TypeToggle unselected
-        // boundary (TypeToggle.kt:65). WCAG 1.4.11 applies at 3:1.
+        // Not decoration: these outlines ARE the control when it is off/unfocused, so WCAG
+        // 1.4.11 non-text contrast applies at 3:1.
+        //
+        // Call sites RE-VERIFIED at this commit (the previous list had gone stale — it cited
+        // `ThemeSelector.kt:84` and `ExercisePickerSheet.kt:170`, and neither paints this slot
+        // any more). What is actually live:
+        //   - AppTextField.kt:57  unfocusedBorderColor — an enabled, operable field's boundary
+        //   - TypeToggle.kt:65    the unselected toggle's boundary
+        //   - AppProgressRail.kt:201 the skipped-segment outline, which is the ONLY thing
+        //     distinguishing a skipped exercise from an unfilled one — informational, not trim
+        //   - AppCheckmarkButton.kt:51 the DISABLED branch (`if (enabled) accent else this`),
+        //     which 1.4.3/1.4.11 both carve out; it does not lower the requirement for the
+        //     three enabled sites above
         //
         // The dividing line against `borderSubtle` is not thickness, it is whether the stroke
-        // carries state. AppTextField.kt:58 paints its *disabled* border in `borderSubtle`,
-        // which is exempt; line 57 paints the *enabled* one here, which is not.
+        // carries state. `borderSubtle` is the divider/trim slot (AppSection's rule, the bottom
+        // bar, chart gridlines, AppTextField.kt:58's *disabled* border) and is decorative under
+        // §3.1. This one is never a divider.
         "borderDefault" to FOREGROUND,
         "borderStrong" to FOREGROUND,
 
         // -- not scored -------------------------------------------------------------------
         "borderSubtle" to DECORATIVE,
-        "borderDefault" to DECORATIVE,
         "molten.border" to DECORATIVE,
         "record.border" to DECORATIVE,
         "textDisabled" to EXEMPT,
         "status.info" to DEAD,
     )
+
+    /**
+     * Builds [ROLES] from a list of entries and **fails at construction on a duplicate key**.
+     *
+     * `mapOf` resolves a repeated key last-write-wins, silently, so the map's behaviour is
+     * decided by declaration order and neither line reads like what actually happens. That is
+     * not hypothetical here: this file shipped `"borderDefault" to FOREGROUND` (with a reasoned
+     * 3:1 justification) above `"borderDefault" to DECORATIVE` (with none), and the net effect
+     * matched neither — the slot resolved to DECORATIVE and dropped out of the part-(c)
+     * enumeration entirely, while its five DECLARED rows went on being measured at 3:1. Both
+     * halves of the gate were green and the coverage was wrong.
+     *
+     * §3.3 requires the construction itself to reject this, not the two offending lines to be
+     * edited: "the next duplicate would arrive just as quietly".
+     */
+    private fun rolesOf(vararg entries: Pair<String, SlotRole>): Map<String, SlotRole> {
+        val duplicates = entries
+            .groupBy { (slot, _) -> slot }
+            .filterValues { it.size > 1 }
+        require(duplicates.isEmpty()) {
+            buildString {
+                appendLine("ContrastContract.ROLES declares ${duplicates.size} slot(s) twice.")
+                appendLine()
+                appendLine("`mapOf` would resolve these last-write-wins and the gate would run")
+                appendLine("on whichever line happens to be lower in the file, with no failure")
+                appendLine("and no way to read the outcome off the source.")
+                appendLine()
+                duplicates.forEach { (slot, rows) ->
+                    appendLine("  $slot declared as ${rows.joinToString(", ") { it.second.name }}")
+                }
+            }
+        }
+        return entries.toMap()
+    }
+
+    // Deliberately NOT applied to [DECLARED] or [EXCLUSIONS]. Checked, not assumed:
+    //
+    //  - [DECLARED] is keyed by the (foreground, background, typeSlot) TRIPLE, not the pair.
+    //    Several rows per pair is the design — "the type slot, not the pair, carries the
+    //    threshold" — and `textPrimary on surfaceTier0` is legitimately declared at both BODY
+    //    and TITLE. A pair-keyed guard rejects 14 correct rows; measured, by writing one.
+    //  - [EXCLUSIONS] is a list of (reason, predicate) with no key at all, so the last-write-
+    //    wins hazard cannot arise. Overlapping predicates are additive, not substitutive.
 
     /**
      * A foreground/surface pair that really co-occurs, and the type slot it is painted at.

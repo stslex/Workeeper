@@ -152,6 +152,7 @@ internal class LiveWorkoutMapperTest {
                 PlanSetDomain(weight = 100.0, reps = 5, type = SetTypeDomain.WORK),
             ),
             performedSets = emptyList(),
+            isPlanAttached = true,
         )
 
     private fun fullyDone(uuid: String, position: Int): LiveExerciseDomain =
@@ -282,6 +283,9 @@ internal class LiveWorkoutMapperTest {
             setDrafts = persistentMapOf(),
             activeExerciseUuids = persistentSetOf(),
             expandedExerciseUuids = persistentSetOf(),
+            manualExpandedExerciseUuids = persistentSetOf(),
+            manualCollapsedExerciseUuids = persistentSetOf(),
+            hasManualDisclosureAction = false,
             preSessionPrSnapshot = mapOf(
                 "ex-1" to State.PrSnapshotItem(
                     weight = 100.0,
@@ -449,6 +453,9 @@ internal class LiveWorkoutMapperTest {
         setDrafts = persistentMapOf(),
         activeExerciseUuids = persistentSetOf(),
         expandedExerciseUuids = persistentSetOf(),
+        manualExpandedExerciseUuids = persistentSetOf(),
+        manualCollapsedExerciseUuids = persistentSetOf(),
+        hasManualDisclosureAction = false,
         preSessionPrSnapshot = persistentMapOf(),
         isAddExerciseInFlight = false,
         isFinishInFlight = false,

@@ -376,63 +376,53 @@ internal class ClickHandler @Inject constructor(
         }
     }
 
+    /**
+     * The only producer of manual disclosure intent (§7). It records what the user asked for
+     * and lets `DisclosureAutomaton` decide what is expanded — this handler no longer writes
+     * `expandedExerciseUuids` itself, so the transition table stays the single description of
+     * the behaviour.
+     *
+     * A tap is a toggle against the *currently rendered* state, so tapping an auto-expanded
+     * card collapses it (rule 2) and tapping a completed card opens it (rule 3), which is the
+     * only way its add/remove-set buttons become reachable.
+     */
     private fun processExerciseHeaderClick(action: Action.Click.OnExerciseHeaderClick) {
         updateState { current ->
             val exercise = setMutator.findExercise(current, action.performedExerciseUuid)
                 ?: return@updateState current
-            when (exercise.status) {
-                ExerciseStatusUiModel.SKIPPED -> current
-                ExerciseStatusUiModel.PENDING -> {
-                    // Promote to active. Status flips to CURRENT, card expands.
-                    val activeNext = current.activeExerciseUuids.toMutableSet().apply {
-                        add(action.performedExerciseUuid)
-                    }
-                    val expandedNext = current.expandedExerciseUuids.toMutableSet().apply {
-                        add(action.performedExerciseUuid)
-                    }
-                    setMutator.recomputeStatuses(
-                        current.copy(
-                            activeExerciseUuids = activeNext.toImmutableSet(),
-                            expandedExerciseUuids = expandedNext.toImmutableSet(),
-                        ),
-                    )
-                }
+            // A skipped card has nothing to disclose, and reversing the skip is a separate
+            // action — so this must not count as a manual action and mute auto-collapse.
+            if (exercise.status == ExerciseStatusUiModel.SKIPPED) return@updateState current
 
-                ExerciseStatusUiModel.CURRENT -> {
-                    // Toggle expanded. If it's the auto-default (not yet in activeUuids),
-                    // also promote to explicit-active so the user can later collapse it.
-                    val expanded = exercise.performedExerciseUuid in current.expandedExerciseUuids
-
-                    val expandedNext = current.expandedExerciseUuids.toMutableSet()
-                    if (expanded) {
-                        expandedNext.remove(action.performedExerciseUuid)
-                    } else {
-                        expandedNext.add(action.performedExerciseUuid)
-                    }
-
-                    val activeNext = current.activeExerciseUuids.toMutableSet()
-                    if (expanded && exercise.performedSets.isEmpty() && activeNext.isNotEmpty()) {
-                        activeNext.remove(action.performedExerciseUuid)
-                    } else {
-                        activeNext.add(action.performedExerciseUuid)
-                    }
-
-                    setMutator.recomputeStatuses(
-                        current.copy(
-                            activeExerciseUuids = activeNext.toImmutableSet(),
-                            expandedExerciseUuids = expandedNext.toImmutableSet(),
-                        ),
-                    )
-                }
-
-                ExerciseStatusUiModel.DONE -> {
-                    val expandedNext = current.expandedExerciseUuids.toMutableSet()
-                    if (!expandedNext.add(action.performedExerciseUuid)) {
-                        expandedNext.remove(action.performedExerciseUuid)
-                    }
-                    current.copy(expandedExerciseUuids = expandedNext.toImmutableSet())
-                }
+            val uuid = action.performedExerciseUuid
+            val isExpandedNow = uuid in current.expandedExerciseUuids
+            val manualExpanded = current.manualExpandedExerciseUuids.toMutableSet()
+            val manualCollapsed = current.manualCollapsedExerciseUuids.toMutableSet()
+            if (isExpandedNow) {
+                manualExpanded.remove(uuid)
+                manualCollapsed.add(uuid)
+            } else {
+                manualCollapsed.remove(uuid)
+                manualExpanded.add(uuid)
             }
+            // Status is a separate axis and keeps its existing rule: the automaton owns
+            // expansion, `activeExerciseUuids` owns CURRENT-vs-PENDING. Collapsing a card that
+            // has logged sets must not demote it out of CURRENT, which is why this is not a
+            // plain toggle.
+            val activeNext = current.activeExerciseUuids.toMutableSet()
+            if (isExpandedNow && exercise.performedSets.isEmpty() && activeNext.isNotEmpty()) {
+                activeNext.remove(uuid)
+            } else {
+                activeNext.add(uuid)
+            }
+            setMutator.recomputeStatuses(
+                current.copy(
+                    activeExerciseUuids = activeNext.toImmutableSet(),
+                    manualExpandedExerciseUuids = manualExpanded.toImmutableSet(),
+                    manualCollapsedExerciseUuids = manualCollapsed.toImmutableSet(),
+                    hasManualDisclosureAction = true,
+                ),
+            )
         }
     }
 

@@ -82,6 +82,20 @@ internal fun FinishConfirmDialog(
                 label = stringResource(R.string.feature_live_workout_finish_stat_sets),
                 value = stats.setsLoggedLabel,
             )
+            if (stats.unfilledSetCount > 0) {
+                // Stated, never silent (§6.1). An empty row can hold no record and displays
+                // identically to a deliberate zero, so discarding is safe — but the user
+                // still gets told it is happening before they commit.
+                Text(
+                    text = pluralStringResource(
+                        R.plurals.feature_live_workout_finish_unfilled_discarded,
+                        stats.unfilledSetCount,
+                        stats.unfilledSetCount,
+                    ),
+                    style = AppUi.typography.bodySmall,
+                    color = AppUi.colors.textTertiary,
+                )
+            }
             if (stats.newPersonalRecords.isNotEmpty()) {
                 NewPersonalRecordsSection(records = stats.newPersonalRecords)
             }

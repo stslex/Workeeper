@@ -24,7 +24,11 @@ internal object PastSessionUiMapper {
         resourceWrapper: ResourceWrapper,
         prSetUuids: Set<String> = emptySet(),
     ): PastSessionUiModel {
-        val totalSets = exercises.sumOf { it.sets.size }
+        // Unfilled rows (`reps <= 0`) are not work and must not inflate the session summary
+        // (§6.1). No production writer can persist one today, so this is defence-in-depth
+        // over legacy or imported data — the count must agree with the live-session
+        // denominator, which excludes them.
+        val totalSets = exercises.sumOf { exercise -> exercise.sets.count { it.reps > 0 } }
         val activeExercises = exercises.count { !it.skipped }
         val finishedAtLabel = resourceWrapper.formatMediumDate(finishedAt)
         val durationLabel = formatElapsedDuration(finishedAt - startedAt)

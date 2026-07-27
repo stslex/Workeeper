@@ -33,10 +33,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.DiscardSessionConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.empty.AppEmptyState
+import io.github.stslex.workeeper.core.ui.kit.components.rail.AppProgressRail
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
@@ -47,6 +49,7 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.R
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.RailMapper.toRailGroups
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
@@ -59,6 +62,14 @@ import io.github.stslex.workeeper.feature.live_workout.ui.components.LiveExercis
 import io.github.stslex.workeeper.feature.live_workout.ui.components.LiveWorkoutHeader
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
+
+/**
+ * §8's 22px gap above the rail. There is no 22dp rung on the `AppDimension` ladder and §0.1's
+ * round-to-nearest would take it to 24dp; kept at 22dp because the rail's own height is also
+ * off-ladder and the pair reads as one measured block. Flagged with the rail's other
+ * unverified geometry for the device check.
+ */
+private val RAIL_TOP_MARGIN = 22.dp
 
 @Composable
 internal fun LiveWorkoutScreen(
@@ -232,13 +243,20 @@ private fun Body(
             namePlaceholder = stringResource(R.string.feature_live_workout_training_name_placeholder),
             elapsedLabel = state.elapsedDurationLabel,
             progressLabel = state.progressLabel,
-            progress = state.progress,
             isEditingName = state.isTrainingNameEditing,
             nameDraft = state.trainingNameDraft,
             onNameTap = { consume(Action.Click.OnTrainingNameTap) },
             onNameChange = { consume(Action.Click.OnTrainingNameChange(it)) },
             onNameSubmit = { consume(Action.Click.OnTrainingNameSubmit(it)) },
             modifier = activeSessionBannerModifier,
+        )
+        Spacer(Modifier.height(RAIL_TOP_MARGIN))
+        // §14's frame: shead -> rail -> railmeta. The rail supersedes the header's
+        // LinearProgressIndicator — two progress bars for one session would contradict each
+        // other the moment their denominators diverged.
+        AppProgressRail(
+            groups = state.toRailGroups(),
+            modifier = Modifier.padding(horizontal = AppDimension.screenEdge),
         )
         Spacer(Modifier.height(AppDimension.Space.md))
         if (state.exercises.isEmpty()) {
@@ -465,6 +483,9 @@ private fun stubState(): State = State(
     setDrafts = persistentMapOf(),
     activeExerciseUuids = kotlinx.collections.immutable.persistentSetOf(),
     expandedExerciseUuids = kotlinx.collections.immutable.persistentSetOf(),
+    manualExpandedExerciseUuids = kotlinx.collections.immutable.persistentSetOf(),
+    manualCollapsedExerciseUuids = kotlinx.collections.immutable.persistentSetOf(),
+    hasManualDisclosureAction = false,
     preSessionPrSnapshot = persistentMapOf(),
     isAddExerciseInFlight = false,
     isFinishInFlight = false,

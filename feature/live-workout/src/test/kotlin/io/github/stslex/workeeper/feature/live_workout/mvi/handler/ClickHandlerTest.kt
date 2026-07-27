@@ -113,7 +113,15 @@ internal class ClickHandlerTest {
         handler.invoke(Action.Click.OnExerciseHeaderClick("pe-2"))
 
         assertEquals(persistentSetOf("pe-2"), stateFlow.value.activeExerciseUuids)
-        assertEquals(persistentSetOf("pe-2"), stateFlow.value.expandedExerciseUuids)
+        // §7: manual expansions are ADDITIVE, not exclusive. pe-2 opens because the user
+        // asked for it (rule 3); pe-1 stays open because it still holds the auto slot as the
+        // first unfinished card with no progress (rule 6). Before the disclosure automaton
+        // this asserted {pe-2} alone, which was the handler overwriting the auto rule rather
+        // than adding to it.
+        assertEquals(
+            setOf("pe-1", "pe-2"),
+            stateFlow.value.expandedExerciseUuids.toSet(),
+        )
         // Status of pe-2 flips to CURRENT after recompute.
         val pe2 = stateFlow.value.exercises.first { it.performedExerciseUuid == "pe-2" }
         assertEquals(ExerciseStatusUiModel.CURRENT, pe2.status)

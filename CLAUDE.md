@@ -110,19 +110,39 @@ cancel/finish path, and the cascade-delete predicate.
   list (`pagedActive`, `getAllActive`, `pagedActiveByTags`, `getRecentlyTrainedExercises`
   all filter `is_adhoc = 0`). The only surface that loads it is the active session's
   `TrainingExerciseEntity` join.
-- **Graduate.** On session finish, every plan-attached exercise flips to `is_adhoc = 0`
-  inside the `finishSessionAtomic` transaction (`exerciseDao.graduateAdhocForTraining`).
-  After graduate the row is indistinguishable from a library entry.
+- **Graduate.** On session finish, every exercise **performed in the session** flips to
+  `is_adhoc = 0` inside the `finishSessionAtomic` transaction
+  (`exerciseDao.graduateAdhocForSession`). After graduate the row is indistinguishable
+  from a library entry.
 - **Delete (defence-in-depth).** Cancel / empty-finish-Discard for an ad-hoc training
   cascades through `SessionRepository.discardAdhocSession` — session + training +
   inline-created exercise rows in one transaction. The DAO cascade-delete query
-  filters by **both** `is_adhoc = 1` **AND** join via `training_exercise_table` for the
-  cancelled training, so library exercises picked into the session (their
+  filters by **both** `is_adhoc = 1` **AND** join via `performed_exercise_table` for the
+  cancelled session, so library exercises picked into the session (their
   `is_adhoc = 0`) are never deleted.
+
+Both predicates join through `performed_exercise_table`, **not** `training_exercise_table`.
+That changed in v3 step 5: a one-off (non-plan-attached) exercise has no plan row by
+construction, so a plan-table join stranded every inline-created one-off at `is_adhoc = 1` —
+permanently invisible to `pagedActive` — and left it behind on cancel. Session membership is
+the honest predicate, and it is a superset of the old one for plan-attached exercises.
 
 Rule: every new exercise list query (paged, observable, search) must filter
 `is_adhoc = 0`. The only acceptable exception is when a query needs all rows for a
 specific defensive reason — document it inline.
+
+## `plan-attached` is a second, independent axis (v3 §6.2)
+
+`is_adhoc` describes the **exercise** ("created inline"). `plan-attached` describes the
+**exercise↔training relation** ("is in this training's saved plan"), and is encoded as the
+**presence of a `training_exercise_table` row** — no column, no migration. Never conflate
+them: a library exercise with `is_adhoc = 0` added mid-session as a one-off is not ad-hoc by
+any definition, yet it is not plan-attached.
+
+Read the flag from **key presence** in `TrainingExerciseRepository.getPlans`, never from plan
+nullability: a row with `plan_sets IS NULL` is attached-with-no-plan, which is a third state.
+`map[uuid] == null` cannot tell it apart from an absent key — use `containsKey`. See
+`LiveExerciseDomain.isPlanAttached`.
 
 ## Read-path pattern: batch DAO + Kotlin-side groupBy
 

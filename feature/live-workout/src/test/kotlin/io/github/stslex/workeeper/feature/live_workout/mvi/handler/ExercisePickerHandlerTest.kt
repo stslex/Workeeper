@@ -129,6 +129,7 @@ internal class ExercisePickerHandlerTest {
         } returns AddExerciseResult(
             performedExerciseUuid = "pe-inline-1",
             planSets = null,
+            isPlanAttached = true,
         )
 
         val handler = ExercisePickerHandler(
@@ -168,6 +169,7 @@ internal class ExercisePickerHandlerTest {
         } returns AddExerciseResult(
             performedExerciseUuid = "pe-library-1",
             planSets = null,
+            isPlanAttached = true,
         )
 
         val handler = ExercisePickerHandler(

@@ -7,6 +7,8 @@ import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExercisePickerAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.DisclosureAutomaton
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
 import kotlinx.collections.immutable.ImmutableList
@@ -47,11 +49,27 @@ interface LiveWorkoutStore :
          */
         val activeExerciseUuids: ImmutableSet<String>,
         /**
-         * UUIDs the user has explicitly toggled expanded. Covers both DONE rows the user
-         * pulled open and CURRENT rows the user collapsed/re-expanded. Pruned by
-         * `recomputeStatuses` when an exercise transitions out of DONE/CURRENT.
+         * The expanded set — an OUTPUT, written only by `DisclosureAutomaton.resolve`. Never
+         * mutate it directly; change the intent fields below and let the automaton recompute,
+         * or the §7 transition table stops being the single description of this behaviour.
          */
         val expandedExerciseUuids: ImmutableSet<String>,
+        /**
+         * Cards the user explicitly opened. Additive and sticky for the screen session.
+         * Rule 3 of the §7 table.
+         */
+        val manualExpandedExerciseUuids: ImmutableSet<String>,
+        /**
+         * Cards the user explicitly closed. Beats every automatic rule. Rule 2 of the table.
+         */
+        val manualCollapsedExerciseUuids: ImmutableSet<String>,
+        /**
+         * Set by the first manual expand/collapse, never cleared while the screen lives.
+         * Mutes the auto-collapse rule so the automaton stops closing anything the user did
+         * not close themselves (§7: "after the first manual action the auto rule stops
+         * collapsing anything").
+         */
+        val hasManualDisclosureAction: Boolean,
         val preSessionPrSnapshot: ImmutableMap<String, PrSnapshotItem>,
         val isAddExerciseInFlight: Boolean,
         val isFinishInFlight: Boolean,
@@ -78,12 +96,31 @@ interface LiveWorkoutStore :
 
         val elapsedMillis: Long get() = (nowMillis - startedAt).coerceAtLeast(0L)
 
+        /** The three manual-intent fields bundled for `DisclosureAutomaton.resolve` (§7). */
+        internal val disclosureIntent: DisclosureAutomaton.DisclosureIntent
+            get() = DisclosureAutomaton.DisclosureIntent(
+                expanded = manualExpandedExerciseUuids,
+                collapsed = manualCollapsedExerciseUuids,
+                hasManualAction = hasManualDisclosureAction,
+            )
+
         /**
          * "Empty session" predicate driving the E1 confirm dialog: no exercises at all,
          * or every exercise has zero performed sets.
          */
         val isSessionEmpty: Boolean
             get() = exercises.isEmpty() || exercises.all { it.performedSets.isEmpty() }
+
+        /**
+         * Visible rows the user never filled in, across every non-skipped exercise. Surfaced
+         * in `FinishConfirmDialog` so the discard at finish is stated rather than silent
+         * (§6.1). Skipped exercises are excluded — their rows are already outside the
+         * progress denominator, so counting them would overstate the loss.
+         */
+        val unfilledSetCount: Int
+            get() = exercises
+                .filter { it.status != ExerciseStatusUiModel.SKIPPED }
+                .sumOf { exercise -> exercise.visibleSets.count { it.isUnfilled } }
 
         /**
          * Throttle gate for the mid-session add-exercise CTA. False during an in-flight
@@ -128,6 +165,9 @@ interface LiveWorkoutStore :
                 setDrafts = persistentMapOf(),
                 activeExerciseUuids = persistentSetOf(),
                 expandedExerciseUuids = persistentSetOf(),
+                manualExpandedExerciseUuids = persistentSetOf(),
+                manualCollapsedExerciseUuids = persistentSetOf(),
+                hasManualDisclosureAction = false,
                 preSessionPrSnapshot = persistentMapOf(),
                 isAddExerciseInFlight = false,
                 isFinishInFlight = false,

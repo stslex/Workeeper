@@ -83,23 +83,42 @@ class LiveWorkoutInteractorImpl internal constructor(
         val planByExerciseDeferred = async {
             val exerciseUuids = performedRows.map { it.exerciseUuid }
             if (trainingDeferred.await()?.isAdhoc == true) {
-                exerciseRepository.getAdhocPlans(exerciseUuids)
+                // An ad-hoc training has no template to attach to, so every exercise in it
+                // is plan-attached by convention — there is nothing a one-off could differ
+                // from. The plan lives on the exercise itself.
+                PlanLookup(
+                    plansByExercise = exerciseRepository.getAdhocPlans(exerciseUuids)
+                        .mapValues { (_, plan) -> plan?.map { it.toDomain() } },
+                    planAttachedUuids = exerciseUuids.toSet(),
+                )
             } else {
                 val trainingPlans = trainingExerciseRepository.getPlans(
                     trainingUuid = session.trainingUuid,
                     exerciseUuids = exerciseUuids,
                 )
-                // Read-time fallback for legacy null planSets. Resolve only for null entries
-                // (empty list = deliberately cleared by the user, preserved as empty).
+                // Key presence is the plan-attached flag (v3 §6.2) — absence of the
+                // `training_exercise_table` row is the whole encoding. This must be read with
+                // `containsKey`, never with a null check: `map[k] == null` is also true for a
+                // row that exists with `plan_sets IS NULL`, which is attached-with-no-plan and
+                // a different state. See TrainingExerciseRepository.getPlans.
+                val planAttachedUuids = exerciseUuids.filterTo(mutableSetOf()) { uuid ->
+                    trainingPlans.containsKey(uuid)
+                }
+                // Read-time fallback for legacy null planSets. Resolve only for attached rows
+                // whose plan is null (empty list = deliberately cleared by the user, preserved
+                // as empty) and for one-offs, which have no plan row to read at all.
                 val nullExerciseUuids = exerciseUuids.filter { trainingPlans[it] == null }
                 val fallbacks = if (nullExerciseUuids.isNotEmpty()) {
                     exerciseRepository.getAdhocPlans(nullExerciseUuids)
                 } else {
                     emptyMap()
                 }
-                exerciseUuids.associateWith { uuid ->
-                    trainingPlans[uuid] ?: fallbacks[uuid]
-                }
+                PlanLookup(
+                    plansByExercise = exerciseUuids.associateWith { uuid ->
+                        (trainingPlans[uuid] ?: fallbacks[uuid])?.map { it.toDomain() }
+                    },
+                    planAttachedUuids = planAttachedUuids,
+                )
             }
         }
 
@@ -124,9 +143,10 @@ class LiveWorkoutInteractorImpl internal constructor(
                 LiveExerciseDomain(
                     performed = row.toDomain(exerciseName = template.name),
                     exerciseType = template.type.toDomain(),
-                    planSets = planByExercise[row.exerciseUuid]?.map { it.toDomain() },
+                    planSets = planByExercise.plansByExercise[row.exerciseUuid],
                     performedSets = performedSetsByPerformed[row.uuid].orEmpty()
                         .map { it.toDomain() },
+                    isPlanAttached = row.exerciseUuid in planByExercise.planAttachedUuids,
                 )
             }
         // Q6 lock — pre-session snapshot scope. We collect the PR map exactly once here and
@@ -200,18 +220,56 @@ class LiveWorkoutInteractorImpl internal constructor(
         var setsLogged = 0
         var doneCount = 0
         var skippedCount = 0
+        val discardedSetUuids = mutableListOf<String>()
+
+        // Key presence is the plan-attached flag — see TrainingExerciseRepository.getPlans.
+        // Read once for the whole session rather than per row. Empty for an ad-hoc training,
+        // where the plan lives on the exercise and the axis does not apply.
+        val planAttachedUuids = if (isAdhoc) {
+            emptySet()
+        } else {
+            trainingExerciseRepository
+                .getPlans(
+                    trainingUuid = session.trainingUuid,
+                    exerciseUuids = performedRows.await().map { it.exerciseUuid },
+                )
+                .keys
+        }
 
         for (row in performedRows.await()) {
             if (row.skipped) {
                 skippedCount++
                 continue
             }
-            val performedSets = setRepository
+            // Unfilled sets are discarded at finish (§6.1). Measured on this tree: no
+            // production writer can persist `reps <= 0` — `SetRepository.upsert` is reached
+            // only through `ClickHandler.processSetMarkDone`, which rejects `reps <= 0`, and
+            // `SetRepository.update` only through past-session's `InputHandler`, which
+            // requires `parsed > 0`. So this partition is defence-in-depth over legacy or
+            // imported rows and normally finds nothing. It is here because the invariant is
+            // otherwise enforced only by two UI validators agreeing, with nothing at the data
+            // layer to stop a third writer from breaking it silently.
+            val (filledSets, unfilledSets) = setRepository
                 .getByPerformedExercise(row.uuid)
-                .map { it.toDomain().toPlanSet() }
+                .map { it.toDomain() }
+                .partition { it.reps > 0 }
+            // Collected, NOT deleted here: the deletion happens inside `finishSessionAtomic`
+            // so a failed finish rolls it back with everything else. Deleting at this point
+            // would destroy the rows even when the finish is reported as failed and the
+            // session stays active.
+            discardedSetUuids += unfilledSets.map { it.uuid }
+            val performedSets = filledSets.map { it.toPlanSet() }
             setsLogged += performedSets.size
             if (performedSets.isNotEmpty()) doneCount += 1
-            val existingPlan = if (isAdhoc) {
+            // A one-off has no plan row, so a template write would silently match zero rows
+            // and the sets the user just logged would be persisted nowhere. Route it to the
+            // exercise's own `last_adhoc_sets` instead — which is also where the read-time
+            // fallback in `loadSession` will look for it next time. `PlanUpdate.isAdhoc`
+            // already means "write to the exercise, not the training", so the one-off case
+            // needs no new field, only the right value.
+            val isPlanAttached = isAdhoc || row.exerciseUuid in planAttachedUuids
+            val writesToExercise = !isPlanAttached || isAdhoc
+            val existingPlan = if (writesToExercise) {
                 exerciseRepository.getAdhocPlan(row.exerciseUuid)
             } else {
                 trainingExerciseRepository
@@ -227,7 +285,7 @@ class LiveWorkoutInteractorImpl internal constructor(
             planUpdates += PlanUpdate(
                 trainingUuid = session.trainingUuid,
                 exerciseUuid = row.exerciseUuid,
-                isAdhoc = isAdhoc,
+                isAdhoc = writesToExercise,
                 newPlan = nextPlan,
             )
         }
@@ -237,6 +295,7 @@ class LiveWorkoutInteractorImpl internal constructor(
             finishedAt = finishedAt,
             planUpdates = planUpdates,
             newTrainingName = newTrainingName,
+            discardedSetUuids = discardedSetUuids,
         )
         if (!applied) return@withContext null
         FinishResult(
@@ -245,6 +304,7 @@ class LiveWorkoutInteractorImpl internal constructor(
             totalCount = performedRows.await().size,
             skippedCount = skippedCount,
             setsLogged = setsLogged,
+            discardedUnfilledSets = discardedSetUuids.size,
         )
     }
 
@@ -281,15 +341,18 @@ class LiveWorkoutInteractorImpl internal constructor(
         sessionUuid: String,
         trainingUuid: String,
         exerciseUuid: String,
+        attachToPlan: Boolean,
     ): AddExerciseResult = withContext(defaultDispatcher) {
         val result = sessionRepository.addExerciseToActiveSession(
             sessionUuid = sessionUuid,
             trainingUuid = trainingUuid,
             exerciseUuid = exerciseUuid,
+            attachToPlan = attachToPlan,
         )
         AddExerciseResult(
             performedExerciseUuid = result.performedExerciseUuid,
             planSets = result.planSets?.map { it.toDomain() },
+            isPlanAttached = result.isPlanAttached,
         )
     }
 
@@ -373,4 +436,15 @@ class LiveWorkoutInteractorImpl internal constructor(
             reps = reps,
             type = type,
         )
+
+    /**
+     * The two things a plan read yields, kept together so the plan-attached flag cannot drift
+     * from the plans it was derived alongside. [planAttachedUuids] is derived from key
+     * presence in the repository map, not from plan nullability — see
+     * `LiveExerciseDomain.isPlanAttached`.
+     */
+    private data class PlanLookup(
+        val plansByExercise: Map<String, List<PlanSetDomain>?>,
+        val planAttachedUuids: Set<String>,
+    )
 }
