@@ -145,6 +145,9 @@ accompanist-systemuicontroller = { module = "com.google.accompanist:accompanist-
 kermit = { group = "co.touchlab", name = "kermit", version.ref = "kermit" }
 
 junit-bom = { group = "org.junit", name = "junit-bom", version.ref = "junit" }
+# The Paparazzi runtime as a plain artifact. The plugin puts it on `testImplementation` only,
+# so the shared golden harness in core:ui:kit's testFixtures needs it named explicitly.
+paparazzi-core = { group = "app.cash.paparazzi", name = "paparazzi", version.ref = "paparazzi" }
 junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter" }
 junit-launcher = { group = "org.junit.platform", name = "junit-platform-launcher" }
 mockk-android = { group = "io.mockk", name = "mockk-android", version.ref = "mockk" }

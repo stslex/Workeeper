@@ -12,7 +12,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
  * so that a golden which *forgets* to paint its background produces an obviously wrong image
  * rather than a plausible one.
  */
-internal enum class GoldenTheme(
+enum class GoldenTheme(
     val themeMode: ThemeMode,
     val windowTheme: String,
     /** Becomes the trailing segment of the golden file name. */

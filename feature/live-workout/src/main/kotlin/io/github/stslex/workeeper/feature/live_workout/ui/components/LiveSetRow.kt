@@ -16,12 +16,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppCheckmarkButton
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppNumberInput
+import io.github.stslex.workeeper.core.ui.kit.components.motion.rememberSetClosureVisuals
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordBadge
 import io.github.stslex.workeeper.core.ui.kit.components.pr.personalRecordAccent
 import io.github.stslex.workeeper.core.ui.kit.components.setchip.AppSetTypeChip
@@ -35,6 +37,12 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
 private const val WEIGHT_COLUMN_FLEX = 1.2f
+
+/**
+ * The flash never reaches full opacity — it is a wash over the row, not a repaint of it. The
+ * automaton's `flashAlpha` decays 1 -> 0 and this scales that envelope.
+ */
+private const val FLASH_PEAK_ALPHA = 0.13f
 
 @Suppress("LongParameterList")
 @Composable
@@ -50,6 +58,10 @@ internal fun LiveSetRow(
     modifier: Modifier = Modifier,
     testTagPrefix: String? = null,
 ) {
+    // §9's merged automaton, one instance for the whole row: the mark's morph, this row's
+    // flash and the rail segment all resolve from the same closure, with `isRecord` selecting
+    // `molten` over `max` rather than selecting a second animation.
+    val closure = rememberSetClosureVisuals(isDone = set.isDone, isRecord = set.isPersonalRecord)
     val rowBg by animateColorAsState(
         targetValue = if (set.isDone) {
             AppUi.colors.surfaceTier4
@@ -70,6 +82,14 @@ internal fun LiveSetRow(
         .fillMaxWidth()
         .height(AppDimension.heightLg)
         .background(rowBg)
+        // The flash. A COLOUR value, so it is driven by `out` and never by the overshooting
+        // `spring` — an alpha lerped past 1.0 clamps, and the wash would read as a hard cut.
+        .drawWithContent {
+            drawContent()
+            if (closure.flashAlpha > 0f) {
+                drawRect(color = closure.accent, alpha = closure.flashAlpha * FLASH_PEAK_ALPHA)
+            }
+        }
         .personalRecordAccent(color = accentColor)
         .padding(horizontal = AppDimension.Space.md)
     Row(
@@ -123,6 +143,7 @@ internal fun LiveSetRow(
                 Modifier
             },
             isDone = set.isDone,
+            isRecord = set.isPersonalRecord,
             enabled = true,
             onToggle = { if (set.isDone) onUncheck() else onMarkDone() },
         )

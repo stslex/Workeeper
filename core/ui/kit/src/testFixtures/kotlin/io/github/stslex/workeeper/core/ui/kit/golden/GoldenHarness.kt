@@ -64,10 +64,10 @@ import org.junit.jupiter.api.TestInfo
  */
 
 /** Default resource locale. The Cyrillic golden overrides it to [LOCALE_RU]. */
-internal const val LOCALE_EN: String = "en"
+const val LOCALE_EN: String = "en"
 
 /** Resolves `values-ru`, so the Cyrillic golden renders shipped translations, not literals. */
-internal const val LOCALE_RU: String = "ru"
+const val LOCALE_RU: String = "ru"
 
 /**
  * Pixel 5 — measured, not assumed: 1080×2340, 440 dpi (`xdpi = 442`, `ydpi = 444`),
@@ -78,7 +78,7 @@ internal const val LOCALE_RU: String = "ru"
  * `fontScale` is pinned rather than inherited: a machine defaulting to anything else would
  * silently re-flow every string in every golden.
  */
-internal val GOLDEN_DEVICE: DeviceConfig = DeviceConfig.PIXEL_5.copy(
+val GOLDEN_DEVICE: DeviceConfig = DeviceConfig.PIXEL_5.copy(
     fontScale = 1.0f,
     locale = LOCALE_EN,
     softButtons = false,
@@ -92,7 +92,7 @@ internal val GOLDEN_DEVICE: DeviceConfig = DeviceConfig.PIXEL_5.copy(
  * the commonly copied `0.1` would have waved that mutation through. If a golden ever flakes,
  * that is a finding about render nondeterminism to be reported — never a reason to raise this.
  */
-internal fun golden(
+fun golden(
     testInfo: TestInfo,
     theme: GoldenTheme,
     locale: String = LOCALE_EN,
@@ -150,7 +150,7 @@ internal fun golden(
  * surface it is *supposed* to sit on, passed by the caller as [surface]: a section on the page and
  * a sheet layout on the sheet's own tier are different pictures, and the golden should say which.
  */
-internal fun goldenSubject(
+fun goldenSubject(
     testInfo: TestInfo,
     theme: GoldenTheme,
     locale: String = LOCALE_EN,
@@ -193,12 +193,20 @@ internal fun goldenSubject(
  */
 private val SUBJECT_WIDTH: Dp = 392.dp
 
-/** Golden file names are `<package>_<Class>_<method>_<snapshot name>.png`. */
+/**
+ * Golden file names are `<package>_<Class>_<method>_<snapshot name>.png`.
+ *
+ * Reads the package via `Class.getPackage()` rather than `Class.getPackageName()`. The latter
+ * is API 31 and this file lives in a `testFixtures` source set, which Android Lint scopes at
+ * the module's minSdk of 28 — even though the code only ever runs on the host JVM under
+ * Paparazzi. Using the API-1 call is a fix rather than a suppression, and the two return the
+ * same string for any class loaded from a named package.
+ */
 private fun TestInfo.toTestName(): TestName {
     val testClass = testClass.orElseThrow { IllegalStateException("golden() needs a test class") }
     val testMethod = testMethod.orElseThrow { IllegalStateException("golden() needs a test method") }
     return TestName(
-        packageName = testClass.packageName,
+        packageName = testClass.`package`?.name.orEmpty(),
         className = testClass.simpleName,
         methodName = testMethod.name,
     )
