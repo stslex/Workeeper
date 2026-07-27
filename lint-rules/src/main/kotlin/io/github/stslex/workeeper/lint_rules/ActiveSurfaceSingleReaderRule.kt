@@ -9,6 +9,7 @@ import io.gitlab.arturbosch.detekt.api.Issue
 import io.gitlab.arturbosch.detekt.api.Rule
 import io.gitlab.arturbosch.detekt.api.Severity
 import org.jetbrains.kotlin.psi.KtCallExpression
+import org.jetbrains.kotlin.psi.KtFile
 
 /**
  * `AppActiveSurface` has exactly one permitted call site.
@@ -35,6 +36,13 @@ import org.jetbrains.kotlin.psi.KtCallExpression
  * So the rule deliberately **does not know how raisedness is expressed**. Shadow, border, surface
  * tone, scale, a shader — the mechanism changes inside `AppActiveSurface` and this rule never
  * learns about it. What it enforces is that there is one of them.
+ *
+ * ## One call site, not one file
+ *
+ * The rule counts calls *within* the permitted file too. Returning early once the path matched —
+ * the obvious implementation — would have made this a "one permitted file" rule, under which
+ * `LiveExerciseCard` could raise two surfaces and stay green. Being the right file does not license
+ * a second call in it.
  *
  * ## Widening the permitted set is meant to hurt slightly
  *
@@ -66,26 +74,53 @@ class ActiveSurfaceSingleReaderRule(config: Config = Config.empty) : Rule(config
         debt = Debt.TWENTY_MINS,
     )
 
+    /**
+     * Calls seen so far in the file currently being visited.
+     *
+     * The count is what makes this a *one call site* rule rather than a *one file* rule. Returning
+     * early on a permitted path — the obvious implementation, and the one this rule shipped with
+     * first — lets the permitted file hold two raised surfaces and stay green, which is precisely
+     * the invariant the rule exists to defend.
+     *
+     * Detekt constructs one rule instance and visits files sequentially through [visitKtFile], so a
+     * per-file counter reset there is safe.
+     */
+    private var callsInFile = 0
+
+    override fun visitKtFile(file: KtFile) {
+        callsInFile = 0
+        super.visitKtFile(file)
+    }
+
     override fun visitCallExpression(expression: KtCallExpression) {
         super.visitCallExpression(expression)
 
         if (expression.calleeExpression?.text != ACTIVE_SURFACE) return
 
         val path = expression.containingKtFile.virtualFilePath.replace('\\', '/')
-        if (EXEMPT_PATHS.any { exempt -> path.contains(exempt) }) return
-        if (PERMITTED_READERS.any { permitted -> path.endsWith(permitted) }) return
+        callsInFile++
 
-        report(
-            CodeSmell(
-                issue = issue,
-                entity = Entity.from(expression),
-                message = "$ACTIVE_SURFACE is called here, but the only permitted reader is " +
-                    "${PERMITTED_READERS.single()}. Exactly one element in the app may read as " +
-                    "the active surface. If this call site is genuinely the app's one active " +
-                    "surface, move the existing one and update PERMITTED_READERS in " +
-                    "ActiveSurfaceSingleReaderRule.",
-            ),
-        )
+        // Renders the component without putting a second raised surface in front of a user: the
+        // declaring file's own preview, and the kit's goldens. Counting is pointless here — a
+        // golden suite legitimately snapshots the same component several times.
+        if (EXEMPT_FILES.any { exempt -> path.endsWith(exempt) }) return
+        if (EXEMPT_DIRECTORIES.any { exempt -> path.contains(exempt) }) return
+
+        val permitted = PERMITTED_READERS.any { reader -> path.endsWith(reader) }
+        if (permitted && callsInFile == 1) return
+
+        val message = if (permitted) {
+            "$ACTIVE_SURFACE is called ${callsInFile} times in this file, and it is the app's " +
+                "one permitted reader. Exactly one element in the app may read as the active " +
+                "surface — being the right file does not license a second call in it."
+        } else {
+            "$ACTIVE_SURFACE is called here, but the only permitted reader is " +
+                "${PERMITTED_READERS.single()}. Exactly one element in the app may read as " +
+                "the active surface. If this call site is genuinely the app's one active " +
+                "surface, move the existing one and update PERMITTED_READERS in " +
+                "ActiveSurfaceSingleReaderRule."
+        }
+        report(CodeSmell(issue = issue, entity = Entity.from(expression), message = message))
     }
 
     private companion object {
@@ -107,15 +142,27 @@ class ActiveSurfaceSingleReaderRule(config: Config = Config.empty) : Rule(config
         )
 
         /**
-         * Paths where a call is not a *reader* in the sense this rule cares about.
+         * The declaring file, which previews itself.
          *
-         * The declaring file previews itself, and the goldens render it — neither puts a second
-         * raised surface in front of a user, which is the thing being counted. Matching on the
-         * component's own package rather than on "any test source" keeps the exemption narrow:
-         * a feature module's test that raised a second surface would still be flagged.
+         * An **exact file**, not its package. A package prefix would exempt any future file
+         * dropped into `components/surface/`, which is a second way to hold two raised surfaces
+         * and keep the gate green.
          */
-        val EXEMPT_PATHS = listOf(
-            "core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/components/surface/",
+        val EXEMPT_FILES = listOf(
+            "core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/components/" +
+                "surface/AppActiveSurface.kt",
+        )
+
+        /**
+         * The kit's goldens.
+         *
+         * A directory rather than a file list, and deliberately so: everything under it is a
+         * snapshot written to disk, not a screen, so it cannot put a second raised surface in
+         * front of a user however many times it renders one. A new golden should not need a rule
+         * edit. It is scoped to the *kit's* golden package, so a feature module's test that raised
+         * a second surface is still flagged — see the test that asserts exactly that.
+         */
+        val EXEMPT_DIRECTORIES = listOf(
             "core/ui/kit/src/test/kotlin/io/github/stslex/workeeper/core/ui/kit/golden/",
         )
     }

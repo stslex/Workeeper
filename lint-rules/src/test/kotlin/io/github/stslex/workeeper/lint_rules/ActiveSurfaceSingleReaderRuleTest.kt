@@ -110,13 +110,61 @@ internal class ActiveSurfaceSingleReaderRuleTest {
         assertEquals(2, findings.size, "Each offending call site is reported.")
     }
 
+    @Test
+    fun `a second call inside the permitted reader is flagged`() {
+        val findings = rule.lintAt(
+            path = PERMITTED_READER,
+            content = """
+            package io.github.stslex.workeeper.feature.live_workout.ui.components
+
+            @Composable
+            fun LiveExerciseCard() {
+                AppActiveSurface { Text("current") }
+                AppActiveSurface { Text("also current") }
+            }
+            """.trimIndent(),
+        )
+
+        assertEquals(
+            1,
+            findings.size,
+            "The first call is the permitted one; the second is a second raised surface.",
+        )
+        assertTrue(
+            findings.first().message.contains("does not license"),
+            "The message must say why being the right file is not enough.",
+        )
+    }
+
+    @Test
+    fun `a new file dropped into the surface package is flagged`() {
+        val findings = rule.lintAt(
+            path = "core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/" +
+                "components/surface/AnotherRaisedThing.kt",
+            content = """
+            package io.github.stslex.workeeper.core.ui.kit.components.surface
+
+            @Composable
+            fun AnotherRaisedThing() {
+                AppActiveSurface { Text("smuggled in") }
+            }
+            """.trimIndent(),
+        )
+
+        assertEquals(
+            1,
+            findings.size,
+            "The exemption is the declaring file itself, not its package — otherwise a new " +
+                "file next to it is an unguarded way to raise a second surface.",
+        )
+    }
+
     // ---- known-POSITIVE anchors: the intended usage must not be flagged ----
 
     @Test
     fun `the permitted reader passes`() {
         val findings = rule.lintAt(
-            path = "feature/live-workout/src/main/kotlin/io/github/stslex/workeeper/feature/" +
-                "live_workout/ui/components/LiveExerciseCard.kt",
+            path = PERMITTED_READER,
             content = """
             package io.github.stslex.workeeper.feature.live_workout.ui.components
 
@@ -219,4 +267,11 @@ internal class ActiveSurfaceSingleReaderRuleTest {
         path: String,
         content: String,
     ) = lint(compileContentForTest(content, path))
+
+    private companion object {
+
+        const val PERMITTED_READER =
+            "feature/live-workout/src/main/kotlin/io/github/stslex/workeeper/feature/" +
+                "live_workout/ui/components/LiveExerciseCard.kt"
+    }
 }

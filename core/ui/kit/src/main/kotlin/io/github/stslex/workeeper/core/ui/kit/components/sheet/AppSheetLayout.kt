@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
@@ -21,8 +19,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
+import io.github.stslex.workeeper.core.ui.kit.R
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
 import io.github.stslex.workeeper.core.ui.kit.components.section.AppSectionDivider
@@ -32,7 +31,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 
 /**
- * The anatomy of a bottom sheet's **contents**: grab handle, title, then content.
+ * The anatomy of a bottom sheet's **contents**: title, then content.
  *
  * ## Why this is separate from [AppBottomSheet]
  *
@@ -47,11 +46,20 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
  * dismissal, and how tall the sheet settles. Those are on the PR's manual checklist, and that
  * split is the point rather than an omission.
  *
- * ## The scrim
+ * ## What the window owns: the scrim AND the grab handle
  *
- * Not drawn here. It belongs to the window, and Material paints it. Naming it in the anatomy but
- * not owning it is deliberate: a caller that hand-rolls a scrim inside the sheet gets a scrim
- * *under the sheet's own content*, which is the bug this note exists to prevent.
+ * Neither is drawn here, for the same reason. Both are affordances for gestures the *window*
+ * handles — the scrim dismisses on tap, the handle affords dragging the sheet — so drawing either
+ * one in the content means drawing an affordance for a gesture the content cannot service.
+ *
+ * The handle is the easier of the two to get wrong, and this layout got it wrong first:
+ * `ModalBottomSheet` declares `dragHandle: @Composable (() -> Unit)? = { BottomSheetDefaults
+ * .DragHandle() }`, and [AppBottomSheet] does not override it. A handle drawn here would therefore
+ * be the *second* one in every sheet, sitting under Material's. Read out of the Material 3
+ * 1.5.0-alpha15 sources rather than assumed.
+ *
+ * So the anatomy names four layers and this composable owns the last two: scrim and handle belong
+ * to the window; title and content belong here.
  *
  * ## The three forms
  *
@@ -71,9 +79,11 @@ fun AppSheetLayout(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(bottom = AppDimension.Space.xl),
+            .padding(
+                top = AppDimension.Space.sm,
+                bottom = AppDimension.Space.xl,
+            ),
     ) {
-        GrabHandle()
         title?.let { text ->
             Row(
                 modifier = Modifier
@@ -92,7 +102,12 @@ fun AppSheetLayout(
                         Icon(
                             modifier = Modifier.size(AppDimension.iconSm),
                             imageVector = Icons.Default.Close,
-                            contentDescription = null,
+                            // Labelled, not decorative: when `onClose` is supplied this icon is
+                            // the sheet's only close affordance, so a null description leaves a
+                            // TalkBack user with an unlabelled button and no way to know what it
+                            // does. The glyph carries the whole meaning, which is exactly when a
+                            // content description is mandatory rather than noise.
+                            contentDescription = stringResource(R.string.core_ui_kit_sheet_close),
                             tint = AppUi.colors.textTertiary,
                         )
                     }
@@ -101,34 +116,6 @@ fun AppSheetLayout(
             Spacer(modifier = Modifier.height(AppDimension.Space.md))
         }
         content()
-    }
-}
-
-/**
- * The drag affordance. 36x4 in the mockup (`pass2d.html:191`); 36.dp x 4.dp here, which is
- * [AppDimension.Space.xs] tall and on the ladder.
- *
- * `borderSubtle` rather than a control outline: the handle is a hint, not the control. The sheet is
- * draggable by its whole surface, so nothing is lost if the handle is barely visible — which is
- * also why it takes no contrast threshold.
- */
-@Composable
-private fun GrabHandle(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = AppDimension.Space.md),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Spacer(
-            modifier = Modifier
-                .width(GRAB_HANDLE_WIDTH)
-                .height(AppDimension.Space.xs)
-                .background(
-                    color = AppUi.colors.borderSubtle,
-                    shape = RoundedCornerShape(AppDimension.Radius.smallest),
-                ),
-        )
     }
 }
 
@@ -213,8 +200,6 @@ fun AppSheetConfirmContent(
         }
     }
 }
-
-private val GRAB_HANDLE_WIDTH = 36.dp
 
 @Preview(name = "Light", showBackground = true)
 @Preview(
