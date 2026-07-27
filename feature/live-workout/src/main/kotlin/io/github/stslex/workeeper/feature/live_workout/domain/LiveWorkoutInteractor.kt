@@ -28,19 +28,28 @@ interface LiveWorkoutInteractor {
     ): AdhocSessionResult
 
     /**
-     * Atomically appends [exerciseUuid] to the active session's plan and performed list.
-     * Per H1 (mid-session changes mutate the plan permanently), the plan row written here
-     * survives session finish even if no sets are logged for it. The plan row's plan_sets
-     * is seeded from `exercise.last_adhoc_sets` so picking a library row with history
-     * surfaces the user's last-logged sets as a baseline.
+     * Atomically appends [exerciseUuid] to the active session's performed list, and to the
+     * training's plan **only when [attachToPlan] is true**.
      *
-     * Returns the new performed-exercise UUID and the parsed plan list so the picker
-     * handler can stitch the row directly into `State.exercises` without re-loading.
+     * [attachToPlan] is the write half of the plan-attached axis (v3 §6.2); see
+     * [LiveExerciseDomain.isPlanAttached] for why this is not `is_adhoc`. With `true` the
+     * historical H1 behaviour holds — the plan row survives session finish even if no sets
+     * are logged. With `false` the exercise is a one-off: it is fully part of this session
+     * and counts toward progress, but the saved training template is left untouched, so the
+     * next session does not inherit it.
+     *
+     * The plan_sets baseline is seeded from `exercise.last_adhoc_sets` on **both** paths, so
+     * picking a library row with history surfaces the user's last-logged sets either way.
+     *
+     * Returns the new performed-exercise UUID, the parsed plan list, and whether a plan row
+     * was written, so the picker handler can stitch the row directly into `State.exercises`
+     * without re-loading.
      */
     suspend fun addExerciseToActiveSession(
         sessionUuid: String,
         trainingUuid: String,
         exerciseUuid: String,
+        attachToPlan: Boolean = true,
     ): AddExerciseResult
 
     /**

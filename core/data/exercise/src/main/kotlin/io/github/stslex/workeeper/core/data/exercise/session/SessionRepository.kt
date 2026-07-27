@@ -108,10 +108,18 @@ interface SessionRepository {
     ): AdhocSessionResult
 
     /**
-     * Atomically attaches [exerciseUuid] to the active session: writes a
-     * `training_exercise_table` plan row and a `performed_exercise_table` row at the next
-     * position. Used both for inline-created (`is_adhoc = true`) exercises and for library
-     * picks.
+     * Atomically attaches [exerciseUuid] to the active session: always writes a
+     * `performed_exercise_table` row at the next position, and writes a
+     * `training_exercise_table` plan row **only when [attachToPlan] is true**. Used both for
+     * inline-created (`is_adhoc = true`) exercises and for library picks.
+     *
+     * [attachToPlan] is the write half of the plan-attached axis (v3 §6.2). Passing `false`
+     * produces a one-off: the exercise is fully part of this session but is never added to
+     * the saved training template, so the next session does not inherit it. The encoding is
+     * the **absence of the plan row** — there is no column and no migration. Note this axis
+     * is *not* `exercise_table.is_adhoc`: that flag describes the exercise ("created
+     * inline"), this one describes the exercise↔training relation. A library exercise with
+     * `is_adhoc = 0` added as a one-off today is the case that separates them.
      *
      * The new plan row's `plan_sets` is seeded from `exercise.last_adhoc_sets` so the user
      * sees their last-logged baseline as a suggestion. Inline-created exercises with no
@@ -119,18 +127,25 @@ interface SessionRepository {
      * finish-time `PlanUpdateRule` (grow-but-not-shrink) operates uniformly regardless of
      * how `plan_sets` was initialized.
      *
-     * Returns both the new `performed_exercise_table.uuid` and the parsed plan list so the
-     * caller can stitch the row into in-memory State without re-loading the session.
+     * [AddExerciseResult.planSets] is returned on **both** paths — it is read from
+     * `exercise.last_adhoc_sets`, not from the plan row — so a one-off still seeds the UI
+     * baseline and still round-trips through the `getAdhocPlans` read-time fallback.
+     *
+     * Returns the new `performed_exercise_table.uuid`, the parsed plan list, and an echo of
+     * whether a plan row was written, so the caller can stitch the row into in-memory State
+     * without re-loading the session.
      */
     suspend fun addExerciseToActiveSession(
         sessionUuid: String,
         trainingUuid: String,
         exerciseUuid: String,
+        attachToPlan: Boolean = true,
     ): AddExerciseResult
 
     data class AddExerciseResult(
         val performedExerciseUuid: String,
         val planSets: List<PlanSetDataModel>?,
+        val isPlanAttached: Boolean,
     )
 
     /**

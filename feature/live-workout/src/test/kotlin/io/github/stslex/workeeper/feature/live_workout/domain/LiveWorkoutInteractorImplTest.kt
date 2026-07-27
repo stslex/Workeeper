@@ -189,6 +189,12 @@ internal class LiveWorkoutInteractorImplTest {
             coEvery { trainingExerciseRepository.getPlan(trainingUuid, "ex-1") } returns listOf(
                 PlanSetDataModel(weight = 90.0, reps = 5, type = SetTypeDataModel.WORK),
             )
+            // Key presence is the plan-attached flag (v3 §6.2): both exercises have a
+            // `training_exercise_table` row, so both are part of the saved template and their
+            // plans are written back to the training rather than to the exercise.
+            coEvery {
+                trainingExerciseRepository.getPlans(trainingUuid, listOf("ex-1", "ex-2"))
+            } returns mapOf("ex-1" to null, "ex-2" to null)
             val captured = slot<List<PlanUpdate>>()
             coEvery {
                 sessionRepository.finishSessionAtomic(
@@ -358,6 +364,113 @@ internal class LiveWorkoutInteractorImplTest {
         }
 
     @Test
+    fun `loadSession reads isPlanAttached from key presence, not from plan nullability`() =
+        runTest {
+            // The PF1 distinction (v3 §6.3). Both exercises resolve to a null plan through
+            // `map[uuid]`, so a null-check cannot tell them apart. Only key presence can:
+            // `attached` has a training_exercise row whose plan_sets is NULL; `oneOff` has no
+            // row at all. Conflating them is what would make a one-off edit the template.
+            val sessionUuid = "session-1"
+            val trainingUuid = "training-1"
+            seedNonAdhocLoad(sessionUuid, trainingUuid, "ex-attached", "ex-one-off")
+            coEvery {
+                trainingExerciseRepository.getPlans(
+                    trainingUuid,
+                    listOf("ex-attached", "ex-one-off"),
+                )
+            } returns mapOf("ex-attached" to null)
+            coEvery { exerciseRepository.getAdhocPlans(any()) } returns emptyMap()
+
+            val snapshot = interactor.loadSession(sessionUuid)
+
+            val byExercise = snapshot?.exercises.orEmpty()
+                .associateBy { it.performed.exerciseUuid }
+            assertEquals(true, byExercise["ex-attached"]?.isPlanAttached)
+            assertEquals(false, byExercise["ex-one-off"]?.isPlanAttached)
+            // Both have a null plan — proving the flag did not come from plan nullability.
+            assertEquals(null, byExercise["ex-attached"]?.planSets)
+            assertEquals(null, byExercise["ex-one-off"]?.planSets)
+        }
+
+    @Test
+    fun `loadSession on an adhoc training treats every exercise as plan-attached`() = runTest {
+        // An adhoc training has no template to diverge from, so the axis does not apply and
+        // the one-off affordance must not appear.
+        val sessionUuid = "session-1"
+        val trainingUuid = "training-1"
+        val exerciseUuid = "ex-1"
+        seedAdhocLoad(sessionUuid, trainingUuid, exerciseUuid)
+        coEvery { exerciseRepository.getAdhocPlans(listOf(exerciseUuid)) } returns emptyMap()
+
+        val snapshot = interactor.loadSession(sessionUuid)
+
+        assertEquals(true, snapshot?.exercises?.single()?.isPlanAttached)
+    }
+
+    @Test
+    fun `finishSession routes a one-off plan to the exercise instead of the training`() = runTest {
+        // Without this routing the template write matches zero rows and the sets the user
+        // just logged are persisted nowhere.
+        val sessionUuid = "session-1"
+        val trainingUuid = "training-1"
+        coEvery { sessionRepository.getById(sessionUuid) } returns SessionDataModel(
+            uuid = sessionUuid,
+            trainingUuid = trainingUuid,
+            state = SessionStateDataModel.IN_PROGRESS,
+            startedAt = 1_000L,
+            finishedAt = null,
+        )
+        coEvery { trainingRepository.getTraining(trainingUuid) } returns TrainingDataModel(
+            uuid = trainingUuid,
+            name = "Push Day",
+            description = null,
+            isAdhoc = false,
+            archived = false,
+            archivedAt = null,
+            timestamp = 0L,
+            labels = emptyList(),
+            exerciseUuids = listOf("ex-one-off"),
+        )
+        coEvery { performedExerciseRepository.getBySession(sessionUuid) } returns listOf(
+            PerformedExerciseDataModel(
+                uuid = "pe-1",
+                sessionUuid = sessionUuid,
+                exerciseUuid = "ex-one-off",
+                position = 0,
+                skipped = false,
+            ),
+        )
+        coEvery { setRepository.getByPerformedExercise("pe-1") } returns listOf(
+            SetsDataModel(
+                uuid = "s-1",
+                reps = 8,
+                weight = 40.0,
+                type = SetsDataType.WORK,
+                position = 0,
+            ),
+        )
+        // No key for the exercise: no training_exercise row, i.e. a one-off.
+        coEvery {
+            trainingExerciseRepository.getPlans(trainingUuid, listOf("ex-one-off"))
+        } returns emptyMap()
+        coEvery { exerciseRepository.getAdhocPlan("ex-one-off") } returns null
+        val captured = slot<List<PlanUpdate>>()
+        coEvery {
+            sessionRepository.finishSessionAtomic(eq(sessionUuid), any(), capture(captured), any())
+        } returns true
+
+        interactor.finishSession(sessionUuid)
+
+        // `isAdhoc = true` on PlanUpdate means "write to exercise.last_adhoc_sets", which is
+        // also where loadSession's read-time fallback will look for it next session.
+        val update = captured.captured.single()
+        assertEquals("ex-one-off", update.exerciseUuid)
+        assertEquals(true, update.isAdhoc)
+        // The training template is never consulted for a one-off.
+        coVerify(exactly = 0) { trainingExerciseRepository.getPlan(trainingUuid, "ex-one-off") }
+    }
+
+    @Test
     fun `loadSession with non-adhoc training and empty plan returns empty without adhocPlans fallback`() =
         runTest {
             val sessionUuid = "session-1"
@@ -474,25 +587,26 @@ internal class LiveWorkoutInteractorImplTest {
     private suspend fun seedNonAdhocLoad(
         sessionUuid: String,
         trainingUuid: String,
-        exerciseUuid: String,
+        vararg exerciseUuids: String,
     ) {
-        seedLoad(sessionUuid, trainingUuid, exerciseUuid, isAdhoc = false)
+        seedLoad(sessionUuid, trainingUuid, exerciseUuids.toList(), isAdhoc = false)
     }
 
     private suspend fun seedAdhocLoad(
         sessionUuid: String,
         trainingUuid: String,
-        exerciseUuid: String,
+        vararg exerciseUuids: String,
     ) {
-        seedLoad(sessionUuid, trainingUuid, exerciseUuid, isAdhoc = true)
+        seedLoad(sessionUuid, trainingUuid, exerciseUuids.toList(), isAdhoc = true)
     }
 
     private suspend fun seedLoad(
         sessionUuid: String,
         trainingUuid: String,
-        exerciseUuid: String,
+        exerciseUuids: List<String>,
         isAdhoc: Boolean,
     ) {
+        val performedUuids = exerciseUuids.indices.map { index -> "pe-${index + 1}" }
         coEvery { sessionRepository.getById(sessionUuid) } returns SessionDataModel(
             uuid = sessionUuid,
             trainingUuid = trainingUuid,
@@ -509,34 +623,38 @@ internal class LiveWorkoutInteractorImplTest {
             archivedAt = null,
             timestamp = 0L,
             labels = emptyList(),
-            exerciseUuids = listOf(exerciseUuid),
+            exerciseUuids = exerciseUuids,
         )
-        coEvery { performedExerciseRepository.getBySession(sessionUuid) } returns listOf(
-            PerformedExerciseDataModel(
-                uuid = "pe-1",
-                sessionUuid = sessionUuid,
-                exerciseUuid = exerciseUuid,
-                position = 0,
-                skipped = false,
-            ),
-        )
-        coEvery { exerciseRepository.getExercisesByUuid(listOf(exerciseUuid)) } returns listOf(
-            ExerciseDataModel(
-                uuid = exerciseUuid,
-                name = "Bench",
-                type = ExerciseTypeDataModel.WEIGHTED,
-                description = null,
-                imagePath = null,
-                archived = false,
-                archivedAt = null,
-                timestamp = 0L,
-                lastAdhocSets = null,
-            ),
-        )
-        coEvery { setRepository.getByPerformedExercise("pe-1") } returns emptyList()
+        coEvery { performedExerciseRepository.getBySession(sessionUuid) } returns
+            exerciseUuids.mapIndexed { index, uuid ->
+                PerformedExerciseDataModel(
+                    uuid = performedUuids[index],
+                    sessionUuid = sessionUuid,
+                    exerciseUuid = uuid,
+                    position = index,
+                    skipped = false,
+                )
+            }
+        coEvery { exerciseRepository.getExercisesByUuid(exerciseUuids) } returns
+            exerciseUuids.map { uuid ->
+                ExerciseDataModel(
+                    uuid = uuid,
+                    name = "Bench",
+                    type = ExerciseTypeDataModel.WEIGHTED,
+                    description = null,
+                    imagePath = null,
+                    archived = false,
+                    archivedAt = null,
+                    timestamp = 0L,
+                    lastAdhocSets = null,
+                )
+            }
+        performedUuids.forEach { performedUuid ->
+            coEvery { setRepository.getByPerformedExercise(performedUuid) } returns emptyList()
+        }
         // New batch-API default: empty performed-set map by default; tests that need a
         // populated map override this stub.
-        coEvery { setRepository.getByPerformedExercises(listOf("pe-1")) } returns emptyMap()
+        coEvery { setRepository.getByPerformedExercises(performedUuids) } returns emptyMap()
     }
 
     @Test

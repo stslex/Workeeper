@@ -152,6 +152,7 @@ internal class LiveWorkoutMapperTest {
                 PlanSetDomain(weight = 100.0, reps = 5, type = SetTypeDomain.WORK),
             ),
             performedSets = emptyList(),
+            isPlanAttached = true,
         )
 
     private fun fullyDone(uuid: String, position: Int): LiveExerciseDomain =

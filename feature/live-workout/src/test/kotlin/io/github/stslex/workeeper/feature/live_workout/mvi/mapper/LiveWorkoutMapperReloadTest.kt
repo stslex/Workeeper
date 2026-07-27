@@ -160,5 +160,6 @@ internal class LiveWorkoutMapperReloadTest {
         exerciseType = ExerciseTypeDomain.WEIGHTED,
         planSets = plan,
         performedSets = performed,
+        isPlanAttached = true,
     )
 }
