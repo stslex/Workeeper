@@ -23,12 +23,14 @@ import java.time.ZoneId
  * Every fixture timestamp falls on the same day, so each scenario folds to exactly one point
  * and "the day's set" is "the record-holding set" — which is the parity claim.
  *
- * The metric is [ChartMetricDomain.HEAVIEST_WEIGHT] throughout, because that is the metric
- * under which the chart's primary sort key *is* the PR rule's primary key. Under
+ * The parity claim is asserted under [ChartMetricDomain.HEAVIEST_WEIGHT], because that is the
+ * metric under which the chart's primary sort key *is* the PR rule's primary key. Under
  * [ChartMetricDomain.VOLUME_PER_SET] the chart deliberately ranks by `weight × reps` instead:
- * eligibility is still shared, but the reps tiebreak is not. A volume tie is a trade of weight
- * against reps, so ranking by reps there would amount to ranking by *ascending* weight — only
- * the earliest-`finishedAt` tiebreak carries over, and the winner is not claimed to match.
+ * eligibility and the lower `finishedAt` / position tiebreaks are still shared, but the reps
+ * key is not. A volume tie is a trade of weight against reps, so ranking by reps there would
+ * amount to ranking by *ascending* weight. The one test below that does pass
+ * [ChartMetricDomain.VOLUME_PER_SET] therefore claims only the shared eligibility, not the
+ * winner.
  */
 internal class ChartFolderPrRuleParityTest {
 

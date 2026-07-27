@@ -70,8 +70,11 @@ internal fun bucketAndFold(
     )
 
     // Eligibility decides which set *represents* a day; it does not decide how many sets the
-    // user logged that day. A set recorded without a weight was still performed — it just
-    // cannot be plotted — so the tooltip's "N sets this day" keeps counting every set.
+    // user logged that day. Both grounds `isEligible` drops on — a weighted set saved without
+    // a weight, and a set left at zero reps — were still logged against that day, so the
+    // tooltip's "N sets this day" counts over the unfiltered window. That is the spec's
+    // definition, and it agrees with the app's other set counter: `SessionDao`'s
+    // `set_count` is a bare `COUNT(*)` over `set_table` with no reps or weight predicate.
     val setsPerDay = flat.groupingBy(FlatSet::day).eachCount()
 
     // Which set represents the day. The metric comes first — that is what the axis plots.
