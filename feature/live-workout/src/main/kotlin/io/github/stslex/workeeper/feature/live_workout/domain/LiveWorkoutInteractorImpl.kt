@@ -220,7 +220,7 @@ class LiveWorkoutInteractorImpl internal constructor(
         var setsLogged = 0
         var doneCount = 0
         var skippedCount = 0
-        var discardedUnfilledSets = 0
+        val discardedSetUuids = mutableListOf<String>()
 
         // Key presence is the plan-attached flag — see TrainingExerciseRepository.getPlans.
         // Read once for the whole session rather than per row. Empty for an ad-hoc training,
@@ -253,12 +253,11 @@ class LiveWorkoutInteractorImpl internal constructor(
                 .getByPerformedExercise(row.uuid)
                 .map { it.toDomain() }
                 .partition { it.reps > 0 }
-            if (unfilledSets.isNotEmpty()) {
-                discardedUnfilledSets += unfilledSets.size
-                unfilledSets.forEach { unfilled ->
-                    setRepository.deleteByPerformedAndPosition(row.uuid, unfilled.position)
-                }
-            }
+            // Collected, NOT deleted here: the deletion happens inside `finishSessionAtomic`
+            // so a failed finish rolls it back with everything else. Deleting at this point
+            // would destroy the rows even when the finish is reported as failed and the
+            // session stays active.
+            discardedSetUuids += unfilledSets.map { it.uuid }
             val performedSets = filledSets.map { it.toPlanSet() }
             setsLogged += performedSets.size
             if (performedSets.isNotEmpty()) doneCount += 1
@@ -296,6 +295,7 @@ class LiveWorkoutInteractorImpl internal constructor(
             finishedAt = finishedAt,
             planUpdates = planUpdates,
             newTrainingName = newTrainingName,
+            discardedSetUuids = discardedSetUuids,
         )
         if (!applied) return@withContext null
         FinishResult(
@@ -304,7 +304,7 @@ class LiveWorkoutInteractorImpl internal constructor(
             totalCount = performedRows.await().size,
             skippedCount = skippedCount,
             setsLogged = setsLogged,
-            discardedUnfilledSets = discardedUnfilledSets,
+            discardedUnfilledSets = discardedSetUuids.size,
         )
     }
 

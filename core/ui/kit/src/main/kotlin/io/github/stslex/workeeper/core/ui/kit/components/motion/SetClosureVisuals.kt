@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -105,12 +106,24 @@ fun rememberSetClosureVisuals(
         durationMillis = AppUi.motion.slow,
         easing = AppUi.motion.out,
     )
+    // The flash marks the TRANSITION into done, not the state of being done. `LaunchedEffect`
+    // also runs on first composition, so keying it on `isDone` alone would flash every
+    // already-completed set whenever an active session loads or a completed card is collapsed
+    // and reopened — a burst of wow moments for work the user finished minutes ago.
+    //
+    // `wasDone` is seeded from the CURRENT value, so the first composition is always a no-op
+    // whichever state the row arrives in.
+    val wasDone = remember { mutableStateOf(isDone) }
     LaunchedEffect(isDone) {
-        if (isDone) {
-            flash.snapTo(1f)
-            flash.animateTo(targetValue = 0f, animationSpec = flashSpec)
-        } else {
-            flash.snapTo(0f)
+        val closedJustNow = closedJustNow(previous = wasDone.value, current = isDone)
+        wasDone.value = isDone
+        when {
+            closedJustNow -> {
+                flash.snapTo(1f)
+                flash.animateTo(targetValue = 0f, animationSpec = flashSpec)
+            }
+
+            !isDone -> flash.snapTo(0f)
         }
     }
     val flashAlpha = flash.value
@@ -132,3 +145,11 @@ fun rememberSetClosureVisuals(
 
 /** The mark rests slightly under full size so closure reads as a commit, not a repaint. */
 private const val RESTING_SCALE = 0.92f
+
+/**
+ * The flash gate: a pulse belongs to the moment a set CLOSES, not to the state of being closed.
+ *
+ * Extracted so `SetClosureFlashTest` can pin it without a frame clock — the surrounding
+ * composable needs one, this predicate does not.
+ */
+internal fun closedJustNow(previous: Boolean, current: Boolean): Boolean = current && !previous

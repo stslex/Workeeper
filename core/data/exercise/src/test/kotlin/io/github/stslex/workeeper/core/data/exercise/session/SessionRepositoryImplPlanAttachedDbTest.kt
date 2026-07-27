@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.robolectric.annotation.Config
 import tech.apter.junit.jupiter.robolectric.RobolectricExtension
+import kotlin.uuid.Uuid
 
 /**
  * The plan-attached axis (v3 §6.2) at the repository boundary.
@@ -206,5 +207,54 @@ internal class SessionRepositoryImplPlanAttachedDbTest {
         // of the defence-in-depth predicate is what separates them.
         assertEquals(null, env.exerciseDao.getById(inlineOneOff.uuid))
         assertNotNull(env.exerciseDao.getById(libraryPick.uuid))
+    }
+
+    @Test
+    fun `finishSessionAtomic deletes the discarded sets inside the transaction`() = runTest {
+        val training = env.seedTraining(name = "Push Day")
+        val exercise = env.seedExercise(name = "Bench")
+        val session = env.seedSession(trainingUuid = training.uuid)
+        val performed = env.seedPerformed(sessionUuid = session.uuid, exerciseUuid = exercise.uuid)
+        val filled = env.seedSet(performedExerciseUuid = performed.uuid, position = 0, reps = 5)
+        val unfilled = env.seedSet(performedExerciseUuid = performed.uuid, position = 1, reps = 0)
+
+        val applied = repository.finishSessionAtomic(
+            sessionUuid = session.uuid.toString(),
+            finishedAt = 5_000L,
+            planUpdates = emptyList(),
+            newTrainingName = null,
+            discardedSetUuids = listOf(unfilled.uuid.toString()),
+        )
+
+        assertTrue(applied)
+        val remaining = env.setDao.getByPerformedExercise(performed.uuid).map { it.uuid }
+        assertEquals(listOf(filled.uuid), remaining)
+    }
+
+    @Test
+    fun `a failed finish does not delete the discarded sets`() = runTest {
+        // The rollback property. `finishSessionAtomic` returns false for a missing session,
+        // the caller reports a failed finish and leaves the session active — so the sets must
+        // still be there. Deleting them before the transaction would destroy real rows on
+        // behalf of a finish that never happened.
+        val training = env.seedTraining(name = "Push Day")
+        val exercise = env.seedExercise(name = "Bench")
+        val session = env.seedSession(trainingUuid = training.uuid)
+        val performed = env.seedPerformed(sessionUuid = session.uuid, exerciseUuid = exercise.uuid)
+        val unfilled = env.seedSet(performedExerciseUuid = performed.uuid, position = 0, reps = 0)
+
+        val applied = repository.finishSessionAtomic(
+            sessionUuid = Uuid.random().toString(),
+            finishedAt = 5_000L,
+            planUpdates = emptyList(),
+            newTrainingName = null,
+            discardedSetUuids = listOf(unfilled.uuid.toString()),
+        )
+
+        assertFalse(applied)
+        assertEquals(
+            listOf(unfilled.uuid),
+            env.setDao.getByPerformedExercise(performed.uuid).map { it.uuid },
+        )
     }
 }

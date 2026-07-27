@@ -268,9 +268,15 @@ class SessionRepositoryImpl @Inject internal constructor(
         finishedAt: Long,
         planUpdates: List<PlanUpdate>,
         newTrainingName: String?,
+        discardedSetUuids: List<String>,
     ): Boolean = transition {
         val current = dao.getById(Uuid.parse(sessionUuid))
             ?: return@transition false
+        // Unfilled sets are discarded as part of the finish (v3 §6.1), inside this
+        // transaction. A rollback anywhere below must put them back — the caller treats a
+        // false/throw as "session still active", and rows deleted outside would be gone with
+        // no finish to justify them.
+        discardedSetUuids.forEach { setUuid -> setDao.delete(Uuid.parse(setUuid)) }
         // Pair the optional rename with the finish: same transaction, single Room batch.
         // A throw at any point in this block rolls back the rename, plan updates,
         // graduation, and state flip together — no half-finished named training can leak.

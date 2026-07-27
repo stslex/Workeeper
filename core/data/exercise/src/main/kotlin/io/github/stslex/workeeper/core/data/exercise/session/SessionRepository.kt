@@ -83,12 +83,19 @@ interface SessionRepository {
      * same transaction before the session-state flip and graduation. This pairs the v2.3
      * finish-dialog rename with the finish itself so a crash between the two writes can
      * never leave a named-but-unfinished session or an unfinishable named training.
+     *
+     * [discardedSetUuids] are unfilled rows (`reps <= 0`, v3 §6.1) to delete as PART of the
+     * finish. They must be inside this transaction, not deleted before it: if any later step
+     * throws or the session row is gone, the caller reports a failed finish and leaves the
+     * session active — and a deletion done outside would already have destroyed the rows with
+     * no finish to justify it.
      */
     suspend fun finishSessionAtomic(
         sessionUuid: String,
         finishedAt: Long,
         planUpdates: List<PlanUpdate>,
         newTrainingName: String? = null,
+        discardedSetUuids: List<String> = emptyList(),
     ): Boolean
 
     suspend fun deleteSession(uuid: String)

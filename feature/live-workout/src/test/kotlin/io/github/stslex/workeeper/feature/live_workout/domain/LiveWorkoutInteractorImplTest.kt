@@ -528,24 +528,25 @@ internal class LiveWorkoutInteractorImplTest {
             coEvery { trainingExerciseRepository.getPlan(trainingUuid, "ex-1") } returns null
             coEvery { exerciseRepository.getAdhocPlan("ex-1") } returns null
             val captured = slot<List<PlanUpdate>>()
+            val discarded = slot<List<String>>()
             coEvery {
                 sessionRepository.finishSessionAtomic(
                     eq(sessionUuid),
                     any(),
                     capture(captured),
                     any(),
+                    capture(discarded),
                 )
             } returns true
 
             val result = interactor.finishSession(sessionUuid)
 
-            // The zero-rep row is deleted at its position.
-            coVerify(exactly = 1) {
-                setRepository.deleteByPerformedAndPosition("pe-1", 1)
-            }
-            // ...and the filled one is not.
+            // The zero-rep row is handed to the transaction rather than deleted here, so a
+            // failed finish rolls it back with everything else.
+            assertEquals(listOf("s-2"), discarded.captured)
+            // Nothing is deleted outside the transaction.
             coVerify(exactly = 0) {
-                setRepository.deleteByPerformedAndPosition("pe-1", 0)
+                setRepository.deleteByPerformedAndPosition(any(), any())
             }
             assertEquals(1, result?.discardedUnfilledSets)
             // It counts as neither logged work nor part of the next plan.
