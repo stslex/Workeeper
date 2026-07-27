@@ -45,7 +45,12 @@ fun AppNumberInput(
     Row(
         modifier = modifier
             .clip(AppUi.shapes.small)
-            .background(AppUi.colors.surfaceTier2)
+            // The mockup's `.field{background:var(--field)}` — `surfaceTier3`, whose own KDoc
+            // already names it "recessed panels: input fills". This painted `surfaceTier2`,
+            // which is the *floating* tier (dialogs, dropdowns, and now the lifted surface);
+            // an input is the opposite of floating, and on a lifted light-theme card the two
+            // whites cancelled and the field disappeared.
+            .background(AppUi.colors.surfaceTier3)
             .border(
                 width = AppDimension.borderHairline,
                 color = borderColor,

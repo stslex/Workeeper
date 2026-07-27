@@ -220,8 +220,12 @@ internal object ContrastContract {
         // accent is v3 `max`: links, timers, chart strokes, selected icons.
         add(Declared("accent", "surfaceTier0", TypeSlot.BODY, "AboutBlock links, ChartCanvas"))
         add(Declared("accent", "surfaceTier1", TypeSlot.BODY, "HomeStartCard, ActiveSessionBanner"))
-        add(Declared("accent", "surfaceTier2", TypeSlot.BODY, "AppNumberInput cursor"))
-        add(Declared("accent", "surfaceTier3", TypeSlot.BODY, "ChartTooltipPopup value"))
+        // RE-VERIFIED: this row used to cite "AppNumberInput cursor", which moved to
+        // `surfaceTier3` when the input adopted the mockup's `.field` tier. The live sites are
+        // RestoreProgressOverlay.kt:65 (accent label on a card that is `surfaceTier2` in light)
+        // and ExercisePickerSheet.kt:169 (Checkbox checkedColor on a `surfaceTier2` sheet).
+        add(Declared("accent", "surfaceTier2", TypeSlot.BODY, "RestoreProgressOverlay label, light theme"))
+        add(Declared("accent", "surfaceTier3", TypeSlot.BODY, "ChartTooltipPopup value; AppNumberInput cursor"))
         add(Declared("accent", "surfaceTier4", TypeSlot.BODY, "TrainingRow active glyph"))
         add(Declared("accent", "surfaceTier1", TypeSlot.DISPLAY, "LiveWorkoutHeader timer"))
         add(Declared("accent", "surfaceTier0", TypeSlot.UI_COMPONENT, "AppTextField focused outline"))
