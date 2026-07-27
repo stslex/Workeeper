@@ -66,9 +66,76 @@ fun AppTheme(
     }
 }
 
+/**
+ * The theme-invariant tones behind Material's `*Fixed` roles.
+ *
+ * These are literals rather than palette slots on purpose: the whole point of a `*Fixed` role is
+ * that it does **not** change between light and dark, so it cannot be sourced from anything that
+ * does. The tones are taken from the dark end of the v3 ramp — a raised slab with max-contrast
+ * content — which reads correctly under either theme because it never changes.
+ *
+ * Measured: [ON_CONTAINER] on [CONTAINER] is 13.07:1, [ON_CONTAINER_VARIANT] on [CONTAINER] is
+ * 7.78:1, and [ON_CONTAINER] on [CONTAINER_DIM] is 14.29:1. Nothing reads these today; they are
+ * mapped so that a component which starts to cannot render Material baseline purple.
+ */
+private object FixedTones {
+
+    /** v3 `raise`, frozen. */
+    val CONTAINER = Color(RAISE)
+
+    /** v3 `slab`, frozen — the dimmer companion tone. */
+    val CONTAINER_DIM = Color(SLAB)
+
+    /** v3 `max`, frozen. */
+    val ON_CONTAINER = Color(MAX)
+
+    /** v3 `body`, frozen. */
+    val ON_CONTAINER_VARIANT = Color(BODY)
+
+    private const val RAISE: Long = 0xFF242B32
+    private const val SLAB: Long = 0xFF1E242A
+    private const val MAX: Long = 0xFFF1F5F9
+    private const val BODY: Long = 0xFFB7C0CA
+}
+
+/**
+ * Projects [AppColors] onto Material 3's colour roles, because `MaterialTheme` is what every
+ * stock M3 widget reads.
+ *
+ * `ColorScheme` has **48** colour roles (counted by reflection, not from the spec — see
+ * `M3RoleContractTest`). The previous mapping set 35 of them and left 13 at the Material
+ * baseline, which in practice meant **twelve roles rendering baseline purple**: the whole
+ * `*Fixed` family. The thirteenth, `scrim`, was set — to `Color.Black`, which is also its
+ * baseline value, so it only *looked* unmapped.
+ *
+ * Those twelve are now mapped too. The honest reason is not that they were proven reachable —
+ * no project file reads `MaterialTheme.colorScheme.primaryFixed` (grep: zero hits), and no
+ * current stock component does either. It is that *proving* a role unreachable means proving a
+ * negative across every M3 component and every future version of the library, and the cost of
+ * simply mapping them is zero. An unmapped role is a purple waiting for a library upgrade to
+ * find it.
+ *
+ * `*Fixed` means exactly what it says: Material contracts these roles to hold **the same tone in
+ * light and dark**. They are therefore assigned from [FixedTones] — literal constants — and not
+ * from `this`. Sourcing them from theme-dependent slots would have satisfied "not purple" while
+ * breaking the contract itself, and any component that later started reading them would have
+ * flipped on a theme switch.
+ */
 internal fun AppColors.toM3ColorScheme(): ColorScheme {
     val base = if (isDark) darkColorScheme() else lightColorScheme()
     return base.copy(
+        primaryFixed = FixedTones.CONTAINER,
+        primaryFixedDim = FixedTones.CONTAINER_DIM,
+        onPrimaryFixed = FixedTones.ON_CONTAINER,
+        onPrimaryFixedVariant = FixedTones.ON_CONTAINER_VARIANT,
+        secondaryFixed = FixedTones.CONTAINER,
+        secondaryFixedDim = FixedTones.CONTAINER_DIM,
+        onSecondaryFixed = FixedTones.ON_CONTAINER,
+        onSecondaryFixedVariant = FixedTones.ON_CONTAINER_VARIANT,
+        tertiaryFixed = FixedTones.CONTAINER,
+        tertiaryFixedDim = FixedTones.CONTAINER_DIM,
+        onTertiaryFixed = FixedTones.ON_CONTAINER,
+        onTertiaryFixedVariant = FixedTones.ON_CONTAINER_VARIANT,
         primary = accent,
         onPrimary = onAccent,
         primaryContainer = accentTintedBackground,

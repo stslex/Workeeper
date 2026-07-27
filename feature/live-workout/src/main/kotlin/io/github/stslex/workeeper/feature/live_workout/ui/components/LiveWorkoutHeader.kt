@@ -100,7 +100,7 @@ internal fun LiveWorkoutHeader(
         Spacer(Modifier.height(AppDimension.Space.xs))
         val progress by animateFloatAsState(
             targetValue = progress,
-            animationSpec = tween(durationMillis = AppUi.motion.normal),
+            animationSpec = tween(durationMillis = AppUi.motion.base),
         )
         Box(modifier = Modifier.fillMaxWidth()) {
             LinearProgressIndicator(

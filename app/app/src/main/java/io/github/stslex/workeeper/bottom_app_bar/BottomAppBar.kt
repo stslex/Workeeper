@@ -97,7 +97,7 @@ private fun BottomAppBarItem(
     @Composable
     fun <T : Any> animationSpec(): AnimationSpec<T> = if (animateSelectionChange) {
         tween(
-            durationMillis = AppUi.motion.deliberate,
+            durationMillis = AppUi.motion.slow,
             easing = FastOutSlowInEasing,
         )
     } else {

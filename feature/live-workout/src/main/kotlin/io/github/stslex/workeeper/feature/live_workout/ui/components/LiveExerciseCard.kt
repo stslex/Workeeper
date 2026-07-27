@@ -68,7 +68,7 @@ internal fun LiveExerciseCard(
             ExerciseStatusUiModel.CURRENT -> AppUi.colors.accent
             else -> AppUi.colors.borderSubtle
         },
-        animationSpec = tween(durationMillis = AppUi.motion.normal),
+        animationSpec = tween(durationMillis = AppUi.motion.base),
     )
 
     val cardAlpha by animateFloatAsState(
@@ -77,7 +77,7 @@ internal fun LiveExerciseCard(
             ExerciseStatusUiModel.SKIPPED -> SKIPPED_ALPHA
             else -> 1f
         },
-        animationSpec = tween(durationMillis = AppUi.motion.normal),
+        animationSpec = tween(durationMillis = AppUi.motion.base),
     )
     Column(
         modifier = modifier
@@ -96,7 +96,7 @@ internal fun LiveExerciseCard(
             .alpha(cardAlpha)
             .animateContentSize(
                 animationSpec = tween(
-                    durationMillis = AppUi.motion.normal,
+                    durationMillis = AppUi.motion.base,
                 ),
             ),
     ) {
@@ -219,7 +219,7 @@ private fun ExerciseCardBody(
             .padding(top = AppDimension.Space.sm)
             .animateContentSize(
                 animationSpec = tween(
-                    durationMillis = AppUi.motion.normal,
+                    durationMillis = AppUi.motion.base,
                 ),
             ),
         verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xs),
@@ -296,12 +296,12 @@ private fun ExerciseCardBody(
 //            visible = !isReadOnly,
 //            enter = expandVertically(
 //                animationSpec = tween(
-//                    durationMillis = AppUi.motion.normal,
+//                    durationMillis = AppUi.motion.base,
 //                ),
 //            ),
 //            exit = shrinkVertically(
 //                animationSpec = tween(
-//                    durationMillis = AppUi.motion.normal,
+//                    durationMillis = AppUi.motion.base,
 //                ),
 //            ),
 //        ) {

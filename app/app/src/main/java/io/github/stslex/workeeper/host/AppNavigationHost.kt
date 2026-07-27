@@ -55,7 +55,7 @@ internal fun AppNavigationHost(
             .systemBarsPadding()
             .background(MaterialTheme.colorScheme.background)
 
-        val motionDuration = AppUi.motion.normal
+        val motionDuration = AppUi.motion.base
 
         ClearFocusOnDestinationChanged(navigatorHolder)
 
