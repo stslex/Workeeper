@@ -117,26 +117,26 @@ fun App() {
                     .zIndex(1f),
                 visible = bottomBarNavigationListener.bottomBarDestination.value != null,
                 enter = fadeIn(
-                    tween(AppUi.motion.normal),
+                    tween(AppUi.motion.base),
                 ) + scaleIn(
-                    tween(AppUi.motion.normal),
+                    tween(AppUi.motion.base),
                 ) + slideIn(
                     initialOffset = { IntOffset(0, 0) },
-                    animationSpec = tween(AppUi.motion.normal),
+                    animationSpec = tween(AppUi.motion.base),
                 ),
                 exit = fadeOut(
-                    tween(AppUi.motion.normal),
+                    tween(AppUi.motion.base),
                 ) + scaleOut(
-                    tween(AppUi.motion.normal),
+                    tween(AppUi.motion.base),
                 ) + slideOut(
                     targetOffset = { fullSize -> IntOffset(0, fullSize.height) },
-                    animationSpec = tween(AppUi.motion.normal),
+                    animationSpec = tween(AppUi.motion.base),
                 ),
             ) {
                 val cornerRadius by transition.animateDp(
                     transitionSpec = {
                         tween(
-                            durationMillis = AppUi.motion.normal,
+                            durationMillis = AppUi.motion.base,
                             easing = FastOutSlowInEasing,
                         )
                     },

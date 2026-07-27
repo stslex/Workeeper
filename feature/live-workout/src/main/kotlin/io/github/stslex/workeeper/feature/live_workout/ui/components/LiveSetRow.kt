@@ -56,7 +56,7 @@ internal fun LiveSetRow(
         } else {
             AppUi.colors.surfaceTier1
         },
-        animationSpec = tween(durationMillis = AppUi.motion.normal),
+        animationSpec = tween(durationMillis = AppUi.motion.base),
     )
     val accentColor by animateColorAsState(
         targetValue = if (set.isPersonalRecord) {
