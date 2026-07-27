@@ -31,6 +31,7 @@ class MviArchitectureRuleSet : RuleSetProvider {
             DiscardedScopeResultRule(config),
             NoActualForExpectSuppressionRule(config),
             NumericFontFamilyOnLocalizedTextRule(config),
+            ActiveSurfaceSingleReaderRule(config),
         ),
     )
 }
