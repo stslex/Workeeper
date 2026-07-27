@@ -448,6 +448,37 @@ internal object ContrastContract {
             )
         }
         add(Declared("molten.text", "molten.background", TypeSlot.CAPTION, "PR tag inside its own wash", over = PAGE))
+
+        // The PR set row: `.set.pr .field{background:var(--molten-bg)}` washes BOTH fields, so
+        // the field's own value and unit now sit on the molten wash.
+        //
+        // ONE backdrop, `surfaceTier3`, because `AppNumberInput` STACKS the wash on the field
+        // tier rather than substituting it the way the CSS does. That is a measurement: the CSS
+        // way puts the unit on a different backdrop per row and fails on the live DONE row's
+        // `surfaceTier4` (3.99 dark / 4.46 light against 4.5). Stacked, it is 4.84 / 4.82 and
+        // the field's contrast stops depending on what is behind it.
+        //
+        // The foreground is `textPrimary`, NOT `record.textPrimary`, and that is a finding
+        // rather than a preference — see AppNumberInput's KDoc. The mockup also turns the value
+        // molten, which measures 4.14 in light against the 4.5:1 a 19sp regular value owes.
+        add(
+            Declared(
+                foreground = "textPrimary",
+                background = "record.background",
+                typeSlot = TypeSlot.SECTION,
+                evidence = "AppNumberInput value on a PR set row",
+                over = "surfaceTier3",
+            ),
+        )
+        add(
+            Declared(
+                foreground = "textDim",
+                background = "record.background",
+                typeSlot = TypeSlot.META,
+                evidence = "AppNumberInput unit on a PR set row",
+                over = "surfaceTier3",
+            ),
+        )
     }
 
     /**
@@ -486,13 +517,19 @@ internal object ContrastContract {
                 bg in setOf("surfaceTier0", "surfaceTier3", "surfaceTier4", "accentTintedBackground")
         },
         Exclusion(
-            "The molten fill and wash host only personal-record content.",
+            "The molten fill and wash host only personal-record content. NARROWED: since the " +
+                "PR set row washes its fields (`.set.pr .field`), the record's own value and " +
+                "unit are drawn on the wash in `textPrimary`/`textDim` rather than in molten — " +
+                "see the DECLARED rows above for the measurement that forced that. They are " +
+                "personal-record content by the rule's own logic; they are simply not painted " +
+                "in the molten namespace.",
         ) { fg, bg ->
             (
                 bg == "molten.solid" || bg == "record.solid" ||
                     bg == "molten.background" || bg == "record.background"
                 ) &&
-                !(fg.startsWith("molten.") || fg.startsWith("record."))
+                !(fg.startsWith("molten.") || fg.startsWith("record.")) &&
+                !(bg == "record.background" && fg in setOf("textPrimary", "textDim"))
         },
         Exclusion(
             "`onAccent` is v3 `base`, the page colour. It is legible only on a filled accent " +

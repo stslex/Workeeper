@@ -74,6 +74,8 @@ internal fun PastSetEditRow(
                 onValueChange = onWeightChange,
                 decimals = 1,
                 isError = set.weightError,
+                // `.set.pr .field{background:var(--molten-bg)}` — BOTH fields.
+                isRecord = set.isPersonalRecord,
             )
         }
         AppNumberInput(
@@ -84,6 +86,7 @@ internal fun PastSetEditRow(
             onValueChange = onRepsChange,
             decimals = 0,
             isError = set.repsError,
+            isRecord = set.isPersonalRecord,
         )
         Box(
             modifier = Modifier.width(PrSlotWidth),

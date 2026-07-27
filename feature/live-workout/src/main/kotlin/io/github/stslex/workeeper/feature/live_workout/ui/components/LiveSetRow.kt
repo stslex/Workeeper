@@ -110,6 +110,9 @@ internal fun LiveSetRow(
                     decimals = 2,
                     suffix = stringResource(KitR.string.core_ui_kit_plan_editor_unit_kg),
                     enabled = editable && !set.isDone,
+                    // `.set.pr .field{background:var(--molten-bg)}` — BOTH fields, not just
+                    // the trailing tag.
+                    isRecord = set.isPersonalRecord,
                 )
             }
         }
@@ -120,6 +123,7 @@ internal fun LiveSetRow(
                 decimals = 0,
                 suffix = stringResource(KitR.string.core_ui_kit_plan_editor_unit_reps),
                 enabled = editable && !set.isDone,
+                isRecord = set.isPersonalRecord,
             )
         }
         AppTooltip(text = stringResource(R.string.feature_live_workout_set_type_tooltip)) {
