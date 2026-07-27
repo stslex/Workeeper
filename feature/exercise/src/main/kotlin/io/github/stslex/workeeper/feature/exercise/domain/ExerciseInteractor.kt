@@ -6,7 +6,6 @@ import io.github.stslex.workeeper.core.core.images.model.ImageSaveResult
 import io.github.stslex.workeeper.feature.exercise.domain.model.ArchiveResult
 import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseChangeDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseDomain
-import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseTypeDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.HistoryEntryDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.PersonalRecordDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.PlanSetDomain
@@ -34,10 +33,7 @@ interface ExerciseInteractor {
      * change (Room invalidation). Drives the read-mode PR card; collected only when the
      * screen is bound to an existing exercise (create mode has no uuid yet).
      */
-    fun observePersonalRecord(
-        exerciseUuid: String,
-        type: ExerciseTypeDomain,
-    ): Flow<PersonalRecordDomain?>
+    fun observePersonalRecord(exerciseUuid: String): Flow<PersonalRecordDomain?>
 
     suspend fun saveExercise(snapshot: ExerciseChangeDomain): SaveResult
 

@@ -15,7 +15,6 @@ import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutScope
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
 import io.github.stslex.workeeper.feature.live_workout.domain.model.ExercisePickerEntry
 import io.github.stslex.workeeper.feature.live_workout.domain.model.PersonalRecordDomain
-import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toDomain
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toUi
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.StateStatusMapper
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ErrorType
@@ -192,10 +191,7 @@ internal class ExercisePickerHandler @Inject constructor(
             // map-plus update is skipped, which keeps the in-moment PR badge suppressed.
             val pr: PersonalRecordDomain? = if (picked.fetchPr) {
                 runCatching {
-                    interactor.fetchPrSnapshotForExercise(
-                        exerciseUuid = picked.exerciseUuid,
-                        type = picked.type.toDomain(),
-                    )
+                    interactor.fetchPrSnapshotForExercise(exerciseUuid = picked.exerciseUuid)
                 }.getOrNull()
             } else {
                 null

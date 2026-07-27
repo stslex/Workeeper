@@ -50,7 +50,6 @@ internal class LiveWorkoutInteractorImplTest {
     private val trainingRepository = mockk<TrainingRepository>(relaxed = true)
     private val trainingExerciseRepository = mockk<TrainingExerciseRepository>(relaxed = true)
     private val personalRecordRepository = mockk<PersonalRecordRepository>(relaxed = true).apply {
-        every { observePersonalRecords(any()) } returns flowOf(emptyMap())
         every { observePersonalRecordsBatch(any()) } returns flowOf(emptyMap())
     }
 
@@ -442,14 +441,12 @@ internal class LiveWorkoutInteractorImplTest {
 
         interactor.loadSession(sessionUuid)
 
-        // Refactor switched the PR pre-snapshot from `observePersonalRecords` (combine-of-N)
-        // to `observePersonalRecordsBatch` (single Room query). Verify the right one is
-        // used and the legacy combine path stays untouched.
+        // Perf guard: the PR pre-snapshot must stay on `observePersonalRecordsBatch`
+        // (single Room query) rather than a combine-of-N over per-exercise flows. The
+        // combine-of-N variant `observePersonalRecords` has since been deleted outright,
+        // so this positive assertion is now the whole guard.
         verify(exactly = 1) {
             personalRecordRepository.observePersonalRecordsBatch(any())
-        }
-        verify(exactly = 0) {
-            personalRecordRepository.observePersonalRecords(any())
         }
     }
 

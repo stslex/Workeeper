@@ -9,7 +9,6 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
-import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseTypeDomain
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PendingImage
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
@@ -32,7 +31,7 @@ internal class CommonHandlerTest {
 
     private val interactor = mockk<ExerciseInteractor>(relaxed = true).apply {
         every { observeAvailableTags() } returns flowOf(emptyList())
-        every { observePersonalRecord(any(), any<ExerciseTypeDomain>()) } returns emptyFlow()
+        every { observePersonalRecord(any()) } returns emptyFlow()
     }
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
 

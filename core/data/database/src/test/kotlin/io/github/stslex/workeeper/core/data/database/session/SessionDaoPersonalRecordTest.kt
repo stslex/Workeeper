@@ -44,7 +44,7 @@ internal class SessionDaoPersonalRecordTest : BaseDatabaseTest() {
         val exerciseUuid = Uuid.random()
         seedTrainingAndExercise(trainingUuid, exerciseUuid)
 
-        val result = sessionDao.getPersonalRecord(exerciseUuid, isWeightless = false)
+        val result = sessionDao.getPersonalRecord(exerciseUuid)
 
         assertNull(result)
     }
@@ -87,7 +87,7 @@ internal class SessionDaoPersonalRecordTest : BaseDatabaseTest() {
             reps = 4,
         )
 
-        val result = sessionDao.getPersonalRecord(exerciseUuid, isWeightless = false)
+        val result = sessionDao.getPersonalRecord(exerciseUuid)
 
         assertEquals(100.0, result?.weight)
         assertEquals(5, result?.reps)
@@ -141,7 +141,7 @@ internal class SessionDaoPersonalRecordTest : BaseDatabaseTest() {
             ),
         )
 
-        val result = sessionDao.getPersonalRecord(exerciseUuid, isWeightless = false)
+        val result = sessionDao.getPersonalRecord(exerciseUuid)
 
         assertEquals(60.0, result?.weight)
         assertEquals(8, result?.reps)
@@ -167,7 +167,7 @@ internal class SessionDaoPersonalRecordTest : BaseDatabaseTest() {
             reps = 15,
         )
 
-        val result = sessionDao.getPersonalRecord(exerciseUuid, isWeightless = true)
+        val result = sessionDao.getPersonalRecord(exerciseUuid)
 
         assertEquals(15, result?.reps)
         assertEquals(recordSession, result?.sessionUuid)
@@ -193,7 +193,7 @@ internal class SessionDaoPersonalRecordTest : BaseDatabaseTest() {
             reps = 12,
         )
 
-        val result = sessionDao.getPersonalRecord(exerciseUuid, isWeightless = true)
+        val result = sessionDao.getPersonalRecord(exerciseUuid)
 
         assertEquals(earliest, result?.sessionUuid)
         assertEquals(1_000L, result?.finishedAt)

@@ -4,7 +4,6 @@ package io.github.stslex.workeeper.feature.live_workout.domain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.AddExerciseResult
 import io.github.stslex.workeeper.feature.live_workout.domain.model.AdhocSessionResult
 import io.github.stslex.workeeper.feature.live_workout.domain.model.ExercisePickerEntry
-import io.github.stslex.workeeper.feature.live_workout.domain.model.ExerciseTypeDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.FinishResult
 import io.github.stslex.workeeper.feature.live_workout.domain.model.InlineAdhocResult
 import io.github.stslex.workeeper.feature.live_workout.domain.model.PersonalRecordDomain
@@ -77,15 +76,13 @@ interface LiveWorkoutInteractor {
 
     /**
      * Single-exercise lazy PR fetch used by the mid-session add-exercise handler. Returns
-     * the heaviest finished-session set for [exerciseUuid] under the [type]-aware ordering,
-     * or `null` for an exercise with no history (typical for newly inline-created entries).
-     * The handler merges the result into `State.preSessionPrSnapshot` via map-plus
-     * semantics so parallel fetches are race-safe.
+     * the record-holding finished-session set for [exerciseUuid], or `null` for an exercise
+     * with no history (typical for newly inline-created entries). The exercise type is read
+     * from the DB by the query itself, so the handler cannot hand it a stale one. The handler
+     * merges the result into `State.preSessionPrSnapshot` via map-plus semantics so parallel
+     * fetches are race-safe.
      */
-    suspend fun fetchPrSnapshotForExercise(
-        exerciseUuid: String,
-        type: ExerciseTypeDomain,
-    ): PersonalRecordDomain?
+    suspend fun fetchPrSnapshotForExercise(exerciseUuid: String): PersonalRecordDomain?
 
     suspend fun loadSession(sessionUuid: String): SessionSnapshotDomain?
 

@@ -19,7 +19,6 @@ import io.github.stslex.workeeper.feature.live_workout.domain.mapper.LiveWorkout
 import io.github.stslex.workeeper.feature.live_workout.domain.model.AddExerciseResult
 import io.github.stslex.workeeper.feature.live_workout.domain.model.AdhocSessionResult
 import io.github.stslex.workeeper.feature.live_workout.domain.model.ExercisePickerEntry
-import io.github.stslex.workeeper.feature.live_workout.domain.model.ExerciseTypeDomain
 import io.github.stslex.workeeper.feature.live_workout.domain.model.FinishResult
 import io.github.stslex.workeeper.feature.live_workout.domain.model.InlineAdhocResult
 import io.github.stslex.workeeper.feature.live_workout.domain.model.LiveExerciseDomain
@@ -134,11 +133,10 @@ class LiveWorkoutInteractorImpl internal constructor(
         // then drop the underlying flow; the snapshot lives in State for the session's
         // lifetime, immune to mid-session emissions from other places (Exercise detail edit,
         // a finished session on another screen).
-        val uuidsByType = exerciseSnapshots.associate { snap ->
-            snap.performed.exerciseUuid to snap.exerciseType.toData()
-        }
+        val exerciseUuids = exerciseSnapshots
+            .mapTo(mutableSetOf()) { snap -> snap.performed.exerciseUuid }
         val preSessionPrs = personalRecordRepository
-            .observePersonalRecordsBatch(uuidsByType)
+            .observePersonalRecordsBatch(exerciseUuids)
             .firstOrNull()
             .orEmpty()
             .mapValues { (_, pr) -> pr.toDomain() }
@@ -339,12 +337,11 @@ class LiveWorkoutInteractorImpl internal constructor(
 
     override suspend fun fetchPrSnapshotForExercise(
         exerciseUuid: String,
-        type: ExerciseTypeDomain,
     ): PersonalRecordDomain? = withContext(defaultDispatcher) {
         // C1 lock — single-exercise lazy fetch. PersonalRecordRepository.getPersonalRecord is
         // a suspend hit on the same DAO query observePersonalRecord wraps, so we get the
         // freshest baseline without holding a Flow open mid-session.
-        personalRecordRepository.getPersonalRecord(exerciseUuid, type.toData())?.toDomain()
+        personalRecordRepository.getPersonalRecord(exerciseUuid)?.toDomain()
     }
 
     override suspend fun setPlanForExercise(

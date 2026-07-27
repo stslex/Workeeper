@@ -9,6 +9,83 @@ import androidx.room3.Update
 import kotlinx.coroutines.flow.Flow
 import kotlin.uuid.Uuid
 
+/**
+ * The one PR row shape. `exercise_table` is joined in so the *exercise* type is read from
+ * the DB rather than passed in by a caller that read it separately — a caller-supplied type
+ * can go stale between the read and the query and silently reorder the result.
+ *
+ * `s.type` is the **set** type (WARM/WORK/FAIL/DROP); `e.type` is the **exercise** type
+ * (WEIGHTED/WEIGHTLESS). Only `s.type` is projected.
+ */
+private const val PR_ROW_SELECT = """
+        SELECT pe.exercise_uuid AS exercise_uuid,
+               s.uuid AS set_uuid,
+               s.weight AS weight,
+               s.reps AS reps,
+               s.type AS type,
+               s.performed_exercise_uuid AS performed_exercise_uuid,
+               sn.uuid AS session_uuid,
+               sn.finished_at AS finished_at
+        FROM set_table s
+        JOIN performed_exercise_table pe ON pe.uuid = s.performed_exercise_uuid
+        JOIN session_table sn ON sn.uuid = pe.session_uuid
+        JOIN exercise_table e ON e.uuid = pe.exercise_uuid
+        """
+
+/**
+ * Which sets may hold the record. A set is eligible iff its session is FINISHED with a
+ * non-null `finished_at`, it logged at least one rep, and — for WEIGHTED exercises only —
+ * it carries a weight. WEIGHTLESS exercises ignore `set_table.weight` entirely: residual
+ * non-null weights on weightless rows exist in the wild and must not gate eligibility.
+ *
+ * Appended after the caller's own `WHERE pe.exercise_uuid …` predicate, hence the leading
+ * `AND`.
+ */
+private const val PR_ELIGIBILITY = """
+          AND sn.state = 'FINISHED'
+          AND sn.finished_at IS NOT NULL
+          AND s.reps > 0
+          AND (e.type = 'WEIGHTLESS' OR s.weight IS NOT NULL)
+        """
+
+/**
+ * Who wins among eligible sets: weight DESC (WEIGHTED only), then reps DESC, then earliest
+ * `finished_at`, then lowest `position`. The `CASE` collapses to a constant NULL for
+ * WEIGHTLESS exercises, so weight drops out of the comparison instead of being coerced.
+ * Weight is never NULL for a WEIGHTED exercise here — [PR_ELIGIBILITY] already excluded
+ * those rows — so SQLite's NULL-ordering rules never come into play.
+ */
+private const val PR_ORDER = """
+            CASE WHEN e.type = 'WEIGHTED' THEN s.weight END DESC,
+            s.reps DESC,
+            sn.finished_at ASC,
+            s.position ASC
+        """
+
+/** Single-exercise PR: the one holder row, or nothing. */
+private const val PR_SINGLE_SQL = """
+        $PR_ROW_SELECT
+        WHERE pe.exercise_uuid = :exerciseUuid
+        $PR_ELIGIBILITY
+        ORDER BY
+        $PR_ORDER
+        LIMIT 1
+        """
+
+/**
+ * Batch PR: *every* eligible candidate for every requested exercise, grouped by exercise and
+ * ordered so the consumer takes `.first()` per group. No `LIMIT`/window function — `minSdk 28`
+ * ships SQLite 3.22 and `ROW_NUMBER()` needs 3.25 (the bundled-SQLite dependency is declared
+ * but inert; `AndroidSQLiteDriver` uses framework SQLite).
+ */
+private const val PR_BATCH_SQL = """
+        $PR_ROW_SELECT
+        WHERE pe.exercise_uuid IN (:exerciseUuids)
+        $PR_ELIGIBILITY
+        ORDER BY pe.exercise_uuid,
+        $PR_ORDER
+        """
+
 @Suppress("TooManyFunctions")
 @Dao
 interface SessionDao {
@@ -211,105 +288,35 @@ interface SessionDao {
     }
 
     /**
-     * Heaviest set the user has ever logged for [exerciseUuid] across finished sessions.
-     * The `:isWeightless` flag controls whether weight participates in the ordering — for
-     * weightless exercises only reps and timestamp drive PR ownership. Tiebreak by earliest
-     * `finished_at` so the PR badge belongs to the first occurrence.
+     * The set that holds the record for [exerciseUuid], or null when no finished session has
+     * logged an eligible set yet. Eligibility is [PR_ELIGIBILITY], ordering is [PR_ORDER] —
+     * both shared verbatim with [observePersonalRecord] and [observePersonalRecordsBatch], so
+     * the three cannot drift. The exercise type is read from `exercise_table`, not passed in.
+     */
+    @Query(PR_SINGLE_SQL)
+    suspend fun getPersonalRecord(exerciseUuid: Uuid): PersonalRecordRow?
+
+    /**
+     * Reactive form of [getPersonalRecord] — literally the same SQL body ([PR_SINGLE_SQL]).
+     * Room re-emits whenever any participating table changes, so subscribers see the new
+     * holder after a finished session bumps it, an edit-save changes a top set, or the
+     * holder set is deleted.
+     */
+    @Query(PR_SINGLE_SQL)
+    fun observePersonalRecord(exerciseUuid: Uuid): Flow<PersonalRecordRow?>
+
+    /**
+     * Reactive PR rows across many exercises in a single subscription. Returns *all* eligible
+     * candidates, contiguous per exercise and best-first within each group, so the consumer
+     * picks holders with `groupBy { exerciseUuid }.mapValues { it.first() }`. One subscription
+     * instead of the combine-of-N amplification long-lived subscribers (Past session, Live
+     * workout pre-snapshot) would otherwise hit.
      *
-     * Ordering semantics here mirror [observePersonalRecordsBatch]; if the tiebreak rule
-     * changes, update both in lockstep.
+     * Eligibility and ordering are the same constants [getPersonalRecord] uses. Because the
+     * eligibility predicate now lives here, consumers must not re-filter candidates — half a
+     * rule in a second module is how the two paths diverged before.
      */
-    @Query(
-        """
-        SELECT pe.exercise_uuid AS exercise_uuid,
-               s.uuid AS set_uuid,
-               s.weight AS weight,
-               s.reps AS reps,
-               s.type AS type,
-               s.performed_exercise_uuid AS performed_exercise_uuid,
-               sn.uuid AS session_uuid,
-               sn.finished_at AS finished_at
-        FROM set_table s
-        JOIN performed_exercise_table pe ON pe.uuid = s.performed_exercise_uuid
-        JOIN session_table sn ON sn.uuid = pe.session_uuid
-        WHERE pe.exercise_uuid = :exerciseUuid
-          AND sn.state = 'FINISHED'
-          AND sn.finished_at IS NOT NULL
-          AND (:isWeightless = 1 OR s.weight IS NOT NULL)
-        ORDER BY
-            CASE WHEN :isWeightless = 0 THEN s.weight END DESC,
-            s.reps DESC,
-            sn.finished_at ASC,
-            s.position ASC
-        LIMIT 1
-        """,
-    )
-    suspend fun getPersonalRecord(exerciseUuid: Uuid, isWeightless: Boolean): PersonalRecordRow?
-
-    /**
-     * Reactive PR for [exerciseUuid]. Same SQL body as [getPersonalRecord]; Room re-emits
-     * whenever any of the participating tables change. Subscribers see the new PR after a
-     * finished session bumps it, an edit-save changes a top set, or the holder set is deleted.
-     */
-    @Query(
-        """
-        SELECT pe.exercise_uuid AS exercise_uuid,
-               s.uuid AS set_uuid,
-               s.weight AS weight,
-               s.reps AS reps,
-               s.type AS type,
-               s.performed_exercise_uuid AS performed_exercise_uuid,
-               sn.uuid AS session_uuid,
-               sn.finished_at AS finished_at
-        FROM set_table s
-        JOIN performed_exercise_table pe ON pe.uuid = s.performed_exercise_uuid
-        JOIN session_table sn ON sn.uuid = pe.session_uuid
-        WHERE pe.exercise_uuid = :exerciseUuid
-          AND sn.state = 'FINISHED'
-          AND sn.finished_at IS NOT NULL
-          AND (:isWeightless = 1 OR s.weight IS NOT NULL)
-        ORDER BY
-            CASE WHEN :isWeightless = 0 THEN s.weight END DESC,
-            s.reps DESC,
-            sn.finished_at ASC,
-            s.position ASC
-        LIMIT 1
-        """,
-    )
-    fun observePersonalRecord(exerciseUuid: Uuid, isWeightless: Boolean): Flow<PersonalRecordRow?>
-
-    /**
-     * Reactive PR rows across many exercises in a single subscription. Returns *all* candidate
-     * sets ordered so the consumer can `groupBy { exerciseUuid }.mapValues { it.first() }` to
-     * pick the heaviest per exercise. Single batch query avoids the combine-of-N amplification
-     * pattern that long-lived subscribers (Past session) would otherwise hit. Ordering matches
-     * [getPersonalRecord]: non-null weights first, then weight DESC, reps DESC, earliest
-     * finished_at wins.
-     */
-    @Query(
-        """
-        SELECT pe.exercise_uuid AS exercise_uuid,
-               s.uuid AS set_uuid,
-               s.weight AS weight,
-               s.reps AS reps,
-               s.type AS type,
-               s.performed_exercise_uuid AS performed_exercise_uuid,
-               sn.uuid AS session_uuid,
-               sn.finished_at AS finished_at
-        FROM set_table s
-        JOIN performed_exercise_table pe ON pe.uuid = s.performed_exercise_uuid
-        JOIN session_table sn ON sn.uuid = pe.session_uuid
-        WHERE pe.exercise_uuid IN (:exerciseUuids)
-          AND sn.state = 'FINISHED'
-          AND sn.finished_at IS NOT NULL
-        ORDER BY pe.exercise_uuid,
-            CASE WHEN s.weight IS NULL THEN 1 ELSE 0 END,
-            s.weight DESC,
-            s.reps DESC,
-            sn.finished_at ASC,
-            s.position ASC
-        """,
-    )
+    @Query(PR_BATCH_SQL)
     fun observePersonalRecordsBatch(exerciseUuids: List<Uuid>): Flow<List<PersonalRecordRow>>
 
     /**

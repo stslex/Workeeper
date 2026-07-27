@@ -21,6 +21,10 @@ dependencies {
     implementation(project(":core:data:exercise"))
 
     testImplementation(kotlin("test"))
+    // For PrRuleFixture only — the shared, DB-free description of which set holds a record.
+    // ChartFolder's day-winner is one of the five sites held to it; see
+    // ChartFolderPrRuleParityTest and core/data/exercise's PrRuleParityTest.
+    testImplementation(testFixtures(project(":core:data:database")))
 
     androidTestImplementation(libs.bundles.android.test)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

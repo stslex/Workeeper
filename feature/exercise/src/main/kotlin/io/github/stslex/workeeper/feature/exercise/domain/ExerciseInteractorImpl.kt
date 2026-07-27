@@ -16,7 +16,6 @@ import io.github.stslex.workeeper.feature.exercise.domain.mapper.ExerciseDomainM
 import io.github.stslex.workeeper.feature.exercise.domain.model.ArchiveResult
 import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseChangeDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseDomain
-import io.github.stslex.workeeper.feature.exercise.domain.model.ExerciseTypeDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.HistoryEntryDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.PersonalRecordDomain
 import io.github.stslex.workeeper.feature.exercise.domain.model.PlanSetDomain
@@ -74,9 +73,8 @@ class ExerciseInteractorImpl internal constructor(
 
     override fun observePersonalRecord(
         exerciseUuid: String,
-        type: ExerciseTypeDomain,
     ): Flow<PersonalRecordDomain?> = personalRecordRepository
-        .observePersonalRecord(exerciseUuid, type.toData())
+        .observePersonalRecord(exerciseUuid)
         .map { record -> record?.toDomain() }
 
     override suspend fun saveExercise(

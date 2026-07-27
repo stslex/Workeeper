@@ -153,9 +153,11 @@ internal class CommonHandler @Inject constructor(
     }
 
     /**
-     * Restarts the PR collection whenever the user's selected type changes — switching
-     * WEIGHTED ↔ WEIGHTLESS in edit mode would otherwise leave the original subscription
-     * running with the stale `isWeightless` flag and re-emit a wrong PR after save.
+     * The query no longer takes a type — it reads `exercise_table.type` itself — so the
+     * subscription cannot go stale on the *query* side. The restart is still needed on the
+     * *rendering* side: the PR card formats weight-bearing and rep-only records differently,
+     * so switching WEIGHTED ↔ WEIGHTLESS in edit mode must re-map the latest record through
+     * the new type rather than leave the old label on screen.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun observePersonalRecord(uuid: String) {
@@ -163,7 +165,7 @@ internal class CommonHandler @Inject constructor(
             .map { it.type.toDomain() }
             .distinctUntilChanged()
             .flatMapLatest { type ->
-                interactor.observePersonalRecord(uuid, type)
+                interactor.observePersonalRecord(uuid)
                     .map { record -> record?.toUi(resourceWrapper, type.toUi()) }
             }
             .launch { pr ->
