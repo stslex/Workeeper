@@ -125,6 +125,7 @@ internal object LiveWorkoutMapper {
                 statusLabel = "",
                 planSets = c.plan,
                 performedSets = c.performed,
+                isPlanAttached = c.snapshot.isPlanAttached,
             )
         }.toImmutableList()
     }

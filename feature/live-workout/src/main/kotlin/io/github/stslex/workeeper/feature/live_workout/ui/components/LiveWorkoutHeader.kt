@@ -1,22 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.live_workout.ui.components
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -44,7 +39,6 @@ internal fun LiveWorkoutHeader(
     namePlaceholder: String,
     elapsedLabel: String,
     progressLabel: String,
-    progress: Float,
     isEditingName: Boolean,
     nameDraft: String,
     onNameTap: () -> Unit,
@@ -95,21 +89,6 @@ internal fun LiveWorkoutHeader(
                 text = progressLabel,
                 style = AppUi.typography.bodySmall,
                 color = AppUi.colors.textSecondary,
-            )
-        }
-        Spacer(Modifier.height(AppDimension.Space.xs))
-        val progress by animateFloatAsState(
-            targetValue = progress,
-            animationSpec = tween(durationMillis = AppUi.motion.base),
-        )
-        Box(modifier = Modifier.fillMaxWidth()) {
-            LinearProgressIndicator(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(AppDimension.Space.xs),
-                progress = { progress },
-                color = AppUi.colors.accent,
-                trackColor = AppUi.colors.surfaceTier3,
             )
         }
     }
@@ -172,7 +151,6 @@ private fun LiveWorkoutHeaderLightPreview() {
             namePlaceholder = "Untitled",
             elapsedLabel = "23:14",
             progressLabel = "2 of 5 done · 16 sets logged",
-            progress = 0.4f,
             isEditingName = false,
             nameDraft = "Push Day",
             onNameTap = {},
@@ -191,7 +169,6 @@ private fun LiveWorkoutHeaderDarkPreview() {
             namePlaceholder = "Untitled",
             elapsedLabel = "47:08",
             progressLabel = "4 of 5 done · 22 sets logged",
-            progress = 0.8f,
             isEditingName = false,
             nameDraft = "Push Day",
             onNameTap = {},
@@ -210,7 +187,6 @@ private fun LiveWorkoutHeaderEmptyPreview() {
             namePlaceholder = "Untitled",
             elapsedLabel = "00:12",
             progressLabel = "",
-            progress = 0f,
             isEditingName = false,
             nameDraft = "",
             onNameTap = {},
@@ -229,7 +205,6 @@ private fun LiveWorkoutHeaderEditingPreview() {
             namePlaceholder = "Untitled",
             elapsedLabel = "00:12",
             progressLabel = "",
-            progress = 0f,
             isEditingName = true,
             nameDraft = "Push d",
             onNameTap = {},

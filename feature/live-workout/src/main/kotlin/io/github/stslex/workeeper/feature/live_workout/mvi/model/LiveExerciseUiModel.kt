@@ -25,4 +25,13 @@ data class LiveExerciseUiModel(
      * this list directly and must never merge sources themselves.
      */
     val visibleSets: ImmutableList<LiveSetUiModel> = persistentListOf(),
+    /**
+     * Whether this exercise is in the saved training plan (§6.2). `false` marks a **one-off**:
+     * real work that counts toward progress, deliberately absent from the template.
+     *
+     * Not `is_adhoc` — see `LiveExerciseDomain.isPlanAttached` for the two axes and the
+     * breaking case that separates them. Defaults to `true` so a fixture that does not care
+     * about the axis reads as an ordinary plan exercise.
+     */
+    val isPlanAttached: Boolean = true,
 )
