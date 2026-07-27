@@ -38,14 +38,25 @@ import androidx.compose.ui.graphics.Color
  * | body           | textSecondary                               |
  * | meta           | textTertiary                                |
  * | idle           | textDisabled                                |
- * | hair           | borderSubtle                                |
- * | hair-s         | borderDefault, borderStrong                 |
+ * | hair           | borderSubtle — decorative, no threshold     |
+ * | hair-s lifted  | borderDefault, borderStrong — control       |
+ * |                | outlines; enabled, so each owes 3:1         |
+ * | hair-s         | (no slot — see below)                       |
  * | molten ×4      | record.{textPrimary,solid,background,border}|
  * | rust           | status.error, setType.failure*              |
  *
- * `dim` (#98A0A9 / #6B7078) is the one token with no slot. It is a fifth text tier and this
- * palette has four; adding one is a structural change, so it lands with the section layout in
- * step 4. It is not lost, it is not yet needed.
+ * Two tokens end up with no slot.
+ *
+ * `dim` (#98A0A9 / #6B7078) is a fifth text tier and this palette has four; adding one is a
+ * structural change, so it lands with the section layout in step 4.
+ *
+ * `hair-s` (#2B333B / #D2D7DD) has no slot for a sharper reason: both slots that would have
+ * taken it turned out to be **enabled control outlines**, which owe 3:1 under WCAG 1.4.11, and
+ * `hair-s` delivers 1.12–1.52:1 against every surface here. The mockup draws its off-state
+ * switch track and unchecked set-mark ring in it, so this is the mockup being unmeasured rather
+ * than a misreading of it — the same situation as light `meta`, resolved the same way. If a
+ * genuinely decorative *solid* rule is ever needed, `hair-s` is the value to bring back; today
+ * `borderSubtle` covers every decorative stroke in the app.
  */
 
 /**
@@ -200,9 +211,40 @@ data class AppColors(
     val textDisabled: Color,
     /** v3 `hair` — translucent. Decorative separator; takes no contrast threshold (spec §3.1). */
     val borderSubtle: Color,
-    /** v3 `hair-s` — the solid hairline. */
+    /**
+     * **Control outline**, like [borderStrong] — the boundary that identifies an enabled,
+     * unfocused control.
+     *
+     * Readers: `AppTextField.kt:57` (`unfocusedBorderColor` — the resting outline of every text
+     * field in the app, nine call sites) and `TypeToggle.kt:65` (the unselected option
+     * boundary). Both are enabled and operable, so WCAG 1.4.11 applies and this owes 3:1.
+     *
+     * The neighbouring `disabledBorderColor` at `AppTextField.kt:58` reads [borderSubtle]
+     * instead, and *that* one is genuinely exempt — which is the line this palette draws:
+     * [borderSubtle] is the hairline (separators, grid lines, disabled outlines) and takes no
+     * threshold; these two are controls and do.
+     */
     val borderDefault: Color,
-    /** v3 `hair-s`. Aliases [borderDefault]: v3 has two border tokens and this palette has three. */
+    /**
+     * **Control outline — not a hairline.** The ring that *is* the control when it is off.
+     *
+     * Both readers are enabled, operable controls in their unselected state: the `RadioButton`
+     * `unselectedColor` in `ThemeSelector.kt:84` and the `Checkbox` `uncheckedColor` in
+     * `ExercisePickerSheet.kt:170`. In that state the outline carries the entire affordance —
+     * there is no fill, no label inside it, nothing else to see — so WCAG 1.4.11 applies and it
+     * owes **3:1**, not the nothing a decorative separator owes. It is enabled, so the
+     * inactive-component carve-out does not reach it either.
+     *
+     * That is why this is not `hair-s`. The mockup draws its off-state switch track and its
+     * unchecked set-mark ring in `hair-s`, which measures 1.12–1.52:1 against every surface in
+     * this palette — invisible by design, and fine for a rule between two rows, disqualifying
+     * for a checkbox. Same override the spec already applies to light `meta` for the same
+     * reason: the mockup was drawn, not measured.
+     *
+     * The values keep `hair-s`'s hue and saturation exactly and move only lightness, by the
+     * smallest step that clears 3:1 on all five surfaces — dark 4.09/3.82/3.60/3.29/3.01,
+     * light 3.61/3.42/3.26/3.87/3.00. Quiet, but present.
+     */
     val borderStrong: Color,
     val inverseSurface: Color,
     val inverseOnSurface: Color,
@@ -228,7 +270,8 @@ private const val DARK_BODY: Long = 0xFFB7C0CA
 private const val DARK_META: Long = 0xFF8B95A1
 private const val DARK_IDLE: Long = 0xFF8B95A1
 private const val DARK_HAIR: Long = 0x0DFFFFFF
-private const val DARK_HAIR_SOLID: Long = 0xFF2B333B
+/** Control outline, dark. See [AppColors.borderStrong] — `hair-s` lifted to clear 3:1. */
+private const val DARK_CONTROL_OUTLINE: Long = 0xFF627587
 private const val DARK_MOLTEN: Long = 0xFFF0A22E
 private const val DARK_MOLTEN_BACKGROUND: Long = 0x17F0A22E
 private const val DARK_MOLTEN_BORDER: Long = 0x6BF0A22E
@@ -265,7 +308,8 @@ private const val LIGHT_BODY: Long = 0xFF2C333A
 private const val LIGHT_META: Long = 0xFF596169
 private const val LIGHT_IDLE: Long = 0xFF7C858F
 private const val LIGHT_HAIR: Long = 0x120D1114
-private const val LIGHT_HAIR_SOLID: Long = 0xFFD2D7DD
+/** Control outline, light. See [AppColors.borderStrong] — `hair-s` darkened to clear 3:1. */
+private const val LIGHT_CONTROL_OUTLINE: Long = 0xFF748396
 /**
  * Molten as text in light: **#BE3E0C, a 9-unit nudge off the spec's #C2410C.**
  *
@@ -303,8 +347,8 @@ fun provideDarkAppColors(): AppColors = AppColors(
     textTertiary = Color(DARK_META),
     textDisabled = Color(DARK_IDLE),
     borderSubtle = Color(DARK_HAIR),
-    borderDefault = Color(DARK_HAIR_SOLID),
-    borderStrong = Color(DARK_HAIR_SOLID),
+    borderDefault = Color(DARK_CONTROL_OUTLINE),
+    borderStrong = Color(DARK_CONTROL_OUTLINE),
     inverseSurface = Color(DARK_MAX),
     inverseOnSurface = Color(DARK_BASE),
     setType = SetTypeColors(
@@ -356,8 +400,8 @@ fun provideLightAppColors(): AppColors = AppColors(
     textTertiary = Color(LIGHT_META),
     textDisabled = Color(LIGHT_IDLE),
     borderSubtle = Color(LIGHT_HAIR),
-    borderDefault = Color(LIGHT_HAIR_SOLID),
-    borderStrong = Color(LIGHT_HAIR_SOLID),
+    borderDefault = Color(LIGHT_CONTROL_OUTLINE),
+    borderStrong = Color(LIGHT_CONTROL_OUTLINE),
     inverseSurface = Color(LIGHT_MAX),
     inverseOnSurface = Color(LIGHT_BASE),
     setType = SetTypeColors(

@@ -14,25 +14,62 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppColors
  */
 internal object PaletteInventory {
 
-    /** Nested colour groups are scanned too — the palette is not flat. */
-    private fun groups(colors: AppColors): List<Pair<String, Any>> = listOf(
-        "" to colors,
-        "setType." to colors.setType,
-        "status." to colors.status,
-        "molten." to colors.molten,
-        "record." to colors.record,
-    )
+    /**
+     * Package prefix a nested colour group must live in to be recursed into. Keeps the walk
+     * inside the design system instead of descending into Compose or the JDK.
+     */
+    private const val THEME_PACKAGE = "io.github.stslex.workeeper.core.ui.kit.theme"
 
     /**
      * Fully-qualified slot name to value, e.g. `surfaceTier1`, `setType.failureForeground`.
      *
-     * `isDark` is a `Boolean`, not a `Color`, so the scanner never sees it.
+     * Nested groups are **discovered**, not listed. The previous version named the four groups
+     * it knew about, which reintroduced exactly the failure this file exists to prevent: a
+     * fifth group added to [AppColors] would have been skipped by the walk, its colours would
+     * never have reached `ContrastContract.ROLES`, and the gate would have stayed green while
+     * an entire group went unclassified. A hard-coded list of the things you must not forget is
+     * not a safeguard.
+     *
+     * `isDark` is a `Boolean`, so it is neither a colour nor a group and is never visited.
      */
-    fun slots(colors: AppColors): Map<String, Color> = groups(colors)
-        .flatMap { (prefix, instance) ->
-            ColorFieldScanner.colorMap(instance).map { (name, value) -> "$prefix$name" to value }
+    fun slots(colors: AppColors): Map<String, Color> {
+        val out = sortedMapOf<String, Color>()
+        collect(prefix = "", instance = colors, into = out, seen = mutableSetOf())
+        return out
+    }
+
+    private fun collect(
+        prefix: String,
+        instance: Any,
+        into: MutableMap<String, Color>,
+        seen: MutableSet<Class<*>>,
+    ) {
+        if (!seen.add(instance.javaClass)) return
+        ColorFieldScanner.colorMap(instance).forEach { (name, value) ->
+            into["$prefix$name"] = value
         }
-        .toMap(sortedMapOf())
+        nestedGroups(instance).forEach { (name, child) ->
+            collect("$prefix$name.", child, into, seen)
+        }
+    }
+
+    /**
+     * Every property of [instance] that is itself a colour group — i.e. a theme-package type
+     * that declares at least one `Color`. Depth is unbounded, so a group nested inside a group
+     * is still found.
+     */
+    private fun nestedGroups(instance: Any): List<Pair<String, Any>> = instance.javaClass.methods
+        .filter { method ->
+            method.parameterCount == 0 &&
+                method.name.startsWith("get") &&
+                method.returnType.name.startsWith(THEME_PACKAGE) &&
+                ColorFieldScanner.colorFieldNames(method.returnType).isNotEmpty()
+        }
+        .mapNotNull { method ->
+            val name = method.name.removePrefix("get").replaceFirstChar(Char::lowercaseChar)
+            method.invoke(instance)?.let { child -> name to child }
+        }
+        .sortedBy { it.first }
 }
 
 /**

@@ -72,10 +72,21 @@ internal object ContrastContract {
         "accent" to BOTH,
         "accentTintedForeground" to BOTH,
 
+        // Not decoration: these outlines ARE the control when it is off/unfocused, and every
+        // reader is an enabled, operable control — RadioButton unselectedColor
+        // (ThemeSelector.kt:84), Checkbox uncheckedColor (ExercisePickerSheet.kt:170),
+        // AppTextField unfocusedBorderColor (AppTextField.kt:57), TypeToggle unselected
+        // boundary (TypeToggle.kt:65). WCAG 1.4.11 applies at 3:1.
+        //
+        // The dividing line against `borderSubtle` is not thickness, it is whether the stroke
+        // carries state. AppTextField.kt:58 paints its *disabled* border in `borderSubtle`,
+        // which is exempt; line 57 paints the *enabled* one here, which is not.
+        "borderDefault" to FOREGROUND,
+        "borderStrong" to FOREGROUND,
+
         // -- not scored -------------------------------------------------------------------
         "borderSubtle" to DECORATIVE,
         "borderDefault" to DECORATIVE,
-        "borderStrong" to DECORATIVE,
         "molten.border" to DECORATIVE,
         "record.border" to DECORATIVE,
         "textDisabled" to EXEMPT,
@@ -333,6 +344,28 @@ internal object ContrastContract {
         add(Declared("record.textSecondary", "surfaceTier1", TypeSlot.META, "FinishConfirmDialog rows, dark"))
         add(Declared("record.textPrimary", "surfaceTier2", TypeSlot.BODY, "FinishConfirmDialog heading, light"))
         add(Declared("record.textSecondary", "surfaceTier2", TypeSlot.META, "FinishConfirmDialog rows, light"))
+
+        // Control outlines. Declared on every tier: the theme selector sits on the settings
+        // page, the exercise picker checkbox on a sheet row, and a control can be dropped on
+        // any surface without anyone thinking to revisit this file.
+        everySurface.forEach { surface ->
+            add(
+                Declared(
+                    foreground = "borderStrong",
+                    background = surface,
+                    typeSlot = TypeSlot.UI_COMPONENT,
+                    evidence = "RadioButton unselectedColor / Checkbox uncheckedColor, enabled",
+                ),
+            )
+            add(
+                Declared(
+                    foreground = "borderDefault",
+                    background = surface,
+                    typeSlot = TypeSlot.UI_COMPONENT,
+                    evidence = "AppTextField unfocusedBorderColor / TypeToggle unselected, enabled",
+                ),
+            )
+        }
 
         // `accentTintedForeground` is v3 `max` — the same colour as textPrimary and accent.
         // Nine of its thirteen reads are ordinary foreground text/icons on ordinary surfaces,

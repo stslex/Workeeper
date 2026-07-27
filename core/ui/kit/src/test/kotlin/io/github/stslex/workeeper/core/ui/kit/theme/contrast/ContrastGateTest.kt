@@ -22,8 +22,29 @@ import org.junit.jupiter.params.provider.MethodSource
  *
  *  1. [every_declared_pair_meets_its_threshold] — the measurements.
  *  2. [every_slot_has_a_declared_role] — a new slot cannot default into being ignored.
- *  3. [every_foreground_surface_pair_is_declared_or_excluded] — a new *pairing* cannot appear
- *     unmeasured. Without this the gate would only check what it already knew about.
+ *  3. [every_foreground_surface_pair_is_declared_or_excluded] — no combination of existing
+ *     slots can sit unaccounted for. Without this the gate would only check what it already
+ *     knew about.
+ *  4. [no_pair_is_both_declared_and_excluded] — an exclusion that a declaration contradicts has
+ *     a false premise, and would be silently masking its whole family.
+ *
+ * ## What this gate does not do
+ *
+ * It reads [ContrastContract] and the palette. It does **not** read production call sites. So:
+ *
+ *  - Adding a slot, or painting one existing slot on another in a way the contract has not
+ *     accounted for, fails here. That is (2) and (3).
+ *  - Adding a screen that paints an *already declared* pair is fine and stays green, correctly —
+ *     the pair is measured.
+ *  - Adding a screen that paints a pair currently covered by an **exclusion** stays green
+ *     **wrongly**, because the exclusion's premise is a claim about layout ("molten never
+ *     appears on `field`") that this test cannot re-verify. Each exclusion records the evidence
+ *     it rested on so the claim can be re-checked by a human; (4) catches the case where the
+ *     contract itself has already contradicted one.
+ *
+ * Closing that last gap needs call-site analysis — a detekt rule that resolves
+ * `AppUi.colors.<slot>` against the enclosing surface — which is a bigger tool than this.
+ * Until then: **an exclusion is an assertion about the UI, and it ages.**
  */
 internal class ContrastGateTest {
 
@@ -105,6 +126,33 @@ internal class ContrastGateTest {
                 appendLine("  - add a ContrastContract.EXCLUSIONS rule saying why it cannot occur.")
                 appendLine()
                 unaccounted.forEach { (fg, bg) -> appendLine("  $fg on $bg") }
+            },
+        )
+    }
+
+    @Test
+    @DisplayName("no pair is both declared and excluded")
+    fun no_pair_is_both_declared_and_excluded() {
+        val contradictions = ContrastContract.DECLARED
+            .map { it.foreground to it.background }
+            .distinct()
+            .mapNotNull { (fg, bg) ->
+                ContrastContract.EXCLUSIONS
+                    .firstOrNull { it.matches(fg, bg) }
+                    ?.let { "$fg on $bg — excluded because: ${it.reason}" }
+            }
+
+        assertTrue(
+            contradictions.isEmpty(),
+            buildString {
+                appendLine("A declared pair is also matched by an exclusion rule.")
+                appendLine()
+                appendLine("An exclusion claims a pair cannot occur. A declaration says it does.")
+                appendLine("Both cannot be true, and the exclusion is the dangerous half — it is")
+                appendLine("a rule, so it is silently suppressing every other pair in its family")
+                appendLine("too. Narrow or delete the rule; do not delete the declaration.")
+                appendLine()
+                contradictions.forEach { appendLine("  $it") }
             },
         )
     }
