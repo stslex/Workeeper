@@ -1,40 +1,49 @@
 # v3 Redesign — Specification
 
-**Status:** complete. Parts I and II closed.
+**Revision 3.** Supersedes all earlier copies, including the Russian drafts. If you find another, delete it.
+
 **Sources:** `documentation/mockups/workeeper-redesign-pass2d.html`, `workeeper-session-v3f.html`.
-**Supersedes:** all earlier drafts of this document, including the Russian ones. If you find another copy, delete it — two sources with drifting numbers is the failure mode this file exists to prevent.
+**Merged:** steps 1–5.
 
 ---
 
-## 0. Mockup status
+## 0. How to read this document
 
-The mockups are **reconnaissance, not contract**. They were drawn before the type scale was locked and carry twenty font sizes against the locked six.
+### 0.1 Claims are marked
 
-| Take from the mockup | Do not take |
+This arc produced a hard lesson. Every claim this specification made about **what the code does** was wrong or too narrow — seven for seven. Every claim about **what the design should be** held. Cabinet analysis of this repository has now failed for its author as reliably as it failed before.
+
+So claims are marked:
+
+- **[V]** — verified by execution, with the evidence named. Trust it, but note when it was verified: two of four cited call sites went stale inside a single arc, in weeks.
+- **[I]** — inferred from reading. **Resolve by preflight before building on it.** An [I] claim that turns out wrong is the expected case, not a surprise.
+
+An unmarked statement is a design decision, which is this document's own authority and does not need verification.
+
+### 0.2 The mockups are reconnaissance, not contract
+
+They were drawn before the type scale was locked and carry twenty font sizes against the locked six.
+
+| Take | Do not take |
 |---|---|
 | palette, both themes | font sizes — the six-step scale wins |
-| motion tokens | raw pixel values — see 0.1 |
-| structure and screen hierarchy | CSS shadows, radii, flex gaps |
-| component states | units picker, third chart metric, session tonnage — see §11 |
+| motion tokens | raw pixel values — see 0.3 |
+| structure and hierarchy | CSS shadows, radii, flex gaps |
+| component states | §11 items |
 
-**Consequence to know in advance:** some text will land on a scale step 1–2px away from the mockup. That is correct. Do not file it as a bug during visual review.
+Some text will land on a scale step 1–2px from the mockup. That is correct; do not file it during visual review.
 
-### 0.1 Pixels and dp
+### 0.3 Pixels and dp
 
-An earlier draft of this document claimed the mockup frame implied a px→dp scale factor of roughly 1.15. **That was wrong.** The mockups declare `width=device-width`, so 1 CSS px is 1 dp; the 452px frame is a desktop viewport cap sitting above the widest phone, not a device width.
+An earlier revision claimed a px→dp factor of ~1.15. **Wrong.** The mockups declare `width=device-width`, so 1 CSS px is 1 dp; the 452px frame is a desktop viewport cap above the widest phone.
 
-The real work is not conversion but **rounding onto the existing `AppDimension` ladder**. Rule: round to the nearest rung; break ties toward the value that already has call sites. Worked example: the mockup's 20 gutter is equidistant between two rungs and resolved to 16dp, which already had 45 call sites.
+The work is **rounding onto the existing `AppDimension` ladder**: nearest rung, ties broken toward the value that already has call sites. Worked example — the mockup's 20 gutter was equidistant and resolved to 16dp, which already had 45 call sites. **[V]**
 
-Values may also be **derived rather than transcribed** where the mockup's number is a consequence of its parts. The 88dp row height is `2×21 + 4 + 18 + 2×12`, and measurement from golden pixels at 2.75 px/dp confirmed 176 / 242 / 242 px = 64.0 / 88.0 / 88.0 dp.
+Values may be **derived rather than transcribed** where the mockup's number is a consequence of its parts: the 88dp row height is `2×21 + 4 + 18 + 2×12`, confirmed from golden pixels at 2.75 px/dp as 176 / 242 / 242 px = 64.0 / 88.0 / 88.0 dp. **[V]**
 
-### 0.2 Every mockup colour is measured before adoption
+### 0.4 Every mockup colour is measured before adoption
 
-Two for two so far have failed a locked threshold:
-
-- light `meta` `#69727C` — 3.79:1 on `raise`, against 4.5:1
-- `dim` proposed for section labels — 3.91:1 under an 11sp label, against 4.5:1
-
-The mockups were drawn without contrast measurement. **Measure, then adopt.** Never the other way round. Neither failure is visible to the eye — both miss by under 15%, and both were caught only by number.
+Two for two failed a locked threshold: light `meta` `#69727C` at 3.79:1 on `raise`, and `dim` at 3.91:1 under an 11sp label. Both miss by under 15% and neither is visible to the eye. **Measure, then adopt.** **[V]**
 
 ---
 
@@ -42,11 +51,11 @@ The mockups were drawn without contrast measurement. **Measure, then adopt.** Ne
 
 ## 1. Principle
 
-The accent is **brightness, not hue**. A session begins visually muted and brightens as it is completed. Completed = maximum contrast against the background, in both themes.
+The accent is **brightness, not hue**. A session starts visually muted and brightens as it is completed. Completed = maximum contrast against the background, in both themes.
 
-There is no coloured accent. `molten` marks records only; `rust` marks destruction only. Contrast stops being an accessibility requirement and becomes the load-bearing expressive device — which is why it is gated rather than eyeballed.
+No coloured accent. `molten` marks records only; `rust` marks destruction only. Contrast stops being an accessibility requirement and becomes the load-bearing expressive device — hence the gate.
 
-Measured on the approved palette: completed content scores **13.07–17.77** in dark and **14.71–18.96** in light against a 7:1 threshold. The signature inversion in light theme worked; the margin is double.
+Measured: completed content scores 13.07–17.77 dark and 14.71–18.96 light against a 7:1 threshold. The light-theme signature inversion worked; the margin is double. **[V]**
 
 ## 2. Palette
 
@@ -81,7 +90,7 @@ Measured on the approved palette: completed content scores **13.07–17.77** in 
 | `raise` | `#DFE3E8` |
 | `max` | `#0D1114` |
 | `body` | `#2C333A` |
-| `meta` | **`#596169`** ← changed, see 2.4 |
+| `meta` | **`#596169`** — see 2.4 |
 | `dim` | `#6B7078` |
 | `idle` | `#7C858F` |
 | `hair` | `rgba(13,17,20,.07)` |
@@ -90,31 +99,29 @@ Measured on the approved palette: completed content scores **13.07–17.77** in 
 | `molten-solid` | `#F97316` |
 | `rust` | `#B03B2E` |
 
-**Naming note:** these are the mockup's names. The codebase's slots are `surfaceTier0..4`, `accentTintedBackground`, `textPrimary/Secondary/Tertiary` and so on. There is no `AppUi.colors.raise`. Aligning the two naming systems is logged in `tech-debt.md` and is explicitly **not** part of this arc — a rename touching every call site would drown the visual diff it is supposed to make reviewable.
+**Naming:** these are the mockup's names. The codebase uses `surfaceTier0..4`, `accentTintedBackground`, `textPrimary/Secondary/Tertiary`. There is no `AppUi.colors.raise`. Aligning the two is logged in `tech-debt.md` and is **not** part of this arc — a rename across every call site would drown the visual diff it exists to make reviewable.
 
 ### 2.3 `molten` is a four-part role that inverts by theme
 
-Not one hex. Text, solid fill, background and border — and light **darkens** where dark **lightens**: `#F0A22E` → `#C2410C` for text, `#F0A22E` → `#F97316` for fill.
+Text, solid fill, background, border — and light **darkens** where dark **lightens**: `#F0A22E` → `#C2410C` text, `#F0A22E` → `#F97316` fill.
 
-It appears in exactly two places and nowhere else: the personal-record accent, and the transient wow state (§9). It is not a general-purpose accent. Say so in KDoc, or it will be reused as one.
+Two places only: the personal-record accent and the transient wow state (§9). Not a general accent. Say so in KDoc or it will become one.
 
-### 2.4 Light meta deviates from the mockup deliberately
+### 2.4 Light meta deviates deliberately
 
-The mockup's approved `#69727C` fails the locked 4.5:1 threshold on three surfaces of five: `raise` 3.79, `field` 4.12, `sec` 4.32. It passes only on `base` (4.56) and `slab` (4.89). `sec` is the most frequent surface in the set, so the failure is real rather than theoretical.
+The mockup's approved `#69727C` fails 4.5:1 on three surfaces of five: `raise` 3.79, `field` 4.12, `sec` 4.32; passes only on `base` 4.56 and `slab` 4.89. `sec` is the most frequent surface. **[V]**
 
-**Resolution: `#596169`.** The worst surface scores 4.88; it passes everywhere unconditionally. Separation from `body` survives — 11.93 against roughly 5.8 on `base`.
+**Resolution: `#596169`** — worst surface 4.88, passes everywhere. Separation from `body` survives (11.93 vs ~5.8 on `base`). Record the reason in KDoc; somebody will otherwise "fix" it back to the mockup.
 
-Record this reason in KDoc on the token. Somebody will otherwise "fix" it back to match the mockup.
+The correction direction is safely asymmetric: the gate asserts a threshold, so darkening is free and lightening is caught.
 
-The correction direction is safely asymmetric: the gate asserts a threshold, so darkening further is free and lightening is caught.
+### 2.5 Section labels use `textTertiary`, not `dim`
 
-### 2.5 Section labels use `textTertiary`, not the mockup's `dim`
-
-Measured: `dim` under an 11sp label gives 3.91:1 against the 4.5:1 an 11sp label owes. Same trap as 2.4. The fifth tier now has a number attached to it.
+`dim` under an 11sp label gives 3.91:1 against the 4.5:1 owed. Same trap as 2.4. **[V]**
 
 ## 3. Contrast thresholds
 
-The threshold depends on **type size**, not on the pair alone. WCAG grants the 3:1 allowance only for ≥24sp regular or ≥18.66sp bold; `FontWeight.Medium` (500) is not bold.
+Threshold depends on **type size**, not the pair alone. WCAG grants 3:1 only for ≥24sp regular or ≥18.66sp bold; `FontWeight.Medium` is not bold.
 
 | Slot | Condition | Threshold |
 |---|---|---|
@@ -123,43 +130,41 @@ The threshold depends on **type size**, not on the pair alone. WCAG grants the 3
 | IBM Plex Sans Medium, 34 / 26 | regular ≥24sp | **3:1** |
 | IBM Plex Sans Medium, ≤19 | — | **4.5:1** |
 | `max` on any surface | — | **7:1** |
-| `meta` on its own backing | — | **4.5:1** |
+| `meta` on its backing | — | **4.5:1** |
 
-**`rust` on `raise` in dark measures 3.28** — below 4.5:1 for a destructive label. Either darken the surface beneath destructive text, or establish that destructive text never sits on `raise`. Whichever is chosen, the contrast map must encode it so it cannot silently regress.
+**`rust` on `raise` in dark measures 3.28** — below 4.5:1 for a destructive label. Either darken the surface beneath destructive text or establish that destructive text never sits on `raise`. Whichever is chosen, the map must encode it so it cannot silently regress. **[V]**
 
 ### 3.1 Hairlines carry no threshold
 
-An early draft locked hairlines at ≥3:1, on the theory that killing cards made them the only section separator. **That was wrong.** The markup shows `.sgroup { margin-top: 30px }` plus `.sgroup > .label` — every section has thirty pixels of air above it and a text heading. Sections are separated by space and a label.
+An early revision locked ≥3:1 on the theory that killing cards made hairlines the sole section separator. **Wrong.** `.sgroup { margin-top: 30px }` plus `.sgroup > .label` — every section has thirty pixels of air and a text heading. Sections are separated by space and a label. **[V]**
 
-`hair-s` divides **rows inside** a section. That is the decorative case, and the measured 1.12–1.52 is legitimate.
+`hair-s` divides **rows inside** a section — the decorative case, and 1.12–1.52 is legitimate.
 
-**Rule:** a section is separated by gutter and heading. A hairline is decorative. If a future screen makes a line the sole separator, it becomes load-bearing and takes 3:1.
+**Rule:** gutter and heading separate sections; a hairline is decorative. A line that becomes the sole separator on some future screen is load-bearing and takes 3:1.
 
-### 3.2 The gate is built from a map, not from a measurement
+### 3.2 The gate is built from a map
 
-A measurement yields pairs. A threshold requires the usage. The same foreground/background pair holds 3:1 under 26sp and 4.5:1 under 15sp — one ratio, two verdicts.
+A measurement yields pairs; a threshold requires the usage. The same pair holds 3:1 under 26sp and 4.5:1 under 15sp.
 
-Required shape, three parts:
+- **(a)** a declared map of `(foreground, background, type slot)` triples with thresholds;
+- **(b)** an exclusion list of pairs that provably never co-occur, each with a reason;
+- **(c)** a test enumerating **all** foreground × surface combinations that fails on any neither declared nor excluded.
 
-- **(a)** a declared map of `(foreground, background, type slot)` triples, each with the threshold it must meet;
-- **(b)** an explicit exclusion list of pairs that provably never co-occur, each with a one-line reason;
-- **(c)** a test that mechanically enumerates **all** foreground × surface combinations and fails on any that is neither declared nor excluded.
+Part (c) is the point. Without it a new screen adds an unverified pair in silence.
 
-Part (c) is the point. Without it a new screen adds an unverified pair in silence. A gate that only checks what it already knows about is a comment.
+Also: disabled and inactive colours are **WCAG-exempt** (1.4.3, 1.4.11) — verify inactivity at call sites before exempting. Role aliasing inflates counts; report **distinct measurements** alongside rows. Hairlines are excluded with the 3.1 reason, not asserted as passing.
 
-Additional requirements:
+### 3.3 The map's own integrity is gated
 
-- Disabled and inactive colours are **WCAG-exempt** (1.4.3 and 1.4.11 both carve out inactive components). Do not score them, and verify each candidate is genuinely inactive at its call sites before exempting it.
-- Role aliasing inflates counts — `primary`/`secondary`/`tertiary` may all resolve to one colour. Report **distinct measurements** alongside row counts.
-- Hairlines are excluded with the reason from 3.1, not asserted as passing.
+A duplicate key in the roles map resolves last-write-wins, so behaviour is set by declaration order and **neither line reads like what happens**.
 
-### 3.3 The map's own integrity must be gated
+This occurred. The resolution is worth recording precisely, because two separate readings of the source disagreed and both were half right: the threshold **was** declared correctly at 3:1, and `borderDefault` had **dropped out of the enumeration entirely**. A correct-looking line created the appearance of coverage where there was none. Established by execution — stripping all five `DECLARED` rows gave exit 0 before the fix and exit 1 after. **[V]**
 
-A duplicate key in the roles map is silently resolved by last-write-wins, which means the gate's behaviour is determined by declaration order and **neither line reads like what actually happens**. This has already occurred once: an entry carrying a reasoned 3:1 justification sat dead beneath an unreasoned `DECORATIVE` entry for the same key, and the net behaviour matched neither.
+This is more dangerous than an uncovered pair. Uncovered fails loudly. A silently substituted threshold passes green with the wrong number, inside the gate built to prevent exactly that.
 
-This is more dangerous than an uncovered pair. An uncovered pair fails loudly — that is part (c). A pair whose threshold has been silently substituted passes green with the wrong number.
+**Requirement:** build the map from a list and **fail at construction on a duplicate key**. Fixing offending lines is not sufficient; the next duplicate arrives just as quietly.
 
-**Requirement:** build the map from a list of entries and fail at construction on a duplicate key. Fixing the two offending lines is not sufficient; the next duplicate would arrive just as quietly.
+Note on writing such guards: the first attempt keyed on `(fg, bg)` and rejected 14 correct rows, because the list is keyed on the triple. The failed attempt is how it was established that the other lists do not share the hazard. A guard that fails informatively is worth writing even when it is wrong. **[V]**
 
 ## 4. Typography
 
@@ -169,19 +174,19 @@ This is more dangerous than an uncovered pair. An uncovered pair fails loudly �
 | Archivo Expanded | numerals, timer | 700 |
 | IBM Plex Mono | units, metadata | 400 / 500 |
 
-Scale: **34 / 26 / 19 / 15 / 12.5 / 11**. The fifteen M3 style names are derived aliases over the six steps.
+Scale: **34 / 26 / 19 / 15 / 12.5 / 11**. The fifteen M3 names are derived aliases over the six steps.
 
-**C1. `fontFeatureSettings = "tnum"` is mandatory on every numeric slot.** Archivo's digits are proportional (0=769, 1=683). Measured: with `tnum` the colon columns sit at 214–232 on both lines; without, 216–234 against 200–218 — a 16px drift. A golden canary catches this.
+**C1. `fontFeatureSettings = "tnum"` is mandatory on every numeric slot.** Archivo's digits are proportional (0=769, 1=683). With `tnum` the colon columns sit at 214–232 on both lines; without, 216–234 vs 200–218 — a 16px drift. A golden canary catches it. **[V]**
 
-**C2. `numericFontFamily` takes digits and `: . , - + / %` only. Never a translatable string.** Archivo has zero Cyrillic coverage. Verified against the real corpus: 19 `values` plus 18 `values-ru`, 55 Cyrillic characters plus `« » · × — … →`. Plex Sans and Mono cover it completely.
+**C2. `numericFontFamily` takes digits and `: . , - + / %` only. Never a translatable string.** Archivo has zero Cyrillic. Verified against 19 `values` plus 18 `values-ru`, 55 Cyrillic characters plus `« » · × — … →`. **[V]**
 
-C2 is closed by **two mechanisms covering different halves**: the Cyrillic golden catches text slots, the custom detekt rule catches numeric slots. The rule is not redundant — do not conflate them.
+C2 is closed by **two mechanisms covering different halves**: the Cyrillic golden catches text slots, the detekt rule catches numeric ones. The rule is not redundant.
 
-**C3. `isShrinkResources = true` strips unreferenced font resources.** Verify presence by sha256 in the packaged APK, not by filename: entries are obfuscated to `res/8y.ttf`.
+**C3. `isShrinkResources = true` strips unreferenced fonts.** Verify by sha256 in the packaged APK, not filename — entries obfuscate to `res/8y.ttf`. **[V]**
 
 ## 5. Motion
 
-The mockup's tokens do not overlap the existing `AppMotion` at a single point. `AppMotion` is retokenised wholesale:
+The mockup's tokens do not overlap the old `AppMotion` at any point:
 
 | Token | Value |
 |---|---|
@@ -191,174 +196,174 @@ The mockup's tokens do not overlap the existing `AppMotion` at a single point. `
 | `out` | `cubic-bezier(.16, 1, .3, 1)` |
 | `spring` | `cubic-bezier(.34, 1.56, .64, 1)` |
 
-`spring` overshoots past 1. There is no equivalent in the current set; in Compose this is `spring` with a tuned `dampingRatio` or `keyframes`, not `tween` with an `Easing`.
-
-**Overshoot is valid on geometry and invalid on colour.** Scale, translation and size may overshoot; a colour lerp past 1.0 clamps or produces garbage. This constrains the wow-moment automaton in §9.
-
-`AppMotion` already sits behind `LocalAppMotion`, so replacing values does not touch plumbing.
+`spring` overshoots past 1. **Overshoot is valid on geometry and invalid on colour** — a colour lerp past 1.0 clamps or garbages.
 
 ## 6. Session mechanics
 
 ### 6.1 Exercise states
 
-Mockup classes: `active` · `fin` · `skip` · `temp`, plus `prfx` as a transient.
+Mockup classes: `active` · `fin` · `skip` · `temp`, plus `prfx` transient.
 
-| State | Meaning | Progress denominator | Training plan |
+| State | Meaning | Denominator | Plan |
 |---|---|---|---|
-| **Active** (`active`) | in progress now, expanded, on `raise` | counted | — |
-| **Done** (`fin`) | collapsed, muted, result replaces plan | counted | — |
-| **Skipped** (`skip`) | "not today" | **excluded** | untouched |
-| **One-off** (`temp`) | in the session, not in the plan, dashed ordinal | counted | not added |
-| Deleted | "this should not be here" | excluded | cleaned |
-| **Unfilled** | set row created, `reps = 0` | **does not survive** | — |
+| **Active** | in progress, expanded, raised | counted | — |
+| **Done** | collapsed, muted, result replaces plan | counted | — |
+| **Skipped** | "not today" | **excluded** | untouched |
+| **One-off** | in session, not in plan, dashed ordinal | counted | not added |
+| Deleted | should not be here | excluded | cleaned |
 
-- Skip is reversible in place. **No snackbar** — there is nothing to undo.
-- Delete gets a 5-second undo toast; after that there is no way back.
-- The "only for today" toggle appears **only** on exercises added during the session. Mockup caption: "stays in this session but will not be added to the training plan." Off by default.
-- Removing an exercise from the plan is a separate dialog — "Remove from the training plan?" with "Keep" / "Remove from plan".
+- Skip is reversible in place. **No snackbar** — nothing to undo.
+- Delete gets a 5-second undo toast.
+- The "only for today" toggle appears **only** on mid-session additions. Off by default.
+- Removing from the plan is a separate dialog: "Keep" / "Remove from plan".
 
-**Unfilled is new.** `reps` is a non-null `Int` and zero acts as a "not entered" sentinel (`LiveSetRow.kt:97` renders `reps.takeIf { it > 0 }`). Validation blocks **editing** to ≤0, but the row is **created** with zero — finish a session with an unfilled set and the zero persists forever.
+**Unfilled sets are a UI draft state, not a persistence state.** An earlier revision claimed a `reps = 0` row "persists forever". **Not reachable:** every production writer of `set_table` gates on reps — `upsert` by `reps > 0`, `update` by `parsed > 0`, and `insert` has no production caller. **[V]**
 
-**Resolution: unfilled sets are discarded at session finish, with a line in `FinishConfirmDialog`.** Not silently. The reason is not data hygiene: a progress rail that counts sets which never happened lies about progress, and the principle in §1 rests entirely on that count being honest.
-
-This also affects `totalSets = exercises.sumOf { it.sets.size }` (`PastSessionUiMapper:27-31`).
-
-Confirm the real population on live data before writing release notes — unfilled rows versus deliberate zeroes.
+What the user is told at finish is therefore the count of **visible empty rows**, which is real and non-zero. The persistence-level discard remains as defence in depth, and its KDoc must say it finds nothing today — a guard whose emptiness is undocumented reads as dead code and gets deleted.
 
 ### 6.2 `plan-attached`
 
-The axis is named explicitly. **Not `adhoc`**: `exercise_table.is_adhoc` is a property of the **exercise** ("created inline", create/graduate/delete lifecycle, arrived in v6). One-off is a property of the **relation** between exercise and training. Breaking case: a library exercise with `is_adhoc = 0` added as a one-off today.
+A property of the exercise↔training **relation**, not of the exercise. Not `adhoc`: `exercise_table.is_adhoc` means "created inline" with its own create/graduate/delete lifecycle. Breaking case: a library exercise with `is_adhoc = 0` added as a one-off today.
 
-**No migration required.** The flag is encoded by the absence of a row in `training_exercise_table`; `performed_exercise_table` has no FK to it, and the loader already tolerates a missing plan.
+Encoding: absence of a `training_exercise_table` row. **No migration.**
 
-### 6.3 The `getPlans` seam — verify before implementing
+**The two axes intersect, and the intersection held a bug.** An inline-created one-off would have been stranded at `is_adhoc = 1` forever by graduation, and leaked by cancel. Any future work touching either axis must check the other. **[V]**
 
-`plan_sets` on an existing row is nullable. At `LiveWorkoutInteractorImpl.kt:95-103`, "no row" and "row with an empty plan" both collapse into `trainingPlans[it] == null`. If `getPlans` returns a map keyed by uuid there is nothing there to distinguish them, and the repository must expose the flag explicitly rather than through plan nullability.
+### 6.3 `getPlans` — resolved
 
-### 6.4 The writer that has to fork
+An earlier revision claimed the repository could not distinguish "no row" from "row with an empty plan". **Wrong on both counts.** `getPlans` builds its map with `rows.associate {}` over rows SQL returned, so a missing pair is an absent key — and `TrainingExerciseRepositoryImplDbTest:212-217` already pinned all three states. The collapse existed only at the call site, because `map[k]` returns null for absent-key and present-null alike. Fixed with `containsKey`. **[V]**
 
-`addExerciseToActiveSession` (`SessionRepositoryImpl.kt:386-400`) atomically writes **both** a plan row and a performed row. Adding an exercise mid-session therefore permanently edits the saved template today. This is the only writer requiring change.
+Worth keeping as a pattern: the capability was already proven by a test that predated the claim it disproved.
+
+### 6.4 Paths that join through the plan table
+
+An earlier revision named `addExerciseToActiveSession` "the only writer requiring change". True of **writers**, and the wrong frame. Two **readers** that drive lifecycle writes also join through the plan table and would silently skip a one-off; finish-time plan writes would match zero rows. **[V]**
+
+**The correct frame is every path that joins through `training_exercise_table`, not every path that writes to it.**
 
 ### 6.5 Sets
 
-Mockup classes: `done` · `flash` · `pr`.
+Classes `done` · `flash` · `pr`.
 
-- Set-level skip is **removed entirely** — unperformed sets are overwritten by the next session anyway.
-- Deletion is the "− set" button, always the last set. Deleting from the middle requires a row swipe and is **not planned**.
-- Adding a set to a completed exercise returns it to incomplete; the add/remove buttons stay reachable on a completed exercise.
+- Set-level skip is **removed** — unperformed sets are overwritten next session.
+- Deletion is the "− set" button, always the last set. Middle deletion needs a swipe: **not planned**.
+- Adding a set to a completed exercise returns it to incomplete; its buttons stay reachable.
 
 ## 7. Disclosure
 
 | Rule | Behaviour |
 |---|---|
 | has progress | always expanded |
-| no progress | exactly one — the **first by position** among unfinished |
+| no progress | exactly one — **first by position** among unfinished |
 | completed | collapses automatically |
-| manually expanded | sticky, holds for the screen session |
-| after the first manual action | the auto rule **stops collapsing anything** until the screen is left |
-| completed | can be expanded manually — otherwise its buttons are unreachable |
+| manually expanded | sticky for the screen session |
+| after first manual action | auto rule **stops collapsing anything** until the screen is left |
+| completed | manually expandable — its buttons are otherwise unreachable |
 
-Expanded means active, and carries the accent. The automaton is initialisation plus advance-on-completion; manual expansions are additive and sticky. There is no conflict because manual action mutes auto-collapse, not the reverse.
+Manual mutes auto-collapse; auto never overrides manual.
+
+**Configuration change does not discriminate here.** With 17 absorbed `configChanges`, `remember`, `rememberSaveable` and Store state survive rotation identically. "Surviving rotation" is not the useful test; the failure mode that actually occurred was a plan-editor round-trip resetting expansion, which is not "leaving the screen session". **[V]**
 
 ## 8. Progress rail
 
-Mockup geometry: `height: 9px`, `gap: 12px`, `margin-top: 22px`, flex distribution. Below the rail sits `railmeta` with two captions.
+Geometry: 9dp tall, 12dp gap, 22dp top margin, flex; `railmeta` with two captions beneath.
 
 Degrades by width: **sets → exercises → overall**.
 
-**Mechanism: `BoxWithConstraints` inside a single rail component.** Not `WindowSizeClass`.
+**Mechanism: `BoxWithConstraints` inside a single rail component.** Not `WindowSizeClass`. The rule is local — do N segments fit in **this** rail — which is width at the layout point and survives `fontScale` changes a screen-level computation would not.
 
-- The rule is local — do N segments fit in **this** rail. That is width at the layout point, not a window class.
-- No new dependency and no global plumbing, which sidesteps `AppDimension` not being a CompositionLocal.
-- `MainActivity` absorbs `fontScale` without recreating the Activity, so a value computed once at screen level goes stale; computed at the layout point it does not.
+**The rail is one component with the rule inside it.** Copies mean a drifting threshold.
 
-**Condition: the rail is one component with the rule inside it.** Copies mean a drifting threshold.
+The 9dp minimum segment width is **unverified** — taken from a browser. It stays a named constant whose KDoc says so until a device says otherwise.
 
-The mockup ships the degradation ladder as toggles: **2×4 · 5×4 · 8×4 · 16×5** (exercises × sets) — 8, 20, 32 and 80 segments. Ready-made test cases and a ready-made golden set.
+**The mockup's presets do not cover the ladder.** 2×4, 5×4, 8×4 and 16×5 reach only two of three levels: 16×5 lands on EXERCISES, confirmed at the mockup's own 412px width. OVERALL needs 24 exercises or a constrained rail; the golden set constrains the rail rather than inflating the data. **[V]**
 
 ## 9. Wow moments
 
 Two, and only two:
 
-1. **Set closure** — the circle morphs into a filled plate, the row flashes (`flash`), the rail segment fills.
-2. **Personal record** — a molten unfurl (`prfx`), standing in for AGSL.
+1. **Set closure** — circle morphs to a filled plate, row flashes, rail segment fills.
+2. **Personal record** — molten unfurl.
 
-Everything else uses default transitions.
+**Merge, do not sequence.** A record almost always *is* a set closure. The structural half cannot be suppressed — the segment must fill, the rail depends on it — and queueing doubles the duration of the app's most frequent action.
 
-**Merge, do not sequence.** A record almost always *is* a set closure. The structural half cannot be suppressed — the segment must fill, the rail depends on it. Queueing doubles the duration of the most frequent action in the app.
+**One automaton, record as a parameter:** same morph, flash and segment resolve to `molten` instead of `max`. Overshoot applies to the geometry, never to the colour lerp (§5).
 
-**One automaton, record as a parameter.** Same morph; the flash and segment resolve to `molten` instead of `max`. Note the constraint from §5: overshoot applies to the geometry, not to the colour lerp.
-
-Infrastructure is already in place: `SharedTransitionLayout` is threaded into five graphs with all five receivers marked `@Suppress("UnusedParameter")`.
+**The flash must be gated to false→true transitions.** Firing on first composition is the defect this arc actually shipped into four goldens before review caught it — see 10.2.
 
 ## 10. Gates
 
-### 10.1 Paparazzi — conditional, working
+### 10.1 Paparazzi
 
 | Condition | State |
 |---|---|
-| `2.0.0-alpha05` | latest; stable 1.3.5 cannot configure on AGP 9.3.0 (`BaseExtension` removed) |
-| JUnit path | **Jupiter.** `Paparazzi.setup(TestName)` / `teardown()` are public and touch no JUnit 4 type |
-| `maxPercentDifference` | **0.0**, set explicitly. A whole glyph moved 0.030–0.031% of the frame; 0.1 would have waved it through |
-| `useDeviceResolution` | **`true`.** Removes resampling noise; hairlines land on whole pixels |
-| Fonts | no substitution — goldens render the real families |
+| `2.0.0-alpha05` | latest; stable 1.3.5 cannot configure on AGP 9.3.0 |
+| JUnit path | **Jupiter.** `setup(TestName)` / `teardown()` touch no JUnit 4 type |
+| `maxPercentDifference` | **0.0**, explicit. A whole glyph moved 0.030–0.031% |
+| `useDeviceResolution` | **`true`** — hairlines land on whole pixels |
+| Fonts | no substitution; goldens render the real families |
 
-**The liveness assertion is mandatory.** An earlier claim that Jupiter removes the silent-skip mode structurally was **disproved by execution**: with the golden package excluded by a task filter, `verifyPaparazziDebug` exits `0 / BUILD SUCCESSFUL` having run zero tests. `failOnNoDiscoveredTests` does not help and is `false` repo-wide anyway. The assertion finalises both Paparazzi tasks.
+**The liveness assertion is mandatory.** The claim that Jupiter removes silent-skip structurally was **disproved**: with the golden package excluded by a task filter, `verifyPaparazziDebug` exits `0 / BUILD SUCCESSFUL` having run zero tests. `failOnNoDiscoveredTests` is `false` repo-wide anyway. **[V]**
 
-**Goldens must not run under `testDebugUnitTest`.** Measured: the same mutation gave `testDebugUnitTest` 6/6 PASSED and `verifyPaparazziDebug` 2 FAILED. The plugin injects `paparazzi.test.verify` only into its own tasks; under a plain run there is no comparison at all.
+**Goldens must not run under `testDebugUnitTest`** — the same mutation gave 6/6 PASSED there and 2 FAILED under verify. The plugin injects `paparazzi.test.verify` only into its own tasks. **[V]**
 
-Rules:
+**A filtered golden run cannot serve as a determinism check** — the liveness gate legitimately fails it (12 executed against 40 committed). **[V]**
 
-- a golden must explicitly paint its background surface — the window background comes from Paparazzi's `theme` parameter, not from `AppTheme`, so without an explicit paint the dark and light goldens silently share a background;
-- a flake is a finding about render nondeterminism, **never a reason to raise tolerance**;
-- a golden change must be intentional and explained in the commit body; an unexplained delta is a review stop.
+Rules: a golden must explicitly paint its background surface, since the window background comes from the `theme` parameter rather than `AppTheme`. A flake is a finding about nondeterminism, never a reason to raise tolerance. An unexplained golden delta is a review stop.
 
-**Cost:** the canvas is the lever, not compression. Phone-frame goldens averaged ~49 KB; subject-sized canvases average ~22 KB. Cut the canvas to the subject. Full-screen goldens only where whole-composition is the thing under test, and justify that in the commit body.
+**Cost:** the canvas is the lever. Phone frames averaged ~49 KB; subject-sized canvases ~22 KB. **[V]**
 
-### 10.2 Contrast test
+### 10.2 What a golden does not guarantee
 
-JVM, runs under `testDebugUnitTest`. No layoutlib, no prerelease dependency. Catches regressions **in the token**, not in its rendering — earlier and more precisely than a screenshot.
+A golden locks in what **is**, not what **should be**. Its guarantee is differential — *nothing changes without explanation* — and it says nothing about the correctness of the baseline. Record it with a bug and the gate is locked onto the bug and green forever.
+
+This happened: the flash fired on first composition, and four goldens captured it. Review caught it; the gate could not.
+
+None of the three defences reach this class. `maxPercentDifference = 0.0` catches change. Liveness catches the gate vanishing. "Unexplained delta is a review stop" catches unintended change. **A wrong baseline is none of those.**
+
+Visual inspection cannot reach it either, and the reason is structural: **a transient state captured as a static frame is unfalsifiable by eye.** The frame of a flash that fires always and the frame of a flash that fires correctly are the same frame. "Open and describe the PNG" is powerless here by construction.
+
+**Rule: any state declared transient is captured as a pair** — at rest and mid-transient. The pair asserts a difference; a lone transient golden asserts nothing about when it fires.
+
+**And when a golden delta is a baseline correction, the commit body must say so.** Otherwise it reads six months later as an intentional design change.
 
 ### 10.3 Custom detekt rules
 
-**A `detekt.yml` key is required.** Proven by execution: with the key removed and a violating fixture in the tree, detekt exits 0 and says nothing. Registration alone is not enough.
+**A `detekt.yml` key is required** — with the key removed and a violating fixture present, detekt exits 0 silently. Registration alone is not enough. **[V]**
 
-`:lint-rules:test` now runs in CI. Before that, custom rules were verified **never**: `:lint-rules` is a plain JVM module and the pipeline's only test invocation was `testDebugUnitTest`, which does not exist for it.
+`:lint-rules:test` now runs in CI. Before that, custom rules were verified **never**. **[V]**
 
-**Invariant rules should be treatment-based, not slot-based.** A rule that counts call sites of a single composable stays correct across token renames; a rule naming a colour slot breaks the moment the slot is renamed — and the slot names in this codebase are already scheduled to change.
+**Invariant rules should be treatment-based, not slot-based.** A rule counting call sites of one composable survives token renames; a rule naming a colour slot breaks on rename — and these slot names are already scheduled to change (§2.2).
 
 ### 10.4 Outside the gate
 
-Paparazzi models a single window. **18 out-of-window sites**: `ModalBottomSheet`, ten `Dialog`s, `DatePickerDialog`, five `DropdownMenu`s, `TooltipBox`. (Counted carefully — a naive grep yields 19 by including a wrapper's own declaration.)
+Paparazzi models a single window. **18 out-of-window sites**: `ModalBottomSheet`, ten `Dialog`s, `DatePickerDialog`, five `DropdownMenu`s, `TooltipBox`. A naive grep yields 19 by counting a wrapper's own declaration. **[V]**
 
-Of the stock M3 components that shout default, two — `DropdownMenu` and dialogs — are entirely outside the gate. So are all four picker-sheet implementations, and exercise selection is a central flow.
+Of the stock M3 components that shout default, `DropdownMenu` and dialogs are entirely outside the gate, as are all four picker-sheet implementations — and exercise selection is a central flow.
 
-Outside the gate: everything modal, both animations, AGSL, everything time-based. The theatrical half is verified by hand, at every step.
+Outside the gate: everything modal, both animations, AGSL, everything time-based. Verified by hand, every step.
 
 ### 10.5 `@Deprecated` is unavailable as a migration signal
 
-Under `build.maxIssues: 0`, deprecation warnings are build failures rather than a worklist. The standard tool for staged migration is therefore unavailable in this repository. Migrations must be tracked as an explicit worklist in the spec or in `tech-debt.md`, not as compiler warnings.
+Under `build.maxIssues: 0`, deprecation warnings are build failures rather than a worklist. Staged migration must be tracked explicitly in this document or in `tech-debt.md`, never as compiler warnings.
 
-## 11. Scope — three items need a decision
+## 11. Scope — three items
 
-The mockups contain three things that exist in neither the code nor the locked decisions.
+| # | What | In code | Cost | Decision |
+|---|---|---|---|---|
+| 1 | Past-session tonnage | absent — `getBestSessionVolumes` takes top-N since a date, no `sessionUuid` | a Kotlin sum over already-loaded data; no query, no migration | **in** |
+| 2 | Chart third metric (per-session volume) | absent — `ChartFolder` folds by day taking one winning set, never sums | new fold + enum value + label | **in** |
+| 3 | Units picker | absent | new setting, persistence, and conversion everywhere weight is shown | **out** — its own arc |
 
-| # | What | In the code | Cost |
-|---|---|---|---|
-| 1 | **Chart: three metrics** — Weight / Session / Set | `ChartMetricDomain` knows `HEAVIEST_WEIGHT` and `VOLUME_PER_SET`. Per-session volume does **not** exist: `ChartFolder:72-85` folds by day, taking one winning set, never summing | new fold + enum value + label. No migration |
-| 2 | **Settings: "Units · Kilograms"** | no unit system; `"kg"` was a hardcoded literal, since moved to `strings.xml` | new setting + persistence + display conversion |
-| 3 | **Past session: "… · 4,820 kg"** | per-session tonnage does not exist: `getBestSessionVolumes` takes top-N since a date and accepts no `sessionUuid`; the summary counts only | new query by `sessionUuid`, **or** a Kotlin sum over already-loaded data. Cheapest of the three. No migration |
-
-Each is either a scope expansion or "the mockup draws something that arrives later". All three are due by the screen step; the earlier steps do not depend on them.
+None leaves a visible hole when absent: the chart shows two tabs, Appearance keeps Theme, the header loses one figure. Deferring is cheap; touching a screen twice is not.
 
 ## 12. Out of scope
 
-- Time as an exercise type — a v6 → v7 migration plus a third enum value across **ten** declaration sites
+- Time as an exercise type — a v6 → v7 migration plus a third enum value across ten declaration sites
 - Supersets
-- Scrubbing residual weights by migration — rejected: it irreversibly discards genuinely logged data
-- Module duplication (`core/ui/plan-editor` vs `feature/plan-editor`, four picker sheets) — logged in `tech-debt.md`
-- Renaming palette slots to the mockup's names — logged in `tech-debt.md`
-- Deleting the dead `Icon` / `Button` dimension scales kept alive by `@Suppress("unused")` — worth doing, but as its own PR
+- Units (§11.3)
+- Scrubbing residual weights by migration — rejected: irreversibly discards logged data
+- Module duplication, palette slot renaming, the dead `Icon` / `Button` scales — all in `tech-debt.md`
 
 ---
 
@@ -366,88 +371,76 @@ Each is either a scope expansion or "the mockup draws something that arrives lat
 
 ## 13. Inventory
 
-Seventeen screens. Five are drawn in detail, eight derive from the kit by written rule, the rest are sheets and overlays.
+Seventeen screens: five drawn in detail, eight derived by written rule, the rest sheets and overlays.
 
-| Screen | Source |
-|---|---|
-| Session | `session-v3f` |
-| Chart | `pass2d` |
-| Exercise detail | `pass2d` |
-| Past session | `pass2d` |
-| Settings | `pass2d` |
-| Empty states | `pass2d` |
-| Archive, backup detail, training detail, training and plan editors, multi-select mode, search-or-create sheet, empty session | written rule |
+| Screen | Source | Step |
+|---|---|---|
+| Session | `session-v3f` | 5 ✅ |
+| Past session | `pass2d` | 6a |
+| Exercise detail | `pass2d` | 6b |
+| Chart | `pass2d` | 6c |
+| Settings | `pass2d` | 6d |
+| Empty states | `pass2d` | 4 (pattern) + 6 (placement) |
+| Archive, backup detail, training detail, editors, multi-select, search-or-create sheet, empty session | written rule | 7 |
 
-## 14. Session
+## 14. Session — built
 
-**Frame:** `topbar` (leading + trailing icons) → `shead` → `rail` → `railmeta` → `cards` → `addex` → `dock`.
+**Frame:** `topbar` → `shead` → `rail` → `railmeta` → `cards` → `addex` → `dock`.
 
-- `shead`: `h2` training name plus `meta`; on the right `data-s`, the timer — Archivo, `tnum` mandatory.
-- `rail`: 9px tall, 12px gap, 22px top margin, flex. Degradation per §8.
-- `railmeta`: two captions beneath the rail.
-- `cards`: exercise cards, states `active` / `fin` / `skip` / `temp`, transient `prfx`.
-- `addex`: "Add exercise", below the list.
-- `dock`: "Finish session", pinned.
+Set row: ordinal, two fields each `value` + `unit`, then set-type chip or record tag. States `done`, `flash`, `pr`.
 
-**Set row** (`set`): ordinal `set-i`, two `field`s each carrying `data-l` plus `unit` ("kg", "reps"), then `tchip` (set type) or `prtag` (record). States `done`, `flash`, `pr`.
+Sheets: exercise menu (one-off toggle, skip, delete), plan-removal confirmation, session menu (add, reorder, cancel), undo toast.
 
-**Sheets:**
-
-1. Exercise menu — a toggle row "Only for today" with caption, divider, "Skip exercise", "Delete exercise" (`rust`).
-2. Confirmation — "Remove from the training plan?" with description, button stack "Keep" / "Remove from plan" (`danger`).
-3. Session menu — "Add exercise", "Reorder", "Cancel session" (`rust`).
-4. `toast` with an "Undo" button, 5 seconds, for deletion.
-
-## 15. Chart
-
-**Frame:** `topbar` → `exhead` (name + `swap`) → `tabs` → `ranges` → `readout` → `chartwrap` → three `statrow`s.
-
-- `tabs`: **Weight · Session · Set** with a sliding indicator. Positions 2 and 3 are §11.1.
-- `ranges`: `1M · 3M · 1Y · All` chips, active marked `on`.
-- `readout`: metric name and caption on the left, `data-hero` value plus `unit` on the right.
-- `statrow` ×3: **Minimum · Maximum · Latest**, each `meta` plus `val`.
-
-**Open:** a monochrome line chart — what distinguishes series, and where `molten` lives on a record point. May require a palette role that does not exist. Resolve by measurement at the screen step, not by eye.
-
-## 16. Exercise detail
-
-**Frame:** `topbar` → tags → `prhero` → `section-head` Default plan → `plancard` → `section-head` History + count → `list` → `dock`.
-
-- `prhero`: on the left a `label` with a `mdot` marker plus "Record", beneath it `meta` with date and context; on the right `data-s` — "9 × 12" with an `x` separator.
-- `plancard`: `planline` rows, each `ord` plus `val` in "7 × 12" form.
-- `section-head` carries two captions, left and right ("History" / "4 sessions").
-- `list`: rows with `row-name` (date) and `meta` (set summary); the record row carries `prtag`.
-- `dock`: "Edit" (ghost) plus "Log now" (primary).
-
-## 17. Past session
+## 15. Past session — step 6a
 
 **Frame:** `topbar` → header → `section-head` → `cards`.
 
-- Header: `label` "Finished · 23 July 2026", `data-hero` duration "56:08", `meta` "5 exercises · 14 sets · 4,820 kg" — tonnage is §11.3.
+- Header: "Finished · 23 July 2026", duration as `data-hero`, then "5 exercises · 14 sets · 4,820 kg" — tonnage per §11.1.
 - `section-head`: "Logged" / "editable" — the right caption declares the mode.
-- `card` with `chead` (`ord` + `title`; collapsed cards carry a `plan-line` summary) and `cbody` → `inner` → `sets`.
-- Set row in edit mode: `set-i`, two `field`s with `data-l` plus `unit`, then `tchip` or `prtag`. Fields are editable.
+- Cards carry `ord` + title; collapsed ones show a plan-line summary.
+- Set rows are editable: ordinal, two fields with units, then chip or record tag.
 
-## 18. Settings
+**First of the four, because it settles the shared set-row question.** `LiveSetRow` and `PastSetEditRow` are separate components in separate modules; whether they become one kit component is decided here, with the session work still fresh.
 
-**Frame:** `topbar` with `h1` → four `sgroup`s.
+## 16. Exercise detail — step 6b
 
-Each `sgroup`: 30px top margin, a `label` heading, then `srow`s.
+**Frame:** `topbar` → tags → record hero → Default plan section → History section → `dock`.
 
-`srow` has three variants: navigable (chevron), `plain` (not navigable, carries a control), `rust` (destructive).
+- Record hero: marker dot + "Record", date and context beneath, value "9 × 12" on the right.
+- Plan card: ordinal + value rows.
+- Section heads carry two captions ("History" / "4 sessions").
+- History rows: date plus set summary; the record row carries a tag.
+- Dock: "Edit" (ghost) + "Log now" (primary).
+
+Blocked by nothing.
+
+## 17. Chart — step 6c
+
+**Frame:** `topbar` → head → tabs → ranges → readout → chart → three stat rows.
+
+- Tabs: **Weight · Session · Set** with a sliding indicator. Session is §11.2.
+- Ranges: `1M · 3M · 1Y · All`.
+- Readout: metric name and caption left, value + unit right.
+- Stat rows: **Minimum · Maximum · Latest**.
+
+**Open question, to be resolved by measurement rather than by eye:** a monochrome line chart needs something to distinguish series, and a home for `molten` on a record point. This may require a palette role that does not exist. Decide before building, not during.
+
+## 18. Settings — step 6d
+
+**Frame:** `topbar` with title → four groups, each 30dp top margin, a label heading, then rows.
+
+Row variants: navigable (chevron), plain (carries a control), destructive.
 
 | Group | Rows |
 |---|---|
-| **Appearance** | Theme (`plain` + segmented control), Units (navigable — §11.2) |
-| **Backups** | account (`plain`), Auto-backup + `val`, AI assistant snapshot (`plain` + switch), Back up now, Restore from backup, Sign out (`rust`) |
+| **Appearance** | Theme (segmented control) — Units omitted per §11.3 |
+| **Backups** | account, auto-backup + value, AI snapshot (switch), back up now, restore, sign out (destructive) |
 | **Data** | Archive + counts |
-| **About** | Workeeper + version (`plain`), Source code, GPLv3 licence, Privacy policy |
-
-Controls: segmented, switch, trailing value, chevron by default.
+| **About** | version, source, GPLv3, privacy policy |
 
 ## 19. Empty states
 
-One pattern, three applications: `glyph` → `h4` heading → `p` explanation → `btns` (zero, one or two buttons).
+One pattern, three applications: glyph → heading → one-sentence explanation → zero, one or two buttons.
 
 | Where | Heading | Buttons |
 |---|---|---|
@@ -455,65 +448,74 @@ One pattern, three applications: `glyph` → `h4` heading → `p` explanation �
 | Chart | Nothing to show yet | none |
 | Exercise list | Your exercises will appear here | Add exercise |
 
-The explanation is always one sentence saying what to do next, never one stating that the list is empty.
-
-The pattern moves into the kit with the structural step; placement on screens comes with the screen step.
+The explanation always says what to do next, never that the list is empty.
 
 ## 20. Sheets
 
-Common anatomy: scrim → sheet with a grab handle → `h3` → content.
+Scrim → sheet with grab handle → title → content. Three forms: item list (menu), button stack (confirmation), free content with Close (informational).
 
-Three forms: a `mitem` list (menu), a button stack (confirmation), free content with a "Close" button (informational).
-
-The exercise picker sheet: `h3` "Select exercise" plus a `mitem` list, active item marked `on`.
-
-**All sheets are outside the screenshot gate** — see 10.4.
+**All sheets are outside the screenshot gate** (§10.4).
 
 ## 21. Golden inventory
 
-| Category | What | Goldens |
-|---|---|---|
-| Kit primitives | buttons, fields, chips, rows, tags | per component × 2 themes |
-| Canaries | tnum, hairline, Cyrillic | 3 × 2 |
-| Rail | 2×4, 5×4, 8×4, 16×5 | 4 × 2 |
-| Exercise states | active, fin, skip, temp, prfx | 5 × 2 |
-| Set states | plain, done, pr | 3 × 2 |
-| Empty states | three applications | 3 × 2 |
-| Screen sections | per §§14–19, per component | settled at the screen step |
+| Category | Goldens |
+|---|---|
+| Kit primitives | per component × 2 themes |
+| Canaries (tnum, hairline, Cyrillic) | 3 × 2 |
+| Rail — 2×4, 5×4, 8×4, 16×5, plus a constrained-width case for OVERALL | 5 × 2 |
+| Exercise states | 4 × 2 |
+| Set states | 3 × 2 |
+| Transient states — **at rest and mid-transient, as pairs** (§10.2) | per state × 2 × 2 |
+| Empty states | 3 × 2 |
+| Screen sections | settled per screen |
 
-**Sizing rule:** the canvas is cut to the subject, not to a phone. This measured 22 KB per golden against a 49 KB phone-frame baseline.
+**Sizing:** the canvas is cut to the subject, not to a phone. 22 KB against a 49 KB phone-frame baseline.
 
 ---
 
 ## 22. Execution order
 
-Numbering is the execution numbering — the one CC prompts use. Earlier drafts of this document used a separate 0–5 stage numbering that drifted out of sync; that scheme is retired.
-
-| Step | Content | Entry condition |
+| Step | Content | State |
 |---|---|---|
-| 1 | Visual gate: Paparazzi wiring, baseline goldens | — |
-| 2 | Typography: three families, six steps, C2 rule, `:lint-rules:test` in CI | 1 |
-| 3 | Palette both themes, `molten` as a role, `AppMotion` retokenised, contrast map and gate | 2 |
-| 4 | Kit structure: sections, hairlines, fixed row height, single raised surface, empty-state pattern, invariant rules | 3 |
-| 5 | Session: `plan-attached`, unfilled state, disclosure automaton, rail, merged motion automaton | 4, §6.3 verified |
-| 6 | Screens: Chart, Exercise, Past session, Settings, picker sheet, empty states in place — **and the `AppCard` migration** | 4, three decisions from §11 |
-| 7 | Eight derived screens by written rule, no mockup | 4 |
+| 1 | Visual gate: Paparazzi wiring, baseline goldens | ✅ |
+| 2 | Typography, C2 rule, `:lint-rules:test` in CI | ✅ |
+| 3 | Palette, `molten` as a role, `AppMotion`, contrast map and gate | ✅ |
+| 4 | Kit structure: sections, hairlines, row height, raised surface, empty-state pattern, invariant rules | ✅ |
+| 5 | Session: `plan-attached`, disclosure automaton, rail, merged motion automaton | ✅ |
+| 6a | Past session — settles the shared set-row question | next |
+| 6b | Exercise detail | — |
+| 6c | Chart — needs the monochrome decision | — |
+| 6d | Settings | — |
+| 7 | Eight derived screens by written rule | — |
 
-**Cards die at step 6, not step 4.** Every real `AppCard` consumer is a feature screen, so the migration cannot happen inside a kit-only step. Step 4 establishes the invariant and the gate; step 6 carries the worklist. This is the correction that retired the old numbering.
+**Step 6 is four PRs, not one.** The screens are independent; four screens in one diff is unreviewable.
 
-Steps 6 and 7 parallelise with each other.
+**`AppCard` migration is distributed, not a task.** Its eight consumers are different screens, each migrating with its own step. The PF1 inventory is a map, not a worklist. The invariant rule from step 4 is what makes distributed migration safe: a new violation is caught, an old one waits for its screen.
 
-**One session per checkout.** Three concurrent CC sessions in a single working directory have already produced commits on the wrong branch.
+**One session per checkout.** Three concurrent CC sessions in one working directory produced commits on the wrong branch.
 
 ## 23. Verification discipline
 
-Accumulated by this arc; applies to everything that follows.
+Accumulated by this arc. Applies to everything after it.
 
+**Execution, not reading**
 - `--rerun-tasks` always. `FROM-CACHE` is not executed.
-- **`--stop` before measuring any rule or plugin built in the same invocation.** A stale jar in the daemon produces a false green that reads like a valid finding.
-- Every gate is proven in **both** directions: it fires on a violation and stays silent on a clean tree. One direction is not enough.
-- A gate's own configuration needs the same treatment as its content — see 3.3. Silent last-write-wins is worse than an uncovered case.
-- An empty result from a multi-agent check is not a clean result. Count agents started against agents completed; a mismatch is red, not silence.
-- A guarantee that cannot fail is a comment, not a gate.
-- Discovery citations about the build and CI have gone stale repeatedly during this arc. They are grounds to re-check, never grounds to conclude.
-- Measure mockup values before adopting them (§0.2). Two for two have failed a threshold that the eye cannot see.
+- `--stop` before measuring any rule or plugin built in the same invocation — a stale daemon jar produces a false green that reads like a valid finding.
+- Re-verify bisect-green in a **clean worktree**, not from the state at commit creation.
+- Run detekt and tests as **separate invocations**. A parallel run reported a spurious test failure when detekt failed first and interrupted the test task — a false RED, and more dangerous than a false green, because the response is to fix something that is not broken.
+
+**Gates**
+- Prove every gate in **both** directions: fires on violation, silent on a clean tree.
+- Gate the gate's own configuration as strictly as its content (§3.3).
+- A guarantee that cannot fail is a comment.
+- A gate proves what changed, not what is right (§10.2).
+- A known-negative mutation must **compile**, and must discriminate by what is on screen rather than failing wholesale. A mutation that breaks the build proves nothing.
+
+**Claims**
+- Behavioural claims about this codebase have failed seven for seven when made from reading. Mark them [I] and resolve by preflight.
+- Citations decay inside weeks, including citations into this arc's own artifacts: two of four cited call sites had gone stale by the time they were re-checked.
+- An empty result from a multi-agent check is not a clean result. Count agents started against completed; a mismatch is RED, not silence.
+- A failed attempt can produce information. A guard written on the wrong key is how it was established that the other lists did not share the hazard.
+
+**Autonomy**
+- A monitoring session fixes **breakages** forward and **stops on findings**. A verdict that changes a decision is not a build failure and must not be repaired autonomously.
