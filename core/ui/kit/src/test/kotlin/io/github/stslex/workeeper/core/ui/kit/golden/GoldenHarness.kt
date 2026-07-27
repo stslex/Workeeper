@@ -4,11 +4,17 @@ package io.github.stslex.workeeper.core.ui.kit.golden
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import app.cash.paparazzi.DeviceConfig
 import app.cash.paparazzi.Paparazzi
 import app.cash.paparazzi.TestName
+import com.android.ide.common.rendering.api.SessionParams
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import org.junit.jupiter.api.TestInfo
@@ -125,6 +131,67 @@ internal fun golden(
         paparazzi.teardown()
     }
 }
+
+/**
+ * Records or verifies one golden on a canvas cut to the **subject**, not to a phone.
+ *
+ * [golden] paints `fillMaxSize()`, so every image it writes is the full 1080x2340 frame. For a
+ * whole screen that is the right frame. For a single row it is 97% flat background — bytes that go
+ * into git on every re-record and that a reviewer has to scroll past to find the 88.dp under
+ * review.
+ *
+ * `RenderingMode.SHRINK` makes layoutlib size the canvas to the content instead. Width is pinned
+ * to [SUBJECT_WIDTH] rather than left to shrink too, because these are full-bleed components whose
+ * text wrapping and trailing-slot alignment only mean anything at a realistic phone width — a row
+ * shrunk to its own intrinsic width would prove nothing about either.
+ *
+ * The trade is that the subject no longer sits on a painted `surfaceTier0` frame, so the
+ * background arrives from the theme. That is why the content is wrapped in a background of the
+ * surface it is *supposed* to sit on, passed by the caller as [surface]: a section on the page and
+ * a sheet layout on the sheet's own tier are different pictures, and the golden should say which.
+ */
+internal fun goldenSubject(
+    testInfo: TestInfo,
+    theme: GoldenTheme,
+    locale: String = LOCALE_EN,
+    surface: @Composable () -> Color = { AppUi.colors.surfaceTier0 },
+    content: @Composable () -> Unit,
+) {
+    val paparazzi = Paparazzi(
+        deviceConfig = GOLDEN_DEVICE.copy(locale = locale),
+        theme = theme.windowTheme,
+        maxPercentDifference = 0.0,
+        renderingMode = SessionParams.RenderingMode.SHRINK,
+        useDeviceResolution = true,
+    )
+    paparazzi.setup(testInfo.toTestName())
+    try {
+        paparazzi.snapshot(name = theme.suffix) {
+            AppTheme(themeMode = theme.themeMode) {
+                Box(
+                    modifier = Modifier
+                        .width(SUBJECT_WIDTH)
+                        .wrapContentHeight()
+                        .background(surface()),
+                ) {
+                    content()
+                }
+            }
+        }
+    } finally {
+        paparazzi.teardown()
+    }
+}
+
+/**
+ * The width a subject-sized golden is rendered at.
+ *
+ * The golden device is 1080 px at 440 dpi, i.e. 2.75 px/dp, i.e. 392.7 dp wide. 392.dp is the
+ * nearest value that lands on a **whole physical pixel** (1078 px) — within half a dp of the real
+ * device, and free of the sub-pixel column a fractional width would introduce at the right edge.
+ * At `maxPercentDifference = 0.0` that column would be a permanent flake risk for no benefit.
+ */
+private val SUBJECT_WIDTH: Dp = 392.dp
 
 /** Golden file names are `<package>_<Class>_<method>_<snapshot name>.png`. */
 private fun TestInfo.toTestName(): TestName {
