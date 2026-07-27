@@ -972,11 +972,11 @@ RU translation:
 
 ```xml
 <string name="core_ui_kit_plan_editor_title_format">%1$s · план</string>
-<string name="core_ui_kit_plan_editor_subtitle">Сеты pre-fill\u0027ятся в Live-тренировке. Записанные сеты обновляют план.</string>
+<string name="core_ui_kit_plan_editor_subtitle">Подходы подставятся в Live-тренировке. Записанные подходы обновят план.</string>
 <string name="core_ui_kit_plan_editor_unit_kg">кг</string>
 <string name="core_ui_kit_plan_editor_unit_reps">повт</string>
 <string name="core_ui_kit_plan_editor_unit_type">тип</string>
-<string name="core_ui_kit_plan_editor_add_set">+ Добавить сет</string>
+<string name="core_ui_kit_plan_editor_add_set">+ Добавить подход</string>
 <string name="core_ui_kit_plan_editor_save">Сохранить план</string>
 <string name="core_ui_kit_plan_editor_cancel">Отмена</string>
 <string name="core_ui_kit_plan_editor_discard_title">Отменить изменения плана?</string>
