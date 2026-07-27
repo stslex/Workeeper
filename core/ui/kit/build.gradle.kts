@@ -46,6 +46,11 @@ dependencies {
  * The invariant: every committed golden PNG must correspond to a golden test case that
  * executed. Adding a golden test without recording still fails in Paparazzi itself; deleting a
  * golden together with its test keeps both sides in step.
+ *
+ * This task reads `build/test-results/testDebugUnitTest`, which is a cacheable *output* of the
+ * test task — so on a build-cache hit it would read restored XML and vouch for a run that never
+ * happened. That is why the test task is marked non-cacheable in Paparazzi mode below: this
+ * assertion is only as honest as the execution it inspects.
  */
 val goldenImagesDir = layout.projectDirectory.dir("src/test/snapshots/images")
 val unitTestResultsDir = layout.buildDirectory.dir("test-results/testDebugUnitTest")
@@ -77,10 +82,19 @@ val assertGoldenLiveness = tasks.register("assertGoldenLiveness") {
 
         val suiteName = Regex("""<testsuite[^>]*\bname="([^"]+)"""")
         val testCase = Regex("""<testcase\b""")
+        // A skipped test still emits a `<testcase>` element, wrapping a `<skipped/>` child. Counting
+        // raw `<testcase>` would therefore let `@Disabled` on a golden class hold the count up while
+        // nothing rendered — the same "green without execution" failure this task exists to catch.
+        // `<skipped>` appears only inside a `<testcase>`, so subtracting is exact.
+        val skipped = Regex("""<skipped\b""")
         val executed = resultFiles.sumOf { file ->
             val text = file.readText()
             val name = suiteName.find(text)?.groupValues?.get(1).orEmpty()
-            if (name.contains(".golden.")) testCase.findAll(text).count() else 0
+            if (name.contains(".golden.")) {
+                testCase.findAll(text).count() - skipped.findAll(text).count()
+            } else {
+                0
+            }
         }
 
         check(executed >= images) {
@@ -122,7 +136,28 @@ tasks.matching { task ->
 val paparazziModeRequested = gradle.startParameter.taskNames.any { name -> "Paparazzi" in name }
 
 tasks.matching { task -> task.name == "testDebugUnitTest" }.configureEach {
-    if (!paparazziModeRequested) {
+    if (paparazziModeRequested) {
+        // A gate whose result can be *replayed* is not a gate. Measured, not assumed: with
+        // `org.gradle.caching=true` (which `.github/properties/gradle-ci.properties` sets) and a
+        // warm build cache, `rm -rf core/ui/kit/build && ./gradlew :core:ui:kit:verifyPaparazziDebug`
+        // reported `testDebugUnitTest FROM-CACHE`, restored the JUnit XML as a cached *output*, and
+        // `assertGoldenLiveness` then read that restored XML and announced
+        // "Visual gate live: 10 golden test case(s) executed" — in a 565 ms build in which zero
+        // golden tests ran. The liveness assertion was answering with the previous build's evidence.
+        //
+        // What this does NOT fix, because it was never broken: the goldens under
+        // `src/test/snapshots/images` are declared inputs of this task, so a *changed* golden always
+        // misses the cache. Verified by copying the light PNG over the dark golden — the task
+        // executed and failed (`primaryButton [2] DARK FAILED`) while 19 upstream tasks still came
+        // FROM-CACHE. A corrupt golden could not sail through; only the liveness *claim* was hollow.
+        //
+        // So the fix is scoped to the claim: in Paparazzi mode this task must actually execute.
+        // Done here rather than with `--no-build-cache` on the CI step so the guarantee holds for
+        // every invocation, and so upstream compilation keeps its cache hits — the flag would strip
+        // caching from the whole task graph to discipline one task.
+        outputs.doNotCacheIf("a visual gate must execute, not be restored from cache") { true }
+        outputs.upToDateWhen { false }
+    } else {
         (this as Test).filter {
             excludeTestsMatching("io.github.stslex.workeeper.core.ui.kit.golden.*")
         }

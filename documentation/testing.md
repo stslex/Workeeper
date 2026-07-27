@@ -487,6 +487,14 @@ and `recordPaparazziDebug` are therefore finalized by `:core:ui:kit:assertGolden
 which fails the build unless at least as many golden test cases executed as there are
 committed golden images.
 
+That assertion reads the JUnit XML — a cacheable *output* of the test task. So with the build
+cache warm it would read restored XML and vouch for a run that never happened: measured, a
+wiped `core/ui/kit/build` plus a warm cache printed *"Visual gate live: 10 golden test case(s)
+executed"* in a 565 ms build that executed none. The goldens themselves are declared inputs, so
+a *changed* golden always misses the cache and is still caught — only the liveness claim was
+hollow. `testDebugUnitTest` is therefore marked `doNotCacheIf` + `upToDateWhen { false }` when a
+Paparazzi task was requested, so the gate executes on every invocation, CI or local.
+
 ## Running tests
 
 From the project root:
