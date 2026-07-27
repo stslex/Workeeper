@@ -1,12 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.live_workout.ui.components
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,6 +35,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
+import io.github.stslex.workeeper.core.ui.kit.components.surface.AppActiveSurface
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -63,14 +61,6 @@ internal fun LiveExerciseCard(
     consume: (LiveWorkoutStore.Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val borderColor by animateColorAsState(
-        targetValue = when (exercise.status) {
-            ExerciseStatusUiModel.CURRENT -> AppUi.colors.accent
-            else -> AppUi.colors.borderSubtle
-        },
-        animationSpec = tween(durationMillis = AppUi.motion.base),
-    )
-
     val cardAlpha by animateFloatAsState(
         targetValue = when (exercise.status) {
             ExerciseStatusUiModel.DONE -> DONE_ALPHA
@@ -79,37 +69,42 @@ internal fun LiveExerciseCard(
         },
         animationSpec = tween(durationMillis = AppUi.motion.base),
     )
-    Column(
+    // `.card.active{background:var(--slab);box-shadow:var(--slabtop)}` — the mockup marks the
+    // active card by lifting it, and draws NO border in any state. The animated `accent` border
+    // this card used to carry was a substitution for a mechanism that did not exist yet; it does
+    // now, so the substitution goes.
+    //
+    // `active` is passed rather than branched on, so this is one call site for every card state
+    // and the surface can animate across the flip. `ActiveSurfaceSingleReaderRule` permits this
+    // file exactly one call — it named this file before the call existed.
+    AppActiveSurface(
+        active = exercise.status == ExerciseStatusUiModel.CURRENT,
+        shape = AppUi.shapes.medium,
         modifier = modifier
             .fillMaxWidth()
-            .clip(AppUi.shapes.medium)
-            .background(AppUi.colors.surfaceTier1)
-            .border(
-                width = if (exercise.status == ExerciseStatusUiModel.CURRENT) {
-                    AppDimension.Border.small
-                } else {
-                    AppDimension.borderHairline
-                },
-                color = borderColor,
-                shape = AppUi.shapes.medium,
-            )
-            .alpha(cardAlpha)
-            .animateContentSize(
-                animationSpec = tween(
-                    durationMillis = AppUi.motion.base,
-                ),
-            ),
+            .alpha(cardAlpha),
     ) {
-        ExerciseCardHeader(
-            exercise = exercise,
-            consume = consume,
-        )
-        if (expanded) {
-            ExerciseCardBody(
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(AppUi.shapes.medium)
+                .animateContentSize(
+                    animationSpec = tween(
+                        durationMillis = AppUi.motion.base,
+                    ),
+                ),
+        ) {
+            ExerciseCardHeader(
                 exercise = exercise,
-                isReadOnly = exercise.status == ExerciseStatusUiModel.DONE,
                 consume = consume,
             )
+            if (expanded) {
+                ExerciseCardBody(
+                    exercise = exercise,
+                    isReadOnly = exercise.status == ExerciseStatusUiModel.DONE,
+                    consume = consume,
+                )
+            }
         }
     }
 }
