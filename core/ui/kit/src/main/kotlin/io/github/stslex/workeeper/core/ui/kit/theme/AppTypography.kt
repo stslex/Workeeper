@@ -3,16 +3,17 @@ package io.github.stslex.workeeper.core.ui.kit.theme
 import androidx.compose.material3.Typography
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.googlefonts.Font
-import androidx.compose.ui.text.googlefonts.GoogleFont
 import androidx.compose.ui.unit.sp
 import io.github.stslex.workeeper.core.ui.kit.R
 
 @Immutable
 data class AppTypography(
     val fontFamily: FontFamily,
+    val numericFontFamily: FontFamily,
+    val monoFontFamily: FontFamily,
     val displayLarge: TextStyle,
     val displayMedium: TextStyle,
     val displaySmall: TextStyle,
@@ -30,23 +31,50 @@ data class AppTypography(
     val labelSmall: TextStyle,
 )
 
-private val googleFontProvider = GoogleFont.Provider(
-    providerAuthority = "com.google.android.gms.fonts",
-    providerPackage = "com.google.android.gms",
-    certificates = R.array.app_gms_fonts_certs,
+/**
+ * Text family for every slot below. Bundled rather than fetched from the GMS downloadable-font
+ * provider, so the first frame is never set in a fallback face and the app renders identically
+ * on devices without Play Services. Covers the full Cyrillic range the `values-ru` strings use.
+ *
+ * Only 400/500 ship — those are the weights the slots below consume. `FontWeight.Bold` still
+ * resolves, but by synthesis; add a real 700 file before relying on it.
+ */
+private val plexSansFontFamily = FontFamily(
+    Font(R.font.ibm_plex_sans_regular, FontWeight.Normal),
+    Font(R.font.ibm_plex_sans_medium, FontWeight.Medium),
 )
 
-private val interFont = GoogleFont(name = "Inter")
+/**
+ * Display family for numerals and the timer, and for nothing else.
+ *
+ * Archivo has **no Cyrillic coverage at all** — routing localized text through this family
+ * makes Russian glyphs resolve from the system fallback chain in a face that does not match.
+ * Digits and the `: . , - + / %` separators are present, which is the whole intended scope.
+ *
+ * Its digits are proportional (`0` is 769 units wide, `1` is 683), so a running timer wobbles
+ * as digits change. The family ships `tnum`, so timer styles should set
+ * `fontFeatureSettings = "tnum"`. See `core/ui/kit/licenses/README.md`.
+ */
+private val archivoExpandedFontFamily = FontFamily(
+    Font(R.font.archivo_expanded_bold, FontWeight.Bold),
+)
 
-private val interFontFamily = FontFamily(
-    Font(googleFont = interFont, fontProvider = googleFontProvider, weight = FontWeight.Normal),
-    Font(googleFont = interFont, fontProvider = googleFontProvider, weight = FontWeight.Medium),
+/**
+ * Monospace family for units and meta text. Shares its vertical metrics exactly with
+ * [plexSansFontFamily], so it stays on the same baseline when set inline beside body text.
+ * Tabular by default — every digit is 600 units.
+ */
+private val plexMonoFontFamily = FontFamily(
+    Font(R.font.ibm_plex_mono_regular, FontWeight.Normal),
+    Font(R.font.ibm_plex_mono_medium, FontWeight.Medium),
 )
 
 fun provideAppTypography(): AppTypography {
-    val family = interFontFamily
+    val family = plexSansFontFamily
     return AppTypography(
         fontFamily = family,
+        numericFontFamily = archivoExpandedFontFamily,
+        monoFontFamily = plexMonoFontFamily,
         displayLarge = TextStyle(
             fontFamily = family,
             fontWeight = FontWeight.Normal,
