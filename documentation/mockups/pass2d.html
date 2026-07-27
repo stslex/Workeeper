@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Workeeper — проход 2d</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root{
+          --ff-data:"Archivo","IBM Plex Sans",system-ui,sans-serif;
+          --ff-ui:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+          --ff-mono:"IBM Plex Mono",ui-monospace,monospace;
+          --e-out:cubic-bezier(.16,1,.3,1);--e-spring:cubic-bezier(.34,1.56,.64,1);
+          --d-fast:140ms;--d-base:260ms;--d-slow:520ms;--row-h:88px;--gutter:20px;
+
+          --base:#0B0D0F;--sec:#12161A;--field:#171C21;--slab:#1E242A;--raise:#242B32;--hair-s:#2B333B;
+          --dim:#6B7078;--meta:#8B95A1;--body:#B7C0CA;--max:#F1F5F9;--idle:#8B95A1;
+          --molten:#F0A22E;--molten-solid:#F0A22E;--molten-bg:rgba(240,162,46,.09);--molten-br:rgba(240,162,46,.42);
+          --rust:#C4574A;
+          --hair:rgba(255,255,255,.05);--donefill:rgba(255,255,255,.05);--flash:rgba(241,245,249,.13);
+          --slabtop:inset 0 1px 0 rgba(255,255,255,.055);--grid:rgba(255,255,255,.07);--scrim:rgba(4,5,6,.66);
+        }
+        body.light{
+          --base:#F6F7F9;--sec:#EFF1F4;--field:#E9ECF0;--slab:#FFFFFF;--raise:#DFE3E8;--hair-s:#D2D7DD;
+          --dim:#98A0A9;--meta:#69727C;--body:#2C333A;--max:#0D1114;--idle:#7C858F;
+          --molten:#C2410C;--molten-solid:#F97316;--molten-bg:rgba(249,115,22,.11);--molten-br:rgba(194,65,12,.34);
+          --rust:#B03B2E;
+          --hair:rgba(13,17,20,.07);--donefill:rgba(13,17,20,.06);--flash:rgba(13,17,20,.09);
+          --slabtop:0 1px 3px rgba(13,17,20,.07),0 6px 18px rgba(13,17,20,.05);--grid:rgba(13,17,20,.09);--scrim:rgba(13,17,20,.34);
+        }
+        *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+        html,body{margin:0;padding:0}
+        body{background:#050607;font-family:var(--ff-ui);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased;display:flex;justify-content:center}
+        .app{width:100%;max-width:452px;min-height:100vh;background:var(--base);color:var(--body);display:flex;flex-direction:column;padding-bottom:80px;transition:background var(--d-base) var(--e-out),color var(--d-base) var(--e-out)}
+
+        .label{font-family:var(--ff-mono);font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+        .meta{font-family:var(--ff-mono);font-size:12.5px;color:var(--meta)}
+        .data-hero{font-family:var(--ff-data);font-variation-settings:"wdth" 122,"wght" 700;font-size:52px;line-height:1;letter-spacing:-.02em;color:var(--max);font-variant-numeric:tabular-nums}
+        .data-l{font-family:var(--ff-data);font-variation-settings:"wdth" 115,"wght" 700;font-size:25px;line-height:1;color:var(--idle);font-variant-numeric:tabular-nums;transition:color var(--d-base) var(--e-out)}
+        .data-s{font-family:var(--ff-data);font-variation-settings:"wdth" 116,"wght" 700;font-size:26px;line-height:1;color:var(--max);font-variant-numeric:tabular-nums}
+        .val{font-family:var(--ff-mono);font-size:15px;font-weight:500;color:var(--body);font-variant-numeric:tabular-nums}
+        .val .x{color:var(--dim);margin:0 1px}
+        .unit{font-family:var(--ff-mono);font-size:11.5px;color:var(--dim)}
+        .title{font-size:19px;font-weight:600;color:var(--max);line-height:1.25;letter-spacing:-.01em}
+
+        .topbar{min-height:60px;display:flex;align-items:center;gap:6px;padding:6px var(--gutter);flex:none}
+        .topbar h1{font-size:20px;font-weight:600;color:var(--max);margin:0;flex:1;letter-spacing:-.015em}
+        .topbar h1.sm{font-size:17px}
+        .icon-btn{width:44px;height:44px;border:0;background:none;color:var(--meta);display:grid;place-items:center;border-radius:12px;cursor:pointer;transition:background var(--d-fast),color var(--d-fast)}
+        .icon-btn:hover{background:var(--sec);color:var(--max)}
+        .icon-btn svg{width:21px;height:21px;stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round}
+        .icon-btn.lead{margin-left:-12px}.icon-btn.trail{margin-right:-12px}
+
+        /* заголовок-переключатель под шапкой */
+        .exhead{display:flex;align-items:center;gap:11px;width:100%;padding:0 var(--gutter) 4px;background:none;border:0;cursor:pointer;text-align:left}
+        .exhead h2{margin:0;font-size:24px;font-weight:600;color:var(--max);letter-spacing:-.02em;line-height:1.2;flex:1;min-width:0}
+        .exhead .swap{width:34px;height:34px;flex:none;border-radius:11px;background:var(--sec);display:grid;place-items:center;transition:background var(--d-fast)}
+        .exhead:hover .swap{background:var(--raise)}
+        .exhead .swap svg{width:16px;height:16px;stroke:var(--body);stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+        .section-head{padding:0 var(--gutter);margin:32px 0 12px;display:flex;justify-content:space-between;align-items:baseline}
+        .screen{display:none;flex:1}
+        .screen.on{display:flex;flex-direction:column;animation:sin var(--d-base) var(--e-out)}
+        @keyframes sin{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+
+        .list{border-top:1px solid var(--hair-s)}
+        .row{display:flex;align-items:center;gap:14px;padding:0 var(--gutter);min-height:var(--row-h);overflow:hidden;border-bottom:1px solid var(--hair-s);cursor:pointer;transition:background var(--d-fast)}
+        .row:hover{background:var(--sec)}
+        .row-body{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:6px}
+        .row-name{font-size:16px;font-weight:500;color:var(--max);line-height:1.25;max-height:2.5em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+        .chev{width:18px;height:18px;stroke:var(--dim);stroke-width:1.8;fill:none;flex:none;stroke-linecap:round;stroke-linejoin:round}
+        .ord{font-family:var(--ff-mono);font-size:12.5px;color:var(--dim);width:16px;flex:none}
+        .tag{padding:8px 13px;border-radius:10px;background:var(--sec);color:var(--meta);font-size:14px;cursor:pointer;border:1px solid transparent;transition:background var(--d-fast),color var(--d-fast),border-color var(--d-fast)}
+        .tag.on{background:var(--raise);color:var(--max);border-color:var(--hair-s)}
+        .dock{position:sticky;bottom:0;margin-top:auto;padding:16px var(--gutter) 20px;background:linear-gradient(to top,var(--base) 62%,transparent);display:flex;gap:12px}
+        .btn{flex:1;height:56px;border:0;border-radius:16px;cursor:pointer;font-family:var(--ff-ui);font-size:16px;font-weight:600;background:var(--max);color:var(--base);transition:transform var(--d-fast) var(--e-spring)}
+        .btn:active{transform:scale(.985)}
+        .btn.ghost{background:var(--field);color:var(--body)}
+
+        /* ===== шкала: группа = упражнение, пилюля = подход ===== */
+        .rail{display:flex;gap:12px;margin-top:22px;height:9px}
+        .rail .grp{flex:1;display:flex;gap:3px;min-width:0}
+        .rail .pill{flex:1;background:var(--raise);border-radius:4px;overflow:hidden;min-width:0}
+        .rail .pill b{display:block;height:100%;width:0;background:var(--max);border-radius:4px;transition:width 420ms var(--e-out)}
+        .rail .pill.pr b{background:var(--molten-solid)}
+
+        .session{padding:0 var(--gutter)}
+        .cards{padding:0 var(--gutter);margin-top:26px;display:flex;flex-direction:column;gap:10px}
+        .card{background:var(--sec);border-radius:18px;overflow:hidden;position:relative;transition:background var(--d-base) var(--e-out)}
+        .card.open{background:var(--slab);box-shadow:var(--slabtop)}
+        .chead{display:flex;align-items:flex-start;gap:11px;padding:16px;cursor:pointer}
+        .chead .title{font-size:16.5px}
+        .chead-body{flex:1;min-width:0}
+        .plan-line{font-family:var(--ff-mono);font-size:12px;color:var(--dim);margin-top:4px}
+        .chead-act{display:flex;gap:2px;flex:none;margin:-6px -6px 0 0}
+        .mini{width:34px;height:34px;border:0;background:none;color:var(--dim);display:grid;place-items:center;border-radius:9px;cursor:pointer;transition:color var(--d-fast),background var(--d-fast)}
+        .mini:hover{color:var(--body);background:var(--hair)}
+        .mini svg{width:17px;height:17px;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
+        .mini.rot svg{transition:transform var(--d-base) var(--e-out)}
+        .card.open .mini.rot svg{transform:rotate(90deg)}
+        .cbody{display:grid;grid-template-rows:0fr;transition:grid-template-rows var(--d-base) var(--e-out)}
+        .card.open .cbody{grid-template-rows:1fr}
+        .cbody>.inner{overflow:hidden}
+        .sets{padding:0 12px 8px}
+        .set{display:flex;align-items:center;gap:9px;padding:9px 4px;border-top:1px solid var(--hair);border-radius:12px}
+        .set:first-child{border-top:0}
+        .set-i{font-family:var(--ff-mono);font-size:12px;color:var(--dim);width:13px;flex:none}
+        .field{flex:1;background:var(--field);border:1px solid transparent;border-radius:12px;height:52px;padding:0 12px;display:flex;align-items:center;justify-content:space-between;transition:background var(--d-base) var(--e-out)}
+        .set.done .field{background:var(--donefill)}
+        .set.done .data-l{color:var(--max)}
+        .tchip,.prtag{min-width:34px;height:32px;flex:none;border-radius:9px;display:grid;place-items:center;font-family:var(--ff-mono)}
+        .tchip{border:1px solid var(--hair-s);color:var(--dim);font-size:12px}
+        .prtag{border:1px solid var(--molten-br);color:var(--molten);font-size:10px;font-weight:600;letter-spacing:.1em;padding:0 6px}
+        .mark{width:46px;height:46px;flex:none;border:0;padding:0;cursor:pointer;position:relative;background:none;display:grid;place-items:center}
+        .mark .shape{position:absolute;inset:4px;border-radius:50%;border:2px solid var(--hair-s);background:transparent;transition:border-radius var(--d-base) var(--e-spring),background var(--d-base) var(--e-out),border-color var(--d-base) var(--e-out),inset var(--d-base) var(--e-spring),transform var(--d-base) var(--e-spring)}
+        .mark .pulse{position:absolute;inset:4px;border-radius:50%;border:2px solid var(--max);opacity:0;pointer-events:none}
+        .mark svg{position:relative;width:19px;height:19px;stroke:var(--base);stroke-width:2.7;fill:none;stroke-linecap:round;stroke-linejoin:round}
+        .mark svg path{stroke-dasharray:26;stroke-dashoffset:26;transition:stroke-dashoffset var(--d-base) var(--e-out) 60ms}
+        .set.done .mark .shape{border-radius:13px;background:var(--max);border-color:var(--max);inset:2px}
+        .set.done .mark svg path{stroke-dashoffset:0}
+        .mark:active .shape{transform:scale(.9)}
+        .set.flash{animation:rf 620ms var(--e-out)}
+        @keyframes rf{0%{background:var(--flash)}100%{background:transparent}}
+        .set.flash .mark .pulse{animation:rp 560ms var(--e-out)}
+        @keyframes rp{0%{opacity:.75;transform:scale(1)}100%{opacity:0;transform:scale(1.95)}}
+        .set.pr .field{background:var(--molten-bg)}
+        .set.pr .data-l{color:var(--molten)}
+        .set.pr.done .mark .shape{background:var(--molten-solid);border-color:var(--molten-solid)}
+        .card.prfx::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(105deg,transparent 32%,var(--molten-bg) 44%,rgba(249,115,22,.3) 50%,transparent 70%);animation:sweep 900ms var(--e-out) forwards}
+        @keyframes sweep{from{transform:translateX(-120%)}to{transform:translateX(120%)}}
+
+        /* ===== chart ===== */
+        .tabs{position:relative;margin:16px var(--gutter) 0;background:var(--sec);border-radius:14px;padding:5px}
+        .tabtrack{position:relative;display:flex;gap:4px}
+        .tabs .ind{position:absolute;top:0;bottom:0;border-radius:10px;background:var(--slab);box-shadow:var(--slabtop);transition:left 320ms var(--e-out),width 320ms var(--e-out)}
+        .tabs button{position:relative;flex:1;height:44px;padding:0 12px;border:0;background:none;cursor:pointer;color:var(--meta);font-family:var(--ff-ui);font-size:14px;font-weight:500;white-space:nowrap;border-radius:10px;transition:color var(--d-base) var(--e-out)}
+        .tabs button.on{color:var(--max)}
+        .readout{padding:18px var(--gutter) 0;display:flex;justify-content:space-between;align-items:flex-end;gap:14px;min-height:78px}
+        .mdot{width:9px;height:9px;border-radius:50%;background:var(--molten-solid);display:inline-block;margin-right:7px;vertical-align:middle}
+        .chartwrap{position:relative;margin-top:14px;padding:0 var(--gutter);touch-action:none;cursor:crosshair}
+        .chartwrap svg{display:block;overflow:visible}
+        .gridline{stroke:var(--grid);stroke-width:1}
+        .series{fill:none;stroke:var(--max);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+        .pt{fill:var(--base);stroke:var(--max);stroke-width:2}
+        .pt.pr{fill:var(--molten-solid);stroke:var(--base);stroke-width:2.5}
+        .pt.act{fill:var(--max)}
+        .pt.pr.act{fill:var(--molten-solid)}
+        .scrub{stroke:var(--dim);stroke-width:1;stroke-dasharray:3 4}
+        .statrow{display:flex;justify-content:space-between;padding:14px var(--gutter);border-bottom:1px solid var(--hair-s)}
+        .ranges{display:flex;gap:8px;padding:0 var(--gutter);margin:14px 0}
+
+        /* ===== settings ===== */
+        .sgroup{margin-top:30px}
+        .sgroup>.label{display:block;padding:0 var(--gutter);margin-bottom:10px}
+        .srow{display:flex;align-items:center;gap:14px;padding:0 var(--gutter);min-height:64px;border-top:1px solid var(--hair-s);cursor:pointer;transition:background var(--d-fast)}
+        .srow:last-child{border-bottom:1px solid var(--hair-s)}
+        .srow:hover{background:var(--sec)}
+        .srow.plain{cursor:default}
+        .srow.plain:hover{background:none}
+        .srow-b{flex:1;min-width:0;padding:13px 0}
+        .srow-t{font-size:16px;color:var(--max)}
+        .srow.rust .srow-t{color:var(--rust)}
+        .mseg{display:flex;gap:3px;background:var(--sec);padding:3px;border-radius:11px;flex:none}
+        .mseg button{width:38px;height:32px;border:0;border-radius:8px;background:none;color:var(--meta);display:grid;place-items:center;cursor:pointer;transition:background var(--d-base) var(--e-out),color var(--d-base) var(--e-out)}
+        .mseg button.on{background:var(--slab);color:var(--max);box-shadow:var(--slabtop)}
+        .mseg svg{width:16px;height:16px;stroke:currentColor;stroke-width:1.9;fill:none;stroke-linecap:round;stroke-linejoin:round}
+        .sw{width:46px;height:28px;border-radius:14px;background:var(--hair-s);position:relative;cursor:pointer;flex:none;transition:background var(--d-base) var(--e-out);border:0}
+        .sw i{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:var(--meta);transition:transform var(--d-base) var(--e-spring),background var(--d-base)}
+        .sw.on{background:var(--max)}.sw.on i{transform:translateX(18px);background:var(--base)}
+
+        .prhero{margin:6px var(--gutter) 0;border:1px solid var(--molten-br);background:var(--molten-bg);border-radius:20px;padding:18px;display:flex;justify-content:space-between;align-items:center;gap:16px}
+        .plancard{margin:16px var(--gutter) 0;background:var(--sec);border-radius:18px;padding:6px 16px}
+        .planline{display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-top:1px solid var(--hair)}
+        .planline:first-child{border-top:0}
+
+        .empty{display:flex;flex-direction:column;align-items:center;text-align:center;padding:48px 34px;gap:10px}
+        .empty .glyph{width:52px;height:52px;border-radius:16px;border:1px dashed var(--hair-s);display:grid;place-items:center;margin-bottom:6px}
+        .empty .glyph svg{width:22px;height:22px;stroke:var(--dim);stroke-width:1.6;fill:none;stroke-linecap:round;stroke-linejoin:round}
+        .empty h4{margin:0;font-size:18px;font-weight:600;color:var(--max)}
+        .empty p{margin:0;color:var(--meta);font-size:14.5px;line-height:1.55;max-width:274px}
+        .empty .btns{display:flex;flex-direction:column;gap:9px;width:100%;max-width:288px;margin-top:14px}
+        .empty .btn{height:50px;flex:none}
+        .divider{height:1px;background:var(--hair-s);margin:0 var(--gutter)}
+
+        .scrim{position:fixed;inset:0;background:var(--scrim);opacity:0;pointer-events:none;transition:opacity var(--d-base);z-index:60}
+        .scrim.on{opacity:1;pointer-events:auto}
+        .sheet{position:fixed;bottom:0;left:50%;width:100%;max-width:452px;transform:translate(-50%,110%);background:var(--field);color:var(--body);border-radius:26px 26px 0 0;padding:10px 20px 28px;z-index:70;transition:transform var(--d-base) var(--e-out)}
+        .sheet.on{transform:translate(-50%,0)}
+        .grab{width:36px;height:4px;border-radius:2px;background:var(--hair-s);margin:0 auto 20px}
+        .sheet h3{margin:0 0 12px;font-size:19px;font-weight:600;color:var(--max)}
+        .sheet .desc{font-size:15px;line-height:1.62;color:var(--body);margin-bottom:22px}
+        .mitem{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;background:none;border:0;padding:15px 4px;color:var(--body);font-family:var(--ff-ui);font-size:16px;cursor:pointer;text-align:left;border-radius:12px;transition:background var(--d-fast)}
+        .mitem:hover{background:var(--hair)}
+        .mitem.on{color:var(--max);font-weight:500}
+
+        .tools{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:452px;background:#14181C;border-top:1px solid #2A3138;display:flex;align-items:center;gap:6px;padding:11px 16px;overflow-x:auto;z-index:80;scrollbar-width:none}
+        .tools::-webkit-scrollbar{display:none}
+        .tools button{flex:none;height:36px;padding:0 14px;border-radius:10px;border:1px solid #333B43;background:none;color:#C7CED6;font-family:var(--ff-mono);font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;transition:background var(--d-fast),color var(--d-fast)}
+        .tools button.on{background:#F1F5F9;color:#0B0D0F;border-color:#F1F5F9}
+        .tools .sep{flex:none;width:1px;height:22px;background:#333B43;margin:0 4px}
+        .hint{margin:24px var(--gutter) 0;padding:14px 16px;border-radius:14px;border:1px dashed var(--hair-s);color:var(--dim);font-family:var(--ff-mono);font-size:11.5px;line-height:1.65}
+        @media (prefers-reduced-motion:reduce){*{animation-duration:1ms!important;transition-duration:1ms!important}}
+    </style>
+</head>
+<body>
+<div class="app" id="app">
+
+    <!-- LIVE -->
+    <section class="screen on" id="s-live">
+        <div class="topbar">
+            <button class="icon-btn lead"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+            <span style="flex:1"></span>
+            <button class="icon-btn trail"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/></svg></button>
+        </div>
+        <div class="session">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px">
+                <div><h2 style="font-size:22px;font-weight:600;color:var(--max);margin:0" id="lvName"></h2>
+                    <div class="meta" style="margin-top:6px" id="lvMeta"></div></div>
+                <div class="data-s" style="font-size:32px">12:04</div>
+            </div>
+            <div class="rail" id="lvRail"></div>
+        </div>
+        <div class="cards" id="lvCards"></div>
+        <div class="hint">В панели снизу переключается размер сессии — «5×4» даёт 20 пилюль, это проверка на осыпание.</div>
+    </section>
+
+    <!-- CHART -->
+    <section class="screen" id="s-chart">
+        <div class="topbar">
+            <button class="icon-btn lead"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+            <span style="flex:1"></span>
+            <button class="icon-btn trail"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/></svg></button>
+        </div>
+        <button class="exhead" onclick="openSheet('sh-pick')">
+            <h2>разведение ног</h2>
+            <span class="swap"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span>
+        </button>
+        <div class="tabs" id="tabs"><div class="tabtrack">
+            <div class="ind" id="ind"></div>
+            <button class="on" onclick="setMetric(0,this)">Вес</button>
+            <button onclick="setMetric(1,this)">Сессия</button>
+            <button onclick="setMetric(2,this)">Подход</button>
+        </div></div>
+        <div class="ranges" style="margin-top:16px">
+            <button class="tag" onclick="pickTag(this)">1М</button><button class="tag" onclick="pickTag(this)">3М</button>
+            <button class="tag" onclick="pickTag(this)">1Г</button><button class="tag on" onclick="pickTag(this)">Всё</button>
+        </div>
+        <div class="readout">
+            <div style="min-width:0"><div class="label" id="roMetric"></div>
+                <div class="meta" id="roSub" style="margin-top:6px"></div></div>
+            <div style="text-align:right;flex:none"><span class="data-hero" style="font-size:38px" id="roVal"></span><span class="unit" style="font-size:14px" id="roUnit"></span></div>
+        </div>
+        <div class="chartwrap" id="cw"><svg id="chart"></svg></div>
+        <div style="margin-top:26px">
+            <div class="statrow" style="border-top:1px solid var(--hair-s)"><span class="meta">Минимум</span><span class="val" id="stMin"></span></div>
+            <div class="statrow"><span class="meta">Максимум</span><span class="val" id="stMax"></span></div>
+            <div class="statrow"><span class="meta">Последний</span><span class="val" id="stLast"></span></div>
+        </div>
+        <div class="hint">Переключатель упражнения ушёл из шапки: заголовок крупный, стрелка ровно одна — назад.</div>
+    </section>
+
+    <!-- EXERCISE -->
+    <section class="screen" id="s-ex">
+        <div class="topbar"><button class="icon-btn lead"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+            <h1 class="sm">Отведение гантелей через стороны</h1>
+            <button class="icon-btn trail"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/></svg></button></div>
+        <div style="padding:0 var(--gutter);display:flex;gap:8px;margin-bottom:16px">
+            <span class="tag" style="cursor:default">С весом</span><span class="tag" style="cursor:default">верх</span></div>
+        <div class="prhero">
+            <div><div class="label" style="color:var(--molten)"><span class="mdot"></span>Рекорд</div>
+                <div class="meta" style="margin-top:7px">12 июля 2026 · верх (с подтягиваниями)</div></div>
+            <div style="text-align:right"><span class="data-s" style="color:var(--molten)">9<span class="x" style="color:var(--molten)">×</span>12</span></div>
+        </div>
+        <div class="section-head"><span class="label">План по умолчанию</span></div>
+        <div class="plancard">
+            <div class="planline"><span class="ord">1</span><span class="val">7<span class="x">×</span>12</span></div>
+            <div class="planline"><span class="ord">2</span><span class="val">7<span class="x">×</span>12</span></div>
+            <div class="planline"><span class="ord">3</span><span class="val">7<span class="x">×</span>12</span></div>
+            <div class="planline"><span class="ord">4</span><span class="val">7<span class="x">×</span>12</span></div>
+        </div>
+        <div class="section-head"><span class="label">История</span><span class="label">4 сессии</span></div>
+        <div class="list">
+            <div class="row"><div class="row-body"><div class="row-name" style="font-size:15px">22 июля</div><div class="meta">7×12 · 7×12 · 7×12 · 7×12</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+            <div class="row"><div class="row-body"><div class="row-name" style="font-size:15px">12 июля</div><div class="meta">5×12 · 6×12 · 9×12 · 7×12</div></div><span class="prtag">PR</span></div>
+            <div class="row"><div class="row-body"><div class="row-name" style="font-size:15px">23 июня</div><div class="meta">5×12 · 5×12 · 5×12 · 5×12</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+        </div>
+        <div class="dock"><button class="btn ghost" style="flex:0 0 130px">Изменить</button><button class="btn">Записать сейчас</button></div>
+    </section>
+
+    <!-- PAST -->
+    <section class="screen" id="s-past">
+        <div class="topbar"><button class="icon-btn lead"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><h1 class="sm">низ&nbsp;— 2</h1>
+            <button class="icon-btn trail"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/></svg></button></div>
+        <div style="padding:0 var(--gutter)">
+            <div class="label">Завершена · 23 июля 2026</div>
+            <div class="data-hero" style="margin-top:10px;font-size:44px">56:08</div>
+            <div class="meta" style="margin-top:10px">5 упражнений · 14 подходов · 4 820 кг</div>
+        </div>
+        <div class="section-head"><span class="label">Записано</span><span class="label">можно править</span></div>
+        <div class="cards">
+            <div class="card open">
+                <div class="chead"><span class="ord">1</span><div class="chead-body"><div class="title">разведение ног</div></div></div>
+                <div class="cbody"><div class="inner"><div class="sets">
+                    <div class="set"><span class="set-i">1</span><div class="field"><span class="data-l" style="color:var(--max)">49</span><span class="unit">кг</span></div><div class="field"><span class="data-l" style="color:var(--max)">15</span><span class="unit">повт</span></div><div class="tchip">·</div></div>
+                    <div class="set"><span class="set-i">2</span><div class="field"><span class="data-l" style="color:var(--max)">71</span><span class="unit">кг</span></div><div class="field"><span class="data-l" style="color:var(--max)">15</span><span class="unit">повт</span></div><div class="tchip">·</div></div>
+                    <div class="set pr"><span class="set-i">3</span><div class="field"><span class="data-l">77</span><span class="unit">кг</span></div><div class="field"><span class="data-l">15</span><span class="unit">повт</span></div><span class="prtag">PR</span></div>
+                    <div class="set"><span class="set-i">4</span><div class="field"><span class="data-l" style="color:var(--max)">71</span><span class="unit">кг</span></div><div class="field"><span class="data-l" style="color:var(--max)">15</span><span class="unit">повт</span></div><div class="tchip">·</div></div>
+                </div></div></div>
+            </div>
+            <div class="card"><div class="chead"><span class="ord">2</span><div class="chead-body"><div class="title">приседания с мешком</div><div class="plan-line">10×15 · 10×15 · 10×15</div></div>
+                <svg class="chev" viewBox="0 0 24 24" style="margin-top:4px"><path d="M9 6l6 6-6 6"/></svg></div></div>
+        </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="screen" id="s-set">
+        <div class="topbar"><button class="icon-btn lead"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Настройки</h1></div>
+        <div class="sgroup" style="margin-top:8px"><span class="label">Оформление</span>
+            <div class="srow plain"><div class="srow-b"><div class="srow-t">Тема</div><div class="meta" style="margin-top:3px" id="thName">Тёмная</div></div>
+                <div class="mseg">
+                    <button onclick="setTheme('auto',this)" title="Системная"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8"/></svg></button>
+                    <button onclick="setTheme('light',this)" title="Светлая"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg></button>
+                    <button class="on" onclick="setTheme('dark',this)" title="Тёмная"><svg viewBox="0 0 24 24"><path d="M20 13.5A8 8 0 1 1 10.5 4a6.5 6.5 0 0 0 9.5 9.5z"/></svg></button>
+                </div></div>
+            <div class="srow"><div class="srow-b"><div class="srow-t">Единицы</div><div class="meta" style="margin-top:3px">Килограммы</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+        </div>
+        <div class="sgroup"><span class="label">Резервные копии</span>
+            <div class="srow plain"><div class="srow-b"><div class="srow-t">ilya977.077@gmail.com</div><div class="meta" style="margin-top:3px">Ilya Alexandrovich</div></div></div>
+            <div class="srow"><div class="srow-b"><div class="srow-t">Автокопия</div><div class="meta" style="margin-top:3px">Ежедневно · следующая через 23 ч</div></div><span class="val">Вкл</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+            <div class="srow plain"><div class="srow-b"><div class="srow-t">Снимок для ИИ-ассистента</div><div class="meta" style="margin-top:3px">Читаемая копия в видимой папке Google Drive</div></div><button class="sw on" onclick="this.classList.toggle('on')"><i></i></button></div>
+            <div class="srow"><div class="srow-b"><div class="srow-t">Создать копию сейчас</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+            <div class="srow"><div class="srow-b"><div class="srow-t">Восстановить из копии</div><div class="meta" style="margin-top:3px">3 копии · последняя минуту назад</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+            <div class="srow rust"><div class="srow-b"><div class="srow-t">Выйти из аккаунта</div></div></div></div>
+        <div class="sgroup"><span class="label">Данные</span>
+            <div class="srow"><div class="srow-b"><div class="srow-t">Архив</div><div class="meta" style="margin-top:3px">4 упражнения · 1 тренировка</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div></div>
+        <div class="sgroup"><span class="label">О приложении</span>
+            <div class="srow plain"><div class="srow-b"><div class="srow-t">Workeeper</div><div class="meta" style="margin-top:3px">Версия 1.48.0 (49)</div></div></div>
+            <div class="srow"><div class="srow-b"><div class="srow-t">Исходный код</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M7 17L17 7M9 7h8v8"/></svg></div>
+            <div class="srow"><div class="srow-b"><div class="srow-t">Лицензия GPLv3</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M7 17L17 7M9 7h8v8"/></svg></div>
+            <div class="srow"><div class="srow-b"><div class="srow-t">Политика конфиденциальности</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M7 17L17 7M9 7h8v8"/></svg></div></div>
+        <div class="hint">Тема стала обычной строкой с компактным контролом справа. Не первый по важности элемент экрана и не читается как вкладки.</div>
+    </section>
+
+    <!-- EMPTY -->
+    <section class="screen" id="s-empty">
+        <div class="topbar"><h1>Пустые состояния</h1></div>
+        <div class="empty"><div class="glyph"><svg viewBox="0 0 24 24"><path d="M4 12h3l2.5-7 5 14L17 12h3"/></svg></div>
+            <h4>Здесь появятся тренировки</h4><p>Собери шаблон заранее или начни пустую и добавляй упражнения по ходу.</p>
+            <div class="btns"><button class="btn">Создать тренировку</button><button class="btn ghost">Начать пустую тренировку</button></div></div>
+        <div class="divider"></div>
+        <div class="empty"><div class="glyph"><svg viewBox="0 0 24 24"><path d="M3 17l5-6 4 4 5-8"/></svg></div>
+            <h4>Пока нечего показать</h4><p>График появится после двух записанных сессий с этим упражнением.</p></div>
+        <div class="divider"></div>
+        <div class="empty"><div class="glyph"><svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg></div>
+            <h4>Здесь появятся твои упражнения</h4><p>Добавь первое — дальше его можно будет класть в любую тренировку.</p>
+            <div class="btns"><button class="btn">Добавить упражнение</button></div></div>
+    </section>
+</div>
+
+<div class="scrim" id="scrim" onclick="closeSheets()"></div>
+<div class="sheet" id="sh-desc"><div class="grab"></div><h3 id="dTitle"></h3><div class="desc" id="dBody"></div>
+    <button class="btn ghost" style="width:100%" onclick="closeSheets()">Закрыть</button></div>
+<div class="sheet" id="sh-pick"><div class="grab"></div><h3>Выбрать упражнение</h3>
+    <button class="mitem on" onclick="closeSheets()">разведение ног<svg class="chev" viewBox="0 0 24 24" style="stroke:var(--max)"><path d="M4 12.5l5 5L20 7"/></svg></button>
+    <button class="mitem" onclick="closeSheets()">жим платформы (узко)</button>
+    <button class="mitem" onclick="closeSheets()">румынская тяга</button>
+    <button class="mitem" onclick="closeSheets()">подтягивания</button>
+</div>
+
+<div class="tools">
+    <button class="on" data-s="s-live" onclick="nav(this)">Сессия</button>
+    <button data-s="s-chart" onclick="nav(this)">График</button>
+    <button data-s="s-ex" onclick="nav(this)">Упражнение</button>
+    <button data-s="s-past" onclick="nav(this)">Прошлая</button>
+    <button data-s="s-set" onclick="nav(this)">Настройки</button>
+    <button data-s="s-empty" onclick="nav(this)">Пустые</button>
+    <span class="sep"></span>
+    <button id="sizeBtn" onclick="toggleSize()">Сессия 2×4</button>
+    <button id="thBtn" onclick="setTheme(document.body.classList.contains('light')?'dark':'light')">Светлая</button>
+</div>
+
+<script>
+    /* ---- session datasets ---- */
+    const SMALL=[
+     {n:'подтягивания',type:'bw',open:true,
+      desc:'Хват чуть шире плеч. Лопатки вниз и назад до начала тяги, корпус слегка отклонён. Подбородок выводим за перекладину без рывка, опускание медленнее подъёма.',
+      sets:[{r:8,done:true},{r:8,done:true},{r:8,done:false},{r:5,done:false}]},
+     {n:'Отведение гантелей через стороны',type:'w',open:true,
+      desc:'Локти чуть согнуты и зафиксированы. Ведём гантели в стороны до линии плеч, без заброса корпусом.',
+      sets:[{w:7,r:12,done:false},{w:7,r:12,done:false},{w:9,r:12,done:false,pr:true},{w:7,r:12,done:false}]}
+    ];
+    const BIG=[
+     {n:'подтягивания',type:'bw',open:true,desc:'Лопатки вниз и назад до начала тяги.',
+      sets:[{r:8,done:true},{r:8,done:true},{r:8,done:true},{r:5,done:false}]},
+     {n:'Тяга Т-грифа прямым широким хватом',type:'w',open:false,desc:'',
+      sets:[{w:20,r:12,done:true},{w:30,r:12,done:true},{w:30,r:12,done:false},{w:30,r:12,done:false}]},
+     {n:'Отведение гантелей через стороны',type:'w',open:false,desc:'Локти чуть согнуты и зафиксированы.',
+      sets:[{w:7,r:12,done:false},{w:7,r:12,done:false},{w:9,r:12,done:false,pr:true},{w:7,r:12,done:false}]},
+     {n:'Молотки с гантелями',type:'w',open:false,desc:'',
+      sets:[{w:16,r:12,done:false},{w:16,r:12,done:false},{w:16,r:12,done:false},{w:16,r:12,done:false}]},
+     {n:'Подъём блина перед собой',type:'w',open:false,desc:'',
+      sets:[{w:15,r:12,done:false},{w:15,r:12,done:false},{w:15,r:12,done:false},{w:15,r:12,done:false}]}
+    ];
+    let LV=SMALL, big=false;
+    const cardsEl=document.getElementById('lvCards'),railEl=document.getElementById('lvRail');
+
+    function buildLive(){
+      document.getElementById('lvName').textContent=big?'верх (полный)':'верх (с подтягиваниями)';
+      cardsEl.innerHTML='';railEl.innerHTML='';
+      LV.forEach((e,ei)=>{
+        const grp=document.createElement('div');grp.className='grp';railEl.appendChild(grp);
+        e.sets.forEach(s=>{const p=document.createElement('div');p.className='pill'+(s.pr?' pr':'');
+          p.innerHTML='<b></b>';grp.appendChild(p);s._b=p.querySelector('b')});
+        const card=document.createElement('div');card.className='card'+(e.open?' open':'');
+        const plan=e.type==='w'?e.sets.map(s=>s.w+'×'+s.r).join(' · '):e.sets.map(s=>s.r+' повт').join(' · ');
+        card.innerHTML=`<div class="chead"><span class="ord">${ei+1}</span>
+          <div class="chead-body"><div class="title"></div><div class="plan-line">${plan}</div></div>
+          <div class="chead-act">${e.desc?'<button class="mini info"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.6v.1"/></svg></button>':''}
+          <button class="mini rot"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button></div></div>
+          <div class="cbody"><div class="inner"><div class="sets"></div></div></div>`;
+        card.querySelector('.title').textContent=e.n;
+        card.querySelector('.chead').onclick=ev=>{if(ev.target.closest('.info'))return;card.classList.toggle('open')};
+        if(e.desc)card.querySelector('.info').onclick=()=>{
+          document.getElementById('dTitle').textContent=e.n;
+          document.getElementById('dBody').textContent=e.desc;openSheet('sh-desc')};
+        const sc=card.querySelector('.sets');
+        e.sets.forEach((s,i)=>{
+          const f=e.type==='w'
+            ?`<div class="field"><span class="data-l">${s.w}</span><span class="unit">кг</span></div><div class="field"><span class="data-l">${s.r}</span><span class="unit">повт</span></div>`
+            :`<div class="field" style="flex:2"><span class="data-l">${s.r}</span><span class="unit">повторений</span></div>`;
+          const row=document.createElement('div');
+          row.className='set'+(s.done?' done':'')+(s.pr?' pr':'');
+          row.innerHTML=`<span class="set-i">${i+1}</span>${f}
+            ${s.pr?'<span class="prtag">PR</span>':'<div class="tchip">·</div>'}
+            <button class="mark"><span class="shape"></span><span class="pulse"></span>
+            <svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>`;
+          row.querySelector('.mark').onclick=()=>{
+            s.done=!s.done;row.classList.toggle('done',s.done);
+            s._b.style.width=s.done?'100%':'0';
+            if(s.done){row.classList.remove('flash');void row.offsetWidth;row.classList.add('flash');
+              if(navigator.vibrate)navigator.vibrate(s.pr?[12,40,22]:10);
+              if(s.pr){card.classList.remove('prfx');void card.offsetWidth;card.classList.add('prfx');
+                setTimeout(()=>card.classList.remove('prfx'),1000)}}
+            meta()};
+          sc.appendChild(row)});
+        cardsEl.appendChild(card)});
+      requestAnimationFrame(()=>LV.forEach(e=>e.sets.forEach(s=>{if(s.done)s._b.style.width='100%'})));
+      meta();
+    }
+    function meta(){const d=LV.reduce((a,e)=>a+e.sets.filter(s=>s.done).length,0),t=LV.reduce((a,e)=>a+e.sets.length,0);
+      document.getElementById('lvMeta').textContent=d+' из '+t+' подходов · '+LV.length+' упражнений'}
+    function toggleSize(){big=!big;LV=big?BIG:SMALL;
+      document.getElementById('sizeBtn').textContent=big?'Сессия 5×4':'Сессия 2×4';buildLive()}
+
+    /* ---- chart ---- */
+    const DATES=['2 мая','16 мая','1 июня','23 июня','11 июля','15 июля','23 июля'];
+    const METRICS=[
+     {name:'Максимальный вес',u:' кг',pr:6,v:[49,49,56,63,63,63,77]},
+     {name:'Объём за сессию',u:' кг',pr:6,v:[2940,2940,3360,3780,3780,3780,4620]},
+     {name:'Объём за подход',u:' кг',pr:6,v:[735,735,840,945,945,945,1155]}
+    ];
+    let mi=0,cur=METRICS[0].v.slice(),active=4,anim=null;
+    const svg=document.getElementById('chart'),cw=document.getElementById('cw');
+    let W=320;const H=212,PADT=16,PADB=24;
+    const fmt=n=>Math.round(n).toLocaleString('ru-RU');
+    function measure(){W=Math.max(200,cw.clientWidth-40);svg.setAttribute('viewBox',`0 0 ${W} ${H}`);svg.setAttribute('width',W);svg.setAttribute('height',H)}
+    function draw(){
+      const mn=Math.min(...cur),mx=Math.max(...cur);
+      const xs=i=>(i/(cur.length-1))*(W-10)+5, ys=v=>PADT+(1-(v-mn)/((mx-mn)||1))*(H-PADT-PADB);
+      let g='';for(let k=0;k<=3;k++){const y=PADT+k*(H-PADT-PADB)/3;g+=`<line class="gridline" x1="0" y1="${y}" x2="${W}" y2="${y}"/>`}
+      const path=cur.map((v,i)=>(i?'L':'M')+xs(i).toFixed(1)+' '+ys(v).toFixed(1)).join(' ');
+      const sc=`<line class="scrub" x1="${xs(active)}" y1="${PADT-8}" x2="${xs(active)}" y2="${H-PADB+6}"/>`;
+      const pts=cur.map((v,i)=>`<circle class="pt${i===METRICS[mi].pr?' pr':''}${i===active?' act':''}" cx="${xs(i)}" cy="${ys(v)}" r="${i===active?5.5:4}"/>`).join('');
+      svg.innerHTML=g+sc+`<path class="series" d="${path}"/>`+pts;
+    }
+    function readout(){
+      const m=METRICS[mi],v=m.v[active],isPR=active===m.pr;
+      document.getElementById('roMetric').innerHTML=(isPR?'<span class="mdot"></span>':'')+m.name;
+      document.getElementById('roSub').textContent=DATES[active]+' 2026 · 4 подхода'+(isPR?' · рекорд':'');
+      document.getElementById('roVal').textContent=fmt(v);
+      document.getElementById('roUnit').textContent=m.u;
+      document.getElementById('stMin').innerHTML=fmt(Math.min(...m.v))+'<span class="unit">'+m.u+'</span>';
+      document.getElementById('stMax').innerHTML=fmt(Math.max(...m.v))+'<span class="unit">'+m.u+'</span>';
+      document.getElementById('stLast').innerHTML=fmt(m.v[m.v.length-1])+'<span class="unit">'+m.u+'</span>';
+    }
+    function setMetric(i,btn){
+      mi=i;document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('on'));btn.classList.add('on');moveInd(btn);
+      const from=cur.slice(),to=METRICS[i].v,t0=performance.now(),D=420;
+      cancelAnimationFrame(anim);
+      (function step(t){const k=Math.min(1,(t-t0)/D),e=1-Math.pow(1-k,3);
+        cur=from.map((v,j)=>v+(to[j]-v)*e);draw();
+        if(k<1)anim=requestAnimationFrame(step);else{cur=to.slice();draw()}})(t0);
+      readout();
+    }
+    function moveInd(btn){const ind=document.getElementById('ind');ind.style.left=btn.offsetLeft+'px';ind.style.width=btn.offsetWidth+'px'}
+    function scrub(ev){const r=cw.getBoundingClientRect();
+      const x=(ev.clientX-r.left-20)/(r.width-40);
+      const i=Math.max(0,Math.min(cur.length-1,Math.round(x*(cur.length-1))));
+      if(i!==active){active=i;draw();readout();if(navigator.vibrate)navigator.vibrate(4)}}
+    cw.addEventListener('pointerdown',e=>{cw.setPointerCapture(e.pointerId);scrub(e)});
+    cw.addEventListener('pointermove',e=>{if(e.buttons||e.pressure>0)scrub(e)});
+    window.addEventListener('resize',()=>{measure();draw()});
+
+    /* ---- ui ---- */
+    function nav(b){document.querySelectorAll('.tools button[data-s]').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+      document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+      document.getElementById(b.dataset.s).classList.add('on');window.scrollTo({top:0});
+      if(b.dataset.s==='s-chart'){measure();draw();moveInd(document.querySelector('.tabs button.on'))}}
+    function pickTag(b){b.parentNode.querySelectorAll('.tag').forEach(x=>x.classList.remove('on'));b.classList.add('on')}
+    function openSheet(id){document.getElementById('scrim').classList.add('on');document.getElementById(id).classList.add('on')}
+    function closeSheets(){document.getElementById('scrim').classList.remove('on');document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('on'))}
+    function setTheme(t,btn){
+      const light=t==='light';
+      document.body.classList.toggle('light',light);
+      document.getElementById('thName').textContent=t==='auto'?'Системная':light?'Светлая':'Тёмная';
+      document.getElementById('thBtn').textContent=light?'Тёмная':'Светлая';
+      const segs=document.querySelectorAll('.mseg button');
+      segs.forEach(x=>x.classList.remove('on'));
+      (btn||segs[t==='auto'?0:light?1:2]).classList.add('on');
+    }
+    buildLive();measure();draw();readout();
+    window.addEventListener('load',()=>{measure();draw();moveInd(document.querySelector('.tabs button.on'))});
+    setTimeout(()=>moveInd(document.querySelector('.tabs button.on')),300);
+</script>
+</body>
+</html>
