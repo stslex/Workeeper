@@ -163,6 +163,9 @@ internal class LiveWorkoutScreenTest : BaseComposeTest() {
         // `expandedExerciseUuids`. The store seeds this from `activeExerciseUuids` at
         // load time; the test bypasses load and must opt the row in explicitly.
         expandedExerciseUuids = persistentSetOf(PE_UUID),
+        manualExpandedExerciseUuids = persistentSetOf(),
+        manualCollapsedExerciseUuids = persistentSetOf(),
+        hasManualDisclosureAction = false,
         isLoading = false,
     )
 

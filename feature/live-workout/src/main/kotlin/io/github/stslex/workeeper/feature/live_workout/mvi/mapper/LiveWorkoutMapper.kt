@@ -26,6 +26,7 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableMap
+import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableMap
 import kotlinx.collections.immutable.toImmutableSet
@@ -65,7 +66,17 @@ internal object LiveWorkoutMapper {
             exercises = ui,
             setDrafts = emptyMap<State.DraftKey, LiveSetUiModel>().toImmutableMap(),
             activeExerciseUuids = activeExerciseUuids,
-            expandedExerciseUuids = activeExerciseUuids,
+            // §7 initialisation, from the automaton rather than by hand: no manual intent
+            // yet, so this resolves to "every in-progress card, plus the first unfinished
+            // one by position".
+            expandedExerciseUuids = DisclosureAutomaton.resolve(
+                exercises = ui,
+                intent = DisclosureAutomaton.DisclosureIntent(),
+                previouslyExpanded = emptySet(),
+            ).toImmutableSet(),
+            manualExpandedExerciseUuids = persistentSetOf(),
+            manualCollapsedExerciseUuids = persistentSetOf(),
+            hasManualDisclosureAction = false,
             preSessionPrSnapshot = prSnapshot,
             isAddExerciseInFlight = false,
             isFinishInFlight = false,
@@ -202,6 +213,41 @@ internal object LiveWorkoutMapper {
                 setCountLabel,
             ),
             exercises = presentedExercises,
+        )
+    }
+
+    /**
+     * Carries manual disclosure intent (§7) across a wholesale State replacement.
+     *
+     * `Action.Common.Init` and `.Reload` both rebuild State from a fresh snapshot, and
+     * re-entering composition re-fires `Init` — so a round-trip to the full-screen plan editor
+     * would otherwise reset expansion. A plan-editor round-trip is **not** "leaving the screen
+     * session": §7's stickiness ends when the Store dies with its `NavBackStackEntry`, which a
+     * push-and-return does not do.
+     *
+     * Intent is pruned to exercises that still exist, so an exercise deleted while the editor
+     * was open cannot leave a dangling entry behind.
+     */
+    fun State.withDisclosureCarriedFrom(previous: State): State {
+        if (!previous.hasManualDisclosureAction) return this
+        val liveUuids = exercises.mapTo(mutableSetOf()) { it.performedExerciseUuid }
+        val expandedIntent = previous.manualExpandedExerciseUuids.filterTo(mutableSetOf()) {
+            it in liveUuids
+        }
+        val collapsedIntent = previous.manualCollapsedExerciseUuids.filterTo(mutableSetOf()) {
+            it in liveUuids
+        }
+        val carried = copy(
+            manualExpandedExerciseUuids = expandedIntent.toImmutableSet(),
+            manualCollapsedExerciseUuids = collapsedIntent.toImmutableSet(),
+            hasManualDisclosureAction = true,
+        )
+        return carried.copy(
+            expandedExerciseUuids = DisclosureAutomaton.resolve(
+                exercises = carried.exercises,
+                intent = carried.disclosureIntent,
+                previouslyExpanded = previous.expandedExerciseUuids,
+            ).toImmutableSet(),
         )
     }
 
