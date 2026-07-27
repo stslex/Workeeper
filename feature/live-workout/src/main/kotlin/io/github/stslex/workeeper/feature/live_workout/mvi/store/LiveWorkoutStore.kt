@@ -7,6 +7,7 @@ import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExercisePickerAction
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
 import kotlinx.collections.immutable.ImmutableList
@@ -84,6 +85,17 @@ interface LiveWorkoutStore :
          */
         val isSessionEmpty: Boolean
             get() = exercises.isEmpty() || exercises.all { it.performedSets.isEmpty() }
+
+        /**
+         * Visible rows the user never filled in, across every non-skipped exercise. Surfaced
+         * in `FinishConfirmDialog` so the discard at finish is stated rather than silent
+         * (§6.1). Skipped exercises are excluded — their rows are already outside the
+         * progress denominator, so counting them would overstate the loss.
+         */
+        val unfilledSetCount: Int
+            get() = exercises
+                .filter { it.status != ExerciseStatusUiModel.SKIPPED }
+                .sumOf { exercise -> exercise.visibleSets.count { it.isUnfilled } }
 
         /**
          * Throttle gate for the mid-session add-exercise CTA. False during an in-flight

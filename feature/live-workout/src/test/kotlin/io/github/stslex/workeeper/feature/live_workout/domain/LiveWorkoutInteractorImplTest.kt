@@ -471,6 +471,92 @@ internal class LiveWorkoutInteractorImplTest {
     }
 
     @Test
+    fun `finishSession discards a persisted zero-rep set and leaves it out of the plan`() =
+        runTest {
+            // Defence-in-depth (§6.1). No production writer can persist reps <= 0 today, so
+            // this row is seeded directly — it stands in for legacy or imported data. The
+            // assertion is that such a row is deleted, excluded from setsLogged, and never
+            // promoted into the next session's plan.
+            val sessionUuid = "session-1"
+            val trainingUuid = "training-1"
+            coEvery { sessionRepository.getById(sessionUuid) } returns SessionDataModel(
+                uuid = sessionUuid,
+                trainingUuid = trainingUuid,
+                state = SessionStateDataModel.IN_PROGRESS,
+                startedAt = 1_000L,
+                finishedAt = null,
+            )
+            coEvery { trainingRepository.getTraining(trainingUuid) } returns TrainingDataModel(
+                uuid = trainingUuid,
+                name = "Push Day",
+                description = null,
+                isAdhoc = false,
+                archived = false,
+                archivedAt = null,
+                timestamp = 0L,
+                labels = emptyList(),
+                exerciseUuids = listOf("ex-1"),
+            )
+            coEvery { performedExerciseRepository.getBySession(sessionUuid) } returns listOf(
+                PerformedExerciseDataModel(
+                    uuid = "pe-1",
+                    sessionUuid = sessionUuid,
+                    exerciseUuid = "ex-1",
+                    position = 0,
+                    skipped = false,
+                ),
+            )
+            coEvery { setRepository.getByPerformedExercise("pe-1") } returns listOf(
+                SetsDataModel(
+                    uuid = "s-1",
+                    reps = 5,
+                    weight = 100.0,
+                    type = SetsDataType.WORK,
+                    position = 0,
+                ),
+                SetsDataModel(
+                    uuid = "s-2",
+                    reps = 0,
+                    weight = null,
+                    type = SetsDataType.WORK,
+                    position = 1,
+                ),
+            )
+            coEvery {
+                trainingExerciseRepository.getPlans(trainingUuid, listOf("ex-1"))
+            } returns mapOf("ex-1" to null)
+            coEvery { trainingExerciseRepository.getPlan(trainingUuid, "ex-1") } returns null
+            coEvery { exerciseRepository.getAdhocPlan("ex-1") } returns null
+            val captured = slot<List<PlanUpdate>>()
+            coEvery {
+                sessionRepository.finishSessionAtomic(
+                    eq(sessionUuid),
+                    any(),
+                    capture(captured),
+                    any(),
+                )
+            } returns true
+
+            val result = interactor.finishSession(sessionUuid)
+
+            // The zero-rep row is deleted at its position.
+            coVerify(exactly = 1) {
+                setRepository.deleteByPerformedAndPosition("pe-1", 1)
+            }
+            // ...and the filled one is not.
+            coVerify(exactly = 0) {
+                setRepository.deleteByPerformedAndPosition("pe-1", 0)
+            }
+            assertEquals(1, result?.discardedUnfilledSets)
+            // It counts as neither logged work nor part of the next plan.
+            assertEquals(1, result?.setsLogged)
+            assertEquals(
+                listOf(PlanSetDataModel(weight = 100.0, reps = 5, type = SetTypeDataModel.WORK)),
+                captured.captured.single().newPlan,
+            )
+        }
+
+    @Test
     fun `loadSession with non-adhoc training and empty plan returns empty without adhocPlans fallback`() =
         runTest {
             val sessionUuid = "session-1"

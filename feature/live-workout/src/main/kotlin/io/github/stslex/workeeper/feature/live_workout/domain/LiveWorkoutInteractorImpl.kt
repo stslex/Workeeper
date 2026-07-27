@@ -220,6 +220,7 @@ class LiveWorkoutInteractorImpl internal constructor(
         var setsLogged = 0
         var doneCount = 0
         var skippedCount = 0
+        var discardedUnfilledSets = 0
 
         // Key presence is the plan-attached flag — see TrainingExerciseRepository.getPlans.
         // Read once for the whole session rather than per row. Empty for an ad-hoc training,
@@ -240,9 +241,25 @@ class LiveWorkoutInteractorImpl internal constructor(
                 skippedCount++
                 continue
             }
-            val performedSets = setRepository
+            // Unfilled sets are discarded at finish (§6.1). Measured on this tree: no
+            // production writer can persist `reps <= 0` — `SetRepository.upsert` is reached
+            // only through `ClickHandler.processSetMarkDone`, which rejects `reps <= 0`, and
+            // `SetRepository.update` only through past-session's `InputHandler`, which
+            // requires `parsed > 0`. So this partition is defence-in-depth over legacy or
+            // imported rows and normally finds nothing. It is here because the invariant is
+            // otherwise enforced only by two UI validators agreeing, with nothing at the data
+            // layer to stop a third writer from breaking it silently.
+            val (filledSets, unfilledSets) = setRepository
                 .getByPerformedExercise(row.uuid)
-                .map { it.toDomain().toPlanSet() }
+                .map { it.toDomain() }
+                .partition { it.reps > 0 }
+            if (unfilledSets.isNotEmpty()) {
+                discardedUnfilledSets += unfilledSets.size
+                unfilledSets.forEach { unfilled ->
+                    setRepository.deleteByPerformedAndPosition(row.uuid, unfilled.position)
+                }
+            }
+            val performedSets = filledSets.map { it.toPlanSet() }
             setsLogged += performedSets.size
             if (performedSets.isNotEmpty()) doneCount += 1
             // A one-off has no plan row, so a template write would silently match zero rows
@@ -287,6 +304,7 @@ class LiveWorkoutInteractorImpl internal constructor(
             totalCount = performedRows.await().size,
             skippedCount = skippedCount,
             setsLogged = setsLogged,
+            discardedUnfilledSets = discardedUnfilledSets,
         )
     }
 

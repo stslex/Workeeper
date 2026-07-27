@@ -221,6 +221,7 @@ internal object LiveWorkoutMapper {
                 setsLogged,
             ),
             newPersonalRecords = computeNewPersonalRecords(resourceWrapper),
+            unfilledSetCount = unfilledSetCount,
             requiresName = trainingName.isBlank(),
             nameDraft = trainingName,
             nameLabel = resourceWrapper.getString(R.string.feature_live_workout_finish_name_label),

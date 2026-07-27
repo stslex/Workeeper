@@ -70,6 +70,12 @@ sealed interface DialogState {
         val exercisesSummaryLabel: String,
         val setsLoggedLabel: String,
         val newPersonalRecords: ImmutableList<NewPrEntry>,
+        /**
+         * Visible rows the user never filled in. Rendered as an explicit line in
+         * `FinishConfirmDialog` when non-zero, so the discard at finish is stated rather than
+         * silent (§6.1). Zero hides the line entirely.
+         */
+        val unfilledSetCount: Int = 0,
         val requiresName: Boolean = false,
         val nameDraft: String = "",
         val nameLabel: String = "",

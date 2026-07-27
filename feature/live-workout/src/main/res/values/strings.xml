@@ -63,6 +63,10 @@
         <item quantity="other">%d new personal records</item>
     </plurals>
     <string name="feature_live_workout_finish_new_pr_row_format">%1$s — %2$s</string>
+    <plurals name="feature_live_workout_finish_unfilled_discarded">
+        <item quantity="one">%d empty set will not be saved</item>
+        <item quantity="other">%d empty sets will not be saved</item>
+    </plurals>
     <string name="feature_live_workout_finish_pr_weighted_format">%1$s × %2$d</string>
     <string name="feature_live_workout_finish_pr_weightless_format" tools:ignore="PluralsCandidate">%1$d reps</string>
 
