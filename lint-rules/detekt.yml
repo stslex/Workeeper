@@ -724,3 +724,5 @@ mvi-architecture:
     active: true
   NoActualForExpectSuppressionRule:
     active: true
+  NumericFontFamilyOnLocalizedTextRule:
+    active: true

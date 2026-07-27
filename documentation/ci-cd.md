@@ -47,14 +47,21 @@ runs for PRs targeting any branch. UI tests have to be triggered manually.
 ### Verification steps
 
 ```bash
+./gradlew assembleDebug --full-stacktrace
+./gradlew verifyPaparazziDebug --full-stacktrace   # visual gate, before anything can rewrite the tree
+./gradlew :lint-rules:test --full-stacktrace       # the custom detekt rules, before detekt consumes them
 ./gradlew detekt --full-stacktrace
 ./gradlew lintDebug --no-configuration-cache --full-stacktrace
-./gradlew build -x test --full-stacktrace
 ./gradlew testDebugUnitTest --full-stacktrace
 ```
 
+Order is load-bearing twice over. `verifyPaparazziDebug` runs first so the goldens are compared
+against the tree as checked out, before any step could rewrite it. `:lint-rules:test` runs before
+`detekt`, since detekt is what consumes the jar those tests cover.
+
 `lintDebug` is run with `--no-configuration-cache` because the lint integration is not
-configuration-cache compatible at the pinned Android Gradle Plugin version.
+configuration-cache compatible at the pinned Android Gradle Plugin version. That flag is about the
+*configuration* cache and says nothing about the build cache — the two are independent.
 
 ### Test reporting
 
