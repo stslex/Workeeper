@@ -52,6 +52,12 @@ internal object ContrastContract {
         "textPrimary" to FOREGROUND,
         "textSecondary" to FOREGROUND,
         "textTertiary" to FOREGROUND,
+        // v3 `dim`, aliased onto `meta` (AppColors.textDim). Same value as `textTertiary`, so
+        // it adds rows and no distinct measurements — the report's distinct-measurement counter
+        // keys on colour VALUES precisely so an alias cannot read as extra coverage. It is
+        // declared as its own slot rather than folded into `textTertiary` so that reinstating a
+        // real fourth tier fails here loudly instead of shipping unmeasured.
+        "textDim" to FOREGROUND,
         "onAccent" to FOREGROUND,
         "inverseOnSurface" to FOREGROUND,
         "setType.warmupForeground" to FOREGROUND,
@@ -201,6 +207,11 @@ internal object ContrastContract {
             add(Declared("textPrimary", surface, TypeSlot.BODY, "95 reads; row/card titles"))
             add(Declared("textSecondary", surface, TypeSlot.BODY, "45 reads; supporting text"))
             add(Declared("textTertiary", surface, TypeSlot.META, "55 reads; captions, meta"))
+            // v3 `dim`. Declared at CAPTION, not META: the mockups' smallest `dim` element is
+            // the 11px uppercase `.label`, and 11sp is the tightest rung this role reaches.
+            // Same threshold as META numerically (4.5:1), but the slot names what is actually
+            // painted, which is what makes the verdict re-checkable if the alias is ever undone.
+            add(Declared("textDim", surface, TypeSlot.CAPTION, "AppSectionHeader label, AppNumberInput unit"))
             // The screen-title rung. Same colour, larger type, weaker obligation — declared so
             // the distinction is visible rather than implied.
             add(Declared("textPrimary", surface, TypeSlot.TITLE, "DetailTopbar, PastSessionHeader"))
@@ -209,8 +220,12 @@ internal object ContrastContract {
         // accent is v3 `max`: links, timers, chart strokes, selected icons.
         add(Declared("accent", "surfaceTier0", TypeSlot.BODY, "AboutBlock links, ChartCanvas"))
         add(Declared("accent", "surfaceTier1", TypeSlot.BODY, "HomeStartCard, ActiveSessionBanner"))
-        add(Declared("accent", "surfaceTier2", TypeSlot.BODY, "AppNumberInput cursor"))
-        add(Declared("accent", "surfaceTier3", TypeSlot.BODY, "ChartTooltipPopup value"))
+        // RE-VERIFIED: this row used to cite "AppNumberInput cursor", which moved to
+        // `surfaceTier3` when the input adopted the mockup's `.field` tier. The live sites are
+        // RestoreProgressOverlay.kt:65 (accent label on a card that is `surfaceTier2` in light)
+        // and ExercisePickerSheet.kt:169 (Checkbox checkedColor on a `surfaceTier2` sheet).
+        add(Declared("accent", "surfaceTier2", TypeSlot.BODY, "RestoreProgressOverlay label, light theme"))
+        add(Declared("accent", "surfaceTier3", TypeSlot.BODY, "ChartTooltipPopup value; AppNumberInput cursor"))
         add(Declared("accent", "surfaceTier4", TypeSlot.BODY, "TrainingRow active glyph"))
         add(Declared("accent", "surfaceTier1", TypeSlot.DISPLAY, "LiveWorkoutHeader timer"))
         add(Declared("accent", "surfaceTier0", TypeSlot.UI_COMPONENT, "AppTextField focused outline"))
@@ -433,6 +448,37 @@ internal object ContrastContract {
             )
         }
         add(Declared("molten.text", "molten.background", TypeSlot.CAPTION, "PR tag inside its own wash", over = PAGE))
+
+        // The PR set row: `.set.pr .field{background:var(--molten-bg)}` washes BOTH fields, so
+        // the field's own value and unit now sit on the molten wash.
+        //
+        // ONE backdrop, `surfaceTier3`, because `AppNumberInput` STACKS the wash on the field
+        // tier rather than substituting it the way the CSS does. That is a measurement: the CSS
+        // way puts the unit on a different backdrop per row and fails on the live DONE row's
+        // `surfaceTier4` (3.99 dark / 4.46 light against 4.5). Stacked, it is 4.84 / 4.82 and
+        // the field's contrast stops depending on what is behind it.
+        //
+        // The foreground is `textPrimary`, NOT `record.textPrimary`, and that is a finding
+        // rather than a preference — see AppNumberInput's KDoc. The mockup also turns the value
+        // molten, which measures 4.14 in light against the 4.5:1 a 19sp regular value owes.
+        add(
+            Declared(
+                foreground = "textPrimary",
+                background = "record.background",
+                typeSlot = TypeSlot.SECTION,
+                evidence = "AppNumberInput value on a PR set row",
+                over = "surfaceTier3",
+            ),
+        )
+        add(
+            Declared(
+                foreground = "textDim",
+                background = "record.background",
+                typeSlot = TypeSlot.META,
+                evidence = "AppNumberInput unit on a PR set row",
+                over = "surfaceTier3",
+            ),
+        )
     }
 
     /**
@@ -471,13 +517,19 @@ internal object ContrastContract {
                 bg in setOf("surfaceTier0", "surfaceTier3", "surfaceTier4", "accentTintedBackground")
         },
         Exclusion(
-            "The molten fill and wash host only personal-record content.",
+            "The molten fill and wash host only personal-record content. NARROWED: since the " +
+                "PR set row washes its fields (`.set.pr .field`), the record's own value and " +
+                "unit are drawn on the wash in `textPrimary`/`textDim` rather than in molten — " +
+                "see the DECLARED rows above for the measurement that forced that. They are " +
+                "personal-record content by the rule's own logic; they are simply not painted " +
+                "in the molten namespace.",
         ) { fg, bg ->
             (
                 bg == "molten.solid" || bg == "record.solid" ||
                     bg == "molten.background" || bg == "record.background"
                 ) &&
-                !(fg.startsWith("molten.") || fg.startsWith("record."))
+                !(fg.startsWith("molten.") || fg.startsWith("record.")) &&
+                !(bg == "record.background" && fg in setOf("textPrimary", "textDim"))
         },
         Exclusion(
             "`onAccent` is v3 `base`, the page colour. It is legible only on a filled accent " +

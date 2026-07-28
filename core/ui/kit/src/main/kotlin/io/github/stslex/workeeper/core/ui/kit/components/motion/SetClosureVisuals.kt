@@ -50,8 +50,22 @@ data class SetClosureVisuals(
      * "how closed", not as a fraction to index into.
      */
     val closedFraction: Float,
-    /** Mark scale. **Geometry** — `spring`, overshoots past 1.0 by design. */
-    val markScale: Float,
+    /**
+     * How much of the checkmark is stroked in: 0 = present but fully undrawn
+     * (`stroke-dashoffset: 26`), 1 = fully drawn (`stroke-dashoffset: 0`).
+     *
+     * **Bounded fraction, so `out`** — `AppMotion`'s constraint is not only about colour; a
+     * normalised progress driven past 1.0 indexes off the end of the path just as a colour lerp
+     * leaves `[0,1]`. It carries the mockup's own 60ms delay, so the tick starts drawing after
+     * the plate has begun to fill rather than racing it.
+     *
+     * `animateFloatAsState` seeds its `Animatable` at the target on first composition, so a row
+     * that arrives already done renders this at exactly 1 and never animates. That is the
+     * false->true gate, held by construction rather than by a flag — and it is the defect §10.2
+     * records: the flash below needed an explicit gate precisely because `LaunchedEffect` does
+     * not have this property.
+     */
+    val tickProgress: Float,
     /**
      * Row flash opacity, 1 at the moment of closure decaying to 0. **Colour** — driven by
      * `out`, which lands on exactly 1.0 and never overshoots.
@@ -85,13 +99,16 @@ fun rememberSetClosureVisuals(
         ),
         label = "setClosure-closedFraction",
     )
-    val markScale by animateFloatAsState(
-        targetValue = if (isDone) 1f else RESTING_SCALE,
+    // Bounded fraction: `out`, never `spring`. Carries the mockup's 60ms delay
+    // (`transition: stroke-dashoffset 260ms var(--e-out) 60ms`).
+    val tickProgress by animateFloatAsState(
+        targetValue = if (isDone) 1f else 0f,
         animationSpec = tween(
             durationMillis = AppUi.motion.base,
-            easing = AppUi.motion.spring,
+            delayMillis = TICK_DELAY_MS,
+            easing = AppUi.motion.out,
         ),
-        label = "setClosure-markScale",
+        label = "setClosure-tickProgress",
     )
     // Colour: `out`. A lerp driven by an overshooting curve would clamp or garbage.
     //
@@ -137,14 +154,27 @@ fun rememberSetClosureVisuals(
     )
     return SetClosureVisuals(
         closedFraction = closedFraction,
-        markScale = markScale,
+        tickProgress = tickProgress,
         flashAlpha = flashAlpha,
         accent = accent,
     )
 }
 
-/** The mark rests slightly under full size so closure reads as a commit, not a repaint. */
-private const val RESTING_SCALE = 0.92f
+/**
+ * `transition: stroke-dashoffset 260ms var(--e-out) 60ms` — the tick waits 60ms so the plate is
+ * visibly filling before the stroke starts, rather than the two reading as one instant repaint.
+ */
+private const val TICK_DELAY_MS = 60
+
+/*
+ * A `markScale` used to live here, resting at 0.92 and animating to 1.0 on closure. It is gone,
+ * and deliberately: the growth it stood in for is the mockup's own geometry —
+ * `.mark .shape{inset:4px}` becoming `.set.done .mark .shape{inset:2px}`, i.e. 38dp to 42dp —
+ * which `AppCheckmarkButton` now draws as a real size change driven by [SetClosureVisuals
+ * .closedFraction]. Keeping both would have scaled the growth on top of itself. The mockup's only
+ * `transform: scale()` is `.mark:active{transform:scale(.9)}`, which is a press state and belongs
+ * to the interaction, not to the closure automaton.
+ */
 
 /**
  * The flash gate: a pulse belongs to the moment a set CLOSES, not to the state of being closed.

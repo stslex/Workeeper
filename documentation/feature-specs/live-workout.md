@@ -861,44 +861,44 @@ RU translation `values-ru/strings.xml`:
 <resources>
     <string name="feature_live_workout_progress_format">%1$d из %2$d · %3$s</string>
     <plurals name="feature_live_workout_set_count">
-        <item quantity="one">%d сет записан</item>
-        <item quantity="few">%d сета записано</item>
-        <item quantity="many">%d сетов записано</item>
-        <item quantity="other">%d сетов записано</item>
+        <item quantity="one">%d подход записан</item>
+        <item quantity="few">%d подхода записано</item>
+        <item quantity="many">%d подходов записано</item>
+        <item quantity="other">%d подходов записано</item>
     </plurals>
 
     <string name="feature_live_workout_status_completed_format">Готово · %1$s</string>
     <plurals name="feature_live_workout_status_set_count">
-        <item quantity="one">%d сет</item>
-        <item quantity="few">%d сета</item>
-        <item quantity="many">%d сетов</item>
-        <item quantity="other">%d сетов</item>
+        <item quantity="one">%d подход</item>
+        <item quantity="few">%d подхода</item>
+        <item quantity="many">%d подходов</item>
+        <item quantity="other">%d подходов</item>
     </plurals>
-    <string name="feature_live_workout_status_progress_format">%1$d из %2$d сетов</string>
+    <string name="feature_live_workout_status_progress_format">%1$d из %2$d подходов</string>
     <string name="feature_live_workout_status_skipped">Пропущено</string>
     <string name="feature_live_workout_status_plan_format">План: %1$s</string>
     <string name="feature_live_workout_status_no_plan">плана нет</string>
 
     <string name="feature_live_workout_action_edit_plan">Изменить план</string>
-    <string name="feature_live_workout_action_reset_sets">Сбросить сеты</string>
+    <string name="feature_live_workout_action_reset_sets">Сбросить подходы</string>
     <string name="feature_live_workout_action_skip">Пропустить упражнение</string>
 
-    <string name="feature_live_workout_add_set">+ Добавить сет</string>
+    <string name="feature_live_workout_add_set">+ Добавить подход</string>
 
-    <string name="feature_live_workout_reset_title">Сбросить сеты?</string>
-    <string name="feature_live_workout_reset_body">Все записанные сеты этого упражнения будут удалены. Это нельзя отменить.</string>
+    <string name="feature_live_workout_reset_title">Сбросить подходы?</string>
+    <string name="feature_live_workout_reset_body">Все записанные подходы этого упражнения будут удалены. Это нельзя отменить.</string>
     <string name="feature_live_workout_reset_confirm">Сбросить</string>
 
     <string name="feature_live_workout_skip_title">Пропустить упражнение?</string>
-    <string name="feature_live_workout_skip_body">Записанные сеты будут удалены, упражнение отмечено как пропущенное.</string>
+    <string name="feature_live_workout_skip_body">Записанные подходы будут удалены, упражнение отмечено как пропущенное.</string>
     <string name="feature_live_workout_skip_confirm">Пропустить</string>
 
     <string name="feature_live_workout_finish">Завершить сессию</string>
     <string name="feature_live_workout_finish_title">Завершить сессию?</string>
-    <string name="feature_live_workout_finish_body">Сеты будут записаны, планы обновятся под фактически выполненные значения.</string>
+    <string name="feature_live_workout_finish_body">Подходы будут записаны, планы обновятся под фактически выполненные значения.</string>
     <string name="feature_live_workout_finish_stat_duration">Длительность</string>
     <string name="feature_live_workout_finish_stat_exercises">Упражнения</string>
-    <string name="feature_live_workout_finish_stat_sets">Сетов</string>
+    <string name="feature_live_workout_finish_stat_sets">Подходы</string>
     <string name="feature_live_workout_finish_stat_exercises_format">%1$d из %2$d</string>
     <string name="feature_live_workout_finish_stat_exercises_with_skipped_format">%1$d из %2$d · %3$d пропущено</string>
     <string name="feature_live_workout_finish_keep_going">Продолжить</string>
