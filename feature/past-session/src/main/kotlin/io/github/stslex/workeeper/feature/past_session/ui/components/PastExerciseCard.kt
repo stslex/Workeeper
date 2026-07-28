@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.past_session.ui.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -31,9 +32,16 @@ import io.github.stslex.workeeper.feature.past_session.mvi.model.PastExerciseUiM
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSetUiModel
 import kotlinx.collections.immutable.persistentListOf
 
+/**
+ * One logged exercise. Disclosure follows the amended §7 model: [expanded] is exactly
+ * membership in `State.expandedExerciseUuids`, the header is the toggle target, and this
+ * composable renders the fact without owning it — the Store does (B8).
+ */
 @Composable
 internal fun PastExerciseCard(
     exercise: PastExerciseUiModel,
+    expanded: Boolean,
+    onHeaderClick: () -> Unit,
     onWeightChange: (String, String) -> Unit,
     onRepsChange: (String, String) -> Unit,
     onTypeChange: (String, SetTypeUiModel) -> Unit,
@@ -63,6 +71,7 @@ internal fun PastExerciseCard(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .clickable(onClick = onHeaderClick)
                         .padding(AppDimension.cardPadding),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
@@ -85,14 +94,17 @@ internal fun PastExerciseCard(
                         )
                     }
                 }
-                if (exercise.sets.isEmpty()) {
+                // Collapsed, the header row is the card's whole content. The v3 skin
+                // (plan-line summary, static chevron) arrives with the C3 shell rebuild;
+                // this commit is the behaviour alone.
+                if (expanded && exercise.sets.isEmpty()) {
                     Text(
                         modifier = Modifier.padding(horizontal = AppDimension.cardPadding),
                         text = stringResource(R.string.feature_past_session_no_sets),
                         style = AppUi.typography.bodyMedium,
                         color = AppUi.colors.textSecondary,
                     )
-                } else {
+                } else if (expanded) {
                     exercise.sets.forEachIndexed { index, set ->
                         key(set.setUuid) {
                             PastSetEditRow(
@@ -133,6 +145,8 @@ private fun PastExerciseCardLightPreview() {
     AppTheme(themeMode = ThemeMode.LIGHT) {
         PastExerciseCard(
             exercise = stubExercise(),
+            expanded = true,
+            onHeaderClick = {},
             onWeightChange = { _, _ -> },
             onRepsChange = { _, _ -> },
             onTypeChange = { _, _ -> },
@@ -148,6 +162,8 @@ private fun PastExerciseCardDarkPreview() {
     AppTheme(themeMode = ThemeMode.DARK) {
         PastExerciseCard(
             exercise = stubExercise(),
+            expanded = true,
+            onHeaderClick = {},
             onWeightChange = { _, _ -> },
             onRepsChange = { _, _ -> },
             onTypeChange = { _, _ -> },
@@ -163,6 +179,8 @@ private fun PastExerciseCardSkippedPreview() {
     AppTheme(themeMode = ThemeMode.DARK) {
         PastExerciseCard(
             exercise = stubExercise().copy(skipped = true, sets = persistentListOf()),
+            expanded = true,
+            onHeaderClick = {},
             onWeightChange = { _, _ -> },
             onRepsChange = { _, _ -> },
             onTypeChange = { _, _ -> },

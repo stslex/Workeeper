@@ -16,6 +16,7 @@ import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStor
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Event
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.State
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.collections.immutable.toImmutableSet
 import kotlinx.coroutines.Job
 
 @SingleIn(PastSessionScope::class)
@@ -36,6 +37,30 @@ internal class ClickHandler @Inject constructor(
             is Action.Click.OnSetTypeChange -> processSetTypeChange(action)
             is Action.Click.OnSetReorder -> processSetReorder(action)
             Action.Click.OnDragStarted -> processOnDragStarted()
+            is Action.Click.OnExerciseHeaderClick -> processExerciseHeaderClick(action)
+        }
+    }
+
+    /**
+     * The amended §7 disclosure model, complete: a header tap flips this card's membership
+     * in the open set, and nothing else happens anywhere — no status recompute, no side
+     * effects on other cards, no haptic (matching `feature/live-workout`'s toggle). A uuid
+     * that no longer exists in the loaded detail is a no-op, not a phantom entry.
+     */
+    private fun processExerciseHeaderClick(action: Action.Click.OnExerciseHeaderClick) {
+        updateState { current ->
+            val loaded = current.phase as? State.Phase.Loaded ?: return@updateState current
+            val uuid = action.performedExerciseUuid
+            if (loaded.detail.exercises.none { it.performedExerciseUuid == uuid }) {
+                return@updateState current
+            }
+            current.copy(
+                expandedExerciseUuids = if (uuid in current.expandedExerciseUuids) {
+                    current.expandedExerciseUuids - uuid
+                } else {
+                    current.expandedExerciseUuids + uuid
+                }.toImmutableSet(),
+            )
         }
     }
 

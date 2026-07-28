@@ -18,10 +18,13 @@ import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStor
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.State
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
@@ -29,6 +32,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestDispatcher
@@ -175,6 +179,81 @@ internal class CommonHandlerTest {
         assertEquals(true, sets.first { it.setUuid == "set-pr" }.isPersonalRecord)
         assertEquals(false, sets.first { it.setUuid == "set-plain" }.isPersonalRecord)
     }
+
+    // --- disclosure seeding and carry (the amended §7 model, Store-homed) ----------------
+
+    @Test
+    fun `Init seeds the first card open on the first Loaded emission`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val store = TestStore(State.create(sessionUuid = SESSION_UUID), this, dispatcher)
+        val handler = CommonHandler(
+            interactor = interactor,
+            resourceWrapper = resources,
+            store = store,
+        )
+        every { interactor.observeDetailWithPrs(SESSION_UUID) } returns flowOf(
+            DetailWithPrs(detail = twoExerciseDetail(), prSetUuids = emptySet()),
+        )
+
+        handler.invoke(Action.Common.Init)
+        advanceUntilIdle()
+
+        assertEquals(setOf("performed-1"), store.state.value.expandedExerciseUuids)
+    }
+
+    @Test
+    fun `a re-emission carries the user's open set instead of reseeding`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val store = TestStore(State.create(sessionUuid = SESSION_UUID), this, dispatcher)
+        val handler = CommonHandler(
+            interactor = interactor,
+            resourceWrapper = resources,
+            store = store,
+        )
+        val upstream = MutableSharedFlow<DetailWithPrs?>()
+        every { interactor.observeDetailWithPrs(SESSION_UUID) } returns upstream
+
+        handler.invoke(Action.Common.Init)
+        advanceUntilIdle()
+        upstream.emit(DetailWithPrs(detail = twoExerciseDetail(), prSetUuids = emptySet()))
+        advanceUntilIdle()
+        assertEquals(setOf("performed-1"), store.state.value.expandedExerciseUuids)
+
+        // The user collapses everything. A PR-flow re-fetch replaces the Loaded phase —
+        // the collapse must survive it: carry, never reseed, exactly like live-workout's
+        // plan-editor round trip.
+        store.updateState { it.copy(expandedExerciseUuids = persistentSetOf()) }
+        upstream.emit(DetailWithPrs(detail = twoExerciseDetail(), prSetUuids = setOf("set-x")))
+        advanceUntilIdle()
+
+        assertEquals(emptySet<String>(), store.state.value.expandedExerciseUuids)
+        // A hot SharedFlow subscription never completes on its own; without this, runTest
+        // reports the collector as an uncompleted coroutine.
+        coroutineContext.job.cancelChildren()
+    }
+
+    private fun twoExerciseDetail() = sessionDetail().copy(
+        exercises = listOf(
+            PerformedExerciseDetailDomain(
+                performedExerciseUuid = "performed-1",
+                exerciseUuid = "exercise-1",
+                exerciseName = "Bench",
+                exerciseType = ExerciseTypeDomain.WEIGHTED,
+                position = 0,
+                skipped = false,
+                sets = emptyList(),
+            ),
+            PerformedExerciseDetailDomain(
+                performedExerciseUuid = "performed-2",
+                exerciseUuid = "exercise-2",
+                exerciseName = "Row",
+                exerciseType = ExerciseTypeDomain.WEIGHTED,
+                position = 1,
+                skipped = false,
+                sets = emptyList(),
+            ),
+        ),
+    )
 
     private fun sessionDetail() = SessionDetailDomain(
         sessionUuid = SESSION_UUID,

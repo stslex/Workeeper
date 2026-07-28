@@ -15,7 +15,10 @@ import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStor
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.State
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.persistentSetOf
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -119,6 +122,66 @@ internal class ClickHandlerTest {
         }
     }
 
+    // --- the amended §7 disclosure model: a header tap is a pure toggle -----------------
+
+    @Test
+    fun `OnExerciseHeaderClick expands exactly the tapped card and touches nothing else`() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val store = TestStore(
+                twoExerciseState(expanded = persistentSetOf(PERFORMED_EXERCISE_UUID)),
+                this,
+                dispatcher,
+            )
+            val handler = ClickHandler(interactor = interactor, store = store)
+            val phaseBefore = store.state.value.phase
+
+            handler.invoke(Action.Click.OnExerciseHeaderClick(SECOND_EXERCISE_UUID))
+
+            assertEquals(
+                setOf(PERFORMED_EXERCISE_UUID, SECOND_EXERCISE_UUID),
+                store.state.value.expandedExerciseUuids,
+            )
+            assertEquals(phaseBefore, store.state.value.phase)
+            assertTrue(store.events.isEmpty())
+            assertTrue(store.consumedActions.isEmpty())
+        }
+
+    @Test
+    fun `OnExerciseHeaderClick collapses the tapped card and only that card`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val store = TestStore(
+            twoExerciseState(
+                expanded = persistentSetOf(PERFORMED_EXERCISE_UUID, SECOND_EXERCISE_UUID),
+            ),
+            this,
+            dispatcher,
+        )
+        val handler = ClickHandler(interactor = interactor, store = store)
+
+        handler.invoke(Action.Click.OnExerciseHeaderClick(PERFORMED_EXERCISE_UUID))
+
+        assertEquals(setOf(SECOND_EXERCISE_UUID), store.state.value.expandedExerciseUuids)
+        assertTrue(store.events.isEmpty())
+        assertTrue(store.consumedActions.isEmpty())
+    }
+
+    @Test
+    fun `OnExerciseHeaderClick with an unknown uuid changes nothing`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val store = TestStore(
+            twoExerciseState(expanded = persistentSetOf(PERFORMED_EXERCISE_UUID)),
+            this,
+            dispatcher,
+        )
+        val handler = ClickHandler(interactor = interactor, store = store)
+        val before = store.state.value
+
+        handler.invoke(Action.Click.OnExerciseHeaderClick("performed-unknown"))
+
+        assertEquals(before, store.state.value)
+    }
+
     private fun currentSet(store: TestStore): PastSetUiModel =
         ((store.state.value.phase as State.Phase.Loaded).detail.exercises.single().sets.single())
 
@@ -158,6 +221,26 @@ internal class ClickHandlerTest {
                 ),
                 deleteDialogVisible = deleteDialogVisible,
             )
+
+    /** Two cards, [expanded] preset — the multi-open fixture the §7 purity tests need. */
+    private fun twoExerciseState(expanded: ImmutableSet<String>): State {
+        val base = loadedState()
+        val loaded = base.phase as State.Phase.Loaded
+        val second = loaded.detail.exercises.single().copy(
+            performedExerciseUuid = SECOND_EXERCISE_UUID,
+            exerciseName = "Row",
+            position = 1,
+            sets = persistentListOf(),
+        )
+        return base.copy(
+            phase = State.Phase.Loaded(
+                detail = loaded.detail.copy(
+                    exercises = (loaded.detail.exercises + second).toImmutableList(),
+                ),
+            ),
+            expandedExerciseUuids = expanded,
+        )
+    }
 
     private class TestStore(
         initialState: State,
@@ -243,6 +326,7 @@ internal class ClickHandlerTest {
         const val SESSION_UUID = "session-1"
         const val SET_UUID = "set-1"
         const val PERFORMED_EXERCISE_UUID = "performed-1"
+        const val SECOND_EXERCISE_UUID = "performed-2"
         const val SET_POSITION = 2
     }
 }

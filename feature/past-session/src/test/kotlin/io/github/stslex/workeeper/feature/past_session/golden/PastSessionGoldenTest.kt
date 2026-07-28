@@ -21,6 +21,7 @@ import io.github.stslex.workeeper.feature.past_session.ui.components.PastExercis
 import io.github.stslex.workeeper.feature.past_session.ui.components.PastSessionHeader
 import io.github.stslex.workeeper.feature.past_session.ui.components.PastSetEditRow
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableList
 import org.junit.jupiter.api.TestInfo
 import org.junit.jupiter.params.ParameterizedTest
@@ -62,6 +63,7 @@ internal class PastSessionGoldenTest {
                 state = State(
                     sessionUuid = "s-1",
                     phase = State.Phase.Error(ErrorType.SessionNotFound),
+                    expandedExerciseUuids = persistentSetOf(),
                     deleteDialogVisible = false,
                 ),
                 consume = {},
@@ -87,6 +89,30 @@ internal class PastSessionGoldenTest {
         goldenSubject(testInfo, theme) {
             PastExerciseCard(
                 exercise = weightedExercise(),
+                expanded = true,
+                onHeaderClick = {},
+                onWeightChange = { _, _ -> },
+                onRepsChange = { _, _ -> },
+                onTypeChange = { _, _ -> },
+                onDragStarted = {},
+                onSetReorder = { _, _, _ -> },
+            )
+        }
+    }
+
+    /**
+     * Disclosure pair partner of [cardWithSets] (§10.2): the collapsed card. Under C1 this is
+     * behaviour-only — the header row alone, old skin; the v3 collapsed skin (plan-line
+     * summary, static chevron) lands with the C3 shell rebuild and re-records this golden.
+     */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun cardCollapsed(theme: GoldenTheme, testInfo: TestInfo) {
+        goldenSubject(testInfo, theme) {
+            PastExerciseCard(
+                exercise = weightedExercise(),
+                expanded = false,
+                onHeaderClick = {},
                 onWeightChange = { _, _ -> },
                 onRepsChange = { _, _ -> },
                 onTypeChange = { _, _ -> },
@@ -105,6 +131,8 @@ internal class PastSessionGoldenTest {
                     skipped = true,
                     sets = persistentListOf(),
                 ),
+                expanded = true,
+                onHeaderClick = {},
                 onWeightChange = { _, _ -> },
                 onRepsChange = { _, _ -> },
                 onTypeChange = { _, _ -> },
@@ -199,6 +227,8 @@ private fun InCard(content: @Composable () -> Unit) {
 private fun loadedState(): State = State(
     sessionUuid = "s-1",
     phase = State.Phase.Loaded(detail = detail()),
+    // First-entry rule of the amended §7 model: the first card open, the rest closed.
+    expandedExerciseUuids = persistentSetOf("pe-1"),
     deleteDialogVisible = false,
 )
 

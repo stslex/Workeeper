@@ -44,7 +44,9 @@ import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStor
 import io.github.stslex.workeeper.feature.past_session.ui.components.DeleteConfirmDialog
 import io.github.stslex.workeeper.feature.past_session.ui.components.PastExerciseCard
 import io.github.stslex.workeeper.feature.past_session.ui.components.PastSessionHeader
+import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.persistentSetOf
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -90,6 +92,7 @@ internal fun PastSessionScreen(
                     .background(AppUi.colors.surfaceTier0),
                 contentPadding = contentPadding,
                 detail = phase.detail,
+                expandedUuids = state.expandedExerciseUuids,
                 consume = consume,
             )
         }
@@ -184,6 +187,7 @@ private fun ErrorContent(
 @Composable
 private fun LoadedContent(
     detail: PastSessionUiModel,
+    expandedUuids: ImmutableSet<String>,
     consume: (Action) -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
@@ -207,6 +211,15 @@ private fun LoadedContent(
         ) { exercise ->
             PastExerciseCard(
                 exercise = exercise,
+                // The amended §7 disclosure model: open is exactly membership in this set.
+                expanded = exercise.performedExerciseUuid in expandedUuids,
+                onHeaderClick = {
+                    consume(
+                        Action.Click.OnExerciseHeaderClick(
+                            performedExerciseUuid = exercise.performedExerciseUuid,
+                        ),
+                    )
+                },
                 onWeightChange = { setUuid, raw ->
                     consume(Action.Input.OnSetWeightChange(setUuid = setUuid, raw = raw))
                 },
@@ -241,6 +254,7 @@ private fun PastSessionScreenLoadedLightPreview() {
             state = State(
                 sessionUuid = "stub",
                 phase = State.Phase.Loaded(detail = stubDetail()),
+                expandedExerciseUuids = persistentSetOf("pe-1"),
                 deleteDialogVisible = false,
             ),
             consume = {},
@@ -256,6 +270,7 @@ private fun PastSessionScreenLoadedDarkPreview() {
             state = State(
                 sessionUuid = "stub",
                 phase = State.Phase.Loaded(detail = stubDetail()),
+                expandedExerciseUuids = persistentSetOf("pe-1"),
                 deleteDialogVisible = false,
             ),
             consume = {},
@@ -271,6 +286,7 @@ private fun PastSessionScreenLoadingPreview() {
             state = State(
                 sessionUuid = "stub",
                 phase = State.Phase.Loading,
+                expandedExerciseUuids = persistentSetOf(),
                 deleteDialogVisible = false,
             ),
             consume = {},
@@ -286,6 +302,7 @@ private fun PastSessionScreenErrorPreview() {
             state = State(
                 sessionUuid = "stub",
                 phase = State.Phase.Error(ErrorType.SessionNotFound),
+                expandedExerciseUuids = persistentSetOf(),
                 deleteDialogVisible = false,
             ),
             consume = {},

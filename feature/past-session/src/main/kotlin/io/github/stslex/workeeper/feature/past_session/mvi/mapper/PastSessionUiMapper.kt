@@ -13,12 +13,50 @@ import io.github.stslex.workeeper.feature.past_session.domain.model.SetTypeDomai
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastExerciseUiModel
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSessionUiModel
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSetUiModel
+import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.State
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.collections.immutable.toImmutableSet
 
 internal object PastSessionUiMapper {
 
     private const val WEIGHT_DECIMAL_FACTOR = 10.0
+
+    /**
+     * Settles [State.expandedExerciseUuids] across a wholesale phase replacement — the
+     * amended §7 disclosure model's only two writers besides the header tap.
+     *
+     * `observeDetailWithPrs` re-emits on every PR-flow change (an edit that moves a record
+     * re-fetches the whole detail), and each emission replaces the Loaded phase. Without this
+     * carry, an edit round-trip would silently reset the user's open cards.
+     *
+     * - Previous phase not Loaded (first entry, or retry after an error): the FIRST card in
+     *   the list is expanded. Status is not consulted — that is the whole initialisation
+     *   rule, same as `LiveWorkoutMapper`'s first-entry seeding.
+     * - Previous phase Loaded: the previous open set wins, pruned to exercises that still
+     *   exist. Pruning is defensive — this screen cannot remove single exercises today, but
+     *   a stale uuid surviving in the set would be an invisible leak, not a harmless one.
+     */
+    fun State.withExpansionCarriedFrom(previous: State): State {
+        val loaded = phase as? State.Phase.Loaded ?: return this
+        val previousLoaded = previous.phase as? State.Phase.Loaded
+        return if (previousLoaded == null) {
+            copy(
+                expandedExerciseUuids = loaded.detail.exercises.firstOrNull()
+                    ?.let { persistentSetOf(it.performedExerciseUuid) }
+                    ?: persistentSetOf(),
+            )
+        } else {
+            val liveUuids = loaded.detail.exercises
+                .mapTo(mutableSetOf()) { it.performedExerciseUuid }
+            copy(
+                expandedExerciseUuids = previous.expandedExerciseUuids
+                    .filterTo(mutableSetOf()) { it in liveUuids }
+                    .toImmutableSet(),
+            )
+        }
+    }
 
     fun SessionDetailDomain.toUi(
         resourceWrapper: ResourceWrapper,

@@ -10,6 +10,12 @@ import io.github.stslex.workeeper.feature.past_session.domain.model.SessionDetai
 import io.github.stslex.workeeper.feature.past_session.domain.model.SetDomain
 import io.github.stslex.workeeper.feature.past_session.domain.model.SetTypeDomain
 import io.github.stslex.workeeper.feature.past_session.mvi.mapper.PastSessionUiMapper.toUi
+import io.github.stslex.workeeper.feature.past_session.mvi.model.PastExerciseUiModel
+import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSessionUiModel
+import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.State
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.persistentSetOf
+import kotlinx.collections.immutable.toImmutableList
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -131,6 +137,77 @@ internal class PastSessionUiMapperTest {
         assertEquals("Push Day", ui.trainingName)
         // PastSessionUiModel no longer carries `volumeLabel`; regression guard.
     }
+
+    // --- withExpansionCarriedFrom: the amended §7 model's seed-or-carry ------------------
+
+    @Test
+    fun `first Loaded state seeds exactly the first card open`() {
+        val next = loadedUiState(exercises = listOf("pe-1", "pe-2", "pe-3"))
+        val previous = State.create(sessionUuid = "session-1")
+
+        val settled = with(PastSessionUiMapper) { next.withExpansionCarriedFrom(previous) }
+
+        assertEquals(setOf("pe-1"), settled.expandedExerciseUuids)
+    }
+
+    @Test
+    fun `first Loaded state with no exercises seeds nothing`() {
+        val next = loadedUiState(exercises = emptyList())
+        val previous = State.create(sessionUuid = "session-1")
+
+        val settled = with(PastSessionUiMapper) { next.withExpansionCarriedFrom(previous) }
+
+        assertEquals(emptySet<String>(), settled.expandedExerciseUuids)
+    }
+
+    @Test
+    fun `Loaded to Loaded carries the previous open set pruned to live exercises`() {
+        val previous = loadedUiState(exercises = listOf("pe-1", "pe-2", "pe-gone"))
+            .copy(expandedExerciseUuids = persistentSetOf("pe-2", "pe-gone"))
+        val next = loadedUiState(exercises = listOf("pe-1", "pe-2"))
+
+        val settled = with(PastSessionUiMapper) { next.withExpansionCarriedFrom(previous) }
+
+        assertEquals(setOf("pe-2"), settled.expandedExerciseUuids)
+    }
+
+    @Test
+    fun `a non-Loaded next phase is returned untouched`() {
+        val previous = loadedUiState(exercises = listOf("pe-1"))
+            .copy(expandedExerciseUuids = persistentSetOf("pe-1"))
+        val next = previous.copy(
+            phase = State.Phase.Error(
+                io.github.stslex.workeeper.feature.past_session.mvi.model.ErrorType.LoadFailed,
+            ),
+        )
+
+        val settled = with(PastSessionUiMapper) { next.withExpansionCarriedFrom(previous) }
+
+        assertEquals(next, settled)
+    }
+
+    private fun loadedUiState(exercises: List<String>): State =
+        State.create(sessionUuid = "session-1").copy(
+            phase = State.Phase.Loaded(
+                detail = PastSessionUiModel(
+                    trainingName = "Push Day",
+                    isAdhoc = false,
+                    finishedAtAbsoluteLabel = "Apr 28",
+                    durationLabel = "01:00",
+                    totalsLabel = "n · n",
+                    exercises = exercises.map { uuid ->
+                        PastExerciseUiModel(
+                            performedExerciseUuid = uuid,
+                            exerciseName = "Bench",
+                            position = 0,
+                            skipped = false,
+                            isWeighted = true,
+                            sets = persistentListOf(),
+                        )
+                    }.toImmutableList(),
+                ),
+            ),
+        )
 
     private fun sessionDetail(
         isAdhoc: Boolean,
