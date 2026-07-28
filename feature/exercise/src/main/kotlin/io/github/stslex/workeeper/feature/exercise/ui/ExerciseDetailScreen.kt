@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.feature.exercise.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -10,15 +11,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,7 +25,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -38,8 +38,9 @@ import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordCard
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PrExplainerDialog
 import io.github.stslex.workeeper.core.ui.kit.components.setchip.AppSetTypeChip
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagChip.Static
-import io.github.stslex.workeeper.core.ui.kit.components.topbar.DetailTopbar
-import io.github.stslex.workeeper.core.ui.kit.components.topbar.TopbarAction
+import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
+import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
+import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -59,7 +60,6 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.St
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ExerciseDetailScreen(
     state: State,
@@ -67,140 +67,149 @@ internal fun ExerciseDetailScreen(
     modifier: Modifier = Modifier,
 ) {
     var showPrExplainer by remember { mutableStateOf(false) }
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    Scaffold(
+    Column(
         modifier = modifier
             .fillMaxSize()
-            .nestedScroll(scrollBehavior.nestedScrollConnection)
+            .background(AppUi.colors.surfaceTier0)
             .testTag("ExerciseDetailScreen"),
-        topBar = {
-            DetailLargeTopBar(
-                state = state,
-                consume = consume,
-                scrollBehavior = scrollBehavior,
-            )
-        },
-        bottomBar = { DetailActionBar(state = state, consume = consume) },
-        containerColor = AppUi.colors.surfaceTier0,
-    ) { contentPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(contentPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = AppDimension.screenEdge),
-            verticalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
-        ) {
-            Spacer(Modifier.height(AppDimension.Space.sm))
-            // E3: hero only when a custom image is present. Placeholder dumbbell-icon
-            // hero is gone — the type chip below carries the affordance instead.
-            if (state.effectiveImageDisplay !is ImageDisplay.None) {
-                ExerciseHero(
-                    type = state.type,
-                    imageDisplay = state.effectiveImageDisplay,
-                    onImageClick = { consume(Action.Click.OnImageThumbnailClick) },
-                )
-            }
-            // Inline type + tags row directly under the top app bar — replaces the
-            // previous standalone Static + headline name combo (name lives in
-            // LargeTopAppBar now).
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.xs),
-                verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xxs),
-            ) {
-                Static(label = stringResource(state.type.labelRes))
-                state.tags.forEach { tag -> Static(label = tag.name) }
-            }
-            if (state.description.isNotBlank()) {
-                AppCard {
-                    Text(
-                        text = state.description,
-                        style = AppUi.typography.bodyMedium,
-                        color = AppUi.colors.textPrimary,
-                    )
-                }
-            }
-            if (state.planSummaryVisible) {
-                state.adhocPlan?.let { plan ->
-                    DefaultPlanCard(
-                        plan = plan,
-                        isWeighted = state.type == ExerciseTypeUiModel.WEIGHTED,
-                    )
-                }
-            }
-            state.personalRecord?.let { pr ->
-                PersonalRecordCard(
-                    modifier = Modifier.testTag("ExerciseDetailPersonalRecordCard"),
-                    displayLabel = pr.displayLabel,
-                    relativeDateLabel = pr.relativeDateLabel,
-                    onClick = { consume(Action.Click.OnPrCardClick) },
-                    onBadgeClick = { showPrExplainer = true },
-                )
-            }
-            HistorySection(state = state, consume = consume)
-            Spacer(Modifier.height(AppDimension.Space.md))
-        }
+    ) {
+        TopBar(state = state, consume = consume)
+        Body(
+            state = state,
+            consume = consume,
+            onPrBadgeClick = { showPrExplainer = true },
+        )
     }
     if (showPrExplainer) {
         PrExplainerDialog(onDismiss = { showPrExplainer = false })
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * `.topbar` (extraction §1.2 applied to §3.1's frame): back chevron hanging into the
+ * gutter · the exercise name at `h1.sm` · the `⋮` overflow opening the Store-homed
+ * detail-menu sheet. Internal so the goldens can render it in isolation, same move as
+ * past-session's TopBar.
+ */
 @Composable
-private fun DetailLargeTopBar(
+internal fun TopBar(
     state: State,
     consume: (Action) -> Unit,
-    scrollBehavior: androidx.compose.material3.TopAppBarScrollBehavior,
+    modifier: Modifier = Modifier,
 ) {
-    val actions = remember(state.canPermanentlyDelete) {
-        exerciseDetailActions(state.canPermanentlyDelete, consume)
-    }
-    DetailTopbar(
+    AppTopBar(
+        modifier = modifier.testTag("ExerciseDetailTopBar"),
         title = state.name,
-        onBackIconClick = { consume(Action.Click.OnBackClick) },
-        actions = actions,
-        scrollBehavior = scrollBehavior,
+        smallTitle = true,
+        navigation = {
+            AppIconButton(
+                icon = AppIcons.ChevronLeft,
+                contentDescription = stringResource(
+                    io.github.stslex.workeeper.core.ui.kit.R.string.core_ui_kit_action_back,
+                ),
+                onClick = { consume(Action.Click.OnBackClick) },
+            )
+        },
+        actions = {
+            AppIconButton(
+                icon = AppIcons.MoreVertical,
+                contentDescription = stringResource(R.string.feature_exercise_detail_action_more),
+                onClick = { consume(Action.Click.OnDetailMenuClick) },
+            )
+        },
     )
 }
 
-/**
- * Overflow-menu actions for the exercise detail screen. The permanent-delete entry is
- * appended only when [canPermanentlyDelete] is true (no history, no active templates).
- *
- * Built with [buildList] rather than `persistentListOf(...).apply { plus(...) }`: `apply`
- * returns its receiver and the `plus` result was discarded, so the permanent-delete item
- * never reached the menu — a silent regression this function makes testable.
- */
-internal fun exerciseDetailActions(
-    canPermanentlyDelete: Boolean,
+@Composable
+private fun Body(
+    state: State,
     consume: (Action) -> Unit,
-): ImmutableList<TopbarAction> = buildList {
-    add(
-        TopbarAction(
-            titleRes = R.string.feature_exercise_detail_edit,
-            testTag = "ExerciseDetailEditMenuItem",
-            onClick = { consume(Action.Click.OnEditClick) },
-        ),
-    )
-    add(
-        TopbarAction(
-            titleRes = R.string.feature_exercise_detail_archive,
-            testTag = "ExerciseDetailArchiveMenuItem",
-            onClick = { consume(Action.Click.OnArchiveMenuClick) },
-        ),
-    )
-    if (canPermanentlyDelete) {
-        add(
-            TopbarAction(
-                titleRes = R.string.feature_exercise_detail_permanent_delete,
-                testTag = "ExerciseDetailPermanentDeleteMenuItem",
-                onClick = { consume(Action.Click.OnPermanentDeleteMenuClick) },
-            ),
+    onPrBadgeClick: () -> Unit,
+) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                // Content scrolls out UNDER the dock; the clearance keeps the last block
+                // reachable above it.
+                .padding(bottom = DOCK_CLEARANCE),
+            verticalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
+        ) {
+            Spacer(Modifier.height(AppDimension.Space.sm))
+            // E3: hero only when a custom image is present (in code, not drawn in the
+            // mockup — kept as shipped, see the PR delta table).
+            if (state.effectiveImageDisplay !is ImageDisplay.None) {
+                InGutter {
+                    ExerciseHero(
+                        type = state.type,
+                        imageDisplay = state.effectiveImageDisplay,
+                        onImageClick = { consume(Action.Click.OnImageThumbnailClick) },
+                    )
+                }
+            }
+            // §3.2 tag row: the type chip first, then the muscle-group tags — display only.
+            InGutter {
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
+                    verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xxs),
+                ) {
+                    Static(label = stringResource(state.type.labelRes))
+                    state.tags.forEach { tag -> Static(label = tag.name) }
+                }
+            }
+            if (state.description.isNotBlank()) {
+                InGutter {
+                    AppCard {
+                        Text(
+                            text = state.description,
+                            style = AppUi.typography.bodyMedium,
+                            color = AppUi.colors.textPrimary,
+                        )
+                    }
+                }
+            }
+            // §3.1 frame order: the record block sits above the default plan.
+            state.personalRecord?.let { pr ->
+                InGutter {
+                    PersonalRecordCard(
+                        modifier = Modifier.testTag("ExerciseDetailPersonalRecordCard"),
+                        displayLabel = pr.displayLabel,
+                        relativeDateLabel = pr.relativeDateLabel,
+                        onClick = { consume(Action.Click.OnPrCardClick) },
+                        onBadgeClick = onPrBadgeClick,
+                    )
+                }
+            }
+            if (state.planSummaryVisible) {
+                state.adhocPlan?.let { plan ->
+                    InGutter {
+                        DefaultPlanCard(
+                            plan = plan,
+                            isWeighted = state.type == ExerciseTypeUiModel.WEIGHTED,
+                        )
+                    }
+                }
+            }
+            HistorySection(state = state, consume = consume)
+            Spacer(Modifier.height(AppDimension.Space.md))
+        }
+        Dock(
+            state = state,
+            consume = consume,
+            modifier = Modifier.align(Alignment.BottomCenter),
         )
     }
-}.toImmutableList()
+}
+
+/** Blocks carry the gutter individually so full-bleed sections can opt out. */
+@Composable
+private fun InGutter(content: @Composable () -> Unit) {
+    Box(modifier = Modifier.padding(horizontal = AppDimension.screenEdge)) {
+        content()
+    }
+}
 
 @Composable
 private fun DefaultPlanCard(
@@ -308,45 +317,74 @@ private fun HistorySection(
     state: State,
     consume: (Action) -> Unit,
 ) {
-    Text(
-        text = stringResource(R.string.feature_exercise_detail_recent),
-        style = AppUi.typography.labelSmall,
-        color = AppUi.colors.textTertiary,
-    )
-    if (state.recentHistory.isEmpty()) {
+    Column(modifier = Modifier.padding(horizontal = AppDimension.screenEdge)) {
         Text(
-            text = stringResource(R.string.feature_exercise_detail_no_history),
-            style = AppUi.typography.bodyMedium,
-            color = AppUi.colors.textSecondary,
+            text = stringResource(R.string.feature_exercise_detail_recent),
+            style = AppUi.typography.labelSmall,
+            color = AppUi.colors.textTertiary,
         )
-    } else {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
-        ) {
-            state.recentHistory.forEach { history ->
-                ExerciseHistoryRow(
-                    item = history,
-                    onClick = { consume(Action.Click.OnHistoryRowClick(history.sessionUuid)) },
-                )
+        Spacer(Modifier.height(AppDimension.Space.sm))
+        if (state.recentHistory.isEmpty()) {
+            Text(
+                text = stringResource(R.string.feature_exercise_detail_no_history),
+                style = AppUi.typography.bodyMedium,
+                color = AppUi.colors.textSecondary,
+            )
+        } else {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
+            ) {
+                state.recentHistory.forEach { history ->
+                    ExerciseHistoryRow(
+                        item = history,
+                        onClick = { consume(Action.Click.OnHistoryRowClick(history.sessionUuid)) },
+                    )
+                }
             }
         }
     }
 }
 
+/**
+ * `.dock` (§3.6): sticky at the bottom over a `linear-gradient(to top, base 62%,
+ * transparent)` scrim, ghost `Изменить` at a fixed 128dp beside the primary
+ * `Записать сейчас` taking the rest — same gradient mechanics as live-workout's dock.
+ */
 @Composable
-private fun DetailActionBar(
+private fun Dock(
     state: State,
     consume: (Action) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
+    val base = AppUi.colors.surfaceTier0
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .background(AppUi.colors.surfaceTier0)
-            .padding(AppDimension.screenEdge)
-            .testTag("ExerciseDetailActionBar"),
-        horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
+            .background(
+                Brush.verticalGradient(
+                    0f to Color.Transparent,
+                    DOCK_GRADIENT_STOP to base,
+                    1f to base,
+                ),
+            )
+            .padding(
+                start = AppDimension.screenEdge,
+                end = AppDimension.screenEdge,
+                top = AppDimension.Space.lg,
+                bottom = AppDimension.Space.xl,
+            )
+            .navigationBarsPadding()
+            .testTag("ExerciseDetailDock"),
+        horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        AppButton.Ghost(
+            modifier = Modifier
+                .width(EDIT_BUTTON_WIDTH)
+                .testTag("ExerciseEditButton"),
+            text = stringResource(R.string.feature_exercise_detail_edit),
+            onClick = { consume(Action.Click.OnEditClick) },
+        )
         AppButton.Primary(
             modifier = Modifier
                 .weight(1f)
@@ -355,13 +393,17 @@ private fun DetailActionBar(
             onClick = { consume(Action.Click.OnTrackNowClick) },
             enabled = state.uuid != null,
         )
-        AppButton.Secondary(
-            modifier = Modifier.testTag("ExerciseEditButton"),
-            text = stringResource(R.string.feature_exercise_detail_edit),
-            onClick = { consume(Action.Click.OnEditClick) },
-        )
     }
 }
+
+/** `.dock`'s `linear-gradient(to top, base 62%, …)`: solid from the bottom 62%. */
+private const val DOCK_GRADIENT_STOP = 0.38f
+
+/** Clearance so the scroll content's tail clears the overlaid dock. */
+private val DOCK_CLEARANCE = 104.dp
+
+/** `Изменить` at `flex:0 0 130px` → the ladder-nearest fixed 128dp (§3.6). */
+private val EDIT_BUTTON_WIDTH = 128.dp
 
 private fun detailPreviewBaseState(): State = State
     .create(uuid = "preview-uuid")

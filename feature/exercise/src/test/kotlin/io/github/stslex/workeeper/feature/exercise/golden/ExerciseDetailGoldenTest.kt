@@ -5,10 +5,13 @@ import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordCard
 import io.github.stslex.workeeper.core.ui.kit.golden.GoldenTheme
 import io.github.stslex.workeeper.core.ui.kit.golden.golden
 import io.github.stslex.workeeper.core.ui.kit.golden.goldenSubject
+import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.ExerciseDetailScreen
+import io.github.stslex.workeeper.feature.exercise.ui.TopBar
+import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseDetailMenuSheetContent
 import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseHistoryRow
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.HistoryUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PersonalRecordUiModel
@@ -81,6 +84,44 @@ internal class ExerciseDetailGoldenTest {
                 ),
                 consume = {},
             )
+        }
+    }
+
+    // --- Topbar ----------------------------------------------------------------------------
+
+    /** `.topbar` (§1.2 on §3.1's frame): back chevron · `h1.sm` exercise name · `⋮`. */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun topbar(theme: GoldenTheme, testInfo: TestInfo) {
+        goldenSubject(testInfo, theme) {
+            TopBar(state = baseState(), consume = {})
+        }
+    }
+
+    // --- Sheets ----------------------------------------------------------------------------
+
+    /**
+     * The `⋮` menu's CONTENT on the sheet tier — the `ModalBottomSheet` window itself is out
+     * of Paparazzi's one-window model and stays on the device checklist (§10.4).
+     */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun sheetDetailMenu(theme: GoldenTheme, testInfo: TestInfo) {
+        goldenSubject(testInfo, theme, surface = { AppUi.colors.surfaceTier3 }) {
+            ExerciseDetailMenuSheetContent(canPermanentlyDelete = false, consume = {})
+        }
+    }
+
+    /**
+     * Difference partner of [sheetDetailMenu]: the destructive permanent-delete row appears
+     * exactly when deletion is allowed. Carries the regression the retired
+     * `exerciseDetailActions` unit test pinned (the discarded `apply { plus(...) }` result).
+     */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun sheetDetailMenuDeletable(theme: GoldenTheme, testInfo: TestInfo) {
+        goldenSubject(testInfo, theme, surface = { AppUi.colors.surfaceTier3 }) {
+            ExerciseDetailMenuSheetContent(canPermanentlyDelete = true, consume = {})
         }
     }
 

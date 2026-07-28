@@ -34,6 +34,7 @@ import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageErrorType
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageSourceUiModel
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PendingImage
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.BottomSheetState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.DiscardTarget
@@ -65,6 +66,8 @@ internal class ClickHandler @Inject constructor(
         when (action) {
             Action.Click.OnBackClick -> processBackClick()
             Action.Click.OnEditClick -> processEditClick()
+            Action.Click.OnDetailMenuClick -> processDetailMenuClick()
+            Action.Click.OnSheetDismiss -> processSheetDismiss()
             Action.Click.OnArchiveMenuClick -> processArchiveClick()
             Action.Click.OnTrackNowClick -> processTrackNowClick()
             Action.Click.OnTrackNowResumeConfirm -> processTrackNowResumeConfirm()
@@ -103,6 +106,15 @@ internal class ClickHandler @Inject constructor(
         updateState { it.copy(dialogState = DialogState.Hidden) }
     }
 
+    private fun processDetailMenuClick() {
+        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
+        updateState { it.copy(bottomSheetState = BottomSheetState.DetailMenu) }
+    }
+
+    private fun processSheetDismiss() {
+        updateState { it.copy(bottomSheetState = BottomSheetState.Hidden) }
+    }
+
     private fun processBackClick() {
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
         val current = state.value
@@ -129,6 +141,9 @@ internal class ClickHandler @Inject constructor(
         updateState { current ->
             current.copy(
                 mode = Mode.Edit(isCreate = false),
+                // Reachable from the dock and the overflow sheet alike — the flip to Edit
+                // closes the sheet in the same transition either way.
+                bottomSheetState = BottomSheetState.Hidden,
                 originalSnapshot = State.Snapshot(
                     name = current.name,
                     type = current.type,
@@ -144,6 +159,9 @@ internal class ClickHandler @Inject constructor(
         val uuid = state.value.uuid ?: return
         val name = state.value.name
         sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
+        // The action lives in the overflow sheet; close it before the result lands so a
+        // Blocked dialog never stacks on the open sheet.
+        updateState { it.copy(bottomSheetState = BottomSheetState.Hidden) }
         launch {
             when (val result = interactor.archive(uuid)) {
                 ArchiveResult.Success -> {
@@ -473,6 +491,7 @@ internal class ClickHandler @Inject constructor(
                     impactSummary = impactSummary,
                     confirmLabel = confirmLabel,
                 ),
+                bottomSheetState = BottomSheetState.Hidden,
             )
         }
     }

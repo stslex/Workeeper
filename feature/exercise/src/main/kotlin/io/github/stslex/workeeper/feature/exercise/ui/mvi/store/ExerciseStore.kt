@@ -46,6 +46,7 @@ interface ExerciseStore : Store<State, Action, Event> {
         val imageLastModified: Long,
         val pendingImage: PendingImage,
         val dialogState: DialogState,
+        val bottomSheetState: BottomSheetState,
         val personalRecord: PersonalRecordUiModel?,
     ) : Store.State {
 
@@ -159,6 +160,7 @@ interface ExerciseStore : Store<State, Action, Event> {
                 imageLastModified = 0L,
                 pendingImage = PendingImage.Unchanged,
                 dialogState = DialogState.Hidden,
+                bottomSheetState = BottomSheetState.Hidden,
                 personalRecord = null,
             )
         }
@@ -198,6 +200,11 @@ interface ExerciseStore : Store<State, Action, Event> {
             data object OnBackClick : Click
 
             data object OnEditClick : Click
+
+            /** Topbar `⋮` — opens the [BottomSheetState.DetailMenu] sheet. */
+            data object OnDetailMenuClick : Click
+
+            data object OnSheetDismiss : Click
 
             data object OnArchiveMenuClick : Click
 

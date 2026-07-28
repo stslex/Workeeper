@@ -61,3 +61,22 @@ sealed interface DialogState {
         val progressLabel: String,
     ) : DialogState
 }
+
+/**
+ * The topbar `⋮` overflow, Store-homed like every other modal on this screen (Rule 4 of
+ * compose-state-discipline). The v2.4 `DropdownMenu` rendered from an anchored composable
+ * with no state backing; the v3 sheet survives the same way the dialogs do. Kept separate
+ * from [DialogState] deliberately — the past-session rebuild established the two-field
+ * shape (`dialogState` + `bottomSheetState`), and a menu item that opens a dialog closes
+ * the sheet in the same state transition.
+ */
+@Stable
+sealed interface BottomSheetState {
+
+    @Stable
+    data object Hidden : BottomSheetState
+
+    /** `⋮` → Изменить · В архив · Удалить навсегда (the last only when deletable). */
+    @Stable
+    data object DetailMenu : BottomSheetState
+}

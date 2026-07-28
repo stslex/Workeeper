@@ -25,6 +25,7 @@ import io.github.stslex.workeeper.core.ui.kit.components.dialog.ActiveSessionCon
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppBlockedArchiveDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
+import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppBottomSheet
 import io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.mvi.getStateFlow
@@ -33,9 +34,11 @@ import io.github.stslex.workeeper.core.ui.mvi.setAttrDefaultValue
 import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.feature.exercise.R
 import io.github.stslex.workeeper.feature.exercise.di.ExerciseFeature
+import io.github.stslex.workeeper.feature.exercise.ui.components.ExerciseDetailMenuSheetContent
 import io.github.stslex.workeeper.feature.exercise.ui.components.ImageSourceDialog
 import io.github.stslex.workeeper.feature.exercise.ui.components.PermissionDeniedDialog
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.ImageErrorType
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.BottomSheetState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Event
@@ -199,6 +202,19 @@ fun NavGraphBuilder.exerciseGraph(
                 state = state,
                 consume = processor::consume,
             )
+        }
+
+        when (state.bottomSheetState) {
+            BottomSheetState.Hidden -> Unit
+
+            BottomSheetState.DetailMenu -> AppBottomSheet(
+                onDismiss = { processor.consume(Action.Click.OnSheetDismiss) },
+            ) {
+                ExerciseDetailMenuSheetContent(
+                    canPermanentlyDelete = state.canPermanentlyDelete,
+                    consume = processor::consume,
+                )
+            }
         }
 
         when (val dialog = state.dialogState) {

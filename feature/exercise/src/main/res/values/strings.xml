@@ -3,12 +3,13 @@
     <!-- Exercise detail -->
     <string name="feature_exercise_detail_recent">Recent</string>
     <string name="feature_exercise_detail_no_history">No sessions yet</string>
-    <string name="feature_exercise_detail_track_now" tools:ignore="DuplicateStrings">Track now</string>
+    <string name="feature_exercise_detail_track_now">Log now</string>
     <string name="feature_exercise_detail_default_plan">Default plan</string>
     <string name="feature_exercise_track_now_default_training_name" tools:ignore="DuplicateStrings">Track now</string>
     <string name="feature_exercise_track_now_conflict_unnamed">Workout</string>
     <string name="feature_exercise_track_now_conflict_progress_format" tools:ignore="PluralsCandidate">%1$d of %2$d exercises done</string>
     <string name="feature_exercise_detail_edit">Edit</string>
+    <string name="feature_exercise_detail_action_more">More actions</string>
     <string name="feature_exercise_detail_archive">Archive</string>
     <string name="feature_exercise_detail_archive_success_format">&#8216;%1$s&#8217; archived</string>
     <string name="feature_exercise_detail_archive_blocked_title">Cannot archive</string>
