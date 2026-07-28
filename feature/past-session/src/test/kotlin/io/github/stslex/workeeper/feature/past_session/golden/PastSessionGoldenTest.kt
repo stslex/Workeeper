@@ -29,17 +29,26 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 
 /**
- * BASELINE goldens — the past-session screen **as it stands before the Part 2 rebuild**.
- *
- * This feature had zero golden coverage (spec §24 names it as a gap), and recording the
- * current rendering *before* any rework edit is an entry condition of the rebuild PR: every
- * later commit re-records a region and the reviewer reads the image diff against these.
- * Without the baseline the rebuild's delta is unreadable and unreviewable.
+ * The past-session golden suite. The BASELINE commit (C0) recorded the pre-rebuild surface;
+ * each rebuild commit re-records exactly its region, so the reviewer reads image diffs
+ * commit by commit rather than a hex diff at the end.
  *
  * The fixture data deliberately mirrors `pass2d.html` §`s-past` (49/71/77×15 with the record
  * on set 3, «разведение ног», 56:08) so the final element-by-element pass can hold the golden
  * beside the mockup with no mental renaming. Data strings are fixture-side, so the Cyrillic
  * names render regardless of the harness's `en` resource locale.
+ *
+ * ## On §10.2's transient-pair rule
+ *
+ * This screen has no transient state, by decision: a finished session's records do not
+ * change while on screen, so there is no false→true transition and nothing animates into
+ * molten — animating one would reproduce the exact §10.2 defect for no behaviour. What the
+ * rule still buys is the **difference assertion**, and three pairs carry it:
+ * [setRowPlain]/[setRowPersonalRecord] (one flag apart), [header]/[headerWithoutTonnage]
+ * (the §11.1 drop-out branch), and [cardWithSets]/[cardCollapsed] (the lift, §10.2's
+ * unlifted/lifted pair). The two animated things — the card's expand size change and the
+ * lift's colour tween — settle to their targets under Paparazzi's single frame; their rest
+ * states are the covered pictures and the motion itself is on the device checklist (§10.4).
  *
  * Out of model, per the harness KDoc: `DeleteConfirmDialog` and `PrExplainerDialog` render in
  * their own windows and stay on manual verification.
@@ -120,7 +129,6 @@ internal class PastSessionGoldenTest {
                 onHeaderClick = {},
                 onWeightChange = { _, _ -> },
                 onRepsChange = { _, _ -> },
-                onTypeChange = { _, _ -> },
                 onDragStarted = {},
                 onSetReorder = { _, _, _ -> },
             )
@@ -128,9 +136,9 @@ internal class PastSessionGoldenTest {
     }
 
     /**
-     * Disclosure pair partner of [cardWithSets] (§10.2): the collapsed card. Under C1 this is
-     * behaviour-only — the header row alone, old skin; the v3 collapsed skin (plan-line
-     * summary, static chevron) lands with the C3 shell rebuild and re-records this golden.
+     * Disclosure pair partner of [cardWithSets] (§10.2's unlifted/lifted pair): the resting
+     * card — `.ord` · title · `.plan-line` summary · the static bare chevron, on
+     * `surfaceTier1` with no lift.
      */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
@@ -142,7 +150,6 @@ internal class PastSessionGoldenTest {
                 onHeaderClick = {},
                 onWeightChange = { _, _ -> },
                 onRepsChange = { _, _ -> },
-                onTypeChange = { _, _ -> },
                 onDragStarted = {},
                 onSetReorder = { _, _, _ -> },
             )
@@ -168,7 +175,6 @@ internal class PastSessionGoldenTest {
                 onHeaderClick = {},
                 onWeightChange = { _, _ -> },
                 onRepsChange = { _, _ -> },
-                onTypeChange = { _, _ -> },
                 onDragStarted = {},
                 onSetReorder = { _, _, _ -> },
             )
@@ -187,7 +193,6 @@ internal class PastSessionGoldenTest {
                     isWeighted = true,
                     onWeightChange = {},
                     onRepsChange = {},
-                    onTypeChange = {},
                 )
             }
         }
@@ -204,7 +209,6 @@ internal class PastSessionGoldenTest {
                     isWeighted = true,
                     onWeightChange = {},
                     onRepsChange = {},
-                    onTypeChange = {},
                 )
             }
         }
@@ -225,7 +229,6 @@ internal class PastSessionGoldenTest {
                     isWeighted = false,
                     onWeightChange = {},
                     onRepsChange = {},
-                    onTypeChange = {},
                 )
             }
         }
@@ -242,7 +245,6 @@ internal class PastSessionGoldenTest {
                     isWeighted = true,
                     onWeightChange = {},
                     onRepsChange = {},
-                    onTypeChange = {},
                 )
             }
         }

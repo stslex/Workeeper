@@ -216,9 +216,6 @@ private fun LoadedContent(
                 onRepsChange = { setUuid, raw ->
                     consume(Action.Input.OnSetRepsChange(setUuid = setUuid, raw = raw))
                 },
-                onTypeChange = { setUuid, type ->
-                    consume(Action.Click.OnSetTypeChange(setUuid = setUuid, type = type))
-                },
                 onSetReorder = { performedExerciseUuid, from, to ->
                     consume(
                         Action.Click.OnSetReorder(
