@@ -1,5 +1,7 @@
 package io.github.stslex.workeeper.core.ui.kit.components.input
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -8,73 +10,53 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.sp
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 
 /**
- * The mockup's `.field` — a value and its unit on a recessed panel.
+ * The mockup's `.field` — a value and its unit on a recessed panel (extraction §1.6).
  *
- * ## [isRecord]
+ * ## The value is `dataValue` — blocker B1, landed
  *
- * `.set.pr .field{background:var(--molten-bg)}` — a record row washes **both** of its fields
- * molten, and that wash is the row's signal. Before this, only the trailing tag changed, which
- * is a chip's worth of molten on a row the mockup paints end to end.
+ * `.data-l` is 25px Archivo `wdth 115 / wght 700` → the 26 rung, named
+ * `AppTypography.dataValue`. At 26sp bold the WCAG threshold is **3:1**, which retires the
+ * measurement that used to sit here: at the previous 19sp/600 the value owed 4.5:1 and molten
+ * could not pay it in light (4.14). At this rung the mockup's colour ramp ships as drawn:
  *
- * ### One measured deviation: the wash STACKS on the field tier
+ *  - resting: `textTertiary`. The mockup paints `--idle`, whose light value (#7C858F) sits at
+ *    3.11:1 on the field — inside quantisation noise of the 3:1 line — and whose dark value IS
+ *    `meta`'s hex. Same correction §2.4 applied to light `meta`: the mockup was drawn, not
+ *    measured; the pending value uses the meta value in both themes. The brightness principle
+ *    survives — pending is dimmer than done.
+ *  - done ([isDone]): `textPrimary` — `.set.done .data-l{color:var(--max)}`.
+ *  - record ([isRecord]): `record.textPrimary` — `.set.pr .data-l{color:var(--molten)}`,
+ *    legal at TITLE. Record wins over done, as in the stylesheet (`.pr` is declared after
+ *    `.done`).
  *
- * The CSS replaces the background outright, so `--molten-bg` (9% / 11% molten) composites over
- * whatever row is behind the field. Here it is painted over the field's own `surfaceTier3`
- * instead, and that is a measurement, not a shortcut. Composited the CSS way, the unit label
- * lands on a different backdrop per row and **fails** on the one the live DONE row provides:
+ * ## The washes replace the fill — blocker B7, landed
  *
- * | backdrop | `textDim` unit, dark | light |
- * |---|---|---|
- * | wash over `sec` (past-session card, live pending row) | 5.16 | 5.01 |
- * | wash over `raise` (live DONE row) | **3.99** | **4.46** |
- * | wash over `field` — what this component does | 4.84 | 4.82 |
+ * `.set.done .field{background:var(--donefill)}` and `.set.pr .field{background:var(--molten-bg)}`
+ * **replace** the field tier; the translucent wash composites over the card behind the row
+ * (`sec`, or `slab` when the card is lifted). An earlier revision stacked the record wash on
+ * `surfaceTier3` because the done ROW washed `surfaceTier4` behind it and the CSS-faithful
+ * composite failed on that backdrop (3.99 dark). B7 removed the row wash — the backdrop that
+ * failed no longer exists, and over the card tiers every pair clears its threshold
+ * (`ContrastContract`, the `donefill` and `record.background` rows `over` tier1/tier2).
  *
- * Stacking makes the field's contrast a property of the field rather than of the row it happens
- * to sit in, and it clears 4.5:1 in both themes. It also keeps a record field reading as a
- * *field*: the mockup's version discards the recessed panel entirely.
- *
- * ### What is deliberately NOT implemented: `.set.pr .data-l{color:var(--molten)}`
- *
- * The mockup turns the value molten too. On the stacked wash that measures **6.94 dark / 4.14
- * light**, against the 4.5:1 this value owes at `titleLarge` = 19sp. Dark passes; light does
- * not, so it is a light-theme question rather than a design error.
- *
- * The weight moved to SemiBold (600) with the heading rungs, and the threshold did not: WCAG's
- * large-text boundary at that size needs 700, so 19sp/600 is still normal text at 4.5:1. This
- * field is also the most visible consumer of that weight change — it is a *value*, not a
- * heading, and it reads `titleLarge` only because that is the rung it was put on.
- *
- * Note what makes it fail: the mockup draws `.data-l` at 25px Archivo `wdth 115 / wght 700`,
- * which is large-scale text at 3:1, where 4.14 passes comfortably. "As drawn" is legal; our
- * under-sized value is what makes it illegal.
- *
- * Two resolutions, both outside this component and both somebody else's call:
- *  1. bring the value to the drawn type (`numeric.title`, 26sp bold) — a visual change to every
- *     numeric input in the app, and the typography work rather than this;
- *  2. darken light `molten` to #B43B0B, the smallest step that clears 4.5:1 here — redmean 17.6
- *     from #BE3E0C, i.e. twice the 8.9 this palette records as indistinguishable, and it would
- *     move the PR accent on every screen.
- *
- * Until one is chosen the value stays `textPrimary`, which is why `ContrastContract` declares
- * `textPrimary`/`textDim` on `record.background` rather than the molten pair. The row still
- * reads molten: both fields are washed and the tag is molten.
+ * No default border: the mockup's field is recessed by tier alone. The error outline remains.
  */
 @Composable
 fun AppNumberInput(
@@ -86,34 +68,43 @@ fun AppNumberInput(
     enabled: Boolean = true,
     isError: Boolean = false,
     isRecord: Boolean = false,
+    isDone: Boolean = false,
 ) {
     val keyboardType = if (decimals > 0) KeyboardType.Decimal else KeyboardType.Number
-    val textStyle = AppUi.typography.titleLarge.copy(
-        color = AppUi.colors.textPrimary,
-        fontFeatureSettings = "tnum",
+    val valueColor by animateColorAsState(
+        targetValue = when {
+            isRecord -> AppUi.colors.record.textPrimary
+            isDone -> AppUi.colors.textPrimary
+            else -> AppUi.colors.textTertiary
+        },
+        animationSpec = tween(durationMillis = AppUi.motion.base, easing = AppUi.motion.out),
+        label = "field-value",
     )
-    val borderColor = when {
-        isError -> AppUi.colors.status.error
-        else -> AppUi.colors.borderSubtle
-    }
+    val background by animateColorAsState(
+        targetValue = when {
+            isRecord -> AppUi.colors.record.background
+            isDone -> AppUi.colors.donefill
+            else -> AppUi.colors.surfaceTier3
+        },
+        animationSpec = tween(durationMillis = AppUi.motion.base, easing = AppUi.motion.out),
+        label = "field-bg",
+    )
+    val shape = RoundedCornerShape(AppDimension.Radius.small)
     Row(
         modifier = modifier
-            .clip(AppUi.shapes.small)
-            // The mockup's `.field{background:var(--field)}` — `surfaceTier3`, whose own KDoc
-            // already names it "recessed panels: input fills". This painted `surfaceTier2`,
-            // which is the *floating* tier (dialogs, dropdowns, and now the lifted surface);
-            // an input is the opposite of floating, and on a lifted light-theme card the two
-            // whites cancelled and the field disappeared.
-            //
-            .background(AppUi.colors.surfaceTier3)
-            // `.set.pr .field{background:var(--molten-bg)}` — stacked rather than substituted,
-            // see the KDoc. Always applied so the modifier graph is stable across the flag.
-            .background(if (isRecord) AppUi.colors.record.background else Color.Transparent)
-            .border(
-                width = AppDimension.borderHairline,
-                color = borderColor,
-                shape = AppUi.shapes.small,
-            )
+            .clip(shape)
+            .background(background)
+            .let { base ->
+                if (isError) {
+                    base.border(
+                        width = AppDimension.borderHairline,
+                        color = AppUi.colors.status.error,
+                        shape = shape,
+                    )
+                } else {
+                    base
+                }
+            }
             .height(AppDimension.heightMd)
             .padding(horizontal = AppDimension.Space.md),
         verticalAlignment = Alignment.CenterVertically,
@@ -124,21 +115,33 @@ fun AppNumberInput(
                 onValueChange = onValueChange,
                 enabled = enabled,
                 singleLine = true,
-                textStyle = textStyle,
+                textStyle = AppUi.typography.dataValue.copy(color = valueColor),
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
                 cursorBrush = SolidColor(AppUi.colors.accent),
             )
         }
         suffix?.let {
+            val unitColor by animateColorAsState(
+                // The mockup's `.unit` is `--dim` in every state. Measured, that fails on the
+                // washes: over a LIFTED card (slab) in dark, `textDim` lands at 4.40 (record
+                // wash) / 4.45 (donefill) against the 4.5 an 11sp label owes — the same
+                // failure B7 exists to close, one backdrop later. On washed fields the unit
+                // promotes one step to `textSecondary`; a completed row brightening as a
+                // whole is §1's principle, not a contradiction of it.
+                targetValue = if (isRecord || isDone) {
+                    AppUi.colors.textSecondary
+                } else {
+                    AppUi.colors.textDim
+                },
+                animationSpec = tween(durationMillis = AppUi.motion.base, easing = AppUi.motion.out),
+                label = "field-unit",
+            )
             Text(
                 modifier = Modifier.padding(start = AppDimension.Space.xs),
                 text = it,
-                style = AppUi.typography.bodySmall.copy(letterSpacing = 0.5.sp),
-                // The mockup's `.unit`, which it paints in `--dim`. `textDim` is that role,
-                // aliased onto `meta` — see AppColors.textDim for the measurement that forced
-                // the merge. Reading the role rather than `textTertiary` keeps the unit
-                // distinguishable from the value it annotates if the tier is ever reinstated.
-                color = AppUi.colors.textDim,
+                // Mono at the 11 rung — the drawn `.unit` family (was a text-family meta).
+                style = AppUi.typography.mono.caption,
+                color = unitColor,
             )
         }
     }
@@ -166,6 +169,7 @@ private fun AppNumberInputPreview() {
             AppNumberInput(value = "8", onValueChange = {}, suffix = "reps", decimals = 0)
             AppNumberInput(value = "abc", onValueChange = {}, suffix = "kg", isError = true)
             AppNumberInput(value = "142.5", onValueChange = {}, suffix = "kg", isRecord = true)
+            AppNumberInput(value = "100", onValueChange = {}, suffix = "kg", isDone = true)
         }
     }
 }

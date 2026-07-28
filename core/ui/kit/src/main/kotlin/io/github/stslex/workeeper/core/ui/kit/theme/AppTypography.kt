@@ -166,6 +166,22 @@ data class AppTypography(
      * business inside the session rebuild, not this file's today.
      */
     val timer: TextStyle = numeric.display
+
+    /**
+     * The large data value — the mockups' `.data-l` (set-row values, 25px `wdth 115`) and the
+     * record-hero value (`pass2d` L274, 26px): `numeric.title` under the name blocker **B1**
+     * commissioned. Same move as [timer]: the rung existed, the *name* did not, and naming it
+     * is what lets a call site say what it is setting rather than which size it wants.
+     *
+     * Being an alias of `numeric.title` it carries `tnum` and Archivo `wdth 116` by
+     * construction. At 26sp **bold** the WCAG threshold is 3:1 (≥18.66sp at 700), which is the
+     * whole reason B1 exists: the 19sp value this replaces owed 4.5:1 and molten could not pay
+     * it in light; at this rung the mockup's molten value is legal everywhere it appears.
+     *
+     * Registered with `NumericFontFamilyOnLocalizedTextRule` as a fourth spelling of the
+     * Cyrillic-free family — same day, same reason as [timer].
+     */
+    val dataValue: TextStyle = numeric.title
 }
 
 /**

@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -382,19 +383,26 @@ private fun ExerciseCardBody(
     consume: (LiveWorkoutStore.Action) -> Unit,
 ) {
     val isWeighted = exercise.exerciseType == ExerciseTypeUiModel.WEIGHTED
+    // `.sets{padding:0 12px}` with `border-top: 1px --hair` on every row but the first —
+    // the hairline is intra-card row trim (spec §3.1, decorative), drawn by the container.
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = AppDimension.Space.sm)
+            .padding(horizontal = AppDimension.Space.md)
             .animateContentSize(
                 animationSpec = tween(
                     durationMillis = AppUi.motion.base,
                 ),
             ),
-        verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xs),
     ) {
-        exercise.visibleSets.forEach { row ->
+        exercise.visibleSets.forEachIndexed { index, row ->
             key(exercise.performedExerciseUuid, row.position) {
+                if (index > 0) {
+                    HorizontalDivider(
+                        thickness = AppDimension.Border.small,
+                        color = AppUi.colors.borderSubtle,
+                    )
+                }
                 LiveSetRow(
                     set = row,
                     isWeighted = isWeighted,

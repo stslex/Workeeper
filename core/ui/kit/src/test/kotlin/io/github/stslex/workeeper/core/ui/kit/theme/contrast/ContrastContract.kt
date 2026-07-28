@@ -304,7 +304,9 @@ internal object ContrastContract {
 
         // Set-type chips. 11sp labels inside an 18dp chip — the smallest text in the app.
         add(Declared("setType.warmupForeground", "setType.warmupBackground", TypeSlot.CAPTION, "AppSetTypeChip W"))
-        add(Declared("setType.workForeground", "setType.workBackground", TypeSlot.CAPTION, "AppSetTypeChip ·"))
+        // The WORK chip renders the mockup's `.tchip` treatment since the session rebuild —
+        // `textDim` on a transparent chip with a `borderDefault` ring — so the
+        // workForeground/workBackground pair has no call site any more; excluded below.
         add(Declared("setType.failureForeground", "setType.failureBackground", TypeSlot.CAPTION, "AppSetTypeChip F"))
         add(Declared("setType.dropForeground", "setType.dropBackground", TypeSlot.CAPTION, "AppSetTypeChip D"))
 
@@ -478,36 +480,67 @@ internal object ContrastContract {
         }
         add(Declared("molten.text", "molten.background", TypeSlot.CAPTION, "PR tag inside its own wash", over = PAGE))
 
-        // The PR set row: `.set.pr .field{background:var(--molten-bg)}` washes BOTH fields, so
-        // the field's own value and unit now sit on the molten wash.
+        // The PR set row: `.set.pr .field{background:var(--molten-bg)}` washes BOTH fields —
+        // and, since the session rebuild, the wash SUBSTITUTES the field tier the way the CSS
+        // draws it. The stacked-over-tier3 compromise this block used to record existed
+        // because the done ROW washed `surfaceTier4` behind the field and the CSS-faithful
+        // composite failed on that backdrop (3.99 dark). B7 removed the row wash; the real
+        // backdrops are now the card tiers — `sec`, and `slab` when the card is lifted.
         //
-        // ONE backdrop, `surfaceTier3`, because `AppNumberInput` STACKS the wash on the field
-        // tier rather than substituting it the way the CSS does. That is a measurement: the CSS
-        // way puts the unit on a different backdrop per row and fails on the live DONE row's
-        // `surfaceTier4` (3.99 dark / 4.46 light against 4.5). Stacked, it is 4.84 / 4.82 and
-        // the field's contrast stops depending on what is behind it.
-        //
-        // The foreground is `textPrimary`, NOT `record.textPrimary`, and that is a finding
-        // rather than a preference — see AppNumberInput's KDoc. The mockup also turns the value
-        // molten, which measures 4.14 in light against the 4.5:1 a 19sp regular value owes.
-        add(
-            Declared(
-                foreground = "textPrimary",
-                background = "record.background",
-                typeSlot = TypeSlot.SECTION,
-                evidence = "AppNumberInput value on a PR set row",
-                over = "surfaceTier3",
-            ),
-        )
-        add(
-            Declared(
-                foreground = "textDim",
-                background = "record.background",
-                typeSlot = TypeSlot.META,
-                evidence = "AppNumberInput unit on a PR set row",
-                over = "surfaceTier3",
-            ),
-        )
+        // The value is `record.textPrimary` — the mockup's `.set.pr .data-l{color:molten}`,
+        // which B1 makes legal: at `dataValue` (26sp bold) the slot is TITLE and owes 3:1,
+        // not the 4.5:1 the old 19sp value could not pay in light. The unit stays `textDim`
+        // (CAPTION, 4.5) — record content painted outside the molten namespace, which the
+        // narrowed wash exclusion below carves out.
+        listOf("surfaceTier1" to "resting card", "surfaceTier2" to "lifted card").forEach { (tier, host) ->
+            add(
+                Declared(
+                    foreground = "record.textPrimary",
+                    background = "record.background",
+                    typeSlot = TypeSlot.TITLE,
+                    evidence = "AppNumberInput PR value (dataValue, 26sp bold), $host",
+                    over = tier,
+                ),
+            )
+            add(
+                Declared(
+                    foreground = "textSecondary",
+                    background = "record.background",
+                    typeSlot = TypeSlot.CAPTION,
+                    evidence = "AppNumberInput unit on a PR set row, $host — promoted from " +
+                        "textDim, which measures 4.40 dark over the lifted card",
+                    over = tier,
+                ),
+            )
+            // The done field (B7): `.set.done .field{background:var(--donefill)}`, value
+            // promoted to max, unit still dim — same two backdrops as the record wash.
+            add(
+                Declared(
+                    foreground = "textPrimary",
+                    background = "donefill",
+                    typeSlot = TypeSlot.TITLE,
+                    evidence = "AppNumberInput done value (dataValue, 26sp bold), $host",
+                    over = tier,
+                ),
+            )
+            add(
+                Declared(
+                    foreground = "textSecondary",
+                    background = "donefill",
+                    typeSlot = TypeSlot.CAPTION,
+                    evidence = "AppNumberInput unit on a done set row, $host — promoted from " +
+                        "textDim, which measures 4.45 dark over the lifted card",
+                    over = tier,
+                ),
+            )
+        }
+
+        // The resting value: the mockup paints `--idle`, whose light value sits at 3.11:1 on
+        // the field — quantisation-noise distance from the TITLE line — and whose dark value
+        // is `meta`'s hex. Deviation of the §2.4 kind: the pending value reads the meta value
+        // in both themes. Declared at TITLE for the evidence trail; the pair was already
+        // covered at META.
+        add(Declared("textTertiary", "surfaceTier3", TypeSlot.TITLE, "AppNumberInput resting value (dataValue)"))
     }
 
     /**
@@ -518,11 +551,13 @@ internal object ContrastContract {
 
     val EXCLUSIONS: List<Exclusion> = listOf(
         Exclusion(
-            "`donefill` is the completed-content wash (session `.card.fin .ordchip` — the " +
-                "checkmark, in `textTertiary`). The set-row rebuild (B7) adds the done " +
-                "field's value and unit; until those rows are declared, nothing else is " +
-                "painted on the wash.",
-        ) { fg, bg -> bg == "donefill" && fg != "textTertiary" },
+            "`donefill` is the completed-content wash: the fin ordchip's checkmark " +
+                "(`textTertiary`), the done field's value (`textPrimary`, B7) and its unit " +
+                "(`textSecondary` — promoted off `textDim`, see the DECLARED rows). Nothing " +
+                "else is painted on it.",
+        ) { fg, bg ->
+            bg == "donefill" && fg !in setOf("textTertiary", "textPrimary", "textSecondary")
+        },
         Exclusion(
             "Set-type chip colours are scoped to their own chip: `AppSetTypeChip` picks one " +
                 "(background, foreground) pair by `when(type)` and paints both. A warm-up " +
@@ -531,6 +566,13 @@ internal object ContrastContract {
             fg.startsWith("setType.") && bg.startsWith("setType.") &&
                 fg.removeSuffix("Foreground") != bg.removeSuffix("Background")
         },
+        Exclusion(
+            "The WORK chip paints the mockup's `.tchip` treatment (`textDim` on transparent " +
+                "with a `borderDefault` ring — extraction §1.6), so `setType.workForeground` " +
+                "never lands on `setType.workBackground` any more. Both slots stay in the " +
+                "palette: WARMUP/FAIL/DROP still read theirs, and reinstating a loud WORK " +
+                "chip is a one-line revert that would fail here loudly.",
+        ) { fg, bg -> fg == "setType.workForeground" && bg == "setType.workBackground" },
         Exclusion(
             "The set-type chip backgrounds host only their own chip label — no other " +
                 "foreground is ever drawn inside a chip.",
@@ -552,19 +594,19 @@ internal object ContrastContract {
                 bg in setOf("surfaceTier0", "surfaceTier3", "surfaceTier4", "accentTintedBackground")
         },
         Exclusion(
-            "The molten fill and wash host only personal-record content. NARROWED: since the " +
-                "PR set row washes its fields (`.set.pr .field`), the record's own value and " +
-                "unit are drawn on the wash in `textPrimary`/`textDim` rather than in molten — " +
-                "see the DECLARED rows above for the measurement that forced that. They are " +
-                "personal-record content by the rule's own logic; they are simply not painted " +
-                "in the molten namespace.",
+            "The molten fill and wash host only personal-record content. NARROWED for one " +
+                "carve-out: the PR set row's unit is record content painted outside the " +
+                "molten namespace (`textSecondary` on the wash — declared above with its two " +
+                "card backdrops). The VALUE is no longer in the carve-out: B1 brought it to " +
+                "26sp bold, where the mockup's molten (`record.textPrimary`) is legal, so " +
+                "`textPrimary` left the wash entirely.",
         ) { fg, bg ->
             (
                 bg == "molten.solid" || bg == "record.solid" ||
                     bg == "molten.background" || bg == "record.background"
                 ) &&
                 !(fg.startsWith("molten.") || fg.startsWith("record.")) &&
-                !(bg == "record.background" && fg in setOf("textPrimary", "textDim"))
+                !(bg == "record.background" && fg == "textSecondary")
         },
         Exclusion(
             "`onAccent` is v3 `base`, the page colour. It is legible only on a filled accent " +

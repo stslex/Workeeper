@@ -61,6 +61,56 @@ internal class SessionStateGoldenTest {
         goldenSubject(testInfo, theme) { SetRow(set(isDone = false, reps = 0)) }
     }
 
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun setPersonalRecordDone(theme: GoldenTheme, testInfo: TestInfo) {
+        // pr + done: molten wins the value and the mark (`.pr` is declared after `.done`),
+        // the wash stays molten, the field's inputs are locked. Weight 102.5 on purpose —
+        // the 5-glyph worst case for the 26sp Archivo value's width budget.
+        goldenSubject(testInfo, theme) {
+            SetRow(set(isDone = true, isRecord = true, weight = 102.5))
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun setBodyweight(theme: GoldenTheme, testInfo: TestInfo) {
+        // One full-width field, the unit spelled out (`повторений` in RU; extraction §1.6).
+        goldenSubject(testInfo, theme) {
+            LiveSetRow(
+                set = set(isDone = false).copy(weight = null, reps = 12),
+                isWeighted = false,
+                onWeightChange = {},
+                onRepsChange = {},
+                onTypeChange = {},
+                onMarkDone = {},
+                onUncheck = {},
+                editable = true,
+            )
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun setFlashPeak(theme: GoldenTheme, testInfo: TestInfo) {
+        // The §10.2 pair with `setDone`: the flash frozen at its peak through
+        // `flashAlphaOverride`. A lone resting golden asserts nothing about the wash's
+        // strength or its per-theme peak (13% dark / 9% light — `--flash` as drawn).
+        goldenSubject(testInfo, theme) {
+            LiveSetRow(
+                set = set(isDone = true),
+                isWeighted = true,
+                onWeightChange = {},
+                onRepsChange = {},
+                onTypeChange = {},
+                onMarkDone = {},
+                onUncheck = {},
+                editable = true,
+                flashAlphaOverride = 1f,
+            )
+        }
+    }
+
     // --- Exercise states (§1.5): resting, active, fin, fin-reopened, skip, temp --------
     //
     // BASELINE CORRECTIONS against the step-5 goldens: the card is 16dp-radius, the ordinal
@@ -162,9 +212,10 @@ private fun set(
     isDone: Boolean,
     isRecord: Boolean = false,
     reps: Int = 5,
+    weight: Double = 100.0,
 ): LiveSetUiModel = LiveSetUiModel(
     position = 0,
-    weight = 100.0,
+    weight = weight,
     reps = reps,
     type = SetTypeUiModel.WORK,
     isDone = isDone,

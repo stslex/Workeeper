@@ -100,6 +100,9 @@ class NumericFontFamilyOnLocalizedTextRule(
             "numericFontFamily",
             "typography.numeric",
             "typography.timer",
+            // B1's name for `numeric.title` — the set-row / record-hero value. Added the same
+            // day as the alias, per the rule above.
+            "typography.dataValue",
         )
 
         val LOCALIZED_MARKERS = listOf("stringResource(", "pluralStringResource(")
