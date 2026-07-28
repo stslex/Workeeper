@@ -44,6 +44,9 @@ internal class HomeUiMapperTest {
 
         override fun formatMediumDate(timestamp: Long): String =
             error("Not used in HomeUiMapperTest")
+
+        override fun formatDayMonth(timestamp: Long): String =
+            error("Not used in HomeUiMapperTest")
     }
 
     @Test
