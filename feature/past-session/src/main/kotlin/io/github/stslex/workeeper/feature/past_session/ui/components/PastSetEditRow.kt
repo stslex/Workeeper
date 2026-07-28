@@ -15,10 +15,6 @@ import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,7 +25,6 @@ import androidx.compose.ui.unit.dp
 import io.github.stslex.workeeper.core.ui.kit.R
 import io.github.stslex.workeeper.core.ui.kit.components.input.AppNumberInput
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordTag
-import io.github.stslex.workeeper.core.ui.kit.components.pr.PrExplainerDialog
 import io.github.stslex.workeeper.core.ui.kit.components.setchip.AppSetTypeChip
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
@@ -78,10 +73,10 @@ internal fun PastSetEditRow(
     isWeighted: Boolean,
     onWeightChange: (String) -> Unit,
     onRepsChange: (String) -> Unit,
+    onPrTagClick: () -> Unit,
     modifier: Modifier = Modifier,
     dragHandleModifier: Modifier = Modifier,
 ) {
-    var showExplainer by remember { mutableStateOf(false) }
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -137,7 +132,7 @@ internal fun PastSetEditRow(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(AppDimension.Radius.small))
-                    .clickable { showExplainer = true },
+                    .clickable(onClick = onPrTagClick),
             ) {
                 PersonalRecordTag()
             }
@@ -150,9 +145,6 @@ internal fun PastSetEditRow(
             contentDescription = stringResource(R.string.core_ui_kit_reorderable_drag_handle),
             tint = AppUi.colors.textDim,
         )
-    }
-    if (showExplainer) {
-        PrExplainerDialog(onDismiss = { showExplainer = false })
     }
 }
 
@@ -182,6 +174,7 @@ private fun PastSetEditRowWeightedLightPreview() {
             isWeighted = true,
             onWeightChange = {},
             onRepsChange = {},
+            onPrTagClick = {},
         )
     }
 }
@@ -195,6 +188,7 @@ private fun PastSetEditRowRecordDarkPreview() {
             isWeighted = true,
             onWeightChange = {},
             onRepsChange = {},
+            onPrTagClick = {},
         )
     }
 }
@@ -208,6 +202,7 @@ private fun PastSetEditRowWeightlessDarkPreview() {
             isWeighted = false,
             onWeightChange = {},
             onRepsChange = {},
+            onPrTagClick = {},
         )
     }
 }
@@ -221,6 +216,7 @@ private fun PastSetEditRowErrorPreview() {
             isWeighted = true,
             onWeightChange = {},
             onRepsChange = {},
+            onPrTagClick = {},
         )
     }
 }

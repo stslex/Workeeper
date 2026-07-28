@@ -10,6 +10,8 @@ import io.github.stslex.workeeper.feature.past_session.domain.model.SetTypeDomai
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastExerciseUiModel
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSessionUiModel
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSetUiModel
+import io.github.stslex.workeeper.feature.past_session.mvi.store.BottomSheetState
+import io.github.stslex.workeeper.feature.past_session.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Action
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Event
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.State
@@ -36,7 +38,6 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -45,14 +46,19 @@ internal class ClickHandlerTest {
     private val interactor = mockk<PastSessionInteractor>(relaxed = true)
 
     @Test
-    fun `OnDeleteClick shows dialog and emits ContextClick haptic`() = runTest {
+    fun `OnDeleteClick opens the confirmation and closes the sheet it came from`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
-        val store = TestStore(loadedState(), this, dispatcher)
+        val store = TestStore(
+            loadedState().copy(bottomSheetState = BottomSheetState.SessionMenu),
+            this,
+            dispatcher,
+        )
         val handler = ClickHandler(interactor = interactor, store = store)
 
         handler.invoke(Action.Click.OnDeleteClick)
 
-        assertTrue(store.state.value.deleteDialogVisible)
+        assertEquals(DialogState.DeleteConfirm, store.state.value.dialogState)
+        assertEquals(BottomSheetState.Hidden, store.state.value.bottomSheetState)
         assertEquals(
             listOf(Event.HapticClick(HapticFeedbackType.ContextClick)),
             store.events,
@@ -60,17 +66,81 @@ internal class ClickHandlerTest {
     }
 
     @Test
+    fun `OnSessionMenuClick opens the overflow sheet with a haptic`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val store = TestStore(loadedState(), this, dispatcher)
+        val handler = ClickHandler(interactor = interactor, store = store)
+
+        handler.invoke(Action.Click.OnSessionMenuClick)
+
+        assertEquals(BottomSheetState.SessionMenu, store.state.value.bottomSheetState)
+        assertEquals(
+            listOf(Event.HapticClick(HapticFeedbackType.ContextClick)),
+            store.events,
+        )
+    }
+
+    @Test
+    fun `OnSheetDismiss hides the sheet`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val store = TestStore(
+            loadedState().copy(bottomSheetState = BottomSheetState.SessionMenu),
+            this,
+            dispatcher,
+        )
+        val handler = ClickHandler(interactor = interactor, store = store)
+
+        handler.invoke(Action.Click.OnSheetDismiss)
+
+        assertEquals(BottomSheetState.Hidden, store.state.value.bottomSheetState)
+    }
+
+    @Test
+    fun `OnPrTagClick opens the explainer and OnPrExplainerDismiss hides it`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val store = TestStore(loadedState(), this, dispatcher)
+        val handler = ClickHandler(interactor = interactor, store = store)
+
+        handler.invoke(Action.Click.OnPrTagClick)
+        assertEquals(DialogState.PrExplainer, store.state.value.dialogState)
+
+        handler.invoke(Action.Click.OnPrExplainerDismiss)
+        assertEquals(DialogState.Hidden, store.state.value.dialogState)
+    }
+
+    @Test
+    fun `OnDeleteClick while the explainer is shown replaces the dialog`() = runTest {
+        // The sealed shape's guarantee (mvi-dialog-state): opening from a non-Hidden state
+        // replaces the previous dialog rather than stacking on it.
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val store = TestStore(
+            loadedState(dialogState = DialogState.PrExplainer),
+            this,
+            dispatcher,
+        )
+        val handler = ClickHandler(interactor = interactor, store = store)
+
+        handler.invoke(Action.Click.OnDeleteClick)
+
+        assertEquals(DialogState.DeleteConfirm, store.state.value.dialogState)
+    }
+
+    @Test
     fun `OnDeleteConfirm deletes the session closes dialog and navigates back with snackbar`() =
         runTest {
             val dispatcher = StandardTestDispatcher(testScheduler)
-            val store = TestStore(loadedState(deleteDialogVisible = true), this, dispatcher)
+            val store = TestStore(
+                loadedState(dialogState = DialogState.DeleteConfirm),
+                this,
+                dispatcher,
+            )
             val handler = ClickHandler(interactor = interactor, store = store)
 
             handler.invoke(Action.Click.OnDeleteConfirm)
             advanceUntilIdle()
 
             coVerify(exactly = 1) { interactor.deleteSession(SESSION_UUID) }
-            assertFalse(store.state.value.deleteDialogVisible)
+            assertEquals(DialogState.Hidden, store.state.value.dialogState)
             assertEquals(
                 listOf(
                     Event.HapticClick(HapticFeedbackType.Confirm),
@@ -185,7 +255,7 @@ internal class ClickHandlerTest {
     private fun currentSet(store: TestStore): PastSetUiModel =
         ((store.state.value.phase as State.Phase.Loaded).detail.exercises.single().sets.single())
 
-    private fun loadedState(deleteDialogVisible: Boolean = false): State =
+    private fun loadedState(dialogState: DialogState = DialogState.Hidden): State =
         State.create(sessionUuid = SESSION_UUID)
             .copy(
                 phase = State.Phase.Loaded(
@@ -220,7 +290,7 @@ internal class ClickHandlerTest {
                         ),
                     ),
                 ),
-                deleteDialogVisible = deleteDialogVisible,
+                dialogState = dialogState,
             )
 
     /** Two cards, [expanded] preset — the multi-open fixture the §7 purity tests need. */

@@ -30,7 +30,8 @@ interface PastSessionStore :
          * cannot drift on where disclosure lives.
          */
         val expandedExerciseUuids: ImmutableSet<String>,
-        val deleteDialogVisible: Boolean,
+        val dialogState: DialogState,
+        val bottomSheetState: BottomSheetState,
     ) : Store.State {
 
         @Stable
@@ -53,7 +54,8 @@ interface PastSessionStore :
                 sessionUuid = sessionUuid,
                 phase = Phase.Loading,
                 expandedExerciseUuids = persistentSetOf(),
-                deleteDialogVisible = false,
+                dialogState = DialogState.Hidden,
+                bottomSheetState = BottomSheetState.Hidden,
             )
         }
     }
@@ -63,9 +65,20 @@ interface PastSessionStore :
 
         sealed interface Click : Action {
             data object OnBackClick : Click
+
+            /** The topbar `⋮` — opens the session overflow sheet. */
+            data object OnSessionMenuClick : Click
+
+            data object OnSheetDismiss : Click
+
+            /** The sheet's destructive item — closes the sheet, opens the confirmation. */
             data object OnDeleteClick : Click
             data object OnDeleteConfirm : Click
             data object OnDeleteDismiss : Click
+
+            /** A row's PR tag — opens the record explainer (extraction §2.7). */
+            data object OnPrTagClick : Click
+            data object OnPrExplainerDismiss : Click
             data class OnSetTypeChange(
                 val setUuid: String,
                 val type: SetTypeUiModel,

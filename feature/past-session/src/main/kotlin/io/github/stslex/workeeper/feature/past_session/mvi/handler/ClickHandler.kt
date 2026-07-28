@@ -12,6 +12,8 @@ import io.github.stslex.workeeper.feature.past_session.domain.model.SetDomain
 import io.github.stslex.workeeper.feature.past_session.domain.model.SetTypeDomain
 import io.github.stslex.workeeper.feature.past_session.mvi.mapper.PastSessionUiMapper.toDomain
 import io.github.stslex.workeeper.feature.past_session.mvi.model.ErrorType
+import io.github.stslex.workeeper.feature.past_session.mvi.store.BottomSheetState
+import io.github.stslex.workeeper.feature.past_session.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Action
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Event
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.State
@@ -30,9 +32,13 @@ internal class ClickHandler @Inject constructor(
     override fun invoke(action: Action.Click) {
         when (action) {
             Action.Click.OnBackClick -> processBack()
+            Action.Click.OnSessionMenuClick -> processSessionMenuClick()
+            Action.Click.OnSheetDismiss -> processSheetDismiss()
             Action.Click.OnDeleteClick -> processDeleteClick()
             Action.Click.OnDeleteConfirm -> processDeleteConfirm()
             Action.Click.OnDeleteDismiss -> processDeleteDismiss()
+            Action.Click.OnPrTagClick -> processPrTagClick()
+            Action.Click.OnPrExplainerDismiss -> processPrExplainerDismiss()
             Action.Click.OnRetryLoad -> consume(Action.Common.Init)
             is Action.Click.OnSetTypeChange -> processSetTypeChange(action)
             is Action.Click.OnSetReorder -> processSetReorder(action)
@@ -73,19 +79,42 @@ internal class ClickHandler @Inject constructor(
         consume(Action.Navigation.Back)
     }
 
+    private fun processSessionMenuClick() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updateState { it.copy(bottomSheetState = BottomSheetState.SessionMenu) }
+    }
+
+    private fun processSheetDismiss() {
+        updateState { it.copy(bottomSheetState = BottomSheetState.Hidden) }
+    }
+
+    /** Opening from the sheet: the sheet closes and the confirmation replaces it. */
     private fun processDeleteClick() {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        updateState { it.copy(deleteDialogVisible = true) }
+        updateState {
+            it.copy(
+                bottomSheetState = BottomSheetState.Hidden,
+                dialogState = DialogState.DeleteConfirm,
+            )
+        }
     }
 
     private fun processDeleteDismiss() {
-        updateState { it.copy(deleteDialogVisible = false) }
+        updateState { it.copy(dialogState = DialogState.Hidden) }
+    }
+
+    private fun processPrTagClick() {
+        updateState { it.copy(dialogState = DialogState.PrExplainer) }
+    }
+
+    private fun processPrExplainerDismiss() {
+        updateState { it.copy(dialogState = DialogState.Hidden) }
     }
 
     private fun processDeleteConfirm() {
         sendEvent(Event.HapticClick(HapticFeedbackType.Confirm))
         val sessionUuid = state.value.sessionUuid
-        updateState { it.copy(deleteDialogVisible = false) }
+        updateState { it.copy(dialogState = DialogState.Hidden) }
         launch(
             onSuccess = {
                 sendEvent(Event.DeletedSnackbar)

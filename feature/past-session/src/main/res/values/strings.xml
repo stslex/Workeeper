@@ -28,6 +28,7 @@
     <string name="feature_past_session_finished_at_label">Finished · %1$s</string>
     <!-- Topbar overflow (extraction §2.2 draws a vertical three-dot, not a delete glyph). -->
     <string name="feature_past_session_action_more">More</string>
+    <string name="feature_past_session_menu_delete_session">Delete session</string>
 
     <string name="feature_past_session_totals_format">%1$s · %2$s</string>
     <string name="feature_past_session_totals_format_with_tonnage">%1$s · %2$s · %3$s</string>

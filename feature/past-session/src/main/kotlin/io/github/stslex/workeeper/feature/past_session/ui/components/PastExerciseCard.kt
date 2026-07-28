@@ -79,6 +79,7 @@ internal fun PastExerciseCard(
     onHeaderClick: () -> Unit,
     onWeightChange: (String, String) -> Unit,
     onRepsChange: (String, String) -> Unit,
+    onPrTagClick: () -> Unit,
     onDragStarted: () -> Unit,
     onSetReorder: (performedExerciseUuid: String, from: Int, to: Int) -> Unit,
     modifier: Modifier = Modifier,
@@ -123,6 +124,7 @@ internal fun PastExerciseCard(
                     reorderState = reorderState,
                     onWeightChange = onWeightChange,
                     onRepsChange = onRepsChange,
+                    onPrTagClick = onPrTagClick,
                 )
             }
         }
@@ -213,6 +215,7 @@ private fun CardBody(
     reorderState: ReorderableColumnState,
     onWeightChange: (String, String) -> Unit,
     onRepsChange: (String, String) -> Unit,
+    onPrTagClick: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -247,6 +250,7 @@ private fun CardBody(
                         isWeighted = exercise.isWeighted,
                         onWeightChange = { raw -> onWeightChange(set.setUuid, raw) },
                         onRepsChange = { raw -> onRepsChange(set.setUuid, raw) },
+                        onPrTagClick = onPrTagClick,
                         modifier = Modifier.reorderableColumnItem(
                             state = reorderState,
                             key = set.setUuid,
@@ -284,6 +288,7 @@ private fun PastExerciseCardExpandedLightPreview() {
             onHeaderClick = {},
             onWeightChange = { _, _ -> },
             onRepsChange = { _, _ -> },
+            onPrTagClick = {},
             onSetReorder = { _, _, _ -> },
             onDragStarted = { },
         )
@@ -300,6 +305,7 @@ private fun PastExerciseCardCollapsedDarkPreview() {
             onHeaderClick = {},
             onWeightChange = { _, _ -> },
             onRepsChange = { _, _ -> },
+            onPrTagClick = {},
             onSetReorder = { _, _, _ -> },
             onDragStarted = { },
         )
@@ -320,6 +326,7 @@ private fun PastExerciseCardSkippedPreview() {
             onHeaderClick = {},
             onWeightChange = { _, _ -> },
             onRepsChange = { _, _ -> },
+            onPrTagClick = {},
             onSetReorder = { _, _, _ -> },
             onDragStarted = { },
         )

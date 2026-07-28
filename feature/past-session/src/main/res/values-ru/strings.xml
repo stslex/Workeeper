@@ -22,6 +22,7 @@
 
     <string name="feature_past_session_finished_at_label">Завершена · %1$s</string>
     <string name="feature_past_session_action_more">Ещё</string>
+    <string name="feature_past_session_menu_delete_session">Удалить сессию</string>
 
     <string name="feature_past_session_totals_format">%1$s · %2$s</string>
     <string name="feature_past_session_totals_format_with_tonnage">%1$s · %2$s · %3$s</string>

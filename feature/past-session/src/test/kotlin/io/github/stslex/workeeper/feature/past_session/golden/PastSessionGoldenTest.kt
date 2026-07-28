@@ -15,11 +15,14 @@ import io.github.stslex.workeeper.feature.past_session.mvi.model.ErrorType
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastExerciseUiModel
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSessionUiModel
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSetUiModel
+import io.github.stslex.workeeper.feature.past_session.mvi.store.BottomSheetState
+import io.github.stslex.workeeper.feature.past_session.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.State
 import io.github.stslex.workeeper.feature.past_session.ui.PastSessionScreen
 import io.github.stslex.workeeper.feature.past_session.ui.TopBar
 import io.github.stslex.workeeper.feature.past_session.ui.components.PastExerciseCard
 import io.github.stslex.workeeper.feature.past_session.ui.components.PastSessionHeader
+import io.github.stslex.workeeper.feature.past_session.ui.components.PastSessionMenuSheetContent
 import io.github.stslex.workeeper.feature.past_session.ui.components.PastSetEditRow
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentSetOf
@@ -74,7 +77,8 @@ internal class PastSessionGoldenTest {
                     sessionUuid = "s-1",
                     phase = State.Phase.Error(ErrorType.SessionNotFound),
                     expandedExerciseUuids = persistentSetOf(),
-                    deleteDialogVisible = false,
+                    dialogState = DialogState.Hidden,
+                    bottomSheetState = BottomSheetState.Hidden,
                 ),
                 consume = {},
             )
@@ -89,6 +93,20 @@ internal class PastSessionGoldenTest {
     fun topbar(theme: GoldenTheme, testInfo: TestInfo) {
         goldenSubject(testInfo, theme) {
             TopBar(state = loadedState(), consume = {})
+        }
+    }
+
+    // --- Sheets ----------------------------------------------------------------------------
+
+    /**
+     * The `⋮` menu's CONTENT on the sheet tier — the `ModalBottomSheet` window itself is out
+     * of Paparazzi's one-window model and stays on the device checklist (§10.4).
+     */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun sheetSessionMenu(theme: GoldenTheme, testInfo: TestInfo) {
+        goldenSubject(testInfo, theme, surface = { AppUi.colors.surfaceTier3 }) {
+            PastSessionMenuSheetContent(consume = {})
         }
     }
 
@@ -129,6 +147,7 @@ internal class PastSessionGoldenTest {
                 onHeaderClick = {},
                 onWeightChange = { _, _ -> },
                 onRepsChange = { _, _ -> },
+                onPrTagClick = {},
                 onDragStarted = {},
                 onSetReorder = { _, _, _ -> },
             )
@@ -150,6 +169,7 @@ internal class PastSessionGoldenTest {
                 onHeaderClick = {},
                 onWeightChange = { _, _ -> },
                 onRepsChange = { _, _ -> },
+                onPrTagClick = {},
                 onDragStarted = {},
                 onSetReorder = { _, _, _ -> },
             )
@@ -175,6 +195,7 @@ internal class PastSessionGoldenTest {
                 onHeaderClick = {},
                 onWeightChange = { _, _ -> },
                 onRepsChange = { _, _ -> },
+                onPrTagClick = {},
                 onDragStarted = {},
                 onSetReorder = { _, _, _ -> },
             )
@@ -193,6 +214,7 @@ internal class PastSessionGoldenTest {
                     isWeighted = true,
                     onWeightChange = {},
                     onRepsChange = {},
+                    onPrTagClick = {},
                 )
             }
         }
@@ -209,6 +231,7 @@ internal class PastSessionGoldenTest {
                     isWeighted = true,
                     onWeightChange = {},
                     onRepsChange = {},
+                    onPrTagClick = {},
                 )
             }
         }
@@ -229,6 +252,7 @@ internal class PastSessionGoldenTest {
                     isWeighted = false,
                     onWeightChange = {},
                     onRepsChange = {},
+                    onPrTagClick = {},
                 )
             }
         }
@@ -245,6 +269,7 @@ internal class PastSessionGoldenTest {
                     isWeighted = true,
                     onWeightChange = {},
                     onRepsChange = {},
+                    onPrTagClick = {},
                 )
             }
         }
@@ -272,7 +297,8 @@ private fun loadedState(): State = State(
     phase = State.Phase.Loaded(detail = detail()),
     // First-entry rule of the amended §7 model: the first card open, the rest closed.
     expandedExerciseUuids = persistentSetOf("pe-1"),
-    deleteDialogVisible = false,
+    dialogState = DialogState.Hidden,
+    bottomSheetState = BottomSheetState.Hidden,
 )
 
 private fun detail(

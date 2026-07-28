@@ -17,7 +17,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.empty.AppEmptyState
 import io.github.stslex.workeeper.core.ui.kit.components.loading.AppLoadingIndicator
+import io.github.stslex.workeeper.core.ui.kit.components.pr.PrExplainerDialog
 import io.github.stslex.workeeper.core.ui.kit.components.section.AppSectionHeader
+import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppBottomSheet
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
@@ -31,11 +33,14 @@ import io.github.stslex.workeeper.feature.past_session.mvi.model.ErrorType
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastExerciseUiModel
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSessionUiModel
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSetUiModel
+import io.github.stslex.workeeper.feature.past_session.mvi.store.BottomSheetState
+import io.github.stslex.workeeper.feature.past_session.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Action
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.State
 import io.github.stslex.workeeper.feature.past_session.ui.components.DeleteConfirmDialog
 import io.github.stslex.workeeper.feature.past_session.ui.components.PastExerciseCard
 import io.github.stslex.workeeper.feature.past_session.ui.components.PastSessionHeader
+import io.github.stslex.workeeper.feature.past_session.ui.components.PastSessionMenuSheetContent
 import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentSetOf
@@ -74,10 +79,24 @@ internal fun PastSessionScreen(
         }
     }
 
-    if (state.deleteDialogVisible) {
-        DeleteConfirmDialog(
+    when (state.bottomSheetState) {
+        BottomSheetState.Hidden -> Unit
+        BottomSheetState.SessionMenu -> AppBottomSheet(
+            onDismiss = { consume(Action.Click.OnSheetDismiss) },
+        ) {
+            PastSessionMenuSheetContent(consume = consume)
+        }
+    }
+
+    when (state.dialogState) {
+        DialogState.Hidden -> Unit
+        DialogState.DeleteConfirm -> DeleteConfirmDialog(
             onConfirm = { consume(Action.Click.OnDeleteConfirm) },
             onDismiss = { consume(Action.Click.OnDeleteDismiss) },
+        )
+
+        DialogState.PrExplainer -> PrExplainerDialog(
+            onDismiss = { consume(Action.Click.OnPrExplainerDismiss) },
         )
     }
 }
@@ -86,9 +105,8 @@ internal fun PastSessionScreen(
  * `.topbar` (extraction §2.2): back chevron leading, the `h1.sm` title, vertical three-dot
  * trailing — the same `.icon-btn` treatment as the session screen, plus the small title the
  * session deliberately lacks. The trailing glyph is the mockup's ⋮ overflow, **not** the
- * v2.4 error-tinted delete icon, which is retired here. Until the C5 menu sheet lands, the
- * ⋮ keeps opening the existing delete confirmation so the destructive action never
- * disappears between commits.
+ * v2.4 error-tinted delete icon, which is retired: the ⋮ opens the session menu sheet, and
+ * deletion lives there as a destructive item ahead of its confirmation.
  *
  * `internal` rather than private so the golden can render it in isolation — the same move
  * `feature/live-workout`'s `TopBar` makes for `SessionHeaderGoldenTest`.
@@ -119,7 +137,7 @@ internal fun TopBar(
                     contentDescription = stringResource(
                         R.string.feature_past_session_action_more,
                     ),
-                    onClick = { consume(Action.Click.OnDeleteClick) },
+                    onClick = { consume(Action.Click.OnSessionMenuClick) },
                 )
             }
         },
@@ -216,6 +234,7 @@ private fun LoadedContent(
                 onRepsChange = { setUuid, raw ->
                     consume(Action.Input.OnSetRepsChange(setUuid = setUuid, raw = raw))
                 },
+                onPrTagClick = { consume(Action.Click.OnPrTagClick) },
                 onSetReorder = { performedExerciseUuid, from, to ->
                     consume(
                         Action.Click.OnSetReorder(
@@ -242,7 +261,8 @@ private fun PastSessionScreenLoadedLightPreview() {
                 sessionUuid = "stub",
                 phase = State.Phase.Loaded(detail = stubDetail()),
                 expandedExerciseUuids = persistentSetOf("pe-1"),
-                deleteDialogVisible = false,
+                dialogState = DialogState.Hidden,
+                bottomSheetState = BottomSheetState.Hidden,
             ),
             consume = {},
         )
@@ -258,7 +278,8 @@ private fun PastSessionScreenLoadedDarkPreview() {
                 sessionUuid = "stub",
                 phase = State.Phase.Loaded(detail = stubDetail()),
                 expandedExerciseUuids = persistentSetOf("pe-1"),
-                deleteDialogVisible = false,
+                dialogState = DialogState.Hidden,
+                bottomSheetState = BottomSheetState.Hidden,
             ),
             consume = {},
         )
@@ -274,7 +295,8 @@ private fun PastSessionScreenLoadingPreview() {
                 sessionUuid = "stub",
                 phase = State.Phase.Loading,
                 expandedExerciseUuids = persistentSetOf(),
-                deleteDialogVisible = false,
+                dialogState = DialogState.Hidden,
+                bottomSheetState = BottomSheetState.Hidden,
             ),
             consume = {},
         )
@@ -290,7 +312,8 @@ private fun PastSessionScreenErrorPreview() {
                 sessionUuid = "stub",
                 phase = State.Phase.Error(ErrorType.SessionNotFound),
                 expandedExerciseUuids = persistentSetOf(),
-                deleteDialogVisible = false,
+                dialogState = DialogState.Hidden,
+                bottomSheetState = BottomSheetState.Hidden,
             ),
             consume = {},
         )
