@@ -40,6 +40,9 @@ import io.github.stslex.workeeper.core.ui.kit.R as KitR
 private const val FLASH_PEAK_ALPHA_DARK = 0.13f
 private const val FLASH_PEAK_ALPHA_LIGHT = 0.09f
 
+/** See the weighted branch below — decimals live in the weight field, never in reps. */
+private const val WEIGHT_FIELD_FLEX = 1.2f
+
 /**
  * `.set` (extraction §1.6): `set-i · field(s) · tchip-or-prtag · mark`, on a **transparent**
  * row — blocker B7's fix. Step 5 washed the whole row `surfaceTier4` when done, which is what
@@ -107,7 +110,10 @@ internal fun LiveSetRow(
             color = AppUi.colors.textDim,
         )
         if (isWeighted) {
-            Box(modifier = Modifier.weight(1f)) {
+            // 1.2 vs 1: weights carry decimals ("102.5"), reps never do — the extra fifth
+            // softens B1's width budget. The mockup draws flex:1/1 and also never draws a
+            // decimal; deviation reported with the PR.
+            Box(modifier = Modifier.weight(WEIGHT_FIELD_FLEX)) {
                 AppNumberInput(
                     value = set.weightLabel,
                     onValueChange = { input -> onWeightChange(input.toDoubleOrNull()) },

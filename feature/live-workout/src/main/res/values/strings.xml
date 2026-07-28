@@ -86,7 +86,6 @@
     <string name="feature_live_workout_picker_no_match_format">No exercises match “%1$s”</string>
     <string name="feature_live_workout_picker_create_format">Create “%1$s”</string>
     <string name="feature_live_workout_add_exercise_cta">Add exercise</string>
-    <string name="feature_live_workout_add_another_exercise_cta">+ Add another exercise</string>
 
     <!-- Empty-finish confirm dialog -->
     <string name="feature_live_workout_empty_finish_title">Discard empty workout?</string>

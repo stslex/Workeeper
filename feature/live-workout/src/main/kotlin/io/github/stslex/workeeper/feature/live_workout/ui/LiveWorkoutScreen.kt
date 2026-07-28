@@ -3,19 +3,25 @@ package io.github.stslex.workeeper.feature.live_workout.ui
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -24,10 +30,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import io.github.stslex.workeeper.core.ui.kit.components.border.dashedBorder
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.DiscardSessionConfirmDialog
@@ -233,52 +243,56 @@ private fun Body(
     @SuppressLint("ModifierParameter") activeSessionBannerModifier: Modifier = Modifier,
     consume: (Action) -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = AppDimension.screenEdge),
-    ) {
-        Spacer(Modifier.height(AppDimension.Space.sm))
-        LiveWorkoutHeader(
-            trainingNameLabel = state.trainingNameLabel,
-            namePlaceholder = stringResource(R.string.feature_live_workout_training_name_placeholder),
-            elapsedLabel = state.elapsedDurationLabel,
-            metaLabel = state.headerMetaLabel,
-            isEditingName = state.isTrainingNameEditing,
-            nameDraft = state.trainingNameDraft,
-            onNameTap = { consume(Action.Click.OnTrainingNameTap) },
-            onNameChange = { consume(Action.Click.OnTrainingNameChange(it)) },
-            onNameSubmit = { consume(Action.Click.OnTrainingNameSubmit(it)) },
-            modifier = activeSessionBannerModifier,
-        )
-        Spacer(Modifier.height(RAIL_TOP_MARGIN))
-        // §14's frame: shead -> rail -> railmeta. The rail supersedes the header's
-        // LinearProgressIndicator — two progress bars for one session would contradict each
-        // other the moment their denominators diverged.
-        AppProgressRail(
-            groups = state.toRailGroups(),
-            modifier = Modifier.padding(horizontal = AppDimension.screenEdge),
-        )
-        Spacer(Modifier.height(AppDimension.Space.md))
-        if (state.exercises.isEmpty()) {
-            EmptyExercisesPlaceholder(
-                onAddExerciseClick = { consume(Action.Click.OnAddExerciseClick) },
-                isAddEnabled = state.canAddExercise,
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-            )
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
-            ) {
-                items(
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            // Content scrolls out UNDER the dock (`.dock{position:sticky}` with its base
+            // gradient); the clearance keeps the last row reachable above it.
+            contentPadding = PaddingValues(bottom = DOCK_CLEARANCE),
+        ) {
+            item(key = "shead") {
+                Column(modifier = Modifier.padding(horizontal = AppDimension.screenEdge)) {
+                    Spacer(Modifier.height(AppDimension.Space.sm))
+                    LiveWorkoutHeader(
+                        trainingNameLabel = state.trainingNameLabel,
+                        namePlaceholder = stringResource(R.string.feature_live_workout_training_name_placeholder),
+                        elapsedLabel = state.elapsedDurationLabel,
+                        metaLabel = state.headerMetaLabel,
+                        isEditingName = state.isTrainingNameEditing,
+                        nameDraft = state.trainingNameDraft,
+                        onNameTap = { consume(Action.Click.OnTrainingNameTap) },
+                        onNameChange = { consume(Action.Click.OnTrainingNameChange(it)) },
+                        onNameSubmit = { consume(Action.Click.OnTrainingNameSubmit(it)) },
+                        modifier = activeSessionBannerModifier,
+                    )
+                }
+            }
+            item(key = "rail") {
+                // §14's frame: shead -> rail -> railmeta. The rail supersedes the header's
+                // LinearProgressIndicator — two progress bars for one session would
+                // contradict each other the moment their denominators diverged. (The old
+                // frame double-inset the rail with a second screenEdge padding; the mockup
+                // aligns it to the same gutter as everything else.)
+                Column(modifier = Modifier.padding(horizontal = AppDimension.screenEdge)) {
+                    Spacer(Modifier.height(RAIL_TOP_MARGIN))
+                    AppProgressRail(groups = state.toRailGroups())
+                }
+            }
+            if (state.exercises.isEmpty()) {
+                item(key = "empty") {
+                    EmptyExercisesPlaceholder(
+                        onAddExerciseClick = { consume(Action.Click.OnAddExerciseClick) },
+                        isAddEnabled = state.canAddExercise,
+                        modifier = Modifier
+                            .fillParentMaxHeight(EMPTY_STATE_HEIGHT_FRACTION)
+                            .fillMaxWidth(),
+                    )
+                }
+            } else {
+                itemsIndexed(
                     items = state.exercises,
-                    key = { it.performedExerciseUuid },
-                ) { exercise ->
+                    key = { _, exercise -> exercise.performedExerciseUuid },
+                ) { index, exercise ->
                     // Auto-default CURRENT (not in activeUuids) stays expanded by default; any
                     // user-toggled state (including a manually-active CURRENT collapsed by
                     // tapping its header) honors the explicit set.
@@ -287,34 +301,125 @@ private fun Body(
                         exercise = exercise,
                         expanded = expanded,
                         consume = consume,
+                        modifier = Modifier.padding(
+                            start = AppDimension.screenEdge,
+                            end = AppDimension.screenEdge,
+                            // `.cards{margin-top:26px; gap:10px}` -> 24dp above the first
+                            // card, 8dp between cards.
+                            top = if (index == 0) AppDimension.Space.xl else AppDimension.Space.sm,
+                        ),
                     )
                 }
-                item(key = "add-another-exercise-cta") {
-                    AddAnotherExerciseRow(
+                item(key = "addex") {
+                    AddExerciseButton(
                         onClick = { consume(Action.Click.OnAddExerciseClick) },
                         enabled = state.canAddExercise,
+                        modifier = Modifier.padding(
+                            start = AppDimension.screenEdge,
+                            end = AppDimension.screenEdge,
+                            top = AppDimension.Space.md,
+                        ),
                     )
                 }
             }
         }
-        Spacer(Modifier.height(AppDimension.Space.md))
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = AppDimension.Space.lg),
-            horizontalArrangement = Arrangement.End,
-        ) {
-            AppButton.Primary(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("LiveWorkoutFinishButton"),
-                text = stringResource(R.string.feature_live_workout_finish),
-                onClick = { consume(Action.Click.OnFinishClick) },
-                enabled = !state.isLoading,
-            )
-        }
+        Dock(
+            onFinish = { consume(Action.Click.OnFinishClick) },
+            enabled = !state.isLoading,
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
     }
 }
+
+/**
+ * `.addex` (extraction §1.8): a dashed full-width 48dp button below the cards — `meta` text,
+ * a `hair-s` (-> `borderDefault`) dashed outline at the card radius, the 17dp plus at its
+ * heavier 1.9 stroke. String: `Добавить упражнение`, no "+" prefix — the plus is the icon.
+ */
+@Composable
+private fun AddExerciseButton(
+    onClick: () -> Unit,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(AppDimension.heightMd)
+            .clip(RoundedCornerShape(AppDimension.Radius.medium))
+            .dashedBorder(
+                color = AppUi.colors.borderDefault,
+                cornerRadius = AppDimension.Radius.medium,
+            )
+            .clickable(enabled = enabled, onClick = onClick)
+            .testTag("LiveWorkoutAddAnotherExerciseCta"),
+        horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            modifier = Modifier.size(ADDEX_GLYPH_SIZE),
+            imageVector = AppIcons.Plus,
+            contentDescription = null,
+            tint = AppUi.colors.textTertiary,
+        )
+        Text(
+            text = stringResource(R.string.feature_live_workout_add_exercise_cta),
+            style = AppUi.typography.text.body,
+            color = AppUi.colors.textTertiary,
+        )
+    }
+}
+
+/**
+ * `.dock` (extraction §1.8): sticky at the bottom, `linear-gradient(to top, base 62%,
+ * transparent)` behind the finish button so content visibly scrolls out underneath.
+ */
+@Composable
+private fun Dock(
+    onFinish: () -> Unit,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val base = AppUi.colors.surfaceTier0
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(
+                Brush.verticalGradient(
+                    0f to Color.Transparent,
+                    DOCK_GRADIENT_STOP to base,
+                    1f to base,
+                ),
+            )
+            .padding(
+                start = AppDimension.screenEdge,
+                end = AppDimension.screenEdge,
+                top = AppDimension.Space.lg,
+                bottom = AppDimension.Space.xl,
+            )
+            .navigationBarsPadding(),
+    ) {
+        AppButton.Primary(
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("LiveWorkoutFinishButton"),
+            text = stringResource(R.string.feature_live_workout_finish),
+            onClick = onFinish,
+            enabled = enabled,
+        )
+    }
+}
+
+/** `linear-gradient(to top, base 62%, …)`: solid from the bottom 62%, i.e. from 38% top-down. */
+private const val DOCK_GRADIENT_STOP = 0.38f
+
+/** Clearance so the list's tail scrolls clear of the overlaid dock. */
+private val DOCK_CLEARANCE = 104.dp
+
+/** The `.addex` plus renders at 17dp (mockup 17×17, stroke 1.9). */
+private val ADDEX_GLYPH_SIZE = 17.dp
+
+private const val EMPTY_STATE_HEIGHT_FRACTION = 0.6f
 
 @Composable
 private fun EmptyExercisesPlaceholder(
@@ -334,21 +439,6 @@ private fun EmptyExercisesPlaceholder(
             onAction = onAddExerciseClick.takeIf { isAddEnabled },
         )
     }
-}
-
-@Composable
-private fun AddAnotherExerciseRow(
-    onClick: () -> Unit,
-    enabled: Boolean,
-) {
-    AppButton.Tertiary(
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag("LiveWorkoutAddAnotherExerciseCta"),
-        text = stringResource(R.string.feature_live_workout_add_another_exercise_cta),
-        onClick = onClick,
-        enabled = enabled,
-    )
 }
 
 @Preview

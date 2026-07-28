@@ -89,6 +89,17 @@ fun AppNumberInput(
         animationSpec = tween(durationMillis = AppUi.motion.base, easing = AppUi.motion.out),
         label = "field-bg",
     )
+    // B1's width budget, measured: at 26sp Archivo a 5-glyph value ("102.5") needs ~66dp
+    // and the weighted row's value box has ~52. The mockup never draws a decimal weight —
+    // its own geometry cannot fit one either — so values past [MAX_GLYPHS_AT_FULL_SIZE]
+    // glyphs step down one numeric rung (19sp bold, still TITLE-threshold at 3:1) instead
+    // of clipping. A clipped logged value is data loss on screen; the downstep is the
+    // interim answer and the width question is reported with the session-rebuild PR.
+    val valueStyle = if (value.length > MAX_GLYPHS_AT_FULL_SIZE) {
+        AppUi.typography.numeric.section
+    } else {
+        AppUi.typography.dataValue
+    }
     val shape = RoundedCornerShape(AppDimension.Radius.small)
     Row(
         modifier = modifier
@@ -115,7 +126,7 @@ fun AppNumberInput(
                 onValueChange = onValueChange,
                 enabled = enabled,
                 singleLine = true,
-                textStyle = AppUi.typography.dataValue.copy(color = valueColor),
+                textStyle = valueStyle.copy(color = valueColor),
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
                 cursorBrush = SolidColor(AppUi.colors.accent),
             )
@@ -146,6 +157,9 @@ fun AppNumberInput(
         }
     }
 }
+
+/** "100" keeps the full 26sp; "102.5" and longer step down. */
+private const val MAX_GLYPHS_AT_FULL_SIZE = 3
 
 @Preview(name = "Light", showBackground = true)
 @Preview(

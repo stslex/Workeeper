@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="core_ui_kit_action_cancel">Cancel</string>
     <string name="core_ui_kit_action_save">Save</string>
     <string name="core_ui_kit_action_back">Back</string>
@@ -12,8 +12,8 @@
     <string name="core_ui_kit_plan_editor_title_default">Plan</string>
     <string name="core_ui_kit_plan_editor_subtitle">Sets pre-fill in Live workout. Tracked sets update this plan.</string>
     <string name="core_ui_kit_plan_editor_unit_kg">kg</string>
-    <string name="core_ui_kit_plan_editor_unit_reps">reps</string>
-    <string name="core_ui_kit_plan_editor_unit_reps_full">reps</string>
+    <string name="core_ui_kit_plan_editor_unit_reps" tools:ignore="DuplicateStrings">reps</string>
+    <string name="core_ui_kit_plan_editor_unit_reps_full" tools:ignore="DuplicateStrings">reps</string>
     <string name="core_ui_kit_plan_editor_add_set">+ Add set</string>
     <string name="core_ui_kit_plan_editor_remove_set">Remove set</string>
     <string name="core_ui_kit_plan_editor_set_type_warmup">Warmup</string>

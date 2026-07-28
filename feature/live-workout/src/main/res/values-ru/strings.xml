@@ -77,7 +77,6 @@
     <string name="feature_live_workout_picker_no_match_format">Нет упражнений по запросу «%1$s»</string>
     <string name="feature_live_workout_picker_create_format">Создать «%1$s»</string>
     <string name="feature_live_workout_add_exercise_cta">Добавить упражнение</string>
-    <string name="feature_live_workout_add_another_exercise_cta">+ Добавить еще упражнение</string>
 
     <string name="feature_live_workout_empty_finish_title">Удалить пустую тренировку?</string>
     <string name="feature_live_workout_empty_finish_body">В этой тренировке нет ни одного выполненного подхода. Похоже, она ещё не начата.</string>

@@ -25,6 +25,34 @@ internal class AppButtonGoldenTest {
     fun primaryButton(theme: GoldenTheme, testInfo: TestInfo) {
         golden(testInfo, theme) { PrimaryButtons() }
     }
+
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun ghostAndDangerButtons(theme: GoldenTheme, testInfo: TestInfo) {
+        // The v3 sheet pair (extraction §1.8): `.btn.ghost` = field fill / body text,
+        // `.btn.danger` = text-only rust at 500. Recorded together — they are drawn as a
+        // stack in `sh-del` and read as a pair.
+        golden(testInfo, theme) { GhostAndDangerButtons() }
+    }
+}
+
+@androidx.compose.runtime.Composable
+private fun GhostAndDangerButtons() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        AppButton.Ghost(
+            text = "Оставить",
+            onClick = {},
+        )
+        AppButton.DangerText(
+            text = "Удалить из плана",
+            onClick = {},
+        )
+    }
 }
 
 @androidx.compose.runtime.Composable
