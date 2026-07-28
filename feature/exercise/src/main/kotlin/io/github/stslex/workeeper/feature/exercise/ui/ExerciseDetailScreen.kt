@@ -13,25 +13,32 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.card.AppCard
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordHero
-import io.github.stslex.workeeper.core.ui.kit.components.setchip.AppSetTypeChip
+import io.github.stslex.workeeper.core.ui.kit.components.section.AppSectionHeader
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTag
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
@@ -120,13 +127,11 @@ private fun Body(
                 // Content scrolls out UNDER the dock; the clearance keeps the last block
                 // reachable above it.
                 .padding(bottom = DOCK_CLEARANCE),
-            verticalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
         ) {
-            Spacer(Modifier.height(AppDimension.Space.sm))
             // E3: hero only when a custom image is present (in code, not drawn in the
             // mockup — kept as shipped, see the PR delta table).
             if (state.effectiveImageDisplay !is ImageDisplay.None) {
-                InGutter {
+                InGutter(top = AppDimension.Space.sm) {
                     ExerciseHero(
                         type = state.type,
                         imageDisplay = state.effectiveImageDisplay,
@@ -136,7 +141,7 @@ private fun Body(
             }
             // §3.2 tag row: the type pill first, then the muscle-group tags — display only
             // (`cursor:default` in the mockup; the `.on` variant belongs to the chart).
-            InGutter {
+            InGutter(top = AppDimension.Space.sm) {
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
@@ -147,7 +152,7 @@ private fun Body(
                 }
             }
             if (state.description.isNotBlank()) {
-                InGutter {
+                InGutter(top = AppDimension.Space.md) {
                     AppCard {
                         Text(
                             text = state.description,
@@ -157,11 +162,12 @@ private fun Body(
                     }
                 }
             }
-            // §3.1 frame order: the record block sits above the default plan. The whole
+            // §3.1 frame order: the record block sits above the default plan (`.prhero`'s
+            // 6px top margin lands on the tag row's 16px bottom — the lg rung). The whole
             // hero is the chart entry point; the PR explainer moved to the history row's
             // record tag (the past-session pattern).
             state.personalRecord?.let { pr ->
-                InGutter {
+                InGutter(top = AppDimension.Space.lg) {
                     PersonalRecordHero(
                         modifier = Modifier.testTag("ExerciseDetailRecordHero"),
                         weightLabel = pr.weightLabel,
@@ -173,12 +179,10 @@ private fun Body(
             }
             if (state.planSummaryVisible) {
                 state.adhocPlan?.let { plan ->
-                    InGutter {
-                        DefaultPlanCard(
-                            plan = plan,
-                            isWeighted = state.type == ExerciseTypeUiModel.WEIGHTED,
-                        )
-                    }
+                    DefaultPlanSection(
+                        plan = plan,
+                        isWeighted = state.type == ExerciseTypeUiModel.WEIGHTED,
+                    )
                 }
             }
             HistorySection(state = state, consume = consume)
@@ -194,112 +198,142 @@ private fun Body(
 
 /** Blocks carry the gutter individually so full-bleed sections can opt out. */
 @Composable
-private fun InGutter(content: @Composable () -> Unit) {
-    Box(modifier = Modifier.padding(horizontal = AppDimension.screenEdge)) {
+private fun InGutter(
+    top: Dp = AppDimension.Space.none,
+    content: @Composable () -> Unit,
+) {
+    Box(
+        modifier = Modifier.padding(
+            start = AppDimension.screenEdge,
+            end = AppDimension.screenEdge,
+            top = top,
+        ),
+    ) {
         content()
     }
 }
 
+/**
+ * §3.4 — `.section-head` (single label, 32dp above / 12dp below) over `.plancard`:
+ * ruled `.planline`s of `.ord` + `.val`, `{w}×{r}` in mono at Medium with the `×` dimmed.
+ * The mockup draws no set-type chip and no units on these lines — the plan editor still
+ * shows both.
+ */
 @Composable
-private fun DefaultPlanCard(
+private fun DefaultPlanSection(
     plan: ImmutableList<PlanSetUiModel>,
     isWeighted: Boolean,
 ) {
-    AppCard {
-        Column(
-            modifier = Modifier.testTag("ExerciseDetailDefaultPlanCard"),
-            verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xs),
-        ) {
-            Text(
-                text = stringResource(R.string.feature_exercise_detail_default_plan),
-                style = AppUi.typography.labelSmall,
-                color = AppUi.colors.textTertiary,
+    Column {
+        AppSectionHeader(
+            modifier = Modifier.padding(
+                top = AppDimension.Space.xxl,
+                bottom = AppDimension.Space.md,
+            ),
+            label = stringResource(R.string.feature_exercise_detail_default_plan),
+        )
+        InGutter { PlanCard(plan = plan, isWeighted = isWeighted) }
+    }
+}
+
+@Composable
+private fun PlanCard(
+    plan: ImmutableList<PlanSetUiModel>,
+    isWeighted: Boolean,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(AppDimension.Radius.medium))
+            .background(AppUi.colors.surfaceTier1)
+            .padding(
+                horizontal = AppDimension.screenEdge,
+                vertical = AppDimension.Space.sm,
             )
-            // Spec E4 grid: idx | weight | reps | type-chip with tabular-nums so the
-            // numeric columns align across rows. Weight column collapses for weightless
-            // exercises (no fallback "—" cell — matches LiveSetRow's conditional column).
-            plan.forEachIndexed { index, set ->
-                DefaultPlanRow(
-                    index = index,
-                    set = set,
-                    isWeighted = isWeighted,
+            .testTag("ExerciseDetailDefaultPlanCard"),
+    ) {
+        plan.forEachIndexed { index, set ->
+            if (index > 0) {
+                HorizontalDivider(
+                    thickness = AppDimension.Border.small,
+                    color = AppUi.colors.borderSubtle,
                 )
             }
+            PlanLine(index = index, set = set, isWeighted = isWeighted)
         }
     }
 }
 
 @Composable
-private fun DefaultPlanRow(
+private fun PlanLine(
     index: Int,
     set: PlanSetUiModel,
     isWeighted: Boolean,
 ) {
-    val numberStyle = AppUi.typography.bodyMedium.copy(
-        color = AppUi.colors.textPrimary,
-        fontFeatureSettings = "tnum",
-    )
-    val indexStyle = AppUi.typography.bodyMedium.copy(
-        color = AppUi.colors.textTertiary,
-        fontFeatureSettings = "tnum",
-    )
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(vertical = AppDimension.Space.md)
             .testTag("ExerciseDetailDefaultPlanRow_$index"),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            modifier = Modifier
-                .width(INDEX_COLUMN_WIDTH)
-                .align(Alignment.CenterVertically),
-            text = "${index + 1}.",
-            style = indexStyle,
-            textAlign = TextAlign.Start,
+            modifier = Modifier.widthIn(min = ORD_WIDTH),
+            text = "${index + 1}",
+            style = AppUi.typography.mono.meta,
+            color = AppUi.colors.textDim,
+            maxLines = 1,
         )
-        Spacer(Modifier.size(width = COLUMN_GAP_NUMERIC, height = ROW_HEIGHT))
-        if (isWeighted) {
-            Text(
-                modifier = Modifier.weight(1f),
-                text = formatWeightCell(set.weight),
-                style = numberStyle,
-            )
-            Spacer(Modifier.size(width = COLUMN_GAP_NUMERIC, height = ROW_HEIGHT))
-        }
-        Text(
-            modifier = Modifier.weight(1f),
-            text = formatRepsCell(set.reps),
-            style = numberStyle,
-        )
-        Spacer(Modifier.size(width = COLUMN_GAP_TO_CHIP, height = ROW_HEIGHT))
-        AppSetTypeChip(type = set.type.toUiKitType())
+        Spacer(Modifier.weight(1f))
+        PlanValue(set = set, isWeighted = isWeighted)
     }
 }
 
+/** `.val` — mono 15 at Medium, `textSecondary`; the `×` separator stays `textDim`. */
 @Composable
-private fun formatWeightCell(weight: Double?): String {
-    val unit =
-        stringResource(io.github.stslex.workeeper.core.ui.kit.R.string.core_ui_kit_plan_editor_unit_kg)
+private fun PlanValue(
+    set: PlanSetUiModel,
+    isWeighted: Boolean,
+) {
+    val valueStyle = AppUi.typography.mono.body.copy(fontWeight = FontWeight.Medium)
+    if (isWeighted) {
+        Text(
+            text = buildAnnotatedString {
+                append(formatPlanWeight(set.weight))
+                withStyle(SpanStyle(color = AppUi.colors.textDim)) { append(MULTIPLY_SIGN) }
+                append("${set.reps}")
+            },
+            style = valueStyle,
+            color = AppUi.colors.textSecondary,
+            maxLines = 1,
+        )
+    } else {
+        val unit = stringResource(
+            io.github.stslex.workeeper.core.ui.kit.R.string.core_ui_kit_plan_editor_unit_reps,
+        )
+        Text(
+            text = "${set.reps} $unit",
+            style = valueStyle,
+            color = AppUi.colors.textSecondary,
+            maxLines = 1,
+        )
+    }
+}
+
+private fun formatPlanWeight(weight: Double?): String {
     if (weight == null) return ""
-    val formatted = if (weight % 1.0 == 0.0) {
+    return if (weight % 1.0 == 0.0) {
         weight.toLong().toString()
     } else {
         weight.toString().trimEnd('0').trimEnd('.')
     }
-    return "$formatted $unit"
 }
 
-@Composable
-private fun formatRepsCell(reps: Int): String {
-    val unit =
-        stringResource(io.github.stslex.workeeper.core.ui.kit.R.string.core_ui_kit_plan_editor_unit_reps)
-    return "$reps $unit"
-}
+/** `.ord` width 16px → 16dp, as a minimum so a two-digit ordinal cannot wrap. */
+private val ORD_WIDTH = 16.dp
 
-private val INDEX_COLUMN_WIDTH = 24.dp
-private val ROW_HEIGHT = 28.dp
-private val COLUMN_GAP_NUMERIC = 14.dp
-private val COLUMN_GAP_TO_CHIP = 28.dp
+/** `U+00D7` — the `.val .x` separator (mono carries the glyph; no Archivo here). */
+private const val MULTIPLY_SIGN = "×"
 
 @Composable
 private fun HistorySection(
