@@ -12,15 +12,21 @@ import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStor
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutScope
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
 import io.github.stslex.workeeper.feature.live_workout.domain.model.PlanSetDomain
+import io.github.stslex.workeeper.feature.live_workout.mvi.handler.PendingUndoOps.flushPendingUndo
+import io.github.stslex.workeeper.feature.live_workout.mvi.handler.PendingUndoOps.pushUndo
+import io.github.stslex.workeeper.feature.live_workout.mvi.handler.PendingUndoOps.undoPending
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveSetMutator
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toDomain
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toFinishStats
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toPlanSetDomain
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ErrorType
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.BottomSheetState
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Event
+import io.github.stslex.workeeper.feature.live_workout.mvi.store.PendingUndo
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableSet
 
 @Suppress("TooManyFunctions", "LongMethod", "LargeClass")
@@ -54,6 +60,14 @@ internal class ClickHandler @Inject constructor(
             is Action.Click.OnTrainingNameSubmit -> processTrainingNameSubmit(action)
             Action.Click.OnTrainingNameDismiss -> processTrainingNameDismiss()
             Action.Click.OnAddExerciseClick -> processAddExerciseClick()
+            Action.Click.OnSessionMenuClick -> processSessionMenuClick()
+            is Action.Click.OnExerciseMenuClick -> processExerciseMenuClick(action)
+            is Action.Click.OnShowDescription -> processShowDescription(action)
+            is Action.Click.OnToggleOneOff -> processToggleOneOff(action)
+            is Action.Click.OnDeleteExerciseClick -> processDeleteExerciseClick(action)
+            Action.Click.OnSheetDismiss -> processSheetDismiss()
+            Action.Click.OnUndoClick -> processUndoClick()
+            is Action.Click.OnUndoTimeout -> processUndoTimeout(action)
         }
     }
 
@@ -84,6 +98,9 @@ internal class ClickHandler @Inject constructor(
             processTrainingNameSubmit(Action.Click.OnTrainingNameSubmit(current.trainingNameDraft))
             return
         }
+        // Leaving the screen closes the undo window — the deferred §6.1 delete commits now
+        // rather than dying with the Store.
+        flushPendingUndo(interactor)
         consume(Action.Navigation.Back)
     }
 
@@ -267,7 +284,19 @@ internal class ClickHandler @Inject constructor(
 
     private fun processAddSet(action: Action.Click.OnAddSet) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        val prior = state.value
+        setMutator.findExercise(prior, action.performedExerciseUuid) ?: return
         updateState { latest -> setMutator.applyAddSet(latest, action.performedExerciseUuid) }
+        pushUndo(
+            interactor,
+            PendingUndo(
+                id = PendingUndoOps.nextUndoId(),
+                message = resourceWrapper.getString(R.string.feature_live_workout_toast_set_added),
+                restoreExercises = prior.exercises,
+                restoreDrafts = prior.setDrafts,
+                restoreOverrides = prior.rowCountOverrides,
+            ),
+        )
     }
 
     /**
@@ -277,13 +306,37 @@ internal class ClickHandler @Inject constructor(
      */
     private fun processRemoveLastSet(action: Action.Click.OnRemoveLastSet) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        val prior = state.value
+        val exercise = setMutator.findExercise(prior, action.performedExerciseUuid) ?: return
+        if (exercise.visibleSets.size <= 1) return
+        val removedRow = exercise.visibleSets.last()
         var removedPerformedPosition: Int? = null
         updateState { latest ->
             val result = setMutator.applyRemoveLastSet(latest, action.performedExerciseUuid)
             removedPerformedPosition = result.removedPerformedPosition
             result.state
         }
-        val position = removedPerformedPosition ?: return
+        val position = removedPerformedPosition
+        pushUndo(
+            interactor,
+            PendingUndo(
+                id = PendingUndoOps.nextUndoId(),
+                message = resourceWrapper.getString(R.string.feature_live_workout_toast_set_removed),
+                restoreExercises = prior.exercises,
+                restoreDrafts = prior.setDrafts,
+                restoreOverrides = prior.rowCountOverrides,
+                undoCompensation = position?.let {
+                    PendingUndo.UndoCompensation.ReupsertSet(
+                        performedExerciseUuid = action.performedExerciseUuid,
+                        position = it,
+                        weight = removedRow.weight,
+                        reps = removedRow.reps,
+                        type = removedRow.type,
+                    )
+                },
+            ),
+        )
+        if (position == null) return
         launch(
             onError = { _ -> sendError(ErrorType.SetDeleteFailed) },
         ) {
@@ -293,6 +346,8 @@ internal class ClickHandler @Inject constructor(
 
     private fun processEditPlan(action: Action.Click.OnEditPlan) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        flushPendingUndo(interactor)
+        updateState { it.copy(bottomSheetState = BottomSheetState.Hidden) }
         val current = state.value
         val exercise = setMutator.findExercise(current, action.performedExerciseUuid) ?: return
         // Plan editor moved to a dedicated full-screen route in v2.4 (D1). The
@@ -342,8 +397,105 @@ internal class ClickHandler @Inject constructor(
         }
     }
 
+    private fun processSessionMenuClick() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updateState { it.copy(bottomSheetState = BottomSheetState.SessionMenu) }
+    }
+
+    private fun processExerciseMenuClick(action: Action.Click.OnExerciseMenuClick) {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updateState {
+            it.copy(bottomSheetState = BottomSheetState.ExerciseMenu(action.performedExerciseUuid))
+        }
+    }
+
+    private fun processShowDescription(action: Action.Click.OnShowDescription) {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updateState {
+            it.copy(
+                bottomSheetState = BottomSheetState.ExerciseDescription(action.performedExerciseUuid),
+            )
+        }
+    }
+
+    /**
+     * `Только на сегодня` (extraction §1.9): flips plan attachment live behind the open
+     * sheet — no snapshot, no toast, exactly the mockup's `toggleOnce`. Non-ad-hoc sessions
+     * only; the sheet never offers the row otherwise.
+     */
+    private fun processToggleOneOff(action: Action.Click.OnToggleOneOff) {
+        sendEvent(Event.HapticClick(HapticFeedbackType.SegmentTick))
+        val current = state.value
+        val trainingUuid = current.trainingUuid ?: return
+        if (current.isAdhoc) return
+        val exercise = setMutator.findExercise(current, action.performedExerciseUuid) ?: return
+        val nextAttached = !exercise.isPlanAttached
+        updateState { latest ->
+            latest.copy(
+                exercises = latest.exercises.map { row ->
+                    if (row.performedExerciseUuid == action.performedExerciseUuid) {
+                        row.copy(isPlanAttached = nextAttached)
+                    } else {
+                        row
+                    }
+                }.toImmutableList(),
+            )
+        }
+        launch(
+            onError = { _ ->
+                sendError(ErrorType.PlanSaveFailed)
+                updateState { latest ->
+                    latest.copy(
+                        exercises = latest.exercises.map { row ->
+                            if (row.performedExerciseUuid == action.performedExerciseUuid) {
+                                row.copy(isPlanAttached = !nextAttached)
+                            } else {
+                                row
+                            }
+                        }.toImmutableList(),
+                    )
+                }
+            },
+        ) {
+            interactor.setPlanAttachment(
+                trainingUuid = trainingUuid,
+                exerciseUuid = exercise.exerciseUuid,
+                attached = nextAttached,
+                planSets = exercise.planSets.map { it.toPlanSetDomain() },
+            )
+        }
+    }
+
+    private fun processDeleteExerciseClick(action: Action.Click.OnDeleteExerciseClick) {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        updateState {
+            it.copy(
+                bottomSheetState = BottomSheetState.DeleteExerciseConfirm(action.performedExerciseUuid),
+            )
+        }
+    }
+
+    private fun processSheetDismiss() {
+        updateState { it.copy(bottomSheetState = BottomSheetState.Hidden) }
+    }
+
+    private fun processUndoClick() {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        undoPending(
+            interactor = interactor,
+            setMutator = setMutator,
+            onError = { _ -> sendError(ErrorType.SetSaveFailed) },
+        )
+    }
+
+    private fun processUndoTimeout(action: Action.Click.OnUndoTimeout) {
+        if (state.value.pendingUndo?.id != action.id) return
+        flushPendingUndo(interactor)
+    }
+
     private fun processFinishClick() {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        flushPendingUndo(interactor)
         val current = state.value
         if (current.isSessionEmpty) {
             // E1 lock — empty-finish branches into a confirm dialog. Discard CTA is enabled

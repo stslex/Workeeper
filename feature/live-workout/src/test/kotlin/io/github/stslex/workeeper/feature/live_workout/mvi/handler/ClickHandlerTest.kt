@@ -299,6 +299,93 @@ internal class ClickHandlerTest {
     }
 
     @Test
+    fun `OnToggleOneOff detaches an attached exercise and persists the flip`() = runTest {
+        val store = FakeLiveWorkoutHandlerStore(baseState(loggedExercise()))
+        val handler = ClickHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            pickerHandler = pickerHandler,
+            setMutator = setMutator,
+            store = store,
+        )
+
+        handler.invoke(Action.Click.OnToggleOneOff("pe-1"))
+        store.runLatestLaunch(this)
+
+        assertEquals(false, store.state.value.exercises.first().isPlanAttached)
+        coVerify(exactly = 1) {
+            interactor.setPlanAttachment("training-1", "ex-1", attached = false, planSets = any())
+        }
+    }
+
+    @Test
+    fun `undo of a deleted exercise restores it without any DB delete`() = runTest {
+        val store = FakeLiveWorkoutHandlerStore(baseState(loggedExercise()))
+        val dialogHandler = DialogClickHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            pickerHandler = pickerHandler,
+            setMutator = setMutator,
+            store = store,
+        )
+        val clickHandler = ClickHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            pickerHandler = pickerHandler,
+            setMutator = setMutator,
+            store = store,
+        )
+
+        dialogHandler.invoke(Action.DialogClick.OnDeleteExerciseConfirm("pe-1"))
+        // Soft removal: gone from State, pending undo armed, DB untouched (deferred).
+        assertTrue(store.state.value.exercises.isEmpty())
+        assertTrue(store.state.value.pendingUndo != null)
+        coVerify(exactly = 0) {
+            interactor.deleteExerciseFromSession(any(), any(), any(), any())
+        }
+
+        clickHandler.invoke(Action.Click.OnUndoClick)
+
+        assertEquals(1, store.state.value.exercises.size)
+        assertEquals(null, store.state.value.pendingUndo)
+        coVerify(exactly = 0) {
+            interactor.deleteExerciseFromSession(any(), any(), any(), any())
+        }
+    }
+
+    @Test
+    fun `undo timeout commits the deferred exercise delete`() = runTest {
+        val store = FakeLiveWorkoutHandlerStore(baseState(loggedExercise()))
+        val dialogHandler = DialogClickHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            pickerHandler = pickerHandler,
+            setMutator = setMutator,
+            store = store,
+        )
+        val clickHandler = ClickHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            pickerHandler = pickerHandler,
+            setMutator = setMutator,
+            store = store,
+        )
+
+        dialogHandler.invoke(Action.DialogClick.OnDeleteExerciseConfirm("pe-1"))
+        val undoId = store.state.value.pendingUndo?.id
+        assertTrue(undoId != null)
+
+        clickHandler.invoke(Action.Click.OnUndoTimeout(undoId ?: return@runTest))
+        store.runLatestLaunch(this)
+
+        assertEquals(null, store.state.value.pendingUndo)
+        assertTrue(store.state.value.exercises.isEmpty())
+        coVerify(exactly = 1) {
+            interactor.deleteExerciseFromSession("pe-1", "ex-1", "training-1", removeFromPlan = true)
+        }
+    }
+
+    @Test
     fun onTrainingNameSubmit_persistsViaRepository() = runTest {
         val store = FakeLiveWorkoutHandlerStore(
             baseState(doneExercise(status = ExerciseStatusUiModel.CURRENT)).copy(

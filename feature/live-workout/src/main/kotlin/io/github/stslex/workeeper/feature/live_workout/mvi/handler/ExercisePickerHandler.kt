@@ -15,6 +15,7 @@ import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutScope
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
 import io.github.stslex.workeeper.feature.live_workout.domain.model.ExercisePickerEntry
 import io.github.stslex.workeeper.feature.live_workout.domain.model.PersonalRecordDomain
+import io.github.stslex.workeeper.feature.live_workout.mvi.handler.PendingUndoOps.pushUndo
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toUi
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.StateStatusMapper
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ErrorType
@@ -23,6 +24,7 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiM
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.BottomSheetState
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Event
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
+import io.github.stslex.workeeper.feature.live_workout.mvi.store.PendingUndo
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableMap
 import kotlinx.collections.immutable.persistentListOf
@@ -170,6 +172,7 @@ internal class ExercisePickerHandler @Inject constructor(
         if (!inFlightAlreadySet) {
             updateState { it.copy(isAddExerciseInFlight = true) }
         }
+        val prior = current
         launch(
             onError = { _ ->
                 updateState {
@@ -220,6 +223,11 @@ internal class ExercisePickerHandler @Inject constructor(
                     exercises = nextExercises,
                     activeExerciseUuids = activeNext,
                     expandedExerciseUuids = expandedNext,
+                    // §6.1: the one-off toggle appears only on mid-session additions —
+                    // this set is that gate.
+                    midSessionAddedUuids = (
+                        latest.midSessionAddedUuids + addResult.performedExerciseUuid
+                        ).toImmutableSet(),
                     isAddExerciseInFlight = false,
                     bottomSheetState = BottomSheetState.Hidden,
                     preSessionPrSnapshot = latest.preSessionPrSnapshot.mergePr(
@@ -231,6 +239,25 @@ internal class ExercisePickerHandler @Inject constructor(
                     statusMapper.recomputeStatuses(it)
                 }
             }
+            // «{name}» добавлено — undo removes the rows the add just wrote.
+            pushUndo(
+                interactor,
+                PendingUndo(
+                    id = PendingUndoOps.nextUndoId(),
+                    message = resourceWrapper.getString(
+                        R.string.feature_live_workout_toast_exercise_added,
+                        picked.name.truncateForToast(),
+                    ),
+                    restoreExercises = prior.exercises,
+                    restoreDrafts = prior.setDrafts,
+                    restoreOverrides = prior.rowCountOverrides,
+                    undoCompensation = PendingUndo.UndoCompensation.RemoveAddedExercise(
+                        performedExerciseUuid = addResult.performedExerciseUuid,
+                        exerciseUuid = picked.exerciseUuid,
+                        removeFromPlan = addResult.isPlanAttached,
+                    ),
+                ),
+            )
             sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         }
     }

@@ -59,6 +59,18 @@ interface LiveWorkoutStore :
          */
         val rowCountOverrides: ImmutableMap<String, Int> = persistentMapOf(),
         /**
+         * Exercises added DURING this session (picker adds, both library and inline). Gates
+         * the `sh-ex` one-off switch (§6.1: "the toggle appears only on mid-session
+         * additions") and picks `sh-del`'s adhoc body. Ephemeral by design — a process
+         * restore loses it, and a loaded one-off keeps its toggle via `!isPlanAttached`.
+         */
+        val midSessionAddedUuids: ImmutableSet<String> = persistentSetOf(),
+        /**
+         * The single-level undo window driving the toast (extraction §1.9). Null = no toast.
+         * See [PendingUndo] for the replace/commit semantics.
+         */
+        val pendingUndo: PendingUndo? = null,
+        /**
          * UUIDs the user has explicitly tapped to start (or kept active across recompute).
          * When non-empty, the auto-default first-CURRENT behavior is suppressed; only
          * exercises in this set become CURRENT (alongside SKIPPED/DONE derivation).
@@ -233,11 +245,42 @@ interface LiveWorkoutStore :
 
             // v2.3 — mid-session add exercise (opens the picker sheet).
             data object OnAddExerciseClick : Click
+
+            // v3 sheets (extraction §1.9).
+            /** Topbar `⋮` → `sh-session`. */
+            data object OnSessionMenuClick : Click
+
+            /** Card `.mini.menu` → `sh-ex`. */
+            data class OnExerciseMenuClick(val performedExerciseUuid: String) : Click
+
+            /** Card `.mini.info` → `sh-desc`; only offered when a description exists. */
+            data class OnShowDescription(val performedExerciseUuid: String) : Click
+
+            /** `sh-ex`'s `Только на сегодня` switch — flips plan attachment (§6.2). */
+            data class OnToggleOneOff(val performedExerciseUuid: String) : Click
+
+            /** `sh-ex`'s delete item → `sh-del`. */
+            data class OnDeleteExerciseClick(val performedExerciseUuid: String) : Click
+
+            /** Scrim tap / system dismiss for the v3 sheets. */
+            data object OnSheetDismiss : Click
+
+            /** The toast's `Отменить`. */
+            data object OnUndoClick : Click
+
+            /** The toast's 5s window elapsed; commits [PendingUndo.deferredCommit]. */
+            data class OnUndoTimeout(val id: Long) : Click
         }
 
         sealed interface DialogClick : Action {
 
             data object OnDeleteSessionConfirm : DialogClick
+
+            /** `sh-del`'s `Удалить из плана` — commits the §6.1 deletion (undoable, 5s). */
+            data class OnDeleteExerciseConfirm(val performedExerciseUuid: String) : DialogClick
+
+            /** `sh-del`'s `Оставить` — closes the sheet, nothing changes. */
+            data object OnDeleteExerciseKeep : DialogClick
             data object OnDeleteSessionDismiss : DialogClick
             data object OnEmptyFinishDiscard : DialogClick
             data object OnEmptyFinishContinue : DialogClick

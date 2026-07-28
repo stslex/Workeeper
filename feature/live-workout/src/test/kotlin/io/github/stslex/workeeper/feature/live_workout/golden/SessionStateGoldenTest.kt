@@ -215,7 +215,7 @@ private fun SetRow(set: LiveSetUiModel) {
 
 @androidx.compose.runtime.Composable
 private fun Card(exercise: LiveExerciseUiModel, expanded: Boolean) {
-    LiveExerciseCard(exercise = exercise, expanded = expanded, consume = {})
+    LiveExerciseCard(exercise = exercise, ordinal = 1, expanded = expanded, consume = {})
 }
 
 private fun set(

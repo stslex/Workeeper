@@ -19,15 +19,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,6 +38,8 @@ import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.DiscardSessionConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.empty.AppEmptyState
 import io.github.stslex.workeeper.core.ui.kit.components.rail.AppProgressRail
+import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppBottomSheet
+import io.github.stslex.workeeper.core.ui.kit.components.toast.AppToast
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
@@ -63,11 +60,16 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.store.BottomSheetStat
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.Action
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore.State
+import io.github.stslex.workeeper.feature.live_workout.ui.components.DeleteExerciseSheetContent
+import io.github.stslex.workeeper.feature.live_workout.ui.components.ExerciseDescriptionSheetContent
+import io.github.stslex.workeeper.feature.live_workout.ui.components.ExerciseMenuSheetContent
 import io.github.stslex.workeeper.feature.live_workout.ui.components.FinishConfirmDialog
 import io.github.stslex.workeeper.feature.live_workout.ui.components.LiveExerciseCard
 import io.github.stslex.workeeper.feature.live_workout.ui.components.LiveWorkoutHeader
+import io.github.stslex.workeeper.feature.live_workout.ui.components.SessionMenuSheetContent
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
+import kotlinx.coroutines.delay
 
 /**
  * §8's 22px gap above the rail. There is no 22dp rung on the `AppDimension` ladder and §0.1's
@@ -108,6 +110,53 @@ internal fun LiveWorkoutScreen(
             isPrimaryActionEnabled = state.canAddExercise,
             onAction = { action -> consume(Action.DialogClick.PickerAction(action)) },
         )
+
+        BottomSheetState.SessionMenu -> AppBottomSheet(
+            onDismiss = { consume(Action.Click.OnSheetDismiss) },
+        ) {
+            SessionMenuSheetContent(consume = consume)
+        }
+
+        is BottomSheetState.ExerciseMenu -> state.exerciseFor(sheetState.performedExerciseUuid)
+            ?.let { exercise ->
+                AppBottomSheet(
+                    onDismiss = { consume(Action.Click.OnSheetDismiss) },
+                ) {
+                    ExerciseMenuSheetContent(
+                        exercise = exercise,
+                        // §6.1: the toggle appears only on mid-session additions, and never
+                        // in an ad-hoc session (there is no plan to be excluded from). A
+                        // restored one-off keeps its row via !isPlanAttached.
+                        showOneOffRow = !state.isAdhoc && (
+                            exercise.performedExerciseUuid in state.midSessionAddedUuids ||
+                                !exercise.isPlanAttached
+                            ),
+                        consume = consume,
+                    )
+                }
+            }
+
+        is BottomSheetState.DeleteExerciseConfirm ->
+            state.exerciseFor(sheetState.performedExerciseUuid)?.let { exercise ->
+                AppBottomSheet(
+                    onDismiss = { consume(Action.Click.OnSheetDismiss) },
+                ) {
+                    DeleteExerciseSheetContent(
+                        exercise = exercise,
+                        isMidSessionAdded = exercise.performedExerciseUuid in state.midSessionAddedUuids,
+                        consume = consume,
+                    )
+                }
+            }
+
+        is BottomSheetState.ExerciseDescription ->
+            state.exerciseFor(sheetState.performedExerciseUuid)?.let { exercise ->
+                AppBottomSheet(
+                    onDismiss = { consume(Action.Click.OnSheetDismiss) },
+                ) {
+                    ExerciseDescriptionSheetContent(exercise = exercise, consume = consume)
+                }
+            }
 
         BottomSheetState.Hidden -> Unit
     }
@@ -179,15 +228,12 @@ internal fun LiveWorkoutScreen(
 
 /**
  * `.topbar` (extraction §1.2): back chevron leading, empty spacer, vertical three-dot
- * trailing. No title — §1.2 is explicit that the session top bar has none.
- *
- * The trailing dots still anchor the old overflow `DropdownMenu`; §1.2 routes them to the
- * `sh-session` sheet, which lands with the sheet region (C6). The *chrome* — glyphs, sizes,
- * hang, tints — is this commit's contract.
+ * trailing opening `sh-session`. No title — §1.2 is explicit that the session top bar has
+ * none. The old overflow's `Удалить сессию` item is not part of the drawn surface; its
+ * dialog and actions remain in code, reported with the PR.
  */
 @Composable
 internal fun TopBar(consume: (Action) -> Unit) {
-    var menuExpanded by remember { mutableStateOf(false) }
     AppTopBar(
         navigation = {
             AppIconButton(
@@ -197,37 +243,11 @@ internal fun TopBar(consume: (Action) -> Unit) {
             )
         },
         actions = {
-            Box {
-                AppIconButton(
-                    icon = AppIcons.MoreVertical,
-                    contentDescription = stringResource(R.string.feature_live_workout_more),
-                    onClick = { menuExpanded = true },
-                )
-                DropdownMenu(
-                    expanded = menuExpanded,
-                    onDismissRequest = { menuExpanded = false },
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.feature_live_workout_session_overflow_cancel)) },
-                        onClick = {
-                            menuExpanded = false
-                            consume(Action.Click.OnCancelSessionClick)
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                text = stringResource(R.string.feature_live_workout_delete_session),
-                                color = AppUi.colors.setType.failureForeground,
-                            )
-                        },
-                        onClick = {
-                            menuExpanded = false
-                            consume(Action.Click.OnDeleteSessionMenuClick)
-                        },
-                    )
-                }
-            }
+            AppIconButton(
+                icon = AppIcons.MoreVertical,
+                contentDescription = stringResource(R.string.feature_live_workout_more),
+                onClick = { consume(Action.Click.OnSessionMenuClick) },
+            )
         },
     )
 }
@@ -294,6 +314,7 @@ private fun Body(
                     val expanded = exercise.performedExerciseUuid in state.expandedExerciseUuids
                     LiveExerciseCard(
                         exercise = exercise,
+                        ordinal = index + 1,
                         expanded = expanded,
                         consume = consume,
                         modifier = Modifier.padding(
@@ -323,6 +344,28 @@ private fun Body(
             enabled = !state.isLoading,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
+        state.pendingUndo?.let { pending ->
+            // `.toast{bottom:118px}` — floated above the dock; auto-dismiss commits the
+            // deferred write after TOAST_TIMEOUT_MS, keyed on the undo id so a replacement
+            // toast restarts the window (mockup: clearTimeout + fresh 5000ms).
+            LaunchedEffect(pending.id) {
+                delay(TOAST_TIMEOUT_MS)
+                consume(Action.Click.OnUndoTimeout(pending.id))
+            }
+            AppToast(
+                message = pending.message,
+                actionLabel = stringResource(R.string.feature_live_workout_toast_undo),
+                onAction = { consume(Action.Click.OnUndoClick) },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(
+                        start = AppDimension.screenEdge,
+                        end = AppDimension.screenEdge,
+                        bottom = TOAST_BOTTOM_OFFSET,
+                    )
+                    .testTag("LiveWorkoutUndoToast"),
+            )
+        }
     }
 }
 
@@ -411,10 +454,19 @@ private const val DOCK_GRADIENT_STOP = 0.38f
 /** Clearance so the list's tail scrolls clear of the overlaid dock. */
 private val DOCK_CLEARANCE = 104.dp
 
+/** `.toast{bottom:118px}` → the ladder-nearest 120dp above the screen edge. */
+private val TOAST_BOTTOM_OFFSET = 120.dp
+
+/** The mockup's 5000ms auto-dismiss — spec §6.1's "5-second undo toast". */
+private const val TOAST_TIMEOUT_MS = 5_000L
+
 /** The `.addex` plus renders at 17dp (mockup 17×17, stroke 1.9). */
 private val ADDEX_GLYPH_SIZE = 17.dp
 
 private const val EMPTY_STATE_HEIGHT_FRACTION = 0.6f
+
+private fun State.exerciseFor(performedExerciseUuid: String): LiveExerciseUiModel? =
+    exercises.firstOrNull { it.performedExerciseUuid == performedExerciseUuid }
 
 @Composable
 private fun EmptyExercisesPlaceholder(

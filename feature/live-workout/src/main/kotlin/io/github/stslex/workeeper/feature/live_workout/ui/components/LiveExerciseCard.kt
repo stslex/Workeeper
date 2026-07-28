@@ -20,17 +20,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -86,6 +82,7 @@ private const val SKIPPED_ALPHA = 0.5f
 @Composable
 internal fun LiveExerciseCard(
     exercise: LiveExerciseUiModel,
+    ordinal: Int,
     expanded: Boolean,
     consume: (LiveWorkoutStore.Action) -> Unit,
     modifier: Modifier = Modifier,
@@ -117,6 +114,7 @@ internal fun LiveExerciseCard(
         ) {
             ExerciseCardHeader(
                 exercise = exercise,
+                ordinal = ordinal,
                 expanded = expanded,
                 consume = consume,
             )
@@ -139,6 +137,7 @@ internal fun LiveExerciseCard(
 @Composable
 private fun ExerciseCardHeader(
     exercise: LiveExerciseUiModel,
+    ordinal: Int,
     expanded: Boolean,
     consume: (LiveWorkoutStore.Action) -> Unit,
 ) {
@@ -155,8 +154,10 @@ private fun ExerciseCardHeader(
         verticalAlignment = Alignment.Top,
         horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
+        // Index-dense, not position-based: the mockup renumbers on splice (`ei+1`), so a
+        // deleted middle exercise never leaves a gap in the ordinals.
         AppOrdinalChip(
-            ordinal = exercise.position + 1,
+            ordinal = ordinal,
             isActive = expanded,
             isDone = isDone,
             isSkipped = isSkipped,
@@ -258,7 +259,6 @@ private fun HeaderActions(
     onToggle: () -> Unit,
     consume: (LiveWorkoutStore.Action) -> Unit,
 ) {
-    var menuExpanded by remember { mutableStateOf(false) }
     val chevronRotation by animateFloatAsState(
         targetValue = if (expanded) CHEVRON_OPEN_DEGREES else 0f,
         animationSpec = tween(durationMillis = AppUi.motion.base, easing = AppUi.motion.out),
@@ -268,40 +268,26 @@ private fun HeaderActions(
         modifier = Modifier.offset(x = ACTIONS_HANG, y = -ACTIONS_HANG),
         horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.xxs),
     ) {
-        // `.mini.info` renders here once descriptions reach the UI model — sheet region (C6).
-        Box {
+        if (exercise.description != null) {
             AppMiniIconButton(
-                icon = AppIcons.MoreVertical,
-                contentDescription = stringResource(R.string.feature_live_workout_more),
-                onClick = { menuExpanded = true },
+                icon = AppIcons.Info,
+                contentDescription = stringResource(R.string.feature_live_workout_description),
+                onClick = {
+                    consume(
+                        LiveWorkoutStore.Action.Click.OnShowDescription(exercise.performedExerciseUuid),
+                    )
+                },
             )
-            DropdownMenu(
-                expanded = menuExpanded,
-                onDismissRequest = { menuExpanded = false },
-            ) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.feature_live_workout_action_edit_plan)) },
-                    onClick = {
-                        menuExpanded = false
-                        consume(LiveWorkoutStore.Action.Click.OnEditPlan(exercise.performedExerciseUuid))
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.feature_live_workout_action_reset_sets)) },
-                    onClick = {
-                        menuExpanded = false
-                        consume(LiveWorkoutStore.Action.Click.OnResetSets(exercise.performedExerciseUuid))
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.feature_live_workout_action_skip)) },
-                    onClick = {
-                        menuExpanded = false
-                        consume(LiveWorkoutStore.Action.Click.OnSkipExercise(exercise.performedExerciseUuid))
-                    },
-                )
-            }
         }
+        AppMiniIconButton(
+            icon = AppIcons.MoreVertical,
+            contentDescription = stringResource(R.string.feature_live_workout_more),
+            onClick = {
+                consume(
+                    LiveWorkoutStore.Action.Click.OnExerciseMenuClick(exercise.performedExerciseUuid),
+                )
+            },
+        )
         AppMiniIconButton(
             icon = AppIcons.ChevronRight,
             contentDescription = stringResource(
@@ -592,6 +578,7 @@ private fun LiveExerciseCardCurrentLightPreview() {
     AppTheme(themeMode = ThemeMode.LIGHT) {
         LiveExerciseCard(
             exercise = previewCurrent(),
+            ordinal = 1,
             expanded = true,
             consume = {},
         )
@@ -604,6 +591,7 @@ private fun LiveExerciseCardCurrentDarkPreview() {
     AppTheme(themeMode = ThemeMode.DARK) {
         LiveExerciseCard(
             exercise = previewCurrent(),
+            ordinal = 1,
             expanded = true,
             consume = {},
         )
@@ -616,6 +604,7 @@ private fun LiveExerciseCardDonePreview() {
     AppTheme(themeMode = ThemeMode.DARK) {
         LiveExerciseCard(
             exercise = previewDone(),
+            ordinal = 1,
             expanded = false,
             consume = {},
         )
@@ -628,6 +617,7 @@ private fun LiveExerciseCardOneOffPreview() {
     AppTheme(themeMode = ThemeMode.DARK) {
         LiveExerciseCard(
             exercise = previewCurrent().copy(isPlanAttached = false),
+            ordinal = 1,
             expanded = false,
             consume = {},
         )
@@ -640,6 +630,7 @@ private fun LiveExerciseCardSkippedPreview() {
     AppTheme(themeMode = ThemeMode.DARK) {
         LiveExerciseCard(
             exercise = previewSkipped(),
+            ordinal = 1,
             expanded = false,
             consume = {},
         )
