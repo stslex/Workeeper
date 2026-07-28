@@ -17,6 +17,7 @@ import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSessionUiMo
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSetUiModel
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.State
 import io.github.stslex.workeeper.feature.past_session.ui.PastSessionScreen
+import io.github.stslex.workeeper.feature.past_session.ui.TopBar
 import io.github.stslex.workeeper.feature.past_session.ui.components.PastExerciseCard
 import io.github.stslex.workeeper.feature.past_session.ui.components.PastSessionHeader
 import io.github.stslex.workeeper.feature.past_session.ui.components.PastSetEditRow
@@ -71,13 +72,39 @@ internal class PastSessionGoldenTest {
         }
     }
 
+    // --- Topbar ----------------------------------------------------------------------------
+
+    /** `.topbar` (§2.2): back chevron · `h1.sm` title · ⋮ overflow — no delete glyph. */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun topbar(theme: GoldenTheme, testInfo: TestInfo) {
+        goldenSubject(testInfo, theme) {
+            TopBar(state = loadedState(), consume = {})
+        }
+    }
+
     // --- Header ----------------------------------------------------------------------------
 
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun header(theme: GoldenTheme, testInfo: TestInfo) {
         goldenSubject(testInfo, theme) {
-            PastSessionHeader(detail = detail())
+            InGutter { PastSessionHeader(detail = detail()) }
+        }
+    }
+
+    /**
+     * Pair partner of [header] (§10.2's difference assertion): a session that lifted nothing
+     * drops the third term rather than printing "· 0 kg". Without this, the tonnage golden
+     * could not tell a computed figure from an always-printed one.
+     */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun headerWithoutTonnage(theme: GoldenTheme, testInfo: TestInfo) {
+        goldenSubject(testInfo, theme) {
+            InGutter {
+                PastSessionHeader(detail = detail(totals = "5 exercises · 14 sets"))
+            }
         }
     }
 
@@ -224,6 +251,14 @@ private fun InCard(content: @Composable () -> Unit) {
     }
 }
 
+/** The header sits under the screen gutter (`padding: 0 var(--gutter)` — §2.1). */
+@Composable
+private fun InGutter(content: @Composable () -> Unit) {
+    Box(modifier = Modifier.padding(horizontal = AppDimension.screenEdge)) {
+        content()
+    }
+}
+
 private fun loadedState(): State = State(
     sessionUuid = "s-1",
     phase = State.Phase.Loaded(detail = detail()),
@@ -232,12 +267,14 @@ private fun loadedState(): State = State(
     deleteDialogVisible = false,
 )
 
-private fun detail(): PastSessionUiModel = PastSessionUiModel(
+private fun detail(
+    totals: String = "5 exercises · 14 sets · 4,820 kg",
+): PastSessionUiModel = PastSessionUiModel(
     trainingName = "низ — 2",
     isAdhoc = false,
     finishedAtAbsoluteLabel = "23 July 2026",
     durationLabel = "56:08",
-    totalsLabel = "5 exercises · 14 sets",
+    totalsLabel = totals,
     exercises = persistentListOf(
         weightedExercise(),
         weightlessExercise(),

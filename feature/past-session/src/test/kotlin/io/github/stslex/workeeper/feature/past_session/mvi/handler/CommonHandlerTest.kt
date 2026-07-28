@@ -50,6 +50,9 @@ internal class CommonHandlerTest {
     private val resources = object : ResourceWrapper {
         override fun getString(id: Int, vararg args: Any): String = when (id) {
             R.string.feature_past_session_totals_format -> "${args[0]} · ${args[1]}"
+            R.string.feature_past_session_totals_format_with_tonnage ->
+                "${args[0]} · ${args[1]} · ${args[2]}"
+            R.string.feature_past_session_tonnage_format -> "${args[0]} kg"
             else -> error("Unexpected string id: $id")
         }
 

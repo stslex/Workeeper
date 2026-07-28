@@ -18,6 +18,7 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableSet
+import kotlin.math.roundToLong
 
 internal object PastSessionUiMapper {
 
@@ -70,7 +71,12 @@ internal object PastSessionUiMapper {
         val activeExercises = exercises.count { !it.skipped }
         val finishedAtLabel = resourceWrapper.formatMediumDate(finishedAt)
         val durationLabel = formatElapsedDuration(finishedAt - startedAt)
-        val totalsLabel = buildTotalsLabel(resourceWrapper, activeExercises, totalSets)
+        val totalsLabel = buildTotalsLabel(
+            resourceWrapper = resourceWrapper,
+            exerciseCount = activeExercises,
+            setCount = totalSets,
+            tonnageKg = exercises.tonnageKg(),
+        )
         val trainingName = if (isAdhoc) {
             resourceWrapper.getString(R.string.feature_past_session_adhoc_label)
         } else {
@@ -86,10 +92,49 @@ internal object PastSessionUiMapper {
         )
     }
 
+    /**
+     * Session tonnage — the third figure of the v3 header, restored by spec §11.1.
+     *
+     * **This reverses a deliberate v2.4 decision.** Commit `8a3f8192` ("v2.4 5.7") deleted the
+     * equivalent `computeVolume` from this very mapper on the grounds that the per-set view
+     * and the chart surface volume more usefully than one rolled-up number. §11.1 decides
+     * otherwise and this is its implementation; the reasoning is not lost, it is overruled.
+     *
+     * ## The predicate is not `weight ?: 0.0` over everything
+     *
+     * It mirrors `SessionDao.getBestSessionVolumes` exactly — `e.type = 'WEIGHTED' AND
+     * s.weight IS NOT NULL` — and the WEIGHTLESS clause is the load-bearing half.
+     * `SetEntity.weight` is nullable but *not* type-constrained: residual non-null weights on
+     * weightless rows exist in shipped data, and scrubbing them by migration was explicitly
+     * rejected (spec §12) because it discards logged data irreversibly. A naive sum over
+     * every set would quietly absorb those as kilograms. Excluding WEIGHTLESS exercises
+     * wholesale is both the honest semantic — bodyweight work lifts no measured kg — and the
+     * only reading that agrees with the app's other volume aggregate.
+     *
+     * No `reps > 0` clause is needed: a zero-rep set contributes a zero product either way.
+     * Skipped exercises are *not* excluded, matching the set count this figure sits beside.
+     */
+    private fun List<PerformedExerciseDetailDomain>.tonnageKg(): Double = this
+        .filter { exercise -> exercise.exerciseType == ExerciseTypeDomain.WEIGHTED }
+        .sumOf { exercise ->
+            exercise.sets.sumOf { set -> (set.weight ?: 0.0) * set.reps }
+        }
+
+    /**
+     * "5 exercises · 14 sets · 4,820 kg".
+     *
+     * Two format strings rather than one with an empty third argument: a session that lifted
+     * nothing — every exercise weightless, or a weighted session logged without weights —
+     * would otherwise read "· 0 kg", which states a measurement that was never taken. The
+     * figure simply drops out. Grouping is `%,d` in the resource, formatted against the
+     * configuration locale — "4,820" in en, "4 820" in ru — without a number formatter this
+     * codebase does not have.
+     */
     private fun buildTotalsLabel(
         resourceWrapper: ResourceWrapper,
         exerciseCount: Int,
         setCount: Int,
+        tonnageKg: Double,
     ): String {
         val exercises = resourceWrapper.getQuantityString(
             R.plurals.feature_past_session_exercises_count,
@@ -101,10 +146,19 @@ internal object PastSessionUiMapper {
             setCount,
             setCount,
         )
+        val roundedTonnage = tonnageKg.roundToLong()
+        if (roundedTonnage <= 0L) {
+            return resourceWrapper.getString(
+                R.string.feature_past_session_totals_format,
+                exercises,
+                sets,
+            )
+        }
         return resourceWrapper.getString(
-            R.string.feature_past_session_totals_format,
+            R.string.feature_past_session_totals_format_with_tonnage,
             exercises,
             sets,
+            resourceWrapper.getString(R.string.feature_past_session_tonnage_format, roundedTonnage),
         )
     }
 

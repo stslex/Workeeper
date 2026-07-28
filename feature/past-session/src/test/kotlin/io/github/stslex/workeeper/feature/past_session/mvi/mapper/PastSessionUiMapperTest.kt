@@ -27,6 +27,11 @@ internal class PastSessionUiMapperTest {
         override fun getString(id: Int, vararg args: Any): String = when (id) {
             R.string.feature_past_session_adhoc_label -> "Ad-hoc workout"
             R.string.feature_past_session_totals_format -> "${args[0]} · ${args[1]}"
+            R.string.feature_past_session_totals_format_with_tonnage ->
+                "${args[0]} · ${args[1]} · ${args[2]}"
+            // The real resource is "%,d kg"; the grouping comes from `Resources.getString`
+            // against the configuration locale, which is not exercised on the host JVM.
+            R.string.feature_past_session_tonnage_format -> "${args[0]} kg"
             else -> error("Unexpected string id: $id")
         }
 
@@ -66,8 +71,9 @@ internal class PastSessionUiMapperTest {
         assertEquals("Ad-hoc workout", ui.trainingName)
         assertEquals("Apr 28", ui.finishedAtAbsoluteLabel)
         assertEquals("01:30", ui.durationLabel)
-        assertEquals("2 exercises · 3 sets", ui.totalsLabel)
-        // Total-kg/volume metric removed in v2.4 5.7 — model no longer surfaces it.
+        // Tonnage counts the weighted exercise only: 5x100 + 3x90 = 770. The weightless
+        // Pull Up's 10 reps contribute nothing, and the skipped Fly has no sets.
+        assertEquals("2 exercises · 3 sets · 770 kg", ui.totalsLabel)
 
         assertEquals(
             listOf("Pull Up", "Bench", "Skipped Fly"),
@@ -107,10 +113,10 @@ internal class PastSessionUiMapperTest {
     }
 
     @Test
-    fun `mapper does not surface a volume label even when weighted sets are present`() {
-        // v2.4 5.7 removed total-kg from the past-session header; the regression guard
-        // for the deprecated mapping branch lives here so future refactors keep volume
-        // out of the UI surface entirely.
+    fun `mapper sums tonnage over weighted sets`() {
+        // Replaces the v2.4 5.7 guard `mapper does not surface a volume label even when
+        // weighted sets are present`, which existed to keep total-kg OUT of the header.
+        // Spec §11.1 reverses that decision, so the guard is retired rather than broken.
         val ui = sessionDetail(
             isAdhoc = false,
             exercises = listOf(
@@ -135,7 +141,68 @@ internal class PastSessionUiMapperTest {
         ).toUi(resources)
 
         assertEquals("Push Day", ui.trainingName)
-        // PastSessionUiModel no longer carries `volumeLabel`; regression guard.
+        assertEquals("1 exercise · 1 set · 500 kg", ui.totalsLabel)
+    }
+
+    @Test
+    fun `mapper excludes a weightless exercise carrying a residual weight from tonnage`() {
+        // The reason the predicate is `type == WEIGHTED` and not `weight ?: 0.0`. `SetEntity`
+        // does not constrain weight by exercise type, residual non-null weights on weightless
+        // rows exist in shipped data, and spec §12 rejected scrubbing them by migration. A sum
+        // that read the column regardless would report 300 kg of work that was never lifted.
+        val ui = sessionDetail(
+            isAdhoc = false,
+            exercises = listOf(
+                PerformedExerciseDetailDomain(
+                    performedExerciseUuid = "performed-5",
+                    exerciseUuid = "exercise-5",
+                    exerciseName = "Pull Up",
+                    exerciseType = ExerciseTypeDomain.WEIGHTLESS,
+                    position = 0,
+                    skipped = false,
+                    sets = listOf(
+                        SetDomain(
+                            uuid = "set-5",
+                            reps = 10,
+                            weight = 30.0,
+                            type = SetTypeDomain.WORK,
+                            position = 0,
+                        ),
+                    ),
+                ),
+            ),
+        ).toUi(resources)
+
+        // No tonnage term at all — not "· 0 kg".
+        assertEquals("1 exercise · 1 set", ui.totalsLabel)
+    }
+
+    @Test
+    fun `mapper omits the tonnage term when a weighted session logged no weights`() {
+        val ui = sessionDetail(
+            isAdhoc = false,
+            exercises = listOf(
+                PerformedExerciseDetailDomain(
+                    performedExerciseUuid = "performed-6",
+                    exerciseUuid = "exercise-6",
+                    exerciseName = "Bench",
+                    exerciseType = ExerciseTypeDomain.WEIGHTED,
+                    position = 0,
+                    skipped = false,
+                    sets = listOf(
+                        SetDomain(
+                            uuid = "set-6",
+                            reps = 8,
+                            weight = null,
+                            type = SetTypeDomain.WORK,
+                            position = 0,
+                        ),
+                    ),
+                ),
+            ),
+        ).toUi(resources)
+
+        assertEquals("1 exercise · 1 set", ui.totalsLabel)
     }
 
     // --- withExpansionCarriedFrom: the amended §7 model's seed-or-carry ------------------

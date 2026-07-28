@@ -17,7 +17,12 @@
     <string name="feature_past_session_skipped_chip">Пропущено</string>
     <string name="feature_past_session_no_sets">Подходы не записаны</string>
 
+    <string name="feature_past_session_finished_at_label">Завершена · %1$s</string>
+    <string name="feature_past_session_action_more">Ещё</string>
+
     <string name="feature_past_session_totals_format">%1$s · %2$s</string>
+    <string name="feature_past_session_totals_format_with_tonnage">%1$s · %2$s · %3$s</string>
+    <string name="feature_past_session_tonnage_format">%,d кг</string>
 
     <plurals name="feature_past_session_exercises_count">
         <item quantity="one">%d упражнение</item>
