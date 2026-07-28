@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.core.ui.kit.theme
 
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -82,6 +83,32 @@ internal class AppTypographyContractTest {
         }
     }
 
+    @Test
+    @DisplayName("the title rung is tracked at -0.39sp — B4, the mockups' -.015em at 26sp")
+    fun titleRungCarriesHeadingTracking() {
+        assertEquals(TITLE_TRACKING, typography.text.title.letterSpacing, "text.title")
+    }
+
+    @Test
+    @DisplayName("tracking is applied to exactly one (family, rung) pair, and no other")
+    fun nothingElseIsTracked() {
+        val default = TextStyle.Default.letterSpacing
+        val tracked = listOf(
+            "text" to typography.text,
+            "numeric" to typography.numeric,
+            "mono" to typography.mono,
+        ).flatMap { (family, styles) ->
+            styles.rungs().map { (rung, style) -> "$family.$rung" to style.letterSpacing }
+        }.filter { (slot, spacing) ->
+            spacing != if (slot.endsWith(".caption")) CAPTION_TRACKING else default
+        }
+        assertEquals(
+            listOf("text.title" to TITLE_TRACKING),
+            tracked,
+            "only text.title may deviate; caption's 0.5sp is the pre-existing default",
+        )
+    }
+
     private companion object {
 
         /** WCAG 1.4.3's "14pt bold" is 700; 500 and 600 are both below it. */
@@ -90,6 +117,12 @@ internal class AppTypographyContractTest {
         const val SEMI_BOLD_WEIGHT = 600
 
         const val TABULAR_FIGURES = "tnum"
+
+        /** `-.015em` at 26sp. The mockups' screen-title tracking, converted. */
+        val TITLE_TRACKING = (-0.39).sp
+
+        /** Predates B4 and applies to all three families. */
+        val CAPTION_TRACKING = 0.5.sp
 
         fun AppTypeStyles.rungs(): List<Pair<String, TextStyle>> = listOf(
             "display" to display,
