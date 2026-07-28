@@ -3,6 +3,12 @@
     <string name="feature_live_workout_meta_format">%1$d из %2$d упражнений · %3$d из %4$d подходов</string>
     <string name="feature_live_workout_meta_skipped_format">%1$s · пропущено %2$d</string>
 
+    <string name="feature_live_workout_railmeta_detail_sets">детализация: подходы</string>
+    <string name="feature_live_workout_railmeta_detail_exercises">детализация: упражнения</string>
+    <string name="feature_live_workout_railmeta_detail_overall">детализация: общая</string>
+    <string name="feature_live_workout_railmeta_counts">%1$d упражнений · %2$d подходов</string>
+    <string name="feature_live_workout_railmeta_one_off_suffix">%1$s · разовых: %2$d</string>
+
     <string name="feature_live_workout_status_skipped">пропущено</string>
     <string name="feature_live_workout_status_no_plan">плана нет</string>
     <string name="feature_live_workout_one_off_badge">разовое</string>

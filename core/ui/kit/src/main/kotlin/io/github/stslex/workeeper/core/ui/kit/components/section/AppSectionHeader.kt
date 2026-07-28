@@ -82,6 +82,21 @@ private fun SectionLabel(
     text: String,
     modifier: Modifier = Modifier,
 ) {
+    AppLabel(text = text, modifier = modifier)
+}
+
+/**
+ * The mockups' `.label` — the uppercase mono caption every screen uses for section heads,
+ * rail metadata and header eyebrows (extraction §0.8, kit-candidate rank 2; previously
+ * private in this file). Casing is design (`text-transform:uppercase`), so it is applied
+ * here, locale-aware; the declared `.14em` tracking stays unimplemented by design (B4 —
+ * positive mono tracking is per-component, and this component follows the caption rung).
+ */
+@Composable
+fun AppLabel(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
     Text(
         modifier = modifier,
         text = text.uppercase(),

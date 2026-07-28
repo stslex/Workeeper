@@ -38,6 +38,8 @@ import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.DiscardSessionConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.empty.AppEmptyState
 import io.github.stslex.workeeper.core.ui.kit.components.rail.AppProgressRail
+import io.github.stslex.workeeper.core.ui.kit.components.rail.RailDetail
+import io.github.stslex.workeeper.core.ui.kit.components.section.AppLabel
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppBottomSheet
 import io.github.stslex.workeeper.core.ui.kit.components.toast.AppToast
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
@@ -290,7 +292,10 @@ private fun Body(
                 // aligns it to the same gutter as everything else.)
                 Column(modifier = Modifier.padding(horizontal = AppDimension.screenEdge)) {
                     Spacer(Modifier.height(RAIL_TOP_MARGIN))
-                    AppProgressRail(groups = state.toRailGroups())
+                    AppProgressRail(
+                        groups = state.toRailGroups(),
+                        meta = { detail -> RailMetaRow(detail = detail, state = state) },
+                    )
                 }
             }
             if (state.exercises.isEmpty()) {
@@ -464,6 +469,52 @@ private const val TOAST_TIMEOUT_MS = 5_000L
 private val ADDEX_GLYPH_SIZE = 17.dp
 
 private const val EMPTY_STATE_HEIGHT_FRACTION = 0.6f
+
+/**
+ * `.railmeta` (extraction §1.4): two `.label`s, space-between. The left one names the
+ * detail level the rail RESOLVED (the slot hands it over, so they cannot disagree); the
+ * right one counts every exercise (skipped included), sets over non-skipped only, plus
+ * `разовых: n` when one-offs exist — the mockup's own denominators.
+ */
+@Composable
+private fun RailMetaRow(detail: RailDetail, state: State) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        AppLabel(
+            text = stringResource(
+                when (detail) {
+                    RailDetail.SETS -> R.string.feature_live_workout_railmeta_detail_sets
+                    RailDetail.EXERCISES -> R.string.feature_live_workout_railmeta_detail_exercises
+                    RailDetail.OVERALL -> R.string.feature_live_workout_railmeta_detail_overall
+                },
+            ),
+        )
+        val setCount = state.exercises
+            .filter { it.status != ExerciseStatusUiModel.SKIPPED }
+            .sumOf { it.visibleSets.size }
+        val oneOffCount = state.exercises.count {
+            !it.isPlanAttached && it.status != ExerciseStatusUiModel.SKIPPED
+        }
+        val counts = stringResource(
+            R.string.feature_live_workout_railmeta_counts,
+            state.exercises.size,
+            setCount,
+        )
+        AppLabel(
+            text = if (oneOffCount > 0) {
+                stringResource(
+                    R.string.feature_live_workout_railmeta_one_off_suffix,
+                    counts,
+                    oneOffCount,
+                )
+            } else {
+                counts
+            },
+        )
+    }
+}
 
 private fun State.exerciseFor(performedExerciseUuid: String): LiveExerciseUiModel? =
     exercises.firstOrNull { it.performedExerciseUuid == performedExerciseUuid }

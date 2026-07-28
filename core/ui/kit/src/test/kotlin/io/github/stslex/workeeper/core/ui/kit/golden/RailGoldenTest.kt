@@ -82,6 +82,35 @@ internal class RailGoldenTest {
             )
         }
     }
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun railWithOneOffUnderline(theme: GoldenTheme, testInfo: TestInfo) {
+        // `.grp.temp::after` — the dashed `dim` underline beneath a one-off group (§6.2),
+        // finally read from `RailGroup.isOneOff` (the flag was carried and never rendered).
+        // The underline draws 4dp BELOW the band (in the railmeta gap on screen); the
+        // shrink canvas needs that room reserved or it clips the very thing under test.
+        goldenSubject(testInfo, theme) {
+            Box(modifier = Modifier.padding(bottom = 8.dp)) {
+                AppProgressRail(
+                    groups = kotlinx.collections.immutable.persistentListOf(
+                        RailGroup(
+                            segments = kotlinx.collections.immutable.persistentListOf(
+                                RailSegment(isFilled = true),
+                                RailSegment(isFilled = false),
+                            ),
+                        ),
+                        RailGroup(
+                            segments = kotlinx.collections.immutable.persistentListOf(
+                                RailSegment(isFilled = true),
+                                RailSegment(isFilled = false),
+                            ),
+                            isOneOff = true,
+                        ),
+                    ),
+                )
+            }
+        }
+    }
 }
 
 @androidx.compose.runtime.Composable

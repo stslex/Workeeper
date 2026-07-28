@@ -4,6 +4,13 @@
     <string name="feature_live_workout_meta_format" tools:ignore="PluralsCandidate">%1$d of %2$d exercises · %3$d of %4$d sets</string>
     <string name="feature_live_workout_meta_skipped_format" tools:ignore="PluralsCandidate">%1$s · %2$d skipped</string>
 
+    <!-- Railmeta (extraction §1.4): detail label by resolved mode + the counts label -->
+    <string name="feature_live_workout_railmeta_detail_sets">detail: sets</string>
+    <string name="feature_live_workout_railmeta_detail_exercises">detail: exercises</string>
+    <string name="feature_live_workout_railmeta_detail_overall">detail: overall</string>
+    <string name="feature_live_workout_railmeta_counts" tools:ignore="PluralsCandidate">%1$d exercises · %2$d sets</string>
+    <string name="feature_live_workout_railmeta_one_off_suffix" tools:ignore="PluralsCandidate">%1$s · one-off: %2$d</string>
+
     <!-- Exercise card .sub — always the plan (or the skipped marker); extraction §1.5 -->
     <string name="feature_live_workout_status_skipped">skipped</string>
     <string name="feature_live_workout_status_no_plan">no plan</string>
