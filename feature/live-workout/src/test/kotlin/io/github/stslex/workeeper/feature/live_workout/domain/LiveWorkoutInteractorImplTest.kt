@@ -323,14 +323,12 @@ internal class LiveWorkoutInteractorImplTest {
     }
 
     @Test
-    fun `setSkipped also wipes any logged sets when skipping`() = runTest {
+    fun `setSkipped never touches set rows in either direction`() = runTest {
+        // §6.1: skip is reversible in place — the flag flips, the logged sets survive.
+        // The wipe this method used to perform is the reason a confirmation dialog once
+        // guarded it; both are gone together (extraction C9).
         interactor.setSkipped("pe-1", skipped = true)
         coVerify(exactly = 1) { performedExerciseRepository.setSkipped("pe-1", true) }
-        coVerify(exactly = 1) { setRepository.deleteAllForPerformedExercise("pe-1") }
-    }
-
-    @Test
-    fun `setSkipped with false does not wipe sets`() = runTest {
         interactor.setSkipped("pe-1", skipped = false)
         coVerify(exactly = 1) { performedExerciseRepository.setSkipped("pe-1", false) }
         coVerify(exactly = 0) { setRepository.deleteAllForPerformedExercise(any()) }

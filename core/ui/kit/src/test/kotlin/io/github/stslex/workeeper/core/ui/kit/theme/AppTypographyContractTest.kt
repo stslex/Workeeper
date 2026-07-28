@@ -94,6 +94,16 @@ internal class AppTypographyContractTest {
     }
 
     @Test
+    @DisplayName("the data-value slot is the 26sp numeric rung, tabular and in Archivo — B1")
+    fun dataValueSlotIsTheNumericTitleRung() {
+        val dataValue = typography.dataValue
+        assertEquals(typography.numeric.title, dataValue, "dataValue must alias numeric.title")
+        assertEquals(DATA_VALUE_SIZE, dataValue.fontSize, "dataValue.fontSize")
+        assertEquals(TABULAR_FIGURES, dataValue.fontFeatureSettings, "dataValue must carry tnum")
+        assertEquals(typography.numericFontFamily, dataValue.fontFamily, "dataValue.fontFamily")
+    }
+
+    @Test
     @DisplayName("the title rung is tracked at -0.39sp — B4, the mockups' -.015em at 26sp")
     fun titleRungCarriesHeadingTracking() {
         assertEquals(TITLE_TRACKING, typography.text.title.letterSpacing, "text.title")
@@ -136,6 +146,9 @@ internal class AppTypographyContractTest {
 
         /** The mockups draw the timer at 32px; the ladder rounds it onto the 34 rung. */
         val TIMER_SIZE = 34.sp
+
+        /** The mockups draw `.data-l` at 25px; the ladder rounds it onto the 26 rung — B1. */
+        val DATA_VALUE_SIZE = 26.sp
 
         fun AppTypeStyles.rungs(): List<Pair<String, TextStyle>> = listOf(
             "display" to display,

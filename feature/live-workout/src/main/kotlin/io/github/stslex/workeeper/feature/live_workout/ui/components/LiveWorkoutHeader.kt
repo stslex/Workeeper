@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.live_workout.ui.components
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -21,10 +21,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
@@ -33,72 +33,94 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 
+/**
+ * `.shead` (extraction §1.3): the training name, the meta line, and the elapsed timer —
+ * three texts sitting directly on `surfaceTier0`.
+ *
+ * **THIS IS NOT A CARD.** No background, no border, no radius, no elevation — the extraction
+ * calls out the step-5 card as the headline defect of this screen. The only chrome here is
+ * layout.
+ *
+ * - name: `text.title` (26sp / 600 / −0.39sp) in `textPrimary` — the mockup's `h2`.
+ * - meta: `mono.meta` (12.5sp) in `textTertiary`, 8dp below the name (Part 1's rounding of
+ *   the mockup's 6px; §0.5's ladder would say 4dp — the two contradict, Part 1 wins as the
+ *   per-screen contract and the conflict is reported in the PR).
+ * - timer: [io.github.stslex.workeeper.core.ui.kit.theme.AppTypography.timer] — Archivo
+ *   `wdth 116` at the 34 rung, tabular by construction. This is the named slot's first
+ *   production call site.
+ *
+ * The name keeps its v2.3 tap-to-edit mechanic (save on blur / IME done); the mockup draws
+ * no affordance for it, so the edit field reproduces the `h2` treatment exactly and adds
+ * nothing else.
+ */
 @Composable
 internal fun LiveWorkoutHeader(
     trainingNameLabel: String,
     namePlaceholder: String,
     elapsedLabel: String,
-    progressLabel: String,
+    metaLabel: String,
     isEditingName: Boolean,
     nameDraft: String,
     onNameTap: () -> Unit,
     onNameChange: (String) -> Unit,
     onNameSubmit: (String) -> Unit,
     modifier: Modifier = Modifier,
+    requestFocusWhenEditing: Boolean = true,
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(AppUi.shapes.medium)
-            .background(AppUi.colors.surfaceTier1)
-            .padding(AppDimension.Space.lg),
-        verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.lg),
+        verticalAlignment = Alignment.Top,
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(modifier = Modifier.weight(1f)) {
-                if (isEditingName) {
-                    EditableTrainingNameField(
-                        value = nameDraft,
-                        placeholder = namePlaceholder,
-                        onValueChange = onNameChange,
-                        onSubmit = onNameSubmit,
-                    )
-                } else {
-                    Text(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(onClick = onNameTap)
-                            .testTag("LiveWorkoutTrainingNameLabel"),
-                        text = trainingNameLabel,
-                        style = AppUi.typography.titleMedium,
-                        color = AppUi.colors.textPrimary,
-                    )
-                }
+        Column(modifier = Modifier.weight(1f)) {
+            if (isEditingName) {
+                EditableTrainingNameField(
+                    value = nameDraft,
+                    placeholder = namePlaceholder,
+                    onValueChange = onNameChange,
+                    onSubmit = onNameSubmit,
+                    requestFocusOnAppear = requestFocusWhenEditing,
+                )
+            } else {
+                Text(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onNameTap)
+                        .testTag("LiveWorkoutTrainingNameLabel"),
+                    text = trainingNameLabel,
+                    style = AppUi.typography.text.title,
+                    color = AppUi.colors.textPrimary,
+                )
             }
-            Text(
-                text = "•$elapsedLabel",
-                style = AppUi.typography.titleMedium,
-                color = AppUi.colors.accent,
-            )
+            if (metaLabel.isNotBlank()) {
+                Spacer(modifier = Modifier.height(AppDimension.Space.sm))
+                Text(
+                    modifier = Modifier.testTag("LiveWorkoutHeaderMeta"),
+                    text = metaLabel,
+                    style = AppUi.typography.mono.meta,
+                    color = AppUi.colors.textTertiary,
+                )
+            }
         }
-        if (progressLabel.isNotBlank()) {
-            Text(
-                text = progressLabel,
-                style = AppUi.typography.bodySmall,
-                color = AppUi.colors.textSecondary,
-            )
-        }
+        Text(
+            modifier = Modifier.testTag("LiveWorkoutTimer"),
+            text = elapsedLabel,
+            style = AppUi.typography.timer,
+            color = AppUi.colors.textPrimary,
+        )
     }
 }
 
 /**
- * Inline-edit text field that mimics the header title typography. Focus is requested as
+ * Inline-edit text field that reproduces the header title typography. Focus is requested as
  * soon as the field appears (when the user taps the label); a focus-loss event submits the
  * current value, matching the "save on blur via tap-out, IME Done, or back-dismissed
  * keyboard" rule from spec A1.
+ *
+ * `requestFocusOnAppear` exists for the golden: `requestFocus()` pulls in the IME path, and
+ * layoutlib's `HandlerThread_Delegate` dies with `NoSuchMethodError:
+ * Thread.setPosixNicenessInternal` on the host JVM — racily, which is worse than reliably.
+ * Production always passes `true`; the flag changes no pixels, only the side effect.
  */
 @Composable
 private fun EditableTrainingNameField(
@@ -106,10 +128,13 @@ private fun EditableTrainingNameField(
     placeholder: String,
     onValueChange: (String) -> Unit,
     onSubmit: (String) -> Unit,
+    requestFocusOnAppear: Boolean = true,
 ) {
     val focusRequester = remember { FocusRequester() }
     var wasFocused by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    LaunchedEffect(Unit) {
+        if (requestFocusOnAppear) focusRequester.requestFocus()
+    }
     Box(modifier = Modifier.fillMaxWidth()) {
         BasicTextField(
             modifier = Modifier
@@ -123,19 +148,19 @@ private fun EditableTrainingNameField(
             value = value,
             onValueChange = onValueChange,
             singleLine = true,
-            textStyle = AppUi.typography.titleMedium.copy(
+            textStyle = AppUi.typography.text.title.copy(
                 color = AppUi.colors.textPrimary,
             ),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(
                 onDone = { onSubmit(value) },
             ),
-            cursorBrush = androidx.compose.ui.graphics.SolidColor(AppUi.colors.accent),
+            cursorBrush = SolidColor(AppUi.colors.accent),
         )
         if (value.isEmpty()) {
             Text(
                 text = placeholder,
-                style = AppUi.typography.titleMedium,
+                style = AppUi.typography.text.title,
                 color = AppUi.colors.textTertiary,
             )
         }
@@ -147,12 +172,12 @@ private fun EditableTrainingNameField(
 private fun LiveWorkoutHeaderLightPreview() {
     AppTheme(themeMode = ThemeMode.LIGHT) {
         LiveWorkoutHeader(
-            trainingNameLabel = "Push Day",
-            namePlaceholder = "Untitled",
-            elapsedLabel = "23:14",
-            progressLabel = "2 of 5 done · 16 sets logged",
+            trainingNameLabel = "верх (с подтягиваниями)",
+            namePlaceholder = "Без названия",
+            elapsedLabel = "12:04",
+            metaLabel = "1 из 5 упражнений · 4 из 18 подходов",
             isEditingName = false,
-            nameDraft = "Push Day",
+            nameDraft = "верх (с подтягиваниями)",
             onNameTap = {},
             onNameChange = {},
             onNameSubmit = {},
@@ -165,30 +190,12 @@ private fun LiveWorkoutHeaderLightPreview() {
 private fun LiveWorkoutHeaderDarkPreview() {
     AppTheme(themeMode = ThemeMode.DARK) {
         LiveWorkoutHeader(
-            trainingNameLabel = "Push Day",
-            namePlaceholder = "Untitled",
+            trainingNameLabel = "верх (с подтягиваниями)",
+            namePlaceholder = "Без названия",
             elapsedLabel = "47:08",
-            progressLabel = "4 of 5 done · 22 sets logged",
+            metaLabel = "2 из 5 упражнений · 9 из 18 подходов · пропущено 1",
             isEditingName = false,
-            nameDraft = "Push Day",
-            onNameTap = {},
-            onNameChange = {},
-            onNameSubmit = {},
-        )
-    }
-}
-
-@Preview
-@Composable
-private fun LiveWorkoutHeaderEmptyPreview() {
-    AppTheme(themeMode = ThemeMode.DARK) {
-        LiveWorkoutHeader(
-            trainingNameLabel = "Untitled",
-            namePlaceholder = "Untitled",
-            elapsedLabel = "00:12",
-            progressLabel = "",
-            isEditingName = false,
-            nameDraft = "",
+            nameDraft = "верх (с подтягиваниями)",
             onNameTap = {},
             onNameChange = {},
             onNameSubmit = {},
@@ -201,10 +208,10 @@ private fun LiveWorkoutHeaderEmptyPreview() {
 private fun LiveWorkoutHeaderEditingPreview() {
     AppTheme(themeMode = ThemeMode.DARK) {
         LiveWorkoutHeader(
-            trainingNameLabel = "Untitled",
-            namePlaceholder = "Untitled",
+            trainingNameLabel = "Без названия",
+            namePlaceholder = "Без названия",
             elapsedLabel = "00:12",
-            progressLabel = "",
+            metaLabel = "",
             isEditingName = true,
             nameDraft = "Push d",
             onNameTap = {},

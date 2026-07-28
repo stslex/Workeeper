@@ -10,7 +10,6 @@ import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiM
 import io.github.stslex.workeeper.feature.live_workout.mvi.store.LiveWorkoutStore
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.collections.immutable.toImmutableSet
 
 @Inject
 @SingleIn(LiveWorkoutScope::class)
@@ -20,18 +19,11 @@ internal class StateStatusMapper(
 
     fun recomputeStatuses(state: LiveWorkoutStore.State): LiveWorkoutStore.State {
         val refreshed = recomputeOnly(state.exercises, state.activeExerciseUuids)
-        // The disclosure automaton (§7) is the single writer of `expandedExerciseUuids`. It
-        // runs after statuses are recomputed because rules 4-6 read the fresh status, and it
-        // replaces the old "prune stale entries" pass — a card that leaves DONE/CURRENT is
-        // simply not selected by the table, so there is nothing left to prune.
-        return state.copy(
-            exercises = refreshed,
-            expandedExerciseUuids = DisclosureAutomaton.resolve(
-                exercises = refreshed,
-                intent = state.disclosureIntent,
-                previouslyExpanded = state.expandedExerciseUuids,
-            ).toImmutableSet(),
-        ).withPresentation(resourceWrapper)
+        // Deliberately does NOT touch `expandedExerciseUuids`: under the amended disclosure
+        // model (spec §7 superseded) completing, skipping or otherwise recomputing an
+        // exercise never opens or closes a card. Only the header tap, the first-entry
+        // initialisation and the mid-session add write that set.
+        return state.copy(exercises = refreshed).withPresentation(resourceWrapper)
     }
 
     fun recomputeOnly(

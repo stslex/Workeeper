@@ -192,6 +192,24 @@ data class AppColors(
     val surfaceTier3: Color,
     /** v3 `raise` — inert chips, tiles and disabled fills. */
     val surfaceTier4: Color,
+    /**
+     * v3 `--donefill` — the **completed-content wash**: a translucent film that marks a thing
+     * as done without repainting it. `rgba(255,255,255,.05)` dark / `rgba(13,17,20,.06)`
+     * light (`session-v3f.html:21,29`).
+     *
+     * Two hosts, both on the session screen: the finished exercise's ordinal chip
+     * (`.card.fin .ordchip`), and — blocker **B7** — the done set's *field*
+     * (`.set.done .field`), where it replaces the field fill entirely. B7's finding is that
+     * step 5 washed the whole ROW in `surfaceTier4` instead, which is what pushed the unit
+     * label below its threshold; the wash belongs on the field, and this slot is what makes
+     * that expressible (extraction B8 records that it previously was not).
+     *
+     * Translucent by design: it composites over whatever card tier hosts it, so the contrast
+     * map declares its pairs with explicit `over` backdrops. In dark the value coincides with
+     * `--hair` ([borderSubtle]); they are separate tokens in the mockup with separate jobs,
+     * and they stay separate slots here so a divider retune cannot silently move the wash.
+     */
+    val donefill: Color,
     /** v3 `max`. */
     val textPrimary: Color,
     /** v3 `body`. */
@@ -339,6 +357,11 @@ private const val DARK_BODY: Long = 0xFFB7C0CA
 private const val DARK_META: Long = 0xFF8B95A1
 private const val DARK_IDLE: Long = 0xFF8B95A1
 private const val DARK_HAIR: Long = 0x0DFFFFFF
+/**
+ * `--donefill`, dark: `rgba(255,255,255,.05)`. Numerically identical to [DARK_HAIR] — a
+ * coincidence of the mockup's dark theme, not a shared token; light breaks the tie (6% vs 7%).
+ */
+private const val DARK_DONEFILL: Long = 0x0DFFFFFF
 /** Control outline, dark. See [AppColors.borderStrong] — `hair-s` lifted to clear 3:1. */
 private const val DARK_CONTROL_OUTLINE: Long = 0xFF627587
 private const val DARK_MOLTEN: Long = 0xFFF0A22E
@@ -377,6 +400,8 @@ private const val LIGHT_BODY: Long = 0xFF2C333A
 private const val LIGHT_META: Long = 0xFF596169
 private const val LIGHT_IDLE: Long = 0xFF7C858F
 private const val LIGHT_HAIR: Long = 0x120D1114
+/** `--donefill`, light: `rgba(13,17,20,.06)`. */
+private const val LIGHT_DONEFILL: Long = 0x0F0D1114
 /** Control outline, light. See [AppColors.borderStrong] — `hair-s` darkened to clear 3:1. */
 private const val LIGHT_CONTROL_OUTLINE: Long = 0xFF748396
 /**
@@ -411,6 +436,7 @@ fun provideDarkAppColors(): AppColors = AppColors(
     surfaceTier2 = Color(DARK_SLAB),
     surfaceTier3 = Color(DARK_FIELD),
     surfaceTier4 = Color(DARK_RAISE),
+    donefill = Color(DARK_DONEFILL),
     textPrimary = Color(DARK_MAX),
     textSecondary = Color(DARK_BODY),
     textTertiary = Color(DARK_META),
@@ -467,6 +493,7 @@ fun provideLightAppColors(): AppColors = AppColors(
     surfaceTier2 = Color(LIGHT_SLAB),
     surfaceTier3 = Color(LIGHT_FIELD),
     surfaceTier4 = Color(LIGHT_RAISE),
+    donefill = Color(LIGHT_DONEFILL),
     textPrimary = Color(LIGHT_MAX),
     textSecondary = Color(LIGHT_BODY),
     textTertiary = Color(LIGHT_META),

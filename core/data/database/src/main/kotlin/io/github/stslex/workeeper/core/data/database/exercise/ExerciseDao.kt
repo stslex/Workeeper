@@ -195,6 +195,43 @@ interface ExerciseDao {
     suspend fun deleteByUuids(uuids: List<Uuid>)
 
     /**
+     * Deletes [uuid] only when it is an inline-created (`is_adhoc = 1`) exercise that
+     * **nothing references any more** — the per-exercise sibling of the
+     * [getAdhocExercisesForSession] cascade. Called after a performed row is removed from a
+     * session (v3 §6.1 exercise deletion): if that was the row's only session, the ad-hoc
+     * exercise would otherwise be stranded invisible forever (`is_adhoc = 1` is filtered by
+     * every user-facing list). A library exercise (`is_adhoc = 0`) is untouchable here by
+     * construction.
+     *
+     * ## Both reference tables are checked, and the second one is load-bearing
+     *
+     * `training_exercise_table` holds `onDelete = RESTRICT` on `exercise_uuid`, so deleting
+     * a still-planned exercise does not fail quietly — it throws
+     * `SQLiteConstraintException` and takes the **whole enclosing transaction** down with
+     * it, silently resurrecting the performed row and sets the user just deleted. An
+     * earlier revision checked session membership alone; an ad-hoc session reaches exactly
+     * that state, because `createAdhocSession` and `addExerciseToActiveSession` both insert
+     * plan rows even for an ad-hoc training. Pinned by
+     * `SessionRepositoryImplRemoveExerciseDbTest`.
+     *
+     * Checking it is also the honest predicate rather than a workaround: an exercise a
+     * training still plans is not an orphan, and deleting it would gut that plan.
+     */
+    @Query(
+        """
+        DELETE FROM exercise_table
+        WHERE uuid = :uuid AND is_adhoc = 1
+          AND NOT EXISTS (
+              SELECT 1 FROM performed_exercise_table WHERE exercise_uuid = :uuid
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM training_exercise_table WHERE exercise_uuid = :uuid
+          )
+        """,
+    )
+    suspend fun deleteIfAdhocOrphan(uuid: Uuid)
+
+    /**
      * Flip `is_adhoc` to `0` for every ad-hoc exercise performed in [sessionUuid].
      * Called inside the `finishSession` transaction so inline-created ad-hoc exercises
      * graduate to regular library entries the moment the session is preserved. The

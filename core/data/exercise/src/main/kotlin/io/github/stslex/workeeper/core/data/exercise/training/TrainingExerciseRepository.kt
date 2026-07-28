@@ -40,6 +40,22 @@ interface TrainingExerciseRepository {
     )
 
     /**
+     * The one-off toggle's write half (v3 §6.2). Attachment IS the row: [attachExercise]
+     * inserts a plan row at the training's next position with [planSets]; [detachExercise]
+     * deletes the pair's row. Both idempotent at the caller's level of care — attach when a
+     * row already exists is the caller's bug (key presence should be read first via
+     * [getPlans]).
+     */
+    suspend fun attachExercise(
+        trainingUuid: String,
+        exerciseUuid: String,
+        planSets: List<PlanSetDataModel>?,
+    )
+
+    /** See [attachExercise]. */
+    suspend fun detachExercise(trainingUuid: String, exerciseUuid: String)
+
+    /**
      * Returns the (exerciseUuid, position, plan_sets) tuples for a training, ordered by
      * position. Lets callers join with the exercise table without owning a Dao reference
      * directly.

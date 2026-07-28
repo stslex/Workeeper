@@ -417,6 +417,31 @@ class SessionRepositoryImpl @Inject internal constructor(
         )
     }
 
+    override suspend fun removeExerciseFromSession(
+        performedExerciseUuid: String,
+        exerciseUuid: String,
+        trainingUuid: String?,
+        removeFromPlan: Boolean,
+    ) {
+        transition {
+            val performedId = Uuid.parse(performedExerciseUuid)
+            val exerciseId = Uuid.parse(exerciseUuid)
+            // Order matters: sets → performed row → plan row → orphan check. The orphan
+            // predicate reads performed_exercise_table, so the performed row must be gone
+            // before it runs or an only-session inline exercise would survive as a stranded
+            // is_adhoc = 1 row.
+            setDao.deleteAllForPerformedExercise(performedId)
+            performedExerciseDao.deleteByUuid(performedId)
+            if (removeFromPlan && trainingUuid != null) {
+                trainingExerciseDao.deleteByTrainingAndExercise(
+                    trainingUuid = Uuid.parse(trainingUuid),
+                    exerciseUuid = exerciseId,
+                )
+            }
+            exerciseDao.deleteIfAdhocOrphan(exerciseId)
+        }
+    }
+
     override suspend fun discardAdhocSession(sessionUuid: String, trainingUuid: String) {
         transition {
             val trainingId = Uuid.parse(trainingUuid)

@@ -46,15 +46,6 @@ sealed interface DialogState {
         ) : ConfirmDialog
 
         @Stable
-        data class SkipExercise(
-            override val title: String,
-            override val body: String,
-            override val confirmLabel: String,
-            override val dismissLabel: String,
-            val exerciseUuid: String,
-        ) : ConfirmDialog
-
-        @Stable
         data class CancelSession(
             override val title: String,
             override val body: String,

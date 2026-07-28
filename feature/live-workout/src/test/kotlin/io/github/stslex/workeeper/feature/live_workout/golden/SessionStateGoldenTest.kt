@@ -61,7 +61,72 @@ internal class SessionStateGoldenTest {
         goldenSubject(testInfo, theme) { SetRow(set(isDone = false, reps = 0)) }
     }
 
-    // --- Exercise states: active, fin, skip, temp -------------------------------------
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun setPersonalRecordDone(theme: GoldenTheme, testInfo: TestInfo) {
+        // pr + done: molten wins the value and the mark (`.pr` is declared after `.done`),
+        // the wash stays molten, the field's inputs are locked. Weight 102.5 on purpose —
+        // the 5-glyph worst case for the 26sp Archivo value's width budget.
+        goldenSubject(testInfo, theme) {
+            SetRow(set(isDone = true, isRecord = true, weight = 102.5))
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun setBodyweight(theme: GoldenTheme, testInfo: TestInfo) {
+        // One full-width field, the unit spelled out (`повторений` in RU; extraction §1.6).
+        goldenSubject(testInfo, theme) {
+            LiveSetRow(
+                set = set(isDone = false).copy(weight = null, reps = 12),
+                isWeighted = false,
+                onWeightChange = {},
+                onRepsChange = {},
+                onTypeChange = {},
+                onMarkDone = {},
+                onUncheck = {},
+                editable = true,
+            )
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun setFlashPeak(theme: GoldenTheme, testInfo: TestInfo) {
+        // The §10.2 pair with `setDone`: the flash frozen at its peak through
+        // `flashAlphaOverride`. A lone resting golden asserts nothing about the wash's
+        // strength or its per-theme peak (13% dark / 9% light — `--flash` as drawn).
+        goldenSubject(testInfo, theme) {
+            LiveSetRow(
+                set = set(isDone = true),
+                isWeighted = true,
+                onWeightChange = {},
+                onRepsChange = {},
+                onTypeChange = {},
+                onMarkDone = {},
+                onUncheck = {},
+                editable = true,
+                flashAlphaOverride = 1f,
+            )
+        }
+    }
+
+    // --- Exercise states (§1.5): resting, active, fin, fin-reopened, skip, temp --------
+    //
+    // BASELINE CORRECTIONS against the step-5 goldens: the card is 16dp-radius, the ordinal
+    // is the 7-state `.ordchip`, done is a checkmark-on-donefill + meta/500 title (not an
+    // alpha fade), skip is opacity .5 + strikethrough, the sub is always the plan, the head
+    // carries the pstrip micro-rail and the `.mini` cluster with the rotating chevron — and
+    // the LIFT keys on *expanded* (`.card.active` == isOpen), not on CURRENT.
+    // `exercisePending`/`exerciseActive` are the lift's §10.2 pair (unlifted / lifted).
+
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun exercisePending(theme: GoldenTheme, testInfo: TestInfo) {
+        goldenSubject(testInfo, theme) {
+            Card(exercise(ExerciseStatusUiModel.PENDING, done = 0), expanded = false)
+        }
+    }
 
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
@@ -73,9 +138,32 @@ internal class SessionStateGoldenTest {
 
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
+    fun exerciseSingleRow(theme: GoldenTheme, testInfo: TestInfo) {
+        // The setbar's §10.2 pair with `exerciseActive`: at one visible row `− подход` is
+        // disabled (opacity .35, extraction §1.7) while `+ подход` stays live.
+        goldenSubject(testInfo, theme) {
+            Card(exercise(ExerciseStatusUiModel.CURRENT, done = 0, sets = 1), expanded = true)
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
     fun exerciseFinished(theme: GoldenTheme, testInfo: TestInfo) {
         goldenSubject(testInfo, theme) {
             Card(exercise(ExerciseStatusUiModel.DONE, done = 3), expanded = false)
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun exerciseFinishedReopened(theme: GoldenTheme, testInfo: TestInfo) {
+        // A completed card opens and closes like any other (the amended disclosure model;
+        // the old §7 auto-collapse is retired) and lifts like any open card — fin + active
+        // co-exist, fin winning the chip (stylesheet order, L87–88). No golden ever pinned
+        // the automaton's dynamics — every case passes `expanded` explicitly — so its
+        // retirement moves no pixels here.
+        goldenSubject(testInfo, theme) {
+            Card(exercise(ExerciseStatusUiModel.DONE, done = 3), expanded = true)
         }
     }
 
@@ -99,6 +187,19 @@ internal class SessionStateGoldenTest {
             )
         }
     }
+
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun exerciseOneOffFinished(theme: GoldenTheme, testInfo: TestInfo) {
+        // temp.fin: the checkmark replaces the number here too — `.card.fin .ordchip svg`
+        // has no `:not(.temp)` guard (the extraction's own state table has this wrong).
+        goldenSubject(testInfo, theme) {
+            Card(
+                exercise(ExerciseStatusUiModel.DONE, done = 3, isPlanAttached = false),
+                expanded = false,
+            )
+        }
+    }
 }
 
 @androidx.compose.runtime.Composable
@@ -117,16 +218,17 @@ private fun SetRow(set: LiveSetUiModel) {
 
 @androidx.compose.runtime.Composable
 private fun Card(exercise: LiveExerciseUiModel, expanded: Boolean) {
-    LiveExerciseCard(exercise = exercise, expanded = expanded, consume = {})
+    LiveExerciseCard(exercise = exercise, ordinal = 1, expanded = expanded, consume = {})
 }
 
 private fun set(
     isDone: Boolean,
     isRecord: Boolean = false,
     reps: Int = 5,
+    weight: Double = 100.0,
 ): LiveSetUiModel = LiveSetUiModel(
     position = 0,
-    weight = 100.0,
+    weight = weight,
     reps = reps,
     type = SetTypeUiModel.WORK,
     isDone = isDone,
@@ -137,8 +239,9 @@ private fun exercise(
     status: ExerciseStatusUiModel,
     done: Int,
     isPlanAttached: Boolean = true,
+    sets: Int = 3,
 ): LiveExerciseUiModel {
-    val sets = (0 until 3).map { position ->
+    val sets = (0 until sets).map { position ->
         LiveSetUiModel(
             position = position,
             weight = 100.0,
@@ -150,14 +253,15 @@ private fun exercise(
     return LiveExerciseUiModel(
         performedExerciseUuid = "pe-1",
         exerciseUuid = "ex-1",
-        exerciseName = "Bench press",
+        // Cyrillic on purpose — the title is a text slot and the primary locale is Russian.
+        exerciseName = "жим лёжа",
         exerciseType = ExerciseTypeUiModel.WEIGHTED,
         position = 0,
         status = status,
+        // `.sub` is always the plan (or the skipped marker) — extraction §1.5.
         statusLabel = when (status) {
-            ExerciseStatusUiModel.DONE -> "Completed · 3 sets"
-            ExerciseStatusUiModel.SKIPPED -> "Skipped"
-            else -> "Plan: 3 × 5"
+            ExerciseStatusUiModel.SKIPPED -> "пропущено"
+            else -> "100×5 · 100×5 · 102.5×5"
         },
         planSets = persistentListOf(
             PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),

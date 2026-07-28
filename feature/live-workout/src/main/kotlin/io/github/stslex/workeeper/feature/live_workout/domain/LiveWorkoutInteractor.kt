@@ -103,7 +103,38 @@ interface LiveWorkoutInteractor {
 
     suspend fun deleteSet(performedExerciseUuid: String, position: Int)
 
+    /**
+     * Toggles the skip flag WITHOUT touching set rows (v3 §6.1: skip is "excluded from the
+     * denominator, plan untouched, reversible in place" — reversal is only lossless if the
+     * logged sets survive). An earlier revision wiped the sets here, which is why a
+     * confirmation dialog used to guard it; both are gone together.
+     */
     suspend fun setSkipped(performedExerciseUuid: String, skipped: Boolean)
+
+    /**
+     * Removes one exercise from the active session (v3 §6.1 "deleted"): sets + performed
+     * row (+ the plan row when [removeFromPlan] — §6.2's row-absence encoding) + the
+     * stranded-inline-exercise cleanup, in one transaction.
+     */
+    suspend fun deleteExerciseFromSession(
+        performedExerciseUuid: String,
+        exerciseUuid: String,
+        trainingUuid: String?,
+        removeFromPlan: Boolean,
+    )
+
+    /**
+     * The one-off toggle (v3 §6.1/§6.2): [attached] `false` deletes the pair's plan row —
+     * the exercise stays in the session and out of the template — and `true` re-inserts it
+     * with [planSets]. Non-ad-hoc trainings only; an ad-hoc session has no plan rows to
+     * detach from by construction.
+     */
+    suspend fun setPlanAttachment(
+        trainingUuid: String,
+        exerciseUuid: String,
+        attached: Boolean,
+        planSets: List<PlanSetDomain>?,
+    )
 
     suspend fun resetExerciseSets(performedExerciseUuid: String)
 

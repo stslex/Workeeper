@@ -147,6 +147,7 @@ class LiveWorkoutInteractorImpl internal constructor(
                     performedSets = performedSetsByPerformed[row.uuid].orEmpty()
                         .map { it.toDomain() },
                     isPlanAttached = row.exerciseUuid in planByExercise.planAttachedUuids,
+                    description = template.description?.takeIf { it.isNotBlank() },
                 )
             }
         // Q6 lock — pre-session snapshot scope. We collect the PR map exactly once here and
@@ -194,9 +195,48 @@ class LiveWorkoutInteractorImpl internal constructor(
 
     override suspend fun setSkipped(performedExerciseUuid: String, skipped: Boolean) {
         withContext(defaultDispatcher) {
+            // Flag only — no set wipe. §6.1: skip is reversible in place, and reversal is
+            // only lossless if the logged rows survive. The finish path already treats a
+            // skipped row as `continue` (no plan update; its logged sets persist as
+            // history), so preserved sets change nothing there.
             performedExerciseRepository.setSkipped(performedExerciseUuid, skipped)
-            if (skipped) {
-                setRepository.deleteAllForPerformedExercise(performedExerciseUuid)
+        }
+    }
+
+    override suspend fun deleteExerciseFromSession(
+        performedExerciseUuid: String,
+        exerciseUuid: String,
+        trainingUuid: String?,
+        removeFromPlan: Boolean,
+    ) {
+        withContext(defaultDispatcher) {
+            sessionRepository.removeExerciseFromSession(
+                performedExerciseUuid = performedExerciseUuid,
+                exerciseUuid = exerciseUuid,
+                trainingUuid = trainingUuid,
+                removeFromPlan = removeFromPlan,
+            )
+        }
+    }
+
+    override suspend fun setPlanAttachment(
+        trainingUuid: String,
+        exerciseUuid: String,
+        attached: Boolean,
+        planSets: List<PlanSetDomain>?,
+    ) {
+        withContext(defaultDispatcher) {
+            if (attached) {
+                trainingExerciseRepository.attachExercise(
+                    trainingUuid = trainingUuid,
+                    exerciseUuid = exerciseUuid,
+                    planSets = planSets?.map { it.toData() },
+                )
+            } else {
+                trainingExerciseRepository.detachExercise(
+                    trainingUuid = trainingUuid,
+                    exerciseUuid = exerciseUuid,
+                )
             }
         }
     }

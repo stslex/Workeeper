@@ -1,23 +1,31 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.core.ui.kit.components.rail
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.github.stslex.workeeper.core.ui.kit.components.border.dashedBorder
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -53,17 +61,30 @@ import kotlinx.collections.immutable.toImmutableList
 fun AppProgressRail(
     groups: ImmutableList<RailGroup>,
     modifier: Modifier = Modifier,
+    meta: (@Composable (RailDetail) -> Unit)? = null,
 ) {
-    BoxWithConstraints(modifier = modifier.fillMaxWidth().height(RAIL_HEIGHT)) {
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         val detail = RailDetail.resolve(availableWidth = maxWidth, groups = groups)
-        when (detail) {
-            RailDetail.SETS -> SegmentedRail(groups = groups, groupGap = GROUP_GAP_SETS)
-            RailDetail.EXERCISES -> SegmentedRail(
-                groups = groups.map { group -> group.collapsedToOneSegment() }.toImmutableList(),
-                groupGap = GROUP_GAP_EXERCISES,
-            )
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Box(modifier = Modifier.fillMaxWidth().height(RAIL_HEIGHT)) {
+                when (detail) {
+                    RailDetail.SETS -> SegmentedRail(groups = groups, groupGap = GROUP_GAP_SETS)
+                    RailDetail.EXERCISES -> SegmentedRail(
+                        groups = groups.map { group -> group.collapsedToOneSegment() }
+                            .toImmutableList(),
+                        groupGap = GROUP_GAP_EXERCISES,
+                    )
 
-            RailDetail.OVERALL -> OverallRail(groups = groups)
+                    RailDetail.OVERALL -> OverallRail(groups = groups)
+                }
+            }
+            // `.railmeta{margin-top:13px}` → 12dp. The slot receives the RESOLVED detail so
+            // the `детализация:` label can never disagree with the layout that was actually
+            // chosen — the label and the band answer to the same measurement.
+            meta?.let { metaContent ->
+                Spacer(modifier = Modifier.height(AppDimension.Space.md))
+                metaContent(detail)
+            }
         }
     }
 }
@@ -144,8 +165,32 @@ private fun SegmentedRail(groups: ImmutableList<RailGroup>, groupGap: Dp) {
         horizontalArrangement = Arrangement.spacedBy(groupGap),
     ) {
         groups.forEach { group ->
+            // `.grp.temp::after` — a dashed `dim` underline 4dp beneath a one-off group
+            // (§6.2's marker: the work is real, only the plan membership differs). Skip
+            // wins over temp, as in the mockup's class precedence.
+            val oneOffUnderline = group.isOneOff && !group.isSkipped
+            val underline = AppUi.colors.textDim
             Row(
-                modifier = Modifier.weight(group.segments.size.coerceAtLeast(1).toFloat()),
+                modifier = Modifier
+                    .weight(group.segments.size.coerceAtLeast(1).toFloat())
+                    .let { base ->
+                        if (oneOffUnderline) {
+                            base.drawBehind {
+                                val y = size.height + ONE_OFF_UNDERLINE_OFFSET.toPx()
+                                drawLine(
+                                    color = underline,
+                                    start = Offset(0f, y),
+                                    end = Offset(size.width, y),
+                                    strokeWidth = ONE_OFF_UNDERLINE_STROKE.toPx(),
+                                    pathEffect = PathEffect.dashPathEffect(
+                                        floatArrayOf(DASH_ON_PX.toPx(), DASH_OFF_PX.toPx()),
+                                    ),
+                                )
+                            }
+                        } else {
+                            base
+                        }
+                    },
                 horizontalArrangement = Arrangement.spacedBy(SEGMENT_GAP),
             ) {
                 group.segments.forEach { segment ->
@@ -164,6 +209,11 @@ private fun SegmentedRail(groups: ImmutableList<RailGroup>, groupGap: Dp) {
 private fun OverallRail(groups: ImmutableList<RailGroup>) {
     val active = groups.filterNot { it.isSkipped }.flatMap { it.segments }
     val filled = active.count { it.isFilled }
+    val fraction by animateFloatAsState(
+        targetValue = filled.toFloat() / active.size.coerceAtLeast(1),
+        animationSpec = tween(durationMillis = RAIL_FILL_MS, easing = AppUi.motion.out),
+        label = "rail-overall",
+    )
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -171,19 +221,16 @@ private fun OverallRail(groups: ImmutableList<RailGroup>) {
             .clip(SEGMENT_SHAPE)
             .background(AppUi.colors.surfaceTier4),
     ) {
-        if (filled > 0) {
+        if (fraction > 0f) {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(filled.toFloat() / active.size.coerceAtLeast(1))
+                    .fillMaxWidth(fraction)
                     .fillMaxHeight()
                     .clip(SEGMENT_SHAPE)
-                    .background(
-                        if (active.any { it.isFilled && it.isRecord }) {
-                            AppUi.colors.molten.solid
-                        } else {
-                            AppUi.colors.accent
-                        },
-                    ),
+                    // Always `max`, never molten: the mockup's single mode draws no PR
+                    // colouring (`railEl._single` sets only the width) — at overall
+                    // granularity a record is not an attributable segment any more.
+                    .background(AppUi.colors.accent),
             )
         }
     }
@@ -191,25 +238,38 @@ private fun OverallRail(groups: ImmutableList<RailGroup>) {
 
 @Composable
 private fun Segment(segment: RailSegment, isSkipped: Boolean, modifier: Modifier = Modifier) {
-    val base = modifier.fillMaxHeight().clip(SEGMENT_SHAPE)
     if (isSkipped) {
-        // A skipped exercise is outside the denominator, so it reads as an empty outline
-        // rather than as an unfilled track — the two must not look the same.
+        // A skipped exercise is outside the denominator, so it reads as an empty DASHED
+        // outline (`.grp.skip .pill{border:1px dashed}`) — visibly not an unfilled track.
         Box(
-            modifier = base.border(
-                width = AppDimension.borderHairline,
-                color = AppUi.colors.borderDefault,
-                shape = SEGMENT_SHAPE,
-            ),
+            modifier = modifier
+                .fillMaxHeight()
+                .dashedBorder(
+                    color = AppUi.colors.borderDefault,
+                    cornerRadius = AppDimension.Radius.smallest,
+                ),
         )
         return
     }
-    Box(modifier = base.background(AppUi.colors.surfaceTier4)) {
-        if (segment.isFilled) {
+    // `.pill b{transition:width 420ms var(--e-out)}` — a fourth duration outside the motion
+    // tokens, kept as drawn and reported under B9 with the pstrip's 380ms.
+    val fillFraction by animateFloatAsState(
+        targetValue = if (segment.isFilled) 1f else 0f,
+        animationSpec = tween(durationMillis = RAIL_FILL_MS, easing = AppUi.motion.out),
+        label = "rail-fill",
+    )
+    Box(
+        modifier = modifier
+            .fillMaxHeight()
+            .clip(SEGMENT_SHAPE)
+            .background(AppUi.colors.surfaceTier4),
+    ) {
+        if (fillFraction > 0f) {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .fillMaxWidth(fillFraction)
                     .fillMaxHeight()
+                    .clip(SEGMENT_SHAPE)
                     .background(
                         if (segment.isRecord) {
                             AppUi.colors.molten.solid
@@ -267,6 +327,18 @@ private val MIN_SEGMENT_WIDTH: Dp = 9.dp
 private val MIN_GROUP_WIDTH: Dp = 11.dp
 
 private val SEGMENT_SHAPE = RoundedCornerShape(AppDimension.Radius.smallest)
+
+/** `.pill b{transition:width 420ms}` — outside the three motion tokens; see spec B9 notes. */
+private const val RAIL_FILL_MS = 420
+
+/** `.grp.temp::after{bottom:-5px}` → 4dp below the band, on the ladder. */
+private val ONE_OFF_UNDERLINE_OFFSET: Dp = 4.dp
+
+private val ONE_OFF_UNDERLINE_STROKE: Dp = 1.dp
+
+private val DASH_ON_PX: Dp = 3.dp
+
+private val DASH_OFF_PX: Dp = 3.dp
 
 @Preview
 @Composable
