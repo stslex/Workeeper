@@ -74,6 +74,8 @@ internal class ClickHandler @Inject constructor(
             Action.Click.OnTrackNowDeleteAndStart -> processTrackNowDeleteAndStart()
             Action.Click.OnTrackNowConflictDismiss -> processCloseDialog()
             is Action.Click.OnHistoryRowClick -> processHistoryRowClick(action)
+            Action.Click.OnHistoryPrTagClick -> processHistoryPrTagClick()
+            Action.Click.OnPrExplainerDismiss -> processCloseDialog()
             Action.Click.OnSaveClick -> processSaveClick()
             Action.Click.OnCancelClick -> processCancelClick()
             is Action.Click.OnConfirmDiscard -> processConfirmDiscard(action.target)
@@ -256,6 +258,11 @@ internal class ClickHandler @Inject constructor(
     private fun processHistoryRowClick(action: Action.Click.OnHistoryRowClick) {
         sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
         consume(Action.Navigation.OpenSession(action.sessionUuid))
+    }
+
+    private fun processHistoryPrTagClick() {
+        sendEvent(Event.Haptic(HapticFeedbackType.ContextClick))
+        updateState { it.copy(dialogState = DialogState.PrExplainer) }
     }
 
     @Suppress("LongMethod")

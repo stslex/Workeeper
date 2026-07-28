@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Exercise detail -->
-    <string name="feature_exercise_detail_recent">Последнее</string>
+    <string name="feature_exercise_detail_recent">История</string>
     <string name="feature_exercise_detail_no_history">Сессий ещё не было</string>
     <string name="feature_exercise_detail_track_now">Записать сейчас</string>
     <string name="feature_exercise_detail_default_plan">План по умолчанию</string>
@@ -18,8 +18,6 @@
     <string name="feature_exercise_detail_archive_blocked_next_step">Сначала уберите его из этих тренировок, затем архивируйте.</string>
     <string name="feature_exercise_detail_archive_blocked_ok">ОК</string>
     <string name="feature_exercise_detail_archive_undo">Восстановить</string>
-    <string name="feature_exercise_detail_history_meta_format">%1$s · %2$s</string>
-    <string name="feature_exercise_detail_history_meta_adhoc_format">%1$s · отдельно</string>
     <string name="feature_exercise_detail_permanent_delete">Удалить навсегда</string>
     <string name="feature_exercise_detail_permanent_delete_confirm_title">Удалить «%1$s» навсегда?</string>
     <string name="feature_exercise_detail_permanent_delete_confirm_body">У упражнения нет истории. Действие необратимо.</string>
@@ -80,4 +78,10 @@
     <string name="feature_exercise_image_error_decode_failed">Формат изображения не поддерживается</string>
 
     <!-- Personal record card -->
+    <plurals name="feature_exercise_detail_history_count">
+        <item quantity="one">%d сессия</item>
+        <item quantity="few">%d сессии</item>
+        <item quantity="many">%d сессий</item>
+        <item quantity="other">%d сессии</item>
+    </plurals>
 </resources>

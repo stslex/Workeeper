@@ -36,6 +36,8 @@ interface ExerciseStore : Store<State, Action, Event> {
         val availableTags: ImmutableList<TagUiModel>,
         val tagSearchQuery: String,
         val recentHistory: ImmutableList<HistoryUiModel>,
+        /** Total finished sessions containing this exercise — the История head's count. */
+        val historyCount: Int,
         val originalSnapshot: Snapshot?,
         val isLoading: Boolean,
         val canPermanentlyDelete: Boolean,
@@ -150,6 +152,7 @@ interface ExerciseStore : Store<State, Action, Event> {
                 availableTags = persistentListOf(),
                 tagSearchQuery = "",
                 recentHistory = persistentListOf(),
+                historyCount = 0,
                 originalSnapshot = null,
                 isLoading = uuid != null,
                 canPermanentlyDelete = false,
@@ -217,6 +220,11 @@ interface ExerciseStore : Store<State, Action, Event> {
             data object OnTrackNowConflictDismiss : Click
 
             data class OnHistoryRowClick(val sessionUuid: String) : Click
+
+            /** The history record row's PR tag — opens the explainer dialog. */
+            data object OnHistoryPrTagClick : Click
+
+            data object OnPrExplainerDismiss : Click
 
             data object OnSaveClick : Click
 

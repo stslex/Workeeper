@@ -22,4 +22,10 @@ interface ResourceWrapper {
     ): String
 
     fun formatMediumDate(timestamp: Long): String
+
+    /**
+     * Day + full month, no year — `22 июля` / `July 22`. The exercise-detail history rows
+     * draw this form (extraction §3.5); the year lives on the record hero's date only.
+     */
+    fun formatDayMonth(timestamp: Long): String
 }

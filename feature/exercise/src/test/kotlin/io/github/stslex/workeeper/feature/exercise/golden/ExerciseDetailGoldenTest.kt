@@ -161,7 +161,30 @@ internal class ExerciseDetailGoldenTest {
     @EnumSource(GoldenTheme::class)
     fun historyRow(theme: GoldenTheme, testInfo: TestInfo) {
         goldenSubject(testInfo, theme) {
-            ExerciseHistoryRow(item = historyEntry(), onClick = {})
+            ExerciseHistoryRow(
+                item = historyEntry(),
+                isRecord = false,
+                onClick = {},
+                onPrTagClick = {},
+            )
+        }
+    }
+
+    /** Difference partner of [historyRow]: the record row swaps the chevron for the tag. */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun historyRowRecord(theme: GoldenTheme, testInfo: TestInfo) {
+        goldenSubject(testInfo, theme) {
+            ExerciseHistoryRow(
+                item = HistoryUiModel(
+                    sessionUuid = "s-2",
+                    dateLabel = "12 июля",
+                    setsSummaryLabel = "5×12 · 6×12 · 9×12 · 7×12",
+                ),
+                isRecord = true,
+                onClick = {},
+                onPrTagClick = {},
+            )
         }
     }
 }
@@ -186,23 +209,24 @@ private fun loadedState(): State = baseState().copy(
         repsLabel = "12",
         absoluteDateLabel = "12 июля 2026 г.",
     ),
+    historyCount = 4,
     recentHistory = persistentListOf(
         historyEntry(),
         HistoryUiModel(
             sessionUuid = "s-2",
-            setsSummaryLabel = "5 × 12 · 6 × 12 · 9 × 12 · 7 × 12",
-            metaLabel = "12 июля 2026 г. · верх (с подтягиваниями)",
+            dateLabel = "12 июля",
+            setsSummaryLabel = "5×12 · 6×12 · 9×12 · 7×12",
         ),
         HistoryUiModel(
             sessionUuid = "s-3",
-            setsSummaryLabel = "5 × 12 · 5 × 12 · 5 × 12 · 5 × 12",
-            metaLabel = "23 июня 2026 г. · верх (с подтягиваниями)",
+            dateLabel = "23 июня",
+            setsSummaryLabel = "5×12 · 5×12 · 5×12 · 5×12",
         ),
     ),
 )
 
 private fun historyEntry(): HistoryUiModel = HistoryUiModel(
     sessionUuid = "s-1",
-    setsSummaryLabel = "7 × 12 · 7 × 12 · 7 × 12 · 7 × 12",
-    metaLabel = "22 июля 2026 г. · верх (с подтягиваниями)",
+    dateLabel = "22 июля",
+    setsSummaryLabel = "7×12 · 7×12 · 7×12 · 7×12",
 )

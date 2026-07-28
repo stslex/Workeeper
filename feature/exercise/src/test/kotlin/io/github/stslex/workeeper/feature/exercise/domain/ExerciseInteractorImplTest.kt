@@ -55,6 +55,15 @@ internal class ExerciseInteractorImplTest {
     )
 
     @Test
+    fun `countSessions forwards to countSessionsUsing`() = runTest {
+        coEvery { exerciseRepository.countSessionsUsing("uuid-1") } returns 4
+
+        assertEquals(4, interactor.countSessions("uuid-1"))
+
+        coVerify(exactly = 1) { exerciseRepository.countSessionsUsing("uuid-1") }
+    }
+
+    @Test
     fun `saveExercise forwards the snapshot uuid to repository on Success`() = runTest {
         val captured = slot<ExerciseChangeDataModel>()
         coEvery { exerciseRepository.saveItem(capture(captured)) } returns ExerciseRepository.SaveResult.Success

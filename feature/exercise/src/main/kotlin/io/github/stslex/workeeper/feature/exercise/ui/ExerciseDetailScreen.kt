@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -335,37 +336,67 @@ private val ORD_WIDTH = 16.dp
 /** `U+00D7` — the `.val .x` separator (mono carries the glyph; no Archivo here). */
 private const val MULTIPLY_SIGN = "×"
 
+/**
+ * §3.5 — the История section: head with the session count as its trailing label, then a
+ * full-bleed `.list` ruled ABOVE the first row and BELOW every row (`hair-s` →
+ * borderDefault) — deliberately N+1 rules, the drawn conflict with `AppSection`'s
+ * between-only rule (extraction C5; reported, not resolved). The record row's trailing
+ * tag replaces the chevron and opens the PR explainer.
+ */
 @Composable
 private fun HistorySection(
     state: State,
     consume: (Action) -> Unit,
 ) {
-    Column(modifier = Modifier.padding(horizontal = AppDimension.screenEdge)) {
-        Text(
-            text = stringResource(R.string.feature_exercise_detail_recent),
-            style = AppUi.typography.labelSmall,
-            color = AppUi.colors.textTertiary,
+    Column {
+        AppSectionHeader(
+            modifier = Modifier.padding(
+                top = AppDimension.Space.xxl,
+                bottom = AppDimension.Space.md,
+            ),
+            label = stringResource(R.string.feature_exercise_detail_recent),
+            trailingLabel = state.historyCount
+                .takeIf { it > 0 }
+                ?.let { count ->
+                    pluralStringResource(
+                        R.plurals.feature_exercise_detail_history_count,
+                        count,
+                        count,
+                    )
+                },
         )
-        Spacer(Modifier.height(AppDimension.Space.sm))
         if (state.recentHistory.isEmpty()) {
-            Text(
-                text = stringResource(R.string.feature_exercise_detail_no_history),
-                style = AppUi.typography.bodyMedium,
-                color = AppUi.colors.textSecondary,
-            )
+            InGutter {
+                Text(
+                    text = stringResource(R.string.feature_exercise_detail_no_history),
+                    style = AppUi.typography.mono.meta,
+                    color = AppUi.colors.textDim,
+                )
+            }
         } else {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
-            ) {
+            Column {
+                HistoryRule()
                 state.recentHistory.forEach { history ->
                     ExerciseHistoryRow(
                         item = history,
+                        isRecord = history.sessionUuid == state.personalRecord?.sessionUuid,
                         onClick = { consume(Action.Click.OnHistoryRowClick(history.sessionUuid)) },
+                        onPrTagClick = { consume(Action.Click.OnHistoryPrTagClick) },
                     )
+                    HistoryRule()
                 }
             }
         }
     }
+}
+
+/** `.list`/`.row` rule — 1px solid `hair-s` (borderDefault), full bleed. */
+@Composable
+private fun HistoryRule() {
+    HorizontalDivider(
+        thickness = AppDimension.Border.small,
+        color = AppUi.colors.borderDefault,
+    )
 }
 
 /**
@@ -491,16 +522,17 @@ private fun ExerciseDetailScreenWithHistoryPreview() {
     AppTheme(themeMode = ThemeMode.LIGHT) {
         ExerciseDetailScreen(
             state = detailPreviewBaseState().copy(
+                historyCount = 4,
                 recentHistory = listOf(
                     HistoryUiModel(
                         sessionUuid = "s1",
-                        setsSummaryLabel = "80kg × 8 · 85kg × 6 · 90kg × 4",
-                        metaLabel = "Yesterday · 3 sets",
+                        dateLabel = "27 июля",
+                        setsSummaryLabel = "80×8 · 85×6 · 90×4",
                     ),
                     HistoryUiModel(
                         sessionUuid = "s2",
-                        setsSummaryLabel = "75kg × 10 · 80kg × 8 · 80kg × 6",
-                        metaLabel = "3 days ago · 3 sets",
+                        dateLabel = "25 июля",
+                        setsSummaryLabel = "75×10 · 80×8 · 80×6",
                     ),
                 ).toImmutableList(),
                 personalRecord = PersonalRecordUiModel(

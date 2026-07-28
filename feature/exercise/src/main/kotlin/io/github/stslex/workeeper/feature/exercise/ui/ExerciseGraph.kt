@@ -25,6 +25,7 @@ import io.github.stslex.workeeper.core.ui.kit.components.dialog.ActiveSessionCon
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppBlockedArchiveDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
+import io.github.stslex.workeeper.core.ui.kit.components.pr.PrExplainerDialog
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppBottomSheet
 import io.github.stslex.workeeper.core.ui.kit.snackbar.AppSnackbarModel
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
@@ -245,6 +246,10 @@ fun NavGraphBuilder.exerciseGraph(
                 confirmLabel = dialog.confirmLabel,
                 onConfirm = { processor.consume(Action.Click.OnConfirmPermanentDelete) },
                 onDismiss = { processor.consume(Action.Click.OnDismissPermanentDelete) },
+            )
+
+            DialogState.PrExplainer -> PrExplainerDialog(
+                onDismiss = { processor.consume(Action.Click.OnPrExplainerDismiss) },
             )
 
             DialogState.ImageSourcePicker -> ImageSourceDialog(

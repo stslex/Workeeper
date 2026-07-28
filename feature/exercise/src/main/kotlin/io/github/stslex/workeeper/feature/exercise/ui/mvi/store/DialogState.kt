@@ -45,6 +45,10 @@ sealed interface DialogState {
     @Stable
     data object ImageSourcePicker : DialogState
 
+    /** What counts as a record — opened from the history record row's PR tag. */
+    @Stable
+    data object PrExplainer : DialogState
+
     /** Camera permission denied → "Open Settings or Cancel" prompt. */
     @Stable
     data object PermissionDenied : DialogState

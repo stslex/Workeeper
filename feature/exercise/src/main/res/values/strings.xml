@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Exercise detail -->
-    <string name="feature_exercise_detail_recent">Recent</string>
+    <string name="feature_exercise_detail_recent">History</string>
     <string name="feature_exercise_detail_no_history">No sessions yet</string>
     <string name="feature_exercise_detail_track_now">Log now</string>
     <string name="feature_exercise_detail_default_plan">Default plan</string>
@@ -17,8 +17,6 @@
     <string name="feature_exercise_detail_archive_blocked_next_step">Remove it from those trainings first, then archive.</string>
     <string name="feature_exercise_detail_archive_blocked_ok">OK</string>
     <string name="feature_exercise_detail_archive_undo">Undo</string>
-    <string name="feature_exercise_detail_history_meta_format">%1$s · %2$s</string>
-    <string name="feature_exercise_detail_history_meta_adhoc_format">%1$s · ad-hoc</string>
     <string name="feature_exercise_detail_permanent_delete">Delete permanently</string>
     <string name="feature_exercise_detail_permanent_delete_confirm_title">Delete &#8216;%1$s&#8217; permanently?</string>
     <string name="feature_exercise_detail_permanent_delete_confirm_body">This exercise has no history. This cannot be undone.</string>
@@ -79,4 +77,8 @@
     <string name="feature_exercise_image_error_decode_failed">Image format not supported</string>
 
     <!-- Personal record card -->
+    <plurals name="feature_exercise_detail_history_count">
+        <item quantity="one">%d session</item>
+        <item quantity="other">%d sessions</item>
+    </plurals>
 </resources>
