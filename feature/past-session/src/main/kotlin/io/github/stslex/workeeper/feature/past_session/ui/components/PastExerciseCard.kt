@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -147,10 +147,11 @@ private fun CardHeader(
         horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
         Text(
-            modifier = Modifier.width(OrdinalWidth),
+            modifier = Modifier.widthIn(min = OrdinalWidth),
             text = (exercise.position + 1).toString(),
             style = AppUi.typography.mono.meta,
             color = AppUi.colors.textDim,
+            maxLines = 1,
         )
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -275,7 +276,12 @@ private fun CardBody(
 /** `.card.skip{opacity:.5}` — the session card's skip fade, reused as the sibling treatment. */
 private const val SKIPPED_ALPHA = 0.5f
 
-/** `.chead .ord { width: 16px }` — fixed so field columns align across ordinals 1-9 and 10+. */
+/**
+ * `.chead .ord { width: 16px }`, as a **minimum** with `maxLines = 1` — the same correction
+ * `PastSetEditRow.SetIndexWidth` carries, for the same reason. 16dp fits a two-digit ordinal
+ * only at fontScale 1.0; above that a fixed box wraps the number at a grapheme boundary
+ * instead of overflowing, and the wrap is silent because the title column sets the row height.
+ */
 private val OrdinalWidth: Dp = 16.dp
 
 @Preview(name = "Expanded — Light")

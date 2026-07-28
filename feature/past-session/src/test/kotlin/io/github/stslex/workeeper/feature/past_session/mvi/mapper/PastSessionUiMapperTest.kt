@@ -205,6 +205,84 @@ internal class PastSessionUiMapperTest {
         assertEquals("1 exercise · 1 set", ui.totalsLabel)
     }
 
+    // --- setSummary: the collapsed card's plan line --------------------------------------
+
+    @Test
+    fun `mapper builds the collapsed summary per exercise type`() {
+        // The whole point of these assertions: `setSummary` is read nowhere else in the
+        // suite. The goldens hand-write the string into their fixtures and never call
+        // `toUi`, so before this test `return ""` kept everything green while collapsed
+        // cards silently lost their plan line.
+        val ui = sessionDetail(
+            isAdhoc = false,
+            exercises = listOf(
+                weightlessExercise(position = 1),
+                weightedExercise(position = 2),
+                skippedExercise(position = 3),
+            ),
+        ).toUi(resources)
+
+        // Weighted: `{weight}×{reps}` per set, joined by " · " (U+00B7 with hair spaces).
+        assertEquals("100×5 · 90×3", ui.exercises[1].setSummary)
+        // Weightless: bare rep counts — the weight dimension does not exist for the type.
+        assertEquals("10", ui.exercises[0].setSummary)
+        // No sets logged: empty, which is what lets the card omit the line entirely.
+        assertEquals("", ui.exercises[2].setSummary)
+        // The separator is U+00D7, not the Latin letter x.
+        assertTrue(ui.exercises[1].setSummary.contains('×'))
+    }
+
+    @Test
+    fun `mapper excludes unfilled sets from the collapsed summary`() {
+        // `reps > 0` is the same sentinel the set count uses, so a card cannot summarise a
+        // row the header refuses to count.
+        val ui = sessionDetail(
+            isAdhoc = false,
+            exercises = listOf(
+                PerformedExerciseDetailDomain(
+                    performedExerciseUuid = "performed-7",
+                    exerciseUuid = "exercise-7",
+                    exerciseName = "Bench",
+                    exerciseType = ExerciseTypeDomain.WEIGHTED,
+                    position = 0,
+                    skipped = false,
+                    sets = listOf(
+                        SetDomain("set-7a", reps = 5, weight = 100.0, position = 0, type = SetTypeDomain.WORK),
+                        SetDomain("set-7b", reps = 0, weight = 100.0, position = 1, type = SetTypeDomain.WORK),
+                    ),
+                ),
+            ),
+        ).toUi(resources)
+
+        assertEquals("100×5", ui.exercises.single().setSummary)
+    }
+
+    @Test
+    fun `mapper marks a weighted set with no logged weight instead of printing bare reps`() {
+        // A blank weight is valid input on this screen and persists as null. Printing the
+        // bare rep count here would put "15" among "49×15" neighbours, where every leading
+        // number is a weight — so the reps would read as kilograms.
+        val ui = sessionDetail(
+            isAdhoc = false,
+            exercises = listOf(
+                PerformedExerciseDetailDomain(
+                    performedExerciseUuid = "performed-8",
+                    exerciseUuid = "exercise-8",
+                    exerciseName = "Bench",
+                    exerciseType = ExerciseTypeDomain.WEIGHTED,
+                    position = 0,
+                    skipped = false,
+                    sets = listOf(
+                        SetDomain("set-8a", reps = 15, weight = 49.0, position = 0, type = SetTypeDomain.WORK),
+                        SetDomain("set-8b", reps = 15, weight = null, position = 1, type = SetTypeDomain.WORK),
+                    ),
+                ),
+            ),
+        ).toUi(resources)
+
+        assertEquals("49×15 · —×15", ui.exercises.single().setSummary)
+    }
+
     // --- withExpansionCarriedFrom: the amended §7 model's seed-or-carry ------------------
 
     @Test

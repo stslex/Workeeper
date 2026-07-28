@@ -186,28 +186,39 @@ internal object PastSessionUiMapper {
      * The collapsed card's summary line — `pass2d.html:312`, `10×15 · 10×15 · 10×15`.
      *
      * Only sets that represent work appear: `reps > 0` is the same sentinel the set count
-     * uses, so a card cannot summarise rows the header does not count. A weightless exercise
-     * has no weight to state, so its sets collapse to bare rep counts rather than "0×15" —
-     * the weight dimension does not exist for that type rather than being zero.
+     * uses, so a card cannot summarise rows the header does not count.
+     *
+     * **The bare-reps form is a property of the exercise TYPE, not of one set's weight.** A
+     * weightless exercise has no weight dimension at all, so its sets collapse to bare rep
+     * counts rather than "0×15". A *weighted* exercise whose set has no logged weight is a
+     * different situation and must not borrow that form: a blank weight is accepted as valid
+     * input on this screen and persists as `null`, so `"49×15 · 15 · 71×15"` is reachable,
+     * and among neighbours whose leading number is a weight the lone `15` reads as 15 kg.
+     * That set keeps the `×` shape with [MISSING_WEIGHT] in the weight position, so the
+     * figure is legibly absent instead of silently re-typed.
      *
      * `×` is U+00D7 and rides in `mono.meta` (IBM Plex Mono), never the numeric family —
      * the C2 charset constraint is on `numericFontFamily`, which this line never touches.
+     * [MISSING_WEIGHT] is U+2014 and rides in the same slot for the same reason.
      */
     private fun PerformedExerciseDetailDomain.setSummary(): String = sets
         .asSequence()
         .filter { set -> set.reps > 0 }
         .map { set ->
-            val weight = set.weight?.takeIf { exerciseType == ExerciseTypeDomain.WEIGHTED }
-            if (weight == null) {
+            if (exerciseType != ExerciseTypeDomain.WEIGHTED) {
                 set.reps.toString()
             } else {
-                "${formatWeight(weight)}$SUMMARY_TIMES${set.reps}"
+                val weight = set.weight?.let(::formatWeight) ?: MISSING_WEIGHT
+                "$weight$SUMMARY_TIMES${set.reps}"
             }
         }
         .joinToString(separator = SUMMARY_SEPARATOR)
 
     private const val SUMMARY_SEPARATOR = " · "
     private const val SUMMARY_TIMES = "×"
+
+    /** An em dash: a weighted set that logged no weight, so the slot is stated as empty. */
+    private const val MISSING_WEIGHT = "—"
 
     private fun List<SetDomain>.toUiSets(
         performedExerciseUuid: String,

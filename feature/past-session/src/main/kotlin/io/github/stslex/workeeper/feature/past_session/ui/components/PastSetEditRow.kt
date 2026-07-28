@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DragHandle
@@ -88,10 +88,11 @@ internal fun PastSetEditRow(
         horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
         Text(
-            modifier = Modifier.width(SetIndexWidth),
+            modifier = Modifier.widthIn(min = SetIndexWidth),
             text = (set.position + 1).toString(),
             style = AppUi.typography.mono.meta,
             color = AppUi.colors.textDim,
+            maxLines = 1,
         )
         if (isWeighted) {
             AppNumberInput(
@@ -149,8 +150,19 @@ internal fun PastSetEditRow(
 }
 
 /**
- * `.set-i { width: 13px }` → 12dp. Fixed rather than intrinsic so the field columns align
- * across rows 1-9 and 10+. Narrower than the card ordinal's 16dp on purpose — `.set-i` and
+ * `.set-i { width: 13px }` → 12dp, as a **minimum** rather than a fixed width, with
+ * `maxLines = 1`.
+ *
+ * It was fixed, and that silently broke set 10. `mono.meta` is IBM Plex Mono at 12.5sp with
+ * a uniform 600/1000em advance, so a digit is ~7.5dp and "10" needs ~15dp; `Text` breaks an
+ * over-wide token at a grapheme boundary rather than overflowing, so the index stacked 1
+ * over 0 — invisibly, because the 48dp fields dominate the row height. A fixed width fails
+ * the same way for a *single* digit above roughly fontScale 1.6.
+ *
+ * The min-width form is also the faithful port: CSS does not break inside a word, so the
+ * mockup's own 13px box lets "10" spill into the 9px gap rather than wrapping. Rows 1-9
+ * keep the drawn 12dp column exactly; a two-digit index grows its own gutter by ~3dp
+ * instead of losing a glyph. Narrower than the card ordinal on purpose — `.set-i` and
  * `.ord` are two different widths in the mockup.
  */
 private val SetIndexWidth: Dp = AppDimension.Space.md

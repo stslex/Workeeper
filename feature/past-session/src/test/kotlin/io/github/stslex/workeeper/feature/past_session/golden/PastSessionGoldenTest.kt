@@ -177,6 +177,28 @@ internal class PastSessionGoldenTest {
     }
 
     /**
+     * Ten sets — the index column must render a two-digit ordinal. Pins the fix for the
+     * silent wrap a fixed 12dp column caused: `Text` breaks an over-wide token at a
+     * grapheme boundary, so "10" stacked as 1-over-0 without changing row height.
+     */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun cardDoubleDigitIndex(theme: GoldenTheme, testInfo: TestInfo) {
+        goldenSubject(testInfo, theme) {
+            PastExerciseCard(
+                exercise = tenSetExercise(),
+                expanded = true,
+                onHeaderClick = {},
+                onWeightChange = { _, _ -> },
+                onRepsChange = { _, _ -> },
+                onPrTagClick = {},
+                onDragStarted = {},
+                onSetReorder = { _, _, _ -> },
+            )
+        }
+    }
+
+    /**
      * The skipped card, collapsed — the session sibling treatment (§1.5 applied to §2.5's
      * two-state card): 0.5 alpha, struck-through title in `textTertiary`, the plan-line
      * replaced by the literal skipped line. The v2.4 warning chip is retired.
@@ -191,6 +213,30 @@ internal class PastSessionGoldenTest {
                     setSummary = "",
                     sets = persistentListOf(),
                 ),
+                expanded = false,
+                onHeaderClick = {},
+                onWeightChange = { _, _ -> },
+                onRepsChange = { _, _ -> },
+                onPrTagClick = {},
+                onDragStarted = {},
+                onSetReorder = { _, _, _ -> },
+            )
+        }
+    }
+
+    /**
+     * Skipped **with** sets and a non-empty summary — the fixture that actually pins the
+     * precedence. `cardSkippedEmpty` zeroes `setSummary` and `sets` together, so swapping
+     * the skipped and summary branches of the plan-line `when` produced byte-identical
+     * pixels there. The state is reachable: the live session preserves performed sets
+     * across a skip toggle, and the mapper fills both fields regardless of `skipped`.
+     */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun cardSkippedWithSets(theme: GoldenTheme, testInfo: TestInfo) {
+        goldenSubject(testInfo, theme) {
+            PastExerciseCard(
+                exercise = weightedExercise().copy(skipped = true),
                 expanded = false,
                 onHeaderClick = {},
                 onWeightChange = { _, _ -> },
@@ -338,21 +384,40 @@ private fun weightlessExercise(): PastExerciseUiModel = PastExerciseUiModel(
     isWeighted = false,
     setSummary = "8 · 8",
     sets = listOf(
-        set(uuid = "set-5", position = 0, weight = "", reps = "8"),
-        set(uuid = "set-6", position = 1, weight = "", reps = "8"),
+        set(uuid = "set-5", position = 0, performedExerciseUuid = "pe-2", weight = "", reps = "8"),
+        set(uuid = "set-6", position = 1, performedExerciseUuid = "pe-2", weight = "", reps = "8"),
     ).toImmutableList(),
+)
+
+/**
+ * Ten sets, so the index column has to render a two-digit ordinal. A fixed 12dp column
+ * cannot fit "10" at `mono.meta`, and `Text` breaks an over-wide token at a grapheme
+ * boundary rather than overflowing — which stacked the digits silently, because the 48dp
+ * fields dominate the row height. This is the fixture that makes that visible.
+ */
+private fun tenSetExercise(): PastExerciseUiModel = PastExerciseUiModel(
+    performedExerciseUuid = "pe-3",
+    exerciseName = "жим платформы",
+    position = 2,
+    skipped = false,
+    isWeighted = true,
+    setSummary = "60×12 · 60×12",
+    sets = (0 until 10).map { index ->
+        set(uuid = "set-many-$index", position = index, performedExerciseUuid = "pe-3", weight = "60", reps = "12")
+    }.toImmutableList(),
 )
 
 private fun set(
     uuid: String = "set-1",
     position: Int = 0,
+    performedExerciseUuid: String = "pe-1",
     weight: String = "49",
     reps: String = "15",
     repsError: Boolean = false,
     isPersonalRecord: Boolean = false,
 ): PastSetUiModel = PastSetUiModel(
     setUuid = uuid,
-    performedExerciseUuid = "pe-1",
+    performedExerciseUuid = performedExerciseUuid,
     position = position,
     type = SetTypeUiModel.WORK,
     weightInput = weight,
