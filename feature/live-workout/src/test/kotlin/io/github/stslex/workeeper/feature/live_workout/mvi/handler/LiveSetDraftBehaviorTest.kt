@@ -42,7 +42,7 @@ internal class LiveSetDraftBehaviorTest {
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
     private val pickerHandler = mockk<ExercisePickerHandler>(relaxed = true)
     private val statusMapper = StateStatusMapper(resourceWrapper)
-    private val setMutator = LiveSetMutator(resourceWrapper, statusMapper)
+    private val setMutator = LiveSetMutator(statusMapper)
 
     @Test
     fun `OnSetTypeSelect with no draft seeds from plan and preserves weight and reps`() {

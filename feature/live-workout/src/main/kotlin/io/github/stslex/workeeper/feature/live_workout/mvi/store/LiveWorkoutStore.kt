@@ -244,9 +244,7 @@ interface LiveWorkoutStore :
             data object OnCancelSessionConfirm : DialogClick
             data class OnResetSetsConfirm(val performedExerciseUuid: String) : DialogClick
             data object OnResetSetsDismiss : DialogClick
-            data class OnSkipExerciseConfirm(val performedExerciseUuid: String) : DialogClick
             data object OnCancelSessionDismiss : DialogClick
-            data object OnSkipExerciseDismiss : DialogClick
             data object OnFinishConfirm : DialogClick
             data object OnFinishDismiss : DialogClick
             data class OnFinishNameChange(val text: String) : DialogClick

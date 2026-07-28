@@ -165,6 +165,21 @@ interface SessionRepository {
      */
     suspend fun discardAdhocSession(sessionUuid: String, trainingUuid: String)
 
+    /**
+     * Removes ONE exercise from an in-progress session (v3 §6.1 "deleted: excluded, plan
+     * cleaned"): its set rows, its performed row, optionally its plan row
+     * ([removeFromPlan], v3 §6.2 — the row's absence IS the one-off encoding), and finally
+     * the exercise entity itself when it was inline-created and this was its only session
+     * membership (the per-exercise sibling of [discardAdhocSession]'s cascade). One
+     * transaction; a failure rolls the whole removal back.
+     */
+    suspend fun removeExerciseFromSession(
+        performedExerciseUuid: String,
+        exerciseUuid: String,
+        trainingUuid: String?,
+        removeFromPlan: Boolean,
+    )
+
     data class AdhocSessionResult(
         val sessionUuid: String,
         val trainingUuid: String,

@@ -36,7 +36,7 @@ internal class LiveSetMutatorTest {
 
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
     private val statusMapper = StateStatusMapper(resourceWrapper)
-    private val mutator = LiveSetMutator(resourceWrapper, statusMapper)
+    private val mutator = LiveSetMutator(statusMapper)
 
     @Test
     fun `findExercise returns the matching exercise or null`() {
@@ -334,37 +334,42 @@ internal class LiveSetMutatorTest {
     }
 
     @Test
-    fun `applySkip clears drafts and flips status to SKIPPED`() {
+    fun `applySkipToggle flips status to SKIPPED and preserves sets and drafts`() {
+        val performed = persistentListOf(
+            LiveSetUiModel(position = 0, weight = 100.0, reps = 5, type = SetTypeUiModel.WORK, isDone = true),
+        )
         val state = stateWith(
             exerciseWithPlan(
                 plan = persistentListOf(
                     PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+                    PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
                 ),
+                performed = performed,
             ),
         ).copy(
-            dialogState = DialogState.ConfirmDialog.SkipExercise(
-                title = "title",
-                body = "body",
-                confirmLabel = "confirm",
-                dismissLabel = "dismiss",
-                exerciseUuid = PE_UUID,
-            ),
             setDrafts = persistentMapOf(
-                State.DraftKey(PE_UUID, 0) to LiveSetUiModel(
-                    0,
+                State.DraftKey(PE_UUID, 1) to LiveSetUiModel(
+                    1,
                     110.0,
                     5,
                     SetTypeUiModel.WORK,
                     isDone = false,
                 ),
             ),
-        )
+        ).withVisibleSets()
 
-        val result = mutator.applySkip(state, PE_UUID)
+        val skipped = mutator.applySkipToggle(state, PE_UUID, skipped = true)
 
-        assertEquals(ExerciseStatusUiModel.SKIPPED, result.exercises.first().status)
-        assertTrue(result.setDrafts.isEmpty())
-        assertNull((result.dialogState as? DialogState.ConfirmDialog.SkipExercise)?.exerciseUuid)
+        // §6.1: reversible in place — nothing is destroyed by skipping.
+        assertEquals(ExerciseStatusUiModel.SKIPPED, skipped.exercises.first().status)
+        assertEquals(1, skipped.exercises.first().performedSets.size)
+        assertEquals(1, skipped.setDrafts.size)
+
+        val restored = mutator.applySkipToggle(skipped, PE_UUID, skipped = false)
+
+        // Un-skip re-derives from the preserved rows: one done of two -> back in play.
+        assertTrue(restored.exercises.first().status != ExerciseStatusUiModel.SKIPPED)
+        assertEquals(1, restored.exercises.first().performedSets.size)
     }
 
     @Test

@@ -43,7 +43,7 @@ internal class ClickHandler @Inject constructor(
             is Action.Click.OnRemoveLastSet -> processRemoveLastSet(action)
             is Action.Click.OnEditPlan -> processEditPlan(action)
             is Action.Click.OnResetSets -> processResetSetsAsk(action)
-            is Action.Click.OnSkipExercise -> processSkipExerciseAsk(action)
+            is Action.Click.OnSkipExercise -> processSkipExerciseToggle(action)
             Action.Click.OnFinishClick -> processFinishClick()
             Action.Click.OnCancelSessionClick -> processCancelClick()
             Action.Click.OnDeleteSessionMenuClick -> processDeleteSessionMenuClick()
@@ -322,18 +322,23 @@ internal class ClickHandler @Inject constructor(
         }
     }
 
-    private fun processSkipExerciseAsk(action: Action.Click.OnSkipExercise) {
-        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        updateState {
-            it.copy(
-                dialogState = DialogState.ConfirmDialog.SkipExercise(
-                    title = resourceWrapper.getString(R.string.feature_live_workout_skip_title),
-                    body = resourceWrapper.getString(R.string.feature_live_workout_skip_body),
-                    confirmLabel = resourceWrapper.getString(R.string.feature_live_workout_skip_confirm),
-                    dismissLabel = resourceWrapper.getString(R.string.feature_live_workout_skip_dismiss),
-                    exerciseUuid = action.performedExerciseUuid,
-                ),
-            )
+    /**
+     * §6.1 / extraction C9: skip is a reversible in-place TOGGLE — no confirmation, no
+     * snackbar, nothing destroyed. The dialog this used to open guarded a set wipe that no
+     * longer happens; `Пропустить упражнение` ⇄ `Вернуть в сессию` is the whole flow.
+     */
+    private fun processSkipExerciseToggle(action: Action.Click.OnSkipExercise) {
+        sendEvent(Event.HapticImpact(HapticFeedbackType.LongPress))
+        val current = state.value
+        val exercise = setMutator.findExercise(current, action.performedExerciseUuid) ?: return
+        val skipped = exercise.status != ExerciseStatusUiModel.SKIPPED
+        updateState { latest ->
+            setMutator.applySkipToggle(latest, action.performedExerciseUuid, skipped)
+        }
+        launch(
+            onError = { _ -> sendError(ErrorType.SkipFailed) },
+        ) {
+            interactor.setSkipped(action.performedExerciseUuid, skipped = skipped)
         }
     }
 

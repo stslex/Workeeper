@@ -195,6 +195,26 @@ interface ExerciseDao {
     suspend fun deleteByUuids(uuids: List<Uuid>)
 
     /**
+     * Deletes [uuid] only when it is an inline-created (`is_adhoc = 1`) exercise with **no
+     * remaining session membership** — the per-exercise sibling of the
+     * [getAdhocExercisesForSession] cascade. Called after a performed row is removed from a
+     * session (v3 §6.1 exercise deletion): if that was the row's only session, the ad-hoc
+     * exercise would otherwise be stranded invisible forever (`is_adhoc = 1` is filtered by
+     * every user-facing list). Same honest predicate as the cascade — membership via
+     * `performed_exercise_table`, never the plan table — so a library exercise
+     * (`is_adhoc = 0`) is untouchable here by construction.
+     */
+    @Query(
+        """
+        DELETE FROM exercise_table
+        WHERE uuid = :uuid AND is_adhoc = 1 AND NOT EXISTS (
+            SELECT 1 FROM performed_exercise_table WHERE exercise_uuid = :uuid
+        )
+        """,
+    )
+    suspend fun deleteIfAdhocOrphan(uuid: Uuid)
+
+    /**
      * Flip `is_adhoc` to `0` for every ad-hoc exercise performed in [sessionUuid].
      * Called inside the `finishSession` transaction so inline-created ad-hoc exercises
      * graduate to regular library entries the moment the session is preserved. The

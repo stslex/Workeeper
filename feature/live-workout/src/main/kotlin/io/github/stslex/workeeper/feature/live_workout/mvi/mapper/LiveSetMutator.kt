@@ -3,14 +3,12 @@ package io.github.stslex.workeeper.feature.live_workout.mvi.mapper
 
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
-import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutScope
 import io.github.stslex.workeeper.feature.live_workout.domain.mapper.LiveWorkoutDomainMapper.beatsBaseline
 import io.github.stslex.workeeper.feature.live_workout.domain.model.PlanSetDomain
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveSetRowsResolver.withVisibleSets
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toDomain
-import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.withPresentation
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
@@ -27,13 +25,11 @@ import kotlinx.collections.immutable.toImmutableMap
  * action dispatch, side effects, and IO.
  *
  * `@SingleIn(LiveWorkoutScope)` (Metro; formerly Hilt `@ViewModelScoped`) — one instance per
- * `LiveWorkoutStoreImpl`. Not a singleton: we never want a long-lived instance
- * holding `ResourceWrapper` across the app.
+ * `LiveWorkoutStoreImpl`.
  */
 @Inject
 @SingleIn(LiveWorkoutScope::class)
 internal class LiveSetMutator(
-    private val resourceWrapper: ResourceWrapper,
     private val statusMapper: StateStatusMapper,
 ) {
 
@@ -262,42 +258,30 @@ internal class LiveSetMutator(
         )
     }
 
-    fun applySkip(state: State, performedExerciseUuid: String): State {
-        val updated = state.exercises.map { exercise ->
-            if (exercise.performedExerciseUuid != performedExerciseUuid) return@map exercise
-            exercise.copy(performedSets = persistentListOf())
-        }.toImmutableList()
-        val nextDrafts = state.setDrafts
-            .filterKeys { it.performedExerciseUuid != performedExerciseUuid }
-            .toImmutableMap()
-        return markSkipped(
-            state.copy(
-                exercises = updated,
-                setDrafts = nextDrafts,
-                rowCountOverrides = (state.rowCountOverrides - performedExerciseUuid)
-                    .toImmutableMap(),
-                dialogState = DialogState.Hidden,
-            ),
-            performedExerciseUuid,
-        )
-    }
-
     /**
-     * Reproduces the snapshot → status pipeline in-memory: the targeted exercise
-     * becomes SKIPPED while the rest are re-derived so the CURRENT marker walks past
-     * the skipped row but still honors the user's explicit active set.
+     * §6.1 skip: a reversible flag, NOT a destructive reset — performed sets and drafts all
+     * survive, which is what makes `Вернуть в сессию` lossless. Un-skipping seeds the row
+     * PENDING and lets the status pipeline re-derive DONE/CURRENT from the preserved sets.
+     * (The earlier revision wiped sets here; the confirmation dialog that guarded that wipe
+     * is gone with it — extraction §6.1/C9.)
      */
-    private fun markSkipped(state: State, performedExerciseUuid: String): State {
+    fun applySkipToggle(state: State, performedExerciseUuid: String, skipped: Boolean): State {
         val rebuilt = state.exercises.map { exercise ->
             if (exercise.performedExerciseUuid == performedExerciseUuid) {
-                exercise.copy(status = ExerciseStatusUiModel.SKIPPED)
+                exercise.copy(
+                    status = if (skipped) {
+                        ExerciseStatusUiModel.SKIPPED
+                    } else {
+                        ExerciseStatusUiModel.PENDING
+                    },
+                )
             } else {
                 exercise
             }
         }.let { items ->
             statusMapper.recomputeOnly(items, state.activeExerciseUuids)
         }
-        return state.copy(exercises = rebuilt).withPresentation(resourceWrapper)
+        return statusMapper.recomputeStatuses(state.copy(exercises = rebuilt))
     }
 
     fun nextSetPosition(state: State, exercise: LiveExerciseUiModel): Int {

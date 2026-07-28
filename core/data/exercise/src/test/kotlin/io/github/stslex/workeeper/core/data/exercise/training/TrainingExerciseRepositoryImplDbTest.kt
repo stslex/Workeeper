@@ -83,6 +83,30 @@ internal class TrainingExerciseRepositoryImplDbTest {
     }
 
     @Test
+    fun `detachExercise deletes the pair row - the one-off toggle's OFF write`() = runTest {
+        val (trainingUuid, exerciseUuid) = seedTrainingAndExerciseRow()
+
+        repository.detachExercise(trainingUuid.toString(), exerciseUuid.toString())
+
+        // v3 §6.2: the row's absence IS the one-off flag.
+        val plans = repository.getPlans(trainingUuid.toString(), listOf(exerciseUuid.toString()))
+        assertFalse(plans.containsKey(exerciseUuid.toString()))
+    }
+
+    @Test
+    fun `attachExercise re-inserts the pair row with the given plan`() = runTest {
+        val (trainingUuid, exerciseUuid) = seedTrainingAndExerciseRow()
+        repository.detachExercise(trainingUuid.toString(), exerciseUuid.toString())
+        val plan = listOf(PlanSetDataModel(weight = 60.0, reps = 8, type = SetTypeDataModel.WORK))
+
+        repository.attachExercise(trainingUuid.toString(), exerciseUuid.toString(), plan)
+
+        val plans = repository.getPlans(trainingUuid.toString(), listOf(exerciseUuid.toString()))
+        assertTrue(plans.containsKey(exerciseUuid.toString()))
+        assertEquals(plan, plans[exerciseUuid.toString()])
+    }
+
+    @Test
     fun `getPlan returns null when no row exists for the pair`() = runTest {
         assertNull(repository.getPlan(Uuid.random().toString(), Uuid.random().toString()))
     }

@@ -149,10 +149,6 @@ internal fun LiveWorkoutScreen(
                         is DialogState.ConfirmDialog.ResetSets -> Action.DialogClick.OnResetSetsConfirm(
                             dialog.exerciseUuid,
                         )
-
-                        is DialogState.ConfirmDialog.SkipExercise -> Action.DialogClick.OnSkipExerciseConfirm(
-                            dialog.exerciseUuid,
-                        )
                     }
                     consume(action)
                 },
@@ -160,7 +156,6 @@ internal fun LiveWorkoutScreen(
                     val action = when (dialog) {
                         is DialogState.ConfirmDialog.CancelSession -> Action.DialogClick.OnCancelSessionDismiss
                         is DialogState.ConfirmDialog.ResetSets -> Action.DialogClick.OnResetSetsDismiss
-                        is DialogState.ConfirmDialog.SkipExercise -> Action.DialogClick.OnSkipExerciseDismiss
                     }
                     consume(action)
                 },

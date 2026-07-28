@@ -23,10 +23,6 @@
     <string name="feature_live_workout_reset_confirm">Сбросить</string>
     <string name="feature_live_workout_reset_dismiss" tools:ignore="DuplicateStrings">Отмена</string>
 
-    <string name="feature_live_workout_skip_title">Пропустить упражнение?</string>
-    <string name="feature_live_workout_skip_body">Записанные подходы будут удалены, упражнение отмечено как пропущенное.</string>
-    <string name="feature_live_workout_skip_confirm">Пропустить</string>
-    <string name="feature_live_workout_skip_dismiss" tools:ignore="DuplicateStrings">Отмена</string>
 
     <string name="feature_live_workout_finish">Завершить сессию</string>
     <string name="feature_live_workout_finish_title">Завершить сессию?</string>

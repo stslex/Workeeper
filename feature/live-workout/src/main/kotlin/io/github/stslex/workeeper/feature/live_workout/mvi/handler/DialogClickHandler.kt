@@ -31,7 +31,6 @@ internal class DialogClickHandler @Inject constructor(
             Action.DialogClick.OnFinishConfirm -> processFinishConfirm()
             is Action.DialogClick.OnFinishNameChange -> processFinishNameChange(action)
             is Action.DialogClick.OnResetSetsConfirm -> processResetSetsConfirm(action)
-            is Action.DialogClick.OnSkipExerciseConfirm -> processSkipExerciseConfirm(action)
             is Action.DialogClick.PickerAction -> pickerHandler.invoke(action.action)
             Action.DialogClick.OnEmptyFinishDiscard -> processEmptyFinishDiscard()
             Action.DialogClick.OnEmptyFinishContinue -> processEmptyFinishContinue()
@@ -39,7 +38,6 @@ internal class DialogClickHandler @Inject constructor(
             Action.DialogClick.OnCancelSessionDismiss,
             Action.DialogClick.OnResetSetsDismiss,
             Action.DialogClick.OnFinishDismiss,
-            Action.DialogClick.OnSkipExerciseDismiss,
             -> processCloseDialog()
         }
     }
@@ -78,16 +76,6 @@ internal class DialogClickHandler @Inject constructor(
                 sessionUuid = sessionUuid,
                 trainingUuid = trainingUuid,
             )
-        }
-    }
-
-    private fun processSkipExerciseConfirm(action: Action.DialogClick.OnSkipExerciseConfirm) {
-        sendEvent(Event.HapticImpact(HapticFeedbackType.LongPress))
-        updateState { latest -> setMutator.applySkip(latest, action.performedExerciseUuid) }
-        launch(
-            onError = { _ -> sendError(ErrorType.SkipFailed) },
-        ) {
-            interactor.setSkipped(action.performedExerciseUuid, skipped = true)
         }
     }
 

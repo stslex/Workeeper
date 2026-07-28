@@ -34,4 +34,11 @@ data class LiveExerciseDomain(
      * with `plan_sets IS NULL` is attached-with-no-plan and is a different thing entirely.
      */
     val isPlanAttached: Boolean,
+    /**
+     * The exercise template's free-text description, when one exists. Gates the card's
+     * `.mini.info` button and fills the `sh-desc` sheet (extraction §1.5, §1.9). The data
+     * always travelled to `loadSession` inside the template read; the mapping simply
+     * dropped it until the session rebuild needed it.
+     */
+    val description: String? = null,
 )

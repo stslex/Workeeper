@@ -39,7 +39,7 @@ internal class ClickHandlerTest {
     private val resourceWrapper = mockk<ResourceWrapper>(relaxed = true)
     private val pickerHandler = mockk<ExercisePickerHandler>(relaxed = true)
     private val statusMapper = StateStatusMapper(resourceWrapper)
-    private val setMutator = LiveSetMutator(resourceWrapper, statusMapper)
+    private val setMutator = LiveSetMutator(statusMapper)
 
     @Test
     fun `OnExerciseHeaderClick toggles expansion for DONE exercises`() {
@@ -254,6 +254,48 @@ internal class ClickHandlerTest {
         val empty = stateFlow.value.dialogState as? DialogState.EmptyFinish
         assertTrue(empty != null)
         assertEquals(true, empty?.canDiscard)
+    }
+
+    @Test
+    fun `OnSkipExercise toggles to SKIPPED preserving sets and persists the flag`() = runTest {
+        val store = FakeLiveWorkoutHandlerStore(baseState(loggedExercise()))
+        val handler = ClickHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            pickerHandler = pickerHandler,
+            setMutator = setMutator,
+            store = store,
+        )
+
+        handler.invoke(Action.Click.OnSkipExercise("pe-1"))
+        store.runLatestLaunch(this)
+
+        // §6.1 / C9: no dialog, no wipe — the logged set survives the skip.
+        assertEquals(ExerciseStatusUiModel.SKIPPED, store.state.value.exercises.first().status)
+        assertEquals(1, store.state.value.exercises.first().performedSets.size)
+        assertEquals(DialogState.Hidden, store.state.value.dialogState)
+        coVerify(exactly = 1) { interactor.setSkipped("pe-1", true) }
+    }
+
+    @Test
+    fun `OnSkipExercise on a skipped exercise returns it to the session`() = runTest {
+        val store = FakeLiveWorkoutHandlerStore(
+            baseState(loggedExercise().copy(status = ExerciseStatusUiModel.SKIPPED)),
+        )
+        val handler = ClickHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            pickerHandler = pickerHandler,
+            setMutator = setMutator,
+            store = store,
+        )
+
+        handler.invoke(Action.Click.OnSkipExercise("pe-1"))
+        store.runLatestLaunch(this)
+
+        assertTrue(store.state.value.exercises.first().status != ExerciseStatusUiModel.SKIPPED)
+        assertEquals(1, store.state.value.exercises.first().performedSets.size)
+        coVerify(exactly = 1) { interactor.setSkipped("pe-1", false) }
     }
 
     @Test

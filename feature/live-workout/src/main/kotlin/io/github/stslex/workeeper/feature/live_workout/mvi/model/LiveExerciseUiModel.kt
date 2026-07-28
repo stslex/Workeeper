@@ -34,4 +34,6 @@ data class LiveExerciseUiModel(
      * about the axis reads as an ordinary plan exercise.
      */
     val isPlanAttached: Boolean = true,
+    /** Template description; gates the `.mini.info` button and fills `sh-desc` (§1.5/§1.9). */
+    val description: String? = null,
 )

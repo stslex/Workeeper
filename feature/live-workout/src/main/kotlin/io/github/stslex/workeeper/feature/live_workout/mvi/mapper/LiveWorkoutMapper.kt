@@ -129,6 +129,7 @@ internal object LiveWorkoutMapper {
                 planSets = c.plan,
                 performedSets = c.performed,
                 isPlanAttached = c.snapshot.isPlanAttached,
+                description = c.snapshot.description,
             )
         }.toImmutableList()
     }

@@ -29,11 +29,6 @@
     <string name="feature_live_workout_reset_confirm">Reset</string>
     <string name="feature_live_workout_reset_dismiss" tools:ignore="DuplicateStrings">Cancel</string>
 
-    <!-- Skip confirmation -->
-    <string name="feature_live_workout_skip_title">Skip this exercise?</string>
-    <string name="feature_live_workout_skip_body">Logged sets for this exercise will be deleted and the exercise marked as skipped.</string>
-    <string name="feature_live_workout_skip_confirm">Skip</string>
-    <string name="feature_live_workout_skip_dismiss" tools:ignore="DuplicateStrings">Cancel</string>
 
     <!-- Finish dialog -->
     <string name="feature_live_workout_finish">Finish session</string>
