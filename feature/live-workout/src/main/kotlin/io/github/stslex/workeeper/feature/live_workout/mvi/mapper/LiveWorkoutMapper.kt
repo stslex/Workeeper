@@ -417,8 +417,14 @@ internal object LiveWorkoutMapper {
         resourceWrapper: ResourceWrapper,
         exerciseType: ExerciseTypeUiModel,
     ): String = when (exerciseType) {
+        // A WEIGHTED exercise can still carry reps-only plan sets — `PlanDraftReducer`
+        // writes `weight = null` and a cleared weight field parses to null — so the null
+        // branch stays reps-only, matching `PlanEditorUIMapper.formatPlanSummary`.
+        // Substituting 0.0 would print a 0 kg target the user never set.
         ExerciseTypeUiModel.WEIGHTED -> joinToString(SUB_SEPARATOR) { set ->
-            "${(set.weight ?: 0.0).formatPrWeight()}×${set.reps}"
+            set.weight
+                ?.let { weight -> "${weight.formatPrWeight()}×${set.reps}" }
+                ?: set.reps.toString()
         }
 
         ExerciseTypeUiModel.WEIGHTLESS -> {

@@ -146,6 +146,79 @@ internal class SessionRepositoryImplRemoveExerciseDbTest {
     }
 
     @Test
+    fun `REPRO an adhoc-session inline exercise whose plan row survives the removal`() = runTest {
+        // The ad-hoc shape, exactly as production builds it: `createAdhocSession` and
+        // `addExerciseToActiveSession` BOTH insert `training_exercise_table` rows even for
+        // an ad-hoc training, and that table holds `onDelete = RESTRICT` on exercise_uuid.
+        val training = env.seedTraining(isAdhoc = true)
+        val inline = env.seedExercise(isAdhoc = true)
+        env.seedTrainingExercise(trainingUuid = training.uuid, exerciseUuid = inline.uuid)
+        val session = env.seedSession(trainingUuid = training.uuid)
+        val performed = env.seedPerformed(sessionUuid = session.uuid, exerciseUuid = inline.uuid)
+        env.seedSet(performedExerciseUuid = performed.uuid)
+
+        repository.removeExerciseFromSession(
+            performedExerciseUuid = performed.uuid.toString(),
+            exerciseUuid = inline.uuid.toString(),
+            trainingUuid = training.uuid.toString(),
+            removeFromPlan = false,
+        )
+
+        // The removal must SUCCEED regardless: the orphan cleanup may never take the whole
+        // transaction down with it, because that silently resurrects the exercise the user
+        // deleted once the undo window closes.
+        assertTrue(env.performedExerciseDao.getBySession(session.uuid).isEmpty())
+        assertTrue(env.setDao.getByPerformedExercise(performed.uuid).isEmpty())
+        // Still referenced by a plan row, so it is NOT an orphan and must survive.
+        assertNotNull(env.exerciseDao.getById(inline.uuid))
+    }
+
+    @Test
+    fun `an adhoc session cleans the plan row and then the inline exercise`() = runTest {
+        // The production path after the handler stopped exempting ad-hoc sessions: the pair
+        // row goes first, so the orphan cleanup finds nothing referencing the exercise and
+        // completes instead of tripping the FK.
+        val training = env.seedTraining(isAdhoc = true)
+        val inline = env.seedExercise(isAdhoc = true)
+        env.seedTrainingExercise(trainingUuid = training.uuid, exerciseUuid = inline.uuid)
+        val session = env.seedSession(trainingUuid = training.uuid)
+        val performed = env.seedPerformed(sessionUuid = session.uuid, exerciseUuid = inline.uuid)
+
+        repository.removeExerciseFromSession(
+            performedExerciseUuid = performed.uuid.toString(),
+            exerciseUuid = inline.uuid.toString(),
+            trainingUuid = training.uuid.toString(),
+            removeFromPlan = true,
+        )
+
+        assertTrue(env.trainingExerciseDao.getByTraining(training.uuid).isEmpty())
+        assertTrue(env.performedExerciseDao.getBySession(session.uuid).isEmpty())
+        assertNull(env.exerciseDao.getById(inline.uuid))
+    }
+
+    @Test
+    fun `an inline exercise planned by another training is not an orphan`() = runTest {
+        // The hardened predicate's own case: session membership gone, but a DIFFERENT
+        // training still plans it, so it survives (and the FK is never provoked).
+        val training = env.seedTraining()
+        val otherTraining = env.seedTraining(name = "Other")
+        val inline = env.seedExercise(isAdhoc = true)
+        env.seedTrainingExercise(trainingUuid = otherTraining.uuid, exerciseUuid = inline.uuid)
+        val session = env.seedSession(trainingUuid = training.uuid)
+        val performed = env.seedPerformed(sessionUuid = session.uuid, exerciseUuid = inline.uuid)
+
+        repository.removeExerciseFromSession(
+            performedExerciseUuid = performed.uuid.toString(),
+            exerciseUuid = inline.uuid.toString(),
+            trainingUuid = training.uuid.toString(),
+            removeFromPlan = true,
+        )
+
+        assertNotNull(env.exerciseDao.getById(inline.uuid))
+        assertEquals(1, env.trainingExerciseDao.getByTraining(otherTraining.uuid).size)
+    }
+
+    @Test
     fun `a library exercise is never deleted by the removal`() = runTest {
         val training = env.seedTraining()
         val library = env.seedExercise(isAdhoc = false)

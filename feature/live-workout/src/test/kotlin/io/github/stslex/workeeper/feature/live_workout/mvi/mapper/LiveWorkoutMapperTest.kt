@@ -144,6 +144,32 @@ internal class LiveWorkoutMapperTest {
     }
 
     @Test
+    fun `REPRO a weighted plan set with no weight renders reps-only, never a fake zero`() {
+        // Null weights are real: `PlanDraftReducer` writes them and a cleared weight field
+        // parses to null, so a WEIGHTED exercise can legitimately carry reps-only plan
+        // sets. The card subtitle must not invent a 0 kg target for them — the app's
+        // established rendering (`PlanEditorUIMapper.formatPlanSummary`) is reps-only.
+        val snapshot = SessionSnapshotDomain(
+            session = sessionAt(1000L),
+            trainingName = "Push Day",
+            isAdhoc = false,
+            exercises = listOf(
+                pending(uuid = "pe-1", position = 0).copy(
+                    planSets = listOf(
+                        PlanSetDomain(weight = null, reps = 12, type = SetTypeDomain.WORK),
+                        PlanSetDomain(weight = 60.0, reps = 8, type = SetTypeDomain.WORK),
+                    ),
+                ),
+            ),
+            preSessionPrSnapshot = emptyMap(),
+        )
+
+        val state = snapshot.toState(nowMillis = 1000L, resourceWrapper = resourceWrapper)
+
+        assertEquals("12 · 60×8", state.exercises.first().statusLabel)
+    }
+
+    @Test
     fun `mapper preserves session start time on the resulting state`() {
         val snapshot = SessionSnapshotDomain(
             session = sessionAt(startedAt = 7_000L),

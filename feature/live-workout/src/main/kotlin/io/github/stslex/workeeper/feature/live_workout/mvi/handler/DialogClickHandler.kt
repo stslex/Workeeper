@@ -60,7 +60,13 @@ internal class DialogClickHandler @Inject constructor(
         sendEvent(Event.HapticImpact(HapticFeedbackType.LongPress))
         val prior = state.value
         val exercise = setMutator.findExercise(prior, action.performedExerciseUuid) ?: return
-        val removeFromPlan = exercise.isPlanAttached && !prior.isAdhoc
+        // Plan-attachment is the only question here — an ad-hoc session is NOT exempt. Its
+        // training carries real `training_exercise_table` rows (both `createAdhocSession`
+        // and every mid-session add write one), so skipping the pair delete left a row
+        // pointing at an exercise the orphan cleanup then tried to delete, and the FK's
+        // RESTRICT rolled the entire removal back. The ad-hoc row is bookkeeping for a
+        // template the user never sees; it leaves with the exercise.
+        val removeFromPlan = exercise.isPlanAttached
         updateState { latest ->
             setMutator.recomputeStatuses(
                 latest.copy(

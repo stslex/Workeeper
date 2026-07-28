@@ -314,6 +314,38 @@ internal class ClickHandlerTest {
     }
 
     @Test
+    fun `an adhoc session still removes the plan row on delete`() = runTest {
+        // Ad-hoc trainings carry real plan rows, and leaving one behind made the orphan
+        // cleanup trip the FK's RESTRICT and roll the whole removal back.
+        val store = FakeLiveWorkoutHandlerStore(
+            baseState(loggedExercise()).copy(isAdhoc = true),
+        )
+        val dialogHandler = DialogClickHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            pickerHandler = pickerHandler,
+            setMutator = setMutator,
+            store = store,
+        )
+        val clickHandler = ClickHandler(
+            interactor = interactor,
+            resourceWrapper = resourceWrapper,
+            pickerHandler = pickerHandler,
+            setMutator = setMutator,
+            store = store,
+        )
+
+        dialogHandler.invoke(Action.DialogClick.OnDeleteExerciseConfirm("pe-1"))
+        val undoId = store.state.value.pendingUndo?.id
+        clickHandler.invoke(Action.Click.OnUndoTimeout(undoId ?: return@runTest))
+        store.runLatestLaunch(this)
+
+        coVerify(exactly = 1) {
+            interactor.deleteExerciseFromSession("pe-1", "ex-1", "training-1", removeFromPlan = true)
+        }
+    }
+
+    @Test
     fun `undo timeout commits the deferred exercise delete`() = runTest {
         val store = FakeLiveWorkoutHandlerStore(baseState(loggedExercise()))
         val dialogHandler = DialogClickHandler(
