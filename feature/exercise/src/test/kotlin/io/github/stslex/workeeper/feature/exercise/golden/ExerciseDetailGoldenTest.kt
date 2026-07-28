@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.exercise.golden
 
-import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordCard
+import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordHero
 import io.github.stslex.workeeper.core.ui.kit.golden.GoldenTheme
 import io.github.stslex.workeeper.core.ui.kit.golden.golden
 import io.github.stslex.workeeper.core.ui.kit.golden.goldenSubject
@@ -78,8 +78,9 @@ internal class ExerciseDetailGoldenTest {
                     }.toImmutableList(),
                     personalRecord = PersonalRecordUiModel(
                         sessionUuid = "s-pr",
-                        displayLabel = "15 повт",
-                        relativeDateLabel = "12 июля",
+                        weightLabel = null,
+                        repsLabel = "15",
+                        absoluteDateLabel = "12 июля 2026 г.",
                     ),
                 ),
                 consume = {},
@@ -127,15 +128,29 @@ internal class ExerciseDetailGoldenTest {
 
     // --- Record block ----------------------------------------------------------------------
 
+    /** §3.3 fixture: mdot + Рекорд label, meta date line, 9×12 at dataValue — all molten. */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
-    fun recordCard(theme: GoldenTheme, testInfo: TestInfo) {
+    fun recordHero(theme: GoldenTheme, testInfo: TestInfo) {
         goldenSubject(testInfo, theme) {
-            PersonalRecordCard(
-                displayLabel = "9 × 12",
-                relativeDateLabel = "12 июля",
+            PersonalRecordHero(
+                weightLabel = "9",
+                repsLabel = "12",
+                metaLabel = "12 июля 2026 г.",
                 onClick = {},
-                onBadgeClick = {},
+            )
+        }
+    }
+
+    /** Difference partner of [recordHero]: the weightless value/unit split (B11 coverage). */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun recordHeroWeightless(theme: GoldenTheme, testInfo: TestInfo) {
+        goldenSubject(testInfo, theme) {
+            PersonalRecordHero(
+                weightLabel = null,
+                repsLabel = "15",
+                metaLabel = "12 июля 2026 г.",
             )
         }
     }
@@ -167,8 +182,9 @@ private fun loadedState(): State = baseState().copy(
     }.toImmutableList(),
     personalRecord = PersonalRecordUiModel(
         sessionUuid = "s-2",
-        displayLabel = "9 × 12",
-        relativeDateLabel = "12 июля",
+        weightLabel = "9",
+        repsLabel = "12",
+        absoluteDateLabel = "12 июля 2026 г.",
     ),
     recentHistory = persistentListOf(
         historyEntry(),

@@ -112,30 +112,13 @@ internal object ExerciseUiMapper {
         type: ExerciseTypeUiModel,
     ): PersonalRecordUiModel = PersonalRecordUiModel(
         sessionUuid = sessionUuid,
-        displayLabel = formatPrLabel(weight, reps, type, resourceWrapper),
-        relativeDateLabel = resourceWrapper.getAbbreviatedRelativeTime(finishedAt),
+        weightLabel = when (type) {
+            ExerciseTypeUiModel.WEIGHTED -> (weight ?: 0.0).formatWeight()
+            ExerciseTypeUiModel.WEIGHTLESS -> null
+        },
+        repsLabel = reps.toString(),
+        absoluteDateLabel = resourceWrapper.formatMediumDate(finishedAt),
     )
-
-    private fun formatPrLabel(
-        weight: Double?,
-        reps: Int,
-        type: ExerciseTypeUiModel,
-        resourceWrapper: ResourceWrapper,
-    ): String = when (type) {
-        ExerciseTypeUiModel.WEIGHTED -> {
-            val weightLabel = (weight ?: 0.0).formatWeight()
-            resourceWrapper.getString(
-                R.string.feature_exercise_detail_pr_weighted_format,
-                weightLabel,
-                reps,
-            )
-        }
-
-        ExerciseTypeUiModel.WEIGHTLESS -> resourceWrapper.getString(
-            R.string.feature_exercise_detail_pr_weightless_format,
-            reps,
-        )
-    }
 
     private fun Double.formatWeight(): String = if (this % 1.0 == 0.0) {
         toLong().toString()

@@ -19,10 +19,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -34,8 +30,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.card.AppCard
-import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordCard
-import io.github.stslex.workeeper.core.ui.kit.components.pr.PrExplainerDialog
+import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordHero
 import io.github.stslex.workeeper.core.ui.kit.components.setchip.AppSetTypeChip
 import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTag
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
@@ -66,7 +61,6 @@ internal fun ExerciseDetailScreen(
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var showPrExplainer by remember { mutableStateOf(false) }
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -74,14 +68,7 @@ internal fun ExerciseDetailScreen(
             .testTag("ExerciseDetailScreen"),
     ) {
         TopBar(state = state, consume = consume)
-        Body(
-            state = state,
-            consume = consume,
-            onPrBadgeClick = { showPrExplainer = true },
-        )
-    }
-    if (showPrExplainer) {
-        PrExplainerDialog(onDismiss = { showPrExplainer = false })
+        Body(state = state, consume = consume)
     }
 }
 
@@ -124,7 +111,6 @@ internal fun TopBar(
 private fun Body(
     state: State,
     consume: (Action) -> Unit,
-    onPrBadgeClick: () -> Unit,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -171,15 +157,17 @@ private fun Body(
                     }
                 }
             }
-            // §3.1 frame order: the record block sits above the default plan.
+            // §3.1 frame order: the record block sits above the default plan. The whole
+            // hero is the chart entry point; the PR explainer moved to the history row's
+            // record tag (the past-session pattern).
             state.personalRecord?.let { pr ->
                 InGutter {
-                    PersonalRecordCard(
-                        modifier = Modifier.testTag("ExerciseDetailPersonalRecordCard"),
-                        displayLabel = pr.displayLabel,
-                        relativeDateLabel = pr.relativeDateLabel,
+                    PersonalRecordHero(
+                        modifier = Modifier.testTag("ExerciseDetailRecordHero"),
+                        weightLabel = pr.weightLabel,
+                        repsLabel = pr.repsLabel,
+                        metaLabel = pr.absoluteDateLabel,
                         onClick = { consume(Action.Click.OnPrCardClick) },
-                        onBadgeClick = onPrBadgeClick,
                     )
                 }
             }
@@ -452,8 +440,9 @@ private fun ExerciseDetailScreenWithPlanAndPrPreview() {
                 ).toImmutableList(),
                 personalRecord = PersonalRecordUiModel(
                     sessionUuid = "s-pr",
-                    displayLabel = "100 × 5",
-                    relativeDateLabel = "Yesterday",
+                    weightLabel = "100",
+                    repsLabel = "5",
+                    absoluteDateLabel = "27 июля 2026 г.",
                 ),
                 tags = listOf(TagUiModel(uuid = "t1", name = "Push")).toImmutableList(),
             ),
@@ -482,8 +471,9 @@ private fun ExerciseDetailScreenWithHistoryPreview() {
                 ).toImmutableList(),
                 personalRecord = PersonalRecordUiModel(
                     sessionUuid = "s-pr",
-                    displayLabel = "100 × 5",
-                    relativeDateLabel = "1 week ago",
+                    weightLabel = "100",
+                    repsLabel = "5",
+                    absoluteDateLabel = "21 июля 2026 г.",
                 ),
             ),
             consume = {},
