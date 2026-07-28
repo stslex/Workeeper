@@ -269,6 +269,7 @@ internal class PastSessionUiMapperTest {
                             position = 0,
                             skipped = false,
                             isWeighted = true,
+                            setSummary = "",
                             sets = persistentListOf(),
                         )
                     }.toImmutableList(),

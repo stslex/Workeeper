@@ -202,6 +202,7 @@ internal class ClickHandlerTest {
                                 position = 0,
                                 skipped = false,
                                 isWeighted = true,
+                                setSummary = "100×8",
                                 sets = persistentListOf(
                                     PastSetUiModel(
                                         setUuid = SET_UUID,

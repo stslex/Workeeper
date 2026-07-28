@@ -14,8 +14,14 @@
     <string name="feature_past_session_deleted_snackbar">Session deleted</string>
     <string name="feature_past_session_save_failed_snackbar">Could not save change — try again</string>
 
-    <string name="feature_past_session_skipped_chip">Skipped</string>
+    <!-- The skipped card's plan-line (the session screen's `.sub` shows the literal
+         `пропущено`; this is the past card's sibling treatment). Lowercase as drawn. -->
+    <string name="feature_past_session_skipped_line">skipped</string>
     <string name="feature_past_session_no_sets">No sets logged</string>
+
+    <!-- §2.4 section head: two peer labels; the right one declares the mode. -->
+    <string name="feature_past_session_section_logged">Logged</string>
+    <string name="feature_past_session_section_editable">editable</string>
 
     <!-- v3 header eyebrow (extraction §2.3): "Завершена · 23 июля 2026". Uppercasing is the
          AppLabel style's job, not the string's. -->

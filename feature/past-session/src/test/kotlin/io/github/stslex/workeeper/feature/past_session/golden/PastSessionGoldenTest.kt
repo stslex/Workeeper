@@ -149,6 +149,11 @@ internal class PastSessionGoldenTest {
         }
     }
 
+    /**
+     * The skipped card, collapsed — the session sibling treatment (§1.5 applied to §2.5's
+     * two-state card): 0.5 alpha, struck-through title in `textTertiary`, the plan-line
+     * replaced by the literal skipped line. The v2.4 warning chip is retired.
+     */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun cardSkippedEmpty(theme: GoldenTheme, testInfo: TestInfo) {
@@ -156,9 +161,10 @@ internal class PastSessionGoldenTest {
             PastExerciseCard(
                 exercise = weightedExercise().copy(
                     skipped = true,
+                    setSummary = "",
                     sets = persistentListOf(),
                 ),
-                expanded = true,
+                expanded = false,
                 onHeaderClick = {},
                 onWeightChange = { _, _ -> },
                 onRepsChange = { _, _ -> },
@@ -287,6 +293,7 @@ private fun weightedExercise(): PastExerciseUiModel = PastExerciseUiModel(
     position = 0,
     skipped = false,
     isWeighted = true,
+    setSummary = "49×15 · 71×15 · 77×15 · 71×15",
     sets = listOf(
         set(uuid = "set-1", position = 0, weight = "49"),
         set(uuid = "set-2", position = 1, weight = "71"),
@@ -301,6 +308,7 @@ private fun weightlessExercise(): PastExerciseUiModel = PastExerciseUiModel(
     position = 1,
     skipped = false,
     isWeighted = false,
+    setSummary = "8 · 8",
     sets = listOf(
         set(uuid = "set-5", position = 0, weight = "", reps = "8"),
         set(uuid = "set-6", position = 1, weight = "", reps = "8"),

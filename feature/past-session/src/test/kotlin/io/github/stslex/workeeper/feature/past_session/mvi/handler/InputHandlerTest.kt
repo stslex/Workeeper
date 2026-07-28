@@ -153,6 +153,7 @@ internal class InputHandlerTest {
                                 position = 0,
                                 skipped = false,
                                 isWeighted = true,
+                                setSummary = "",
                                 sets = persistentListOf(set),
                             ),
                         ),

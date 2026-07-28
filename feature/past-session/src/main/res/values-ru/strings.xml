@@ -14,8 +14,11 @@
     <string name="feature_past_session_deleted_snackbar">Сессия удалена</string>
     <string name="feature_past_session_save_failed_snackbar">Не удалось сохранить — попробуйте ещё раз</string>
 
-    <string name="feature_past_session_skipped_chip">Пропущено</string>
+    <string name="feature_past_session_skipped_line">пропущено</string>
     <string name="feature_past_session_no_sets">Подходы не записаны</string>
+
+    <string name="feature_past_session_section_logged">Записано</string>
+    <string name="feature_past_session_section_editable">можно править</string>
 
     <string name="feature_past_session_finished_at_label">Завершена · %1$s</string>
     <string name="feature_past_session_action_more">Ещё</string>

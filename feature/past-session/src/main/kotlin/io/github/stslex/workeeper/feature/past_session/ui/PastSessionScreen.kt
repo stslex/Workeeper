@@ -2,13 +2,13 @@
 package io.github.stslex.workeeper.feature.past_session.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -17,6 +17,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.empty.AppEmptyState
 import io.github.stslex.workeeper.core.ui.kit.components.loading.AppLoadingIndicator
+import io.github.stslex.workeeper.core.ui.kit.components.section.AppSectionHeader
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
@@ -160,23 +161,45 @@ private fun LoadedContent(
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Horizontal padding is per-item rather than contentPadding: `AppSectionHeader` carries
+    // its own screen-edge padding, so a list-level gutter would double it.
+    //
+    // Vertical rhythm, from the mockup's flex column (margins do NOT collapse in flex, so
+    // §2.4's 12px bottom and §2.5's 26px `.cards` top are additive): section head sits
+    // 32dp under the header block and 12dp above the cards region, whose own top margin is
+    // 24dp — first card top = 12+24; between cards the gap is 8dp (10px → 8dp).
     LazyColumn(
         modifier = modifier,
-        contentPadding = PaddingValues(
-            start = AppDimension.screenEdge,
-            end = AppDimension.screenEdge,
-            bottom = AppDimension.Space.xl,
-        ),
-        verticalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
+        contentPadding = PaddingValues(bottom = AppDimension.Space.xl),
     ) {
         item(key = "header") {
-            PastSessionHeader(detail = detail)
+            PastSessionHeader(
+                detail = detail,
+                modifier = Modifier.padding(horizontal = AppDimension.screenEdge),
+            )
         }
-        items(
+        item(key = "section-head") {
+            // `Записано` / `можно править` (§2.4) — two peer labels; the right one declares
+            // the mode. Same class in the mockup, same one style here.
+            AppSectionHeader(
+                modifier = Modifier.padding(
+                    top = AppDimension.Space.xxl,
+                    bottom = AppDimension.Space.md,
+                ),
+                label = stringResource(R.string.feature_past_session_section_logged),
+                trailingLabel = stringResource(R.string.feature_past_session_section_editable),
+            )
+        }
+        itemsIndexed(
             items = detail.exercises,
-            key = { it.performedExerciseUuid },
-        ) { exercise ->
+            key = { _, exercise -> exercise.performedExerciseUuid },
+        ) { index, exercise ->
             PastExerciseCard(
+                modifier = Modifier.padding(
+                    start = AppDimension.screenEdge,
+                    end = AppDimension.screenEdge,
+                    top = if (index == 0) AppDimension.Space.xl else AppDimension.Space.sm,
+                ),
                 exercise = exercise,
                 // The amended §7 disclosure model: open is exactly membership in this set.
                 expanded = exercise.performedExerciseUuid in expandedUuids,
@@ -290,6 +313,7 @@ private fun stubDetail(): PastSessionUiModel = PastSessionUiModel(
             position = 0,
             skipped = false,
             isWeighted = true,
+            setSummary = "49×15",
             sets = persistentListOf(
                 PastSetUiModel(
                     setUuid = "s-1",

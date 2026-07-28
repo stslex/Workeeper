@@ -173,6 +173,7 @@ internal object PastSessionUiMapper {
                     position = exercise.position,
                     skipped = exercise.skipped,
                     isWeighted = exercise.exerciseType == ExerciseTypeDomain.WEIGHTED,
+                    setSummary = exercise.setSummary(),
                     sets = exercise.sets.toUiSets(
                         performedExerciseUuid = exercise.performedExerciseUuid,
                         prSetUuids = prSetUuids,
@@ -180,6 +181,33 @@ internal object PastSessionUiMapper {
                 )
             }
             .toImmutableList()
+
+    /**
+     * The collapsed card's summary line — `pass2d.html:312`, `10×15 · 10×15 · 10×15`.
+     *
+     * Only sets that represent work appear: `reps > 0` is the same sentinel the set count
+     * uses, so a card cannot summarise rows the header does not count. A weightless exercise
+     * has no weight to state, so its sets collapse to bare rep counts rather than "0×15" —
+     * the weight dimension does not exist for that type rather than being zero.
+     *
+     * `×` is U+00D7 and rides in `mono.meta` (IBM Plex Mono), never the numeric family —
+     * the C2 charset constraint is on `numericFontFamily`, which this line never touches.
+     */
+    private fun PerformedExerciseDetailDomain.setSummary(): String = sets
+        .asSequence()
+        .filter { set -> set.reps > 0 }
+        .map { set ->
+            val weight = set.weight?.takeIf { exerciseType == ExerciseTypeDomain.WEIGHTED }
+            if (weight == null) {
+                set.reps.toString()
+            } else {
+                "${formatWeight(weight)}$SUMMARY_TIMES${set.reps}"
+            }
+        }
+        .joinToString(separator = SUMMARY_SEPARATOR)
+
+    private const val SUMMARY_SEPARATOR = " · "
+    private const val SUMMARY_TIMES = "×"
 
     private fun List<SetDomain>.toUiSets(
         performedExerciseUuid: String,

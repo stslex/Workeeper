@@ -1,27 +1,42 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.past_session.ui.components
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.LookaheadScope
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import io.github.stslex.workeeper.core.ui.kit.components.card.AppCard
+import io.github.stslex.workeeper.core.ui.kit.components.reorderable.ReorderableColumnState
 import io.github.stslex.workeeper.core.ui.kit.components.reorderable.rememberReorderableColumnState
 import io.github.stslex.workeeper.core.ui.kit.components.reorderable.reorderableColumnDragHandle
 import io.github.stslex.workeeper.core.ui.kit.components.reorderable.reorderableColumnItem
+import io.github.stslex.workeeper.core.ui.kit.components.surface.liftedSurface
+import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -33,9 +48,29 @@ import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSetUiModel
 import kotlinx.collections.immutable.persistentListOf
 
 /**
- * One logged exercise. Disclosure follows the amended §7 model: [expanded] is exactly
- * membership in `State.expandedExerciseUuids`, the header is the toggle target, and this
- * composable renders the fact without owning it — the Store does (B8).
+ * `.card` / `.card.open` (extraction §2.5) — the past-session exercise card, two states only.
+ *
+ * ## The open card lifts — B8's second half, and §2.8's first defect closed
+ *
+ * `sec → slab` plus `--slabtop` is the mockup's whole disclosure signal, applied through
+ * `Modifier.liftedSurface` directly: `AppActiveSurface` is capped at one call site app-wide
+ * (`ActiveSurfaceSingleReaderRule` names `LiveExerciseCard`), while the lift *mechanism*
+ * legitimately has four consumers and `LiftedSurface`'s KDoc names this card as one.
+ * There is no border in either state.
+ *
+ * ## Collapsed vs open anatomy — §2.8's second defect closed twice
+ *
+ * Collapsed: bare `.ord` · title + `.plan-line` summary · a **static** 18dp `.chev` glyph —
+ * not a button, not rotating. Open: the summary and the chevron are both **absent**; the
+ * rows are the content and the affordance disappears. The whole `.chead` stays the tap
+ * target either way.
+ *
+ * ## Skipped
+ *
+ * The past mockup does not draw a skipped card; the session screen's treatment is the
+ * sibling (extraction §1.5): 0.5 alpha, title struck through in `textTertiary`, and the
+ * plan-line replaced by the literal `пропущено`. The v2.4 warning-tinted "Skipped" chip is
+ * retired with it.
  */
 @Composable
 internal fun PastExerciseCard(
@@ -58,90 +93,194 @@ internal fun PastExerciseCard(
     ) { from, to ->
         onSetReorder(exercise.performedExerciseUuid, from, to)
     }
-    AppCard(
-        modifier = modifier.fillMaxWidth(),
-        cardPadding = 0.dp,
-    ) {
-        LookaheadScope {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(onClick = onHeaderClick)
-                        .padding(AppDimension.cardPadding),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
-                ) {
-                    Text(
-                        text = "${exercise.position + 1}.",
-                        style = AppUi.typography.titleMedium,
-                        color = AppUi.colors.textTertiary,
-                    )
-                    Text(
-                        text = exercise.exerciseName,
-                        style = AppUi.typography.titleMedium,
-                        color = AppUi.colors.textPrimary,
-                    )
-                    if (exercise.skipped) {
-                        Text(
-                            text = stringResource(R.string.feature_past_session_skipped_chip),
-                            style = AppUi.typography.labelSmall,
-                            color = AppUi.colors.status.warning,
-                        )
-                    }
-                }
-                // Collapsed, the header row is the card's whole content. The v3 skin
-                // (plan-line summary, static chevron) arrives with the C3 shell rebuild;
-                // this commit is the behaviour alone.
-                if (expanded && exercise.sets.isEmpty()) {
-                    Text(
-                        modifier = Modifier.padding(horizontal = AppDimension.cardPadding),
-                        text = stringResource(R.string.feature_past_session_no_sets),
-                        style = AppUi.typography.bodyMedium,
-                        color = AppUi.colors.textSecondary,
-                    )
-                } else if (expanded) {
-                    exercise.sets.forEachIndexed { index, set ->
-                        key(set.setUuid) {
-                            PastSetEditRow(
-                                set = set,
-                                isWeighted = exercise.isWeighted,
-                                onWeightChange = { raw -> onWeightChange(set.setUuid, raw) },
-                                onRepsChange = { raw -> onRepsChange(set.setUuid, raw) },
-                                onTypeChange = { type -> onTypeChange(set.setUuid, type) },
-                                modifier = Modifier
-                                    .reorderableColumnItem(
-                                        state = reorderState,
-                                        key = set.setUuid,
-                                        index = index,
-                                    )
-                                    .padding(horizontal = AppDimension.cardPadding),
-                                // Long-press the trailing drag-handle icon to start a drag.
-                                // Skipped exercises stay read-only — handle is rendered for
-                                // visual consistency but the gesture detector is disabled so a
-                                // mis-targeted long-press cannot rewrite the historical record.
-                                dragHandleModifier = Modifier.reorderableColumnDragHandle(
-                                    state = reorderState,
-                                    key = set.setUuid,
-                                    enabled = !exercise.skipped,
-                                ),
-                            )
-                        }
-                    }
-                }
-                Spacer(Modifier.height(AppDimension.cardPadding))
+    val cardAlpha by animateFloatAsState(
+        targetValue = if (exercise.skipped) SKIPPED_ALPHA else 1f,
+        animationSpec = tween(durationMillis = AppUi.motion.base, easing = AppUi.motion.out),
+        label = "past-card-alpha",
+    )
+    val shape = RoundedCornerShape(AppDimension.Radius.medium)
+    LookaheadScope {
+        Column(
+            modifier = modifier
+                .fillMaxWidth()
+                .alpha(cardAlpha)
+                .liftedSurface(shape = shape, lifted = expanded)
+                .clip(shape)
+                .animateContentSize(
+                    animationSpec = tween(
+                        durationMillis = AppUi.motion.base,
+                        easing = AppUi.motion.out,
+                    ),
+                ),
+        ) {
+            CardHeader(
+                exercise = exercise,
+                expanded = expanded,
+                onHeaderClick = onHeaderClick,
+            )
+            if (expanded) {
+                CardBody(
+                    exercise = exercise,
+                    reorderState = reorderState,
+                    onWeightChange = onWeightChange,
+                    onRepsChange = onRepsChange,
+                    onTypeChange = onTypeChange,
+                )
             }
         }
     }
 }
 
-@Preview(name = "Light")
+/** `.chead`: `.ord` · title/plan-line column · the static chevron. Padding 16dp, gap 8dp. */
 @Composable
-private fun PastExerciseCardLightPreview() {
+private fun CardHeader(
+    exercise: PastExerciseUiModel,
+    expanded: Boolean,
+    onHeaderClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onHeaderClick)
+            .padding(AppDimension.Space.lg),
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
+    ) {
+        Text(
+            modifier = Modifier.width(OrdinalWidth),
+            text = (exercise.position + 1).toString(),
+            style = AppUi.typography.mono.meta,
+            color = AppUi.colors.textDim,
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = exercise.exerciseName,
+                style = AppUi.typography.text.body.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    // Strikethrough shares the text colour; the mockup's separate
+                    // `text-decoration-color: --dim` has no Compose equivalent on one Text.
+                    textDecoration = if (exercise.skipped) {
+                        TextDecoration.LineThrough
+                    } else {
+                        TextDecoration.None
+                    },
+                ),
+                color = if (exercise.skipped) {
+                    AppUi.colors.textTertiary
+                } else {
+                    AppUi.colors.textPrimary
+                },
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            // `.plan-line` exists only on the collapsed card (§2.5): open, the rows below say
+            // the same thing in full. A skipped card states the fact instead of a summary.
+            val planLine = when {
+                expanded -> null
+                exercise.skipped -> stringResource(R.string.feature_past_session_skipped_line)
+                exercise.setSummary.isNotEmpty() -> exercise.setSummary
+                else -> null
+            }
+            if (planLine != null) {
+                Text(
+                    modifier = Modifier.padding(top = AppDimension.Space.xs),
+                    text = planLine,
+                    style = AppUi.typography.mono.meta,
+                    color = AppUi.colors.textDim,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        if (!expanded) {
+            // `.chev` — a bare 18dp glyph in `textDim`, `margin-top:4px`. Not a button and it
+            // never rotates; the open card simply does not draw it. Decorative: the whole
+            // header is the toggle target, so the glyph carries no semantics of its own.
+            Icon(
+                modifier = Modifier
+                    .padding(top = AppDimension.Space.xs)
+                    .size(AppDimension.iconSm),
+                imageVector = AppIcons.ChevronRight,
+                contentDescription = null,
+                tint = AppUi.colors.textDim,
+            )
+        }
+    }
+}
+
+/** `.cbody > .sets{padding:0 12px 8px}`, rows split by `--hair` rules drawn by the container. */
+@Composable
+private fun CardBody(
+    exercise: PastExerciseUiModel,
+    reorderState: ReorderableColumnState,
+    onWeightChange: (String, String) -> Unit,
+    onRepsChange: (String, String) -> Unit,
+    onTypeChange: (String, SetTypeUiModel) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                start = AppDimension.Space.md,
+                end = AppDimension.Space.md,
+                bottom = AppDimension.Space.sm,
+            ),
+    ) {
+        if (exercise.sets.isEmpty()) {
+            Text(
+                modifier = Modifier.padding(
+                    horizontal = AppDimension.Space.xs,
+                    vertical = AppDimension.Space.sm,
+                ),
+                text = stringResource(R.string.feature_past_session_no_sets),
+                style = AppUi.typography.mono.meta,
+                color = AppUi.colors.textDim,
+            )
+        } else {
+            exercise.sets.forEachIndexed { index, set ->
+                key(set.setUuid) {
+                    if (index > 0) {
+                        HorizontalDivider(
+                            thickness = AppDimension.Border.small,
+                            color = AppUi.colors.borderSubtle,
+                        )
+                    }
+                    PastSetEditRow(
+                        set = set,
+                        isWeighted = exercise.isWeighted,
+                        onWeightChange = { raw -> onWeightChange(set.setUuid, raw) },
+                        onRepsChange = { raw -> onRepsChange(set.setUuid, raw) },
+                        onTypeChange = { type -> onTypeChange(set.setUuid, type) },
+                        modifier = Modifier.reorderableColumnItem(
+                            state = reorderState,
+                            key = set.setUuid,
+                            index = index,
+                        ),
+                        // Long-press the trailing drag-handle icon to start a drag.
+                        // Skipped exercises stay read-only — handle is rendered for
+                        // visual consistency but the gesture detector is disabled so a
+                        // mis-targeted long-press cannot rewrite the historical record.
+                        dragHandleModifier = Modifier.reorderableColumnDragHandle(
+                            state = reorderState,
+                            key = set.setUuid,
+                            enabled = !exercise.skipped,
+                        ),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** `.card.skip{opacity:.5}` — the session card's skip fade, reused as the sibling treatment. */
+private const val SKIPPED_ALPHA = 0.5f
+
+/** `.chead .ord { width: 16px }` — fixed so field columns align across ordinals 1-9 and 10+. */
+private val OrdinalWidth: Dp = 16.dp
+
+@Preview(name = "Expanded — Light")
+@Composable
+private fun PastExerciseCardExpandedLightPreview() {
     AppTheme(themeMode = ThemeMode.LIGHT) {
         PastExerciseCard(
             exercise = stubExercise(),
@@ -156,13 +295,13 @@ private fun PastExerciseCardLightPreview() {
     }
 }
 
-@Preview(name = "Dark")
+@Preview(name = "Collapsed — Dark")
 @Composable
-private fun PastExerciseCardDarkPreview() {
+private fun PastExerciseCardCollapsedDarkPreview() {
     AppTheme(themeMode = ThemeMode.DARK) {
         PastExerciseCard(
             exercise = stubExercise(),
-            expanded = true,
+            expanded = false,
             onHeaderClick = {},
             onWeightChange = { _, _ -> },
             onRepsChange = { _, _ -> },
@@ -173,13 +312,17 @@ private fun PastExerciseCardDarkPreview() {
     }
 }
 
-@Preview(name = "Skipped")
+@Preview(name = "Skipped — Collapsed")
 @Composable
 private fun PastExerciseCardSkippedPreview() {
     AppTheme(themeMode = ThemeMode.DARK) {
         PastExerciseCard(
-            exercise = stubExercise().copy(skipped = true, sets = persistentListOf()),
-            expanded = true,
+            exercise = stubExercise().copy(
+                skipped = true,
+                setSummary = "",
+                sets = persistentListOf(),
+            ),
+            expanded = false,
             onHeaderClick = {},
             onWeightChange = { _, _ -> },
             onRepsChange = { _, _ -> },
@@ -192,18 +335,19 @@ private fun PastExerciseCardSkippedPreview() {
 
 private fun stubExercise(): PastExerciseUiModel = PastExerciseUiModel(
     performedExerciseUuid = "pe-1",
-    exerciseName = "Bench press",
+    exerciseName = "разведение ног",
     position = 0,
     skipped = false,
     isWeighted = true,
+    setSummary = "49×15 · 71×15",
     sets = persistentListOf(
         PastSetUiModel(
             setUuid = "s-1",
             performedExerciseUuid = "pe-1",
             position = 0,
             type = SetTypeUiModel.WORK,
-            weightInput = "100",
-            repsInput = "5",
+            weightInput = "49",
+            repsInput = "15",
             weightError = false,
             repsError = false,
             isPersonalRecord = true,
@@ -213,8 +357,8 @@ private fun stubExercise(): PastExerciseUiModel = PastExerciseUiModel(
             performedExerciseUuid = "pe-1",
             position = 1,
             type = SetTypeUiModel.WORK,
-            weightInput = "100",
-            repsInput = "5",
+            weightInput = "71",
+            repsInput = "15",
             weightError = false,
             repsError = false,
             isPersonalRecord = false,
