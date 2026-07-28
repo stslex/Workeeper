@@ -40,6 +40,15 @@ data class AppTypeStyles(
  * [text], because `toM3Typography` feeds `MaterialTheme` and every stock M3 component reads
  * through it. Fifteen names collapse onto six sizes; the alias block *is* the mapping, so
  * there is exactly one place to read it.
+ *
+ * **Fifteen is now fewer than all of them.** Material 3 `1.5.0-alpha24` grew `Typography` to
+ * thirty slots — the classic fifteen plus a `*Emphasized` twin for each — and
+ * [toM3Typography] maps only the fifteen. The other fifteen keep Material's own baseline
+ * family and metrics. Nothing renders wrong today: no component token file in that library
+ * references an `*Emphasized` key except `ScrollField`, which this app does not use. But this
+ * is the same shape as the unmapped colour roles `AppTheme` documents — twelve roles sitting
+ * on baseline purple until a library upgrade found them — so it is a live trap rather than a
+ * settled one. Mapping them is a typography decision, not a fonts one.
  */
 @Immutable
 data class AppTypography(
@@ -119,6 +128,44 @@ data class AppTypography(
 
     /** Chips and the smallest captions. */
     val labelSmall: TextStyle = text.caption
+
+    // ---- Named slots that are not M3 names ----------------------------------------------
+
+    /**
+     * The live session timer. `numeric.display` under a name the session screen can call.
+     *
+     * ## Why this is a name and not a seventh step
+     *
+     * The mockups draw the timer at **32px**, and the ladder rule (v3 spec §0.2) rounds that
+     * onto the existing 34 rung — text landing 1–2px off the mockup is correct, not a bug. So
+     * there is nothing to add to [AppTypeStyles]: the size the timer needs already exists, and
+     * a seventh member on a six-rung record is precisely what that class's KDoc forbids. What
+     * was missing was a *name*. An alias is how this file already turns fifteen Material names
+     * into six sizes; this is the same move for a slot Material has no name for.
+     *
+     * Being an alias, it is the same [TextStyle] instance as `numeric.display` — so it carries
+     * `tnum` by construction (v3 spec C1) rather than by a promise, and adding it moved zero
+     * pixels. `TnumCanaryGoldenTest` renders *through* this property, so it is load-bearing:
+     * repoint it at a style without tabular figures and the canary's colons drift apart.
+     *
+     * It is also a **third spelling of the Cyrillic-free family**, so it is registered with
+     * `NumericFontFamilyOnLocalizedTextRule` alongside `numericFontFamily` and
+     * `typography.numeric`. Naming a slot without telling the guard its new name would have
+     * left the rule blind to the exact call site this property exists to invite.
+     *
+     * ## Blocker B5, corrected
+     *
+     * B5 records the timer as "two-tier: 32px vs 26px elsewhere". Read from the markup rather
+     * than the stylesheet, that is not what happens. `.data-s` is 32px in `session-v3f`
+     * (L40) and 26px in `pass2d` (L42) — but `pass2d` inline-overrides the timer back to 32px
+     * at L221, so **the timer is 32px in both files and the mockups do not disagree about it**.
+     *
+     * The real finding is that one class carries two roles: the session timer at 32px, and the
+     * record-hero value at 26px (`pass2d` L274). Those are two rungs — 34 and 26 — not two
+     * tiers of one slot. The 26px sibling is `numeric.title`, and naming *it* is blocker B1's
+     * business inside the session rebuild, not this file's today.
+     */
+    val timer: TextStyle = numeric.display
 }
 
 /**
@@ -128,8 +175,10 @@ data class AppTypography(
  * `values-ru` strings use, at every bundled weight.
  *
  * 400/500/600 ship — those are the weights the slots consume, and they are the three the
- * mockups request (`IBM+Plex+Sans:wght@400;500;600`). `FontWeight.Bold` still resolves, but by
- * synthesis; add a real 700 file before relying on it.
+ * mockups request (`IBM+Plex+Sans:wght@400;500;600`). `FontWeight.Bold` still resolves by
+ * synthesis, but bundling 600 quietly changed *what it synthesises from*: the matcher now
+ * falls back to the 600 file rather than the 500, so a request for Bold gets a nearer face and
+ * less faking. Nothing asks for it today. Add a real 700 file before relying on it.
  */
 private val plexSansFontFamily = FontFamily(
     Font(R.font.ibm_plex_sans_regular, FontWeight.Normal),

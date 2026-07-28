@@ -88,8 +88,19 @@ class NumericFontFamilyOnLocalizedTextRule(
     private companion object {
         val TEXT_COMPOSABLES = setOf("Text", "BasicText")
 
-        /** Both the family itself and any style built on it. */
-        val NUMERIC_MARKERS = listOf("numericFontFamily", "typography.numeric")
+        /**
+         * The family itself, any style built on it, and every alias onto it.
+         *
+         * `typography.timer` is the third spelling and it is not optional: it is the *name the
+         * session screen is told to call*, so leaving it out would mean the rule was blind to
+         * the one call site it exists to guard. Any future alias onto the numeric family
+         * belongs here on the same day it is added.
+         */
+        val NUMERIC_MARKERS = listOf(
+            "numericFontFamily",
+            "typography.numeric",
+            "typography.timer",
+        )
 
         val LOCALIZED_MARKERS = listOf("stringResource(", "pluralStringResource(")
     }

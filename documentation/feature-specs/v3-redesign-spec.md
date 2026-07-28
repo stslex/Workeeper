@@ -127,10 +127,12 @@ Threshold depends on **type size**, not the pair alone. WCAG grants 3:1 only at 
 
 | Slot | Condition | Threshold |
 |---|---|---|
-| Archivo Expanded 700, 34 / 26 / 19 | bold ≥18.66sp | **3:1** |
-| Archivo Expanded 700, 15 / 12.5 / 11 | — | **4.5:1** |
-| IBM Plex Sans Medium, 34 / 26 | regular ≥24sp | **3:1** |
-| IBM Plex Sans Medium, ≤19 | — | **4.5:1** |
+| Archivo (`wdth 116`) 700, 34 / 26 / 19 | bold ≥18.66sp | **3:1** |
+| Archivo (`wdth 116`) 700, 15 / 12.5 / 11 | — | **4.5:1** |
+| IBM Plex Sans below 700, 34 / 26 | ≥24sp | **3:1** |
+| IBM Plex Sans below 700, ≤19 | — | **4.5:1** |
+
+The Plex rows say **below 700**, not "Medium": since the fonts PR the heading rungs are set in **600**, and 600 does not reach WCAG's bold boundary any more than 500 does, so 400 / 500 / 600 all share one answer. Only a real 700 would move a row — and it would *loosen* the 19sp one, which is the direction the gate cannot catch. `TypeSlot`'s KDoc carries the same table and the same warning.
 | `max` on any surface | — | **7:1** |
 | `meta` on its backing | — | **4.5:1** |
 
@@ -156,17 +158,19 @@ A duplicate key resolves last-write-wins: behaviour set by declaration order, ne
 
 | Family | Slots | Weights bundled |
 |---|---|---|
-| IBM Plex Sans | all text | 400 / 500 |
-| Archivo Expanded | numerals, timer | 700 |
-| IBM Plex Mono | units, metadata | 400 / 500 |
+| IBM Plex Sans | all text | 400 / 500 / **600** |
+| Archivo, cut at `wdth 116 / wght 700` | numerals, timer | 700 |
+| IBM Plex Mono | units, metadata | 400 / 500 / **600** |
 
 Scale: **34 / 26 / 19 / 15 / 12.5 / 11**. The fifteen M3 names are aliases over the six steps.
+
+The three heading rungs (34 / 26 / 19) are set in **600**; body / meta / caption in 400. `text.title` carries **−0.39sp** of tracking (`-.015em` at 26sp) and no other `(family, rung)` pair carries any, beyond the pre-existing 0.5sp on caption. The timer has a **name**, `AppTypography.timer`, aliasing `numeric.display` — not a seventh step. All fonts PR (B2–B5). **[V]**
 
 **C1. `tnum` mandatory on every numeric slot** — Archivo's digits are proportional; measured drift without it is 16px on a timer. **[V]**
 **C2. `numericFontFamily` takes digits and `: . , - + / %` only** — zero Cyrillic in Archivo; closed by two mechanisms covering different halves (Cyrillic golden → text slots; detekt rule → numeric slots). **[V]**
 **C3. `isShrinkResources` strips unreferenced fonts** — verify by sha256 in the APK; entries obfuscate. **[V]**
 
-**Known gaps — blocker registry B2–B5 (§25):** weight 600 used by every mockup heading and not bundled; Archivo drawn at wdth 116, bundled at 125; letter-spacing declared in mockups, absent from `AppTypography`; session timer is a two-tier treatment (32px vs 26px elsewhere) the scale does not record. These are a fonts PR, not screen work — and it re-records every text golden, so it lands **before** the session rebuild.
+**B2–B5 closed by the fonts PR** — see §25 for each. Two of the four premises were wrong on inspection and the corrections are recorded there: headings rendered at **400**, not "500 or synthesised"; and the timer is **32px in both mockups**, so `.data-s` carries two roles rather than the timer carrying two tiers. **[V]**
 
 ## 5. Motion
 
@@ -310,10 +314,10 @@ Entries are never deleted; resolution is recorded in place. New entries append. 
 | ID | What | Origin | Status |
 |---|---|---|---|
 | B1 | PR-row value: 26sp `numeric.title` + molten tint as drawn. 19sp passes the gate but inverts the mockup's hierarchy (value is the dominant element). "Doesn't fit" was a fact about the old row. | #184 T2 carry | **open — lands inside the session rebuild** |
-| B2 | Weight 600: every mockup h1/h2/h3; only 400/500 bundled. Headings render synthesised or at 500. | extraction §0.4 | **open — fonts PR** |
-| B3 | Archivo drawn at `wdth 116`; bundled static cut at 125. The tnum measurement was taken on the 125 instance. | extraction §0.4 | **open — fonts PR** |
-| B4 | letter-spacing declared in mockups (−0.015em/−0.02em), absent from `AppTypography` | extraction §0.4 | **open — fonts PR** |
-| B5 | Session timer two-tier: 32px vs 26px elsewhere; scale records one step | extraction §0.4 | **open — fonts PR** |
+| B2 | Weight 600: every mockup h1/h2/h3; only 400/500 bundled. Headings render synthesised or at 500. | extraction §0.4 | **resolved — fonts PR.** IBM Plex Sans + Mono 600 bundled from the same release as the 400/500 (proven: re-downloading the bundled four reproduces their hashes byte for byte). All three heading rungs set in 600, which moves 7 of the 15 aliases. **The premise was wrong on one point:** headings rendered at **400**, not "500 or synthesised" — nothing in the repo asked Plex Sans for Bold, so the synthesis hazard was never live. `.ctitle`, `.btn` and `.prtag` also declare 600 and are deliberately left to their components. Mono 600 ships with **no consumer** (its only mockup selector, `.prtag`, is drawn by a text-family component) — 174 608 bytes on account. **[V]** |
+| B3 | Archivo drawn at `wdth 116`; bundled static cut at 125. The tnum measurement was taken on the 125 instance. | extraction §0.4 | **resolved — fonts PR.** Cut at 116 by instancing the upstream VF; 121 532 bytes, **−66 504** against the 125 static it replaces and −537 064 against bundling the VF. 116 has no `fvar` named instance and no `STAT` axis value, so no published artifact exists at that width and provenance becomes **reproducibility**: input hash + `fonttools 4.63.0` + the command, in `licenses/README.md`. The reproducibility rests on `recalcTimestamp = False`, **not** on assigning `head.modified` — `TTFont.save()` overwrites that field from the wall clock unless the flag is cleared, so the assignment alone is a no-op. The PR shipped that no-op first and its two-run check passed only because both runs landed in the same second; re-cut and re-checked across ~15 seconds of wall clock, five runs give one hash. **A reproducibility check whose runs are not separated in time is not a reproducibility check** — logged here because it is a new instance of §27's "green from a detector never shown to fire". Faithfulness proven by a controlled pair — self-instancing at 125 reproduces the published static's advances 23/23. tnum re-measured on 116: colons 203–219 (was 214–232), identical on both lines; the canary's signal narrows from 16px to 10px. The VF route works on minSdk 28 (verified in `ui-text-android`: gated at API 26) and is the only way to draw all three mockup widths — recorded as the reinstatement path. **[V]** |
+| B4 | letter-spacing declared in mockups (−0.015em/−0.02em), absent from `AppTypography` | extraction §0.4 | **resolved — fonts PR.** `text.title` only, at **−0.39sp** (`-.015em × 26sp`). The rung's three declarations disagree; `-.015em` wins over `.exhead h2`'s `-.02em` because `.exhead h2` declares no `font-family` and neither does its `<button>` parent, so its tracking was chosen against the UA font (Arial), not Plex. `section`, `body`, `display` and both other families stay at default — their selectors declare none, and inventing tracking there would track every sentence in the app to fix one card title. Positive mono tracking stays component-level. **[V]** |
+| B5 | Session timer two-tier: 32px vs 26px elsewhere; scale records one step | extraction §0.4 | **resolved — fonts PR, premise corrected.** Read from the markup rather than the stylesheet, the timer is **32px in both mockups**: `pass2d` inline-overrides `.data-s` back to 32px at L221. The mockups do not disagree about the timer. What is genuinely two-tier is the **class**, which carries two roles — timer at 32px (→ 34 rung) and record-hero value at 26px (→ 26 rung, which is B1). Resolved by naming, not by a step: `AppTypography.timer` aliases `numeric.display`, so it carries `tnum` by construction and moved zero pixels. `TnumCanaryGoldenTest` renders through it, making the alias load-bearing. **[V]** |
 | B6 | rust on raise (dark) = 3.28 vs 4.5:1 for destructive text | step-3 measurement | **open — decision** |
 | B7 | `donefill` belongs on the **field**, not the row: the row's tier4 wash made even the unit label fail | #184 resisted item | **open — session rebuild** |
 | B8 | Past-session open card cannot lift: no disclosure state exists | #184 resisted item | **open — past-session rebuild, first task** |
@@ -333,6 +337,10 @@ Entries are never deleted; resolution is recorded in place. New entries append. 
 | PR-value size | 26sp, not 19sp — hierarchy over gate-minimum | B1 |
 | Units | out of arc | §11 |
 | dim/meta reinstatement path | restricted large-type role; revert point #184 C1 | §2.5 |
+| Archivo: derived instance vs published static | **derived at `wdth 116`** — no published artifact exists at that width, so provenance is reproducibility (pinned input hash + tool version + command), not identity. Variable font evaluated and rejected on 537 064 bytes plus an unverified layoutlib path; recorded as the reinstatement route for the three-width treatment | B3, `licenses/README.md` |
+| Heading tracking value | **−0.015em, not −0.02em** — the −0.02em declaration renders in the mockup's UA button font, not in Plex | B4 |
+| Timer slot | **a name, not a step** — `AppTypography.timer` aliases `numeric.display` (34 rung); the 26px sibling role is B1's | B5 |
+| Scope of 600 | the three **heading rungs** only. `.ctitle` / `.btn` / `.prtag` declare 600 but are component treatments on body and caption rungs; moving their aliases would drag `titleSmall` and `labelMedium` against `.tabs button` and `.mitem.on`, which are 500 | B2 |
 
 ## 27. Verification discipline — append-only
 
@@ -350,6 +358,7 @@ Entries are never deleted; resolution is recorded in place. New entries append. 
 - A gate proves what changed, not what is right (§10.2).
 - Known-negative mutations must **compile** and must discriminate — a build-breaking mutation proves nothing.
 - **Quantise like the gate**: the contrast gate quantises composites to 8-bit before measuring; hand calculations that don't will disagree by hundredths exactly at thresholds, where hundredths decide. **[V]**
+- **A determinism check whose runs are not separated in time proves nothing.** Two runs of a font-instancing command produced the identical hash and were read as "byte-reproducible"; they were reproducible only because both landed inside the same wall-clock second, and the line meant to pin the timestamp was a no-op. Separate the runs by more than the granularity of whatever varies. **[V]** (fonts PR, B3)
 
 **Claims**
 - Behavioural claims from reading: seven for seven wrong. Mark [I]; resolve by preflight.

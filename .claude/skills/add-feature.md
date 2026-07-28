@@ -593,8 +593,11 @@ the directory itself is the authority on what exists today.
 
 - `AppUi.colors` — `LocalAppColors.current` (semantic palette: `accent`, `textPrimary`,
   `textSecondary`, `textTertiary`, surface tiers, semantic statuses).
-- `AppUi.typography` — `LocalAppTypography.current` (Inter family, 15-slot M3 scale:
-  `display*` / `headline*` / `title*` / `body*` / `label*`).
+- `AppUi.typography` — `LocalAppTypography.current`. Three bundled families (IBM Plex Sans,
+  Archivo `wdth 116` for numerals only, IBM Plex Mono) over six sizes, with the 15 M3 names
+  as aliases: `display*` / `headline*` / `title*` / `body*` / `label*`, plus `timer`.
+  **Never route a `stringResource` through the numeric family** — it has no Cyrillic, and a
+  detekt rule fails the build on it.
 - `AppUi.shapes` — `LocalAppShapes.current` (`small` / `medium` / `large`).
 - `AppUi.motion` — `LocalAppMotion.current` (durations + easings).
 - `AppUi.elevation` — `LocalAppElevation.current` (color-based surface tier mapping).

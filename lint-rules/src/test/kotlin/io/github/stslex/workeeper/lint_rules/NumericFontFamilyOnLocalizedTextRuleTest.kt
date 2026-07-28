@@ -45,6 +45,30 @@ internal class NumericFontFamilyOnLocalizedTextRuleTest {
     }
 
     @Test
+    fun `stringResource in the timer alias is flagged`() {
+        // `AppUi.typography.timer` aliases `numeric.display`, so it is a third spelling of the
+        // Cyrillic-free family — and the one the session screen is told to call. A rule that
+        // matched only the first two would be blind to its most likely call site.
+        val findings = rule.lint(
+            """
+            package io.github.stslex.workeeper.feature.live_workout.ui
+
+            import androidx.compose.material3.Text
+            import androidx.compose.ui.res.stringResource
+
+            fun Header() {
+                Text(
+                    text = stringResource(R.string.feature_live_workout_elapsed, elapsed),
+                    style = AppUi.typography.timer,
+                )
+            }
+            """.trimIndent(),
+        )
+
+        assertEquals(1, findings.size, "The timer alias is the numeric family under another name.")
+    }
+
+    @Test
     fun `stringResource with an explicit numericFontFamily is flagged`() {
         val findings = rule.lint(
             """

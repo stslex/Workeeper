@@ -125,20 +125,46 @@ Settled: the six-step scale (34/26/19/15/12.5/11) beats the mockup's sizes. Roun
 
 ### BLOCKERS in this area — report only
 
+**All four are closed by the fonts PR (spec §25, B2–B5). Two of the four premises below were
+wrong, and the corrections are recorded in place rather than in the resolution only** — an
+extraction that keeps asserting a disproved premise is how the next reader inherits it.
+
 1. **Weight 600 is not bundled.** `.ctitle`, `.chead .title`, `.sheet h3`, `.topbar h1`,
    `.shead h2`, `.exhead h2`, `.empty h4`, `.btn`, `.prtag`, `.row-name` (500) and `.mitem.on` (500)
    all declare 600. Only 400/500 ship. **Every heading on every screen is affected.**
+   **CORRECTED:** headings rendered at **400**, not at 500 and not synthesised — `text.*` was
+   built at `FontWeight.Normal` throughout and nothing in the repo ever asked Plex Sans for
+   Bold. The delta was a two-step jump. Resolved: 600 bundled, the three heading rungs set in
+   it; `.ctitle` / `.btn` / `.prtag` deliberately left to their components.
 2. **Archivo width axis.** Drawn at `"wdth" 115` (`.data-l`), `116` (`.data-s`), `122`
    (`.data-hero`) — three different widths. The bundled static instance is cut at **125**. Every
    numeral is affected, and the mockup's own three-width treatment is unreproducible with one static
    cut.
+   **Resolved at 116**, the width the timer and the record value are drawn at, by instancing
+   the upstream variable font. The three-width observation stands and is unimplemented: only
+   bundling the VF reproduces all three, which costs 537 064 bytes. Recorded as the
+   reinstatement path in `core/ui/kit/licenses/README.md`.
 3. **The session timer is a second tier.** `.data-s` is **32px** in `session-v3f` and **26px** in
    `pass2d`. Same class name, two sizes. The spec records neither.
+   **CORRECTED:** the class is two-valued, the *timer* is not. `pass2d` inline-overrides
+   `.data-s` back to `font-size:32px` at **L221**, exactly at the timer, so the timer is 32px
+   in both files and the mockups do not disagree about it. The 26px reading belongs to the
+   record-hero value at `pass2d` L274. Those are two rungs — 34 and 26 — and the second is
+   blocker B1. Resolved by naming the first: `AppTypography.timer`.
 4. **letter-spacing is declared throughout and absent from `AppTypography`.** `.label` `.14em`,
    `.prtag` `.1em`, `.tempbadge` `.12em`, `.setbar` `.06em`, `.toast button` `.08em`, `.ctitle`
    `-.01em`, `.shead h2` `-.015em`, `.exhead h2` `-.02em`, `.data-hero` `-.02em`, `.topbar h1`
    `-.015em`. Negative tracking on headings and positive on mono labels — a deliberate, systematic
    treatment that currently cannot be expressed.
+   **Partially resolved.** The scale can express it now, and the screen-title rung carries
+   **−0.39sp** (`-.015em` at 26sp). `-.02em` was *not* taken even though `.exhead h2` declares
+   it: that selector declares no `font-family` and neither does its `<button>` parent, so in
+   the mockup it renders in the UA button font, not in Plex — tracking chosen against another
+   typeface is not evidence about this one. The positive mono values remain **unimplemented by
+   design**: every one of them is mono *and* uppercase *and* component-specific, so they belong
+   on the components, the way `AppSetTypeChip` and `PersonalRecordBadge` already carry theirs.
+   `.ctitle`'s `-.01em` also remains open — it is a card-title treatment sharing the body rung
+   with untracked body text, and it needs a slot the six-step scale does not have.
 
 ## 0.5 Geometry ladder
 

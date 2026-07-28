@@ -60,7 +60,9 @@ private fun TabularFigureLadder() {
         NUMERIC_LADDER.forEach { line ->
             Text(
                 text = line,
-                style = AppUi.typography.numeric.display,
+                // Through `timer`, not through `numeric.display` directly: the alias is the
+                // name the session screen calls, so this is what has to stay tabular.
+                style = AppUi.typography.timer,
                 color = AppUi.colors.textPrimary,
             )
         }

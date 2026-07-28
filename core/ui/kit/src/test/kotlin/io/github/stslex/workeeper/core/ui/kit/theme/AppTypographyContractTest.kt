@@ -84,6 +84,16 @@ internal class AppTypographyContractTest {
     }
 
     @Test
+    @DisplayName("the timer slot is the 34sp numeric rung, tabular and in Archivo — B5")
+    fun timerSlotIsTheNumericDisplayRung() {
+        val timer = typography.timer
+        assertEquals(typography.numeric.display, timer, "timer must alias numeric.display")
+        assertEquals(TIMER_SIZE, timer.fontSize, "timer.fontSize")
+        assertEquals(TABULAR_FIGURES, timer.fontFeatureSettings, "timer must carry tnum")
+        assertEquals(typography.numericFontFamily, timer.fontFamily, "timer.fontFamily")
+    }
+
+    @Test
     @DisplayName("the title rung is tracked at -0.39sp — B4, the mockups' -.015em at 26sp")
     fun titleRungCarriesHeadingTracking() {
         assertEquals(TITLE_TRACKING, typography.text.title.letterSpacing, "text.title")
@@ -123,6 +133,9 @@ internal class AppTypographyContractTest {
 
         /** Predates B4 and applies to all three families. */
         val CAPTION_TRACKING = 0.5.sp
+
+        /** The mockups draw the timer at 32px; the ladder rounds it onto the 34 rung. */
+        val TIMER_SIZE = 34.sp
 
         fun AppTypeStyles.rungs(): List<Pair<String, TextStyle>> = listOf(
             "display" to display,
