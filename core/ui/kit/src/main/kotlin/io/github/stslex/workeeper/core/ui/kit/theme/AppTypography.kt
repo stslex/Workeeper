@@ -46,8 +46,9 @@ data class AppTypography(
     /** IBM Plex Sans. Everything that is words. */
     val textFontFamily: FontFamily,
     /**
-     * Archivo Expanded. **Digits and `: . , - + / %` only — never a translatable string.**
-     * See [archivoExpandedFontFamily] for why this is a hard constraint and not a preference.
+     * Archivo, cut at `wdth 116 / wght 700` — the width the mockups draw numerals at.
+     * **Digits and `: . , - + / %` only — never a translatable string.**
+     * See [archivoFontFamily] for why this is a hard constraint and not a preference.
      */
     val numericFontFamily: FontFamily,
     /** IBM Plex Mono. Units and meta, inline beside body text. */
@@ -139,12 +140,31 @@ private val plexSansFontFamily = FontFamily(
 /**
  * Display family for numerals and the timer, and for nothing else.
  *
+ * ## The cut: `wdth 116, wght 700`
+ *
+ * Both mockups set every numeral through `font-variation-settings`, never through a published
+ * named instance: `.data-l` at `"wdth" 115`, `.data-s` at `"wdth" 116`, `.data-hero` at
+ * `"wdth" 122` — three widths, `"wght" 700` throughout. The bundled file is the **116** cut,
+ * the one the session timer and the record value are drawn at.
+ *
+ * "Expanded" survives as the *role* word the spec uses for wide numerals; it is not this
+ * file's width. Archivo's published `Expanded` static is the `wdth 125` edge of the axis, and
+ * the previous bundle used it because 125 was reachable as a published artifact. 116 is not:
+ * it has no `fvar` named instance (all nine sit at `wdth 100`) and no `STAT` axis value, so
+ * `fonttools` refuses to name it and the name table is written by hand. The file is therefore
+ * derived, and the provenance argument moves from "hash matches a published URL" to
+ * "derivation is reproducible" — `core/ui/kit/licenses/README.md` carries the input hash, the
+ * tool version and the command, and the file self-describes as `Archivo wdth116 Bold` at
+ * `usWeightClass 700` rather than inheriting the variable font's default-instance names.
+ *
  * ## O2 — a hard constraint, not a preference
  *
- * **Archivo Expanded has zero Cyrillic coverage.** Not "partial", not "missing a few" —
- * none of the 55 Cyrillic characters the shipped `values-ru` corpus uses, nor `« » · × — … →`.
- * A translatable string routed through this family renders as tofu boxes in Russian, or
- * silently resolves to whatever the system fallback chain offers, which is not this typeface.
+ * **Archivo has zero Cyrillic coverage.** Not "partial", not "missing a few" — none of the 55
+ * Cyrillic characters the shipped `values-ru` corpus uses. (It *does* cover `« » · × — … → •`,
+ * which earlier copies of this note claimed it did not; the gap is Cyrillic letters, and the
+ * distinction matters because a bullet-prefixed timer needs no text split.) A translatable
+ * string routed through this family renders as tofu boxes in Russian, or silently resolves to
+ * whatever the system fallback chain offers, which is not this typeface.
  *
  * So: **digits and the `: . , - + / %` separators only. Never a `stringResource`.** A number
  * formatted into a string is still a string — `"20 повт."` is a violation even though it
@@ -158,20 +178,22 @@ private val plexSansFontFamily = FontFamily(
  *
  * ## O1 — tabular figures
  *
- * Archivo's digits are proportional (`0` is 769 units wide, `1` is 683), so a ticking timer
- * visibly wobbles as digits change. Every [numeric] style therefore sets
- * `fontFeatureSettings = "tnum"`. `TnumCanaryGoldenTest` is the mechanical detector.
+ * Archivo's digits are proportional at every width (at 116: `0` is 706 units, `1` is 652), so
+ * a ticking timer visibly wobbles as digits change. Every [numeric] style therefore sets
+ * `fontFeatureSettings = "tnum"`. That feature makes **20 substitutions** — the ten lining
+ * digits to their `.tf` forms and the ten oldstyle digits to `.tosf` — and every one of them
+ * advances 700. `TnumCanaryGoldenTest` is the mechanical detector.
  * See `core/ui/kit/licenses/README.md`.
  */
-private val archivoExpandedFontFamily = FontFamily(
-    Font(R.font.archivo_expanded_bold, FontWeight.Bold),
+private val archivoFontFamily = FontFamily(
+    Font(R.font.archivo_bold_wdth116, FontWeight.Bold),
 )
 
 /**
  * Monospace family for units and meta text. Shares its vertical metrics exactly with
  * [plexSansFontFamily], so it stays on the same baseline when set inline beside body text.
  * Tabular by default — every digit is 600 units — and it covers Cyrillic in full, so unlike
- * [archivoExpandedFontFamily] it is safe for localized text.
+ * [archivoFontFamily] it is safe for localized text.
  *
  * The 600 cut is bundled but **no slot consumes it yet**. It is here because the mockups set
  * exactly one mono selector at 600 — `.prtag`, the record tag — and that component
@@ -268,7 +290,7 @@ private fun buildStyles(
 
 fun provideAppTypography(): AppTypography = AppTypography(
     textFontFamily = plexSansFontFamily,
-    numericFontFamily = archivoExpandedFontFamily,
+    numericFontFamily = archivoFontFamily,
     monoFontFamily = plexMonoFontFamily,
     text = buildStyles(
         family = plexSansFontFamily,
@@ -277,7 +299,7 @@ fun provideAppTypography(): AppTypography = AppTypography(
     ),
     // Archivo ships one weight (700) and its digits are proportional, hence tnum on every rung.
     numeric = buildStyles(
-        family = archivoExpandedFontFamily,
+        family = archivoFontFamily,
         bodyWeight = FontWeight.Bold,
         fontFeatureSettings = TABULAR_FIGURES,
     ),

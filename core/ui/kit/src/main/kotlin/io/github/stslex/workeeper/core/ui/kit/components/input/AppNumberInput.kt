@@ -61,9 +61,9 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
  * field is also the most visible consumer of that weight change — it is a *value*, not a
  * heading, and it reads `titleLarge` only because that is the rung it was put on.
  *
- * Note what makes it fail: the mockup draws `.data-l` at 25px Archivo Expanded 700, which is
- * large-scale text at 3:1, where 4.14 passes comfortably. "As drawn" is legal; our under-sized
- * value is what makes it illegal.
+ * Note what makes it fail: the mockup draws `.data-l` at 25px Archivo `wdth 115 / wght 700`,
+ * which is large-scale text at 3:1, where 4.14 passes comfortably. "As drawn" is legal; our
+ * under-sized value is what makes it illegal.
  *
  * Two resolutions, both outside this component and both somebody else's call:
  *  1. bring the value to the drawn type (`numeric.title`, 26sp bold) — a visual change to every

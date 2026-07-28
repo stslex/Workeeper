@@ -45,7 +45,7 @@ private fun Specimen() {
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         FamilyBlock("IBM Plex Sans — text", AppUi.typography.text, WORDS_AND_DIGITS)
-        FamilyBlock("Archivo Expanded — numeric", AppUi.typography.numeric, DIGITS_ONLY)
+        FamilyBlock("Archivo wdth 116 — numeric", AppUi.typography.numeric, DIGITS_ONLY)
         FamilyBlock("IBM Plex Mono — mono", AppUi.typography.mono, WORDS_AND_DIGITS)
     }
 }

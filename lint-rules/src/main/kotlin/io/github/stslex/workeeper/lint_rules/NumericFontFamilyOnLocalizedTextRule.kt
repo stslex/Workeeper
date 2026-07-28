@@ -14,11 +14,13 @@ import org.jetbrains.kotlin.psi.KtValueArgument
 /**
  * O2 — the numeric display family must never receive a translatable string.
  *
- * Archivo Expanded has **zero** Cyrillic coverage: none of the 55 Cyrillic characters the
- * shipped `values-ru` corpus uses, nor `« » · × — … →`. A `stringResource` routed through it
- * renders as tofu in Russian, or silently falls back to a face that is not the one the design
- * asked for. Neither failure is visible to the compiler, and neither is visible to a reviewer
- * reading an English screenshot — which is exactly why this is a rule and not a comment.
+ * Archivo has **zero** Cyrillic coverage: none of the 55 Cyrillic characters the shipped
+ * `values-ru` corpus uses. (Measured from the bundled file's `cmap`: `« » · × — … → •` *are*
+ * present — an earlier version of this note listed them as missing, which was wrong. The gap
+ * is Cyrillic letters and nothing else.) A `stringResource` routed through it renders as tofu
+ * in Russian, or silently falls back to a face that is not the one the design asked for.
+ * Neither failure is visible to the compiler, and neither is visible to a reviewer reading an
+ * English screenshot — which is exactly why this is a rule and not a comment.
  *
  * Flags a `Text` / `BasicText` call that combines the numeric family with a localized argument:
  *
@@ -46,7 +48,7 @@ class NumericFontFamilyOnLocalizedTextRule(
     override val issue = Issue(
         id = javaClass.simpleName,
         severity = Severity.Defect,
-        description = "The numeric font family (Archivo Expanded) has no Cyrillic coverage and " +
+        description = "The numeric font family (Archivo) has no Cyrillic coverage and " +
             "must never render a translatable string.",
         debt = Debt.TEN_MINS,
     )
@@ -66,7 +68,7 @@ class NumericFontFamilyOnLocalizedTextRule(
                 issue,
                 Entity.from(expression),
                 "This $callee renders a localized string in the numeric font family. Archivo " +
-                    "Expanded has no Cyrillic glyphs, so this shows tofu in ru. Use " +
+                    "has no Cyrillic glyphs, so this shows tofu in ru. Use " +
                     "AppUi.typography.text or .mono for anything translatable; the numeric " +
                     "family takes digits and : . , - + / % only.",
             ),
