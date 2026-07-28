@@ -40,6 +40,7 @@ internal class ClickHandler @Inject constructor(
             is Action.Click.OnSetTypeSelect -> processSetTypeSelect(action)
             is Action.Click.OnSetRemove -> processSetRemove(action)
             is Action.Click.OnAddSet -> processAddSet(action)
+            is Action.Click.OnRemoveLastSet -> processRemoveLastSet(action)
             is Action.Click.OnEditPlan -> processEditPlan(action)
             is Action.Click.OnResetSets -> processResetSetsAsk(action)
             is Action.Click.OnSkipExercise -> processSkipExerciseAsk(action)
@@ -267,6 +268,27 @@ internal class ClickHandler @Inject constructor(
     private fun processAddSet(action: Action.Click.OnAddSet) {
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
         updateState { latest -> setMutator.applyAddSet(latest, action.performedExerciseUuid) }
+    }
+
+    /**
+     * `− подход` (§6.4). Always the last visible row; the mutator refuses below one row.
+     * When the removed row was persisted (a done set), the DB row goes with it — same
+     * optimistic shape as [processSetUncheck].
+     */
+    private fun processRemoveLastSet(action: Action.Click.OnRemoveLastSet) {
+        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
+        var removedPerformedPosition: Int? = null
+        updateState { latest ->
+            val result = setMutator.applyRemoveLastSet(latest, action.performedExerciseUuid)
+            removedPerformedPosition = result.removedPerformedPosition
+            result.state
+        }
+        val position = removedPerformedPosition ?: return
+        launch(
+            onError = { _ -> sendError(ErrorType.SetDeleteFailed) },
+        ) {
+            interactor.deleteSet(action.performedExerciseUuid, position)
+        }
     }
 
     private fun processEditPlan(action: Action.Click.OnEditPlan) {

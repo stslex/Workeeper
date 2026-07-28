@@ -13,7 +13,8 @@
     <string name="feature_live_workout_action_reset_sets">Сбросить подходы</string>
     <string name="feature_live_workout_action_skip">Пропустить упражнение</string>
 
-    <string name="feature_live_workout_add_set">+ Добавить подход</string>
+    <string name="feature_live_workout_setbar_add">+ подход</string>
+    <string name="feature_live_workout_setbar_remove">− подход</string>
 
     <string name="feature_live_workout_set_type_tooltip">Нажмите, чтобы переключить: разминка → рабочий → отказ → дроп</string>
 

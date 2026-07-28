@@ -49,6 +49,16 @@ interface LiveWorkoutStore :
         val exercises: ImmutableList<LiveExerciseUiModel>,
         val setDrafts: ImmutableMap<DraftKey, LiveSetUiModel>,
         /**
+         * Per-exercise visible-row count set by the setbar (`+ подход` / `− подход`,
+         * extraction §1.7). Absent key = derive from `max(plan, performed, drafts)` as
+         * always; present = exactly this many rows (floored at the highest performed
+         * position, which deletion clears first). Lets `− подход` truncate BELOW the plan
+         * length — the plan itself is untouched, exactly like the drafts layer this sits
+         * beside. Ephemeral (§6.1's draft-state rule): a reload re-derives rows from the
+         * plan.
+         */
+        val rowCountOverrides: ImmutableMap<String, Int> = persistentMapOf(),
+        /**
          * UUIDs the user has explicitly tapped to start (or kept active across recompute).
          * When non-empty, the auto-default first-CURRENT behavior is suppressed; only
          * exercises in this set become CURRENT (alongside SKIPPED/DONE derivation).
@@ -200,6 +210,12 @@ interface LiveWorkoutStore :
 
             data class OnSetRemove(val performedExerciseUuid: String, val position: Int) : Click
             data class OnAddSet(val performedExerciseUuid: String) : Click
+
+            /**
+             * The setbar's `− подход` (§6.4): removes the LAST visible row — middle deletion
+             * is not planned. Disabled in UI at one row; the handler guards it again.
+             */
+            data class OnRemoveLastSet(val performedExerciseUuid: String) : Click
             data class OnEditPlan(val performedExerciseUuid: String) : Click
             data class OnResetSets(val performedExerciseUuid: String) : Click
             data class OnSkipExercise(val performedExerciseUuid: String) : Click

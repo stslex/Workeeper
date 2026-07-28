@@ -8,6 +8,7 @@ import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
 import io.github.stslex.workeeper.feature.live_workout.di.LiveWorkoutHandlerStore
 import io.github.stslex.workeeper.feature.live_workout.domain.LiveWorkoutInteractor
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveSetMutator
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveSetRowsResolver.withVisibleSets
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.StateStatusMapper
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
@@ -267,7 +268,7 @@ internal class LiveSetDraftBehaviorTest {
     ).copy(
         isLoading = false,
         exercises = persistentListOf(exercise),
-    )
+    ).withVisibleSets()
 
     private fun exerciseWithPlan(
         plan: kotlinx.collections.immutable.ImmutableList<PlanSetUiModel>,

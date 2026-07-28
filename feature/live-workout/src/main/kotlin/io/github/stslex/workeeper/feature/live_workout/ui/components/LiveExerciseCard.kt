@@ -7,9 +7,12 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,6 +24,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -41,8 +45,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.stslex.workeeper.core.ui.kit.components.border.dashedBorder
-import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
-import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppMiniIconButton
 import io.github.stslex.workeeper.core.ui.kit.components.ordinal.AppOrdinalChip
 import io.github.stslex.workeeper.core.ui.kit.components.surface.AppActiveSurface
@@ -383,17 +385,39 @@ private fun ExerciseCardBody(
     consume: (LiveWorkoutStore.Action) -> Unit,
 ) {
     val isWeighted = exercise.exerciseType == ExerciseTypeUiModel.WEIGHTED
-    // `.sets{padding:0 12px}` with `border-top: 1px --hair` on every row but the first —
-    // the hairline is intra-card row trim (spec §3.1, decorative), drawn by the container.
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = AppDimension.Space.md)
             .animateContentSize(
                 animationSpec = tween(
                     durationMillis = AppUi.motion.base,
                 ),
             ),
+    ) {
+        SetsColumn(exercise, isWeighted, isReadOnly, consume)
+        SetBar(
+            exerciseUuid = exercise.performedExerciseUuid,
+            canRemove = exercise.visibleSets.size > 1,
+            consume = consume,
+        )
+    }
+}
+
+/**
+ * `.sets{padding:0 12px}` with `border-top: 1px --hair` on every row but the first —
+ * the hairline is intra-card row trim (spec §3.1, decorative), drawn by the container.
+ */
+@Composable
+private fun SetsColumn(
+    exercise: LiveExerciseUiModel,
+    isWeighted: Boolean,
+    isReadOnly: Boolean,
+    consume: (LiveWorkoutStore.Action) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = AppDimension.Space.md),
     ) {
         exercise.visibleSets.forEachIndexed { index, row ->
             key(exercise.performedExerciseUuid, row.position) {
@@ -458,19 +482,92 @@ private fun ExerciseCardBody(
                 )
             }
         }
+    }
+}
 
-        if (!isReadOnly) {
-            AppButton.Tertiary(
+/**
+ * `.setbar` (extraction §1.7) — "missing entirely from the build" until now. Two
+ * equal-width mono buttons at the foot of every expanded card, ruled off by hairlines:
+ * `+ подход` appends a copy of the last row; `− подход` removes the last row and is
+ * disabled at one. Present on completed cards too — §6.4: adding a set to a completed
+ * exercise returns it to incomplete. The mockup's toasts and their undo land with the
+ * toast component (C6).
+ */
+@Composable
+private fun SetBar(
+    exerciseUuid: String,
+    canRemove: Boolean,
+    consume: (LiveWorkoutStore.Action) -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        HorizontalDivider(
+            thickness = AppDimension.Border.small,
+            color = AppUi.colors.borderSubtle,
+        )
+        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+            SetBarButton(
+                text = stringResource(R.string.feature_live_workout_setbar_add),
+                enabled = true,
+                onClick = { consume(LiveWorkoutStore.Action.Click.OnAddSet(exerciseUuid)) },
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("LiveExerciseCard_AddSet_${exercise.performedExerciseUuid}"),
-                text = stringResource(R.string.feature_live_workout_add_set),
-                onClick = { consume(LiveWorkoutStore.Action.Click.OnAddSet(exercise.performedExerciseUuid)) },
-                size = AppButtonSize.SMALL,
+                    .weight(1f)
+                    .testTag("LiveExerciseCard_AddSet_$exerciseUuid"),
+            )
+            VerticalDivider(
+                thickness = AppDimension.Border.small,
+                color = AppUi.colors.borderSubtle,
+            )
+            SetBarButton(
+                text = stringResource(R.string.feature_live_workout_setbar_remove),
+                enabled = canRemove,
+                onClick = { consume(LiveWorkoutStore.Action.Click.OnRemoveLastSet(exerciseUuid)) },
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("LiveExerciseCard_RemoveSet_$exerciseUuid"),
             )
         }
     }
 }
+
+@Composable
+private fun SetBarButton(
+    text: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val color by animateColorAsState(
+        targetValue = if (isPressed) AppUi.colors.textPrimary else AppUi.colors.textTertiary,
+        animationSpec = tween(durationMillis = AppUi.motion.fast, easing = AppUi.motion.out),
+        label = "setbar-color",
+    )
+    Box(
+        modifier = modifier
+            .alpha(if (enabled) 1f else SETBAR_DISABLED_ALPHA)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                enabled = enabled,
+                onClick = onClick,
+            )
+            .padding(vertical = AppDimension.Space.md),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text.uppercase(),
+            style = AppUi.typography.mono.meta.copy(letterSpacing = SETBAR_TRACKING),
+            color = color,
+        )
+    }
+}
+
+/** `.setbar button:disabled{opacity:.35}`. */
+private const val SETBAR_DISABLED_ALPHA = 0.35f
+
+/** `.setbar{letter-spacing:.06em}` at the 12.5sp meta rung. */
+private val SETBAR_TRACKING = 0.75.sp
 
 /** `.chead-act{margin:-6px -6px 0 0}` — the cluster hangs into the header padding. */
 private val ACTIONS_HANG: Dp = 6.dp

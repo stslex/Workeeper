@@ -5,6 +5,7 @@ import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.PlanSetUiModel
 import io.github.stslex.workeeper.core.ui.plan_editor.model.SetTypeUiModel
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveSetRowsResolver.withVisibleSets
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
@@ -375,7 +376,7 @@ internal class LiveSetMutatorTest {
                     PlanSetUiModel(weight = 102.5, reps = 5, type = SetTypeUiModel.WORK),
                 ),
             ),
-        )
+        ).withVisibleSets()
 
         val result = mutator.applyAddSet(state, PE_UUID)
 
@@ -482,6 +483,119 @@ internal class LiveSetMutatorTest {
         val result = mutator.recomputeStatuses(state)
 
         assertEquals(ExerciseStatusUiModel.DONE, result.exercises.first().status)
+    }
+
+    // --- setbar mechanics (§6.4, extraction §1.7) ------------------------------------
+
+    @Test
+    fun `applyAddSet appends a copy of the last visible row and raises the override`() {
+        val state = stateWith(
+            exerciseWithPlan(
+                plan = persistentListOf(
+                    PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+                    PlanSetUiModel(weight = 102.5, reps = 3, type = SetTypeUiModel.WORK),
+                ),
+            ),
+        ).withVisibleSets()
+
+        val result = mutator.applyAddSet(state, PE_UUID)
+
+        val draft = result.setDrafts[State.DraftKey(PE_UUID, 2)]
+        assertNotNull(draft)
+        assertEquals(102.5, draft?.weight)
+        assertEquals(3, draft?.reps)
+        assertEquals(3, result.rowCountOverrides[PE_UUID])
+        assertEquals(3, result.exercises.first().visibleSets.size)
+    }
+
+    @Test
+    fun `applyAddSet returns a completed exercise to incomplete`() {
+        val performed = persistentListOf(
+            LiveSetUiModel(position = 0, weight = 100.0, reps = 5, type = SetTypeUiModel.WORK, isDone = true),
+        )
+        val state = stateWith(
+            exerciseWithPlan(
+                plan = persistentListOf(
+                    PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+                ),
+                performed = performed,
+                status = ExerciseStatusUiModel.DONE,
+            ),
+        ).withVisibleSets()
+
+        val result = mutator.applyAddSet(state, PE_UUID)
+
+        assertTrue(result.exercises.first().status != ExerciseStatusUiModel.DONE)
+        assertEquals(2, result.exercises.first().visibleSets.size)
+    }
+
+    @Test
+    fun `applyRemoveLastSet truncates below the plan without touching it`() {
+        val plan = persistentListOf(
+            PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+            PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+            PlanSetUiModel(weight = 102.5, reps = 5, type = SetTypeUiModel.WORK),
+        )
+        val state = stateWith(exerciseWithPlan(plan = plan)).withVisibleSets()
+
+        val result = mutator.applyRemoveLastSet(state, PE_UUID)
+
+        assertNull(result.removedPerformedPosition)
+        assertEquals(2, result.state.rowCountOverrides[PE_UUID])
+        assertEquals(2, result.state.exercises.first().visibleSets.size)
+        assertEquals(3, result.state.exercises.first().planSets.size)
+    }
+
+    @Test
+    fun `applyRemoveLastSet removes a performed row and reports its position`() {
+        val plan = persistentListOf(
+            PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+            PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+        )
+        val performed = persistentListOf(
+            LiveSetUiModel(position = 1, weight = 110.0, reps = 4, type = SetTypeUiModel.WORK, isDone = true),
+        )
+        val state = stateWith(exerciseWithPlan(plan = plan, performed = performed)).withVisibleSets()
+
+        val result = mutator.applyRemoveLastSet(state, PE_UUID)
+
+        assertEquals(1, result.removedPerformedPosition)
+        assertTrue(result.state.exercises.first().performedSets.isEmpty())
+        assertEquals(1, result.state.exercises.first().visibleSets.size)
+    }
+
+    @Test
+    fun `applyRemoveLastSet refuses to go below one row`() {
+        val plan = persistentListOf(
+            PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+        )
+        val state = stateWith(exerciseWithPlan(plan = plan)).withVisibleSets()
+
+        val result = mutator.applyRemoveLastSet(state, PE_UUID)
+
+        assertNull(result.removedPerformedPosition)
+        assertEquals(1, result.state.exercises.first().visibleSets.size)
+        assertTrue(PE_UUID !in result.state.rowCountOverrides)
+    }
+
+    @Test
+    fun `addSet after truncation grows one row at a time seeded from the visible last`() {
+        val plan = persistentListOf(
+            PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+            PlanSetUiModel(weight = 105.0, reps = 4, type = SetTypeUiModel.WORK),
+            PlanSetUiModel(weight = 110.0, reps = 3, type = SetTypeUiModel.WORK),
+        )
+        val state = stateWith(exerciseWithPlan(plan = plan)).withVisibleSets()
+
+        val truncated = mutator.applyRemoveLastSet(state, PE_UUID).state
+        val grown = mutator.applyAddSet(truncated, PE_UUID)
+
+        // The new row copies the last VISIBLE row (plan row 1), not the shadowed plan row 2.
+        val draft = grown.setDrafts[State.DraftKey(PE_UUID, 2)]
+        assertEquals(105.0, draft?.weight)
+        assertEquals(4, draft?.reps)
+        assertEquals(3, grown.rowCountOverrides[PE_UUID])
+        assertEquals(3, grown.exercises.first().visibleSets.size)
     }
 
     private fun stateWith(exercise: LiveExerciseUiModel): State = State.create(

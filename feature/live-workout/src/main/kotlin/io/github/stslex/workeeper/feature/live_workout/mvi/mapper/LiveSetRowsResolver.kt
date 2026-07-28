@@ -24,6 +24,7 @@ internal object LiveSetRowsResolver {
     fun resolveVisibleSets(
         exercise: LiveExerciseUiModel,
         drafts: ImmutableMap<State.DraftKey, LiveSetUiModel>,
+        rowCountOverride: Int? = null,
     ): ImmutableList<LiveSetUiModel> {
         val performedTotal = exercise.performedSets
             .maxOfOrNull { it.position + 1 }
@@ -35,11 +36,16 @@ internal object LiveSetRowsResolver {
             .maxOfOrNull { it.position + 1 }
             ?: 0
 
-        val total = maxOf(
-            exercise.planSets.size,
-            performedTotal,
-            draftTotal,
-        )
+        // The setbar's truncation (§6.4): an override pins the row count exactly — it may
+        // sit BELOW the plan length, and drafts past it stay shadowed until `+ подход`
+        // raises it again. Floored at the highest performed position so a logged row can
+        // never be hidden; deletion removes the performed row before lowering the count.
+        val total = rowCountOverride?.coerceAtLeast(performedTotal)
+            ?: maxOf(
+                exercise.planSets.size,
+                performedTotal,
+                draftTotal,
+            )
         if (total == 0) return EMPTY
         val performedByPos = exercise.performedSets.associateBy { it.position }
         return (0 until total).map { position ->
@@ -70,7 +76,13 @@ internal object LiveSetRowsResolver {
 
     fun State.withVisibleSets(): State {
         val refreshed = exercises.map { exercise ->
-            exercise.copy(visibleSets = resolveVisibleSets(exercise, setDrafts))
+            exercise.copy(
+                visibleSets = resolveVisibleSets(
+                    exercise = exercise,
+                    drafts = setDrafts,
+                    rowCountOverride = rowCountOverrides[exercise.performedExerciseUuid],
+                ),
+            )
         }.toImmutableList()
         return copy(exercises = refreshed)
     }

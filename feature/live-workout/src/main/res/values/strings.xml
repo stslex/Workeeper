@@ -16,8 +16,9 @@
     <string name="feature_live_workout_action_reset_sets">Reset sets</string>
     <string name="feature_live_workout_action_skip">Skip exercise</string>
 
-    <!-- Add set -->
-    <string name="feature_live_workout_add_set">+ Add set</string>
+    <!-- Setbar (extraction §1.7); "−" is U+2212 MINUS SIGN, as drawn -->
+    <string name="feature_live_workout_setbar_add">+ set</string>
+    <string name="feature_live_workout_setbar_remove">− set</string>
 
     <!-- Set-type chip tooltip (long-press) -->
     <string name="feature_live_workout_set_type_tooltip">Tap to cycle: warmup → work → failure → drop</string>

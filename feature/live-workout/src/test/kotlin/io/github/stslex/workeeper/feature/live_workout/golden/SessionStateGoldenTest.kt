@@ -138,6 +138,16 @@ internal class SessionStateGoldenTest {
 
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
+    fun exerciseSingleRow(theme: GoldenTheme, testInfo: TestInfo) {
+        // The setbar's §10.2 pair with `exerciseActive`: at one visible row `− подход` is
+        // disabled (opacity .35, extraction §1.7) while `+ подход` stays live.
+        goldenSubject(testInfo, theme) {
+            Card(exercise(ExerciseStatusUiModel.CURRENT, done = 0, sets = 1), expanded = true)
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
     fun exerciseFinished(theme: GoldenTheme, testInfo: TestInfo) {
         goldenSubject(testInfo, theme) {
             Card(exercise(ExerciseStatusUiModel.DONE, done = 3), expanded = false)
@@ -226,8 +236,9 @@ private fun exercise(
     status: ExerciseStatusUiModel,
     done: Int,
     isPlanAttached: Boolean = true,
+    sets: Int = 3,
 ): LiveExerciseUiModel {
-    val sets = (0 until 3).map { position ->
+    val sets = (0 until sets).map { position ->
         LiveSetUiModel(
             position = position,
             weight = 100.0,
