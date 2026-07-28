@@ -61,7 +61,22 @@ internal class SessionStateGoldenTest {
         goldenSubject(testInfo, theme) { SetRow(set(isDone = false, reps = 0)) }
     }
 
-    // --- Exercise states: active, fin, skip, temp -------------------------------------
+    // --- Exercise states (§1.5): resting, active, fin, fin-reopened, skip, temp --------
+    //
+    // BASELINE CORRECTIONS against the step-5 goldens: the card is 16dp-radius, the ordinal
+    // is the 7-state `.ordchip`, done is a checkmark-on-donefill + meta/500 title (not an
+    // alpha fade), skip is opacity .5 + strikethrough, the sub is always the plan, the head
+    // carries the pstrip micro-rail and the `.mini` cluster with the rotating chevron — and
+    // the LIFT keys on *expanded* (`.card.active` == isOpen), not on CURRENT.
+    // `exercisePending`/`exerciseActive` are the lift's §10.2 pair (unlifted / lifted).
+
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun exercisePending(theme: GoldenTheme, testInfo: TestInfo) {
+        goldenSubject(testInfo, theme) {
+            Card(exercise(ExerciseStatusUiModel.PENDING, done = 0), expanded = false)
+        }
+    }
 
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
@@ -81,6 +96,16 @@ internal class SessionStateGoldenTest {
 
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
+    fun exerciseFinishedReopened(theme: GoldenTheme, testInfo: TestInfo) {
+        // A completed card is manually expandable (§7) and lifts like any open card —
+        // fin + active co-exist, fin winning the chip (stylesheet order, L87–88).
+        goldenSubject(testInfo, theme) {
+            Card(exercise(ExerciseStatusUiModel.DONE, done = 3), expanded = true)
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
     fun exerciseSkipped(theme: GoldenTheme, testInfo: TestInfo) {
         goldenSubject(testInfo, theme) {
             Card(exercise(ExerciseStatusUiModel.SKIPPED, done = 0), expanded = false)
@@ -95,6 +120,19 @@ internal class SessionStateGoldenTest {
         goldenSubject(testInfo, theme) {
             Card(
                 exercise(ExerciseStatusUiModel.CURRENT, done = 0, isPlanAttached = false),
+                expanded = false,
+            )
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun exerciseOneOffFinished(theme: GoldenTheme, testInfo: TestInfo) {
+        // temp.fin: the checkmark replaces the number here too — `.card.fin .ordchip svg`
+        // has no `:not(.temp)` guard (the extraction's own state table has this wrong).
+        goldenSubject(testInfo, theme) {
+            Card(
+                exercise(ExerciseStatusUiModel.DONE, done = 3, isPlanAttached = false),
                 expanded = false,
             )
         }
@@ -150,14 +188,15 @@ private fun exercise(
     return LiveExerciseUiModel(
         performedExerciseUuid = "pe-1",
         exerciseUuid = "ex-1",
-        exerciseName = "Bench press",
+        // Cyrillic on purpose — the title is a text slot and the primary locale is Russian.
+        exerciseName = "жим лёжа",
         exerciseType = ExerciseTypeUiModel.WEIGHTED,
         position = 0,
         status = status,
+        // `.sub` is always the plan (or the skipped marker) — extraction §1.5.
         statusLabel = when (status) {
-            ExerciseStatusUiModel.DONE -> "Completed · 3 sets"
-            ExerciseStatusUiModel.SKIPPED -> "Skipped"
-            else -> "Plan: 3 × 5"
+            ExerciseStatusUiModel.SKIPPED -> "пропущено"
+            else -> "100×5 · 100×5 · 102.5×5"
         },
         planSets = persistentListOf(
             PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),

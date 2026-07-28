@@ -80,6 +80,15 @@ object AppIcons {
         strokeIcon("Close", CARD_STROKE, "M6 6l12 12M18 6L6 18")
     }
 
+    /**
+     * The ordinal chip's done checkmark — session-v3f L345, rendered at 13dp with a 3-unit
+     * stroke. Not the set mark's tick (L390, `M5 12.5l4.5 4.5L19 7.5`): the mockup draws two
+     * subtly different checks and the difference ships as drawn.
+     */
+    val OrdinalCheck: ImageVector by lazy {
+        strokeIcon("OrdinalCheck", ORDINAL_CHECK_STROKE, "M4 12.5l5 5L20 7")
+    }
+
     /** 1.7 — the top-bar stroke weight (21dp glyphs). */
     private const val TOPBAR_STROKE = 1.7f
 
@@ -88,6 +97,9 @@ object AppIcons {
 
     /** 1.9 — the `.addex` plus is drawn a touch heavier than the card glyphs (L145). */
     private const val ADDEX_STROKE = 1.9f
+
+    /** 3 — the ordinal chip's check is a heavy stroke at a tiny render size (L94). */
+    private const val ORDINAL_CHECK_STROKE = 3f
 
     private const val VIEWPORT = 24f
 

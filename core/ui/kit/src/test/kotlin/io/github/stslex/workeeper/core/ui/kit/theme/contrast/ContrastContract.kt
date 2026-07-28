@@ -47,6 +47,9 @@ internal object ContrastContract {
         "record.background" to SURFACE,
         "record.solid" to SURFACE,
         "inverseSurface" to SURFACE,
+        // v3 `--donefill` — the completed-content wash (session rebuild). Translucent, so its
+        // declared rows name explicit `over` backdrops like the molten wash does.
+        "donefill" to SURFACE,
 
         // -- foregrounds ------------------------------------------------------------------
         "textPrimary" to FOREGROUND,
@@ -232,6 +235,28 @@ internal object ContrastContract {
         // `AppTypography.timer` now, not `accent`. Same colour value in this palette; the row
         // follows the slot the call site actually names.
         add(Declared("textPrimary", "surfaceTier0", TypeSlot.DISPLAY, "LiveWorkoutHeader timer (AppTypography.timer)"))
+
+        // The completed-content wash (v3 `--donefill`). Hosts the fin ordinal chip's
+        // checkmark — a state glyph, so 1.4.11's 3:1 — composited over the two card tiers a
+        // finished card can sit on: `sec` collapsed, `slab` when manually opened (lifted).
+        add(
+            Declared(
+                "textTertiary",
+                "donefill",
+                TypeSlot.UI_COMPONENT,
+                "AppOrdinalChip done checkmark, collapsed fin card",
+                over = "surfaceTier1",
+            ),
+        )
+        add(
+            Declared(
+                "textTertiary",
+                "donefill",
+                TypeSlot.UI_COMPONENT,
+                "AppOrdinalChip done checkmark, lifted fin card",
+                over = "surfaceTier2",
+            ),
+        )
         add(Declared("accent", "surfaceTier0", TypeSlot.UI_COMPONENT, "AppTextField focused outline"))
         add(Declared("accent", "surfaceTier1", TypeSlot.UI_COMPONENT, "LiveExerciseCard border"))
 
@@ -492,6 +517,12 @@ internal object ContrastContract {
     data class Exclusion(val reason: String, val matches: (fg: String, bg: String) -> Boolean)
 
     val EXCLUSIONS: List<Exclusion> = listOf(
+        Exclusion(
+            "`donefill` is the completed-content wash (session `.card.fin .ordchip` — the " +
+                "checkmark, in `textTertiary`). The set-row rebuild (B7) adds the done " +
+                "field's value and unit; until those rows are declared, nothing else is " +
+                "painted on the wash.",
+        ) { fg, bg -> bg == "donefill" && fg != "textTertiary" },
         Exclusion(
             "Set-type chip colours are scoped to their own chip: `AppSetTypeChip` picks one " +
                 "(background, foreground) pair by `when(type)` and paints both. A warm-up " +
