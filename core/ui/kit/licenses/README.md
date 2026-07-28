@@ -18,10 +18,26 @@ bytes, so each hash below is reproducible by downloading the source URL and hash
 | `archivo_expanded_bold.ttf` | `Archivo/fonts/ttf/ArchivoExpanded-Bold.ttf` | 2.001 (ttfautohint 1.8.3) | 188 036 | `1bcc4fd980b708f08b92e8f39c9d3934e1c03eba84a95b1d4a7a99534c526902` |
 | `ibm_plex_sans_regular.ttf` | `ibm-plex-sans/fonts/complete/ttf/IBMPlexSans-Regular.ttf` | 3.005 | 200 500 | `975dcda37d80f038dcd143c22e33ca2d97a0cc5a929aace1c749153b0fe1afa5` |
 | `ibm_plex_sans_medium.ttf` | `ibm-plex-sans/fonts/complete/ttf/IBMPlexSans-Medium.ttf` | 3.005 | 202 460 | `331c8639d7598b2cde62a911a71db195e30cb655cd6bdf2e324a7e984955f907` |
+| `ibm_plex_sans_semibold.ttf` | `ibm-plex-sans/fonts/complete/ttf/IBMPlexSans-SemiBold.ttf` | 3.005 | 202 632 | `a20caf8286023a6a7a85e40b1d2a4ae9fc3e3b1f9eda8f4c542dd4986af67bb1` |
 | `ibm_plex_mono_regular.ttf` | `ibm-plex-mono/fonts/complete/ttf/IBMPlexMono-Regular.ttf` | 2.005 | 173 052 | `7c6fbddca4b700be918f5f6183d9bd4464fa427fe435f0b480d77fe2bb8c5a43` |
 | `ibm_plex_mono_medium.ttf` | `ibm-plex-mono/fonts/complete/ttf/IBMPlexMono-Medium.ttf` | 2.005 | 174 008 | `98fbd727aae340b236955879dabed4d991aac9e8e90b3b2a67ce4a59221cc97c` |
+| `ibm_plex_mono_semibold.ttf` | `ibm-plex-mono/fonts/complete/ttf/IBMPlexMono-SemiBold.ttf` | 2.005 | 174 608 | `f04d7c488ddf7d1fa99f2574efc3406ea4cbe17bb1af3a1ab960f84d0c96a172` |
 
-Total 938 056 bytes on disk.
+Total 1 315 296 bytes on disk.
+
+### The 600 cuts come from the same release, proven by hash
+
+The 600s were taken from the same two tags and the same `fonts/complete/ttf/` directory as the
+400/500 already bundled — and that is not a claim about where they were downloaded from, it is
+verifiable: re-downloading the four already-bundled files from those tags reproduces their
+committed hashes **byte for byte** (`975dcda3…`, `331c8639…`, `7c6fbddc…`, `98fbd727…`). Same
+directory listing, same release, same build. Mixed releases would mean mixed vertical metrics,
+which is exactly the mistake the Mono section below documents avoiding.
+
+Measured across all six Plex files: `unitsPerEm 1000`, typo `780 / −220 / 300`, hhea
+`1025 / −275 / 0`, win `1025 / 275`, `capHeight 698` — identical on every one. `xHeight` is the
+single per-weight value (Sans 516 / 520 / **522** at 400 / 500 / 600; Mono 516 at all three),
+which is a property of the weight's drawing, not a metric that moves a baseline.
 
 ## Sources
 
@@ -88,8 +104,10 @@ Verified against the actual union of every `values/strings.xml` and `values-ru/s
 in the repo (19 + 18 files) — 55 distinct Cyrillic characters plus `«` `»` `·` `×` `—` `…`
 `→` `‘` `’` `“` `”`:
 
-- **IBM Plex Sans** and **IBM Plex Mono** (both weights) cover the set completely — zero
-  missing glyphs for Cyrillic or for any other character the app renders.
+- **IBM Plex Sans** and **IBM Plex Mono** (all three weights) cover the set completely — zero
+  missing glyphs for Cyrillic or for any other character the app renders. Re-verified when the
+  600 cuts were added: 129 distinct characters across 19 `values` + 18 `values-ru` files, of
+  which 55 are Cyrillic; Sans `cmap` 895 entries, Mono 1049, at every weight.
 - **Archivo has no Cyrillic at all** — all 55 characters are absent from its `cmap`, in both
   the variable font and the static. Its Google Fonts `subsets` are `latin`, `latin-ext`,
   `menu`, `vietnamese`.

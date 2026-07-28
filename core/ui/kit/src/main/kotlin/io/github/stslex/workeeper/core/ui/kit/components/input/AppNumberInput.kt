@@ -53,8 +53,13 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
  * ### What is deliberately NOT implemented: `.set.pr .data-l{color:var(--molten)}`
  *
  * The mockup turns the value molten too. On the stacked wash that measures **6.94 dark / 4.14
- * light**, against the 4.5:1 this value owes at `titleLarge` = 19sp regular. Dark passes; light
- * does not, so it is a light-theme question rather than a design error.
+ * light**, against the 4.5:1 this value owes at `titleLarge` = 19sp. Dark passes; light does
+ * not, so it is a light-theme question rather than a design error.
+ *
+ * The weight moved to SemiBold (600) with the heading rungs, and the threshold did not: WCAG's
+ * large-text boundary at that size needs 700, so 19sp/600 is still normal text at 4.5:1. This
+ * field is also the most visible consumer of that weight change — it is a *value*, not a
+ * heading, and it reads `titleLarge` only because that is the rung it was put on.
  *
  * Note what makes it fail: the mockup draws `.data-l` at 25px Archivo Expanded 700, which is
  * large-scale text at 3:1, where 4.14 passes comfortably. "As drawn" is legal; our under-sized

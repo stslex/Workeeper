@@ -19,11 +19,11 @@ import io.github.stslex.workeeper.core.ui.kit.R
  */
 @Immutable
 data class AppTypeStyles(
-    /** 34sp — hero numerals and the live timer. */
+    /** 34sp — hero numerals and the live timer. Heading weight. */
     val display: TextStyle,
-    /** 26sp — screen titles. */
+    /** 26sp — screen titles. Heading weight. */
     val title: TextStyle,
-    /** 19sp — section and dialog titles. */
+    /** 19sp — section and dialog titles. Heading weight. */
     val section: TextStyle,
     /** 15sp — body text and row titles. */
     val body: TextStyle,
@@ -64,6 +64,11 @@ data class AppTypography(
     // actually occupies is what decided its rung.
     //
     // Stored, not `get()` — computed once per theme instance rather than on every read.
+    //
+    // Seven of the fifteen sit on a heading rung and therefore carry HEADING_WEIGHT:
+    // displayLarge/Medium (34), displaySmall + headlineLarge/Medium/Small (26), titleLarge
+    // (19). The other eight are body/meta/caption and are untouched by it — including the four
+    // that .copy() to Medium, whose 500 overrides the rung's weight either way.
 
     /** Unused in production; exists so `Typography()` is complete. */
     val displayLarge: TextStyle = text.display
@@ -80,7 +85,11 @@ data class AppTypography(
     /** Unused in production; exists so `Typography()` is complete. */
     val headlineMedium: TextStyle = text.title
 
-    /** Screen titles — `DetailTopbar`, `PastSessionScreen`, `PastSessionHeader`. */
+    /**
+     * Screen titles — `DetailTopbar`, `PlanEditorScreen`, `PastSessionScreen`,
+     * `PastSessionHeader`. All four, not three: `DetailTopbar` reaches every detail screen in
+     * the app, so this alias is wider than its call-site count suggests.
+     */
     val headlineSmall: TextStyle = text.title
 
     /** Dialog titles — `AppConfirmationDialog`, `AppBlockedArchiveDialog`, and friends. */
@@ -115,14 +124,16 @@ data class AppTypography(
  * Text family for every worded slot. Bundled rather than fetched from the GMS
  * downloadable-font provider, so the first frame is never set in a fallback face and the app
  * renders identically on devices without Play Services. Covers the full Cyrillic range the
- * `values-ru` strings use.
+ * `values-ru` strings use, at every bundled weight.
  *
- * Only 400/500 ship — those are the weights the slots consume. `FontWeight.Bold` still
- * resolves, but by synthesis; add a real 700 file before relying on it.
+ * 400/500/600 ship — those are the weights the slots consume, and they are the three the
+ * mockups request (`IBM+Plex+Sans:wght@400;500;600`). `FontWeight.Bold` still resolves, but by
+ * synthesis; add a real 700 file before relying on it.
  */
 private val plexSansFontFamily = FontFamily(
     Font(R.font.ibm_plex_sans_regular, FontWeight.Normal),
     Font(R.font.ibm_plex_sans_medium, FontWeight.Medium),
+    Font(R.font.ibm_plex_sans_semibold, FontWeight.SemiBold),
 )
 
 /**
@@ -161,10 +172,17 @@ private val archivoExpandedFontFamily = FontFamily(
  * [plexSansFontFamily], so it stays on the same baseline when set inline beside body text.
  * Tabular by default — every digit is 600 units — and it covers Cyrillic in full, so unlike
  * [archivoExpandedFontFamily] it is safe for localized text.
+ *
+ * The 600 cut is bundled but **no slot consumes it yet**. It is here because the mockups set
+ * exactly one mono selector at 600 — `.prtag`, the record tag — and that component
+ * (`PersonalRecordBadge`) still reads a *text*-family caption. Wiring it is the record-row
+ * work, not this file's. Until then the weight is reachable only by asking a mono style for
+ * [FontWeight.SemiBold] explicitly; no [mono] rung does.
  */
 private val plexMonoFontFamily = FontFamily(
     Font(R.font.ibm_plex_mono_regular, FontWeight.Normal),
     Font(R.font.ibm_plex_mono_medium, FontWeight.Medium),
+    Font(R.font.ibm_plex_mono_semibold, FontWeight.SemiBold),
 )
 
 /**
@@ -191,12 +209,45 @@ private const val TABULAR_FIGURES = "tnum"
 /** The caption rung is small enough to need opening up. */
 private val CAPTION_LETTER_SPACING = 0.5.sp
 
+/**
+ * The weight every heading rung is set in — [AppTypeStyles.display], [AppTypeStyles.title],
+ * [AppTypeStyles.section].
+ *
+ * Every `h1`/`h2`/`h3`/`h4` in both mockups declares `font-weight:600` and nothing else does at
+ * heading size: `.topbar h1` (20px), `.shead h2` (22px), `.exhead h2` (24px), `.sheet h3`
+ * (19px), `.empty h4` (18px). Those five land on the 26 and 19 rungs, which is why both move.
+ * The 34 rung moves with them: it carries no sans heading in either mockup, and a scale whose
+ * largest step is *lighter* than the step below it is broken rather than unspecified.
+ *
+ * 600 is a **real bundled cut**, not synthesis — see [plexSansFontFamily]. Before this weight
+ * shipped these rungs rendered at 400.
+ *
+ * Not WCAG-bold. §1.4.3's large-text boundary is "18pt, or 14pt bold", and bold there means
+ * 700; 600 does not reach it. So `text.section` at 19sp stays `TypeSlot.SECTION` (4.5:1) and
+ * does not become `SECTION_BOLD` (3:1). The contrast contract is unchanged by this weight.
+ */
+private val HEADING_WEIGHT = FontWeight.SemiBold
+
+/**
+ * Builds the six rungs of one family.
+ *
+ * Weight is split heading-vs-rest rather than being one value per family, because the mockups
+ * split it that way: the three heading rungs carry [headingWeight] and the three text rungs
+ * carry [bodyWeight]. A family with one weight — Archivo, which ships only 700 — passes the
+ * same value for both and the split costs it nothing.
+ */
 private fun buildStyles(
     family: FontFamily,
-    weight: FontWeight,
+    bodyWeight: FontWeight,
+    headingWeight: FontWeight = bodyWeight,
     fontFeatureSettings: String? = null,
 ): AppTypeStyles {
-    fun step(sizeSp: Float, lineHeightSp: Float, letterSpacing: TextUnit) = TextStyle(
+    fun step(
+        sizeSp: Float,
+        lineHeightSp: Float,
+        weight: FontWeight,
+        letterSpacing: TextUnit,
+    ) = TextStyle(
         fontFamily = family,
         fontWeight = weight,
         fontSize = sizeSp.sp,
@@ -206,12 +257,12 @@ private fun buildStyles(
     )
     val default = TextStyle.Default.letterSpacing
     return AppTypeStyles(
-        display = step(SIZE_DISPLAY_SP, LINE_DISPLAY_SP, default),
-        title = step(SIZE_TITLE_SP, LINE_TITLE_SP, default),
-        section = step(SIZE_SECTION_SP, LINE_SECTION_SP, default),
-        body = step(SIZE_BODY_SP, LINE_BODY_SP, default),
-        meta = step(SIZE_META_SP, LINE_META_SP, default),
-        caption = step(SIZE_CAPTION_SP, LINE_CAPTION_SP, CAPTION_LETTER_SPACING),
+        display = step(SIZE_DISPLAY_SP, LINE_DISPLAY_SP, headingWeight, default),
+        title = step(SIZE_TITLE_SP, LINE_TITLE_SP, headingWeight, default),
+        section = step(SIZE_SECTION_SP, LINE_SECTION_SP, headingWeight, default),
+        body = step(SIZE_BODY_SP, LINE_BODY_SP, bodyWeight, default),
+        meta = step(SIZE_META_SP, LINE_META_SP, bodyWeight, default),
+        caption = step(SIZE_CAPTION_SP, LINE_CAPTION_SP, bodyWeight, CAPTION_LETTER_SPACING),
     )
 }
 
@@ -219,10 +270,19 @@ fun provideAppTypography(): AppTypography = AppTypography(
     textFontFamily = plexSansFontFamily,
     numericFontFamily = archivoExpandedFontFamily,
     monoFontFamily = plexMonoFontFamily,
-    text = buildStyles(plexSansFontFamily, FontWeight.Normal),
+    text = buildStyles(
+        family = plexSansFontFamily,
+        bodyWeight = FontWeight.Normal,
+        headingWeight = HEADING_WEIGHT,
+    ),
     // Archivo ships one weight (700) and its digits are proportional, hence tnum on every rung.
-    numeric = buildStyles(archivoExpandedFontFamily, FontWeight.Bold, TABULAR_FIGURES),
-    mono = buildStyles(plexMonoFontFamily, FontWeight.Normal),
+    numeric = buildStyles(
+        family = archivoExpandedFontFamily,
+        bodyWeight = FontWeight.Bold,
+        fontFeatureSettings = TABULAR_FIGURES,
+    ),
+    // No mono selector in either mockup is a heading, so mono has no heading weight to carry.
+    mono = buildStyles(family = plexMonoFontFamily, bodyWeight = FontWeight.Normal),
 )
 
 fun AppTypography.toM3Typography(): Typography = Typography(
