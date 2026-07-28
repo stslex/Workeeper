@@ -12,16 +12,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -39,7 +33,9 @@ import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppDialog
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.DiscardSessionConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.empty.AppEmptyState
 import io.github.stslex.workeeper.core.ui.kit.components.rail.AppProgressRail
-import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
+import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
+import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
+import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -176,51 +172,56 @@ internal fun LiveWorkoutScreen(
     }
 }
 
+/**
+ * `.topbar` (extraction §1.2): back chevron leading, empty spacer, vertical three-dot
+ * trailing. No title — §1.2 is explicit that the session top bar has none.
+ *
+ * The trailing dots still anchor the old overflow `DropdownMenu`; §1.2 routes them to the
+ * `sh-session` sheet, which lands with the sheet region (C6). The *chrome* — glyphs, sizes,
+ * hang, tints — is this commit's contract.
+ */
 @Composable
-private fun TopBar(consume: (Action) -> Unit) {
+internal fun TopBar(consume: (Action) -> Unit) {
     var menuExpanded by remember { mutableStateOf(false) }
-    AppTopAppBar(
-        title = "",
-        navigationIcon = {
-            IconButton(onClick = { consume(Action.Click.OnBackClick) }) {
-                Icon(
-                    modifier = Modifier.size(AppDimension.iconSm),
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(R.string.feature_live_workout_back),
-                )
-            }
+    AppTopBar(
+        navigation = {
+            AppIconButton(
+                icon = AppIcons.ChevronLeft,
+                contentDescription = stringResource(R.string.feature_live_workout_back),
+                onClick = { consume(Action.Click.OnBackClick) },
+            )
         },
         actions = {
-            IconButton(onClick = { menuExpanded = true }) {
-                Icon(
-                    modifier = Modifier.size(AppDimension.iconSm),
-                    imageVector = Icons.Filled.MoreVert,
+            Box {
+                AppIconButton(
+                    icon = AppIcons.MoreVertical,
                     contentDescription = stringResource(R.string.feature_live_workout_more),
+                    onClick = { menuExpanded = true },
                 )
-            }
-            DropdownMenu(
-                expanded = menuExpanded,
-                onDismissRequest = { menuExpanded = false },
-            ) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.feature_live_workout_session_overflow_cancel)) },
-                    onClick = {
-                        menuExpanded = false
-                        consume(Action.Click.OnCancelSessionClick)
-                    },
-                )
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            text = stringResource(R.string.feature_live_workout_delete_session),
-                            color = AppUi.colors.setType.failureForeground,
-                        )
-                    },
-                    onClick = {
-                        menuExpanded = false
-                        consume(Action.Click.OnDeleteSessionMenuClick)
-                    },
-                )
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.feature_live_workout_session_overflow_cancel)) },
+                        onClick = {
+                            menuExpanded = false
+                            consume(Action.Click.OnCancelSessionClick)
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = stringResource(R.string.feature_live_workout_delete_session),
+                                color = AppUi.colors.setType.failureForeground,
+                            )
+                        },
+                        onClick = {
+                            menuExpanded = false
+                            consume(Action.Click.OnDeleteSessionMenuClick)
+                        },
+                    )
+                }
             }
         },
     )
@@ -242,7 +243,7 @@ private fun Body(
             trainingNameLabel = state.trainingNameLabel,
             namePlaceholder = stringResource(R.string.feature_live_workout_training_name_placeholder),
             elapsedLabel = state.elapsedDurationLabel,
-            progressLabel = state.progressLabel,
+            metaLabel = state.headerMetaLabel,
             isEditingName = state.isTrainingNameEditing,
             nameDraft = state.trainingNameDraft,
             onNameTap = { consume(Action.Click.OnTrainingNameTap) },
@@ -359,7 +360,7 @@ private fun LiveWorkoutScreenEmptyLightPreview() {
                 exercises = persistentListOf(),
                 trainingName = "",
                 trainingNameLabel = "Untitled",
-                progressLabel = "",
+                headerMetaLabel = "",
                 doneCount = 0,
                 totalCount = 0,
                 setsLogged = 0,
@@ -380,7 +381,7 @@ private fun LiveWorkoutScreenEmptyDarkPreview() {
                 exercises = persistentListOf(),
                 trainingName = "",
                 trainingNameLabel = "Untitled",
-                progressLabel = "",
+                headerMetaLabel = "",
                 doneCount = 0,
                 totalCount = 0,
                 setsLogged = 0,
@@ -440,7 +441,7 @@ private fun stubState(): State = State(
     totalCount = 2,
     setsLogged = 1,
     progress = 0.5f,
-    progressLabel = "1 of 2 done · 1 set logged",
+    headerMetaLabel = "1 из 2 упражнений · 1 из 6 подходов",
     exercises = persistentListOf(
         LiveExerciseUiModel(
             performedExerciseUuid = "pe-1",

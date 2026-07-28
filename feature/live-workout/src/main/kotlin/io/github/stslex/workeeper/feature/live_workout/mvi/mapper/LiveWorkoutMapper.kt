@@ -62,7 +62,7 @@ internal object LiveWorkoutMapper {
             totalCount = 0,
             setsLogged = 0,
             progress = 0f,
-            progressLabel = "",
+            headerMetaLabel = "",
             exercises = ui,
             setDrafts = emptyMap<State.DraftKey, LiveSetUiModel>().toImmutableMap(),
             activeExerciseUuids = activeExerciseUuids,
@@ -194,11 +194,6 @@ internal object LiveWorkoutMapper {
             presentedExercises.sumOf { exercise -> exercise.performedSets.count { it.isDone } }
         val safeTotal = totalCount.coerceAtLeast(1)
         val progress = (doneCount.toFloat() / safeTotal.toFloat()).coerceIn(0f, 1f)
-        val setCountLabel = resourceWrapper.getQuantityString(
-            R.plurals.feature_live_workout_set_count,
-            setsLogged,
-            setsLogged,
-        )
         return withVisible.copy(
             trainingNameLabel = trainingName.ifBlank {
                 resourceWrapper.getString(R.string.feature_live_workout_training_name_placeholder)
@@ -207,14 +202,41 @@ internal object LiveWorkoutMapper {
             totalCount = totalCount,
             setsLogged = setsLogged,
             progress = progress,
-            progressLabel = resourceWrapper.getString(
-                R.string.feature_live_workout_progress_format,
-                doneCount,
-                totalCount,
-                setCountLabel,
-            ),
+            headerMetaLabel = presentedExercises.toHeaderMetaLabel(resourceWrapper),
             exercises = presentedExercises,
         )
+    }
+
+    /**
+     * The `.shead` meta line, built exactly as the mockup's JS builds it (extraction §1.3):
+     * `{fin} из {act} упражнений · {d} из {t} подходов`, plus ` · пропущено {sk}` only when
+     * skipped > 0. `fin` counts exercises where every set is done (= status DONE), `act`
+     * excludes skipped, `d`/`t` count sets over non-skipped exercises only — the same
+     * denominator discipline as the rail. Blank for an empty session; a "0 из 0" line would
+     * describe nothing.
+     */
+    private fun List<LiveExerciseUiModel>.toHeaderMetaLabel(
+        resourceWrapper: ResourceWrapper,
+    ): String {
+        if (isEmpty()) return ""
+        val nonSkipped = filter { it.status != ExerciseStatusUiModel.SKIPPED }
+        val skippedCount = size - nonSkipped.size
+        val base = resourceWrapper.getString(
+            R.string.feature_live_workout_meta_format,
+            nonSkipped.count { it.status == ExerciseStatusUiModel.DONE },
+            nonSkipped.size,
+            nonSkipped.sumOf { exercise -> exercise.visibleSets.count { it.isDone } },
+            nonSkipped.sumOf { it.visibleSets.size },
+        )
+        return if (skippedCount > 0) {
+            resourceWrapper.getString(
+                R.string.feature_live_workout_meta_skipped_format,
+                base,
+                skippedCount,
+            )
+        } else {
+            base
+        }
     }
 
     /**

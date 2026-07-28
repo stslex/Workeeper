@@ -1,11 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Header -->
-    <string name="feature_live_workout_progress_format" tools:ignore="PluralsCandidate">%1$d of %2$d done · %3$s</string>
-    <plurals name="feature_live_workout_set_count">
-        <item quantity="one">%d set logged</item>
-        <item quantity="other">%d sets logged</item>
-    </plurals>
+    <!-- Header (.shead meta line, extraction §1.3): fin/act exercises · done/total sets -->
+    <string name="feature_live_workout_meta_format" tools:ignore="PluralsCandidate">%1$d of %2$d exercises · %3$d of %4$d sets</string>
+    <string name="feature_live_workout_meta_skipped_format" tools:ignore="PluralsCandidate">%1$s · %2$d skipped</string>
 
     <!-- Exercise card status -->
     <string name="feature_live_workout_status_completed_format">Completed · %1$s</string>

@@ -262,7 +262,7 @@ internal class LiveWorkoutMapperTest {
             totalCount = 2,
             setsLogged = 4,
             progress = 1f,
-            progressLabel = "",
+            headerMetaLabel = "",
             exercises = persistentListOf(
                 exerciseUi(
                     exerciseUuid = "ex-1",
@@ -448,7 +448,7 @@ internal class LiveWorkoutMapperTest {
         totalCount = 0,
         setsLogged = 0,
         progress = 0f,
-        progressLabel = "",
+        headerMetaLabel = "",
         exercises = persistentListOf(),
         setDrafts = persistentMapOf(),
         activeExerciseUuids = persistentSetOf(),

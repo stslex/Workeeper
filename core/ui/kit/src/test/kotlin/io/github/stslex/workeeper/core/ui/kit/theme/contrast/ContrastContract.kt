@@ -227,7 +227,11 @@ internal object ContrastContract {
         add(Declared("accent", "surfaceTier2", TypeSlot.BODY, "RestoreProgressOverlay label, light theme"))
         add(Declared("accent", "surfaceTier3", TypeSlot.BODY, "ChartTooltipPopup value; AppNumberInput cursor"))
         add(Declared("accent", "surfaceTier4", TypeSlot.BODY, "TrainingRow active glyph"))
-        add(Declared("accent", "surfaceTier1", TypeSlot.DISPLAY, "LiveWorkoutHeader timer"))
+        // RE-TARGETED (session rebuild C1): the timer left its tier1 header card — `.shead`
+        // is three texts directly on the page — and reads `textPrimary` through
+        // `AppTypography.timer` now, not `accent`. Same colour value in this palette; the row
+        // follows the slot the call site actually names.
+        add(Declared("textPrimary", "surfaceTier0", TypeSlot.DISPLAY, "LiveWorkoutHeader timer (AppTypography.timer)"))
         add(Declared("accent", "surfaceTier0", TypeSlot.UI_COMPONENT, "AppTextField focused outline"))
         add(Declared("accent", "surfaceTier1", TypeSlot.UI_COMPONENT, "LiveExerciseCard border"))
 

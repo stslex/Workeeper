@@ -1,12 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="feature_live_workout_progress_format">%1$d из %2$d · %3$s</string>
-    <plurals name="feature_live_workout_set_count">
-        <item quantity="one">%d подход записан</item>
-        <item quantity="few">%d подхода записано</item>
-        <item quantity="many">%d подходов записано</item>
-        <item quantity="other">%d подходов записано</item>
-    </plurals>
+    <string name="feature_live_workout_meta_format">%1$d из %2$d упражнений · %3$d из %4$d подходов</string>
+    <string name="feature_live_workout_meta_skipped_format">%1$s · пропущено %2$d</string>
 
     <string name="feature_live_workout_status_completed_format">Готово · %1$s</string>
     <plurals name="feature_live_workout_status_set_count">

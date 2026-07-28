@@ -38,7 +38,14 @@ interface LiveWorkoutStore :
         val totalCount: Int,
         val setsLogged: Int,
         val progress: Float,
-        val progressLabel: String,
+        /**
+         * The `.shead` meta line (extraction §1.3), built in the presentation mapper:
+         * `{fin} из {act} упражнений · {d} из {t} подходов`, plus ` · пропущено {sk}` only
+         * when anything is skipped. `fin` counts exercises where every set is done, `act`
+         * excludes skipped, `d`/`t` count sets over non-skipped exercises only. Blank while
+         * the session has no exercises.
+         */
+        val headerMetaLabel: String,
         val exercises: ImmutableList<LiveExerciseUiModel>,
         val setDrafts: ImmutableMap<DraftKey, LiveSetUiModel>,
         /**
@@ -160,7 +167,7 @@ interface LiveWorkoutStore :
                 totalCount = 0,
                 setsLogged = 0,
                 progress = 0f,
-                progressLabel = "",
+                headerMetaLabel = "",
                 exercises = persistentListOf(),
                 setDrafts = persistentMapOf(),
                 activeExerciseUuids = persistentSetOf(),
