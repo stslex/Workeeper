@@ -82,12 +82,14 @@ internal class CommonHandler @Inject constructor(
             val exercise = async { interactor.getExercise(uuid) }
             val labels = async { interactor.getLabels(uuid) }
             val history = async { interactor.getRecentHistory(uuid) }
+            val historyCount = async { interactor.countSessions(uuid) }
             val canPermanentlyDelete = async { interactor.canPermanentlyDelete(uuid) }
             val adhocPlan = async { interactor.getAdhocPlan(uuid) }
             LoadResult(
                 exercise = exercise.await(),
                 labels = labels.await(),
                 history = history.await(),
+                historyCount = historyCount.await(),
                 canPermanentlyDelete = canPermanentlyDelete.await(),
                 adhocPlan = adhocPlan.await(),
             )
@@ -199,6 +201,7 @@ internal class CommonHandler @Inject constructor(
             description = exercise.description.orEmpty(),
             tags = tags,
             recentHistory = result.history.map { it.toUi(resourceWrapper) }.toImmutableList(),
+            historyCount = result.historyCount,
             isLoading = false,
             canPermanentlyDelete = result.canPermanentlyDelete,
             adhocPlan = adhocPlan,
@@ -221,6 +224,7 @@ internal class CommonHandler @Inject constructor(
         val exercise: ExerciseDomain?,
         val labels: List<String>,
         val history: List<HistoryEntryDomain>,
+        val historyCount: Int,
         val canPermanentlyDelete: Boolean,
         val adhocPlan: List<PlanSetDomain>?,
     )

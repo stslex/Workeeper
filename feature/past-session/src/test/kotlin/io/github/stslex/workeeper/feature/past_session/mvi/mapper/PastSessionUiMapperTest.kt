@@ -51,6 +51,9 @@ internal class PastSessionUiMapperTest {
         override fun getAbbreviatedRelativeTime(timestamp: Long, now: Long): String =
             error("Not used in PastSessionUiMapperTest")
 
+        override fun formatDayMonth(timestamp: Long): String =
+            error("Not used on this screen")
+
         override fun formatMediumDate(timestamp: Long): String = when (timestamp) {
             90_000L -> "Apr 28"
             else -> error("Unexpected timestamp: $timestamp")

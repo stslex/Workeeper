@@ -4,14 +4,18 @@ package io.github.stslex.workeeper.feature.exercise.ui.mvi.model
 import androidx.compose.runtime.Stable
 
 /**
- * Pre-formatted PR card payload. `displayLabel` is "weight × reps" or "N reps" depending
- * on the exercise type; `relativeDateLabel` is a localized "yesterday" / "12 апр" string.
- * `sessionUuid` is carried for the v2.2 chart entry point — unused in v2.1 UI but cheap to
- * keep so the v2.2 wiring doesn't ripple back through the mapper.
+ * Pre-formatted record-hero payload (`.prhero`, extraction §3.3). [weightLabel] is the
+ * trimmed weight for weighted records and `null` for weightless ones — the hero composes
+ * `{weight}×{reps}` or `{reps} + unit` from the split parts because the `×` cannot travel
+ * through the Archivo charset (spec §4 C2). [absoluteDateLabel] is the medium-format date
+ * the mockup draws; the drawn second term (`· {training}`) is NOT here — the PR flow does
+ * not carry the training name (see the PR delta table's stop-and-report item).
+ * [sessionUuid] is carried for the chart entry point and the history-row record match.
  */
 @Stable
 data class PersonalRecordUiModel(
     val sessionUuid: String,
-    val displayLabel: String,
-    val relativeDateLabel: String,
+    val weightLabel: String?,
+    val repsLabel: String,
+    val absoluteDateLabel: String,
 )

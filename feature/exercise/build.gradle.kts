@@ -4,6 +4,10 @@ plugins {
     // The Screen.Exercise route arg enters as a @Provides bound instance on the extension factory
     // (shape B), so the graph's root accessor is the Store itself and there is no assisted machinery.
     alias(libs.plugins.metro)
+    // Goldens for the exercise-detail surface (extraction Part 3). The harness is NOT copied:
+    // it comes from core:ui:kit's testFixtures, so device config, tolerance and canvas width
+    // cannot drift between modules.
+    alias(libs.plugins.paparazzi)
 }
 
 // Metro reads javax.inject qualifiers so the two same-typed dispatchers keep their qualifiers:
@@ -30,8 +34,13 @@ dependencies {
 
     implementation(libs.kotlinx.serialization.json)
 
+    testImplementation(kotlin("test"))
+    testImplementation(testFixtures(project(":core:ui:kit")))
+
     androidTestImplementation(libs.bundles.android.test)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(project(":core:ui:test-utils"))
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
+
+apply(from = "$rootDir/gradle/golden-gate.gradle.kts")

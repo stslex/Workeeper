@@ -13,6 +13,7 @@ import io.github.stslex.workeeper.feature.exercise.di.ExerciseHandlerStore
 import io.github.stslex.workeeper.feature.exercise.domain.ExerciseInteractor
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.PendingImage
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.model.TagUiModel
+import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.BottomSheetState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.Action
 import io.github.stslex.workeeper.feature.exercise.ui.mvi.store.ExerciseStore.DiscardTarget
@@ -89,6 +90,57 @@ internal class ClickHandlerTest {
         assertTrue(stateFlow.value.mode is Mode.Edit)
         assertEquals(false, (stateFlow.value.mode as Mode.Edit).isCreate)
         assertEquals("Bench", stateFlow.value.originalSnapshot?.name)
+    }
+
+    @Test
+    fun `OnDetailMenuClick opens the detail-menu sheet`() {
+        val (stateFlow, _, handler) = setup()
+        handler.invoke(Action.Click.OnDetailMenuClick)
+        assertEquals(BottomSheetState.DetailMenu, stateFlow.value.bottomSheetState)
+    }
+
+    @Test
+    fun `OnSheetDismiss hides the detail-menu sheet`() {
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = "uuid-1").copy(bottomSheetState = BottomSheetState.DetailMenu),
+        )
+        handler.invoke(Action.Click.OnSheetDismiss)
+        assertEquals(BottomSheetState.Hidden, stateFlow.value.bottomSheetState)
+    }
+
+    @Test
+    fun `OnEditClick from the sheet closes it in the same transition`() {
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = "uuid-1").copy(bottomSheetState = BottomSheetState.DetailMenu),
+        )
+        handler.invoke(Action.Click.OnEditClick)
+        assertTrue(stateFlow.value.mode is Mode.Edit)
+        assertEquals(BottomSheetState.Hidden, stateFlow.value.bottomSheetState)
+    }
+
+    @Test
+    fun `OnPermanentDeleteMenuClick swaps the sheet for the confirm dialog`() {
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = "uuid-1").copy(
+                canPermanentlyDelete = true,
+                bottomSheetState = BottomSheetState.DetailMenu,
+            ),
+        )
+        handler.invoke(Action.Click.OnPermanentDeleteMenuClick)
+        assertTrue(stateFlow.value.dialogState is DialogState.PermanentDeleteConfirm)
+        assertEquals(BottomSheetState.Hidden, stateFlow.value.bottomSheetState)
+    }
+
+    @Test
+    fun `OnArchiveMenuClick closes the sheet before the archive result lands`() {
+        val (stateFlow, _, handler) = setup(
+            State.create(uuid = "uuid-1").copy(
+                name = "Bench",
+                bottomSheetState = BottomSheetState.DetailMenu,
+            ),
+        )
+        handler.invoke(Action.Click.OnArchiveMenuClick)
+        assertEquals(BottomSheetState.Hidden, stateFlow.value.bottomSheetState)
     }
 
     @Test

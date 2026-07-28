@@ -66,6 +66,10 @@ class ExerciseInteractorImpl internal constructor(
         exerciseRepository.getRecentHistory(exerciseUuid, limit).map { it.toDomain() }
     }
 
+    override suspend fun countSessions(
+        exerciseUuid: String,
+    ): Int = exerciseRepository.countSessionsUsing(exerciseUuid)
+
     override fun observeAvailableTags(): Flow<List<TagDomain>> = tagRepository
         .observeAll()
         .map { tags -> tags.map { it.toDomain() } }

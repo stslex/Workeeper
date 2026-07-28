@@ -27,6 +27,9 @@ internal class ExerciseChartUiMapperTest {
             error("not used")
 
         override fun formatMediumDate(timestamp: Long): String = "date($timestamp)"
+
+        override fun formatDayMonth(timestamp: Long): String =
+            error("Not used on this screen")
     }
 
     @Test

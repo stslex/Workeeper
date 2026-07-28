@@ -11,6 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -96,12 +97,13 @@ private fun SectionLabel(
 fun AppLabel(
     text: String,
     modifier: Modifier = Modifier,
+    color: Color = AppUi.colors.textDim,
 ) {
     Text(
         modifier = modifier,
         text = text.uppercase(),
         style = AppUi.typography.mono.caption,
-        color = AppUi.colors.textDim,
+        color = color,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
     )

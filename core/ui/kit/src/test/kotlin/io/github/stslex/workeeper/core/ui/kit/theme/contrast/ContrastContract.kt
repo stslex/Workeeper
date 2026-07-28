@@ -210,6 +210,9 @@ internal object ContrastContract {
             add(Declared("textPrimary", surface, TypeSlot.BODY, "95 reads; row/card titles"))
             add(Declared("textSecondary", surface, TypeSlot.BODY, "45 reads; supporting text"))
             add(Declared("textTertiary", surface, TypeSlot.META, "55 reads; captions, meta"))
+            // The v3 `.tag` label is the one textTertiary read at the BODY rung (15sp) —
+            // same 4.5:1 the META row already pays, named so the slot reads truthfully.
+            add(Declared("textTertiary", surface, TypeSlot.BODY, "AppTag resting label"))
             // v3 `dim`. Declared at CAPTION, not META: the mockups' smallest `dim` element is
             // the 11px uppercase `.label`, and 11sp is the tightest rung this role reaches.
             // Same threshold as META numerically (4.5:1), but the slot names what is actually
@@ -393,24 +396,46 @@ internal object ContrastContract {
         add(Declared("molten.text", "surfaceTier2", TypeSlot.BODY, "toast action button"))
         add(Declared("molten.onSolid", "molten.solid", TypeSlot.CAPTION, "PR pill label"))
         add(Declared("record.onSolid", "record.solid", TypeSlot.CAPTION, "PersonalRecordBadge"))
-        // PersonalRecordCard paints the wash and sits directly on the page (ExerciseDetailScreen
+        // PersonalRecordHero paints the wash and sits directly on the page (ExerciseDetailScreen
         // is surfaceTier0), so PAGE — not a dialog — is the backdrop. This is the pair that
-        // moved the light molten text value.
+        // moved the light molten text value. Three rungs on the same pair: the 26sp dataValue
+        // (TITLE, 3:1 — B1's rung), the 11sp uppercase `Рекорд` label (CAPTION, 4.5:1), and
+        // the historical BODY row kept as the strictest general declaration.
         add(
             Declared(
                 foreground = "record.textPrimary",
                 background = "record.background",
                 typeSlot = TypeSlot.BODY,
-                evidence = "PersonalRecordCard value",
+                evidence = "PersonalRecordHero — pair proven at 4.5:1",
                 over = PAGE,
             ),
         )
         add(
             Declared(
-                foreground = "record.textSecondary",
+                foreground = "record.textPrimary",
+                background = "record.background",
+                typeSlot = TypeSlot.TITLE,
+                evidence = "PersonalRecordHero value (dataValue 26sp)",
+                over = PAGE,
+            ),
+        )
+        add(
+            Declared(
+                foreground = "record.textPrimary",
+                background = "record.background",
+                typeSlot = TypeSlot.CAPTION,
+                evidence = "PersonalRecordHero mdot label (mono.caption)",
+                over = PAGE,
+            ),
+        )
+        // The hero's meta line is plain `--meta` on the wash — the mockup does not override
+        // its colour (§3.3), and the wash is translucent enough that the page pair carries.
+        add(
+            Declared(
+                foreground = "textTertiary",
                 background = "record.background",
                 typeSlot = TypeSlot.META,
-                evidence = "PersonalRecordCard date",
+                evidence = "PersonalRecordHero meta line, as drawn",
                 over = PAGE,
             ),
         )
@@ -592,10 +617,11 @@ internal object ContrastContract {
                 bg in setOf("surfaceTier0", "surfaceTier3", "surfaceTier4", "accentTintedBackground")
         },
         Exclusion(
-            "The molten fill and wash host only personal-record content. NARROWED for one " +
-                "carve-out: the PR set row's unit is record content painted outside the " +
-                "molten namespace (`textSecondary` on the wash — declared above with its two " +
-                "card backdrops). The VALUE is no longer in the carve-out: B1 brought it to " +
+            "The molten fill and wash host only personal-record content. NARROWED for two " +
+                "carve-outs: the PR set row's unit (`textSecondary` on the wash — declared " +
+                "above with its two card backdrops) and the record hero's meta line " +
+                "(`textTertiary` on the wash — §3.3 draws `.meta` un-overridden; declared " +
+                "above over PAGE). The VALUE is no longer in the carve-out: B1 brought it to " +
                 "26sp bold, where the mockup's molten (`record.textPrimary`) is legal, so " +
                 "`textPrimary` left the wash entirely.",
         ) { fg, bg ->
@@ -604,7 +630,7 @@ internal object ContrastContract {
                     bg == "molten.background" || bg == "record.background"
                 ) &&
                 !(fg.startsWith("molten.") || fg.startsWith("record.")) &&
-                !(bg == "record.background" && fg == "textSecondary")
+                !(bg == "record.background" && fg in setOf("textSecondary", "textTertiary"))
         },
         Exclusion(
             "`onAccent` is v3 `base`, the page colour. It is legible only on a filled accent " +

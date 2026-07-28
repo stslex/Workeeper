@@ -26,6 +26,13 @@ interface ExerciseInteractor {
         limit: Int = DEFAULT_HISTORY_LIMIT,
     ): List<HistoryEntryDomain>
 
+    /**
+     * Total finished sessions containing this exercise — the История section head's
+     * trailing count (§3.5 draws `4 сессии` beside three visible rows). May exceed the
+     * row list slightly: the list additionally filters sessions with no logged sets.
+     */
+    suspend fun countSessions(exerciseUuid: String): Int
+
     fun observeAvailableTags(): Flow<List<TagDomain>>
 
     /**
