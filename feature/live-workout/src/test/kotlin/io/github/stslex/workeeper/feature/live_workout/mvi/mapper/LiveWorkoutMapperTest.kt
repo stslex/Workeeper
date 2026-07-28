@@ -18,6 +18,7 @@ import io.github.stslex.workeeper.feature.live_workout.domain.model.SetTypeDomai
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toFinishStats
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toState
 import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.toUiList
+import io.github.stslex.workeeper.feature.live_workout.mvi.mapper.LiveWorkoutMapper.withExpansionCarriedFrom
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.ExerciseStatusUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveExerciseUiModel
 import io.github.stslex.workeeper.feature.live_workout.mvi.model.LiveSetUiModel
@@ -79,6 +80,67 @@ internal class LiveWorkoutMapperTest {
 
         assertEquals(ExerciseStatusUiModel.SKIPPED, state.exercises[0].status)
         assertEquals(ExerciseStatusUiModel.CURRENT, state.exercises[1].status)
+    }
+
+    @Test
+    fun `first entry expands exactly the first card — even a completed one`() {
+        // The amended disclosure model's whole initialisation rule (spec §7 superseded):
+        // FIRST in the list, status not consulted.
+        val snapshot = SessionSnapshotDomain(
+            session = sessionAt(1000L),
+            trainingName = "Push Day",
+            isAdhoc = false,
+            exercises = listOf(
+                fullyDone(uuid = "pe-1", position = 0),
+                pending(uuid = "pe-2", position = 1),
+            ),
+            preSessionPrSnapshot = emptyMap(),
+        )
+
+        val state = snapshot.toState(nowMillis = 1000L, resourceWrapper = resourceWrapper)
+
+        assertEquals(persistentSetOf("pe-1"), state.expandedExerciseUuids)
+    }
+
+    @Test
+    fun `withExpansionCarriedFrom keeps the previous open set, pruned to live cards`() {
+        val snapshot = SessionSnapshotDomain(
+            session = sessionAt(1000L),
+            trainingName = "Push Day",
+            isAdhoc = false,
+            exercises = listOf(
+                pending(uuid = "pe-1", position = 0),
+                pending(uuid = "pe-2", position = 1),
+            ),
+            preSessionPrSnapshot = emptyMap(),
+        )
+        val reloaded = snapshot.toState(nowMillis = 1000L, resourceWrapper = resourceWrapper)
+        val previous = reloaded.copy(
+            expandedExerciseUuids = persistentSetOf("pe-2", "pe-deleted"),
+        )
+
+        val carried = reloaded.withExpansionCarriedFrom(previous)
+
+        // The plan-editor round-trip fix survives the automaton's retirement: the user's
+        // open set wins over the fresh first-card init, minus cards that no longer exist.
+        assertEquals(persistentSetOf("pe-2"), carried.expandedExerciseUuids)
+    }
+
+    @Test
+    fun `withExpansionCarriedFrom keeps the first-card init when nothing was loaded before`() {
+        val snapshot = SessionSnapshotDomain(
+            session = sessionAt(1000L),
+            trainingName = "Push Day",
+            isAdhoc = false,
+            exercises = listOf(pending(uuid = "pe-1", position = 0)),
+            preSessionPrSnapshot = emptyMap(),
+        )
+        val loaded = snapshot.toState(nowMillis = 1000L, resourceWrapper = resourceWrapper)
+        val freshStore = State.create(sessionUuid = "s", trainingUuid = "t")
+
+        val carried = loaded.withExpansionCarriedFrom(freshStore)
+
+        assertEquals(persistentSetOf("pe-1"), carried.expandedExerciseUuids)
     }
 
     @Test
@@ -283,9 +345,6 @@ internal class LiveWorkoutMapperTest {
             setDrafts = persistentMapOf(),
             activeExerciseUuids = persistentSetOf(),
             expandedExerciseUuids = persistentSetOf(),
-            manualExpandedExerciseUuids = persistentSetOf(),
-            manualCollapsedExerciseUuids = persistentSetOf(),
-            hasManualDisclosureAction = false,
             preSessionPrSnapshot = mapOf(
                 "ex-1" to State.PrSnapshotItem(
                     weight = 100.0,
@@ -453,9 +512,6 @@ internal class LiveWorkoutMapperTest {
         setDrafts = persistentMapOf(),
         activeExerciseUuids = persistentSetOf(),
         expandedExerciseUuids = persistentSetOf(),
-        manualExpandedExerciseUuids = persistentSetOf(),
-        manualCollapsedExerciseUuids = persistentSetOf(),
-        hasManualDisclosureAction = false,
         preSessionPrSnapshot = persistentMapOf(),
         isAddExerciseInFlight = false,
         isFinishInFlight = false,

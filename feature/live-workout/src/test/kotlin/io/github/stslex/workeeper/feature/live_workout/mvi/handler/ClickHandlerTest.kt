@@ -68,7 +68,8 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `OnExerciseHeaderClick is no-op for SKIPPED exercises`() {
+    fun `OnExerciseHeaderClick toggles SKIPPED cards like any other`() {
+        // Amended contract: four rules, no exceptions — the old skip no-op is retired.
         val stateFlow =
             MutableStateFlow(baseState(doneExercise(status = ExerciseStatusUiModel.SKIPPED)))
         val store = handlerStore(stateFlow)
@@ -81,13 +82,16 @@ internal class ClickHandlerTest {
         )
 
         handler.invoke(Action.Click.OnExerciseHeaderClick("pe-1"))
+        assertEquals(persistentSetOf("pe-1"), stateFlow.value.expandedExerciseUuids)
 
+        handler.invoke(Action.Click.OnExerciseHeaderClick("pe-1"))
         assertEquals(persistentSetOf<String>(), stateFlow.value.expandedExerciseUuids)
-        assertEquals(persistentSetOf<String>(), stateFlow.value.activeExerciseUuids)
     }
 
     @Test
-    fun `OnExerciseHeaderClick on PENDING adds uuid to activeExerciseUuids and expandedExerciseUuids`() {
+    fun `OnExerciseHeaderClick expands exactly the tapped card and touches nothing else`() {
+        // Amended contract rule 4: expand -> it expands, NOTHING else happens anywhere — no
+        // active-set promotion, no status recompute, no sibling cards moved.
         val stateFlow = MutableStateFlow(
             baseState(doneExercise(status = ExerciseStatusUiModel.PENDING))
                 .copy(
@@ -99,6 +103,7 @@ internal class ClickHandlerTest {
                             position = 1,
                         ),
                     ),
+                    expandedExerciseUuids = persistentSetOf("pe-1"),
                 ),
         )
         val store = handlerStore(stateFlow)
@@ -112,63 +117,20 @@ internal class ClickHandlerTest {
 
         handler.invoke(Action.Click.OnExerciseHeaderClick("pe-2"))
 
-        assertEquals(persistentSetOf("pe-2"), stateFlow.value.activeExerciseUuids)
-        // §7: manual expansions are ADDITIVE, not exclusive. pe-2 opens because the user
-        // asked for it (rule 3); pe-1 stays open because it still holds the auto slot as the
-        // first unfinished card with no progress (rule 6). Before the disclosure automaton
-        // this asserted {pe-2} alone, which was the handler overwriting the auto rule rather
-        // than adding to it.
-        assertEquals(
-            setOf("pe-1", "pe-2"),
-            stateFlow.value.expandedExerciseUuids.toSet(),
-        )
-        // Status of pe-2 flips to CURRENT after recompute.
-        val pe2 = stateFlow.value.exercises.first { it.performedExerciseUuid == "pe-2" }
-        assertEquals(ExerciseStatusUiModel.CURRENT, pe2.status)
-    }
-
-    @Test
-    fun `OnExerciseHeaderClick on auto-default CURRENT promotes to active and toggles expanded`() {
-        val stateFlow = MutableStateFlow(
-            baseState(
-                exercise = doneExercise(status = ExerciseStatusUiModel.CURRENT),
-            ),
-        )
-        val store = handlerStore(stateFlow)
-        val handler = ClickHandler(
-            interactor = interactor,
-            resourceWrapper = resourceWrapper,
-            pickerHandler = pickerHandler,
-            setMutator = setMutator,
-            store = store,
-        )
-
-        handler.invoke(Action.Click.OnExerciseHeaderClick("pe-1"))
-
-        assertEquals(persistentSetOf("pe-1"), stateFlow.value.activeExerciseUuids)
-        assertEquals(persistentSetOf("pe-1"), stateFlow.value.expandedExerciseUuids)
-
-        // Tapping again collapses (removes from expanded), but the uuid stays in activeUuids.
-        handler.invoke(Action.Click.OnExerciseHeaderClick("pe-1"))
+        // Both stay open — multiple open cards are legal and expected.
+        assertEquals(setOf("pe-1", "pe-2"), stateFlow.value.expandedExerciseUuids.toSet())
+        // No explicit active-set marker: the toggle leaves it untouched.
         assertEquals(persistentSetOf<String>(), stateFlow.value.activeExerciseUuids)
-        assertEquals(persistentSetOf<String>(), stateFlow.value.expandedExerciseUuids)
+        val pe2 = stateFlow.value.exercises.first { it.performedExerciseUuid == "pe-2" }
+        assertEquals(ExerciseStatusUiModel.PENDING, pe2.status)
     }
 
     @Test
-    fun `OnExerciseHeaderClick on auto-default CURRENT promotes to active and toggles expanded with sets`() {
+    fun `OnExerciseHeaderClick collapse is pure — sets, statuses and siblings untouched`() {
         val stateFlow = MutableStateFlow(
-            baseState(
-                exercise = doneExercise(status = ExerciseStatusUiModel.CURRENT).copy(
-                    performedSets = persistentListOf(
-                        LiveSetUiModel(
-                            position = 0,
-                            weight = 100.0,
-                            reps = 5,
-                            type = SetTypeUiModel.WORK,
-                            isDone = true,
-                        ),
-                    ),
-                ),
+            baseState(loggedExercise()).copy(
+                expandedExerciseUuids = persistentSetOf("pe-1"),
+                activeExerciseUuids = persistentSetOf("pe-1"),
             ),
         )
         val store = handlerStore(stateFlow)
@@ -182,13 +144,11 @@ internal class ClickHandlerTest {
 
         handler.invoke(Action.Click.OnExerciseHeaderClick("pe-1"))
 
-        assertEquals(persistentSetOf("pe-1"), stateFlow.value.activeExerciseUuids)
-        assertEquals(persistentSetOf("pe-1"), stateFlow.value.expandedExerciseUuids)
-
-        // Tapping again collapses (removes from expanded), but the uuid stays in activeUuids.
-        handler.invoke(Action.Click.OnExerciseHeaderClick("pe-1"))
-        assertEquals(persistentSetOf("pe-1"), stateFlow.value.activeExerciseUuids)
         assertEquals(persistentSetOf<String>(), stateFlow.value.expandedExerciseUuids)
+        // Rule 3: collapse -> it collapses, nothing else — the logged set and the (now
+        // consumer-less) active marker are exactly as they were.
+        assertEquals(persistentSetOf("pe-1"), stateFlow.value.activeExerciseUuids)
+        assertEquals(1, stateFlow.value.exercises.first().performedSets.size)
     }
 
     @Test

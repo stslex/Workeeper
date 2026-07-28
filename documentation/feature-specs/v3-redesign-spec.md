@@ -208,20 +208,27 @@ Distinguishes "no row" from "row with empty plan" — `rows.associate{}` makes a
 
 Set-level skip removed. Deletion: "− set", always the last; middle deletion not planned. Adding a set to a completed exercise returns it to incomplete. The done-marker and PR-row treatments are **shipped at the component level** (foundation-fixes C4/C5) **[V]**; the row *geometry* they sit in is rebuilt by the session PR. T2 (value at 26sp + molten tint) is **carried** — blocker B1.
 
-## 7. Disclosure
+## 7. Disclosure — SUPERSEDED by decision (session-rebuild amendment to #186)
 
-| Rule | Behaviour |
-|---|---|
-| has progress | always expanded |
-| no progress | exactly one — first by position among unfinished |
-| completed | collapses automatically |
-| manually expanded | sticky for the screen session |
-| after first manual action | auto rule stops collapsing anything until the screen is left |
-| completed | manually expandable |
+The seven-rule automaton this section used to specify is **retired deliberately**: the coming
+logic changes need a bare base without built-in assumptions, and there is intentionally **no
+explicit active-set marker**. The complete replacement contract:
 
-Manual mutes auto-collapse; auto never overrides manual. Rotation does not discriminate here (17 absorbed configChanges make all state containers survive identically); the real failure mode was a plan-editor round-trip resetting expansion. **[V]**
+1. **Expanded = the card is open.** That is the whole meaning of "active"; the lift keys on it.
+2. **On first entry the FIRST card in the list is expanded** — status is not consulted.
+3. **Collapse a card → it collapses. Nothing else happens anywhere.**
+4. **Expand a card → it expands. Nothing else happens anywhere.**
 
-**Past-session has no open state at all** — no `expanded` anywhere in the feature. Its rebuild starts by building disclosure, not by styling it. **[V]**
+No auto-advance, no auto-collapse of completed cards, no "exactly one open", no
+manual-mutes-auto flag, no skip exception. Multiple open cards are legal and expected.
+
+What survives from the old section: the open set lives in the Store so a plan-editor
+round-trip preserves it (the real failure mode was always that round-trip, not rotation —
+17 absorbed configChanges make all state containers survive identically **[V]**), and a
+mid-session addition opens its own card.
+
+**Past-session has no open state at all** — no `expanded` anywhere in the feature. Its
+rebuild starts by building disclosure (this contract, not the retired automaton). **[V]**
 
 ## 8. Progress rail
 
@@ -341,6 +348,7 @@ Entries are never deleted; resolution is recorded in place. New entries append. 
 | Heading tracking value | **−0.015em, not −0.02em** — the −0.02em declaration renders in the mockup's UA button font, not in Plex | B4 |
 | Timer slot | **a name, not a step** — `AppTypography.timer` aliases `numeric.display` (34 rung); the 26px sibling role is B1's | B5 |
 | Scope of 600 | the three **heading rungs** only. `.ctitle` / `.btn` / `.prtag` declare 600 but are component treatments on body and caption rungs; moving their aliases would drag `titleSmall` and `labelMedium` against `.tabs button` and `.mitem.on`, which are 500 | B2 |
+| Disclosure model | **bare open/closed by decision** — the §7 automaton retired (deleted, not bypassed); expanded = open, first card opens on entry, toggle does nothing else, no active-set marker. The mockup's `isOpen`/`nextSlot` JS no longer binds. | §7, #186 amendment |
 
 ## 27. Verification discipline — append-only
 

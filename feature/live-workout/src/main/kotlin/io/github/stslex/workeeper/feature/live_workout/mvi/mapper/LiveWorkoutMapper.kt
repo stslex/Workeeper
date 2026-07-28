@@ -69,17 +69,12 @@ internal object LiveWorkoutMapper {
             exercises = ui,
             setDrafts = emptyMap<State.DraftKey, LiveSetUiModel>().toImmutableMap(),
             activeExerciseUuids = activeExerciseUuids,
-            // §7 initialisation, from the automaton rather than by hand: no manual intent
-            // yet, so this resolves to "every in-progress card, plus the first unfinished
-            // one by position".
-            expandedExerciseUuids = DisclosureAutomaton.resolve(
-                exercises = ui,
-                intent = DisclosureAutomaton.DisclosureIntent(),
-                previouslyExpanded = emptySet(),
-            ).toImmutableSet(),
-            manualExpandedExerciseUuids = persistentSetOf(),
-            manualCollapsedExerciseUuids = persistentSetOf(),
-            hasManualDisclosureAction = false,
+            // First entry: the FIRST card in the list is expanded — the whole initialisation
+            // rule of the amended disclosure model (spec §7 superseded). Status plays no
+            // part in it.
+            expandedExerciseUuids = ui.firstOrNull()
+                ?.let { persistentSetOf(it.performedExerciseUuid) }
+                ?: persistentSetOf(),
             preSessionPrSnapshot = prSnapshot,
             isAddExerciseInFlight = false,
             isFinishInFlight = false,
@@ -244,37 +239,22 @@ internal object LiveWorkoutMapper {
     }
 
     /**
-     * Carries manual disclosure intent (§7) across a wholesale State replacement.
+     * Carries the open set across a wholesale State replacement.
      *
      * `Action.Common.Init` and `.Reload` both rebuild State from a fresh snapshot, and
-     * re-entering composition re-fires `Init` — so a round-trip to the full-screen plan editor
-     * would otherwise reset expansion. A plan-editor round-trip is **not** "leaving the screen
-     * session": §7's stickiness ends when the Store dies with its `NavBackStackEntry`, which a
-     * push-and-return does not do.
-     *
-     * Intent is pruned to exercises that still exist, so an exercise deleted while the editor
-     * was open cannot leave a dangling entry behind.
+     * re-entering composition re-fires `Init` — so a round-trip to the full-screen plan
+     * editor would otherwise reset expansion. That fix stays under the amended disclosure
+     * model: if the previous State had a loaded session, its open set wins (pruned to
+     * exercises that still exist); only a genuinely fresh Store keeps the first-card
+     * initialisation this snapshot arrived with.
      */
-    fun State.withDisclosureCarriedFrom(previous: State): State {
-        if (!previous.hasManualDisclosureAction) return this
+    fun State.withExpansionCarriedFrom(previous: State): State {
+        if (previous.exercises.isEmpty()) return this
         val liveUuids = exercises.mapTo(mutableSetOf()) { it.performedExerciseUuid }
-        val expandedIntent = previous.manualExpandedExerciseUuids.filterTo(mutableSetOf()) {
-            it in liveUuids
-        }
-        val collapsedIntent = previous.manualCollapsedExerciseUuids.filterTo(mutableSetOf()) {
-            it in liveUuids
-        }
-        val carried = copy(
-            manualExpandedExerciseUuids = expandedIntent.toImmutableSet(),
-            manualCollapsedExerciseUuids = collapsedIntent.toImmutableSet(),
-            hasManualDisclosureAction = true,
-        )
-        return carried.copy(
-            expandedExerciseUuids = DisclosureAutomaton.resolve(
-                exercises = carried.exercises,
-                intent = carried.disclosureIntent,
-                previouslyExpanded = previous.expandedExerciseUuids,
-            ).toImmutableSet(),
+        return copy(
+            expandedExerciseUuids = previous.expandedExerciseUuids
+                .filterTo(mutableSetOf()) { it in liveUuids }
+                .toImmutableSet(),
         )
     }
 

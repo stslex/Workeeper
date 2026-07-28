@@ -157,8 +157,11 @@ internal class SessionStateGoldenTest {
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun exerciseFinishedReopened(theme: GoldenTheme, testInfo: TestInfo) {
-        // A completed card is manually expandable (§7) and lifts like any open card —
-        // fin + active co-exist, fin winning the chip (stylesheet order, L87–88).
+        // A completed card opens and closes like any other (the amended disclosure model;
+        // the old §7 auto-collapse is retired) and lifts like any open card — fin + active
+        // co-exist, fin winning the chip (stylesheet order, L87–88). No golden ever pinned
+        // the automaton's dynamics — every case passes `expanded` explicitly — so its
+        // retirement moves no pixels here.
         goldenSubject(testInfo, theme) {
             Card(exercise(ExerciseStatusUiModel.DONE, done = 3), expanded = true)
         }

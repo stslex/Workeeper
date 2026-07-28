@@ -565,42 +565,22 @@ internal class ClickHandler @Inject constructor(
      * card collapses it (rule 2) and tapping a completed card opens it (rule 3), which is the
      * only way its add/remove-set buttons become reachable.
      */
+    /**
+     * The amended disclosure model, complete (spec §7 superseded by decision): a header tap
+     * flips this card's membership in the open set, and nothing else happens anywhere — no
+     * active-set bookkeeping, no status recompute, no side effects on other cards. Skipped
+     * cards toggle like any other; the contract carries no exceptions.
+     */
     private fun processExerciseHeaderClick(action: Action.Click.OnExerciseHeaderClick) {
         updateState { current ->
-            val exercise = setMutator.findExercise(current, action.performedExerciseUuid)
-                ?: return@updateState current
-            // A skipped card has nothing to disclose, and reversing the skip is a separate
-            // action — so this must not count as a manual action and mute auto-collapse.
-            if (exercise.status == ExerciseStatusUiModel.SKIPPED) return@updateState current
-
             val uuid = action.performedExerciseUuid
-            val isExpandedNow = uuid in current.expandedExerciseUuids
-            val manualExpanded = current.manualExpandedExerciseUuids.toMutableSet()
-            val manualCollapsed = current.manualCollapsedExerciseUuids.toMutableSet()
-            if (isExpandedNow) {
-                manualExpanded.remove(uuid)
-                manualCollapsed.add(uuid)
-            } else {
-                manualCollapsed.remove(uuid)
-                manualExpanded.add(uuid)
-            }
-            // Status is a separate axis and keeps its existing rule: the automaton owns
-            // expansion, `activeExerciseUuids` owns CURRENT-vs-PENDING. Collapsing a card that
-            // has logged sets must not demote it out of CURRENT, which is why this is not a
-            // plain toggle.
-            val activeNext = current.activeExerciseUuids.toMutableSet()
-            if (isExpandedNow && exercise.performedSets.isEmpty() && activeNext.isNotEmpty()) {
-                activeNext.remove(uuid)
-            } else {
-                activeNext.add(uuid)
-            }
-            setMutator.recomputeStatuses(
-                current.copy(
-                    activeExerciseUuids = activeNext.toImmutableSet(),
-                    manualExpandedExerciseUuids = manualExpanded.toImmutableSet(),
-                    manualCollapsedExerciseUuids = manualCollapsed.toImmutableSet(),
-                    hasManualDisclosureAction = true,
-                ),
+            setMutator.findExercise(current, uuid) ?: return@updateState current
+            current.copy(
+                expandedExerciseUuids = if (uuid in current.expandedExerciseUuids) {
+                    current.expandedExerciseUuids - uuid
+                } else {
+                    current.expandedExerciseUuids + uuid
+                }.toImmutableSet(),
             )
         }
     }

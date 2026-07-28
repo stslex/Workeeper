@@ -313,9 +313,7 @@ private fun Body(
                     items = state.exercises,
                     key = { _, exercise -> exercise.performedExerciseUuid },
                 ) { index, exercise ->
-                    // Auto-default CURRENT (not in activeUuids) stays expanded by default; any
-                    // user-toggled state (including a manually-active CURRENT collapsed by
-                    // tapping its header) honors the explicit set.
+                    // The amended disclosure model: open is exactly membership in this set.
                     val expanded = exercise.performedExerciseUuid in state.expandedExerciseUuids
                     LiveExerciseCard(
                         exercise = exercise,
@@ -671,10 +669,7 @@ private fun stubState(): State = State(
     ),
     setDrafts = persistentMapOf(),
     activeExerciseUuids = kotlinx.collections.immutable.persistentSetOf(),
-    expandedExerciseUuids = kotlinx.collections.immutable.persistentSetOf(),
-    manualExpandedExerciseUuids = kotlinx.collections.immutable.persistentSetOf(),
-    manualCollapsedExerciseUuids = kotlinx.collections.immutable.persistentSetOf(),
-    hasManualDisclosureAction = false,
+    expandedExerciseUuids = kotlinx.collections.immutable.persistentSetOf<String>(),
     preSessionPrSnapshot = persistentMapOf(),
     isAddExerciseInFlight = false,
     isFinishInFlight = false,

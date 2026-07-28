@@ -490,6 +490,24 @@ internal class LiveSetMutatorTest {
         assertEquals(ExerciseStatusUiModel.DONE, result.exercises.first().status)
     }
 
+    @Test
+    fun `completing the last set never collapses the card`() {
+        // The amended disclosure model's headline retirement: no auto-collapse on
+        // completion. The open set is untouched by any status recompute.
+        val plan = persistentListOf(
+            PlanSetUiModel(weight = 100.0, reps = 5, type = SetTypeUiModel.WORK),
+        )
+        val state = stateWith(exerciseWithPlan(plan = plan))
+            .copy(expandedExerciseUuids = kotlinx.collections.immutable.persistentSetOf(PE_UUID))
+            .withVisibleSets()
+        val draft = LiveSetUiModel(0, 100.0, 5, SetTypeUiModel.WORK, isDone = false)
+
+        val result = mutator.applySetMarked(state, PE_UUID, position = 0, draft = draft)
+
+        assertEquals(ExerciseStatusUiModel.DONE, result.exercises.first().status)
+        assertTrue(PE_UUID in result.expandedExerciseUuids)
+    }
+
     // --- setbar mechanics (§6.4, extraction §1.7) ------------------------------------
 
     @Test
