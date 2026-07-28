@@ -25,6 +25,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -44,14 +46,20 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
  * - `min-height:60px` resolves as 48dp button + 2×4dp vertical padding = 56dp (`heightLg`).
  *
  * The session screen passes no [title]; per §1.2 its centre is an empty spacer. Screens that
- * do title themselves (past-session, exercise, settings) get the `.topbar h1` treatment —
- * `text.section` at heading weight; the h1's declared −.015em tracking is deliberately not
- * reproduced (spec B4: `text.title` is the only tracked rung).
+ * do title themselves get the `.topbar h1` treatment in one of the mockup's two sizes:
+ * - default — `h1` 20px → `text.section` (19 rung) at heading weight (settings);
+ * - [smallTitle] — `h1.sm` 17px → the 15 rung (extraction §2.2: "17 is nearer 15 than 19"),
+ *   SemiBold at the component like every other 600-declaring non-heading selector (spec §26,
+ *   "Scope of 600": `.ctitle`/`.btn`/`.prtag` carry their weight themselves). Past-session
+ *   and exercise detail draw this variant.
+ * The h1's declared −.015em tracking is deliberately not reproduced either way (spec B4:
+ * `text.title` is the only tracked rung).
  */
 @Composable
 fun AppTopBar(
     modifier: Modifier = Modifier,
     title: String? = null,
+    smallTitle: Boolean = false,
     navigation: @Composable () -> Unit = {},
     actions: @Composable RowScope.() -> Unit = {},
 ) {
@@ -66,14 +74,20 @@ fun AppTopBar(
     ) {
         navigation()
         if (title != null) {
+            val style = if (smallTitle) {
+                AppUi.typography.text.body.copy(fontWeight = FontWeight.SemiBold)
+            } else {
+                AppUi.typography.text.section
+            }
             Text(
                 modifier = Modifier
                     .weight(1f)
                     .padding(horizontal = AppDimension.Space.xs),
                 text = title,
-                style = AppUi.typography.text.section,
+                style = style,
                 color = AppUi.colors.textPrimary,
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         } else {
             Spacer(modifier = Modifier.weight(1f))

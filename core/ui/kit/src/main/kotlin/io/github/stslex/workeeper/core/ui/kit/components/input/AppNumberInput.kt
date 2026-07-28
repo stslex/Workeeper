@@ -42,9 +42,14 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
  *    measured; the pending value uses the meta value in both themes. The brightness principle
  *    survives — pending is dimmer than done.
  *  - done ([isDone]): `textPrimary` — `.set.done .data-l{color:var(--max)}`.
+ *  - logged ([isLogged]): `textPrimary` on the **plain** `surfaceTier3` field — the past
+ *    session's inline override (`pass2d.html:306`, `style="color:var(--max)"` on every
+ *    ordinary row). A past set is complete by construction, so its value takes full
+ *    contrast, but it is *not* "done-during-a-session": the `donefill` wash marks the act
+ *    of completing, and a finished record carries no such act. Colour without the wash.
  *  - record ([isRecord]): `record.textPrimary` — `.set.pr .data-l{color:var(--molten)}`,
- *    legal at TITLE. Record wins over done, as in the stylesheet (`.pr` is declared after
- *    `.done`).
+ *    legal at TITLE. Record wins over done and logged, as in the stylesheet (`.pr` is
+ *    declared after `.done`, and the past markup omits its inline override on the PR row).
  *
  * ## The washes replace the fill — blocker B7, landed
  *
@@ -69,12 +74,13 @@ fun AppNumberInput(
     isError: Boolean = false,
     isRecord: Boolean = false,
     isDone: Boolean = false,
+    isLogged: Boolean = false,
 ) {
     val keyboardType = if (decimals > 0) KeyboardType.Decimal else KeyboardType.Number
     val valueColor by animateColorAsState(
         targetValue = when {
             isRecord -> AppUi.colors.record.textPrimary
-            isDone -> AppUi.colors.textPrimary
+            isDone || isLogged -> AppUi.colors.textPrimary
             else -> AppUi.colors.textTertiary
         },
         animationSpec = tween(durationMillis = AppUi.motion.base, easing = AppUi.motion.out),

@@ -9,6 +9,7 @@ import io.github.stslex.workeeper.feature.past_session.di.PastSessionHandlerStor
 import io.github.stslex.workeeper.feature.past_session.di.PastSessionScope
 import io.github.stslex.workeeper.feature.past_session.domain.PastSessionInteractor
 import io.github.stslex.workeeper.feature.past_session.mvi.mapper.PastSessionUiMapper.toUi
+import io.github.stslex.workeeper.feature.past_session.mvi.mapper.PastSessionUiMapper.withExpansionCarriedFrom
 import io.github.stslex.workeeper.feature.past_session.mvi.model.ErrorType
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Action
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.State
@@ -46,7 +47,11 @@ internal class CommonHandler @Inject constructor(
             val phase = result?.let {
                 State.Phase.Loaded(detail = it.detail.toUi(resourceWrapper, it.prSetUuids))
             } ?: State.Phase.Error(ErrorType.SessionNotFound)
-            updateStateImmediate { current -> current.copy(phase = phase) }
+            // Disclosure survives the replacement: first Loaded seeds the first card open;
+            // later emissions (PR-flow re-fetches) carry the user's open set, pruned.
+            updateStateImmediate { current ->
+                current.copy(phase = phase).withExpansionCarriedFrom(current)
+            }
         }
     }
 }

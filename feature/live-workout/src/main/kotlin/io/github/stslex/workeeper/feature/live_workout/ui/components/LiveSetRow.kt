@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -104,10 +104,16 @@ internal fun LiveSetRow(
         horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
         Text(
-            modifier = Modifier.width(AppDimension.Space.md),
+            // Min-width, not fixed, with `maxLines = 1`: at `mono.meta` a digit is ~7.5dp, so
+            // a two-digit index needs ~15dp and a fixed 12dp box breaks it at a grapheme
+            // boundary (1 over 0) instead of overflowing — silently, since the 48dp fields
+            // set the row height. Same correction as `PastSetEditRow.SetIndexWidth`; a
+            // session can exceed nine sets through the setbar.
+            modifier = Modifier.widthIn(min = AppDimension.Space.md),
             text = (set.position + 1).toString(),
             style = AppUi.typography.mono.meta,
             color = AppUi.colors.textDim,
+            maxLines = 1,
         )
         if (isWeighted) {
             // 1.2 vs 1: weights carry decimals ("102.5"), reps never do — the extra fifth

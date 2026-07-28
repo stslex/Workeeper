@@ -378,14 +378,12 @@ internal object ContrastContract {
                 "RestoreProgressOverlay, light theme",
             ),
         )
-        add(
-            Declared(
-                "status.warning",
-                "surfaceTier1",
-                TypeSlot.CAPTION,
-                "past-session skipped chip, labelSmall",
-            ),
-        )
+        // `status.warning` has NO declared pair on purpose — it has no production reader at
+        // all. Its only one was the past-session skipped chip, retired by the v3 rebuild in
+        // favour of the session screen's alpha + strikethrough treatment. Declaring a pair
+        // for a slot nothing paints would be exactly the fiction this file warns against
+        // above ("these two probably appear together"). The slot is covered by an exclusion
+        // instead, which carries the obligation on whoever reintroduces it.
 
         // Molten — the PR accent. Its text only ever sits inside a card (`sec` inactive, `slab`
         // active) or on the toast, which is also `slab`. That is why `field` and `raise` are
@@ -631,8 +629,17 @@ internal object ContrastContract {
                 "card: `sec` in dark, `slab` in light. It reaches no other surface.",
         ) { fg, bg -> fg == "status.success" && bg !in setOf("surfaceTier1", "surfaceTier2") },
         Exclusion(
-            "`status.warning` is one chip label in the past-session card header — `sec` only.",
-        ) { fg, bg -> fg == "status.warning" && bg != "surfaceTier1" },
+            "`status.warning` currently has NO production reader on any surface. Its only " +
+                "one was the past-session skipped chip (`sec`), retired by the v3 rebuild " +
+                "when the card adopted the session screen's alpha + strikethrough skip " +
+                "treatment. The previous premise here — 'one chip label in the past-session " +
+                "card header, `sec` only' — is no longer true, and left standing it would " +
+                "wave through the next screen that paints warning text on a lifted card or " +
+                "a sheet. The slot stays in the palette (retiring it is a palette change, " +
+                "out of the rebuild's scope), so it is excluded everywhere rather than " +
+                "declared anywhere. REINTRODUCING A READER MEANS REPLACING THIS EXCLUSION " +
+                "with a measured `Declared` row naming the real backdrop and type slot.",
+        ) { fg, _ -> fg == "status.warning" },
         Exclusion(
             "The molten fill carries exactly one content colour, `onSolid`. That is the whole " +
                 "reason the slot exists: molten text on the molten fill is 1.0:1 by " +

@@ -2,33 +2,27 @@
 package io.github.stslex.workeeper.feature.past_session.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.TopAppBarScrollBehavior
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.empty.AppEmptyState
 import io.github.stslex.workeeper.core.ui.kit.components.loading.AppLoadingIndicator
+import io.github.stslex.workeeper.core.ui.kit.components.pr.PrExplainerDialog
+import io.github.stslex.workeeper.core.ui.kit.components.section.AppSectionHeader
+import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppBottomSheet
+import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
+import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
+import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -39,117 +33,114 @@ import io.github.stslex.workeeper.feature.past_session.mvi.model.ErrorType
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastExerciseUiModel
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSessionUiModel
 import io.github.stslex.workeeper.feature.past_session.mvi.model.PastSetUiModel
+import io.github.stslex.workeeper.feature.past_session.mvi.store.BottomSheetState
+import io.github.stslex.workeeper.feature.past_session.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.Action
 import io.github.stslex.workeeper.feature.past_session.mvi.store.PastSessionStore.State
 import io.github.stslex.workeeper.feature.past_session.ui.components.DeleteConfirmDialog
 import io.github.stslex.workeeper.feature.past_session.ui.components.PastExerciseCard
 import io.github.stslex.workeeper.feature.past_session.ui.components.PastSessionHeader
+import io.github.stslex.workeeper.feature.past_session.ui.components.PastSessionMenuSheetContent
+import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.persistentSetOf
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun PastSessionScreen(
     state: State,
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    Scaffold(
+    Column(
         modifier = modifier
             .fillMaxSize()
-            .nestedScroll(scrollBehavior.nestedScrollConnection)
+            .background(AppUi.colors.surfaceTier0)
             .testTag("PastSessionScreen"),
-        topBar = {
-            PastSessionLargeTopBar(
-                state = state,
-                consume = consume,
-                scrollBehavior = scrollBehavior,
-            )
-        },
-        containerColor = AppUi.colors.surfaceTier0,
-    ) { contentPadding ->
+    ) {
+        TopBar(state = state, consume = consume)
         when (val phase = state.phase) {
             State.Phase.Loading -> LoadingContent(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(AppUi.colors.surfaceTier0),
+                modifier = Modifier.fillMaxSize(),
             )
 
             is State.Phase.Error -> ErrorContent(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(AppUi.colors.surfaceTier0),
+                modifier = Modifier.fillMaxSize(),
                 errorType = phase.errorType,
                 onRetry = { consume(Action.Click.OnRetryLoad) },
             )
 
             is State.Phase.Loaded -> LoadedContent(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(AppUi.colors.surfaceTier0),
-                contentPadding = contentPadding,
+                modifier = Modifier.fillMaxSize(),
                 detail = phase.detail,
+                expandedUuids = state.expandedExerciseUuids,
                 consume = consume,
             )
         }
     }
 
-    if (state.deleteDialogVisible) {
-        DeleteConfirmDialog(
+    when (state.bottomSheetState) {
+        BottomSheetState.Hidden -> Unit
+        BottomSheetState.SessionMenu -> AppBottomSheet(
+            onDismiss = { consume(Action.Click.OnSheetDismiss) },
+        ) {
+            PastSessionMenuSheetContent(consume = consume)
+        }
+    }
+
+    when (state.dialogState) {
+        DialogState.Hidden -> Unit
+        DialogState.DeleteConfirm -> DeleteConfirmDialog(
             onConfirm = { consume(Action.Click.OnDeleteConfirm) },
             onDismiss = { consume(Action.Click.OnDeleteDismiss) },
+        )
+
+        DialogState.PrExplainer -> PrExplainerDialog(
+            onDismiss = { consume(Action.Click.OnPrExplainerDismiss) },
         )
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * `.topbar` (extraction §2.2): back chevron leading, the `h1.sm` title, vertical three-dot
+ * trailing — the same `.icon-btn` treatment as the session screen, plus the small title the
+ * session deliberately lacks. The trailing glyph is the mockup's ⋮ overflow, **not** the
+ * v2.4 error-tinted delete icon, which is retired: the ⋮ opens the session menu sheet, and
+ * deletion lives there as a destructive item ahead of its confirmation.
+ *
+ * `internal` rather than private so the golden can render it in isolation — the same move
+ * `feature/live-workout`'s `TopBar` makes for `SessionHeaderGoldenTest`.
+ */
 @Composable
-private fun PastSessionLargeTopBar(
+internal fun TopBar(
     state: State,
     consume: (Action) -> Unit,
-    scrollBehavior: TopAppBarScrollBehavior,
+    modifier: Modifier = Modifier,
 ) {
     val title = (state.phase as? State.Phase.Loaded)?.detail?.trainingName
         ?: stringResource(R.string.feature_past_session_loading_title)
-    TopAppBar(
-        scrollBehavior = scrollBehavior,
-        modifier = Modifier.testTag("PastSessionTopBar"),
-        title = {
-            Text(
-                text = title,
-                style = AppUi.typography.headlineSmall,
-                color = AppUi.colors.textPrimary,
+    AppTopBar(
+        modifier = modifier.testTag("PastSessionTopBar"),
+        title = title,
+        smallTitle = true,
+        navigation = {
+            AppIconButton(
+                icon = AppIcons.ChevronLeft,
+                contentDescription = stringResource(KitR.string.core_ui_kit_action_back),
+                onClick = { consume(Action.Click.OnBackClick) },
             )
-        },
-        navigationIcon = {
-            IconButton(onClick = { consume(Action.Click.OnBackClick) }) {
-                Icon(
-                    modifier = Modifier.size(AppDimension.iconMd),
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(KitR.string.core_ui_kit_action_back),
-                )
-            }
         },
         actions = {
             if (state.canDelete) {
-                IconButton(onClick = { consume(Action.Click.OnDeleteClick) }) {
-                    Icon(
-                        modifier = Modifier.size(AppDimension.iconMd),
-                        imageVector = Icons.Filled.Delete,
-                        contentDescription = stringResource(R.string.feature_past_session_action_delete),
-                        tint = AppUi.colors.status.error,
-                    )
-                }
+                AppIconButton(
+                    icon = AppIcons.MoreVertical,
+                    contentDescription = stringResource(
+                        R.string.feature_past_session_action_more,
+                    ),
+                    onClick = { consume(Action.Click.OnSessionMenuClick) },
+                )
             }
         },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = AppUi.colors.surfaceTier0,
-            scrolledContainerColor = AppUi.colors.surfaceTier0,
-            navigationIconContentColor = AppUi.colors.textPrimary,
-            titleContentColor = AppUi.colors.textPrimary,
-            actionIconContentColor = AppUi.colors.textPrimary,
-        ),
     )
 }
 
@@ -184,38 +175,66 @@ private fun ErrorContent(
 @Composable
 private fun LoadedContent(
     detail: PastSessionUiModel,
+    expandedUuids: ImmutableSet<String>,
     consume: (Action) -> Unit,
-    contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
+    // Horizontal padding is per-item rather than contentPadding: `AppSectionHeader` carries
+    // its own screen-edge padding, so a list-level gutter would double it.
+    //
+    // Vertical rhythm, from the mockup's flex column (margins do NOT collapse in flex, so
+    // §2.4's 12px bottom and §2.5's 26px `.cards` top are additive): section head sits
+    // 32dp under the header block and 12dp above the cards region, whose own top margin is
+    // 24dp — first card top = 12+24; between cards the gap is 8dp (10px → 8dp).
     LazyColumn(
         modifier = modifier,
-        contentPadding = PaddingValues(
-            start = AppDimension.screenEdge,
-            end = AppDimension.screenEdge,
-            top = contentPadding.calculateTopPadding() + AppDimension.Space.md,
-            bottom = contentPadding.calculateBottomPadding() + AppDimension.Space.md,
-        ),
-        verticalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
+        contentPadding = PaddingValues(bottom = AppDimension.Space.xl),
     ) {
-        item {
-            PastSessionHeader(detail = detail)
+        item(key = "header") {
+            PastSessionHeader(
+                detail = detail,
+                modifier = Modifier.padding(horizontal = AppDimension.screenEdge),
+            )
         }
-        items(
+        item(key = "section-head") {
+            // `Записано` / `можно править` (§2.4) — two peer labels; the right one declares
+            // the mode. Same class in the mockup, same one style here.
+            AppSectionHeader(
+                modifier = Modifier.padding(
+                    top = AppDimension.Space.xxl,
+                    bottom = AppDimension.Space.md,
+                ),
+                label = stringResource(R.string.feature_past_session_section_logged),
+                trailingLabel = stringResource(R.string.feature_past_session_section_editable),
+            )
+        }
+        itemsIndexed(
             items = detail.exercises,
-            key = { it.performedExerciseUuid },
-        ) { exercise ->
+            key = { _, exercise -> exercise.performedExerciseUuid },
+        ) { index, exercise ->
             PastExerciseCard(
+                modifier = Modifier.padding(
+                    start = AppDimension.screenEdge,
+                    end = AppDimension.screenEdge,
+                    top = if (index == 0) AppDimension.Space.xl else AppDimension.Space.sm,
+                ),
                 exercise = exercise,
+                // The amended §7 disclosure model: open is exactly membership in this set.
+                expanded = exercise.performedExerciseUuid in expandedUuids,
+                onHeaderClick = {
+                    consume(
+                        Action.Click.OnExerciseHeaderClick(
+                            performedExerciseUuid = exercise.performedExerciseUuid,
+                        ),
+                    )
+                },
                 onWeightChange = { setUuid, raw ->
                     consume(Action.Input.OnSetWeightChange(setUuid = setUuid, raw = raw))
                 },
                 onRepsChange = { setUuid, raw ->
                     consume(Action.Input.OnSetRepsChange(setUuid = setUuid, raw = raw))
                 },
-                onTypeChange = { setUuid, type ->
-                    consume(Action.Click.OnSetTypeChange(setUuid = setUuid, type = type))
-                },
+                onPrTagClick = { consume(Action.Click.OnPrTagClick) },
                 onSetReorder = { performedExerciseUuid, from, to ->
                     consume(
                         Action.Click.OnSetReorder(
@@ -241,7 +260,9 @@ private fun PastSessionScreenLoadedLightPreview() {
             state = State(
                 sessionUuid = "stub",
                 phase = State.Phase.Loaded(detail = stubDetail()),
-                deleteDialogVisible = false,
+                expandedExerciseUuids = persistentSetOf("pe-1"),
+                dialogState = DialogState.Hidden,
+                bottomSheetState = BottomSheetState.Hidden,
             ),
             consume = {},
         )
@@ -256,7 +277,9 @@ private fun PastSessionScreenLoadedDarkPreview() {
             state = State(
                 sessionUuid = "stub",
                 phase = State.Phase.Loaded(detail = stubDetail()),
-                deleteDialogVisible = false,
+                expandedExerciseUuids = persistentSetOf("pe-1"),
+                dialogState = DialogState.Hidden,
+                bottomSheetState = BottomSheetState.Hidden,
             ),
             consume = {},
         )
@@ -271,7 +294,9 @@ private fun PastSessionScreenLoadingPreview() {
             state = State(
                 sessionUuid = "stub",
                 phase = State.Phase.Loading,
-                deleteDialogVisible = false,
+                expandedExerciseUuids = persistentSetOf(),
+                dialogState = DialogState.Hidden,
+                bottomSheetState = BottomSheetState.Hidden,
             ),
             consume = {},
         )
@@ -286,7 +311,9 @@ private fun PastSessionScreenErrorPreview() {
             state = State(
                 sessionUuid = "stub",
                 phase = State.Phase.Error(ErrorType.SessionNotFound),
-                deleteDialogVisible = false,
+                expandedExerciseUuids = persistentSetOf(),
+                dialogState = DialogState.Hidden,
+                bottomSheetState = BottomSheetState.Hidden,
             ),
             consume = {},
         )
@@ -294,26 +321,27 @@ private fun PastSessionScreenErrorPreview() {
 }
 
 private fun stubDetail(): PastSessionUiModel = PastSessionUiModel(
-    trainingName = "Push day",
+    trainingName = "низ — 2",
     isAdhoc = false,
-    finishedAtAbsoluteLabel = "Mon, Apr 27, 19:42",
-    durationLabel = "47 min",
-    totalsLabel = "5 exercises · 18 sets",
+    finishedAtAbsoluteLabel = "23 July 2026",
+    durationLabel = "56:08",
+    totalsLabel = "5 exercises · 14 sets · 4,820 kg",
     exercises = persistentListOf(
         PastExerciseUiModel(
             performedExerciseUuid = "pe-1",
-            exerciseName = "Bench press",
+            exerciseName = "разведение ног",
             position = 0,
             skipped = false,
             isWeighted = true,
+            setSummary = "49×15",
             sets = persistentListOf(
                 PastSetUiModel(
                     setUuid = "s-1",
                     performedExerciseUuid = "pe-1",
                     position = 0,
                     type = SetTypeUiModel.WORK,
-                    weightInput = "100",
-                    repsInput = "5",
+                    weightInput = "49",
+                    repsInput = "15",
                     weightError = false,
                     repsError = false,
                     isPersonalRecord = false,

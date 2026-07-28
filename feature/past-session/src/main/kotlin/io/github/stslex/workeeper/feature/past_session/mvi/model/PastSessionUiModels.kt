@@ -27,6 +27,13 @@ data class PastExerciseUiModel(
     val position: Int,
     val skipped: Boolean,
     val isWeighted: Boolean,
+    /**
+     * `.plan-line` — the collapsed card's summary (extraction §2.5): "49×15 · 71×15 · 77×15"
+     * for a weighted exercise, bare rep counts for a weightless one. Pre-formatted here
+     * because a Composable renders strings rather than shaping them; empty when the exercise
+     * logged no sets, which is what lets the card omit the line rather than draw an empty one.
+     */
+    val setSummary: String,
     val sets: ImmutableList<PastSetUiModel>,
 )
 
