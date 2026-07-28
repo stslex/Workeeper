@@ -210,6 +210,9 @@ internal object ContrastContract {
             add(Declared("textPrimary", surface, TypeSlot.BODY, "95 reads; row/card titles"))
             add(Declared("textSecondary", surface, TypeSlot.BODY, "45 reads; supporting text"))
             add(Declared("textTertiary", surface, TypeSlot.META, "55 reads; captions, meta"))
+            // The v3 `.tag` label is the one textTertiary read at the BODY rung (15sp) —
+            // same 4.5:1 the META row already pays, named so the slot reads truthfully.
+            add(Declared("textTertiary", surface, TypeSlot.BODY, "AppTag resting label"))
             // v3 `dim`. Declared at CAPTION, not META: the mockups' smallest `dim` element is
             // the 11px uppercase `.label`, and 11sp is the tightest rung this role reaches.
             // Same threshold as META numerically (4.5:1), but the slot names what is actually

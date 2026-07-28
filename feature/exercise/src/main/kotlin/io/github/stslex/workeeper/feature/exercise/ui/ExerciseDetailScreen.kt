@@ -37,7 +37,7 @@ import io.github.stslex.workeeper.core.ui.kit.components.card.AppCard
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PersonalRecordCard
 import io.github.stslex.workeeper.core.ui.kit.components.pr.PrExplainerDialog
 import io.github.stslex.workeeper.core.ui.kit.components.setchip.AppSetTypeChip
-import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTagChip.Static
+import io.github.stslex.workeeper.core.ui.kit.components.tag.AppTag
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
@@ -148,15 +148,16 @@ private fun Body(
                     )
                 }
             }
-            // §3.2 tag row: the type chip first, then the muscle-group tags — display only.
+            // §3.2 tag row: the type pill first, then the muscle-group tags — display only
+            // (`cursor:default` in the mockup; the `.on` variant belongs to the chart).
             InGutter {
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
-                    verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xxs),
+                    verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xs),
                 ) {
-                    Static(label = stringResource(state.type.labelRes))
-                    state.tags.forEach { tag -> Static(label = tag.name) }
+                    AppTag(label = stringResource(state.type.labelRes))
+                    state.tags.forEach { tag -> AppTag(label = tag.name) }
                 }
             }
             if (state.description.isNotBlank()) {
