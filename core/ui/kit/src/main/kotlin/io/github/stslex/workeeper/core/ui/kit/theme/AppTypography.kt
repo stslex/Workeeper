@@ -19,11 +19,11 @@ import io.github.stslex.workeeper.core.ui.kit.R
  */
 @Immutable
 data class AppTypeStyles(
-    /** 34sp — hero numerals and the live timer. */
+    /** 34sp — hero numerals and the live timer. Heading weight. */
     val display: TextStyle,
-    /** 26sp — screen titles. */
+    /** 26sp — screen titles. Heading weight. */
     val title: TextStyle,
-    /** 19sp — section and dialog titles. */
+    /** 19sp — section and dialog titles. Heading weight. */
     val section: TextStyle,
     /** 15sp — body text and row titles. */
     val body: TextStyle,
@@ -40,14 +40,24 @@ data class AppTypeStyles(
  * [text], because `toM3Typography` feeds `MaterialTheme` and every stock M3 component reads
  * through it. Fifteen names collapse onto six sizes; the alias block *is* the mapping, so
  * there is exactly one place to read it.
+ *
+ * **Fifteen is now fewer than all of them.** Material 3 `1.5.0-alpha24` grew `Typography` to
+ * thirty slots — the classic fifteen plus a `*Emphasized` twin for each — and
+ * [toM3Typography] maps only the fifteen. The other fifteen keep Material's own baseline
+ * family and metrics. Nothing renders wrong today: no component token file in that library
+ * references an `*Emphasized` key except `ScrollField`, which this app does not use. But this
+ * is the same shape as the unmapped colour roles `AppTheme` documents — twelve roles sitting
+ * on baseline purple until a library upgrade found them — so it is a live trap rather than a
+ * settled one. Mapping them is a typography decision, not a fonts one.
  */
 @Immutable
 data class AppTypography(
     /** IBM Plex Sans. Everything that is words. */
     val textFontFamily: FontFamily,
     /**
-     * Archivo Expanded. **Digits and `: . , - + / %` only — never a translatable string.**
-     * See [archivoExpandedFontFamily] for why this is a hard constraint and not a preference.
+     * Archivo, cut at `wdth 116 / wght 700` — the width the mockups draw numerals at.
+     * **Digits and `: . , - + / %` only — never a translatable string.**
+     * See [archivoFontFamily] for why this is a hard constraint and not a preference.
      */
     val numericFontFamily: FontFamily,
     /** IBM Plex Mono. Units and meta, inline beside body text. */
@@ -64,6 +74,11 @@ data class AppTypography(
     // actually occupies is what decided its rung.
     //
     // Stored, not `get()` — computed once per theme instance rather than on every read.
+    //
+    // Seven of the fifteen sit on a heading rung and therefore carry HEADING_WEIGHT:
+    // displayLarge/Medium (34), displaySmall + headlineLarge/Medium/Small (26), titleLarge
+    // (19). The other eight are body/meta/caption and are untouched by it — including the four
+    // that .copy() to Medium, whose 500 overrides the rung's weight either way.
 
     /** Unused in production; exists so `Typography()` is complete. */
     val displayLarge: TextStyle = text.display
@@ -80,7 +95,11 @@ data class AppTypography(
     /** Unused in production; exists so `Typography()` is complete. */
     val headlineMedium: TextStyle = text.title
 
-    /** Screen titles — `DetailTopbar`, `PastSessionScreen`, `PastSessionHeader`. */
+    /**
+     * Screen titles — `DetailTopbar`, `PlanEditorScreen`, `PastSessionScreen`,
+     * `PastSessionHeader`. All four, not three: `DetailTopbar` reaches every detail screen in
+     * the app, so this alias is wider than its call-site count suggests.
+     */
     val headlineSmall: TextStyle = text.title
 
     /** Dialog titles — `AppConfirmationDialog`, `AppBlockedArchiveDialog`, and friends. */
@@ -109,31 +128,92 @@ data class AppTypography(
 
     /** Chips and the smallest captions. */
     val labelSmall: TextStyle = text.caption
+
+    // ---- Named slots that are not M3 names ----------------------------------------------
+
+    /**
+     * The live session timer. `numeric.display` under a name the session screen can call.
+     *
+     * ## Why this is a name and not a seventh step
+     *
+     * The mockups draw the timer at **32px**, and the ladder rule (v3 spec §0.2) rounds that
+     * onto the existing 34 rung — text landing 1–2px off the mockup is correct, not a bug. So
+     * there is nothing to add to [AppTypeStyles]: the size the timer needs already exists, and
+     * a seventh member on a six-rung record is precisely what that class's KDoc forbids. What
+     * was missing was a *name*. An alias is how this file already turns fifteen Material names
+     * into six sizes; this is the same move for a slot Material has no name for.
+     *
+     * Being an alias, it is the same [TextStyle] instance as `numeric.display` — so it carries
+     * `tnum` by construction (v3 spec C1) rather than by a promise, and adding it moved zero
+     * pixels. `TnumCanaryGoldenTest` renders *through* this property, so it is load-bearing:
+     * repoint it at a style without tabular figures and the canary's colons drift apart.
+     *
+     * It is also a **third spelling of the Cyrillic-free family**, so it is registered with
+     * `NumericFontFamilyOnLocalizedTextRule` alongside `numericFontFamily` and
+     * `typography.numeric`. Naming a slot without telling the guard its new name would have
+     * left the rule blind to the exact call site this property exists to invite.
+     *
+     * ## Blocker B5, corrected
+     *
+     * B5 records the timer as "two-tier: 32px vs 26px elsewhere". Read from the markup rather
+     * than the stylesheet, that is not what happens. `.data-s` is 32px in `session-v3f`
+     * (L40) and 26px in `pass2d` (L42) — but `pass2d` inline-overrides the timer back to 32px
+     * at L221, so **the timer is 32px in both files and the mockups do not disagree about it**.
+     *
+     * The real finding is that one class carries two roles: the session timer at 32px, and the
+     * record-hero value at 26px (`pass2d` L274). Those are two rungs — 34 and 26 — not two
+     * tiers of one slot. The 26px sibling is `numeric.title`, and naming *it* is blocker B1's
+     * business inside the session rebuild, not this file's today.
+     */
+    val timer: TextStyle = numeric.display
 }
 
 /**
  * Text family for every worded slot. Bundled rather than fetched from the GMS
  * downloadable-font provider, so the first frame is never set in a fallback face and the app
  * renders identically on devices without Play Services. Covers the full Cyrillic range the
- * `values-ru` strings use.
+ * `values-ru` strings use, at every bundled weight.
  *
- * Only 400/500 ship — those are the weights the slots consume. `FontWeight.Bold` still
- * resolves, but by synthesis; add a real 700 file before relying on it.
+ * 400/500/600 ship — those are the weights the slots consume, and they are the three the
+ * mockups request (`IBM+Plex+Sans:wght@400;500;600`). `FontWeight.Bold` still resolves by
+ * synthesis, but bundling 600 quietly changed *what it synthesises from*: the matcher now
+ * falls back to the 600 file rather than the 500, so a request for Bold gets a nearer face and
+ * less faking. Nothing asks for it today. Add a real 700 file before relying on it.
  */
 private val plexSansFontFamily = FontFamily(
     Font(R.font.ibm_plex_sans_regular, FontWeight.Normal),
     Font(R.font.ibm_plex_sans_medium, FontWeight.Medium),
+    Font(R.font.ibm_plex_sans_semibold, FontWeight.SemiBold),
 )
 
 /**
  * Display family for numerals and the timer, and for nothing else.
  *
+ * ## The cut: `wdth 116, wght 700`
+ *
+ * Both mockups set every numeral through `font-variation-settings`, never through a published
+ * named instance: `.data-l` at `"wdth" 115`, `.data-s` at `"wdth" 116`, `.data-hero` at
+ * `"wdth" 122` — three widths, `"wght" 700` throughout. The bundled file is the **116** cut,
+ * the one the session timer and the record value are drawn at.
+ *
+ * "Expanded" survives as the *role* word the spec uses for wide numerals; it is not this
+ * file's width. Archivo's published `Expanded` static is the `wdth 125` edge of the axis, and
+ * the previous bundle used it because 125 was reachable as a published artifact. 116 is not:
+ * it has no `fvar` named instance (all nine sit at `wdth 100`) and no `STAT` axis value, so
+ * `fonttools` refuses to name it and the name table is written by hand. The file is therefore
+ * derived, and the provenance argument moves from "hash matches a published URL" to
+ * "derivation is reproducible" — `core/ui/kit/licenses/README.md` carries the input hash, the
+ * tool version and the command, and the file self-describes as `Archivo wdth116 Bold` at
+ * `usWeightClass 700` rather than inheriting the variable font's default-instance names.
+ *
  * ## O2 — a hard constraint, not a preference
  *
- * **Archivo Expanded has zero Cyrillic coverage.** Not "partial", not "missing a few" —
- * none of the 55 Cyrillic characters the shipped `values-ru` corpus uses, nor `« » · × — … →`.
- * A translatable string routed through this family renders as tofu boxes in Russian, or
- * silently resolves to whatever the system fallback chain offers, which is not this typeface.
+ * **Archivo has zero Cyrillic coverage.** Not "partial", not "missing a few" — none of the 55
+ * Cyrillic characters the shipped `values-ru` corpus uses. (It *does* cover `« » · × — … → •`,
+ * which earlier copies of this note claimed it did not; the gap is Cyrillic letters, and the
+ * distinction matters because a bullet-prefixed timer needs no text split.) A translatable
+ * string routed through this family renders as tofu boxes in Russian, or silently resolves to
+ * whatever the system fallback chain offers, which is not this typeface.
  *
  * So: **digits and the `: . , - + / %` separators only. Never a `stringResource`.** A number
  * formatted into a string is still a string — `"20 повт."` is a violation even though it
@@ -147,24 +227,33 @@ private val plexSansFontFamily = FontFamily(
  *
  * ## O1 — tabular figures
  *
- * Archivo's digits are proportional (`0` is 769 units wide, `1` is 683), so a ticking timer
- * visibly wobbles as digits change. Every [numeric] style therefore sets
- * `fontFeatureSettings = "tnum"`. `TnumCanaryGoldenTest` is the mechanical detector.
+ * Archivo's digits are proportional at every width (at 116: `0` is 706 units, `1` is 652), so
+ * a ticking timer visibly wobbles as digits change. Every [numeric] style therefore sets
+ * `fontFeatureSettings = "tnum"`. That feature makes **20 substitutions** — the ten lining
+ * digits to their `.tf` forms and the ten oldstyle digits to `.tosf` — and every one of them
+ * advances 700. `TnumCanaryGoldenTest` is the mechanical detector.
  * See `core/ui/kit/licenses/README.md`.
  */
-private val archivoExpandedFontFamily = FontFamily(
-    Font(R.font.archivo_expanded_bold, FontWeight.Bold),
+private val archivoFontFamily = FontFamily(
+    Font(R.font.archivo_bold_wdth116, FontWeight.Bold),
 )
 
 /**
  * Monospace family for units and meta text. Shares its vertical metrics exactly with
  * [plexSansFontFamily], so it stays on the same baseline when set inline beside body text.
  * Tabular by default — every digit is 600 units — and it covers Cyrillic in full, so unlike
- * [archivoExpandedFontFamily] it is safe for localized text.
+ * [archivoFontFamily] it is safe for localized text.
+ *
+ * The 600 cut is bundled but **no slot consumes it yet**. It is here because the mockups set
+ * exactly one mono selector at 600 — `.prtag`, the record tag — and that component
+ * (`PersonalRecordBadge`) still reads a *text*-family caption. Wiring it is the record-row
+ * work, not this file's. Until then the weight is reachable only by asking a mono style for
+ * [FontWeight.SemiBold] explicitly; no [mono] rung does.
  */
 private val plexMonoFontFamily = FontFamily(
     Font(R.font.ibm_plex_mono_regular, FontWeight.Normal),
     Font(R.font.ibm_plex_mono_medium, FontWeight.Medium),
+    Font(R.font.ibm_plex_mono_semibold, FontWeight.SemiBold),
 )
 
 /**
@@ -191,12 +280,122 @@ private const val TABULAR_FIGURES = "tnum"
 /** The caption rung is small enough to need opening up. */
 private val CAPTION_LETTER_SPACING = 0.5.sp
 
+/**
+ * Tracking on the screen-title rung: **−0.39sp**, which is the mockups' `-.015em` at 26sp.
+ *
+ * ## The conversion
+ *
+ * CSS `em` is a multiple of the element's own font size, so `em × rung size in sp` is the sp
+ * value — and because every rung here is a fixed size, `sp` and `em` are interchangeable. `sp`
+ * is written instead of `(-0.015).em` so the number sits in the same unit as the size and line
+ * height beside it, and can be read against them. `-0.015 × 26 = -0.39` exactly; no rounding.
+ *
+ * ## Why this rung and only this rung
+ *
+ * Six selectors across the two mockups declare negative tracking. Mapped onto the rung the
+ * codebase's alias table actually routes them to:
+ *
+ * | selector | px | declared | rung it lands on today |
+ * |---|---|---|---|
+ * | `.topbar h1` | 20 (17 `.sm`) | `-.015em` | title — `headlineSmall` |
+ * | `.shead h2` | 22 | `-.015em` | title — `headlineSmall` |
+ * | `.exhead h2` | 24 | `-.02em` | title — `headlineSmall` |
+ * | `.ctitle`, `.chead .title` | 16.5 | `-.01em` | body — `titleMedium` |
+ * | `.data-hero` | 52 / 44 / 38 | `-.02em` | display, **numeric** family |
+ *
+ * **title takes `-.015em`, not `-.02em`.** The two disagree, and the tiebreak is which
+ * declaration was made against this typeface: three of them (`.topbar h1` at 20px and at 17px,
+ * `.shead h2` at 22px) inherit `--ff-ui`, i.e. real IBM Plex Sans. `.exhead h2` declares no
+ * `font-family` and neither does its `<button>` parent, so it inherits nothing from the
+ * mockup's own stacks and falls to the browser's UA stylesheet for buttons. Which face that is
+ * depends on the browser; what is certain, and what the tiebreak needs, is that it is **not**
+ * IBM Plex Sans. Tracking chosen against a different typeface is not evidence about this one.
+ *
+ * **section stays at default**, because both selectors that land on it declare no tracking at
+ * all: `.sheet h3` (19px) and `.empty h4` (18px). Adding it there would be inventing.
+ *
+ * **body stays at default.** `.ctitle`'s `-.01em` is a *card title* treatment; the same rung
+ * also carries the body default, `.btn` and `.mitem`, none of which are tracked. Tracking the
+ * rung would track every sentence in the app to fix one card title. That is a component's
+ * business, and it needs a slot the six-step scale does not have.
+ *
+ * **display stays at default.** `.data-hero`'s `-.02em` is Archivo at 38–52px, and the numeric
+ * display rung's live consumer is the session timer, which declares none (`.data-s` sets no
+ * `letter-spacing` in either file). Tracking display would invent it on the timer.
+ *
+ * Positive tracking — `.label` `.14em`, `.tempbadge` `.12em`, `.prtag` `.1em`, `.toast button`
+ * `.08em`, `.setbar button` `.06em` — is deliberately absent here too. Every one of those is
+ * mono **and** uppercase **and** a specific component, so it belongs on the component, the way
+ * `AppSetTypeChip` and `PersonalRecordBadge` already carry theirs.
+ *
+ * ## Handoff
+ *
+ * This follows the *alias* table, not the extraction's px→rung rounding, which sends
+ * `.topbar h1` (20px) to the 19 rung. Today screen titles read `headlineSmall`, which is
+ * `text.title` at 26. If a screen rebuild moves a screen title to the section rung, its
+ * tracking has to move with it — the value is attached to the rung, not to the role.
+ */
+private const val TITLE_LETTER_SPACING_SP = -0.39f
+
+private val TITLE_LETTER_SPACING = TITLE_LETTER_SPACING_SP.sp
+
+/**
+ * Per-rung tracking for one family. Every field defaults to "as the platform draws it",
+ * except [caption], whose 0.5sp predates this and applies to all three families.
+ *
+ * A record rather than a parameter per rung: which `(family, rung)` pairs carry tracking is a
+ * design decision that should be readable in one place, and adding the next one should be a
+ * word rather than a signature change.
+ */
+private data class Tracking(
+    val display: TextUnit = TextStyle.Default.letterSpacing,
+    val title: TextUnit = TextStyle.Default.letterSpacing,
+    val section: TextUnit = TextStyle.Default.letterSpacing,
+    val body: TextUnit = TextStyle.Default.letterSpacing,
+    val meta: TextUnit = TextStyle.Default.letterSpacing,
+    val caption: TextUnit = CAPTION_LETTER_SPACING,
+)
+
+/**
+ * The weight every heading rung is set in — [AppTypeStyles.display], [AppTypeStyles.title],
+ * [AppTypeStyles.section].
+ *
+ * Every `h1`/`h2`/`h3`/`h4` in both mockups declares `font-weight:600` and nothing else does at
+ * heading size: `.topbar h1` (20px), `.shead h2` (22px), `.exhead h2` (24px), `.sheet h3`
+ * (19px), `.empty h4` (18px). Those five land on the 26 and 19 rungs, which is why both move.
+ * The 34 rung moves with them: it carries no sans heading in either mockup, and a scale whose
+ * largest step is *lighter* than the step below it is broken rather than unspecified.
+ *
+ * 600 is a **real bundled cut**, not synthesis — see [plexSansFontFamily]. Before this weight
+ * shipped these rungs rendered at 400.
+ *
+ * Not WCAG-bold. §1.4.3's large-text boundary is "18pt, or 14pt bold", and bold there means
+ * 700; 600 does not reach it. So `text.section` at 19sp stays `TypeSlot.SECTION` (4.5:1) and
+ * does not become `SECTION_BOLD` (3:1). The contrast contract is unchanged by this weight.
+ */
+private val HEADING_WEIGHT = FontWeight.SemiBold
+
+/**
+ * Builds the six rungs of one family.
+ *
+ * Weight is split heading-vs-rest rather than being one value per family, because the mockups
+ * split it that way: the three heading rungs carry [headingWeight] and the three text rungs
+ * carry [bodyWeight]. A family with one weight — Archivo, which ships only 700 — passes the
+ * same value for both and the split costs it nothing.
+ */
 private fun buildStyles(
     family: FontFamily,
-    weight: FontWeight,
+    bodyWeight: FontWeight,
+    headingWeight: FontWeight = bodyWeight,
     fontFeatureSettings: String? = null,
+    tracking: Tracking = Tracking(),
 ): AppTypeStyles {
-    fun step(sizeSp: Float, lineHeightSp: Float, letterSpacing: TextUnit) = TextStyle(
+    fun step(
+        sizeSp: Float,
+        lineHeightSp: Float,
+        weight: FontWeight,
+        letterSpacing: TextUnit,
+    ) = TextStyle(
         fontFamily = family,
         fontWeight = weight,
         fontSize = sizeSp.sp,
@@ -204,25 +403,37 @@ private fun buildStyles(
         fontFeatureSettings = fontFeatureSettings,
         letterSpacing = letterSpacing,
     )
-    val default = TextStyle.Default.letterSpacing
     return AppTypeStyles(
-        display = step(SIZE_DISPLAY_SP, LINE_DISPLAY_SP, default),
-        title = step(SIZE_TITLE_SP, LINE_TITLE_SP, default),
-        section = step(SIZE_SECTION_SP, LINE_SECTION_SP, default),
-        body = step(SIZE_BODY_SP, LINE_BODY_SP, default),
-        meta = step(SIZE_META_SP, LINE_META_SP, default),
-        caption = step(SIZE_CAPTION_SP, LINE_CAPTION_SP, CAPTION_LETTER_SPACING),
+        display = step(SIZE_DISPLAY_SP, LINE_DISPLAY_SP, headingWeight, tracking.display),
+        title = step(SIZE_TITLE_SP, LINE_TITLE_SP, headingWeight, tracking.title),
+        section = step(SIZE_SECTION_SP, LINE_SECTION_SP, headingWeight, tracking.section),
+        body = step(SIZE_BODY_SP, LINE_BODY_SP, bodyWeight, tracking.body),
+        meta = step(SIZE_META_SP, LINE_META_SP, bodyWeight, tracking.meta),
+        caption = step(SIZE_CAPTION_SP, LINE_CAPTION_SP, bodyWeight, tracking.caption),
     )
 }
 
 fun provideAppTypography(): AppTypography = AppTypography(
     textFontFamily = plexSansFontFamily,
-    numericFontFamily = archivoExpandedFontFamily,
+    numericFontFamily = archivoFontFamily,
     monoFontFamily = plexMonoFontFamily,
-    text = buildStyles(plexSansFontFamily, FontWeight.Normal),
+    text = buildStyles(
+        family = plexSansFontFamily,
+        bodyWeight = FontWeight.Normal,
+        headingWeight = HEADING_WEIGHT,
+        tracking = Tracking(title = TITLE_LETTER_SPACING),
+    ),
     // Archivo ships one weight (700) and its digits are proportional, hence tnum on every rung.
-    numeric = buildStyles(archivoExpandedFontFamily, FontWeight.Bold, TABULAR_FIGURES),
-    mono = buildStyles(plexMonoFontFamily, FontWeight.Normal),
+    // No tracking: `.data-s` and `.data-l` declare none, and `.data-hero`'s -.02em belongs to a
+    // hero-numeral slot this scale does not have yet.
+    numeric = buildStyles(
+        family = archivoFontFamily,
+        bodyWeight = FontWeight.Bold,
+        fontFeatureSettings = TABULAR_FIGURES,
+    ),
+    // No mono selector in either mockup is a heading, so mono has no heading weight to carry —
+    // and its tracking is all positive, all uppercase, and all component-level.
+    mono = buildStyles(family = plexMonoFontFamily, bodyWeight = FontWeight.Normal),
 )
 
 fun AppTypography.toM3Typography(): Typography = Typography(

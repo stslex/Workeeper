@@ -20,20 +20,31 @@ package io.github.stslex.workeeper.core.ui.kit.theme.contrast
  *
  * Against the six-step v3 scale (34 / 26 / 19 / 15 / 12.5 / 11 sp) that lands as:
  *
- * | rung    | size   | regular          | bold (`numeric`)      |
- * |---------|--------|------------------|-----------------------|
- * | display | 34sp   | large → 3:1      | large → 3:1           |
- * | title   | 26sp   | large → 3:1      | large → 3:1           |
- * | section | 19sp   | **normal → 4.5** | ≥18.66 bold → 3:1     |
- * | body    | 15sp   | normal → 4.5:1   | normal → 4.5:1        |
- * | meta    | 12.5sp | normal → 4.5:1   | normal → 4.5:1        |
- * | caption | 11sp   | normal → 4.5:1   | normal → 4.5:1        |
+ * | rung    | size   | below 700 (`text`, `mono`) | 700 (`numeric`)   |
+ * |---------|--------|----------------------------|-------------------|
+ * | display | 34sp   | large → 3:1                | large → 3:1       |
+ * | title   | 26sp   | large → 3:1                | large → 3:1       |
+ * | section | 19sp   | **normal → 4.5**           | ≥18.66 bold → 3:1 |
+ * | body    | 15sp   | normal → 4.5:1             | normal → 4.5:1    |
+ * | meta    | 12.5sp | normal → 4.5:1             | normal → 4.5:1    |
+ * | caption | 11sp   | normal → 4.5:1             | normal → 4.5:1    |
+ *
+ * The left column is deliberately not headed "regular": it covers 400, 500 **and** 600, all of
+ * which are below WCAG's bold boundary and therefore share one answer. `text.section` is set
+ * in 600 and still lands in that column.
  *
  * The 19sp row is the only one where weight changes the answer, and it is why [SECTION] and
  * [SECTION_BOLD] are separate slots rather than one. `AppTypography.numeric` is built at
  * `FontWeight.Bold`, so `numeric.section` is genuinely large-scale text and `text.section` is
  * genuinely not. Collapsing them would either over-constrain the numerals or wave through a
  * 19sp regular label at 3:1.
+ *
+ * **"Bold" in that row means 700, and only 700.** `text.section` is set in SemiBold (600) —
+ * the heading weight — and 600 does **not** reach WCAG's 14pt-bold boundary, so the section
+ * rung keeps [SECTION]'s 4.5:1. The same reasoning already applied to Medium (500) and is why
+ * the v3 spec §3 says "Medium (500) is not bold". If a heading rung ever moves to a real 700,
+ * this table and the slot each affected triple names must be revisited together — the change
+ * would *loosen* a threshold, which is the direction a gate cannot catch for you.
  *
  * `title` at 26sp is the anchor the v3 spec quotes ("3:1 under 26sp, 4.5:1 under 15sp"); both
  * quoted numbers fall out of the 24sp boundary above rather than being independent decisions.

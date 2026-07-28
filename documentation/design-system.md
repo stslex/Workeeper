@@ -163,56 +163,40 @@ Status — Info:     uses text secondary (low key).
 
 ### Typography
 
-Single font family token. Inter loaded via Google Fonts with system
-fallback chain.
+**Stale as written; superseded by the v3 type system.** This section described a
+single Inter family fetched through `GoogleFont.Provider` at two weights, and a
+fifteen-slot Material scale with its own sizes. None of that is what ships. It is
+replaced rather than patched because the shape changed, not only the numbers.
 
-```
-fontFamily token: AppTypography.fontFamily
-  default = FontFamily(GoogleFont("Inter")) with fallback FontFamily.SansSerif
+What ships now, and where to read it:
 
-Two weights only:
-  regular = FontWeight.Normal (400)
-  medium  = FontWeight.Medium (500)
+- **`core/ui/kit/.../theme/AppTypography.kt`** is the source of truth — three
+  bundled families, six sizes, and the fifteen Material names as *aliases* onto
+  those six. Nothing is fetched at runtime.
+- **`core/ui/kit/licenses/README.md`** carries the font provenance: which cut of
+  which family, its hash, and why that cut.
+- **`documentation/feature-specs/v3-redesign-spec.md` §4** is the contract for the
+  scale itself; the mockups are the contract for appearance.
 
-No bold (700) anywhere in the app. Weight contrast comes from 400/500.
-```
+| family | slots | weights |
+| --- | --- | --- |
+| IBM Plex Sans | everything that is words | 400 / 500 / 600 |
+| Archivo (`wdth 116 / wght 700`) | numerals and the timer, nothing else | 700 |
+| IBM Plex Mono | units and metadata | 400 / 500 / 600 |
 
-#### Type scale
+Scale: **34 / 26 / 19 / 15 / 12.5 / 11**. The three heading rungs (34 / 26 / 19)
+are set in 600; the rest in 400. `text.title` carries `-0.39sp` of tracking and no
+other `(family, rung)` pair carries any, beyond the 0.5sp on every caption rung.
 
-Maps directly to Material 3 typography slots (so M3 components pick
-them up automatically), but with values calibrated for calm dense
-density — slightly smaller than M3 defaults, slightly tighter
-line-height.
+Two constraints that are enforced rather than documented:
 
-```
-displayLarge        — unused (kept at M3 default for completeness)
-displayMedium       — unused
-displaySmall        — unused
-headlineLarge       — 28sp / 36sp / 500   — only used in onboarding (not v1)
-headlineMedium      — 22sp / 28sp / 500   — full-screen titles (Stats — v2)
-headlineSmall       — 20sp / 26sp / 500   — Exercise detail name, screen heroes
-titleLarge          — 18sp / 24sp / 500   — section headers, dialog titles
-titleMedium         — 16sp / 22sp / 500   — TopAppBar title, list emphasis
-titleSmall          — 14sp / 20sp / 500   — secondary titles
-bodyLarge           — 16sp / 22sp / 400   — main body text (rare)
-bodyMedium          — 14sp / 20sp / 400   — primary body in lists, descriptions
-bodySmall           — 13sp / 18sp / 400   — meta info, captions
-labelLarge          — 14sp / 20sp / 500   — primary buttons
-labelMedium         — 12sp / 16sp / 500   — chips, secondary buttons
-labelSmall          — 11sp / 14sp / 500   — pills, badges, section eyebrows
-```
-
-Letter spacing follows M3 defaults except section eyebrows
-(`labelSmall` used as `text-transform: uppercase` headers) which use
-`letterSpacing = 0.6sp` and `letterSpacing = 0.5sp` for the smallest
-labels — these are the only places where letter spacing is touched.
-
-#### Tabular numbers
-
-Set entry rows, weight values, rep counts use `fontFeatureSettings =
-"tnum"`. Numbers stay column-aligned when values change. Critical for
-Live workout. Implementation: extension `Modifier.tabularNumbers()`
-or wrap in a `TextStyle.copy(fontFeatureSettings = "tnum")`.
+- **Archivo takes digits and `: . , - + / %` only, never a `stringResource`** — it
+  has no Cyrillic. Guarded by `NumericFontFamilyOnLocalizedTextRule` and
+  `CyrillicTextGoldenTest`.
+- **Every numeric slot sets `fontFeatureSettings = "tnum"`** — Archivo's digits are
+  proportional. Guarded by `TnumCanaryGoldenTest` and `AppTypographyContractTest`.
+  Note that the same setting on an IBM Plex style is a **no-op**: neither Plex
+  family ships a `tnum` feature, being tabular by default already.
 
 ### Spacing (`AppDimension`)
 
@@ -822,7 +806,7 @@ core/ui/kit/
     theme/
       AppTheme.kt           — composable AppTheme { content }
       AppColors.kt          — data class + provideAppColors()
-      AppTypography.kt      — Inter font family + 13-slot type scale
+      AppTypography.kt      — three bundled families, six sizes, 15 M3 aliases
       AppDimension.kt       — extended with semantic aliases
       AppShapes.kt          — small/medium/large
       AppMotion.kt          — durations + easings
@@ -918,6 +902,10 @@ Implement Workeeper design system v1 per documentation/design-system.md.
 
 GOAL
 Replace and extend `core/ui/kit/theme/` with the full token system from the spec, and create 20 shared components under `core/ui/kit/components/`. Wire AppTheme to expose both Material 3 (via MaterialTheme) and custom App tokens (via CompositionLocal).
+
+**Historical.** What follows is the prompt that built the v1 kit, kept as a record of how it
+was specified. It names Inter, `GoogleFont.Provider` and a 13-slot scale, none of which has
+shipped since #177 — read it as an account of the past, not as instructions.
 
 PROCESS — TWO PASSES
 
