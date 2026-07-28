@@ -258,8 +258,8 @@ Component heights (unified — every component pulls from this set
 instead of declaring its own height inline):
 
 ```
-heightXs = 32.dp     — small button, dense list rows, segmented
-heightSm = 40.dp     — medium button, default list item, chip row
+heightXs = 32.dp     — small button, dense list rows, segment button
+heightSm = 40.dp     — medium button, default list item, chip row, segmented track
 heightMd = 48.dp     — large button, number input, primary CTA
 heightLg = 56.dp     — text field, TopAppBar (M3 standard)
 heightXl = 64.dp     — BottomBar, modal headers (M3 standard)
@@ -275,7 +275,7 @@ Component-specific notes:
 - AppTopAppBar — heightLg.
 - AppBottomBar — uses M3 NavigationBar default (80dp in M3 v1.2+),
   no override.
-- AppSegmentedControl — heightXs (slightly compact).
+- AppSegmentedControl — heightSm track (40dp) = heightXs segment (32dp) + 2 x Space.xs padding.
 
 ### Shape (corner radius)
 
@@ -715,12 +715,13 @@ API: AppSegmentedControl(items, selected, onSelectedChange, modifier)
 where items is a List of text labels.
 
 Visual:
-  height: AppDimension.heightXs (32.dp)
+  track height: AppDimension.heightSm (40.dp) = heightXs + 2 x Space.xs
+  segment height: AppDimension.heightXs (32.dp)
   shape: AppShapes.small
   background: surface tier 1
-  selected segment: accent tinted bg, accent text
+  selected segment: liftedSurface (surfaceTier2 + slabtop), accent tinted foreground
   unselected: text tertiary
-  divider between segments: border subtle
+  gap between segments: Space.xs (4.dp), no rule
 ```
 
 ### 19. AppSnackbar
