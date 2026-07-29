@@ -6,9 +6,10 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
+import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.di.ExerciseChartHandlerStore
 import io.github.stslex.workeeper.feature.exercise_chart.di.ExerciseChartScope
-import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapper.toTooltip
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ChartReadoutMapper
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Action
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Event
 
@@ -26,9 +27,7 @@ internal class ClickHandler @Inject constructor(
             Action.Click.OnPickerOpen -> updateState { it.copy(isPickerOpen = true) }
             Action.Click.OnPickerDismiss -> updateState { it.copy(isPickerOpen = false) }
             is Action.Click.OnPickerItemSelect -> processPickerItemSelect(action)
-            is Action.Click.OnPointTap -> processPointTap(action)
-            Action.Click.OnTooltipDismiss -> updateState { it.copy(activeTooltip = null) }
-            Action.Click.OnTooltipTap -> processTooltipTap()
+            is Action.Click.OnScrub -> processScrub(action)
             Action.Click.OnEmptyCtaClick -> consume(Action.Navigation.OpenHome)
             Action.Click.OnBack -> consume(Action.Navigation.PopBack)
         }
@@ -42,7 +41,6 @@ internal class ClickHandler @Inject constructor(
         updateState {
             it.copy(
                 preset = action.preset,
-                activeTooltip = null,
                 emptyReason = null,
                 isLoading = true,
             )
@@ -58,7 +56,6 @@ internal class ClickHandler @Inject constructor(
         updateState {
             it.copy(
                 metric = action.metric,
-                activeTooltip = null,
                 emptyReason = null,
                 isLoading = true,
             )
@@ -78,7 +75,6 @@ internal class ClickHandler @Inject constructor(
             it.copy(
                 selectedExercise = item,
                 isPickerOpen = false,
-                activeTooltip = null,
                 // Clear EXERCISE_NOT_FOUND immediately on selection — the new selection
                 // is what's loading; loadChart will set NO_DATA_FOR_EXERCISE if the result
                 // is empty.
@@ -89,21 +85,27 @@ internal class ClickHandler @Inject constructor(
         commonHandler.loadChart(item)
     }
 
-    private fun processPointTap(action: Action.Click.OnPointTap) {
+    /**
+     * The scrub (§4.6): a repeated index is a no-op — which is what makes the haptic a tick
+     * *per crossed point* (`navigator.vibrate(4)` fires in the mockup only when the snapped
+     * index changes). SegmentTick is the same vocabulary the preset/metric segments use.
+     */
+    private fun processScrub(action: Action.Click.OnScrub) {
         val current = state.value
-        val tooltip = toTooltip(
-            point = action.point,
-            exercise = current.selectedExercise,
-            metric = current.metric,
-            resourceWrapper = resourceWrapper,
-        )
-        sendEvent(Event.HapticClick(HapticFeedbackType.LongPress))
-        updateState { it.copy(activeTooltip = tooltip) }
-    }
-
-    private fun processTooltipTap() {
-        val tooltip = state.value.activeTooltip ?: return
-        sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
-        consume(Action.Navigation.OpenPastSession(tooltip.sessionUuid))
+        if (action.index == current.activeIndex) return
+        if (action.index !in current.points.indices) return
+        sendEvent(Event.HapticClick(HapticFeedbackType.SegmentTick))
+        updateState {
+            it.copy(
+                activeIndex = action.index,
+                readout = ChartReadoutMapper.toReadout(
+                    points = it.points,
+                    activeIndex = action.index,
+                    metric = it.metric,
+                    type = it.selectedExercise?.type ?: ExerciseTypeUiModel.WEIGHTED,
+                    resourceWrapper = resourceWrapper,
+                ),
+            )
+        }
     }
 }

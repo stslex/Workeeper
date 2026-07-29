@@ -10,11 +10,11 @@ import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartMetricUi
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPointUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPresetUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartReadoutUiModel
-import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartTooltipUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ExercisePickerItemUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.EmptyReason
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.State
 import io.github.stslex.workeeper.feature.exercise_chart.ui.ExerciseChartScreen
+import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartCanvas
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartFooterStats
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartReadout
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.MetricTabs
@@ -27,16 +27,17 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 
 /**
- * The chart golden suite. The BASELINE commit (C0) records the pre-rebuild surface —
- * AppTopAppBar + SwapHoriz, segmented metric toggle, L-axis canvas with accent-filled
- * points and the tap tooltip — so each Part-4 rebuild commit reads as an image diff.
+ * The chart golden suite. The BASELINE commit (C0) recorded the pre-rebuild surface; each
+ * Part-4 rebuild commit reads as an image diff against the previous one. The tooltip
+ * scenario retired with its surface — the readout + scrub replaced it (§4.5/§4.6).
  *
  * Fixture data mirrors `pass2d.html` §`s-chart` (`разведение ног`, seven sessions
- * 2 мая → 23 июля 2026, weights 49/49/56/63/63/63/77 with the record last) so the final
- * element-by-element pass holds golden beside mockup with no renaming.
+ * 2 мая → 23 июля 2026, weights 49/49/56/63/63/63/77 with the record last, demo scrub at
+ * index 4) so the final element-by-element pass holds golden beside mockup with no renaming.
  *
  * Out of model, per the harness KDoc: `ExercisePickerSheet`'s `ModalBottomSheet` window —
- * device checklist (§10.4). The in-canvas tooltip overlay is NOT a window and is recorded.
+ * device checklist (§10.4). Both canvas animations (scrub travel, metric morph) are
+ * time-based and outside the gate; the goldens pin their endpoints.
  */
 internal class ExerciseChartGoldenTest {
 
@@ -50,19 +51,24 @@ internal class ExerciseChartGoldenTest {
         }
     }
 
-    /** The tap tooltip anchored to the record point — the pre-rebuild inspection surface. */
+    /**
+     * The record point under the scrub: the disc stays molten (`.pt.pr.act`), the readout
+     * takes the `.mdot` + `· рекорд` treatment. Replaces the retired tooltip scenario as
+     * the "inspecting the record" frame.
+     */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
-    fun screenTooltip(theme: GoldenTheme, testInfo: TestInfo) {
+    fun screenRecordActive(theme: GoldenTheme, testInfo: TestInfo) {
         golden(testInfo, theme) {
             ExerciseChartScreen(
                 state = populatedState().copy(
-                    activeTooltip = ChartTooltipUiModel(
-                        sessionUuid = "s-7",
-                        exerciseName = "разведение ног",
-                        dateLabel = "23 июля 2026 г.",
-                        displayLabel = "77 кг × 15",
-                        setCountLabel = "4 подхода в этот день",
+                    activeIndex = 6,
+                    readout = ChartReadoutUiModel(
+                        metricName = "Максимальный вес",
+                        isRecord = true,
+                        caption = "23 июля 2026 · 4 подхода · рекорд",
+                        value = "77",
+                        unit = "кг",
                     ),
                 ),
                 consume = {},
@@ -111,6 +117,39 @@ internal class ExerciseChartGoldenTest {
                     emptyReason = EmptyReason.NO_FINISHED_SESSIONS,
                 ),
                 consume = {},
+            )
+        }
+    }
+
+    // --- Canvas ----------------------------------------------------------------------------
+
+    /**
+     * The canvas point pair. Mid-scrub: plain donuts, the solid `--max` active disc at
+     * r5.5 with the dashed scrub under the series, the molten record at the end.
+     */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun canvasMidScrub(theme: GoldenTheme, testInfo: TestInfo) {
+        goldenSubject(testInfo, theme) {
+            ChartCanvas(
+                points = points().toImmutableList(),
+                activeIndex = 4,
+                recordIndex = 6,
+                onScrub = {},
+            )
+        }
+    }
+
+    /** Record under scrub: the disc keeps its molten fill and only grows to r5.5. */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun canvasRecordActive(theme: GoldenTheme, testInfo: TestInfo) {
+        goldenSubject(testInfo, theme) {
+            ChartCanvas(
+                points = points().toImmutableList(),
+                activeIndex = 6,
+                recordIndex = 6,
+                onScrub = {},
             )
         }
     }

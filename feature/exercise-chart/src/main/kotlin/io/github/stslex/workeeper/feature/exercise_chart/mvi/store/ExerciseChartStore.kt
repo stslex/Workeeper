@@ -10,7 +10,6 @@ import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartMetricUi
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPointUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPresetUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartReadoutUiModel
-import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartTooltipUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ExercisePickerItemUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Action
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Event
@@ -56,7 +55,6 @@ interface ExerciseChartStore : Store<State, Action, Event> {
         val metric: ChartMetricUiModel,
         val points: ImmutableList<ChartPointUiModel>,
         val footerStats: ChartFooterStatsUiModel?,
-        val activeTooltip: ChartTooltipUiModel?,
         // The scrubbed point (§4.5/§4.6): drives the readout and the canvas's scrub line +
         // enlarged point. Defaults to the last (most recent) point on load; a metric switch
         // preserves it (same day buckets), a preset/exercise switch resets it.
@@ -93,7 +91,6 @@ interface ExerciseChartStore : Store<State, Action, Event> {
                 metric = ChartMetricUiModel.HEAVIEST_WEIGHT,
                 points = persistentListOf(),
                 footerStats = null,
-                activeTooltip = null,
                 activeIndex = null,
                 readout = null,
                 windowStartDay = null,
@@ -117,15 +114,18 @@ interface ExerciseChartStore : Store<State, Action, Event> {
             data object OnPickerOpen : Click
             data object OnPickerDismiss : Click
             data class OnPickerItemSelect(val uuid: String) : Click
-            data class OnPointTap(val point: ChartPointUiModel) : Click
-            data object OnTooltipDismiss : Click
-            data object OnTooltipTap : Click
+
+            /**
+             * The §4.6 scrub gesture: the canvas mapped a pointer x to the nearest point
+             * index. The handler dedups (a repeat of the current index is a no-op) and owns
+             * the per-crossing haptic tick.
+             */
+            data class OnScrub(val index: Int) : Click
             data object OnEmptyCtaClick : Click
             data object OnBack : Click
         }
 
         sealed interface Navigation : Action {
-            data class OpenPastSession(val sessionUuid: String) : Navigation
             data object OpenHome : Navigation
             data object PopBack : Navigation
         }

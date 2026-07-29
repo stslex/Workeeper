@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -25,9 +26,9 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.R
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ChartReadoutMapper
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartFooterStatsUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPointUiModel
-import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartTooltipUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ExercisePickerItemUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Action
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.EmptyReason
@@ -185,16 +186,9 @@ private fun ChartPopulated(
     state: State,
     consume: (Action) -> Unit,
 ) {
-    // Window comes from FoldResult via State so the canvas reflects whatever the mapper
-    // decided — including the ±14d sparse-data tightening for the ALL preset. Falling back
-    // to the points' own min/max only matters during the brief load gap before the first
-    // FoldResult lands.
-    val windowStartDay = state.windowStartDay
-        ?: state.points.minOfOrNull { it.day }
-        ?: return
-    val windowEndDay = state.windowEndDay
-        ?: state.points.maxOfOrNull { it.day }
-        ?: return
+    // The record marking is derived, not stored: one source (the mapper's argmax) feeds the
+    // readout's flag and the canvas's molten point alike.
+    val recordIndex = remember(state.points) { ChartReadoutMapper.recordIndex(state.points) }
 
     // The mockup's vertical rhythm, spelled per element rather than one spacedBy: readout
     // padding-top 18px → lg, chartwrap margin-top 14px → md, statrows margin-top 26px → xl.
@@ -207,12 +201,9 @@ private fun ChartPopulated(
         Spacer(modifier = Modifier.height(AppDimension.Space.md))
         ChartCanvas(
             points = state.points,
-            activeTooltip = state.activeTooltip,
-            windowStartDay = windowStartDay,
-            windowEndDay = windowEndDay,
-            onPointTap = { consume(Action.Click.OnPointTap(it)) },
-            onCanvasTap = { consume(Action.Click.OnTooltipDismiss) },
-            onTooltipTap = { consume(Action.Click.OnTooltipTap) },
+            activeIndex = state.activeIndex,
+            recordIndex = recordIndex,
+            onScrub = { consume(Action.Click.OnScrub(it)) },
         )
         state.footerStats?.let { stats ->
             Spacer(modifier = Modifier.height(AppDimension.Space.xl))
@@ -358,52 +349,6 @@ private fun ExerciseChartScreenNoDataForExercisePreview() {
                     ExercisePickerItemUiModel("uuid-1", "Bench press", ExerciseTypeUiModel.WEIGHTED),
                 ),
                 emptyReason = EmptyReason.NO_DATA_FOR_EXERCISE,
-            ),
-            consume = {},
-        )
-    }
-}
-
-@Suppress("MagicNumber")
-@Preview
-@Composable
-private fun ExerciseChartScreenWithTooltipPreview() {
-    AppTheme(themeMode = ThemeMode.DARK) {
-        ExerciseChartScreen(
-            state = State.create(initialUuid = "uuid-1").copy(
-                isLoading = false,
-                selectedExercise = ExercisePickerItemUiModel(
-                    "uuid-1",
-                    "Bench press",
-                    ExerciseTypeUiModel.WEIGHTED,
-                ),
-                recentExercises = persistentListOf(
-                    ExercisePickerItemUiModel("uuid-1", "Bench press", ExerciseTypeUiModel.WEIGHTED),
-                    ExercisePickerItemUiModel("uuid-2", "Squat", ExerciseTypeUiModel.WEIGHTED),
-                ),
-                points = listOf(
-                    ChartPointUiModel(LocalDate.of(2026, 4, 5), 0L, 80.0, "s1", 80.0, 5, 1),
-                    ChartPointUiModel(LocalDate.of(2026, 4, 12), 0L, 90.0, "s2", 90.0, 5, 1),
-                    ChartPointUiModel(LocalDate.of(2026, 4, 19), 0L, 95.0, "s3", 95.0, 5, 1),
-                    ChartPointUiModel(LocalDate.of(2026, 4, 26), 0L, 105.0, "s4", 105.0, 3, 2),
-                ).toImmutableList(),
-                footerStats = ChartFooterStatsUiModel(
-                    minTitle = "Min",
-                    minValue = "80 kg",
-                    maxTitle = "Max",
-                    maxValue = "105 kg",
-                    lastTitle = "Last",
-                    lastValue = "105 kg",
-                ),
-                windowStartDay = LocalDate.of(2026, 4, 5),
-                windowEndDay = LocalDate.of(2026, 5, 1),
-                activeTooltip = ChartTooltipUiModel(
-                    sessionUuid = "s3",
-                    exerciseName = "Bench press",
-                    dateLabel = "Apr 19, 2026",
-                    displayLabel = "95 kg × 5",
-                    setCountLabel = null,
-                ),
             ),
             consume = {},
         )

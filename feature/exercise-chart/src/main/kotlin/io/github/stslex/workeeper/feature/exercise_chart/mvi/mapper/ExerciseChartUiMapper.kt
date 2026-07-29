@@ -15,7 +15,6 @@ import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartFooterSt
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartMetricUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPointUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPresetUiModel
-import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartTooltipUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ExercisePickerItemUiModel
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
@@ -47,30 +46,6 @@ internal object ExerciseChartUiMapper {
         lastTitle = resourceWrapper.getString(R.string.feature_exercise_chart_footer_last),
         lastValue = formatMetricValue(last, type, metric, resourceWrapper),
     )
-
-    fun toTooltip(
-        point: ChartPointUiModel,
-        exercise: ExercisePickerItemUiModel?,
-        metric: ChartMetricUiModel,
-        resourceWrapper: ResourceWrapper,
-    ): ChartTooltipUiModel {
-        val type = exercise?.type ?: ExerciseTypeUiModel.WEIGHTED
-        return ChartTooltipUiModel(
-            sessionUuid = point.sessionUuid,
-            exerciseName = exercise?.name.orEmpty(),
-            dateLabel = resourceWrapper.formatMediumDate(point.dayMillis),
-            displayLabel = formatDisplay(point, type, metric, resourceWrapper),
-            setCountLabel = if (point.setCount > 1) {
-                resourceWrapper.getQuantityString(
-                    R.plurals.feature_exercise_chart_tooltip_set_count,
-                    point.setCount,
-                    point.setCount,
-                )
-            } else {
-                null
-            },
-        )
-    }
 
     fun ExerciseTypeDomain.toUi(): ExerciseTypeUiModel = when (this) {
         ExerciseTypeDomain.WEIGHTED -> ExerciseTypeUiModel.WEIGHTED
@@ -114,48 +89,10 @@ internal object ExerciseChartUiMapper {
         type = type.toUi(),
     )
 
-    // In both formatters the VOLUME_PER_SESSION branch comes before the WEIGHTLESS one and
-    // reads `point.value` only: a session point is an aggregate whose `weight`/`reps` are
-    // null/0 by the ChartPointDomain contract — the weightless reps-plural over `point.reps`
-    // would print "0 reps" for it.
-    private fun formatDisplay(
-        point: ChartPointUiModel,
-        type: ExerciseTypeUiModel,
-        metric: ChartMetricUiModel,
-        resourceWrapper: ResourceWrapper,
-    ): String = when {
-        metric == ChartMetricUiModel.VOLUME_PER_SESSION -> when (type) {
-            ExerciseTypeUiModel.WEIGHTLESS -> resourceWrapper.getQuantityString(
-                R.plurals.feature_exercise_chart_value_reps,
-                point.value.toInt(),
-                point.value.toInt(),
-            )
-
-            ExerciseTypeUiModel.WEIGHTED -> resourceWrapper.getString(
-                R.string.feature_exercise_chart_value_weight,
-                formatNumber(point.value),
-            )
-        }
-
-        type == ExerciseTypeUiModel.WEIGHTLESS -> resourceWrapper.getQuantityString(
-            R.plurals.feature_exercise_chart_value_reps,
-            point.reps,
-            point.reps,
-        )
-
-        metric == ChartMetricUiModel.VOLUME_PER_SET -> resourceWrapper.getString(
-            R.string.feature_exercise_chart_value_weight_x_reps,
-            formatNumber(point.value),
-            point.reps,
-        )
-
-        else -> resourceWrapper.getString(
-            R.string.feature_exercise_chart_value_weight_x_reps,
-            formatNumber(point.weight ?: 0.0),
-            point.reps,
-        )
-    }
-
+    // The VOLUME_PER_SESSION branch comes before the WEIGHTLESS one and reads `point.value`
+    // only: a session point is an aggregate whose `weight`/`reps` are null/0 by the
+    // ChartPointDomain contract — the weightless reps-plural over `point.reps` would print
+    // "0 reps" for it.
     private fun formatMetricValue(
         point: ChartPointDomain,
         type: ExerciseTypeDomain,

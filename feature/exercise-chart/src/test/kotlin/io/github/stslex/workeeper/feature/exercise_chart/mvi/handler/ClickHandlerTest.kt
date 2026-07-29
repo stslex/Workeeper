@@ -8,7 +8,6 @@ import io.github.stslex.workeeper.feature.exercise_chart.di.ExerciseChartHandler
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartMetricUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPointUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPresetUiModel
-import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartTooltipUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ExercisePickerItemUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Action
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.EmptyReason
@@ -26,6 +25,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.time.LocalDate
+import kotlin.test.assertNotNull
 
 internal class ClickHandlerTest {
 
@@ -49,6 +49,14 @@ internal class ClickHandlerTest {
             benchExercise,
             ExercisePickerItemUiModel("uuid-2", "Squat", ExerciseTypeUiModel.WEIGHTED),
         ),
+    )
+
+    private fun stateWithPoints(activeIndex: Int): State = stateWithSelected().copy(
+        points = persistentListOf(
+            ChartPointUiModel(LocalDate.of(2026, 4, 21), 0L, 90.0, "s1", 90.0, 5, 1),
+            ChartPointUiModel(LocalDate.of(2026, 4, 28), 0L, 100.0, "s2", 100.0, 5, 1),
+        ),
+        activeIndex = activeIndex,
     )
 
     @Test
@@ -94,7 +102,6 @@ internal class ClickHandlerTest {
         handler.invoke(Action.Click.OnMetricSelect(ChartMetricUiModel.VOLUME_PER_SET))
 
         assertEquals(ChartMetricUiModel.VOLUME_PER_SET, flow.value.metric)
-        assertNull(flow.value.activeTooltip)
         assertNull(flow.value.emptyReason)
         verify(exactly = 1) { commonHandler.loadChart(benchExercise) }
     }
@@ -161,64 +168,41 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `OnPointTap sets activeTooltip`() {
-        val flow = MutableStateFlow(stateWithSelected())
+    fun `OnScrub to a new index moves the readout and ticks the haptic`() {
+        val flow = MutableStateFlow(stateWithPoints(activeIndex = 1))
         val store = newStore(flow)
         val handler = ClickHandler(commonHandler, resources, store)
-        val point = ChartPointUiModel(
-            day = LocalDate.of(2026, 4, 28),
-            dayMillis = 0L,
-            value = 100.0,
-            sessionUuid = "session-1",
-            weight = 100.0,
-            reps = 5,
-            setCount = 1,
-        )
 
-        handler.invoke(Action.Click.OnPointTap(point))
+        handler.invoke(Action.Click.OnScrub(0))
 
-        val tooltip = flow.value.activeTooltip
-        assertEquals("session-1", tooltip?.sessionUuid)
+        assertEquals(0, flow.value.activeIndex)
+        assertNotNull(flow.value.readout)
+        val captured = slot<Event>()
+        verify { store.sendEvent(capture(captured)) }
+        assertEquals(HapticFeedbackType.SegmentTick, (captured.captured as Event.HapticClick).type)
     }
 
     @Test
-    fun `OnTooltipDismiss clears activeTooltip`() {
-        val tooltip = stateWithSelected().copy(
-            activeTooltip = ChartTooltipUiModel(
-                sessionUuid = "session-1",
-                exerciseName = "Bench",
-                dateLabel = "today",
-                displayLabel = "100kg × 5",
-                setCountLabel = null,
-            ),
-        )
-        val flow = MutableStateFlow(tooltip)
+    fun `OnScrub to the current index is a no-op — the haptic is a tick per CROSSED point`() {
+        val flow = MutableStateFlow(stateWithPoints(activeIndex = 1))
         val store = newStore(flow)
         val handler = ClickHandler(commonHandler, resources, store)
 
-        handler.invoke(Action.Click.OnTooltipDismiss)
+        handler.invoke(Action.Click.OnScrub(1))
 
-        assertNull(flow.value.activeTooltip)
+        verify(exactly = 0) { store.sendEvent(any()) }
     }
 
     @Test
-    fun `OnTooltipTap consumes OpenPastSession with the tooltip session uuid`() {
-        val tooltip = stateWithSelected().copy(
-            activeTooltip = ChartTooltipUiModel(
-                sessionUuid = "session-99",
-                exerciseName = "Bench",
-                dateLabel = "today",
-                displayLabel = "100kg × 5",
-                setCountLabel = null,
-            ),
-        )
-        val flow = MutableStateFlow(tooltip)
+    fun `OnScrub outside the point range is ignored`() {
+        val flow = MutableStateFlow(stateWithPoints(activeIndex = 1))
         val store = newStore(flow)
         val handler = ClickHandler(commonHandler, resources, store)
 
-        handler.invoke(Action.Click.OnTooltipTap)
+        handler.invoke(Action.Click.OnScrub(5))
 
-        verify { store.consume(Action.Navigation.OpenPastSession("session-99")) }
+        assertEquals(1, flow.value.activeIndex)
+        verify(exactly = 0) { store.sendEvent(any()) }
     }
 
     @Test
