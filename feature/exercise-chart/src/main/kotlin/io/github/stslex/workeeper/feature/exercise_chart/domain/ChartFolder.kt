@@ -11,22 +11,17 @@ import io.github.stslex.workeeper.feature.exercise_chart.domain.model.HistoryEnt
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
-import java.time.temporal.ChronoUnit
 
 /**
  * Pure folding logic for the chart screen — converts raw history into the points + footer
  * the canvas needs to render. Lives in the domain layer; the UI mapper consumes the
  * resulting [ChartFoldDomain] and produces UI types with locale-aware formatting.
  *
- * On the [ChartPresetDomain.ALL] preset, when the exercise has only 1-2 finished sessions
- * in its full history, the natural window (`first finished_at … today`) can stretch a
- * year-old single point across the whole canvas — points cluster against the right edge
- * and look like an outlier rather than the data they are. Tighten the window by padding
- * relative to the actual data span, with at least [MIN_PADDING_DAYS] on each side, so
- * sparse history reads as centred data, not as noise.
+ * The preset acts as a **filter** only: the §4.6 canvas is index-spaced, so there is no
+ * render window to compute — the visible span IS the point list. (The date-proportional
+ * canvas this fold used to serve carried a window-tightening pass for sparse ALL-preset
+ * history; it died with date-spacing.)
  */
-private const val MIN_PADDING_DAYS = 3L
-
 internal fun bucketAndFold(
     history: List<HistoryEntryDomain>,
     preset: ChartPresetDomain,
@@ -35,7 +30,6 @@ internal fun bucketAndFold(
     now: Long,
     zoneId: ZoneId = ZoneId.systemDefault(),
 ): ChartFoldDomain {
-    val today = Instant.ofEpochMilli(now).atZone(zoneId).toLocalDate()
     val windowStart = preset.windowStartMillis(now, zoneId)
 
     val flat = history
@@ -62,12 +56,7 @@ internal fun bucketAndFold(
     // coerced to 0.0 — coercion invents a point at the bottom of the axis.
     val eligible = flat.filter { it.isEligible(exerciseType) }
 
-    if (eligible.isEmpty()) return ChartFoldDomain(
-        points = emptyList(),
-        footer = null,
-        windowStartDay = null,
-        windowEndDay = null,
-    )
+    if (eligible.isEmpty()) return ChartFoldDomain(points = emptyList(), footer = null)
 
     // Eligibility decides which set *represents* a day; it does not decide how many sets the
     // user logged that day. Both grounds `isEligible` drops on — a weighted set saved without
@@ -112,46 +101,10 @@ internal fun bucketAndFold(
         )
     }.sortedBy(ChartPointDomain::day)
 
-    val (effectiveStart, effectiveEnd) = computeWindow(preset, pointsByDay, windowStart, today, zoneId)
-
     return ChartFoldDomain(
         points = pointsByDay,
         footer = pointsByDay.toFooter(),
-        windowStartDay = effectiveStart,
-        windowEndDay = effectiveEnd,
     )
-}
-
-/**
- * Choose the time range the canvas should render. Three cases:
- *
- * - `ALL` preset + sparse history (≤ 2 points): pad relative to the data span so the
- *   points sit near the centre instead of glued to the right edge or buried in empty space.
- * - Bounded preset (`1M` / `3M` / `1Y`): always `[preset.start, today]` — even when the
- *   user has fewer points than the window can hold, the window is what they asked for.
- * - `ALL` preset + 3+ points: `[firstPoint, today]` — natural span looks fine, no
- *   tightening.
- */
-private fun computeWindow(
-    preset: ChartPresetDomain,
-    pointsByDay: List<ChartPointDomain>,
-    windowStartMillis: Long?,
-    today: LocalDate,
-    zoneId: ZoneId,
-): Pair<LocalDate, LocalDate> = when {
-    preset == ChartPresetDomain.ALL && pointsByDay.size <= 2 && pointsByDay.isNotEmpty() -> {
-        val firstDay = pointsByDay.first().day
-        val lastDay = pointsByDay.last().day
-        val spanDays = ChronoUnit.DAYS.between(firstDay, lastDay)
-        val paddingDays = (spanDays / 2L).coerceAtLeast(MIN_PADDING_DAYS)
-        firstDay.minusDays(paddingDays) to lastDay.plusDays(paddingDays)
-    }
-    else -> {
-        val start = windowStartMillis
-            ?.let { Instant.ofEpochMilli(it).atZone(zoneId).toLocalDate() }
-            ?: pointsByDay.first().day
-        start to today
-    }
 }
 
 /** The per-set fold: one winning set represents the day. */

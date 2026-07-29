@@ -16,7 +16,6 @@ import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChart
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.State
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
-import java.time.LocalDate
 
 interface ExerciseChartStore : Store<State, Action, Event> {
 
@@ -60,11 +59,6 @@ interface ExerciseChartStore : Store<State, Action, Event> {
         // preserves it (same day buckets), a preset/exercise switch resets it.
         val activeIndex: Int?,
         val readout: ChartReadoutUiModel?,
-        // Effective canvas window — populated from FoldResult so the canvas reflects what
-        // the mapper actually decided to render (including the ±14d sparse-data tightening).
-        // Null until the first chart load completes; null also when the result is empty.
-        val windowStartDay: LocalDate?,
-        val windowEndDay: LocalDate?,
         val isPickerOpen: Boolean,
         val emptyReason: EmptyReason?,
     ) : Store.State {
@@ -93,8 +87,6 @@ interface ExerciseChartStore : Store<State, Action, Event> {
                 footerStats = null,
                 activeIndex = null,
                 readout = null,
-                windowStartDay = null,
-                windowEndDay = null,
                 isPickerOpen = false,
                 emptyReason = null,
             )

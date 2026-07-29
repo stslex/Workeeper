@@ -276,15 +276,24 @@ internal class ChartFolderTest {
     // can never exercise this class of bug.
 
     @Test
-    fun `MONTH_1 window start tracks calendar days across a DST spring-forward`() {
+    fun `MONTH_1 filter tracks calendar days across a DST spring-forward`() {
         // 2026-03-08 springs forward (a 23h day). With `now` just after local midnight, a naive
-        // `now - 30 * 24h` start drifts back an hour, across the transition, onto the PREVIOUS
-        // calendar day. The window must track calendar days, not fixed-length millis.
+        // `now - 30 * 24h` boundary drifts back an hour, across the transition, onto the
+        // PREVIOUS calendar day — and would admit an entry the calendar window excludes. The
+        // filter is the surviving observable (the render window died with date-spacing), so
+        // the claim is inclusion: the boundary is 30 CALENDAR days before now, local time
+        // preserved (2026-02-18 00:30), not the naive 02-17 23:30.
         val nyZone = ZoneId.of("America/New_York")
         val now = zonedMillis(nyZone, 2026, 3, 20, hour = 0, minute = 30)
 
         val result = bucketAndFold(
             history = listOf(
+                entry(
+                    // 02-18 00:00 — after the naive boundary, before the calendar one.
+                    finishedAt = zonedMillis(nyZone, 2026, 2, 18, hour = 0, minute = 0),
+                    sessionUuid = "naive-would-admit",
+                    sets = listOf(set(weight = 200.0, reps = 1)),
+                ),
                 entry(
                     finishedAt = zonedMillis(nyZone, 2026, 3, 10, hour = 12),
                     sessionUuid = "in-window",
@@ -298,23 +307,23 @@ internal class ChartFolderTest {
             zoneId = nyZone,
         )
 
-        // 30 calendar days before 2026-03-20 is 02-18, not the 02-17 a naive 30*24h lands on.
-        assertEquals(LocalDate.of(2026, 2, 18), result.windowStartDay)
+        assertEquals(listOf("in-window"), result.points.map { it.sessionUuid })
     }
 
     @Test
-    fun `MONTH_1 window start tracks calendar days across a DST fall-back`() {
+    fun `MONTH_1 filter tracks calendar days across a DST fall-back`() {
         // 2026-11-01 falls back (a 25h day). With `now` just before local midnight, a naive
-        // `now - 30 * 24h` start drifts forward an hour, across the transition, onto the NEXT
-        // calendar day.
+        // `now - 30 * 24h` boundary drifts forward an hour, onto the NEXT calendar day — and
+        // would drop an entry the calendar window includes. Correct boundary: 10-16 23:30;
+        // naive: 10-17 00:30. The 10-17 00:00 entry discriminates.
         val nyZone = ZoneId.of("America/New_York")
         val now = zonedMillis(nyZone, 2026, 11, 15, hour = 23, minute = 30)
 
         val result = bucketAndFold(
             history = listOf(
                 entry(
-                    finishedAt = zonedMillis(nyZone, 2026, 11, 5, hour = 12),
-                    sessionUuid = "in-window",
+                    finishedAt = zonedMillis(nyZone, 2026, 10, 17, hour = 0, minute = 0),
+                    sessionUuid = "calendar-includes",
                     sets = listOf(set(weight = 100.0, reps = 5)),
                 ),
             ),
@@ -325,8 +334,7 @@ internal class ChartFolderTest {
             zoneId = nyZone,
         )
 
-        // 30 calendar days before 2026-11-15 is 10-16, not the 10-17 a naive 30*24h lands on.
-        assertEquals(LocalDate.of(2026, 10, 16), result.windowStartDay)
+        assertEquals(listOf("calendar-includes"), result.points.map { it.sessionUuid })
     }
 
     @Test
@@ -607,155 +615,6 @@ internal class ChartFolderTest {
         assertEquals(500.0, result.footer?.min?.value)
         assertEquals(1200.0, result.footer?.max?.value)
         assertEquals(1200.0, result.footer?.last?.value)
-    }
-
-    @Test
-    fun `ALL preset with single point tightens window to minimum plus-minus 3 days`() {
-        val pointDay = LocalDate.of(2026, 4, 20)
-        val result = bucketAndFold(
-            history = listOf(
-                entry(
-                    finishedAt = utcMillis(pointDay.year, pointDay.monthValue, pointDay.dayOfMonth),
-                    sessionUuid = "s1",
-                    sets = listOf(set(weight = 100.0, reps = 5)),
-                ),
-            ),
-            preset = ChartPresetDomain.ALL,
-            metric = ChartMetricDomain.HEAVIEST_WEIGHT,
-            exerciseType = ExerciseTypeDomain.WEIGHTED,
-            now = utcMillis(2026, 5, 1),
-            zoneId = zone,
-        )
-
-        assertEquals(pointDay.minusDays(3), result.windowStartDay)
-        assertEquals(pointDay.plusDays(3), result.windowEndDay)
-    }
-
-    @Test
-    fun `ALL preset with nearby two points uses minimum padding around them`() {
-        val firstDay = LocalDate.of(2026, 4, 18)
-        val lastDay = LocalDate.of(2026, 4, 20)
-        val result = bucketAndFold(
-            history = listOf(
-                entry(
-                    finishedAt = utcMillis(firstDay.year, firstDay.monthValue, firstDay.dayOfMonth),
-                    sessionUuid = "early",
-                    sets = listOf(set(weight = 80.0, reps = 5)),
-                ),
-                entry(
-                    finishedAt = utcMillis(lastDay.year, lastDay.monthValue, lastDay.dayOfMonth),
-                    sessionUuid = "late",
-                    sets = listOf(set(weight = 100.0, reps = 5)),
-                ),
-            ),
-            preset = ChartPresetDomain.ALL,
-            metric = ChartMetricDomain.HEAVIEST_WEIGHT,
-            exerciseType = ExerciseTypeDomain.WEIGHTED,
-            now = utcMillis(2026, 5, 1),
-            zoneId = zone,
-        )
-
-        assertEquals(firstDay.minusDays(3), result.windowStartDay)
-        assertEquals(lastDay.plusDays(3), result.windowEndDay)
-    }
-
-    @Test
-    fun `ALL preset with wider two point span pads by half span`() {
-        val firstDay = LocalDate.of(2026, 3, 21)
-        val lastDay = LocalDate.of(2026, 4, 20)
-        val result = bucketAndFold(
-            history = listOf(
-                entry(
-                    finishedAt = utcMillis(firstDay.year, firstDay.monthValue, firstDay.dayOfMonth),
-                    sessionUuid = "early",
-                    sets = listOf(set(weight = 80.0, reps = 5)),
-                ),
-                entry(
-                    finishedAt = utcMillis(lastDay.year, lastDay.monthValue, lastDay.dayOfMonth),
-                    sessionUuid = "late",
-                    sets = listOf(set(weight = 100.0, reps = 5)),
-                ),
-            ),
-            preset = ChartPresetDomain.ALL,
-            metric = ChartMetricDomain.HEAVIEST_WEIGHT,
-            exerciseType = ExerciseTypeDomain.WEIGHTED,
-            now = utcMillis(2026, 5, 1),
-            zoneId = zone,
-        )
-
-        assertEquals(firstDay.minusDays(15), result.windowStartDay)
-        assertEquals(lastDay.plusDays(15), result.windowEndDay)
-    }
-
-    @Test
-    fun `ALL preset with three or more points uses first day to today without padding`() {
-        val firstDay = LocalDate.of(2026, 3, 10)
-        val today = LocalDate.of(2026, 5, 1)
-        val result = bucketAndFold(
-            history = listOf(
-                entry(
-                    finishedAt = utcMillis(firstDay.year, firstDay.monthValue, firstDay.dayOfMonth),
-                    sessionUuid = "s1",
-                    sets = listOf(set(weight = 80.0, reps = 5)),
-                ),
-                entry(
-                    finishedAt = utcMillis(2026, 4, 1),
-                    sessionUuid = "s2",
-                    sets = listOf(set(weight = 90.0, reps = 5)),
-                ),
-                entry(
-                    finishedAt = utcMillis(2026, 4, 20),
-                    sessionUuid = "s3",
-                    sets = listOf(set(weight = 100.0, reps = 5)),
-                ),
-            ),
-            preset = ChartPresetDomain.ALL,
-            metric = ChartMetricDomain.HEAVIEST_WEIGHT,
-            exerciseType = ExerciseTypeDomain.WEIGHTED,
-            now = utcMillis(today.year, today.monthValue, today.dayOfMonth),
-            zoneId = zone,
-        )
-
-        assertEquals(firstDay, result.windowStartDay)
-        assertEquals(today, result.windowEndDay)
-    }
-
-    @Test
-    fun `bounded preset window is preset start to today regardless of point count`() {
-        val today = LocalDate.of(2026, 5, 1)
-        val result = bucketAndFold(
-            history = listOf(
-                entry(
-                    finishedAt = utcMillis(2026, 4, 25),
-                    sessionUuid = "in-window",
-                    sets = listOf(set(weight = 100.0, reps = 5)),
-                ),
-            ),
-            preset = ChartPresetDomain.MONTH_1,
-            metric = ChartMetricDomain.HEAVIEST_WEIGHT,
-            exerciseType = ExerciseTypeDomain.WEIGHTED,
-            now = utcMillis(today.year, today.monthValue, today.dayOfMonth),
-            zoneId = zone,
-        )
-
-        // 1M = 30 days, so windowStart is exactly today - 30 days.
-        assertEquals(today.minusDays(30), result.windowStartDay)
-        assertEquals(today, result.windowEndDay)
-    }
-
-    @Test
-    fun `empty fold result has null window`() {
-        val result = bucketAndFold(
-            history = emptyList(),
-            preset = ChartPresetDomain.ALL,
-            metric = ChartMetricDomain.HEAVIEST_WEIGHT,
-            exerciseType = ExerciseTypeDomain.WEIGHTED,
-            now = utcMillis(2026, 5, 1),
-            zoneId = zone,
-        )
-
-        assertNull(result.windowStartDay)
-        assertNull(result.windowEndDay)
     }
 
     @Test

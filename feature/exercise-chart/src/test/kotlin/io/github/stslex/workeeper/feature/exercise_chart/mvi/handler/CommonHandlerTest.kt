@@ -55,7 +55,7 @@ internal class CommonHandlerTest {
         )
         coEvery { interactor.getLastTrainedExerciseUuid() } returns "uuid-1"
         coEvery { interactor.loadChartData(any(), any(), any(), any(), any()) } returns
-            ChartFoldDomain(emptyList(), null, null, null)
+            ChartFoldDomain(emptyList(), null)
 
         handler.invoke(Action.Common.Init)
 
@@ -105,7 +105,7 @@ internal class CommonHandlerTest {
         )
         coEvery { interactor.getLastTrainedExerciseUuid() } returns "uuid-2"
         coEvery { interactor.loadChartData(any(), any(), any(), any(), any()) } returns
-            ChartFoldDomain(emptyList(), null, null, null)
+            ChartFoldDomain(emptyList(), null)
 
         handler.invoke(Action.Common.Init)
 
@@ -123,7 +123,7 @@ internal class CommonHandlerTest {
         )
         coEvery { interactor.getLastTrainedExerciseUuid() } returns null
         coEvery { interactor.loadChartData(any(), any(), any(), any(), any()) } returns
-            ChartFoldDomain(emptyList(), null, null, null)
+            ChartFoldDomain(emptyList(), null)
 
         handler.invoke(Action.Common.Init)
 
@@ -159,16 +159,12 @@ internal class CommonHandlerTest {
             ChartFoldDomain(
                 points = nonEmptyPoints,
                 footer = null,
-                windowStartDay = java.time.LocalDate.of(2026, 4, 28),
-                windowEndDay = java.time.LocalDate.of(2026, 5, 12),
             )
 
         handler.invoke(Action.Common.Init)
 
         assertNull(flow.value.emptyReason)
         assertEquals(1, flow.value.points.size)
-        assertEquals(java.time.LocalDate.of(2026, 4, 28), flow.value.windowStartDay)
-        assertEquals(java.time.LocalDate.of(2026, 5, 12), flow.value.windowEndDay)
     }
 
     @Test

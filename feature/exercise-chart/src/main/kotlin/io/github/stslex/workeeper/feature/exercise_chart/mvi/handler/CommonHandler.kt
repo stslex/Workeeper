@@ -114,8 +114,6 @@ internal class CommonHandler @Inject constructor(
                             type = exercise.type,
                             resourceWrapper = resourceWrapper,
                         ),
-                        windowStartDay = result.windowStartDay,
-                        windowEndDay = result.windowEndDay,
                         emptyReason = if (result.points.isEmpty()) {
                             EmptyReason.NO_DATA_FOR_EXERCISE
                         } else {

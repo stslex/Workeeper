@@ -290,8 +290,6 @@ private fun ExerciseChartScreenPopulatedPreview() {
                     lastTitle = "Last",
                     lastValue = "105 kg",
                 ),
-                windowStartDay = LocalDate.of(2026, 4, 5),
-                windowEndDay = LocalDate.of(2026, 5, 1),
             ),
             consume = {},
         )

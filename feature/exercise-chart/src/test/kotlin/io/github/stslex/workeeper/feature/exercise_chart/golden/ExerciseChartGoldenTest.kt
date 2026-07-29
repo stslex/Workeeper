@@ -275,6 +275,4 @@ private fun populatedState(): State = State.create(initialUuid = "ex-1").copy(
     // pass2d with the scrub story visible (readout on `11 июля`, record elsewhere).
     activeIndex = 4,
     readout = readoutAt4(),
-    windowStartDay = DAYS.first(),
-    windowEndDay = DAYS.last(),
 )
