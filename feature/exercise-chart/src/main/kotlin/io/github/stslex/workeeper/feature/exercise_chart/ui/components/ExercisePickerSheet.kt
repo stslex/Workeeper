@@ -5,10 +5,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,6 +22,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -53,13 +60,26 @@ internal fun ExercisePickerSheet(
     onDismiss: () -> Unit,
     onItemSelect: (String) -> Unit,
 ) {
-    AppBottomSheet(onDismiss = onDismiss) {
+    val focusRequester = remember { FocusRequester() }
+
+    // expandedOnly: the user opened this to search, not to peek.
+    // onSettled is THE SEQUENCING POINT — focus is taken only once the sheet has ARRIVED at
+    // expanded. Requesting it at composition instead would race the enter animation: the IME
+    // rises into a sheet that is still translating, which jitters the layout it is supposed
+    // to sit above. Waiting costs the animation's duration and buys a keyboard that appears
+    // once, in place.
+    AppBottomSheet(
+        onDismiss = onDismiss,
+        expandedOnly = true,
+        onSettled = { focusRequester.requestFocus() },
+    ) {
         ExercisePickerSheetContent(
             items = items,
             selectedUuid = selectedUuid,
             query = query,
             onQueryChange = onQueryChange,
             onItemSelect = onItemSelect,
+            searchFocusRequester = focusRequester,
         )
     }
 }
@@ -78,6 +98,7 @@ internal fun ExercisePickerSheetContent(
     onQueryChange: (String) -> Unit,
     onItemSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
+    searchFocusRequester: FocusRequester? = null,
 ) {
     // The filter is derived, not stored: `items` is the whole picker set already in memory
     // (the recents query carries no LIMIT), so a client-side match is the complete answer
@@ -92,13 +113,37 @@ internal fun ExercisePickerSheetContent(
                 .toImmutableList()
         }
     }
+    // THE HEIGHT BUDGET. The IME inset is delivered and it animates — measured on API 35,
+    // portrait: `ime` climbs 0 → 883px over the keyboard's rise, and this budget follows it
+    // 863dp → 473dp, frame by frame. What the inset CANNOT do is make oversized content fit:
+    // Material sets this window to SOFT_INPUT_ADJUST_NOTHING on API 30+, so the window is
+    // never resized, and content taller than the space left above the keyboard is not
+    // scrolled or panned — it is simply covered. Nothing bounded this content to that space,
+    // which is the bug. So it bounds itself, and the list below takes the remainder.
+    //
+    // Read in composition rather than taken from a padding modifier: this is the raw window
+    // inset, and reading it here is what makes the reflow track the keyboard's animation
+    // instead of jumping at the end of it.
+    val density = LocalDensity.current
+    val windowHeight = LocalWindowInfo.current.containerSize.height
+    val available = with(density) {
+        val ime = WindowInsets.ime.getBottom(density)
+        val top = WindowInsets.systemBars.getTop(density)
+        (windowHeight - ime - top).toDp() - SHEET_CHROME
+    }.coerceAtLeast(MIN_SHEET_CONTENT_HEIGHT)
+
     AppSheetLayout(
-        modifier = modifier,
+        modifier = modifier.heightIn(max = available),
         title = stringResource(R.string.feature_exercise_chart_picker_title),
     ) {
         AppTextField(
             modifier = Modifier
                 .padding(horizontal = AppDimension.Space.md)
+                .then(
+                    searchFocusRequester
+                        ?.let { requester -> Modifier.focusRequester(requester) }
+                        ?: Modifier,
+                )
                 .testTag("ExerciseChartPickerSearch"),
             value = query,
             onValueChange = onQueryChange,
@@ -122,8 +167,14 @@ internal fun ExercisePickerSheetContent(
             )
         }
         LazyColumn(
+            // `weight(fill = false)` is what makes the list the elastic element: it takes the
+            // space the title and the field leave inside the budget above, and no more, so a
+            // rising keyboard shrinks the list rather than pushing it under itself. The 360dp
+            // cap still applies when there is room to spare — the sheet is a picker, not a
+            // full-screen list.
             modifier = Modifier
                 .fillMaxWidth()
+                .weight(1f, fill = false)
                 .padding(horizontal = AppDimension.Space.md)
                 .heightIn(max = PICKER_LIST_MAX_HEIGHT)
                 .testTag("ExerciseChartPickerList"),
@@ -187,6 +238,30 @@ private fun PickerRow(
 
 /** The old build's cap, kept: the sheet lists recents, not the whole library. */
 private val PICKER_LIST_MAX_HEIGHT = 360.dp
+
+/**
+ * A floor for the budget, so the cap can never go to zero or negative and collapse the layout.
+ *
+ * It is also the point where this sheet stops being solvable. Measured on API 35, landscape,
+ * with the keyboard up: window 1080px, IME 662px, status bar 137px — 281px, i.e. **94dp for
+ * everything**, against 60dp of chrome before this layout gets a pixel. A 56dp text field with
+ * a title above it does not fit in what is left, at any cap, and no arithmetic here changes
+ * that: the sheet would have to stop being a sheet. Reported rather than worked around.
+ */
+private val MIN_SHEET_CONTENT_HEIGHT = 160.dp
+
+/**
+ * What the window spends before this layout gets a pixel, and therefore what the budget above
+ * has to hand back: the grab handle block (8 + 4 + 16) and `AppBottomSheet`'s own bottom
+ * padding (`xxl`, 32) — 60dp, all of it OUTSIDE the height cap applied here. `AppSheetLayout`'s
+ * own 8/24 padding is inside the cap and is already accounted for by the cap itself.
+ *
+ * It is a constant rather than a measurement because the alternative — measuring the chrome and
+ * feeding it back into the constraint that produced it — is a layout feedback loop. The error it
+ * can carry is absorbed by the list's `weight`, which takes whatever is actually left rather
+ * than what this arithmetic predicted.
+ */
+private val SHEET_CHROME = 60.dp
 
 @Preview
 @Composable
