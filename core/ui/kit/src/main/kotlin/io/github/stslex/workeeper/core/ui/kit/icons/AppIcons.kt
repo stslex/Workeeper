@@ -106,6 +106,15 @@ object AppIcons {
         strokeIcon("OrdinalCheck", ORDINAL_CHECK_STROKE, "M4 12.5l5 5L20 7")
     }
 
+    /**
+     * The selected-row check — pass2d's `sh-pick` `.mitem.on` (L366): [OrdinalCheck]'s path
+     * at the standard `.chev` weight (18×18, 1.8 stroke, L73) instead of the ordinal chip's
+     * heavy 3. Same drawing, two declared weights; both ship as drawn.
+     */
+    val Check: ImageVector by lazy {
+        strokeIcon("Check", CARD_STROKE, "M4 12.5l5 5L20 7")
+    }
+
     /** 1.7 — the top-bar stroke weight (21dp glyphs). */
     private const val TOPBAR_STROKE = 1.7f
 

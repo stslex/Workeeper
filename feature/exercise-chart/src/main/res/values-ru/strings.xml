@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="feature_exercise_chart_picker_title">Выберите упражнение</string>
+    <string name="feature_exercise_chart_picker_title">Выбрать упражнение</string>
     <string name="feature_exercise_chart_picker_open">Сменить упражнение</string>
 
     <string name="feature_exercise_chart_metric_heaviest">Вес</string>

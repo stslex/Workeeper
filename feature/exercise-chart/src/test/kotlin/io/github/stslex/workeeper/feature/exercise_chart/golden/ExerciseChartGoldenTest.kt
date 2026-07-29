@@ -17,6 +17,7 @@ import io.github.stslex.workeeper.feature.exercise_chart.ui.ExerciseChartScreen
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartCanvas
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartFooterStats
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartReadout
+import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ExercisePickerSheetContent
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.MetricTabs
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -150,6 +151,30 @@ internal class ExerciseChartGoldenTest {
                 activeIndex = 6,
                 recordIndex = 6,
                 onScrub = {},
+            )
+        }
+    }
+
+    // --- Picker sheet ----------------------------------------------------------------------
+
+    /**
+     * `sh-pick`'s CONTENT — the window (scrim, grab, entry) is a `ModalBottomSheet` and
+     * stays on the device checklist (§10.4); the drawing is what the gate can hold. The
+     * mockup's four items, the selected one `.on` with its check.
+     */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun pickerSheetContent(theme: GoldenTheme, testInfo: TestInfo) {
+        goldenSubject(testInfo, theme) {
+            ExercisePickerSheetContent(
+                items = persistentListOf(
+                    ExercisePickerItemUiModel("ex-1", "разведение ног", ExerciseTypeUiModel.WEIGHTED),
+                    ExercisePickerItemUiModel("ex-2", "жим платформы (узко)", ExerciseTypeUiModel.WEIGHTED),
+                    ExercisePickerItemUiModel("ex-3", "румынская тяга", ExerciseTypeUiModel.WEIGHTED),
+                    ExercisePickerItemUiModel("ex-4", "подтягивания", ExerciseTypeUiModel.WEIGHTLESS),
+                ),
+                selectedUuid = "ex-1",
+                onItemSelect = {},
             )
         }
     }
