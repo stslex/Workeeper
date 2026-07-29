@@ -3,6 +3,10 @@ plugins {
     // The largest feature graph — it inherits the most app-scoped bindings, including two qualified
     // dispatchers and the application Context.
     alias(libs.plugins.metro)
+    // Goldens for the settings surface (extraction Part 5). The harness is NOT copied: it
+    // comes from core:ui:kit's testFixtures, so device config, tolerance and canvas width
+    // cannot drift between modules.
+    alias(libs.plugins.paparazzi)
 }
 
 // Metro reads javax.inject qualifiers so the inherited app-scoped bindings keep them — settings resolves
@@ -31,9 +35,12 @@ dependencies {
 
     testImplementation(kotlin("test"))
     testImplementation(libs.androidx.paging.testing)
+    testImplementation(testFixtures(project(":core:ui:kit")))
 
     androidTestImplementation(libs.bundles.android.test)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(project(":core:ui:test-utils"))
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
+
+apply(from = "$rootDir/gradle/golden-gate.gradle.kts")
