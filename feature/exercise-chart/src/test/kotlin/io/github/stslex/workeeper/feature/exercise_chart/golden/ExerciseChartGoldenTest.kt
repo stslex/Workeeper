@@ -77,6 +77,64 @@ internal class ExerciseChartGoldenTest {
         }
     }
 
+    /**
+     * The weightless render AS IT STANDS — coverage, not endorsement (B11's arc): the tabs
+     * are gated away, the series plots reps, yet the readout label still says «Максимальный
+     * вес» and the unit line reads in reps. Golden'd so B11's eventual fix reads as a diff;
+     * never "fixed" here.
+     */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun screenWeightless(theme: GoldenTheme, testInfo: TestInfo) {
+        golden(testInfo, theme) {
+            val exercise = ExercisePickerItemUiModel(
+                uuid = "ex-w",
+                name = "подтягивания",
+                type = ExerciseTypeUiModel.WEIGHTLESS,
+            )
+            val reps = listOf(8, 10, 10, 12)
+            val points = DAYS.take(reps.size).mapIndexed { index, day ->
+                ChartPointUiModel(
+                    day = day,
+                    dayMillis = day.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
+                    value = reps[index].toDouble(),
+                    sessionUuid = "w-${index + 1}",
+                    weight = null,
+                    reps = reps[index],
+                    setCount = 3,
+                )
+            }
+            ExerciseChartScreen(
+                state = State.create(initialUuid = "ex-w").copy(
+                    isLoading = false,
+                    selectedExercise = exercise,
+                    recentExercises = persistentListOf(exercise),
+                    preset = ChartPresetUiModel.ALL,
+                    metric = ChartMetricUiModel.HEAVIEST_WEIGHT,
+                    points = points.toImmutableList(),
+                    footerStats = ChartFooterStatsUiModel(
+                        minTitle = "Минимум",
+                        minValue = "8 повторений",
+                        maxTitle = "Максимум",
+                        maxValue = "12 повторений",
+                        lastTitle = "Последний",
+                        lastValue = "12 повторений",
+                        unit = null,
+                    ),
+                    activeIndex = 3,
+                    readout = ChartReadoutUiModel(
+                        metricName = "Максимальный вес",
+                        isRecord = true,
+                        caption = "23 июня 2026 · 3 подхода · рекорд",
+                        value = "12",
+                        unit = "повт.",
+                    ),
+                ),
+                consume = {},
+            )
+        }
+    }
+
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun screenEmptyNoData(theme: GoldenTheme, testInfo: TestInfo) {

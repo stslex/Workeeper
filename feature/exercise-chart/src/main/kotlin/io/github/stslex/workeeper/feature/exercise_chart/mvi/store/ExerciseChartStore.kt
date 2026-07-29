@@ -67,10 +67,6 @@ interface ExerciseChartStore : Store<State, Action, Event> {
         val showMetricToggle: Boolean
             get() = selectedExercise?.type == ExerciseTypeUiModel.WEIGHTED
 
-        /** Picker is hidden only when there is literally nothing to pick from. */
-        val isPickerAccessible: Boolean
-            get() = recentExercises.isNotEmpty()
-
         companion object {
 
             fun create(initialUuid: String?): State = State(
