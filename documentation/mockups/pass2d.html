@@ -201,6 +201,56 @@
         .tools button.on{background:#F1F5F9;color:#0B0D0F;border-color:#F1F5F9}
         .tools .sep{flex:none;width:1px;height:22px;background:#333B43;margin:0 4px}
         .hint{margin:24px var(--gutter) 0;padding:14px 16px;border-radius:14px;border:1px dashed var(--hair-s);color:var(--dim);font-family:var(--ff-mono);font-size:11.5px;line-height:1.65}
+        /* ===== нижняя навигация — три варианта ===== */
+        .navdemo{margin:0 var(--gutter);border:1px solid var(--hair-s);border-radius:18px;overflow:hidden;background:var(--base)}
+        .navdemo .row{min-height:64px;border-bottom:1px solid var(--hair-s);cursor:default}
+        .navdemo .row:hover{background:none}
+        .nb{display:flex;align-items:stretch;height:60px;padding:5px 8px;gap:4px}
+        .nb.track{background:var(--sec);border-top:1px solid var(--hair-s)}
+        .nb.plain{border-top:1px solid var(--hair-s)}
+        .nb button{flex:1;min-width:0;border:0;background:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:var(--dim);border-radius:12px;font-family:var(--ff-ui);transition:color var(--d-base) var(--e-out),background var(--d-base) var(--e-out)}
+        .nb button svg{width:22px;height:22px;stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round}
+        .nb button.on{color:var(--max)}
+        .nb.pill button.on{background:var(--slab);box-shadow:var(--slabtop)}
+        .nb .cap{font-family:var(--ff-mono);font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--meta);line-height:1;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .nb.capsel button:not(.on) .cap{display:none}
+        .nb.slide{position:relative}
+        .nb.slide button{position:relative;z-index:1}
+        .nb.slide .ind{position:absolute;top:5px;bottom:5px;left:0;width:0;pointer-events:none;transition:transform 340ms var(--e-out)}
+        .nb.slide .ind i{display:block;width:100%;height:100%;border-radius:12px;background:var(--slab);box-shadow:var(--slabtop)}
+        .nb.slide .ind.go i{animation:gel 340ms var(--e-out)}
+        @keyframes gel{0%{transform:scaleX(1)}42%{transform:scaleX(var(--sx,1.2))}100%{transform:scaleX(1)}}
+        /* ===== список: скелет, начинки, режим выбора ===== */
+        .frame{margin:0 var(--gutter);border:1px solid var(--hair-s);border-radius:18px;overflow:hidden;background:var(--base);position:relative}
+        .frame .row:last-of-type{border-bottom:0}
+        .frame .meta{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .row.sel{background:var(--slab);box-shadow:var(--slabtop)}
+        .row.live{background:var(--slab);box-shadow:var(--slabtop)}
+        .chk{width:20px;height:20px;stroke:var(--max);stroke-width:2.2;fill:none;flex:none;stroke-linecap:round;stroke-linejoin:round}
+        .bulk{display:flex;gap:10px;padding:12px var(--gutter);border-top:1px solid var(--hair-s);background:var(--sec)}
+        .bulk .btn{height:46px;font-size:15px}
+        .fab{position:absolute;right:16px;bottom:16px;width:56px;height:56px;border-radius:18px;border:0;background:var(--max);color:var(--base);display:grid;place-items:center;cursor:pointer;box-shadow:var(--slabtop)}
+        .fab svg{width:24px;height:24px;stroke:currentColor;stroke-width:2.1;fill:none;stroke-linecap:round}
+        .nu{display:inline-block;margin-left:9px;padding:2px 7px;border-radius:6px;border:1px dashed var(--rust);color:var(--rust);font-family:var(--ff-mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;vertical-align:middle}
+        .pfoot{display:flex;align-items:center;justify-content:center;gap:10px;padding:20px var(--gutter);color:var(--dim);font-family:var(--ff-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase}
+        .spin{width:15px;height:15px;border-radius:50%;border:1.6px solid var(--hair-s);border-top-color:var(--meta);animation:sp 760ms linear infinite}
+        @keyframes sp{to{transform:rotate(360deg)}}
+        .perr{display:flex;align-items:center;gap:12px;padding:14px var(--gutter);border-top:1px solid var(--hair-s)}
+        .perr .meta{flex:1}
+        .perr .btn{flex:none;height:40px;padding:0 16px;font-size:14px;border-radius:12px}
+        .pad{height:132px;display:grid;place-items:center;color:var(--dim);font-family:var(--ff-mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;border-top:1px dashed var(--hair-s)}
+        .fab{width:56px;transition:width 260ms var(--e-spring),border-radius 260ms var(--e-spring),background var(--d-base) var(--e-out),color var(--d-base) var(--e-out)}
+        .fab .gtrash,.fab .cnt{display:none}
+        .fab.del{background:var(--rust);color:var(--max);border-radius:28px}
+        body.light .fab.del{color:var(--slab)}
+        .fab.del .gplus{display:none}
+        .fab.del .gtrash{display:block}
+        .fab.del.wide{width:172px;grid-auto-flow:column;gap:10px}
+        .fab.del.wide .cnt{display:block;font-family:var(--ff-ui);font-size:16px;font-weight:600;white-space:nowrap}
+        .navnote{margin:10px var(--gutter) 30px;font-family:var(--ff-mono);font-size:11.5px;line-height:1.65;color:var(--dim)}
+        .navnote b{color:var(--meta);font-weight:500}
+        .clash{margin:0 var(--gutter);border:1px solid var(--rust);border-radius:18px;overflow:hidden;background:var(--base)}
+        .clash .dock{position:static;margin:0;padding:14px var(--gutter)}
         @media (prefers-reduced-motion:reduce){*{animation-duration:1ms!important;transition-duration:1ms!important}}
     </style>
 </head>
@@ -208,7 +258,7 @@
 <div class="app" id="app">
 
     <!-- LIVE -->
-    <section class="screen on" id="s-live">
+    <section class="screen" id="s-live">
         <div class="topbar">
             <button class="icon-btn lead"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
             <span style="flex:1"></span>
@@ -357,6 +407,115 @@
             <h4>Здесь появятся твои упражнения</h4><p>Добавь первое — дальше его можно будет класть в любую тренировку.</p>
             <div class="btns"><button class="btn">Добавить упражнение</button></div></div>
     </section>
+
+    <!-- LIST -->
+    <section class="screen on" id="s-list">
+        <div class="topbar"><h1>Список</h1></div>
+        <div class="hint">Скелет строки один — 88px, линейка снизу, имя и мета-строка, шеврон. Начинки разные: поля у четырёх экранов не совпадают. Красным помечено то, чего в мокапах нет ни в каком виде — это решения, а не детали.</div>
+
+        <div class="section-head"><span class="label">начинки на общем скелете</span></div>
+        <div class="frame"><div class="row"><div class="row-body"><div class="row-name">Ноги и плечи</div><div class="meta">вчера · 48 мин · 6 упражнений</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div><div class="row"><div class="row-body"><div class="row-name">Верх (с подтягиваниями)</div><div class="meta">8 упражнений · грудь · спина · трицепс · плечи · верх тела</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div><div class="row"><div class="row-body"><div class="row-name">Тяга Т-грифа прямым широким хватом</div><div class="meta">14 сессий · последняя 9 июля · спина</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div><div class="row"><div class="row-body"><div class="row-name">Румынская тяга</div><div class="meta">упражнение · в архиве с 3 июля</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div></div>
+        <div class="navnote">Сверху вниз: недавняя сессия, тренировка, упражнение, архив. Порядок в мета-строке — <b>сведения, потом теги</b>: строка одна и не переносится, поэтому обрезается всегда хвост, а хвост это теги. Вторая строка показывает обрезку, третья — двухстрочное имя с многоточием. Высота у всех одна: <b>min-height 88</b>, и ни длинное имя, ни лишние теги её не двигают. Теги при этом не теряются — над списком стоит <b>TagFilterRow</b>, и полный набор живёт там.</div>
+
+        <div class="section-head"><span class="label">идущая тренировка · тип упражнения</span></div>
+        <div class="frame">
+            <div class="row live"><div class="row-body"><div class="row-name">Верх (с подтягиваниями)</div><div class="meta">идёт сейчас · 12:04</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div>
+            
+            <div class="row"><div class="row-body"><div class="row-name">Отведение гантелей через стороны</div><div class="meta">со весом · 14 сессий · последняя 9 июля · плечи</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div>
+        </div>
+        <div class="navnote">Первая — идущая тренировка на <b>--slab</b> + <b>--slabtop</b>, та же поднятая подпись, что у открытой карточки. Чипы для тегов отклонены, теги идут точкой. Ведущего слота у строки нет: миниатюра и иконка типа остаются на детали. Тип поэтому идёт словом и <b>первым токеном</b> мета-строки — по тому же правилу «сведения, потом теги», — и обрезается последним, а не первым.</div>
+
+        <div class="divider"></div>
+
+        <div class="section-head"><span class="label">режим выбора — тренировки и упражнения</span></div>
+        <div class="frame">
+            <div class="topbar"><button class="icon-btn lead"><svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button><h1 class="sm">Выбрано 2</h1><button class="icon-btn trail"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg></button></div>
+            <div class="row sel"><div class="row-body"><div class="row-name">Верх (с подтягиваниями)</div><div class="meta">8 упражнений</div></div><svg class="chk" viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 7"/></svg></div>
+            <div class="row"><div class="row-body"><div class="row-name">Ноги</div><div class="meta">5 упражнений</div></div></div>
+            <div class="row sel"><div class="row-body"><div class="row-name">Пресс и кор</div><div class="meta">4 упражнения</div></div><svg class="chk" viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 7"/></svg></div>
+            <div class="bulk"><button class="btn ghost">В архив</button><button class="btn">Готово</button></div>
+        </div>
+        <div class="navnote">Галочка взята из <b>.mitem.on</b> в листе выбора упражнения — единственная нарисованная отметка «выбрано». Выбранная строка встаёт на <b>--slab</b>, невыбранная теряет шеврон: в режиме выбора строка не ведёт вглубь, и обещать переход нечем. Топбар подменяется целиком, крестик выходит из режима.</div>
+
+        <div class="section-head"><span class="label">чего в shell нет</span></div>
+        <div class="navnote">Архив носит сегментированный фильтр «упражнения / тренировки» — он уже нарисован как <b>.mseg</b> в настройках и новой трактовки не требует. Поиска нет ни в одном из четырёх экранов, поэтому в shell он не входит.</div>
+
+        <div class="divider"></div>
+
+        <div class="section-head"><span class="label">пагинация — хвост списка</span></div>
+        <div class="frame"><div class="row"><div class="row-body"><div class="row-name">Ноги</div><div class="meta">5 упражнений</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div><div class="row"><div class="row-body"><div class="row-name">Пресс и кор</div><div class="meta">4 упражнения</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div><div class="pfoot"><span class="spin"></span>Загружаю</div></div>
+        <div class="frame" style="margin-top:10px"><div class="row"><div class="row-body"><div class="row-name">Спина и бицепс</div><div class="meta">6 упражнений</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div><div class="perr"><div class="meta">Не удалось загрузить дальше</div><button class="btn ghost">Повторить</button></div></div>
+        <div class="navnote">Три состояния, два рисунка. Грузится — лоадер в подвале. Кончился — <b>подвала просто нет</b>, последняя линейка и всё: надпись «конец списка» не сообщает ничего сверх того, что видно. Ошибка — причина и <b>Повторить</b>, потому что молча оборванный список неотличим от кончившегося. Пагинация уже есть в тренировках, упражнениях и архиве; главная её не имеет и получает отдельным PR по слою данных.</div>
+
+        <div class="section-head"><span class="label">низ экрана — что кого накрывает</span></div>
+        <div class="frame"><div class="row"><div class="row-body"><div class="row-name">Пресс и кор</div><div class="meta">4 упражнения</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div><div class="row"><div class="row-body"><div class="row-name">Спина и бицепс</div><div class="meta">6 упражнений</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div><div class="pad">запас снизу — 148</div><button class="fab" style="bottom:76px"><svg class="gplus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button><div class="nb plain pill"><button class="on"><svg viewBox="0 0 24 24"><path d="M4 10.5L12 4l8 6.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/></svg></button><button><svg viewBox="0 0 24 24"><path d="M4 12h3l2.5-7 5 14L17 12h3"/></svg></button><button><svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg></button></div></div>
+        <div class="navnote">Кнопка ничего не накрывает не потому, что стоит в стороне, а потому что список носит запас снизу: <b>60 навбар + 16 + 56 кнопка + 16</b> ≈ 148. Последний элемент доезжает выше кнопки и остаётся кликабельным. Без запаса хвост вечно под кнопкой — и заметно это именно на пагинированном списке, где хвост живой.</div>
+
+        <div class="section-head"><span class="label">кнопка в режиме выбора</span><button class="tag" id="selBtn" onclick="toggleSel()">Режим выбора</button></div>
+        <div class="frame"><div class="row"><div class="row-body"><div class="row-name">Ноги</div><div class="meta">5 упражнений</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div><div class="row"><div class="row-body"><div class="row-name">Пресс и кор</div><div class="meta">4 упражнения</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div><div class="pad">только форма и цвет</div><button class="fab" id="morphA" style="bottom:24px"><svg class="gplus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><svg class="gtrash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg></button></div>
+        <div class="frame" style="margin-top:10px"><div class="row"><div class="row-body"><div class="row-name">Ноги</div><div class="meta">5 упражнений</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div><div class="row"><div class="row-body"><div class="row-name">Пресс и кор</div><div class="meta">4 упражнения</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div><div class="pad">форма несёт счёт</div><button class="fab" id="morphB" style="bottom:24px"><svg class="gplus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><svg class="gtrash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg><span class="cnt">Удалить 3</span></button></div>
+        <div class="navnote">Морф формы — не изобретение: закрытие подхода уже морфит круг в 13dp сквиркл и растёт 38→42 (§9). Здесь обратный ход той же грамматики — сквиркл 18 разжимается в круг 28. Ширина едет по грамматике <b>.tabs .ind</b>. Пружина легальна: леджер запрещает overshoot только на геометрии, кодирующей значение. <b>Второй вариант сильнее</b> — счёт видно до нажатия, а голая корзина заставляет вспоминать, сколько ты выбрал, перед необратимым действием.</div>
+        <div class="navnote"><b>Палитра этого пока не умеет.</b> Для содержимого на заливке <b>--rust</b> роли нет: в тёмной подходит <b>--max</b>, в светлой он почти чёрный на красном и нужен <b>--slab</b>. Здесь сделано в обход через переопределение темы, но правильный ответ — именованная роль, как четыре слота у molten. И это новый потребитель открытого <b>B6</b>: пара меряется до принятия (§0.4).</div>
+
+        <div class="section-head"><span class="label">хаптика — из того, что уже в коде</span></div>
+        <div class="navnote">Словарь не расширяем, в репозитории живут четыре константы. <b>SegmentTick</b> — смена вкладки навбара, уже так и есть. <b>LongPress</b> — вход в режим выбора. <b>ContextClick</b> — отметить и снять отметку. <b>Confirm</b> — подтверждённое удаление, после диалога, а не по нажатию кнопки. Морф кнопки отдачи не даёт: он следствие долгого нажатия, которое уже отработало, а вторая отдача подряд читается как сбой. Подгрузка страницы — тоже ничего, пользователь её не запрашивал.</div>
+    </section>
+    <!-- NAV -->
+    <section class="screen" id="s-nav">
+        <div class="topbar"><h1>Нижняя навигация</h1></div>
+        <div class="hint">Три ответа на один вопрос: чем помечен текущий раздел. Список над баром одинаковый во всех трёх — сравнивай бар, не содержимое. Переключи тему: slabtop в тёмной это внутренняя грань, в светлой — тень вверх.</div>
+
+        <div class="section-head"><span class="label">1 — трек и плашка</span></div>
+        <div class="navdemo">
+            <div class="row"><div class="row-body"><div class="row-name">Спина и бицепс</div><div class="meta">12 июля · 6 упражнений</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div>
+            <div class="row"><div class="row-body"><div class="row-name">Ноги</div><div class="meta">9 июля · 5 упражнений</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div>
+            <div class="nb track pill">
+                <button class="on"><svg viewBox="0 0 24 24"><path d="M4 10.5L12 4l8 6.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/></svg></button>
+                <button><svg viewBox="0 0 24 24"><path d="M4 12h3l2.5-7 5 14L17 12h3"/></svg></button>
+                <button><svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg></button>
+            </div>
+        </div>
+        <div class="navnote">Бар — отдельная поверхность <b>--sec</b>, активный сидит на <b>--slab</b> + <b>--slabtop</b>. Это дословно грамматика <b>.tabs</b> из графика и <b>.mseg</b> из настроек: трек держит поднятый элемент. Максимум согласованности, максимум хрома.</div>
+
+        <div class="section-head"><span class="label">2 — плашка без трека</span><button class="tag on" id="gelBtn" onclick="this.classList.toggle('on')">Упругость</button></div>
+        <div class="navdemo">
+            <div class="row"><div class="row-body"><div class="row-name">Спина и бицепс</div><div class="meta">12 июля · 6 упражнений</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div>
+            <div class="row"><div class="row-body"><div class="row-name">Ноги</div><div class="meta">9 июля · 5 упражнений</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div>
+            <div class="nb plain slide" id="nb2">
+                <div class="ind" id="ind2"><i></i></div>
+                <button class="on" onclick="nbPick(this)"><svg viewBox="0 0 24 24"><path d="M4 10.5L12 4l8 6.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/></svg></button>
+                <button onclick="nbPick(this)"><svg viewBox="0 0 24 24"><path d="M4 12h3l2.5-7 5 14L17 12h3"/></svg></button>
+                <button onclick="nbPick(this)"><svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg></button>
+            </div>
+        </div>
+        <div class="navnote">Жми по вкладкам. Плашка едет 340ms на <b>--e-out</b> и растягивается тем сильнее, чем дальше прыжок: соседняя вкладка тянется слабо, через одну — заметно. Тянется <b>назад</b>, за движением, поэтому хвост отстаёт и догоняет. Тумблер «Упругость» выключает растяжение и оставляет чистое скольжение — сравни. Трека нет, бар стоит на <b>--base</b> и отделён волосяной линией. Плашка та же, но всплывает прямо со страницы — в светлой теме её тень остаётся единственной тенью в кадре.</div>
+
+        <div class="section-head"><span class="label">3 — только контраст</span></div>
+        <div class="navdemo">
+            <div class="row"><div class="row-body"><div class="row-name">Спина и бицепс</div><div class="meta">12 июля · 6 упражнений</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div>
+            <div class="row"><div class="row-body"><div class="row-name">Ноги</div><div class="meta">9 июля · 5 упражнений</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div>
+            <div class="nb plain capsel">
+                <button class="on"><svg viewBox="0 0 24 24"><path d="M4 10.5L12 4l8 6.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/></svg><span class="cap">Главная</span></button>
+                <button><svg viewBox="0 0 24 24"><path d="M4 12h3l2.5-7 5 14L17 12h3"/></svg><span class="cap">Тренировки</span></button>
+                <button><svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg><span class="cap">Упражнения</span></button>
+            </div>
+        </div>
+        <div class="navnote">Контейнера нет вообще. Активный — иконка в <b>--max</b> и подпись <b>.label</b>, остальные — <b>--dim</b> без подписи. Подпись здесь несёт роль плашки: она и метит текущий раздел, и называет его. Самый тихий вариант и единственный, где видно слово.</div>
+
+        <div class="divider"></div>
+
+        <div class="section-head"><span class="label">Столкновение с доком</span></div>
+        <div class="clash">
+            <div class="row"><div class="row-body"><div class="row-name">Ноги</div><div class="meta">9 июля · 5 упражнений</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div>
+            <div class="dock"><button class="btn">Начать тренировку</button></div>
+            <div class="nb plain pill">
+                <button class="on"><svg viewBox="0 0 24 24"><path d="M4 10.5L12 4l8 6.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/></svg></button>
+                <button><svg viewBox="0 0 24 24"><path d="M4 12h3l2.5-7 5 14L17 12h3"/></svg></button>
+                <button><svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg></button>
+            </div>
+        </div>
+        <div class="navnote">Сессия (§1.8) и упражнение (§3.6) рисуют снизу <b>.dock</b>. Если бар и док встречаются, низ читается как две панели подряд — 152px хрома на 812px экрана. Правило рисуется здесь: экран с доком бар не показывает.</div>
+    </section>
 </div>
 
 <div class="scrim" id="scrim" onclick="closeSheets()"></div>
@@ -370,12 +529,13 @@
 </div>
 
 <div class="tools">
-    <button class="on" data-s="s-live" onclick="nav(this)">Сессия</button>
+    <button data-s="s-live" onclick="nav(this)">Сессия</button>
     <button data-s="s-chart" onclick="nav(this)">График</button>
     <button data-s="s-ex" onclick="nav(this)">Упражнение</button>
     <button data-s="s-past" onclick="nav(this)">Прошлая</button>
     <button data-s="s-set" onclick="nav(this)">Настройки</button>
     <button data-s="s-empty" onclick="nav(this)">Пустые</button>
+    <button data-s="s-nav" onclick="nav(this)">Навбар</button><button class="on" data-s="s-list" onclick="nav(this)">Список</button>
     <span class="sep"></span>
     <button id="sizeBtn" onclick="toggleSize()">Сессия 2×4</button>
     <button id="thBtn" onclick="setTheme(document.body.classList.contains('light')?'dark':'light')">Светлая</button>
@@ -508,6 +668,21 @@
       document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
       document.getElementById(b.dataset.s).classList.add('on');window.scrollTo({top:0});
       if(b.dataset.s==='s-chart'){measure();draw();moveInd(document.querySelector('.tabs button.on'))}}
+    function nbPlace(){const bar=document.getElementById('nb2'),ind=document.getElementById('ind2'),on=bar.querySelector('button.on');
+      ind.style.width=on.offsetWidth+'px';ind.style.transform='translateX('+on.offsetLeft+'px)';}
+    function nbPick(btn){const bar=btn.closest('.nb'),ind=bar.querySelector('.ind'),cur=bar.querySelector('button.on');
+      if(cur===btn)return;const dx=btn.offsetLeft-cur.offsetLeft;
+      bar.querySelectorAll('button').forEach(b=>b.classList.remove('on'));btn.classList.add('on');
+      if(document.getElementById('gelBtn').classList.contains('on')){
+        const k=Math.min(Math.abs(dx)/bar.offsetWidth,1),el=ind.querySelector('i');
+        el.style.setProperty('--sx',(1+0.30*k).toFixed(3));
+        el.style.transformOrigin=dx>0?'100% 50%':'0% 50%';
+        ind.classList.remove('go');void ind.offsetWidth;ind.classList.add('go');}
+      ind.style.transform='translateX('+btn.offsetLeft+'px)';}
+    window.addEventListener('load',()=>setTimeout(nbPlace,60));window.addEventListener('resize',nbPlace);
+    function toggleSel(){const b=document.getElementById('selBtn');b.classList.toggle('on');const on=b.classList.contains('on');
+      document.getElementById('morphA').classList.toggle('del',on);
+      const m=document.getElementById('morphB');m.classList.toggle('del',on);m.classList.toggle('wide',on);}
     function pickTag(b){b.parentNode.querySelectorAll('.tag').forEach(x=>x.classList.remove('on'));b.classList.add('on')}
     function openSheet(id){document.getElementById('scrim').classList.add('on');document.getElementById(id).classList.add('on')}
     function closeSheets(){document.getElementById('scrim').classList.remove('on');document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('on'))}
