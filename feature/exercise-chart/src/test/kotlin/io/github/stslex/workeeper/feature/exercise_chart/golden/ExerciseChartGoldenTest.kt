@@ -258,7 +258,7 @@ internal class ExerciseChartGoldenTest {
                     metricName = "Объём за сессию",
                     isRecord = true,
                     caption = "23 июля 2026 · 4 подхода · рекорд",
-                    value = "4 620",
+                    value = "4\u00A0620",
                     unit = "кг",
                 ),
             )

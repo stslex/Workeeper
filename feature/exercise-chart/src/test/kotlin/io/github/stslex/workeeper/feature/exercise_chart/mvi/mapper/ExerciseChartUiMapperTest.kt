@@ -50,7 +50,7 @@ internal class ExerciseChartUiMapperTest {
         assertNotNull(readout)
         assertTrue(readout.isRecord)
         // Math.round + thousand grouping with a PLAIN space (the Archivo charset constraint).
-        assertEquals("4 620", readout.value)
+        assertEquals("4\u00A0620", readout.value)
         // date · sets-plural · record — three parts, dot-separated, record last.
         val parts = readout.caption.split(" · ")
         assertEquals(3, parts.size)
@@ -108,7 +108,7 @@ internal class ExerciseChartUiMapperTest {
     @Test
     fun `weighted footer values are the readout's grouped form with one shared unit`() {
         // A session point has weight null / reps 0 by contract; the footer must format
-        // `value` — the mockup's fmt(): rounded, plain-space grouped, unit as its own span.
+        // `value` — the mockup's fmt(): rounded, NBSP-grouped, unit as its own span.
         val stats = footerDomain(value = 4620.4)
 
         val ui = stats.toUi(
@@ -116,7 +116,7 @@ internal class ExerciseChartUiMapperTest {
             resourceWrapper = resources,
         )
 
-        assertEquals("4 620", ui.maxValue)
+        assertEquals("4\u00A0620", ui.maxValue)
         assertNotNull(ui.unit)
     }
 

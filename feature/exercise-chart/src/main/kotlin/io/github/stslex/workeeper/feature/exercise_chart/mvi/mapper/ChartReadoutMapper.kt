@@ -31,7 +31,7 @@ internal object ChartReadoutMapper {
      * The mockup's `readout()` (extraction §4.5): metric long name, the active point's date +
      * set count (+ `рекорд` on the record point), and the value with its unit. The value is
      * `Math.round(n).toLocaleString('ru-RU')` in the mockup — rounded to a whole number and
-     * thousand-grouped; see [formatGrouped] for the deliberate plain-space deviation.
+     * thousand-grouped; see [formatGrouped] for the pinned NBSP separator.
      */
     fun toReadout(
         points: List<ChartPointUiModel>,
@@ -70,21 +70,27 @@ internal object ChartReadoutMapper {
     }
 
     /**
-     * Round to a whole number and group thousands — `4620.0` → `4 620`. The group separator
-     * is a PLAIN space where ru-RU's formatter would emit NBSP: the value renders in Archivo,
-     * a cut whose charset is pinned to digits and `:.,-+/%` (plus the ordinary space), and a
-     * missing NBSP glyph would render as tofu or a fallback-font seam mid-number. Reported
-     * as a deviation with the PR. Shared with the footer — the mockup's `fmt()` feeds the
-     * readout and all three statrows alike.
+     * Round to a whole number and group thousands — `4620.0` → `4 620` with an NBSP
+     * (U+00A0), the separator the mockup's `fmt()` (`toLocaleString('ru-RU')`) emits.
+     * The literal is pinned here rather than taken from a locale API so the output cannot
+     * drift to NNBSP (U+202F) on an ICU update: the Archivo cut has real glyphs for SPACE
+     * and NBSP (cmap gid 619/620) but none for NNBSP, and only the missing one could seam.
+     * (An earlier revision shipped a plain space on the claim that the cut's charset held
+     * digits and `:.,-+/%` only — the cut is a full latin instance and the claim was false;
+     * see licenses/README.md "Character coverage".) Shared with the footer — `fmt()` feeds
+     * the readout and all three statrows alike.
      */
     internal fun formatGrouped(value: Double): String {
         val digits = value.roundToLong().toString()
         return digits
             .reversed()
             .chunked(GROUP_SIZE)
-            .joinToString(separator = " ")
+            .joinToString(separator = GROUP_SEPARATOR)
             .reversed()
     }
 
     private const val GROUP_SIZE = 3
+
+    /** NBSP — present in the Archivo cut, unbreakable mid-number, what ru-RU draws. */
+    private const val GROUP_SEPARATOR = "\u00A0"
 }
