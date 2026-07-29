@@ -169,8 +169,12 @@ private fun AuthenticatedRows(
     SettingsGroupRow(
         title = stringResource(R.string.feature_settings_backup_sign_out),
         destructive = true,
-        onClick = {
-            if (!operation.isInProgress) onAction(Action.Backup.RequestSignOut)
+        // null while an operation runs — a row whose click would be swallowed must not
+        // flash pressed feedback either (SettingsGroupRow keys both on onClick != null).
+        onClick = if (operation.isInProgress) {
+            null
+        } else {
+            { onAction(Action.Backup.RequestSignOut) }
         },
         trailing = {
             if (operation == BackupOperationUi.SigningOut) RowSpinner()
@@ -178,7 +182,13 @@ private fun AuthenticatedRows(
     )
 }
 
-/** A navigable action row: the chevron yields to the operation's spinner while in flight. */
+/**
+ * A navigable action row: the chevron yields to the operation's spinner while in flight.
+ * While suppressed (`enabled = false`), `onClick` is passed as null rather than a swallowing
+ * wrapper — SettingsGroupRow keys its pressed flash on `onClick != null`, and a row that
+ * flashes but dispatches nothing promises an action it does not perform (the pre-rebuild
+ * pills rendered a real disabled state here).
+ */
 @Composable
 private fun ActionRow(
     title: String,
@@ -191,7 +201,7 @@ private fun ActionRow(
         title = title,
         subtitle = subtitle,
         chevron = if (loading) RowChevron.None else RowChevron.InApp,
-        onClick = { if (enabled) onClick() },
+        onClick = onClick.takeIf { enabled },
         trailing = { if (loading) RowSpinner() },
     )
 }
