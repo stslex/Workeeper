@@ -149,16 +149,11 @@ internal class ExerciseChartUiMapperTest {
 
     private fun chartPoint(
         value: Double = 80.0,
-        weight: Double? = 80.0,
-        reps: Int = 5,
         setCount: Int = 1,
     ): ChartPointUiModel = ChartPointUiModel(
         day = LocalDate.of(2026, 4, 28),
         dayMillis = 0L,
         value = value,
-        sessionUuid = "s1",
-        weight = weight,
-        reps = reps,
         setCount = setCount,
     )
 }

@@ -25,9 +25,6 @@ internal object ExerciseChartUiMapper {
         day = day,
         dayMillis = dayMillis,
         value = value,
-        sessionUuid = sessionUuid,
-        weight = weight,
-        reps = reps,
         setCount = setCount,
     )
 

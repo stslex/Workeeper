@@ -287,8 +287,8 @@ private fun ChartCanvasLightPreview() {
 
 @Suppress("MagicNumber")
 private fun previewPoints(): ImmutableList<ChartPointUiModel> = listOf(
-    ChartPointUiModel(LocalDate.of(2026, 4, 5), 0L, 80.0, "s1", 80.0, 5, 1),
-    ChartPointUiModel(LocalDate.of(2026, 4, 12), 0L, 90.0, "s2", 90.0, 5, 1),
-    ChartPointUiModel(LocalDate.of(2026, 4, 19), 0L, 95.0, "s3", 95.0, 5, 1),
-    ChartPointUiModel(LocalDate.of(2026, 4, 26), 0L, 105.0, "s4", 105.0, 3, 2),
+    ChartPointUiModel(LocalDate.of(2026, 4, 5), 0L, 80.0, 1),
+    ChartPointUiModel(LocalDate.of(2026, 4, 12), 0L, 90.0, 1),
+    ChartPointUiModel(LocalDate.of(2026, 4, 19), 0L, 95.0, 1),
+    ChartPointUiModel(LocalDate.of(2026, 4, 26), 0L, 105.0, 2),
 ).toImmutableList()

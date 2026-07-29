@@ -53,8 +53,8 @@ internal class ClickHandlerTest {
 
     private fun stateWithPoints(activeIndex: Int): State = stateWithSelected().copy(
         points = persistentListOf(
-            ChartPointUiModel(LocalDate.of(2026, 4, 21), 0L, 90.0, "s1", 90.0, 5, 1),
-            ChartPointUiModel(LocalDate.of(2026, 4, 28), 0L, 100.0, "s2", 100.0, 5, 1),
+            ChartPointUiModel(LocalDate.of(2026, 4, 21), 0L, 90.0, 1),
+            ChartPointUiModel(LocalDate.of(2026, 4, 28), 0L, 100.0, 1),
         ),
         activeIndex = activeIndex,
     )
