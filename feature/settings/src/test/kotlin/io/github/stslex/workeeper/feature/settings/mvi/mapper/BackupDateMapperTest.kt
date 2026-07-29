@@ -112,6 +112,7 @@ internal class BackupDateMapperTest {
 
         assertEquals("Never backed up", info.lastBackupText)
         assertEquals("No backups yet", info.backupCountText)
+        assertEquals(true, info.isEmpty)
     }
 
     @Test
@@ -136,5 +137,6 @@ internal class BackupDateMapperTest {
 
         assertEquals("Last backup: 2 hours ago", info.lastBackupText)
         assertEquals("2 backups stored", info.backupCountText)
+        assertEquals(false, info.isEmpty)
     }
 }

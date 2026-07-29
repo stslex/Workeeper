@@ -1,5 +1,9 @@
 # v3 step 5 — device checklist
 
+> **SUPERSEDED** by [v3-device-regression.md](v3-device-regression.md) — the consolidated
+> one-pass regression covering #177–#191. Do not execute this file; it is kept for the
+> record of what step 5 owed.
+
 Everything in this step that no gate can see. Paparazzi renders **one frame of one window**,
 so both wow moments, every sheet and dialog, and anything time-based are outside it (§10.4).
 This list is the verification for those, and it is a required deliverable of the step rather

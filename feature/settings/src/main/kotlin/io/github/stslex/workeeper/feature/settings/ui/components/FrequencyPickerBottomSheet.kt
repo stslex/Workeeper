@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Switch
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -21,6 +21,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButton
 import io.github.stslex.workeeper.core.ui.kit.components.button.AppButtonSize
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppBottomSheet
+import io.github.stslex.workeeper.core.ui.kit.components.switch.AppSwitch
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -113,7 +114,14 @@ private fun FrequencyRow(
             .padding(vertical = AppDimension.Space.xs),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        RadioButton(selected = selected, onClick = onSelected)
+        RadioButton(
+            selected = selected,
+            onClick = onSelected,
+            colors = RadioButtonDefaults.colors(
+                selectedColor = AppUi.colors.accent,
+                unselectedColor = AppUi.colors.borderStrong,
+            ),
+        )
         Spacer(modifier = Modifier.padding(start = AppDimension.Space.xs))
         Text(
             text = stringResource(schedule.labelRes()),
@@ -147,7 +155,7 @@ private fun MobileDataToggle(
                 color = AppUi.colors.textTertiary,
             )
         }
-        Switch(checked = allowOnMobileData, onCheckedChange = onToggle)
+        AppSwitch(checked = allowOnMobileData, onCheckedChange = onToggle)
     }
 }
 

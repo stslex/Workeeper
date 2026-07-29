@@ -8,7 +8,6 @@ import io.github.stslex.workeeper.feature.exercise_chart.di.ExerciseChartHandler
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartMetricUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPointUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPresetUiModel
-import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartTooltipUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ExercisePickerItemUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Action
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.EmptyReason
@@ -26,6 +25,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.time.LocalDate
+import kotlin.test.assertNotNull
 
 internal class ClickHandlerTest {
 
@@ -51,6 +51,14 @@ internal class ClickHandlerTest {
         ),
     )
 
+    private fun stateWithPoints(activeIndex: Int): State = stateWithSelected().copy(
+        points = persistentListOf(
+            ChartPointUiModel(LocalDate.of(2026, 4, 21), 0L, 90.0, 1),
+            ChartPointUiModel(LocalDate.of(2026, 4, 28), 0L, 100.0, 1),
+        ),
+        activeIndex = activeIndex,
+    )
+
     @Test
     fun `OnPresetSelect to current preset is no-op`() {
         val flow = MutableStateFlow(stateWithSelected())
@@ -65,7 +73,7 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `OnPresetSelect changes state, clears emptyReason, and delegates load`() {
+    fun `OnPresetSelect changes state, KEEPS emptyReason, and delegates load`() {
         val flow = MutableStateFlow(
             stateWithSelected().copy(emptyReason = EmptyReason.NO_DATA_FOR_EXERCISE),
         )
@@ -76,7 +84,11 @@ internal class ClickHandlerTest {
 
         assertEquals(ChartPresetUiModel.YEAR_1, flow.value.preset)
         assertTrue(flow.value.isLoading)
-        assertNull(flow.value.emptyReason)
+        // The reason describes THIS exercise and the exercise has not changed, so it
+        // stands until loadChart resolves the new window. Clearing it here is what used
+        // to drop the screen out of its resolved empty state mid-reload — see
+        // ChartContentResolutionTest.
+        assertEquals(EmptyReason.NO_DATA_FOR_EXERCISE, flow.value.emptyReason)
         verify(exactly = 1) { commonHandler.loadChart(benchExercise) }
         val captured = slot<Event>()
         verify { store.sendEvent(capture(captured)) }
@@ -84,7 +96,7 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `OnMetricSelect changes metric, clears emptyReason, and delegates load`() {
+    fun `OnMetricSelect changes metric, KEEPS emptyReason, and delegates load`() {
         val flow = MutableStateFlow(
             stateWithSelected().copy(emptyReason = EmptyReason.NO_DATA_FOR_EXERCISE),
         )
@@ -94,8 +106,8 @@ internal class ClickHandlerTest {
         handler.invoke(Action.Click.OnMetricSelect(ChartMetricUiModel.VOLUME_PER_SET))
 
         assertEquals(ChartMetricUiModel.VOLUME_PER_SET, flow.value.metric)
-        assertNull(flow.value.activeTooltip)
-        assertNull(flow.value.emptyReason)
+        // Same exercise — see the preset test above.
+        assertEquals(EmptyReason.NO_DATA_FOR_EXERCISE, flow.value.emptyReason)
         verify(exactly = 1) { commonHandler.loadChart(benchExercise) }
     }
 
@@ -108,6 +120,27 @@ internal class ClickHandlerTest {
         handler.invoke(Action.Click.OnPickerOpen)
 
         assertTrue(flow.value.isPickerOpen)
+    }
+
+    @Test
+    fun `OnPickerQueryChange stores the query and the window resets it both ways`() {
+        val flow = MutableStateFlow(stateWithSelected())
+        val store = newStore(flow)
+        val handler = ClickHandler(commonHandler, resources, store)
+
+        handler.invoke(Action.Click.OnPickerOpen)
+        handler.invoke(Action.Click.OnPickerQueryChange("тяг"))
+
+        assertEquals("тяг", flow.value.pickerQuery)
+
+        // Closing clears it: a sheet that reopens still filtered by a forgotten word looks
+        // like a list that lost its entries.
+        handler.invoke(Action.Click.OnPickerDismiss)
+        assertEquals("", flow.value.pickerQuery)
+
+        handler.invoke(Action.Click.OnPickerQueryChange("жим"))
+        handler.invoke(Action.Click.OnPickerOpen)
+        assertEquals("", flow.value.pickerQuery)
     }
 
     @Test
@@ -161,64 +194,41 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `OnPointTap sets activeTooltip`() {
-        val flow = MutableStateFlow(stateWithSelected())
+    fun `OnScrub to a new index moves the readout and ticks the haptic`() {
+        val flow = MutableStateFlow(stateWithPoints(activeIndex = 1))
         val store = newStore(flow)
         val handler = ClickHandler(commonHandler, resources, store)
-        val point = ChartPointUiModel(
-            day = LocalDate.of(2026, 4, 28),
-            dayMillis = 0L,
-            value = 100.0,
-            sessionUuid = "session-1",
-            weight = 100.0,
-            reps = 5,
-            setCount = 1,
-        )
 
-        handler.invoke(Action.Click.OnPointTap(point))
+        handler.invoke(Action.Click.OnScrub(0))
 
-        val tooltip = flow.value.activeTooltip
-        assertEquals("session-1", tooltip?.sessionUuid)
+        assertEquals(0, flow.value.activeIndex)
+        assertNotNull(flow.value.readout)
+        val captured = slot<Event>()
+        verify { store.sendEvent(capture(captured)) }
+        assertEquals(HapticFeedbackType.SegmentTick, (captured.captured as Event.HapticClick).type)
     }
 
     @Test
-    fun `OnTooltipDismiss clears activeTooltip`() {
-        val tooltip = stateWithSelected().copy(
-            activeTooltip = ChartTooltipUiModel(
-                sessionUuid = "session-1",
-                exerciseName = "Bench",
-                dateLabel = "today",
-                displayLabel = "100kg × 5",
-                setCountLabel = null,
-            ),
-        )
-        val flow = MutableStateFlow(tooltip)
+    fun `OnScrub to the current index is a no-op — the haptic is a tick per CROSSED point`() {
+        val flow = MutableStateFlow(stateWithPoints(activeIndex = 1))
         val store = newStore(flow)
         val handler = ClickHandler(commonHandler, resources, store)
 
-        handler.invoke(Action.Click.OnTooltipDismiss)
+        handler.invoke(Action.Click.OnScrub(1))
 
-        assertNull(flow.value.activeTooltip)
+        verify(exactly = 0) { store.sendEvent(any()) }
     }
 
     @Test
-    fun `OnTooltipTap consumes OpenPastSession with the tooltip session uuid`() {
-        val tooltip = stateWithSelected().copy(
-            activeTooltip = ChartTooltipUiModel(
-                sessionUuid = "session-99",
-                exerciseName = "Bench",
-                dateLabel = "today",
-                displayLabel = "100kg × 5",
-                setCountLabel = null,
-            ),
-        )
-        val flow = MutableStateFlow(tooltip)
+    fun `OnScrub outside the point range is ignored`() {
+        val flow = MutableStateFlow(stateWithPoints(activeIndex = 1))
         val store = newStore(flow)
         val handler = ClickHandler(commonHandler, resources, store)
 
-        handler.invoke(Action.Click.OnTooltipTap)
+        handler.invoke(Action.Click.OnScrub(5))
 
-        verify { store.consume(Action.Navigation.OpenPastSession("session-99")) }
+        assertEquals(1, flow.value.activeIndex)
+        verify(exactly = 0) { store.sendEvent(any()) }
     }
 
     @Test

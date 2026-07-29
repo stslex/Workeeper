@@ -9,9 +9,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
@@ -19,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import kotlinx.coroutines.flow.first
 
 /**
  * The v3 sheet window (extraction §1.9): every sheet sits on `--field` (**`surfaceTier3`**)
@@ -26,15 +30,48 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
  * default pill and the old tier1/14dp window were v2.4 leftovers. Content padding follows
  * the mockup's `10px 20px 32px` on the ladder: the handle block carries the top, the
  * content column takes `screenEdge` sides and `xxl` bottom.
+ *
+ * [expandedOnly] opens the sheet at full height with no half stop. [onSettled] fires once the
+ * sheet has ARRIVED at expanded — the only point at which a caller can act on the window
+ * without racing the enter animation (anything earlier raises the IME into a sheet that is
+ * still translating, and the layout jitters). Both are plain Boolean/lambda rather than the
+ * experimental `SheetState`, so no call site is forced to opt in; every existing sheet is
+ * byte-unchanged at `expandedOnly = false`, which is the exact call this file made before.
+ *
+ * **[onSettled] currently has no consumer.** The exercise picker used it to auto-focus its
+ * search field and gave it up: correct sequencing means waiting out the enter animation,
+ * which measured as a multi-second delay before the keyboard appeared, and every cheaper
+ * trigger reintroduces the race it exists to avoid. It stays as window-sequencing surface
+ * for the next caller that genuinely needs "after the sheet has settled" — kept knowingly,
+ * not left behind.
+ *
+ * ## Insets are not handled here, deliberately
+ *
+ * `ModalBottomSheet`'s own `contentWindowInsets` defaults to `safeDrawing.only(Bottom + Top)`,
+ * and `safeDrawing` includes the IME — the content already gets bottom padding equal to the
+ * keyboard. Verified on device (API 35, portrait, an 820px IME: the sheet reflowed above it
+ * unaided). What that padding cannot do is make oversized content fit: on API 30+ Material
+ * sets this window to `SOFT_INPUT_ADJUST_NOTHING` (`ModalBottomSheet.android.kt`), so the
+ * window is never resized and anything taller than the space left above the keyboard is
+ * simply covered — measured in landscape, where the search field vanished entirely. Content
+ * that can outgrow that space must bound itself; see the exercise picker.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppBottomSheet(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    expandedOnly: Boolean = false,
+    onSettled: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = expandedOnly)
+    onSettled?.let { settled ->
+        LaunchedEffect(sheetState) {
+            snapshotFlow { sheetState.currentValue }.first { it == SheetValue.Expanded }
+            settled()
+        }
+    }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,

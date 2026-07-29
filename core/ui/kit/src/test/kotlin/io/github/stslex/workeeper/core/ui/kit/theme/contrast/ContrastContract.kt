@@ -97,13 +97,16 @@ internal object ContrastContract {
         //
         // The dividing line against `borderSubtle` is not thickness, it is whether the stroke
         // carries state. `borderSubtle` is the divider/trim slot (AppSection's rule, the bottom
-        // bar, chart gridlines, AppTextField.kt:58's *disabled* border) and is decorative under
-        // §3.1. This one is never a divider.
+        // bar, AppTextField.kt:58's *disabled* border) and is decorative under §3.1. This one
+        // is never a divider.
         "borderDefault" to FOREGROUND,
         "borderStrong" to FOREGROUND,
 
         // -- not scored -------------------------------------------------------------------
         "borderSubtle" to DECORATIVE,
+        // v3 `--grid` — the chart's gridlines, the mockup's own token (chart rebuild). Same
+        // class as `borderSubtle`: separates nothing, carries no state, §3.1 decorative.
+        "grid" to DECORATIVE,
         "molten.border" to DECORATIVE,
         "record.border" to DECORATIVE,
         "textDisabled" to EXEMPT,

@@ -9,14 +9,13 @@ import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartFooterSt
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartMetricUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPointUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPresetUiModel
-import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartTooltipUiModel
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartReadoutUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ExercisePickerItemUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Action
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Event
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.State
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
-import java.time.LocalDate
 
 interface ExerciseChartStore : Store<State, Action, Event> {
 
@@ -38,11 +37,37 @@ interface ExerciseChartStore : Store<State, Action, Event> {
         EXERCISE_NOT_FOUND,
 
         /**
-         * An exercise is selected but produced zero points for the active preset window.
-         * Picker stays accessible; preset chips stay accessible — a wider window may show
-         * data.
+         * An exercise is selected but produced fewer than two points for the active preset
+         * window (§4.8: the chart appears after two recorded sessions — one point is no
+         * line, so sub-threshold is this state, not a degenerate chart). Picker stays
+         * accessible; preset chips stay accessible — a wider window may show data.
          */
         NO_DATA_FOR_EXERCISE,
+    }
+
+    /**
+     * What the screen may draw right now — **the single decision**, derived once on
+     * [State] rather than inferred at the call site from three fields.
+     *
+     * The canvas exists only under [Plot], and [Plot] is unreachable unless the dataset is
+     * actually plottable. That is the invariant: no state can be emitted in which an
+     * unplottable dataset reaches the draw phase. The old screen inferred the branch from
+     * `isLoading` / `points.isEmpty()` / `emptyReason` independently, and a sub-threshold
+     * one-point dataset satisfied none of the guards — it composed the canvas, which drew
+     * its four gridlines and bailed, so a metric tap on a one-session exercise showed a
+     * bare grid with stale footer numbers for the whole DB round-trip.
+     */
+    @Stable
+    sealed interface Content {
+
+        /** Nothing plottable and no resolved reason yet — the first load. */
+        data object Loading : Content
+
+        /** Resolved: there is a reason there is no chart. Carries the recovery affordances. */
+        data class Empty(val reason: EmptyReason) : Content
+
+        /** Resolved and plottable: at least [State.MIN_CHART_POINTS] points. */
+        data object Plot : Content
     }
 
     @Stable
@@ -55,24 +80,45 @@ interface ExerciseChartStore : Store<State, Action, Event> {
         val metric: ChartMetricUiModel,
         val points: ImmutableList<ChartPointUiModel>,
         val footerStats: ChartFooterStatsUiModel?,
-        val activeTooltip: ChartTooltipUiModel?,
-        // Effective canvas window — populated from FoldResult so the canvas reflects what
-        // the mapper actually decided to render (including the ±14d sparse-data tightening).
-        // Null until the first chart load completes; null also when the result is empty.
-        val windowStartDay: LocalDate?,
-        val windowEndDay: LocalDate?,
+        // The scrubbed point (§4.5/§4.6): drives the readout and the canvas's scrub line +
+        // enlarged point. Defaults to the last (most recent) point on load; a metric switch
+        // preserves it (same day buckets), a preset/exercise switch resets it.
+        val activeIndex: Int?,
+        val readout: ChartReadoutUiModel?,
         val isPickerOpen: Boolean,
+        /**
+         * The picker's filter-as-you-type text. Only the query is state: the filtered list
+         * is a pure function of it and [recentExercises], derived where it is drawn, so the
+         * two can never disagree. Reset whenever the sheet opens or closes.
+         */
+        val pickerQuery: String,
         val emptyReason: EmptyReason?,
     ) : Store.State {
 
         val showMetricToggle: Boolean
             get() = selectedExercise?.type == ExerciseTypeUiModel.WEIGHTED
 
-        /** Picker is hidden only when there is literally nothing to pick from. */
-        val isPickerAccessible: Boolean
-            get() = recentExercises.isNotEmpty()
+        /**
+         * See [Content]. A resolved reason wins over a stale dataset, and a dataset that
+         * cannot be drawn never reaches [Content.Plot].
+         *
+         * `isLoading` deliberately does not participate: while a reload is in flight the
+         * previous **resolved** content stays on screen — which is what lets the canvas
+         * retarget its animations from where the line already is instead of tearing the
+         * chart down and rebuilding it. A reload that resolves to nothing lands on
+         * [Content.Empty] without ever passing through a blank frame.
+         */
+        val content: Content
+            get() = when {
+                emptyReason != null -> Content.Empty(emptyReason)
+                points.size >= MIN_CHART_POINTS -> Content.Plot
+                else -> Content.Loading
+            }
 
         companion object {
+
+            /** §4.8: "График появится после двух записанных сессий с этим упражнением." */
+            const val MIN_CHART_POINTS = 2
 
             fun create(initialUuid: String?): State = State(
                 isLoading = true,
@@ -87,10 +133,10 @@ interface ExerciseChartStore : Store<State, Action, Event> {
                 metric = ChartMetricUiModel.HEAVIEST_WEIGHT,
                 points = persistentListOf(),
                 footerStats = null,
-                activeTooltip = null,
-                windowStartDay = null,
-                windowEndDay = null,
+                activeIndex = null,
+                readout = null,
                 isPickerOpen = false,
+                pickerQuery = "",
                 emptyReason = null,
             )
         }
@@ -109,15 +155,19 @@ interface ExerciseChartStore : Store<State, Action, Event> {
             data object OnPickerOpen : Click
             data object OnPickerDismiss : Click
             data class OnPickerItemSelect(val uuid: String) : Click
-            data class OnPointTap(val point: ChartPointUiModel) : Click
-            data object OnTooltipDismiss : Click
-            data object OnTooltipTap : Click
+            data class OnPickerQueryChange(val query: String) : Click
+
+            /**
+             * The §4.6 scrub gesture: the canvas mapped a pointer x to the nearest point
+             * index. The handler dedups (a repeat of the current index is a no-op) and owns
+             * the per-crossing haptic tick.
+             */
+            data class OnScrub(val index: Int) : Click
             data object OnEmptyCtaClick : Click
             data object OnBack : Click
         }
 
         sealed interface Navigation : Action {
-            data class OpenPastSession(val sessionUuid: String) : Navigation
             data object OpenHome : Navigation
             data object PopBack : Navigation
         }

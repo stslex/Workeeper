@@ -8,6 +8,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -17,7 +23,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import io.github.stslex.workeeper.core.ui.kit.components.surface.liftedSurface
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
@@ -113,6 +122,77 @@ private val TRACK_PADDING = AppDimension.Space.xs
  * Declared after [TRACK_PADDING] because a top-level `val` may not read one declared below it.
  */
 private val TRACK_HEIGHT = AppDimension.heightXs + TRACK_PADDING * 2
+
+/** One `.mseg` icon button: the glyph plus the label TalkBack reads (the SVG `title`). */
+data class SegmentedIcon(
+    val icon: ImageVector,
+    val contentDescription: String,
+)
+
+/**
+ * The `.mseg` in its **icon form** — the settings theme control (extraction §5.4): the same
+ * track, padding and lifted `.on` thumb as [AppSegmentedControl], but fixed 38×32 icon
+ * buttons (`.mseg button{width:38px;height:32px}`) instead of flex-1 text segments, so the
+ * control sits compact at a row's trailing edge (`flex:none`). Glyphs are 16dp
+ * `currentColor` — `--meta` resting, `--max` on the thumb.
+ *
+ * Same file as the text form so the two cannot drift: they share [TRACK_PADDING] and
+ * [TRACK_HEIGHT], which are the mockup's own numbers.
+ */
+@Composable
+fun AppSegmentedIconControl(
+    items: ImmutableList<SegmentedIcon>,
+    selected: Int,
+    onSelectedChange: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    itemModifier: (Int) -> Modifier = { Modifier },
+) {
+    // §5.4 declares the buttons `radius 8px → 8dp` — a rung that exists (Radius.small),
+    // and the round-down AppIconButton documents for the track's missing-12 case lands on
+    // the same 8. NOT the theme's shapes.small (6dp): that value was D3's false citation.
+    val segShape = RoundedCornerShape(AppDimension.Radius.small)
+    Row(
+        modifier = modifier
+            .height(TRACK_HEIGHT)
+            .clip(segShape)
+            .background(AppUi.colors.surfaceTier1)
+            .padding(TRACK_PADDING)
+            // One choice among three: a radio group to TalkBack, as the ThemeSelector this
+            // control replaced was (selectableGroup + Role.RadioButton + selected state).
+            .selectableGroup(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(TRACK_PADDING),
+    ) {
+        items.forEachIndexed { index, item ->
+            val isSelected = index == selected
+            Box(
+                modifier = itemModifier(index)
+                    .width(MSEG_BUTTON_WIDTH)
+                    .fillMaxHeight()
+                    .liftedSurface(shape = segShape, lifted = isSelected)
+                    .clip(segShape)
+                    .selectable(selected = isSelected, role = Role.RadioButton) {
+                        onSelectedChange(index)
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    modifier = Modifier.size(AppDimension.Icon.small),
+                    imageVector = item.icon,
+                    contentDescription = item.contentDescription,
+                    tint = if (isSelected) {
+                        AppUi.colors.accentTintedForeground
+                    } else {
+                        AppUi.colors.textTertiary
+                    },
+                )
+            }
+        }
+    }
+}
+
+/** `.mseg button{width:38px}` — kept literal; the icon form's buttons do not flex. */
+private val MSEG_BUTTON_WIDTH = 38.dp
 
 @Preview(name = "Light", showBackground = true)
 @Preview(name = "Dark", showBackground = true, uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES)

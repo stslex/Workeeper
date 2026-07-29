@@ -16,10 +16,6 @@ internal class NavigationHandler @Inject constructor(
 
     override fun invoke(action: Action.Navigation) {
         when (action) {
-            is Action.Navigation.OpenPastSession -> navigator.navTo(
-                Screen.PastSession(sessionUuid = action.sessionUuid),
-            )
-
             Action.Navigation.OpenHome -> navigator.navTo(Screen.BottomBar.Home)
             Action.Navigation.PopBack -> navigator.popBack()
         }
