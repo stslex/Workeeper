@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.feature.settings.golden
 
 import io.github.stslex.workeeper.core.ui.kit.golden.GoldenTheme
 import io.github.stslex.workeeper.core.ui.kit.golden.golden
+import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupAuthUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupInfoUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupPreferencesUi
@@ -44,6 +45,23 @@ internal class SettingsGoldenTest {
     fun screenSignedIn(theme: GoldenTheme, testInfo: TestInfo) {
         golden(testInfo, theme) {
             SettingsScreen(state = signedInState(), consume = {})
+        }
+    }
+
+    /**
+     * The mseg thumb's transient pair (§10.2): both travel endpoints — the default frames
+     * hold the thumb on the first stop (SYSTEM); this one parks it on the last (DARK) with
+     * the sub-line following («Тёмная»). The lift/colour transitions between stops are
+     * time-based and outside the gate.
+     */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun screenThemeDark(theme: GoldenTheme, testInfo: TestInfo) {
+        golden(testInfo, theme) {
+            SettingsScreen(
+                state = baseState().copy(themeMode = ThemeMode.DARK),
+                consume = {},
+            )
         }
     }
 
