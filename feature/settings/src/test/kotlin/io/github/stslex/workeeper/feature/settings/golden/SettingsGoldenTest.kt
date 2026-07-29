@@ -102,13 +102,13 @@ private fun signedInState(): State = baseState().copy(
         displayName = "Ilya Alexandrovich",
     ),
     backupInfo = BackupInfoUi(
-        lastBackupText = "Last backup: a minute ago",
-        backupCountText = "3 backups stored",
+        lastBackupText = "last a minute ago",
+        backupCountText = "3 backups",
     ),
     backupPreferences = BackupPreferencesUi(
         schedule = BackupScheduleUi.DAILY,
         allowOnMobileData = false,
-        // The row template supplies the "Next backup:" prefix; this is the bare value.
+        // The row's sub-line template supplies the "next" word; this is the bare value.
         nextBackupText = "in 23 h",
         isAuthPaused = false,
         aiExportEnabled = true,

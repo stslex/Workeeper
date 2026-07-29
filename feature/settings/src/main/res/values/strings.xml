@@ -22,7 +22,7 @@
     <string name="feature_settings_backup_title">Backups</string>
     <string name="feature_settings_backup_sign_in">Sign in to Google Drive</string>
     <string name="feature_settings_backup_sign_out">Sign out</string>
-    <string name="feature_settings_backup_create">Backup now</string>
+    <string name="feature_settings_backup_create">Create backup now</string>
     <string name="feature_settings_backup_restore">Restore from backup</string>
     <string name="feature_settings_backup_revert_last_restore_label">Revert last restore</string>
     <string name="feature_settings_backup_restore_title">Restore backup?</string>
@@ -49,30 +49,32 @@
     <string name="feature_settings_backup_sign_out_impact">Auto-backups will stop</string>
 
     <string name="feature_settings_backup_info_last_backup_never">Never backed up</string>
-    <string name="feature_settings_backup_info_last_backup_format">Last backup: %1$s</string>
+    <string name="feature_settings_backup_info_last_backup_format">last %1$s</string>
     <string name="feature_settings_backup_info_count_zero">No backups yet</string>
 
     <string name="feature_settings_backup_restore_in_progress">Restoring backup…</string>
     <string name="feature_settings_backup_restore_completed">Restore complete. Restarting app…</string>
 
     <plurals name="feature_settings_backup_info_count">
-        <item quantity="one">%d backup stored</item>
-        <item quantity="other">%d backups stored</item>
+        <item quantity="one">%d backup</item>
+        <item quantity="other">%d backups</item>
     </plurals>
 
     <!-- Auto-backup scheduling -->
     <string name="feature_settings_backup_frequency_daily">Daily</string>
     <string name="feature_settings_backup_frequency_weekly">Weekly</string>
+    <string name="feature_settings_backup_auto_row_title">Auto-backup</string>
+    <string name="feature_settings_backup_auto_next_short">next %1$s</string>
+    <string name="feature_settings_backup_auto_on">On</string>
+    <string name="feature_settings_backup_auto_off">Off</string>
     <string name="feature_settings_backup_frequency_manual_only">Manual only</string>
     <string name="feature_settings_backup_frequency_picker_title">Backup frequency</string>
     <string name="feature_settings_backup_frequency_picker_save">Save</string>
     <string name="feature_settings_backup_allow_mobile_data_label">Allow on mobile data</string>
     <string name="feature_settings_backup_allow_mobile_data_caption">Backups will use mobile data when Wi-Fi unavailable</string>
-    <string name="feature_settings_backup_auto_row_label">Auto-backup: %1$s</string>
-    <string name="feature_settings_backup_ai_export_label">Export AI-readable snapshot to Google Drive</string>
-    <string name="feature_settings_backup_ai_export_caption">Saves a plain-text JSON copy of your workouts to a visible, shareable folder in your Google Drive (not the hidden app backup) so an AI assistant you authorize can read it.</string>
+    <string name="feature_settings_backup_ai_export_label">AI assistant snapshot</string>
+    <string name="feature_settings_backup_ai_export_caption">A readable copy in a visible Google Drive folder</string>
     <string name="feature_settings_backup_ai_export_access_needed">Google Drive access is needed for AI export</string>
-    <string name="feature_settings_backup_auto_next_backup">Next backup: %1$s</string>
     <string name="feature_settings_backup_auto_paused_banner_title">Auto-backup paused</string>
     <string name="feature_settings_backup_auto_paused_banner_body">Sign in to Google Drive again to resume.</string>
     <string name="feature_settings_backup_auto_paused_banner_action">Sign in</string>
