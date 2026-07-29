@@ -458,7 +458,7 @@ API: AppNumberInput(value, onValueChange, modifier, decimals = 0,
 
 Visual:
   height: AppDimension.heightMd (48.dp)
-  text: AppTypography.dataValue (26sp Archivo wdth 115 / wght 700);
+  text: AppTypography.dataValue (26sp Archivo wdth 116 / wght 700);
         values longer than 3 glyphs step down to numeric.section
         (19sp bold) instead of clipping
   value color: textTertiary resting → textPrimary when isDone or
