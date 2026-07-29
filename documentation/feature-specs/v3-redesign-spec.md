@@ -282,6 +282,8 @@ Time as an exercise type (v6→v7 migration + enum across ten sites) · superset
 
 Per-screen structure, colour, type, geometry, states, iconography, affordances, strings, interaction: **`screen-extraction.md` Parts 1–5.** This document does not restate them. The extraction's delta tables are the rework scope per screen — noting they describe the code **as of the extraction**; foundation-fixes has since landed C1–C6, so re-derive the delta where it matters.
 
+**Provenance (phase-2 addition):** the extraction's "code does" columns may describe the never-merged `feature/v3-screens` branch rather than dev — proven on Part 2 (#187's PF2), recurred as stale component naming in Parts 4–5. Every delta cell is **[I]** against HEAD (§0.3); re-derive before building on it.
+
 | Screen | Extraction | State |
 |---|---|---|
 | Session | Part 1 | **rebuild** — design-system-applied, design absent; §14 skeleton is retired |
@@ -304,11 +306,11 @@ Per-screen structure, colour, type, geometry, states, iconography, affordances, 
 
 ## 24. Arc state (as of revision 4)
 
-**Merged into dev:** #177 fonts+theme · #178 PR tiebreak · #179 gate+typography · #182 palette+contrast map · #183 session mechanics · #184 foundation fixes (dim merge, slabtop, done-marker, PR wash, input surface, сет→подход) · extraction committed · this revision.
+**Merged into dev:** #177 fonts+theme · #178 PR tiebreak · #179 gate+typography · #182 palette+contrast map · #183 session mechanics · #184 foundation fixes (dim merge, slabtop, done-marker, PR wash, input surface, сет→подход) · extraction committed · this revision · #185 fonts (B2–B5) · #186 session rebuild · #187 past-session rebuild · #188 exercise detail · #189 design-system §Components/4 (B9's live instance). **Stage 4 complete** — the five designed screens are rebuilt (#186–#191); #190 chart + #191 settings ride the consolidated delivery PR (#192, `feature/v3-final`), which merges after the device regression executes against it.
 
-**Rework queue:** fonts PR (B2–B5) → session rebuild (extraction Part 1 + B1) → past-session rebuild (Part 2, starts with disclosure) → exercise detail ∥ chart ∥ settings → eight derived screens.
+**Queue (stage 5):** eight derived screens · the final device pass.
 
-**Open decisions:** rust-on-raise (§3) · monochrome chart series (§13) · release-notes line for #178.
+**Open decisions:** B14 (chart→past-session needs a drawn affordance) · release-notes line for #178. Closed since revision 4: the B6 **encoding** note (§3's "the map must encode whichever") — the pair is encoded as an exclusion; B6's value question itself stays open in §25. The monochrome-series question closed with #190 as drawn (series in `--max`; no palette role needed).
 
 **Device-checklist debt:** accumulated from #177 onward, none executed — status bar 28/34/35+, Cyrillic, empty chart, rail thresholds ×2, fontScale 2.0, done-marker animation, PR variant, lifted surfaces (watch light shadow in 8dp LazyColumn gaps), inputs recessed, «подход» truncation. Grows with every screen PR; the final device pass (§24 end) is the largest single verification item left.
 
@@ -329,6 +331,12 @@ Entries are never deleted; resolution is recorded in place. New entries append. 
 | B7 | `donefill` belongs on the **field**, not the row: the row's tier4 wash made even the unit label fail | #184 resisted item | **open — session rebuild** |
 | B8 | Past-session open card cannot lift: no disclosure state exists | #184 resisted item | **open — past-session rebuild, first task** |
 | B9 | `design-system.md` went stale inside one branch (background tier, missing `isRecord`) — nothing gates prose | #184 report | **open — doc rule §27** |
+| B10 | IBM Plex Mono 600 bundled with zero consumers (174 KB); one-line revert available | #185 | **open — revert or first consumer decides** |
+| B11 | weightless cluster: prod "0kg/0×N" render (predates the arc) · `set_table` residual weights survive type flips and past-session edits re-persist them · type lives on the exercise, not the set · chart semantics gated WEIGHTED · no UI spec for the weightless row · fixtures historically `weight=null` | multiple | **open — its own arc** |
+| B12 | CURRENT/PENDING derived in `StateStatusMapper` but consumed by nothing, **by design** (bare disclosure base); do not wire consumers without a decision | #186 amendment | **open** |
+| B13 | hero training-name term needs a `PR_ROW_SELECT` extension — touches the #178 parity surface; the join pattern exists in the history query | #188 | **open — own PR** |
+| B14 | chart→past-session navigation died with the tooltip; needs a drawn affordance if wanted | #190 | **open — decision** |
+| B15 | Archive counts sub-line: no data source; a hardcode would lie | #191 | **open — small cross-feature data add** |
 
 ## 26. Resolved-decision ledger — append-only
 
@@ -349,6 +357,8 @@ Entries are never deleted; resolution is recorded in place. New entries append. 
 | Timer slot | **a name, not a step** — `AppTypography.timer` aliases `numeric.display` (34 rung); the 26px sibling role is B1's | B5 |
 | Scope of 600 | the three **heading rungs** only. `.ctitle` / `.btn` / `.prtag` declare 600 but are component treatments on body and caption rungs; moving their aliases would drag `titleSmall` and `labelMedium` against `.tabs button` and `.mitem.on`, which are 500 | B2 |
 | Disclosure model | **bare open/closed by decision** — the §7 automaton retired (deleted, not bypassed); expanded = open, first card opens on entry, toggle does nothing else, no active-set marker. The mockup's `isOpen`/`nextSlot` JS no longer binds. | §7, #186 amendment |
+| Consent strings | strings carrying consent/legal semantics are **behaviour**, not appearance — the mockup never wins those; origin: #191's AI-export caption, reverted in phase 1 | §0.1 |
+| Composite symbols | a glyph outside the numeric charset renders as a mono/text span composed into the value, never as a charset extension; origin: `×` in #188's hero | §4 C2 |
 
 ## 27. Verification discipline — append-only
 
@@ -357,6 +367,7 @@ Entries are never deleted; resolution is recorded in place. New entries append. 
 - `--stop` before measuring anything built in the same invocation (stale daemon jar → false green).
 - detekt and tests as **separate invocations** (parallel run → false RED via interruption; a false RED is worse — the response is fixing what isn't broken).
 - Bisect-green in a **clean worktree, seeded**: six gitignored files (local.properties, keystore.properties, keystore.jks, three google-services.json) are copied by the harness with a post-copy assert. An unseeded worktree fails at plugin-apply **before any commit's code is read** — which is why a harness defect makes all commits look identically red. **[V]**
+- **The bisect seed set is SEVEN files** — `play_config.json` joined at #188; the six-file line above predates it. Harnesses assert all seven post-copy. **[V]**
 - A failed gate explained plausibly is **not a passed gate**. The explanation is verified by a controlled pair (same commit, one delta) before the gate's verdict is trusted. **[V]**
 
 **Gates**

@@ -456,3 +456,9 @@ These were tracked as debt in earlier versions of this doc. Verified resolved by
 - ✅ `feature/single-training/.../ui/components/TrainingHistoryRow.kt` date — pre-formatted via `CommonHandler`.
 - ✅ `feature/live-workout/.../ui/components/LiveExerciseCard.kt` status-line — `exercise.statusLabel` pre-formatted in `LiveWorkoutMapper`.
 - ✅ `feature/settings/.../ui/ArchiveGraph.kt` timestamp formatting — moved to `ArchiveUiMapper`. (Note: snackbar template substitution remains as a separate, smaller debt — see UI Mapping Boundary table above.)
+
+---
+
+## Component death candidates (v3 stage 4, 2026-07-29)
+
+- `AppSection` — ruled lists won on three consecutive screens (exercise detail, settings, history); `SettingsSection` is already deleted (#191). When the derived screens stop consuming it, delete rather than restyle.
