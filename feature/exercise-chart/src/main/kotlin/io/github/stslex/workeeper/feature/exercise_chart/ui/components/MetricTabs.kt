@@ -27,6 +27,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import io.github.stslex.workeeper.core.ui.kit.components.surface.liftedSurface
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
@@ -80,7 +81,7 @@ internal fun MetricTabs(
 
         Box(
             modifier = Modifier
-                .offset(x = indicatorOffset)
+                .offset { IntOffset(indicatorOffset.roundToPx(), 0) }
                 .width(tabWidth)
                 .height(TAB_HEIGHT)
                 .liftedSurface(shape = thumbShape),
