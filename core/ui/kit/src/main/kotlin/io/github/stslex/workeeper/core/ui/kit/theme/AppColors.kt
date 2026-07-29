@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.Color
  * | dim            | textDim (aliased onto meta) — see below     |
  * | idle           | textDisabled                                |
  * | hair           | borderSubtle — decorative, no threshold     |
+ * | grid           | grid — chart gridlines, decorative          |
  * | hair-s lifted  | borderDefault, borderStrong — control       |
  * |                | outlines; enabled, so each owes 3:1         |
  * | hair-s         | (no slot — see below)                       |
@@ -60,7 +61,8 @@ import androidx.compose.ui.graphics.Color
  * switch track and unchecked set-mark ring in it, so this is the mockup being unmeasured rather
  * than a misreading of it — the same situation as light `meta`, resolved the same way. If a
  * genuinely decorative *solid* rule is ever needed, `hair-s` is the value to bring back; today
- * `borderSubtle` covers every decorative stroke in the app.
+ * `borderSubtle` covers every decorative stroke in the app except the chart's gridlines, which
+ * carry the mockup's own `--grid` token ([AppColors.grid]).
  */
 
 /**
@@ -299,6 +301,16 @@ data class AppColors(
     /** v3 `hair` — translucent. Decorative separator; takes no contrast threshold (spec §3.1). */
     val borderSubtle: Color,
     /**
+     * v3 `--grid` — the chart's horizontal gridlines, exactly as the mockup declares them:
+     * `rgba(255,255,255,.07)` dark / `rgba(13,17,20,.09)` light. One alpha step above `hair`
+     * in both themes — a gridline must read *under* a data series without reading as a rule
+     * between content, and `hair` tuned for either job would drag the other with it (the same
+     * argument that gave `donefill` its own slot). Decorative under §3.1: it separates
+     * nothing, carries no state, and takes no contrast threshold. The chart canvas is its
+     * only intended reader.
+     */
+    val grid: Color,
+    /**
      * **Control outline**, like [borderStrong] — the boundary that identifies an enabled,
      * unfocused control.
      *
@@ -308,8 +320,8 @@ data class AppColors(
      *
      * The neighbouring `disabledBorderColor` at `AppTextField.kt:58` reads [borderSubtle]
      * instead, and *that* one is genuinely exempt — which is the line this palette draws:
-     * [borderSubtle] is the hairline (separators, grid lines, disabled outlines) and takes no
-     * threshold; these two are controls and do.
+     * [borderSubtle] is the hairline (separators, disabled outlines — chart gridlines have
+     * their own [grid] slot) and takes no threshold; these two are controls and do.
      */
     val borderDefault: Color,
     /**
@@ -357,6 +369,8 @@ private const val DARK_BODY: Long = 0xFFB7C0CA
 private const val DARK_META: Long = 0xFF8B95A1
 private const val DARK_IDLE: Long = 0xFF8B95A1
 private const val DARK_HAIR: Long = 0x0DFFFFFF
+/** `--grid`, dark: `rgba(255,255,255,.07)` — one alpha step above [DARK_HAIR]'s 5%. */
+private const val DARK_GRID: Long = 0x12FFFFFF
 /**
  * `--donefill`, dark: `rgba(255,255,255,.05)`. Numerically identical to [DARK_HAIR] — a
  * coincidence of the mockup's dark theme, not a shared token; light breaks the tie (6% vs 7%).
@@ -400,6 +414,8 @@ private const val LIGHT_BODY: Long = 0xFF2C333A
 private const val LIGHT_META: Long = 0xFF596169
 private const val LIGHT_IDLE: Long = 0xFF7C858F
 private const val LIGHT_HAIR: Long = 0x120D1114
+/** `--grid`, light: `rgba(13,17,20,.09)` — one alpha step above [LIGHT_HAIR]'s 7%. */
+private const val LIGHT_GRID: Long = 0x170D1114
 /** `--donefill`, light: `rgba(13,17,20,.06)`. */
 private const val LIGHT_DONEFILL: Long = 0x0F0D1114
 /** Control outline, light. See [AppColors.borderStrong] — `hair-s` darkened to clear 3:1. */
@@ -445,6 +461,7 @@ fun provideDarkAppColors(): AppColors = AppColors(
     textDim = Color(DARK_META),
     textDisabled = Color(DARK_IDLE),
     borderSubtle = Color(DARK_HAIR),
+    grid = Color(DARK_GRID),
     borderDefault = Color(DARK_CONTROL_OUTLINE),
     borderStrong = Color(DARK_CONTROL_OUTLINE),
     inverseSurface = Color(DARK_MAX),
@@ -502,6 +519,7 @@ fun provideLightAppColors(): AppColors = AppColors(
     textDim = Color(LIGHT_META),
     textDisabled = Color(LIGHT_IDLE),
     borderSubtle = Color(LIGHT_HAIR),
+    grid = Color(LIGHT_GRID),
     borderDefault = Color(LIGHT_CONTROL_OUTLINE),
     borderStrong = Color(LIGHT_CONTROL_OUTLINE),
     inverseSurface = Color(LIGHT_MAX),
