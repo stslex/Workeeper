@@ -86,6 +86,12 @@ interface ExerciseChartStore : Store<State, Action, Event> {
         val activeIndex: Int?,
         val readout: ChartReadoutUiModel?,
         val isPickerOpen: Boolean,
+        /**
+         * The picker's filter-as-you-type text. Only the query is state: the filtered list
+         * is a pure function of it and [recentExercises], derived where it is drawn, so the
+         * two can never disagree. Reset whenever the sheet opens or closes.
+         */
+        val pickerQuery: String,
         val emptyReason: EmptyReason?,
     ) : Store.State {
 
@@ -130,6 +136,7 @@ interface ExerciseChartStore : Store<State, Action, Event> {
                 activeIndex = null,
                 readout = null,
                 isPickerOpen = false,
+                pickerQuery = "",
                 emptyReason = null,
             )
         }
@@ -148,6 +155,7 @@ interface ExerciseChartStore : Store<State, Action, Event> {
             data object OnPickerOpen : Click
             data object OnPickerDismiss : Click
             data class OnPickerItemSelect(val uuid: String) : Click
+            data class OnPickerQueryChange(val query: String) : Click
 
             /**
              * The §4.6 scrub gesture: the canvas mapped a pointer x to the nearest point

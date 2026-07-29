@@ -24,8 +24,19 @@ internal class ClickHandler @Inject constructor(
         when (action) {
             is Action.Click.OnPresetSelect -> processPresetSelect(action)
             is Action.Click.OnMetricSelect -> processMetricSelect(action)
-            Action.Click.OnPickerOpen -> updateState { it.copy(isPickerOpen = true) }
-            Action.Click.OnPickerDismiss -> updateState { it.copy(isPickerOpen = false) }
+            // The query resets with the window in both directions — a sheet that reopens
+            // still filtered by a forgotten word looks like a list that lost its entries.
+            Action.Click.OnPickerOpen -> updateState {
+                it.copy(isPickerOpen = true, pickerQuery = "")
+            }
+
+            Action.Click.OnPickerDismiss -> updateState {
+                it.copy(isPickerOpen = false, pickerQuery = "")
+            }
+
+            is Action.Click.OnPickerQueryChange -> updateState {
+                it.copy(pickerQuery = action.query)
+            }
             is Action.Click.OnPickerItemSelect -> processPickerItemSelect(action)
             is Action.Click.OnScrub -> processScrub(action)
             Action.Click.OnEmptyCtaClick -> consume(Action.Navigation.OpenHome)
@@ -71,7 +82,7 @@ internal class ClickHandler @Inject constructor(
         val current = state.value
         val item = current.recentExercises.firstOrNull { it.uuid == action.uuid } ?: return
         if (current.selectedExercise?.uuid == item.uuid) {
-            updateState { it.copy(isPickerOpen = false) }
+            updateState { it.copy(isPickerOpen = false, pickerQuery = "") }
             return
         }
         sendEvent(Event.HapticClick(HapticFeedbackType.ContextClick))
@@ -79,6 +90,7 @@ internal class ClickHandler @Inject constructor(
             it.copy(
                 selectedExercise = item,
                 isPickerOpen = false,
+                pickerQuery = "",
                 // Clear EXERCISE_NOT_FOUND immediately on selection — the new selection
                 // is what's loading; loadChart will set NO_DATA_FOR_EXERCISE if the result
                 // is empty.

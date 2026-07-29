@@ -233,6 +233,8 @@ internal class ExerciseChartGoldenTest {
                     ExercisePickerItemUiModel("ex-4", "подтягивания", ExerciseTypeUiModel.WEIGHTLESS),
                 ),
                 selectedUuid = "ex-1",
+                query = "",
+                onQueryChange = {},
                 onItemSelect = {},
             )
         }

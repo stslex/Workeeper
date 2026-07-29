@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -23,6 +24,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import io.github.stslex.workeeper.core.ui.kit.components.input.AppTextField
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppBottomSheet
 import io.github.stslex.workeeper.core.ui.kit.components.sheet.AppSheetLayout
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
@@ -35,6 +37,7 @@ import io.github.stslex.workeeper.feature.exercise_chart.R
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ExercisePickerItemUiModel
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
 
 /**
  * The mockup's `sh-pick` (extraction §4.9): the window — scrim, grab, dismissal — wrapped at
@@ -45,6 +48,8 @@ import kotlinx.collections.immutable.persistentListOf
 internal fun ExercisePickerSheet(
     items: ImmutableList<ExercisePickerItemUiModel>,
     selectedUuid: String?,
+    query: String,
+    onQueryChange: (String) -> Unit,
     onDismiss: () -> Unit,
     onItemSelect: (String) -> Unit,
 ) {
@@ -52,6 +57,8 @@ internal fun ExercisePickerSheet(
         ExercisePickerSheetContent(
             items = items,
             selectedUuid = selectedUuid,
+            query = query,
+            onQueryChange = onQueryChange,
             onItemSelect = onItemSelect,
         )
     }
@@ -67,13 +74,53 @@ internal fun ExercisePickerSheet(
 internal fun ExercisePickerSheetContent(
     items: ImmutableList<ExercisePickerItemUiModel>,
     selectedUuid: String?,
+    query: String,
+    onQueryChange: (String) -> Unit,
     onItemSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // The filter is derived, not stored: `items` is the whole picker set already in memory
+    // (the recents query carries no LIMIT), so a client-side match is the complete answer
+    // here — nothing can be typed that exists in the picker but not in this list. A
+    // library-wide search would be a different, larger set, and selecting from it would
+    // dead-tap: the handler resolves the chosen uuid against exactly this list.
+    val visible = remember(items, query) {
+        if (query.isBlank()) {
+            items
+        } else {
+            items.filter { item -> item.name.contains(query, ignoreCase = true) }
+                .toImmutableList()
+        }
+    }
     AppSheetLayout(
         modifier = modifier,
         title = stringResource(R.string.feature_exercise_chart_picker_title),
     ) {
+        AppTextField(
+            modifier = Modifier
+                .padding(horizontal = AppDimension.Space.md)
+                .testTag("ExerciseChartPickerSearch"),
+            value = query,
+            onValueChange = onQueryChange,
+            // No leading magnifier: the mockup draws no search affordance on this sheet at
+            // all (§4.9), so inventing a glyph for it would be inventing design. The
+            // placeholder carries the meaning.
+            placeholder = stringResource(R.string.feature_exercise_chart_picker_search),
+        )
+        if (visible.isEmpty()) {
+            Text(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        horizontal = AppDimension.Space.md,
+                        vertical = AppDimension.Space.lg,
+                    )
+                    .testTag("ExerciseChartPickerNoMatches"),
+                text = stringResource(R.string.feature_exercise_chart_picker_no_matches),
+                style = AppUi.typography.text.body,
+                color = AppUi.colors.textTertiary,
+            )
+        }
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
@@ -81,7 +128,7 @@ internal fun ExercisePickerSheetContent(
                 .heightIn(max = PICKER_LIST_MAX_HEIGHT)
                 .testTag("ExerciseChartPickerList"),
         ) {
-            items(items, key = { it.uuid }) { item ->
+            items(visible, key = { it.uuid }) { item ->
                 PickerRow(
                     item = item,
                     selected = item.uuid == selectedUuid,
@@ -154,6 +201,8 @@ private fun ExercisePickerSheetContentDarkPreview() {
                     ExercisePickerItemUiModel("d", "подтягивания", ExerciseTypeUiModel.WEIGHTLESS),
                 ),
                 selectedUuid = "a",
+                query = "",
+                onQueryChange = {},
                 onItemSelect = {},
             )
         }
@@ -171,6 +220,8 @@ private fun ExercisePickerSheetContentLightPreview() {
                     ExercisePickerItemUiModel("b", "подтягивания", ExerciseTypeUiModel.WEIGHTLESS),
                 ),
                 selectedUuid = "a",
+                query = "",
+                onQueryChange = {},
                 onItemSelect = {},
             )
         }

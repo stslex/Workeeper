@@ -84,6 +84,8 @@ internal fun ExerciseChartScreen(
             ExercisePickerSheet(
                 items = state.recentExercises,
                 selectedUuid = state.selectedExercise?.uuid,
+                query = state.pickerQuery,
+                onQueryChange = { consume(Action.Click.OnPickerQueryChange(it)) },
                 onDismiss = { consume(Action.Click.OnPickerDismiss) },
                 onItemSelect = { consume(Action.Click.OnPickerItemSelect(it)) },
             )

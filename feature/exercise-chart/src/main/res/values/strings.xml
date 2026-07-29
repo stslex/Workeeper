@@ -2,6 +2,8 @@
 <resources>
     <string name="feature_exercise_chart_picker_title">Select exercise</string>
     <string name="feature_exercise_chart_picker_open">Switch exercise</string>
+    <string name="feature_exercise_chart_picker_search">Search</string>
+    <string name="feature_exercise_chart_picker_no_matches">Nothing found</string>
 
     <string name="feature_exercise_chart_metric_heaviest">Weight</string>
     <string name="feature_exercise_chart_metric_session">Session</string>

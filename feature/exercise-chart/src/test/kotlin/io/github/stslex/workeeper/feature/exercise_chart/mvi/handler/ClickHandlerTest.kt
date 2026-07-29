@@ -123,6 +123,27 @@ internal class ClickHandlerTest {
     }
 
     @Test
+    fun `OnPickerQueryChange stores the query and the window resets it both ways`() {
+        val flow = MutableStateFlow(stateWithSelected())
+        val store = newStore(flow)
+        val handler = ClickHandler(commonHandler, resources, store)
+
+        handler.invoke(Action.Click.OnPickerOpen)
+        handler.invoke(Action.Click.OnPickerQueryChange("тяг"))
+
+        assertEquals("тяг", flow.value.pickerQuery)
+
+        // Closing clears it: a sheet that reopens still filtered by a forgotten word looks
+        // like a list that lost its entries.
+        handler.invoke(Action.Click.OnPickerDismiss)
+        assertEquals("", flow.value.pickerQuery)
+
+        handler.invoke(Action.Click.OnPickerQueryChange("жим"))
+        handler.invoke(Action.Click.OnPickerOpen)
+        assertEquals("", flow.value.pickerQuery)
+    }
+
+    @Test
     fun `OnPickerDismiss sets isPickerOpen false`() {
         val flow = MutableStateFlow(stateWithSelected().copy(isPickerOpen = true))
         val store = newStore(flow)
