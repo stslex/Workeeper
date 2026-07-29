@@ -43,12 +43,13 @@ class ExerciseChartScreenTest : BaseComposeTest() {
     )
 
     private val baseFooter = ChartFooterStatsUiModel(
-        minTitle = "Min",
-        minValue = "80 kg",
-        maxTitle = "Max",
-        maxValue = "105 kg",
+        minTitle = "Minimum",
+        minValue = "80",
+        maxTitle = "Maximum",
+        maxValue = "105",
         lastTitle = "Last",
-        lastValue = "105 kg",
+        lastValue = "105",
+        unit = "kg",
     )
 
     private val baseReadout = ChartReadoutUiModel(

@@ -24,12 +24,9 @@
     <string name="feature_exercise_chart_preset_1y">1Г</string>
     <string name="feature_exercise_chart_preset_all">Всё</string>
 
-    <string name="feature_exercise_chart_footer_min">Мин</string>
-    <string name="feature_exercise_chart_footer_max">Макс</string>
-    <string name="feature_exercise_chart_footer_last">Последнее</string>
-
-    <string name="feature_exercise_chart_value_weight">%1$s кг</string>
-    <string name="feature_exercise_chart_value_volume">%1$s кг × повт.</string>
+    <string name="feature_exercise_chart_footer_min">Минимум</string>
+    <string name="feature_exercise_chart_footer_max">Максимум</string>
+    <string name="feature_exercise_chart_footer_last">Последний</string>
     <plurals name="feature_exercise_chart_value_reps">
         <item quantity="one">%d повторение</item>
         <item quantity="few">%d повторения</item>

@@ -34,18 +34,41 @@ internal object ExerciseChartUiMapper {
     fun ChartFoldDomain.toUiPoints(): ImmutableList<ChartPointUiModel> =
         points.map { it.toUi() }.toImmutableList()
 
+    /**
+     * The three `.statrow`s (§4.7): values are the mockup's `fmt()` — the same rounded,
+     * grouped form the readout uses — with one shared unit span. The metric does not touch
+     * the format: all three metrics read in кг for a weighted exercise, and a weightless
+     * exercise's values are rep plurals with no separable unit.
+     */
     fun ChartFooterStatsDomain.toUi(
-        metric: ChartMetricDomain,
         type: ExerciseTypeDomain,
         resourceWrapper: ResourceWrapper,
-    ): ChartFooterStatsUiModel = ChartFooterStatsUiModel(
-        minTitle = resourceWrapper.getString(R.string.feature_exercise_chart_footer_min),
-        minValue = formatMetricValue(min, type, metric, resourceWrapper),
-        maxTitle = resourceWrapper.getString(R.string.feature_exercise_chart_footer_max),
-        maxValue = formatMetricValue(max, type, metric, resourceWrapper),
-        lastTitle = resourceWrapper.getString(R.string.feature_exercise_chart_footer_last),
-        lastValue = formatMetricValue(last, type, metric, resourceWrapper),
-    )
+    ): ChartFooterStatsUiModel {
+        val format: (ChartPointDomain) -> String = when (type) {
+            ExerciseTypeDomain.WEIGHTED -> { point -> ChartReadoutMapper.formatGrouped(point.value) }
+            ExerciseTypeDomain.WEIGHTLESS -> { point ->
+                resourceWrapper.getQuantityString(
+                    R.plurals.feature_exercise_chart_value_reps,
+                    point.value.toInt(),
+                    point.value.toInt(),
+                )
+            }
+        }
+        return ChartFooterStatsUiModel(
+            minTitle = resourceWrapper.getString(R.string.feature_exercise_chart_footer_min),
+            minValue = format(min),
+            maxTitle = resourceWrapper.getString(R.string.feature_exercise_chart_footer_max),
+            maxValue = format(max),
+            lastTitle = resourceWrapper.getString(R.string.feature_exercise_chart_footer_last),
+            lastValue = format(last),
+            unit = when (type) {
+                ExerciseTypeDomain.WEIGHTED ->
+                    resourceWrapper.getString(R.string.feature_exercise_chart_unit_kg)
+
+                ExerciseTypeDomain.WEIGHTLESS -> null
+            },
+        )
+    }
 
     fun ExerciseTypeDomain.toUi(): ExerciseTypeUiModel = when (this) {
         ExerciseTypeDomain.WEIGHTED -> ExerciseTypeUiModel.WEIGHTED
@@ -88,49 +111,4 @@ internal object ExerciseChartUiMapper {
         name = name,
         type = type.toUi(),
     )
-
-    // The VOLUME_PER_SESSION branch comes before the WEIGHTLESS one and reads `point.value`
-    // only: a session point is an aggregate whose `weight`/`reps` are null/0 by the
-    // ChartPointDomain contract — the weightless reps-plural over `point.reps` would print
-    // "0 reps" for it.
-    private fun formatMetricValue(
-        point: ChartPointDomain,
-        type: ExerciseTypeDomain,
-        metric: ChartMetricDomain,
-        resourceWrapper: ResourceWrapper,
-    ): String = when {
-        metric == ChartMetricDomain.VOLUME_PER_SESSION -> when (type) {
-            ExerciseTypeDomain.WEIGHTLESS -> resourceWrapper.getQuantityString(
-                R.plurals.feature_exercise_chart_value_reps,
-                point.value.toInt(),
-                point.value.toInt(),
-            )
-
-            ExerciseTypeDomain.WEIGHTED -> resourceWrapper.getString(
-                R.string.feature_exercise_chart_value_weight,
-                formatNumber(point.value),
-            )
-        }
-
-        type == ExerciseTypeDomain.WEIGHTLESS -> resourceWrapper.getQuantityString(
-            R.plurals.feature_exercise_chart_value_reps,
-            point.reps,
-            point.reps,
-        )
-
-        metric == ChartMetricDomain.VOLUME_PER_SET -> resourceWrapper.getString(
-            R.string.feature_exercise_chart_value_volume,
-            formatNumber(point.value),
-        )
-
-        else -> resourceWrapper.getString(
-            R.string.feature_exercise_chart_value_weight,
-            formatNumber(point.weight ?: 0.0),
-        )
-    }
-
-    private fun formatNumber(value: Double): String {
-        val rounded = value
-        return if (rounded % 1.0 == 0.0) rounded.toLong().toString() else "%.1f".format(rounded)
-    }
 }

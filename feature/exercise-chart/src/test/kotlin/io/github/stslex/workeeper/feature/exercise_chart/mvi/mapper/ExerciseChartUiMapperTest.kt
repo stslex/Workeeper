@@ -4,7 +4,6 @@ package io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper
 import io.github.stslex.workeeper.core.core.resources.ResourceWrapper
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.domain.model.ChartFooterStatsDomain
-import io.github.stslex.workeeper.feature.exercise_chart.domain.model.ChartMetricDomain
 import io.github.stslex.workeeper.feature.exercise_chart.domain.model.ChartPointDomain
 import io.github.stslex.workeeper.feature.exercise_chart.domain.model.ExerciseTypeDomain
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapper.toUi
@@ -107,32 +106,32 @@ internal class ExerciseChartUiMapperTest {
     }
 
     @Test
-    fun `footer formats a session point from its aggregate value not the dead weight`() {
-        // A session point has weight null / reps 0 by contract; the footer's session branch
-        // must format `value`. Falling through to the weight branch would print "0 kg".
-        val stats = footerDomain(value = 1300.0)
+    fun `weighted footer values are the readout's grouped form with one shared unit`() {
+        // A session point has weight null / reps 0 by contract; the footer must format
+        // `value` — the mockup's fmt(): rounded, plain-space grouped, unit as its own span.
+        val stats = footerDomain(value = 4620.4)
 
         val ui = stats.toUi(
-            metric = ChartMetricDomain.VOLUME_PER_SESSION,
             type = ExerciseTypeDomain.WEIGHTED,
             resourceWrapper = resources,
         )
 
-        assertTrue(ui.maxValue.endsWith(";1300)"))
+        assertEquals("4 620", ui.maxValue)
+        assertNotNull(ui.unit)
     }
 
     @Test
-    fun `weightless session footer is a reps plural over the summed value`() {
+    fun `weightless footer is a reps plural over the value with no separable unit`() {
         val stats = footerDomain(value = 20.0)
 
         val ui = stats.toUi(
-            metric = ChartMetricDomain.VOLUME_PER_SESSION,
             type = ExerciseTypeDomain.WEIGHTLESS,
             resourceWrapper = resources,
         )
 
         assertTrue(ui.maxValue.startsWith("plural("))
         assertTrue(ui.maxValue.endsWith(";20;20)"))
+        assertNull(ui.unit)
     }
 
     private fun footerDomain(value: Double): ChartFooterStatsDomain {

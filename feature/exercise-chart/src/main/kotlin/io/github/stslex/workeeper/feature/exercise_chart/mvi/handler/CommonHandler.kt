@@ -105,7 +105,7 @@ internal class CommonHandler @Inject constructor(
                         ?: (newPoints.size - 1).takeIf { index -> index >= 0 }
                     it.copy(
                         points = newPoints,
-                        footerStats = result.footer?.toUi(metric, type, resourceWrapper),
+                        footerStats = result.footer?.toUi(type, resourceWrapper),
                         activeIndex = activeIndex,
                         readout = ChartReadoutMapper.toReadout(
                             points = newPoints,

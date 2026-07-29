@@ -240,12 +240,13 @@ private fun points(): List<ChartPointUiModel> = DAYS.mapIndexed { index, day ->
 }
 
 private fun footer(): ChartFooterStatsUiModel = ChartFooterStatsUiModel(
-    minTitle = "Min",
-    minValue = "49 kg",
-    maxTitle = "Max",
-    maxValue = "77 kg",
-    lastTitle = "Last",
-    lastValue = "77 kg",
+    minTitle = "Минимум",
+    minValue = "49",
+    maxTitle = "Максимум",
+    maxValue = "77",
+    lastTitle = "Последний",
+    lastValue = "77",
+    unit = "кг",
 )
 
 private fun exercise(): ExercisePickerItemUiModel = ExercisePickerItemUiModel(

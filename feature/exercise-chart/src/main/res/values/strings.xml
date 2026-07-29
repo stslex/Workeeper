@@ -22,12 +22,9 @@
     <string name="feature_exercise_chart_preset_1y">1Y</string>
     <string name="feature_exercise_chart_preset_all">All</string>
 
-    <string name="feature_exercise_chart_footer_min">Min</string>
-    <string name="feature_exercise_chart_footer_max">Max</string>
+    <string name="feature_exercise_chart_footer_min">Minimum</string>
+    <string name="feature_exercise_chart_footer_max">Maximum</string>
     <string name="feature_exercise_chart_footer_last">Last</string>
-
-    <string name="feature_exercise_chart_value_weight">%1$s kg</string>
-    <string name="feature_exercise_chart_value_volume">%1$s kg × reps</string>
     <plurals name="feature_exercise_chart_value_reps">
         <item quantity="one">%d rep</item>
         <item quantity="other">%d reps</item>

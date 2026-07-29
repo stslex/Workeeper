@@ -74,9 +74,10 @@ internal object ChartReadoutMapper {
      * is a PLAIN space where ru-RU's formatter would emit NBSP: the value renders in Archivo,
      * a cut whose charset is pinned to digits and `:.,-+/%` (plus the ordinary space), and a
      * missing NBSP glyph would render as tofu or a fallback-font seam mid-number. Reported
-     * as a deviation with the PR.
+     * as a deviation with the PR. Shared with the footer — the mockup's `fmt()` feeds the
+     * readout and all three statrows alike.
      */
-    private fun formatGrouped(value: Double): String {
+    internal fun formatGrouped(value: Double): String {
         val digits = value.roundToLong().toString()
         return digits
             .reversed()
