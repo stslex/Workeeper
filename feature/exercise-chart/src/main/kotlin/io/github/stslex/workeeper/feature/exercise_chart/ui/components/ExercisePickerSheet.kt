@@ -22,8 +22,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
@@ -60,18 +58,20 @@ internal fun ExercisePickerSheet(
     onDismiss: () -> Unit,
     onItemSelect: (String) -> Unit,
 ) {
-    val focusRequester = remember { FocusRequester() }
-
-    // expandedOnly: the user opened this to search, not to peek.
-    // onSettled is THE SEQUENCING POINT — focus is taken only once the sheet has ARRIVED at
-    // expanded. Requesting it at composition instead would race the enter animation: the IME
-    // rises into a sheet that is still translating, which jitters the layout it is supposed
-    // to sit above. Waiting costs the animation's duration and buys a keyboard that appears
-    // once, in place.
+    // expandedOnly: the user opened this to search, not to peek — the field is on screen the
+    // moment the sheet is.
+    //
+    // NO AUTO-FOCUS, deliberately. Focus was briefly driven from `AppBottomSheet`'s
+    // `onSettled`, which is the only point where taking it does not race the enter animation
+    // (requesting earlier raises the IME into a sheet that is still translating, and the
+    // layout jitters). On device that correctness costs a multi-second wait before the
+    // keyboard appears, and every cheaper trigger reintroduces the race. So the keyboard is
+    // the user's to raise: one tap on a field that is already visible beats waiting for a
+    // sheet to finish settling. The occlusion this sheet was fixed for is handled by the
+    // height budget below, not by who raises the keyboard.
     AppBottomSheet(
         onDismiss = onDismiss,
         expandedOnly = true,
-        onSettled = { focusRequester.requestFocus() },
     ) {
         ExercisePickerSheetContent(
             items = items,
@@ -79,7 +79,6 @@ internal fun ExercisePickerSheet(
             query = query,
             onQueryChange = onQueryChange,
             onItemSelect = onItemSelect,
-            searchFocusRequester = focusRequester,
         )
     }
 }
@@ -98,7 +97,6 @@ internal fun ExercisePickerSheetContent(
     onQueryChange: (String) -> Unit,
     onItemSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
-    searchFocusRequester: FocusRequester? = null,
 ) {
     // The filter is derived, not stored: `items` is the whole picker set already in memory
     // (the recents query carries no LIMIT), so a client-side match is the complete answer
@@ -139,11 +137,6 @@ internal fun ExercisePickerSheetContent(
         AppTextField(
             modifier = Modifier
                 .padding(horizontal = AppDimension.Space.md)
-                .then(
-                    searchFocusRequester
-                        ?.let { requester -> Modifier.focusRequester(requester) }
-                        ?: Modifier,
-                )
                 .testTag("ExerciseChartPickerSearch"),
             value = query,
             onValueChange = onQueryChange,

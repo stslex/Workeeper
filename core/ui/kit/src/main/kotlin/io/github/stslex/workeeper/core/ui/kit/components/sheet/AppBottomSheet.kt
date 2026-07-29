@@ -32,11 +32,18 @@ import kotlinx.coroutines.flow.first
  * content column takes `screenEdge` sides and `xxl` bottom.
  *
  * [expandedOnly] opens the sheet at full height with no half stop. [onSettled] fires once the
- * sheet has ARRIVED at expanded — the sequencing point a caller needs to take focus without
- * racing the enter animation (requesting focus on departure raises the IME into a sheet that
- * is still translating). Both are plain Boolean/lambda rather than the experimental
- * `SheetState`, so no call site is forced to opt in; every existing sheet is byte-unchanged
- * at `expandedOnly = false`, which is the exact call this file made before.
+ * sheet has ARRIVED at expanded — the only point at which a caller can act on the window
+ * without racing the enter animation (anything earlier raises the IME into a sheet that is
+ * still translating, and the layout jitters). Both are plain Boolean/lambda rather than the
+ * experimental `SheetState`, so no call site is forced to opt in; every existing sheet is
+ * byte-unchanged at `expandedOnly = false`, which is the exact call this file made before.
+ *
+ * **[onSettled] currently has no consumer.** The exercise picker used it to auto-focus its
+ * search field and gave it up: correct sequencing means waiting out the enter animation,
+ * which measured as a multi-second delay before the keyboard appeared, and every cheaper
+ * trigger reintroduces the race it exists to avoid. It stays as window-sequencing surface
+ * for the next caller that genuinely needs "after the sheet has settled" — kept knowingly,
+ * not left behind.
  *
  * ## Insets are not handled here, deliberately
  *
