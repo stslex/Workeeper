@@ -6,22 +6,24 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
+import io.github.stslex.workeeper.core.ui.kit.components.segmented.AppSegmentedIconControl
+import io.github.stslex.workeeper.core.ui.kit.components.segmented.SegmentedIcon
+import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
+import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
+import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.feature.settings.R
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupAuthUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupInfoUi
@@ -30,16 +32,16 @@ import io.github.stslex.workeeper.feature.settings.mvi.model.RestoreProgressUi
 import io.github.stslex.workeeper.feature.settings.mvi.store.DialogState
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.Action
 import io.github.stslex.workeeper.feature.settings.mvi.store.SettingsStore.State
-import io.github.stslex.workeeper.feature.settings.ui.components.AboutBlock
 import io.github.stslex.workeeper.feature.settings.ui.components.BackupSection
 import io.github.stslex.workeeper.feature.settings.ui.components.FrequencyPickerBottomSheet
 import io.github.stslex.workeeper.feature.settings.ui.components.RestoreConfirmationDialog
 import io.github.stslex.workeeper.feature.settings.ui.components.RestoreProgressOverlay
+import io.github.stslex.workeeper.feature.settings.ui.components.RowChevron
 import io.github.stslex.workeeper.feature.settings.ui.components.SettingsBackupState
-import io.github.stslex.workeeper.feature.settings.ui.components.SettingsRow
-import io.github.stslex.workeeper.feature.settings.ui.components.SettingsSection
+import io.github.stslex.workeeper.feature.settings.ui.components.SettingsGroup
+import io.github.stslex.workeeper.feature.settings.ui.components.SettingsGroupRow
 import io.github.stslex.workeeper.feature.settings.ui.components.SignOutConfirmationDialog
-import io.github.stslex.workeeper.feature.settings.ui.components.ThemeSelector
+import kotlinx.collections.immutable.persistentListOf
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
 
 @Composable
@@ -55,40 +57,32 @@ internal fun SettingsScreen(
                 .background(AppUi.colors.surfaceTier0)
                 .testTag("SettingsScreen"),
         ) {
-            AppTopAppBar(
+            // §5.1: back + h1 «Настройки» — the default (20px → section) title, not h1.sm.
+            AppTopBar(
                 title = stringResource(R.string.feature_settings_title),
-                navigationIcon = {
-                    IconButton(
+                navigation = {
+                    AppIconButton(
                         modifier = Modifier.testTag("SettingsBackButton"),
+                        icon = AppIcons.ChevronLeft,
+                        contentDescription = stringResource(KitR.string.core_ui_kit_action_back),
                         onClick = { consume(Action.Navigation.Back) },
-                    ) {
-                        Icon(
-                            modifier = Modifier.size(AppDimension.iconMd),
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(KitR.string.core_ui_kit_action_back),
-                        )
-                    }
+                    )
                 },
             )
+            // §5.2: a group is 32dp of air + a label — no container. Mockup order (§5.6):
+            // Оформление → Резервные копии → Данные → О приложении. First group sits 8px
+            // under the topbar (the mockup's inline margin-top override).
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(AppDimension.sectionSpacing),
+                    .verticalScroll(rememberScrollState())
+                    .padding(top = AppDimension.Space.sm, bottom = AppDimension.Space.xl),
+                verticalArrangement = Arrangement.spacedBy(AppDimension.Space.xxl),
             ) {
-                SettingsSection(title = stringResource(R.string.feature_settings_section_about)) {
-                    AboutBlock(
-                        appVersion = state.appVersion,
-                        appVersionCode = state.appVersionCode,
-                        onLicenseClick = { consume(Action.Click.OnLicenseClick) },
-                        onGitHubClick = { consume(Action.Click.OnGitHubClick) },
-                        onPrivacyClick = { consume(Action.Click.OnPrivacyPolicyClick) },
-                    )
-                }
-                SettingsSection(title = stringResource(R.string.feature_settings_section_appearance)) {
-                    ThemeSelector(
+                SettingsGroup(label = stringResource(R.string.feature_settings_section_appearance)) {
+                    ThemeRow(
                         selected = state.themeMode,
-                        onSelectedChange = { mode -> consume(Action.Input.OnThemeChange(mode)) },
+                        onSelect = { mode -> consume(Action.Input.OnThemeChange(mode)) },
                     )
                 }
                 BackupSection(
@@ -101,11 +95,37 @@ internal fun SettingsScreen(
                     ),
                     onAction = { consume(it) },
                 )
-                SettingsSection(title = stringResource(R.string.feature_settings_section_data)) {
-                    SettingsRow(
+                SettingsGroup(label = stringResource(R.string.feature_settings_section_data)) {
+                    SettingsGroupRow(
                         modifier = Modifier.testTag("SettingsArchiveRow"),
                         title = stringResource(R.string.feature_settings_archive_entry),
+                        chevron = RowChevron.InApp,
                         onClick = { consume(Action.Click.OnArchiveClick) },
+                    )
+                }
+                SettingsGroup(label = stringResource(R.string.feature_settings_section_about)) {
+                    SettingsGroupRow(
+                        title = stringResource(R.string.feature_settings_about_app_name),
+                        subtitle = stringResource(
+                            R.string.feature_settings_about_version_format,
+                            state.appVersion,
+                            state.appVersionCode,
+                        ),
+                    )
+                    SettingsGroupRow(
+                        title = stringResource(R.string.feature_settings_about_github),
+                        chevron = RowChevron.External,
+                        onClick = { consume(Action.Click.OnGitHubClick) },
+                    )
+                    SettingsGroupRow(
+                        title = stringResource(R.string.feature_settings_about_license),
+                        chevron = RowChevron.External,
+                        onClick = { consume(Action.Click.OnLicenseClick) },
+                    )
+                    SettingsGroupRow(
+                        title = stringResource(R.string.feature_settings_about_privacy),
+                        chevron = RowChevron.External,
+                        onClick = { consume(Action.Click.OnPrivacyPolicyClick) },
                     )
                 }
             }
@@ -126,6 +146,46 @@ internal fun SettingsScreen(
         }
         RestoreProgressOverlay(state = state.restoreProgress)
     }
+}
+
+/**
+ * §5.4/§5.6: the theme row is `.srow.plain` — the title, the CURRENT theme's name as the
+ * sub-line, and the `.mseg` icon trio trailing. The mockup's own hint states the intent:
+ * the theme became an ordinary row with a compact control, "не первый по важности элемент
+ * экрана и не читается как вкладки". The old ThemeOption_* testTags ride on the mseg
+ * buttons so the smoke suite keeps its handles.
+ */
+@Composable
+private fun ThemeRow(
+    selected: ThemeMode,
+    onSelect: (ThemeMode) -> Unit,
+) {
+    val modes = remember { listOf(ThemeMode.SYSTEM, ThemeMode.LIGHT, ThemeMode.DARK) }
+    val names = modes.map { mode ->
+        stringResource(
+            when (mode) {
+                ThemeMode.SYSTEM -> R.string.feature_settings_theme_system
+                ThemeMode.LIGHT -> R.string.feature_settings_theme_light
+                ThemeMode.DARK -> R.string.feature_settings_theme_dark
+            },
+        )
+    }
+    SettingsGroupRow(
+        title = stringResource(R.string.feature_settings_theme_row_title),
+        subtitle = names[modes.indexOf(selected)],
+        trailing = {
+            AppSegmentedIconControl(
+                items = persistentListOf(
+                    SegmentedIcon(AppIcons.ThemeSystem, names[0]),
+                    SegmentedIcon(AppIcons.ThemeLight, names[1]),
+                    SegmentedIcon(AppIcons.ThemeDark, names[2]),
+                ),
+                selected = modes.indexOf(selected),
+                onSelectedChange = { index -> onSelect(modes[index]) },
+                itemModifier = { index -> Modifier.testTag("ThemeOption_${modes[index].name}") },
+            )
+        },
+    )
 }
 
 @Preview(name = "Light", showBackground = true)

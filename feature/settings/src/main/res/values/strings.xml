@@ -6,19 +6,20 @@
     <string name="feature_settings_section_appearance">Appearance</string>
     <string name="feature_settings_section_data">Data</string>
 
-    <string name="feature_settings_theme_system">System default</string>
+    <string name="feature_settings_theme_row_title">Theme</string>
+    <string name="feature_settings_theme_system">System</string>
     <string name="feature_settings_theme_light">Light</string>
     <string name="feature_settings_theme_dark">Dark</string>
 
     <string name="feature_settings_about_app_name">Workeeper</string>
     <string name="feature_settings_about_version_format">Version %1$s (%2$d)</string>
     <string name="feature_settings_about_license">GPLv3 license</string>
-    <string name="feature_settings_about_github">View on GitHub</string>
+    <string name="feature_settings_about_github">Source code</string>
     <string name="feature_settings_about_privacy">Privacy Policy</string>
 
     <string name="feature_settings_archive_entry">Archive</string>
 
-    <string name="feature_settings_backup_title">Cloud backup</string>
+    <string name="feature_settings_backup_title">Backups</string>
     <string name="feature_settings_backup_sign_in">Sign in to Google Drive</string>
     <string name="feature_settings_backup_sign_out">Sign out</string>
     <string name="feature_settings_backup_create">Backup now</string>
