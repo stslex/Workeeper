@@ -8,6 +8,8 @@ import io.github.stslex.workeeper.feature.exercise_chart.domain.model.ChartFoldD
 import io.github.stslex.workeeper.feature.exercise_chart.domain.model.ChartPointDomain
 import io.github.stslex.workeeper.feature.exercise_chart.domain.model.ExerciseTypeDomain
 import io.github.stslex.workeeper.feature.exercise_chart.domain.model.RecentExerciseDomain
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartMetricUiModel
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ExercisePickerItemUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Action
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.EmptyReason
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.State
@@ -113,6 +115,66 @@ internal class CommonHandlerTest {
         assertEquals("uuid-1", flow.value.selectedExercise?.uuid)
         coVerify(exactly = 0) { interactor.getLastTrainedExerciseUuid() }
     }
+
+    /**
+     * The coherence guard, from the user's side: they tap a second metric before the first
+     * load answers. The first response must not be applied — a chart that settles on the
+     * losing request's data while the tab strip highlights the winner is wrong for as long
+     * as the screen lives, since nothing rewrites `metric` afterwards.
+     */
+    @Test
+    fun `a response whose metric no longer matches the live state is dropped`() {
+        val flow = MutableStateFlow(
+            State.create(initialUuid = "uuid-1").copy(selectedExercise = benchItem),
+        )
+        val store = newStore(flow)
+        val handler = CommonHandler(interactor = interactor, resourceWrapper = resources, store = store)
+        // The tap lands while this load is in flight.
+        coEvery { interactor.loadChartData(any(), any(), any(), any(), any()) } answers {
+            flow.value = flow.value.copy(metric = ChartMetricUiModel.VOLUME_PER_SESSION)
+            ChartFoldDomain(points = listOf(pointDomain(), pointDomain()), footer = null)
+        }
+
+        handler.loadChart(benchItem)
+
+        assertTrue(
+            flow.value.points.isEmpty(),
+            "a stale response was applied: the chart would show the losing metric's data",
+        )
+        assertEquals(ChartMetricUiModel.VOLUME_PER_SESSION, flow.value.metric)
+    }
+
+    /** The discriminator: an uncontested response is still applied. */
+    @Test
+    fun `a response that still matches the live state is applied`() {
+        val flow = MutableStateFlow(
+            State.create(initialUuid = "uuid-1").copy(selectedExercise = benchItem),
+        )
+        val store = newStore(flow)
+        val handler = CommonHandler(interactor = interactor, resourceWrapper = resources, store = store)
+        coEvery { interactor.loadChartData(any(), any(), any(), any(), any()) } returns
+            ChartFoldDomain(points = listOf(pointDomain(), pointDomain()), footer = null)
+
+        handler.loadChart(benchItem)
+
+        assertEquals(2, flow.value.points.size)
+    }
+
+    private fun pointDomain(): ChartPointDomain = ChartPointDomain(
+        day = java.time.LocalDate.of(2026, 4, 1),
+        dayMillis = 0L,
+        value = 100.0,
+        sessionUuid = "s",
+        weight = 100.0,
+        reps = 5,
+        setCount = 1,
+    )
+
+    private val benchItem = ExercisePickerItemUiModel(
+        uuid = "uuid-1",
+        name = "Bench",
+        type = io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel.WEIGHTED,
+    )
 
     @Test
     fun `loadChart with empty result sets NO_DATA_FOR_EXERCISE`() {
