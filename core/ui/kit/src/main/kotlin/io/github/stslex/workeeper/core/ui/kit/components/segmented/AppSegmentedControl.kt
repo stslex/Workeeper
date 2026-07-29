@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -22,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import io.github.stslex.workeeper.core.ui.kit.components.surface.liftedSurface
@@ -153,7 +156,10 @@ fun AppSegmentedIconControl(
             .height(TRACK_HEIGHT)
             .clip(segShape)
             .background(AppUi.colors.surfaceTier1)
-            .padding(TRACK_PADDING),
+            .padding(TRACK_PADDING)
+            // One choice among three: a radio group to TalkBack, as the ThemeSelector this
+            // control replaced was (selectableGroup + Role.RadioButton + selected state).
+            .selectableGroup(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(TRACK_PADDING),
     ) {
@@ -165,7 +171,9 @@ fun AppSegmentedIconControl(
                     .fillMaxHeight()
                     .liftedSurface(shape = segShape, lifted = isSelected)
                     .clip(segShape)
-                    .clickable { onSelectedChange(index) },
+                    .selectable(selected = isSelected, role = Role.RadioButton) {
+                        onSelectedChange(index)
+                    },
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
