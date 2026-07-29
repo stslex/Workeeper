@@ -2,6 +2,7 @@
 package io.github.stslex.workeeper.feature.exercise_chart.ui.components
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -14,10 +15,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -58,9 +58,14 @@ import kotlin.math.roundToInt
  *   plot band (PADT−8 → H−PADB+6), drawn UNDER the series (grid → scrub → series → pts);
  * - interaction: pointer capture on down, scrub while pressed, snapping to the NEAREST
  *   index — the haptic tick per crossed point lives in the handler (dedup on index);
- * - metric switch: every value tweens old → new and the line morphs (the mockup's 420ms
- *   ease-out-cubic; the motion scale has no 420 rung — `slow`/`out`, reported). The
- *   morph runs only when the day buckets are unchanged, which is exactly a metric flip.
+ * - dataset changes: the drawn dataset is never swapped. Every point is a member of
+ *   [ChartPointsAnimator], whose normalised x/y are animated state, and a new dataset
+ *   RETARGETS them — see that class for the enter/exit policy and for why the old
+ *   value-space morph cancelled itself. One path, three triggers: the metric tabs, the
+ *   preset chips and the exercise picker all reach it through `State.points`.
+ * - motion: `out` at `base` for the data, because overshoot on value-encoding geometry
+ *   would draw a reading the data never contained. The mockup's 420ms and the previous
+ *   `slow` (520ms) both go; the scale's own default carries it.
  */
 @Composable
 internal fun ChartCanvas(
@@ -76,26 +81,37 @@ internal fun ChartCanvas(
     val baseColor = AppUi.colors.surfaceTier0
     val recordColor = AppUi.colors.record.solid
 
-    // The metric-switch morph: when a reload lands on the SAME day buckets (a metric flip),
-    // values tween old → new and the line morphs instead of jumping. First composition and
-    // every bucket change snap — deterministic under the golden harness.
-    val morph = remember { Animatable(1f) }
-    var morphFrom by remember { mutableStateOf(listOf<Double>()) }
-    var lastPoints by remember { mutableStateOf(points) }
-    val slowMillis = AppUi.motion.slow
-    val outEasing = AppUi.motion.out
-    LaunchedEffect(points) {
-        val old = lastPoints
-        lastPoints = points
-        val sameDays = old.map(ChartPointUiModel::day) == points.map(ChartPointUiModel::day)
-        val valuesChanged = old.map(ChartPointUiModel::value) != points.map(ChartPointUiModel::value)
-        if (sameDays && valuesChanged) {
-            morphFrom = old.map(ChartPointUiModel::value)
-            morph.snapTo(0f)
-            morph.animateTo(1f, tween(durationMillis = slowMillis, easing = outEasing))
-        } else {
-            morph.snapTo(1f)
-        }
+    val targets = points.toTargets()
+    val scope = rememberCoroutineScope()
+    val dataSpec: AnimationSpec<Float> = tween(
+        durationMillis = AppUi.motion.base,
+        easing = AppUi.motion.out,
+    )
+    // Seeded at rest by its constructor, then only ever retargeted. `remember` without keys
+    // is deliberate: this object outlives every dataset, which is the point of it.
+    val animator = remember { ChartPointsAnimator(scope, dataSpec, targets) }
+    LaunchedEffect(points) { animator.retarget(targets, animate = true) }
+
+    // Identity, not position: the record and the scrubbed point are resolved by day key, so
+    // they survive a retarget that moves every index (a preset change) without the flags
+    // sliding onto the wrong disc mid-animation.
+    val activeKey = activeIndex?.let { points.getOrNull(it)?.dayMillis }
+    val recordKey = recordIndex?.let { points.getOrNull(it)?.dayMillis }
+
+    // The scrub bar encodes no value — it marks which point is being read — so it may glide
+    // on its own clock (`fast`, and `spring` would be legal here too). It first glides to a
+    // newly selected point, then tracks that point exactly while the data retargets under it.
+    val scrubX = remember { Animatable(targets.firstOrNull { it.key == activeKey }?.x ?: 0f) }
+    val scrubSpec: AnimationSpec<Float> = tween(
+        durationMillis = AppUi.motion.fast,
+        easing = AppUi.motion.out,
+    )
+    LaunchedEffect(activeKey, animator) {
+        val point = animator.series.firstOrNull { it.key == activeKey } ?: return@LaunchedEffect
+        // Glide to the newly selected point (a no-op on first composition, where the bar is
+        // already seeded there), then follow that point exactly while the data retargets.
+        scrubX.animateTo(point.x.value, scrubSpec)
+        snapshotFlow { point.x.value }.collect { x -> scrubX.snapTo(x) }
     }
 
     Canvas(
@@ -119,36 +135,22 @@ internal fun ChartCanvas(
             },
     ) {
         drawGridLines(gridColor)
-        if (points.size < 2) return@Canvas
+        val series = animator.series
+        if (series.size < 2) return@Canvas
 
-        val values = if (morph.value < 1f && morphFrom.size == points.size) {
-            points.mapIndexed { index, point ->
-                morphFrom[index] + (point.value - morphFrom[index]) * morph.value
-            }
-        } else {
-            points.map(ChartPointUiModel::value)
-        }
-        val min = values.min()
-        val range = (values.max() - min).takeIf { it > 0.0 } ?: 1.0
-        val xs = { index: Int ->
-            (index.toFloat() / (points.size - 1)) * (size.width - 2 * X_INSET.toPx()) +
-                X_INSET.toPx()
-        }
-        val ys = { value: Double ->
-            PAD_TOP.toPx() + ((1.0 - (value - min) / range) * plotBandPx()).toFloat()
-        }
-        val plotted = values.mapIndexed { index, value -> Offset(xs(index), ys(value)) }
+        // The ONLY arithmetic left in the draw phase: normalised → pixels. No domain, no
+        // interpolation, no dataset — every position below is read from animated state.
+        val xPx = { x: Float -> x * (size.width - 2 * X_INSET.toPx()) + X_INSET.toPx() }
+        val yPx = { y: Float -> PAD_TOP.toPx() + (y.toDouble() * plotBandPx()).toFloat() }
 
         // Draw order is the mockup's: grid → scrub → series → points. The scrub sits UNDER
         // the series.
-        activeIndex?.takeIf { it in plotted.indices }?.let { index ->
+        if (activeKey != null && series.any { it.key == activeKey }) {
+            val x = xPx(scrubX.value)
             drawLine(
                 color = scrubColor,
-                start = Offset(plotted[index].x, PAD_TOP.toPx() - SCRUB_OVERSHOOT_TOP.toPx()),
-                end = Offset(
-                    plotted[index].x,
-                    size.height - PAD_BOTTOM.toPx() + SCRUB_OVERSHOOT_BOTTOM.toPx(),
-                ),
+                start = Offset(x, PAD_TOP.toPx() - SCRUB_OVERSHOOT_TOP.toPx()),
+                end = Offset(x, size.height - PAD_BOTTOM.toPx() + SCRUB_OVERSHOOT_BOTTOM.toPx()),
                 strokeWidth = AppDimension.Border.small.toPx(),
                 pathEffect = PathEffect.dashPathEffect(
                     floatArrayOf(SCRUB_DASH_ON.toPx(), SCRUB_DASH_OFF.toPx()),
@@ -157,8 +159,10 @@ internal fun ChartCanvas(
         }
 
         val seriesPath = Path().apply {
-            plotted.forEachIndexed { index, offset ->
-                if (index == 0) moveTo(offset.x, offset.y) else lineTo(offset.x, offset.y)
+            series.forEachIndexed { index, point ->
+                val x = xPx(point.x.value)
+                val y = yPx(point.y.value)
+                if (index == 0) moveTo(x, y) else lineTo(x, y)
             }
         }
         drawPath(
@@ -171,31 +175,53 @@ internal fun ChartCanvas(
             ),
         )
 
-        plotted.forEachIndexed { index, center ->
-            val isRecord = index == recordIndex
-            val isActive = index == activeIndex
-            val radius = if (isActive) ACTIVE_POINT_RADIUS.toPx() else POINT_RADIUS.toPx()
+        // `drawn`, not `series`: a point on its way out keeps its disc until it has faded.
+        animator.drawn.forEach { point ->
+            val presence = point.presence.value
+            if (presence <= 0f) return@forEach
+            val center = Offset(xPx(point.x.value), yPx(point.y.value))
+            val isRecord = point.key == recordKey
+            val isActive = point.key == activeKey
+            val radius =
+                (if (isActive) ACTIVE_POINT_RADIUS.toPx() else POINT_RADIUS.toPx()) * presence
             when {
                 // The record's roles invert: solid molten disc ringed by the page colour —
                 // and it STAYS molten when active (`.pt.pr.act` keeps the molten fill).
                 isRecord -> {
-                    drawCircle(color = recordColor, radius = radius, center = center)
+                    drawCircle(
+                        color = recordColor,
+                        radius = radius,
+                        center = center,
+                        alpha = presence,
+                    )
                     drawCircle(
                         color = baseColor,
                         radius = radius,
                         center = center,
+                        alpha = presence,
                         style = Stroke(width = RECORD_STROKE.toPx()),
                     )
                 }
 
-                isActive -> drawCircle(color = seriesColor, radius = radius, center = center)
+                isActive -> drawCircle(
+                    color = seriesColor,
+                    radius = radius,
+                    center = center,
+                    alpha = presence,
+                )
 
                 else -> {
-                    drawCircle(color = baseColor, radius = radius, center = center)
+                    drawCircle(
+                        color = baseColor,
+                        radius = radius,
+                        center = center,
+                        alpha = presence,
+                    )
                     drawCircle(
                         color = seriesColor,
                         radius = radius,
                         center = center,
+                        alpha = presence,
                         style = Stroke(width = AppDimension.Border.medium.toPx()),
                     )
                 }
