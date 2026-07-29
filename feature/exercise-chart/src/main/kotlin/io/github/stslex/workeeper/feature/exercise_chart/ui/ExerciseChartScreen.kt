@@ -190,12 +190,13 @@ private fun ChartPopulated(
     // readout's flag and the canvas's molten point alike.
     val recordIndex = remember(state.points) { ChartReadoutMapper.recordIndex(state.points) }
 
-    // The mockup's vertical rhythm, spelled per element rather than one spacedBy: readout
-    // padding-top 18px → lg, chartwrap margin-top 14px → md, statrows margin-top 26px → xl.
+    // The mockup's vertical rhythm, spelled per element rather than one spacedBy: ranges
+    // margin-bottom 14px + readout padding-top 18px = 32px → xxl (sum-of-parts, §0.2),
+    // chartwrap margin-top 14px → md, statrows margin-top 26px → xl.
     Column(modifier = Modifier.fillMaxSize()) {
         ChartControls(state = state, consume = consume)
         state.readout?.let { readout ->
-            Spacer(modifier = Modifier.height(AppDimension.Space.lg))
+            Spacer(modifier = Modifier.height(AppDimension.Space.xxl))
             ChartReadout(readout = readout)
         }
         Spacer(modifier = Modifier.height(AppDimension.Space.md))
@@ -217,10 +218,12 @@ private fun ChartControls(
     state: State,
     consume: (Action) -> Unit,
 ) {
-    // Mockup order (§4.1): .tabs above .ranges — metric first, window second. Tabs at
-    // margin 16 each way (`.tabs{margin:16px gutter 0}` + the ranges' inline
-    // `margin-top:16px`), still gated WEIGHTED (spec §11).
+    // Mockup order (§4.1): .tabs above .ranges — metric first, window second. 16dp of air
+    // ABOVE the block (`.tabs{margin:16px gutter 0}`; with tabs gated away the ranges'
+    // inline `margin-top:16px` plays the same role), 16dp between tabs and ranges (the
+    // inline override), still gated WEIGHTED (spec §11).
     Column(
+        modifier = Modifier.padding(top = AppDimension.Space.lg),
         verticalArrangement = Arrangement.spacedBy(AppDimension.Space.lg),
     ) {
         if (state.showMetricToggle) {
