@@ -4,6 +4,7 @@ package io.github.stslex.workeeper.feature.exercise_chart.golden
 import io.github.stslex.workeeper.core.ui.kit.golden.GoldenTheme
 import io.github.stslex.workeeper.core.ui.kit.golden.golden
 import io.github.stslex.workeeper.core.ui.kit.golden.goldenSubject
+import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.plan_editor.model.ExerciseTypeUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartFooterStatsUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartMetricUiModel
@@ -223,7 +224,10 @@ internal class ExerciseChartGoldenTest {
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun pickerSheetContent(theme: GoldenTheme, testInfo: TestInfo) {
-        goldenSubject(testInfo, theme) {
+        // The content never sits on tier0 in production: AppBottomSheet's containerColor
+        // is surfaceTier3 and AppSheetLayout paints no background of its own — same
+        // surface every sibling sheet-content golden pins (SessionSheetsGoldenTest).
+        goldenSubject(testInfo, theme, surface = { AppUi.colors.surfaceTier3 }) {
             ExercisePickerSheetContent(
                 items = persistentListOf(
                     ExercisePickerItemUiModel("ex-1", "разведение ног", ExerciseTypeUiModel.WEIGHTED),
