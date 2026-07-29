@@ -70,7 +70,6 @@ private fun NotAuthenticatedRows(
     )
 }
 
-@Suppress("LongMethod")
 @Composable
 private fun AuthenticatedRows(
     auth: BackupAuthUi.Authenticated,
