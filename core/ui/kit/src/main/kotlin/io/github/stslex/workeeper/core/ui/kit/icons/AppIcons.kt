@@ -98,6 +98,42 @@ object AppIcons {
     }
 
     /**
+     * External-link chevron — settings' out-of-app rows (pass2d §`s-set`): an arrow leaving
+     * a box, `M7 17L17 7M9 7h8v8`, drawn at the `.chev` 18dp/1.8. Deliberately NOT the
+     * in-app [ChevronRight]: the extraction (§5.3) keeps the two destinations visually
+     * distinct.
+     */
+    val ExternalLink: ImageVector by lazy {
+        strokeIcon("ExternalLink", CARD_STROKE, "M7 17L17 7M9 7h8v8")
+    }
+
+    /** `.mseg` theme glyph 1/3 — a monitor (`title="Системная"`), pass2d §`s-set`. */
+    val ThemeSystem: ImageVector by lazy {
+        strokeIcon(
+            "ThemeSystem",
+            MSEG_STROKE,
+            "M5 4h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" +
+                "M8 21h8",
+        )
+    }
+
+    /** `.mseg` theme glyph 2/3 — a sun (`title="Светлая"`). Circle rewritten as two arcs. */
+    val ThemeLight: ImageVector by lazy {
+        strokeIcon(
+            "ThemeLight",
+            MSEG_STROKE,
+            "M8 12a4 4 0 1 0 8 0a4 4 0 1 0-8 0Z" +
+                "M12 2v2M12 20v2M2 12h2M20 12h2" +
+                "M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4",
+        )
+    }
+
+    /** `.mseg` theme glyph 3/3 — a moon (`title="Тёмная"`). */
+    val ThemeDark: ImageVector by lazy {
+        strokeIcon("ThemeDark", MSEG_STROKE, "M20 13.5A8 8 0 1 1 10.5 4a6.5 6.5 0 0 0 9.5 9.5z")
+    }
+
+    /**
      * The ordinal chip's done checkmark — session-v3f L345, rendered at 13dp with a 3-unit
      * stroke. Not the set mark's tick (L390, `M5 12.5l4.5 4.5L19 7.5`): the mockup draws two
      * subtly different checks and the difference ships as drawn.
@@ -129,6 +165,9 @@ object AppIcons {
 
     /** 1.6 — the empty-state glyph (pass2d `.empty .glyph svg`). */
     private const val EMPTY_GLYPH_STROKE = 1.6f
+
+    /** 1.9 — the `.mseg` theme glyphs (pass2d `.mseg svg`), same weight as the addex plus. */
+    private const val MSEG_STROKE = 1.9f
 
     /** 3 — the ordinal chip's check is a heavy stroke at a tiny render size (L94). */
     private const val ORDINAL_CHECK_STROKE = 3f
