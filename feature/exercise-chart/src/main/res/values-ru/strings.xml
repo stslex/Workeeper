@@ -3,9 +3,9 @@
     <string name="feature_exercise_chart_picker_title">Выберите упражнение</string>
     <string name="feature_exercise_chart_picker_open">Сменить упражнение</string>
 
-    <string name="feature_exercise_chart_metric_heaviest">Макс. вес</string>
-    <string name="feature_exercise_chart_metric_session">Объём сессии</string>
-    <string name="feature_exercise_chart_metric_volume">Объём подхода</string>
+    <string name="feature_exercise_chart_metric_heaviest">Вес</string>
+    <string name="feature_exercise_chart_metric_session">Сессия</string>
+    <string name="feature_exercise_chart_metric_volume">Подход</string>
 
     <string name="feature_exercise_chart_preset_1m">1М</string>
     <string name="feature_exercise_chart_preset_3m">3М</string>

@@ -35,7 +35,7 @@ import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartEmpt
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartFooterStats
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ExerciseHeader
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ExercisePickerSheet
-import io.github.stslex.workeeper.feature.exercise_chart.ui.components.MetricToggle
+import io.github.stslex.workeeper.feature.exercise_chart.ui.components.MetricTabs
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.PresetChipsRow
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -218,21 +218,23 @@ private fun ChartControls(
     state: State,
     consume: (Action) -> Unit,
 ) {
+    // Mockup order (§4.1): .tabs above .ranges — metric first, window second. Tabs at
+    // margin 16 each way (`.tabs{margin:16px gutter 0}` + the ranges' inline
+    // `margin-top:16px`), still gated WEIGHTED (spec §11).
     Column(
-        verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
+        verticalArrangement = Arrangement.spacedBy(AppDimension.Space.lg),
     ) {
+        if (state.showMetricToggle) {
+            MetricTabs(
+                modifier = Modifier.padding(horizontal = AppDimension.screenEdge),
+                selected = state.metric,
+                onSelect = { consume(Action.Click.OnMetricSelect(it)) },
+            )
+        }
         PresetChipsRow(
             selected = state.preset,
             onSelect = { consume(Action.Click.OnPresetSelect(it)) },
         )
-        if (state.showMetricToggle) {
-            Box(modifier = Modifier.padding(horizontal = AppDimension.screenEdge)) {
-                MetricToggle(
-                    selected = state.metric,
-                    onSelect = { consume(Action.Click.OnMetricSelect(it)) },
-                )
-            }
-        }
     }
 }
 

@@ -15,6 +15,7 @@ import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChart
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.State
 import io.github.stslex.workeeper.feature.exercise_chart.ui.ExerciseChartScreen
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartFooterStats
+import io.github.stslex.workeeper.feature.exercise_chart.ui.components.MetricTabs
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import org.junit.jupiter.api.TestInfo
@@ -109,6 +110,29 @@ internal class ExerciseChartGoldenTest {
                 ),
                 consume = {},
             )
+        }
+    }
+
+    // --- Tabs ------------------------------------------------------------------------------
+
+    /**
+     * The sliding indicator's transient pair (§10.2): both travel endpoints. The tween's
+     * midpoint is time-based and outside the gate — the pair pins where the thumb *rests*
+     * at each stop, which is what a wrong offset computation would corrupt.
+     */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun tabsIndicatorFirst(theme: GoldenTheme, testInfo: TestInfo) {
+        goldenSubject(testInfo, theme) {
+            MetricTabs(selected = ChartMetricUiModel.HEAVIEST_WEIGHT, onSelect = {})
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun tabsIndicatorSecond(theme: GoldenTheme, testInfo: TestInfo) {
+        goldenSubject(testInfo, theme) {
+            MetricTabs(selected = ChartMetricUiModel.VOLUME_PER_SESSION, onSelect = {})
         }
     }
 
