@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -143,10 +144,14 @@ fun AppSegmentedIconControl(
     modifier: Modifier = Modifier,
     itemModifier: (Int) -> Modifier = { Modifier },
 ) {
+    // §5.4 declares the buttons `radius 8px → 8dp` — a rung that exists (Radius.small),
+    // and the round-down AppIconButton documents for the track's missing-12 case lands on
+    // the same 8. NOT the theme's shapes.small (6dp): that value was D3's false citation.
+    val segShape = RoundedCornerShape(AppDimension.Radius.small)
     Row(
         modifier = modifier
             .height(TRACK_HEIGHT)
-            .clip(AppUi.shapes.small)
+            .clip(segShape)
             .background(AppUi.colors.surfaceTier1)
             .padding(TRACK_PADDING),
         verticalAlignment = Alignment.CenterVertically,
@@ -158,8 +163,8 @@ fun AppSegmentedIconControl(
                 modifier = itemModifier(index)
                     .width(MSEG_BUTTON_WIDTH)
                     .fillMaxHeight()
-                    .liftedSurface(shape = AppUi.shapes.small, lifted = isSelected)
-                    .clip(AppUi.shapes.small)
+                    .liftedSurface(shape = segShape, lifted = isSelected)
+                    .clip(segShape)
                     .clickable { onSelectedChange(index) },
                 contentAlignment = Alignment.Center,
             ) {
