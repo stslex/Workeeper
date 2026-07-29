@@ -125,12 +125,16 @@ private fun AuthenticatedRows(
                 if (operation == BackupOperationUi.TogglingAiExport) {
                     RowSpinner()
                 } else {
+                    // Dispatch is deliberately UNGATED (pre-reskin behaviour): the handler
+                    // honors ToggleAiExport(false) — consent withdrawal, which deletes the
+                    // exported plaintext snapshots — unconditionally and before its own
+                    // re-entrancy check; only the enable direction is gated, and there by
+                    // the handler itself. A UI-side isInProgress gate would silently
+                    // swallow a withdrawal while any backup operation is in flight.
                     AppSwitch(
                         checked = preferences.aiExportEnabled,
                         onCheckedChange = { enabled ->
-                            if (!operation.isInProgress) {
-                                onAction(Action.Backup.ToggleAiExport(enabled))
-                            }
+                            onAction(Action.Backup.ToggleAiExport(enabled))
                         },
                     )
                 }
