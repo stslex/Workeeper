@@ -73,7 +73,7 @@
     <string name="feature_settings_backup_allow_mobile_data_label">Allow on mobile data</string>
     <string name="feature_settings_backup_allow_mobile_data_caption">Backups will use mobile data when Wi-Fi unavailable</string>
     <string name="feature_settings_backup_ai_export_label">AI assistant snapshot</string>
-    <string name="feature_settings_backup_ai_export_caption">A readable copy in a visible Google Drive folder</string>
+    <string name="feature_settings_backup_ai_export_caption">Saves a plain-text JSON copy of your workouts to a visible, shareable folder in your Google Drive (not the hidden app backup) so an AI assistant you authorize can read it.</string>
     <string name="feature_settings_backup_ai_export_access_needed">Google Drive access is needed for AI export</string>
     <string name="feature_settings_backup_auto_paused_banner_title">Auto-backup paused</string>
     <string name="feature_settings_backup_auto_paused_banner_body">Sign in to Google Drive again to resume.</string>

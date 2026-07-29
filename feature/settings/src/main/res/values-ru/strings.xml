@@ -75,7 +75,7 @@
     <string name="feature_settings_backup_allow_mobile_data_label">Разрешить мобильные данные</string>
     <string name="feature_settings_backup_allow_mobile_data_caption">Резервные копии будут использовать мобильные данные при отсутствии Wi-Fi</string>
     <string name="feature_settings_backup_ai_export_label">Снимок для ИИ-ассистента</string>
-    <string name="feature_settings_backup_ai_export_caption">Читаемая копия в видимой папке Google Drive</string>
+    <string name="feature_settings_backup_ai_export_caption">Сохраняет копию ваших тренировок в виде обычного текста (JSON) в видимую и доступную для общего доступа папку в Google Drive (не в скрытую резервную копию), чтобы ИИ-ассистент, которому вы дали доступ, мог её прочитать.</string>
     <string name="feature_settings_backup_ai_export_access_needed">Для экспорта в ИИ нужен доступ к Google Drive</string>
     <string name="feature_settings_backup_auto_paused_banner_title">Авто-копирование приостановлено</string>
     <string name="feature_settings_backup_auto_paused_banner_body">Войдите в Google Drive снова, чтобы возобновить.</string>
