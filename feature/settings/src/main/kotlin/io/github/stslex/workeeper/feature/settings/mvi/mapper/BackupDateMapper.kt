@@ -16,6 +16,7 @@ internal object BackupDateMapper {
     ): BackupInfoUi = BackupInfoUi(
         lastBackupText = formatLastBackup(summaries.firstOrNull()?.createdAtEpochMs, context, now),
         backupCountText = formatBackupCount(summaries.size, context),
+        isEmpty = summaries.isEmpty(),
     )
 
     fun formatLastBackup(

@@ -149,7 +149,9 @@ private fun AuthenticatedRows(
     )
     ActionRow(
         title = stringResource(R.string.feature_settings_backup_restore),
-        subtitle = info?.let { "${it.backupCountText} · ${it.lastBackupText}" },
+        subtitle = info?.let {
+            if (it.isEmpty) it.backupCountText else "${it.backupCountText} · ${it.lastBackupText}"
+        },
         loading = operation == BackupOperationUi.FetchingBackups ||
             operation == BackupOperationUi.Restoring,
         enabled = !operation.isInProgress,
