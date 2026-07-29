@@ -10,7 +10,7 @@
     <string name="feature_exercise_chart_preset_1m">1М</string>
     <string name="feature_exercise_chart_preset_3m">3М</string>
     <string name="feature_exercise_chart_preset_1y">1Г</string>
-    <string name="feature_exercise_chart_preset_all">Все</string>
+    <string name="feature_exercise_chart_preset_all">Всё</string>
 
     <string name="feature_exercise_chart_footer_min">Мин</string>
     <string name="feature_exercise_chart_footer_max">Макс</string>
