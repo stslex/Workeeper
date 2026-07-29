@@ -173,7 +173,7 @@ private fun ThemeRow(
     SettingsGroupRow(
         title = stringResource(R.string.feature_settings_theme_row_title),
         subtitle = names[modes.indexOf(selected)],
-        trailing = {
+        content = {
             AppSegmentedIconControl(
                 items = persistentListOf(
                     SegmentedIcon(AppIcons.ThemeSystem, names[0]),

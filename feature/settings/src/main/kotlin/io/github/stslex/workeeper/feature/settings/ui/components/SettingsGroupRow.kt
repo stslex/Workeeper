@@ -40,7 +40,7 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
  *
  * Trailing, in order: an optional `.val` (mono 15/500, `--body`), then a chevron
  * ([RowChevron.InApp] `M9 6l6 6-6 6` / [RowChevron.External] the arrow-out-of-box — §5.3
- * keeps the two destinations visually distinct), or a [trailing] control slot (`.mseg`,
+ * keeps the two destinations visually distinct), or a [content] trailing control slot (`.mseg`,
  * `.sw`) for plain rows. The mockup's hover (`--sec`) maps onto the pressed state, like
  * every v3 control.
  */
@@ -53,7 +53,9 @@ internal fun SettingsGroupRow(
     chevron: RowChevron = RowChevron.None,
     destructive: Boolean = false,
     onClick: (() -> Unit)? = null,
-    trailing: (@Composable RowScope.() -> Unit)? = null,
+    // The trailing control slot — named `content` because it is this row's single
+    // composable slot and lint's ComposableLambdaParameterNaming demands the name.
+    content: (@Composable RowScope.() -> Unit)? = null,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -128,7 +130,7 @@ internal fun SettingsGroupRow(
                 RowChevron.External -> RowChevronIcon(icon = AppIcons.ExternalLink)
                 RowChevron.None -> Unit
             }
-            trailing?.invoke(this)
+            content?.invoke(this)
         }
     }
 }

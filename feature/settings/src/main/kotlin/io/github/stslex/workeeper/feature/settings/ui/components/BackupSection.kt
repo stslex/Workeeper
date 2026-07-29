@@ -121,7 +121,7 @@ private fun AuthenticatedRows(
             modifier = Modifier.testTag("AiExportRow"),
             title = stringResource(R.string.feature_settings_backup_ai_export_label),
             subtitle = stringResource(R.string.feature_settings_backup_ai_export_caption),
-            trailing = {
+            content = {
                 if (operation == BackupOperationUi.TogglingAiExport) {
                     RowSpinner()
                 } else {
@@ -176,7 +176,7 @@ private fun AuthenticatedRows(
         } else {
             { onAction(Action.Backup.RequestSignOut) }
         },
-        trailing = {
+        content = {
             if (operation == BackupOperationUi.SigningOut) RowSpinner()
         },
     )
@@ -202,7 +202,7 @@ private fun ActionRow(
         subtitle = subtitle,
         chevron = if (loading) RowChevron.None else RowChevron.InApp,
         onClick = onClick.takeIf { enabled },
-        trailing = { if (loading) RowSpinner() },
+        content = { if (loading) RowSpinner() },
     )
 }
 
