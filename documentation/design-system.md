@@ -444,21 +444,34 @@ Visual: AppShapes.medium, border-only (no fill), surface tier 0 fill
 
 ### 4. AppNumberInput
 
-Specialized for weight / reps in Live workout. Large tap target,
-large numbers, optimized keyboard.
+The mockup's `.field` — a value and its unit on a recessed panel
+(extraction §1.6). Specialized for weight / reps in Live workout and
+the past-session read-back. Large tap target, large numbers, optimized
+keyboard.
 
 ```
 package: io.github.stslex.workeeper.core.ui.kit.components.input
 
-API: AppNumberInput(value, onValueChange, decimals = 0, suffix = null,
-                    modifier, enabled = true)
+API: AppNumberInput(value, onValueChange, modifier, decimals = 0,
+                    suffix = null, enabled = true, isError = false,
+                    isRecord = false, isDone = false, isLogged = false)
 
 Visual:
   height: AppDimension.heightMd (48.dp)
-  text: titleLarge, tabularNumbers
-  background: surface tier 2
-  shape: AppShapes.small
-  suffix display ("kg", "reps") — tertiary text trailing inside the field
+  text: AppTypography.dataValue (26sp Archivo wdth 116 / wght 700);
+        values longer than 3 glyphs step down to numeric.section
+        (19sp bold) instead of clipping
+  value color: textTertiary resting → textPrimary when isDone or
+        isLogged → record.textPrimary when isRecord (record wins)
+  background: surface tier 3 (field); the isDone `donefill` and
+        isRecord `record.background` washes REPLACE the tier
+        (isLogged keeps the plain tier — colour without the wash)
+  shape: RoundedCornerShape(AppDimension.Radius.small) (8.dp)
+  border: none by default (recessed by tier alone); hairline
+        status.error outline when isError
+  suffix display ("kg", "reps") — mono.caption trailing inside the
+        field; textDim resting, promotes to textSecondary over the
+        isDone / isRecord washes
 
 KeyboardOptions:
   decimals = 0 → KeyboardType.Number
