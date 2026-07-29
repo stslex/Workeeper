@@ -45,6 +45,31 @@ interface ExerciseChartStore : Store<State, Action, Event> {
         NO_DATA_FOR_EXERCISE,
     }
 
+    /**
+     * What the screen may draw right now — **the single decision**, derived once on
+     * [State] rather than inferred at the call site from three fields.
+     *
+     * The canvas exists only under [Plot], and [Plot] is unreachable unless the dataset is
+     * actually plottable. That is the invariant: no state can be emitted in which an
+     * unplottable dataset reaches the draw phase. The old screen inferred the branch from
+     * `isLoading` / `points.isEmpty()` / `emptyReason` independently, and a sub-threshold
+     * one-point dataset satisfied none of the guards — it composed the canvas, which drew
+     * its four gridlines and bailed, so a metric tap on a one-session exercise showed a
+     * bare grid with stale footer numbers for the whole DB round-trip.
+     */
+    @Stable
+    sealed interface Content {
+
+        /** Nothing plottable and no resolved reason yet — the first load. */
+        data object Loading : Content
+
+        /** Resolved: there is a reason there is no chart. Carries the recovery affordances. */
+        data class Empty(val reason: EmptyReason) : Content
+
+        /** Resolved and plottable: at least [State.MIN_CHART_POINTS] points. */
+        data object Plot : Content
+    }
+
     @Stable
     data class State(
         val isLoading: Boolean,
@@ -67,7 +92,27 @@ interface ExerciseChartStore : Store<State, Action, Event> {
         val showMetricToggle: Boolean
             get() = selectedExercise?.type == ExerciseTypeUiModel.WEIGHTED
 
+        /**
+         * See [Content]. A resolved reason wins over a stale dataset, and a dataset that
+         * cannot be drawn never reaches [Content.Plot].
+         *
+         * `isLoading` deliberately does not participate: while a reload is in flight the
+         * previous **resolved** content stays on screen — which is what lets the canvas
+         * retarget its animations from where the line already is instead of tearing the
+         * chart down and rebuilding it. A reload that resolves to nothing lands on
+         * [Content.Empty] without ever passing through a blank frame.
+         */
+        val content: Content
+            get() = when {
+                emptyReason != null -> Content.Empty(emptyReason)
+                points.size >= MIN_CHART_POINTS -> Content.Plot
+                else -> Content.Loading
+            }
+
         companion object {
+
+            /** §4.8: "График появится после двух записанных сессий с этим упражнением." */
+            const val MIN_CHART_POINTS = 2
 
             fun create(initialUuid: String?): State = State(
                 isLoading = true,

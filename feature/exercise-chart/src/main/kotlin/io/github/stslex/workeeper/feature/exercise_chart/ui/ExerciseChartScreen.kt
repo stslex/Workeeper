@@ -31,6 +31,7 @@ import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartFooterSt
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPointUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ExercisePickerItemUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Action
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Content
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.EmptyReason
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.State
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartCanvas
@@ -119,26 +120,34 @@ private fun ChartContent(
     state: State,
     consume: (Action) -> Unit,
 ) {
-    when {
-        state.isLoading && state.points.isEmpty() && state.emptyReason == null -> Box(
+    // One branch on one resolved decision (State.content). The canvas is reachable only
+    // through Content.Plot, which State refuses to produce for an unplottable dataset —
+    // there is no arrangement of fields here that can put an empty chart on screen.
+    when (val content = state.content) {
+        Content.Loading -> Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
             AppLoadingIndicator()
         }
 
-        state.emptyReason != null -> EmptyContent(state = state, consume = consume)
+        is Content.Empty -> EmptyContent(
+            reason = content.reason,
+            state = state,
+            consume = consume,
+        )
 
-        else -> ChartPopulated(state = state, consume = consume)
+        Content.Plot -> ChartPopulated(state = state, consume = consume)
     }
 }
 
 @Composable
 private fun EmptyContent(
+    reason: EmptyReason,
     state: State,
     consume: (Action) -> Unit,
 ) {
-    when (state.emptyReason) {
+    when (reason) {
         EmptyReason.NO_FINISHED_SESSIONS -> ChartEmptyState(
             modifier = Modifier
                 .fillMaxSize()
@@ -176,8 +185,6 @@ private fun EmptyContent(
                 testTag = "ExerciseChartNoDataForExercise",
             )
         }
-
-        null -> Unit
     }
 }
 

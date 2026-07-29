@@ -102,7 +102,7 @@ internal class CommonHandler @Inject constructor(
                 // recorded sessions. Below two points there is no line to draw (the
                 // canvas is index-spaced), so sub-threshold is an empty state, not a
                 // degenerate chart, and the readout/scrub state stays clear.
-                val subThreshold = newPoints.size < MIN_CHART_POINTS
+                val subThreshold = newPoints.size < State.MIN_CHART_POINTS
                 // The scrub position survives a reload only when the day buckets are the
                 // same — a metric switch replots identical days (the mockup keeps
                 // `active` across setMetric). A preset or exercise change produces new
@@ -152,12 +152,6 @@ internal class CommonHandler @Inject constructor(
 
     @Suppress("unused")
     private fun State.placeholder(): State = this
-
-    private companion object {
-
-        /** §4.8: "График появится после двух записанных сессий с этим упражнением." */
-        const val MIN_CHART_POINTS = 2
-    }
 
     private data class InitResult(
         val selected: ExercisePickerItemUiModel?,

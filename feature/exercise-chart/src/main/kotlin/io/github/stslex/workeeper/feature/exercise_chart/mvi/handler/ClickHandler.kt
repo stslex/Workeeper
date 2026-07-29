@@ -38,10 +38,13 @@ internal class ClickHandler @Inject constructor(
         if (current.preset == action.preset) return
         val selected = current.selectedExercise ?: return
         sendEvent(Event.HapticClick(HapticFeedbackType.SegmentTick))
+        // `emptyReason` is NOT cleared here: it describes this exercise, and the exercise
+        // has not changed. Clearing it eagerly is what used to drop the screen out of its
+        // resolved empty state mid-reload — taking the recovery chips with it. loadChart
+        // owns the transition in both directions.
         updateState {
             it.copy(
                 preset = action.preset,
-                emptyReason = null,
                 isLoading = true,
             )
         }
@@ -53,10 +56,11 @@ internal class ClickHandler @Inject constructor(
         if (current.metric == action.metric) return
         val selected = current.selectedExercise ?: return
         sendEvent(Event.HapticClick(HapticFeedbackType.SegmentTick))
+        // See [processPresetSelect]: same exercise, so the resolved `emptyReason` stands
+        // until loadChart resolves the new metric.
         updateState {
             it.copy(
                 metric = action.metric,
-                emptyReason = null,
                 isLoading = true,
             )
         }

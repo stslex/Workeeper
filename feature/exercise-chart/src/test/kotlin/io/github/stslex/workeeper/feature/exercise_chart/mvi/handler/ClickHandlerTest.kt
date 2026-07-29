@@ -73,7 +73,7 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `OnPresetSelect changes state, clears emptyReason, and delegates load`() {
+    fun `OnPresetSelect changes state, KEEPS emptyReason, and delegates load`() {
         val flow = MutableStateFlow(
             stateWithSelected().copy(emptyReason = EmptyReason.NO_DATA_FOR_EXERCISE),
         )
@@ -84,7 +84,11 @@ internal class ClickHandlerTest {
 
         assertEquals(ChartPresetUiModel.YEAR_1, flow.value.preset)
         assertTrue(flow.value.isLoading)
-        assertNull(flow.value.emptyReason)
+        // The reason describes THIS exercise and the exercise has not changed, so it
+        // stands until loadChart resolves the new window. Clearing it here is what used
+        // to drop the screen out of its resolved empty state mid-reload — see
+        // ChartContentResolutionTest.
+        assertEquals(EmptyReason.NO_DATA_FOR_EXERCISE, flow.value.emptyReason)
         verify(exactly = 1) { commonHandler.loadChart(benchExercise) }
         val captured = slot<Event>()
         verify { store.sendEvent(capture(captured)) }
@@ -92,7 +96,7 @@ internal class ClickHandlerTest {
     }
 
     @Test
-    fun `OnMetricSelect changes metric, clears emptyReason, and delegates load`() {
+    fun `OnMetricSelect changes metric, KEEPS emptyReason, and delegates load`() {
         val flow = MutableStateFlow(
             stateWithSelected().copy(emptyReason = EmptyReason.NO_DATA_FOR_EXERCISE),
         )
@@ -102,7 +106,8 @@ internal class ClickHandlerTest {
         handler.invoke(Action.Click.OnMetricSelect(ChartMetricUiModel.VOLUME_PER_SET))
 
         assertEquals(ChartMetricUiModel.VOLUME_PER_SET, flow.value.metric)
-        assertNull(flow.value.emptyReason)
+        // Same exercise — see the preset test above.
+        assertEquals(EmptyReason.NO_DATA_FOR_EXERCISE, flow.value.emptyReason)
         verify(exactly = 1) { commonHandler.loadChart(benchExercise) }
     }
 
