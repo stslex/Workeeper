@@ -438,6 +438,178 @@ internal class ChartFolderTest {
     }
 
     @Test
+    fun `session volume sums every eligible set of the session`() {
+        val result = bucketAndFold(
+            history = listOf(
+                entry(
+                    finishedAt = utcMillis(2026, 4, 28),
+                    sessionUuid = "s1",
+                    sets = listOf(
+                        set(weight = 100.0, reps = 5), // 500
+                        set(weight = 80.0, reps = 10), // 800
+                    ),
+                ),
+            ),
+            preset = ChartPresetDomain.MONTHS_3,
+            metric = ChartMetricDomain.VOLUME_PER_SESSION,
+            exerciseType = ExerciseTypeDomain.WEIGHTED,
+            now = utcMillis(2026, 5, 1),
+            zoneId = zone,
+        )
+
+        val point = result.points.single()
+        assertEquals(1300.0, point.value)
+        assertEquals("s1", point.sessionUuid)
+        // Aggregate point: no single set is "the" point.
+        assertNull(point.weight)
+        assertEquals(0, point.reps)
+        assertEquals(2, point.setCount)
+    }
+
+    @Test
+    fun `session volume excludes ineligible sets from the sum but not from setCount`() {
+        // A weight-null set on a WEIGHTED exercise contributes nothing — coercing it to 0.0
+        // would be invisible in a sum, but the shared eligibility floor is the rule, not an
+        // arithmetic accident. The zero-rep set is the discriminating case either way.
+        val result = bucketAndFold(
+            history = listOf(
+                entry(
+                    finishedAt = utcMillis(2026, 4, 28),
+                    sessionUuid = "s1",
+                    sets = listOf(
+                        set(weight = 100.0, reps = 5), // 500
+                        set(weight = null, reps = 8), // ineligible
+                        set(weight = 90.0, reps = 0), // ineligible
+                    ),
+                ),
+            ),
+            preset = ChartPresetDomain.MONTHS_3,
+            metric = ChartMetricDomain.VOLUME_PER_SESSION,
+            exerciseType = ExerciseTypeDomain.WEIGHTED,
+            now = utcMillis(2026, 5, 1),
+            zoneId = zone,
+        )
+
+        val point = result.points.single()
+        assertEquals(500.0, point.value)
+        assertEquals(3, point.setCount)
+    }
+
+    @Test
+    fun `two sessions same day collapse to higher session total not higher single set`() {
+        // The evening session holds the day's heaviest single set (100kg) but the morning
+        // session moved more total volume — under the session metric the morning wins. This
+        // is the case that separates the session fold from the per-set day-winner fold.
+        val result = bucketAndFold(
+            history = listOf(
+                entry(
+                    finishedAt = utcMillis(2026, 4, 28, hour = 9),
+                    sessionUuid = "morning",
+                    sets = listOf(
+                        set(weight = 80.0, reps = 5), // 400
+                        set(weight = 80.0, reps = 5), // 400
+                    ),
+                ),
+                entry(
+                    finishedAt = utcMillis(2026, 4, 28, hour = 18),
+                    sessionUuid = "evening",
+                    sets = listOf(set(weight = 100.0, reps = 3)), // 300
+                ),
+            ),
+            preset = ChartPresetDomain.MONTHS_3,
+            metric = ChartMetricDomain.VOLUME_PER_SESSION,
+            exerciseType = ExerciseTypeDomain.WEIGHTED,
+            now = utcMillis(2026, 5, 1),
+            zoneId = zone,
+        )
+
+        val point = result.points.single()
+        assertEquals(800.0, point.value)
+        assertEquals("morning", point.sessionUuid)
+        assertEquals(3, point.setCount)
+    }
+
+    @Test
+    fun `session total tie keeps the earlier session`() {
+        // Same chain as the per-set volume metric: a total tie is a trade, nothing licenses
+        // a reps key, earliest finishedAt wins.
+        val result = bucketAndFold(
+            history = listOf(
+                entry(
+                    finishedAt = utcMillis(2026, 4, 28, hour = 18),
+                    sessionUuid = "evening",
+                    sets = listOf(set(weight = 50.0, reps = 8)), // 400
+                ),
+                entry(
+                    finishedAt = utcMillis(2026, 4, 28, hour = 9),
+                    sessionUuid = "morning",
+                    sets = listOf(set(weight = 100.0, reps = 4)), // 400
+                ),
+            ),
+            preset = ChartPresetDomain.MONTHS_3,
+            metric = ChartMetricDomain.VOLUME_PER_SESSION,
+            exerciseType = ExerciseTypeDomain.WEIGHTED,
+            now = utcMillis(2026, 5, 1),
+            zoneId = zone,
+        )
+
+        assertEquals("morning", result.points.single().sessionUuid)
+    }
+
+    @Test
+    fun `weightless session volume sums reps`() {
+        val result = bucketAndFold(
+            history = listOf(
+                entry(
+                    finishedAt = utcMillis(2026, 4, 28),
+                    sessionUuid = "s1",
+                    sets = listOf(
+                        set(weight = null, reps = 8),
+                        set(weight = null, reps = 12),
+                    ),
+                ),
+            ),
+            preset = ChartPresetDomain.MONTHS_3,
+            metric = ChartMetricDomain.VOLUME_PER_SESSION,
+            exerciseType = ExerciseTypeDomain.WEIGHTLESS,
+            now = utcMillis(2026, 5, 1),
+            zoneId = zone,
+        )
+
+        assertEquals(20.0, result.points.single().value)
+    }
+
+    @Test
+    fun `session volume footer tracks session totals across days`() {
+        val result = bucketAndFold(
+            history = listOf(
+                entry(
+                    finishedAt = utcMillis(2026, 4, 26),
+                    sessionUuid = "s1",
+                    sets = listOf(set(weight = 100.0, reps = 5)), // 500
+                ),
+                entry(
+                    finishedAt = utcMillis(2026, 4, 28),
+                    sessionUuid = "s2",
+                    sets = listOf(
+                        set(weight = 60.0, reps = 10), // 600
+                        set(weight = 60.0, reps = 10), // 600
+                    ),
+                ),
+            ),
+            preset = ChartPresetDomain.MONTHS_3,
+            metric = ChartMetricDomain.VOLUME_PER_SESSION,
+            exerciseType = ExerciseTypeDomain.WEIGHTED,
+            now = utcMillis(2026, 5, 1),
+            zoneId = zone,
+        )
+
+        assertEquals(500.0, result.footer?.min?.value)
+        assertEquals(1200.0, result.footer?.max?.value)
+        assertEquals(1200.0, result.footer?.last?.value)
+    }
+
+    @Test
     fun `ALL preset with single point tightens window to minimum plus-minus 3 days`() {
         val pointDay = LocalDate.of(2026, 4, 20)
         val result = bucketAndFold(

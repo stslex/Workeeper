@@ -77,36 +77,40 @@ internal fun bucketAndFold(
     // `set_count` is a bare `COUNT(*)` over `set_table` with no reps or weight predicate.
     val setsPerDay = flat.groupingBy(FlatSet::day).eachCount()
 
-    // Which set represents the day. The metric comes first — that is what the axis plots.
-    // Under HEAVIEST_WEIGHT the keys below it are `SessionDao.PR_ORDER`: a tie on the metric
-    // *is* a tie on weight, so reps DESC ranks equal-weight sets exactly as the PR rule does,
-    // and the earliest finishedAt settles the rest. Under VOLUME_PER_SET a tie instead means
-    // the two sets traded weight against reps (100×2 == 50×4), where reps DESC would quietly
-    // read as "prefer the lighter set" — volume is not a PR metric, so nothing licenses that
-    // key and the chart's own rule stands: earliest finishedAt wins. Position ASC is the last
-    // criterion either way and comes for free — `sortedWith` is stable and each session's
-    // sets arrive in position order from `SessionDao.getHistoryByExercise`.
+    // Which set — or, under VOLUME_PER_SESSION, which session — represents the day. The
+    // metric comes first — that is what the axis plots. Two ordering chains exist, and no
+    // third: under HEAVIEST_WEIGHT the keys below the metric are `SessionDao.PR_ORDER` (a tie
+    // on the metric *is* a tie on weight, so reps DESC ranks equal-weight sets exactly as the
+    // PR rule does, and the earliest finishedAt settles the rest). Both volume metrics use the
+    // other chain — metric DESC, then earliest finishedAt: a volume tie means the candidates
+    // traded weight against reps (100×2 == 50×4), where reps DESC would quietly read as
+    // "prefer the lighter set" — volume is not a PR metric, so nothing licenses that key.
+    // A session-total tie is the same kind of trade, so the session fold joins that chain
+    // rather than growing a fourth. Position ASC is the last criterion either way and comes
+    // for free — `sortedWith` is stable and each session's sets arrive in position order from
+    // `SessionDao.getHistoryByExercise`.
     val byMetric = compareByDescending<FlatSet> { f -> metricValue(f, metric, exerciseType) }
-    val foldComparator = when (metric) {
-        ChartMetricDomain.HEAVIEST_WEIGHT -> byMetric.thenByDescending(FlatSet::reps).thenBy(FlatSet::finishedAt)
-        ChartMetricDomain.VOLUME_PER_SET -> byMetric.thenBy(FlatSet::finishedAt)
-    }
+    val pointsByDay = when (metric) {
+        ChartMetricDomain.HEAVIEST_WEIGHT -> eligible.foldDayWinners(
+            comparator = byMetric.thenByDescending(FlatSet::reps).thenBy(FlatSet::finishedAt),
+            metric = metric,
+            exerciseType = exerciseType,
+            setsPerDay = setsPerDay,
+        )
 
-    val pointsByDay = eligible
-        .groupBy(FlatSet::day)
-        .map { (day, dailySets) ->
-            val winner = dailySets.sortedWith(foldComparator).first()
-            ChartPointDomain(
-                day = winner.day,
-                dayMillis = winner.dayMillis,
-                value = metricValue(winner, metric, exerciseType),
-                sessionUuid = winner.sessionUuid,
-                weight = winner.weight,
-                reps = winner.reps,
-                setCount = setsPerDay.getValue(day),
-            )
-        }
-        .sortedBy(ChartPointDomain::day)
+        ChartMetricDomain.VOLUME_PER_SET -> eligible.foldDayWinners(
+            comparator = byMetric.thenBy(FlatSet::finishedAt),
+            metric = metric,
+            exerciseType = exerciseType,
+            setsPerDay = setsPerDay,
+        )
+
+        ChartMetricDomain.VOLUME_PER_SESSION -> eligible.foldSessionTotals(
+            metric = metric,
+            exerciseType = exerciseType,
+            setsPerDay = setsPerDay,
+        )
+    }.sortedBy(ChartPointDomain::day)
 
     val (effectiveStart, effectiveEnd) = computeWindow(preset, pointsByDay, windowStart, today, zoneId)
 
@@ -150,6 +154,67 @@ private fun computeWindow(
     }
 }
 
+/** The per-set fold: one winning set represents the day. */
+private fun List<FlatSet>.foldDayWinners(
+    comparator: Comparator<FlatSet>,
+    metric: ChartMetricDomain,
+    exerciseType: ExerciseTypeDomain,
+    setsPerDay: Map<LocalDate, Int>,
+): List<ChartPointDomain> = groupBy(FlatSet::day)
+    .map { (day, dailySets) ->
+        val winner = dailySets.sortedWith(comparator).first()
+        ChartPointDomain(
+            day = winner.day,
+            dayMillis = winner.dayMillis,
+            value = metricValue(winner, metric, exerciseType),
+            sessionUuid = winner.sessionUuid,
+            weight = winner.weight,
+            reps = winner.reps,
+            setCount = setsPerDay.getValue(day),
+        )
+    }
+
+/**
+ * The per-session fold (§11.2). A session's total is the sum of its sets' contributions —
+ * [metricValue] under [ChartMetricDomain.VOLUME_PER_SESSION] is the per-set volume, so the
+ * session metric is definitionally "the sum of Подход over the session" and introduces no
+ * new per-set value. When two sessions land on one day, the winner is chosen by the volume
+ * chain (total DESC, earliest finishedAt) — see the ordering comment in [bucketAndFold].
+ *
+ * The resulting point is an aggregate: no single set is "the" point, so `weight`/`reps`
+ * carry no meaning and are null/0 — see the [ChartPointDomain] contract.
+ */
+private fun List<FlatSet>.foldSessionTotals(
+    metric: ChartMetricDomain,
+    exerciseType: ExerciseTypeDomain,
+    setsPerDay: Map<LocalDate, Int>,
+): List<ChartPointDomain> = groupBy(FlatSet::sessionUuid)
+    .map { (sessionUuid, sets) ->
+        val first = sets.first()
+        SessionTotal(
+            day = first.day,
+            dayMillis = first.dayMillis,
+            sessionUuid = sessionUuid,
+            finishedAt = first.finishedAt,
+            total = sets.sumOf { set -> metricValue(set, metric, exerciseType) },
+        )
+    }
+    .groupBy(SessionTotal::day)
+    .map { (day, sessions) ->
+        val winner = sessions
+            .sortedWith(compareByDescending(SessionTotal::total).thenBy(SessionTotal::finishedAt))
+            .first()
+        ChartPointDomain(
+            day = winner.day,
+            dayMillis = winner.dayMillis,
+            value = winner.total,
+            sessionUuid = winner.sessionUuid,
+            weight = null,
+            reps = 0,
+            setCount = setsPerDay.getValue(day),
+        )
+    }
+
 /**
  * A set is plottable under the same rule that makes it PR-eligible, minus the session-state
  * clauses the history query has already applied.
@@ -168,6 +233,10 @@ private fun FlatSet.isEligible(type: ExerciseTypeDomain): Boolean =
  *
  * `weight` is non-null here: [isEligible] dropped weight-null rows for WEIGHTED exercises
  * before this is ever called.
+ *
+ * Under [ChartMetricDomain.VOLUME_PER_SESSION] this is the set's *contribution* to the
+ * session total, which is exactly the per-set volume — [foldSessionTotals] sums it. One
+ * value definition per metric; the session metric adds a fold, not a new per-set value.
  */
 private fun metricValue(
     set: FlatSet,
@@ -178,7 +247,7 @@ private fun metricValue(
         ExerciseTypeDomain.WEIGHTLESS -> set.reps.toDouble()
         ExerciseTypeDomain.WEIGHTED -> set.weight ?: 0.0
     }
-    ChartMetricDomain.VOLUME_PER_SET -> when (type) {
+    ChartMetricDomain.VOLUME_PER_SET, ChartMetricDomain.VOLUME_PER_SESSION -> when (type) {
         ExerciseTypeDomain.WEIGHTLESS -> set.reps.toDouble()
         ExerciseTypeDomain.WEIGHTED -> (set.weight ?: 0.0) * set.reps
     }
@@ -200,4 +269,13 @@ private data class FlatSet(
     val finishedAt: Long,
     val weight: Double?,
     val reps: Int,
+)
+
+/** One session's summed metric on the day it finished; input to the per-session day pick. */
+private data class SessionTotal(
+    val day: LocalDate,
+    val dayMillis: Long,
+    val sessionUuid: String,
+    val finishedAt: Long,
+    val total: Double,
 )

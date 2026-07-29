@@ -84,11 +84,13 @@ internal object ExerciseChartUiMapper {
 
     fun ChartMetricDomain.toUi(): ChartMetricUiModel = when (this) {
         ChartMetricDomain.HEAVIEST_WEIGHT -> ChartMetricUiModel.HEAVIEST_WEIGHT
+        ChartMetricDomain.VOLUME_PER_SESSION -> ChartMetricUiModel.VOLUME_PER_SESSION
         ChartMetricDomain.VOLUME_PER_SET -> ChartMetricUiModel.VOLUME_PER_SET
     }
 
     fun ChartMetricUiModel.toDomain(): ChartMetricDomain = when (this) {
         ChartMetricUiModel.HEAVIEST_WEIGHT -> ChartMetricDomain.HEAVIEST_WEIGHT
+        ChartMetricUiModel.VOLUME_PER_SESSION -> ChartMetricDomain.VOLUME_PER_SESSION
         ChartMetricUiModel.VOLUME_PER_SET -> ChartMetricDomain.VOLUME_PER_SET
     }
 
@@ -112,12 +114,29 @@ internal object ExerciseChartUiMapper {
         type = type.toUi(),
     )
 
+    // In both formatters the VOLUME_PER_SESSION branch comes before the WEIGHTLESS one and
+    // reads `point.value` only: a session point is an aggregate whose `weight`/`reps` are
+    // null/0 by the ChartPointDomain contract — the weightless reps-plural over `point.reps`
+    // would print "0 reps" for it.
     private fun formatDisplay(
         point: ChartPointUiModel,
         type: ExerciseTypeUiModel,
         metric: ChartMetricUiModel,
         resourceWrapper: ResourceWrapper,
     ): String = when {
+        metric == ChartMetricUiModel.VOLUME_PER_SESSION -> when (type) {
+            ExerciseTypeUiModel.WEIGHTLESS -> resourceWrapper.getQuantityString(
+                R.plurals.feature_exercise_chart_value_reps,
+                point.value.toInt(),
+                point.value.toInt(),
+            )
+
+            ExerciseTypeUiModel.WEIGHTED -> resourceWrapper.getString(
+                R.string.feature_exercise_chart_value_weight,
+                formatNumber(point.value),
+            )
+        }
+
         type == ExerciseTypeUiModel.WEIGHTLESS -> resourceWrapper.getQuantityString(
             R.plurals.feature_exercise_chart_value_reps,
             point.reps,
@@ -143,6 +162,19 @@ internal object ExerciseChartUiMapper {
         metric: ChartMetricDomain,
         resourceWrapper: ResourceWrapper,
     ): String = when {
+        metric == ChartMetricDomain.VOLUME_PER_SESSION -> when (type) {
+            ExerciseTypeDomain.WEIGHTLESS -> resourceWrapper.getQuantityString(
+                R.plurals.feature_exercise_chart_value_reps,
+                point.value.toInt(),
+                point.value.toInt(),
+            )
+
+            ExerciseTypeDomain.WEIGHTED -> resourceWrapper.getString(
+                R.string.feature_exercise_chart_value_weight,
+                formatNumber(point.value),
+            )
+        }
+
         type == ExerciseTypeDomain.WEIGHTLESS -> resourceWrapper.getQuantityString(
             R.plurals.feature_exercise_chart_value_reps,
             point.reps,

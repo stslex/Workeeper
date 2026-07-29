@@ -25,6 +25,7 @@ internal fun MetricToggle(
 ) {
     val items = persistentListOf(
         stringResource(ChartMetricUiModel.HEAVIEST_WEIGHT.labelRes),
+        stringResource(ChartMetricUiModel.VOLUME_PER_SESSION.labelRes),
         stringResource(ChartMetricUiModel.VOLUME_PER_SET.labelRes),
     )
     val selectedIndex = ChartMetricUiModel.entries.indexOf(selected)

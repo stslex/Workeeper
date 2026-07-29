@@ -69,6 +69,36 @@ internal class ExerciseChartUiMapperTest {
     }
 
     @Test
+    fun `session tooltip display label reads the aggregate value not the dead weight-reps pair`() {
+        // A VOLUME_PER_SESSION point is an aggregate (weight null, reps 0 by contract).
+        // The display must be built from `value` alone — falling through to the weighted
+        // "weight × reps" branch would print "0 kg × 0".
+        val point = chartPoint(value = 1300.0, weight = null, reps = 0, setCount = 3)
+        val tooltip = toTooltip(
+            point = point,
+            exercise = ExercisePickerItemUiModel("e", "Bench", ExerciseTypeUiModel.WEIGHTED),
+            metric = ChartMetricUiModel.VOLUME_PER_SESSION,
+            resourceWrapper = resources,
+        )
+
+        assertTrue(tooltip.displayLabel.endsWith(";1300)"))
+    }
+
+    @Test
+    fun `weightless session tooltip display label is a reps plural over the summed value`() {
+        val point = chartPoint(value = 20.0, weight = null, reps = 0, setCount = 2)
+        val tooltip = toTooltip(
+            point = point,
+            exercise = ExercisePickerItemUiModel("e", "Pullups", ExerciseTypeUiModel.WEIGHTLESS),
+            metric = ChartMetricUiModel.VOLUME_PER_SESSION,
+            resourceWrapper = resources,
+        )
+
+        assertTrue(tooltip.displayLabel.startsWith("plural("))
+        assertTrue(tooltip.displayLabel.endsWith(";20;20)"))
+    }
+
+    @Test
     fun `tooltip with null exercise falls back to weighted display label`() {
         val point = chartPoint(weight = 100.0, reps = 5)
         val tooltip = toTooltip(

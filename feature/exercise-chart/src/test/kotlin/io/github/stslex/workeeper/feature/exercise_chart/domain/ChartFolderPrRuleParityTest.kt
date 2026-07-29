@@ -111,6 +111,26 @@ internal class ChartFolderPrRuleParityTest {
         assertEquals(5, point.reps)
     }
 
+    @Test
+    fun `session metric keeps the shared eligibility in its sum`() {
+        // Same claim as the per-set volume test, one fold later: the session total is a SUM
+        // over the shared eligibility floor, so the 200kg zero-rep set contributes nothing
+        // and the session's total is exactly the performed set's volume. Eligibility only —
+        // like VOLUME_PER_SET, the session metric makes no winner-parity claim.
+        val scenario = PrRuleFixture.ZERO_REP_SET_IS_NOT_A_RECORD
+
+        val fold = bucketAndFold(
+            history = scenario.toHistory(),
+            preset = ChartPresetDomain.ALL,
+            metric = ChartMetricDomain.VOLUME_PER_SESSION,
+            exerciseType = ExerciseTypeDomain.WEIGHTED,
+            now = NOW,
+            zoneId = zone,
+        )
+
+        assertEquals(500.0, fold.points.single().value)
+    }
+
     /**
      * Candidates sharing a `finishedAt` share a session, matching how `PrRuleDbSeeder` lays
      * them out in SQL, and are listed in position order — the order
