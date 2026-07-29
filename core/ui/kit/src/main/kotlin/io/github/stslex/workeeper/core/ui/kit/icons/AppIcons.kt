@@ -51,6 +51,15 @@ object AppIcons {
         strokeIcon("ChevronRight", CARD_STROKE, "M9 6l6 6-6 6")
     }
 
+    /**
+     * The chart's exercise-switcher chevron, inside `.exhead .swap` — pass2d L236. Drawn at
+     * 16dp with its own 2.2 stroke (`.exhead .swap svg{stroke-width:2.2}`), the heaviest in
+     * the set: a small glyph on a filled tile needs the weight to read.
+     */
+    val ChevronDown: ImageVector by lazy {
+        strokeIcon("ChevronDown", SWAP_STROKE, "M6 9l6 6 6-6")
+    }
+
     /** `.mini.info` — a circle `r=9` plus the i-glyph strokes — session-v3f L352. */
     val Info: ImageVector by lazy {
         strokeIcon(
@@ -97,6 +106,9 @@ object AppIcons {
 
     /** 1.9 — the `.addex` plus is drawn a touch heavier than the card glyphs (L145). */
     private const val ADDEX_STROKE = 1.9f
+
+    /** 2.2 — the `.exhead .swap` chevron (pass2d L219). */
+    private const val SWAP_STROKE = 2.2f
 
     /** 3 — the ordinal chip's check is a heavy stroke at a tiny render size (L94). */
     private const val ORDINAL_CHECK_STROKE = 3f

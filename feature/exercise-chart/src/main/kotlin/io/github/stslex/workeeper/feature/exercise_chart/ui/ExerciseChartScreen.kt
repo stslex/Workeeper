@@ -7,11 +7,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.SwapHoriz
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -19,8 +14,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.loading.AppLoadingIndicator
-import io.github.stslex.workeeper.core.ui.kit.components.tooltip.AppTooltip
-import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
+import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppIconButton
+import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopBar
+import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -37,6 +33,7 @@ import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChart
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartCanvas
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartEmptyState
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartFooterStats
+import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ExerciseHeader
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ExercisePickerSheet
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.MetricToggle
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.PresetChipsRow
@@ -60,7 +57,18 @@ internal fun ExerciseChartScreen(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.Top,
         ) {
-            ChartTopBar(state = state, consume = consume)
+            ChartTopBar(consume = consume)
+
+            // The switcher lives below the topbar, not in it (extraction §4.2's hint: the
+            // title is large and the topbar's one arrow means back). No exercise → no header;
+            // the EXERCISE_NOT_FOUND empty state carries the picker affordance instead.
+            state.selectedExercise?.let { exercise ->
+                ExerciseHeader(
+                    name = exercise.name,
+                    actionLabel = stringResource(R.string.feature_exercise_chart_picker_open),
+                    onClick = { consume(Action.Click.OnPickerOpen) },
+                )
+            }
 
             Box(modifier = Modifier.weight(1f)) {
                 ChartContent(state = state, consume = consume)
@@ -78,45 +86,26 @@ internal fun ExerciseChartScreen(
     }
 }
 
+/**
+ * The v3 `.topbar` (extraction §4.1): back · spacer · nothing. No title — the exercise name
+ * is the `.exhead` below. The mockup draws a trailing `⋮` with no handler and no drawn
+ * target (§4.9: "no target drawn"), and the feature has no menu action to put behind one —
+ * a dead control conforms to nothing, so the slot ships empty. Reported with the PR.
+ */
 @Composable
 private fun ChartTopBar(
-    state: State,
     consume: (Action) -> Unit,
 ) {
-    AppTopAppBar(
-        title = state.selectedExercise?.name
-            ?: stringResource(R.string.feature_exercise_chart_title),
-        navigationIcon = {
-            IconButton(
+    AppTopBar(
+        navigation = {
+            AppIconButton(
+                icon = AppIcons.ChevronLeft,
+                contentDescription = stringResource(
+                    io.github.stslex.workeeper.core.ui.kit.R.string.core_ui_kit_action_back,
+                ),
                 onClick = { consume(Action.Click.OnBack) },
                 modifier = Modifier.testTag("ExerciseChartBack"),
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(R.string.feature_exercise_chart_back),
-                )
-            }
-        },
-        actions = {
-            // Picker stays accessible whenever there is anything to pick from — including
-            // the EXERCISE_NOT_FOUND and NO_DATA_FOR_EXERCISE empty branches, where the
-            // picker is the user's recovery path.
-            if (state.isPickerAccessible) {
-                // Tooltip on long-press explains the action — the swap icon alone has
-                // historically been opaque to users (spec 5.6, sort-button affordance).
-                val pickerLabel = stringResource(R.string.feature_exercise_chart_picker_open)
-                AppTooltip(text = pickerLabel) {
-                    IconButton(
-                        onClick = { consume(Action.Click.OnPickerOpen) },
-                        modifier = Modifier.testTag("ExerciseChartPickerOpen"),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.SwapHoriz,
-                            contentDescription = pickerLabel,
-                        )
-                    }
-                }
-            }
+            )
         },
     )
 }
