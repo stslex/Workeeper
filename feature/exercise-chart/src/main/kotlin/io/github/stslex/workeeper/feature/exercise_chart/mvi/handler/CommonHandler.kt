@@ -8,9 +8,11 @@ import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.exercise_chart.di.ExerciseChartHandlerStore
 import io.github.stslex.workeeper.feature.exercise_chart.di.ExerciseChartScope
 import io.github.stslex.workeeper.feature.exercise_chart.domain.ExerciseChartInteractor
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ChartReadoutMapper
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapper.toDomain
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapper.toUi
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.mapper.ExerciseChartUiMapper.toUiPoints
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPointUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ExercisePickerItemUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Action
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.EmptyReason
@@ -91,9 +93,27 @@ internal class CommonHandler @Inject constructor(
         launchDefault(
             onSuccess = { result ->
                 updateStateImmediate {
+                    val newPoints = result.toUiPoints()
+                    // The scrub position survives a reload only when the day buckets are the
+                    // same — a metric switch replots identical days (the mockup keeps `active`
+                    // across setMetric). A preset or exercise change produces new buckets and
+                    // the readout resets to the most recent point.
+                    val sameDays = it.points.map(ChartPointUiModel::day) ==
+                        newPoints.map(ChartPointUiModel::day)
+                    val activeIndex = it.activeIndex
+                        ?.takeIf { index -> sameDays && index in newPoints.indices }
+                        ?: (newPoints.size - 1).takeIf { index -> index >= 0 }
                     it.copy(
-                        points = result.toUiPoints(),
+                        points = newPoints,
                         footerStats = result.footer?.toUi(metric, type, resourceWrapper),
+                        activeIndex = activeIndex,
+                        readout = ChartReadoutMapper.toReadout(
+                            points = newPoints,
+                            activeIndex = activeIndex,
+                            metric = current.metric,
+                            type = exercise.type,
+                            resourceWrapper = resourceWrapper,
+                        ),
                         windowStartDay = result.windowStartDay,
                         windowEndDay = result.windowEndDay,
                         emptyReason = if (result.points.isEmpty()) {

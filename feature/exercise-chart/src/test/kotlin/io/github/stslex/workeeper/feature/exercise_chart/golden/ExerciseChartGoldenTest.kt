@@ -9,12 +9,14 @@ import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartFooterSt
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartMetricUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPointUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPresetUiModel
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartReadoutUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartTooltipUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ExercisePickerItemUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.EmptyReason
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.State
 import io.github.stslex.workeeper.feature.exercise_chart.ui.ExerciseChartScreen
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartFooterStats
+import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartReadout
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.MetricTabs
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -113,6 +115,33 @@ internal class ExerciseChartGoldenTest {
         }
     }
 
+    // --- Readout ---------------------------------------------------------------------------
+
+    /** The `.readout` pair: plain, and the record variant with the `.mdot` + `рекорд` suffix. */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun readoutPlain(theme: GoldenTheme, testInfo: TestInfo) {
+        goldenSubject(testInfo, theme) {
+            ChartReadout(readout = readoutAt4())
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun readoutRecord(theme: GoldenTheme, testInfo: TestInfo) {
+        goldenSubject(testInfo, theme) {
+            ChartReadout(
+                readout = ChartReadoutUiModel(
+                    metricName = "Объём за сессию",
+                    isRecord = true,
+                    caption = "23 июля 2026 · 4 подхода · рекорд",
+                    value = "4 620",
+                    unit = "кг",
+                ),
+            )
+        }
+    }
+
     // --- Tabs ------------------------------------------------------------------------------
 
     /**
@@ -186,6 +215,15 @@ private fun exercise(): ExercisePickerItemUiModel = ExercisePickerItemUiModel(
     type = ExerciseTypeUiModel.WEIGHTED,
 )
 
+/** The mockup demo's `active=4` readout — `11 июля`, value 63, not the record. */
+private fun readoutAt4(): ChartReadoutUiModel = ChartReadoutUiModel(
+    metricName = "Максимальный вес",
+    isRecord = false,
+    caption = "11 июля 2026 · 4 подхода",
+    value = "63",
+    unit = "кг",
+)
+
 private fun populatedState(): State = State.create(initialUuid = "ex-1").copy(
     isLoading = false,
     selectedExercise = exercise(),
@@ -194,6 +232,10 @@ private fun populatedState(): State = State.create(initialUuid = "ex-1").copy(
     metric = ChartMetricUiModel.HEAVIEST_WEIGHT,
     points = points().toImmutableList(),
     footerStats = footer(),
+    // The mockup demo's initial state: active mid-series, so the frame golden holds beside
+    // pass2d with the scrub story visible (readout on `11 июля`, record elsewhere).
+    activeIndex = 4,
+    readout = readoutAt4(),
     windowStartDay = DAYS.first(),
     windowEndDay = DAYS.last(),
 )

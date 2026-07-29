@@ -7,6 +7,18 @@
     <string name="feature_exercise_chart_metric_session">Сессия</string>
     <string name="feature_exercise_chart_metric_volume">Подход</string>
 
+    <string name="feature_exercise_chart_metric_name_heaviest">Максимальный вес</string>
+    <string name="feature_exercise_chart_metric_name_session">Объём за сессию</string>
+    <string name="feature_exercise_chart_metric_name_volume">Объём за подход</string>
+    <string name="feature_exercise_chart_unit_kg">кг</string>
+    <string name="feature_exercise_chart_unit_reps">повт.</string>
+    <string name="feature_exercise_chart_readout_record">рекорд</string>
+    <plurals name="feature_exercise_chart_readout_sets">
+        <item quantity="one">%d подход</item>
+        <item quantity="few">%d подхода</item>
+        <item quantity="many">%d подходов</item>
+        <item quantity="other">%d подходов</item>
+    </plurals>
     <string name="feature_exercise_chart_preset_1m">1М</string>
     <string name="feature_exercise_chart_preset_3m">3М</string>
     <string name="feature_exercise_chart_preset_1y">1Г</string>

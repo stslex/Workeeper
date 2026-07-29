@@ -9,6 +9,7 @@ import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartFooterSt
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartMetricUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPointUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartPresetUiModel
+import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartReadoutUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartTooltipUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ExercisePickerItemUiModel
 import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChartStore.Action
@@ -56,6 +57,11 @@ interface ExerciseChartStore : Store<State, Action, Event> {
         val points: ImmutableList<ChartPointUiModel>,
         val footerStats: ChartFooterStatsUiModel?,
         val activeTooltip: ChartTooltipUiModel?,
+        // The scrubbed point (§4.5/§4.6): drives the readout and the canvas's scrub line +
+        // enlarged point. Defaults to the last (most recent) point on load; a metric switch
+        // preserves it (same day buckets), a preset/exercise switch resets it.
+        val activeIndex: Int?,
+        val readout: ChartReadoutUiModel?,
         // Effective canvas window — populated from FoldResult so the canvas reflects what
         // the mapper actually decided to render (including the ±14d sparse-data tightening).
         // Null until the first chart load completes; null also when the result is empty.
@@ -88,6 +94,8 @@ interface ExerciseChartStore : Store<State, Action, Event> {
                 points = persistentListOf(),
                 footerStats = null,
                 activeTooltip = null,
+                activeIndex = null,
+                readout = null,
                 windowStartDay = null,
                 windowEndDay = null,
                 isPickerOpen = false,

@@ -7,6 +7,16 @@
     <string name="feature_exercise_chart_metric_session">Session</string>
     <string name="feature_exercise_chart_metric_volume">Set</string>
 
+    <string name="feature_exercise_chart_metric_name_heaviest">Heaviest weight</string>
+    <string name="feature_exercise_chart_metric_name_session">Volume per session</string>
+    <string name="feature_exercise_chart_metric_name_volume">Volume per set</string>
+    <string name="feature_exercise_chart_unit_kg">kg</string>
+    <string name="feature_exercise_chart_unit_reps">reps</string>
+    <string name="feature_exercise_chart_readout_record">record</string>
+    <plurals name="feature_exercise_chart_readout_sets">
+        <item quantity="one">%d set</item>
+        <item quantity="other">%d sets</item>
+    </plurals>
     <string name="feature_exercise_chart_preset_1m">1M</string>
     <string name="feature_exercise_chart_preset_3m">3M</string>
     <string name="feature_exercise_chart_preset_1y">1Y</string>

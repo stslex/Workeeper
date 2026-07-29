@@ -28,8 +28,7 @@ internal class ExerciseChartUiMapperTest {
 
         override fun formatMediumDate(timestamp: Long): String = "date($timestamp)"
 
-        override fun formatDayMonth(timestamp: Long): String =
-            error("Not used on this screen")
+        override fun formatDayMonth(timestamp: Long): String = "dm($timestamp)"
     }
 
     @Test
@@ -110,6 +109,78 @@ internal class ExerciseChartUiMapperTest {
 
         assertEquals("", tooltip.exerciseName)
         assertTrue(tooltip.displayLabel.endsWith(";100,5)"))
+    }
+
+    @Test
+    fun `readout for the record point carries the flag and the grouped whole-number value`() {
+        val points = listOf(
+            chartPoint(value = 2940.0, setCount = 4),
+            chartPoint(value = 4620.4, setCount = 4).copy(day = LocalDate.of(2026, 7, 23)),
+        )
+        val readout = ChartReadoutMapper.toReadout(
+            points = points,
+            activeIndex = 1,
+            metric = ChartMetricUiModel.VOLUME_PER_SESSION,
+            type = ExerciseTypeUiModel.WEIGHTED,
+            resourceWrapper = resources,
+        )
+
+        assertNotNull(readout)
+        assertTrue(readout.isRecord)
+        // Math.round + thousand grouping with a PLAIN space (the Archivo charset constraint).
+        assertEquals("4 620", readout.value)
+        // date · sets-plural · record — three parts, dot-separated, record last.
+        val parts = readout.caption.split(" · ")
+        assertEquals(3, parts.size)
+        assertEquals(
+            resources.getString(
+                io.github.stslex.workeeper.feature.exercise_chart.R.string.feature_exercise_chart_readout_record,
+            ),
+            parts.last(),
+        )
+    }
+
+    @Test
+    fun `readout off the record point has two caption parts and no flag`() {
+        val points = listOf(
+            chartPoint(value = 49.0, setCount = 4),
+            chartPoint(value = 77.0, setCount = 4).copy(day = LocalDate.of(2026, 7, 23)),
+        )
+        val readout = ChartReadoutMapper.toReadout(
+            points = points,
+            activeIndex = 0,
+            metric = ChartMetricUiModel.HEAVIEST_WEIGHT,
+            type = ExerciseTypeUiModel.WEIGHTED,
+            resourceWrapper = resources,
+        )
+
+        assertNotNull(readout)
+        assertTrue(!readout.isRecord)
+        assertEquals(2, readout.caption.split(" · ").size)
+        assertEquals("49", readout.value)
+    }
+
+    @Test
+    fun `record index is the earliest point on a value tie`() {
+        val points = listOf(
+            chartPoint(value = 77.0),
+            chartPoint(value = 77.0).copy(day = LocalDate.of(2026, 7, 23)),
+        )
+
+        assertEquals(0, ChartReadoutMapper.recordIndex(points))
+    }
+
+    @Test
+    fun `readout is null without an active index`() {
+        assertNull(
+            ChartReadoutMapper.toReadout(
+                points = listOf(chartPoint()),
+                activeIndex = null,
+                metric = ChartMetricUiModel.HEAVIEST_WEIGHT,
+                type = ExerciseTypeUiModel.WEIGHTED,
+                resourceWrapper = resources,
+            ),
+        )
     }
 
     private fun chartPoint(

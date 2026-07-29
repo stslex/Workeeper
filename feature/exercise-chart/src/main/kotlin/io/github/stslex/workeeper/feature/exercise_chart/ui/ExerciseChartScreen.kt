@@ -5,7 +5,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -33,6 +35,7 @@ import io.github.stslex.workeeper.feature.exercise_chart.mvi.store.ExerciseChart
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartCanvas
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartEmptyState
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartFooterStats
+import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ChartReadout
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ExerciseHeader
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.ExercisePickerSheet
 import io.github.stslex.workeeper.feature.exercise_chart.ui.components.MetricTabs
@@ -193,11 +196,15 @@ private fun ChartPopulated(
         ?: state.points.maxOfOrNull { it.day }
         ?: return
 
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
-    ) {
+    // The mockup's vertical rhythm, spelled per element rather than one spacedBy: readout
+    // padding-top 18px → lg, chartwrap margin-top 14px → md, statrows margin-top 26px → xl.
+    Column(modifier = Modifier.fillMaxSize()) {
         ChartControls(state = state, consume = consume)
+        state.readout?.let { readout ->
+            Spacer(modifier = Modifier.height(AppDimension.Space.lg))
+            ChartReadout(readout = readout)
+        }
+        Spacer(modifier = Modifier.height(AppDimension.Space.md))
         ChartCanvas(
             points = state.points,
             activeTooltip = state.activeTooltip,
@@ -208,6 +215,7 @@ private fun ChartPopulated(
             onTooltipTap = { consume(Action.Click.OnTooltipTap) },
         )
         state.footerStats?.let { stats ->
+            Spacer(modifier = Modifier.height(AppDimension.Space.xl))
             ChartFooterStats(stats = stats)
         }
     }
