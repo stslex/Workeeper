@@ -37,9 +37,10 @@ interface ExerciseChartStore : Store<State, Action, Event> {
         EXERCISE_NOT_FOUND,
 
         /**
-         * An exercise is selected but produced zero points for the active preset window.
-         * Picker stays accessible; preset chips stay accessible — a wider window may show
-         * data.
+         * An exercise is selected but produced fewer than two points for the active preset
+         * window (§4.8: the chart appears after two recorded sessions — one point is no
+         * line, so sub-threshold is this state, not a degenerate chart). Picker stays
+         * accessible; preset chips stay accessible — a wider window may show data.
          */
         NO_DATA_FOR_EXERCISE,
     }

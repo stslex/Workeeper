@@ -19,6 +19,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -132,7 +133,8 @@ internal class CommonHandlerTest {
     }
 
     @Test
-    fun `loadChart with non-empty result clears emptyReason`() {
+    fun `loadChart with a single point is sub-threshold — empty state, no readout`() {
+        // §4.8: the chart appears after two recorded sessions. One point is no line.
         val flow = MutableStateFlow(
             State.create(initialUuid = "uuid-1").copy(
                 emptyReason = EmptyReason.NO_DATA_FOR_EXERCISE,
@@ -144,28 +146,58 @@ internal class CommonHandlerTest {
             RecentExerciseDomain("uuid-1", "Bench", ExerciseTypeDomain.WEIGHTED, 1_000L),
         )
         coEvery { interactor.getLastTrainedExerciseUuid() } returns null
-        val nonEmptyPoints = listOf(
-            ChartPointDomain(
-                day = java.time.LocalDate.of(2026, 4, 28),
-                dayMillis = 0L,
-                value = 100.0,
-                sessionUuid = "s",
-                weight = 100.0,
-                reps = 5,
-                setCount = 1,
-            ),
-        )
         coEvery { interactor.loadChartData(any(), any(), any(), any(), any()) } returns
             ChartFoldDomain(
-                points = nonEmptyPoints,
+                points = listOf(chartPointDomain(day = java.time.LocalDate.of(2026, 4, 28))),
+                footer = null,
+            )
+
+        handler.invoke(Action.Common.Init)
+
+        assertEquals(EmptyReason.NO_DATA_FOR_EXERCISE, flow.value.emptyReason)
+        assertNull(flow.value.activeIndex)
+        assertNull(flow.value.readout)
+    }
+
+    @Test
+    fun `loadChart with two points clears emptyReason and scrubs the last point`() {
+        val flow = MutableStateFlow(
+            State.create(initialUuid = "uuid-1").copy(
+                emptyReason = EmptyReason.NO_DATA_FOR_EXERCISE,
+            ),
+        )
+        val store = newStore(flow)
+        val handler = CommonHandler(interactor = interactor, resourceWrapper = resources, store = store)
+        coEvery { interactor.getRecentlyTrainedExercises() } returns listOf(
+            RecentExerciseDomain("uuid-1", "Bench", ExerciseTypeDomain.WEIGHTED, 1_000L),
+        )
+        coEvery { interactor.getLastTrainedExerciseUuid() } returns null
+        coEvery { interactor.loadChartData(any(), any(), any(), any(), any()) } returns
+            ChartFoldDomain(
+                points = listOf(
+                    chartPointDomain(day = java.time.LocalDate.of(2026, 4, 21)),
+                    chartPointDomain(day = java.time.LocalDate.of(2026, 4, 28)),
+                ),
                 footer = null,
             )
 
         handler.invoke(Action.Common.Init)
 
         assertNull(flow.value.emptyReason)
-        assertEquals(1, flow.value.points.size)
+        assertEquals(2, flow.value.points.size)
+        assertEquals(1, flow.value.activeIndex)
+        assertNotNull(flow.value.readout)
     }
+
+    private fun chartPointDomain(day: java.time.LocalDate): ChartPointDomain = ChartPointDomain(
+        day = day,
+        dayMillis = 0L,
+        value = 100.0,
+        sessionUuid = "s",
+        weight = 100.0,
+        reps = 5,
+        setCount = 1,
+    )
 
     @Test
     fun `default state preset is ALL`() {

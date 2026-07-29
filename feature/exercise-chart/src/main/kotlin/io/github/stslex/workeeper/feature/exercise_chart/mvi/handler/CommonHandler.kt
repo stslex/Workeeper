@@ -94,15 +94,24 @@ internal class CommonHandler @Inject constructor(
             onSuccess = { result ->
                 updateStateImmediate {
                     val newPoints = result.toUiPoints()
+                    // §4.8: the copy states the threshold — the chart appears after TWO
+                    // recorded sessions. Below two points there is no line to draw (the
+                    // canvas is index-spaced), so sub-threshold is an empty state, not a
+                    // degenerate chart, and the readout/scrub state stays clear.
+                    val subThreshold = newPoints.size < MIN_CHART_POINTS
                     // The scrub position survives a reload only when the day buckets are the
-                    // same — a metric switch replots identical days (the mockup keeps `active`
-                    // across setMetric). A preset or exercise change produces new buckets and
-                    // the readout resets to the most recent point.
+                    // same — a metric switch replots identical days (the mockup keeps
+                    // `active` across setMetric). A preset or exercise change produces new
+                    // buckets and the readout resets to the most recent point.
                     val sameDays = it.points.map(ChartPointUiModel::day) ==
                         newPoints.map(ChartPointUiModel::day)
-                    val activeIndex = it.activeIndex
-                        ?.takeIf { index -> sameDays && index in newPoints.indices }
-                        ?: (newPoints.size - 1).takeIf { index -> index >= 0 }
+                    val activeIndex = if (subThreshold) {
+                        null
+                    } else {
+                        it.activeIndex
+                            ?.takeIf { index -> sameDays && index in newPoints.indices }
+                            ?: (newPoints.size - 1)
+                    }
                     it.copy(
                         points = newPoints,
                         footerStats = result.footer?.toUi(type, resourceWrapper),
@@ -114,7 +123,7 @@ internal class CommonHandler @Inject constructor(
                             type = exercise.type,
                             resourceWrapper = resourceWrapper,
                         ),
-                        emptyReason = if (result.points.isEmpty()) {
+                        emptyReason = if (subThreshold) {
                             EmptyReason.NO_DATA_FOR_EXERCISE
                         } else {
                             null
@@ -136,6 +145,12 @@ internal class CommonHandler @Inject constructor(
 
     @Suppress("unused")
     private fun State.placeholder(): State = this
+
+    private companion object {
+
+        /** §4.8: "График появится после двух записанных сессий с этим упражнением." */
+        const val MIN_CHART_POINTS = 2
+    }
 
     private data class InitResult(
         val selected: ExercisePickerItemUiModel?,

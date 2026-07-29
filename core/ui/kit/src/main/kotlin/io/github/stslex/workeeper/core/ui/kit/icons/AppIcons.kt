@@ -90,6 +90,14 @@ object AppIcons {
     }
 
     /**
+     * The chart empty state's glyph — a rising zig-zag, pass2d §`s-empty` (`.empty .glyph
+     * svg`, drawn at 22dp with the empty tile's own 1.6 stroke).
+     */
+    val ChartLine: ImageVector by lazy {
+        strokeIcon("ChartLine", EMPTY_GLYPH_STROKE, "M3 17l5-6 4 4 5-8")
+    }
+
+    /**
      * The ordinal chip's done checkmark — session-v3f L345, rendered at 13dp with a 3-unit
      * stroke. Not the set mark's tick (L390, `M5 12.5l4.5 4.5L19 7.5`): the mockup draws two
      * subtly different checks and the difference ships as drawn.
@@ -109,6 +117,9 @@ object AppIcons {
 
     /** 2.2 — the `.exhead .swap` chevron (pass2d L219). */
     private const val SWAP_STROKE = 2.2f
+
+    /** 1.6 — the empty-state glyph (pass2d `.empty .glyph svg`). */
+    private const val EMPTY_GLYPH_STROKE = 1.6f
 
     /** 3 — the ordinal chip's check is a heavy stroke at a tiny render size (L94). */
     private const val ORDINAL_CHECK_STROKE = 3f
