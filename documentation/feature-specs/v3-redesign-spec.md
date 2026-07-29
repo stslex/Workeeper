@@ -289,8 +289,8 @@ Per-screen structure, colour, type, geometry, states, iconography, affordances, 
 | Session | Part 1 | **rebuild** — design-system-applied, design absent; §14 skeleton is retired |
 | Past session | Part 2 | **rebuild** — includes building disclosure (§7); 2.8 lists its own rework's defects |
 | Exercise detail | Part 3 | not started |
-| Chart | Part 4 | not started; monochrome-series question open (may need a palette role — measurement first, Ilya's call) |
-| Settings | Part 5 | not started; **no group container** — `SettingsSection`'s 2dp bordered box contradicts the kit |
+| Chart | Part 4 | **rebuilt** — #190, consolidated in #192; monochrome series closed as drawn (series in `--max`, no palette role) |
+| Settings | Part 5 | **rebuilt** — #191, consolidated in #192; the group container is gone (`SettingsSection` deleted) |
 | Empty states | pass2d | pattern in kit; placement per screen |
 | Eight derived screens | written rule | after the method is proven on Session |
 
