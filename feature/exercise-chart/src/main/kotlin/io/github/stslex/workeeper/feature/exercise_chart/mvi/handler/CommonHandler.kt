@@ -92,37 +92,44 @@ internal class CommonHandler @Inject constructor(
         val type = exercise.type.toDomain()
         launchDefault(
             onSuccess = { result ->
+                // Rule 1 (compose-state-discipline): everything below is mapped in the
+                // collector body, off Main.immediate; the lambda only copies State. The
+                // prior points/activeIndex are read here rather than from `it` — this
+                // handler is the only writer of both fields, so the read is equivalent.
+                val prior = state.value
+                val newPoints = result.toUiPoints()
+                // §4.8: the copy states the threshold — the chart appears after TWO
+                // recorded sessions. Below two points there is no line to draw (the
+                // canvas is index-spaced), so sub-threshold is an empty state, not a
+                // degenerate chart, and the readout/scrub state stays clear.
+                val subThreshold = newPoints.size < MIN_CHART_POINTS
+                // The scrub position survives a reload only when the day buckets are the
+                // same — a metric switch replots identical days (the mockup keeps
+                // `active` across setMetric). A preset or exercise change produces new
+                // buckets and the readout resets to the most recent point.
+                val sameDays = prior.points.map(ChartPointUiModel::day) ==
+                    newPoints.map(ChartPointUiModel::day)
+                val activeIndex = if (subThreshold) {
+                    null
+                } else {
+                    prior.activeIndex
+                        ?.takeIf { index -> sameDays && index in newPoints.indices }
+                        ?: (newPoints.size - 1)
+                }
+                val footerStats = result.footer?.toUi(type, resourceWrapper)
+                val readout = ChartReadoutMapper.toReadout(
+                    points = newPoints,
+                    activeIndex = activeIndex,
+                    metric = current.metric,
+                    type = exercise.type,
+                    resourceWrapper = resourceWrapper,
+                )
                 updateStateImmediate {
-                    val newPoints = result.toUiPoints()
-                    // §4.8: the copy states the threshold — the chart appears after TWO
-                    // recorded sessions. Below two points there is no line to draw (the
-                    // canvas is index-spaced), so sub-threshold is an empty state, not a
-                    // degenerate chart, and the readout/scrub state stays clear.
-                    val subThreshold = newPoints.size < MIN_CHART_POINTS
-                    // The scrub position survives a reload only when the day buckets are the
-                    // same — a metric switch replots identical days (the mockup keeps
-                    // `active` across setMetric). A preset or exercise change produces new
-                    // buckets and the readout resets to the most recent point.
-                    val sameDays = it.points.map(ChartPointUiModel::day) ==
-                        newPoints.map(ChartPointUiModel::day)
-                    val activeIndex = if (subThreshold) {
-                        null
-                    } else {
-                        it.activeIndex
-                            ?.takeIf { index -> sameDays && index in newPoints.indices }
-                            ?: (newPoints.size - 1)
-                    }
                     it.copy(
                         points = newPoints,
-                        footerStats = result.footer?.toUi(type, resourceWrapper),
+                        footerStats = footerStats,
                         activeIndex = activeIndex,
-                        readout = ChartReadoutMapper.toReadout(
-                            points = newPoints,
-                            activeIndex = activeIndex,
-                            metric = current.metric,
-                            type = exercise.type,
-                            resourceWrapper = resourceWrapper,
-                        ),
+                        readout = readout,
                         emptyReason = if (subThreshold) {
                             EmptyReason.NO_DATA_FOR_EXERCISE
                         } else {

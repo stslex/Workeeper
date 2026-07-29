@@ -95,16 +95,19 @@ internal class ClickHandler @Inject constructor(
         if (action.index == current.activeIndex) return
         if (action.index !in current.points.indices) return
         sendEvent(Event.HapticClick(HapticFeedbackType.SegmentTick))
+        // Rule 1 (compose-state-discipline): the readout is mapped BEFORE the lambda —
+        // resource lookups have no place inside a CAS body on a per-crossed-point path.
+        val readout = ChartReadoutMapper.toReadout(
+            points = current.points,
+            activeIndex = action.index,
+            metric = current.metric,
+            type = current.selectedExercise?.type ?: ExerciseTypeUiModel.WEIGHTED,
+            resourceWrapper = resourceWrapper,
+        )
         updateState {
             it.copy(
                 activeIndex = action.index,
-                readout = ChartReadoutMapper.toReadout(
-                    points = it.points,
-                    activeIndex = action.index,
-                    metric = it.metric,
-                    type = it.selectedExercise?.type ?: ExerciseTypeUiModel.WEIGHTED,
-                    resourceWrapper = resourceWrapper,
-                ),
+                readout = readout,
             )
         }
     }
