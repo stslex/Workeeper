@@ -337,6 +337,8 @@ Entries are never deleted; resolution is recorded in place. New entries append. 
 | B13 | hero training-name term needs a `PR_ROW_SELECT` extension — touches the #178 parity surface; the join pattern exists in the history query | #188 | **open — own PR** |
 | B14 | chart→past-session navigation died with the tooltip; needs a drawn affordance if wanted | #190 | **open — decision** |
 | B15 | Archive counts sub-line: no data source; a hardcode would lie | #191 | **open — small cross-feature data add** |
+| B16 | The chart canvas draws **no axis labels**, so a metric switch between proportional datasets is visually a no-op — the normalised shape is identical and only the readout numbers change. Correct as drawn; the question is whether the scale needs a cue | chart animation round | **open — decision** |
+| B17 | `loadChart` / `processInit` pass no `onError`, and `launchDefault` defaults it to `{}` — a DB failure emits nothing and `isLoading` latches, leaving a permanent spinner with no retry path and no error surface | chart animation round | **open** |
 
 ## 26. Resolved-decision ledger — append-only
 
@@ -359,6 +361,7 @@ Entries are never deleted; resolution is recorded in place. New entries append. 
 | Disclosure model | **bare open/closed by decision** — the §7 automaton retired (deleted, not bypassed); expanded = open, first card opens on entry, toggle does nothing else, no active-set marker. The mockup's `isOpen`/`nextSlot` JS no longer binds. | §7, #186 amendment |
 | Consent strings | strings carrying consent/legal semantics are **behaviour**, not appearance — the mockup never wins those; origin: #191's AI-export caption, reverted in phase 1 | §0.1 |
 | Composite symbols | a glyph outside the numeric charset renders as a mono/text span composed into the value, never as a charset extension; origin: `×` in #188's hero | §4 C2 |
+| Overshoot on value-encoding geometry | **forbidden** — a data point driven past its target draws a reading the data never contained, which is a lie with a number attached. Data morphs use `out` at `base`; `spring` stays legal only on geometry that encodes nothing (scrub bar, tab indicator). Companion finding: a value morph must interpolate in a **resolved normalised space** — renormalising half-interpolated values every frame makes the tween track whichever endpoint is numerically larger, and cancels it outright when the two datasets are proportional (measured 0.0000dp of movement over 520ms). Origin: the chart animation round on `feature/v3-final` | §5, §9 |
 
 ## 27. Verification discipline — append-only
 
