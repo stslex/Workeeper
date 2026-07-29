@@ -239,14 +239,11 @@
         .perr .meta{flex:1}
         .perr .btn{flex:none;height:40px;padding:0 16px;font-size:14px;border-radius:12px}
         .pad{height:132px;display:grid;place-items:center;color:var(--dim);font-family:var(--ff-mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;border-top:1px dashed var(--hair-s)}
-        .fab{width:56px;transition:width 260ms var(--e-spring),border-radius 260ms var(--e-spring),background var(--d-base) var(--e-out),color var(--d-base) var(--e-out)}
-        .fab .gtrash,.fab .cnt{display:none}
-        .fab.del{background:var(--rust);color:var(--max);border-radius:28px}
-        body.light .fab.del{color:var(--slab)}
+        .fab{transition:border-radius 260ms var(--e-spring),background var(--d-base) var(--e-out),color var(--d-base) var(--e-out)}
+        .fab .gtrash{display:none}
+        .fab.del{background:var(--rust);color:var(--base);border-radius:28px}
         .fab.del .gplus{display:none}
         .fab.del .gtrash{display:block}
-        .fab.del.wide{width:172px;grid-auto-flow:column;gap:10px}
-        .fab.del.wide .cnt{display:block;font-family:var(--ff-ui);font-size:16px;font-weight:600;white-space:nowrap}
         .navnote{margin:10px var(--gutter) 30px;font-family:var(--ff-mono);font-size:11.5px;line-height:1.65;color:var(--dim)}
         .navnote b{color:var(--meta);font-weight:500}
         .clash{margin:0 var(--gutter);border:1px solid var(--rust);border-radius:18px;overflow:hidden;background:var(--base)}
@@ -258,7 +255,7 @@
 <div class="app" id="app">
 
     <!-- LIVE -->
-    <section class="screen" id="s-live">
+    <section class="screen on" id="s-live">
         <div class="topbar">
             <button class="icon-btn lead"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
             <span style="flex:1"></span>
@@ -409,7 +406,7 @@
     </section>
 
     <!-- LIST -->
-    <section class="screen on" id="s-list">
+    <section class="screen" id="s-list">
         <div class="topbar"><h1>Список</h1></div>
         <div class="hint">Скелет строки один — 88px, линейка снизу, имя и мета-строка, шеврон. Начинки разные: поля у четырёх экранов не совпадают. Красным помечено то, чего в мокапах нет ни в каком виде — это решения, а не детали.</div>
 
@@ -448,14 +445,13 @@
         <div class="navnote">Три состояния, два рисунка. Грузится — лоадер в подвале. Кончился — <b>подвала просто нет</b>, последняя линейка и всё: надпись «конец списка» не сообщает ничего сверх того, что видно. Ошибка — причина и <b>Повторить</b>, потому что молча оборванный список неотличим от кончившегося. Пагинация уже есть в тренировках, упражнениях и архиве; главная её не имеет и получает отдельным PR по слою данных.</div>
 
         <div class="section-head"><span class="label">низ экрана — что кого накрывает</span></div>
-        <div class="frame"><div class="row"><div class="row-body"><div class="row-name">Пресс и кор</div><div class="meta">4 упражнения</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div><div class="row"><div class="row-body"><div class="row-name">Спина и бицепс</div><div class="meta">6 упражнений</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div><div class="pad">запас снизу — 148</div><button class="fab" style="bottom:76px"><svg class="gplus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button><div class="nb plain pill"><button class="on"><svg viewBox="0 0 24 24"><path d="M4 10.5L12 4l8 6.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/></svg></button><button><svg viewBox="0 0 24 24"><path d="M4 12h3l2.5-7 5 14L17 12h3"/></svg></button><button><svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg></button></div></div>
-        <div class="navnote">Кнопка ничего не накрывает не потому, что стоит в стороне, а потому что список носит запас снизу: <b>60 навбар + 16 + 56 кнопка + 16</b> ≈ 148. Последний элемент доезжает выше кнопки и остаётся кликабельным. Без запаса хвост вечно под кнопкой — и заметно это именно на пагинированном списке, где хвост живой.</div>
+        <div class="frame"><div class="row"><div class="row-body"><div class="row-name">Пресс и кор</div><div class="meta">4 упражнения</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div><div class="row"><div class="row-body"><div class="row-name">Спина и бицепс</div><div class="meta">6 упражнений</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div><div class="pad">запас под кнопку — 88</div><button class="fab" style="bottom:76px"><svg class="gplus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button><div class="nb plain pill"><button class="on"><svg viewBox="0 0 24 24"><path d="M4 10.5L12 4l8 6.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/></svg></button><button><svg viewBox="0 0 24 24"><path d="M4 12h3l2.5-7 5 14L17 12h3"/></svg></button><button><svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg></button></div></div>
+        <div class="navnote">Кнопка ничего не накрывает не потому, что стоит в стороне, а потому что список носит запас <b>под неё одну</b>: <b>16 + 56 кнопка + 16</b> = <b>88</b>. Отступа под навбар в списке нет и быть не должно — его держит хост, глобально и вместе с системной вставкой, которую мокап нарисовать не может; поэтому полного числа здесь не написано ни одного. Последний элемент доезжает выше кнопки и остаётся кликабельным. Без этих 88 хвост вечно под кнопкой — и заметно это именно на пагинированном списке, где хвост живой. Запас нужен только тем экранам, где кнопка есть.</div>
 
         <div class="section-head"><span class="label">кнопка в режиме выбора</span><button class="tag" id="selBtn" onclick="toggleSel()">Режим выбора</button></div>
-        <div class="frame"><div class="row"><div class="row-body"><div class="row-name">Ноги</div><div class="meta">5 упражнений</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div><div class="row"><div class="row-body"><div class="row-name">Пресс и кор</div><div class="meta">4 упражнения</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div><div class="pad">только форма и цвет</div><button class="fab" id="morphA" style="bottom:24px"><svg class="gplus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><svg class="gtrash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg></button></div>
-        <div class="frame" style="margin-top:10px"><div class="row"><div class="row-body"><div class="row-name">Ноги</div><div class="meta">5 упражнений</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div><div class="row"><div class="row-body"><div class="row-name">Пресс и кор</div><div class="meta">4 упражнения</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div><div class="pad">форма несёт счёт</div><button class="fab" id="morphB" style="bottom:24px"><svg class="gplus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><svg class="gtrash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg><span class="cnt">Удалить 3</span></button></div>
-        <div class="navnote">Морф формы — не изобретение: закрытие подхода уже морфит круг в 13dp сквиркл и растёт 38→42 (§9). Здесь обратный ход той же грамматики — сквиркл 18 разжимается в круг 28. Ширина едет по грамматике <b>.tabs .ind</b>. Пружина легальна: леджер запрещает overshoot только на геометрии, кодирующей значение. <b>Второй вариант сильнее</b> — счёт видно до нажатия, а голая корзина заставляет вспоминать, сколько ты выбрал, перед необратимым действием.</div>
-        <div class="navnote"><b>Палитра этого пока не умеет.</b> Для содержимого на заливке <b>--rust</b> роли нет: в тёмной подходит <b>--max</b>, в светлой он почти чёрный на красном и нужен <b>--slab</b>. Здесь сделано в обход через переопределение темы, но правильный ответ — именованная роль, как четыре слота у molten. И это новый потребитель открытого <b>B6</b>: пара меряется до принятия (§0.4).</div>
+        <div class="frame"><div class="row"><div class="row-body"><div class="row-name">Ноги</div><div class="meta">5 упражнений</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div><div class="row"><div class="row-body"><div class="row-name">Пресс и кор</div><div class="meta">4 упражнения</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div><div class="pad">форма и цвет, без счёта</div><button class="fab" id="morphA" style="bottom:24px"><svg class="gplus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><svg class="gtrash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg></button></div>
+        <div class="navnote">Морф формы — не изобретение: закрытие подхода уже морфит круг в 13dp сквиркл и растёт 38→42 (§9). Здесь обратный ход той же грамматики — сквиркл 18 разжимается в круг 28. Пружина легальна: леджер запрещает overshoot только на геометрии, кодирующей значение. <b>Кнопка несёт только иконку.</b> Вариант со счётом на пилюле — «Удалить 3», ширина по грамматике <b>.tabs .ind</b> — рассматривался и <b>отклонён</b>; здесь он не нарисован: мокап рисует то, что строится, а отклонённое живёт в §26 вместе с причиной. Причин две. Счёт — это <b>текст</b>, тексту на заливке нужно 4.5:1, и в тёмной теме столько не даёт ни один токен палитры; голая корзина при этом проходит, ей хватает 3:1. И топбар режима выбора уже пишет «Выбрано N» — счёт на кнопке повторял то, что на экране, платя за повтор ролью, которой нет.</div>
+        <div class="navnote"><b>Палитра этого пока не умеет — но граница уже, чем казалась.</b> Измерено: глифу нужно 3:1, и <b>--base</b> на <b>--rust</b> даёт <b>4.45</b> в тёмной и <b>5.57</b> в светлой — проходит в обеих, одним объявлением, без переопределения темы. Это та же инверсия, что уже носит <b>.btn</b>: заливка <b>--max</b>, содержимое <b>--base</b>. Тексту нужно 4.5:1 — и вот его в тёмной не несёт ничто: <b>--max</b> 3.98, <b>--base</b> 4.45, <b>--slab</b> 3.58. Именованная роль всё равно нужна, как четыре слота у molten; это <b>B18</b> и новый потребитель открытого <b>B6</b>. Пара меряется до принятия (§0.4).</div>
 
         <div class="section-head"><span class="label">хаптика — из того, что уже в коде</span></div>
         <div class="navnote">Словарь не расширяем, в репозитории живут четыре константы. <b>SegmentTick</b> — смена вкладки навбара, уже так и есть. <b>LongPress</b> — вход в режим выбора. <b>ContextClick</b> — отметить и снять отметку. <b>Confirm</b> — подтверждённое удаление, после диалога, а не по нажатию кнопки. Морф кнопки отдачи не даёт: он следствие долгого нажатия, которое уже отработало, а вторая отдача подряд читается как сбой. Подгрузка страницы — тоже ничего, пользователь её не запрашивал.</div>
@@ -529,13 +525,14 @@
 </div>
 
 <div class="tools">
-    <button data-s="s-live" onclick="nav(this)">Сессия</button>
+    <button class="on" data-s="s-live" onclick="nav(this)">Сессия</button>
     <button data-s="s-chart" onclick="nav(this)">График</button>
     <button data-s="s-ex" onclick="nav(this)">Упражнение</button>
     <button data-s="s-past" onclick="nav(this)">Прошлая</button>
     <button data-s="s-set" onclick="nav(this)">Настройки</button>
     <button data-s="s-empty" onclick="nav(this)">Пустые</button>
-    <button data-s="s-nav" onclick="nav(this)">Навбар</button><button class="on" data-s="s-list" onclick="nav(this)">Список</button>
+    <button data-s="s-list" onclick="nav(this)">Список</button>
+    <button data-s="s-nav" onclick="nav(this)">Навбар</button>
     <span class="sep"></span>
     <button id="sizeBtn" onclick="toggleSize()">Сессия 2×4</button>
     <button id="thBtn" onclick="setTheme(document.body.classList.contains('light')?'dark':'light')">Светлая</button>
@@ -667,7 +664,8 @@
     function nav(b){document.querySelectorAll('.tools button[data-s]').forEach(x=>x.classList.remove('on'));b.classList.add('on');
       document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
       document.getElementById(b.dataset.s).classList.add('on');window.scrollTo({top:0});
-      if(b.dataset.s==='s-chart'){measure();draw();moveInd(document.querySelector('.tabs button.on'))}}
+      if(b.dataset.s==='s-chart'){measure();draw();moveInd(document.querySelector('.tabs button.on'))}
+      if(b.dataset.s==='s-nav'){nbPlace()}}
     function nbPlace(){const bar=document.getElementById('nb2'),ind=document.getElementById('ind2'),on=bar.querySelector('button.on');
       ind.style.width=on.offsetWidth+'px';ind.style.transform='translateX('+on.offsetLeft+'px)';}
     function nbPick(btn){const bar=btn.closest('.nb'),ind=bar.querySelector('.ind'),cur=bar.querySelector('button.on');
@@ -680,9 +678,8 @@
         ind.classList.remove('go');void ind.offsetWidth;ind.classList.add('go');}
       ind.style.transform='translateX('+btn.offsetLeft+'px)';}
     window.addEventListener('load',()=>setTimeout(nbPlace,60));window.addEventListener('resize',nbPlace);
-    function toggleSel(){const b=document.getElementById('selBtn');b.classList.toggle('on');const on=b.classList.contains('on');
-      document.getElementById('morphA').classList.toggle('del',on);
-      const m=document.getElementById('morphB');m.classList.toggle('del',on);m.classList.toggle('wide',on);}
+    function toggleSel(){const b=document.getElementById('selBtn');b.classList.toggle('on');
+      document.getElementById('morphA').classList.toggle('del',b.classList.contains('on'));}
     function pickTag(b){b.parentNode.querySelectorAll('.tag').forEach(x=>x.classList.remove('on'));b.classList.add('on')}
     function openSheet(id){document.getElementById('scrim').classList.add('on');document.getElementById(id).classList.add('on')}
     function closeSheets(){document.getElementById('scrim').classList.remove('on');document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('on'))}
