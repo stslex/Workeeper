@@ -2,11 +2,23 @@
 <resources xmlns:tools="http://schemas.android.com/tools"
     tools:ignore="DuplicateStrings">
     <string name="feature_all_exercises_title">Упражнения</string>
-    <string name="feature_all_exercises_empty_headline">Пока нет упражнений</string>
-    <string name="feature_all_exercises_empty_supporting">Нажмите +, чтобы создать первое упражнение</string>
+    <string name="feature_all_exercises_empty_headline">Здесь появятся твои упражнения</string>
+    <string name="feature_all_exercises_empty_supporting">Добавь первое — дальше его можно будет класть в любую тренировку.</string>
+    <string name="feature_all_exercises_empty_create">Добавить упражнение</string>
     <string name="feature_all_exercises_fab_create">Создать упражнение</string>
-    <string name="feature_all_exercises_overflow_format">+%1$d</string>
-    <string name="feature_all_exercises_chevron_description">Открыть упражнение</string>
+
+    <!--
+      The drawing writes «со весом» (`#s-list`, the type frame). That is a typo — the preposition
+      takes the bare form before «вес» — and a typo is not a string decision, so this is the one
+      character where the transcription deliberately departs from the contract. Recorded in the
+      delta mapping rather than fixed silently.
+    -->
+    <string name="feature_all_exercises_type_weighted">с весом</string>
+    <string name="feature_all_exercises_type_weightless">без веса</string>
+
+    <string name="feature_all_exercises_paging_loading">Загружаю</string>
+    <string name="feature_all_exercises_paging_error">Не удалось загрузить дальше</string>
+    <string name="feature_all_exercises_paging_retry">Повторить</string>
     <string name="feature_all_exercises_permanent_delete_title">Удалить «%1$s» навсегда?</string>
     <string name="feature_all_exercises_permanent_delete_body">Упражнение не использовалось и не имеет истории. Это действие необратимо.</string>
     <string name="feature_all_exercises_permanent_delete_impact">История не пострадает</string>

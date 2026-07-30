@@ -2,11 +2,23 @@
 <resources xmlns:tools="http://schemas.android.com/tools"
     tools:ignore="DuplicateStrings">
     <string name="feature_all_exercises_title">Exercises</string>
-    <string name="feature_all_exercises_empty_headline">No exercises yet</string>
-    <string name="feature_all_exercises_empty_supporting">Tap + to create your first exercise</string>
+    <string name="feature_all_exercises_empty_headline">Your exercises will appear here</string>
+    <string name="feature_all_exercises_empty_supporting">Add the first one — after that you can put it into any training.</string>
+    <string name="feature_all_exercises_empty_create">Add exercise</string>
     <string name="feature_all_exercises_fab_create">Create exercise</string>
-    <string name="feature_all_exercises_overflow_format">+%1$d</string>
-    <string name="feature_all_exercises_chevron_description">Open exercise</string>
+
+    <!--
+      The exercise type, as the meta line's first token. `#s-list` draws it as a word
+      («со весом»), not a glyph: the row has no leading slot, so the information the type tile
+      carried has to land in the line, and «сведения, потом теги» puts it at the head where it
+      truncates last. The weightless case is not drawn; it is the only sibling of a drawn term.
+    -->
+    <string name="feature_all_exercises_type_weighted">with weight</string>
+    <string name="feature_all_exercises_type_weightless">bodyweight</string>
+
+    <string name="feature_all_exercises_paging_loading">Loading</string>
+    <string name="feature_all_exercises_paging_error">Couldn’t load more</string>
+    <string name="feature_all_exercises_paging_retry">Retry</string>
     <string name="feature_all_exercises_permanent_delete_title">Delete &#8216;%1$s&#8217; permanently?</string>
     <string name="feature_all_exercises_permanent_delete_body">This exercise has no history and isn&#8217;t used. This cannot be undone.</string>
     <string name="feature_all_exercises_permanent_delete_impact">No history affected</string>

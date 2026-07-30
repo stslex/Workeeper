@@ -198,6 +198,26 @@ object AppIcons {
         strokeIcon("Trainings", EMPTY_GLYPH_STROKE, "M4 12h3l2.5-7 5 14L17 12h3")
     }
 
+    /**
+     * The exercises mark — `pass2d.html` `#s-empty`'s third `.empty .glyph`.
+     *
+     * **Doubly load-bearing, exactly as [Trainings] is:** §26 "Bottom navigation" takes the nav
+     * bar's icons from "the drawn empty-state glyphs verbatim", and `#s-list`'s bottom-clearance
+     * frame draws this same path as the bar's third tab. The empty state and the nav bar are one
+     * mark; changing either changes both.
+     *
+     * The three `h.01` segments are zero-length strokes. With [StrokeCap.Round] they render as
+     * dots — the bullet column of a list glyph — which is how the SVG draws them and why they are
+     * not rewritten as circles.
+     */
+    val Exercises: ImageVector by lazy {
+        strokeIcon(
+            "Exercises",
+            EMPTY_GLYPH_STROKE,
+            "M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01",
+        )
+    }
+
     /** Lid, body, pull. One path so it diffs against the mockup line-for-line. */
     private const val ARCHIVE_PATH = "M4 8h16M6 8v11h12V8M10 12h4"
 

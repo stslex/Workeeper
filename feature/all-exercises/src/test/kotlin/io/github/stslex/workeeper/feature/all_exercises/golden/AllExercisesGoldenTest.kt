@@ -3,7 +3,9 @@ package io.github.stslex.workeeper.feature.all_exercises.golden
 
 import androidx.paging.PagingData
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
+import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppBlockedArchiveDialogContent
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialogContent
+import io.github.stslex.workeeper.core.ui.kit.components.dialog.BlockedArchiveItem
 import io.github.stslex.workeeper.core.ui.kit.golden.GoldenTheme
 import io.github.stslex.workeeper.core.ui.kit.golden.golden
 import io.github.stslex.workeeper.core.ui.kit.golden.goldenSubject
@@ -16,6 +18,8 @@ import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesSt
 import io.github.stslex.workeeper.feature.all_exercises.ui.AllExercisesScreen
 import io.github.stslex.workeeper.feature.all_exercises.ui.components.ExerciseRow
 import io.github.stslex.workeeper.feature.all_exercises.ui.components.ExercisesEmptyState
+import io.github.stslex.workeeper.feature.all_exercises.ui.components.PagingErrorFooter
+import io.github.stslex.workeeper.feature.all_exercises.ui.components.PagingLoadingFooter
 import io.github.stslex.workeeper.feature.all_exercises.ui.components.TagFilterRow
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentSetOf
@@ -25,40 +29,45 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 
 /**
- * The all-exercises golden suite — **the BASELINE recording.**
+ * The all-exercises golden suite.
  *
- * This commit photographs the screen exactly as it is *before* the v3 rebuild: inset rounded cards,
- * a leading thumb-or-type-tile, in-row tag chips, a two-line body and an always-visible Material
- * chevron. Nothing here is a contract assertion. It exists so the rebuild's commit is one readable
- * image diff per region instead of a hex diff at the end, and so an unintended change anywhere else
- * on the surface shows up as a golden that moved when it had no reason to.
+ * The BASELINE commit recorded the pre-rebuild surface; this set is the rebuild, so the reviewer
+ * reads one image diff per region rather than a hex diff at the end. An unexplained golden delta is
+ * a review stop.
  *
  * ## Fixtures mirror the drawing
  *
- * Names and metas are lifted from `pass2d.html` `#s-list` — «Отведение гантелей через стороны»,
- * «Тяга Т-грифа прямым широким хватом» — so the element-by-element pass can hold a golden beside the
- * mockup with no mental renaming. They are fixture-side strings, so the Cyrillic renders regardless
- * of the harness's `en` resource locale.
+ * Names, metas and tag names are lifted from `pass2d.html` `#s-list` so the element-by-element pass
+ * can hold a golden beside the mockup with no mental renaming. They are fixture-side strings, so the
+ * Cyrillic renders regardless of the harness's `en` resource locale — which is also why the **type**
+ * token renders as "with weight" / "bodyweight" here and «с весом» / «без веса» on a Russian device:
+ * the type is a *resource*, unlike everything else in these rows.
  *
- * ## `imagePath` is null in every fixture, and that is not laziness
+ * ## Whole surface
  *
- * The leading thumb is a Coil `AsyncImage` reading a `File` off disk. Under Paparazzi it would
- * render a placeholder that says nothing about the row and everything about the image loader — and
- * the drawing removes the leading slot entirely (`#s-list`, the type navnote: "миниатюра и иконка
- * типа остаются на детали"), so the thumb has no after-picture to be compared against. What the
- * baseline does capture is [rowWeighted] / [rowWeightless], the type **tile** — which is the branch
- * the rebuild actually replaces, with the type as the meta line's first word.
+ * The top bar in both modes, the tag filter band, the list, the row's six states (weighted,
+ * weightless, truncating, clamped, selected, and unselected-while-selecting), both paging tails, the
+ * bulk-archive confirm dialog's content, the blocked-archive dialog's content, the empty state and
+ * three whole-screen pictures — each in both themes.
  *
- * ## What is deliberately absent
+ * `AppBlockedArchiveDialogContent` became photographable *because* this commit split it out of
+ * `Dialog {}`'s window, the same split `AppConfirmDialogContent` already had. It is the only surface
+ * that reports a partially blocked bulk archive, and it had a drawn treatment and no visual gate at
+ * all — the combination worth avoiding.
  *
- * No paging-tail goldens: `loadState.append` is never read on this screen today, so there is nothing
- * to photograph. No blocked-archive dialog: its content still lives inside `Dialog {}`, which
- * composes into its own window, and Paparazzi models one. Both arrive with the rebuild, together
- * with the split that makes the second photographable at all.
+ * **The holes**, both deliberate and both named: the two dialog *windows* — scrim and placement —
+ * stay out of model and on manual verification (§10.4); and the permanent-delete dialog is not here
+ * at all, because nothing in the repository can open it (B23). A golden of it would assert that a
+ * picture nobody can see has not changed, while counting as coverage.
  *
- * And **no permanent-delete dialog**, which is a finding rather than an omission: its state is
- * written to non-null nowhere in the repository, so it cannot be opened (B23). A golden of it would
- * assert that a picture nobody can see has not changed, while counting as coverage.
+ * ## Difference assertions
+ *
+ * §10.2 wants pairs, not lone pictures. Four carry it: [rowWeighted]/[rowWeightless] (the meta
+ * line's first token, and nothing else, moves — which is the whole of what this screen's own drawn
+ * region says); [rowWeighted]/[rowSelected] (the selection fill and the check);
+ * [rowSelected]/[rowUnselectedInSelection] (the slot holds its width and empties rather than
+ * collapsing); and [screenList]/[screenSelection] (the whole-surface mode change: top bar swapped
+ * whole and gaining its archive action, FAB morphed shape and glyph while its fill stays put).
  */
 internal class AllExercisesGoldenTest {
 
@@ -76,7 +85,13 @@ internal class AllExercisesGoldenTest {
         imagePath = null,
     )
 
-    /** The other type branch — today a different tile glyph, after the rebuild a different word. */
+    /**
+     * The other type branch, and the **pair** that gates the screen's own drawn region.
+     *
+     * Identical to [weighted] in every field the row renders except `type` and the strings that
+     * follow from the exercise being a different one. What the pair pins is that the type surfaces
+     * at all, as a word, at the head of the line — the navnote's whole content.
+     */
     private val weightless = weighted.copy(
         uuid = "e2",
         name = "Подтягивания широким хватом",
@@ -87,7 +102,7 @@ internal class AllExercisesGoldenTest {
         footerLabel = "9 сессий · в 2 тренировках · последняя 2 июля",
     )
 
-    /** The drawing's own long name — one line at this width, so it truncates. */
+    /** The truncating-on-one-line case: the drawing's own long name (`#s-list`, skeleton frame). */
     private val longName = weighted.copy(
         uuid = "e3",
         name = "Тяга Т-грифа прямым широким хватом",
@@ -96,12 +111,12 @@ internal class AllExercisesGoldenTest {
     )
 
     /**
-     * Long enough to actually reach a second line and clamp.
+     * The **clamp** case, and it has to be long enough to actually clamp.
      *
-     * The sibling proved this fixture is load-bearing rather than decorative: with only a
-     * truncates-on-one-line name, mutating `maxLines` from 2 to 1 left every golden byte-identical.
-     * The current row sets no `maxLines` at all, so this baseline shows the name running to three
-     * lines — which is precisely the delta the rebuild has to close.
+     * [longName] fits on one line at this width and truncates, so a golden of it proves the ellipsis
+     * but says nothing about the second line. Proven on the sibling, not assumed: with only that
+     * fixture, mutating `maxLines` from 2 to 1 left every golden byte-identical. This name reaches
+     * two lines and then clamps, so the mutation is caught.
      */
     private val clamped = weighted.copy(
         uuid = "e4",
@@ -137,32 +152,86 @@ internal class AllExercisesGoldenTest {
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun rowWeighted(theme: GoldenTheme, testInfo: TestInfo) = goldenSubject(testInfo, theme) {
-        ExerciseRow(item = weighted, isSelected = false, onClick = {}, onLongPress = {})
+        ExerciseRow(
+            item = weighted,
+            isSelected = false,
+            isSelecting = false,
+            showDivider = true,
+            onClick = {},
+            onLongPress = {},
+        )
     }
 
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun rowWeightless(theme: GoldenTheme, testInfo: TestInfo) = goldenSubject(testInfo, theme) {
-        ExerciseRow(item = weightless, isSelected = false, onClick = {}, onLongPress = {})
+        ExerciseRow(
+            item = weightless,
+            isSelected = false,
+            isSelecting = false,
+            showDivider = true,
+            onClick = {},
+            onLongPress = {},
+        )
     }
 
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun rowLongName(theme: GoldenTheme, testInfo: TestInfo) = goldenSubject(testInfo, theme) {
-        ExerciseRow(item = longName, isSelected = false, onClick = {}, onLongPress = {})
+        ExerciseRow(
+            item = longName,
+            isSelected = false,
+            isSelecting = false,
+            showDivider = true,
+            onClick = {},
+            onLongPress = {},
+        )
     }
 
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun rowClamped(theme: GoldenTheme, testInfo: TestInfo) = goldenSubject(testInfo, theme) {
-        ExerciseRow(item = clamped, isSelected = false, onClick = {}, onLongPress = {})
+        ExerciseRow(
+            item = clamped,
+            isSelected = false,
+            isSelecting = false,
+            showDivider = true,
+            onClick = {},
+            onLongPress = {},
+        )
     }
 
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun rowSelected(theme: GoldenTheme, testInfo: TestInfo) = goldenSubject(testInfo, theme) {
-        ExerciseRow(item = weighted, isSelected = true, onClick = {}, onLongPress = {})
+        ExerciseRow(
+            item = weighted,
+            isSelected = true,
+            isSelecting = true,
+            showDivider = true,
+            onClick = {},
+            onLongPress = {},
+        )
     }
+
+    /**
+     * The row a selection is happening around but which is not itself selected: the chevron goes,
+     * **the slot stays**. Collapsing the slot reflowed every row on entering the mode, which is what
+     * the §26 "Selection mode" amendment records.
+     */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun rowUnselectedInSelection(theme: GoldenTheme, testInfo: TestInfo) =
+        goldenSubject(testInfo, theme) {
+            ExerciseRow(
+                item = weighted,
+                isSelected = false,
+                isSelecting = true,
+                showDivider = true,
+                onClick = {},
+                onLongPress = {},
+            )
+        }
 
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
@@ -173,7 +242,19 @@ internal class AllExercisesGoldenTest {
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun emptyState(theme: GoldenTheme, testInfo: TestInfo) = goldenSubject(testInfo, theme) {
-        ExercisesEmptyState()
+        ExercisesEmptyState(onCreate = {})
+    }
+
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun pagingLoading(theme: GoldenTheme, testInfo: TestInfo) = goldenSubject(testInfo, theme) {
+        PagingLoadingFooter()
+    }
+
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun pagingError(theme: GoldenTheme, testInfo: TestInfo) = goldenSubject(testInfo, theme) {
+        PagingErrorFooter(onRetry = {})
     }
 
     @ParameterizedTest
@@ -186,6 +267,28 @@ internal class AllExercisesGoldenTest {
                 impactSummary = "Reversible · history preserved",
                 confirmLabel = "Archive",
                 onConfirm = {},
+                onDismiss = {},
+            )
+        }
+
+    /**
+     * The partial-failure surface: some archived, some blocked by an active training. Photographable
+     * only because this commit split the content out of `Dialog {}`'s window.
+     */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun blockedArchiveDialogContent(theme: GoldenTheme, testInfo: TestInfo) =
+        goldenSubject(testInfo, theme, surface = { AppUi.colors.surfaceTier0 }) {
+            AppBlockedArchiveDialogContent(
+                title = "Some couldn’t be archived",
+                archivedSummary = "1 exercise archived",
+                items = persistentListOf(
+                    BlockedArchiveItem("Отведение гантелей через стороны", "used in Верх, Плечи"),
+                    BlockedArchiveItem("Подтягивания широким хватом", "used in Спина +2 more"),
+                ),
+                nextStep = "These are still in active trainings. " +
+                    "Remove them from those trainings first, then archive.",
+                confirmLabel = "Got it",
                 onDismiss = {},
             )
         }

@@ -116,8 +116,18 @@ internal class ClickHandlerTest {
         verify(exactly = 0) { store.sendEvent(any()) }
     }
 
+    /**
+     * §26 "Haptics" gives `Confirm` to "подтверждённое удаление, **после диалога**, а не по нажатию
+     * кнопки" — so the buzz after this dialog's confirm is `Confirm`, not `LongPress`. The test
+     * asserted `LongPress` because that is what the code did; inverting it with the ledger rather
+     * than deleting it keeps the site gated.
+     *
+     * The path itself is unreachable in production (B23: nothing writes `pendingPermanentDelete` to
+     * non-null). This test constructs the state by hand, which is exactly why it passed on a path
+     * production cannot enter — worth knowing when reading it.
+     */
     @Test
-    fun `OnConfirmPermanentDelete with pending clears state and emits LongPress haptic`() {
+    fun `OnConfirmPermanentDelete with pending clears state and emits Confirm haptic`() {
         stateFlow.value = stateFlow.value.copy(
             pendingPermanentDelete = State.PendingDelete(uuid = "uuid-1", name = "Bench"),
         )
@@ -125,7 +135,42 @@ internal class ClickHandlerTest {
         assertEquals(null, stateFlow.value.pendingPermanentDelete)
         val captured = mutableListOf<Event>()
         verify { store.sendEvent(capture(captured)) }
-        assertTrue(captured.any { it is Event.Haptic && it.type == HapticFeedbackType.LongPress })
+        assertTrue(captured.any { it is Event.Haptic && it.type == HapticFeedbackType.Confirm })
+    }
+
+    /**
+     * The FAB morph fires **nothing** (§26 "Haptics": it follows the long press that already fired,
+     * and two in a row read as a fault). The screen's selection top bar routes its archive action
+     * to the same handler, so this covers both affordances.
+     */
+    @Test
+    fun `OnBulkDelete fires no haptic — the morph is silent`() {
+        stateFlow.value = stateFlow.value.copy(
+            selectionMode = State.SelectionMode.On(selectedUuids = persistentSetOf("uuid-1")),
+        )
+        handler.invoke(Action.Click.OnBulkDelete)
+        val captured = mutableListOf<Event>()
+        verify(exactly = 0) { store.sendEvent(capture(captured)) }
+    }
+
+    /** No haptic on a filter chip: `SegmentTick` belongs to the nav bar's tab change. */
+    @Test
+    fun `OnTagFilterToggle fires no haptic`() {
+        handler.invoke(Action.Click.OnTagFilterToggle("tag-1"))
+        verify(exactly = 0) { store.sendEvent(any()) }
+    }
+
+    /** The confirmed archive is where `Confirm` fires — after the dialog, not on the FAB. */
+    @Test
+    fun `OnBulkDeleteConfirm emits Confirm haptic`() {
+        stateFlow.value = stateFlow.value.copy(
+            selectionMode = State.SelectionMode.On(selectedUuids = persistentSetOf("uuid-1")),
+            pendingBulkDelete = State.PendingBulkDelete(count = 1),
+        )
+        handler.invoke(Action.Click.OnBulkDeleteConfirm)
+        val captured = mutableListOf<Event>()
+        verify { store.sendEvent(capture(captured)) }
+        assertTrue(captured.any { it is Event.Haptic && it.type == HapticFeedbackType.Confirm })
     }
 
     @Test
