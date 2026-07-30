@@ -112,6 +112,10 @@ jobs:
       # certified the mockup for several rounds while its nav indicator measured zero width. The
       # script treats an absent browser as a FAIL, never a skip, so this install is load-bearing.
       #
+      # BEFORE YOU CHANGE THIS STEP, read §27 of documentation/feature-specs/v3-redesign-spec.md —
+      # "the instrument's packaging changes its answer". The finding is recorded there with its
+      # measurements and its run ids; what follows is the same thing in short.
+      #
       # IT MUST BE THE DEB, and that is measured rather than preferred. Every UNPACKED build hangs
       # under this probe's flag set — it never returns, so the script's own 90s cap fires and the
       # run dies as "the browser did not return within 90s". Measured on one runner, each given 45s:
