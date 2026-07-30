@@ -96,47 +96,65 @@ jobs:
       # repo that can see the class of escape the gate was built for: six structural checks
       # certified the mockup for several rounds while its nav indicator measured zero width. The
       # script treats an absent browser as a FAIL, never a skip, so this install is load-bearing.
-      - name: Install headless Chrome
-        id: chrome
-        uses: browser-actions/setup-chrome@v2
-        with:
-          chrome-version: stable
+      #
+      # IT MUST BE THE DEB, and that is measured rather than preferred. Every UNPACKED build hangs
+      # under this probe's flag set — it never returns, so the script's own 90s cap fires and the
+      # run dies as "the browser did not return within 90s". Measured on one runner, each given 45s:
+      #
+      #   /usr/bin/chromium         (image's unpacked snapshot 150.0.7871.0)   HANG
+      #   Chrome for Testing 151, Chrome for Testing 150, snapshot 153 (zips)  HANG
+      #   /usr/bin/google-chrome    (image's deb 150.0.7871.128)               OK, 10.7s
+      #   this step's deb           (151.0.7922.71)                            OK,  1.4s
+      #
+      # So the discriminator is packaging, not version: the 151 deb works where the 151 zip hangs.
+      # `chrome-headless-shell` also completes, and is still not an option — it lays the page out
+      # DIFFERENTLY (pill 113px against the 129px every other build and the script's own comment
+      # agree on). The gate's assertions are loose enough not to notice, which is exactly why the
+      # substitution would be wrong: an appearance gate measured through a browser that renders the
+      # page differently is not measuring the drawing.
+      #
+      # `_current_amd64.deb` deliberately floats. Pinning a URL Google eventually deletes trades a
+      # loud, immediate failure for a silent one later, and layout is identical across 150 and 151.
+      - name: Install Google Chrome
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/google-chrome-stable.deb" \
+            https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+          sudo apt-get install -y --no-install-recommends "$RUNNER_TEMP/google-chrome-stable.deb"
+          /usr/bin/google-chrome --version
 
-      # This step is what makes the install above mean anything, and it is not ceremony.
+      # This step is not ceremony, and since the finding above it is not even only about
+      # provenance — without it the gate TIMES OUT.
       #
       # `find_browser()` walks CHROME_CANDIDATES in order and takes the FIRST hit: chromium,
-      # chromium-browser, google-chrome, google-chrome-stable, chrome. The runner image already
-      # ships `/usr/bin/chromium` and `/usr/bin/chromium-browser` (symlinks into an unpacked
-      # Chromium snapshot), while `setup-chrome` installs its binary under the name `chrome` — the
-      # LAST candidate. So without the shadow below the explicit install is inert: the job would
-      # measure the image's browser and report it as the one it installed. An install that installs
-      # nothing is the exact shape of green this gate exists to refuse.
+      # chromium-browser, google-chrome, google-chrome-stable, chrome. The runner image ships
+      # `/usr/bin/chromium` and `/usr/bin/chromium-browser` as symlinks into an unpacked Chromium
+      # snapshot — the two candidates the script tries FIRST, and the two that hang. The deb lands
+      # at `google-chrome`, third. So the shadow is what makes the working browser the one the
+      # script finds; an install whose result is never used is the exact shape of green this gate
+      # exists to refuse, and here it does not even fail quietly.
       #
       # `$GITHUB_PATH` is prepended to PATH for subsequent steps, which beats `/usr/bin` without
-      # touching a system directory or needing sudo.
+      # touching a system directory.
       - name: Make the installed browser win the script's candidate search
-        env:
-          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
         run: |
-          test -x "$CHROME_PATH"
+          test -x /usr/bin/google-chrome
           mkdir -p "$RUNNER_TEMP/browser-bin"
-          ln -sfn "$CHROME_PATH" "$RUNNER_TEMP/browser-bin/chromium"
+          ln -sfn /usr/bin/google-chrome "$RUNNER_TEMP/browser-bin/chromium"
           echo "$RUNNER_TEMP/browser-bin" >> "$GITHUB_PATH"
 
       - name: Assert the render checks have the browser they need
-        env:
-          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
         run: |
           RESOLVED=$(command -v chromium)
           echo "chromium resolves to : $RESOLVED"
           echo "which points at      : $(readlink -f "$RESOLVED")"
-          echo "installed by the step: $(readlink -f "$CHROME_PATH")"
+          echo "the installed deb is : $(readlink -f /usr/bin/google-chrome)"
           chromium --version
-          if [ "$(readlink -f "$RESOLVED")" != "$(readlink -f "$CHROME_PATH")" ]; then
-            echo "::error::the browser the script will pick is NOT the one this job installed. The"
-            echo "::error::shadow step above has stopped working — probably because setup-chrome"
-            echo "::error::changed the installed binary's name. Fix the shadow; do not accept the"
-            echo "::error::image's browser silently."
+          if [ "$(readlink -f "$RESOLVED")" != "$(readlink -f /usr/bin/google-chrome)" ]; then
+            echo "::error::the browser the script will pick is NOT the deb this job installed. The"
+            echo "::error::shadow step above has stopped working, so the render checks are about to"
+            echo "::error::run through the image's unpacked Chromium — which hangs, and will burn"
+            echo "::error::90s per check before failing. Fix the shadow; do not accept the image's"
+            echo "::error::browser silently."
             exit 1
           fi
 
