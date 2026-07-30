@@ -47,7 +47,19 @@ taking 35 min — same green, but only the second is evidence.
 ./gradlew assembleDebugAndroidTest --rerun-tasks --no-build-cache --continue                 # phase-exit (repo-wide)
 ```
 
-**Commit before you mutate.** Proving a detector fires means editing the tree and reverting it, and `git checkout -- <file>` reverts to HEAD — taking any *uncommitted* work in that file with it. Commit first, then mutate, then revert; three separate rounds of work have been lost to this.
+**Verify the commit LANDED before you mutate.** Proving a detector fires means editing the tree and
+reverting it, and `git checkout -- <file>` reverts to HEAD — taking any *uncommitted* work in that
+file with it. "Commit first" is not the rule, because issuing the commit is not the same as landing
+it: a `git commit` that the pre-commit hook rejects still returns to the prompt, and with `-q` and an
+unchecked exit code it looks exactly like success. The next revert then destroys the very work the
+commit existed to protect. **Check `git log -1` — or the exit code — and only then mutate.** Four
+rounds of work have been lost to this, the last one *after* the habit was written down.
+
+**`detekt --auto-correct` needs `--no-configuration-cache` or it reports without rewriting.** With the
+configuration cache on, the run reports the same findings and changes not one byte, so the fix looks
+like it failed to work rather than like it never ran. Same family as the `FROM-CACHE` note above and
+§27's: a Gradle cache making a task's *evidence* answer for a task that did not execute. Note also
+that `MaxLineLength` is not auto-correctable — those are yours to wrap by hand.
 
 **Quote the Gradle summary line as the gate evidence.** It must read `N actionable tasks: N executed`.
 Any `from cache` OR `up-to-date` count in that line **voids** the gate result — re-run before claiming
