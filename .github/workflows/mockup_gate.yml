@@ -1,0 +1,283 @@
+name: v3 Mockup Appearance Gate
+
+# `documentation/mockups/pass2d.html` is the appearance contract the eight screens of the v3 arc are
+# built from, and nothing else in CI reads HTML. `documentation/mockups/shell_gate.py` is the
+# instrument that does — nine checks, two of them driven through a real browser — and until this
+# workflow it ran by hand, which is the standing B9 names: the contract was verified whenever
+# somebody remembered to verify it.
+#
+# It runs as its own workflow rather than as a step in `android_build_unified.yml` for two reasons.
+# It is seconds long and needs no emulator, no JDK, no keystore and no secret of any kind, so a step
+# there would sit behind `assembleDebug` and the rest of a 60-minute job for no gain. And that
+# workflow is `workflow_call`-ed by `android_deploy_prod.yml`, which would quietly put a mockup
+# appearance question on the release path, where it can block a production deploy.
+#
+# There is deliberately NO skip input. The house pattern for one is `skip_ui_tests` /
+# `skip_buid_checks` in `android_deploy_prod.yml` (`type: boolean`, `default: false`, a description
+# naming the single legitimate use), and it is the right shape for a 60-minute emulator suite being
+# retried. It is the wrong shape here: this gate's whole claim is that it ran, and a switch that
+# turns it into a green no-op is the failure it exists to refuse. Same reasoning as the script's own
+# "a missing browser is a FAILURE, never a skip".
+
+on:
+  # PRs into `master` are excluded, and that is not a convenience.
+  #
+  # `pr_guard.yml` enforces that only `release/release-v.X.Y.Z` branches may target `master`, so
+  # every PR to `master` is a roll-up of commits already reviewed on `dev` — never the PR that
+  # changes the mockup. And `master` does not contain `documentation/mockups/` at all (it sits at
+  # v1.48.0, 282 commits behind `dev`), so there is no baseline blob to read. Measured, not assumed:
+  #
+  #     $ shell_gate.py --base $(git rev-parse origin/master)
+  #     shell_gate: git show b315fb90…:documentation/mockups/pass2d.html failed:
+  #     fatal: path 'documentation/mockups/pass2d.html' exists on disk, but not in 'b315fb90…'
+  #     EXIT=1
+  #
+  # An unfiltered trigger therefore reds every release PR with an instrument failure dressed as a
+  # verdict. Note this is a BRANCH filter, not a paths filter — the gate always runs for the PRs it
+  # covers. A paths filter is the wrong tool here even though it looks like the obvious one: check 9
+  # reads `AppColors.kt` as well as the mockup, and the drift it was written for came from the
+  # palette moving in Kotlin while the drawing stayed still, so a filter on
+  # `documentation/mockups/**` would have missed the very thing that motivated the check.
+  pull_request:
+    branches-ignore: [ master ]
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        required: true
+        description: "Git ref to check out and gate"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mockup-gate:
+    name: Mockup Appearance Gate
+    runs-on: ubuntu-latest
+    # Not the house's 60. This job is seconds; the only thing in it that can hang is the headless
+    # browser, and the script already caps its own probe at 90s (`PROBE_TIMEOUT_S`), so anything
+    # past a few minutes is a wedged runner rather than slow work.
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        # `shell: bash` is `bash -eo pipefail`, where the platform default is `bash -e` alone. The
+        # steps below read git through pipelines; without pipefail a failing `git log` mid-pipe
+        # yields an empty token list and a gate that runs in the wrong mode without saying so.
+        shell: bash
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          # MANDATORY, and the one setting this job must not inherit from `android_build_unified.yml`
+          # (which passes only `ref:` and so runs at the default depth of 1). Checks 1 and 3 read a
+          # baseline blob via `git show <base>:<path>`, and the known negative below reads both
+          # `f52462c7` and `9139d8c8`. Under a shallow clone every one of those dies as
+          # `fatal: invalid object name` — exit 1, before a single check runs.
+          fetch-depth: 0
+
+      # Explicit, not inherited. The script's floor is Python 3.12: it puts a backslash inside an
+      # f-string replacement field, which is a SyntaxError before PEP 701. The runner image happens
+      # to ship 3.12 today; pinning it means an image move announces itself here as a setup failure
+      # rather than as a syntax error in a gate script nobody touched.
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # Checks 7 and 8 render the file in a real browser, and they are the only instrument in this
+      # repo that can see the class of escape the gate was built for: six structural checks
+      # certified the mockup for several rounds while its nav indicator measured zero width. The
+      # script treats an absent browser as a FAIL, never a skip, so this install is load-bearing.
+      - name: Install headless Chrome
+        id: chrome
+        uses: browser-actions/setup-chrome@v2
+        with:
+          chrome-version: stable
+
+      # This step is what makes the install above mean anything, and it is not ceremony.
+      #
+      # `find_browser()` walks CHROME_CANDIDATES in order and takes the FIRST hit: chromium,
+      # chromium-browser, google-chrome, google-chrome-stable, chrome. The runner image already
+      # ships `/usr/bin/chromium` and `/usr/bin/chromium-browser` (symlinks into an unpacked
+      # Chromium snapshot), while `setup-chrome` installs its binary under the name `chrome` — the
+      # LAST candidate. So without the shadow below the explicit install is inert: the job would
+      # measure the image's browser and report it as the one it installed. An install that installs
+      # nothing is the exact shape of green this gate exists to refuse.
+      #
+      # `$GITHUB_PATH` is prepended to PATH for subsequent steps, which beats `/usr/bin` without
+      # touching a system directory or needing sudo.
+      - name: Make the installed browser win the script's candidate search
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+        run: |
+          test -x "$CHROME_PATH"
+          mkdir -p "$RUNNER_TEMP/browser-bin"
+          ln -sfn "$CHROME_PATH" "$RUNNER_TEMP/browser-bin/chromium"
+          echo "$RUNNER_TEMP/browser-bin" >> "$GITHUB_PATH"
+
+      - name: Assert the render checks have the browser they need
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+        run: |
+          RESOLVED=$(command -v chromium)
+          echo "chromium resolves to : $RESOLVED"
+          echo "which points at      : $(readlink -f "$RESOLVED")"
+          echo "installed by the step: $(readlink -f "$CHROME_PATH")"
+          chromium --version
+          if [ "$(readlink -f "$RESOLVED")" != "$(readlink -f "$CHROME_PATH")" ]; then
+            echo "::error::the browser the script will pick is NOT the one this job installed. The"
+            echo "::error::shadow step above has stopped working — probably because setup-chrome"
+            echo "::error::changed the installed binary's name. Fix the shadow; do not accept the"
+            echo "::error::image's browser silently."
+            exit 1
+          fi
+
+      # BASE is the merge-base against the PR's OWN base branch, and not against `dev`.
+      #
+      # The script's header carries a "DO NOT SIMPLIFY THIS BACK — BASE IS A PIN" warning against
+      # `BASE=dev`. This is not that, and the difference is worth reading before touching this step.
+      # The hazard there is a baseline that ALREADY CONTAINS the change under test: `f52462c7` put
+      # the mockup on `dev` by direct commit, so with `BASE=dev` the diff was empty and checks 1
+      # and 3 passed by inspecting nothing. A pull request's base branch cannot contain that pull
+      # request's own commits, so it satisfies the rule by construction — whether or not it happens
+      # to be `dev`.
+      #
+      # For a STACKED PR it is not `dev`, and the difference is measured rather than theoretical.
+      # Run against `dev` from the branch below this one, check 1 reds on `rust`, `meta` and
+      # `molten`: three tokens declared and reviewed in the PR underneath, which the PR being gated
+      # does not own.
+      #
+      # Outside a pull request (`workflow_dispatch` / `workflow_call`) there is no base branch, and
+      # the fallback is `dev`. On a run whose HEAD *is* `dev` that degenerates to the empty diff
+      # described above; that path is a manual convenience, not the gate.
+      - name: Resolve the baseline
+        id: baseline
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          BASE_BRANCH="${BASE_REF:-dev}"
+          git fetch --no-tags --quiet origin "+refs/heads/$BASE_BRANCH:refs/remotes/origin/$BASE_BRANCH"
+          BASE=$(git merge-base "origin/$BASE_BRANCH" HEAD)
+          {
+            echo "base=$BASE"
+            echo "base-branch=$BASE_BRANCH"
+          } >> "$GITHUB_OUTPUT"
+          echo "baseline $BASE — merge-base against origin/$BASE_BRANCH"
+
+      # A declared `:root` change has to live in git, not in an invocation.
+      #
+      # `--allow-root-change` hard-coded into this file would allow every future change silently,
+      # and a flag CI passes automatically is not a gate. So the declaration is read out of the
+      # commits in the range instead — an `Allow-root-change: rust, meta, molten` trailer on the
+      # commit that makes the change. It is reviewable in the diff, permanent in history, and scoped
+      # to the commit that earned it. The script's own rule is unchanged and still does the work:
+      # the run fails if the actual diff does not match the declared names exactly, in either
+      # direction. Once such a PR merges the question disappears, because the merge-base advances
+      # and strict mode passes again.
+      #
+      # `%(trailers:key=…)` and not a grep over `%B`: this repo's commit bodies carry some eighty
+      # distinct `Key:`-shaped tokens in prose (`Verified:`, `Gates:`, `Known-negative:`, `Remedy:`
+      # …), and a body regex would collide with all of them. The trailer parser reads only the
+      # trailer block. The key match is case-insensitive. `separator=%x2C` collapses a commit
+      # carrying the trailer twice onto one line, so the same split covers both forms.
+      #
+      # The `grep -E` filter is the security boundary, not cosmetics. These values are commit-message
+      # text — attacker-controlled on a fork PR — and the token list is deliberately word-split into
+      # argv below. Anything that is not a bare token name is dropped, so the worst a hostile
+      # trailer can do is name a token that did not change, which check 1 rejects: it can make this
+      # gate red, never green. `|| true` is required because "no trailer in the range" is the normal
+      # case and a `grep` that matches nothing exits 1, which under `pipefail` would fail the step.
+      - name: Read the declared :root change from the commit trailers
+        id: declared
+        env:
+          BASE: ${{ steps.baseline.outputs.base }}
+        run: |
+          ALLOW=$(
+            git log --format='%(trailers:key=Allow-root-change,valueonly,separator=%x2C)' "$BASE..HEAD" \
+              | tr ',' ' ' \
+              | tr -s '[:space:]' '\n' \
+              | sed 's/^-*//' \
+              | grep -E '^[A-Za-z0-9_-]+$' \
+              | sort -u \
+              | tr '\n' ' ' || true
+          )
+          echo "allow=$ALLOW" >> "$GITHUB_OUTPUT"
+          if [ -n "$ALLOW" ]; then
+            echo "declared in $BASE..HEAD: $ALLOW"
+            git log --format='  %h %s' --grep '^Allow-root-change:' -i "$BASE..HEAD"
+          else
+            echo "no Allow-root-change trailer in $BASE..HEAD — check 1 runs in strict byte-identical mode"
+          fi
+
+      # Every run of this job is a demonstration that the detector fires, rather than a green whose
+      # red was last seen at authoring time. `--target f52462c7` reproduces a real historical escape:
+      # at that commit the nav indicator measured zero width while six structural checks certified
+      # the file. If this ever stops going red the gate has broken, and the PR that broke it is the
+      # one holding the evidence.
+      #
+      # It runs BEFORE the gate itself, on the same reasoning that puts the Paparazzi goldens before
+      # detekt in `android_build_unified.yml` and `assertGoldenLiveness` after them: prove the
+      # instrument, then believe it.
+      #
+      # Exit 1 is the PASSING condition here, so the assertion is inverted — and it asserts two
+      # things, not one. Exit 1 alone is also satisfied by checks 6 and 9, which fail at that ref
+      # for unrelated historical reasons, so an exit-code-only assertion would survive check 7
+      # quietly ceasing to discriminate. That has already happened once in this arc: an id-based
+      # probe selector degraded this same known negative from "the pill measures 0px wide" to "no
+      # pill element found" — a weaker failure wearing the same red. The second and third assertions
+      # pin the reason, not just the colour.
+      - name: Prove the detector fires (the known negative must go red)
+        run: |
+          LOG="$RUNNER_TEMP/known-negative.log"
+          STATUS=0
+          python3 documentation/mockups/shell_gate.py --target f52462c7 > "$LOG" 2>&1 || STATUS=$?
+          cat "$LOG"
+          if [ "$STATUS" -eq 0 ]; then
+            echo "::error::the known negative went GREEN (exit 0). --target f52462c7 must reproduce"
+            echo "::error::the zero-width nav indicator, and it did not. The gate is broken; do not"
+            echo "::error::read any other green in this job as evidence."
+            exit 1
+          fi
+          if ! grep -qE '^  \[FAIL\] 7  nav pill renders and tracks$' "$LOG"; then
+            echo "::error::the known negative went red (exit $STATUS) but check 7 did not fail. Checks"
+            echo "::error::6 and 9 also fail at that ref, so the exit code alone is not evidence that"
+            echo "::error::the render probe still discriminates. Find out what check 7 is doing now."
+            exit 1
+          fi
+          if ! grep -qF 'width=0px→0px' "$LOG"; then
+            echo "::error::check 7 failed at the known negative, but not with the zero-width"
+            echo "::error::measurement this gate exists to catch. A weaker failure (for instance"
+            echo "::error::UNMEASURED, or a missing pill element) wears the same red without proving"
+            echo "::error::the same thing. See the probe's own note on structural vs id selectors."
+            exit 1
+          fi
+          echo "known negative reproduced: exit $STATUS, check 7 red at width=0px→0px"
+
+      # `-v` prints the evidence table even when green, on the rule AGENTS.md already states for the
+      # Gradle gates: a green with no evidence is not evidence. `--allow-root-change` is greedy
+      # (`nargs="+"`) so it must come last on the line.
+      #
+      # `!cancelled()` rather than `always()`: if the step above found the detector broken, this job
+      # is failing either way, but a developer still deserves to see the verdict on their own change
+      # in the same run instead of chasing it after the instrument is fixed.
+      - name: Run the mockup appearance gate
+        if: ${{ !cancelled() }}
+        env:
+          BASE: ${{ steps.baseline.outputs.base }}
+          ALLOW: ${{ steps.declared.outputs.allow }}
+        run: |
+          if [ -n "$ALLOW" ]; then
+            # Unquoted deliberately: the filtered token list must become separate argv entries.
+            # shellcheck disable=SC2086
+            python3 documentation/mockups/shell_gate.py --base "$BASE" -v --allow-root-change $ALLOW
+          else
+            python3 documentation/mockups/shell_gate.py --base "$BASE" -v
+          fi
