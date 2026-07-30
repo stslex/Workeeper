@@ -124,9 +124,15 @@ APP_COLORS = (
 TOKEN_PARITY_EXCEPTIONS = {
     "--dim": "merged into meta, both themes — no AppColors.kt slot for a fourth text-dim step "
              "(§2.5, #184 C1)",
-    "--hair-s": "both themes: the slots that would take it are enabled-control-outline borders "
-                "owing 3:1 under WCAG 1.4.11, which hair-s's 1.12-1.52:1 cannot clear, so the app "
-                "ships *_CONTROL_OUTLINE instead — same hue, lifted/darkened lightness (B19)",
+    "--hair-s": "EXPIRED, AND KEPT ONLY UNTIL THE PALETTE DECISION LANDS. The recorded reason was "
+                "that the slots that would take it are enabled-control-outline borders owing 3:1 "
+                "under WCAG 1.4.11, which hair-s's 1.12-1.52:1 cannot clear, so the app ships "
+                "*_CONTROL_OUTLINE instead (B19) — and, in AppColors.kt's own words, that "
+                "'borderSubtle covers every decorative stroke in the app'. That clause stopped "
+                "being true when the v3 list row landed: the 88dp row is RULED with --hair-s "
+                "(.row border-bottom), a decorative stroke borderSubtle does not cover — "
+                "borderSubtle is --hair, a different value. A named exception is valid only while "
+                "its reason holds; this one's has stopped. See all-trainings-extraction.md D3",
 }
 
 # The one variable legitimately absent from :root — nbPick() writes it per-element at runtime
@@ -135,6 +141,23 @@ TOKEN_PARITY_EXCEPTIONS = {
 RUNTIME_VARS = {"--sx"}
 
 BALANCED_TAGS = ("section", "div", "button", "svg", "span")
+
+# §26's "Bottom navigation" row makes ONE variant normative — a `--sec` track under a hairline, active
+# = lifted slab pill — and records the two it beat. `#s-nav` collapsed to it; `#s-list`'s own copy of
+# the bar and the `.clash` demo were left at the pre-collapse `.nb plain pill` for a round, so the
+# contract drew TWO DIFFERENT NAV BARS at once. That is the "Drawn rejections" failure one level up:
+# there the worry is a rejected alternative surviving in the drawing, here it is a superseded variant
+# surviving in a second copy of the same component.
+#
+# Every other check here reads the drawing against a BASELINE or against AppColors.kt. This one reads
+# the drawing against ITSELF, which is the class nothing was watching. It is deliberately narrow —
+# the general form ("no class is drawn with two different geometries") currently fails on `.chev`,
+# which carries two different paths (`M9 5l7 7-7 7` in the shell rows, `M9 6l6 6-6 6` in `#s-past`),
+# and widening it is a decision about that drawing, not about this one.
+NB_REQUIRED_VARIANT = "track"
+NB_REJECTED_VARIANTS = {
+    "plain": "the untracked variant — rejected on the stage-5 gate-0 device pass (§26, Bottom navigation)",
+}
 
 DEFAULT_SCREEN = "s-live"  # exactly one section may carry `screen on`, and it must be this one
 
@@ -447,6 +470,32 @@ def check_6_one_default_screen(rep: Report, tgt_src: str) -> None:
         6, f"one default screen, and it is #{DEFAULT_SCREEN}", ok, note,
         [f"    expected exactly one `screen on`, on #{DEFAULT_SCREEN}; found: {', '.join(ids) or '(none)'}"]
         if not ok else [],
+    )
+
+
+def check_10_nav_variant_consistent(rep: Report, tgt_src: str) -> None:
+    """Every `.nb` drawn anywhere in the file must be the normative variant.
+
+    Not a style rule — a self-consistency rule. A contract that draws one component two ways stops
+    being a contract, which is the same argument that removed the count-bearing FAB from the file."""
+    bars = re.findall(r'<div class="(nb[^"]*)"', tgt_src)
+    fails: list[str] = []
+    if not bars:
+        fails.append("    no `.nb` is drawn anywhere — this check has nothing to compare and would "
+                     "otherwise pass vacuously")
+    for cls in bars:
+        parts = set(cls.split())
+        if NB_REQUIRED_VARIANT not in parts:
+            fails.append(f"    `.{cls}` is missing the normative `{NB_REQUIRED_VARIANT}` variant")
+        for rejected, why in NB_REJECTED_VARIANTS.items():
+            if rejected in parts:
+                fails.append(f"    `.{cls}` carries `{rejected}` — {why}")
+    variants = sorted({" ".join(sorted(c.split())) for c in bars})
+    rep.add(
+        10, "nav bar drawn in one variant everywhere", not fails,
+        f"{len(bars)} bar(s) drawn, {len(variants)} distinct variant(s): "
+        + "; ".join(f".{v}" for v in variants),
+        fails,
     )
 
 
@@ -836,6 +885,7 @@ def main() -> int:
         check_8_fab_morph(rep, payload, measured=targets_ok and complete)
 
     check_9_token_parity(rep, tgt_src, root)
+    check_10_nav_variant_consistent(rep, tgt_src)
 
     if rep.failed or args.verbose:
         tgt_label = args.target if args.target else "working tree"
