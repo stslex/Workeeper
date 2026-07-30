@@ -349,7 +349,20 @@ PROBE_JS = r"""
     btn['s-nav'].click();
     R.pill.reached = secNav.classList.contains('on');
 
-    var bar = document.getElementById('nb2'), ind = document.getElementById('ind2');
+    // Structural, not by id — and that is load-bearing, not a style choice. This probe reads
+    // TARGET's bytes via `git show <ref>:path`, which can be a ref from years before today's
+    // markup; an id selector is a bet that whatever the nav pill was called at every ref this
+    // gate must still discriminate against matches what it is called today, and that bet has
+    // already been lost once (the collapse from three drawn nav variants to one renamed the
+    // surviving one's ids, which silently turned the f52462c7 known-negative from "pill
+    // measures 0px wide" into "no pill element found" — a different, weaker failure than the
+    // one this check exists to prove). `#s-nav .ind` has no such dependency: verified unique at
+    // both HEAD and f52462c7 (one `.ind` inside `#s-nav` at each — `#s-chart` has the chart tab
+    // indicator, its own unrelated `.ind`, which is why the scope to `#s-nav` is required, not
+    // optional). If a future edit needs two `.ind` elements inside `#s-nav` at once, this
+    // selector stops being unique and this comment is the warning that should stop you before
+    // the gate does.
+    var ind = secNav.querySelector('.ind'), bar = ind && ind.closest('.nb');
     R.pill.elementsPresent = !!(bar && ind);
     if (!bar || !ind) { R.stage = 'no-pill-elements'; emit(); return; }
 

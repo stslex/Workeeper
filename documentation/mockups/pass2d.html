@@ -465,8 +465,8 @@
         <div class="navdemo">
             <div class="row"><div class="row-body"><div class="row-name">Спина и бицепс</div><div class="meta">12 июля · 6 упражнений</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div>
             <div class="row"><div class="row-body"><div class="row-name">Ноги</div><div class="meta">9 июля · 5 упражнений</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div>
-            <div class="nb track slide" id="nb2">
-                <div class="ind" id="ind2"><i></i></div>
+            <div class="nb track slide">
+                <div class="ind"><i></i></div>
                 <button class="on" onclick="nbPick(this)"><svg viewBox="0 0 24 24"><path d="M4 10.5L12 4l8 6.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/></svg></button>
                 <button onclick="nbPick(this)"><svg viewBox="0 0 24 24"><path d="M4 12h3l2.5-7 5 14L17 12h3"/></svg></button>
                 <button onclick="nbPick(this)"><svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg></button>
@@ -642,7 +642,7 @@
       document.getElementById(b.dataset.s).classList.add('on');window.scrollTo({top:0});
       if(b.dataset.s==='s-chart'){measure();draw();moveInd(document.querySelector('.tabs button.on'))}
       if(b.dataset.s==='s-nav'){nbPlace()}}
-    function nbPlace(){const bar=document.getElementById('nb2'),ind=document.getElementById('ind2'),on=bar.querySelector('button.on');
+    function nbPlace(){const ind=document.querySelector('#s-nav .ind'),bar=ind.closest('.nb'),on=bar.querySelector('button.on');
       ind.style.width=on.offsetWidth+'px';ind.style.transform='translateX('+on.offsetLeft+'px)';}
     function nbPick(btn){const bar=btn.closest('.nb'),ind=bar.querySelector('.ind'),cur=bar.querySelector('button.on');
       if(cur===btn)return;const dx=btn.offsetLeft-cur.offsetLeft;
