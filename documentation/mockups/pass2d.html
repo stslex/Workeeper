@@ -208,7 +208,7 @@
         .nb{display:flex;align-items:stretch;height:60px;padding:5px 8px;gap:4px}
         .nb.track{background:var(--sec);border-top:1px solid var(--hair-s)}
         .nb.plain{border-top:1px solid var(--hair-s)}
-        .nb button{flex:1;min-width:0;border:0;background:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:var(--dim);border-radius:12px;font-family:var(--ff-ui);transition:color var(--d-base) var(--e-out),background var(--d-base) var(--e-out)}
+        .nb button{flex:1;min-width:0;border:0;background:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:var(--meta);border-radius:12px;font-family:var(--ff-ui);transition:color var(--d-base) var(--e-out),background var(--d-base) var(--e-out)}
         .nb button svg{width:22px;height:22px;stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round}
         .nb button.on{color:var(--max)}
         .nb.pill button.on{background:var(--slab);box-shadow:var(--slabtop)}
@@ -459,44 +459,20 @@
     <!-- NAV -->
     <section class="screen" id="s-nav">
         <div class="topbar"><h1>Нижняя навигация</h1></div>
-        <div class="hint">Три ответа на один вопрос: чем помечен текущий раздел. Список над баром одинаковый во всех трёх — сравнивай бар, не содержимое. Переключи тему: slabtop в тёмной это внутренняя грань, в светлой — тень вверх.</div>
+        <div class="hint">Трек <b>--sec</b> под баром, волосяная линия сверху, активный на <b>--slab</b> + <b>--slabtop</b> — дословно грамматика <b>.tabs</b> из графика и <b>.mseg</b> из настроек. Устройство собрало варианты 2 и 3 (отдельная плашка без трека, подпись без контейнера); оба сняты с полотна — причина в §26. Переключи тему: slabtop в тёмной это внутренняя грань, в светлой — тень вверх.</div>
 
-        <div class="section-head"><span class="label">1 — трек и плашка</span></div>
+        <div class="section-head"><span class="label">трек и плашка</span></div>
         <div class="navdemo">
             <div class="row"><div class="row-body"><div class="row-name">Спина и бицепс</div><div class="meta">12 июля · 6 упражнений</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div>
             <div class="row"><div class="row-body"><div class="row-name">Ноги</div><div class="meta">9 июля · 5 упражнений</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div>
-            <div class="nb track pill">
-                <button class="on"><svg viewBox="0 0 24 24"><path d="M4 10.5L12 4l8 6.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/></svg></button>
-                <button><svg viewBox="0 0 24 24"><path d="M4 12h3l2.5-7 5 14L17 12h3"/></svg></button>
-                <button><svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg></button>
-            </div>
-        </div>
-        <div class="navnote">Бар — отдельная поверхность <b>--sec</b>, активный сидит на <b>--slab</b> + <b>--slabtop</b>. Это дословно грамматика <b>.tabs</b> из графика и <b>.mseg</b> из настроек: трек держит поднятый элемент. Максимум согласованности, максимум хрома.</div>
-
-        <div class="section-head"><span class="label">2 — плашка без трека</span><button class="tag on" id="gelBtn" onclick="this.classList.toggle('on')">Упругость</button></div>
-        <div class="navdemo">
-            <div class="row"><div class="row-body"><div class="row-name">Спина и бицепс</div><div class="meta">12 июля · 6 упражнений</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div>
-            <div class="row"><div class="row-body"><div class="row-name">Ноги</div><div class="meta">9 июля · 5 упражнений</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div>
-            <div class="nb plain slide" id="nb2">
+            <div class="nb track slide" id="nb2">
                 <div class="ind" id="ind2"><i></i></div>
                 <button class="on" onclick="nbPick(this)"><svg viewBox="0 0 24 24"><path d="M4 10.5L12 4l8 6.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/></svg></button>
                 <button onclick="nbPick(this)"><svg viewBox="0 0 24 24"><path d="M4 12h3l2.5-7 5 14L17 12h3"/></svg></button>
                 <button onclick="nbPick(this)"><svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg></button>
             </div>
         </div>
-        <div class="navnote">Жми по вкладкам. Плашка едет 340ms на <b>--e-out</b> и растягивается тем сильнее, чем дальше прыжок: соседняя вкладка тянется слабо, через одну — заметно. Тянется <b>назад</b>, за движением, поэтому хвост отстаёт и догоняет. Тумблер «Упругость» выключает растяжение и оставляет чистое скольжение — сравни. Трека нет, бар стоит на <b>--base</b> и отделён волосяной линией. Плашка та же, но всплывает прямо со страницы — в светлой теме её тень остаётся единственной тенью в кадре.</div>
-
-        <div class="section-head"><span class="label">3 — только контраст</span></div>
-        <div class="navdemo">
-            <div class="row"><div class="row-body"><div class="row-name">Спина и бицепс</div><div class="meta">12 июля · 6 упражнений</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div>
-            <div class="row"><div class="row-body"><div class="row-name">Ноги</div><div class="meta">9 июля · 5 упражнений</div></div><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div>
-            <div class="nb plain capsel">
-                <button class="on"><svg viewBox="0 0 24 24"><path d="M4 10.5L12 4l8 6.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/></svg><span class="cap">Главная</span></button>
-                <button><svg viewBox="0 0 24 24"><path d="M4 12h3l2.5-7 5 14L17 12h3"/></svg><span class="cap">Тренировки</span></button>
-                <button><svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg><span class="cap">Упражнения</span></button>
-            </div>
-        </div>
-        <div class="navnote">Контейнера нет вообще. Активный — иконка в <b>--max</b> и подпись <b>.label</b>, остальные — <b>--dim</b> без подписи. Подпись здесь несёт роль плашки: она и метит текущий раздел, и называет его. Самый тихий вариант и единственный, где видно слово.</div>
+        <div class="navnote">Бар — отдельная поверхность <b>--sec</b>, активный сидит на <b>--slab</b> + <b>--slabtop</b>. Это дословно грамматика <b>.tabs</b>: трек держит поднятый элемент, и здесь тот же трек держит ту же плашку <b>.tabs .ind</b> уже возит на графике. Плашка едет 340ms на <b>--e-out</b> и растягивается тем сильнее, чем дальше прыжок: соседняя вкладка тянется слабо, через одну — заметно; тянется <b>назад</b>, за движением, хвост отстаёт и догоняет. Неактивные иконки — <b>--meta</b>, не <b>--dim</b>: измерено, <b>--dim</b> на этом треке даёт 3.64 тёмная / <b>2.33 светлая</b> — ниже 3:1, порога для глифа — и трек эту цифру не чинит, на голом <b>--base</b> тот же <b>--dim</b> даёт 2.46 светлая, тоже ниже. <b>--meta</b> проходит в обеих: 5.98 тёмная / 4.31 светлая.</div>
 
         <div class="divider"></div>
 
@@ -671,11 +647,10 @@
     function nbPick(btn){const bar=btn.closest('.nb'),ind=bar.querySelector('.ind'),cur=bar.querySelector('button.on');
       if(cur===btn)return;const dx=btn.offsetLeft-cur.offsetLeft;
       bar.querySelectorAll('button').forEach(b=>b.classList.remove('on'));btn.classList.add('on');
-      if(document.getElementById('gelBtn').classList.contains('on')){
-        const k=Math.min(Math.abs(dx)/bar.offsetWidth,1),el=ind.querySelector('i');
-        el.style.setProperty('--sx',(1+0.30*k).toFixed(3));
-        el.style.transformOrigin=dx>0?'100% 50%':'0% 50%';
-        ind.classList.remove('go');void ind.offsetWidth;ind.classList.add('go');}
+      const k=Math.min(Math.abs(dx)/bar.offsetWidth,1),el=ind.querySelector('i');
+      el.style.setProperty('--sx',(1+0.30*k).toFixed(3));
+      el.style.transformOrigin=dx>0?'100% 50%':'0% 50%';
+      ind.classList.remove('go');void ind.offsetWidth;ind.classList.add('go');
       ind.style.transform='translateX('+btn.offsetLeft+'px)';}
     window.addEventListener('load',()=>setTimeout(nbPlace,60));window.addEventListener('resize',nbPlace);
     function toggleSel(){const b=document.getElementById('selBtn');b.classList.toggle('on');
