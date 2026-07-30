@@ -22,9 +22,10 @@ name: v3 Mockup Appearance Gate
 on:
   # PRs into `master` are excluded, and that is not a convenience.
   #
-  # `pr_guard.yml` enforces that only `release/release-v.X.Y.Z` branches may target `master`, so
-  # every PR to `master` is a roll-up of commits already reviewed on `dev` — never the PR that
-  # changes the mockup. And `master` does not contain `documentation/mockups/` at all (it sits at
+  # `pr_guard.yml` reds any PR to `master` whose head is not `release/release-v.X.Y.Z` — a check, so
+  # it reports rather than prevents, but the convention it polices means a PR to `master` is a
+  # roll-up of commits already reviewed on `dev`, never the PR that changes the mockup. The second
+  # reason stands alone regardless: `master` does not contain `documentation/mockups/` at all (it sits at
   # v1.48.0, 282 commits behind `dev`), so there is no baseline blob to read. Measured, not assumed:
   #
   #     $ shell_gate.py --base $(git rev-parse origin/master)
@@ -38,7 +39,21 @@ on:
   # reads `AppColors.kt` as well as the mockup, and the drift it was written for came from the
   # palette moving in Kotlin while the drawing stayed still, so a filter on
   # `documentation/mockups/**` would have missed the very thing that motivated the check.
+  #
+  # `edited` is in the type list, and it is the one entry that is not boilerplate. The default set is
+  # `opened, synchronize, reopened`; retargeting a PR's base fires `edited` (`changes.base.ref`) and
+  # NOT `synchronize`, because the head SHA does not change. For every other workflow here that is
+  # harmless — `android_build_unified.yml` also has a bare `pull_request:` and builds HEAD, which the
+  # retarget did not touch. This job is the only one in the repo whose measurement takes the base
+  # branch as an INPUT (`github.base_ref` → `git merge-base` → `--base`), so without `edited` a green
+  # earned against one baseline survives a retarget onto another and that stale green is what merges.
+  # It fails OPEN, which is the direction this arc's own spec says a reader cannot recover from.
+  # Verified rather than assumed, on public PRs whose head SHA never moved: after a base retarget the
+  # only workflow that fired was the one subscribing to `edited`.
+  #
+  # The cost is a re-run on every title/body edit. This job is seconds; a stale green is not.
   pull_request:
+    types: [ opened, synchronize, reopened, edited ]
     branches-ignore: [ master ]
   workflow_dispatch:
   workflow_call:
@@ -117,7 +132,8 @@ jobs:
       # loud, immediate failure for a silent one later, and layout is identical across 150 and 151.
       - name: Install Google Chrome
         run: |
-          curl -fsSL -o "$RUNNER_TEMP/google-chrome-stable.deb" \
+          curl -fsSL --retry 3 --retry-connrefused --retry-delay 2 \
+            -o "$RUNNER_TEMP/google-chrome-stable.deb" \
             https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
           sudo apt-get install -y --no-install-recommends "$RUNNER_TEMP/google-chrome-stable.deb"
           /usr/bin/google-chrome --version

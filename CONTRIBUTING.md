@@ -56,7 +56,11 @@ If you touched `documentation/mockups/pass2d.html` or the colour tokens in `AppC
 check applies — `.github/workflows/mockup_gate.yml` runs it on your PR:
 
 ```bash
-python3 documentation/mockups/shell_gate.py --base "$(git merge-base origin/dev HEAD)" -v
+# The baseline must be the branch your PR targets, which is what CI uses. That is `dev` for
+# most work — but the branch below you if your PR is stacked, and substituting `dev` there
+# reports the parent PR's token changes as yours.
+PR_BASE=dev
+python3 documentation/mockups/shell_gate.py --base "$(git merge-base "origin/$PR_BASE" HEAD)" -v
 ```
 
 It needs Python 3.12+ and a headless Chromium on `PATH`. A change to a `:root` token must be

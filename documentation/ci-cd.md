@@ -137,7 +137,9 @@ it was written for came from the palette moving in Kotlin while the drawing stay
 To reproduce a CI result locally:
 
 ```bash
-python3 documentation/mockups/shell_gate.py --base "$(git merge-base origin/dev HEAD)" -v
+# PR_BASE is the branch the PR targets — the branch below you if the PR is stacked, not `dev`.
+PR_BASE=dev
+python3 documentation/mockups/shell_gate.py --base "$(git merge-base "origin/$PR_BASE" HEAD)" -v
 python3 documentation/mockups/shell_gate.py --target f52462c7   # must exit 1
 ```
 

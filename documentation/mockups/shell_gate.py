@@ -9,10 +9,12 @@
 #
 # CI runs it on every pull request — `.github/workflows/mockup_gate.yml`. To reproduce what CI runs:
 #
-#     python3 documentation/mockups/shell_gate.py --base "$(git merge-base origin/dev HEAD)" -v
+#     PR_BASE=dev   # or the branch below you, if the PR is stacked — NOT dev then
+#     python3 documentation/mockups/shell_gate.py --base "$(git merge-base "origin/$PR_BASE" HEAD)" -v
 #
-# replacing `origin/dev` with the branch the PR actually targets, and adding
-# `--allow-root-change <names>` only if a commit in the range declares one (see BASE, below).
+# The branch matters: substituting `dev` on a stacked PR reports the parent PR's token changes
+# as yours. Add `--allow-root-change <names>` only if a commit in the range declares one (see
+# BASE, below).
 #
 # WHY THIS EXISTS. `pass2d.html` sections `#s-list` and `#s-nav` are the appearance contract for the
 # chrome shared by the eight derived screens of the v3 arc — bottom bar, list row, selection mode, the

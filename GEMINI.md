@@ -54,7 +54,9 @@ These are Claude Code-shaped skill files. Read them as procedural recipes for co
 - `mockup_gate.yml` runs `documentation/mockups/shell_gate.py` on every PR except those into
   `master`, plus its `--target f52462c7` known negative, which must go red. Editing
   `documentation/mockups/pass2d.html` **or** `AppColors.kt` can red it; reproduce with
-  `python3 documentation/mockups/shell_gate.py --base "$(git merge-base origin/dev HEAD)" -v`.
+  `python3 documentation/mockups/shell_gate.py --base "$(git merge-base origin/$PR_BASE HEAD)" -v`,
+  where `$PR_BASE` is the branch the PR targets — `dev` for most work, but the branch below
+  you in a stack, which is what CI uses and is not the same baseline.
   A `:root` token change must be declared with an `Allow-root-change: <names>` commit trailer —
   the workflow reads the declaration out of the commits in the range, never from a flag.
 - The pre-commit hook in `.githooks/pre-commit` returns early — CI is the lint gate.
