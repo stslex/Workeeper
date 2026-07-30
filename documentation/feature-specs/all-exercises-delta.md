@@ -110,8 +110,13 @@ only current consumer and it renders a Material glyph, not a word. Two strings a
 (`…_type_weighted` / `…_type_weightless`), and per the domain-layer rule in `CLAUDE.md` they resolve
 in the UI layer, not the mapper's domain input.
 
-The drawn word is «со весом» / (the weightless case is not drawn). `values/strings.xml` is `en`, so
-the shipped pair is `With weight` / `Bodyweight`, and `values-ru` carries the drawn Russian.
+The drawn word is «со весом»; the weightless case is not drawn and takes «без веса». `values/strings.xml`
+is `en`, so the shipped pair there is `with weight` / `bodyweight`.
+
+**One deliberate one-character departure from the contract.** «со весом» is a typo — the preposition
+takes its bare form before «вес» — and a typo is not a string decision, so `values-ru` ships «с
+весом». Recorded here and in a comment on the string rather than corrected silently, because §0.1
+gives the drawing the strings and this is the one place the transcription does not obey it.
 
 ### 1.4 No leading media — the same stated absence, with a second referent
 
@@ -287,10 +292,70 @@ and no visual gate — precisely the combination §27 records as worth avoiding.
   this the hard way: with only a truncates-on-one-line fixture, mutating `maxLines` 2 → 1 left every
   golden byte-identical. A `rowClamped` fixture is mandatory, not decorative.
 
-**Both directions, on every gate.** Each of: the 88dp row height, the two-line clamp, the single-line
-meta, the type-first token, the chevron-in-selection rule, the 88dp clearance, the FAB morph radius
-and glyph, each corrected haptic. Red on a targeted mutation, then reverted — a green result from a
-detector never proven to fire is worth nothing.
+**Both directions, on every gate.** Red on a targeted mutation, then reverted — a green result from
+a detector never proven to fire is worth nothing.
+
+### 5.1 The mutation run — 23 for 23, and one hole
+
+Every mutation was applied to committed code, run, and reverted. A mutation that fails to **compile**
+proves nothing and was re-run in a compiling form (the first attempt at the row height did exactly
+that).
+
+| # | Mutation | Caught by |
+|---|---|---|
+| 1 | row height `rowHeight` → `heightLg` (88 → 56) | 16 goldens |
+| 2 | name clamp `maxLines` 2 → 1 | `rowClamped` + both screens |
+| 3 | meta line allowed to wrap (1 → 2) | 16 goldens |
+| 4 | type token moved from head to tail | 16 goldens |
+| 5 | unselected-in-selection keeps its chevron | `rowUnselectedInSelection` + `screenSelection` |
+| 6 | clearance back to the shipped 72 | `AllExercisesClearanceTest`, both cases |
+| 7 | FAB morph radius → the resting squircle | `screenSelection` |
+| 8 | FAB glyph → plus (no swap) | `screenSelection` |
+| 9 | empty-state glyph → the trainings mark | `emptyState` |
+| 10 | empty state loses its CTA | `emptyState` |
+| 11 | bulk-archive confirm `Confirm` → `LongPress` | `ClickHandlerTest` |
+| 12 | permanent-delete confirm `Confirm` → `LongPress` | `ClickHandlerTest` |
+| 13 | tag chip fires `SegmentTick` again | `ClickHandlerTest` |
+| 14 | the FAB morph buzzes again | `ClickHandlerTest` |
+| 15 | selection top bar loses its archive action | `screenSelection` |
+| 16 | row divider removed | 16 goldens |
+| 17 | tag band loses its closing rule | `tagFilterBand` + all three screens |
+| 18 | list re-inset by `screenEdge` (back to cards) | `screenList` + `screenSelection` |
+| 19 | **error tail silenced** | **nothing — see below** |
+| 20 | selected row stops lifting | `rowSelected` + `screenSelection` |
+| 21 | check glyph → the lighter picker check | `rowSelected` + `screenSelection` |
+| 22 | blocked-archive dialog drops its next-step line | `blockedArchiveDialogContent` |
+| 23 | golden suite `@Disabled` wholesale | `assertGoldenLiveness`: "0 executed but 30 committed" |
+
+**#19 was a real hole, on both screens.** Deleting `is LoadState.Error ->` from the screen's tail
+block left all 30 goldens byte-identical. The footers are photographed; *when* they appear was not,
+and no whole-screen golden can reach an append-error state. Closed the same way the clearance was —
+`pagingTailKind(LoadState): PagingTailKind` as a pure function, `pagingTail` as dispatch, asserted in
+`PagingTailKindTest` including the **absence** case. Re-proven in four directions afterwards (error
+silenced, loading silenced, exhausted growing a footer, and the sibling's error case), all red.
+
+Two findings came out of the same run and are recorded in §27: the incomplete mitigation the previous
+entry had already prescribed for this class, and `screenEmpty` photographing a blank screen rather
+than the empty state.
+
+### 5.2 The clean run
+
+`./gradlew clean`, then `detekt --rerun-tasks --no-build-cache` on its own invocation
+(**36 actionable tasks: 36 executed**, zero issues, zero suppressions), `lintDebug` likewise
+(**1079 / 1079 executed**, 0 errors), then assemble + unit tests + all three visual gates
+(**1487 actionable tasks: 1487 executed** — no `from cache`, no `up-to-date`):
+
+```
+Visual gate live: 30 golden test case(s) executed for 30 golden image(s).   feature/all-exercises
+Visual gate live: 30 golden test case(s) executed for 30 golden image(s).   feature/all-trainings
+Visual gate live: 62 golden test case(s) executed for 62 golden image(s).   core/ui/kit
+```
+
+`lintDebug` found **two pre-existing errors on the sibling branch**, both `lintDebug`-only (the
+pre-commit hook runs detekt and skips lint, so neither could surface locally there): a duplicate
+Russian string pair introduced with the empty state's CTAs, and three strings that screen's own
+rebuild orphaned. Fixed here because they block this branch's verification; `feature/v3-all-trainings`
+is red on CI as it stands.
 
 **Commands.** `./gradlew clean`, then the gates as separate invocations with `--rerun-tasks
 --no-build-cache`; detekt on its own invocation, zero suppressions; the summary must read
@@ -341,6 +406,12 @@ open against a screen that draws nothing at all on every cold start.
 **In:** `feature/all-exercises` — the row, the list, the tag band, the top bars, the FAB, the paging
 tails, the empty state's strings and CTA, the haptic corrections, the clearance, and the module's
 golden suite from zero. `AppIcons.Exercises`. The `AppBlockedArchiveDialog` content split.
+
+**Touched on the sibling module, deliberately and minimally:** two `lintDebug` errors that blocked
+this branch's own verification (5.2), the suite-KDoc claim `screenEmpty` could not support (§27), and
+the paging-tail gate hole, which was additive, moved no pixel and needed no re-record. Nothing that
+changes `TrainingRow`'s shape, and nothing that forces a golden to be re-recorded — a rebase over the
+device pass stays cheap.
 
 **Out:** `TrainingRow` and anything that changes its shape — the sibling screen is under a concurrent
 device pass and this branch must rebase cheaply. A shared row component. `AppTagChip`'s own treatment
