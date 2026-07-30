@@ -13,8 +13,11 @@ import io.github.stslex.workeeper.feature.all_trainings.mvi.model.TrainingListIt
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.State
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.State.SelectionMode
 import io.github.stslex.workeeper.feature.all_trainings.ui.AllTrainingsScreen
+import io.github.stslex.workeeper.feature.all_trainings.ui.components.ColdOpenLoading
+import io.github.stslex.workeeper.feature.all_trainings.ui.components.FilteredEmptyState
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.PagingErrorFooter
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.PagingLoadingFooter
+import io.github.stslex.workeeper.feature.all_trainings.ui.components.SelectionEmptyState
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.TagFilterRow
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.TrainingRow
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.TrainingsEmptyState
@@ -307,5 +310,41 @@ internal class AllTrainingsGoldenTest {
     @EnumSource(GoldenTheme::class)
     fun screenEmpty(theme: GoldenTheme, testInfo: TestInfo) = golden(testInfo, theme) {
         AllTrainingsScreen(state = state(emptyList()), consume = {})
+    }
+    // ---- states reached by an action ------------------------------------------------------------
+
+    /**
+     * No tile, by rule: §26's discriminator is that a glyph tile means the screen is empty by
+     * itself. Pair it with [emptyState] — the tile is the only thing that should differ in kind.
+     */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun filteredEmpty(theme: GoldenTheme, testInfo: TestInfo) = goldenSubject(testInfo, theme) {
+        FilteredEmptyState(onClearFilter = {})
+    }
+
+    /** Selection running, list emptied by a filter — the recovery button is present. */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun selectionEmptyFiltered(theme: GoldenTheme, testInfo: TestInfo) =
+        goldenSubject(testInfo, theme) { SelectionEmptyState(onClearFilter = {}) }
+
+    /**
+     * The same state with no filter to undo — the button is **gone**, not disabled.
+     *
+     * The difference pair for the conditional action. `AppEmptyState` renders a button only when
+     * label and handler are both non-null, so this photographs that contract rather than trusting
+     * its KDoc.
+     */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun selectionEmptyUnfiltered(theme: GoldenTheme, testInfo: TestInfo) =
+        goldenSubject(testInfo, theme) { SelectionEmptyState(onClearFilter = null) }
+
+    /** The cold open. Not an empty state — the paging footer, where row 1 will land. */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun coldOpenLoading(theme: GoldenTheme, testInfo: TestInfo) = goldenSubject(testInfo, theme) {
+        ColdOpenLoading()
     }
 }

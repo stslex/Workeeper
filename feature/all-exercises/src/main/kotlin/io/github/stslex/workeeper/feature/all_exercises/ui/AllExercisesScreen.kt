@@ -3,6 +3,7 @@ package io.github.stslex.workeeper.feature.all_exercises.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,7 +24,6 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppBlockedArchiveDialog
@@ -38,12 +38,17 @@ import io.github.stslex.workeeper.feature.all_exercises.mvi.model.ExerciseUiMode
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Action
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.State
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.State.SelectionMode
+import io.github.stslex.workeeper.feature.all_exercises.ui.components.ColdOpenLoading
 import io.github.stslex.workeeper.feature.all_exercises.ui.components.ExerciseRow
 import io.github.stslex.workeeper.feature.all_exercises.ui.components.ExercisesEmptyState
+import io.github.stslex.workeeper.feature.all_exercises.ui.components.FilteredEmptyState
+import io.github.stslex.workeeper.feature.all_exercises.ui.components.ListSurface
 import io.github.stslex.workeeper.feature.all_exercises.ui.components.PagingErrorFooter
 import io.github.stslex.workeeper.feature.all_exercises.ui.components.PagingLoadingFooter
 import io.github.stslex.workeeper.feature.all_exercises.ui.components.PagingTailKind
+import io.github.stslex.workeeper.feature.all_exercises.ui.components.SelectionEmptyState
 import io.github.stslex.workeeper.feature.all_exercises.ui.components.TagFilterRow
+import io.github.stslex.workeeper.feature.all_exercises.ui.components.listSurface
 import io.github.stslex.workeeper.feature.all_exercises.ui.components.pagingTailKind
 
 @Composable
@@ -74,12 +79,7 @@ internal fun AllExercisesScreen(
             }
             Box(modifier = Modifier.weight(1f)) {
                 ExercisesList(state = state, items = items, consume = consume)
-                if (items.isEmptyAndIdle() && !state.isSelecting) {
-                    ExercisesEmptyState(
-                        modifier = Modifier.align(Alignment.Center),
-                        onCreate = { consume(Action.Click.OnEmptyCreate) },
-                    )
-                }
+                EmptyRegion(state = state, items = items, consume = consume)
             }
         }
         val isSelecting = state.isSelecting
@@ -248,11 +248,54 @@ private fun ExercisesList(
     }
 }
 
-private fun LazyPagingItems<*>.isEmptyAndIdle(): Boolean =
-    itemCount == 0 &&
-        loadState.refresh is LoadState.NotLoading &&
-        loadState.append is LoadState.NotLoading &&
-        loadState.prepend is LoadState.NotLoading
+/**
+ * The empty region — one selector, five verdicts, three of them new.
+ *
+ * This replaces `isEmptyAndIdle() && !isSelecting`, a single branch in which four different states
+ * were living. See [listSurface] for the ordering and the reasoning; the states themselves are
+ * drawn in `#s-empty` and ruled by §26 "List states reached by an action".
+ *
+ * [ListSurface.REFRESH_ERROR] renders **nothing**, and that is deliberate rather than an omission:
+ * a failed *first* page is B22's fourth region and the contract does not draw it. Inventing a
+ * treatment for it here is exactly the derivation §0.1 exists to prevent, and mapping it onto the
+ * loading spinner or the first-run empty would be a lie about what happened.
+ */
+@Composable
+private fun BoxScope.EmptyRegion(
+    state: State,
+    items: LazyPagingItems<ExerciseUiModel>,
+    consume: (Action) -> Unit,
+) {
+    val filterActive = state.activeTagFilter.isNotEmpty()
+    val clearFilter = { consume(Action.Click.OnClearTagFilter) }
+    when (
+        listSurface(
+            itemCount = items.itemCount,
+            loadState = items.loadState,
+            filterActive = filterActive,
+            selecting = state.isSelecting,
+        )
+    ) {
+        ListSurface.CONTENT, ListSurface.REFRESH_ERROR -> Unit
+
+        ListSurface.LOADING -> ColdOpenLoading(modifier = Modifier.align(Alignment.TopCenter))
+
+        ListSurface.FIRST_RUN -> ExercisesEmptyState(
+            modifier = Modifier.align(Alignment.Center),
+            onCreate = { consume(Action.Click.OnEmptyCreate) },
+        )
+
+        ListSurface.FILTERED_EMPTY -> FilteredEmptyState(
+            modifier = Modifier.align(Alignment.Center),
+            onClearFilter = clearFilter,
+        )
+
+        ListSurface.SELECTION_EMPTY -> SelectionEmptyState(
+            modifier = Modifier.align(Alignment.Center),
+            onClearFilter = clearFilter.takeIf { filterActive },
+        )
+    }
+}
 
 /**
  * §26 "Paging tails": three states, two drawings.

@@ -74,4 +74,16 @@
     </plurals>
     <string name="feature_all_exercises_blocked_archive_next_step">These are still in active trainings. Remove them from those trainings first, then archive.</string>
     <string name="feature_all_exercises_blocked_archive_confirm">Got it</string>
+
+    <!--
+      §26 "List states reached by an action" — PROPOSED, drawn in `#s-empty`, awaiting the device
+      pass. Neither block takes a glyph: the tile is the discriminator between "empty by itself"
+      and "you arrived here by an action you can undo". Filtered-to-empty has no supporting
+      sentence because the filter is OR, so "remove a tag" cannot recover and there is no honest
+      instruction to put in the slot.
+    -->
+    <string name="feature_all_exercises_filtered_empty_headline">Nothing matches these tags</string>
+    <string name="feature_all_exercises_filtered_empty_clear">Clear filter</string>
+    <string name="feature_all_exercises_selection_empty_headline">Nothing here, but your selection is kept</string>
+    <string name="feature_all_exercises_selection_empty_supporting">Your selection stays until you leave selection mode.</string>
 </resources>

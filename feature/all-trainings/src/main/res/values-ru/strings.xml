@@ -58,4 +58,16 @@
     <string name="feature_all_trainings_paging_retry">Повторить</string>
     <string name="feature_all_trainings_empty_create">Создать тренировку</string>
     <string name="feature_all_trainings_empty_start_blank">Начать пустую тренировку</string>
+
+    <!--
+      §26 "List states reached by an action" — PROPOSED, drawn in `#s-empty`, awaiting the device
+      pass. Neither block takes a glyph: the tile is the discriminator between "empty by itself"
+      and "you arrived here by an action you can undo". Filtered-to-empty has no supporting
+      sentence because the filter is OR, so "remove a tag" cannot recover and there is no honest
+      instruction to put in the slot.
+    -->
+    <string name="feature_all_trainings_filtered_empty_headline">По этим тегам ничего нет</string>
+    <string name="feature_all_trainings_filtered_empty_clear">Сбросить фильтр</string>
+    <string name="feature_all_trainings_selection_empty_headline">Здесь пусто, но выбор цел</string>
+    <string name="feature_all_trainings_selection_empty_supporting">Отметки останутся, пока не выйдешь из режима.</string>
 </resources>
