@@ -127,8 +127,15 @@ because `TrainingRow` had no leading media to drop. **This screen is where that 
 `Icons.Filled.FitnessCenter` or `Icons.Filled.AccessibilityNew` — otherwise.
 
 Both go. The navnote names both by name ("миниатюра и иконка типа остаются на детали"), so this is
-transcription, not interpretation. `ExerciseTypeIcon.kt` loses its only caller on this screen; it is
-left in place for the detail screen rather than deleted from a branch that does not own that screen.
+transcription, not interpretation.
+
+`ExerciseTypeIcon.kt` is **deleted**, and the first draft of this section got that wrong. It said the
+file was "left in place for the detail screen", which is impossible: it is `internal` to
+`feature/all-exercises` and takes that module's `ExerciseTypeUiModel`, so `feature/exercise` cannot
+reference it across the module boundary — and does not need to, because it already draws the type
+glyph itself (`ExerciseHero`, `ImageEditRow`). Left alone it would have been an unreferenced file
+shipping the exact 28dp `surfaceTier4` tile with filled Material glyphs that this rebuild removes,
+with nothing to signal it: detekt's unused-declaration rules only reach `private`.
 
 Consequence worth stating: **Coil leaves the row**, so the row becomes a pure function of its model
 and is photographable without a network/disk fake. That is why the golden set can cover it at all.
@@ -139,7 +146,7 @@ What actually differs, rather than what looks like it might:
 
 | Region | `ExerciseRow` today | After | Same as `TrainingRow`? |
 |---|---|---|---|
-| Container | `clip(AppUi.shapes.medium)` + `animateColorAsState` between `accentTintedBackground` / `surfaceTier1`, inset by the list's `screenEdge` contentPadding, `Space.sm` between items | full-bleed, `RectangleShape`, `liftedSurface(lifted = isSelected, restingColor = Transparent)`, no inter-item spacing | **yes** — identical modifier chain except `lifted` (1.6) |
+| Container | `clip(AppUi.shapes.medium)` + `animateColorAsState` between `accentTintedBackground` / `surfaceTier1`, inset by the list's `screenEdge` contentPadding, `Space.sm` between items | full-bleed, `RectangleShape`, `liftedSurface(lifted = isSelected, restingColor = Transparent)`, no inter-item spacing | **yes** — identical modifier chain except `lifted`, which is selection alone here (see the note below this table) |
 | Height | `padding(cardPadding)`, intrinsic | `heightIn(min = AppDimension.rowHeight)` + `padding(horizontal = screenEdge)` | yes |
 | Divider | none (cards are separated by spacing) | `HorizontalDivider(borderHairline, borderSubtle)` when `showDivider` | yes |
 | Leading | `ExerciseLeading` — thumb or type tile | **removed** (1.4) | yes (neither has one) |
@@ -173,7 +180,7 @@ gone, and the drawn selection mark is the check in the slot.
 | FAB glyph | `Icons.Filled.Delete` / `Icons.Filled.Add` | `.garch` / `.gplus` | **DELTA** — D2's second application, already ruled |
 | FAB fill | `status.error` when selecting | `--max` throughout | **DELTA** — D2. The fill is the half that was already wrong in the ledger and is now corrected in it |
 | FAB shape | no morph | squircle 18 → circle 28 | **UNBUILT** |
-| Empty state | glyph `Icons.Filled.FitnessCenter`, headline + sentence, **no action** | `#s-empty`'s third `.empty` | **DELTA** — see 3 |
+| Empty state | glyph `Icons.Filled.FitnessCenter`, headline + sentence, **no action** | `#s-empty`'s third `.empty` | **DELTA** — see 2.2 |
 | Tag band | `LazyRow`, `Space.xs` spacing, `Space.sm` vertical, **no closing rule** | `.tagrow` + the hairline the sibling built | **DELTA** — `Space.sm` / `Space.md` / closing `HorizontalDivider` |
 | Bulk-archive confirm | `pendingBulkDelete` → `AppConfirmDialog` | §26; `AppConfirmDialogContent` is already split | **MATCH**, ungated — see 5 |
 | Permanent-delete confirm | `pendingPermanentDelete` → `AppConfirmDialog` | — | **DEAD.** See 2.3 |
@@ -345,6 +352,22 @@ Two findings came out of the same run and are recorded in §27: the incomplete m
 entry had already prescribed for this class, and `screenEmpty` photographing a blank screen rather
 than the empty state.
 
+### 5.1a Residual holes, named rather than closed
+
+Two things the mutation run showed are **not** gated, recorded here because a gate list that omits
+its own gaps reads as coverage:
+
+- **Which action the empty state's CTA dispatches.** Routing it back through `OnFabClick` — the
+  divergence an adversarial review found, where this screen's CTA buzzed and the sibling's did not —
+  leaves every test green. The handler side is gated on both screens (`OnEmptyCreate` opens create
+  and fires nothing); the screen-side wiring is not. A Compose UI test would see it, but
+  `ui_tests.yml` is `workflow_dispatch`-only and does not gate PRs.
+- **`rowLongName` catches nothing alone.** Every mutation it reddens also reddens `rowWeighted`,
+  which renders the same composable in the same state. It is kept because "no mutation catches it
+  alone" is not provable in general and the four images are cheap — but it is not carrying a
+  distinct property, and its KDoc no longer claims it proves the name's ellipsis (it does not; the
+  name fits on one line and only the meta truncates).
+
 ### 5.2 The clean run
 
 `./gradlew clean`, then `detekt --rerun-tasks --no-build-cache` on its own invocation
@@ -358,11 +381,13 @@ Visual gate live: 30 golden test case(s) executed for 30 golden image(s).   feat
 Visual gate live: 62 golden test case(s) executed for 62 golden image(s).   core/ui/kit
 ```
 
-`lintDebug` found **two pre-existing errors on the sibling branch**, both `lintDebug`-only (the
+`lintDebug` found **two errors belonging to the sibling branch**, both `lintDebug`-only (the
 pre-commit hook runs detekt and skips lint, so neither could surface locally there): a duplicate
 Russian string pair introduced with the empty state's CTAs, and three strings that screen's own
-rebuild orphaned. Fixed here because they block this branch's verification; `feature/v3-all-trainings`
-is red on CI as it stands.
+rebuild orphaned. They were fixed on this branch first and then **moved down to
+`feature/v3-all-trainings`**, which is where the defect lives; that branch was verified green
+standalone afterwards and this one rebased onto it. The AGENTS.md rule about why neither was ever
+visible locally landed with them.
 
 **Commands.** `./gradlew clean`, then the gates as separate invocations with `--rerun-tasks
 --no-build-cache`; detekt on its own invocation, zero suppressions; the summary must read
@@ -422,6 +447,6 @@ device pass stays cheap.
 
 **Out:** `TrainingRow` and anything that changes its shape — the sibling screen is under a concurrent
 device pass and this branch must rebase cheaply. A shared row component. `AppTagChip`'s own treatment
-(B20). `ExerciseTypeIcon`'s remaining detail-screen use. `feature/archive`. B11's weightless cluster —
+(B20). `feature/archive`. B11's weightless cluster —
 if a weightless render is wrong it is goldened and reported, never fixed here. B21's missing
 `onError`. And the undrawn empty states, which are §6's.

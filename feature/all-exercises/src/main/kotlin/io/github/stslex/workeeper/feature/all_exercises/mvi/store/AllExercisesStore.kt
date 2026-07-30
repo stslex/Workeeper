@@ -103,6 +103,15 @@ interface AllExercisesStore : Store<State, Action, Event> {
 
             data object OnFabClick : Click
 
+            /**
+             * The empty state's primary CTA. Distinct from [OnFabClick] although both open the
+             * create screen: the FAB fires `ContextClick` and a button in an empty state does not,
+             * and routing the CTA through [OnFabClick] gave this screen a haptic its sibling's
+             * identical `.empty` button does not have. Same shape and same reason as
+             * all-trainings' `OnEmptyCreate`.
+             */
+            data object OnEmptyCreate : Click
+
             data class OnTagFilterToggle(val tagUuid: String) : Click
 
             /**

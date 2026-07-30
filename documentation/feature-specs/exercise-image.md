@@ -2,6 +2,16 @@
 
 **Status:** Merged in Stage v1.5 (PR #71). For current architecture, see [architecture.md](../architecture.md). This spec is preserved as a historical record of the planning state.
 
+> **PARTIALLY SUPERSEDED by the v3 redesign (stage 5, group 2).** Everything about capture, storage,
+> the viewer and the detail screen still holds. What no longer holds is the **list row**: this spec
+> describes `ExerciseRow` as drawing an `AsyncImage` thumbnail when `image_path != null` and an
+> `ExerciseTypeIcon` tile otherwise, and the v3 rebuild removed both. `pass2d.html` `#s-list` draws
+> the row with **no leading slot at all** — "миниатюра и иконка типа остаются на детали" — and moves
+> the type into the meta line's first token instead. `ExerciseTypeIcon.kt` is deleted;
+> `ExerciseUiModel.imagePath` survives and is still the detail screen's. See
+> [all-exercises-delta.md](all-exercises-delta.md) §1.4. Marked here rather than rewritten, per B9:
+> documentation touched by an API change is updated in the same commit or explicitly marked stale.
+
 This is the v1.5 spec — a fast follow-up after v1 closure. The first feature outside the v1 bottom-bar shape: Exercise image attachment. References:
 
 - [product.md](../product.md) — `v1.5` feature 14 (Exercise image attachment) + Open questions section ("Image storage strategy")

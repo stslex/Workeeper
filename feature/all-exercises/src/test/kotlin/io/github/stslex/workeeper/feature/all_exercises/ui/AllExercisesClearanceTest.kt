@@ -14,6 +14,10 @@ import kotlin.test.assertEquals
  * `heightLg + screenEdge` = 72, each omitting the leading 16 — the gap between the last row and the
  * top of the button. The sibling screen took the first; this is the second and last.
  *
+ * The second case asserts the three terms individually. It used to compare the constant to the
+ * expression it is defined as, which is true for any values those tokens hold — a tautology
+ * standing where a gate was cited.
+ *
  * It gets a unit test because `contentPadding.bottom` is **invisible in a single frame**: it moves
  * no pixel unless the list is scrolled to its end, and Paparazzi renders one frame of an unscrolled
  * list. No golden can see this value, so no number of goldens closes the hole — the assertion has to
@@ -27,11 +31,19 @@ internal class AllExercisesClearanceTest {
         assertEquals(88.dp, LIST_BOTTOM_CLEARANCE)
     }
 
+    /**
+     * The three drawn parts, asserted **individually**.
+     *
+     * The case this replaces compared `LIST_BOTTOM_CLEARANCE` to
+     * `screenEdge + heightLg + screenEdge` — the expression the constant is *defined* as. It was a
+     * tautology: it holds for any values those tokens take, so it could not distinguish "composed
+     * of the drawn parts" from "a literal that happens to equal them", which is the one thing it
+     * was cited as proving. Asserting each term is the honest form — if the ladder moves under the
+     * clearance, this says which rung moved, and the 88 above says the total is wrong.
+     */
     @Test
-    fun `clearance is composed of the three drawn parts, not a literal`() {
-        assertEquals(
-            AppDimension.screenEdge + AppDimension.heightLg + AppDimension.screenEdge,
-            LIST_BOTTOM_CLEARANCE,
-        )
+    fun `each drawn part is the value the mockup gives it`() {
+        assertEquals(16.dp, AppDimension.screenEdge, "the drawn 20px gutter, on the ladder")
+        assertEquals(56.dp, AppDimension.heightLg, "the FAB's diameter")
     }
 }

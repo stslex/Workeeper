@@ -358,4 +358,77 @@ internal class ClickHandlerTest {
         assertEquals(before, stateFlow.value)
         verify(exactly = 0) { store.updateState(any()) }
     }
+    /**
+     * Entering selection is the gesture `LongPress` is for. Exactly one haptic.
+     */
+    @Test
+    fun `entering selection by long press fires LongPress`() {
+        handler.invoke(Action.Click.OnExerciseLongPress("uuid-1"))
+        val captured = mutableListOf<Event>()
+        verify(exactly = 1) { store.sendEvent(capture(captured)) }
+        assertTrue(captured.single().let { it is Event.Haptic && it.type == HapticFeedbackType.LongPress })
+        assertTrue(stateFlow.value.selectionMode is State.SelectionMode.On)
+    }
+
+    /**
+     * The defect this file exists to pin, and it shipped: a long press **inside** selection is a
+     * toggle, so it gets `ContextClick` and nothing else. The handler used to fire `LongPress`
+     * first and then delegate, putting two haptics on one gesture — where the sibling screen, whose
+     * fix predates this one, fires exactly one. `exactly = 1` is the whole assertion; a
+     * `captured.any { … }` check would have passed on the broken code.
+     */
+    @Test
+    fun `long press inside selection fires ContextClick, not a second LongPress`() {
+        stateFlow.value = stateFlow.value.copy(
+            selectionMode = State.SelectionMode.On(selectedUuids = persistentSetOf("uuid-1")),
+        )
+        val captured = mutableListOf<Event>()
+        handler.invoke(Action.Click.OnExerciseLongPress("uuid-2"))
+        verify(exactly = 1) { store.sendEvent(capture(captured)) }
+        assertEquals(
+            HapticFeedbackType.ContextClick,
+            (captured.single() as Event.Haptic).type,
+        )
+    }
+
+    /** Toggling what is in the selection is `ContextClick`, once. */
+    @Test
+    fun `selection toggle fires ContextClick`() {
+        stateFlow.value = stateFlow.value.copy(
+            selectionMode = State.SelectionMode.On(selectedUuids = persistentSetOf("uuid-1")),
+        )
+        val captured = mutableListOf<Event>()
+        handler.invoke(Action.Click.OnSelectionToggle("uuid-2"))
+        verify(exactly = 1) { store.sendEvent(capture(captured)) }
+        assertEquals(HapticFeedbackType.ContextClick, (captured.single() as Event.Haptic).type)
+    }
+
+    /** Leaving the mode is `ContextClick` too — it changes the selection to nothing. */
+    @Test
+    fun `selection exit fires ContextClick`() {
+        stateFlow.value = stateFlow.value.copy(
+            selectionMode = State.SelectionMode.On(selectedUuids = persistentSetOf("uuid-1")),
+        )
+        val captured = mutableListOf<Event>()
+        handler.invoke(Action.Click.OnSelectionExit)
+        verify(exactly = 1) { store.sendEvent(capture(captured)) }
+        assertEquals(HapticFeedbackType.ContextClick, (captured.single() as Event.Haptic).type)
+    }
+    /**
+     * The empty state's CTA opens create and fires **nothing**. The FAB fires `ContextClick`; a
+     * button inside an empty state does not, and routing the CTA through [Action.Click.OnFabClick]
+     * gave this screen a haptic its sibling's identical `.empty` button does not have.
+     *
+     * **Residual, stated rather than papered over:** this asserts the *handler*. That the screen
+     * dispatches this action and not `OnFabClick` is screen wiring, which no unit test and no
+     * golden can see — a Compose UI test could, but `ui_tests.yml` is `workflow_dispatch`-only and
+     * does not gate PRs. Proven by mutation to be uncovered, and left named. Same class as the
+     * paging-tail selector before it was extracted.
+     */
+    @Test
+    fun `OnEmptyCreate opens create and fires no haptic`() {
+        handler.invoke(Action.Click.OnEmptyCreate)
+        verify { store.consume(Action.Navigation.OpenCreate) }
+        verify(exactly = 0) { store.sendEvent(any()) }
+    }
 }

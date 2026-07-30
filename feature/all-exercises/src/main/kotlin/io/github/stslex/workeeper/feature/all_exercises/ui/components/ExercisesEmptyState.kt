@@ -29,9 +29,11 @@ import io.github.stslex.workeeper.feature.all_exercises.R
  * affordance the user has to go find, the drawn one says what the thing is *for* — "add the first
  * one, after that you can put it into any training".
  *
- * The glyph is [AppIcons.Exercises], which is **the same path the bottom bar takes for its exercises
- * tab** — one mark, two consumers, so it cannot drift between them. Second instance of the coupling
- * [AppIcons.Trainings] already carries.
+ * The glyph is [AppIcons.Exercises]. §26 "Bottom navigation" takes the nav bar's icons from "the
+ * drawn empty-state glyphs verbatim", so this path is *owed* a second consumer — the bar still
+ * draws `@DrawableRes` XML (`BottomBarItem`) and this is the path's only call site. The coupling is
+ * a decision already taken, not a fact about the tree; [AppIcons.Trainings] carries the same
+ * pending status and the same warning.
  *
  * Placement stays delegated: §13 gives the pattern to the kit and the placement to the screen.
  */

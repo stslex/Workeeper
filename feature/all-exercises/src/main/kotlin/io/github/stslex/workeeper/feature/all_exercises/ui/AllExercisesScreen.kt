@@ -77,7 +77,7 @@ internal fun AllExercisesScreen(
                 if (items.isEmptyAndIdle() && !state.isSelecting) {
                     ExercisesEmptyState(
                         modifier = Modifier.align(Alignment.Center),
-                        onCreate = { consume(Action.Click.OnFabClick) },
+                        onCreate = { consume(Action.Click.OnEmptyCreate) },
                     )
                 }
             }

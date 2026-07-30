@@ -284,4 +284,21 @@ internal class ClickHandlerTest {
         assertEquals(before, stateFlow.value)
         verify(exactly = 0) { store.updateState(any()) }
     }
+    /**
+     * The empty state's CTA opens create and fires **nothing**. The FAB fires `ContextClick`; a
+     * button inside an empty state does not, and routing the CTA through [Action.Click.OnFabClick]
+     * gave this screen a haptic its sibling's identical `.empty` button does not have.
+     *
+     * **Residual, stated rather than papered over:** this asserts the *handler*. That the screen
+     * dispatches this action and not `OnFabClick` is screen wiring, which no unit test and no
+     * golden can see — a Compose UI test could, but `ui_tests.yml` is `workflow_dispatch`-only and
+     * does not gate PRs. Proven by mutation to be uncovered, and left named. Same class as the
+     * paging-tail selector before it was extracted.
+     */
+    @Test
+    fun `OnEmptyCreate opens create and fires no haptic`() {
+        handler.invoke(Action.Click.OnEmptyCreate)
+        verify { store.consume(Action.Navigation.OpenCreate) }
+        verify(exactly = 0) { store.sendEvent(any()) }
+    }
 }

@@ -31,6 +31,7 @@ internal class ClickHandler @Inject constructor(
             is Action.Click.OnExerciseClick -> processExerciseClick(action)
             is Action.Click.OnExerciseLongPress -> processExerciseLongPress(action)
             Action.Click.OnFabClick -> processFabClick()
+            Action.Click.OnEmptyCreate -> consume(Action.Navigation.OpenCreate)
             is Action.Click.OnTagFilterToggle -> processTagFilterToggle(action)
             Action.Click.OnClearTagFilter -> processClearTagFilter()
             Action.Click.OnConfirmPermanentDelete -> processConfirmPermanentDelete()
@@ -55,11 +56,14 @@ internal class ClickHandler @Inject constructor(
     }
 
     private fun processExerciseLongPress(action: Action.Click.OnExerciseLongPress) {
-        sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
+        // §26 "Haptics": LongPress is for ENTERING selection. A long press while already in
+        // selection is a toggle and gets ContextClick from `processSelectionToggle` — firing
+        // LongPress first would put two in a row, which reads as a fault.
         if (state.value.selectionMode is SelectionMode.On) {
             processSelectionToggle(Action.Click.OnSelectionToggle(action.uuid))
             return
         }
+        sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
         updateState { current ->
             current.copy(
                 selectionMode = SelectionMode.On(selectedUuids = persistentSetOf(action.uuid)),

@@ -201,10 +201,12 @@ object AppIcons {
     /**
      * The exercises mark — `pass2d.html` `#s-empty`'s third `.empty .glyph`.
      *
-     * **Doubly load-bearing, exactly as [Trainings] is:** §26 "Bottom navigation" takes the nav
+     * **Owed a second consumer, exactly as [Trainings] is:** §26 "Bottom navigation" takes the nav
      * bar's icons from "the drawn empty-state glyphs verbatim", and `#s-list`'s bottom-clearance
-     * frame draws this same path as the bar's third tab. The empty state and the nav bar are one
-     * mark; changing either changes both.
+     * frame draws this same path as the bar's third tab. When the bar is rebuilt the empty state
+     * and the nav bar become one mark. Today the bar draws `@DrawableRes` XML (`BottomBarItem`) and
+     * this path has one call site — the coupling is a decision taken, not yet a fact about the
+     * tree.
      *
      * The three `h.01` segments are zero-length strokes. With [StrokeCap.Round] they render as
      * dots — the bullet column of a list glyph — which is how the SVG draws them and why they are

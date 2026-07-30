@@ -454,8 +454,9 @@ that is worth interrupting for and this list is where to look first.
 - **The selection top bar's title rung** — `.topbar h1.sm` is 17px against the normal 20px, and
   `AppTopAppBar` has one title style for both. A compact-title variant is a kit API change affecting
   every screen.
-- **Two navigation haptics this screen fires that §26 does not name** — `ContextClick` on a row tap that
-  navigates, and on exiting selection mode. §26 fixes where its four constants fire and does not forbid
+- **Three haptic sites this screen fires that §26 does not name** — `ContextClick` on a row tap that
+  navigates, on exiting selection mode, and on the FAB's create tap. (First written as two; the FAB
+  was missed.) §26 fixes where its four constants fire and does not forbid
   other uses; recorded so the next reader knows it was seen rather than missed.
 - **`Screen.LiveWorkout`'s KDoc is stale** — it says at least one uuid must be non-null, and
   `blank-init adhoc entry leaves both uuids null for downstream session creation` is a shipped, tested

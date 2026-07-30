@@ -46,7 +46,8 @@ import org.junit.jupiter.params.provider.EnumSource
  * ## Whole surface
  *
  * The top bar in both modes, the tag filter band, the list, the row's six states (weighted,
- * weightless, truncating, clamped, selected, and unselected-while-selecting), both paging tails, the
+ * weightless, type-isolated, truncating, clamped, selected, and unselected-while-selecting), both
+ * paging tails, the
  * bulk-archive confirm dialog's content, the blocked-archive dialog's content, the empty state and
  * three whole-screen pictures — each in both themes.
  *
@@ -66,9 +67,10 @@ import org.junit.jupiter.params.provider.EnumSource
  *
  * ## Difference assertions
  *
- * §10.2 wants pairs, not lone pictures. Four carry it: [rowWeighted]/[rowWeightless] (the meta
- * line's first token, and nothing else, moves — which is the whole of what this screen's own drawn
- * region says); [rowWeighted]/[rowSelected] (the selection fill and the check);
+ * §10.2 wants pairs, not lone pictures. Four carry it: [rowWeighted]/[rowTypeIsolated] (the meta
+ * line's first token, and **nothing else**, moves — which is the whole of what this screen's own
+ * drawn region says, and it takes a fixture differing in one field: [rowWeightless] is a different
+ * exercise and moves five); [rowWeighted]/[rowSelected] (the selection fill and the check);
  * [rowSelected]/[rowUnselectedInSelection] (the slot holds its width and empties rather than
  * collapsing); and [screenList]/[screenSelection] (the whole-surface mode change: top bar swapped
  * whole and gaining its archive action, FAB morphed shape and glyph while its fill stays put).
@@ -90,11 +92,12 @@ internal class AllExercisesGoldenTest {
     )
 
     /**
-     * The other type branch, and the **pair** that gates the screen's own drawn region.
+     * A second exercise at the other type. It photographs the *payload* — different name length,
+     * different counts, different tag count — where [typeIsolated] photographs the *token*.
      *
-     * Identical to [weighted] in every field the row renders except `type` and the strings that
-     * follow from the exercise being a different one. What the pair pins is that the type surfaces
-     * at all, as a word, at the head of the line — the navnote's whole content.
+     * The first draft called this "the pair that gates the screen's own drawn region" and said it
+     * was "identical to [weighted] except `type`". It is not: five rendered fields move, so diffing
+     * it against [weighted] cannot attribute anything to the type.
      */
     private val weightless = weighted.copy(
         uuid = "e2",
@@ -106,7 +109,22 @@ internal class AllExercisesGoldenTest {
         footerLabel = "9 сессий · в 2 тренировках · последняя 2 июля",
     )
 
-    /** The truncating-on-one-line case: the drawing's own long name (`#s-list`, skeleton frame). */
+    /**
+     * [weighted] with **one field changed** — the type — and nothing else.
+     *
+     * The pair this exists for. [weightless] is a different exercise: five rendered fields move
+     * between it and [weighted], so diffing those two cannot attribute anything to the type token,
+     * which is precisely what §10.2 asks a difference pair to carry. This one can: the only ink
+     * that may move between [rowWeighted] and [rowTypeIsolated] is the meta line's first word and
+     * the tail position that follows from its width.
+     */
+    private val typeIsolated = weighted.copy(uuid = "e5", type = ExerciseTypeUiModel.WEIGHTLESS)
+
+    /**
+     * The drawing's own long name (`#s-list`, skeleton frame). The **meta** line ellipsises; the
+     * name itself fits on one line without truncating, so — corrected from the first draft — this
+     * fixture does not prove the name's ellipsis. [clamped] does.
+     */
     private val longName = weighted.copy(
         uuid = "e3",
         name = "Тяга Т-грифа прямым широким хватом",
@@ -117,8 +135,8 @@ internal class AllExercisesGoldenTest {
     /**
      * The **clamp** case, and it has to be long enough to actually clamp.
      *
-     * [longName] fits on one line at this width and truncates, so a golden of it proves the ellipsis
-     * but says nothing about the second line. Proven on the sibling, not assumed: with only that
+     * [longName] fits on one line at this width without truncating, so it says nothing about the
+     * name's ellipsis or about the second line. Proven on the sibling, not assumed: with only that
      * fixture, mutating `maxLines` from 2 to 1 left every golden byte-identical. This name reaches
      * two lines and then clamps, so the mutation is caught.
      */
@@ -171,6 +189,20 @@ internal class AllExercisesGoldenTest {
     fun rowWeightless(theme: GoldenTheme, testInfo: TestInfo) = goldenSubject(testInfo, theme) {
         ExerciseRow(
             item = weightless,
+            isSelected = false,
+            isSelecting = false,
+            showDivider = true,
+            onClick = {},
+            onLongPress = {},
+        )
+    }
+
+    /** [weighted] with the type flipped and nothing else — the pair that isolates the token. */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun rowTypeIsolated(theme: GoldenTheme, testInfo: TestInfo) = goldenSubject(testInfo, theme) {
+        ExerciseRow(
+            item = typeIsolated,
             isSelected = false,
             isSelecting = false,
             showDivider = true,
