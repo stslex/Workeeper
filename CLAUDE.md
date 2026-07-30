@@ -89,6 +89,12 @@ skill when the user asks for one of these tasks:
 
 - `master` is the release branch; ongoing work targets `dev`.
 - UI tests (`ui_tests.yml`) are `workflow_dispatch`-only and do not gate PRs.
+- `mockup_gate.yml` runs `documentation/mockups/shell_gate.py` on every PR except those into
+  `master`, plus its `--target f52462c7` known negative, which must go red. Editing
+  `documentation/mockups/pass2d.html` **or** `AppColors.kt` can red it; reproduce with
+  `python3 documentation/mockups/shell_gate.py --base "$(git merge-base origin/dev HEAD)" -v`.
+  A `:root` token change must be declared with an `Allow-root-change: <names>` commit trailer —
+  the workflow reads the declaration out of the commits in the range, never from a flag.
 - The pre-commit hook in `.githooks/pre-commit` **runs `./gradlew detekt` on every commit**
   (`core.hooksPath = .githooks`). Its early `exit 0` sits *after* the detekt block, so it skips
   `lintDebug` only — Android Lint is CI-gated, detekt is gated both locally and in CI.

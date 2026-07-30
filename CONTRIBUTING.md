@@ -52,6 +52,18 @@ Run these locally before you push. They are also enforced in CI by
 ./gradlew testDebugUnitTest
 ```
 
+If you touched `documentation/mockups/pass2d.html` or the colour tokens in `AppColors.kt`, one more
+check applies — `.github/workflows/mockup_gate.yml` runs it on your PR:
+
+```bash
+python3 documentation/mockups/shell_gate.py --base "$(git merge-base origin/dev HEAD)" -v
+```
+
+It needs Python 3.12+ and a headless Chromium on `PATH`. A change to a `:root` token must be
+declared on the commit that makes it, with an `Allow-root-change: rust, meta` trailer naming exactly
+the tokens that changed; the gate fails if the declaration and the diff disagree in either
+direction. See [documentation/ci-cd.md](documentation/ci-cd.md#mockup-appearance-gate).
+
 If detekt produces formatting findings, run `./gradlew detekt --auto-correct` to fix them
 in-place. The pre-commit hook at `.githooks/pre-commit` is currently disabled (returns early
 without running checks) — see
