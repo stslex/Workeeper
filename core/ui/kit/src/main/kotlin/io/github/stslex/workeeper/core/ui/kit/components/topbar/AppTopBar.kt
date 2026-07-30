@@ -23,7 +23,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -31,6 +30,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import io.github.stslex.workeeper.core.ui.kit.theme.fadedOut
 
 /**
  * The v3 `.topbar` (extraction §1.2): a 48dp-rung row of hanging icon buttons with an
@@ -119,7 +119,7 @@ fun AppIconButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val background by animateColorAsState(
-        targetValue = if (isPressed) AppUi.colors.surfaceTier1 else Color.Transparent,
+        targetValue = AppUi.colors.surfaceTier1.let { if (isPressed) it else it.fadedOut() },
         animationSpec = tween(durationMillis = AppUi.motion.fast, easing = AppUi.motion.out),
         label = "icon-btn-bg",
     )

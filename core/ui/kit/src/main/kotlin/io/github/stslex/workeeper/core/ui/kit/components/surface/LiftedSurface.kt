@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import io.github.stslex.workeeper.core.ui.kit.theme.fadedOut
 
 /**
  * The v3 **lifted surface** — the mockups' `--slabtop`, and the app's entire elevation
@@ -90,34 +91,26 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
  *  mockups' resting card and unselected segment, so it is the default.
  */
 /**
- * A fully transparent resting colour is repaired to carry the RGB of the surface behind it.
+ * A fully transparent resting colour is repaired to **the lifted colour, faded out**.
  *
- * **The fill is a tween, and a tween through a transparent colour goes through that colour's
- * hue.** `Color.Transparent` is transparent *black*; `animateColorAsState` interpolates in Oklab,
- * so a row resting at transparent-black and lifting to a white slab passes through mid-grey at
- * partial alpha on the way. Measured with Compose's own `lerp` against the shipped palette, over
- * the light page `#F6F7F9`:
- *
- * ```
- *   Color.Transparent  ->  t=0.25 #C0C1C3   t=0.50 #ACACAD   t=0.75 #C0C0C0
- *   surfaceTier0@a=0   ->  t=0.25 #F6F7F9   t=0.50 #F8F9FA   t=0.75 #FBFBFC
- * ```
- *
- * — a visible dark flash on every select and deselect, for 260ms, in light theme only. Dark theme
- * hides it because transparent-black and `#0B0D0F` are both dark, which is exactly why it survived
- * review: the goldens photograph the two settled endpoints and both are correct.
- *
- * The repair is here rather than at the call sites because the hazard belongs to the mechanism.
  * `Color.Transparent` is the honest way for a caller to say "this surface paints nothing of its
  * own", and a caller saying that should not have to know that the fill is animated, let alone in
- * which colour space. Any alpha but zero is passed through untouched — a caller who chose a
- * translucent tint chose its hue too.
+ * which colour space. But transparent is transparent *black*, and a cross-fade carries hue — see
+ * [fadedOut] for the measurement. So the declaration is accepted and the endpoint is corrected
+ * here, at the one place that knows a tween is involved.
+ *
+ * The repair target is the **lifted** colour rather than the surface behind, and that is the point:
+ * a component cannot know what it is sitting on, and does not need to. Fading `surfaceTier2` out
+ * moves alpha only, so no mid-frame is a colour neither endpoint contains, whatever is underneath.
+ *
+ * Any alpha but zero passes through untouched — a caller who chose a translucent tint chose its
+ * hue too.
  *
  * Pure and `internal` so it can be asserted directly: no golden can see a mid-transition frame
  * (§27, "a golden image gates only what a single static frame contains").
  */
-internal fun restingFill(restingColor: Color, behind: Color): Color =
-    if (restingColor.alpha == 0f) behind.copy(alpha = 0f) else restingColor
+internal fun restingFill(restingColor: Color, lifted: Color): Color =
+    if (restingColor.alpha == 0f) lifted.fadedOut() else restingColor
 
 @Composable
 fun Modifier.liftedSurface(
@@ -132,12 +125,12 @@ fun Modifier.liftedSurface(
     // Every value here is a COLOUR or a bounded magnitude, so all three are driven by `out`.
     // `spring` overshoots past 1.0 and would extrapolate a colour lerp or a negative elevation.
     val surface by animateColorAsState(
-        targetValue = if (lifted) colors.surfaceTier2 else restingFill(restingColor, colors.surfaceTier0),
+        targetValue = if (lifted) colors.surfaceTier2 else restingFill(restingColor, colors.surfaceTier2),
         animationSpec = tween(durationMillis = motion.base, easing = motion.out),
         label = "liftedSurface-fill",
     )
     val highlight by animateColorAsState(
-        targetValue = if (lifted) elevation.liftHighlight else Color.Transparent,
+        targetValue = elevation.liftHighlight.let { if (lifted) it else it.fadedOut() },
         animationSpec = tween(durationMillis = motion.base, easing = motion.out),
         label = "liftedSurface-highlight",
     )

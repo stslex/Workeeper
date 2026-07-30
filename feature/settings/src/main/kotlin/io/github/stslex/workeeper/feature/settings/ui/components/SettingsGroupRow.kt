@@ -23,12 +23,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import io.github.stslex.workeeper.core.ui.kit.theme.fadedOut
 
 /**
  * The mockup's `.srow` (extraction §5.3): min-height 64dp — deliberately NOT the 88dp
@@ -60,10 +60,8 @@ internal fun SettingsGroupRow(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val background by animateColorAsState(
-        targetValue = if (isPressed && onClick != null) {
-            AppUi.colors.surfaceTier1
-        } else {
-            Color.Transparent
+        targetValue = AppUi.colors.surfaceTier1.let {
+            if (isPressed && onClick != null) it else it.fadedOut()
         },
         animationSpec = tween(durationMillis = AppUi.motion.fast, easing = AppUi.motion.out),
         label = "srow-bg",

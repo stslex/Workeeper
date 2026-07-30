@@ -728,3 +728,5 @@ mvi-architecture:
     active: true
   ActiveSurfaceSingleReaderRule:
     active: true
+  FadeToTransparentRule:
+    active: true

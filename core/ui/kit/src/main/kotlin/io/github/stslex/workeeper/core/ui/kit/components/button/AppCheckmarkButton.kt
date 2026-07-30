@@ -43,6 +43,7 @@ import io.github.stslex.workeeper.core.ui.kit.components.motion.rememberSetClosu
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import io.github.stslex.workeeper.core.ui.kit.theme.fadedOut
 
 /**
  * The set's done-marker — the mockup's `.mark` (`session-v3f.html`), specified exactly.
@@ -104,7 +105,7 @@ fun AppCheckmarkButton(
     )
     val plate = if (isRecord) closure.accent else AppUi.colors.accent
     val fill by animateColorAsState(
-        targetValue = if (isDone && enabled) plate else Color.Transparent,
+        targetValue = if (isDone && enabled) plate else plate.fadedOut(),
         animationSpec = tween(durationMillis = AppUi.motion.base, easing = AppUi.motion.out),
         label = "setMark-fill",
     )
