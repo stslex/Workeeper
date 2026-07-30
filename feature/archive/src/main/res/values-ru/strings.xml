@@ -37,4 +37,16 @@
         <item quantity="many">Также будет удалено %1$d сессий истории. Это действие нельзя отменить.</item>
         <item quantity="other">Также будет удалено %1$d сессии истории. Это действие нельзя отменить.</item>
     </plurals>
+
+    <!--
+      B22: the archive tab drew NOTHING on a cold open and on a failed first page — same
+      predicate, same void, as the two list screens. `refresh_error` is the only new sentence.
+
+      There is deliberately no `paging_error` here: this screen reads `loadState.append` nowhere,
+      so it has no append tail to give a reason to, and an unused string is exactly what
+      `UnusedResources` exists to catch. The missing tails are recorded for the archive mapping.
+    -->
+    <string name="feature_archive_paging_loading">Загружаю</string>
+    <string name="feature_archive_paging_retry">Повторить</string>
+    <string name="feature_archive_refresh_error">Не удалось загрузить архив</string>
 </resources>

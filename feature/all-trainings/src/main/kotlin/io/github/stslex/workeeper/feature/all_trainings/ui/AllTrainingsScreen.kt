@@ -37,6 +37,7 @@ import io.github.stslex.workeeper.feature.all_trainings.mvi.model.TrainingListIt
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.Action
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.State
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.State.SelectionMode
+import io.github.stslex.workeeper.feature.all_trainings.ui.components.ColdOpenError
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.ColdOpenLoading
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.FilteredEmptyState
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.ListSurface
@@ -233,10 +234,9 @@ private fun TrainingsList(
  * were living. See [listSurface] for the ordering and the reasoning; the states themselves are
  * drawn in `#s-empty` and ruled by §26 "List states reached by an action".
  *
- * [ListSurface.REFRESH_ERROR] renders **nothing**, and that is deliberate rather than an omission:
- * a failed *first* page is B22's fourth region and the contract does not draw it. Inventing a
- * treatment for it here is exactly the derivation §0.1 exists to prevent, and mapping it onto the
- * loading spinner or the first-run empty would be a lie about what happened.
+ * Every verdict renders. [ListSurface.REFRESH_ERROR] was the one that did not — a failed *first*
+ * page was B22's last undrawn region, and the last remaining path to a blank frame. It is drawn
+ * now, and it is the same `.perr` the append tail uses, moved: placement, not a new treatment.
  */
 @Composable
 private fun BoxScope.EmptyRegion(
@@ -254,9 +254,14 @@ private fun BoxScope.EmptyRegion(
             selecting = state.isSelecting,
         )
     ) {
-        ListSurface.CONTENT, ListSurface.REFRESH_ERROR -> Unit
+        ListSurface.CONTENT -> Unit
 
         ListSurface.LOADING -> ColdOpenLoading(modifier = Modifier.align(Alignment.TopCenter))
+
+        ListSurface.REFRESH_ERROR -> ColdOpenError(
+            modifier = Modifier.align(Alignment.TopCenter),
+            onRetry = { items.retry() },
+        )
 
         ListSurface.FIRST_RUN -> TrainingsEmptyState(
             modifier = Modifier.align(Alignment.Center),

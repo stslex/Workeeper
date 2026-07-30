@@ -23,12 +23,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.paging.LoadState
 import androidx.paging.PagingData
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import io.github.stslex.workeeper.core.ui.kit.components.empty.AppEmptyState
 import io.github.stslex.workeeper.core.ui.kit.components.loading.AppLoadingIndicator
+import io.github.stslex.workeeper.core.ui.kit.components.paging.AppPagingErrorFooter
+import io.github.stslex.workeeper.core.ui.kit.components.paging.AppPagingLoadingFooter
 import io.github.stslex.workeeper.core.ui.kit.components.segmented.AppSegmentedControl
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -39,8 +40,10 @@ import io.github.stslex.workeeper.feature.archive.mvi.model.ArchivedItemUi
 import io.github.stslex.workeeper.feature.archive.mvi.store.ArchiveStore.Action
 import io.github.stslex.workeeper.feature.archive.mvi.store.ArchiveStore.Segment
 import io.github.stslex.workeeper.feature.archive.mvi.store.ArchiveStore.State
+import io.github.stslex.workeeper.feature.archive.ui.components.ArchiveListSurface
 import io.github.stslex.workeeper.feature.archive.ui.components.ArchivedItemRow
 import io.github.stslex.workeeper.feature.archive.ui.components.PermanentDeleteDialog
+import io.github.stslex.workeeper.feature.archive.ui.components.archiveListSurface
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.flow.flowOf
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
@@ -141,12 +144,12 @@ private fun ArchivedExerciseList(
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (isPagingEmpty(items.loadState, items.itemCount)) {
-        AppEmptyState(
-            modifier = modifier.testTag("ArchiveEmptyExercises"),
-            headline = stringResource(R.string.feature_archive_empty_headline),
+    if (archiveListSurface(items.itemCount, items.loadState) != ArchiveListSurface.CONTENT) {
+        ArchiveEmptyRegion(
+            modifier = modifier,
+            items = items,
             supportingText = stringResource(R.string.feature_archive_empty_supporting_exercises),
-            icon = Icons.Filled.Inventory2,
+            emptyTestTag = "ArchiveEmptyExercises",
         )
         return
     }
@@ -181,12 +184,12 @@ private fun ArchivedTrainingList(
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (isPagingEmpty(items.loadState, items.itemCount)) {
-        AppEmptyState(
-            modifier = modifier.testTag("ArchiveEmptyTrainings"),
-            headline = stringResource(R.string.feature_archive_empty_headline),
+    if (archiveListSurface(items.itemCount, items.loadState) != ArchiveListSurface.CONTENT) {
+        ArchiveEmptyRegion(
+            modifier = modifier,
+            items = items,
             supportingText = stringResource(R.string.feature_archive_empty_supporting_trainings),
-            icon = Icons.Filled.Inventory2,
+            emptyTestTag = "ArchiveEmptyTrainings",
         )
         return
     }
@@ -215,14 +218,49 @@ private fun ArchivedTrainingList(
     }
 }
 
-@Suppress("ComplexCondition")
-private fun isPagingEmpty(
-    loadState: androidx.paging.CombinedLoadStates,
-    itemCount: Int,
-): Boolean = loadState.refresh is LoadState.NotLoading &&
-    loadState.append is LoadState.NotLoading &&
-    loadState.prepend is LoadState.NotLoading &&
-    itemCount == 0
+/**
+ * The empty region — B22's fix for this screen.
+ *
+ * `isPagingEmpty` collapsed three states into one: it wanted `refresh`, `append` **and** `prepend`
+ * all `NotLoading`, so on a cold open the tab had no rows *and* its empty state was suppressed by
+ * the same condition, and drew nothing at all. A failed first page blanked identically.
+ *
+ * Four verdicts, not the siblings' six: this screen has no tag filter and no selection mode, so
+ * those verdicts are unreachable and are not declared. The loading and error treatments are the
+ * kit's paging tails at the position row 1 will occupy — placement, not a new drawing, exactly as
+ * on the list screens.
+ */
+@Composable
+private fun ArchiveEmptyRegion(
+    items: LazyPagingItems<*>,
+    supportingText: String,
+    emptyTestTag: String,
+    modifier: Modifier = Modifier,
+) {
+    when (archiveListSurface(items.itemCount, items.loadState)) {
+        ArchiveListSurface.CONTENT -> Unit
+
+        ArchiveListSurface.LOADING -> AppPagingLoadingFooter(
+            modifier = modifier.testTag("ArchiveColdOpen"),
+            label = stringResource(R.string.feature_archive_paging_loading),
+        )
+
+        ArchiveListSurface.REFRESH_ERROR -> AppPagingErrorFooter(
+            modifier = modifier.testTag("ArchiveColdOpenError"),
+            reason = stringResource(R.string.feature_archive_refresh_error),
+            retryLabel = stringResource(R.string.feature_archive_paging_retry),
+            onRetry = { items.retry() },
+            ruled = false,
+        )
+
+        ArchiveListSurface.EMPTY -> AppEmptyState(
+            modifier = modifier.testTag(emptyTestTag),
+            headline = stringResource(R.string.feature_archive_empty_headline),
+            supportingText = supportingText,
+            icon = Icons.Filled.Inventory2,
+        )
+    }
+}
 
 @Preview(name = "Light", showBackground = true)
 @Preview(

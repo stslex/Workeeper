@@ -110,6 +110,40 @@ internal fun ColdOpenLoading(
     }
 }
 
+/**
+ * The first page failed.
+ *
+ * **Placement, not a new treatment.** This is the drawn `.perr` — reason plus «Повторить» — moved
+ * to where row 1 would be, exactly as [ColdOpenLoading] is `.pfoot` moved. §26 "List states reached
+ * by an action" records it as the last member of B22's family, and closing it means this screen has
+ * **no remaining path to a blank frame**.
+ *
+ * Two things differ from the tail, and both follow from the position. The rule is dropped: the
+ * drawn `border-top` separates the footer from the last row, and here there is no row above it. And
+ * the reason is its own string, because the tail's «дальше» is a lie when nothing loaded — there is
+ * no *further* to have failed. The tail's argument transfers and lands on a different confusion: a
+ * silently truncated list is indistinguishable from a finished one, and a silently blank screen is
+ * indistinguishable from an empty library.
+ */
+@Composable
+internal fun ColdOpenError(
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = AppDimension.Space.sm)
+            .testTag("AllExercisesColdOpenError"),
+    ) {
+        PagingErrorFooter(
+            onRetry = onRetry,
+            reason = stringResource(R.string.feature_all_exercises_refresh_error),
+            ruled = false,
+        )
+    }
+}
+
 @Preview(name = "Light", showBackground = true)
 @Preview(
     name = "Dark",
@@ -124,6 +158,7 @@ private fun ArrivedEmptyStatesPreview() {
             SelectionEmptyState(onClearFilter = {})
             SelectionEmptyState(onClearFilter = null)
             ColdOpenLoading()
+            ColdOpenError(onRetry = {})
         }
     }
 }

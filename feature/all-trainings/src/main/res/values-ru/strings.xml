@@ -70,4 +70,5 @@
     <string name="feature_all_trainings_filtered_empty_clear">Сбросить фильтр</string>
     <string name="feature_all_trainings_selection_empty_headline">Здесь пусто, но выбор цел</string>
     <string name="feature_all_trainings_selection_empty_supporting">Отметки останутся, пока не выйдешь из режима.</string>
+    <string name="feature_all_trainings_refresh_error">Не удалось загрузить список</string>
 </resources>

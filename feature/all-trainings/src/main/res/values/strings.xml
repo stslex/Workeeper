@@ -53,4 +53,5 @@
     <string name="feature_all_trainings_filtered_empty_clear">Clear filter</string>
     <string name="feature_all_trainings_selection_empty_headline">Nothing here, but your selection is kept</string>
     <string name="feature_all_trainings_selection_empty_supporting">Your selection stays until you leave selection mode.</string>
+    <string name="feature_all_trainings_refresh_error">Couldn’t load the list</string>
 </resources>
