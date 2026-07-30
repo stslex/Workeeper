@@ -605,9 +605,18 @@ PROBE_JS = r"""
     R.fab.togglePresent = !!sel;
     if (!fab || !sel) { R.stage = 'no-fab-or-toggle'; emit(); return; }
 
-    var gp = fab.querySelector('.gplus'), gt = fab.querySelector('.gtrash');
-    R.fab.glyphsPresent = !!(gp && gt);
-    if (!gp || !gt) { R.stage = 'no-fab-glyphs'; emit(); return; }
+    // Structural, not by class — and load-bearing for the same reason the pill selector is.
+    // This probe reads TARGET's bytes at refs years apart, and the morphed glyph's class is a
+    // NAME THAT CARRIES A DECISION: it was `.gtrash` while the morph was believed destructive,
+    // and the archive ruling renames it. A class selector would have silently degraded the
+    // f52462c7 known negative from "the pill measures 0px" to "no fab glyphs" the moment the
+    // rename landed — a weaker failure wearing the same red, which has already happened once in
+    // this arc with nb2/ind2. Verified unique at both refs: `#morphA` holds exactly two <svg>
+    // children, resting first and morphed second, at HEAD and at f52462c7 alike.
+    var glyphs = fab.querySelectorAll('svg');
+    var gp = glyphs[0], gt = glyphs[1];
+    R.fab.glyphsPresent = glyphs.length === 2 && !!(gp && gt);
+    if (!R.fab.glyphsPresent) { R.stage = 'no-fab-glyphs'; emit(); return; }
 
     // DO NOT REMOVE — same reason as the pill above. Set BEFORE the baseline read: a computed read
     // taken while a transition is armed poisons every later read of that property.
@@ -619,8 +628,8 @@ PROBE_JS = r"""
         radius: cs.borderTopLeftRadius,
         bg: cs.backgroundColor,
         fg: cs.color,
-        plus: getComputedStyle(gp).display,
-        trash: getComputedStyle(gt).display,
+        rest: getComputedStyle(gp).display,
+        alt: getComputedStyle(gt).display,
         cls: fab.className
       };
     }
@@ -773,14 +782,14 @@ def check_8_fab_morph(rep: Report, p: dict, measured: bool) -> None:
     if mx and a["bg"] != mx:
         fails.append(f"    the morphed fill is {a['bg']}, but --max resolves to {mx}.\n"
                      "    The FAB keeps its ordinary treatment through the morph, from the token.")
-    if not (b["plus"] != "none" and a["plus"] == "none"):
-        fails.append(f"    the plus glyph did not go hidden: display {b['plus']} → {a['plus']}")
-    if not (b["trash"] == "none" and a["trash"] != "none"):
-        fails.append(f"    the trash glyph did not go visible: display {b['trash']} → {a['trash']}")
+    if not (b["rest"] != "none" and a["rest"] == "none"):
+        fails.append(f"    the resting glyph did not go hidden: display {b['rest']} → {a['rest']}")
+    if not (b["alt"] == "none" and a["alt"] != "none"):
+        fails.append(f"    the morphed glyph did not go visible: display {b['alt']} → {a['alt']}")
     rep.add(
         8, "FAB morph fires", not fails,
         f"radius {b['radius']}→{a['radius']}  fill {b['bg']} (unchanged, --max)  "
-        f"glyphs +{b['plus']}→{a['plus']} /trash {b['trash']}→{a['trash']}",
+        f"glyphs rest {b['rest']}→{a['rest']} / morphed {b['alt']}→{a['alt']}",
         fails,
     )
 
