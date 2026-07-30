@@ -47,6 +47,8 @@ taking 35 min — same green, but only the second is evidence.
 ./gradlew assembleDebugAndroidTest --rerun-tasks --no-build-cache --continue                 # phase-exit (repo-wide)
 ```
 
+**Commit before you mutate.** Proving a detector fires means editing the tree and reverting it, and `git checkout -- <file>` reverts to HEAD — taking any *uncommitted* work in that file with it. Commit first, then mutate, then revert; three separate rounds of work have been lost to this.
+
 **Quote the Gradle summary line as the gate evidence.** It must read `N actionable tasks: N executed`.
 Any `from cache` OR `up-to-date` count in that line **voids** the gate result — re-run before claiming
 green. (`lintDebug` is intentionally excluded from these gates — its `[Registered]` error on
