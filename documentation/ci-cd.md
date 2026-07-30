@@ -116,11 +116,17 @@ it are deliberate and are commented at length in the workflow itself:
   The step asserts exit 1 *and* that check 7 is the failure *and* that it failed at
   `width=0px→0px`, because checks 6 and 9 also fail at that ref and an exit-code-only assertion
   would survive check 7 quietly ceasing to discriminate.
-- **The browser is installed explicitly, and asserted to be the one used.** `setup-chrome` lands
-  its binary as `chrome`, the last name the script looks for, while the runner image already ships
-  `/usr/bin/chromium`, the first. A `$GITHUB_PATH` shadow makes the installed browser win, and an
-  assertion step fails if it does not. A missing browser is a FAIL in the script by design; there
-  is no `continue-on-error` and no skip input anywhere in this workflow.
+- **The browser is Google Chrome installed from Google's deb, and it is asserted to be the one
+  used.** Every *unpacked* build hangs under the probe's flags and dies on the script's 90s cap —
+  measured on a runner: the image's `/usr/bin/chromium` snapshot, Chrome for Testing 150 and 151,
+  and Chromium snapshot 153 all hang; the deb completes in 1.4s. Packaging is the discriminator,
+  not version. `chrome-headless-shell` completes too but lays the page out differently (pill 113px
+  against 129px everywhere else), so it is not an acceptable substitute for an appearance gate.
+  Because the image's hanging `chromium` is the *first* name the script looks for and the deb lands
+  third, a `$GITHUB_PATH` shadow points `chromium` at the deb — without it the job times out rather
+  than failing quietly. An assertion step fails if the resolved binary is not the installed deb. A
+  missing browser is a FAIL in the script by design; there is no `continue-on-error` and no skip
+  input anywhere in this workflow.
 
 Trigger scope is by **branch, never by path**. PRs into `master` are excluded because `pr_guard.yml`
 already restricts those to `release/release-v.X.Y.Z` roll-ups of commits reviewed on `dev`, and
