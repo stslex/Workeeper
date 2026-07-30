@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.segmented.AppSegmentedIconControl
@@ -99,6 +100,23 @@ internal fun SettingsScreen(
                     SettingsGroupRow(
                         modifier = Modifier.testTag("SettingsArchiveRow"),
                         title = stringResource(R.string.feature_settings_archive_entry),
+                        // §26 draws this row with a sub-line — «4 упражнения · 1 тренировка».
+                        // Null until the counts arrive: an empty row is honest, a "0 · 0" flash is
+                        // not. B15 held it open on the premise that no data source existed.
+                        subtitle = state.archivedCounts?.let { counts ->
+                            listOf(
+                                pluralStringResource(
+                                    R.plurals.feature_settings_archive_exercise_count,
+                                    counts.exercises,
+                                    counts.exercises,
+                                ),
+                                pluralStringResource(
+                                    R.plurals.feature_settings_archive_training_count,
+                                    counts.trainings,
+                                    counts.trainings,
+                                ),
+                            ).joinToString(" · ")
+                        },
                         chevron = RowChevron.InApp,
                         onClick = { consume(Action.Click.OnArchiveClick) },
                     )

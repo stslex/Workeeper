@@ -80,4 +80,14 @@
     <string name="feature_settings_backup_auto_paused_banner_action">Sign in</string>
     <string name="feature_settings_backup_auto_enabled_default">Auto-backup enabled, daily</string>
     <string name="feature_settings_backup_auto_enabled_change_action">Change</string>
+
+    <!-- The Archive row's drawn sub-line (§26). B15: the counts existed all along. -->
+    <plurals name="feature_settings_archive_exercise_count">
+        <item quantity="one">%d exercise</item>
+        <item quantity="other">%d exercises</item>
+    </plurals>
+    <plurals name="feature_settings_archive_training_count">
+        <item quantity="one">%d training</item>
+        <item quantity="other">%d trainings</item>
+    </plurals>
 </resources>
