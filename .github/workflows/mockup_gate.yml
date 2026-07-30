@@ -198,6 +198,16 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
         run: |
           BASE_BRANCH="${BASE_REF:-dev}"
+          # Observed, not hypothetical: a dispatch of this workflow on a stacked branch resolved
+          # `merge-base against origin/dev` and red check 1 on the branch BELOW it — a true statement
+          # about the branch, and not the question the PR asks. The red is correct and reads as a
+          # broken branch, so the fallback path says out loud which question it answered.
+          if [ -z "$BASE_REF" ]; then
+            echo "::notice::Not a pull_request run, so the baseline falls back to dev. On a stacked"
+            echo "::notice::branch that is NOT the PR's baseline — it spans every commit below you, so"
+            echo "::notice::an undeclared :root change in a parent branch reds check 1 here and would"
+            echo "::notice::not on the PR itself. Run it in the PR for the verdict that counts."
+          fi
           git fetch --no-tags --quiet origin "+refs/heads/$BASE_BRANCH:refs/remotes/origin/$BASE_BRANCH"
           BASE=$(git merge-base "origin/$BASE_BRANCH" HEAD)
           {
