@@ -74,7 +74,23 @@ internal class AllTrainingsGoldenTest {
         statusLabel = "вчера · 48 мин",
     )
 
-    /** The two-line clamp case: the drawing's own long name (`#s-list`, skeleton frame). */
+    /**
+     * The **clamp** case, and it has to be long enough to actually clamp.
+     *
+     * The drawing's own long name — «Тяга Т-грифа прямым широким хватом» — fits on one line at this
+     * width and truncates, so a golden of it proves the ellipsis but says nothing about the second
+     * line. Proven, not assumed: with only that fixture, mutating `maxLines` from 2 to 1 left every
+     * golden byte-identical. This name reaches two lines and then clamps, so the mutation is caught.
+     */
+    private val clamped = plain.copy(
+        uuid = "t4",
+        name = "Тяга Т-грифа прямым широким хватом с паузой в нижней точке и медленным опусканием",
+        tags = persistentListOf("спина", "бицепс"),
+        exerciseCount = 11,
+        statusLabel = "9 сессий · последняя 2 июля",
+    )
+
+    /** The truncating-on-one-line case: the drawing's own long name (`#s-list`, skeleton frame). */
     private val longName = plain.copy(
         uuid = "t2",
         name = "Тяга Т-грифа прямым широким хватом",
@@ -133,6 +149,19 @@ internal class AllTrainingsGoldenTest {
     fun rowLongName(theme: GoldenTheme, testInfo: TestInfo) = goldenSubject(testInfo, theme) {
         TrainingRow(
             item = longName,
+            isSelected = false,
+            isSelecting = false,
+            showDivider = true,
+            onClick = {},
+            onLongPress = {},
+        )
+    }
+
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun rowClamped(theme: GoldenTheme, testInfo: TestInfo) = goldenSubject(testInfo, theme) {
+        TrainingRow(
+            item = clamped,
             isSelected = false,
             isSelecting = false,
             showDivider = true,

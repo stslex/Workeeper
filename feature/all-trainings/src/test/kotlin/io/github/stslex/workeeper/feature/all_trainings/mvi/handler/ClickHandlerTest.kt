@@ -169,4 +169,65 @@ internal class ClickHandlerTest {
         assertTrue(event is Event.HapticClick, "expected Event.HapticClick but got $event")
         assertEquals(expected, (event as Event.HapticClick).type)
     }
+
+    /**
+     * §26 "Haptics", all three, each asserted on the constant rather than on "a haptic fired".
+     * The vocabulary is the decision — `LongPress` for entering the mode, `ContextClick` for
+     * changing what is in it, `Confirm` for the act itself — so a test that only checked *that*
+     * something buzzed would pass while the meaning drifted.
+     */
+    @Test
+    fun `entering selection by long press fires LongPress`() {
+        handler.invoke(Action.Click.OnTrainingLongPress("uuid-1"))
+        val captured = slot<Event>()
+        verify { store.sendEvent(capture(captured)) }
+        assertHaptic(captured.captured, HapticFeedbackType.LongPress)
+    }
+
+    @Test
+    fun `toggling an item inside selection fires ContextClick, not LongPress`() {
+        stateFlow.value = stateFlow.value.copy(
+            selectionMode = State.SelectionMode.On(selectedUuids = persistentSetOf("uuid-1")),
+        )
+        handler.invoke(Action.Click.OnSelectionToggle("uuid-2"))
+        val captured = slot<Event>()
+        verify { store.sendEvent(capture(captured)) }
+        assertHaptic(captured.captured, HapticFeedbackType.ContextClick)
+    }
+
+    /** Untoggle is the same gesture in the other direction and carries the same constant. */
+    @Test
+    fun `untoggling an item inside selection fires ContextClick`() {
+        stateFlow.value = stateFlow.value.copy(
+            selectionMode = State.SelectionMode.On(
+                selectedUuids = persistentSetOf("uuid-1", "uuid-2"),
+            ),
+        )
+        handler.invoke(Action.Click.OnSelectionToggle("uuid-2"))
+        val captured = slot<Event>()
+        verify { store.sendEvent(capture(captured)) }
+        assertHaptic(captured.captured, HapticFeedbackType.ContextClick)
+    }
+
+    /**
+     * A long press on a row while selection is already on is a **toggle**, so it gets
+     * ContextClick and not a second LongPress: two in a row read as a fault.
+     */
+    @Test
+    fun `long press inside selection fires ContextClick, not a second LongPress`() {
+        stateFlow.value = stateFlow.value.copy(
+            selectionMode = State.SelectionMode.On(selectedUuids = persistentSetOf("uuid-1")),
+        )
+        handler.invoke(Action.Click.OnTrainingLongPress("uuid-2"))
+        val captured = slot<Event>()
+        verify(exactly = 1) { store.sendEvent(capture(captured)) }
+        assertHaptic(captured.captured, HapticFeedbackType.ContextClick)
+    }
+
+    /** The tag chip is not the nav bar: `SegmentTick` is that surface's, and fires nowhere here. */
+    @Test
+    fun `toggling a tag filter fires no haptic`() {
+        handler.invoke(Action.Click.OnTagFilterToggle("tag-1"))
+        verify(exactly = 0) { store.sendEvent(any()) }
+    }
 }

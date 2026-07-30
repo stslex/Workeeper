@@ -447,6 +447,22 @@ that is worth interrupting for and this list is where to look first.
 - **The two new drawn regions are structurally ungated** — nothing asserts `.tagrow` exists above the
   list, or that the FAB's morphed glyph is the archive mark. Checks 7/8 measure the morph's geometry and
   the swap, not which mark is in the slot.
+- **`AppTagChip`'s own treatment** — the chip is 11sp caption in a 6dp shell where `.tag` is drawn at
+  14px / `8px 13px` / radius 10, and both of its states resolve to one colour (B20). It is shared with
+  `all-exercises`, so it belongs to B20 and a kit pass, not to this screen's rebuild. The **band** around
+  it — padding, spacing and its closing rule — is feature-owned and is built as drawn.
+- **The selection top bar's title rung** — `.topbar h1.sm` is 17px against the normal 20px, and
+  `AppTopAppBar` has one title style for both. A compact-title variant is a kit API change affecting
+  every screen.
+- **Two navigation haptics this screen fires that §26 does not name** — `ContextClick` on a row tap that
+  navigates, and on exiting selection mode. §26 fixes where its four constants fire and does not forbid
+  other uses; recorded so the next reader knows it was seen rather than missed.
+- **`Screen.LiveWorkout`'s KDoc is stale** — it says at least one uuid must be non-null, and
+  `blank-init adhoc entry leaves both uuids null for downstream session creation` is a shipped, tested
+  path that the empty state's second CTA now uses. One comment, in a file this arc does not otherwise
+  touch.
+- **`AppConfirmDialog`'s window** — the scrim, the placement and the window itself stay out of
+  Paparazzi's model. Its *content* is now golden; the window is manual verification (§10.4).
 - **B21 and B22** are open in the registry and are code defects this screen's rebuild will pass through;
   they are not contract questions.
 

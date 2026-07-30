@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
@@ -201,9 +202,7 @@ private fun TrainingsList(
         // else — §26 "Add action": `16 + 56 + 16` = 88. The navigation bar's inset is the host's,
         // globally, together with the system inset the mockup cannot draw. Without the 88 the tail
         // sits under the button permanently, and on a paged list the tail is live.
-        contentPadding = PaddingValues(
-            bottom = AppDimension.screenEdge + AppDimension.heightLg + AppDimension.screenEdge,
-        ),
+        contentPadding = PaddingValues(bottom = LIST_BOTTOM_CLEARANCE),
     ) {
         items(
             count = typedItems.itemCount,
@@ -253,6 +252,18 @@ private fun LazyListScope.pagingTail(
         else -> Unit
     }
 }
+
+/**
+ * §26 "Add action": `16 + 56 + 16` = **88**. FAB clearance and nothing else — the navigation bar's
+ * inset is the host's, globally, together with the system inset the mockup cannot draw.
+ *
+ * Named rather than inlined because **a golden cannot see it.** `contentPadding.bottom` moves no
+ * pixel in a single non-scrolled frame, so the visual gate is blind to it — proven, not assumed:
+ * reverting it to the old 72 left all 28 goldens byte-identical. `AllTrainingsClearanceTest` is the
+ * gate instead, and it exists because that mutation went uncaught.
+ */
+internal val LIST_BOTTOM_CLEARANCE: Dp =
+    AppDimension.screenEdge + AppDimension.heightLg + AppDimension.screenEdge
 
 /** 28dp on a 56dp button — the circle the squircle opens into. */
 private val FAB_MORPHED_RADIUS = 28.dp
