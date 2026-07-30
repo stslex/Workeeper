@@ -89,6 +89,36 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
  * @param restingColor what the surface paints when it is not lifted. `surfaceTier1` is the
  *  mockups' resting card and unselected segment, so it is the default.
  */
+/**
+ * A fully transparent resting colour is repaired to carry the RGB of the surface behind it.
+ *
+ * **The fill is a tween, and a tween through a transparent colour goes through that colour's
+ * hue.** `Color.Transparent` is transparent *black*; `animateColorAsState` interpolates in Oklab,
+ * so a row resting at transparent-black and lifting to a white slab passes through mid-grey at
+ * partial alpha on the way. Measured with Compose's own `lerp` against the shipped palette, over
+ * the light page `#F6F7F9`:
+ *
+ * ```
+ *   Color.Transparent  ->  t=0.25 #C0C1C3   t=0.50 #ACACAD   t=0.75 #C0C0C0
+ *   surfaceTier0@a=0   ->  t=0.25 #F6F7F9   t=0.50 #F8F9FA   t=0.75 #FBFBFC
+ * ```
+ *
+ * — a visible dark flash on every select and deselect, for 260ms, in light theme only. Dark theme
+ * hides it because transparent-black and `#0B0D0F` are both dark, which is exactly why it survived
+ * review: the goldens photograph the two settled endpoints and both are correct.
+ *
+ * The repair is here rather than at the call sites because the hazard belongs to the mechanism.
+ * `Color.Transparent` is the honest way for a caller to say "this surface paints nothing of its
+ * own", and a caller saying that should not have to know that the fill is animated, let alone in
+ * which colour space. Any alpha but zero is passed through untouched — a caller who chose a
+ * translucent tint chose its hue too.
+ *
+ * Pure and `internal` so it can be asserted directly: no golden can see a mid-transition frame
+ * (§27, "a golden image gates only what a single static frame contains").
+ */
+internal fun restingFill(restingColor: Color, behind: Color): Color =
+    if (restingColor.alpha == 0f) behind.copy(alpha = 0f) else restingColor
+
 @Composable
 fun Modifier.liftedSurface(
     shape: Shape,
@@ -102,7 +132,7 @@ fun Modifier.liftedSurface(
     // Every value here is a COLOUR or a bounded magnitude, so all three are driven by `out`.
     // `spring` overshoots past 1.0 and would extrapolate a colour lerp or a negative elevation.
     val surface by animateColorAsState(
-        targetValue = if (lifted) colors.surfaceTier2 else restingColor,
+        targetValue = if (lifted) colors.surfaceTier2 else restingFill(restingColor, colors.surfaceTier0),
         animationSpec = tween(durationMillis = motion.base, easing = motion.out),
         label = "liftedSurface-fill",
     )

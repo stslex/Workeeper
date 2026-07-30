@@ -230,4 +230,25 @@ internal class ClickHandlerTest {
         handler.invoke(Action.Click.OnTagFilterToggle("tag-1"))
         verify(exactly = 0) { store.sendEvent(any()) }
     }
+    /**
+     * `Confirm` for the act itself — after the dialog, not on the button that opens it.
+     *
+     * This assertion was promised by the KDoc above and missing from the file: mutation #11 of the
+     * all-exercises delta (`Confirm` reverted to `LongPress`) reddened that screen's suite and
+     * passed silently here.
+     */
+    @Test
+    fun `confirmed bulk archive fires Confirm`() {
+        stateFlow.value = stateFlow.value.copy(
+            selectionMode = State.SelectionMode.On(selectedUuids = persistentSetOf("uuid-1")),
+            pendingBulkDelete = State.PendingBulkDelete(count = 1),
+        )
+        handler.invoke(Action.Click.OnBulkDeleteConfirm)
+        val captured = mutableListOf<Event>()
+        verify { store.sendEvent(capture(captured)) }
+        assertTrue(
+            captured.any { it is Event.HapticClick && it.type == HapticFeedbackType.Confirm },
+            "expected Confirm after the dialog's confirm",
+        )
+    }
 }

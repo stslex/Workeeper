@@ -188,9 +188,11 @@ object AppIcons {
     /**
      * The trainings mark — `pass2d.html` `#s-empty`'s first `.empty .glyph`.
      *
-     * **Doubly load-bearing:** §26 "Bottom navigation" takes the nav bar's trainings icon from
-     * this exact path ("the drawn empty-state glyphs verbatim"), so the empty state and the nav
-     * bar are one mark and changing either changes both.
+     * **Owed a second consumer.** §26 "Bottom navigation" takes the nav bar's trainings icon from
+     * this exact path ("the drawn empty-state glyphs verbatim"), so when the bar is rebuilt the
+     * empty state and the nav bar become one mark and changing either changes both. Today the bar
+     * still draws `@DrawableRes` XML (`BottomBarItem`), so this path has one call site. The
+     * coupling is a decision already taken, not a fact about the tree — do not read it as one.
      */
     val Trainings: ImageVector by lazy {
         strokeIcon("Trainings", EMPTY_GLYPH_STROKE, "M4 12h3l2.5-7 5 14L17 12h3")

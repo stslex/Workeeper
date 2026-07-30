@@ -40,9 +40,11 @@ import org.junit.jupiter.params.provider.EnumSource
  *
  * ## Whole surface, and the one hole left in it
  *
- * The top bar in both modes, the tag filter band, the list, the row's five states (plain, clamped,
- * active, selected, and unselected-while-selecting), both paging tails, the confirm dialog's
- * content, the empty state and three whole-screen pictures — each in both themes.
+ * The top bar in both modes, the tag filter band, the list, the row's **seven** states (plain,
+ * long-name, clamped, active, selected, active-and-selected, and unselected-while-selecting), both
+ * paging tails, the confirm dialog's content, the empty state and three whole-screen pictures —
+ * each in both themes. (This sentence said "five" and enumerated five while the suite rendered
+ * seven; an inventory that undercounts its own suite is how a golden goes missing unnoticed.)
  *
  * Two of those became photographable *because* this commit split them: `AppConfirmDialogContent`
  * out of `AppConfirmDialog`'s window, and the two paging footers out of the screen's

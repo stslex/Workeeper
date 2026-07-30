@@ -18,8 +18,12 @@ import io.github.stslex.workeeper.feature.all_trainings.R
  * suggestion. It shipped with a filled Material dumbbell and no actions at all; every one of those
  * is now the drawn mark, the drawn strings and the drawn pair.
  *
- * The glyph is [AppIcons.Trainings], which is the same path the bottom bar takes for its trainings
- * tab — one mark, two consumers, so it cannot drift between them.
+ * The glyph is [AppIcons.Trainings]. §26 "Bottom navigation" takes the nav bar's icons from "the
+ * drawn empty-state glyphs verbatim", so this path is *owed* a second consumer — but it does not
+ * have one yet: `BottomBarItem` still draws `@DrawableRes` XML (`ic_bottom_app_bar_list_icon_24`
+ * and friends), and [AppIcons.Trainings] has exactly one call site, this one. Stated as the
+ * pending coupling rather than as an accomplished one, because "one mark, two consumers" read as a
+ * fact about the code and was not.
  *
  * Placement stays delegated: §13 gives the pattern to the kit and the placement to the screen.
  */

@@ -20,7 +20,8 @@ Project context for OpenAI Codex / Cursor agents (and any other tool that follow
 ./gradlew detekt --auto-correct
 ./gradlew lintDebug
 
-# Pre-commit hook (currently disabled at the script level — see lint-rules.md)
+# Pre-commit hook — installs .githooks. Runs detekt on EVERY commit; its early
+# exit skips lintDebug only. See lint-rules.md.
 ./setup-hooks.sh
 ```
 
@@ -240,7 +241,10 @@ If no listed skill applies, continue with the normal repository instructions.
   you in a stack, which is what CI uses and is not the same baseline.
   A `:root` token change must be declared with an `Allow-root-change: <names>` commit trailer —
   the workflow reads the declaration out of the commits in the range, never from a flag.
-- The pre-commit hook in `.githooks/pre-commit` returns early — CI is the lint gate.
+- The pre-commit hook in `.githooks/pre-commit` **runs `./gradlew detekt` on every commit**; its
+  early `exit 0` sits *after* the detekt block, so it skips `lintDebug` only. Android Lint is
+  CI-gated, detekt is gated both locally and in CI. (This line said the hook "returns early" with
+  no qualification, which read as "nothing runs locally" — the opposite of what happens.)
 - Privacy policy at `docs/index.md` and `docs/_config.yml` are locked by Play Console; do not
   modify them.
 - The custom Detekt rules in `lint-rules/` enforce naming and structural rules around the MVI
