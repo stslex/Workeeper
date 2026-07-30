@@ -190,10 +190,17 @@ exercise it construct the non-null state by hand.
 So the screen carries a whole destructive path that cannot be entered: a dialog, four strings, two
 actions, a `Confirm`-tier haptic and `AllExercisesInteractor.permanentlyDelete` behind it.
 
+**The two tests covering it pass by building their own precondition.** They set
+`pendingPermanentDelete` to a hand-made `PendingDelete` and assert the handler behaves — which it
+does, faithfully, on a state the application cannot produce. A test that constructs its own
+precondition cannot tell you whether the precondition is reachable, so it certifies an unreachable
+surface while counting as coverage. The cheap discriminator is to ask what *writes* the state the
+test reads; here nothing does, and one `grep` said so.
+
 **Not fixed here** — restoring the trigger is a behavioural decision about when a permanent delete is
 offered at all (the strings claim "This exercise has no history and isn't used", which is a
 precondition nothing currently evaluates), and the contract draws no affordance for it. Filed as
-**B23** and left standing.
+**B23**, both findings, and left standing.
 
 It changes one thing about the gating plan: this dialog is **not** goldened. A golden of an
 unreachable surface asserts that a picture nobody can see has not changed — which is the "gate that
