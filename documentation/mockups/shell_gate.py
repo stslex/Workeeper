@@ -7,9 +7,16 @@
 #     python3 documentation/mockups/shell_gate.py -v         # the evidence table
 #     python3 documentation/mockups/shell_gate.py --target f52462c7
 #
+# CI runs it on every pull request — `.github/workflows/mockup_gate.yml`. To reproduce what CI runs:
+#
+#     python3 documentation/mockups/shell_gate.py --base "$(git merge-base origin/dev HEAD)" -v
+#
+# replacing `origin/dev` with the branch the PR actually targets, and adding
+# `--allow-root-change <names>` only if a commit in the range declares one (see BASE, below).
+#
 # WHY THIS EXISTS. `pass2d.html` sections `#s-list` and `#s-nav` are the appearance contract for the
 # chrome shared by the eight derived screens of the v3 arc — bottom bar, list row, selection mode, the
-# add action, the paging tails. Nothing in CI reads HTML, so until this script existed the contract that
+# add action, the paging tails. Nothing else in CI reads HTML, so until this script existed the contract that
 # eight screens will be built against was gated by nobody. That is B9's class exactly ("nothing gates
 # prose"), and the file is now load-bearing enough that the class is no longer cheap.
 #
@@ -50,7 +57,22 @@
 #   checks (2, 4, 5, 6) and both render checks read TARGET alone and are unaffected by BASE — which is
 #   why the failure was survivable and also why it was invisible.
 #
+# IN CI, BASE IS A MERGE-BASE, AND THAT IS NOT THE FAILURE ABOVE. The rule the pin protects is that
+#   THE BASELINE MUST NOT ALREADY CONTAIN THE CHANGE UNDER TEST. A pull request's base branch
+#   satisfies that by construction — the PR's own commits are not in it — so
+#   `.github/workflows/mockup_gate.yml` passes `--base $(git merge-base origin/<base_ref> HEAD)` and
+#   is right to. What matters is that it is the BASE BRANCH, not that it is called `dev`: for a
+#   stacked PR the base branch is the branch below, and substituting `dev` there imports the parent
+#   PR's own declared `:root` change into the diff of the PR being gated (measured from
+#   `docs/v3-token-parity`: `--base dev` reds check 1 on `rust`, `meta` and `molten`, none of which
+#   the PR above it touches). Outside a pull request there is no base branch and the fallback is
+#   `dev` — which on a run whose HEAD *is* `dev` degenerates to precisely the empty diff above, so
+#   that path is a manual convenience and not the gate.
+#
 # RUN IT IN THE PR, BEFORE THE MERGE. A gate that runs after the merge certifies; it does not gate.
+# `.github/workflows/mockup_gate.yml` is what now does this on every pull request, and it runs the
+# `--target f52462c7` known negative alongside, requiring it to go red — so each run is evidence the
+# detector still fires rather than a green last shown to fail at authoring time.
 # ---------------------------------------------------------------------------------------------------
 #
 # WHAT THIS SCRIPT DOES NOT GUARD. It does not look at the app. `--rust` in this mockup is `#C4574A`,
