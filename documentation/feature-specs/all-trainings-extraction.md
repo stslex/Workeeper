@@ -88,8 +88,9 @@ built) · **CONFLICT** (see §3).
 | M21 | Bulk action bar | `.bulk`, markup `#s-list`'s `.bulk` | **— (drawn, unreconciled)** | `--sec` fill, top hairline, `12px 20px`, two 46px buttons radius 16 (`В архив` ghost + `Готово`) | absent (deleted in v2.4: "`BulkActionBar.kt` is deleted. Bulk actions exposed via FAB transform only.") | **UNBUILT + unreconciled** — see D2 |
 | **FAB** |
 | M22 | FAB, resting | `.fab` | §26 "Add action" / "FAB in selection mode" | 56×56, **radius 18**, `--max` fill / `--base` glyph, `box-shadow:var(--slabtop)`, glyph 24px stroke 2.1 | 56dp, `shapes.medium` **10dp**, no lift | **DELTA** (radius, lift) |
-| M23 | FAB, selection morph | `.fab.del` | **§26 "FAB in selection mode"** — ⚠ **the GLYPH is still the retracted one; the fill is fixed.** D2's fill half landed here: `.fab.del` is shape only, the FAB keeps `--max`/`--base` through the morph, and **check 8 was inverted to match** — it now fails if the fill *changes*, which is the assertion that catches a regression to `--rust` and the old one never could. What remains is `.gtrash`, still a deletion mark for an archive action, and the same mark on the selection topbar's trail button. **Do not extract the glyph until PR 2 draws the archive mark** | 56×56, `shapes.medium` 10dp, no lift; `Icons.Filled.Delete`; `status.error` fill | **DELTA**; glyph pending §8 |
+| M23 | FAB, selection morph | `.fab.del`, `.garch` | **§26 "FAB in selection mode"** | **Shape and glyph only.** Squircle **18 → circle 28**, `260ms --e-spring`; the fill stays `--max` and the content `--base` throughout. The glyph is the archive mark `M4 8h16M6 8v11h12V8M10 12h4` — stroke, `fill:none`, 2.1 from `.fab svg`. Glyph swap is a hard cut (`display`), not a crossfade. **No count** | 56dp, `shapes.medium` 10dp, no lift; `Icons.Filled.Delete`; `status.error` fill | **DELTA** — radius, the morph, the lift, the fill, and the glyph, which must become the archive mark and not `Delete` |
 | **Paging tails** |
+| M39 | Tag filter band | `.tagrow`, `.tag` / `.tag.on` | **§26 "Tag filter band"** | Above the list, inside the frame: `display:flex`, gap 8, `12px var(--gutter)`, `overflow-x:auto` with the scrollbar hidden, **`--hair-s` bottom rule**. Chips are `.tag` as drawn — 14px, `8px 13px`, radius 10, `--sec`/`--meta`; `.on` → `--raise`/`--max` **plus a `--hair-s` border**. **Multi-select**, two chips drawn `.on` | `LazyRow`, `spacedBy(4.dp)`, `contentPadding` 16/8, **no rule**; `AppTagChip.Selectable` at 11sp caption in a 6dp shell, `7.dp/2.dp` padding, no border, and **both states resolve to `--raise`** (B20) | **DELTA** on every axis: container rule, chip size, radius, padding, type rung, and the missing selected/unselected distinction |
 | M24 | Loading footer | `.pfoot` + `.spin`, markup `#s-list`'s loading-tail frame | §26 "Paging tails" | Centred spinner (15px, 1.6px `--hair-s` ring, `--meta` top arc, 760ms linear) + **`Загружаю`**, mono 11px uppercase `.12em`, `--dim`; **no top border** | nothing — `loadState.append` is never read | **UNBUILT** |
 | M25 | Exhausted | *deliberately not drawn* `#s-list`'s paging navnote | §26 "Paging tails" | **No footer at all** — "end of list states only what is already visible" | nothing | **MATCH** (by absence) |
 | M26 | Error footer | `.perr`, markup `#s-list`'s error-tail frame | §26 "Paging tails" | reason `Не удалось загрузить дальше` in `.meta` (and it **truncates**, inheriting `.frame .meta`) + `.btn.ghost` **`Повторить`** 40px radius 12 | nothing; no retry path exists in the module | **UNBUILT** |
@@ -117,7 +118,7 @@ These are **findings to decide**, not obstacles to route around. Nothing below i
 
 | # | Region | What was searched | Result |
 |---|---|---|---|
-| **G1** | **`TagFilterRow`** | every `.tag` occurrence in the whole file; every `.frame` in `#s-list`; `#s-empty`; `#s-nav` | **Not drawn.** `.tag` exists in exactly three places: the chart's range picker (`#s-chart`, single-select via `pickTag`), a **static display** pair on exercise detail (`#s-ex`, `cursor:default`), and the mockup's own demo toggle (`#s-list`, `id="selBtn"`, whose `onclick` only morphs the FAB). Every `.frame` in `#s-list` begins directly with a `.row`. The component is **named in prose and never drawn**: `#s-list`'s skeleton-frame navnote "над списком стоит **TagFilterRow**, и полный набор живёт там", and §26 "Meta-line order" leans on it to justify rejecting in-row chips. **Proposal below.** |
+| ~~G1~~ | **`TagFilterRow`** | — | **CLOSED — drawn.** `.tagrow` is in `#s-list` above the list, with its own §26 row. It stopped being a gap the moment it was drawn; the deltas against the code are M39 |
 | ~~G2~~ | Chip selected-vs-unselected is one colour | — | **Recategorised → [B20](v3-redesign-spec.md#25-blocker-registry--append-only).** Not an undrawn region: a live defect, and not screen-local — every `AppTagChip.Selectable` in the app has it. Evidence moved to the registry with it |
 | **G3** | Host settings gear | `#s-list` topbar; §26 "Drawn rejections"'s audit of the undrawn topbar `+` | Drawn nowhere. `App.kt:172-192` overlays an `IconButton` at `TopEnd` on every bottom-bar destination, i.e. over this screen's app bar. §26 "Drawn rejections" audits what the topbar may carry and never mentions it |
 | **G4** | Confirm dialog treatment | all three sections; every modal primitive in the file (`.sheet`/`.grab`/`.mitem` are session/chart/settings) | **No dialog is drawn anywhere in the shell.** §26 "Haptics" nonetheless *presupposes* one ("`Confirm` after a **confirmed** destructive action"). The screen ships `AppConfirmDialog` with four strings; its treatment has no referent |
@@ -311,8 +312,8 @@ here, that is a real finding about the change, not noise.
 
 | # | Decision | Why it blocks |
 |---|---|---|
-| ~~D1~~ | **RULED — take (a): draw it.** `TagFilterRow` gets drawn in `#s-list` and extracted like everything else. It is the only resolution that leaves the contract able to answer the next question asked of it | → PR 2 (§8) |
-| ~~D2~~ | **RULED — chain accepted as verified (§7).** The morph keeps `--max` fill and `--base` content; shape and glyph change only; the glyph is archive, not trash, and the same correction applies to the selection topbar's trash and to `Icons.Filled.Delete` on both screens — one correction applied twice, no divergence, no ledger row owed for it. **Ledger applied in this PR**; the drawing and the code follow in PR 2 and the code PR | ledger done; drawing → PR 2 |
+| ~~D1~~ | **RULED (a) and DONE.** `TagFilterRow` is drawn in `#s-list` and extracted as M39; §26 "Tag filter band" records it, including that the drawn treatment's origin is single-select and does **not** transfer | drawn |
+| ~~D2~~ | **RULED and DONE.** Fill corrected and check 8 inverted (#198); glyph drawn as the archive mark `.garch`, on the FAB and on the selection topbar, in this PR. `Icons.Filled.Delete` → the archive mark on both screens rides with the code PR; `feature/archive`'s own filled icon is **owed the correction the other way** — recorded, not done | drawn; code pending |
 | ~~D3~~ | **RULED — its own palette PR, not this one.** The parity exception's expiry is recorded where the exception lives; the `AppColors.kt` KDoc clause is the text that changes with the decision | → palette PR |
 | ~~D4~~ | **RULED — confirmed as contract, and §26 now carries the row.** The glyph, the headline, the sentence and **both** CTAs are contract. The new row also records the coupling the Bottom navigation row already leans on: the empty-state mark and the nav bar's trainings icon are one path, so changing either changes both. Placement stays delegated per §13 | ledger done |
 | ~~D5~~ | **CLOSED on the check, without a new treatment.** The collision is narrower than "indistinguishable": only the **surface** collides, and only for the live-and-selected row. The drawn live row's second signal is its meta — «идёт сейчас · 12:04» — and the meta is content that survives selection mode on both sides: the drawn selection frame's rows keep their metas, and `TrainingRow` renders name, tags and status with no selection branch. No live+selected row is drawn anywhere, so the collision was never drawn either way. Nothing to draw in PR 2. **Two things worth keeping**: the surviving signal is the meta line, not the surface, so anything that later suppresses meta in selection mode re-opens this; and the code reached independently for a *different* second signal — it keeps the active accent ring under selection, with a comment saying exactly why — which is itself a DELTA (M14), because the drawn live row has no border | closed |
@@ -371,7 +372,7 @@ either the mark to match or the mark to reject deliberately; §0.1 gives the dra
 **What it does not touch:** the shape morph itself (squircle 18 → circle 28, spring legal — it encodes
 nothing), the icon-only decision, and the topbar-replaced-whole rule.
 
-## 8. What the rulings imply: the next step is not code
+## 8. Sequencing — PR 2 is done; the next step is the code
 
 This is the mapping's own result, and it is what the screen was sent first to discover. **Three of the
 regions all-trainings must draw have no referent, and two more are stale in the drawing.** Building the
@@ -380,7 +381,7 @@ thing this arc replaced.
 
 So the order is: **a second, small mockup PR, then the code.**
 
-### PR 2 — the shell answers the questions this screen asked
+### PR 2 — DONE. The shell now answers the questions this screen asked
 
 Drawn and extracted the same way as the shell-contract stack: drawing, ledger row, mapping row, gate.
 
@@ -428,6 +429,26 @@ All-trainings against a contract that answers, with the deltas this mapping alre
 treatment and its check glyph, the FAB's shape morph and archive glyph, all three paging tails, the
 empty state's strings and both CTAs, the four haptics, and the +16dp clearance. Plus
 `Icons.Filled.Delete` → the archive mark on **both** screens.
+
+### Deferred — logged, not chased
+
+One line each. None of these stops a line of screen code being written; if one of them turns out to,
+that is worth interrupting for and this list is where to look first.
+
+- **`.empty` as a component or a pattern** — the question §8 reframed. Governs every screen's empty
+  state and whether `AppEmptyState` grows a variant axis. Not needed to build this screen.
+- **The active row's accent ring** (§3.2) — resolved on paper; the code change rides with the screen.
+- **D3, `--hair-s` has no app token** — its own palette PR. The row rule ships against `borderSubtle`
+  until then, which is `--hair`, a different value, and that is a known and recorded approximation.
+- **D8, `.chev` drawn with two paths** — `M9 5l7 7-7 7` in the shell rows, `M9 6l6 6-6 6` in `#s-past`.
+  Check 10 stays narrow; widening it is a decision about `#s-past`'s drawing.
+- **`feature/archive`'s filled `Icons.Filled.Inventory2`** — owed the correction the other way, so the
+  app has one archive mark and it is the drawn stroke one. Not this arc's screen.
+- **The two new drawn regions are structurally ungated** — nothing asserts `.tagrow` exists above the
+  list, or that the FAB's morphed glyph is the archive mark. Checks 7/8 measure the morph's geometry and
+  the swap, not which mark is in the slot.
+- **B21 and B22** are open in the registry and are code defects this screen's rebuild will pass through;
+  they are not contract questions.
 
 ## 9. Scope, restated
 
