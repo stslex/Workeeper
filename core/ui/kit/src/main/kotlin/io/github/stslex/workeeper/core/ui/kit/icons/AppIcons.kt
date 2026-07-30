@@ -151,6 +151,60 @@ object AppIcons {
         strokeIcon("Check", CARD_STROKE, "M4 12.5l5 5L20 7")
     }
 
+    /**
+     * The FAB's own plus — `pass2d.html` `.gplus` inside `#morphA`, drawn at the FAB's heavier
+     * [FAB_STROKE] rather than [Plus]'s 1.9. Same path, third declared weight; the mockup
+     * declares stroke per context and so does this file.
+     */
+    val FabPlus: ImageVector by lazy {
+        strokeIcon("FabPlus", FAB_STROKE, "M12 5v14M5 12h14")
+    }
+
+    /**
+     * The archive mark, at the FAB weight — `pass2d.html` `.garch`.
+     *
+     * It replaces a trash glyph that was drawing a promise the action does not make: the bulk
+     * action archives and archive is reversible, so §1's "`rust` marks destruction only" and a
+     * deletion glyph were both describing something else. See §26 "FAB in selection mode".
+     */
+    val FabArchive: ImageVector by lazy {
+        strokeIcon("FabArchive", FAB_STROKE, ARCHIVE_PATH)
+    }
+
+    /** The same archive mark at the top-bar weight — the selection bar's trailing action. */
+    val Archive: ImageVector by lazy {
+        strokeIcon("Archive", TOPBAR_STROKE, ARCHIVE_PATH)
+    }
+
+    /**
+     * The selected-row check as `#s-list` draws it — [Check]'s path at [ROW_CHECK_STROKE].
+     * The list redraws the picker's mark heavier (2.2 against 1.8); the third weight of one
+     * drawing, and all three ship as drawn.
+     */
+    val RowCheck: ImageVector by lazy {
+        strokeIcon("RowCheck", ROW_CHECK_STROKE, "M4 12.5l5 5L20 7")
+    }
+
+    /**
+     * The trainings mark — `pass2d.html` `#s-empty`'s first `.empty .glyph`.
+     *
+     * **Doubly load-bearing:** §26 "Bottom navigation" takes the nav bar's trainings icon from
+     * this exact path ("the drawn empty-state glyphs verbatim"), so the empty state and the nav
+     * bar are one mark and changing either changes both.
+     */
+    val Trainings: ImageVector by lazy {
+        strokeIcon("Trainings", EMPTY_GLYPH_STROKE, "M4 12h3l2.5-7 5 14L17 12h3")
+    }
+
+    /** Lid, body, pull. One path so it diffs against the mockup line-for-line. */
+    private const val ARCHIVE_PATH = "M4 8h16M6 8v11h12V8M10 12h4"
+
+    /** 2.1 — the FAB glyph weight (`.fab svg`, 24dp glyphs). */
+    private const val FAB_STROKE = 2.1f
+
+    /** 2.2 — the list row's check (`.chk`), heavier than the picker's [CARD_STROKE]. */
+    private const val ROW_CHECK_STROKE = 2.2f
+
     /** 1.7 — the top-bar stroke weight (21dp glyphs). */
     private const val TOPBAR_STROKE = 1.7f
 

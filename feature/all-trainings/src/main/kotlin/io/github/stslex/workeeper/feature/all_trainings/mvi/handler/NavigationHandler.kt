@@ -18,6 +18,9 @@ internal class NavigationHandler @Inject constructor(
         when (action) {
             is Action.Navigation.OpenDetail -> navigator.navTo(Screen.Training(uuid = action.uuid))
             Action.Navigation.OpenCreate -> navigator.navTo(Screen.Training(uuid = null))
+            Action.Navigation.OpenBlankSession -> navigator.navTo(
+                Screen.LiveWorkout(sessionUuid = null, trainingUuid = null),
+            )
         }
     }
 }

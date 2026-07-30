@@ -80,6 +80,15 @@ interface AllTrainingsStore : Store<State, Action, Event> {
 
             data object OnFabClick : Click
 
+            /** The empty state's primary CTA — «Создать тренировку». */
+            data object OnEmptyCreate : Click
+
+            /**
+             * The empty state's secondary CTA — «Начать пустую тренировку». Reaches
+             * [Action.Navigation.OpenBlankSession], the blank-init adhoc entry.
+             */
+            data object OnEmptyStartBlank : Click
+
             data class OnTagFilterToggle(val tagUuid: String) : Click
 
             data class OnSelectionToggle(val uuid: String) : Click
@@ -96,6 +105,14 @@ interface AllTrainingsStore : Store<State, Action, Event> {
             data class OpenDetail(val uuid: String) : Navigation
 
             data object OpenCreate : Navigation
+
+            /**
+             * A session with no training behind it. `Screen.LiveWorkout`'s KDoc claims at least one
+             * uuid must be non-null; that is stale — `blank-init adhoc entry leaves both uuids null
+             * for downstream session creation` is a shipped, tested path, and it is the destination
+             * the drawn «Начать пустую тренировку» asks for.
+             */
+            data object OpenBlankSession : Navigation
         }
     }
 

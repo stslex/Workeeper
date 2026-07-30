@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="feature_all_trainings_title">Тренировки</string>
-    <string name="feature_all_trainings_empty_headline">Пока нет тренировок</string>
-    <string name="feature_all_trainings_empty_supporting">Нажмите +, чтобы создать первую тренировку</string>
+    <string name="feature_all_trainings_empty_headline">Здесь появятся тренировки</string>
+    <string name="feature_all_trainings_empty_supporting">Собери шаблон заранее или начни пустую и добавляй упражнения по ходу.</string>
     <string name="feature_all_trainings_fab_create">Создать тренировку</string>
     <string name="feature_all_trainings_chevron_description">Открыть тренировку</string>
 
@@ -47,4 +47,9 @@
         <item quantity="other">%d тренировки будут перенесены в архив. Восстановить можно в Настройках → Архив.</item>
     </plurals>
     <string name="feature_all_trainings_bulk_archive_impact">Обратимо · история сохранится</string>
+    <string name="feature_all_trainings_paging_loading">Загружаю</string>
+    <string name="feature_all_trainings_paging_error">Не удалось загрузить дальше</string>
+    <string name="feature_all_trainings_paging_retry">Повторить</string>
+    <string name="feature_all_trainings_empty_create">Создать тренировку</string>
+    <string name="feature_all_trainings_empty_start_blank">Начать пустую тренировку</string>
 </resources>

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="feature_all_trainings_title">Trainings</string>
-    <string name="feature_all_trainings_empty_headline">No trainings yet</string>
-    <string name="feature_all_trainings_empty_supporting">Tap + to create your first training</string>
+    <string name="feature_all_trainings_empty_headline">Your trainings will appear here</string>
+    <string name="feature_all_trainings_empty_supporting">Build a template in advance, or start an empty one and add exercises as you go.</string>
     <string name="feature_all_trainings_fab_create">Create training</string>
     <string name="feature_all_trainings_chevron_description">Open training</string>
 
@@ -39,4 +39,9 @@
         <item quantity="other">%d trainings will move to archive. Restore from Settings → Archive.</item>
     </plurals>
     <string name="feature_all_trainings_bulk_archive_impact">Reversible · history preserved</string>
+    <string name="feature_all_trainings_paging_loading">Loading</string>
+    <string name="feature_all_trainings_paging_error">Couldn’t load more</string>
+    <string name="feature_all_trainings_paging_retry">Retry</string>
+    <string name="feature_all_trainings_empty_create">Create a training</string>
+    <string name="feature_all_trainings_empty_start_blank">Start an empty training</string>
 </resources>

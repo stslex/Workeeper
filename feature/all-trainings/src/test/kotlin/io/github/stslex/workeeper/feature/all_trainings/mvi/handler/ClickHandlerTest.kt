@@ -85,17 +85,20 @@ internal class ClickHandlerTest {
         verify { store.consume(Action.Navigation.OpenCreate) }
     }
 
+    /**
+     * §26 "Haptics": **the FAB morph fires nothing.** It follows the long press that already fired
+     * when selection was entered, and two in a row read as a fault. This test asserted the opposite
+     * — it encoded the behaviour the ledger has since retracted, so it inverts with it.
+     */
     @Test
-    fun `OnFabClick with selection emits LongPress haptic and sets pendingBulkDelete`() {
+    fun `OnFabClick with selection fires no haptic and sets pendingBulkDelete`() {
         stateFlow.value = stateFlow.value.copy(
             selectionMode = State.SelectionMode.On(
                 selectedUuids = persistentSetOf("uuid-1", "uuid-2"),
             ),
         )
         handler.invoke(Action.Click.OnFabClick)
-        val captured = slot<Event>()
-        verify { store.sendEvent(capture(captured)) }
-        assertHaptic(captured.captured, HapticFeedbackType.LongPress)
+        verify(exactly = 0) { store.sendEvent(any()) }
         verify(exactly = 0) { store.consume(any()) }
         assertEquals(2, stateFlow.value.pendingBulkDelete?.count)
     }

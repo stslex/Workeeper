@@ -2,7 +2,6 @@
 package io.github.stslex.workeeper.feature.all_trainings.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -10,10 +9,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
@@ -23,18 +21,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.fab.AppFAB
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
+import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.feature.all_trainings.R
+import io.github.stslex.workeeper.feature.all_trainings.mvi.model.TrainingListItemUi
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.Action
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.State
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.State.SelectionMode
+import io.github.stslex.workeeper.feature.all_trainings.ui.components.PagingErrorFooter
+import io.github.stslex.workeeper.feature.all_trainings.ui.components.PagingLoadingFooter
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.TagFilterRow
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.TrainingRow
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.TrainingsEmptyState
@@ -72,26 +75,30 @@ internal fun AllTrainingsScreen(
                     consume = consume,
                 )
                 if (items.isEmptyAndIdle() && !state.isSelecting) {
-                    TrainingsEmptyState(modifier = Modifier.align(Alignment.Center))
+                    TrainingsEmptyState(
+                        modifier = Modifier.align(Alignment.Center),
+                        onCreate = { consume(Action.Click.OnEmptyCreate) },
+                        onStartBlank = { consume(Action.Click.OnEmptyStartBlank) },
+                    )
                 }
             }
         }
         val isSelecting = state.isSelecting
+        // §26 "FAB in selection mode": the morph is SHAPE AND GLYPH ONLY. The fill stays `--max`
+        // and the content `--base` throughout — the action is archive, archive is reversible, and
+        // `--rust` marks destruction only (§1), so the old rust fill was promising irreversibility
+        // for a reversible act and the trash glyph was following the fill.
         AppFAB(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(AppDimension.screenEdge)
                 .testTag("AllTrainingsFab"),
-            icon = if (isSelecting) Icons.Filled.Delete else Icons.Filled.Add,
+            icon = if (isSelecting) AppIcons.FabArchive else AppIcons.FabPlus,
             contentDescription = stringResource(
                 if (isSelecting) R.string.feature_all_trainings_bulk_archive
                 else R.string.feature_all_trainings_fab_create,
             ),
-            containerColor = if (isSelecting) {
-                AppUi.colors.status.error
-            } else {
-                AppUi.colors.accent
-            },
+            cornerRadius = if (isSelecting) FAB_MORPHED_RADIUS else AppDimension.Radius.medium,
             onClick = { consume(Action.Click.OnFabClick) },
         )
     }
@@ -151,6 +158,27 @@ private fun ScreenTopBar(
         } else {
             null
         },
+        // §26 "Selection mode": the top bar is replaced whole — count PLUS actions. The archive
+        // action was drawn from the start and never built; the FAB is not the only affordance the
+        // drawing gives this mode.
+        actions = if (isSelecting) {
+            {
+                IconButton(
+                    modifier = Modifier.testTag("AllTrainingsSelectionTopBarArchive"),
+                    onClick = { consume(Action.Click.OnFabClick) },
+                ) {
+                    Icon(
+                        modifier = Modifier.size(AppDimension.iconSm),
+                        imageVector = AppIcons.Archive,
+                        contentDescription = stringResource(
+                            R.string.feature_all_trainings_bulk_archive,
+                        ),
+                    )
+                }
+            }
+        } else {
+            {}
+        },
     )
 }
 
@@ -168,13 +196,14 @@ private fun TrainingsList(
         modifier = Modifier
             .fillMaxSize()
             .testTag("AllTrainingsList"),
+        // Full-bleed: the drawn row owns its own gutter and its own rule, so the list adds no
+        // horizontal padding and no inter-item spacing. The bottom is FAB clearance and nothing
+        // else — §26 "Add action": `16 + 56 + 16` = 88. The navigation bar's inset is the host's,
+        // globally, together with the system inset the mockup cannot draw. Without the 88 the tail
+        // sits under the button permanently, and on a paged list the tail is live.
         contentPadding = PaddingValues(
-            start = AppDimension.screenEdge,
-            end = AppDimension.screenEdge,
-            top = AppDimension.Space.sm,
-            bottom = AppDimension.heightLg + AppDimension.screenEdge,
+            bottom = AppDimension.screenEdge + AppDimension.heightLg + AppDimension.screenEdge,
         ),
-        verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
         items(
             count = typedItems.itemCount,
@@ -184,11 +213,16 @@ private fun TrainingsList(
                 TrainingRow(
                     item = item,
                     isSelected = selectedSet?.contains(item.uuid) == true,
+                    isSelecting = state.isSelecting,
+                    // The drawing removes the last row's rule (`.frame .row:last-of-type`), so the
+                    // list does not end on a hairline into empty space.
+                    showDivider = index < typedItems.itemCount - 1,
                     onClick = { consume(Action.Click.OnTrainingClick(item.uuid)) },
                     onLongPress = { consume(Action.Click.OnTrainingLongPress(item.uuid)) },
                 )
             }
         }
+        pagingTail(items = typedItems, onRetry = { typedItems.retry() })
     }
 }
 
@@ -197,3 +231,28 @@ private fun LazyPagingItems<*>.isEmptyAndIdle(): Boolean =
         loadState.refresh is LoadState.NotLoading &&
         loadState.append is LoadState.NotLoading &&
         loadState.prepend is LoadState.NotLoading
+
+/**
+ * §26 "Paging tails": three states, two drawings.
+ *
+ * Loading is a footer spinner. **Exhausted is no footer at all** — "end of list" states only what
+ * is already visible, so the absence is the drawing. Error is the reason plus **Повторить**,
+ * because a silently truncated list is indistinguishable from a finished one.
+ *
+ * None of this existed before: `loadState.append` was never read, so a failed page was a list that
+ * quietly stopped.
+ */
+private fun LazyListScope.pagingTail(
+    items: LazyPagingItems<TrainingListItemUi>,
+    onRetry: () -> Unit,
+) {
+    when (items.loadState.append) {
+        is LoadState.Loading -> item(key = "paging_loading") { PagingLoadingFooter() }
+        is LoadState.Error -> item(key = "paging_error") { PagingErrorFooter(onRetry = onRetry) }
+        // Exhausted, and everything else: no footer. Drawn as an absence, built as one.
+        else -> Unit
+    }
+}
+
+/** 28dp on a 56dp button — the circle the squircle opens into. */
+private val FAB_MORPHED_RADIUS = 28.dp
