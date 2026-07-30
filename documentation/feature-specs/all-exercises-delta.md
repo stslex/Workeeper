@@ -129,13 +129,21 @@ because `TrainingRow` had no leading media to drop. **This screen is where that 
 Both go. The navnote names both by name ("миниатюра и иконка типа остаются на детали"), so this is
 transcription, not interpretation.
 
-`ExerciseTypeIcon.kt` is **deleted**, and the first draft of this section got that wrong. It said the
-file was "left in place for the detail screen", which is impossible: it is `internal` to
-`feature/all-exercises` and takes that module's `ExerciseTypeUiModel`, so `feature/exercise` cannot
-reference it across the module boundary — and does not need to, because it already draws the type
-glyph itself (`ExerciseHero`, `ImageEditRow`). Left alone it would have been an unreferenced file
-shipping the exact 28dp `surfaceTier4` tile with filled Material glyphs that this rebuild removes,
-with nothing to signal it: detekt's unused-declaration rules only reach `private`.
+**The ruling, restated as what it actually means.** It was given as "the miniature and the type icon
+stay on the detail screen", and this document repeated that wording faithfully — but it cannot be
+true of `ExerciseTypeIcon` and never was. The component is `internal` to `feature/all-exercises` and
+takes that module's `ExerciseTypeUiModel`, so `feature/exercise` cannot reference it across the
+module boundary, and does not need to: it already draws the type glyph itself (`ExerciseHero`,
+`ImageEditRow`). What the ruling means is two separate facts, and only the first is about the
+drawing:
+
+1. **The row has no leading slot.** That is the contract, and it is what the navnote says.
+2. **The type icon therefore has no consumer in this module.** That is a consequence, and it makes
+   the file dead code, not an asset held for elsewhere.
+
+So `ExerciseTypeIcon.kt` is **deleted**. Left alone it would have been an unreferenced file shipping
+the exact 28dp `surfaceTier4` tile with filled Material glyphs this rebuild removes, with nothing to
+signal it: detekt's unused-declaration rules only reach `private`.
 
 Consequence worth stating: **Coil leaves the row**, so the row becomes a pure function of its model
 and is photographable without a network/disk fake. That is why the golden set can cover it at all.
@@ -143,6 +151,13 @@ and is photographable without a network/disk fake. That is why the golden set ca
 ### 1.5 The composable, line by line
 
 What actually differs, rather than what looks like it might:
+
+**Verdicts on behaviour say whether they are verified.** A MATCH row asserts two implementations
+agree, and nothing contradicts it unless a test fails when they stop agreeing. This mapping shipped
+a MATCH on the long-press site and a summary claiming both screens fire identically, while this
+screen fired two haptics — because it had no long-press test at all. §27 now carries the rule: a
+behavioural MATCH cites a test covering both sides, or is marked **UNVERIFIED**. Appearance rows are
+exempt only where a golden covers both sides.
 
 | Region | `ExerciseRow` today | After | Same as `TrainingRow`? |
 |---|---|---|---|
@@ -182,7 +197,7 @@ gone, and the drawn selection mark is the check in the slot.
 | FAB shape | no morph | squircle 18 → circle 28 | **UNBUILT** |
 | Empty state | glyph `Icons.Filled.FitnessCenter`, headline + sentence, **no action** | `#s-empty`'s third `.empty` | **DELTA** — see 2.2 |
 | Tag band | `LazyRow`, `Space.xs` spacing, `Space.sm` vertical, **no closing rule** | `.tagrow` + the hairline the sibling built | **DELTA** — `Space.sm` / `Space.md` / closing `HorizontalDivider` |
-| Bulk-archive confirm | `pendingBulkDelete` → `AppConfirmDialog` | §26; `AppConfirmDialogContent` is already split | **MATCH**, ungated — see 5 |
+| Bulk-archive confirm | `pendingBulkDelete` → `AppConfirmDialog` | §26; `AppConfirmDialogContent` is already split | **MATCH — appearance, covered by `confirmDialogContent` on both screens** |
 | Permanent-delete confirm | `pendingPermanentDelete` → `AppConfirmDialog` | — | **DEAD.** See 2.3 |
 | Blocked-archive dialog | `AppBlockedArchiveDialog` | nothing drawn; it is a behavioural surface | **ungated** — see 5 |
 
@@ -243,17 +258,22 @@ screens fire the same way, not a fresh reading of the navnote.
 
 | Site | Today | Contract | Action |
 |---|---|---|---|
-| Enter selection (`processExerciseLongPress`) | `LongPress` | `LongPress` | MATCH |
-| Toggle (`processSelectionToggle`) | `ContextClick` | `ContextClick` | MATCH |
+| Enter selection (`processExerciseLongPress`) | `LongPress` | `LongPress` | **MATCH — verified** (`entering selection by long press fires LongPress`, both screens) |
+| Toggle (`processSelectionToggle`) | `ContextClick` | `ContextClick` | **MATCH — verified** (`selection toggle fires ContextClick`, both screens) |
+| **Long press *inside* selection** | fired `LongPress` **then** `ContextClick` — two for one gesture | `ContextClick` alone | **DELTA, and it was recorded as MATCH.** The first draft of this table had no row for it at all and the summary below claimed six identical sites. The sibling's fix and its "two in a row reads as a fault" comment predate this branch and were never carried over. Now `long press inside selection fires ContextClick, not a second LongPress`, on both screens, with `exactly = 1` — a `captured.any { … }` check passes on the broken code |
 | Confirmed archive (`processBulkDeleteConfirm`) | **`LongPress`** | **`Confirm`** — "подтверждённое удаление, после диалога" | **DELTA** |
 | FAB in selection mode (`processBulkDelete`) | `LongPress` | nothing — "морф отдачи не даёт: он следствие долгого нажатия, которое уже отработало" | **DELTA**, remove. The sibling's `processFabClick` already carries this comment verbatim |
 | Permanent delete confirm (`processConfirmPermanentDelete`) | `LongPress` | `Confirm` | **DELTA** |
 | Tag chip (`processTagFilterToggle`) | `SegmentTick` | the navnote assigns `SegmentTick` to the nav bar's tab change | **DELTA**, remove. Not a judgement call this mapping makes: the sibling *already* removed it, with the reasoning in a comment on `processTagFilterToggle` — "this screen borrowed it for a filter chip, which is a different gesture on a different surface". Leaving it would make two screens with one filter band behave differently |
 | Row tap that navigates, exit selection | `ContextClick` | unnamed | **recorded** — the same pair *all-trainings §"Deferred"* already logged |
 
-After the corrections both screens fire the same four constants at the same six sites, which is the
-actual test of "the vocabulary is not extended" — one screen holding the line while its sibling
-borrows a fifth meaning is the same defect with a smaller blast radius.
+After the corrections both screens fire the same four constants at the same **seven** sites, which
+is the actual test of "the vocabulary is not extended" — one screen holding the line while its
+sibling borrows a fifth meaning is the same defect with a smaller blast radius.
+
+That sentence originally said six, and was written while the two screens differed at the seventh.
+It is the reason §27 now requires a behavioural MATCH to name its test: the count was arrived at by
+reading both handlers side by side, which is exactly the method that produced the error.
 
 ---
 
