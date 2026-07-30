@@ -135,10 +135,43 @@ the drawn loading and error footers were never built. The navnote sits in the se
 subject is the tails, and names those three screens in order to say the tails apply to them. It
 described the data layer accurately and the screen simply never caught up.
 
-**So no drawing correction is owed. It is a screen change**, and the same one both siblings needed:
-`all-exercises` also paged and also read `loadState.append` nowhere until its rebuild. Unlike variant
-B and D6 — where the contract drew one component two ways — nothing here disagrees with anything.
-This mapping's earlier framing of it as a self-contradiction was wrong.
+**So no drawing correction is owed. It is a screen change.** Unlike variant B and D6 — where the
+contract drew one component two ways — nothing here disagrees with anything. This mapping's earlier
+framing of it as a self-contradiction was wrong.
+
+### 3.2 "Pagination exists" and "the tails are built" are different claims, and the app has never conflated them in only one place
+
+Three for three, identically, and that is what makes it a finding rather than three defects.
+
+The app has **exactly three** paged screens — `collectAsLazyPagingItems` has three call sites:
+`all-trainings`, `all-exercises`, `archive`. (The data layer has 14 `Pager(` call sites, so it pages
+a good deal more than the UI ever presents.) At `origin/dev`, every one of the three read
+`loadState.append` **exactly once**, and in all three it was the same line:
+
+```kotlin
+private fun LazyPagingItems<*>.isEmptyAndIdle(): Boolean =
+    itemCount == 0 &&
+        loadState.refresh is LoadState.NotLoading &&
+        loadState.append is LoadState.NotLoading &&   // ← the only read, on all three
+        loadState.prepend is LoadState.NotLoading
+```
+
+So it is sharper than "the tails were never built". **The append state was known to all three screens
+and spent on the wrong question**: whether the list is empty, rather than what to draw at its end. A
+screen that reads `append` to decide emptiness has already met the value it needed for the footer and
+walked past it.
+
+**Read that as evidence about the phrase, not about the screens.** «Пагинация уже есть» meant "a
+`Pager` is wired and pages arrive" — and it was true, three times. It never meant "the three drawn
+tail states are rendered", and nobody wrote it down because nobody noticed the two had come apart.
+Three independent screens do not arrive at the identical omission by coincidence; they arrive at it
+because "this screen pages" was understood the same way each time.
+
+**For the five screens still to come:** approach each expecting `already paged ≠ tails owed`, and
+check the two separately. The check is one grep — does anything read `loadState.append` outside an
+emptiness predicate? — and it costs nothing next to discovering it per screen, three times, which is
+what happened here. §26 "Paging tails" states the treatment; nothing until now stated that having a
+`Pager` does not discharge it.
 
 ---
 
