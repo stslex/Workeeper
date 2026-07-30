@@ -43,8 +43,8 @@ taking 35 min — same green, but only the second is evidence.
 
 ```bash
 ./gradlew clean
-./gradlew assembleDebug detekt testDebugUnitTest --rerun-tasks --no-build-cache --continue   # per-commit
-./gradlew assembleDebugAndroidTest --rerun-tasks --no-build-cache --continue                 # phase-exit (repo-wide)
+./gradlew assembleDebug detekt lintDebug testDebugUnitTest --rerun-tasks --no-build-cache --continue   # per-commit
+./gradlew assembleDebugAndroidTest --rerun-tasks --no-build-cache --continue                          # phase-exit (repo-wide)
 ```
 
 **Verify the commit LANDED before you mutate.** Proving a detector fires means editing the tree and
@@ -61,10 +61,25 @@ like it failed to work rather than like it never ran. Same family as the `FROM-C
 §27's: a Gradle cache making a task's *evidence* answer for a task that did not execute. Note also
 that `MaxLineLength` is not auto-correctable — those are yours to wrap by hand.
 
+**"Green locally" is not "green". The pre-commit hook runs detekt and skips `lintDebug`; CI gates
+both.** So a branch can pass every commit, pass the gate command as it was written above, and fail
+the moment its PR opens — on errors that were never once shown to the person who wrote them. It is
+not hypothetical: `feature/v3-all-trainings` carried a `DuplicateStrings` pair and three
+`UnusedResources` orphaned by its own rebuild, and they surfaced only when a *stacked* branch ran
+lint for an unrelated reason. Until the hook runs lint — which is Ilya's call, it is his tooling and
+it costs about a minute a commit — **`lintDebug` belongs in the per-commit gate above**, and it is
+now in it. Note especially that `UnusedResources` is a *deletion* check: it fires on rebuilds that
+drop a call site, which is exactly what every screen in this arc does.
+
+The line this replaces said `lintDebug` was excluded because of a pre-existing `[Registered]` error
+on `Dev/StoreMobileApp`, tracked separately, and not to "fix" it here. That error is gone —
+`lint-rules/lint-baseline.xml` is empty and a full `lintDebug --rerun-tasks --no-build-cache` is
+clean across 1083 tasks — so the exclusion outlived its reason and became the thing keeping lint
+unrun. A stale exemption is worse than no exemption: it reads as a decision.
+
 **Quote the Gradle summary line as the gate evidence.** It must read `N actionable tasks: N executed`.
 Any `from cache` OR `up-to-date` count in that line **voids** the gate result — re-run before claiming
-green. (`lintDebug` is intentionally excluded from these gates — its `[Registered]` error on
-`Dev/StoreMobileApp` is pre-existing and tracked on a separate track; do not "fix" it here.)
+green.
 
 ## Canonical project knowledge
 
