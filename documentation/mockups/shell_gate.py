@@ -85,6 +85,26 @@ TARGET = None  # None == the working tree. A git ref reads that ref's blob inste
 
 MOCKUP = "documentation/mockups/pass2d.html"
 
+# The other half of the parity seam check 9 gates: the app's own colour tokens. Read from the
+# WORKING TREE always, regardless of --target — this check asks "does the mockup match what ships
+# right now", not "what did the mockup match as of some historical ref". A historical TARGET is
+# expected to disagree (that disagreement is what B19 found), and check 9 is allowed to fail there.
+APP_COLORS = (
+    "core/ui/kit/src/main/kotlin/io/github/stslex/workeeper/core/ui/kit/theme/AppColors.kt"
+)
+
+# Tokens with no corresponding AppColors.kt constant, by design — not drift. Each carries the
+# citation a reader needs to not re-litigate it. Loosening check 9 to "most tokens resolve" would
+# make it the kind of check that stops seeing a real drift among the noise of expected exceptions,
+# so every exception is named individually here rather than pattern-matched away.
+TOKEN_PARITY_EXCEPTIONS = {
+    "--dim": "merged into meta, both themes — no AppColors.kt slot for a fourth text-dim step "
+             "(§2.5, #184 C1)",
+    "--hair-s": "both themes: the slots that would take it are enabled-control-outline borders "
+                "owing 3:1 under WCAG 1.4.11, which hair-s's 1.12-1.52:1 cannot clear, so the app "
+                "ships *_CONTROL_OUTLINE instead — same hue, lifted/darkened lightness (B19)",
+}
+
 # The one variable legitimately absent from :root — nbPick() writes it per-element at runtime
 # (`el.style.setProperty('--sx', ...)`). Named explicitly rather than loosening check 2 to a pattern,
 # because a loosened check 2 stops seeing typos, which is the only thing it is for.
@@ -186,6 +206,54 @@ def hex_to_rgb_css(value: str) -> str | None:
     return f"rgb({int(v[0:2], 16)}, {int(v[2:4], 16)}, {int(v[4:6], 16)})"
 
 
+def normalize_hex6(value: str) -> str | None:
+    """3- or 6-digit hex, with or without '#', to uppercase 6-digit RGB. None if not a hex colour."""
+    v = value.strip().lstrip("#")
+    if len(v) == 3:
+        v = "".join(c * 2 for c in v)
+    if len(v) != 6 or not re.fullmatch(r"[0-9a-fA-F]{6}", v):
+        return None
+    return v.upper()
+
+
+def extract_props(block_src: str) -> dict[str, str]:
+    """`{name: raw_value}` for every `--name: value;` declaration in a css_block() string."""
+    return {name: value.strip() for name, value in
+            re.findall(r"(--[A-Za-z0-9_-]+)\s*:\s*([^;]+);", block_src)}
+
+
+def extract_hex_props(block_src: str) -> dict[str, str]:
+    """`{name: HEXHEXHEX}` for every declaration whose value is a plain (non-alpha) hex colour.
+
+    `rgba(...)` values are excluded by construction (normalize_hex6 rejects a value that isn't a
+    bare 3/6-digit hex), which is exactly the scoping check 9 wants: translucent tokens carry no
+    single opaque byte triple to compare against an AppColors.kt constant.
+    """
+    out = {}
+    for name, raw in extract_props(block_src).items():
+        hexed = normalize_hex6(raw)
+        if hexed is not None:
+            out[name] = hexed
+    return out
+
+
+def extract_kt_color_constants(kt_src: str) -> tuple[dict[str, str], dict[str, str]]:
+    """`({RGB: const_name}, {RGB: const_name})` for DARK_* / LIGHT_* Long hex constants.
+
+    `AppColors.kt` writes each as `private const val DARK_FOO: Long = 0xAARRGGBB` (or `0xRRGGBB`
+    for the few 6-digit ones). Only the low 6 hex digits are kept — the alpha byte, when present,
+    is compositing information the mockup's flat `#rrggbb` tokens don't carry, and check 9 compares
+    RGB only, on the same reasoning `hex_to_rgb_css` already uses for the FAB glyph token.
+    """
+    dark: dict[str, str] = {}
+    light: dict[str, str] = {}
+    pat = re.compile(r"private const val (DARK|LIGHT)_([A-Z0-9_]+)\s*:\s*Long\s*=\s*0x([0-9A-Fa-f]{6,8})")
+    for theme, name, digits in pat.findall(kt_src):
+        rgb = digits[-6:].upper()
+        (dark if theme == "DARK" else light)[rgb] = f"{theme}_{name}"
+    return dark, light
+
+
 # --- results ----------------------------------------------------------------------------------------
 
 class Report:
@@ -202,10 +270,24 @@ class Report:
 
 # --- structural checks ------------------------------------------------------------------------------
 
-def check_1_root_identical(rep: Report, base_src: str, tgt_src: str) -> None:
-    parts = []
+def check_1_root_identical(rep: Report, base_src: str, tgt_src: str, allow_root_change: list[str] | None) -> None:
+    """Default mode (`allow_root_change is None`): BASE's and TARGET's `:root`/`body.light` must be
+    byte-identical — the original, unconditional rule.
+
+    `--allow-root-change NAME [NAME ...]` mode: byte-identity is dropped for a property-level
+    check instead. Every custom property whose value differs between BASE and TARGET (in either
+    block) must be named; every named property must have actually changed. Both directions are
+    enforced because either one alone is a hole: unnamed-allowed lets an unreviewed change ride
+    along with a reviewed one, and named-but-unchanged lets a stale flag rot into a standing
+    excuse that stops meaning anything (the same failure §3.3 names for a duplicate contrast-map
+    key — a declaration nobody checks is not a declaration)."""
+    parts: list[str] = []
+    detail: list[str] = []
     ok = True
-    for sel in (":root", "body.light"):
+    all_changed: set[str] = set()
+    changes_by_name: dict[str, list[str]] = {}
+
+    for sel, theme in ((":root", "dark"), ("body.light", "light")):
         b, t = css_block(base_src, sel), css_block(tgt_src, sel)
         if b is None or t is None:
             ok = False
@@ -213,16 +295,43 @@ def check_1_root_identical(rep: Report, base_src: str, tgt_src: str) -> None:
             continue
         if b == t:
             parts.append(f"{sel}: identical ({len(t)} bytes)")
-        else:
+            continue
+        if allow_root_change is None:
             ok = False
             bl = [ln.strip() for ln in b.splitlines() if ln.strip()]
             tl = [ln.strip() for ln in t.splitlines() if ln.strip()]
             diff = [f"    - {ln}" for ln in bl if ln not in tl] + [f"    + {ln}" for ln in tl if ln not in bl]
-            parts.append(f"{sel}: CHANGED\n" + "\n".join(diff))
+            parts.append(f"{sel}: CHANGED")
+            detail += [f"  {sel}:"] + diff
+            continue
+        base_props, tgt_props = extract_props(b), extract_props(t)
+        names = set(base_props) | set(tgt_props)
+        block_changed = {n for n in names if base_props.get(n) != tgt_props.get(n)}
+        all_changed |= block_changed
+        for n in sorted(block_changed):
+            changes_by_name.setdefault(n, []).append(
+                f"    {theme} {n}: {base_props.get(n, '(absent)')} → {tgt_props.get(n, '(absent)')}")
+        parts.append(f"{sel}: {len(block_changed)} propert{'y' if len(block_changed) == 1 else 'ies'} changed")
+
+    if allow_root_change is not None:
+        allowed = set(allow_root_change)
+        unnamed = all_changed - allowed
+        not_actually = allowed - all_changed
+        if unnamed:
+            ok = False
+            detail += [f"    UNNAMED change: {n} changed but was not passed to --allow-root-change"
+                       for n in sorted(unnamed)]
+        if not_actually:
+            ok = False
+            detail += [f"    NAMED but unchanged: --allow-root-change named {n}, but its value is "
+                       f"identical between BASE and TARGET in every block" for n in sorted(not_actually)]
+        if not unnamed and not not_actually and changes_by_name:
+            detail += ["    allowed changes:"] + [line for n in sorted(changes_by_name) for line in changes_by_name[n]]
+
     rep.add(
-        1, ":root byte-identical", ok,
+        1, ":root byte-identical (or declared via --allow-root-change)", ok,
         "; ".join(p.splitlines()[0] for p in parts),
-        parts if not ok else [],
+        detail,
     )
 
 
@@ -239,14 +348,32 @@ def check_2_vars_defined(rep: Report, tgt_src: str) -> None:
     )
 
 
-def check_3_no_new_hex(rep: Report, diff: str) -> None:
+def check_3_no_new_hex(rep: Report, diff: str, allow_root_change: list[str] | None) -> None:
+    """Same diff check 1 reads — the DO NOT SIMPLIFY header already calls checks 1 and 3 "the two
+    that consume the diff." A `:root`/`body.light` value edit necessarily adds a line containing a
+    hex literal, so this check and check 1 are coupled by construction, not by oversight: without
+    an escape hatch here too, --allow-root-change would only move where the PR's own gate stays
+    permanently red, not remove it.
+
+    Under --allow-root-change, EVERY `--name: value;` custom-property fragment is stripped from
+    each added line before scanning — not just the named tokens' own fragments. That is
+    deliberately broader than "trust what was named": this file packs several declarations per
+    physical line, so changing one property re-adds the whole line, and every OTHER property on
+    that line — changed or not, named or not — reappears as "added" text purely as a diff
+    artefact. check 1 is what actually audits which properties changed and whether that matches
+    what was named; check 3's only remaining job here is hex literals OUTSIDE the custom-property
+    system (an inline `style="color:#..."`, say), which is exactly what survives this strip."""
     added = [ln[1:] for ln in diff.splitlines() if ln.startswith("+") and not ln.startswith("+++")]
+    strip_pat = re.compile(r"--[A-Za-z0-9_-]+\s*:\s*[^;]+;") if allow_root_change else None
+    scanned = [strip_pat.sub("", ln) if strip_pat else ln for ln in added]
     pat = re.compile(r"#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})\b")
-    hits = [(i, ln.strip(), m) for i, ln in enumerate(added, 1) for m in pat.findall(ln)]
+    hits = [(i, ln.strip(), m) for i, (ln, sln) in enumerate(zip(added, scanned), 1) for m in pat.findall(sln)]
+    note = (f"{len(added)} added lines inspected"
+            + (f", {len(hits)} hex literal(s) found" if hits else ", 0 hex literals"))
+    if allow_root_change:
+        note += "; custom-property declarations excluded from the scan under --allow-root-change (check 1 audits those)"
     rep.add(
-        3, "no new hex literal", not hits,
-        f"{len(added)} added lines inspected"
-        + (f", {len(hits)} hex literal(s) found" if hits else ", 0 hex literals"),
+        3, "no new hex literal", not hits, note,
         [f"    added line {i}: {m}  in  {ln[:110]}" for i, ln, m in hits],
     )
 
@@ -577,6 +704,56 @@ def check_8_fab_morph(rep: Report, p: dict, measured: bool) -> None:
     )
 
 
+def check_9_token_parity(rep: Report, tgt_src: str, root: str) -> None:
+    """Every opaque `#rrggbb` the mockup draws must resolve to an `AppColors.kt` constant of the
+    same theme, or be a named exception (`TOKEN_PARITY_EXCEPTIONS`) — not a loosened rule, an
+    individually-cited one. `AppColors.kt` is read from the WORKING TREE regardless of --target;
+    see APP_COLORS's own comment for why a historical TARGET is allowed to fail this check."""
+    try:
+        kt_src = read_target(root, None, APP_COLORS)
+    except (OSError, SystemExit) as e:
+        rep.add(9, "token parity with AppColors.kt", False,
+                f"could not read {APP_COLORS}: {e}",
+                ["    Checks 9 needs this file to compare against; it cannot be green without it."])
+        return
+
+    dark_consts, light_consts = extract_kt_color_constants(kt_src)
+    if not dark_consts or not light_consts:
+        rep.add(9, "token parity with AppColors.kt", False,
+                f"parsed {len(dark_consts)} DARK_* and {len(light_consts)} LIGHT_* constants from "
+                f"{APP_COLORS} — expected both non-empty; the regex or the file moved",
+                ["    A check that silently matches nothing is a pass no different from a check that"
+                 "    never ran — see the header's note on that class of failure."])
+        return
+
+    root_hex = extract_hex_props(css_block(tgt_src, ":root") or "")
+    light_hex = extract_hex_props(css_block(tgt_src, "body.light") or "")
+
+    fails: list[str] = []
+    excused: list[str] = []
+    checked = 0
+    for theme, props, consts in (("dark", root_hex, dark_consts), ("light", light_hex, light_consts)):
+        for name, hexv in sorted(props.items()):
+            if name in TOKEN_PARITY_EXCEPTIONS:
+                excused.append(f"    (excused) {theme} {name}:#{hexv} — {TOKEN_PARITY_EXCEPTIONS[name]}")
+                continue
+            checked += 1
+            if hexv in consts:
+                continue
+            fails.append(
+                f"    {theme} {name}:#{hexv} matches no AppColors.kt {theme.upper()}_* constant "
+                f"— either it drifted (see B19) or it is a new exception this check does not know about yet"
+            )
+
+    rep.add(
+        9, "token parity with AppColors.kt", not fails,
+        f"{checked} opaque token(s) checked against {len(dark_consts)}/{len(light_consts)} "
+        f"dark/light constants, {len(TOKEN_PARITY_EXCEPTIONS)} named exception(s)"
+        + (f", {len(fails)} unresolved" if fails else ", all resolve"),
+        fails + excused,
+    )
+
+
 # --- main -------------------------------------------------------------------------------------------
 
 def main() -> int:
@@ -591,6 +768,12 @@ def main() -> int:
                     help="git ref to gate (default: the working tree)")
     ap.add_argument("-v", "--verbose", action="store_true",
                     help="print the evidence table even when green")
+    ap.add_argument("--allow-root-change", nargs="+", default=None, metavar="TOKEN",
+                    help="declare :root/body.light token names (bare, no leading --, e.g. "
+                         "'rust meta') expected to differ from BASE. Check 1 then verifies the "
+                         "actual diff is EXACTLY this set — not a smaller one, not a bigger one — "
+                         "instead of requiring byte-identity. Omit for the default, unconditional "
+                         "byte-identical rule.")
     args = ap.parse_args()
 
     root = repo_root()
@@ -600,9 +783,14 @@ def main() -> int:
     tgt_src = read_target(root, args.target, MOCKUP)
     diff = git(root, "diff", args.base, *( [args.target] if args.target else [] ), "--", MOCKUP)
 
-    check_1_root_identical(rep, base_src, tgt_src)
+    allow_root_change = (
+        [f"--{t.lstrip('-')}" for t in args.allow_root_change]
+        if args.allow_root_change is not None else None
+    )
+
+    check_1_root_identical(rep, base_src, tgt_src, allow_root_change)
     check_2_vars_defined(rep, tgt_src)
-    check_3_no_new_hex(rep, diff)
+    check_3_no_new_hex(rep, diff, allow_root_change)
     check_4_tags_balanced(rep, tgt_src)
     check_5_switcher_complete(rep, tgt_src)
     check_6_one_default_screen(rep, tgt_src)
@@ -622,6 +810,8 @@ def main() -> int:
         complete = payload.get("stage") == "complete"
         check_7_nav_pill(rep, payload, measured=targets_ok and complete)
         check_8_fab_morph(rep, payload, measured=targets_ok and complete)
+
+    check_9_token_parity(rep, tgt_src, root)
 
     if rep.failed or args.verbose:
         tgt_label = args.target if args.target else "working tree"
@@ -645,7 +835,13 @@ def main() -> int:
             print("  Reading it: a FAIL on 7 or 8 that says UNMEASURED is not a render verdict — look")
             print("  at the precondition row above it first. A FAIL on 1 or 3 means a token block or an")
             print("  added line changed relative to BASE; check that BASE is still the pin and not a")
-            print("  branch name before believing anything else.")
+            print("  branch name before believing anything else. A FAIL on 1 naming an UNNAMED change")
+            print("  under --allow-root-change means the diff is bigger than what was declared — name")
+            print("  it or revert it, do not widen the flag to make the message go away. A FAIL on 9")
+            print("  means a mockup token no longer matches any AppColors.kt constant of its theme;")
+            print("  that is either new drift (see B19) or a new legitimate exception that")
+            print("  TOKEN_PARITY_EXCEPTIONS does not know about yet — the fix is never to delete the")
+            print("  token from the check, only to explain it in that dict, same as B19 itself.")
 
     return 1 if rep.failed else 0
 
