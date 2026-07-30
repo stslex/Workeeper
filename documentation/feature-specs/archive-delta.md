@@ -82,6 +82,18 @@ mapping does not pick one:
    is drawn nowhere in a list row, so it is a new mark.
 3. **Swipe actions**, which nothing in the shell draws at all.
 
+**Both verbs are live — checked before weighing the readings.** B23 found `all-exercises`'
+permanent-delete dialog dead (read three times, written non-null nowhere), which would have
+collapsed this question from two verbs to one. Archive's is **not** that shape:
+`ArchiveClickHandler.processDeleteRequest` writes `pendingDeleteTarget = item` from
+`Action.Click.OnPermanentDeleteClick`, that action is dispatched by the row's `DropdownMenuItem`,
+and the handler then fetches an impact count before showing the dialog. Restore is equally live.
+So the slot really is contested, and the three readings stand.
+
+Worth carrying to B23: two screens ship a permanent-delete dialog, one fully wired and one with no
+producer at all. That makes the dead one an **omission** rather than a deliberate design, which is
+what the registry entry left open.
+
 **This is a §0.1 question for the owner, not a delta to apply.** It is the one region where this
 screen genuinely differs in kind from its two siblings: their rows have a single destination and a
 selection mode, and this row has two competing verbs and no selection mode to put them in.
@@ -103,7 +115,30 @@ alongside the drawing.
 | FAB | none | `#s-list`'s clearance navnote: "Запас нужен только тем экранам, где кнопка есть" | **MATCH** — and therefore **no 88dp clearance is owed** |
 | List padding | `screenEdge` horizontal + `Space.sm` vertical + `spacedBy(Space.sm)` | full-bleed rows own their gutter | **DELTA** |
 | Empty region | `archiveListSurface` — four verdicts | §26 "List states reached by an action" | **DONE this session** (B22) |
-| Paging tails | **none** — `loadState.append` is read nowhere | `#s-list`'s pagination navnote names archive explicitly: "Пагинация уже есть в тренировках, упражнениях и **архиве**" | **UNBUILT** — a failed page is a list that quietly stops |
+| Paging tails | **none** — `loadState.append` is read nowhere | `#s-list`'s pagination navnote | **UNBUILT, and the drawing is not at fault — see 3.1** |
+
+### 3.1 The pagination "contradiction" is not one — the screen is behind, the drawing is right
+
+Flagged as a possible third instance of the contract disagreeing with itself, after variant B and
+D6. It is not. **Checked rather than picked**, and the two sides say different things:
+
+The navnote's claim is «Пагинация **уже есть** в тренировках, упражнениях и архиве» — pagination
+already *exists* on those three. That is a statement about the **data layer**, and it is true here:
+
+- `ExerciseRepositoryImpl.pagedArchived()` is a real `Pager(pagingSourceFactory = dao::pagedArchived)`;
+- `ArchiveInteractor.pagedArchivedExercises()` / `pagedArchivedTrainings()` return
+  `Flow<PagingData<…>>`;
+- `ArchivePagingHandler` collects both and the screen presents them as `LazyPagingItems`.
+
+Archive pages. What it does not do is **render the tails** — `loadState.append` is read nowhere, so
+the drawn loading and error footers were never built. The navnote sits in the section whose whole
+subject is the tails, and names those three screens in order to say the tails apply to them. It
+described the data layer accurately and the screen simply never caught up.
+
+**So no drawing correction is owed. It is a screen change**, and the same one both siblings needed:
+`all-exercises` also paged and also read `loadState.append` nowhere until its rebuild. Unlike variant
+B and D6 — where the contract drew one component two ways — nothing here disagrees with anything.
+This mapping's earlier framing of it as a self-contradiction was wrong.
 
 ---
 
@@ -129,6 +164,7 @@ so it is clean by construction rather than by exemption.
 
 ## 5. Open, and owed before code
 
-1. **2.1 — the trailing slot.** The one region the contract does not answer for this screen.
-2. **The paging tails**, which the navnote says this screen already has and it does not.
+1. **2.1 — the trailing slot.** The one region the contract does not answer for this screen. Both
+   verbs confirmed reachable, so it does not collapse.
+2. **The paging tails** — a screen change, not a drawing correction (3.1).
 3. Whether the segment labels' count formatting moves to the mapper with the rest.
