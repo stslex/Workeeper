@@ -242,7 +242,7 @@
         .pad{height:132px;display:grid;place-items:center;color:var(--dim);font-family:var(--ff-mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;border-top:1px dashed var(--hair-s)}
         .fab{transition:border-radius 260ms var(--e-spring),background var(--d-base) var(--e-out),color var(--d-base) var(--e-out)}
         .fab .gtrash{display:none}
-        .fab.del{background:var(--rust);color:var(--base);border-radius:28px}
+        .fab.del{border-radius:28px} /* shape only: the fill stays --max and the content --base, the FAB's ordinary treatment. The action is archive and archive is reversible; --rust marks destruction only (§1), so a rust fill promised irreversibility for a reversible act. See §26 'FAB in selection mode'. The glyph is still .gtrash and is still wrong — the archive mark is PR 2. */
         .fab.del .gplus{display:none}
         .fab.del .gtrash{display:block}
         .navnote{margin:10px var(--gutter) 30px;font-family:var(--ff-mono);font-size:11.5px;line-height:1.65;color:var(--dim)}

@@ -77,7 +77,7 @@ built) · **CONFLICT** (see §3).
 | M11 | Meta ordering | drawn strings `#s-list`'s skeleton frame, `#s-list`'s type-token row | **§26 "Meta-line order"** | **Information first, tags last.** Exercise type is the first token (`со весом · 14 сессий · …`). What truncates is always the tail, and the tail is tags | Tags first (chips), count last | **DELTA** |
 | M12 | In-row tag chips | — | **§26 "Meta-line order"** | **Rejected.** "`.tag` as drawn (14px, 8/13) does not sit in an 88dp row, and a smaller chip would be a new treatment. The full tag set lives in `TagFilterRow` above the list — the row confirms tags, it does not enumerate them" | `AppTagChip.Static` ×3 + `+N` overflow chip | **DELTA — rejected treatment shipped** |
 | M13 | "Active" pill in the name row | — | §26 "Meta-line order" (same rejection) | not drawn; "running" is carried by the row surface + the meta string `идёт сейчас · 12:04` | `AppTagChip.Static("Active")` | **DELTA** |
-| M14 | `isActive` row treatment | `.row.live`, markup `#s-list`'s `.row.live`, navnote `#s-list`'s live-row navnote | **— (drawing only)** | `background:var(--slab); box-shadow:var(--slabtop)` — byte-identical to `.row.sel` and to `.card.open`. No accent, no border, no `--molten` | `surfaceTier3` (`--field`) + a 2dp `accent` border | **DELTA.** Note the ledger has **no** row for the live-row decision — the *mechanism* is governed (§2.6, §26 "Elevation") but the decision to lift this row is drawing-only |
+| M14 | `isActive` row treatment | `.row.live`, markup `#s-list`'s `.row.live`, navnote `#s-list`'s live-row navnote | **— (drawing only)** | `background:var(--slab); box-shadow:var(--slabtop)` — byte-identical to `.row.sel` and to `.card.open`. No accent, no border, no `--molten` | `surfaceTier3` (`--field`) + a 2dp `accent` border | **DELTA** — see **§3.2**, a conflict resolved by D5's finding rather than by precedence. Note the ledger has **no** row for the live-row decision — the *mechanism* is governed (§2.6, §26 "Elevation") but the decision to lift this row is drawing-only |
 | M15 | Trailing chevron **and its slot** | `.chev`, `.slot`, empty slot at `#s-list`'s selection frame, the unselected `.row` | **§26 "Selection mode"** | The slot is **fixed-width 20px** and always present; its contents change — chevron, check, or nothing. See **§3**: a conflict, not a delta, and the slot half is an amendment this mapping caused | always rendered, no slot | **CONFLICT** (contents) + **DELTA** (slot) |
 | **Selection mode** |
 | M16 | Selected row | `.row.sel` | §26 "Selection mode" | `--slab` + `--slabtop` | `accentTintedBackground` (`--raise`) | **DELTA** |
@@ -88,7 +88,7 @@ built) · **CONFLICT** (see §3).
 | M21 | Bulk action bar | `.bulk`, markup `#s-list`'s `.bulk` | **— (drawn, unreconciled)** | `--sec` fill, top hairline, `12px 20px`, two 46px buttons radius 16 (`В архив` ghost + `Готово`) | absent (deleted in v2.4: "`BulkActionBar.kt` is deleted. Bulk actions exposed via FAB transform only.") | **UNBUILT + unreconciled** — see D2 |
 | **FAB** |
 | M22 | FAB, resting | `.fab` | §26 "Add action" / "FAB in selection mode" | 56×56, **radius 18**, `--max` fill / `--base` glyph, `box-shadow:var(--slabtop)`, glyph 24px stroke 2.1 | 56dp, `shapes.medium` **10dp**, no lift | **DELTA** (radius, lift) |
-| M23 | FAB, selection morph | `.fab.del` | **§26 "FAB in selection mode"** — ⚠ **the LEDGER is now correct and the DRAWING is the stale side.** D2 is ruled: the morph keeps the FAB's ordinary treatment (`--max` fill, `--base` content) and changes shape and glyph only; the glyph is archive, not trash. The ledger says so; `.fab.del` still draws `background:var(--rust)` and `.gtrash`, and so does the selection topbar's trail button. **Do not extract the fill or the glyph from the drawing until PR 2 lands them** | 56×56, `shapes.medium` 10dp, no lift; `Icons.Filled.Delete`; `status.error` fill | **DELTA**, and the drawing is pending §7 |
+| M23 | FAB, selection morph | `.fab.del` | **§26 "FAB in selection mode"** — ⚠ **the GLYPH is still the retracted one; the fill is fixed.** D2's fill half landed here: `.fab.del` is shape only, the FAB keeps `--max`/`--base` through the morph, and **check 8 was inverted to match** — it now fails if the fill *changes*, which is the assertion that catches a regression to `--rust` and the old one never could. What remains is `.gtrash`, still a deletion mark for an archive action, and the same mark on the selection topbar's trail button. **Do not extract the glyph until PR 2 draws the archive mark** | 56×56, `shapes.medium` 10dp, no lift; `Icons.Filled.Delete`; `status.error` fill | **DELTA**; glyph pending §8 |
 | **Paging tails** |
 | M24 | Loading footer | `.pfoot` + `.spin`, markup `#s-list`'s loading-tail frame | §26 "Paging tails" | Centred spinner (15px, 1.6px `--hair-s` ring, `--meta` top arc, 760ms linear) + **`Загружаю`**, mono 11px uppercase `.12em`, `--dim`; **no top border** | nothing — `loadState.append` is never read | **UNBUILT** |
 | M25 | Exhausted | *deliberately not drawn* `#s-list`'s paging navnote | §26 "Paging tails" | **No footer at all** — "end of list states only what is already visible" | nothing | **MATCH** (by absence) |
@@ -156,7 +156,14 @@ is asked next time.
 
 ---
 
-## 3. The chevron — a conflict, not a gap
+## 3. Two conflicts between the contract and a deliberate prior decision
+
+Neither is a gap: the contract has a drawn answer in both cases. Both are places where the code made a
+considered decision, left a comment saying why, and the drawing says otherwise — and both trace to the
+same round, `v2.4-design-foundation.md`, which predates the v3 contract. They get the same treatment,
+because a resolution recorded once and skipped once is one somebody re-opens.
+
+### 3.1 The chevron
 
 The contract has a drawn answer here, so this is not a gap. It is a **conflict between the contract and
 a deliberate prior decision that left a comment behind**, and it gets its own row so that whoever wrote
@@ -204,6 +211,41 @@ card" (no). §26 "Selection mode" answers a different question — "does a row i
 citation to §26 "Selection mode" rather than deleted, so the next reader finds the reason and not a silence.
 
 ---
+
+### 3.2 The active row's accent ring
+
+**The code's argument** — `TrainingRow.kt`, above the surface decision:
+
+> `// Selected → filled accent-tinted card (spec C3). Active session takes a secondary tier accent so`
+> `// users can distinguish "selected for bulk action" from "actively running". Border keeps the active`
+> `// accent ring even when selected so we don't lose the running-session affordance.`
+
+`spec C3` resolves — `v2.4-design-foundation.md`, "Selected state visualization: whole `ExerciseRow` /
+`TrainingRow` filled with `accentTintedBackground`". The ring is not decoration and not an accident: it
+was added to solve a specific collision, that `isSelected` wins the surface over `item.isActive`, so a
+row that is both would otherwise stop looking live. The comment says so in as many words.
+
+**The contract's argument** — the drawn live row is `.row.live`: `background:var(--slab)` +
+`box-shadow:var(--slabtop)`, byte-identical to `.row.sel` and to `.card.open`. No border, no accent, no
+second colour. §26 has no row for the live-row decision at all, so the drawing governs alone under §0.1.
+
+**Resolution — and it is stronger than "the drawing wins", which is the part to record.** The ring was
+added to solve the live-and-selected collision. D5's check established that the collision is already
+solved, by a signal that was there all along: the drawn live row carries «идёт сейчас · 12:04» in its
+meta, and the meta is content that survives selection mode on both sides — the drawn selection frame's
+rows keep their metas, and `TrainingRow` renders name, tags and status with no selection branch.
+
+So **the ring is not overruled; it is made unnecessary.** The problem it was built for does not exist,
+because the meta line answers it. That distinction matters: "the drawing wins" invites the ring back the
+first time somebody notices that a selected live row looks like any other selected row, whereas "the
+meta already says it" answers that question when it is asked. As with the chevron, the comment should be
+**replaced by a citation to this finding, not deleted** — the reasoning in it is sound, it is the
+premise that turned out to be false.
+
+**Shared conditional with D5, and it is the one thing that re-opens both:** the surviving signal is the
+meta line. Anything that later suppresses meta in selection mode — a compact selection row, a truncation
+rule that drops the tail, a different meta for selected rows — re-opens the chevron's slot question and
+this one together, and neither has a second signal left.
 
 ## 4. The +16dp clearance delta — all-trainings' half
 
@@ -310,9 +352,16 @@ drawn at all, not on a label placed on one, and there are **zero** such surfaces
 the drawing follows. Its measurements are why it stays open rather than closing — they are what a future
 rust fill would need.
 
-**Deferred to PR 2 (drawing):** `.fab.del` drops `background:var(--rust)` and keeps only the radius;
-`.gtrash` becomes an archive mark; the selection topbar's trail button takes the same mark. **Note there
-is no archive glyph in the contract to reuse** — the settings "Архив" row carries only a chevron — so PR
+**Applied in this PR (drawing, fill half):** `.fab.del` is now `border-radius:28px` alone — the fill and
+content fall back to `.fab`'s `--max`/`--base`. The fill needed no decision, only the glyph did, so
+carrying it into PR 2 would have left the ledger and the drawing disagreeing for however long PR 2 took.
+**Check 8 moved with it**, and inverted: it asserted the fill *changed* and became `--rust`, which
+encoded the retracted decision and would have made the correction unshippable. It now asserts the fill
+does **not** change and resolves to `--max` — the stronger form, because it catches a regression to rust
+where the old assertion could not. Proven both directions.
+
+**Deferred to PR 2 (drawing, glyph half):** `.gtrash` becomes an archive mark, and the selection topbar's
+trail button takes the same mark. **Note there is no archive glyph in the contract to reuse** — the settings "Архив" row carries only a chevron — so PR
 2 draws one. The code already ships `Icons.Filled.Inventory2` for archive in `feature/archive`, which is
 either the mark to match or the mark to reject deliberately; §0.1 gives the drawing the decision.
 
@@ -337,27 +386,37 @@ Drawn and extracted the same way as the shell-contract stack: drawing, ledger ro
 
 | | What | Ruling |
 |---|---|---|
-| 1 | **D2's drawing half** — `.fab.del` drops `background:var(--rust)` and keeps only `border-radius:28px`; `.gtrash` becomes an archive mark; the selection topbar's trail button takes the same mark | D2 |
+| 1 | **D2's glyph half** — `.gtrash` becomes an archive mark, and the selection topbar's trail button takes the same mark. *(The fill half landed in #198: `.fab.del` is shape only and check 8 was inverted to match.)* | D2 |
 | 2 | **`TagFilterRow`, drawn in `#s-list`** above the list, and a §26 row for it | D1 (a) |
 | 3 | **Filtered-to-empty**, in `#s-empty` | D7 |
 | 4 | **Selection-mode empty**, in `#s-empty` | D7 |
 | 5 | *(nothing)* — D5 closed on its check; no live-row treatment is owed | D5 |
 
-**It opens with item 1.** Until that commit lands, §26 says `--max` and the drawing says `--rust`, and
-§0.1 splits on which wins — the ledger owns tokens, the drawing owns appearance, and a fill is both.
-That window should be one commit long, and the mapping's M23 carries the warning while it is open.
+**There is no longer a window to keep short.** The fill needed no decision, so it was corrected in #198
+rather than carried here: the ledger and the drawing agree today, and check 8 enforces it. What is left
+pending is one undecided mark, and M23 warns about that rather than about a row nobody should build from.
 
 **Three things PR 2 has to decide that this mapping deliberately does not:**
 
 - **The archive mark itself.** There is none in the contract to extract — the settings "Архив" row
-  carries only a chevron. `feature/archive` ships `Icons.Filled.Inventory2` today, so the choice is to
-  match it or to reject it deliberately, and §0.1 gives the drawing the decision.
+  carries only a chevron. `feature/archive` ships `Icons.Filled.Inventory2` today, and **matching it is
+  not the neutral option it looks like.** Measured across the whole drawing: every mark in the shell is
+  `fill:none` with a stroke — `.empty .glyph svg` 1.6, `.icon-btn svg` and `.nb button svg` 1.7, `.chev`
+  and `.mini svg` 1.8, `.mseg svg` 1.9, `.fab svg` 2.1, `.chk` and `.exhead .swap svg` 2.2, `.mark svg`
+  2.7 — and **not one filled mark exists anywhere in it**. Importing a filled Material glyph is the same
+  category of import as the stock M3 shapes the nav-bar rebuild exists to remove. So: drawing a stroke
+  archive mark and correcting `feature/archive` to match is one correction applied where it belongs;
+  matching the existing filled icon is a **deliberate exception and has to be recorded as one**. §0.1
+  gives the drawing the decision either way.
 - **`TagFilterRow`'s treatment.** `.tag` as drawn is 14px / `8px 13px` / radius 10 / `--sec` → `.tag.on`
   `--raise` + `--max` + a `--hair-s` border, and it is **single-select** in the mockup (`pickTag` is a
   radio group) where the code is multi-select. The shipped chip is 11sp caption in a 6dp shell — neither
   the drawn size nor the drawn radius. Whatever is drawn, the multi-select divergence needs recording.
-- **Whether the two new empty states are variants of `.empty` or a different shape.** `#s-empty` draws
-  three empties today and all three are *different screens'*, not variants of one.
+- **What `.empty` is.** The question is not "are the new ones variants" — `#s-empty` draws three empties
+  today and all three belong to *different screens*, so there are no variants yet to be a variant of. The
+  real question is whether `.empty` **becomes a component with variants, or stays a pattern instantiated
+  per screen**, and that answer governs far more than these two states: every screen's empty, and whether
+  `AppEmptyState` grows a variant axis or keeps taking whole strings and actions from its call site.
 
 **What PR 2 is not:** code. No screen work, no kit work, no `Icons.Filled.Delete` change — that rides
 with the code PR, which is the step after.

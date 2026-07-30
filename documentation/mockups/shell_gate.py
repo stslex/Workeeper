@@ -758,21 +758,29 @@ def check_8_fab_morph(rep: Report, p: dict, measured: bool) -> None:
     if b["radius"] == a["radius"]:
         fails.append(f"    radius did not change: {b['radius']} before, {a['radius']} after.\n"
                      "    The morph is a squircle opening into a circle; an unchanged radius is no morph.")
-    if b["bg"] == a["bg"]:
-        fails.append(f"    fill did not change: {b['bg']} before and after")
-    rust = hex_to_rgb_css(p.get("tokens", {}).get("rust", ""))
-    if rust and a["bg"] != rust:
-        fails.append(f"    the morphed fill is {a['bg']}, but --rust resolves to {rust}.\n"
-                     "    The destructive fill must come from the token, not from a literal.")
+    # INVERTED, DELIBERATELY. This asserted that the fill CHANGED and that it became `--rust`,
+    # which encoded the decision §26 "FAB in selection mode" has since retracted: the action is
+    # archive, archive is reversible, and §1 makes `--rust` mark destruction only, so a rust fill
+    # promised irreversibility for a reversible act. The morph is shape and glyph only. A gate that
+    # still demanded the old fill would have made the correction unshippable, so the check moves
+    # with the ledger — and it moves to the *stronger* form, because "the fill must not change" is
+    # the assertion that catches a regression back to rust, which "the fill must change" never could.
+    if b["bg"] != a["bg"]:
+        fails.append(f"    the fill CHANGED: {b['bg']} → {a['bg']}. The morph is shape and glyph only;\n"
+                     "    the fill stays `--max`. A colour change here is the retracted `--rust` fill\n"
+                     "    coming back — see §26 \"FAB in selection mode\".")
+    mx = hex_to_rgb_css(p.get("tokens", {}).get("max", ""))
+    if mx and a["bg"] != mx:
+        fails.append(f"    the morphed fill is {a['bg']}, but --max resolves to {mx}.\n"
+                     "    The FAB keeps its ordinary treatment through the morph, from the token.")
     if not (b["plus"] != "none" and a["plus"] == "none"):
         fails.append(f"    the plus glyph did not go hidden: display {b['plus']} → {a['plus']}")
     if not (b["trash"] == "none" and a["trash"] != "none"):
         fails.append(f"    the trash glyph did not go visible: display {b['trash']} → {a['trash']}")
     rep.add(
         8, "FAB morph fires", not fails,
-        f"radius {b['radius']}→{a['radius']}  fill {b['bg']}→{a['bg']}  "
-        f"glyphs +{b['plus']}→{a['plus']} /trash {b['trash']}→{a['trash']}  "
-        f"(--rust {p.get('tokens', {}).get('rust')})",
+        f"radius {b['radius']}→{a['radius']}  fill {b['bg']} (unchanged, --max)  "
+        f"glyphs +{b['plus']}→{a['plus']} /trash {b['trash']}→{a['trash']}",
         fails,
     )
 
