@@ -12,6 +12,7 @@ All workflow files live under `.github/workflows/`.
 |---|---|---|
 | `android_build_unified.yml` | push to `master`, every `pull_request`, `workflow_dispatch` | detekt, Android Lint, build, unit tests, test reporting. Gates PRs. |
 | `ui_tests.yml` | `workflow_dispatch` only | Optional smoke / regression UI tests on an emulator. Does not gate PRs. |
+| `mockup_gate.yml` | every `pull_request` **except** into `master`, `workflow_dispatch`, `workflow_call` | Runs `documentation/mockups/shell_gate.py` against the v3 shell mockup, plus its permanent known negative. Seconds; no emulator, no JDK, no secrets. |
 | `android_deploy_beta.yml` | `workflow_dispatch` only | Bumps version, generates a Play Store changelog, uploads to the Beta track via Fastlane, tags `beta-v<version>`. |
 | `android_deploy_prod.yml` | `workflow_dispatch` only | Same flow targeting the production track, tags `release-v<version>`. |
 | `github_release_apk.yml` | push of `release-*` tag, `workflow_dispatch` | Builds the store-release APK and creates a GitHub Release with a generated changelog. |
@@ -20,7 +21,8 @@ All workflow files live under `.github/workflows/`.
 | `claude-code-review.yml` | `workflow_dispatch` only | Posts an automated PR review using Claude. |
 
 The `pull_request` event has no branch filter on `android_build_unified.yml`, so the build
-runs for PRs targeting any branch. UI tests have to be triggered manually.
+runs for PRs targeting any branch. `mockup_gate.yml` runs on every PR *except* those targeting
+`master`, and `pr_guard.yml` runs *only* on those. UI tests have to be triggered manually.
 
 ## Build and unit-test workflow
 
@@ -81,6 +83,68 @@ Both actions read the same XML from `**/build/test-results/test*/*.xml` and
 - `detekt-reports` — every `**/build/reports/detekt/` plus `detekt.yml` (kept 30 days).
 - `lint-reports` — `**/build/reports/lint-results-*.{html,xml}` plus `lint.xml` (kept 30 days).
 - PR annotations on lint findings via `yutailang0119/action-android-lint@v4`.
+
+## Mockup appearance gate
+
+`mockup_gate.yml` runs `documentation/mockups/shell_gate.py`, which gates
+`documentation/mockups/pass2d.html` — the appearance contract the eight screens of the v3 arc are
+built from. Nine checks: `:root` unchanged against a baseline unless declared, no undefined
+`var()`, no new hex literal, tags balanced, the section switcher complete, exactly one default
+screen, two **render** checks driven through headless Chromium, and token parity between the
+mockup's `:root` and `AppColors.kt`.
+
+One job, `mockup-gate`, on `ubuntu-latest`, `timeout-minutes: 10`. It needs no keystore, no
+`google-services.json` and no secret of any kind, so it also runs on fork PRs. Five things about
+it are deliberate and are commented at length in the workflow itself:
+
+- **`fetch-depth: 0`.** Checks 1 and 3 read a baseline blob with `git show <base>:<path>`, and the
+  known negative reads two historical commits. Under the default depth-1 clone every one of those
+  dies as `fatal: invalid object name` before a check runs. This is the one setting the job must
+  not copy from `android_build_unified.yml`, which passes only `ref:`.
+- **The baseline is `git merge-base origin/<github.base_ref> HEAD`**, falling back to `dev` outside
+  a pull request. Not `dev` unconditionally: for a stacked PR the base branch is the branch below,
+  and a `dev` baseline pulls the parent PR's own reviewed `:root` change into the diff of the PR
+  being gated. The script's header explains at length why the baseline must never already contain
+  the change under test.
+- **A `:root` change is declared in git, not in the invocation.** The workflow reads an
+  `Allow-root-change: rust, meta, molten` trailer off the commits in the range and passes those
+  names to `--allow-root-change`. A flag hard-coded into the workflow would allow every future
+  change silently. The script still requires the actual diff to match the declared names exactly,
+  in both directions.
+- **The known negative runs every time and must go red.** `--target f52462c7` reproduces a real
+  escape — a nav indicator measuring zero width while six structural checks certified the file.
+  The step asserts exit 1 *and* that check 7 is the failure *and* that it failed at
+  `width=0px→0px`, because checks 6 and 9 also fail at that ref and an exit-code-only assertion
+  would survive check 7 quietly ceasing to discriminate.
+- **The browser is Google Chrome installed from Google's deb, and it is asserted to be the one
+  used.** Every *unpacked* build hangs under the probe's flags and dies on the script's 90s cap —
+  measured on a runner: the image's `/usr/bin/chromium` snapshot, Chrome for Testing 150 and 151,
+  and Chromium snapshot 153 all hang; the deb completes in 1.4s. Packaging is the discriminator,
+  not version. `chrome-headless-shell` completes too but lays the page out differently (pill 113px
+  against 129px everywhere else), so it is not an acceptable substitute for an appearance gate.
+  Because the image's hanging `chromium` is the *first* name the script looks for and the deb lands
+  third, a `$GITHUB_PATH` shadow points `chromium` at the deb — without it the job times out rather
+  than failing quietly. An assertion step fails if the resolved binary is not the installed deb. A
+  missing browser is a FAIL in the script by design; there is no `continue-on-error` and no skip
+  input anywhere in this workflow.
+
+Trigger scope is by **branch, never by path**. PRs into `master` are excluded because `pr_guard.yml`
+already restricts those to `release/release-v.X.Y.Z` roll-ups of commits reviewed on `dev`, and
+because `master` carries no `documentation/mockups/` at all, so the baseline blob cannot be read. A
+paths filter is separately wrong: check 9 reads `AppColors.kt` as well as the mockup, and the drift
+it was written for came from the palette moving in Kotlin while the drawing stayed still.
+
+To reproduce a CI result locally:
+
+```bash
+# PR_BASE is the branch the PR targets — the branch below you if the PR is stacked, not `dev`.
+PR_BASE=dev
+python3 documentation/mockups/shell_gate.py --base "$(git merge-base "origin/$PR_BASE" HEAD)" -v
+python3 documentation/mockups/shell_gate.py --target f52462c7   # must exit 1
+```
+
+Whether `Mockup Appearance Gate` is required to merge is a branch-protection setting, not a
+property of the workflow.
 
 ## UI test workflow
 
