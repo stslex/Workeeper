@@ -257,10 +257,10 @@ private fun LazyListScope.pagingTail(
  * §26 "Add action": `16 + 56 + 16` = **88**. FAB clearance and nothing else — the navigation bar's
  * inset is the host's, globally, together with the system inset the mockup cannot draw.
  *
- * Named rather than inlined because **a golden cannot see it.** `contentPadding.bottom` moves no
- * pixel in a single non-scrolled frame, so the visual gate is blind to it — proven, not assumed:
- * reverting it to the old 72 left all 28 goldens byte-identical. `AllTrainingsClearanceTest` is the
- * gate instead, and it exists because that mutation went uncaught.
+ * Named rather than inlined because **no golden can see it.** `contentPadding.bottom` moves no pixel
+ * in an unscrolled frame, and Paparazzi renders one frame of an unscrolled list, so the visual gate
+ * is blind to this value however many goldens the suite grows to. `AllTrainingsClearanceTest` is the
+ * gate instead. §27 carries the measurement that established it.
  */
 internal val LIST_BOTTOM_CLEARANCE: Dp =
     AppDimension.screenEdge + AppDimension.heightLg + AppDimension.screenEdge

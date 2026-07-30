@@ -14,10 +14,13 @@ import kotlin.test.assertEquals
  * screen as the only code edit that gate found: `heightLg + screenEdge` = 72 omitted the leading 16,
  * the gap between the last row and the top of the button.
  *
- * It gets a unit test because `contentPadding.bottom` is **invisible in a single frame**: it moves
- * no pixel unless the list is scrolled to its end, and Paparazzi renders one frame of an unscrolled
- * list. That was proven rather than assumed — reverting the value to 72 left all 28 goldens
- * byte-identical, so the visual gate was blind to the one number §24 carried.
+ * It gets a unit test because `contentPadding.bottom` is **invisible in a single frame**: it moves no
+ * pixel unless the list is scrolled to its end, and Paparazzi renders one frame of an unscrolled
+ * list. No golden can see this value, so no number of goldens closes the hole — the assertion has to
+ * be on the value itself. §27 ("a golden image gates only what a single static frame contains")
+ * carries the measurement that established it, and names the rest of the class: scroll behaviour,
+ * the paging footer's appearance, and motion, where a golden pair pins the endpoints and says
+ * nothing about the transit.
  */
 internal class AllTrainingsClearanceTest {
 
