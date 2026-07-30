@@ -4,13 +4,10 @@
     <string name="feature_all_trainings_empty_headline">Your trainings will appear here</string>
     <string name="feature_all_trainings_empty_supporting">Build a template in advance, or start an empty one and add exercises as you go.</string>
     <string name="feature_all_trainings_fab_create">Create training</string>
-    <string name="feature_all_trainings_chevron_description">Open training</string>
 
     <string name="feature_all_trainings_status_in_progress_format">in progress · started %1$s ago</string>
     <string name="feature_all_trainings_status_last_format">last: %1$s</string>
     <string name="feature_all_trainings_status_never">never trained</string>
-    <string name="feature_all_trainings_active_pill">Active</string>
-    <string name="feature_all_trainings_overflow_format">+%1$d</string>
 
     <string name="feature_all_trainings_relative_just_now">just now</string>
     <string name="feature_all_trainings_relative_minutes_format">%1$dm</string>
