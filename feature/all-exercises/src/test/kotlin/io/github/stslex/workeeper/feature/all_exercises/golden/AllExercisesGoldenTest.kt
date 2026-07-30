@@ -50,6 +50,10 @@ import org.junit.jupiter.params.provider.EnumSource
  * bulk-archive confirm dialog's content, the blocked-archive dialog's content, the empty state and
  * three whole-screen pictures — each in both themes.
  *
+ * The third whole-screen picture is [screenNoRows], and it is **not** the empty state on a screen:
+ * it is a blank screen, which is what this surface actually draws when the list is empty. See its
+ * own KDoc. The empty state's coverage is the component golden.
+ *
  * `AppBlockedArchiveDialogContent` became photographable *because* this commit split it out of
  * `Dialog {}`'s window, the same split `AppConfirmDialogContent` already had. It is the only surface
  * that reports a partially blocked bulk archive, and it had a drawn treatment and no visual gate at
@@ -316,9 +320,23 @@ internal class AllExercisesGoldenTest {
         )
     }
 
+    /**
+     * The screen with an empty paging source — **and it is blank.** Not the empty state: the top
+     * bar, the tag band and the FAB over nothing at all.
+     *
+     * Named for what it photographs rather than for what it was meant to. `isEmptyAndIdle()`
+     * requires `refresh`, `append` **and** `prepend` to be `NotLoading`, and in the one frame
+     * Paparazzi renders, `refresh` has not settled — so the list has no rows and the empty state is
+     * suppressed, which is the exact predicate and the exact outcome **B22** describes for a cold
+     * open on device. This picture is consistent with B22 rather than proof of it (a single
+     * unadvanced frame is its own explanation), but it is the shape, and it is worth having on
+     * record: the previous name asserted coverage of a component that is not in the image.
+     *
+     * The empty state's own coverage is [emptyState], which renders the component directly.
+     */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
-    fun screenEmpty(theme: GoldenTheme, testInfo: TestInfo) = golden(testInfo, theme) {
+    fun screenNoRows(theme: GoldenTheme, testInfo: TestInfo) = golden(testInfo, theme) {
         AllExercisesScreen(state = state(emptyList()), consume = {})
     }
 }

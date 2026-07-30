@@ -46,6 +46,14 @@ import org.junit.jupiter.params.provider.EnumSource
  * each in both themes. (This sentence said "five" and enumerated five while the suite rendered
  * seven; an inventory that undercounts its own suite is how a golden goes missing unnoticed.)
  *
+ * **One correction to that sentence, found while goldening the sibling screen:** [screenEmpty] does
+ * not photograph the empty state. It photographs a **blank** screen — top bar, tag band, FAB, and
+ * nothing between them — because `isEmptyAndIdle()` wants `refresh`, `append` and `prepend` all
+ * `NotLoading` and `refresh` has not settled in the one frame Paparazzi renders. That is the exact
+ * predicate and outcome **B22** describes for a cold open. The empty state's own coverage is
+ * [emptyState], which renders the component directly; the name here is left alone rather than
+ * churned under a device pass, but the claim above is corrected.
+ *
  * Two of those became photographable *because* this commit split them: `AppConfirmDialogContent`
  * out of `AppConfirmDialog`'s window, and the two paging footers out of the screen's
  * `LazyListScope` block. `Dialog {}` composes into its own window and Paparazzi models a single
