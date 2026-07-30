@@ -1,0 +1,102 @@
+name: zz browser probe (temporary, delete me)
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: Which browser can render the probe
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - id: cft_stable
+        uses: browser-actions/setup-chrome@v2
+        with:
+          chrome-version: stable
+
+      - id: cft_150
+        continue-on-error: true
+        uses: browser-actions/setup-chrome@v2
+        with:
+          chrome-version: '150'
+
+      - id: snapshot
+        continue-on-error: true
+        uses: browser-actions/setup-chrome@v2
+        with:
+          chrome-version: latest
+
+      - name: Fetch chrome-headless-shell (old-headless binary)
+        continue-on-error: true
+        run: |
+          V=$(curl -fsSL https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions.json | python3 -c 'import json,sys; print(json.load(sys.stdin)["channels"]["Stable"]["version"])')
+          echo "chrome-headless-shell version $V"
+          curl -fsSL -o /tmp/chs.zip "https://storage.googleapis.com/chrome-for-testing-public/$V/linux64/chrome-headless-shell-linux64.zip"
+          unzip -q -o /tmp/chs.zip -d /tmp/chs
+          find /tmp/chs -name 'chrome-headless-shell' -type f | head -1
+
+      - name: Probe every candidate with the gate's own machinery
+        env:
+          CFT_STABLE: ${{ steps.cft_stable.outputs.chrome-path }}
+          CFT_150: ${{ steps.cft_150.outputs.chrome-path }}
+          SNAPSHOT: ${{ steps.snapshot.outputs.chrome-path }}
+        run: |
+          python3 - <<'PY'
+          import importlib.util, os, subprocess, time, glob
+
+          spec = importlib.util.spec_from_file_location("sg", "documentation/mockups/shell_gate.py")
+          sg = importlib.util.module_from_spec(spec); spec.loader.exec_module(sg)
+          sg.PROBE_TIMEOUT_S = 45          # diagnostic only; the gate's own value is 90
+
+          root = sg.repo_root()
+          src = sg.read_target(root, None, sg.MOCKUP)
+
+          chs = glob.glob('/tmp/chs/**/chrome-headless-shell', recursive=True)
+          cands = [
+              ("image /usr/bin/chromium",      "/usr/bin/chromium"),
+              ("image /usr/bin/google-chrome", "/usr/bin/google-chrome"),
+              ("CfT stable",                   os.environ.get("CFT_STABLE", "")),
+              ("CfT 150",                      os.environ.get("CFT_150", "")),
+              ("snapshot latest",              os.environ.get("SNAPSHOT", "")),
+              ("chrome-headless-shell",        chs[0] if chs else ""),
+          ]
+
+          print(f"{'candidate':30} {'result':6} {'secs':>6}  detail")
+          print("-" * 110)
+          for name, path in cands:
+              if not path or not os.path.exists(path):
+                  print(f"{name:30} {'ABSENT':6} {'-':>6}  {path or '(no path)'}")
+                  continue
+              try:
+                  ver = subprocess.run([path, "--version"], capture_output=True, text=True,
+                                       timeout=30).stdout.strip()
+              except Exception as e:
+                  ver = f"(--version failed: {e})"
+              t0 = time.time()
+              try:
+                  p = sg.run_probe(src, path, False)
+                  dt = time.time() - t0
+                  pill = p.get("pill", {})
+                  print(f"{name:30} {'OK':6} {dt:6.1f}  stage={p.get('stage')} "
+                        f"w1={pill.get('w1')} x1={pill.get('x1')} x2={pill.get('x2')} | {ver}")
+              except SystemExit as e:
+                  dt = time.time() - t0
+                  first = str(e).splitlines()[0]
+                  print(f"{name:30} {'HANG/F':6} {dt:6.1f}  {first} | {ver}")
+              print(f"{'':30} path: {path}")
+          PY
