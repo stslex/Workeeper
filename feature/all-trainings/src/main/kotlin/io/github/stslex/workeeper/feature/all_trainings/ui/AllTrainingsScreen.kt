@@ -39,9 +39,11 @@ import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsSt
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.State.SelectionMode
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.PagingErrorFooter
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.PagingLoadingFooter
+import io.github.stslex.workeeper.feature.all_trainings.ui.components.PagingTailKind
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.TagFilterRow
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.TrainingRow
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.TrainingsEmptyState
+import io.github.stslex.workeeper.feature.all_trainings.ui.components.pagingTailKind
 
 @Composable
 internal fun AllTrainingsScreen(
@@ -240,16 +242,18 @@ private fun LazyPagingItems<*>.isEmptyAndIdle(): Boolean =
  *
  * None of this existed before: `loadState.append` was never read, so a failed page was a list that
  * quietly stopped.
+ *
+ * The **decision** lives in `pagingTailKind` rather than here, because no golden can see it — the
+ * hole was measured on the sibling screen, where deleting the error case moved no pixel anywhere.
  */
 private fun LazyListScope.pagingTail(
     items: LazyPagingItems<TrainingListItemUi>,
     onRetry: () -> Unit,
 ) {
-    when (items.loadState.append) {
-        is LoadState.Loading -> item(key = "paging_loading") { PagingLoadingFooter() }
-        is LoadState.Error -> item(key = "paging_error") { PagingErrorFooter(onRetry = onRetry) }
-        // Exhausted, and everything else: no footer. Drawn as an absence, built as one.
-        else -> Unit
+    when (pagingTailKind(items.loadState.append)) {
+        PagingTailKind.LOADING -> item(key = "paging_loading") { PagingLoadingFooter() }
+        PagingTailKind.ERROR -> item(key = "paging_error") { PagingErrorFooter(onRetry = onRetry) }
+        PagingTailKind.NONE -> Unit
     }
 }
 
