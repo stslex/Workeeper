@@ -88,7 +88,7 @@ built) · **CONFLICT** (see §3).
 | M21 | Bulk action bar | `.bulk`, markup `#s-list`'s `.bulk` | **— (drawn, unreconciled)** | `--sec` fill, top hairline, `12px 20px`, two 46px buttons radius 16 (`В архив` ghost + `Готово`) | absent (deleted in v2.4: "`BulkActionBar.kt` is deleted. Bulk actions exposed via FAB transform only.") | **UNBUILT + unreconciled** — see D2 |
 | **FAB** |
 | M22 | FAB, resting | `.fab` | §26 "Add action" / "FAB in selection mode" | 56×56, **radius 18**, `--max` fill / `--base` glyph, `box-shadow:var(--slabtop)`, glyph 24px stroke 2.1 | 56dp, `shapes.medium` **10dp**, no lift | **DELTA** (radius, lift) |
-| M23 | FAB, selection morph | `.fab.del` | **§26 "FAB in selection mode"** — ⚠ **KNOWN-WRONG, PENDING D2. Do not build from this row.** Its `--rust` fill and its "destructive" wording are under an amendment proposal (§7): the action is archive, and archive is not destruction. The row stands until Ilya rules; a row known to be false and left silent is one somebody builds from | **Icon only.** Squircle **18 → circle 28**, fill `--rust`, glyph `--base`, transition `border-radius 260ms --e-spring` + background/color `260ms --e-out`; glyph swap is a **hard cut** (`display`), not a crossfade. **No count** | colour swap only (`status.error` = `--rust` ✓), `Add`→`Delete`, no shape morph | **DELTA** — colours match, the morph does not exist |
+| M23 | FAB, selection morph | `.fab.del` | **§26 "FAB in selection mode"** — ⚠ **the LEDGER is now correct and the DRAWING is the stale side.** D2 is ruled: the morph keeps the FAB's ordinary treatment (`--max` fill, `--base` content) and changes shape and glyph only; the glyph is archive, not trash. The ledger says so; `.fab.del` still draws `background:var(--rust)` and `.gtrash`, and so does the selection topbar's trail button. **Do not extract the fill or the glyph from the drawing until PR 2 lands them** | 56×56, `shapes.medium` 10dp, no lift; `Icons.Filled.Delete`; `status.error` fill | **DELTA**, and the drawing is pending §7 |
 | **Paging tails** |
 | M24 | Loading footer | `.pfoot` + `.spin`, markup `#s-list`'s loading-tail frame | §26 "Paging tails" | Centred spinner (15px, 1.6px `--hair-s` ring, `--meta` top arc, 760ms linear) + **`Загружаю`**, mono 11px uppercase `.12em`, `--dim`; **no top border** | nothing — `loadState.append` is never read | **UNBUILT** |
 | M25 | Exhausted | *deliberately not drawn* `#s-list`'s paging navnote | §26 "Paging tails" | **No footer at all** — "end of list states only what is already visible" | nothing | **MATCH** (by absence) |
@@ -269,21 +269,22 @@ here, that is a real finding about the change, not noise.
 
 | # | Decision | Why it blocks |
 |---|---|---|
-| **D1** | **G1 — `TagFilterRow`** | It is on screen, it has no referent, and §26 "Meta-line order" depends on it existing. Proposal in §2 |
-| **D2** | **Three archive affordances are drawn for one mode — and all three say *delete*** (chain and proposed §26 amendment: **§7**) | `#s-list` draws the topbar trash (`#s-list`'s selection frame `.topbar`), the `.bulk` bar (`#s-list`'s `.bulk`) **and** the morphing FAB (`#s-list`'s FAB-morph frame), and no single frame draws them together. §26 "FAB in selection mode" reconciles only the FAB; v2.4 deleted `BulkActionBar`. Which of the three ships is the decision — and the survivor **must say archive, in glyph and in string**, because the action is archive and archive is reversible. Verified rather than assumed from the name: `pendingBulkDelete` is a misnomer — the confirm path calls `interactor.archiveTrainings` returning `BulkArchiveResult`, the strings already read "Archive" / "will move to archive. Restore from Settings → Archive" / "Reversible · history preserved", and `deleteTrainings` is dead on this screen. **The two screens do not diverge** — `all-exercises` also archives (`bulkArchive` → `BulkArchiveResult`) and also draws `Icons.Filled.Delete`, so this needs no divergence row, just one correction applied twice. The drawing is the origin of the error, not the code: `.gtrash` and the topbar trash are both the deletion glyph (`M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13`) and §26 "FAB in selection mode" says "morphs to **destructive**" |
-| **D3** | **`--hair-s` has no app token** and it is what the 88dp row is ruled with | Every drawn hairline on this screen (row rule, footers, dashed borders) resolves to a token that deliberately does not exist. `borderSubtle` is the nearest, and it is `--hair`, a different value. **The parity exception has now expired and `shell_gate.py` says so** — it was excused partly on `AppColors.kt`'s clause that "borderSubtle covers every decorative stroke in the app", and the v3 row rule is a decorative stroke it does not cover. A named exception is valid only while its reason holds. The palette decision itself belongs in its own small PR; the `AppColors.kt` KDoc clause is the text that should change with it |
-| **D4** | **Empty-state CTAs** | Two drawn actions, zero built, no §26 row, and the extraction's §4.8 covers only the chart variant (citing a `§19` that does not exist). The brief treats them as contract — confirming that here makes it a ledger row rather than a reading |
-| **D5** | **Live-row treatment has no ledger row** | `.row.live` is drawing-only. It is byte-identical to `.row.sel`, so a selected *and* active row is indistinguishable from either. Worth a §26 row before it is built |
+| ~~D1~~ | **RULED — take (a): draw it.** `TagFilterRow` gets drawn in `#s-list` and extracted like everything else. It is the only resolution that leaves the contract able to answer the next question asked of it | → PR 2 (§8) |
+| ~~D2~~ | **RULED — chain accepted as verified (§7).** The morph keeps `--max` fill and `--base` content; shape and glyph change only; the glyph is archive, not trash, and the same correction applies to the selection topbar's trash and to `Icons.Filled.Delete` on both screens — one correction applied twice, no divergence, no ledger row owed for it. **Ledger applied in this PR**; the drawing and the code follow in PR 2 and the code PR | ledger done; drawing → PR 2 |
+| ~~D3~~ | **RULED — its own palette PR, not this one.** The parity exception's expiry is recorded where the exception lives; the `AppColors.kt` KDoc clause is the text that changes with the decision | → palette PR |
+| ~~D4~~ | **RULED — confirmed as contract, and §26 now carries the row.** The glyph, the headline, the sentence and **both** CTAs are contract. The new row also records the coupling the Bottom navigation row already leans on: the empty-state mark and the nav bar's trainings icon are one path, so changing either changes both. Placement stays delegated per §13 | ledger done |
+| ~~D5~~ | **CLOSED on the check, without a new treatment.** The collision is narrower than "indistinguishable": only the **surface** collides, and only for the live-and-selected row. The drawn live row's second signal is its meta — «идёт сейчас · 12:04» — and the meta is content that survives selection mode on both sides: the drawn selection frame's rows keep their metas, and `TrainingRow` renders name, tags and status with no selection branch. No live+selected row is drawn anywhere, so the collision was never drawn either way. Nothing to draw in PR 2. **Two things worth keeping**: the surviving signal is the meta line, not the surface, so anything that later suppresses meta in selection mode re-opens this; and the code reached independently for a *different* second signal — it keeps the active accent ring under selection, with a comment saying exactly why — which is itself a DELTA (M14), because the drawn live row has no border | closed |
 | ~~D6~~ | **Fixed in this PR — it was not cosmetic** | `#s-list``#s-list`'s bottom-clearance frame and the `.clash` demo both drew `.nb plain pill`, the untracked variant the device pass rejected, while `#s-nav``#s-nav`'s `.nb.track.slide` and §26 "Bottom navigation" make the track normative: **the contract drew two different nav bars**, which is the principle that removed variant B, one level up. Both are now `.nb track pill`, and **check 10** makes the class visible — every other check reads the drawing against a baseline or against `AppColors.kt`; this one reads it against **itself**. Proven both directions |
-| **D7** | **Selection-mode empty state / filtered-empty** (G8, G9) | Both reachable, neither drawn |
-| **D8** | **`.chev` is drawn with two different paths** | `M9 5l7 7-7 7` in the shell rows, `M9 6l6 6-6 6` in `#s-past` (`#s-past`'s rows, `#s-past`'s rows) — one class, two geometries, the same class of self-contradiction D6 was. Check 10 is deliberately narrow and does **not** cover it: the general form ("no class is drawn with two different geometries") would fail on this today, and widening it is a decision about `#s-past`'s drawing, not this screen's. Reported rather than enforced, so that widening the check is an explicit choice |
+| ~~D7~~ | **RULED — both need drawing.** Filtered-to-empty and selection-mode-empty are reachable and neither is drawn | → PR 2 (§8) |
+| **D8** | **`.chev` is drawn with two different paths** — stays **reported**, not enforced | `M9 5l7 7-7 7` in the shell rows, `M9 6l6 6-6 6` in `#s-past`. One class, two geometries — D6's class. Check 10 is deliberately narrow and does not cover it; widening it is a decision about `#s-past`'s drawing | open, reported |
 
 ---
 
-## 7. D2 — proposed §26 amendment: the morph keeps the ordinary FAB treatment
+## 7. D2 — RULED: the morph keeps the ordinary FAB treatment
 
-**Not applied.** §26 "FAB in selection mode" stands as written until Ilya rules. This is the chain on
-paper, each link checked rather than accepted.
+**Ruled, and the chain was accepted as verified.** The ledger is amended in this PR; the drawing and the
+code follow (§8). The chain is kept below because it is the reasoning the amendment rests on, and a
+ledger row whose reasoning lives only in a merged PR body is the decay this arc keeps finding.
 
 | # | Link | Verdict |
 |---|---|---|
@@ -294,20 +295,82 @@ paper, each link checked rather than accepted.
 | 5 | **The second ground stands and is colour-independent** — the selection topbar already states the count | **confirmed.** Verbatim in the row. The rejection now rests on one argument where it rested on two, and the row does not say so |
 | 6 | **B18 loses its candidate** | **confirmed, and slightly stronger than stated.** B18 is already latent with no current consumer — its own text: "nothing draws text on a rust fill today — the only candidate was the count this arc just rejected". Verified that claim rather than trusting it: `AppButton.Destructive` fills with `setType.failureBackground` = `*_RUST_WASH`, not solid rust, so nothing paints content on a rust fill. And `.fab.del` is the **only solid `--rust` fill in the drawing** (the other three uses are rust as text, as a dashed border, and as the `.clash` frame border). Drop it and the shell has no rust fill at all, so B18's wake condition — "any label placed on a rust fill" — has no candidate surface left anywhere in the shell, not merely no count |
 
-**The proposal.** The morph keeps the ordinary FAB treatment — `--max` fill, `--base` content — and
-changes **shape and glyph only**. The shape morph was always what announced the mode change; the
-colour was carrying a claim the action does not support. The glyph becomes archive, not trash.
+**The ruling.** The morph keeps the ordinary FAB treatment — `--max` fill, `--base` content — and
+changes **shape and glyph only**. The shape morph was always what announced the mode change; the colour
+was carrying a claim the action does not support. The glyph becomes archive, not trash.
 
-**What that touches, if ruled in:** §26 "FAB in selection mode" (fill, and the word "destructive");
-`.fab.del`'s `background` in the drawing, and the `.gtrash` glyph; the selection topbar's trash glyph,
-which is the same path and the same promise; `Icons.Filled.Delete` on both `all-trainings` and
-`all-exercises`; and the count rejection's remaining single ground, which should either say it now
-rests on one argument or be re-decided. B18 would be restated as having lost its candidate.
+**Applied in this PR (ledger):** §26 "FAB in selection mode" is rewritten — the opening word is gone,
+because "morphs to destructive" is the origin of the error and must not survive the fix it caused; the
+fill and content are stated as the FAB's ordinary treatment; the glyph is archive; and the count
+rejection **keeps both grounds**, with the surviving one restated as stronger than when it was written —
+a count before an irreversible act is arguable redundancy, before a reversible one it is plainly
+unnecessary. A row that recorded only the loss would read as a weakened decision. B18 stays **latent**
+and its wake condition is restated on the wider finding: it wakes on any solid `--rust` **fill** being
+drawn at all, not on a label placed on one, and there are **zero** such surfaces in the contract once
+the drawing follows. Its measurements are why it stays open rather than closing — they are what a future
+rust fill would need.
+
+**Deferred to PR 2 (drawing):** `.fab.del` drops `background:var(--rust)` and keeps only the radius;
+`.gtrash` becomes an archive mark; the selection topbar's trail button takes the same mark. **Note there
+is no archive glyph in the contract to reuse** — the settings "Архив" row carries only a chevron — so PR
+2 draws one. The code already ships `Icons.Filled.Inventory2` for archive in `feature/archive`, which is
+either the mark to match or the mark to reject deliberately; §0.1 gives the drawing the decision.
+
+**Deferred to the code PR:** `Icons.Filled.Delete` → the archive mark on `all-trainings` **and**
+`all-exercises`. One correction applied twice; the screens do not diverge and no ledger row is owed.
 
 **What it does not touch:** the shape morph itself (squircle 18 → circle 28, spring legal — it encodes
 nothing), the icon-only decision, and the topbar-replaced-whole rule.
 
-## 8. Scope, restated
+## 8. What the rulings imply: the next step is not code
+
+This is the mapping's own result, and it is what the screen was sent first to discover. **Three of the
+regions all-trainings must draw have no referent, and two more are stale in the drawing.** Building the
+screen now means inventing exactly the regions the contract cannot answer — which is derivation, the
+thing this arc replaced.
+
+So the order is: **a second, small mockup PR, then the code.**
+
+### PR 2 — the shell answers the questions this screen asked
+
+Drawn and extracted the same way as the shell-contract stack: drawing, ledger row, mapping row, gate.
+
+| | What | Ruling |
+|---|---|---|
+| 1 | **D2's drawing half** — `.fab.del` drops `background:var(--rust)` and keeps only `border-radius:28px`; `.gtrash` becomes an archive mark; the selection topbar's trail button takes the same mark | D2 |
+| 2 | **`TagFilterRow`, drawn in `#s-list`** above the list, and a §26 row for it | D1 (a) |
+| 3 | **Filtered-to-empty**, in `#s-empty` | D7 |
+| 4 | **Selection-mode empty**, in `#s-empty` | D7 |
+| 5 | *(nothing)* — D5 closed on its check; no live-row treatment is owed | D5 |
+
+**It opens with item 1.** Until that commit lands, §26 says `--max` and the drawing says `--rust`, and
+§0.1 splits on which wins — the ledger owns tokens, the drawing owns appearance, and a fill is both.
+That window should be one commit long, and the mapping's M23 carries the warning while it is open.
+
+**Three things PR 2 has to decide that this mapping deliberately does not:**
+
+- **The archive mark itself.** There is none in the contract to extract — the settings "Архив" row
+  carries only a chevron. `feature/archive` ships `Icons.Filled.Inventory2` today, so the choice is to
+  match it or to reject it deliberately, and §0.1 gives the drawing the decision.
+- **`TagFilterRow`'s treatment.** `.tag` as drawn is 14px / `8px 13px` / radius 10 / `--sec` → `.tag.on`
+  `--raise` + `--max` + a `--hair-s` border, and it is **single-select** in the mockup (`pickTag` is a
+  radio group) where the code is multi-select. The shipped chip is 11sp caption in a 6dp shell — neither
+  the drawn size nor the drawn radius. Whatever is drawn, the multi-select divergence needs recording.
+- **Whether the two new empty states are variants of `.empty` or a different shape.** `#s-empty` draws
+  three empties today and all three are *different screens'*, not variants of one.
+
+**What PR 2 is not:** code. No screen work, no kit work, no `Icons.Filled.Delete` change — that rides
+with the code PR, which is the step after.
+
+### Then the code PR
+
+All-trainings against a contract that answers, with the deltas this mapping already enumerates: the
+88dp ruled row, the two-line clamp, the single meta line, the fixed trailing slot, the selection
+treatment and its check glyph, the FAB's shape morph and archive glyph, all three paging tails, the
+empty state's strings and both CTAs, the four haptics, and the +16dp clearance. Plus
+`Icons.Filled.Delete` → the archive mark on **both** screens.
+
+## 9. Scope, restated
 
 **In:** `feature/all-trainings` and its own consumers of the kit. The +16dp clearance (§4).
 
