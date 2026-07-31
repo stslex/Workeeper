@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -32,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
+import io.github.stslex.workeeper.core.ui.kit.components.rememberIndicatorGel
 import io.github.stslex.workeeper.core.ui.kit.components.rememberPressScale
 import io.github.stslex.workeeper.core.ui.kit.components.surface.liftedSurface
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -83,13 +85,37 @@ internal fun MetricTabs(
             label = "tabs-ind",
         )
 
+        // GEL, restored — §26's `.tabs` row is under test here, not being overruled by taste.
+        // That row withheld the stretch because this indicator "animates `left` AND `width`", and
+        // that premise measured FALSE on device: the thumb is 318px in every frame of a two-step
+        // jump, because `tabWidth` divides the track into three equal stops. So the restriction
+        // the row derives — gel is for indicators that move at constant size — does not exclude
+        // this one, it includes it.
+        //
+        // Offset and scale on DIFFERENT elements, as on the pill: one `transform` cannot carry
+        // both, and the drawing says the same (`.ind` transforms, `.ind i` animates).
+        val gel = rememberIndicatorGel(
+            selectedIndex = selectedIndex,
+            itemPitch = tabWidth + TRACK_GAP,
+            trackWidth = maxWidth + TRACK_PADDING * 2,
+            travelMillis = AppUi.motion.base,
+        )
         Box(
             modifier = Modifier
                 .offset { IntOffset(indicatorOffset.roundToPx(), 0) }
                 .width(tabWidth)
-                .height(TAB_HEIGHT)
-                .liftedSurface(shape = thumbInternalShape),
-        )
+                .height(TAB_HEIGHT),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        scaleX = gel.scale.value
+                        transformOrigin = gel.origin
+                    }
+                    .liftedSurface(shape = thumbInternalShape),
+            )
+        }
 
         Row(horizontalArrangement = Arrangement.spacedBy(TRACK_GAP)) {
             entries.forEach { metric ->

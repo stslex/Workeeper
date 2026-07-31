@@ -41,6 +41,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
+import io.github.stslex.workeeper.core.ui.kit.components.INDICATOR_STRETCH
 import io.github.stslex.workeeper.core.ui.kit.components.rememberPressScale
 import io.github.stslex.workeeper.core.ui.kit.components.surface.liftedSurface
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
@@ -318,7 +319,7 @@ internal fun <T> navPillOffsetSpec(motion: AppMotion): TweenSpec<T> = tween(
 internal fun navPillStretchPeak(travel: Dp, barWidth: Dp): Float {
     if (barWidth.value <= 0f) return 1f
     val k = min(abs(travel.value) / barWidth.value, 1f)
-    return 1f + NAV_PILL_STRETCH * k
+    return 1f + INDICATOR_STRETCH * k
 }
 
 /** `.nb{padding:5px 8px}` — the 8px half. */
@@ -351,7 +352,7 @@ internal const val NAV_ITEM_TINT_DURATION: Int = NAV_PILL_TRAVEL
 internal const val NAV_PILL_STRETCH_PEAK_MS: Int = 143
 
 /** `--sx:(1+0.30*k)` — the stretch coefficient in `nbPick()`. */
-internal const val NAV_PILL_STRETCH: Float = 0.30f
+internal const val NAV_PILL_STRETCH: Float = INDICATOR_STRETCH
 
 /** `transform-origin:… 50%` — the stretch is horizontal, so the vertical origin never moves. */
 private const val ORIGIN_VERTICAL_CENTRE = 0.5f

@@ -125,6 +125,14 @@ predicted" into a KDoc is the reflex this rule exists to interrupt.
   proves a section exists, not that it contains what you need. Half of the 55 cited paragraphs in
   the first pass cited a *rule* while the working lived only in the comment (§27, "Claims").
 
+**A performance number states its build type, or it is not a number.** Every gate here runs on
+`debug`, so that is what an unqualified measurement is about. Debug skips R8, keeps
+`debuggable=true` and takes Compose's debug path. Measured on one emulator, identical seeded data,
+one instrument: the cold nav transition costs **3.4 frames of lag on debug against 1.8 on release**,
+while warm repeats are indistinguishable (1.7 vs 1.8). A whole diagnosis was built on debug numbers
+before anyone asked which build was under the instrument. **Claims about shipping behaviour are
+established on `:app:dev:installRelease`, not on `installDebug`.**
+
 **Density is the wrong instrument; the marginal rate is the right one.** Comment:code across
 `core/ui` + `app/app` is **0.35:1**, and it barely moves no matter what a single branch does. What
 this arc *added* opened at **1.8:1** — 502 comment lines on 281 code lines, five times the tree it
