@@ -8,7 +8,7 @@ import io.github.stslex.workeeper.feature.home.R
 import io.github.stslex.workeeper.feature.home.domain.model.RecentSessionDomain
 import io.github.stslex.workeeper.feature.home.domain.model.TrainingListItemDomain
 import io.github.stslex.workeeper.feature.home.mvi.mapper.HomeUiMapper.toPickerItems
-import io.github.stslex.workeeper.feature.home.mvi.mapper.HomeUiMapper.toRecentItems
+import io.github.stslex.workeeper.feature.home.mvi.mapper.HomeUiMapper.toRecentItem
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
@@ -53,18 +53,16 @@ internal class HomeUiMapperTest {
     fun `recent mapper uses adhoc label and pluralized stats`() {
         val nowMillis = 10 * DateUtils.MINUTE_IN_MILLIS
 
-        val item = listOf(
-            RecentSessionDomain(
-                sessionUuid = "session-1",
-                trainingUuid = "training-1",
-                trainingName = "Ignored for adhoc",
-                isAdhoc = true,
-                startedAt = 0L,
-                finishedAt = 5 * DateUtils.MINUTE_IN_MILLIS,
-                exerciseCount = 1,
-                setCount = 2,
-            ),
-        ).toRecentItems(nowMillis = nowMillis, resourceWrapper = resources).single()
+        val item = RecentSessionDomain(
+            sessionUuid = "session-1",
+            trainingUuid = "training-1",
+            trainingName = "Ignored for adhoc",
+            isAdhoc = true,
+            startedAt = 0L,
+            finishedAt = 5 * DateUtils.MINUTE_IN_MILLIS,
+            exerciseCount = 1,
+            setCount = 2,
+        ).toRecentItem(nowMillis = nowMillis, resourceWrapper = resources)
 
         assertEquals("Ad-hoc workout", item.trainingName)
         assertEquals(
@@ -84,18 +82,16 @@ internal class HomeUiMapperTest {
     fun `recent mapper preserves template name and mixed count labels`() {
         val nowMillis = 20 * DateUtils.MINUTE_IN_MILLIS
 
-        val item = listOf(
-            RecentSessionDomain(
-                sessionUuid = "session-2",
-                trainingUuid = "training-2",
-                trainingName = "Push Day",
-                isAdhoc = false,
-                startedAt = 2 * DateUtils.MINUTE_IN_MILLIS,
-                finishedAt = 17 * DateUtils.MINUTE_IN_MILLIS,
-                exerciseCount = 3,
-                setCount = 1,
-            ),
-        ).toRecentItems(nowMillis = nowMillis, resourceWrapper = resources).single()
+        val item = RecentSessionDomain(
+            sessionUuid = "session-2",
+            trainingUuid = "training-2",
+            trainingName = "Push Day",
+            isAdhoc = false,
+            startedAt = 2 * DateUtils.MINUTE_IN_MILLIS,
+            finishedAt = 17 * DateUtils.MINUTE_IN_MILLIS,
+            exerciseCount = 3,
+            setCount = 1,
+        ).toRecentItem(nowMillis = nowMillis, resourceWrapper = resources)
 
         assertEquals("Push Day", item.trainingName)
         assertEquals(formatElapsedDuration(15 * DateUtils.MINUTE_IN_MILLIS), item.durationLabel)

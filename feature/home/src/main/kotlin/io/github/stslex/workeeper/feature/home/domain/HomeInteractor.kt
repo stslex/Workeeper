@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.home.domain
 
+import androidx.paging.PagingData
 import io.github.stslex.workeeper.feature.home.domain.model.ActiveSessionWithStatsDomain
 import io.github.stslex.workeeper.feature.home.domain.model.RecentSessionDomain
 import io.github.stslex.workeeper.feature.home.domain.model.StartSessionConflict
@@ -11,7 +12,14 @@ interface HomeInteractor {
 
     fun observeActiveSession(): Flow<ActiveSessionWithStatsDomain?>
 
-    fun observeRecent(limit: Int): Flow<List<RecentSessionDomain>>
+    /**
+     * The whole finished-session history, newest first, paged.
+     *
+     * Was `observeRecent(limit)` at a hardcoded `HOME_RECENT_LIMIT = 10`. Ten rows is not a
+     * decision anybody wrote down — it is the number that made an unpaged query cheap — and it
+     * meant a user's eleventh-most-recent session had no route from Home at all.
+     */
+    fun pagedRecent(): Flow<PagingData<RecentSessionDomain>>
 
     fun observeRecentTrainings(limit: Int): Flow<List<TrainingListItemDomain>>
 

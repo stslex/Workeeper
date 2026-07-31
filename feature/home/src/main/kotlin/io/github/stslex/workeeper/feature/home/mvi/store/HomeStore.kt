@@ -3,21 +3,21 @@ package io.github.stslex.workeeper.feature.home.mvi.store
 
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.paging.PagingData
+import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.core.ui.mvi.Store
 import io.github.stslex.workeeper.feature.home.mvi.model.PickerTrainingItem
 import io.github.stslex.workeeper.feature.home.mvi.model.RecentSessionItem
 import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.persistentListOf
 
 interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStore.Event> {
 
     @Stable
     data class State(
         val activeSession: ActiveSessionInfo?,
-        val recent: ImmutableList<RecentSessionItem>,
+        val pagingUiState: PagingUiState<PagingData<RecentSessionItem>>,
         val nowMillis: Long,
         val isActiveLoaded: Boolean,
-        val isRecentLoaded: Boolean,
         val picker: PickerState,
         val pendingConflict: ConflictInfo?,
     ) : Store.State {
@@ -62,20 +62,28 @@ interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStore.Event> 
             val progressLabel: String,
         )
 
-        val isLoading: Boolean get() = !isActiveLoaded || !isRecentLoaded
+        /**
+         * Whether the ACTIVE-SESSION half of the screen has settled.
+         *
+         * It used to be `!isActiveLoaded || !isRecentLoaded`, i.e. the recent list gated the whole
+         * screen too. Under a `Pager` there is no "loaded" moment to wait for — the list reports
+         * its own load state through `LoadState`, and the screen reads that where it draws the
+         * list. So this shrinks to the one flow that still emits a settled snapshot, and the list's
+         * loading is the list's business.
+         */
+        val isLoading: Boolean get() = !isActiveLoaded
         val showStartCta: Boolean get() = activeSession == null && !isLoading
-        val showRecentList: Boolean get() = recent.isNotEmpty()
-        val showEmptyState: Boolean
-            get() = !isLoading && activeSession == null && recent.isEmpty()
         val showPicker: Boolean get() = picker is PickerState.Visible
 
         companion object {
-            val INITIAL = State(
+
+            fun init(
+                pagingUiState: PagingUiState<PagingData<RecentSessionItem>>,
+            ): State = State(
                 activeSession = null,
-                recent = persistentListOf(),
+                pagingUiState = pagingUiState,
                 nowMillis = 0L,
                 isActiveLoaded = false,
-                isRecentLoaded = false,
                 picker = PickerState.Hidden,
                 pendingConflict = null,
             )

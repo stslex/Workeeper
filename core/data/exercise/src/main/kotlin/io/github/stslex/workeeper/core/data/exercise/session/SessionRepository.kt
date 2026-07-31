@@ -33,13 +33,16 @@ interface SessionRepository {
 
     suspend fun getActive(): SessionDataModel?
 
-    fun observeRecent(limit: Int): Flow<List<SessionDataModel>>
-
     /**
-     * Hot stream of the most recent finished sessions (newest first), with the per-row
-     * stats the Home recent list needs (training name, exercise count, set count).
+     * Paged stream of finished sessions, newest first, with the per-row stats the Home recent
+     * list needs (training name, exercise count, set count).
+     *
+     * Replaces `observeRecentWithStats(limit)`, which Home called at a hardcoded 10 — so the
+     * screen showed ten sessions and the rest of a user's history was unreachable from it. The
+     * query's filters, including the one that excludes rows silently, are documented on
+     * `SessionDao.pagedRecentWithStats`.
      */
-    fun observeRecentWithStats(limit: Int): Flow<List<RecentSessionDataModel>>
+    fun pagedRecentWithStats(): Flow<PagingData<RecentSessionDataModel>>
 
     /**
      * One-shot hierarchical fetch for the Past session detail screen. Returns the session

@@ -8,6 +8,7 @@ import io.github.stslex.workeeper.feature.home.domain.HomeInteractor
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Action
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Event
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.State
+import io.github.stslex.workeeper.feature.home.mvi.store.emptyPagingState
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -19,7 +20,7 @@ import org.junit.jupiter.api.Test
 
 internal class ClickHandlerTest {
 
-    private val baseState = State.INITIAL.copy(isActiveLoaded = true, isRecentLoaded = true)
+    private val baseState = emptyPagingState().copy(isActiveLoaded = true)
     private val interactor = mockk<HomeInteractor>(relaxed = true)
     private val resources = mockk<ResourceWrapper>(relaxed = true)
 

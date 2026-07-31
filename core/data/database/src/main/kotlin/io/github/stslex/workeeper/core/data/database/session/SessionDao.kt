@@ -124,16 +124,49 @@ interface SessionDao {
     @Query("SELECT * FROM session_table WHERE state = 'IN_PROGRESS' LIMIT 1")
     suspend fun getActive(): SessionEntity?
 
-    @Query(
-        """
-        SELECT * FROM session_table
-        WHERE state = 'FINISHED'
-        ORDER BY finished_at DESC
-        LIMIT :limit
-        """,
-    )
-    fun observeRecent(limit: Int): Flow<List<SessionEntity>>
-
+    /**
+     * The Home recent-sessions list, **paged**.
+     *
+     * Replaces `observeRecentWithStats(limit)`, which Home called at a hardcoded 10, and the
+     * unrelated `observeRecent(limit)` beside it, which had no production consumer at all. The
+     * projection is unchanged; the only edit is that `LIMIT :limit` is gone.
+     *
+     * ## The filters, stated because a limit of ten hid what they do at scale
+     *
+     * Two predicates and one thing that looks like a third:
+     *
+     * 1. `s.state = 'FINISHED'` — in-progress sessions are Home's banner, not its list.
+     * 2. `s.finished_at IS NOT NULL` — **not** belt and braces with (1). It is load-bearing for the
+     *    sort: `ORDER BY … DESC` on a nullable column parks nulls at the *tail* on SQLite, so a
+     *    FINISHED row with no timestamp would not vanish — it would sit below every dated session
+     *    forever, which is a worse failure than being absent.
+     * 3. **`INNER JOIN training_table` excludes nothing, and the first draft of this KDoc said it
+     *    did.** It was recorded here as the silent filter — a session whose training row is gone
+     *    gets dropped, nobody chose it, invisible behind a limit of ten. Then `INNER JOIN` →
+     *    `LEFT JOIN` was run as a controlled mutation against the test suite and **every case
+     *    stayed green**, which is impossible if an orphan can ever reach this query.
+     *
+     *    The reason is in the schema: `SessionEntity`'s foreign key on `training_uuid` carries
+     *    `onDelete = ForeignKey.CASCADE`, so deleting a training deletes its sessions in the same
+     *    statement. There is no orphan for the join to drop and there cannot be one while that key
+     *    stands — a stronger guarantee than "no current delete path makes one", and the opposite
+     *    conclusion to the B24-shaped warning this row used to carry. The join is here to read
+     *    `t.name`, and that is all it does.
+     *
+     * ## What it does NOT filter, and what that turned out to mean
+     *
+     * There is **no `is_adhoc` predicate** — the query *selects* `t.is_adhoc` and passes it
+     * through, which reads as "Home deliberately shows ad-hoc sessions". Measured, the flag is
+     * dead by construction: `finishSessionAtomic` calls `trainingDao.graduateTraining(…)`
+     * unconditionally, in the same transaction as the `FINISHED` flip, so **every** row this query
+     * can return has `is_adhoc = 0`. See `SessionDaoPagedRecentWithStatsTest`, which asserts it
+     * against a real database rather than leaving it a reading.
+     *
+     * The one reachable exception is a **restore**: a backup written before graduation existed, or
+     * hand-edited, can insert a FINISHED session under an `is_adhoc = 1` training, and this query
+     * will return it with the flag set. That is why the column stays selected rather than being
+     * dropped — the value is honest, it is simply almost always false.
+     */
     @Query(
         """
         SELECT s.uuid AS session_uuid,
@@ -151,10 +184,9 @@ interface SessionDao {
         INNER JOIN training_table t ON t.uuid = s.training_uuid
         WHERE s.state = 'FINISHED' AND s.finished_at IS NOT NULL
         ORDER BY s.finished_at DESC
-        LIMIT :limit
         """,
     )
-    fun observeRecentWithStats(limit: Int): Flow<List<RecentSessionRow>>
+    fun pagedRecentWithStats(): PagingSource<Int, RecentSessionRow>
 
     @Query(
         """

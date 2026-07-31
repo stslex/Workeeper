@@ -9,7 +9,6 @@ import io.github.stslex.workeeper.core.ui.mvi.handler.Handler
 import io.github.stslex.workeeper.feature.home.di.HomeHandlerStore
 import io.github.stslex.workeeper.feature.home.di.HomeScope
 import io.github.stslex.workeeper.feature.home.domain.HomeInteractor
-import io.github.stslex.workeeper.feature.home.mvi.mapper.HomeUiMapper.toRecentItems
 import io.github.stslex.workeeper.feature.home.mvi.mapper.HomeUiMapper.toUi
 import io.github.stslex.workeeper.feature.home.mvi.store.HomeStore.Action
 import kotlinx.coroutines.delay
@@ -30,7 +29,8 @@ internal class CommonHandler @Inject constructor(
 
     private fun processInit() {
         logger.i {
-            "Home screen initialized, observing active session and recent sessions."
+            "Home screen initialized, observing active session. The recent list is paged and " +
+                "collects itself from State.pagingUiState — see PagingHandler."
         }
         interactor.observeActiveSession().launch { row ->
             logger.i {
@@ -49,25 +49,6 @@ internal class CommonHandler @Inject constructor(
                 )
             }
         }
-        interactor.observeRecent(HOME_RECENT_LIMIT).launch { sessions ->
-            logger.i {
-                "Received update for recent sessions: ${sessions.size} sessions. " +
-                    "Updating state with new recent sessions data."
-            }
-            updateStateImmediate { current ->
-                val now = if (current.nowMillis == 0L) {
-                    System.currentTimeMillis()
-                } else {
-                    current.nowMillis
-                }
-                current.copy(
-                    recent = sessions.toRecentItems(now, resourceWrapper),
-                    isRecentLoaded = true,
-                    nowMillis = now,
-                )
-            }
-        }
-
         state
             .distinctUntilChanged { old, new -> (new.activeSession == null) == (old.activeSession == null) }
             .launch {
@@ -99,6 +80,5 @@ internal class CommonHandler @Inject constructor(
 
     companion object {
         private const val TIMER_TICK_MS = 1000L
-        private const val HOME_RECENT_LIMIT = 10
     }
 }
