@@ -2,14 +2,13 @@
 package io.github.stslex.workeeper.feature.archive.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -35,6 +34,8 @@ import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import io.github.stslex.workeeper.core.ui.kit.theme.continuityAlphaSpec
+import io.github.stslex.workeeper.core.ui.kit.theme.continuityPositionalSpec
 import io.github.stslex.workeeper.feature.archive.R
 import io.github.stslex.workeeper.feature.archive.mvi.model.ArchivedItemUi
 import io.github.stslex.workeeper.feature.archive.mvi.store.ArchiveStore.Action
@@ -42,8 +43,12 @@ import io.github.stslex.workeeper.feature.archive.mvi.store.ArchiveStore.Segment
 import io.github.stslex.workeeper.feature.archive.mvi.store.ArchiveStore.State
 import io.github.stslex.workeeper.feature.archive.ui.components.ArchiveListSurface
 import io.github.stslex.workeeper.feature.archive.ui.components.ArchivedItemRow
+import io.github.stslex.workeeper.feature.archive.ui.components.PagingErrorFooter
+import io.github.stslex.workeeper.feature.archive.ui.components.PagingLoadingFooter
+import io.github.stslex.workeeper.feature.archive.ui.components.PagingTailKind
 import io.github.stslex.workeeper.feature.archive.ui.components.PermanentDeleteDialog
 import io.github.stslex.workeeper.feature.archive.ui.components.archiveListSurface
+import io.github.stslex.workeeper.feature.archive.ui.components.pagingTailKind
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.flow.flowOf
 import io.github.stslex.workeeper.core.ui.kit.R as KitR
@@ -88,12 +93,12 @@ internal fun ArchiveScreen(
             modifier = Modifier
                 .padding(horizontal = AppDimension.screenEdge, vertical = AppDimension.Space.sm)
                 .testTag("ArchiveSegments"),
-            // TODO(tech-debt-localization): Move segment label formatting with counts into
-            // Archive state mapping to keep UI text rendering-only.
-            items = persistentListOf(
-                stringResource(R.string.feature_archive_segment_exercises, state.exerciseCount),
-                stringResource(R.string.feature_archive_segment_trainings, state.trainingCount),
-            ),
+            // The count formatting moved off the UI: CLAUDE.md puts display strings in the UI
+            // mapper, and the `TODO(tech-debt-localization)` that used to sit here said so. The
+            // labels arrive pre-formatted on State; `ArchiveSegmentLabelTest` asserts the
+            // composition, which nothing else could — a golden of a segmented control cannot say
+            // whether its own count is right.
+            items = persistentListOf(state.exerciseSegmentLabel, state.trainingSegmentLabel),
             selected = if (state.selectedSegment == Segment.EXERCISES) 0 else 1,
             onSelectedChange = { index ->
                 val segment = if (index == 0) Segment.EXERCISES else Segment.TRAININGS
@@ -154,13 +159,12 @@ private fun ArchivedExerciseList(
         return
     }
     LazyColumn(
+        // Full-bleed, like both siblings: the drawn row owns its own gutter and its own rule, so
+        // the list adds no horizontal padding and no inter-item spacing. **No bottom clearance
+        // either** — `#s-list`'s navnote scopes the 88dp to the screens that draw a FAB
+        // ("Запас нужен только тем экранам, где кнопка есть"), and this screen draws none.
         modifier = modifier.testTag("ArchiveExerciseList"),
-        contentPadding = PaddingValues(
-            horizontal = AppDimension.screenEdge,
-            vertical = AppDimension.Space.sm,
-        ),
         state = rememberLazyListState(),
-        verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
         items(
             count = items.itemCount,
@@ -168,13 +172,26 @@ private fun ArchivedExerciseList(
         ) { index ->
             items[index]?.let { row ->
                 ArchivedItemRow(
+                    // §26, continuity motion. This is the list where a row leaves on a user
+                    // action — restore and permanent delete both remove one — and until now the
+                    // remainder jumped up under the finger that pressed. Same spec as both list
+                    // screens; the class has one duration and one curve.
+                    modifier = Modifier.animateItem(
+                        fadeInSpec = continuityAlphaSpec(),
+                        placementSpec = continuityPositionalSpec(),
+                        fadeOutSpec = continuityAlphaSpec(),
+                    ),
                     item = row.item,
-                    archivedAtLabel = row.archivedAtLabel,
+                    metaLine = row.metaLine,
+                    // The drawing removes the last row's rule (`.frame .row:last-of-type`), so the
+                    // list does not end on a hairline into empty space.
+                    showDivider = index < items.itemCount - 1,
                     onRestore = { consume(Action.Click.OnRestoreClick(row.item)) },
                     onPermanentDelete = { consume(Action.Click.OnPermanentDeleteClick(row.item)) },
                 )
             }
         }
+        pagingTail(items = items, onRetry = { items.retry() })
     }
 }
 
@@ -194,13 +211,12 @@ private fun ArchivedTrainingList(
         return
     }
     LazyColumn(
+        // Full-bleed, like both siblings: the drawn row owns its own gutter and its own rule, so
+        // the list adds no horizontal padding and no inter-item spacing. **No bottom clearance
+        // either** — `#s-list`'s navnote scopes the 88dp to the screens that draw a FAB
+        // ("Запас нужен только тем экранам, где кнопка есть"), and this screen draws none.
         modifier = modifier.testTag("ArchiveTrainingList"),
-        contentPadding = PaddingValues(
-            horizontal = AppDimension.screenEdge,
-            vertical = AppDimension.Space.sm,
-        ),
         state = rememberLazyListState(),
-        verticalArrangement = Arrangement.spacedBy(AppDimension.Space.sm),
     ) {
         items(
             count = items.itemCount,
@@ -208,13 +224,46 @@ private fun ArchivedTrainingList(
         ) { index ->
             items[index]?.let { row ->
                 ArchivedItemRow(
+                    // §26, continuity motion. This is the list where a row leaves on a user
+                    // action — restore and permanent delete both remove one — and until now the
+                    // remainder jumped up under the finger that pressed. Same spec as both list
+                    // screens; the class has one duration and one curve.
+                    modifier = Modifier.animateItem(
+                        fadeInSpec = continuityAlphaSpec(),
+                        placementSpec = continuityPositionalSpec(),
+                        fadeOutSpec = continuityAlphaSpec(),
+                    ),
                     item = row.item,
-                    archivedAtLabel = row.archivedAtLabel,
+                    metaLine = row.metaLine,
+                    // The drawing removes the last row's rule (`.frame .row:last-of-type`), so the
+                    // list does not end on a hairline into empty space.
+                    showDivider = index < items.itemCount - 1,
                     onRestore = { consume(Action.Click.OnRestoreClick(row.item)) },
                     onPermanentDelete = { consume(Action.Click.OnPermanentDeleteClick(row.item)) },
                 )
             }
         }
+        pagingTail(items = items, onRetry = { items.retry() })
+    }
+}
+
+/**
+ * §26 "Paging tails" — built here for the first time, and the reason is recorded rather than
+ * assumed: this screen pages (`ExerciseRepositoryImpl.pagedArchived()` is a real `Pager`) and has
+ * always paged, but it read `loadState.append` **nowhere except an emptiness predicate**, so a
+ * failed page was a list that quietly stopped. See `archive-delta.md` §3.1 — the drawing was never
+ * at fault and no correction is owed to it; the screen was simply behind.
+ *
+ * The decision lives in [pagingTailKind], not here, because no golden can see it. This is dispatch.
+ */
+private fun LazyListScope.pagingTail(
+    items: LazyPagingItems<*>,
+    onRetry: () -> Unit,
+) {
+    when (pagingTailKind(items.loadState.append)) {
+        PagingTailKind.LOADING -> item(key = "paging_loading") { PagingLoadingFooter() }
+        PagingTailKind.ERROR -> item(key = "paging_error") { PagingErrorFooter(onRetry = onRetry) }
+        PagingTailKind.NONE -> Unit
     }
 }
 
@@ -276,6 +325,8 @@ private fun ArchiveScreenPreview() {
                 selectedSegment = Segment.EXERCISES,
                 exerciseCount = 0,
                 trainingCount = 0,
+                exerciseSegmentLabel = "Упражнения (0)",
+                trainingSegmentLabel = "Тренировки (0)",
                 archivedExercisesPaging = { flowOf(PagingData.empty()) },
                 archivedTrainingsPaging = { flowOf(PagingData.empty()) },
                 pendingDeleteImpact = null,

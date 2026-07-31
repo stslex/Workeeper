@@ -8,8 +8,18 @@
     <string name="feature_archive_action_restore">Restore</string>
     <string name="feature_archive_action_permanent_delete">Delete permanently</string>
 
-    <string name="feature_archive_label_archived">Archived</string>
-    <string name="feature_archive_label_archived_relative_format">Archived %1$s</string>
+    <!--
+      The meta line, §26 "Meta-line order": information first, tags last, one line, no wrap.
+      `#s-list`'s fourth payload draws it as «упражнение · в архиве с 3 июля» — the KIND is the
+      first token, as a word, for the same reason the exercise type is on the sibling screen: the
+      tail is what truncates, so the token that must survive goes at the head.
+    -->
+    <string name="feature_archive_kind_exercise">exercise</string>
+    <string name="feature_archive_kind_training">training</string>
+    <string name="feature_archive_label_archived">archived</string>
+    <!-- Day + full month, per the drawn «с 3 июля» — `formatDayMonth`, not a relative span. -->
+    <string name="feature_archive_label_archived_since_format">archived since %1$s</string>
+    <string name="feature_archive_meta_separator">·</string>
 
     <string name="feature_archive_empty_headline">Nothing archived</string>
     <string name="feature_archive_empty_supporting_exercises">Archived exercises appear here for restore or permanent delete.</string>
@@ -38,11 +48,13 @@
       B22: the archive tab drew NOTHING on a cold open and on a failed first page — same
       predicate, same void, as the two list screens. `refresh_error` is the only new sentence.
 
-      There is deliberately no `paging_error` here: this screen reads `loadState.append` nowhere,
-      so it has no append tail to give a reason to, and an unused string is exactly what
-      `UnusedResources` exists to catch. The missing tails are recorded for the archive mapping.
+      `paging_error` was deliberately absent while this screen read `loadState.append` nowhere.
+      The append tail is built now (archive-delta §3.1/§3.2), so the reason string exists and is
+      used. «дальше» is the append tail's word; the cold-open failure keeps its own sentence,
+      because "couldn't load more" is a lie when nothing loaded at all.
     -->
     <string name="feature_archive_paging_loading">Loading</string>
+    <string name="feature_archive_paging_error">Couldn’t load more</string>
     <string name="feature_archive_paging_retry">Retry</string>
     <string name="feature_archive_refresh_error">Couldn’t load the archive</string>
 </resources>

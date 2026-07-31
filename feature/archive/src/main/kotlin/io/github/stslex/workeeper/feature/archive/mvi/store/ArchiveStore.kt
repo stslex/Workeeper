@@ -22,6 +22,13 @@ interface ArchiveStore : Store<State, Action, Event> {
         val selectedSegment: Segment,
         val exerciseCount: Int,
         val trainingCount: Int,
+        /**
+         * Segment labels arrive **pre-formatted**, per CLAUDE.md's rule that display strings live
+         * in the UI mapper. The `TODO(tech-debt-localization)` that used to sit at the call site
+         * said the same thing; it is discharged here rather than carried.
+         */
+        val exerciseSegmentLabel: String,
+        val trainingSegmentLabel: String,
         val archivedExercisesPaging: PagingUiState<PagingData<ArchivedItemUi.Exercise>>,
         val archivedTrainingsPaging: PagingUiState<PagingData<ArchivedItemUi.Training>>,
         val pendingDeleteImpact: Int?,
@@ -38,6 +45,8 @@ interface ArchiveStore : Store<State, Action, Event> {
                 selectedSegment = Segment.EXERCISES,
                 exerciseCount = 0,
                 trainingCount = 0,
+                exerciseSegmentLabel = "",
+                trainingSegmentLabel = "",
                 archivedExercisesPaging = archivedExercisesPaging,
                 archivedTrainingsPaging = archivedTrainingsPaging,
                 pendingDeleteImpact = null,

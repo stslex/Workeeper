@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult.ActionPerformed
@@ -36,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalAccessibilityManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.IntOffset
@@ -46,6 +48,7 @@ import androidx.navigation.compose.rememberNavController
 import io.github.stslex.workeeper.bottom_app_bar.WorkeeperBottomAppBar
 import io.github.stslex.workeeper.core.ui.kit.components.snackbar.AppSnackbar
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
+import io.github.stslex.workeeper.core.ui.kit.snackbar.toastTimeoutMillis
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
@@ -56,6 +59,7 @@ import io.github.stslex.workeeper.feature.app_dialogs.impl.ui.AppDialogHost
 import io.github.stslex.workeeper.host.AppNavigationHost
 import io.github.stslex.workeeper.host.BottomBarNavigationListener.Companion.rememberBottomBarNavigationListener
 import io.github.stslex.workeeper.navigation.NavigatorExt.NavigationEventBusSetup
+import kotlinx.coroutines.withTimeoutOrNull
 
 private val TOP_APP_BAR_HEIGHT = 64.dp
 private val TOP_APP_BAR_ACTION_PADDING = 4.dp
@@ -89,18 +93,43 @@ fun App() {
 
         val snackbarHostState = remember { SnackbarHostState() }
 
-        LaunchedEffect(Unit) {
+        // B25 branch B: the host owns the toast's lifetime, because the drawing gives a number
+        // Material3 has no rung for.
+        //
+        // `showSnackbar`'s `duration` defaults to `Indefinite` whenever an `actionLabel` is
+        // present — a deliberate M3 default, paired with a dismiss affordance this app's `.toast`
+        // does not draw. The result was three undo toasts that never went away. `SnackbarDuration`
+        // offers only 4000ms and 10000ms; `session-v3f.html` says 5000, so the timeout is applied
+        // here instead of rounded onto a rung.
+        //
+        // The snackbar is therefore shown as `Indefinite` and cancelled by `withTimeoutOrNull` —
+        // cancelling the caller removes it from display, which M3's own KDoc guarantees. The
+        // accessibility recommendation is applied by `toastTimeoutMillis` rather than left to M3:
+        // an `Indefinite` snackbar short-circuits `calculateRecommendedTimeoutMillis` before the
+        // system manager is reached, so it is the one duration that silently ignores a user's
+        // display-timeout preference. A finite base restores it.
+        val accessibilityManager = LocalAccessibilityManager.current
+        LaunchedEffect(accessibilityManager) {
             SnackbarManager.snackbar
                 .collect { model ->
-                    val result = snackbarHostState.showSnackbar(
-                        message = model.message,
-                        actionLabel = model.actionLabel,
-                        withDismissAction = model.withDismissAction,
-                    )
+                    val result = withTimeoutOrNull(
+                        toastTimeoutMillis(
+                            accessibilityManager = accessibilityManager,
+                            hasAction = model.actionLabel != null,
+                        ),
+                    ) {
+                        snackbarHostState.showSnackbar(
+                            message = model.message,
+                            actionLabel = model.actionLabel,
+                            duration = SnackbarDuration.Indefinite,
+                        )
+                    }
                     when (result) {
                         ActionPerformed -> model.action()
 
-                        Dismissed -> Unit // No-op
+                        // Dismissed by the user, or `null` — the toast timed out. Both no-ops:
+                        // every action here is a shortcut to a route that stays open.
+                        Dismissed, null -> Unit
                     }
                 }
         }

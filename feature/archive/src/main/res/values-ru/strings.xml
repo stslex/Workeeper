@@ -8,8 +8,11 @@
     <string name="feature_archive_action_restore">Восстановить</string>
     <string name="feature_archive_action_permanent_delete">Удалить навсегда</string>
 
-    <string name="feature_archive_label_archived">В архиве</string>
-    <string name="feature_archive_label_archived_relative_format">Архивировано %1$s</string>
+    <string name="feature_archive_kind_exercise">упражнение</string>
+    <string name="feature_archive_kind_training">тренировка</string>
+    <string name="feature_archive_label_archived">в архиве</string>
+    <string name="feature_archive_label_archived_since_format">в архиве с %1$s</string>
+    <string name="feature_archive_meta_separator">·</string>
 
     <string name="feature_archive_empty_headline">Архив пуст</string>
     <string name="feature_archive_empty_supporting_exercises">Здесь будут архивированные упражнения — для восстановления или удаления навсегда.</string>
@@ -47,6 +50,7 @@
       `UnusedResources` exists to catch. The missing tails are recorded for the archive mapping.
     -->
     <string name="feature_archive_paging_loading">Загружаю</string>
+    <string name="feature_archive_paging_error">Не удалось загрузить дальше</string>
     <string name="feature_archive_paging_retry">Повторить</string>
     <string name="feature_archive_refresh_error">Не удалось загрузить архив</string>
 </resources>

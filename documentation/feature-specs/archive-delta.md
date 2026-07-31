@@ -1,6 +1,7 @@
 # Archive — delta mapping (v3 stage 5, group 3)
 
-**Status: in progress. Facts below are verified against the tree; nothing here is built yet.**
+**Status: BUILT, except §2.1 — the trailing slot, which is the owner's and is deliberately left as it was.**
+Everything else in this mapping is applied. Facts below are verified against the tree.
 
 Read against `feature/all-exercises` as rebuilt, on `feature/v3-all-exercises`.
 
@@ -61,8 +62,8 @@ kind and archive date, and §0.1 gives the drawing the decision.
 | Container | `clip(shapes.medium)` + `surfaceTier1` + `cardPadding`, inset by the list's `screenEdge` | full-bleed, `RectangleShape`, hairline rule | **yes** — the same card→row change both siblings made |
 | Name | `bodyMedium`, no `maxLines` | `titleMedium`, `maxLines = 2`, ellipsis | yes |
 | Tags | `LazyRow` of `AppTagChip.Static` | appended to the meta line as text | yes — §26 "Meta-line order" rejects in-row chips |
-| Meta | `archivedAtLabel` in `bodySmall`, on its own line | one `mono.meta` line: `kind · archived-since · tags` | **no** — the kind token is this screen's own region (1) |
-| Trailing | **two affordances**: a `Restore` text button *and* a `MoreVert` → `DropdownMenu` | see 3 | **no — the open question** |
+| Meta | `archivedAtLabel` in `bodySmall`, on its own line | one `mono.meta` line: `kind · archived-since · tags` | **no** — the kind token is this screen's own region (1). **BUILT**, composed in `ArchiveUiMapper` rather than in the row: archive already had a `ResourceWrapper` mapper, and only the mapper form is assertable without a composition — `ArchiveMetaLineTest` covers kind-first, tags-last, no dangling separator, and the date fallback. **The formatter changed with the phrasing and had to**: «в архиве с …» cannot take a relative span («since 2 days ago» is not a sentence), so `getAbbreviatedRelativeTime` gives way to the existing `formatDayMonth`, which already renders «3 июля» / «July 3» and orders the two per locale. No new `ResourceWrapper` API. |
+| Trailing | **two affordances**: a `Restore` text button *and* a `MoreVert` → `DropdownMenu` | see 2.1 | **no — the open question, and UNTOUCHED by this build.** Extracted into `TrailingAffordances` with a comment naming §2.1, so the next reader cannot collapse it into the drawn slot without meeting the ruling first. |
 | Selection | none | none | n/a — no selection mode here |
 
 ### 2.1 The trailing slot is the screen's real question
@@ -98,6 +99,14 @@ what the registry entry left open.
 screen genuinely differs in kind from its two siblings: their rows have a single destination and a
 selection mode, and this row has two competing verbs and no selection mode to put them in.
 
+**Left exactly as it was, and the surrounding rebuild landed around it.** One consequence is worth
+stating rather than discovering on a device: while both affordances stay in the row, **the row is
+taller than the drawn 88dp in practice** and its trailing region is not the drawn 20px slot. The
+`heightIn` minimum is the drawn one, so the row is *bounded* correctly and is not yet *the* drawn
+row — and it cannot be until this is ruled. The goldens recorded in §4 photograph the current
+arrangement deliberately: per §10.2 a golden locks in what **is**, so when §2.1 is ruled these
+images are expected to move, and that movement is the reason for recording them now.
+
 **`DropdownMenu` is out of Paparazzi's model** (its own window, §10.4), so whatever survives here is
 partly ungated by construction — which is an argument against reading 2 that is worth weighing
 alongside the drawing.
@@ -109,13 +118,13 @@ alongside the drawing.
 | Region | Today | Referent | Verdict |
 |---|---|---|---|
 | Segmented control | `AppSegmentedControl`, already `liftedSurface`-based (track + lifted thumb) | `.mseg` in `#s-set` | **likely MATCH — appearance, to be confirmed by measurement against `.mseg`'s declared properties** |
-| Segment labels | `stringResource(…, count)` formatted **in the UI**, with a `TODO(tech-debt-localization)` in place | — | **DELTA** — the repo's own rule puts display strings in the UI mapper; the TODO says so |
-| Tag filter band | none | none — archive is not drawn with one | **MATCH** (absence, drawn) |
-| Selection mode | none | `#s-list`'s selection frame is titled "режим выбора — **тренировки и упражнения**" | **MATCH** (absence, and the drawing names which screens have it) |
-| FAB | none | `#s-list`'s clearance navnote: "Запас нужен только тем экранам, где кнопка есть" | **MATCH** — and therefore **no 88dp clearance is owed** |
-| List padding | `screenEdge` horizontal + `Space.sm` vertical + `spacedBy(Space.sm)` | full-bleed rows own their gutter | **DELTA** |
+| Segment labels | `stringResource(…, count)` formatted **in the UI**, with a `TODO(tech-debt-localization)` in place | — | **DELTA — BUILT.** `exerciseSegmentLabel` / `trainingSegmentLabel` are formatted in `ArchivePagingHandler.segmentLabel` beside the counts they read, and arrive on `State` pre-joined. The TODO is discharged, not carried. |
+| Tag filter band | none | none — archive is not drawn with one | **MATCH** (absence, drawn — appearance, covered both sides by the screen goldens) |
+| Selection mode | none | `#s-list`'s selection frame is titled "режим выбора — **тренировки и упражнения**" | **MATCH — UNVERIFIED (behaviour).** The drawing names which screens have it and this one is not among them, so the absence is contract; but no test asserts that a long press here does nothing, and §27 says a behavioural MATCH without a test on both sides says so. Cheap to close if it ever matters; recorded rather than claimed. |
+| FAB | none | `#s-list`'s clearance navnote: "Запас нужен только тем экранам, где кнопка есть" | **MATCH** — and therefore **no 88dp clearance is owed**. Built as an absence: both `LazyColumn`s carry no `contentPadding` at all, with the navnote quoted at the site so the 88 is not added later by symmetry with the siblings. |
+| List padding | `screenEdge` horizontal + `Space.sm` vertical + `spacedBy(Space.sm)` | full-bleed rows own their gutter | **DELTA — BUILT.** All three removed; the row owns its gutter and its rule, and the last row's rule is dropped (`showDivider = index < itemCount - 1`) per `.frame .row:last-of-type`. |
 | Empty region | `archiveListSurface` — four verdicts | §26 "List states reached by an action" | **DONE this session** (B22) |
-| Paging tails | **none** — `loadState.append` is read nowhere | `#s-list`'s pagination navnote | **UNBUILT, and the drawing is not at fault — see 3.1** |
+| Paging tails | **none** — `loadState.append` is read nowhere | `#s-list`'s pagination navnote | **BUILT.** `pagingTailKind` + `PagingTails`, dispatched from both lists; `feature_archive_paging_error` exists and is used, so the string comment that explained its absence is now the note explaining its arrival. `PagingTailKindTest` covers all four branches including the absence — third copy, per §27's MATCH rule. |
 
 ### 3.1 The pagination "contradiction" is not one — the screen is behind, the drawing is right
 
@@ -177,17 +186,37 @@ what happened here. §26 "Paging tails" states the treatment; nothing until now 
 
 ## 4. Gates
 
-`feature/archive` has **no Paparazzi, no golden suite, no `golden-gate` apply**. Same starting point
-as both siblings, so the same order: plugin + apply + recorded PNGs in one commit,
-`recordPaparazziDebug` first, baseline against the screen as it is now.
+**BUILT.** `feature/archive` now carries the Paparazzi plugin, the shared `golden-gate` apply and
+**14 recorded goldens** — the row in both payloads, the two-line clamp, both paging tails, and the
+whole screen in each segment, each in both themes. The harness is **not** copied: it comes from
+`core:ui:kit`'s `testFixtures`, so device config, tolerance and canvas width cannot drift from the
+two siblings this screen must stay in step with.
+
+`assertGoldenLiveness` reports `14 executed for 14 images`, so the green is a measured one and not a
+silent skip. **Proven to discriminate rather than assumed**: mutating the name clamp from 2 lines to
+1 reddened `rowClamped` in both themes (`VERIFY=1`, 4 failures), and the mutation was reverted.
+
+Note the ordering this did *not* follow: the siblings recorded a baseline of the pre-rebuild surface
+first, so a reviewer could read one image diff. Archive's rebuild and its first recording land
+together, so **these images are the baseline, not a diff** — there is no before-picture for this
+screen and there will not be one. That is a cost of building the delta and the gate in one pass; it
+is recorded rather than hidden, and §10.2 already says a golden's guarantee is differential, so a
+first recording guarantees nothing about correctness until the element-by-element pass reads it.
 
 Already gated as of this session: `ArchiveListSurfaceTest` (four verdicts, all four mutations red).
 
 What a golden will not reach on this screen, and therefore needs a named value asserted directly:
 
 - the `archiveListSurface` verdicts — **done**;
-- the segment switch, which is a state change the screen's own `when` makes;
-- `DropdownMenu`'s contents (its own window);
+- the meta line's composition — **done** (`ArchiveMetaLineTest`): a picture photographs whatever
+  string it is handed and is right about the pixels either way, so kind-first, tags-last and the
+  date's formatter are asserted directly;
+- the append-tail decision — **done** (`PagingTailKindTest`), including the absence, which is the
+  outcome a dropped branch produces by accident;
+- the segment labels' composition — **done** (`ArchiveSegmentLabelTest` is owed; the labels are
+  named on `State` and formatted in one place, which is the half that makes it assertable);
+- the segment switch itself, which is a state change the screen's own `when` makes;
+- `DropdownMenu`'s contents (its own window, §10.4);
 - whatever replaces the trailing affordances, once 2.1 is ruled.
 
 `FadeToTransparentRule` is live repo-wide and archive has no `Color.Transparent` animation target,
@@ -197,7 +226,12 @@ so it is clean by construction rather than by exemption.
 
 ## 5. Open, and owed before code
 
-1. **2.1 — the trailing slot.** The one region the contract does not answer for this screen. Both
-   verbs confirmed reachable, so it does not collapse.
-2. **The paging tails** — a screen change, not a drawing correction (3.1).
-3. Whether the segment labels' count formatting moves to the mapper with the rest.
+1. **2.1 — the trailing slot. The only one left, and it is the owner's.** Both verbs confirmed
+   reachable, so it does not collapse to one. Everything around it is built; the affordances are
+   untouched and the 14 goldens photograph them as they are.
+2. ~~The paging tails~~ — **built**. A screen change, not a drawing correction (3.1).
+3. ~~Segment label formatting~~ — **built**, into `ArchivePagingHandler` beside the counts.
+
+**Owed, small, and not blocking:** a test for the segment labels' composition (the labels are named
+and formatted in one place, which is the half that makes it possible); and the selection-mode absence
+is a behavioural MATCH marked UNVERIFIED in §3 rather than claimed.

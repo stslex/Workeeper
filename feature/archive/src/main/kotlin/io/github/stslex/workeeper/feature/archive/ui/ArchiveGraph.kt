@@ -31,7 +31,6 @@ fun NavGraphBuilder.archiveGraph(
                             // TODO(tech-debt): UI mapping boundary — see documentation/tech-debt.md
                             message = restoredTemplate.format(event.item.name),
                             actionLabel = undoLabel,
-                            withDismissAction = true,
                             action = { processor.consume(Action.Click.OnUndoRestore(event.item)) },
                         ),
                     )
