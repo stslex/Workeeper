@@ -123,6 +123,25 @@ Implementation **[V]**: tokens on `AppElevation` (already palette-derived); trea
 
 The next reader will try to unify the two mechanisms. The KDoc explains why they cannot be.
 
+### 2.7 `hair-s` — the one token with no slot, and the lift that replaced it
+
+`hair-s` is `#2B333B` dark / `#D2D7DD` light. It is the only v3 token that maps to **no** `AppColors` slot, and the reason is not that nothing wanted it — it is that both slots that would have taken it turned out to be **enabled control outlines**.
+
+The two readers are `RadioButton`'s `unselectedColor` (`ThemeSelector.kt`) and `Checkbox`'s `uncheckedColor` (`ExercisePickerSheet.kt`). In the unselected state the outline **is** the entire affordance — no fill, no label inside it, nothing else to see — so WCAG 1.4.11 applies and it owes **3:1**. Both are enabled, so the inactive-component carve-out does not reach them either. `hair-s` delivers **1.12–1.52:1** against every surface in this palette.
+
+The mockup draws its off-state switch track and its unchecked set-mark ring in `hair-s`. So this is **the mockup being unmeasured, not a misreading of it** — the same situation as light `meta` (§2.4), resolved the same way and by the same rule (§0.4).
+
+**The lift keeps hue and saturation exactly and moves only lightness**, by the smallest step that clears 3:1 on all five surfaces. That constraint is what makes the replacement a correction rather than a new colour: `borderDefault` / `borderStrong` are recognisably the drawn stroke, just visible.
+
+| | tier0 | tier1 | tier2 | tier3 | tier4 |
+|---|---|---|---|---|---|
+| dark | 4.09 | 3.82 | 3.60 | 3.29 | 3.01 |
+| light | 3.61 | 3.42 | 3.26 | 3.87 | 3.00 |
+
+Quiet, but present. `hair-s` itself stays the value to bring back if a genuinely **decorative solid rule** is ever needed; today `borderSubtle` covers every decorative stroke in the app except the chart's gridlines, which carry the mockup's own `--grid`.
+
+Note the distinction this draws and §3.1 depends on: `borderSubtle` is the **hairline** (separators, disabled outlines) and takes no threshold; these two are **controls** and do. `AppTextField`'s `disabledBorderColor` reads `borderSubtle` and is genuinely exempt — that is the line, and it is a per-call-site judgement, not a per-colour one.
+
 ## 3. Contrast thresholds
 
 Threshold depends on **type size**, not the pair alone. WCAG grants 3:1 only at ≥24sp regular or ≥18.66sp bold; Medium (500) is not bold.
@@ -134,7 +153,7 @@ Threshold depends on **type size**, not the pair alone. WCAG grants 3:1 only at 
 | IBM Plex Sans below 700, 34 / 26 | ≥24sp | **3:1** |
 | IBM Plex Sans below 700, ≤19 | — | **4.5:1** |
 
-The Plex rows say **below 700**, not "Medium": since the fonts PR the heading rungs are set in **600**, and 600 does not reach WCAG's bold boundary any more than 500 does, so 400 / 500 / 600 all share one answer. Only a real 700 would move a row — and it would *loosen* the 19sp one, which is the direction the gate cannot catch. `TypeSlot`'s KDoc carries the same table and the same warning.
+The Plex rows say **below 700**, not "Medium": since the fonts PR the heading rungs are set in **600**, and 600 does not reach WCAG's bold boundary any more than 500 does, so 400 / 500 / 600 all share one answer. Only a real 700 would move a row — and it would *loosen* the 19sp one, which is the direction the gate cannot catch. The rung-by-rung derivation is §3.4; `TypeSlot` carries the conclusion and cites it.
 | `max` on any surface | — | **7:1** |
 | `meta` on its backing | — | **4.5:1** |
 
@@ -158,6 +177,34 @@ A duplicate key resolves last-write-wins: behaviour set by declaration order, ne
 
 **The map is built from a list and fails at construction on a duplicate key.** The guard is proven live: injecting a duplicate `textDim` key throws, naming both roles. **[V]**
 
+### 3.4 Where the boundary comes from, rung by rung
+
+The threshold is **not a property of the pair**. `molten` on `slab` measures 7.39 dark and 5.17 light either way — the same ratio is a pass at 26sp and a fail at 12.5sp. One ratio, two verdicts. So every declared triple names a **slot**, and the slot carries the number.
+
+WCAG 2.1 §1.4.3 defines large-scale text as **18pt, or 14pt bold**. Android's `sp` is a CSS-pixel-like unit and WCAG's own understanding document fixes the conversion at **1pt = 1.333px**, so the two boundaries land at:
+
+- 18pt → **24sp** regular
+- 14pt → **18.66sp** bold
+
+Against the six-step scale (34 / 26 / 19 / 15 / 12.5 / 11):
+
+| rung | size | below 700 (`text`, `mono`) | 700 (`numeric`) |
+|---|---|---|---|
+| display | 34sp | large → 3:1 | large → 3:1 |
+| title | 26sp | large → 3:1 | large → 3:1 |
+| section | 19sp | **normal → 4.5:1** | ≥18.66 bold → 3:1 |
+| body | 15sp | normal → 4.5:1 | normal → 4.5:1 |
+| meta | 12.5sp | normal → 4.5:1 | normal → 4.5:1 |
+| caption | 11sp | normal → 4.5:1 | normal → 4.5:1 |
+
+The left column is deliberately **not** headed "regular": it covers 400, 500 **and** 600, all below WCAG's bold boundary and therefore sharing one answer. `text.section` is set in 600 and still lands in that column.
+
+**19sp is the only row where weight changes the answer**, and that is the whole reason `SECTION` and `SECTION_BOLD` are separate slots rather than one. `AppTypography.numeric` is built at `FontWeight.Bold`, so `numeric.section` is genuinely large-scale text and `text.section` is genuinely not. Collapsing them would either over-constrain the numerals or wave through a 19sp regular label at 3:1.
+
+If a heading rung ever moves to a real 700, **this table and every triple naming the affected slot must be revisited together** — the change would *loosen* a threshold, which is the direction a gate cannot catch for you.
+
+The anchors §3 quotes — "3:1 under 26sp, 4.5:1 under 15sp" — both fall out of the 24sp boundary above rather than being independent decisions.
+
 ## 4. Typography
 
 | Family | Slots | Weights bundled |
@@ -175,6 +222,31 @@ The three heading rungs (34 / 26 / 19) are set in **600**; body / meta / caption
 **C3. `isShrinkResources` strips unreferenced fonts** — verify by sha256 in the APK; entries obfuscate. **[V]**
 
 **B2–B5 closed by the fonts PR** — see §25 for each. Two of the four premises were wrong on inspection and the corrections are recorded there: headings rendered at **400**, not "500 or synthesised"; and the timer is **32px in both mockups**, so `.data-s` carries two roles rather than the timer carrying two tiers. **[V]**
+
+### 4.1 Tracking — one rung carries it, and why the other five do not
+
+**The conversion.** CSS `em` is a multiple of the element's own font size, so `em × rung size in sp` is the sp value, and because every rung is a fixed size, `sp` and `em` are interchangeable here. `-0.015 × 26 = -0.39` exactly, no rounding. Written as `sp` rather than `(-0.015).em` so the number sits in the same unit as the size and line height beside it.
+
+**The six declarations, mapped onto the rung the alias table actually routes them to:**
+
+| selector | px | declared | rung it lands on today |
+|---|---|---|---|
+| `.topbar h1` | 20 (17 `.sm`) | `-.015em` | title — `headlineSmall` |
+| `.shead h2` | 22 | `-.015em` | title — `headlineSmall` |
+| `.exhead h2` | 24 | `-.02em` | title — `headlineSmall` |
+| `.ctitle`, `.chead .title` | 16.5 | `-.01em` | body — `titleMedium` |
+| `.data-hero` | 52 / 44 / 38 | `-.02em` | display, **numeric** family |
+
+**title takes `-.015em`, not `-.02em`, and the tiebreak is which declaration was made against this typeface.** Three of them (`.topbar h1` at 20px and at 17px, `.shead h2` at 22px) inherit `--ff-ui`, i.e. real IBM Plex Sans. `.exhead h2` declares no `font-family`, and neither does its `<button>` parent, so it inherits nothing from the mockup's own stacks and falls through to the browser's UA stylesheet for buttons. Which face that is depends on the browser; what is certain — and it is all the tiebreak needs — is that it is **not** IBM Plex Sans. **Tracking chosen against a different typeface is not evidence about this one.**
+
+The other four rungs stay at platform default, each for its own reason:
+
+- **section** — both selectors that land on it (`.sheet h3` 19px, `.empty h4` 18px) declare no tracking at all. Adding it there would be inventing.
+- **body** — `.ctitle`'s `-.01em` is a *card title* treatment. The same rung also carries the body default, `.btn` and `.mitem`, none of which are tracked. Tracking the rung would track **every sentence in the app to fix one card title**; that is a component's business and it needs a slot the six-step scale does not have.
+- **display** — `.data-hero`'s `-.02em` is Archivo at 38–52px, and the numeric display rung's live consumer is the session timer, which declares none (`.data-s` sets no `letter-spacing` in either file). Tracking display would invent it on the timer.
+- **Positive tracking is component business.** `.label` `.14em`, `.tempbadge` `.12em`, `.prtag` `.1em`, `.toast button` `.08em`, `.setbar button` `.06em` — every one is mono **and** uppercase **and** a specific component, so it belongs on the component, the way `AppSetTypeChip` and `PersonalRecordBadge` already carry theirs.
+
+**Handoff.** This follows the *alias* table, not the extraction's px→rung rounding, which would send `.topbar h1` (20px) to the 19 rung. Today screen titles read `headlineSmall`, which is `text.title` at 26. **If a screen rebuild moves a screen title to the section rung, the tracking has to move with it** — the value is attached to the rung, not to the role.
 
 ## 5. Motion
 
@@ -712,6 +784,7 @@ So the mitigation reads, both halves together: **split the surface out so it can
 - **A correct transit can be imperceptible, and the two checks that already existed cannot tell.** §26.1 split the class's default curve after measuring that `out` — near-expo — spends 83 % of a fade's alpha in five frames; the split was taken **before** merging, because merging first would have shipped the reported defect with a spec change queued behind it. What generalises is the gate, not the curve. The old file asserted two transit properties: the curve stays inside `[0, 1]`, and it never reverses. Both are about **overshoot**, and `out` passes both — so when the alpha spec was mutated back onto `out` as a controlled check, **those two assertions stayed green** and only three went red: the instance identity, the "two halves do not share a curve" assertion, and the new one that says the alpha curve **is the identity**. That is the finding: *a shape assertion and an overshoot assertion detect disjoint faults, and a class that has only the second is blind to a curve that is legal and unreadable.* The identity assertion carries its own negative control for the same reason `spring` does — `out` is run through it and must fail by more than 0.1, so it is proven to distinguish `linear` from the curve it was moved off rather than from any curve at all. Verified after the change on device with the same crops as before it: the incoming layer walks evenly across ~15 frames, 250ms wall-clock against a declared 260, perceptible band 178ms against a predicted 182 (it was 64ms). And all **178** goldens across the four modules stayed byte-identical through a curve change, liveness asserted on each (62 + 52 + 50 + 14) — the standing prediction holding in the case it was written for, immediately after the case that broke it. **[V]**
 
 **Claims**
+- **A citation proves a section exists, not that it contains what you need.** Relocating derivation out of comments into `documentation/`, **half of the 55 cited paragraphs cited a *rule* while the working lived only in the comment** — `AppTopBar`'s `.lead` hang arithmetic cites §0.2, and §0.2 carries the rounding *rule*, not that derivation. An automated verifier made it worse rather than better: it passed `AppTopBar` because `48dp` and `16dp` appear all over the docs, and matched a `13.5` that was **an SVG path in a theme-row moon icon**. Rule: **verify against a distinctive phrase from the derivation itself, never against the anchor.** Same family as the vacuous gate and the `FROM-CACHE` liveness claim — the check ran, and answered a different question. Moving on an unverified citation is a deletion wearing an anchor. **[V]**
 - Behavioural claims from reading: seven for seven wrong. Mark [I]; resolve by preflight.
 - Citations decay in weeks; prose decayed **inside one branch**. Rule: documentation touched by an API change is updated in the same commit or explicitly marked stale (B9).
 - Empty multi-agent results are not clean results: count started vs completed; mismatch is RED. (A 17-started/1-returned fan-out was correctly discarded.)

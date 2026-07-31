@@ -121,11 +121,22 @@ predicted" into a KDoc is the reflex this rule exists to interrupt.
 - **Nothing moves that is not already in a document.** If the derivation exists only in the
   comment, moving it means writing the row *first* — otherwise "moved to the docs" is a deletion
   wearing a citation.
+- **Verify against a distinctive phrase from the derivation, never against the anchor.** A citation
+  proves a section exists, not that it contains what you need. Half of the 55 cited paragraphs in
+  the first pass cited a *rule* while the working lived only in the comment (§27, "Claims").
 
-Measured on `core/ui` + `app/app` at the time of writing: 4,294 comment lines, of which **380 are
-category 2** — 199 already cite a document and could move today, 181 cite nothing and would need
-the row written first. Category 3 across the whole tree was 121 net lines. The rest is category 1
-and is the reason the files are long.
+**Density is the wrong instrument; the marginal rate is the right one.** Comment:code across
+`core/ui` + `app/app` is **0.35:1**, and it barely moves no matter what a single branch does. What
+this arc *added* opened at **1.8:1** — 502 comment lines on 281 code lines, five times the tree it
+was landing in. That is the number that says new code reads differently from old, which was the
+actual complaint; the ratio hides it by averaging against everything already there. **Measure the
+diff, not the tree.**
+
+That is also what makes these three categories a rule at the point of writing rather than a cleanup
+job. The full pass — 17 category-3 cuts, seven relocations, and three spec rows written so three
+more could move — recovered **133 lines of the 502**, taking the marginal rate to **1.3:1**. Still
+four times the tree, after deliberate effort against it. Cleanup cannot catch up with a writing
+habit, so the categories have to apply while the comment is being typed.
 
 **`detekt --auto-correct` needs `--no-configuration-cache` or it reports without rewriting.** With the
 configuration cache on, the run reports the same findings and changes not one byte, so the fix looks

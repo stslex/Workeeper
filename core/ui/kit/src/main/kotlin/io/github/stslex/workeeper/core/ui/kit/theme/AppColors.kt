@@ -55,14 +55,11 @@ import androidx.compose.ui.graphics.Color
  *
  * One token ends up with no slot at all.
  *
- * `hair-s` (#2B333B / #D2D7DD) has no slot for a sharper reason: both slots that would have
- * taken it turned out to be **enabled control outlines**, which owe 3:1 under WCAG 1.4.11, and
- * `hair-s` delivers 1.12–1.52:1 against every surface here. The mockup draws its off-state
- * switch track and unchecked set-mark ring in it, so this is the mockup being unmeasured rather
- * than a misreading of it — the same situation as light `meta`, resolved the same way. If a
- * genuinely decorative *solid* rule is ever needed, `hair-s` is the value to bring back; today
- * `borderSubtle` covers every decorative stroke in the app except the chart's gridlines, which
- * carry the mockup's own `--grid` token ([AppColors.grid]).
+ * `hair-s` (#2B333B / #D2D7DD) has no slot because both slots that would have taken it are
+ * **enabled control outlines**, which owe 3:1 — and it delivers 1.12–1.52:1 here. The measured
+ * case, and the lift that replaced it, are §2.7. If a genuinely decorative *solid* rule is ever
+ * needed, `hair-s` is the value to bring back; today `borderSubtle` covers every decorative
+ * stroke in the app except the chart's gridlines, which carry `--grid` ([AppColors.grid]).
  */
 
 /**
@@ -290,22 +287,16 @@ data class AppColors(
     /**
      * **Control outline — not a hairline.** The ring that *is* the control when it is off.
      *
-     * Both readers are enabled, operable controls in their unselected state: the `RadioButton`
-     * `unselectedColor` in `ThemeSelector.kt:84` and the `Checkbox` `uncheckedColor` in
-     * `ExercisePickerSheet.kt:170`. In that state the outline carries the entire affordance —
-     * there is no fill, no label inside it, nothing else to see — so WCAG 1.4.11 applies and it
-     * owes **3:1**, not the nothing a decorative separator owes. It is enabled, so the
-     * inactive-component carve-out does not reach it either.
+     * Both readers are enabled, operable controls in their unselected state: `RadioButton`'s
+     * `unselectedColor` in `ThemeSelector.kt` and `Checkbox`'s `uncheckedColor` in
+     * `ExercisePickerSheet.kt`. In that state the outline carries the entire affordance — no
+     * fill, no label inside it, nothing else to see — so WCAG 1.4.11 applies and it owes **3:1**,
+     * not the nothing a decorative separator owes.
      *
-     * That is why this is not `hair-s`. The mockup draws its off-state switch track and its
-     * unchecked set-mark ring in `hair-s`, which measures 1.12–1.52:1 against every surface in
-     * this palette — invisible by design, and fine for a rule between two rows, disqualifying
-     * for a checkbox. Same override the spec already applies to light `meta` for the same
-     * reason: the mockup was drawn, not measured.
-     *
-     * The values keep `hair-s`'s hue and saturation exactly and move only lightness, by the
-     * smallest step that clears 3:1 on all five surfaces — dark 4.09/3.82/3.60/3.29/3.01,
-     * light 3.61/3.42/3.26/3.87/3.00. Quiet, but present.
+     * **That is why this is not `hair-s`**, which the mockup draws here and which measures
+     * 1.12–1.52:1 — fine for a rule between two rows, disqualifying for a checkbox. The lift keeps
+     * `hair-s`'s hue and saturation and moves only lightness, by the smallest step that clears 3:1
+     * on all five surfaces; the ten ratios are in §2.7.
      */
     val borderStrong: Color,
     val inverseSurface: Color,
