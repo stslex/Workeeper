@@ -69,6 +69,21 @@ try:     path.write_text(mutated)
 finally: path.write_text(before)       # restore, and assert it took
 ```
 
+**Round six, and it was a hand-typed `git checkout --` in the middle of an otherwise disciplined
+mutation run.** The rule above had been read in the same session. The files lost were **untracked**
+— a new screen and a new row, neither yet committed — so `git checkout -- <file>` reverted them to
+nothing at all, and the two paths that *were* untracked errored out with `did not match any file(s)`
+while the two tracked ones silently emptied. That asymmetry is worth having by name: **on an
+untracked file `git checkout` is a loud no-op; on a tracked file with uncommitted changes it is a
+silent delete** — the same command, opposite outcomes, and the loud one gives false reassurance
+about the quiet one. It also corrupts the run it appears in: every mutation after the revert
+measured a tree that was already broken, so five verdicts had to be discarded and re-taken.
+
+Recovery worked only because the goldens had already been recorded: the rewritten files were
+verified byte-exact by re-running `verifyPaparazziDebug` against the committed PNGs (26/26 green),
+which is the only available check that distinguishes reconstruction from approximation. **Copy to a
+scratchpad path and `cp` back.** Never `git checkout` a file you are mutating, whatever its status.
+
 Two more properties worth building in, both of which paid for themselves the same session:
 **refuse to run when the anchor does not match exactly once** (a silent zero-match mutation reports a
 green gate that was never mutated), and **report a compile failure as INVALID rather than as RED** —
