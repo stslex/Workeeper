@@ -51,12 +51,6 @@ import io.github.stslex.workeeper.feature.archive.domain.model.ExerciseTypeDomai
  * упражнение · в архиве с 3 июля
  * ```
  *
- * So the card this row used to be — `shapes.medium` on `surfaceTier1`, inset by the list's gutter,
- * with a `LazyRow` of tag chips and the date on its own third line — becomes the same full-bleed
- * 88dp ruled row the other two already are. Three regions are pure delta and carry no new argument:
- * the container, the two-line clamped `titleMedium` name, and the single non-wrapping `mono.meta`
- * line. §26 "Meta-line order" is why the tag chips go: they are rejected in-row on every payload,
- * and the tags survive as text at the tail of the meta line.
  *
  * ## What this row does NOT resolve
  *

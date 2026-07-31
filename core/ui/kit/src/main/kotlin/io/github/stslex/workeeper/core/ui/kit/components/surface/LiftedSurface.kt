@@ -94,10 +94,10 @@ import io.github.stslex.workeeper.core.ui.kit.theme.fadedOut
  * A fully transparent resting colour is repaired to **the lifted colour, faded out**.
  *
  * `Color.Transparent` is the honest way for a caller to say "this surface paints nothing of its
- * own", and a caller saying that should not have to know that the fill is animated, let alone in
- * which colour space. But transparent is transparent *black*, and a cross-fade carries hue — see
- * [fadedOut] for the measurement. So the declaration is accepted and the endpoint is corrected
- * here, at the one place that knows a tween is involved.
+ * own", and a caller saying that should not have to know the fill is animated. Why that endpoint is
+ * wrong — transparent is transparent *black*, and the tween carries hue — is [fadedOut]'s KDoc and
+ * `FadeToTransparentRule`'s; the declaration is accepted and corrected here, at the one place that
+ * knows a tween is involved.
  *
  * The repair target is the **lifted** colour rather than the surface behind, and that is the point:
  * a component cannot know what it is sitting on, and does not need to. Fading `surfaceTier2` out

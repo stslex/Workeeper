@@ -113,12 +113,6 @@ internal class ArchiveGoldenTest {
     /**
      * The settled empty tab — and it now photographs that rather than the loading spinner.
      *
-     * This KDoc used to say the golden was "named for what it draws, not for what it means", on the
-     * ground that `refresh` had not settled so the picture was chrome-only. That was an accurate
-     * description of a fixture defect and a decision not to fix it. The loading deferral forced the
-     * issue: with the spinner gone the picture became genuinely blank, which is strictly less
-     * informative than either state. The fixture now states its load states outright, so the name
-     * and the image agree.
      */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)

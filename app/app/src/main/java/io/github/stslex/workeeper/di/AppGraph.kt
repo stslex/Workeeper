@@ -47,10 +47,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 /*
  * SUPERTYPE + ACCESSOR STATE — the measured end state of the graph-extension arc, not a plan.
  *
- * All 13 feature `XxxDeps` bridge interfaces are gone: each feature resolves its Store through a
- * contributed `@GraphExtension` that INHERITS the app-scoped bindings it used to be handed. The two
- * spine interfaces (StoreCoreDeps, NavigatorDeps) went with them — once every port landed, nothing
- * called `appDeps<StoreCoreDeps>()` or `appDeps<NavigatorDeps>()` any more.
  *
  * The TWO supertypes below are not feature-graph bridges and stay: RecoveryDeps (read by
  * RecoveryActivity) and BackupWorkerDeps (read by MetroWorkerFactory), each acquired through its own

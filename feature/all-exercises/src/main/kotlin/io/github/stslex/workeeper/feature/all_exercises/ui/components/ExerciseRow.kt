@@ -69,11 +69,6 @@ import kotlinx.collections.immutable.persistentListOf
  *
  * ## The chevron, and why the old comment is cited rather than deleted
  *
- * This row used to carry: *"Chevron is always visible — the filled-card selection visual replaces
- * the checkbox affordance entirely (spec C3)."* Its premise is false twice after this rebuild — the
- * card is gone, and `#s-list`'s selection frame draws an explicit check in the slot. The finding it
- * rests on is the all-trainings mapping's §3.1: the drawing's answer is that an unselected row in
- * selection mode leads nowhere, so it has nothing to promise and loses the chevron. The slot stays.
  *
  * ## `lifted` is selection alone
  *

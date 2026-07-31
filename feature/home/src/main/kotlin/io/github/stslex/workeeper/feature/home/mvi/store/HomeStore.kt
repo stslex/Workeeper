@@ -65,11 +65,6 @@ interface HomeStore : Store<HomeStore.State, HomeStore.Action, HomeStore.Event> 
         /**
          * Whether the ACTIVE-SESSION half of the screen has settled.
          *
-         * It used to be `!isActiveLoaded || !isRecentLoaded`, i.e. the recent list gated the whole
-         * screen too. Under a `Pager` there is no "loaded" moment to wait for — the list reports
-         * its own load state through `LoadState`, and the screen reads that where it draws the
-         * list. So this shrinks to the one flow that still emits a settled snapshot, and the list's
-         * loading is the list's business.
          */
         val isLoading: Boolean get() = !isActiveLoaded
         val showStartCta: Boolean get() = activeSession == null && !isLoading

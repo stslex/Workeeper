@@ -93,6 +93,40 @@ which is the only available check that distinguishes reconstruction from approxi
 rely on that.** If the harness is genuinely unusable for some mutation, copy to a scratchpad path
 and `cp` back. Never `git checkout` a file you are mutating, whatever its status.
 
+### Comments: the guard stays, the derivation moves, the history is never written
+
+Three categories, and only the first belongs at the point of edit.
+
+1. **GUARD** — stops a specific plausible wrong edit, *where that edit would be made*. "60 is not a
+   rung"; "`using null` suppresses the size transform"; "called unconditionally so the modifier
+   graph stays stable". These earn their place and are not counted against volume.
+2. **DERIVATION** — how a number was arrived at: rung arithmetic, contrast ratios, mockup
+   transcription tables. This belongs in `documentation/`, and the comment keeps the **conclusion
+   plus a citation**. Nothing is lost and the file gets shorter.
+3. **HISTORY** — what a decision used to be, who ruled, which PR, which round, what the first draft
+   said. **Do not write this in code at all.** It goes in the commit body and the spec's
+   append-only registries, both of which exist for it.
+
+**Category 3 is still being produced, which is why this is a rule and not a cleanup.** A pass over
+the tree found 17 sites of it; one of them — `ArchiveGoldenTest`'s "this KDoc used to say…" — had
+been written *in the same session as the pass*. Writing "corrected here", "the first draft", "§24
+predicted" into a KDoc is the reflex this rule exists to interrupt.
+
+**Two constraints when relocating.**
+
+- **Cite by anchor, never by line.** `AppTopBar`'s derivation, §26 "Bottom navigation",
+  `pass2d.html` `#s-nav` — all stable. Line numbers have decayed three times on this arc, twice in
+  a fortnight (`App.kt:152`→`:170` inside one PR, and a registry row whose line cites were
+  invalidated by the rebuild that rewrote the screen).
+- **Nothing moves that is not already in a document.** If the derivation exists only in the
+  comment, moving it means writing the row *first* — otherwise "moved to the docs" is a deletion
+  wearing a citation.
+
+Measured on `core/ui` + `app/app` at the time of writing: 4,294 comment lines, of which **380 are
+category 2** — 199 already cite a document and could move today, 181 cite nothing and would need
+the row written first. Category 3 across the whole tree was 121 net lines. The rest is category 1
+and is the reason the files are long.
+
 **`detekt --auto-correct` needs `--no-configuration-cache` or it reports without rewriting.** With the
 configuration cache on, the run reports the same findings and changes not one byte, so the fix looks
 like it failed to work rather than like it never ran. Same family as the `FROM-CACHE` note above and

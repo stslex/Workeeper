@@ -14,14 +14,12 @@ import kotlinx.serialization.InternalSerializationApi
  * The bottom bar's destinations — **routing, and it stays in `app/app` for a reason the compiler
  * enforces rather than a preference.**
  *
- * This enum survived the nav-bar rebuild one-for-one (§24, deletion perimeter): it carries
- * [Screen.BottomBar] and [getByRoute], which is routing and not chrome, and
- * `BottomBarNavigationListener` reads `getByRoute` off an `OnDestinationChangedListener`. The
- * *treatment* moved to `core:ui:kit`'s `AppNavBar`; the destinations did not follow it, and the
- * deleted `AppBottomBarDestination` is why. That enum lived in the kit and could therefore reach
- * neither `Screen.BottomBar` (the kit does not depend on `core:ui:navigation`) nor
- * `R.string.bottom_bar_label_*` (another module's resources), so it hardcoded `label = "Home"` —
- * English literals in a Russian-language app, shipped for as long as it existed.
+ * It carries [Screen.BottomBar] and [getByRoute] — routing, not chrome. The *treatment* is
+ * `core:ui:kit`'s `AppNavBar`, and the destinations deliberately did not follow it there: the kit
+ * depends on neither `core:ui:navigation` (so it cannot name [Screen.BottomBar]) nor this module's
+ * resources (so it cannot resolve `R.string.bottom_bar_label_*`). The deleted
+ * `AppBottomBarDestination` is what happens when they do — it hardcoded `label = "Home"`, English
+ * literals in a Russian-language app, because nothing else compiled.
  *
  * [titleRes] stays a `@StringRes` and is resolved by the caller with `stringResource`. The icons
  * are now `AppIcons` vectors rather than `@DrawableRes` XML: §26 takes trainings and exercises

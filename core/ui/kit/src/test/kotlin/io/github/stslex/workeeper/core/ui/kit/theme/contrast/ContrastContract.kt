@@ -229,10 +229,8 @@ internal object ContrastContract {
         // accent is v3 `max`: links, timers, chart strokes, selected icons.
         add(Declared("accent", "surfaceTier0", TypeSlot.BODY, "AboutBlock links, ChartCanvas"))
         add(Declared("accent", "surfaceTier1", TypeSlot.BODY, "HomeStartCard, ActiveSessionBanner"))
-        // RE-VERIFIED: this row used to cite "AppNumberInput cursor", which moved to
-        // `surfaceTier3` when the input adopted the mockup's `.field` tier. The live sites are
-        // RestoreProgressOverlay.kt:65 (accent label on a card that is `surfaceTier2` in light)
-        // and ExercisePickerSheet.kt:169 (Checkbox checkedColor on a `surfaceTier2` sheet).
+        // Live sites: `RestoreProgressOverlay`'s accent label (a card that is `surfaceTier2` in
+        // light) and `ExercisePickerSheet`'s Checkbox `checkedColor` on a `surfaceTier2` sheet.
         add(Declared("accent", "surfaceTier2", TypeSlot.BODY, "RestoreProgressOverlay label, light theme"))
         add(Declared("accent", "surfaceTier3", TypeSlot.BODY, "ChartTooltipPopup value; AppNumberInput cursor"))
         add(Declared("accent", "surfaceTier4", TypeSlot.BODY, "TrainingRow active glyph"))
@@ -273,20 +271,11 @@ internal object ContrastContract {
 
         // Selected states.
         //
-        // RE-TARGETED at the nav-bar rebuild, and the correction is the interesting half.
-        // §24's deletion perimeter predicted this row would be orphaned — "after the deletion a
-        // declared pair with no consumer, i.e. a guarantee that cannot fail (§27)" — because the
-        // description named `AppBottomBar`. **The tree disagrees.** `AppTagChip` drives exactly
-        // this pair off one flag: `ChipShell` (:76) fills with `accentTintedBackground` when
-        // selected and `ChipLabel` (:94) paints the label `accentTintedForeground`. So the pair is
-        // live, the row stays, and what was actually stale was the *citation* — which is why §24
-        // reached the wrong verdict: it read the description as the consumer list.
-        //
-        // The rebuilt bar adds no row of its own. Its two real pairs are already declared, at
-        // stricter slots than the 3:1 a glyph owes: the active icon is `textPrimary` on
-        // `surfaceTier2` (BODY, in the every-surface loop above) and the inactive icon is
-        // `textTertiary` on `surfaceTier1` (META, same loop). §26 measured them at 5.98 dark /
-        // 5.55 light for the inactive glyph on the track.
+        // Live consumer is `AppTagChip`, which drives this pair off one flag: `ChipShell` fills
+        // with `accentTintedBackground` when selected, `ChipLabel` paints the label
+        // `accentTintedForeground`. The nav bar adds no row — its two pairs are already declared
+        // at stricter slots in the every-surface loop above (`textPrimary` on `surfaceTier2`,
+        // `textTertiary` on `surfaceTier1`). Full derivation: §24, deletion perimeter.
         add(
             Declared(
                 "accentTintedForeground",

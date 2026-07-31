@@ -73,28 +73,16 @@ import kotlinx.coroutines.flow.flowOf
  *
  * ## What is undrawn, and stops here rather than being invented past
  *
- * 1. **The active-session banner.** Nothing in either mockup draws it. The one drawn expression of
- *    "a training is running" is `#s-list`'s `.row.live` — a *row* on `--slab` + `--slabtop` with
- *    «идёт сейчас · 12:04» in its meta line — which is a list treatment on the trainings screen,
- *    not a card with an icon, a timer in its own type and a progress count. Deriving the banner
- *    from it would be inventing a component out of a row; the banner keeps its v2.4 treatment.
- * 2. **The start card.** Same: no referent, keeps its treatment.
- * 3. **The top bar's contents.** §26 "Resting list top bar" owes the whole surface to a mockup
- *    pass and names Home explicitly as its point (4) — "whether Home differs, since it is the one
- *    destination already carrying two trailing actions against a drawn grammar that shows at most
- *    one `.icon-btn.trail`". Untouched, including the two Material glyphs, which is a deliberate
- *    non-fix: replacing them needs marks the drawing does not have for these two actions.
- * 4. **The empty state's copy.** The three drawn empties are other screens'. Home's strings stay.
- *    Its *glyph* is the one thing changed, and it is recorded as a derivation the pass may
- *    overrule: `Icons.Filled.FitnessCenter` is a **filled Material glyph in a system that has
- *    none** (§26, FAB row: "no filled mark exists anywhere in this drawing"), which is precisely
- *    the "design system applied, design absent" defect this arc exists to remove. It becomes
- *    `AppIcons.Trainings`, the drawn mark, on the ground that dropping the tile instead would
- *    contradict `#s-empty`'s own discriminator — a tile means the screen is empty *by itself*, and
- *    Home with no history is.
+ * Four regions keep their v2.4 treatment and are photographed rather than derived: the
+ * **active-session banner**, the **start card**, the **top bar's contents** (both Material
+ * glyphs included — a deliberate non-fix) and the **empty state's copy**. The one thing
+ * changed is the empty state's glyph, `Icons.Filled.FitnessCenter` → `AppIcons.Trainings`,
+ * because a filled Material glyph in a system that has none is the defect this arc removes;
+ * recorded as a derivation the pass may overrule.
  *
- * Recorded rather than silently narrowed: this is a much smaller extraction than its three
- * siblings', and correctly so — they had a drawing and Home does not.
+ * **Why each is undrawn, and what the mockup pass owes on them, is §26's "THE MOCKUP PASS"
+ * row** — including that `#s-list`'s `.row.live` is a *row* treatment and cannot yield a
+ * banner. Do not re-derive it here; do not invent past it.
  */
 @Composable
 internal fun HomeScreen(

@@ -51,11 +51,6 @@ import kotlin.math.min
 /**
  * The v3 bottom navigation — `pass2d.html` `#s-nav`, the `.nb.track.slide` variant.
  *
- * §26 ("Bottom navigation") collapsed three drawn variants to this one on the stage-5 gate-0
- * device pass: a `--sec` **track** under a hairline, with the active destination sitting on a
- * lifted `--slab` + `--slabtop` **pill** — the system's only drawn marker for "selected among
- * siblings", and literally `.tabs`' grammar from the chart, where a track holding a lifted thumb
- * was drawn and built first. Three icon-only items; no captions in the chosen variant.
  *
  * ## Geometry, derived rather than transcribed (§0.2)
  *
