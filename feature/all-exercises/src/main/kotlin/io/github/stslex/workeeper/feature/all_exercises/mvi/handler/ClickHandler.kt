@@ -31,7 +31,9 @@ internal class ClickHandler @Inject constructor(
             is Action.Click.OnExerciseClick -> processExerciseClick(action)
             is Action.Click.OnExerciseLongPress -> processExerciseLongPress(action)
             Action.Click.OnFabClick -> processFabClick()
+            Action.Click.OnEmptyCreate -> consume(Action.Navigation.OpenCreate)
             is Action.Click.OnTagFilterToggle -> processTagFilterToggle(action)
+            Action.Click.OnClearTagFilter -> processClearTagFilter()
             Action.Click.OnConfirmPermanentDelete -> processConfirmPermanentDelete()
             Action.Click.OnCancelPermanentDelete -> processCancelPermanentDelete()
             is Action.Click.OnSelectionToggle -> processSelectionToggle(action)
@@ -54,11 +56,14 @@ internal class ClickHandler @Inject constructor(
     }
 
     private fun processExerciseLongPress(action: Action.Click.OnExerciseLongPress) {
-        sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
+        // §26 "Haptics": LongPress is for ENTERING selection. A long press while already in
+        // selection is a toggle and gets ContextClick from `processSelectionToggle` — firing
+        // LongPress first would put two in a row, which reads as a fault.
         if (state.value.selectionMode is SelectionMode.On) {
             processSelectionToggle(Action.Click.OnSelectionToggle(action.uuid))
             return
         }
+        sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
         updateState { current ->
             current.copy(
                 selectionMode = SelectionMode.On(selectedUuids = persistentSetOf(action.uuid)),
@@ -72,7 +77,10 @@ internal class ClickHandler @Inject constructor(
     }
 
     private fun processTagFilterToggle(action: Action.Click.OnTagFilterToggle) {
-        sendEvent(Event.Haptic(HapticFeedbackType.SegmentTick))
+        // No haptic. §26 "Haptics" names four constants and gives SegmentTick to the nav bar's tab
+        // change; this screen borrowed it for a filter chip, which is a different gesture on a
+        // different surface. The vocabulary is not extended here — and the sibling screen, which
+        // draws the same band, already dropped it.
         updateState { current ->
             val next = if (action.tagUuid in current.activeTagFilter) {
                 current.activeTagFilter - action.tagUuid
@@ -83,9 +91,26 @@ internal class ClickHandler @Inject constructor(
         }
     }
 
+    /**
+     * Clears the tag filter whole. No haptic, for the same reason [processTagFilterToggle] fires
+     * none: the vocabulary is four constants and none of them is "a filter changed".
+     *
+     * Guarded on an already-empty filter so a redundant emit cannot restart the paging flow the
+     * filter feeds. `PagingHandler` flat-maps `activeTagFilter` through `distinctUntilChanged`,
+     * which absorbs it today — the guard states the intent where the emit is, rather than resting
+     * on a downstream operator staying where it is.
+     */
+    private fun processClearTagFilter() {
+        if (state.value.activeTagFilter.isEmpty()) return
+        updateState { current -> current.copy(activeTagFilter = persistentSetOf()) }
+    }
+
     private fun processConfirmPermanentDelete() {
         val pending = state.value.pendingPermanentDelete ?: return
-        sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
+        // §26 "Haptics": Confirm is the confirmed-deletion buzz — after the dialog, not on the
+        // button that opens it. (B23: nothing sets `pendingPermanentDelete`, so this path is
+        // currently unreachable. Corrected anyway rather than left wrong behind a dead gate.)
+        sendEvent(Event.Haptic(HapticFeedbackType.Confirm))
         updateState { it.copy(pendingPermanentDelete = null) }
         launch {
             interactor.permanentlyDelete(pending.uuid)
@@ -135,7 +160,10 @@ internal class ClickHandler @Inject constructor(
     private fun processBulkDelete() {
         val mode = state.value.selectionMode as? SelectionMode.On ?: return
         if (mode.selectedUuids.isEmpty()) return
-        sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
+        // §26 "Haptics": the FAB morph fires NOTHING. It follows the long press that already
+        // fired, and two in a row read as a fault. This is also the selection top bar's archive
+        // action, which is not a morph — but it opens the same dialog, and the confirmation is
+        // where the buzz belongs.
         updateState { current ->
             current.copy(pendingBulkDelete = PendingBulkDelete(count = mode.selectedUuids.size))
         }
@@ -143,7 +171,8 @@ internal class ClickHandler @Inject constructor(
 
     private fun processBulkDeleteConfirm() {
         val mode = state.value.selectionMode as? SelectionMode.On ?: return
-        sendEvent(Event.Haptic(HapticFeedbackType.LongPress))
+        // Confirm, not LongPress: §26 gives Confirm to "подтверждённое удаление, после диалога".
+        sendEvent(Event.Haptic(HapticFeedbackType.Confirm))
         val targets = mode.selectedUuids.toSet()
         launch(
             onSuccess = { result ->

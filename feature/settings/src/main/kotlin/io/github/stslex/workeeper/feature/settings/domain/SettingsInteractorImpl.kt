@@ -6,10 +6,14 @@ import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
 import io.github.stslex.workeeper.core.core.platform.PlatformInfoProvider
 import io.github.stslex.workeeper.core.data.dataStore.store.CommonDataStore
+import io.github.stslex.workeeper.core.data.exercise.exercise.ExerciseRepository
+import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
 import io.github.stslex.workeeper.feature.settings.di.SettingsScope
+import io.github.stslex.workeeper.feature.settings.domain.model.ArchivedCountsDomain
 import io.github.stslex.workeeper.feature.settings.domain.model.ThemeModeDomain
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 
@@ -18,6 +22,8 @@ import kotlinx.coroutines.flow.map
 class SettingsInteractorImpl(
     private val platformInfo: PlatformInfoProvider,
     private val commonDataStore: CommonDataStore,
+    private val exerciseRepository: ExerciseRepository,
+    private val trainingRepository: TrainingRepository,
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
 ) : SettingsInteractor {
 
@@ -32,4 +38,12 @@ class SettingsInteractorImpl(
     override suspend fun setThemeMode(mode: ThemeModeDomain) {
         commonDataStore.setThemePreference(mode.value)
     }
+
+    /** Both counts already exist as `Flow<Int>`; this is a pass-through pair, combined. */
+    override fun observeArchivedCounts(): Flow<ArchivedCountsDomain> = combine(
+        exerciseRepository.observeArchivedCount(),
+        trainingRepository.observeArchivedCount(),
+    ) { exercises, trainings ->
+        ArchivedCountsDomain(exercises = exercises, trainings = trainings)
+    }.flowOn(defaultDispatcher)
 }

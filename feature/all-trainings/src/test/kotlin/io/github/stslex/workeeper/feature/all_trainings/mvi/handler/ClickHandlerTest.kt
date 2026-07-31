@@ -39,6 +39,7 @@ internal class ClickHandlerTest {
         activeTagFilter = persistentSetOf(),
         selectionMode = State.SelectionMode.Off,
         pendingBulkDelete = null,
+        hasActiveSession = false,
     )
     private val stateFlow = MutableStateFlow(initialState)
 
@@ -230,6 +231,7 @@ internal class ClickHandlerTest {
         handler.invoke(Action.Click.OnTagFilterToggle("tag-1"))
         verify(exactly = 0) { store.sendEvent(any()) }
     }
+
     /**
      * `Confirm` for the act itself — after the dialog, not on the button that opens it.
      *
@@ -250,5 +252,54 @@ internal class ClickHandlerTest {
             captured.any { it is Event.HapticClick && it.type == HapticFeedbackType.Confirm },
             "expected Confirm after the dialog's confirm",
         )
+    }
+
+    /**
+     * The filtered-to-empty state's only action, and it is one tap rather than N.
+     *
+     * No haptic: [ClickHandler] fires none on a filter change and the vocabulary is four constants,
+     * none of which is "a filter changed". Asserted rather than assumed — silence is also what an
+     * accidental deletion produces.
+     */
+    @Test
+    fun `OnClearTagFilter empties the whole filter in one act`() {
+        stateFlow.value = stateFlow.value.copy(
+            activeTagFilter = persistentSetOf("tag-1", "tag-2", "tag-3"),
+        )
+        handler.invoke(Action.Click.OnClearTagFilter)
+        assertEquals(emptySet<String>(), stateFlow.value.activeTagFilter.toSet())
+    }
+
+    @Test
+    fun `OnClearTagFilter fires no haptic`() {
+        stateFlow.value = stateFlow.value.copy(activeTagFilter = persistentSetOf("tag-1"))
+        handler.invoke(Action.Click.OnClearTagFilter)
+        verify(exactly = 0) { store.sendEvent(any()) }
+    }
+
+    /** Guarded, so a redundant emit cannot restart the paging flow the filter feeds. */
+    @Test
+    fun `OnClearTagFilter on an already-empty filter changes nothing`() {
+        val before = stateFlow.value
+        handler.invoke(Action.Click.OnClearTagFilter)
+        assertEquals(before, stateFlow.value)
+        verify(exactly = 0) { store.updateState(any()) }
+    }
+    /**
+     * The empty state's CTA opens create and fires **nothing**. The FAB fires `ContextClick`; a
+     * button inside an empty state does not, and routing the CTA through [Action.Click.OnFabClick]
+     * gave this screen a haptic its sibling's identical `.empty` button does not have.
+     *
+     * **Residual, stated rather than papered over:** this asserts the *handler*. That the screen
+     * dispatches this action and not `OnFabClick` is screen wiring, which no unit test and no
+     * golden can see — a Compose UI test could, but `ui_tests.yml` is `workflow_dispatch`-only and
+     * does not gate PRs. Proven by mutation to be uncovered, and left named. Same class as the
+     * paging-tail selector before it was extracted.
+     */
+    @Test
+    fun `OnEmptyCreate opens create and fires no haptic`() {
+        handler.invoke(Action.Click.OnEmptyCreate)
+        verify { store.consume(Action.Navigation.OpenCreate) }
+        verify(exactly = 0) { store.sendEvent(any()) }
     }
 }

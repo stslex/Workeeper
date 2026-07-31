@@ -3,6 +3,12 @@ plugins {
     // PLAIN Store, single @DefaultDispatcher. archive is the template every other feature graph
     // follows: a @GraphExtension contributed to AppScope, so it inherits all app-scoped bindings.
     alias(libs.plugins.metro)
+    // Goldens for the archive surface. This module had none, and the v3 delta rewrites the row's
+    // container, its name, its meta line and the list's padding at once — a whole-surface change
+    // with no before-picture is a diff nobody can read. The harness is NOT copied: it comes from
+    // core:ui:kit's testFixtures, so device config, tolerance and canvas width cannot drift between
+    // this module and the two siblings it must stay in step with.
+    alias(libs.plugins.paparazzi)
 }
 
 // Metro reads javax.inject qualifiers (via includeJavax) so the inherited app-scoped dispatcher
@@ -25,9 +31,12 @@ dependencies {
 
     testImplementation(kotlin("test"))
     testImplementation(libs.androidx.paging.testing)
+    testImplementation(testFixtures(project(":core:ui:kit")))
 
     androidTestImplementation(libs.bundles.android.test)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(project(":core:ui:test-utils"))
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
+
+apply(from = "$rootDir/gradle/golden-gate.gradle.kts")

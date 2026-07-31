@@ -15,15 +15,9 @@ import androidx.compose.animation.slideOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult.ActionPerformed
@@ -36,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalAccessibilityManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.IntOffset
@@ -46,19 +41,17 @@ import androidx.navigation.compose.rememberNavController
 import io.github.stslex.workeeper.bottom_app_bar.WorkeeperBottomAppBar
 import io.github.stslex.workeeper.core.ui.kit.components.snackbar.AppSnackbar
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
+import io.github.stslex.workeeper.core.ui.kit.snackbar.toastTimeoutMillis
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
-import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.di.AppGraphOwner
 import io.github.stslex.workeeper.feature.app_dialogs.impl.ui.AppDialogHost
 import io.github.stslex.workeeper.host.AppNavigationHost
 import io.github.stslex.workeeper.host.BottomBarNavigationListener.Companion.rememberBottomBarNavigationListener
 import io.github.stslex.workeeper.navigation.NavigatorExt.NavigationEventBusSetup
-
-private val TOP_APP_BAR_HEIGHT = 64.dp
-private val TOP_APP_BAR_ACTION_PADDING = 4.dp
+import kotlinx.coroutines.withTimeoutOrNull
 
 @Composable
 fun App() {
@@ -89,18 +82,43 @@ fun App() {
 
         val snackbarHostState = remember { SnackbarHostState() }
 
-        LaunchedEffect(Unit) {
+        // B25 branch B: the host owns the toast's lifetime, because the drawing gives a number
+        // Material3 has no rung for.
+        //
+        // `showSnackbar`'s `duration` defaults to `Indefinite` whenever an `actionLabel` is
+        // present — a deliberate M3 default, paired with a dismiss affordance this app's `.toast`
+        // does not draw. The result was three undo toasts that never went away. `SnackbarDuration`
+        // offers only 4000ms and 10000ms; `session-v3f.html` says 5000, so the timeout is applied
+        // here instead of rounded onto a rung.
+        //
+        // The snackbar is therefore shown as `Indefinite` and cancelled by `withTimeoutOrNull` —
+        // cancelling the caller removes it from display, which M3's own KDoc guarantees. The
+        // accessibility recommendation is applied by `toastTimeoutMillis` rather than left to M3:
+        // an `Indefinite` snackbar short-circuits `calculateRecommendedTimeoutMillis` before the
+        // system manager is reached, so it is the one duration that silently ignores a user's
+        // display-timeout preference. A finite base restores it.
+        val accessibilityManager = LocalAccessibilityManager.current
+        LaunchedEffect(accessibilityManager) {
             SnackbarManager.snackbar
                 .collect { model ->
-                    val result = snackbarHostState.showSnackbar(
-                        message = model.message,
-                        actionLabel = model.actionLabel,
-                        withDismissAction = model.withDismissAction,
-                    )
+                    val result = withTimeoutOrNull(
+                        toastTimeoutMillis(
+                            accessibilityManager = accessibilityManager,
+                            hasAction = model.actionLabel != null,
+                        ),
+                    ) {
+                        snackbarHostState.showSnackbar(
+                            message = model.message,
+                            actionLabel = model.actionLabel,
+                            duration = SnackbarDuration.Indefinite,
+                        )
+                    }
                     when (result) {
                         ActionPerformed -> model.action()
 
-                        Dismissed -> Unit // No-op
+                        // Dismissed by the user, or `null` — the toast timed out. Both no-ops:
+                        // every action here is a shortcut to a route that stays open.
+                        Dismissed, null -> Unit
                     }
                 }
         }
@@ -169,27 +187,21 @@ fun App() {
                 navigatorHolder = holder,
             )
 
-            if (bottomBarNavigationListener.bottomBarDestination.value != null) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .systemBarsPadding()
-                        .height(TOP_APP_BAR_HEIGHT)
-                        .padding(end = TOP_APP_BAR_ACTION_PADDING),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    IconButton(
-                        modifier = Modifier.testTag("AppSettingsEntry"),
-                        onClick = { navigatorEventBus.navTo(Screen.Settings) },
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Settings",
-                            tint = AppUi.colors.textPrimary,
-                        )
-                    }
-                }
-            }
+            // The host used to hang a global settings `IconButton` here — `align(TopEnd)`,
+            // `systemBarsPadding()`, a hard-coded 64dp band — as a sibling placed AFTER
+            // `AppNavigationHost`, so it painted over whatever the current destination put in its
+            // own top bar's trailing slot. That is the host owning a band it does not own (§26,
+            // "the top bar belongs to the destination"), and the cost was not theoretical: it
+            // occluded Home's own settings action, and on both list screens it sat exactly on top
+            // of `SelectionTopBar`'s archive button — drawn, invisible, and untappable, because the
+            // gear took the tap to Settings (B26). Removed rather than moved: **where** a resting
+            // list screen offers settings is the mockup pass's ruling, and the overlay was the one
+            // thing that made the question look answered.
+            //
+            // Interim, stated rather than papered over: all-trainings, all-exercises and archive
+            // have **no settings entry of their own** until that pass rules the resting bar. Home
+            // keeps its own (`HomeScreen`'s `actions`), and Home is one tap away on the nav bar, so
+            // the three screens reach settings in two taps. Do not restore this overlay for them.
 
             SnackbarHost(
                 modifier = Modifier.align(Alignment.BottomCenter),

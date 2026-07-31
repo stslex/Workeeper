@@ -26,3 +26,6 @@ fastlane/README.md
 .env
 .claude.settings.local.*
 .obsidian/
+
+# shell_gate.py is run directly; its bytecode cache is not an artefact.
+documentation/mockups/__pycache__/

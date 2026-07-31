@@ -82,4 +82,18 @@
     <string name="feature_settings_backup_auto_paused_banner_action">Войти</string>
     <string name="feature_settings_backup_auto_enabled_default">Авто-копирование включено, ежедневно</string>
     <string name="feature_settings_backup_auto_enabled_change_action">Изменить</string>
+
+    <!-- The Archive row's drawn sub-line (§26). B15: the counts existed all along. -->
+    <plurals name="feature_settings_archive_exercise_count">
+        <item quantity="one">%d упражнение</item>
+        <item quantity="few">%d упражнения</item>
+        <item quantity="many">%d упражнений</item>
+        <item quantity="other">%d упражнения</item>
+    </plurals>
+    <plurals name="feature_settings_archive_training_count">
+        <item quantity="one">%d тренировка</item>
+        <item quantity="few">%d тренировки</item>
+        <item quantity="many">%d тренировок</item>
+        <item quantity="other">%d тренировки</item>
+    </plurals>
 </resources>

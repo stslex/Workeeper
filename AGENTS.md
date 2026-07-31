@@ -56,6 +56,24 @@ unchecked exit code it looks exactly like success. The next revert then destroys
 commit existed to protect. **Check `git log -1` — or the exit code — and only then mutate.** Four
 rounds of work have been lost to this, the last one *after* the habit was written down.
 
+**And that rule is a discipline where a tool would do. Fix the revert, not the habit.** A fifth round
+was lost anyway — this time to a mutation harness whose `revert()` ran `git checkout -- .`, on a tree
+carrying an hour of uncommitted work. "Commit first" had been written down, read, and not applied,
+which is what a discipline that depends on remembering does eventually. **A mutation harness has no
+business knowing what HEAD is:** it changes one file and must put back exactly the bytes it found,
+committed or not.
+
+```python
+before = path.read_text()              # snapshot
+try:     path.write_text(mutated)
+finally: path.write_text(before)       # restore, and assert it took
+```
+
+Two more properties worth building in, both of which paid for themselves the same session:
+**refuse to run when the anchor does not match exactly once** (a silent zero-match mutation reports a
+green gate that was never mutated), and **report a compile failure as INVALID rather than as RED** —
+a mutation that does not build proves nothing, and it looks exactly like a detector firing.
+
 **`detekt --auto-correct` needs `--no-configuration-cache` or it reports without rewriting.** With the
 configuration cache on, the run reports the same findings and changes not one byte, so the fix looks
 like it failed to work rather than like it never ran. Same family as the `FROM-CACHE` note above and

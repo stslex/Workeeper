@@ -136,7 +136,6 @@ fun NavGraphBuilder.exerciseGraph(
                     AppSnackbarModel(
                         message = event.message,
                         actionLabel = undoLabel,
-                        withDismissAction = true,
                         action = { processor.consume(Action.Click.OnUndoArchive(event.uuid)) },
                     ),
                 )

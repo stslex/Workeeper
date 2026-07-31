@@ -30,7 +30,7 @@ import io.github.stslex.workeeper.feature.all_trainings.R
 @Composable
 internal fun TrainingsEmptyState(
     onCreate: () -> Unit,
-    onStartBlank: () -> Unit,
+    onStartBlank: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     AppEmptyState(
@@ -40,7 +40,9 @@ internal fun TrainingsEmptyState(
         icon = AppIcons.Trainings,
         actionLabel = stringResource(R.string.feature_all_trainings_empty_create),
         onAction = onCreate,
-        secondaryActionLabel = stringResource(R.string.feature_all_trainings_empty_start_blank),
+        secondaryActionLabel = onStartBlank?.let {
+            stringResource(R.string.feature_all_trainings_empty_start_blank)
+        },
         onSecondaryAction = onStartBlank,
     )
 }

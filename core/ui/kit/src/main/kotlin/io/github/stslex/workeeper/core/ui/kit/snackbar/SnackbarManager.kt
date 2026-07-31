@@ -28,13 +28,11 @@ object SnackbarManager {
     fun showSnackbar(
         message: String,
         actionLabel: String? = null,
-        withDismissAction: Boolean = false,
         action: () -> Unit = {},
     ): Unit = showSnackbar(
         AppSnackbarModel(
             message = message,
             actionLabel = actionLabel,
-            withDismissAction = withDismissAction,
             action = action,
         ),
     )

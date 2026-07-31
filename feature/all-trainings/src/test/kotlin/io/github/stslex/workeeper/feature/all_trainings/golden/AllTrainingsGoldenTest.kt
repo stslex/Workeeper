@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.all_trainings.golden
 
+import androidx.paging.LoadState
+import androidx.paging.LoadStates
 import androidx.paging.PagingData
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialogContent
@@ -13,8 +15,12 @@ import io.github.stslex.workeeper.feature.all_trainings.mvi.model.TrainingListIt
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.State
 import io.github.stslex.workeeper.feature.all_trainings.mvi.store.AllTrainingsStore.State.SelectionMode
 import io.github.stslex.workeeper.feature.all_trainings.ui.AllTrainingsScreen
+import io.github.stslex.workeeper.feature.all_trainings.ui.components.ColdOpenError
+import io.github.stslex.workeeper.feature.all_trainings.ui.components.ColdOpenLoading
+import io.github.stslex.workeeper.feature.all_trainings.ui.components.FilteredEmptyState
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.PagingErrorFooter
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.PagingLoadingFooter
+import io.github.stslex.workeeper.feature.all_trainings.ui.components.SelectionEmptyState
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.TagFilterRow
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.TrainingRow
 import io.github.stslex.workeeper.feature.all_trainings.ui.components.TrainingsEmptyState
@@ -45,6 +51,15 @@ import org.junit.jupiter.params.provider.EnumSource
  * paging tails, the confirm dialog's content, the empty state and three whole-screen pictures —
  * each in both themes. (This sentence said "five" and enumerated five while the suite rendered
  * seven; an inventory that undercounts its own suite is how a golden goes missing unnoticed.)
+ *
+ * **That sentence was once wrong and the fix is recorded here rather than dropped.** The
+ * whole-screen "empty" golden used to photograph a **blank** screen — top bar, tag band, FAB, and
+ * nothing between them — because `isEmptyAndIdle()` wanted `refresh`, `append` and `prepend` all
+ * `NotLoading`, which suppressed the rows and the empty state together. That was **B22**, caught by
+ * mutation: swapping the empty state's glyph reddened the component golden while the screen-level
+ * picture named after it never moved. `listSurface` now splits the states, so the screen has five
+ * whole-surface pictures and one of them is [screenFirstRunEmpty], which finally contains what its
+ * name says.
  *
  * Two of those became photographable *because* this commit split them: `AppConfirmDialogContent`
  * out of `AppConfirmDialog`'s window, and the two paging footers out of the screen's
@@ -129,6 +144,10 @@ internal class AllTrainingsGoldenTest {
         activeTagFilter = persistentSetOf("g1", "g2"),
         selectionMode = selection,
         pendingBulkDelete = null,
+        // Nothing running, so the empty state's drawn PAIR is whole — which is what the recorded
+        // images show. The withdrawn-CTA case is `StartBlankGateTest`'s, not a golden's: a
+        // picture cannot say which actions it was handed, only which it drew.
+        hasActiveSession = false,
     )
 
     // ---- components --------------------------------------------------------------------------
@@ -295,9 +314,166 @@ internal class AllTrainingsGoldenTest {
         )
     }
 
+    /**
+     * The first-run empty at screen level — **no filter**, which is what makes it first-run rather
+     * than filtered.
+     *
+     * This picture used to be a **blank** screen, and the suite KDoc above carried a correction
+     * saying so: the old predicate suppressed the rows and the empty state together whenever
+     * refresh had not settled, so the golden named after the empty state contained everything
+     * except it. `listSurface` now distinguishes the states, so there is no blank left to
+     * photograph and this is repointed at the case its name always meant.
+     */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
-    fun screenEmpty(theme: GoldenTheme, testInfo: TestInfo) = golden(testInfo, theme) {
-        AllTrainingsScreen(state = state(emptyList()), consume = {})
+    fun screenFirstRunEmpty(theme: GoldenTheme, testInfo: TestInfo) = golden(testInfo, theme) {
+        AllTrainingsScreen(
+            state = state(emptyList()).copy(activeTagFilter = persistentSetOf()),
+            consume = {},
+        )
     }
+    // ---- states reached by an action ------------------------------------------------------------
+
+    /**
+     * No tile, by rule: §26's discriminator is that a glyph tile means the screen is empty by
+     * itself. Pair it with [emptyState] — the tile is the only thing that should differ in kind.
+     */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun filteredEmpty(theme: GoldenTheme, testInfo: TestInfo) = goldenSubject(testInfo, theme) {
+        FilteredEmptyState(onClearFilter = {})
+    }
+
+    /** Selection running, list emptied by a filter — the recovery button is present. */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun selectionEmptyFiltered(theme: GoldenTheme, testInfo: TestInfo) =
+        goldenSubject(testInfo, theme) { SelectionEmptyState(onClearFilter = {}) }
+
+    /**
+     * The same state with no filter to undo — the button is **gone**, not disabled.
+     *
+     * The difference pair for the conditional action. `AppEmptyState` renders a button only when
+     * label and handler are both non-null, so this photographs that contract rather than trusting
+     * its KDoc.
+     */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun selectionEmptyUnfiltered(theme: GoldenTheme, testInfo: TestInfo) =
+        goldenSubject(testInfo, theme) { SelectionEmptyState(onClearFilter = null) }
+
+    /** The cold open. Not an empty state — the paging footer, where row 1 will land. */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun coldOpenLoading(theme: GoldenTheme, testInfo: TestInfo) = goldenSubject(testInfo, theme) {
+        ColdOpenLoading()
+    }
+    /**
+     * The last member of B22's family: a failed **first** page. Same `.perr` as the append tail,
+     * moved to where row 1 would be, and unruled because there is no row above it to separate from.
+     * Pair it with [pagingError] — reason and rule are the only things that differ.
+     */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun coldOpenError(theme: GoldenTheme, testInfo: TestInfo) = goldenSubject(testInfo, theme) {
+        ColdOpenError(onRetry = {})
+    }
+
+    /**
+     * A paging state stuck at a chosen refresh [LoadState].
+     *
+     * `PagingData.from` presents `NotLoading` on every state, so it cannot express a cold open or a
+     * failed first page. `PagingData.empty(sourceLoadStates = …)` can, and it is what makes the
+     * screen's `when` branch gateable at all.
+     */
+    /**
+     * **`PagingData.from` never settles inside one Paparazzi frame**, and that is not a detail.
+     *
+     * Measured, not assumed: `screenFilteredEmpty` built with `PagingData.from(emptyList())`
+     * photographed the **loading** spinner, because `refresh` is still `Loading` at composition
+     * time and `listSurface` — correctly — refuses to call an unsettled list empty. That is the
+     * same mechanism as B22 itself, now showing up in the goldens written to prove B22 fixed.
+     *
+     * So every settled empty state is built here with the load states stated outright. A whole-
+     * screen golden of an empty list that does *not* do this is a picture of the loading state
+     * wearing another name — which is the exact failure `screenEmpty` was renamed for.
+     */
+    private fun pagingState(refresh: LoadState) = state(emptyList()).copy(
+        pagingUiState = PagingUiState {
+            flowOf(
+                PagingData.empty(
+                    sourceLoadStates = LoadStates(
+                        refresh = refresh,
+                        prepend = LoadState.NotLoading(false),
+                        append = LoadState.NotLoading(false),
+                    ),
+                ),
+            )
+        },
+    )
+
+    // ---- whole-surface: every verdict the selector can return ------------------------------------
+
+    /**
+     * The screen-level wiring, and it took `PagingData.empty(sourceLoadStates = …)` to reach.
+     *
+     * `PagingData.from` always presents settled `NotLoading`, which is why the earlier screen
+     * goldens could not enter a loading or error state at all — and why swapping which composable a
+     * `when` branch dispatches used to leave every golden byte-identical. Proven: before these, the
+     * mutation "refresh error renders nothing again" was GREEN. These five pictures are the gate on
+     * the branch, not only on the treatments it chooses between.
+     */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun screenColdOpen(theme: GoldenTheme, testInfo: TestInfo) = golden(testInfo, theme) {
+        AllTrainingsScreen(state = pagingState(LoadState.Loading), consume = {})
+    }
+
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun screenRefreshError(theme: GoldenTheme, testInfo: TestInfo) = golden(testInfo, theme) {
+        AllTrainingsScreen(
+            state = pagingState(LoadState.Error(IllegalStateException("no network"))),
+            consume = {},
+        )
+    }
+
+    /** A filter is on and matches nothing — the create CTA must not be what the user is offered. */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun screenFilteredEmpty(theme: GoldenTheme, testInfo: TestInfo) = golden(testInfo, theme) {
+        AllTrainingsScreen(state = pagingState(LoadState.NotLoading(true)), consume = {})
+    }
+
+    /** Selection running over an emptied list: the marks survive and the top bar still says so. */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun screenSelectionEmpty(theme: GoldenTheme, testInfo: TestInfo) = golden(testInfo, theme) {
+        AllTrainingsScreen(
+            state = pagingState(LoadState.NotLoading(true))
+                .copy(selectionMode = SelectionMode.On(persistentSetOf("x"))),
+            consume = {},
+        )
+    }
+
+    /**
+     * The same state with **no filter to undo** — the recovery button is gone, not disabled.
+     *
+     * The screen-level half of the conditional action. Its component pair
+     * ([selectionEmptyFiltered]/[selectionEmptyUnfiltered]) proves `AppEmptyState`'s
+     * label-without-handler contract; this proves the *screen* actually passes null. Measured: with
+     * only the filtered picture, making `onClearFilter` unconditional left every golden identical.
+     */
+    @ParameterizedTest
+    @EnumSource(GoldenTheme::class)
+    fun screenSelectionEmptyUnfiltered(theme: GoldenTheme, testInfo: TestInfo) =
+        golden(testInfo, theme) {
+            AllTrainingsScreen(
+                state = pagingState(LoadState.NotLoading(true)).copy(
+                    activeTagFilter = persistentSetOf(),
+                    selectionMode = SelectionMode.On(persistentSetOf("x")),
+                ),
+                consume = {},
+            )
+        }
 }

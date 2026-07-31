@@ -33,6 +33,7 @@ internal class ClickHandler @Inject constructor(
             Action.Click.OnEmptyCreate -> consume(Action.Navigation.OpenCreate)
             Action.Click.OnEmptyStartBlank -> consume(Action.Navigation.OpenBlankSession)
             is Action.Click.OnTagFilterToggle -> processTagFilterToggle(action)
+            Action.Click.OnClearTagFilter -> processClearTagFilter()
             is Action.Click.OnSelectionToggle -> processSelectionToggle(action)
             Action.Click.OnSelectionExit -> processSelectionExit()
             Action.Click.OnBulkDeleteConfirm -> processBulkDeleteConfirm()
@@ -95,6 +96,20 @@ internal class ClickHandler @Inject constructor(
             }
             current.copy(activeTagFilter = next.toPersistentSet())
         }
+    }
+
+    /**
+     * Clears the tag filter whole. No haptic, for the same reason [processTagFilterToggle] fires
+     * none: the vocabulary is four constants and none of them is "a filter changed".
+     *
+     * Guarded on an already-empty filter so a redundant emit cannot restart the paging flow the
+     * filter feeds. `PagingHandler` flat-maps `activeTagFilter` through `distinctUntilChanged`,
+     * which absorbs it today — the guard states the intent where the emit is, rather than resting
+     * on a downstream operator staying where it is.
+     */
+    private fun processClearTagFilter() {
+        if (state.value.activeTagFilter.isEmpty()) return
+        updateState { current -> current.copy(activeTagFilter = persistentSetOf()) }
     }
 
     private fun processSelectionToggle(action: Action.Click.OnSelectionToggle) {

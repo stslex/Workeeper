@@ -6,6 +6,7 @@ import androidx.paging.map
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
+import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.data.exercise.tags.TagRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
 import io.github.stslex.workeeper.feature.all_trainings.di.AllTrainingsScope
@@ -24,6 +25,7 @@ import kotlinx.coroutines.withContext
 class AllTrainingsInteractorImpl(
     private val trainingRepository: TrainingRepository,
     private val tagRepository: TagRepository,
+    private val sessionRepository: SessionRepository,
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
 ) : AllTrainingsInteractor {
 
@@ -37,6 +39,11 @@ class AllTrainingsInteractorImpl(
     override fun observeAvailableTags(): Flow<List<TagDomain>> = tagRepository
         .observeAll()
         .map { tags -> tags.map { it.toDomain() } }
+        .flowOn(defaultDispatcher)
+
+    override fun observeHasActiveSession(): Flow<Boolean> = sessionRepository
+        .observeActive()
+        .map { it != null }
         .flowOn(defaultDispatcher)
 
     override suspend fun archiveTrainings(

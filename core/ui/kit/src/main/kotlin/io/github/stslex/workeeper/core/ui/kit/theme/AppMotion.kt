@@ -2,10 +2,11 @@ package io.github.stslex.workeeper.core.ui.kit.theme
 
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Easing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.runtime.Immutable
 
 /**
- * The v3 motion scale: three durations, two curves.
+ * The v3 motion scale: three durations, three curves.
  *
  * The previous set had five durations and four easings, of which production read exactly two
  * durations and zero easings — measured, not assumed. Five names for two used values is not a
@@ -45,6 +46,27 @@ data class AppMotion(
      * returning to exactly 1.0 at t=1.
      */
     val spring: Easing,
+    /**
+     * No shape at all — progress equals elapsed fraction, exactly, at every sample.
+     *
+     * **The curve for alpha** (§26, continuity motion, as amended). It is on the scale for being
+     * *nothing*, not for being good, and that is the whole argument: any easing applied to a fade
+     * is character by the class's own definition, so the characterless default for alpha is the
+     * curve that has none.
+     *
+     * The measurement that put it here: [out] is near-expo, so a 260ms crossfade driven by it puts
+     * **83 % of its alpha travel in the first five frames** and spends the rest below 8-bit
+     * visibility — a correct transit that reads as ~85ms and is therefore indistinguishable from no
+     * transit at all. Duration cannot recover it, because perceived crossfade length tracks the
+     * *middle* of the curve and [out]'s middle is already over: doubling to [slow] buys 7.7 frames
+     * in the perceptible band where `linear` at 160ms buys 6.7. Under `linear`, perceived duration
+     * **equals** declared duration, which is what makes the number judgeable on a device.
+     *
+     * Bounded-space-safe by construction, so §5's overshoot rule is satisfied without care rather
+     * than by it: a curve that cannot exceed its endpoints cannot extrapolate a colour or drive a
+     * fade past 1.0.
+     */
+    val linear: Easing,
 )
 
 private const val FAST_MS = 140
@@ -83,4 +105,7 @@ fun provideAppMotion(): AppMotion = AppMotion(
     slow = SLOW_MS,
     out = CubicBezierEasing(OUT_X1, OUT_Y1, OUT_X2, OUT_Y2),
     spring = CubicBezierEasing(SPRING_X1, SPRING_Y1, SPRING_X2, SPRING_Y2),
+    // Compose's own, not a bezier reproduction of it: `CubicBezierEasing(0,0,1,1)` is linear only
+    // to the precision of a cubic solve, and this scale is sampled against an exact identity.
+    linear = LinearEasing,
 )

@@ -51,7 +51,6 @@ private fun AppSnackbarPreview() {
                 state.showSnackbar(
                     message = "Saved",
                     actionLabel = "Undo",
-                    withDismissAction = true,
                 )
             }
             state.currentSnackbarData?.let {

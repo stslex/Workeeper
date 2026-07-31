@@ -7,6 +7,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import io.github.stslex.workeeper.core.ui.kit.theme.ThemeMode
 import io.github.stslex.workeeper.core.ui.mvi.Store
+import io.github.stslex.workeeper.feature.settings.mvi.model.ArchivedCountsUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupAuthUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupErrorUi
 import io.github.stslex.workeeper.feature.settings.mvi.model.BackupInfoUi
@@ -32,6 +33,14 @@ interface SettingsStore : Store<State, Action, Event> {
         val backupPreferences: BackupPreferencesUi?,
         val restoreProgress: RestoreProgressUi,
         val canRevertLastRestore: Boolean,
+
+        /**
+         * The Archive row's drawn sub-line, or null until the counts arrive.
+         *
+         * §26 draws it («4 упражнения · 1 тренировка»). B15 held it open on the premise that no data
+         * source existed; both counts have been `Flow<Int>` since the archive screen was built.
+         */
+        val archivedCounts: ArchivedCountsUi?,
     ) : Store.State {
 
         companion object {
@@ -50,6 +59,7 @@ interface SettingsStore : Store<State, Action, Event> {
                 backupPreferences = null,
                 restoreProgress = RestoreProgressUi.Idle,
                 canRevertLastRestore = false,
+                archivedCounts = null,
             )
         }
     }

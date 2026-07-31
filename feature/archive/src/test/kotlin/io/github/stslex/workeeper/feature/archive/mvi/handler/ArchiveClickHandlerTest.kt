@@ -38,6 +38,8 @@ internal class ArchiveClickHandlerTest {
         selectedSegment = Segment.EXERCISES,
         exerciseCount = 0,
         trainingCount = 0,
+        exerciseSegmentLabel = "",
+        trainingSegmentLabel = "",
         archivedExercisesPaging = emptyPaging,
         archivedTrainingsPaging = emptyTrainingPaging,
         pendingDeleteImpact = null,
