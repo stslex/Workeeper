@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.all_exercises.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -33,6 +37,8 @@ import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import io.github.stslex.workeeper.core.ui.kit.theme.continuityAlphaSpec
+import io.github.stslex.workeeper.core.ui.kit.theme.continuityPositionalSpec
 import io.github.stslex.workeeper.feature.all_exercises.R
 import io.github.stslex.workeeper.feature.all_exercises.mvi.model.ExerciseUiModel
 import io.github.stslex.workeeper.feature.all_exercises.mvi.store.AllExercisesStore.Action
@@ -49,8 +55,11 @@ import io.github.stslex.workeeper.feature.all_exercises.ui.components.PagingLoad
 import io.github.stslex.workeeper.feature.all_exercises.ui.components.PagingTailKind
 import io.github.stslex.workeeper.feature.all_exercises.ui.components.SelectionEmptyState
 import io.github.stslex.workeeper.feature.all_exercises.ui.components.TagFilterRow
+import io.github.stslex.workeeper.feature.all_exercises.ui.components.TopBarMode
+import io.github.stslex.workeeper.feature.all_exercises.ui.components.crossfades
 import io.github.stslex.workeeper.feature.all_exercises.ui.components.listSurface
 import io.github.stslex.workeeper.feature.all_exercises.ui.components.pagingTailKind
+import io.github.stslex.workeeper.feature.all_exercises.ui.components.topBarMode
 
 @Composable
 internal fun AllExercisesScreen(
@@ -147,65 +156,108 @@ internal fun AllExercisesScreen(
     }
 }
 
+/**
+ * §26 "Selection mode": the top bar is replaced **whole** — and under §26's continuity-motion row
+ * it now crossfades whole, because that is the same sentence read at 260ms instead of at one frame.
+ *
+ * The close glyph and the archive glyph previously **appeared from nowhere**: on a long press the
+ * bar's leading and trailing slots were empty in frame N and occupied in frame N+1, with no path
+ * between them, which is exactly the class's membership test. The FAB beside them already morphed.
+ *
+ * ## Why the whole bar, rather than the two icons
+ *
+ * Fading the icons in place is the smaller change and the wrong one: the leading slot takes its
+ * 48dp the instant it appears, so the title jumps sideways while the glyph fades — the teleport
+ * moved rather than removed. Crossfading the two bars superimposes two independent layouts that
+ * both sit on `surfaceTier0` with the same height, so nothing shifts and no seam is visible; the
+ * mid-frame composites to the resting container colour because **both layers are that colour**,
+ * which is why this needs no `fadedOut` treatment and no colour tween at all.
+ *
+ * ## The count does not animate, and that is asserted
+ *
+ * [topBarMode] is the transition key, never the title. «Выбрано N» encodes a value, and §26's row
+ * excludes values from the class outright — a number in motion is a number being read wrong at
+ * every intermediate frame. Keyed on the title, the bar would crossfade on every toggle. Both
+ * endpoint goldens are identical either way, so `TopBarModeTest` is the only thing that can see it.
+ *
+ * [lastSelectionCount] exists solely for the **exit** transition: the mode is already `Off` while
+ * the outgoing bar is still fading, so the count it needs no longer exists in state. A plain array
+ * rather than a `MutableState` deliberately — it is a cache read during composition, not state, and
+ * making it observable would invalidate this bar on every toggle for no rendered difference.
+ */
 @Composable
 private fun ScreenTopBar(
     state: State,
     consume: (Action) -> Unit,
 ) {
     val mode = state.selectionMode
-    val isSelecting = mode is SelectionMode.On
-    val title = if (mode is SelectionMode.On) {
-        pluralStringResource(
-            R.plurals.feature_all_exercises_selected_count,
-            mode.selectedUuids.size,
-            mode.selectedUuids.size,
-        )
-    } else {
-        stringResource(R.string.feature_all_exercises_title)
+    val spec = continuityAlphaSpec<Float>()
+    val lastSelectionCount = remember { intArrayOf(0) }
+    if (mode is SelectionMode.On) lastSelectionCount[0] = mode.selectedUuids.size
+
+    AnimatedContent(
+        targetState = topBarMode(mode),
+        transitionSpec = { fadeIn(spec) togetherWith fadeOut(spec) using null },
+        label = "list-top-bar",
+    ) { barMode ->
+        when (barMode) {
+            TopBarMode.SELECTION -> SelectionTopBar(
+                count = lastSelectionCount[0],
+                consume = consume,
+            )
+
+            TopBarMode.RESTING -> AppTopAppBar(
+                modifier = Modifier.testTag("AllExercisesTopBar"),
+                title = stringResource(R.string.feature_all_exercises_title),
+            )
+        }
     }
+}
+
+/**
+ * The replacement bar: close, count, archive. §26 "Selection mode" — count PLUS actions. The
+ * archive action was drawn from the start and never built; the FAB is not the only affordance the
+ * drawing gives this mode.
+ */
+@Composable
+private fun SelectionTopBar(
+    count: Int,
+    consume: (Action) -> Unit,
+) {
     AppTopAppBar(
-        modifier = Modifier.testTag(
-            if (isSelecting) "AllExercisesSelectionTopBar" else "AllExercisesTopBar",
+        modifier = Modifier.testTag("AllExercisesSelectionTopBar"),
+        title = pluralStringResource(
+            R.plurals.feature_all_exercises_selected_count,
+            count,
+            count,
         ),
-        title = title,
-        navigationIcon = if (isSelecting) {
-            {
-                IconButton(
-                    modifier = Modifier.testTag("AllExercisesSelectionTopBarClose"),
-                    onClick = { consume(Action.Click.OnSelectionExit) },
-                ) {
-                    Icon(
-                        modifier = Modifier.size(AppDimension.iconSm),
-                        imageVector = Icons.Default.Close,
-                        contentDescription = stringResource(
-                            R.string.feature_all_exercises_selection_close,
-                        ),
-                    )
-                }
+        navigationIcon = {
+            IconButton(
+                modifier = Modifier.testTag("AllExercisesSelectionTopBarClose"),
+                onClick = { consume(Action.Click.OnSelectionExit) },
+            ) {
+                Icon(
+                    modifier = Modifier.size(AppDimension.iconSm),
+                    imageVector = Icons.Default.Close,
+                    contentDescription = stringResource(
+                        R.string.feature_all_exercises_selection_close,
+                    ),
+                )
             }
-        } else {
-            null
         },
-        // §26 "Selection mode": the top bar is replaced whole — count PLUS actions. The archive
-        // action was drawn from the start and never built; the FAB is not the only affordance the
-        // drawing gives this mode.
-        actions = if (isSelecting) {
-            {
-                IconButton(
-                    modifier = Modifier.testTag("AllExercisesSelectionTopBarArchive"),
-                    onClick = { consume(Action.Click.OnBulkDelete) },
-                ) {
-                    Icon(
-                        modifier = Modifier.size(AppDimension.iconSm),
-                        imageVector = AppIcons.Archive,
-                        contentDescription = stringResource(
-                            R.string.feature_all_exercises_bulk_archive,
-                        ),
-                    )
-                }
+        actions = {
+            IconButton(
+                modifier = Modifier.testTag("AllExercisesSelectionTopBarArchive"),
+                onClick = { consume(Action.Click.OnBulkDelete) },
+            ) {
+                Icon(
+                    modifier = Modifier.size(AppDimension.iconSm),
+                    imageVector = AppIcons.Archive,
+                    contentDescription = stringResource(
+                        R.string.feature_all_exercises_bulk_archive,
+                    ),
+                )
             }
-        } else {
-            {}
         },
     )
 }
@@ -234,6 +286,17 @@ private fun ExercisesList(
         ) { index ->
             items[index]?.let { item ->
                 ExerciseRow(
+                    // §26, continuity motion: a row added, removed or reordered used to be in one
+                    // place in frame N and another in frame N+1, with no path between them.
+                    // Archiving from this screen and restoring from the archive both do it, and the
+                    // list is keyed by uuid, so the settle costs one modifier. One shared spec
+                    // across all three channels — `spring` is illegal on the two fades, whose alpha
+                    // is bounded, and the class uses one curve everywhere by definition.
+                    modifier = Modifier.animateItem(
+                        fadeInSpec = continuityAlphaSpec(),
+                        placementSpec = continuityPositionalSpec(),
+                        fadeOutSpec = continuityAlphaSpec(),
+                    ),
                     item = item,
                     isSelected = selectedSet?.contains(item.uuid) == true,
                     isSelecting = state.isSelecting,
@@ -259,6 +322,28 @@ private fun ExercisesList(
  * Every verdict renders. [ListSurface.REFRESH_ERROR] was the one that did not — a failed *first*
  * page was B22's last undrawn region, and the last remaining path to a blank frame. It is drawn
  * now, and it is the same `.perr` the append tail uses, moved: placement, not a new treatment.
+ *
+ * ## The block crossfades — §26, continuity motion
+ *
+ * Four blocks replacing each other inside a `when` is four things that appeared and disappeared
+ * between two frames, which is the class's membership test with nothing left to argue. The pair that
+ * moves on this screen's own gesture is `SELECTION_EMPTY` ⇄ `FILTERED_EMPTY`: a tag filter emptied
+ * under an active selection, then the mode left with the filter still on. Pure transit, no
+ * character, so the class's alpha spec and nothing else.
+ *
+ * Which verdicts take part, and why two of them do not, is [ListSurface.crossfades] — a named,
+ * assertable property rather than an `if` here, because the first cut keyed the transition on all
+ * five verdicts and **ten goldens went red**. That direction is the surprise: §27's standing
+ * prediction is that adding motion moves zero pixels, and widening a transition key until a settled
+ * golden photographs a transient is the one motion change a single frame can see. The property
+ * carries the measurement; `ListSurfaceTest` gates it.
+ *
+ * The `Box` inside the content lambda is not decoration: `AnimatedContent` gives its content an
+ * `AnimatedContentScope`, not this function's [BoxScope], so every branch's `Modifier.align` needs
+ * a box of its own. `matchParentSize` keeps the region exactly the size it had — the list, not the
+ * blocks, is what measures this parent — so no verdict's placement moves. And because the
+ * `AnimatedContent` is not composed at all for a non-crossfading verdict, the list never carries an
+ * overlay above it.
  */
 @Composable
 private fun BoxScope.EmptyRegion(
@@ -268,37 +353,53 @@ private fun BoxScope.EmptyRegion(
 ) {
     val filterActive = state.activeTagFilter.isNotEmpty()
     val clearFilter = { consume(Action.Click.OnClearTagFilter) }
-    when (
-        listSurface(
-            itemCount = items.itemCount,
-            loadState = items.loadState,
-            filterActive = filterActive,
-            selecting = state.isSelecting,
-        )
-    ) {
-        ListSurface.CONTENT -> Unit
+    val spec = continuityAlphaSpec<Float>()
+    val surface = listSurface(
+        itemCount = items.itemCount,
+        loadState = items.loadState,
+        filterActive = filterActive,
+        selecting = state.isSelecting,
+    )
+    if (surface.crossfades.not()) {
+        if (surface == ListSurface.LOADING) {
+            ColdOpenLoading(modifier = Modifier.align(Alignment.TopCenter))
+        }
+        return
+    }
 
-        ListSurface.LOADING -> ColdOpenLoading(modifier = Modifier.align(Alignment.TopCenter))
+    AnimatedContent(
+        modifier = Modifier.matchParentSize(),
+        targetState = surface,
+        transitionSpec = { fadeIn(spec) togetherWith fadeOut(spec) using null },
+        label = "list-empty-region",
+    ) { block ->
+        Box(modifier = Modifier.fillMaxSize()) {
+            when (block) {
+                // Neither reaches this lambda — `crossfades` returned above for both. Named rather
+                // than folded into an `else` so adding a verdict to the enum breaks here.
+                ListSurface.CONTENT, ListSurface.LOADING -> Unit
 
-        ListSurface.REFRESH_ERROR -> ColdOpenError(
-            modifier = Modifier.align(Alignment.TopCenter),
-            onRetry = { items.retry() },
-        )
+                ListSurface.REFRESH_ERROR -> ColdOpenError(
+                    modifier = Modifier.align(Alignment.TopCenter),
+                    onRetry = { items.retry() },
+                )
 
-        ListSurface.FIRST_RUN -> ExercisesEmptyState(
-            modifier = Modifier.align(Alignment.Center),
-            onCreate = { consume(Action.Click.OnEmptyCreate) },
-        )
+                ListSurface.FIRST_RUN -> ExercisesEmptyState(
+                    modifier = Modifier.align(Alignment.Center),
+                    onCreate = { consume(Action.Click.OnEmptyCreate) },
+                )
 
-        ListSurface.FILTERED_EMPTY -> FilteredEmptyState(
-            modifier = Modifier.align(Alignment.Center),
-            onClearFilter = clearFilter,
-        )
+                ListSurface.FILTERED_EMPTY -> FilteredEmptyState(
+                    modifier = Modifier.align(Alignment.Center),
+                    onClearFilter = clearFilter,
+                )
 
-        ListSurface.SELECTION_EMPTY -> SelectionEmptyState(
-            modifier = Modifier.align(Alignment.Center),
-            onClearFilter = clearFilter.takeIf { filterActive },
-        )
+                ListSurface.SELECTION_EMPTY -> SelectionEmptyState(
+                    modifier = Modifier.align(Alignment.Center),
+                    onClearFilter = clearFilter.takeIf { filterActive },
+                )
+            }
+        }
     }
 }
 

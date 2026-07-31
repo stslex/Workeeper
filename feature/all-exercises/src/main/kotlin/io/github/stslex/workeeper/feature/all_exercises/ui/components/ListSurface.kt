@@ -64,6 +64,49 @@ internal enum class ListSurface {
 }
 
 /**
+ * Whether this verdict takes part in the empty region's crossfade (§26, continuity motion).
+ *
+ * **The four drawn blocks do; [CONTENT] and [LOADING] do not, and the boundary is drawn between
+ * *what the user acts on* and *what the data does*.** The pair the continuity row actually named is
+ * [SELECTION_EMPTY] ⇄ [FILTERED_EMPTY] — a tag filter emptied under an active selection, then the
+ * mode left with the filter still on. Both are blocks the user is looking at, and one replaces the
+ * other on their gesture, with no path between frames. That is the class.
+ *
+ * [CONTENT] and [LOADING] are not peers of those. [CONTENT] is the *absence* of this region — what
+ * replaces a block is rows, which carry their own transit (`Modifier.animateItem`), so the frame the
+ * block leaves is not an empty one. [LOADING] is the absence of *knowledge*, and this file already
+ * says so ("an unsettled refresh is not an empty list, it is an unknown one"); resolving an unknown
+ * into a verdict is not one drawn thing becoming another.
+ *
+ * **This is a bounded exclusion, not a derivation, and it is recorded as one.** By the bare
+ * membership test `LOADING → FIRST_RUN` is in class: delete the animation and the spinner is
+ * replaced instantly. It is excluded anyway, for the reason above — and the exclusion has a second,
+ * measured consequence that is the reason this property exists as a named, assertable thing rather
+ * than an `if` at the call site.
+ *
+ * **A transition keyed on a verdict that settles asynchronously makes a settled golden photograph a
+ * transient.** `collectAsLazyPagingItems()` always begins at `itemCount = 0` with `refresh =
+ * Loading`, so every whole-screen golden composes [LOADING] first and reaches its real verdict one
+ * frame later. Paparazzi renders **one** frame and its composable `snapshot` overload takes no
+ * clock offset, so an `AnimatedContent` spanning that flip is photographed at t = 0 — showing the
+ * outgoing spinner at full alpha and the block at zero. Measured: ten goldens across both list
+ * screens went red that way, and the picture was of `Loading` on a screen whose golden is named for
+ * the empty state. Keeping [LOADING] out of the key means the `AnimatedContent` mounts *fresh* at
+ * its real verdict, with current and target equal, so no transition exists to be caught mid-flight.
+ *
+ * See §27. **Do not widen this to `true` for [CONTENT] or [LOADING].**
+ */
+internal val ListSurface.crossfades: Boolean
+    get() = when (this) {
+        ListSurface.CONTENT, ListSurface.LOADING -> false
+        ListSurface.REFRESH_ERROR,
+        ListSurface.FIRST_RUN,
+        ListSurface.FILTERED_EMPTY,
+        ListSurface.SELECTION_EMPTY,
+        -> true
+    }
+
+/**
  * Pure, so it can be asserted without a screen. [itemCount] and [loadState] come from
  * `LazyPagingItems`; [filterActive] and [selecting] from the store's state.
  */

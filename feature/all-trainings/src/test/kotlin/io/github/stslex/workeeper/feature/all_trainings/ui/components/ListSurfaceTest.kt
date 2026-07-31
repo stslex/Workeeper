@@ -97,4 +97,33 @@ internal class ListSurfaceTest {
             surface(filterActive = true, selecting = true),
         )
     }
+    /**
+     * §26 continuity motion — the empty region's crossfade key.
+     *
+     * `crossfades` decides whether a verdict change is a transit or a cut, and **no golden can see
+     * that decision without being wrong**: the first cut returned `true` for every verdict, and the
+     * way that surfaced was ten whole-screen goldens photographing a mid-transition frame instead of
+     * their own named state. So the property is asserted here, directly, on both halves.
+     *
+     * [ListSurface.LOADING] is the load-bearing `false`. Every screen composes it first —
+     * `collectAsLazyPagingItems()` begins empty with `refresh = Loading` — so a key spanning it puts
+     * an `AnimatedContent` transition inside the one frame Paparazzi renders.
+     */
+    @Test
+    fun `the crossfade covers the drawn blocks and neither non-block verdict`() {
+        assertEquals(false, ListSurface.CONTENT.crossfades)
+        assertEquals(false, ListSurface.LOADING.crossfades)
+
+        assertEquals(true, ListSurface.REFRESH_ERROR.crossfades)
+        assertEquals(true, ListSurface.FIRST_RUN.crossfades)
+        assertEquals(true, ListSurface.FILTERED_EMPTY.crossfades)
+        assertEquals(true, ListSurface.SELECTION_EMPTY.crossfades)
+    }
+
+    /** The pair §26's row actually named: one block replaces the other on the user's gesture. */
+    @Test
+    fun `selection empty and filtered empty are both in the crossfade, so the pair transits`() {
+        assertEquals(true, ListSurface.SELECTION_EMPTY.crossfades)
+        assertEquals(true, ListSurface.FILTERED_EMPTY.crossfades)
+    }
 }

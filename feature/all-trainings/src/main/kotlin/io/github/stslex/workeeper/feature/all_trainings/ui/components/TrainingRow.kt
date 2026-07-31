@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.all_trainings.ui.components
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,6 +33,7 @@ import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import io.github.stslex.workeeper.core.ui.kit.theme.continuityAlphaSpec
 import io.github.stslex.workeeper.feature.all_trainings.R
 import io.github.stslex.workeeper.feature.all_trainings.mvi.model.TrainingListItemUi
 import kotlinx.collections.immutable.persistentListOf
@@ -141,6 +146,25 @@ internal fun TrainingRow(
  * The fixed-width trailing slot: chevron at rest, check when selected, and **empty** when selection
  * is on and this row is not — a row in that mode leads nowhere and has nothing to promise, so the
  * chevron goes and the slot stays.
+ *
+ * ## The crossfade — §26, continuity motion
+ *
+ * The chevron and the check used to replace each other between two frames, with no path between
+ * them: a glyph the user was looking at became a different glyph, instantly, on a gesture whose
+ * whole point is that the row is still the same row. That is the definition of the continuity
+ * class — remove the tween and something teleports — so it is not a third §9 moment and it carries
+ * no expressive weight.
+ *
+ * Two properties are deliberate. `using null` **suppresses the size transform**: the slot is
+ * already fixed at [SLOT] and an animated container would put back exactly the reflow the amended
+ * ledger row removed. And the transition is a **pure alpha crossfade on one shared spec** — no
+ * colour is interpolated anywhere in it, which is what keeps the `fadedOut` rule satisfied by
+ * construction rather than by care, since the two glyphs carry different tints and lerping between
+ * them is precisely the Oklab path §27 measured.
+ *
+ * Which kind is drawn is [trailingSlotKind]'s decision, not this function's — a picture of the
+ * slot cannot see the choice, and now that the choice drives a 260ms transition it is worth less
+ * than ever to leave unasserted.
  */
 @Composable
 private fun TrailingSlot(
@@ -148,28 +172,36 @@ private fun TrailingSlot(
     isSelected: Boolean,
     isSelecting: Boolean,
 ) {
+    val spec = continuityAlphaSpec<Float>()
     Box(
         modifier = Modifier.width(SLOT),
         contentAlignment = Alignment.Center,
     ) {
-        when {
-            isSelected -> Icon(
-                modifier = Modifier
-                    .size(SLOT)
-                    .testTag("AllTrainingsItemCheck_${item.uuid}"),
-                imageVector = AppIcons.RowCheck,
-                contentDescription = null,
-                tint = AppUi.colors.textPrimary,
-            )
+        AnimatedContent(
+            targetState = trailingSlotKind(isSelected = isSelected, isSelecting = isSelecting),
+            transitionSpec = { fadeIn(spec) togetherWith fadeOut(spec) using null },
+            contentAlignment = Alignment.Center,
+            label = "row-trailing-slot",
+        ) { kind ->
+            when (kind) {
+                TrailingSlotKind.CHECK -> Icon(
+                    modifier = Modifier
+                        .size(SLOT)
+                        .testTag("AllTrainingsItemCheck_${item.uuid}"),
+                    imageVector = AppIcons.RowCheck,
+                    contentDescription = null,
+                    tint = AppUi.colors.textPrimary,
+                )
 
-            isSelecting -> Unit
+                TrailingSlotKind.EMPTY -> Unit
 
-            else -> Icon(
-                modifier = Modifier.size(SLOT),
-                imageVector = AppIcons.ChevronRight,
-                contentDescription = null,
-                tint = AppUi.colors.textTertiary,
-            )
+                TrailingSlotKind.CHEVRON -> Icon(
+                    modifier = Modifier.size(SLOT),
+                    imageVector = AppIcons.ChevronRight,
+                    contentDescription = null,
+                    tint = AppUi.colors.textTertiary,
+                )
+            }
         }
     }
 }
