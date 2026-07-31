@@ -130,7 +130,7 @@ internal class BackupInteractorImplTest {
     @Test
     fun `signIn Success returns SignInOutcomeDomain Success`() = runTest(testDispatcher) {
         coEvery { backupAuth.signIn() } returns SignInResult.Success(
-            Account(email = "a@b.com", displayName = null),
+            Account(email = "a@example.com", displayName = null),
         )
         assertEquals(SignInOutcomeDomain.Success, interactor.signIn())
     }
@@ -480,9 +480,9 @@ internal class BackupInteractorImplTest {
     fun `completeSignIn maps api Success of Account to Success of Unit`() =
         runTest(testDispatcher) {
             val outcome = AuthResolutionOutcome(mockk<Intent>(relaxed = true))
-            val expectedAccount = AccountDomain(email = "a@b.com", displayName = "A")
+            val expectedAccount = AccountDomain(email = "a@example.com", displayName = "A")
             coEvery { backupAuth.completeSignIn(outcome) } returns
-                BackupResult.Success(Account(email = "a@b.com", displayName = "A"))
+                BackupResult.Success(Account(email = "a@example.com", displayName = "A"))
             val result = interactor.completeSignIn(outcome)
             assertTrue(result is BackupResult.Success)
             assertEquals(expectedAccount, (result as BackupResult.Success).data)

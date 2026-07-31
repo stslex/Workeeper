@@ -1308,7 +1308,7 @@ disable it, do not add a "coming soon".** The group then contains one row.
 ### `Резервные копии`
 | Row | Type | Sub-line | Trailing |
 |---|---|---|---|
-| `ilya977.077@gmail.com` | `.srow.plain` | `Ilya Alexandrovich` | — |
+| `user@example.com` | `.srow.plain` | `User` | — |
 | **`Автокопия`** | `.srow` | `Ежедневно · следующая через 23 ч` | `.val` **`Вкл`** + `.chev` |
 | **`Снимок для ИИ-ассистента`** | `.srow.plain` | `Читаемая копия в видимой папке Google Drive` | `.sw` (on) |
 | **`Создать копию сейчас`** | `.srow` | — | `.chev` |

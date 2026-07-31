@@ -35,17 +35,17 @@ internal class BackupUiMapperTest {
     @Test
     fun `BackupAuthDomain Authenticated maps email and displayName`() {
         val ui = BackupAuthDomain.Authenticated(
-            AccountDomain(email = "a@b.com", displayName = "Alice"),
+            AccountDomain(email = "a@example.com", displayName = "Alice"),
         ).toUi()
-        assertEquals(BackupAuthUi.Authenticated(email = "a@b.com", displayName = "Alice"), ui)
+        assertEquals(BackupAuthUi.Authenticated(email = "a@example.com", displayName = "Alice"), ui)
     }
 
     @Test
     fun `BackupAuthDomain Authenticated allows null displayName`() {
         val ui = BackupAuthDomain.Authenticated(
-            AccountDomain(email = "a@b.com", displayName = null),
+            AccountDomain(email = "a@example.com", displayName = null),
         ).toUi()
-        assertEquals(BackupAuthUi.Authenticated(email = "a@b.com", displayName = null), ui)
+        assertEquals(BackupAuthUi.Authenticated(email = "a@example.com", displayName = null), ui)
     }
 
     @Test

@@ -222,8 +222,8 @@ private fun BackupSectionAuthenticatedDarkPreview() {
         BackupSection(
             state = SettingsBackupState(
                 auth = BackupAuthUi.Authenticated(
-                    email = "ilya977.077@gmail.com",
-                    displayName = "Ilya Alexandrovich",
+                    email = "user@example.com",
+                    displayName = "User",
                 ),
                 operation = BackupOperationUi.Idle,
                 info = BackupInfoUi(

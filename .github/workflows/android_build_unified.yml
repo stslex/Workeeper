@@ -145,6 +145,14 @@ jobs:
       - name: Run detekt
         run: ./gradlew detekt --full-stacktrace
 
+      # A real email address and a real name shipped as fixture data and RENDERED INTO COMMITTED
+      # PNGs, through the reviews that landed the settings rebuild. Individually obvious,
+      # collectively invisible — the same class the token-parity seam is checked for, and checked
+      # the same way: named exceptions with citations, never a loosened pattern. `-v` because a
+      # gate that passes silently reports nothing (shell_gate.py's own lesson).
+      - name: Check for personal data in tracked files
+        run: python3 documentation/personal_data_gate.py -v
+
       - name: Run Android Lint
         run: ./gradlew lintDebug --no-configuration-cache --full-stacktrace
 

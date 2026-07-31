@@ -195,7 +195,7 @@ internal class DriveBackupAuthTest {
                 DriveAuthScopes.USERINFO_PROFILE,
             )
             every { toGoogleSignInAccount() } returns mockk {
-                every { email } returns "x@y.com"
+                every { email } returns "x@example.com"
                 every { displayName } returns null
             }
             every { accessToken } returns null
@@ -355,7 +355,7 @@ internal class DriveBackupAuthTest {
 
     @Test
     fun `signOut calls authorizationClient revokeAccess with all scopes`() = runTest {
-        accountFlow.value = Account(email = "x@y.com", displayName = null)
+        accountFlow.value = Account(email = "x@example.com", displayName = null)
         val captured = slot<RevokeAccessRequest>()
         every { authorizationClient.revokeAccess(capture(captured)) } returns
             Tasks.forResult(null)
@@ -379,7 +379,7 @@ internal class DriveBackupAuthTest {
 
     @Test
     fun `signOut clears local store even when revokeAccess fails`() = runTest {
-        accountFlow.value = Account(email = "x@y.com", displayName = null)
+        accountFlow.value = Account(email = "x@example.com", displayName = null)
         every { authorizationClient.revokeAccess(any()) } returns
             Tasks.forException(ApiException(Status.RESULT_INTERNAL_ERROR))
 

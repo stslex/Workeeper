@@ -141,11 +141,11 @@ internal class BackupClickHandlerTest {
         handler.invoke(Action.Backup.ObserveAuth)
 
         authFlow.value = BackupAuthDomain.Authenticated(
-            AccountDomain(email = "a@b.com", displayName = "Alice"),
+            AccountDomain(email = "a@example.com", displayName = "Alice"),
         )
 
         assertEquals(
-            BackupAuthUi.Authenticated(email = "a@b.com", displayName = "Alice"),
+            BackupAuthUi.Authenticated(email = "a@example.com", displayName = "Alice"),
             store.stateFlow.value.backupAuth,
         )
     }
@@ -164,7 +164,7 @@ internal class BackupClickHandlerTest {
         )
 
         handler.invoke(Action.Backup.ObserveAuth)
-        authFlow.value = BackupAuthDomain.Authenticated(AccountDomain("a@b.com", "Alice"))
+        authFlow.value = BackupAuthDomain.Authenticated(AccountDomain("a@example.com", "Alice"))
 
         val info = store.stateFlow.value.backupInfo
         assertNotNull(info)
@@ -174,7 +174,7 @@ internal class BackupClickHandlerTest {
     @Test
     fun `ObserveAuth transition to NotAuthenticated clears backupInfo`() = runTest(testDispatcher) {
         handler.invoke(Action.Backup.ObserveAuth)
-        authFlow.value = BackupAuthDomain.Authenticated(AccountDomain("a@b.com", "Alice"))
+        authFlow.value = BackupAuthDomain.Authenticated(AccountDomain("a@example.com", "Alice"))
 
         authFlow.value = BackupAuthDomain.NotAuthenticated
 
@@ -299,7 +299,7 @@ internal class BackupClickHandlerTest {
             handler.invoke(Action.Backup.ToggleAiExport(true))
 
             coEvery { interactor.completeSignIn(any()) } returns
-                BackupResult.Success(AccountDomain(email = "a@b.com", displayName = null))
+                BackupResult.Success(AccountDomain(email = "a@example.com", displayName = null))
             coEvery { interactor.isDriveFileGranted() } returns true
 
             handler.invoke(Action.Backup.HandleAuthResult(mockk(relaxed = true)))
@@ -316,7 +316,7 @@ internal class BackupClickHandlerTest {
             handler.invoke(Action.Backup.ToggleAiExport(true))
 
             coEvery { interactor.completeSignIn(any()) } returns
-                BackupResult.Success(AccountDomain(email = "a@b.com", displayName = null))
+                BackupResult.Success(AccountDomain(email = "a@example.com", displayName = null))
             coEvery { interactor.isDriveFileGranted() } returns false
 
             handler.invoke(Action.Backup.HandleAuthResult(mockk(relaxed = true)))
@@ -427,7 +427,7 @@ internal class BackupClickHandlerTest {
                 schedule = BackupSchedule.Daily,
             )
             val intent = mockk<Intent>(relaxed = true)
-            val expectedAccount = AccountDomain(email = "a@b.com", displayName = "A")
+            val expectedAccount = AccountDomain(email = "a@example.com", displayName = "A")
             coEvery { interactor.completeSignIn(any()) } returns BackupResult.Success(expectedAccount)
 
             handler.invoke(Action.Backup.HandleAuthResult(intent))

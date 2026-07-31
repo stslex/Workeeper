@@ -116,8 +116,8 @@ private fun baseState(): State = State.initial(
  */
 private fun signedInState(): State = baseState().copy(
     backupAuth = BackupAuthUi.Authenticated(
-        email = "ilya977.077@gmail.com",
-        displayName = "Ilya Alexandrovich",
+        email = "user@example.com",
+        displayName = "User",
     ),
     backupInfo = BackupInfoUi(
         lastBackupText = "last a minute ago",
