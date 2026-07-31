@@ -76,6 +76,7 @@ internal fun MetricTabs(
         val tabWidth = (maxWidth - TRACK_GAP * (entries.size - 1)) / entries.size
         val selectedIndex = entries.indexOf(selected)
         val thumbShape = RoundedCornerShape(AppDimension.Radius.small)
+        val thumbInternalShape = RoundedCornerShape(AppDimension.Radius.small + TRACK_PADDING)
         val indicatorOffset by animateDpAsState(
             targetValue = (tabWidth + TRACK_GAP) * selectedIndex,
             animationSpec = metricIndicatorSpec(AppUi.motion),
@@ -87,7 +88,7 @@ internal fun MetricTabs(
                 .offset { IntOffset(indicatorOffset.roundToPx(), 0) }
                 .width(tabWidth)
                 .height(TAB_HEIGHT)
-                .liftedSurface(shape = thumbShape),
+                .liftedSurface(shape = thumbInternalShape),
         )
 
         Row(horizontalArrangement = Arrangement.spacedBy(TRACK_GAP)) {
