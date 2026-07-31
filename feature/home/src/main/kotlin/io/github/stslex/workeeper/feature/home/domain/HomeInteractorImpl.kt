@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.home.domain
 
+import androidx.paging.PagingData
+import androidx.paging.map
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.github.stslex.workeeper.core.core.di.DefaultDispatcher
@@ -34,9 +36,9 @@ class HomeInteractorImpl(
             .map { row -> row?.toDomain() }
             .flowOn(defaultDispatcher)
 
-    override fun observeRecent(limit: Int): Flow<List<RecentSessionDomain>> =
-        sessionRepository.observeRecentWithStats(limit)
-            .map { sessions -> sessions.map { it.toDomain() } }
+    override fun pagedRecent(): Flow<PagingData<RecentSessionDomain>> =
+        sessionRepository.pagedRecentWithStats()
+            .map { pagingData -> pagingData.map { it.toDomain() } }
             .flowOn(defaultDispatcher)
 
     override fun observeRecentTrainings(limit: Int): Flow<List<TrainingListItemDomain>> =

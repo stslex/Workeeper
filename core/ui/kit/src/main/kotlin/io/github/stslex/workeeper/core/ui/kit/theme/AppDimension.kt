@@ -54,7 +54,31 @@ object AppDimension {
 
     object BottomNavBar {
 
-        val height = 72.dp
+        /**
+         * The v3 nav bar's own height, **derived rather than transcribed** (§0.2).
+         *
+         * `pass2d.html` `#s-nav` draws `.nb{height:60px;padding:5px 8px}` with the pill spanning
+         * `top:5px;bottom:5px` — so 60px decomposes as **pill 50 + 2×5 padding**, and on the
+         * ladder that is `heightMd` (48) + 2×`Space.xs` (4) = **56dp**.
+         *
+         * 60 is not a rung (32/40/48/56/64) and §0.2 rounds raw px onto the ladder. The same drawn
+         * number was already resolved this way once: `AppTopBar` states it in as many words —
+         * "`min-height:60px` resolves as 48dp button + 2×4dp vertical padding = 56dp (`heightLg`)"
+         * — and §26 says the two bars match, so transcribing 60 here would put two different dp
+         * answers in the app for one drawn value on the two surfaces that are supposed to agree.
+         * The pill's 48dp is also `MetricTabs`' `TAB_HEIGHT` unchanged, which is the same `.tabs`
+         * grammar reaching the same rung from the other side.
+         *
+         * Was **72dp** — a v2 rung with no drawn referent at all, which is what §24 flagged.
+         *
+         * Two consumers, and they are not independent: `AppNavBar` sizes itself off
+         * [heightWithInsets], and `AppNavigationHost` pads every bottom-bar destination by the
+         * bare [height] before applying `systemBarsPadding()`. The two are flush — measured as a
+         * controlled pair across both navigation modes, not reasoned about, because modifier-order
+         * claims are the class this arc has been wrong about seven for seven. Re-measure the pair
+         * after changing this number; do not re-derive it.
+         */
+        val height = 56.dp
 
         val heightWithInsets: Dp
             @Composable

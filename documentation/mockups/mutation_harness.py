@@ -9,6 +9,46 @@ Run it:
     python3 documentation/mockups/mutation_harness.py             # the registered cases
     python3 documentation/mockups/mutation_harness.py --self-test # prove the harness discriminates
 
+    # ONE-SHOT: the ad-hoc mutation you would otherwise have done by hand
+    python3 documentation/mockups/mutation_harness.py \
+        --file feature/home/src/.../PagingTailKind.kt \
+        --find 'is LoadState.Error -> PagingTailKind.ERROR' \
+        --replace 'is LoadState.Error -> PagingTailKind.NONE' \
+        --task ':feature:home:verifyPaparazziDebug' \
+        --expect RED
+
+## Why one-shot mode exists, and it is not convenience
+
+The registered-`CASES` form is for mutations worth keeping. Proving a *new* gate during a PR is a
+different job: five or six mutations, each used once and discarded. Editing `CASES` for those is
+more work than `sed -i` followed by `git checkout --`, so **the destructive path was the cheap
+path**, and it won — six times, the last of them in a session that had read the rule forbidding it
+(see AGENTS.md). A discipline that is more expensive than the thing it forbids is not a
+countermeasure, it is a preference.
+
+So the fix is not another warning. It is that `--file/--find/--replace/--task` costs *less* than the
+unsafe sequence: one command instead of three, restore guaranteed by `finally`, and the anchor
+checked for exactly one match — which `sed -i` silently declines to do. `--expect` makes a shell
+loop of mutations fail loudly on the first surprise instead of scrolling past it.
+
+**Nothing in this file knows what HEAD is, in either mode.** That is the property, and it is why
+neither mode can lose uncommitted work.
+
+## The one verdict this harness cannot check for you
+
+`INVALID` covers two ways a run fails to measure what it appears to: the mutation did not compile,
+or Gradle reused the task's output. There is a **third**, and it compiles and executes cleanly —
+**the mutation changed no observable.** Renaming a role to its own alias, swapping a constant for a
+second constant holding the same bytes: the two programs are identical, so the gate is not at fault
+for staying green, and `*** GREEN — GATE HOLE ***` is then an accusation against the wrong party.
+
+A green mutation accuses one of two opposite things and only the reader can tell which. Mutate a
+**behaviour** (a predicate, a branch, a duration, a value) and green means the suite is blind.
+Mutate a **name** and green means nothing happened. **Before believing a GATE HOLE verdict, name the
+observable the mutation changed** — if that is hard to do, the difficulty is the finding. §27 carries
+the rule and the witness that produced it (`textTertiary` → `textDim`, which is a rename because
+both resolve to `*_META`).
+
 ## Three things this file got wrong, all found in review, all of the same family
 
 Each was a way of **reporting a verdict from a run that did not happen** — which is precisely the
@@ -231,6 +271,40 @@ def _self_test() -> int:
     return 1 if bad else 0
 
 
+def _one_shot(args: argparse.Namespace) -> int:
+    """One ad-hoc mutation, verdict printed, optionally asserted against `--expect`.
+
+    The exit code is the point when `--expect` is given: a `for` loop over five mutations in a
+    shell script stops at the first surprise instead of printing it and carrying on.
+    """
+    missing = [
+        flag
+        for flag, value in (
+            ("--find", args.find),
+            ("--replace", args.replace),
+            ("--task", args.task),
+        )
+        if value is None
+    ]
+    if missing:
+        raise SystemExit(f"mutation_harness: --file needs {', '.join(missing)} as well")
+
+    name = args.name or f"one-shot: {args.file}"
+    verdict = case(name, args.file, args.find, args.replace, args.task)
+
+    if "SKIPPED" in verdict:
+        # An anchor that matched 0 or 2+ times mutated nothing. `sed -i` would have reported
+        # success here, which is how a "green" arrives from a run that changed no bytes.
+        print("      the tree is untouched — nothing was measured")
+        return 2
+    if args.expect is None:
+        return 0
+
+    ok = args.expect in verdict
+    print(f"      expected {args.expect}: {'OK' if ok else '*** UNEXPECTED VERDICT ***'}")
+    return 0 if ok else 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Controlled-mutation harness (§27).")
     parser.add_argument(
@@ -238,10 +312,23 @@ def main() -> int:
         action="store_true",
         help="run the two calibration cases instead of the registered ones",
     )
+    parser.add_argument("--file", help="one-shot: repo-relative path to mutate")
+    parser.add_argument("--find", help="one-shot: anchor, must match exactly once")
+    parser.add_argument("--replace", help="one-shot: what to put in its place")
+    parser.add_argument("--task", help="one-shot: gradle task and args, e.g. ':m:test --tests *X*'")
+    parser.add_argument("--name", help="one-shot: label for the verdict line")
+    parser.add_argument(
+        "--expect",
+        choices=["RED", "GREEN", "INVALID"],
+        help="one-shot: exit non-zero unless the verdict contains this",
+    )
     args = parser.parse_args()
 
     if args.self_test:
         return _self_test()
+
+    if args.file:
+        return _one_shot(args)
 
     if not CASES:
         # An empty run is the original defect. It exits non-zero rather than looking like success.

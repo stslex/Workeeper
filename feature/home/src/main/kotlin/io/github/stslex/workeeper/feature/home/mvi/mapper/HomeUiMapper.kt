@@ -33,37 +33,48 @@ internal object HomeUiMapper {
         elapsedDurationLabel = formatElapsedDuration(nowMillis - startedAt),
     )
 
-    fun List<RecentSessionDomain>.toRecentItems(
+    /**
+     * One row, mapped per paged item.
+     *
+     * Was `List<RecentSessionDomain>.toRecentItems(…)`, mapping a whole ten-row snapshot at once.
+     * Under a `Pager` the unit of mapping is the item, so the list form is gone rather than kept
+     * beside this one — two mappers for one row is how the two drift.
+     *
+     * [nowMillis] is supplied by the caller rather than read here, and `PagingHandler` reads the
+     * clock once per `PagingData` generation: rows in one list must agree about what "yesterday"
+     * means.
+     */
+    fun RecentSessionDomain.toRecentItem(
         nowMillis: Long,
         resourceWrapper: ResourceWrapper,
-    ): ImmutableList<RecentSessionItem> = map { session ->
-        val trainingName = if (session.isAdhoc) {
+    ): RecentSessionItem {
+        val displayName = if (isAdhoc) {
             resourceWrapper.getString(R.string.feature_home_recent_adhoc_label)
         } else {
-            session.trainingName
+            trainingName
         }
         val statsLabel = resourceWrapper.getString(
             R.string.feature_home_recent_stats_format,
             resourceWrapper.getQuantityString(
                 R.plurals.feature_home_recent_exercises_count,
-                session.exerciseCount,
-                session.exerciseCount,
+                exerciseCount,
+                exerciseCount,
             ),
             resourceWrapper.getQuantityString(
                 R.plurals.feature_home_recent_sets_count,
-                session.setCount,
-                session.setCount,
+                setCount,
+                setCount,
             ),
         )
-        RecentSessionItem(
-            sessionUuid = session.sessionUuid,
-            trainingName = trainingName,
-            isAdhoc = session.isAdhoc,
-            finishedAtRelativeLabel = formatRelativeTime(nowMillis, session.finishedAt),
-            durationLabel = formatElapsedDuration(session.finishedAt - session.startedAt),
+        return RecentSessionItem(
+            sessionUuid = sessionUuid,
+            trainingName = displayName,
+            isAdhoc = isAdhoc,
+            finishedAtRelativeLabel = formatRelativeTime(nowMillis, finishedAt),
+            durationLabel = formatElapsedDuration(finishedAt - startedAt),
             statsLabel = statsLabel,
         )
-    }.toImmutableList()
+    }
 
     fun List<TrainingListItemDomain>.toPickerItems(
         nowMillis: Long,

@@ -2,9 +2,6 @@
 package io.github.stslex.workeeper
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.EnterExitState
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -15,7 +12,6 @@ import androidx.compose.animation.slideOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -29,20 +25,22 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalAccessibilityManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
-import io.github.stslex.workeeper.bottom_app_bar.WorkeeperBottomAppBar
+import io.github.stslex.workeeper.bottom_app_bar.BottomBarItem
+import io.github.stslex.workeeper.core.ui.kit.components.navbar.AppNavBar
+import io.github.stslex.workeeper.core.ui.kit.components.navbar.AppNavBarItem
 import io.github.stslex.workeeper.core.ui.kit.components.snackbar.AppSnackbar
 import io.github.stslex.workeeper.core.ui.kit.snackbar.SnackbarManager
 import io.github.stslex.workeeper.core.ui.kit.snackbar.toastTimeoutMillis
-import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
@@ -74,6 +72,7 @@ fun App() {
         val navigatorEventBus = viewModel.navigatorEventBus
 
         val bottomBarNavigationListener = rememberBottomBarNavigationListener(holder)
+        val hapticFeedback = LocalHapticFeedback.current
 
         NavigationEventBusSetup(
             navigatorHolder = holder,
@@ -151,35 +150,31 @@ fun App() {
                     animationSpec = tween(AppUi.motion.base),
                 ),
             ) {
-                val cornerRadius by transition.animateDp(
-                    transitionSpec = {
-                        tween(
-                            durationMillis = AppUi.motion.base,
-                            easing = FastOutSlowInEasing,
+                // The v2 bar clipped its own top corners from `Radius.largest` (128dp) down to 0
+                // across the enter transition. That treatment goes with the bar: `#s-nav` draws a
+                // flat `--sec` track with a hairline along its top edge, and a 128dp top radius
+                // both contradicts the drawn shape and cuts the hairline off at both ends. The
+                // show/hide transition itself is untouched — only the shape animation the deleted
+                // component owned.
+                AppNavBar(
+                    items = BottomBarItem.entries.map { item ->
+                        AppNavBarItem(
+                            icon = item.icon,
+                            contentDescription = stringResource(item.titleRes),
+                            testTag = item.testTag,
                         )
                     },
-                    label = "bottom-bar-corner-radius",
-                ) { state ->
-                    when (state) {
-                        EnterExitState.PreEnter -> AppDimension.Radius.largest
-                        EnterExitState.Visible -> 0.dp
-                        EnterExitState.PostExit -> AppDimension.Radius.largest
-                    }
-                }
-
-                WorkeeperBottomAppBar(
-                    modifier = Modifier.clip(
-                        RoundedCornerShape(
-                            topStart = cornerRadius,
-                            topEnd = cornerRadius,
-                            bottomStart = 0.dp,
-                            bottomEnd = 0.dp,
-                        ),
-                    ),
-                    selectedItem = bottomBarNavigationListener.bottomBarDestination,
-                ) {
-                    navigatorEventBus.navTo(it.screen)
-                }
+                    selectedIndex = bottomBarNavigationListener.selectedIndex.value,
+                    onSelect = { index ->
+                        val item = BottomBarItem.entries[index]
+                        // §26 "Haptics": SegmentTick on a nav tab change. Fired here rather than
+                        // inside `AppNavBar` because every haptic in this app is fired at a
+                        // feature/graph level — `core/ui/kit/src/main` has none, measured.
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                        navigatorEventBus.navTo(item.screen)
+                    },
+                    modifier = Modifier.testTag("WorkeeperBottomAppBar"),
+                )
             }
 
             AppNavigationHost(

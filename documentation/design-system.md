@@ -257,8 +257,10 @@ Component-specific notes:
   Live workout where target size matters).
 - AppTextField — heightLg (M3 default).
 - AppTopAppBar — heightLg.
-- AppBottomBar — uses M3 NavigationBar default (80dp in M3 v1.2+),
-  no override.
+- AppNavBar — 56dp of content (heightMd pill + 2 x Space.xs padding,
+  the drawn 60px derived the same way `.topbar`'s was) plus the
+  navigation-bar inset. Was `AppBottomBar` at the M3 NavigationBar
+  default; both that component and its 80dp are gone.
 - AppSegmentedControl — heightSm track (40dp) = heightXs segment (32dp) + 2 x Space.xs padding.
 
 ### Shape (corner radius)
@@ -581,22 +583,41 @@ Visual:
     scrolls under (via M3 scrollBehavior)
 ```
 
-### 11. AppBottomBar
+### 11. AppNavBar
 
-3-tab bottom navigation. Hardcoded structure (Home / Trainings /
-Exercises) — not a generic component, but lives in the kit because
-it's used app-wide.
+3-destination bottom navigation, **icon-only**. The v3 rebuild
+(`pass2d.html` `#s-nav`, the `.nb.track.slide` variant) — see
+v3-redesign-spec §26 "Bottom navigation" and "Nav pill motion".
+
+Replaces `AppBottomBar` **and** app/app's `WorkeeperBottomAppBar`;
+both are deleted. The destination model deliberately did **not** move
+into the kit with the treatment: the kit cannot reach
+`core:ui:navigation` or app/app's string resources, which is why the
+old kit-resident `AppBottomBarDestination` shipped hardcoded English
+labels in a Russian app. `BottomBarItem` stays in app/app and passes
+resolved icons and strings down.
 
 ```
-package: io.github.stslex.workeeper.core.ui.kit.components.bottombar
+package: io.github.stslex.workeeper.core.ui.kit.components.navbar
 
-API: AppBottomBar(currentDestination, onDestinationChange, modifier)
+API: AppNavBar(items, selectedIndex, onSelect, modifier)
+     AppNavBarItem(icon, contentDescription, testTag)
 
 Visual:
-  height: M3 NavigationBar default (80.dp in M3 v1.2+)
-  background: surface tier 0 with border subtle on top
-  active tab: accent tint, label visible
-  inactive tab: text tertiary, label visible (always show labels)
+  height: 56dp (heightMd 48 pill + 2 x Space.xs) + navigation-bar inset
+          — the drawn 60px derived, exactly as .topbar's identical 60px was
+  background: surface tier 1 (--sec), hairline (borderSubtle) on top edge
+  active: icon textPrimary on a lifted surfaceTier2 pill (liftedSurface)
+  inactive: icon textTertiary, no container
+  glyphs: iconMd, AppIcons.Home / .Trainings / .Exercises
+          (the latter two are the empty-state marks, one vector each)
+
+Motion:
+  pill offset 340ms out (transit); scaleX gel peak 1 + 0.30 x k at 42%,
+  transform-origin on the leading edge (character, §26 ledger)
+
+Haptics: none. The caller fires SegmentTick, matching every other
+         haptic in the app.
 ```
 
 ### 12. AppBottomSheet
@@ -840,7 +861,7 @@ core/ui/kit/
       tag/AppTagChip.kt
       tag/AppTagPicker.kt
       topbar/AppTopAppBar.kt
-      bottombar/AppBottomBar.kt
+      navbar/AppNavBar.kt
       sheet/AppBottomSheet.kt
       fab/AppFAB.kt
       loading/AppLoadingIndicator.kt
@@ -952,7 +973,7 @@ Goal: implement the 20 shared components.
    - Have `internal` visibility on private composables; `public` on the entry-point composable.
    - Follow existing project naming and detekt rules.
 3. AppDatePickerDialog — copy logic from the two current implementations (feature/single-training, feature/exercise), unify to one file, delete the originals from feature modules and update their imports.
-4. AppBottomBar — encode the 3-destination structure (Home / Trainings / Exercises). Destinations and icons are hard-coded in the kit (not configurable). When a feature module needs the bottom bar, it just calls `AppBottomBar()`.
+4. ~~AppBottomBar — encode the 3-destination structure (Home / Trainings / Exercises). Destinations and icons are hard-coded in the kit (not configurable). When a feature module needs the bottom bar, it just calls `AppBottomBar()`.~~ **Superseded, and this instruction is the origin of a shipped defect — kept struck through rather than deleted so the reason survives.** Hard-coding the destinations in the kit is exactly what forced English literal labels: the kit reaches neither `core:ui:navigation` (for `Screen.BottomBar`) nor app/app's `R.string.bottom_bar_label_*`. The rebuilt `AppNavBar` (§11) takes destinations as a parameter and `BottomBarItem` stays in app/app. No feature module calls it — the host does.
 5. Verify all components compile and previews render: `./gradlew :core:ui:kit:assembleDebug`.
 6. Run `./gradlew detekt lintDebug` — pass.
 7. STOP and report.

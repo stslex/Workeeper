@@ -109,17 +109,12 @@ class SessionRepositoryImpl @Inject internal constructor(
         dao.getActive()?.toData()
     }
 
-    override fun observeRecent(limit: Int): Flow<List<SessionDataModel>> = dao
-        .observeRecent(limit)
+    override fun pagedRecentWithStats(): Flow<PagingData<RecentSessionDataModel>> = Pager(
+        config = pagingConfig,
+        pagingSourceFactory = dao::pagedRecentWithStats,
+    ).flow
         .flowOn(ioDispatcher)
-        .map { list -> list.map { it.toData() } }
-
-    override fun observeRecentWithStats(
-        limit: Int,
-    ): Flow<List<RecentSessionDataModel>> = dao
-        .observeRecentWithStats(limit)
-        .flowOn(ioDispatcher)
-        .map { rows -> rows.map { it.toData() } }
+        .map { pagingData -> pagingData.map { it.toData() } }
 
     override suspend fun getSessionDetail(
         sessionUuid: String,

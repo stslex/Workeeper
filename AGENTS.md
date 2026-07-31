@@ -48,31 +48,50 @@ taking 35 min — same green, but only the second is evidence.
 ./gradlew assembleDebugAndroidTest --rerun-tasks --no-build-cache --continue                          # phase-exit (repo-wide)
 ```
 
-**Verify the commit LANDED before you mutate.** Proving a detector fires means editing the tree and
-reverting it, and `git checkout -- <file>` reverts to HEAD — taking any *uncommitted* work in that
-file with it. "Commit first" is not the rule, because issuing the commit is not the same as landing
-it: a `git commit` that the pre-commit hook rejects still returns to the prompt, and with `-q` and an
-unchecked exit code it looks exactly like success. The next revert then destroys the very work the
-commit existed to protect. **Check `git log -1` — or the exit code — and only then mutate.** Four
-rounds of work have been lost to this, the last one *after* the habit was written down.
+### Mutating the tree: use the harness. Do not hand-revert.
 
-**And that rule is a discipline where a tool would do. Fix the revert, not the habit.** A fifth round
-was lost anyway — this time to a mutation harness whose `revert()` ran `git checkout -- .`, on a tree
-carrying an hour of uncommitted work. "Commit first" had been written down, read, and not applied,
-which is what a discipline that depends on remembering does eventually. **A mutation harness has no
-business knowing what HEAD is:** it changes one file and must put back exactly the bytes it found,
-committed or not.
-
-```python
-before = path.read_text()              # snapshot
-try:     path.write_text(mutated)
-finally: path.write_text(before)       # restore, and assert it took
+```bash
+python3 documentation/mockups/mutation_harness.py \
+    --file <repo-relative path> \
+    --find '<anchor, must match exactly once>' \
+    --replace '<what to put in its place>' \
+    --task ':module:someTask --tests *SomeTest*' \
+    --expect RED          # exits non-zero on any other verdict
 ```
 
-Two more properties worth building in, both of which paid for themselves the same session:
-**refuse to run when the anchor does not match exactly once** (a silent zero-match mutation reports a
-green gate that was never mutated), and **report a compile failure as INVALID rather than as RED** —
-a mutation that does not build proves nothing, and it looks exactly like a detector firing.
+That is the whole rule. It snapshots the file's bytes, mutates, runs the gate, and restores in a
+`finally` with a post-restore assertion — **it has no idea what HEAD is, so it cannot lose
+uncommitted work.** It also refuses on an anchor that does not match exactly once (exit 2, tree
+untouched), reports a compile failure as `INVALID` rather than `RED`, and refuses a verdict when
+Gradle reports the mutated task `UP-TO-DATE`/`FROM-CACHE`. Registered `CASES` in the same file are
+for mutations worth keeping; `--file/--find/--replace` is for the throwaway ones. `--self-test`
+proves the harness can still say both RED and GREEN on demand.
+
+**This replaces a rule that failed six times, and the sixth is why it is now a command and not a
+sentence.** The rule was "verify the commit landed, then `git checkout --` to revert" — already
+escalated once to "fix the revert, not the habit" after a harness whose `revert()` ran
+`git checkout -- .` destroyed an hour of uncommitted work. It failed again anyway, hand-typed, in a
+session that had read it.
+
+The reason generalises past this one command: **the safe path cost more than the unsafe one.**
+Registering a `CASES` entry for a mutation used once and discarded is more work than `sed -i` plus
+`git checkout --`, so the destructive sequence was also the convenient one — and no amount of
+emphasis outcompetes that. One-shot mode exists to invert the cost: one command instead of three,
+with the exactly-once anchor check that `sed -i` silently declines to do.
+
+**Two properties of `git checkout` worth having by name, from round six.** The files lost were
+**untracked**, so the command reverted them to nothing at all — while two *other* untracked paths in
+the same run errored with `did not match any file(s)`. **On an untracked file `git checkout` is a
+loud no-op; on a tracked file with uncommitted changes it is a silent delete.** Same command,
+opposite outcomes, and the loud failure gives false reassurance about the quiet one. It also
+corrupts the run it appears in: every mutation after the revert measured an already-broken tree, so
+five verdicts had to be discarded and re-taken.
+
+Recovery worked only because the goldens had already been recorded — the rewritten files were
+verified byte-exact by re-running `verifyPaparazziDebug` against the committed PNGs (26/26 green),
+which is the only available check that distinguishes reconstruction from approximation. **Do not
+rely on that.** If the harness is genuinely unusable for some mutation, copy to a scratchpad path
+and `cp` back. Never `git checkout` a file you are mutating, whatever its status.
 
 **`detekt --auto-correct` needs `--no-configuration-cache` or it reports without rewriting.** With the
 configuration cache on, the run reports the same findings and changes not one byte, so the fix looks

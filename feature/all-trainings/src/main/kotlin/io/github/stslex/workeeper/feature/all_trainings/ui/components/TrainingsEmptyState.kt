@@ -19,11 +19,10 @@ import io.github.stslex.workeeper.feature.all_trainings.R
  * is now the drawn mark, the drawn strings and the drawn pair.
  *
  * The glyph is [AppIcons.Trainings]. §26 "Bottom navigation" takes the nav bar's icons from "the
- * drawn empty-state glyphs verbatim", so this path is *owed* a second consumer — but it does not
- * have one yet: `BottomBarItem` still draws `@DrawableRes` XML (`ic_bottom_app_bar_list_icon_24`
- * and friends), and [AppIcons.Trainings] has exactly one call site, this one. Stated as the
- * pending coupling rather than as an accomplished one, because "one mark, two consumers" read as a
- * fact about the code and was not.
+ * drawn empty-state glyphs verbatim", and **the second consumer has arrived**: the rebuilt
+ * `AppNavBar` draws this same `ImageVector` as its trainings tab, so the coupling is now a fact
+ * about the tree rather than a decision on record — editing this glyph edits the nav bar. The
+ * `@DrawableRes` XML the bar used to draw (`ic_bottom_app_bar_*`) is deleted.
  *
  * Placement stays delegated: §13 gives the pattern to the kit and the placement to the screen.
  */

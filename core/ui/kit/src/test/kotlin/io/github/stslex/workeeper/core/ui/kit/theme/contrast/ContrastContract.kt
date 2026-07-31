@@ -272,12 +272,27 @@ internal object ContrastContract {
         add(Declared("accent", "surfaceTier3", TypeSlot.UI_COMPONENT, "progress fill on track"))
 
         // Selected states.
+        //
+        // RE-TARGETED at the nav-bar rebuild, and the correction is the interesting half.
+        // §24's deletion perimeter predicted this row would be orphaned — "after the deletion a
+        // declared pair with no consumer, i.e. a guarantee that cannot fail (§27)" — because the
+        // description named `AppBottomBar`. **The tree disagrees.** `AppTagChip` drives exactly
+        // this pair off one flag: `ChipShell` (:76) fills with `accentTintedBackground` when
+        // selected and `ChipLabel` (:94) paints the label `accentTintedForeground`. So the pair is
+        // live, the row stays, and what was actually stale was the *citation* — which is why §24
+        // reached the wrong verdict: it read the description as the consumer list.
+        //
+        // The rebuilt bar adds no row of its own. Its two real pairs are already declared, at
+        // stricter slots than the 3:1 a glyph owes: the active icon is `textPrimary` on
+        // `surfaceTier2` (BODY, in the every-surface loop above) and the inactive icon is
+        // `textTertiary` on `surfaceTier1` (META, same loop). §26 measured them at 5.98 dark /
+        // 5.55 light for the inactive glyph on the track.
         add(
             Declared(
                 "accentTintedForeground",
                 "accentTintedBackground",
                 TypeSlot.META,
-                "AppBottomBar selected icon on indicator pill",
+                "AppTagChip selected label on selected chip fill",
             ),
         )
         add(
