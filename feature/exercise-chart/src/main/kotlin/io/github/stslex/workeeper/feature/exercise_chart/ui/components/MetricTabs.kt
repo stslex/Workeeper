@@ -51,8 +51,13 @@ import io.github.stslex.workeeper.feature.exercise_chart.mvi.model.ChartMetricUi
  *
  * Geometry, derived (§0.2): track `--sec`, radius 14px → 16dp, padding 5px → 4dp; buttons
  * flex-1, height 44px → 48dp, 14px/500 → `text.body` at Medium, `--meta` → `--max` when on,
- * radius 10px → 8dp, gap 4dp. The indicator is a **lifted surface** — `--slab` + `--slabtop`,
- * one of `liftedSurface`'s four commissioned consumers (its KDoc cites pass2d L137).
+ * button radius 10px → 8dp, gap 4dp. The indicator is a **lifted surface** — `--slab` +
+ * `--slabtop`, one of `liftedSurface`'s four commissioned consumers (its KDoc cites pass2d L137).
+ *
+ * **The thumb's radius is not the button's.** It is `TRACK_RADIUS - TRACK_PADDING` = 12dp, so its
+ * corners nest concentrically inside the track's 16dp; the drawn 10px belongs to the buttons.
+ * Shipping the button's 8dp on the thumb — which is what this did until the shape was corrected —
+ * leaves the thumb's corners tighter than the track's and the track visible behind them.
  *
  * The mockup animates `left`/`width` over 320ms — a duration the motion scale does not have
  * (140/260/520, and "anything else is a design decision"). The travel runs on `base` (260ms)
@@ -70,15 +75,23 @@ internal fun MetricTabs(
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(AppDimension.Radius.medium))
+            .clip(RoundedCornerShape(TRACK_RADIUS))
             .background(AppUi.colors.surfaceTier1)
             .padding(TRACK_PADDING)
             .testTag("ChartMetricTabs"),
     ) {
         val tabWidth = (maxWidth - TRACK_GAP * (entries.size - 1)) / entries.size
         val selectedIndex = entries.indexOf(selected)
-        val thumbShape = RoundedCornerShape(AppDimension.Radius.small)
-        val thumbInternalShape = RoundedCornerShape(AppDimension.Radius.small + TRACK_PADDING)
+        // The TAB boxes' own clip — the press target, not the indicator.
+        val tabShape = RoundedCornerShape(AppDimension.Radius.small)
+        // DERIVED, and it must stay derived. The thumb is inset by TRACK_PADDING inside a track
+        // rounded at TRACK_RADIUS, so its corners nest concentrically only at
+        // `TRACK_RADIUS - TRACK_PADDING`. Do NOT put [tabShape] here: it is the obvious-looking
+        // choice, it is what this used to be, and at 8dp against a 16dp track inset by 4dp the
+        // thumb's corners stop following the track's — the two curves diverge and the track shows
+        // through at each corner. Writing the answer as a literal 12dp is the same bug deferred:
+        // it is correct today and silently wrong the moment either token moves.
+        val thumbShape = RoundedCornerShape(TRACK_RADIUS - TRACK_PADDING)
         val indicatorOffset by animateDpAsState(
             targetValue = (tabWidth + TRACK_GAP) * selectedIndex,
             animationSpec = metricIndicatorSpec(AppUi.motion),
@@ -113,7 +126,7 @@ internal fun MetricTabs(
                         scaleX = gel.scale.value
                         transformOrigin = gel.origin
                     }
-                    .liftedSurface(shape = thumbInternalShape),
+                    .liftedSurface(shape = thumbShape),
             )
         }
 
@@ -145,7 +158,7 @@ internal fun MetricTabs(
                             scaleX = pressScale
                             scaleY = pressScale
                         }
-                        .clip(thumbShape)
+                        .clip(tabShape)
                         .clickable(
                             interactionSource = interactionSource,
                             indication = null,
@@ -178,6 +191,9 @@ internal fun <T> metricIndicatorSpec(motion: AppMotion): TweenSpec<T> = tween(
     durationMillis = motion.base,
     easing = motion.travel,
 )
+
+/** The track's own corner. [thumbShape] is derived from it — see the guard at the site. */
+private val TRACK_RADIUS = AppDimension.Radius.medium
 
 private val TRACK_PADDING = AppDimension.Space.xs
 

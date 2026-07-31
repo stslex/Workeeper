@@ -493,6 +493,76 @@ The pre-change table read `96dp / 120dp` and `827.43 / 803.43` — the same 72-b
 
 **A shared list row is now warranted — three instances, measured.** `TrainingRow` and `ExerciseRow` diff, modulo names, to **four substantive lines**: `lifted = isSelected || isActive` vs `lifted = isSelected`, one extra `testTag`, the `metaLine()` composition, and the previews. Home's row is a third payload whose deltas are the same kind. The signature that falls out — `(name, meta, trailingSlot, lifted, showDivider, onClick, onLongPress, testTag)` over already-composed strings — is available because name and meta are both `String` by the time they reach the row and `TrailingSlotKind` is already extracted (and already duplicated twice). **Deliberately not taken in the home PR**: rewriting two shipped screens inside a new screen's commit is the mixed-commit problem the data/screen split in that same PR exists to avoid. **Its own PR, and it runs AFTER home lands, not inside it** — the signature is derived from three instances rather than guessed from two, and the third has to be in the tree for that to be true of the code as well as of the argument. Its whole assertion is that **~128 goldens across the three modules stay byte-identical** (50 all-trainings + 52 all-exercises + 26 home): a pure extraction that moves a pixel has changed something it did not mean to, and that is the only claim the PR needs to make.
 
+### 24.2 The mockup pass is EIGHT items, not one
+
+Recorded as a count because it has been referred to as "the mockup pass" in the singular while
+items were added to it one at a time, and a pass whose scope is a phrase gets opened as one
+question and closed as another. What it now owes, each on an undrawn surface:
+
+1. **The resting top bar**, for the four list destinations — the one this started as.
+2. **Settings placement.** `App.kt`'s host-owned gear is deleted (B26); three screens reach settings
+   only via Home until this rules.
+3. **Home's active-session banner** — undrawn.
+4. **Home's start card** — undrawn.
+5. **Home's empty copy** — undrawn.
+6. **The editors' shared plan-editor body.**
+7. **Backup's `Unknown` state.** `BackupInfoUi.Unknown` is expressible and renders exactly what
+   `null` rendered, deliberately, until the pass rules the treatment.
+8. **The press treatment for `.nb` and `.tabs`** — currently `scale(.985)` **borrowed from `.btn`**,
+   which is the only `:active` rule in either drawing. Neither `.nb` nor `.tabs` has one, and 0.985
+   on a 129dp item is ~1.9px where on a 56dp full-width dock button it is ~2.5px, so the value does
+   not carry the same legibility down the size range. Recorded in `PressScale.kt` at the point of
+   use as borrowed, not transcribed.
+
+### 24.1 The jank investigation — where it stands, and what is still open
+
+Written here rather than left in session reports, because the next person to touch it will
+otherwise re-run all of it. Nothing below is pushed; the arc is paused on one measurement.
+
+**Settled, and standing on their own reasons:**
+
+- **`out`'s tail is a property of the curve.** 90% of the travel in the first third, the last 10%
+  taking ~67% of the animation. Reproduced on the chart tabs — which do **not** drop frames — and on
+  the physical device. `travel` `(0,0,.2,1)` replaces it on the two indicators measured (§26.2).
+  **This stands independently of the frame question and is not a jank fix.**
+- **The ripple's removal stands on the contract, not on jank.** No ripple is drawn anywhere; press
+  feedback is drawn as `.btn:active{transform:scale(.985)}`; six sites already passed
+  `indication = null`. It was measured present and then absent, but that was never the argument.
+
+**Measured and open:**
+
+- **Release is ~1.9× cheaper cold (1.8 frames against 3.4) and indistinguishable warm (1.8 against
+  1.7).** Ilya's report is a *warm* one — 19–28% loss on a third repeat of the same route, on the
+  phone. **So "the release build flies" is unaccounted for.** It is not explained by R8, by
+  `debuggable`, by the Compose debug path, or by anything else measured.
+- **The active-session timer was proposed as the non-decaying cause, tested, and killed.** With a
+  live session on Home, warm loss is 1.5–1.9 frames on both builds and cold is 1.9–2.8 — no worse
+  than without. The localisation control came free and also went the wrong way for the hypothesis:
+  `Home → Exercises` is no worse than `Trainings → Exercises`, so the cost does not follow Home.
+- **The only untested candidate is the phone's 120Hz panel halving the frame budget** — 8.33ms
+  against the emulator's 16.67ms, so a fixed cost that fits on one misses on the other every frame
+  without decaying. **This AVD cannot test it:** one mode, `fps=60.000004`,
+  `alternativeRefreshRates=[]`, `supportedModes=[]`. The phone is the arbiter and the phone is
+  Ilya's, with his data on it.
+
+**Under test on device:**
+
+- **The gel is restored on the chart tabs.** §26's row withholding it rests on a premise measured
+  false in the shipped code — the indicator does not resize (318px in every frame). The row is
+  under test, disposition **revert-if-unreadable**, and **B30** records that the drawing and the
+  code disagree about whether that indicator resizes at all.
+
+**The next measurement, and nothing else changes before it exists:** warm repeats, **release**
+build, 120Hz confirmed on the panel, tabs interleaved as control, same route and same instrument as
+the 19–28% runs. **State what the counter can still miss before running it** — it has been too
+narrow three times (pts-gaps only; then the elapsed-clock case at the start; then reading the
+trailing edge of a gel'd indicator, which lags by design), and each time the data already held the
+answer. Its known blind spots are written into the analyser itself, the largest being that it sees
+only the indicator, so jank in the destination screen reports as zero.
+
+**Only after that:** the stretch coefficient is Ilya's call, on the phone, on a release build. It
+has never been judged on a transition that presents its frames.
+
 ## 25. Blocker registry — append-only
 
 Entries are never deleted; resolution is recorded in place. New entries append. This registry exists because a rewrite lost B-2025-elevation once already.
@@ -814,6 +884,8 @@ So the mitigation reads, both halves together: **split the surface out so it can
 - **A correct transit can be imperceptible, and the two checks that already existed cannot tell.** §26.1 split the class's default curve after measuring that `out` — near-expo — spends 83 % of a fade's alpha in five frames; the split was taken **before** merging, because merging first would have shipped the reported defect with a spec change queued behind it. What generalises is the gate, not the curve. The old file asserted two transit properties: the curve stays inside `[0, 1]`, and it never reverses. Both are about **overshoot**, and `out` passes both — so when the alpha spec was mutated back onto `out` as a controlled check, **those two assertions stayed green** and only three went red: the instance identity, the "two halves do not share a curve" assertion, and the new one that says the alpha curve **is the identity**. That is the finding: *a shape assertion and an overshoot assertion detect disjoint faults, and a class that has only the second is blind to a curve that is legal and unreadable.* The identity assertion carries its own negative control for the same reason `spring` does — `out` is run through it and must fail by more than 0.1, so it is proven to distinguish `linear` from the curve it was moved off rather than from any curve at all. Verified after the change on device with the same crops as before it: the incoming layer walks evenly across ~15 frames, 250ms wall-clock against a declared 260, perceptible band 178ms against a predicted 182 (it was 64ms). And all **178** goldens across the four modules stayed byte-identical through a curve change, liveness asserted on each (62 + 52 + 50 + 14) — the standing prediction holding in the case it was written for, immediately after the case that broke it. **[V]**
 
 **Claims**
+- **Gate on ACQUIRING a commit, not only on producing one — and "tree clean" never stands in for "gates green".** `4719a78c` changed a rendered shape and re-recorded no PNGs, so twelve chart goldens went red at 22:40. They were found at 23:33, by the next commit's own gate run. Nothing false was reported in between: the last "all goldens byte-identical" was made at 22:20 against a green run and was true when written. **The failure is that a whole turn of work happened on a tree whose gates had never been run**, and the report closed with *"tree clean at 4719a78c"* — which meant `git status`, and reads as gates-green. Same family as a citation proving a section exists rather than that it contains what you need: not a false claim, a claim whose scope is narrower than how it will be read. **Rule: run the gate when you pick a commit up, not only when you put one down; and say which gate, or say nothing.** **[V]**
+- **The 86% figure that opened the whole jank investigation never reproduced. Treat it as a single-run outlier.** One interleaved run showed the nav bar losing 86% of its vsyncs (10.4 frames of lag) on the first transition after launch, and it is what made "the destination swap is expensive" look established. **Nine cold runs since — debug and release, with and without an active session, on identically seeded data — have a worst case of 3.8 frames**, and no configuration has come near it. A confound was proposed for it (an active-session timer recomposing Home every second, present in the original data and absent from the re-seed) and **tested and killed**: with the session live, warm loss is 1.5–1.9 frames on both builds and cold is 1.9–2.8, i.e. no worse than without. The likeliest remaining explanation is host contention from the instrument itself, which at that time extracted multi-gigabyte raw video per run and now crops to one pixel row. **Do not cite the 86% as a property.** **[V]**
 - **A performance measurement on a debug build is evidence about the debug build, and nothing else. State the build type or the number means nothing.** Every gate on this arc runs on debug, every frame measurement in the jank series was taken on debug, and **no step asked which build was under the instrument** — through a device pass, three rounds of frame-loss numbers, a diagnosis, and a plan to strip a component. Debug skips R8, keeps `debuggable=true`, and takes Compose's debug path; "Slow UI thread with GPU at 2ms" fits that profile exactly. Measured, on one emulator with identical seeded data and one instrument: the **cold** first transition costs **3.4 frames of lag on debug against 1.8 on release** — release is ~1.9× cheaper — while the **warm** repeats are indistinguishable (**1.7 vs 1.8**). So the build type is worth a factor of two on one component and nothing on the other, which is precisely why it cannot be left unstated. **This is a new failure, not a variant of one already here.** The instrument was right, the method was right, and the *object* was wrong — the earlier members of this family (the vacuous gate, the `FROM-CACHE` liveness claim, the citation that proves a section exists) are all about a check that answers a different question; this is a correct check pointed at a different thing. **Rule: any performance claim names its build type, and a claim about shipping behaviour is not established on debug.** **[V]**
 - **A citation proves a section exists, not that it contains what you need.** Relocating derivation out of comments into `documentation/`, **half of the 55 cited paragraphs cited a *rule* while the working lived only in the comment** — `AppTopBar`'s `.lead` hang arithmetic cites §0.2, and §0.2 carries the rounding *rule*, not that derivation. An automated verifier made it worse rather than better: it passed `AppTopBar` because `48dp` and `16dp` appear all over the docs, and matched a `13.5` that was **an SVG path in a theme-row moon icon**. Rule: **verify against a distinctive phrase from the derivation itself, never against the anchor.** Same family as the vacuous gate and the `FROM-CACHE` liveness claim — the check ran, and answered a different question. Moving on an unverified citation is a deletion wearing an anchor. **[V]**
 - Behavioural claims from reading: seven for seven wrong. Mark [I]; resolve by preflight.
