@@ -160,7 +160,9 @@ interface SessionDao {
      * dead by construction: `finishSessionAtomic` calls `trainingDao.graduateTraining(…)`
      * unconditionally, in the same transaction as the `FINISHED` flip, so **every** row this query
      * can return has `is_adhoc = 0`. See `SessionDaoPagedRecentWithStatsTest`, which asserts it
-     * against a real database rather than leaving it a reading.
+     * against a real database rather than leaving it a reading. **Filed as B29** — a shipped
+     * treatment nothing can reach, same family as B23 and the occluded settings gear, and what is
+     * owed there is a decision rather than a fix.
      *
      * The one reachable exception is a **restore**: a backup written before graduation existed, or
      * hand-edited, can insert a FINISHED session under an `is_adhoc = 1` training, and this query

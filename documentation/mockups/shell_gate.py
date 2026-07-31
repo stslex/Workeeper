@@ -121,9 +121,18 @@ APP_COLORS = (
 # citation a reader needs to not re-litigate it. Loosening check 9 to "most tokens resolve" would
 # make it the kind of check that stops seeing a real drift among the noise of expected exceptions,
 # so every exception is named individually here rather than pattern-matched away.
+#
+# `--dim` WAS an exception here and is not one any more. Its stated reason — "merged into meta, both
+# themes — no AppColors.kt slot for a fourth text-dim step (§2.5, #184 C1)" — asserted the wrong
+# thing about the code and, being an exception, is what stopped anyone re-checking it. There IS a
+# slot: `AppColors.textDim` is a declared role, assigned in both theme providers, consumed by
+# `AppSectionHeader` and `AppNumberInput`, and declared at CAPTION on every surface in
+# `ContrastContract`. What there is no separate *value* for. A role kept and repointed while the
+# drawing keeps the old value is DRIFT by B19's own discriminator, and is exactly `rust`'s shape —
+# not a non-mapping. The drawing now carries the shipped meta values under the `--dim` name (which
+# mirrors the code, where `textDim` keeps its name at meta's value), so the token resolves like any
+# other and needs no excuse. See B28.
 TOKEN_PARITY_EXCEPTIONS = {
-    "--dim": "merged into meta, both themes — no AppColors.kt slot for a fourth text-dim step "
-             "(§2.5, #184 C1)",
     "--hair-s": "EXPIRED, AND KEPT ONLY UNTIL THE PALETTE DECISION LANDS. The recorded reason was "
                 "that the slots that would take it are enabled-control-outline borders owing 3:1 "
                 "under WCAG 1.4.11, which hair-s's 1.12-1.52:1 cannot clear, so the app ships "

@@ -28,22 +28,24 @@ import org.junit.jupiter.params.provider.EnumSource
  * leading-edge origin are all mid-transit facts. `NavPillTest` asserts them directly, on the same
  * pure function and the same constants the component reads.
  *
- * **And one thing nothing covers, found by mutating rather than by reading.** Three targeted
+ * **One mutation stayed green, and what it means is narrower than it first looked.** Three targeted
  * mutations were run against this pair: the track's tier (`surfaceTier1` → `surfaceTier0`) and the
  * bar's height (56 → the untransformed 60) each reddened all four images. The third —
- * **`textTertiary` → `textDim` on the inactive glyph — stayed byte-identical green.** That is the
- * one decision §26 "Bottom navigation" argues at length: the device pass measured `--dim` on this
- * track at 3.64 dark / **2.33 light**, below the 3:1 a glyph owes, and picked `--meta` (5.98 /
- * 5.55) because of it. The mutation is the rejected choice, it compiles, and it moves zero pixels.
+ * `textTertiary` → `textDim` on the inactive glyph — stayed **byte-identical green**, because
+ * `textDim` resolves to `*_META` in both themes (§2.5 / #184 C1), so the two roles are one colour.
  *
- * The mechanism is an alias, not an oversight in this file: `textDim` resolves to `*_META` in both
- * themes (§2.5 / #184 C1 merged `dim` into `meta`), so the two roles are one colour and no picture
- * can hold them apart. So the blindness is exactly co-extensive with the alias — reinstate `dim` as
- * a distinct value (§2.5 records the path) and these goldens start discriminating on their own,
- * while `ContrastContract` already declares `textDim` on every surface and would speak the moment
- * the values diverged. Recorded here rather than patched: a picture is the wrong instrument for a
- * claim about which *name* was read, and inventing an assertion that the component reads a
- * particular token would be asserting the token rather than the frames (§27).
+ * That was first written up here as "§26's most-argued rejected decision, restored and unguarded".
+ * **It is not, and B28 is why.** The rejected value was `--dim`'s `#6B7078` / `#98A0A9`, and
+ * `textDim` does not carry it — **nothing in the tree does**, measured. The mutation renamed a role
+ * rather than restoring a decision, so it is a **no-op, not a gate hole**, and the two accuse
+ * opposite things: a hole accuses the suite, a no-op accuses the mutation. §27 carries the general
+ * rule (confirm a green mutation changes an observable before reporting it as a hole).
+ *
+ * What survives is worth keeping and is smaller: **a role kept as a name at another role's value is
+ * ungated by any picture, by construction.** Nothing to patch — a picture is the wrong instrument
+ * for a claim about which *name* was read. Reinstate `dim` as a distinct value (§2.5's path) and
+ * these goldens start discriminating on their own; `ContrastContract` already declares `textDim` on
+ * every surface and would speak the moment the values diverged.
  */
 internal class NavBarGoldenTest {
 
