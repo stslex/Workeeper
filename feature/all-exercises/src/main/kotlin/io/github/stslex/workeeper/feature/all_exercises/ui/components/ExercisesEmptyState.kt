@@ -30,10 +30,10 @@ import io.github.stslex.workeeper.feature.all_exercises.R
  * one, after that you can put it into any training".
  *
  * The glyph is [AppIcons.Exercises]. §26 "Bottom navigation" takes the nav bar's icons from "the
- * drawn empty-state glyphs verbatim", so this path is *owed* a second consumer — the bar still
- * draws `@DrawableRes` XML (`BottomBarItem`) and this is the path's only call site. The coupling is
- * a decision already taken, not a fact about the tree; [AppIcons.Trainings] carries the same
- * pending status and the same warning.
+ * drawn empty-state glyphs verbatim", and **the second consumer has arrived**: the rebuilt
+ * `AppNavBar` draws this same `ImageVector` as its exercises tab, so the coupling is now enforced
+ * by there being one vector rather than recorded as a decision to remember.
+ * [AppIcons.Trainings] made the same move in the same PR.
  *
  * Placement stays delegated: §13 gives the pattern to the kit and the placement to the screen.
  */

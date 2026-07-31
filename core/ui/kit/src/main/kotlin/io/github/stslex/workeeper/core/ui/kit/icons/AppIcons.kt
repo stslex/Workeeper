@@ -186,27 +186,50 @@ object AppIcons {
     }
 
     /**
-     * The trainings mark — `pass2d.html` `#s-empty`'s first `.empty .glyph`.
+     * The home mark — `pass2d.html` `#s-nav`'s first `.nb button`. **The one new glyph in the v3
+     * nav bar**: §26 "Bottom navigation" takes trainings and exercises from the drawn empty-state
+     * marks and says in as many words that "home is the one new mark", so this path has exactly one
+     * referent in the whole drawing and no sibling to be checked against.
      *
-     * **Owed a second consumer.** §26 "Bottom navigation" takes the nav bar's trainings icon from
-     * this exact path ("the drawn empty-state glyphs verbatim"), so when the bar is rebuilt the
-     * empty state and the nav bar become one mark and changing either changes both. Today the bar
-     * still draws `@DrawableRes` XML (`BottomBarItem`), so this path has one call site. The
-     * coupling is a decision already taken, not a fact about the tree — do not read it as one.
+     * Drawn at [NAV_GLYPH_STROKE] with its two siblings — see [Trainings] for why the set shares a
+     * weight rather than each member taking its own context's declaration.
+     */
+    val Home: ImageVector by lazy {
+        strokeIcon(
+            "Home",
+            NAV_GLYPH_STROKE,
+            "M4 10.5L12 4l8 6.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z",
+        )
+    }
+
+    /**
+     * The trainings mark — `pass2d.html` `#s-empty`'s first `.empty .glyph`, **and** `#s-nav`'s
+     * second `.nb button`. The second consumer this KDoc was owed has arrived.
+     *
+     * §26 "Bottom navigation" takes the nav bar's trainings icon from this exact path ("the drawn
+     * empty-state glyphs verbatim") and §26 "Empty state" says the same thing from the other end
+     * ("byte-identical to the nav bar's trainings icon … so changing one changes two"). **One
+     * `ImageVector` is what makes that a fact about the tree instead of a note someone has to
+     * remember** — two vectors carrying one path string satisfy the coupling only until somebody
+     * edits one of them.
+     *
+     * **The declared weights differ by 0.1 and the set ships at one of them.** `.empty .glyph svg`
+     * declares 1.6, `.nb button svg` declares 1.7. This file already rules that difference: see
+     * [MoreVertical], which serves a 1.7 top-bar context and a 1.8 card context from one vector
+     * because "the stroke difference between those two contexts is 0.1 viewBox units — invisible
+     * below 24dp". The same ruling applies here, and it decides in favour of the coupling: the
+     * alternative is a second vector per mark, which buys 0.1 of stroke and costs the property that
+     * the two surfaces cannot drift apart. [NAV_GLYPH_STROKE] and [EMPTY_GLYPH_STROKE] therefore
+     * resolve to the same number, named twice, the way [MSEG_STROKE] and [ADDEX_STROKE] already are.
      */
     val Trainings: ImageVector by lazy {
         strokeIcon("Trainings", EMPTY_GLYPH_STROKE, "M4 12h3l2.5-7 5 14L17 12h3")
     }
 
     /**
-     * The exercises mark — `pass2d.html` `#s-empty`'s third `.empty .glyph`.
-     *
-     * **Owed a second consumer, exactly as [Trainings] is:** §26 "Bottom navigation" takes the nav
-     * bar's icons from "the drawn empty-state glyphs verbatim", and `#s-list`'s bottom-clearance
-     * frame draws this same path as the bar's third tab. When the bar is rebuilt the empty state
-     * and the nav bar become one mark. Today the bar draws `@DrawableRes` XML (`BottomBarItem`) and
-     * this path has one call site — the coupling is a decision taken, not yet a fact about the
-     * tree.
+     * The exercises mark — `pass2d.html` `#s-empty`'s third `.empty .glyph`, **and** `#s-nav`'s
+     * third `.nb button`. Second consumer arrived with the nav-bar rebuild; the stroke-weight
+     * ruling and the reason for one vector rather than two are in [Trainings].
      *
      * The three `h.01` segments are zero-length strokes. With [StrokeCap.Round] they render as
      * dots — the bullet column of a list glyph — which is how the SVG draws them and why they are
@@ -243,6 +266,14 @@ object AppIcons {
 
     /** 1.6 — the empty-state glyph (pass2d `.empty .glyph svg`). */
     private const val EMPTY_GLYPH_STROKE = 1.6f
+
+    /**
+     * The nav bar's glyph weight. `.nb button svg` declares **1.7**; this resolves to
+     * [EMPTY_GLYPH_STROKE]'s 1.6 so the three marks in the bar share one weight and the two of
+     * them that also draw the empty state share one `ImageVector`. The 0.1 is the difference
+     * [MoreVertical] already rules invisible below 24dp; the full argument is in [Trainings].
+     */
+    private const val NAV_GLYPH_STROKE = EMPTY_GLYPH_STROKE
 
     /** 1.9 — the `.mseg` theme glyphs (pass2d `.mseg svg`), same weight as the addex plus. */
     private const val MSEG_STROKE = 1.9f
