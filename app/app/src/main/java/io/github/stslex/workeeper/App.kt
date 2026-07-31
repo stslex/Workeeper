@@ -15,14 +15,7 @@ import androidx.compose.animation.slideOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -53,16 +46,12 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
 import io.github.stslex.workeeper.core.ui.navigation.NavigatorHolder
-import io.github.stslex.workeeper.core.ui.navigation.Screen
 import io.github.stslex.workeeper.di.AppGraphOwner
 import io.github.stslex.workeeper.feature.app_dialogs.impl.ui.AppDialogHost
 import io.github.stslex.workeeper.host.AppNavigationHost
 import io.github.stslex.workeeper.host.BottomBarNavigationListener.Companion.rememberBottomBarNavigationListener
 import io.github.stslex.workeeper.navigation.NavigatorExt.NavigationEventBusSetup
 import kotlinx.coroutines.withTimeoutOrNull
-
-private val TOP_APP_BAR_HEIGHT = 64.dp
-private val TOP_APP_BAR_ACTION_PADDING = 4.dp
 
 @Composable
 fun App() {
@@ -198,27 +187,21 @@ fun App() {
                 navigatorHolder = holder,
             )
 
-            if (bottomBarNavigationListener.bottomBarDestination.value != null) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .systemBarsPadding()
-                        .height(TOP_APP_BAR_HEIGHT)
-                        .padding(end = TOP_APP_BAR_ACTION_PADDING),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    IconButton(
-                        modifier = Modifier.testTag("AppSettingsEntry"),
-                        onClick = { navigatorEventBus.navTo(Screen.Settings) },
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Settings",
-                            tint = AppUi.colors.textPrimary,
-                        )
-                    }
-                }
-            }
+            // The host used to hang a global settings `IconButton` here — `align(TopEnd)`,
+            // `systemBarsPadding()`, a hard-coded 64dp band — as a sibling placed AFTER
+            // `AppNavigationHost`, so it painted over whatever the current destination put in its
+            // own top bar's trailing slot. That is the host owning a band it does not own (§26,
+            // "the top bar belongs to the destination"), and the cost was not theoretical: it
+            // occluded Home's own settings action, and on both list screens it sat exactly on top
+            // of `SelectionTopBar`'s archive button — drawn, invisible, and untappable, because the
+            // gear took the tap to Settings (B26). Removed rather than moved: **where** a resting
+            // list screen offers settings is the mockup pass's ruling, and the overlay was the one
+            // thing that made the question look answered.
+            //
+            // Interim, stated rather than papered over: all-trainings, all-exercises and archive
+            // have **no settings entry of their own** until that pass rules the resting bar. Home
+            // keeps its own (`HomeScreen`'s `actions`), and Home is one tap away on the nav bar, so
+            // the three screens reach settings in two taps. Do not restore this overlay for them.
 
             SnackbarHost(
                 modifier = Modifier.align(Alignment.BottomCenter),
