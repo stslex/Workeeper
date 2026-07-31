@@ -1,16 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<!--
+  `DuplicateStrings` is suppressed for one deliberate pair: `empty_create` is the drawn CTA
+  («Создать тренировку», `#s-empty`) and `fab_create` is the FAB's content description. They say the
+  same thing in Russian because they mean the same thing, and collapsing them would tie an
+  accessibility label to a visible button's copy. all-exercises carries the same file-level
+  suppression, but for a different reason — its own pair reads «Добавить упражнение» / «Создать
+  упражнение» and does not collide; the attribute is inherited from that module's template.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="DuplicateStrings">
     <string name="feature_all_trainings_title">Тренировки</string>
-    <string name="feature_all_trainings_empty_headline">Пока нет тренировок</string>
-    <string name="feature_all_trainings_empty_supporting">Нажмите +, чтобы создать первую тренировку</string>
+    <string name="feature_all_trainings_empty_headline">Здесь появятся тренировки</string>
+    <string name="feature_all_trainings_empty_supporting">Собери шаблон заранее или начни пустую и добавляй упражнения по ходу.</string>
     <string name="feature_all_trainings_fab_create">Создать тренировку</string>
-    <string name="feature_all_trainings_chevron_description">Открыть тренировку</string>
 
     <string name="feature_all_trainings_status_in_progress_format">в процессе · началась %1$s назад</string>
     <string name="feature_all_trainings_status_last_format">последняя: %1$s</string>
     <string name="feature_all_trainings_status_never">ещё не было</string>
-    <string name="feature_all_trainings_active_pill">Активна</string>
-    <string name="feature_all_trainings_overflow_format">+%1$d</string>
 
     <string name="feature_all_trainings_relative_just_now">только что</string>
     <string name="feature_all_trainings_relative_minutes_format">%1$d мин</string>
@@ -47,4 +53,9 @@
         <item quantity="other">%d тренировки будут перенесены в архив. Восстановить можно в Настройках → Архив.</item>
     </plurals>
     <string name="feature_all_trainings_bulk_archive_impact">Обратимо · история сохранится</string>
+    <string name="feature_all_trainings_paging_loading">Загружаю</string>
+    <string name="feature_all_trainings_paging_error">Не удалось загрузить дальше</string>
+    <string name="feature_all_trainings_paging_retry">Повторить</string>
+    <string name="feature_all_trainings_empty_create">Создать тренировку</string>
+    <string name="feature_all_trainings_empty_start_blank">Начать пустую тренировку</string>
 </resources>

@@ -20,7 +20,8 @@ Project context for OpenAI Codex / Cursor agents (and any other tool that follow
 ./gradlew detekt --auto-correct
 ./gradlew lintDebug
 
-# Pre-commit hook (currently disabled at the script level — see lint-rules.md)
+# Pre-commit hook — installs .githooks. Runs detekt on EVERY commit; its early
+# exit skips lintDebug only. See lint-rules.md.
 ./setup-hooks.sh
 ```
 
@@ -43,16 +44,43 @@ taking 35 min — same green, but only the second is evidence.
 
 ```bash
 ./gradlew clean
-./gradlew assembleDebug detekt testDebugUnitTest --rerun-tasks --no-build-cache --continue   # per-commit
-./gradlew assembleDebugAndroidTest --rerun-tasks --no-build-cache --continue                 # phase-exit (repo-wide)
+./gradlew assembleDebug detekt lintDebug testDebugUnitTest --rerun-tasks --no-build-cache --continue   # per-commit
+./gradlew assembleDebugAndroidTest --rerun-tasks --no-build-cache --continue                          # phase-exit (repo-wide)
 ```
 
-**Commit before you mutate.** Proving a detector fires means editing the tree and reverting it, and `git checkout -- <file>` reverts to HEAD — taking any *uncommitted* work in that file with it. Commit first, then mutate, then revert; three separate rounds of work have been lost to this.
+**Verify the commit LANDED before you mutate.** Proving a detector fires means editing the tree and
+reverting it, and `git checkout -- <file>` reverts to HEAD — taking any *uncommitted* work in that
+file with it. "Commit first" is not the rule, because issuing the commit is not the same as landing
+it: a `git commit` that the pre-commit hook rejects still returns to the prompt, and with `-q` and an
+unchecked exit code it looks exactly like success. The next revert then destroys the very work the
+commit existed to protect. **Check `git log -1` — or the exit code — and only then mutate.** Four
+rounds of work have been lost to this, the last one *after* the habit was written down.
+
+**`detekt --auto-correct` needs `--no-configuration-cache` or it reports without rewriting.** With the
+configuration cache on, the run reports the same findings and changes not one byte, so the fix looks
+like it failed to work rather than like it never ran. Same family as the `FROM-CACHE` note above and
+§27's: a Gradle cache making a task's *evidence* answer for a task that did not execute. Note also
+that `MaxLineLength` is not auto-correctable — those are yours to wrap by hand.
+
+**"Green locally" is not "green". The pre-commit hook runs detekt and skips `lintDebug`; CI gates
+both.** So a branch can pass every commit, pass the gate command as it was written above, and fail
+the moment its PR opens — on errors that were never once shown to the person who wrote them. It is
+not hypothetical: `feature/v3-all-trainings` carried a `DuplicateStrings` pair and three
+`UnusedResources` orphaned by its own rebuild, and they surfaced only when a *stacked* branch ran
+lint for an unrelated reason. Until the hook runs lint — which is Ilya's call, it is his tooling and
+it costs about a minute a commit — **`lintDebug` belongs in the per-commit gate above**, and it is
+now in it. Note especially that `UnusedResources` is a *deletion* check: it fires on rebuilds that
+drop a call site, which is exactly what every screen in this arc does.
+
+The line this replaces said `lintDebug` was excluded because of a pre-existing `[Registered]` error
+on `Dev/StoreMobileApp`, tracked separately, and not to "fix" it here. That error is gone —
+`lint-rules/lint-baseline.xml` is empty and a full `lintDebug --rerun-tasks --no-build-cache` is
+clean across 1083 tasks — so the exclusion outlived its reason and became the thing keeping lint
+unrun. A stale exemption is worse than no exemption: it reads as a decision.
 
 **Quote the Gradle summary line as the gate evidence.** It must read `N actionable tasks: N executed`.
 Any `from cache` OR `up-to-date` count in that line **voids** the gate result — re-run before claiming
-green. (`lintDebug` is intentionally excluded from these gates — its `[Registered]` error on
-`Dev/StoreMobileApp` is pre-existing and tracked on a separate track; do not "fix" it here.)
+green.
 
 ## Canonical project knowledge
 
@@ -213,7 +241,10 @@ If no listed skill applies, continue with the normal repository instructions.
   you in a stack, which is what CI uses and is not the same baseline.
   A `:root` token change must be declared with an `Allow-root-change: <names>` commit trailer —
   the workflow reads the declaration out of the commits in the range, never from a flag.
-- The pre-commit hook in `.githooks/pre-commit` returns early — CI is the lint gate.
+- The pre-commit hook in `.githooks/pre-commit` **runs `./gradlew detekt` on every commit**; its
+  early `exit 0` sits *after* the detekt block, so it skips `lintDebug` only. Android Lint is
+  CI-gated, detekt is gated both locally and in CI. (This line said the hook "returns early" with
+  no qualification, which read as "nothing runs locally" — the opposite of what happens.)
 - Privacy policy at `docs/index.md` and `docs/_config.yml` are locked by Play Console; do not
   modify them.
 - The custom Detekt rules in `lint-rules/` enforce naming and structural rules around the MVI

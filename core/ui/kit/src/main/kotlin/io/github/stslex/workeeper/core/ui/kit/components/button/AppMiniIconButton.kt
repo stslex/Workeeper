@@ -18,12 +18,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import io.github.stslex.workeeper.core.ui.kit.theme.fadedOut
 
 /**
  * The card header's `.mini` icon button (extraction §1.5): **34×34**, an 8dp radius (mockup
@@ -52,7 +52,7 @@ fun AppMiniIconButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val background by animateColorAsState(
-        targetValue = if (isPressed) AppUi.colors.borderSubtle else Color.Transparent,
+        targetValue = AppUi.colors.borderSubtle.let { if (isPressed) it else it.fadedOut() },
         animationSpec = tween(durationMillis = AppUi.motion.fast, easing = AppUi.motion.out),
         label = "mini-bg",
     )

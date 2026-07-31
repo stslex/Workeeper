@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
+import io.github.stslex.workeeper.core.ui.kit.theme.fadedOut
 
 /**
  * The v3 **lifted surface** — the mockups' `--slabtop`, and the app's entire elevation
@@ -89,6 +90,28 @@ import io.github.stslex.workeeper.core.ui.kit.theme.AppUi
  * @param restingColor what the surface paints when it is not lifted. `surfaceTier1` is the
  *  mockups' resting card and unselected segment, so it is the default.
  */
+/**
+ * A fully transparent resting colour is repaired to **the lifted colour, faded out**.
+ *
+ * `Color.Transparent` is the honest way for a caller to say "this surface paints nothing of its
+ * own", and a caller saying that should not have to know that the fill is animated, let alone in
+ * which colour space. But transparent is transparent *black*, and a cross-fade carries hue — see
+ * [fadedOut] for the measurement. So the declaration is accepted and the endpoint is corrected
+ * here, at the one place that knows a tween is involved.
+ *
+ * The repair target is the **lifted** colour rather than the surface behind, and that is the point:
+ * a component cannot know what it is sitting on, and does not need to. Fading `surfaceTier2` out
+ * moves alpha only, so no mid-frame is a colour neither endpoint contains, whatever is underneath.
+ *
+ * Any alpha but zero passes through untouched — a caller who chose a translucent tint chose its
+ * hue too.
+ *
+ * Pure and `internal` so it can be asserted directly: no golden can see a mid-transition frame
+ * (§27, "a golden image gates only what a single static frame contains").
+ */
+internal fun restingFill(restingColor: Color, lifted: Color): Color =
+    if (restingColor.alpha == 0f) lifted.fadedOut() else restingColor
+
 @Composable
 fun Modifier.liftedSurface(
     shape: Shape,
@@ -102,12 +125,12 @@ fun Modifier.liftedSurface(
     // Every value here is a COLOUR or a bounded magnitude, so all three are driven by `out`.
     // `spring` overshoots past 1.0 and would extrapolate a colour lerp or a negative elevation.
     val surface by animateColorAsState(
-        targetValue = if (lifted) colors.surfaceTier2 else restingColor,
+        targetValue = if (lifted) colors.surfaceTier2 else restingFill(restingColor, colors.surfaceTier2),
         animationSpec = tween(durationMillis = motion.base, easing = motion.out),
         label = "liftedSurface-fill",
     )
     val highlight by animateColorAsState(
-        targetValue = if (lifted) elevation.liftHighlight else Color.Transparent,
+        targetValue = elevation.liftHighlight.let { if (lifted) it else it.fadedOut() },
         animationSpec = tween(durationMillis = motion.base, easing = motion.out),
         label = "liftedSurface-highlight",
     )

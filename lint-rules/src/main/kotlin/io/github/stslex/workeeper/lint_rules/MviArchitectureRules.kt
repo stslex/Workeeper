@@ -32,6 +32,7 @@ class MviArchitectureRuleSet : RuleSetProvider {
             NoActualForExpectSuppressionRule(config),
             NumericFontFamilyOnLocalizedTextRule(config),
             ActiveSurfaceSingleReaderRule(config),
+            FadeToTransparentRule(config),
         ),
     )
 }

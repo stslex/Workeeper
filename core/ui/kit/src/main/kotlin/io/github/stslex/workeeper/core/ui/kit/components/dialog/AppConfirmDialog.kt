@@ -32,54 +32,89 @@ fun AppConfirmDialog(
     modifier: Modifier = Modifier,
     dismissLabel: String? = null,
 ) {
+    Dialog(onDismissRequest = onDismiss) {
+        AppConfirmDialogContent(
+            title = title,
+            body = body,
+            impactSummary = impactSummary,
+            confirmLabel = confirmLabel,
+            onConfirm = onConfirm,
+            onDismiss = onDismiss,
+            modifier = modifier,
+            dismissLabel = dismissLabel,
+        )
+    }
+}
+
+/**
+ * The dialog's **content**, without the window.
+ *
+ * `Dialog {}` composes into its own window and Paparazzi models a single one, so a confirm
+ * dialog drawn only inside [AppConfirmDialog] has no visual gate at all — the combination of
+ * a surface with a drawn treatment and no way to photograph it is the one worth avoiding. The
+ * window is the part Paparazzi cannot model; the content is not, and it is where every colour,
+ * radius and rung actually lives. Splitting them costs one composable and buys the gate.
+ *
+ * [AppConfirmDialog] is the only production caller. This exists so goldens can render the same
+ * pixels without a window, which is why it must stay a pure function of its arguments.
+ */
+@Composable
+fun AppConfirmDialogContent(
+    title: String,
+    body: String,
+    impactSummary: String,
+    confirmLabel: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+    dismissLabel: String? = null,
+) {
     val dialogBg = if (AppUi.colors.isDark) AppUi.colors.surfaceTier1 else AppUi.colors.surfaceTier2
     val resolvedDismissLabel = dismissLabel ?: stringResource(R.string.core_ui_kit_action_cancel)
-    Dialog(onDismissRequest = onDismiss) {
-        Column(
-            modifier = modifier
-                .clip(AppUi.shapes.medium)
-                .background(dialogBg)
-                .padding(AppDimension.Space.lg),
-            verticalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
+    Column(
+        modifier = modifier
+            .clip(AppUi.shapes.medium)
+            .background(dialogBg)
+            .padding(AppDimension.Space.lg),
+        verticalArrangement = Arrangement.spacedBy(AppDimension.Space.md),
+    ) {
+        Text(
+            text = title,
+            style = AppUi.typography.titleLarge,
+            color = AppUi.colors.textPrimary,
+        )
+        Text(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(AppUi.shapes.small)
+                .background(AppUi.colors.setType.failureBackground)
+                .padding(AppDimension.Space.sm),
+            text = impactSummary,
+            style = AppUi.typography.labelMedium,
+            color = AppUi.colors.setType.failureForeground,
+        )
+        Text(
+            text = body,
+            style = AppUi.typography.bodyMedium,
+            color = AppUi.colors.textSecondary,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(
+                space = AppDimension.Space.sm,
+                alignment = Alignment.End,
+            ),
         ) {
-            Text(
-                text = title,
-                style = AppUi.typography.titleLarge,
-                color = AppUi.colors.textPrimary,
+            AppButton.Primary(
+                text = resolvedDismissLabel,
+                onClick = onDismiss,
+                size = AppButtonSize.MEDIUM,
             )
-            Text(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(AppUi.shapes.small)
-                    .background(AppUi.colors.setType.failureBackground)
-                    .padding(AppDimension.Space.sm),
-                text = impactSummary,
-                style = AppUi.typography.labelMedium,
-                color = AppUi.colors.setType.failureForeground,
+            AppButton.Destructive(
+                text = confirmLabel,
+                onClick = onConfirm,
+                size = AppButtonSize.MEDIUM,
             )
-            Text(
-                text = body,
-                style = AppUi.typography.bodyMedium,
-                color = AppUi.colors.textSecondary,
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(
-                    space = AppDimension.Space.sm,
-                    alignment = Alignment.End,
-                ),
-            ) {
-                AppButton.Primary(
-                    text = resolvedDismissLabel,
-                    onClick = onDismiss,
-                    size = AppButtonSize.MEDIUM,
-                )
-                AppButton.Destructive(
-                    text = confirmLabel,
-                    onClick = onConfirm,
-                    size = AppButtonSize.MEDIUM,
-                )
-            }
         }
     }
 }

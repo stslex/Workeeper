@@ -1,26 +1,47 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.all_trainings.ui.components
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.stslex.workeeper.core.ui.kit.components.empty.AppEmptyState
+import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppTheme
 import io.github.stslex.workeeper.feature.all_trainings.R
 
+/**
+ * The trainings empty state — `pass2d.html` `#s-empty`'s first `.empty`.
+ *
+ * §26 "Empty state": the glyph, the headline, the sentence and **both** CTAs are contract, not
+ * suggestion. It shipped with a filled Material dumbbell and no actions at all; every one of those
+ * is now the drawn mark, the drawn strings and the drawn pair.
+ *
+ * The glyph is [AppIcons.Trainings]. §26 "Bottom navigation" takes the nav bar's icons from "the
+ * drawn empty-state glyphs verbatim", so this path is *owed* a second consumer — but it does not
+ * have one yet: `BottomBarItem` still draws `@DrawableRes` XML (`ic_bottom_app_bar_list_icon_24`
+ * and friends), and [AppIcons.Trainings] has exactly one call site, this one. Stated as the
+ * pending coupling rather than as an accomplished one, because "one mark, two consumers" read as a
+ * fact about the code and was not.
+ *
+ * Placement stays delegated: §13 gives the pattern to the kit and the placement to the screen.
+ */
 @Composable
 internal fun TrainingsEmptyState(
+    onCreate: () -> Unit,
+    onStartBlank: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     AppEmptyState(
         modifier = modifier.testTag("AllTrainingsEmptyState"),
         headline = stringResource(R.string.feature_all_trainings_empty_headline),
         supportingText = stringResource(R.string.feature_all_trainings_empty_supporting),
-        icon = Icons.Filled.FitnessCenter,
+        icon = AppIcons.Trainings,
+        actionLabel = stringResource(R.string.feature_all_trainings_empty_create),
+        onAction = onCreate,
+        secondaryActionLabel = stringResource(R.string.feature_all_trainings_empty_start_blank),
+        onSecondaryAction = onStartBlank,
     )
 }
 
@@ -32,5 +53,5 @@ internal fun TrainingsEmptyState(
 )
 @Composable
 private fun TrainingsEmptyStatePreview() {
-    AppTheme { TrainingsEmptyState() }
+    AppTheme { TrainingsEmptyState(onCreate = {}, onStartBlank = {}) }
 }
