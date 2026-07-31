@@ -327,8 +327,14 @@ internal class AllTrainingsGoldenTest {
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
     fun screenFirstRunEmpty(theme: GoldenTheme, testInfo: TestInfo) = golden(testInfo, theme) {
+        // `pagingState(NotLoading)` and not `state(emptyList())`: `PagingData.from` never settles
+        // inside one Paparazzi frame, so this golden was photographing the LOADING spinner under a
+        // name that claims the empty state — §27's own "a claim in a filename is never checked by
+        // anything", in the file that records it. Found when the loading deferral removed the
+        // spinner and left the picture blank. The sibling cases two screens over already used the
+        // settled helper; this one did not.
         AllTrainingsScreen(
-            state = state(emptyList()).copy(activeTagFilter = persistentSetOf()),
+            state = pagingState(LoadState.NotLoading(true)).copy(activeTagFilter = persistentSetOf()),
             consume = {},
         )
     }
@@ -425,6 +431,19 @@ internal class AllTrainingsGoldenTest {
      */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
+    /**
+     * **The cold open now photographs NOTHING, and that is what it gates.**
+     *
+     * It used to show the paging spinner where row 1 will land. The loading deferral
+     * (`rememberLoadingVisible`) withholds it for 140 ms, and Paparazzi renders one frame with no
+     * clock — so at t = 0 there is no spinner, and this image is the *absence*.
+     *
+     * That makes it more useful than before, not less: delete the deferral and the spinner returns
+     * at t = 0, and these two images go red. It is the one picture-shaped gate on a change that is
+     * otherwise entirely invisible to the visual suite, and it covers the residual
+     * `LoadingVisibilityTest` names — that nothing proves the composable honours the delay it is
+     * handed. The treatment itself is still photographed, by the paging-tail component golden.
+     */
     fun screenColdOpen(theme: GoldenTheme, testInfo: TestInfo) = golden(testInfo, theme) {
         AllTrainingsScreen(state = pagingState(LoadState.Loading), consume = {})
     }

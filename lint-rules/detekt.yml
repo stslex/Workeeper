@@ -730,3 +730,5 @@ mvi-architecture:
     active: true
   FadeToTransparentRule:
     active: true
+  PagingCollectionRule:
+    active: true

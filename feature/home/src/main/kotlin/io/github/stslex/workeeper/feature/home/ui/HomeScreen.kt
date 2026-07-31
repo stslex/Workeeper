@@ -27,10 +27,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.paging.PagingData
 import androidx.paging.compose.LazyPagingItems
-import androidx.paging.compose.collectAsLazyPagingItems
 import io.github.stslex.workeeper.core.ui.kit.components.PagingUiState
+import io.github.stslex.workeeper.core.ui.kit.components.collectAsItems
 import io.github.stslex.workeeper.core.ui.kit.components.empty.AppEmptyState
 import io.github.stslex.workeeper.core.ui.kit.components.loading.AppLoadingIndicator
+import io.github.stslex.workeeper.core.ui.kit.components.paging.rememberLoadingVisible
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -102,7 +103,7 @@ internal fun HomeScreen(
     modifier: Modifier = Modifier,
     activeSessionModifier: Modifier = Modifier,
 ) {
-    val recent = state.pagingUiState().collectAsLazyPagingItems()
+    val recent = state.pagingUiState.collectAsItems()
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -160,6 +161,13 @@ private fun HomeBody(
     modifier: Modifier = Modifier,
     activeSessionModifier: Modifier = Modifier,
 ) {
+    // Computed HERE rather than inside `emptyRegion`: the deferral holds by staying in
+    // composition after loading ends, and the empty region's item is removed the instant the list
+    // has rows — so a call sited inside it would leave composition exactly when the hold was meant
+    // to begin. See `rememberLoadingVisible`.
+    val surface = homeListSurface(itemCount = recent.itemCount, loadState = recent.loadState)
+    val loadingVisible = rememberLoadingVisible(surface == HomeListSurface.LOADING)
+
     LazyColumn(
         modifier = modifier.testTag("HomeList"),
         // The rows are full-bleed and rule themselves (`#s-list` `.row`), so the list adds no
@@ -219,7 +227,7 @@ private fun HomeBody(
             }
         }
         pagingTail(items = recent, onRetry = { recent.retry() })
-        emptyRegion(items = recent)
+        emptyRegion(items = recent, loadingVisible = loadingVisible)
     }
 }
 
@@ -257,12 +265,18 @@ private fun LazyListScope.pagingTail(
  * `AnimatedContent` only on the drawn blocks makes it mount fresh at its real verdict, with current
  * and target equal and no transition to catch.
  */
-private fun LazyListScope.emptyRegion(items: LazyPagingItems<RecentSessionItem>) {
+private fun LazyListScope.emptyRegion(
+    items: LazyPagingItems<RecentSessionItem>,
+    loadingVisible: Boolean,
+) {
     val surface = homeListSurface(itemCount = items.itemCount, loadState = items.loadState)
     if (surface == HomeListSurface.CONTENT) return
     item(key = "empty_region") {
         if (surface == HomeListSurface.LOADING) {
-            PagingLoadingFooter(modifier = Modifier.fillMaxWidth())
+            // A load under 140ms draws nothing at all and the outgoing frame persists, which is
+            // what stops the flash; one that gets past 140ms stays up for at least 260ms, which is
+            // what stops a 141ms load flashing the spinner for 1ms instead.
+            if (loadingVisible) PagingLoadingFooter(modifier = Modifier.fillMaxWidth())
             return@item
         }
         val spec = continuityAlphaSpec<Float>()

@@ -16,7 +16,6 @@ import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -24,11 +23,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.paging.PagingData
 import androidx.paging.compose.LazyPagingItems
-import androidx.paging.compose.collectAsLazyPagingItems
+import io.github.stslex.workeeper.core.ui.kit.components.collectAsItems
 import io.github.stslex.workeeper.core.ui.kit.components.empty.AppEmptyState
 import io.github.stslex.workeeper.core.ui.kit.components.loading.AppLoadingIndicator
 import io.github.stslex.workeeper.core.ui.kit.components.paging.AppPagingErrorFooter
 import io.github.stslex.workeeper.core.ui.kit.components.paging.AppPagingLoadingFooter
+import io.github.stslex.workeeper.core.ui.kit.components.paging.rememberLoadingVisible
 import io.github.stslex.workeeper.core.ui.kit.components.segmented.AppSegmentedControl
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -59,13 +59,9 @@ internal fun ArchiveScreen(
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val exerciseItems = remember(state.archivedExercisesPaging) {
-        state.archivedExercisesPaging()
-    }.collectAsLazyPagingItems()
+    val exerciseItems = state.archivedExercisesPaging.collectAsItems()
 
-    val trainingItems = remember(state.archivedTrainingsPaging) {
-        state.archivedTrainingsPaging()
-    }.collectAsLazyPagingItems()
+    val trainingItems = state.archivedTrainingsPaging.collectAsItems()
 
     Column(
         modifier = modifier
@@ -286,13 +282,18 @@ private fun ArchiveEmptyRegion(
     emptyTestTag: String,
     modifier: Modifier = Modifier,
 ) {
-    when (archiveListSurface(items.itemCount, items.loadState)) {
+    val surface = archiveListSurface(items.itemCount, items.loadState)
+    // Outside the `when` on purpose: the hold works by staying in composition after loading ends.
+    val loadingVisible = rememberLoadingVisible(surface == ArchiveListSurface.LOADING)
+    when (surface) {
         ArchiveListSurface.CONTENT -> Unit
 
-        ArchiveListSurface.LOADING -> AppPagingLoadingFooter(
-            modifier = modifier.testTag("ArchiveColdOpen"),
-            label = stringResource(R.string.feature_archive_paging_loading),
-        )
+        ArchiveListSurface.LOADING -> if (loadingVisible) {
+            AppPagingLoadingFooter(
+                modifier = modifier.testTag("ArchiveColdOpen"),
+                label = stringResource(R.string.feature_archive_paging_loading),
+            )
+        }
 
         ArchiveListSurface.REFRESH_ERROR -> AppPagingErrorFooter(
             modifier = modifier.testTag("ArchiveColdOpenError"),

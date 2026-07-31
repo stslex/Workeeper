@@ -33,6 +33,7 @@ class MviArchitectureRuleSet : RuleSetProvider {
             NumericFontFamilyOnLocalizedTextRule(config),
             ActiveSurfaceSingleReaderRule(config),
             FadeToTransparentRule(config),
+            PagingCollectionRule(config),
         ),
     )
 }

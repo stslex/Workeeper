@@ -472,6 +472,19 @@ internal class AllExercisesGoldenTest {
      */
     @ParameterizedTest
     @EnumSource(GoldenTheme::class)
+    /**
+     * **The cold open now photographs NOTHING, and that is what it gates.**
+     *
+     * It used to show the paging spinner where row 1 will land. The loading deferral
+     * (`rememberLoadingVisible`) withholds it for 140 ms, and Paparazzi renders one frame with no
+     * clock — so at t = 0 there is no spinner, and this image is the *absence*.
+     *
+     * That makes it more useful than before, not less: delete the deferral and the spinner returns
+     * at t = 0, and these two images go red. It is the one picture-shaped gate on a change that is
+     * otherwise entirely invisible to the visual suite, and it covers the residual
+     * `LoadingVisibilityTest` names — that nothing proves the composable honours the delay it is
+     * handed. The treatment itself is still photographed, by the paging-tail component golden.
+     */
     fun screenColdOpen(theme: GoldenTheme, testInfo: TestInfo) = golden(testInfo, theme) {
         AllExercisesScreen(state = pagingState(LoadState.Loading), consume = {})
     }

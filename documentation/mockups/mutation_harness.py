@@ -118,6 +118,23 @@ _GRADLE_FLAGS = ["--rerun-tasks", "--no-build-cache"]
 
 _REUSE_MARKERS = ("UP-TO-DATE", "FROM-CACHE")
 
+# Mutating a file under lint-rules/ changes the RULE JAR, and the Gradle daemon serves whichever
+# jar it loaded first — so detekt judges the edit with stale bytecode and the mutation appears to
+# have no effect. `--rerun-tasks` does not defeat this and neither does `--no-build-cache`; only
+# stopping the daemon does.
+#
+# Measured, and it is why this exists: removing `PagingCollectionRule`'s kit-helper exclusion — a
+# mutation that unquestionably changes the rule's behaviour — came back
+# `*** GREEN — GATE HOLE ***`. Run by hand with `--stop` first, the same mutation reddens
+# `:core:ui:kit:detekt` immediately. So the harness's most alarming verdict was produced by a rule
+# that never ran, which is the third member of the family it already refuses twice (a mutation that
+# did not compile; a task whose output was reused).
+#
+# Always stopping is a few seconds on every case and removes a whole class of false verdict; the
+# alternative — stopping only for `lint-rules/` paths — needs the harness to know which edits are
+# rule edits, which is exactly the kind of cleverness that fails quietly.
+_RULE_JAR_PREFIX = "lint-rules/"
+
 
 def _reused_outputs(out: str, task: str) -> str | None:
     """Return the offending line if Gradle reported the mutated task as reused, else `None`.
@@ -149,6 +166,9 @@ def case(name: str, rel: str, old: str, new: str, task: str) -> str:
 
     try:
         p.write_text(before.replace(old, new), encoding="utf-8")
+        # See _RULE_JAR_PREFIX: the daemon caches the loaded rule jar, so without this a rule
+        # mutation is judged against stale bytecode and scores as a GATE HOLE.
+        subprocess.run(["./gradlew", "--stop"], cwd=ROOT, capture_output=True, text=True)
         r = subprocess.run(
             ["./gradlew", *task.split(), *_GRADLE_FLAGS],
             cwd=ROOT,

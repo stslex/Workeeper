@@ -29,9 +29,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.paging.compose.LazyPagingItems
-import androidx.paging.compose.collectAsLazyPagingItems
+import io.github.stslex.workeeper.core.ui.kit.components.collectAsItems
 import io.github.stslex.workeeper.core.ui.kit.components.dialog.AppConfirmDialog
 import io.github.stslex.workeeper.core.ui.kit.components.fab.AppFAB
+import io.github.stslex.workeeper.core.ui.kit.components.paging.rememberLoadingVisible
 import io.github.stslex.workeeper.core.ui.kit.components.topbar.AppTopAppBar
 import io.github.stslex.workeeper.core.ui.kit.icons.AppIcons
 import io.github.stslex.workeeper.core.ui.kit.theme.AppDimension
@@ -66,9 +67,7 @@ internal fun AllTrainingsScreen(
     consume: (Action) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val items = remember(state.pagingUiState) {
-        state.pagingUiState()
-    }.collectAsLazyPagingItems()
+    val items = state.pagingUiState.collectAsItems()
 
     Box(
         modifier = modifier
@@ -338,8 +337,13 @@ private fun BoxScope.EmptyRegion(
         filterActive = filterActive,
         selecting = state.isSelecting,
     )
+    // Deferred, then held for a minimum — see `rememberLoadingVisible`. Called OUTSIDE the branch
+    // that draws the spinner: the hold works by staying in composition after loading ends, so a
+    // call sited inside `if (surface == LOADING)` would leave composition exactly when the minimum
+    // was meant to start.
+    val loadingVisible = rememberLoadingVisible(surface == ListSurface.LOADING)
     if (surface.crossfades.not()) {
-        if (surface == ListSurface.LOADING) {
+        if (surface == ListSurface.LOADING && loadingVisible) {
             ColdOpenLoading(modifier = Modifier.align(Alignment.TopCenter))
         }
         return
