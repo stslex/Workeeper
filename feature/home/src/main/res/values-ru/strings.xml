@@ -22,6 +22,11 @@
     <string name="feature_home_conflict_unnamed">Тренировка</string>
     <string name="feature_home_conflict_progress_format">%1$d из %2$d упражнений выполнено</string>
 
+    <string name="feature_home_paging_loading">Загружаю</string>
+    <string name="feature_home_paging_error">Не удалось загрузить дальше</string>
+    <string name="feature_home_paging_retry">Повторить</string>
+    <string name="feature_home_refresh_error">Не удалось загрузить список</string>
+
     <plurals name="feature_home_recent_exercises_count">
         <item quantity="one">%d упражнение</item>
         <item quantity="few">%d упражнения</item>

@@ -22,6 +22,11 @@
     <string name="feature_home_conflict_unnamed">Workout</string>
     <string name="feature_home_conflict_progress_format" tools:ignore="PluralsCandidate">%1$d of %2$d exercises done</string>
 
+    <string name="feature_home_paging_loading">Loading</string>
+    <string name="feature_home_paging_error">Couldn’t load more</string>
+    <string name="feature_home_paging_retry">Retry</string>
+    <string name="feature_home_refresh_error">Couldn’t load the list</string>
+
     <plurals name="feature_home_recent_exercises_count">
         <item quantity="one">%d exercise</item>
         <item quantity="other">%d exercises</item>
