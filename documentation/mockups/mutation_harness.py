@@ -34,6 +34,21 @@ loop of mutations fail loudly on the first surprise instead of scrolling past it
 **Nothing in this file knows what HEAD is, in either mode.** That is the property, and it is why
 neither mode can lose uncommitted work.
 
+## The one verdict this harness cannot check for you
+
+`INVALID` covers two ways a run fails to measure what it appears to: the mutation did not compile,
+or Gradle reused the task's output. There is a **third**, and it compiles and executes cleanly —
+**the mutation changed no observable.** Renaming a role to its own alias, swapping a constant for a
+second constant holding the same bytes: the two programs are identical, so the gate is not at fault
+for staying green, and `*** GREEN — GATE HOLE ***` is then an accusation against the wrong party.
+
+A green mutation accuses one of two opposite things and only the reader can tell which. Mutate a
+**behaviour** (a predicate, a branch, a duration, a value) and green means the suite is blind.
+Mutate a **name** and green means nothing happened. **Before believing a GATE HOLE verdict, name the
+observable the mutation changed** — if that is hard to do, the difficulty is the finding. §27 carries
+the rule and the witness that produced it (`textTertiary` → `textDim`, which is a rename because
+both resolve to `*_META`).
+
 ## Three things this file got wrong, all found in review, all of the same family
 
 Each was a way of **reporting a verdict from a run that did not happen** — which is precisely the

@@ -29,11 +29,25 @@ import org.junit.jupiter.params.provider.EnumSource
 /**
  * The Home golden suite — **recorded from zero**, which is the reason it exists at this size.
  *
- * §24's "Golden coverage gaps" row: a whole-surface change with no before-picture is a diff nobody
- * can read. Home had none at all, so `recordPaparazziDebug` ran first, on the pre-extraction screen,
- * and this commit's images are the *after*. The harness comes from `core:ui:kit`'s testFixtures, so
- * device config, tolerance and canvas width are the same numbers the three siblings are measured at
- * and cannot drift.
+ * §24's "Golden coverage gaps" row says a whole-surface change with no before-picture is a diff
+ * nobody can read, and makes recording one an **entry condition** of a rework PR. **That condition
+ * was not met here, and this KDoc first claimed it was.**
+ *
+ * The false sentence read: "`recordPaparazziDebug` ran first, on the pre-extraction screen, and
+ * this commit's images are the *after*." No pre-extraction set was ever recorded. The plugin, the
+ * gate wiring and these 26 PNGs landed in the **same commit** as the row and screen rewrite
+ * (`80b6234e`), so every image here is an **after** and there is no before to diff against. The
+ * delta is legible only from the source diff and the commit body, which is exactly the situation
+ * the entry condition exists to prevent.
+ *
+ * Left as a correction rather than repaired by recording the old screen now: a "before" produced
+ * after the fact is a reconstruction, and labelling a reconstruction as a baseline is a worse
+ * artefact than not having one. What these 26 images *are* good for is stated honestly — they are
+ * the baseline for **everything after this commit**, including the four undrawn regions the mockup
+ * pass will rule on, which is why the banner and the start card are photographed at all.
+ *
+ * The harness comes from `core:ui:kit`'s testFixtures, so device config, tolerance and canvas width
+ * are the same numbers the three siblings are measured at and cannot drift.
  *
  * ## Whole surface, both themes, transients as pairs
  *
