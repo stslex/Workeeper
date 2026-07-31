@@ -25,9 +25,35 @@ interface AllTrainingsStore : Store<State, Action, Event> {
         val activeTagFilter: ImmutableSet<String>,
         val selectionMode: SelectionMode,
         val pendingBulkDelete: PendingBulkDelete?,
+        val hasActiveSession: Boolean,
     ) : Store.State {
 
         val isSelecting: Boolean get() = selectionMode is SelectionMode.On
+
+        /**
+         * Whether the empty state may offer «Начать пустую тренировку».
+         *
+         * **The pair is contract (§26 "Empty state"), and this is the one condition that withdraws
+         * half of it.** Not a deviation invented here: `HomeStore.showStartCta` is
+         * `activeSession == null && !isLoading`, so the app already decided that a blank-start
+         * affordance withdraws while a workout is running. This screen is the second door to the
+         * same route and takes the same rule.
+         *
+         * Why it is load-bearing rather than tidy: the route passes two null UUIDs, which sends
+         * `LiveWorkoutCommonHandler.createSession` down its blank branch to
+         * `createAdhocSession` — an **unconditional** insert of a fresh ad-hoc training plus an
+         * `IN_PROGRESS` session. With one already running, `SessionDao.observeActive()` is
+         * `WHERE state = 'IN_PROGRESS' LIMIT 1` with no `ORDER BY`, so the app then follows an
+         * arbitrary one of the two and the other is orphaned: unreachable and unfinishable.
+         *
+         * And the collision is invisible on this screen by construction, which is what made it
+         * reachable — `pagedActiveWithStats` filters `is_adhoc = 0`, so a running ad-hoc workout
+         * puts no row in this list, and the list reads as empty while a workout is in progress.
+         *
+         * B27 records the underlying hole, because the guard being here means every *future* entry
+         * point has to remember it too.
+         */
+        val showStartBlank: Boolean get() = hasActiveSession.not()
 
         /**
          * BackHandler intercepts the gesture only when selection mode is on, so the
@@ -60,6 +86,10 @@ interface AllTrainingsStore : Store<State, Action, Event> {
                 activeTagFilter = persistentSetOf(),
                 selectionMode = SelectionMode.Off,
                 pendingBulkDelete = null,
+                // Assumed running until the first emission says otherwise: the affordance this
+                // gates creates a second session if it is wrong, so the safe default is the one
+                // that withholds it for a frame, not the one that offers it.
+                hasActiveSession = true,
             )
         }
     }

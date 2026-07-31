@@ -144,6 +144,10 @@ internal class AllTrainingsGoldenTest {
         activeTagFilter = persistentSetOf("g1", "g2"),
         selectionMode = selection,
         pendingBulkDelete = null,
+        // Nothing running, so the empty state's drawn PAIR is whole — which is what the recorded
+        // images show. The withdrawn-CTA case is `StartBlankGateTest`'s, not a golden's: a
+        // picture cannot say which actions it was handed, only which it drew.
+        hasActiveSession = false,
     )
 
     // ---- components --------------------------------------------------------------------------

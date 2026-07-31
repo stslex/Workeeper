@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package io.github.stslex.workeeper.feature.all_trainings.domain
 
+import io.github.stslex.workeeper.core.data.exercise.session.SessionRepository
 import io.github.stslex.workeeper.core.data.exercise.tags.TagRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository
 import io.github.stslex.workeeper.core.data.exercise.training.TrainingRepository.BulkArchiveOutcome
@@ -18,9 +19,11 @@ internal class AllTrainingsInteractorImplTest {
 
     private val trainingRepository = mockk<TrainingRepository>(relaxed = true)
     private val tagRepository = mockk<TagRepository>(relaxed = true)
+    private val sessionRepository = mockk<SessionRepository>(relaxed = true)
     private val interactor = AllTrainingsInteractorImpl(
         trainingRepository = trainingRepository,
         tagRepository = tagRepository,
+        sessionRepository = sessionRepository,
         defaultDispatcher = Dispatchers.Unconfined,
     )
 

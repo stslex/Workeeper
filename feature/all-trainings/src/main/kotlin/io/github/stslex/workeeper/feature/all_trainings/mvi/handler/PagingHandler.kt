@@ -43,7 +43,10 @@ internal class PagingHandler @Inject constructor(
 
     override fun invoke(action: Action.Paging) {
         when (action) {
-            Action.Paging.Init -> observeAvailableTags()
+            Action.Paging.Init -> {
+                observeAvailableTags()
+                observeActiveSession()
+            }
         }
     }
 
@@ -54,6 +57,18 @@ internal class PagingHandler @Inject constructor(
                     availableTags = tags.map { it.toTagUi() }.toImmutableList(),
                 )
             }
+        }
+    }
+
+    /**
+     * Gates the empty state's blank-start CTA. See `State.showStartBlank` for why it exists and
+     * B27 for the hole underneath it — in short, the route it guards inserts a second
+     * `IN_PROGRESS` session unconditionally, and a running ad-hoc workout is invisible in this
+     * screen's own list.
+     */
+    private fun observeActiveSession() {
+        interactor.observeHasActiveSession().launch { hasActive ->
+            updateStateImmediate { current -> current.copy(hasActiveSession = hasActive) }
         }
     }
 }

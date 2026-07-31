@@ -365,7 +365,11 @@ private fun BoxScope.EmptyRegion(
                 ListSurface.FIRST_RUN -> TrainingsEmptyState(
                     modifier = Modifier.align(Alignment.Center),
                     onCreate = { consume(Action.Click.OnEmptyCreate) },
-                    onStartBlank = { consume(Action.Click.OnEmptyStartBlank) },
+                    // Withdrawn while a workout is running — `State.showStartBlank`, and the same
+                    // rule `HomeStore.showStartCta` already applies to the other door to this
+                    // route. Offering it here starts a SECOND session (B27).
+                    onStartBlank = { consume(Action.Click.OnEmptyStartBlank) }
+                        .takeIf { state.showStartBlank },
                 )
 
                 ListSurface.FILTERED_EMPTY -> FilteredEmptyState(
