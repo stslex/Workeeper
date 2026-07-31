@@ -182,16 +182,9 @@ fun App() {
                 navigatorHolder = holder,
             )
 
-            // The host used to hang a global settings `IconButton` here — `align(TopEnd)`,
-            // `systemBarsPadding()`, a hard-coded 64dp band — as a sibling placed AFTER
-            // `AppNavigationHost`, so it painted over whatever the current destination put in its
-            // own top bar's trailing slot. That is the host owning a band it does not own (§26,
-            // "the top bar belongs to the destination"), and the cost was not theoretical: it
-            // occluded Home's own settings action, and on both list screens it sat exactly on top
-            // of `SelectionTopBar`'s archive button — drawn, invisible, and untappable, because the
-            // gear took the tap to Settings (B26). Removed rather than moved: **where** a resting
-            // list screen offers settings is the mockup pass's ruling, and the overlay was the one
-            // thing that made the question look answered.
+            // NO host-owned affordance goes here. The host may not place a control in a band a
+            // screen owns and can replace whole — §26, "A host-owned affordance may not float over
+            // a bar a screen replaces", and B26 for what the last one cost.
             //
             // Interim, stated rather than papered over: all-trainings, all-exercises and archive
             // have **no settings entry of their own** until that pass rules the resting bar. Home

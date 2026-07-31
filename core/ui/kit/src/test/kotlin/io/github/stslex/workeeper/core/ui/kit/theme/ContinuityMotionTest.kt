@@ -11,18 +11,16 @@ import org.junit.jupiter.api.Test
 /**
  * The gate for §26's **characterless transit specs** — the frames no golden can see.
  *
- * Scope first, because the row's own first draft got this wrong: §26 splits an animation into
- * *transit* (that a property is interpolated at all — the class) and *character* (which curve
- * carries it, or a second property alongside — §5's business, not the class's). This file gates
- * the **defaults** a transit takes when it carries no character. It does **not** assert that
- * nothing in the app overshoots: the FAB's `border-radius` rides `--e-spring` and the nav pill
- * stretches to 1.30, both approved, both recorded, and neither routed through this file.
- * A member carrying character is gated by its own row.
+ * **Scope.** §26 splits an animation into *transit* (that a property is interpolated at all — the
+ * class) and *character* (which curve carries it — §5's business). This file gates the **defaults**
+ * a transit takes when it carries no character. It does **not** assert that nothing in the app
+ * overshoots: the FAB's `border-radius` rides `--e-spring` and the nav pill stretches, both
+ * approved and both recorded in §26, neither routed through this file. A member carrying character
+ * is gated by its own row.
  *
- * §27 states the reason in its own words: a golden pair pins the two endpoints and says nothing
- * whatever about what happens between them, and motion's confirmed casualty on this exact
- * interaction was a mid-frame that both endpoint pictures were right about. So the endpoints are
- * the goldens' job and this file's subject is everything in between.
+ * Why the frames and not the endpoints: §27, "a golden image gates only what a single static frame
+ * contains" — motion's confirmed casualty on this exact interaction was a mid-frame that both
+ * endpoint pictures were right about.
  *
  * ## There are two specs now, and that is a cost this file pays in full
  *
@@ -124,12 +122,9 @@ internal class ContinuityMotionTest {
     /**
      * **The curve under test is each spec's own, never [AppMotion.out] or [AppMotion.linear].**
      *
-     * Written the other way first, and the mutation caught it: with the spec swapped to `spring`,
-     * both transit assertions stayed green while the identity assertions went red, because they
-     * were sampling the curve the class is *supposed* to use instead of the curve it *does*. That
-     * is §27's "a gate that reads a file is not a gate that the file works" at the smallest possible
-     * scale — and it matters more than the identity checks do, because the identity checks say "the
-     * name is right" where these say "the frames are right".
+     * **Sample the curve the spec RESOLVES, never the token it was built from** — §27. Sampling
+     * `motion.out` instead of `continuityPositionalSpec(motion).easing` reads correctly and gates
+     * nothing: it asserts a property of the curve the class is *supposed* to use.
      */
     private fun excursions(curve: Easing) = samples.filter { t ->
         val v = curve.transform(t)

@@ -136,12 +136,11 @@ data class AppTypography(
      *
      * ## Why this is a name and not a seventh step
      *
-     * The mockups draw the timer at **32px**, and the ladder rule (v3 spec §0.2) rounds that
-     * onto the existing 34 rung — text landing 1–2px off the mockup is correct, not a bug. So
-     * there is nothing to add to [AppTypeStyles]: the size the timer needs already exists, and
-     * a seventh member on a six-rung record is precisely what that class's KDoc forbids. What
-     * was missing was a *name*. An alias is how this file already turns fifteen Material names
-     * into six sizes; this is the same move for a slot Material has no name for.
+     * The drawn 32px rounds onto the existing 34 rung (§0.2; the timer's two drawn sizes are
+     * screen-extraction.md, "The session timer is a second tier"). So there is nothing to add to
+     * [AppTypeStyles] — **a seventh member on a six-rung record is what that class's KDoc
+     * forbids.** What was missing was a *name*, and an alias is how this file already turns
+     * fifteen Material names into six sizes.
      *
      * Being an alias, it is the same [TextStyle] instance as `numeric.display` — so it carries
      * `tnum` by construction (v3 spec C1) rather than by a promise, and adding it moved zero

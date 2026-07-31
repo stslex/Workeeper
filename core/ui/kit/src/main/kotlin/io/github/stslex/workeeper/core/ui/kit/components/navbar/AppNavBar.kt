@@ -54,25 +54,10 @@ import kotlin.math.min
  *
  * ## Geometry, derived rather than transcribed (§0.2)
  *
- * The drawn `.nb{height:60px;padding:5px 8px;gap:4px}` decomposes exactly the way `.topbar`'s
- * identical `min-height:60px` already decomposed in [AppDimension] terms — and it is the *same
- * drawn number*, so it gets the *same answer*:
- *
- * | drawn | parts | ships as |
- * |---|---|---|
- * | `height:60px` | pill 50px + 2×5px padding | `heightMd` (48) + 2×`Space.xs` (4) = **56dp** (`heightLg`) |
- * | `padding:5px 8px` | — | `Space.xs` (4) vertical, `Space.sm` (8) horizontal |
- * | `gap:4px` | — | `Space.xs` (4) |
- * | `border-radius:12px` | — | `Radius.small` (8) — the rung `.icon-btn`'s 12px already took |
- * | `svg{width:22px}` | — | `iconMd` (24) — the rung `AppEmptyState` took for the identical 22px draw |
- *
- * **56, not 60**, and the difference is not a rounding preference: 60 is not on the height ladder
- * (32/40/48/56/64) and §0.2 says raw px round onto it, ties toward the value with call sites.
- * `AppTopBar` states the derivation for the same input in as many words — "`min-height:60px`
- * resolves as 48dp button + 2×4dp vertical padding = 56dp (`heightLg`)" — so shipping 60 here
- * would put two different dp answers in the app for one drawn px value, on two bars §26 explicitly
- * says match each other. Note the pill's 48dp is `MetricTabs`' `TAB_HEIGHT` unchanged, which is
- * the same grammar arriving at the same rung from the other direction.
+ * `.nb{height:60px;padding:5px 8px;gap:4px}` ships as **56dp** (`heightLg`), `Space.xs` / `Space.sm`
+ * padding, `Space.xs` gap, `Radius.small`, `iconMd`. **56, not 60** — 60 is not a height rung, and
+ * the same drawn number was already resolved this way by `.topbar`. The decomposition is §26,
+ * "Bottom navigation"; the height token carries it at [AppDimension.BottomNavBar].
  *
  * ## The hairline
  *

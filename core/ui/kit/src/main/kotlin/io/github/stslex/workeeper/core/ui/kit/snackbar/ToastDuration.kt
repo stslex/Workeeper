@@ -51,10 +51,9 @@ import androidx.compose.ui.platform.AccessibilityManager
  * user-visible behaviour is identical for everyone who has not set a display-timeout preference.
  * It also moves the toast from the drawn 5000ms to 10000ms without saying so.
  *
- * `ToastDurationTest` is the gate, and it was proven to fire rather than assumed: dropping the
- * accessibility manager reddens three of its five cases, and rounding [TOAST_VISIBLE_MS] onto an
- * M3 rung reddens the other two. The pointer is here so the gate is findable **before** the
- * simplification is attempted rather than after it goes red (B25, §10.4).
+ * `ToastDurationTest` is the gate and was proven to fire rather than assumed — the two mutations
+ * and their counts are in B25. The pointer is here so the gate is findable **before** the
+ * simplification is attempted rather than after it goes red.
  */
 fun toastTimeoutMillis(
     accessibilityManager: AccessibilityManager?,

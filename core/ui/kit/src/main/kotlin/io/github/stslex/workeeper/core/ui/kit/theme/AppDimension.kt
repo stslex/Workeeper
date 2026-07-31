@@ -61,13 +61,10 @@ object AppDimension {
          * `top:5px;bottom:5px` — so 60px decomposes as **pill 50 + 2×5 padding**, and on the
          * ladder that is `heightMd` (48) + 2×`Space.xs` (4) = **56dp**.
          *
-         * 60 is not a rung (32/40/48/56/64) and §0.2 rounds raw px onto the ladder. The same drawn
-         * number was already resolved this way once: `AppTopBar` states it in as many words —
-         * "`min-height:60px` resolves as 48dp button + 2×4dp vertical padding = 56dp (`heightLg`)"
-         * — and §26 says the two bars match, so transcribing 60 here would put two different dp
-         * answers in the app for one drawn value on the two surfaces that are supposed to agree.
-         * The pill's 48dp is also `MetricTabs`' `TAB_HEIGHT` unchanged, which is the same `.tabs`
-         * grammar reaching the same rung from the other side.
+         * 60 is not a rung (32/40/48/56/64) and §0.2 rounds raw px onto the ladder. **Transcribing
+         * 60 here would put two different dp answers in the app for one drawn value**, on the two
+         * bars §26 pairs — the full derivation, including why `.topbar` already answered it, is
+         * §26 "Bottom navigation".
          *
          * Was **72dp** — a v2 rung with no drawn referent at all, which is what §24 flagged.
          *
