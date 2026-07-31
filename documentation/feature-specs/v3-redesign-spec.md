@@ -529,6 +529,30 @@ otherwise re-run all of it. Nothing below is pushed; the arc is paused on one me
   feedback is drawn as `.btn:active{transform:scale(.985)}`; six sites already passed
   `indication = null`. It was measured present and then absent, but that was never the argument.
 
+**WITHDRAWN — two conclusions the measurement taken for them does not support.**
+
+The instrument used throughout reads **one pixel row inside the indicator** and scores how stale the
+indicator is against the animation clock. It therefore cannot see the destination screen at all.
+**The complaint was never about the indicator; it was about the transition the indicator sits in** —
+so the blind spot coincides exactly with the region under investigation, and two results read as
+findings are actually silences.
+
+- **The tabs control does not establish that the cost is the destination swap.** "The tabs lose
+  0–1 frames and the nav bar loses 7–10" was read as isolating the swap, because the tabs change no
+  destination. The competing reading is that the instrument measured *an indicator* in both cases,
+  and the tabs simply have no destination for a destination-blind instrument to miss. **The
+  measurement does not distinguish those two, and it was presented as if it did.**
+- **The localisation does not rule Home out.** "`Home → Exercises` is no worse than
+  `Trainings → Exercises`" was taken as showing the cost does not follow Home. Both routes swap a
+  destination; if the cost lives *inside* the destination, the instrument saw neither, and equality
+  between two unobserved quantities is not evidence about either.
+
+**Neither claim is refuted — both are unsupported**, which is a different and weaker position than
+either "confirmed" or "disproved", and it is the one on the record. The general form is worth
+keeping past this case: **an instrument scoped to one element cannot answer a question about the
+transition that element sits in.** Scope the instrument to the claim, not to the thing that is
+easiest to measure.
+
 **Measured and open:**
 
 - **Release is ~1.9× cheaper cold (1.8 frames against 3.4) and indistinguishable warm (1.8 against
@@ -553,12 +577,30 @@ otherwise re-run all of it. Nothing below is pushed; the arc is paused on one me
   code disagree about whether that indicator resizes at all.
 
 **The next measurement, and nothing else changes before it exists:** warm repeats, **release**
-build, 120Hz confirmed on the panel, tabs interleaved as control, same route and same instrument as
-the 19–28% runs. **State what the counter can still miss before running it** — it has been too
-narrow three times (pts-gaps only; then the elapsed-clock case at the start; then reading the
-trailing edge of a gel'd indicator, which lags by design), and each time the data already held the
-answer. Its known blind spots are written into the analyser itself, the largest being that it sees
-only the indicator, so jank in the destination screen reports as zero.
+build, 120Hz confirmed on the panel, tabs interleaved as control, same route as the 19–28% runs.
+
+**It needs a SECOND instrument, not a better counter.** The indicator counter has been widened
+three times (pts-gaps only; then the elapsed-clock case at the start; then reading the trailing edge
+of a gel'd indicator, which lags by design) and each time the data already held the answer — but the
+remaining gap is not narrowness, it is **scope**. No amount of refining a one-row reader makes it
+see the destination. The pair to run, with what each half can and cannot see stated **before** it
+runs rather than after:
+
+| | sees | cannot see |
+|---|---|---|
+| **whole-screen per-frame change** — the recording already captures composited output, so diff each presented frame against the previous and bucket the changed area by region (bar / destination / both) | whether **anything** was presented anew at a given vsync, and **where** on the screen it changed — which is what attributes cost to the destination rather than to the indicator | a change below the codec's quantisation ("no change" means *no change above encoder noise*); and it cannot tell a dropped frame from a legitimately static one, so it is only interpretable **inside the window where something is known to be moving** |
+| **`gfxinfo framestats`**, reset immediately before the transition | whether each frame was **produced** within budget, plus `Slow UI thread` / GPU split | whether the frame ever reached the display, and it aggregates over the whole reset window rather than the transition alone |
+
+**Together** they separate the three cases the single instrument conflates: a gap with a slow
+production frame is *produced late*; a gap with clean production is *produced and not presented*;
+neither is clean. **Calibrate the recorder first, per device** — the phone's encoder drops duplicate
+frames while the emulator's repeats them, so the same evidence appears as a pts gap on one and as an
+identical frame on the other, and reading the wrong one is how the first verdict went wrong.
+
+**Also stated in advance: what the pair still will not see.** Neither half distinguishes the app
+failing to draw from the compositor failing to composite beyond the two-case split above; neither
+sees anything off-screen or occluded; and `--latency`, which would have given per-frame present
+timestamps directly, is gutted on Android 16 (refresh period only, zero frame rows).
 
 **Only after that:** the stretch coefficient is Ilya's call, on the phone, on a release build. It
 has never been judged on a transition that presents its frames.
